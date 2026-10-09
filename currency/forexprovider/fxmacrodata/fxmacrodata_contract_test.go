@@ -302,17 +302,17 @@ func TestForex(t *testing.T) {
 		StartDate:      day,
 		EndDate:        day,
 		DatasetVersion: "v1",
-		Coverage:       map[string]any{"scope": "requested_range"},
+		Coverage:       json.RawMessage(`{"scope":"requested_range"}`),
 		Pagination:     PaginationInfo{ReturnedCount: 1},
 		Data: []ForexDataPoint{{
-			Date:                   day,
-			Val:                    1.53,
-			AnnouncementDatetime:   unixSeconds(1785542400),
-			ObservationDatetime:    unixSeconds(1785542400),
-			ObservationDatetimeISO: utcTime(t, "2026-08-01T00:00:00Z"),
-			SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
-			Source:                 DataPointSource{SourcePair: "AUD/USD", IsDerived: true, DerivationMethod: "inverse"},
-			RSI14:                  55.2,
+			Date:                             day,
+			Val:                              1.53,
+			AnnouncementDatetime:             unixSeconds(1785542400),
+			ObservationDatetime:              unixSeconds(1785542400),
+			ObservationDatetimeISO:           utcTime(t, "2026-08-01T00:00:00Z"),
+			SourceChartTimestampMilliseconds: UnixMillis(time.UnixMilli(916407000123).UTC()),
+			Source:                           DataPointSource{SourcePair: "AUD/USD", IsDerived: true, DerivationMethod: "inverse"},
+			RSI14:                            55.2,
 		}},
 	}
 	assert.Equal(t, exp, response, "Forex should decode every fixture field")
@@ -427,20 +427,20 @@ func TestAnnouncements(t *testing.T) {
 				AnnouncementDatetimeLocal: utcTime(t, "2026-08-12T12:30:00Z"),
 				PublicationTimeStatus:     "unverified",
 				VintageStatus:             "captured_snapshot",
-				ObservedAtNS:              types.Time(time.Unix(0, 1786105806674741407)),
-				CollectedAtNS:             types.Time(time.Unix(0, 1786105806674741407)),
+				ObservedAtNanoseconds:     types.Time(time.Unix(0, 1786105806674741407)),
+				CollectedAtNanoseconds:    types.Time(time.Unix(0, 1786105806674741407)),
 				CollectedAtISO:            utcTime(t, "2026-08-12T12:30:06.674742Z"),
-				PctChangeYearOverYear:     2.7,
+				PercentChangeYearOverYear: 2.7,
 				Revisions:                 []RevisionEntry{{Epoch: unixSeconds(1786100000), Val: 2.6, IsFirstRelease: true}},
 			},
 			{
-				AnnouncementID:       "usd_inflation_1999-01-15",
-				Date:                 calendarDay(1998, time.December, 31),
-				Val:                  1.6,
-				AnnouncementDatetime: unixSeconds(916407000),
-				ReleaseTimeAssumed:   true,
-				PublicationAtNS:      UnixNanos(time.Unix(0, 916407000000000000).UTC()),
-				Revisions:            []RevisionEntry{{Epoch: unixSeconds(916407000), Val: 1.5, PublicationAtNS: UnixNanos(time.Unix(0, 999999999000000000).UTC())}},
+				AnnouncementID:           "usd_inflation_1999-01-15",
+				Date:                     calendarDay(1998, time.December, 31),
+				Val:                      1.6,
+				AnnouncementDatetime:     unixSeconds(916407000),
+				ReleaseTimeAssumed:       true,
+				PublicationAtNanoseconds: UnixNanos(time.Unix(0, 916407000000000000).UTC()),
+				Revisions:                []RevisionEntry{{Epoch: unixSeconds(916407000), Val: 1.5, PublicationAtNanoseconds: UnixNanos(time.Unix(0, 999999999000000000).UTC())}},
 			},
 			{
 				AnnouncementID:       "usd_inflation_1914-02-13",
@@ -454,9 +454,9 @@ func TestAnnouncements(t *testing.T) {
 	assert.Equal(t, exp, response, "Announcements should decode every fixture field")
 	assert.Equal(t, "1999-01-15T13:30:00Z", response.Data[1].AnnouncementDatetime.Time().Format(time.RFC3339),
 		"Announcements should decode a nine-digit epoch as seconds")
-	assert.Equal(t, "1999-01-15T13:30:00Z", response.Data[1].PublicationAtNS.Time().Format(time.RFC3339),
+	assert.Equal(t, "1999-01-15T13:30:00Z", response.Data[1].PublicationAtNanoseconds.Time().Format(time.RFC3339),
 		"Announcements should decode an 18-digit publication_at_ns as nanoseconds")
-	assert.Equal(t, "2001-09-09T01:46:39Z", response.Data[1].Revisions[0].PublicationAtNS.Time().Format(time.RFC3339),
+	assert.Equal(t, "2001-09-09T01:46:39Z", response.Data[1].Revisions[0].PublicationAtNanoseconds.Time().Format(time.RFC3339),
 		"Announcements should decode a revision's 18-digit publication_at_ns as nanoseconds")
 	assert.Equal(t, "1914-02-13T13:30:00Z", response.Data[2].AnnouncementDatetime.Time().Format(time.RFC3339),
 		"Announcements should decode a negative epoch as seconds")
@@ -500,16 +500,16 @@ func TestLatestAnnouncements(t *testing.T) {
 		AsOf:     calendarDay(2026, time.August, 12),
 		Count:    1,
 		Data: []LatestAnnouncementItem{{
-			Indicator:             inflation,
-			Name:                  "Inflation (CPI)",
-			Source:                "BLS",
-			Unit:                  "%YoY",
-			Frequency:             "Monthly",
-			HasOfficialForecast:   true,
-			Latest:                LatestAnnouncementValue{Date: calendarDay(2026, time.July, 31), Val: 2.7, AnnouncementDatetime: unixSeconds(1786105800)},
-			Previous:              LatestAnnouncementValue{Date: calendarDay(2026, time.June, 30), Val: 2.6, AnnouncementDatetime: unixSeconds(1783427400)},
-			PctChangeYearOverYear: 2.7,
-			PctDiffPrev:           3.8,
+			Indicator:                 inflation,
+			Name:                      "Inflation (CPI)",
+			Source:                    "BLS",
+			Unit:                      "%YoY",
+			Frequency:                 "Monthly",
+			HasOfficialForecast:       true,
+			Latest:                    LatestAnnouncementValue{Date: calendarDay(2026, time.July, 31), Val: 2.7, AnnouncementDatetime: unixSeconds(1786105800)},
+			Previous:                  LatestAnnouncementValue{Date: calendarDay(2026, time.June, 30), Val: 2.6, AnnouncementDatetime: unixSeconds(1783427400)},
+			PercentChangeYearOverYear: 2.7,
+			PercentDiffPrev:           3.8,
 		}},
 	}
 	assert.Equal(t, exp, response, "LatestAnnouncements should decode every fixture field")
@@ -545,7 +545,7 @@ func TestAnnouncementChanges(t *testing.T) {
 			Timestamp:                            types.Time(time.Unix(1786105800, 0)),
 			ReleaseTimestamp:                     types.Time(time.Unix(1786105800, 0)),
 			DeliveryMode:                         "live",
-			PollingStartedAtNS:                   types.Time(time.Unix(0, 1786105795952048238)),
+			PollingStartedAtNanoseconds:          types.Time(time.Unix(0, 1786105795952048238)),
 			PollingStartedLagMS:                  -4047.952,
 			PollingStartedBeforeScheduledRelease: true,
 			PreFreshStalePollCount:               273,
@@ -748,12 +748,12 @@ func TestCommodity(t *testing.T) {
 		EndDate:             day,
 		Pagination:          PaginationInfo{ReturnedCount: 1},
 		Data: []CommodityDataPoint{{
-			Date:                   day,
-			Val:                    68.4,
-			AnnouncementDatetime:   unixSeconds(1786406400),
-			SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
-			PctChange:              1.2,
-			PctChange12Month:       -4.5,
+			Date:                             day,
+			Val:                              68.4,
+			AnnouncementDatetime:             unixSeconds(1786406400),
+			SourceChartTimestampMilliseconds: UnixMillis(time.UnixMilli(916407000123).UTC()),
+			PercentChange:                    1.2,
+			PercentChange12Month:             -4.5,
 		}},
 	}
 	assert.Equal(t, exp, response, "Commodity should decode every fixture field")
@@ -783,13 +783,13 @@ func TestCommoditiesLatest(t *testing.T) {
 			LastUpdated: utcTime(t, "2026-08-12T00:00:00Z"),
 			DataQuality: DataQuality{RowCount: 2},
 			Latest: CommodityObservation{
-				Date:                   calendarDay(2026, time.August, 11),
-				Val:                    68.4,
-				AnnouncementDatetime:   unixSeconds(1786406400),
-				SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
+				Date:                             calendarDay(2026, time.August, 11),
+				Val:                              68.4,
+				AnnouncementDatetime:             unixSeconds(1786406400),
+				SourceChartTimestampMilliseconds: UnixMillis(time.UnixMilli(916407000123).UTC()),
 			},
-			Previous:    CommodityObservation{Date: calendarDay(2026, time.August, 10), Val: 67.9, AnnouncementDatetime: unixSeconds(1786320000)},
-			PctDiffPrev: 0.74,
+			Previous:        CommodityObservation{Date: calendarDay(2026, time.August, 10), Val: 67.9, AnnouncementDatetime: unixSeconds(1786320000)},
+			PercentDiffPrev: 0.74,
 		}},
 	}
 	assert.Equal(t, exp, response, "CommoditiesLatest should decode every fixture field")
@@ -818,7 +818,7 @@ func TestCurves(t *testing.T) {
 		Sources:                      []string{"Treasury"},
 		OfficialForwardSourceSupport: OfficialForwardSourceSupport{SourceType: "none", SourceNote: "No official forward curve is published."},
 		DataQuality:                  DataQuality{RowCount: 1},
-		Data:                         []map[string]any{{"indicator": "bond_yield_10y", "maturity": "10Y", "val": 4.21}},
+		Data:                         []json.RawMessage{json.RawMessage(`{"indicator":"bond_yield_10y","maturity":"10Y","val":4.21}`)},
 	}
 	assert.Equal(t, exp, response, "Curves should decode every fixture field")
 }
@@ -854,7 +854,7 @@ func TestFactor(t *testing.T) {
 			Score:           0.7,
 			PointInTimeSafe: true,
 			ComponentCount:  1,
-			Components:      map[string]any{inflation: 0.8},
+			Components:      json.RawMessage(`{"inflation":0.8}`),
 			SourceEndpoints: []string{"announcements/usd/inflation"},
 		}},
 	}

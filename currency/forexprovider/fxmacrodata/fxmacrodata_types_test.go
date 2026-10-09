@@ -175,3 +175,41 @@ func TestDateJSONRejectsDateTime(t *testing.T) {
 	err := json.Unmarshal([]byte(`"2026-08-14T03:55:54Z"`), &date)
 	assert.Error(t, err, "Date should reject values containing a time or timezone")
 }
+
+func TestFreeFormResponseFieldsPreserveJSON(t *testing.T) {
+	const raw = `{"integer":9007199254740993,"decimal":0.123456789012345678901,"nested":{"keep":true},"items":[null,"text"]}`
+	var forex ForexResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"coverage":`+raw+`,"indicators":`+raw+`,"daily_ohlc_basis":`+raw+`,"technical_indicator_basis":`+raw+`}`), &forex),
+		"ForexResponse must retain every free-form field")
+	var curves CurveAnalyticsResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"data":[`+raw+`]}`), &curves),
+		"CurveAnalyticsResponse must retain free-form rows")
+	require.Len(t, curves.Data, 1, "the curve row must remain available to decode")
+	var factor FactorDataPoint
+	require.NoError(t, json.Unmarshal([]byte(`{"components":`+raw+`,"source_observations":`+raw+`}`), &factor),
+		"FactorDataPoint must retain both free-form fields")
+
+	for name, field := range map[string]json.RawMessage{
+		"coverage":                  forex.Coverage,
+		"indicators":                forex.Indicators,
+		"daily OHLC basis":          forex.DailyOHLCBasis,
+		"technical indicator basis": forex.TechnicalIndicatorBasis,
+		"curve row":                 curves.Data[0],
+		"components":                factor.Components,
+		"source observations":       factor.SourceObservations,
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, raw, string(field), "raw JSON should preserve large integers, decimal precision and nested values")
+			var callerDefined struct {
+				Integer int64           `json:"integer"`
+				Decimal json.RawMessage `json:"decimal"`
+			}
+			require.NoError(t, json.Unmarshal(field, &callerDefined), "callers must be able to decode their own concrete type")
+			assert.Equal(t, int64(9007199254740993), callerDefined.Integer, "the integer should remain exact beyond float64 precision")
+			assert.Equal(t, "0.123456789012345678901", string(callerDefined.Decimal), "the decimal should remain exact")
+			encoded, err := json.Marshal(field)
+			require.NoError(t, err, "free-form JSON must remain serialisable")
+			assert.Equal(t, raw, string(encoded), "serialisation should retain the original values")
+		})
+	}
+}

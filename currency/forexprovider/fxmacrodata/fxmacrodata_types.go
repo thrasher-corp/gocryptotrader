@@ -24,8 +24,8 @@ const (
 // the requested indicator set, view or factor decomposition: Indicators,
 // DailyOHLCBasis, TechnicalIndicatorBasis and Coverage on ForexResponse, the
 // Data rows on CurveAnalyticsResponse, and Components and SourceObservations on
-// FactorDataPoint. Those stay map[string]any. Every field with a documented
-// shape is strongly typed.
+// FactorDataPoint. Those use json.RawMessage so callers can decode their own shapes without
+// losing numeric precision. Every field with a documented shape is strongly typed.
 
 // Date represents an ISO 8601 calendar date without a time or timezone.
 type Date time.Time
@@ -457,8 +457,8 @@ type CatalogueCoverage struct {
 	LatestReleaseDate Date `json:"latest_release_date"`
 }
 
-// CBTargetEntry is one central-bank target effective from a date.
-type CBTargetEntry struct {
+// CentralBankTargetEntry is one central-bank target effective from a date.
+type CentralBankTargetEntry struct {
 	EffectiveFrom Date    `json:"effective_from"`
 	Target        float64 `json:"target"`
 	Lower         float64 `json:"lower"`
@@ -466,12 +466,12 @@ type CBTargetEntry struct {
 	Notes         string  `json:"notes"`
 }
 
-// CBTargetInfo contains the current and historical central-bank targets.
-type CBTargetInfo struct {
-	Description string          `json:"description"`
-	Source      string          `json:"source"`
-	Current     CBTargetEntry   `json:"current"`
-	History     []CBTargetEntry `json:"history"`
+// CentralBankTargetInfo contains the current and historical central-bank targets.
+type CentralBankTargetInfo struct {
+	Description string                   `json:"description"`
+	Source      string                   `json:"source"`
+	Current     CentralBankTargetEntry   `json:"current"`
+	History     []CentralBankTargetEntry `json:"history"`
 }
 
 // PolicyFamilyEntry describes a related policy indicator.
@@ -533,40 +533,40 @@ type ValueMetadata struct {
 
 // AnnouncementResponse contains macroeconomic announcement observations.
 type AnnouncementResponse struct {
-	Currency                    string              `json:"currency"`
-	Indicator                   string              `json:"indicator"`
-	Name                        string              `json:"name"`
-	ValueName                   string              `json:"value_name"`
-	Source                      string              `json:"source"`
-	SourceURL                   string              `json:"source_url"`
-	SourceSeriesID              string              `json:"source_series_id"`
-	SourceSeriesName            string              `json:"source_series_name"`
-	SourceLocalName             string              `json:"source_local_name"`
-	SeasonalAdjustment          string              `json:"seasonal_adjustment"`
-	PriceBasis                  string              `json:"price_basis"`
-	IsProxy                     bool                `json:"is_proxy"`
-	ProxyNote                   string              `json:"proxy_note"`
-	Provenance                  Provenance          `json:"provenance"`
-	PolicyRole                  string              `json:"policy_role"`
-	PolicyStructure             string              `json:"policy_structure"`
-	ComparisonCompatible        bool                `json:"comparison_compatible"`
-	PolicyFamily                []PolicyFamilyEntry `json:"policy_family"`
-	HasOfficialForecast         bool                `json:"has_official_forecast"`
-	RequestedStartDate          Date                `json:"requested_start_date"`
-	RequestedEndDate            Date                `json:"requested_end_date"`
-	RequestedWindowHasData      bool                `json:"requested_window_has_data"`
-	PageIncludesLatestAvailable bool                `json:"page_includes_latest_available"`
-	StartDate                   Date                `json:"start_date"`
-	EndDate                     Date                `json:"end_date"`
-	EarliestAvailableDate       Date                `json:"earliest_available_date"`
-	LatestAvailableDate         Date                `json:"latest_available_date"`
-	CentralBankTarget           CBTargetInfo        `json:"cb_target"`
-	Remap                       AnnouncementRemap   `json:"remap"`
-	Filters                     SeriesFilters       `json:"filters"`
-	SelectedSeriesID            string              `json:"selected_series_id"`
-	SelectedSeries              SelectedSeries      `json:"selected_series"`
-	SupportedOptions            map[string][]string `json:"supported_options"`
-	DataQuality                 DataQuality         `json:"data_quality"`
+	Currency                    string                `json:"currency"`
+	Indicator                   string                `json:"indicator"`
+	Name                        string                `json:"name"`
+	ValueName                   string                `json:"value_name"`
+	Source                      string                `json:"source"`
+	SourceURL                   string                `json:"source_url"`
+	SourceSeriesID              string                `json:"source_series_id"`
+	SourceSeriesName            string                `json:"source_series_name"`
+	SourceLocalName             string                `json:"source_local_name"`
+	SeasonalAdjustment          string                `json:"seasonal_adjustment"`
+	PriceBasis                  string                `json:"price_basis"`
+	IsProxy                     bool                  `json:"is_proxy"`
+	ProxyNote                   string                `json:"proxy_note"`
+	Provenance                  Provenance            `json:"provenance"`
+	PolicyRole                  string                `json:"policy_role"`
+	PolicyStructure             string                `json:"policy_structure"`
+	ComparisonCompatible        bool                  `json:"comparison_compatible"`
+	PolicyFamily                []PolicyFamilyEntry   `json:"policy_family"`
+	HasOfficialForecast         bool                  `json:"has_official_forecast"`
+	RequestedStartDate          Date                  `json:"requested_start_date"`
+	RequestedEndDate            Date                  `json:"requested_end_date"`
+	RequestedWindowHasData      bool                  `json:"requested_window_has_data"`
+	PageIncludesLatestAvailable bool                  `json:"page_includes_latest_available"`
+	StartDate                   Date                  `json:"start_date"`
+	EndDate                     Date                  `json:"end_date"`
+	EarliestAvailableDate       Date                  `json:"earliest_available_date"`
+	LatestAvailableDate         Date                  `json:"latest_available_date"`
+	CentralBankTarget           CentralBankTargetInfo `json:"cb_target"`
+	Remap                       AnnouncementRemap     `json:"remap"`
+	Filters                     SeriesFilters         `json:"filters"`
+	SelectedSeriesID            string                `json:"selected_series_id"`
+	SelectedSeries              SelectedSeries        `json:"selected_series"`
+	SupportedOptions            map[string][]string   `json:"supported_options"`
+	DataQuality                 DataQuality           `json:"data_quality"`
 	// DatasetVersion identifies the content version the page was built from
 	// and is the value the dataset_version query parameter takes to pin
 	// pagination to one version.
@@ -581,21 +581,21 @@ type AnnouncementResponse struct {
 
 // RevisionEntry is one previously published value for an observation.
 type RevisionEntry struct {
-	Epoch                    UnixSeconds `json:"epoch"`
-	Val                      float64     `json:"val"`
-	Change                   float64     `json:"change"`
-	ObservedAtNS             types.Time  `json:"observed_at_ns"`
-	ObservedAtNSString       string      `json:"observed_at_ns_string"`
-	PublicationAtNS          UnixNanos   `json:"publication_at_ns"`
-	PublicationAtNSString    string      `json:"publication_at_ns_string"`
-	AnnouncementSourceURL    string      `json:"announcement_source_url"`
-	SourceURL                string      `json:"source_url"`
-	SourceArtifactSHA256     string      `json:"source_artifact_sha256"`
-	CaptureTimeBasis         string      `json:"capture_time_basis"`
-	PublicationTimeStatus    string      `json:"publication_time_status"`
-	PublicationTimePrecision string      `json:"publication_time_precision"`
-	VintageStatus            string      `json:"vintage_status"`
-	IsFirstRelease           bool        `json:"is_first_release"`
+	Epoch                          UnixSeconds `json:"epoch"`
+	Val                            float64     `json:"val"`
+	Change                         float64     `json:"change"`
+	ObservedAtNanoseconds          types.Time  `json:"observed_at_ns"`
+	ObservedAtNanosecondsString    string      `json:"observed_at_ns_string"`
+	PublicationAtNanoseconds       UnixNanos   `json:"publication_at_ns"`
+	PublicationAtNanosecondsString string      `json:"publication_at_ns_string"`
+	AnnouncementSourceURL          string      `json:"announcement_source_url"`
+	SourceURL                      string      `json:"source_url"`
+	SourceArtifactSHA256           string      `json:"source_artifact_sha256"`
+	CaptureTimeBasis               string      `json:"capture_time_basis"`
+	PublicationTimeStatus          string      `json:"publication_time_status"`
+	PublicationTimePrecision       string      `json:"publication_time_precision"`
+	VintageStatus                  string      `json:"vintage_status"`
+	IsFirstRelease                 bool        `json:"is_first_release"`
 }
 
 // AnnouncementDataPoint is an individual macroeconomic observation.
@@ -611,7 +611,7 @@ type AnnouncementDataPoint struct {
 	PreviousAnnouncementDatetime        UnixSeconds     `json:"previous_announcement_datetime"`
 	Change                              float64         `json:"change"`
 	ChangeFromPrevious                  float64         `json:"change_from_previous"`
-	PctChangeFromPrevious               float64         `json:"pct_change_from_previous"`
+	PercentChangeFromPrevious           float64         `json:"pct_change_from_previous"`
 	OriginalVal                         float64         `json:"original_val"`
 	OriginalUnit                        string          `json:"original_unit"`
 	ValMonthOverMonth                   float64         `json:"val_mom"`
@@ -624,11 +624,11 @@ type AnnouncementDataPoint struct {
 	PublicationTimePrecision            string          `json:"publication_time_precision"`
 	VintageStatus                       string          `json:"vintage_status"`
 	IsFirstRelease                      bool            `json:"is_first_release"`
-	ObservedAtNS                        types.Time      `json:"observed_at_ns"`
-	ObservedAtNSString                  string          `json:"observed_at_ns_string"`
-	CollectedAtNSString                 string          `json:"collected_at_ns_string"`
-	PublicationAtNS                     UnixNanos       `json:"publication_at_ns"`
-	PublicationAtNSString               string          `json:"publication_at_ns_string"`
+	ObservedAtNanoseconds               types.Time      `json:"observed_at_ns"`
+	ObservedAtNanosecondsString         string          `json:"observed_at_ns_string"`
+	CollectedAtNanosecondsString        string          `json:"collected_at_ns_string"`
+	PublicationAtNanoseconds            UnixNanos       `json:"publication_at_ns"`
+	PublicationAtNanosecondsString      string          `json:"publication_at_ns_string"`
 	AnnouncementSourceURL               string          `json:"announcement_source_url"`
 	SourceArtifactSHA256                string          `json:"source_artifact_sha256"`
 	CaptureTimeBasis                    string          `json:"capture_time_basis"`
@@ -637,21 +637,21 @@ type AnnouncementDataPoint struct {
 	MethodologyID                       string          `json:"methodology_id"`
 	SourcePeriodLabelConflict           bool            `json:"source_period_label_conflict"`
 	SourceMethodologyStatus             string          `json:"source_methodology_status"`
-	SelectedVintageKnownAtNS            string          `json:"selected_vintage_known_at_ns"`
+	SelectedVintageKnownAtNanoseconds   string          `json:"selected_vintage_known_at_ns"`
 	ReplayVintageVerified               bool            `json:"replay_vintage_verified"`
 	OfficialPlannedReleaseDatetime      UnixSeconds     `json:"official_planned_release_datetime"`
 	OfficialPlannedReleaseDatetimeLocal time.Time       `json:"official_planned_release_datetime_local"`
 	OfficialActualReleaseDatetime       UnixSeconds     `json:"official_actual_release_datetime"`
 	OfficialActualReleaseDatetimeLocal  time.Time       `json:"official_actual_release_datetime_local"`
-	CollectedAtNS                       types.Time      `json:"collected_at_ns"`
+	CollectedAtNanoseconds              types.Time      `json:"collected_at_ns"`
 	CollectedAtISO                      time.Time       `json:"collected_at_iso"`
 	IngestionLatencyMS                  float64         `json:"ingestion_latency_ms"`
 	IngestionLatencyReference           string          `json:"ingestion_latency_reference"`
-	PctChange                           float64         `json:"pct_change"`
-	PctChangeYearOverYear               float64         `json:"pct_change_yoy"`
-	PctChangeQuarterOverQuarter         float64         `json:"pct_change_qoq"`
-	PctChangeMonthOverMonth             float64         `json:"pct_change_mom"`
-	PctChange12Month                    float64         `json:"pct_change_12m"`
+	PercentChange                       float64         `json:"pct_change"`
+	PercentChangeYearOverYear           float64         `json:"pct_change_yoy"`
+	PercentChangeQuarterOverQuarter     float64         `json:"pct_change_qoq"`
+	PercentChangeMonthOverMonth         float64         `json:"pct_change_mom"`
+	PercentChange12Month                float64         `json:"pct_change_12m"`
 	Revisions                           []RevisionEntry `json:"revisions"`
 	OutsideRequestedWindow              bool            `json:"outside_requested_window"`
 	RequestedStartDate                  Date            `json:"requested_start_date"`
@@ -696,11 +696,11 @@ type LatestAnnouncementItem struct {
 	Latest              LatestAnnouncementValue `json:"latest"`
 	// Previous carries the same shape as Latest and is what a caller needs to
 	// compute a change without a second request.
-	Previous                    LatestAnnouncementValue `json:"previous"`
-	PctChangeYearOverYear       float64                 `json:"pct_change_yoy"`
-	PctChangeQuarterOverQuarter float64                 `json:"pct_change_qoq"`
-	PctChangeMonthOverMonth     float64                 `json:"pct_change_mom"`
-	PctDiffPrev                 float64                 `json:"pct_diff_prev"`
+	Previous                        LatestAnnouncementValue `json:"previous"`
+	PercentChangeYearOverYear       float64                 `json:"pct_change_yoy"`
+	PercentChangeQuarterOverQuarter float64                 `json:"pct_change_qoq"`
+	PercentChangeMonthOverMonth     float64                 `json:"pct_change_mom"`
+	PercentDiffPrev                 float64                 `json:"pct_diff_prev"`
 }
 
 // LatestAnnouncementValue contains the latest value and release timestamp.
@@ -774,57 +774,57 @@ type ReleaseDeliveryAnnouncement struct {
 
 // AnnouncementChangeEvent describes one announcement change notification. The
 // contract types every count and duration here as integer or number, so they
-// decode as float64; the *AtNS timestamps are epoch nanoseconds and change
+// decode as float64; the *AtNanoseconds timestamps are epoch nanoseconds and change
 // events are always recent, so types.Time reads them correctly.
 type AnnouncementChangeEvent struct {
-	EventID                                   string                      `json:"event_id"`
-	Currency                                  string                      `json:"currency"`
-	Indicator                                 string                      `json:"indicator"`
-	RecordsWritten                            float64                     `json:"records_written"`
-	Timestamp                                 types.Time                  `json:"timestamp"`
-	ReleaseTimestamp                          types.Time                  `json:"release_timestamp"`
-	LatestAnnouncement                        ReleaseDeliveryAnnouncement `json:"latest_announcement"`
-	DeliveryMode                              string                      `json:"delivery_mode"`
-	OriginDeliveryMode                        string                      `json:"origin_delivery_mode"`
-	SourceFreshAtNS                           types.Time                  `json:"source_fresh_at_ns"`
-	StreamReadyAtNS                           types.Time                  `json:"stream_ready_at_ns"`
-	ServerSentAtNS                            types.Time                  `json:"server_sent_at_ns"`
-	AcknowledgementEndpoint                   string                      `json:"acknowledgement_endpoint"`
-	AgeMS                                     float64                     `json:"age_ms"`
-	StaleAfterMS                              float64                     `json:"stale_after_ms"`
-	Stale                                     bool                        `json:"stale"`
-	LateDelivery                              bool                        `json:"late_delivery"`
-	LateEventsAreDelivered                    bool                        `json:"late_events_are_delivered"`
-	ScheduledReleaseAtNS                      types.Time                  `json:"scheduled_release_at_ns"`
-	ScheduledToServerSendMS                   float64                     `json:"scheduled_to_server_send_ms"`
-	SourceLate                                bool                        `json:"source_late"`
-	SourceLateByMS                            float64                     `json:"source_late_by_ms"`
-	SourceDelayProven                         bool                        `json:"source_delay_proven"`
-	PlatformDeliveryAfterSourceMS             float64                     `json:"platform_delivery_after_source_ms"`
-	PollingStartedAtNS                        types.Time                  `json:"polling_started_at_ns"`
-	PollingStartedLagMS                       float64                     `json:"polling_started_lag_ms"`
-	PollingStartedBeforeScheduledRelease      bool                        `json:"polling_started_before_scheduled_release"`
-	PreFreshStalePollCount                    float64                     `json:"pre_fresh_stale_poll_count"`
-	LastStaleFetchCompletedAtNS               types.Time                  `json:"last_stale_fetch_completed_at_ns"`
-	FirstFreshResponseCompletedAtNS           types.Time                  `json:"first_fresh_response_completed_at_ns"`
-	OfficialSourceStaleAfterScheduledRelease  bool                        `json:"official_source_stale_after_scheduled_release"`
-	ScheduledToFirstFreshResponseMS           float64                     `json:"scheduled_to_first_fresh_response_ms"`
-	SourceFreshnessObservationWindowStartAtNS types.Time                  `json:"source_freshness_observation_window_start_at_ns"`
-	SourceFreshnessObservationWindowEndAtNS   types.Time                  `json:"source_freshness_observation_window_end_at_ns"`
-	SourceFreshnessObservationWindowMS        float64                     `json:"source_freshness_observation_window_ms"`
-	SourceFreshnessObservationBasis           string                      `json:"source_freshness_observation_basis"`
-	SourceDelayAttribution                    string                      `json:"source_delay_attribution"`
-	FXMacroDataDeliveryAttribution            string                      `json:"fxmd_delivery_attribution"`
-	FXMacroDataAfterSourceMS                  float64                     `json:"fxmd_after_source_ms"`
-	FXMacroDataAfterSourceSLOMet              bool                        `json:"fxmd_after_source_slo_met"`
-	CatchupSource                             string                      `json:"catchup_source"`
-	CatchupDelayMS                            float64                     `json:"catchup_delay_ms"`
-	RecoveryClass                             string                      `json:"recovery_class"`
-	SubsecondStatus                           string                      `json:"subsecond_status"`
-	SubsecondOperationalStatus                string                      `json:"subsecond_operational_status"`
-	SubsecondGuaranteeActive                  bool                        `json:"subsecond_guarantee_active"`
-	SubsecondContractOutcome                  string                      `json:"subsecond_contract_outcome"`
-	SubsecondContractBreached                 bool                        `json:"subsecond_contract_breached"`
+	EventID                                            string                      `json:"event_id"`
+	Currency                                           string                      `json:"currency"`
+	Indicator                                          string                      `json:"indicator"`
+	RecordsWritten                                     float64                     `json:"records_written"`
+	Timestamp                                          types.Time                  `json:"timestamp"`
+	ReleaseTimestamp                                   types.Time                  `json:"release_timestamp"`
+	LatestAnnouncement                                 ReleaseDeliveryAnnouncement `json:"latest_announcement"`
+	DeliveryMode                                       string                      `json:"delivery_mode"`
+	OriginDeliveryMode                                 string                      `json:"origin_delivery_mode"`
+	SourceFreshAtNanoseconds                           types.Time                  `json:"source_fresh_at_ns"`
+	StreamReadyAtNanoseconds                           types.Time                  `json:"stream_ready_at_ns"`
+	ServerSentAtNanoseconds                            types.Time                  `json:"server_sent_at_ns"`
+	AcknowledgementEndpoint                            string                      `json:"acknowledgement_endpoint"`
+	AgeMS                                              float64                     `json:"age_ms"`
+	StaleAfterMS                                       float64                     `json:"stale_after_ms"`
+	Stale                                              bool                        `json:"stale"`
+	LateDelivery                                       bool                        `json:"late_delivery"`
+	LateEventsAreDelivered                             bool                        `json:"late_events_are_delivered"`
+	ScheduledReleaseAtNanoseconds                      types.Time                  `json:"scheduled_release_at_ns"`
+	ScheduledToServerSendMS                            float64                     `json:"scheduled_to_server_send_ms"`
+	SourceLate                                         bool                        `json:"source_late"`
+	SourceLateByMS                                     float64                     `json:"source_late_by_ms"`
+	SourceDelayProven                                  bool                        `json:"source_delay_proven"`
+	PlatformDeliveryAfterSourceMS                      float64                     `json:"platform_delivery_after_source_ms"`
+	PollingStartedAtNanoseconds                        types.Time                  `json:"polling_started_at_ns"`
+	PollingStartedLagMS                                float64                     `json:"polling_started_lag_ms"`
+	PollingStartedBeforeScheduledRelease               bool                        `json:"polling_started_before_scheduled_release"`
+	PreFreshStalePollCount                             float64                     `json:"pre_fresh_stale_poll_count"`
+	LastStaleFetchCompletedAtNanoseconds               types.Time                  `json:"last_stale_fetch_completed_at_ns"`
+	FirstFreshResponseCompletedAtNanoseconds           types.Time                  `json:"first_fresh_response_completed_at_ns"`
+	OfficialSourceStaleAfterScheduledRelease           bool                        `json:"official_source_stale_after_scheduled_release"`
+	ScheduledToFirstFreshResponseMS                    float64                     `json:"scheduled_to_first_fresh_response_ms"`
+	SourceFreshnessObservationWindowStartAtNanoseconds types.Time                  `json:"source_freshness_observation_window_start_at_ns"`
+	SourceFreshnessObservationWindowEndAtNanoseconds   types.Time                  `json:"source_freshness_observation_window_end_at_ns"`
+	SourceFreshnessObservationWindowMS                 float64                     `json:"source_freshness_observation_window_ms"`
+	SourceFreshnessObservationBasis                    string                      `json:"source_freshness_observation_basis"`
+	SourceDelayAttribution                             string                      `json:"source_delay_attribution"`
+	FXMacroDataDeliveryAttribution                     string                      `json:"fxmd_delivery_attribution"`
+	FXMacroDataAfterSourceMS                           float64                     `json:"fxmd_after_source_ms"`
+	FXMacroDataAfterSourceSLOMet                       bool                        `json:"fxmd_after_source_slo_met"`
+	CatchupSource                                      string                      `json:"catchup_source"`
+	CatchupDelayMS                                     float64                     `json:"catchup_delay_ms"`
+	RecoveryClass                                      string                      `json:"recovery_class"`
+	SubsecondStatus                                    string                      `json:"subsecond_status"`
+	SubsecondOperationalStatus                         string                      `json:"subsecond_operational_status"`
+	SubsecondGuaranteeActive                           bool                        `json:"subsecond_guarantee_active"`
+	SubsecondContractOutcome                           string                      `json:"subsecond_contract_outcome"`
+	SubsecondContractBreached                          bool                        `json:"subsecond_contract_breached"`
 }
 
 // CalendarResponse contains scheduled macroeconomic releases.
@@ -1065,43 +1065,43 @@ type CommodityResponse struct {
 
 // CommodityDataPoint is one commodity observation.
 type CommodityDataPoint struct {
-	Date                   Date        `json:"date"`
-	Val                    float64     `json:"val"`
-	AnnouncementDatetime   UnixSeconds `json:"announcement_datetime"`
-	Source                 string      `json:"source"`
-	SourceURL              string      `json:"source_url"`
-	SourceType             string      `json:"source_type"`
-	SourcePermissionStatus string      `json:"source_permission_status"`
-	SourceChartTimestamp   UnixSeconds `json:"source_chart_timestamp"`
-	SourceChartTimestampMS UnixMillis  `json:"source_chart_timestamp_ms"`
-	SourceChartPeriod      string      `json:"source_chart_period"`
-	QuoteTimeStatus        string      `json:"quote_time_status"`
-	SamplingMethod         string      `json:"sampling_method"`
-	PublicationTimeStatus  string      `json:"publication_time_status"`
-	PointInTimeSafe        bool        `json:"point_in_time_safe"`
-	ProvenanceVersion      uint64      `json:"provenance_version"`
-	PctChange              float64     `json:"pct_change"`
-	PctChange12Month       float64     `json:"pct_change_12m"`
+	Date                             Date        `json:"date"`
+	Val                              float64     `json:"val"`
+	AnnouncementDatetime             UnixSeconds `json:"announcement_datetime"`
+	Source                           string      `json:"source"`
+	SourceURL                        string      `json:"source_url"`
+	SourceType                       string      `json:"source_type"`
+	SourcePermissionStatus           string      `json:"source_permission_status"`
+	SourceChartTimestamp             UnixSeconds `json:"source_chart_timestamp"`
+	SourceChartTimestampMilliseconds UnixMillis  `json:"source_chart_timestamp_ms"`
+	SourceChartPeriod                string      `json:"source_chart_period"`
+	QuoteTimeStatus                  string      `json:"quote_time_status"`
+	SamplingMethod                   string      `json:"sampling_method"`
+	PublicationTimeStatus            string      `json:"publication_time_status"`
+	PointInTimeSafe                  bool        `json:"point_in_time_safe"`
+	ProvenanceVersion                uint64      `json:"provenance_version"`
+	PercentChange                    float64     `json:"pct_change"`
+	PercentChange12Month             float64     `json:"pct_change_12m"`
 }
 
 // CommodityObservation is one dated commodity value as carried by the latest
 // commodities envelope.
 type CommodityObservation struct {
-	Date                   Date        `json:"date"`
-	Val                    float64     `json:"val"`
-	AnnouncementDatetime   UnixSeconds `json:"announcement_datetime"`
-	Source                 string      `json:"source"`
-	SourceURL              string      `json:"source_url"`
-	SourceType             string      `json:"source_type"`
-	SourcePermissionStatus string      `json:"source_permission_status"`
-	SourceChartTimestamp   UnixSeconds `json:"source_chart_timestamp"`
-	SourceChartTimestampMS UnixMillis  `json:"source_chart_timestamp_ms"`
-	SourceChartPeriod      string      `json:"source_chart_period"`
-	QuoteTimeStatus        string      `json:"quote_time_status"`
-	SamplingMethod         string      `json:"sampling_method"`
-	PublicationTimeStatus  string      `json:"publication_time_status"`
-	PointInTimeSafe        bool        `json:"point_in_time_safe"`
-	ProvenanceVersion      uint64      `json:"provenance_version"`
+	Date                             Date        `json:"date"`
+	Val                              float64     `json:"val"`
+	AnnouncementDatetime             UnixSeconds `json:"announcement_datetime"`
+	Source                           string      `json:"source"`
+	SourceURL                        string      `json:"source_url"`
+	SourceType                       string      `json:"source_type"`
+	SourcePermissionStatus           string      `json:"source_permission_status"`
+	SourceChartTimestamp             UnixSeconds `json:"source_chart_timestamp"`
+	SourceChartTimestampMilliseconds UnixMillis  `json:"source_chart_timestamp_ms"`
+	SourceChartPeriod                string      `json:"source_chart_period"`
+	QuoteTimeStatus                  string      `json:"quote_time_status"`
+	SamplingMethod                   string      `json:"sampling_method"`
+	PublicationTimeStatus            string      `json:"publication_time_status"`
+	PointInTimeSafe                  bool        `json:"point_in_time_safe"`
+	ProvenanceVersion                uint64      `json:"provenance_version"`
 }
 
 // CommodityLatestItem is the latest and previous observation for one commodity.
@@ -1114,7 +1114,7 @@ type CommodityLatestItem struct {
 	DataQuality         DataQuality          `json:"data_quality"`
 	Latest              CommodityObservation `json:"latest"`
 	Previous            CommodityObservation `json:"previous"`
-	PctDiffPrev         float64              `json:"pct_diff_prev"`
+	PercentDiffPrev     float64              `json:"pct_diff_prev"`
 }
 
 // CommoditiesLatestResponse contains the latest observation for each commodity.
@@ -1149,7 +1149,7 @@ type CurveAnalyticsResponse struct {
 	Sources                      []string                     `json:"sources"`
 	OfficialForwardSourceSupport OfficialForwardSourceSupport `json:"official_forward_source_support"`
 	DataQuality                  DataQuality                  `json:"data_quality"`
-	Data                         []map[string]any             `json:"data"`
+	Data                         []json.RawMessage            `json:"data"`
 }
 
 // RateDifferentialSources names the publisher of each leg's rate. The spot
@@ -1228,65 +1228,65 @@ type ForexResponse struct {
 	// and is the value the dataset_version query parameter takes to pin
 	// pagination to one version.
 	DatasetVersion          string           `json:"dataset_version"`
-	Coverage                map[string]any   `json:"coverage"`
+	Coverage                json.RawMessage  `json:"coverage"`
 	Data                    []ForexDataPoint `json:"data"`
-	Indicators              map[string]any   `json:"indicators"`
-	DailyOHLCBasis          map[string]any   `json:"daily_ohlc_basis"`
-	TechnicalIndicatorBasis map[string]any   `json:"technical_indicator_basis"`
+	Indicators              json.RawMessage  `json:"indicators"`
+	DailyOHLCBasis          json.RawMessage  `json:"daily_ohlc_basis"`
+	TechnicalIndicatorBasis json.RawMessage  `json:"technical_indicator_basis"`
 }
 
 // ForexDataPoint is one FX observation.
 type ForexDataPoint struct {
-	Date                         Date            `json:"date"`
-	Val                          float64         `json:"val"`
-	Open                         float64         `json:"open"`
-	High                         float64         `json:"high"`
-	Low                          float64         `json:"low"`
-	Close                        float64         `json:"close"`
-	OHLCPointCount               uint64          `json:"ohlc_point_count"`
-	OHLCSourceCount              uint64          `json:"ohlc_source_count"`
-	OHLCTimestampStartUTC        time.Time       `json:"ohlc_timestamp_start_utc"`
-	OHLCTimestampEndUTC          time.Time       `json:"ohlc_timestamp_end_utc"`
-	OHLCType                     string          `json:"ohlc_type"`
-	AnnouncementDatetime         UnixSeconds     `json:"announcement_datetime"`
-	ObservationDatetime          UnixSeconds     `json:"observation_datetime"`
-	ObservationDatetimeISO       time.Time       `json:"observation_datetime_iso"`
-	ObservationDatetimePrecision string          `json:"observation_datetime_precision"`
-	SourceType                   string          `json:"source_type"`
-	SourcePermissionStatus       string          `json:"source_permission_status"`
-	SourceChartTimestamp         UnixSeconds     `json:"source_chart_timestamp"`
-	SourceChartTimestampMS       UnixMillis      `json:"source_chart_timestamp_ms"`
-	SourceChartPeriod            string          `json:"source_chart_period"`
-	QuoteTimeStatus              string          `json:"quote_time_status"`
-	SamplingMethod               string          `json:"sampling_method"`
-	PublicationTimeStatus        string          `json:"publication_time_status"`
-	PointInTimeSafe              bool            `json:"point_in_time_safe"`
-	ProvenanceVersion            uint64          `json:"provenance_version"`
-	Source                       DataPointSource `json:"source"`
-	SMA20                        float64         `json:"sma_20"`
-	SMA50                        float64         `json:"sma_50"`
-	SMA200                       float64         `json:"sma_200"`
-	EMA12                        float64         `json:"ema_12"`
-	EMA20                        float64         `json:"ema_20"`
-	EMA26                        float64         `json:"ema_26"`
-	EMA50                        float64         `json:"ema_50"`
-	EMA200                       float64         `json:"ema_200"`
-	RSI14                        float64         `json:"rsi_14"`
-	ATR14                        float64         `json:"atr_14"`
-	ADX14                        float64         `json:"adx_14"`
-	StochasticK14                float64         `json:"stoch_k_14"`
-	StochasticD3                 float64         `json:"stoch_d_3"`
-	WilliamsR14                  float64         `json:"williams_r_14"`
-	CCI20                        float64         `json:"cci_20"`
-	DonchianUpper20              float64         `json:"donchian_upper_20"`
-	DonchianMiddle20             float64         `json:"donchian_middle_20"`
-	DonchianLower20              float64         `json:"donchian_lower_20"`
-	MACD                         float64         `json:"macd"`
-	MACDSignal                   float64         `json:"macd_signal"`
-	MACDHistogram                float64         `json:"macd_histogram"`
-	BollingerUpper               float64         `json:"bb_upper"`
-	BollingerMiddle              float64         `json:"bb_middle"`
-	BollingerLower               float64         `json:"bb_lower"`
+	Date                             Date            `json:"date"`
+	Val                              float64         `json:"val"`
+	Open                             float64         `json:"open"`
+	High                             float64         `json:"high"`
+	Low                              float64         `json:"low"`
+	Close                            float64         `json:"close"`
+	OHLCPointCount                   uint64          `json:"ohlc_point_count"`
+	OHLCSourceCount                  uint64          `json:"ohlc_source_count"`
+	OHLCTimestampStartUTC            time.Time       `json:"ohlc_timestamp_start_utc"`
+	OHLCTimestampEndUTC              time.Time       `json:"ohlc_timestamp_end_utc"`
+	OHLCType                         string          `json:"ohlc_type"`
+	AnnouncementDatetime             UnixSeconds     `json:"announcement_datetime"`
+	ObservationDatetime              UnixSeconds     `json:"observation_datetime"`
+	ObservationDatetimeISO           time.Time       `json:"observation_datetime_iso"`
+	ObservationDatetimePrecision     string          `json:"observation_datetime_precision"`
+	SourceType                       string          `json:"source_type"`
+	SourcePermissionStatus           string          `json:"source_permission_status"`
+	SourceChartTimestamp             UnixSeconds     `json:"source_chart_timestamp"`
+	SourceChartTimestampMilliseconds UnixMillis      `json:"source_chart_timestamp_ms"`
+	SourceChartPeriod                string          `json:"source_chart_period"`
+	QuoteTimeStatus                  string          `json:"quote_time_status"`
+	SamplingMethod                   string          `json:"sampling_method"`
+	PublicationTimeStatus            string          `json:"publication_time_status"`
+	PointInTimeSafe                  bool            `json:"point_in_time_safe"`
+	ProvenanceVersion                uint64          `json:"provenance_version"`
+	Source                           DataPointSource `json:"source"`
+	SMA20                            float64         `json:"sma_20"`
+	SMA50                            float64         `json:"sma_50"`
+	SMA200                           float64         `json:"sma_200"`
+	EMA12                            float64         `json:"ema_12"`
+	EMA20                            float64         `json:"ema_20"`
+	EMA26                            float64         `json:"ema_26"`
+	EMA50                            float64         `json:"ema_50"`
+	EMA200                           float64         `json:"ema_200"`
+	RSI14                            float64         `json:"rsi_14"`
+	ATR14                            float64         `json:"atr_14"`
+	ADX14                            float64         `json:"adx_14"`
+	StochasticK14                    float64         `json:"stoch_k_14"`
+	StochasticD3                     float64         `json:"stoch_d_3"`
+	WilliamsR14                      float64         `json:"williams_r_14"`
+	CCI20                            float64         `json:"cci_20"`
+	DonchianUpper20                  float64         `json:"donchian_upper_20"`
+	DonchianMiddle20                 float64         `json:"donchian_middle_20"`
+	DonchianLower20                  float64         `json:"donchian_lower_20"`
+	MACD                             float64         `json:"macd"`
+	MACDSignal                       float64         `json:"macd_signal"`
+	MACDHistogram                    float64         `json:"macd_histogram"`
+	BollingerUpper                   float64         `json:"bb_upper"`
+	BollingerMiddle                  float64         `json:"bb_middle"`
+	BollingerLower                   float64         `json:"bb_lower"`
 }
 
 // FXIntradayReferenceRatesResponse contains subscriber intraday reference rates.
@@ -1361,24 +1361,24 @@ type FactorResponse struct {
 
 // FactorDataPoint is one dated factor observation.
 type FactorDataPoint struct {
-	Date                     Date           `json:"date"`
-	Val                      float64        `json:"val"`
-	Score                    float64        `json:"score"`
-	LevelScore               float64        `json:"level_score"`
-	ImpulseScore             float64        `json:"impulse_score"`
-	RateRepricingScore       float64        `json:"rate_repricing_score"`
-	MacroPressureScore       float64        `json:"macro_pressure_score"`
-	Label                    string         `json:"label"`
-	StanceContext            string         `json:"stance_context"`
-	AnnouncementDatetime     UnixSeconds    `json:"announcement_datetime"`
-	CoverageRatio            float64        `json:"coverage_ratio"`
-	ComponentCount           uint64         `json:"component_count"`
-	PointInTimeSafe          bool           `json:"point_in_time_safe"`
-	ReleaseTimeAssumed       bool           `json:"release_time_assumed"`
-	AssumedReleaseTimeInputs uint64         `json:"assumed_release_time_inputs"`
-	Components               map[string]any `json:"components"`
-	SourceObservations       map[string]any `json:"source_observations"`
-	SourceEndpoints          []string       `json:"source_endpoints"`
+	Date                     Date            `json:"date"`
+	Val                      float64         `json:"val"`
+	Score                    float64         `json:"score"`
+	LevelScore               float64         `json:"level_score"`
+	ImpulseScore             float64         `json:"impulse_score"`
+	RateRepricingScore       float64         `json:"rate_repricing_score"`
+	MacroPressureScore       float64         `json:"macro_pressure_score"`
+	Label                    string          `json:"label"`
+	StanceContext            string          `json:"stance_context"`
+	AnnouncementDatetime     UnixSeconds     `json:"announcement_datetime"`
+	CoverageRatio            float64         `json:"coverage_ratio"`
+	ComponentCount           uint64          `json:"component_count"`
+	PointInTimeSafe          bool            `json:"point_in_time_safe"`
+	ReleaseTimeAssumed       bool            `json:"release_time_assumed"`
+	AssumedReleaseTimeInputs uint64          `json:"assumed_release_time_inputs"`
+	Components               json.RawMessage `json:"components"`
+	SourceObservations       json.RawMessage `json:"source_observations"`
+	SourceEndpoints          []string        `json:"source_endpoints"`
 }
 
 // MarketSessionsResponse contains the FX market-session snapshot.
