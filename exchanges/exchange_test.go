@@ -1155,6 +1155,28 @@ func TestShutdownWebsocket(t *testing.T) {
 	require.NoError(t, err, "request.New must not error")
 	require.NoError(t, disabled.Shutdown(), "Shutdown must not error when the websocket is already disabled")
 
+	notConnected := Base{Websocket: websocket.NewManager()}
+	notConnected.Requester, err = request.New("testShutdownNotConnected", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	err = notConnected.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig: &config.Exchange{
+			Name:                    "test",
+			WebsocketTrafficTimeout: time.Minute,
+			Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+		},
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
+	})
+	require.NoError(t, err, "Websocket.Setup must not error")
+	require.True(t, notConnected.Websocket.IsEnabled(), "Websocket must be enabled before Shutdown")
+	require.False(t, notConnected.Websocket.IsConnected(), "Websocket must not be connected before Shutdown")
+	require.NoError(t, notConnected.Shutdown(), "Shutdown must not error when the websocket is not connected")
+	assert.False(t, notConnected.Websocket.IsEnabled(), "Shutdown should disable an enabled websocket even when it is not connected")
+
 	synctest.Test(t, func(t *testing.T) {
 		var dials atomic.Int64
 		b := Base{Websocket: websocket.NewManager()}
@@ -1176,7 +1198,7 @@ func TestShutdownWebsocket(t *testing.T) {
 		})
 		require.NoError(t, err, "Websocket.Setup must not error")
 		require.NoError(t, b.Websocket.Connect(t.Context()), "Websocket.Connect must not error")
-		defer func() {
+		defer func() { // Stop leaked monitors on regression so the synctest bubble can finish.
 			_ = b.Websocket.Disable()
 			synctest.Sleep(time.Second)
 		}()
