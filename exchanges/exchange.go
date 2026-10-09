@@ -1595,9 +1595,13 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 }
 
 // Shutdown closes active websocket connections if available and then cleans up
-// a REST requester instance.
+// a REST requester instance. It disables the websocket first, because the
+// connection monitor keeps reconnecting it until it is disabled.
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
+		if err := b.Websocket.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+			return err
+		}
 		err := b.Websocket.Shutdown()
 		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err

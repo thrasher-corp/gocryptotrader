@@ -1,9 +1,12 @@
 package bitstamp
 
 import (
+	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1161,4 +1165,26 @@ func TestSubscribe(t *testing.T) {
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "Subscription %s should be subscribed", s)
 	}
+}
+
+func TestShutdownDoesNotReconnect(t *testing.T) {
+	t.Parallel()
+	var upgrades atomic.Int64
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if !gws.IsWebSocketUpgrade(r) {
+			http.NotFound(w, r) // REST order book seeding on connect
+			return
+		}
+		upgrades.Add(1)
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}
+	e := testexch.MockWsInstance[Exchange](t, h)
+	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
+	before := upgrades.Load()
+
+	require.NoError(t, e.Shutdown(), "Shutdown must not error")
+	time.Sleep(3 * time.Second)
+	t.Logf("3s after Shutdown: new upgrades=%d IsConnected=%v", upgrades.Load()-before, e.Websocket.IsConnected())
+	assert.Zero(t, upgrades.Load()-before, "a shut down exchange should not dial again")
+	assert.False(t, e.Websocket.IsConnected(), "websocket should stay disconnected after Shutdown")
 }
