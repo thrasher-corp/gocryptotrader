@@ -234,6 +234,8 @@ Use `require` and `assert` appropriately:
     and overlap behaviour. Bound their request count or duration so a stalled
     pager fails promptly, and compare the complete expected result rather than
     relying only on its length.
+    Include a partial final page, particularly a single remaining record, so
+    whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
 
 ### Interface Contracts
 

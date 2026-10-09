@@ -4792,7 +4792,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	end := start.Add(48 * time.Hour)
+	end := start.Add(49 * time.Hour)
 	var requests atomic.Int64
 	// Return ascending hourly records after the requested start, including the
 	// end, keeping only the latest page. This repeats the boundary of the next page.
@@ -4836,7 +4836,7 @@ func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
 		EndDate:         end,
 	})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
-	expected := make([]int64, 0, 48)
+	expected := make([]int64, 0, 49)
 	for ts := start.Add(time.Hour); !ts.After(end); ts = ts.Add(time.Hour) {
 		expected = append(expected, ts.UnixMilli())
 	}
