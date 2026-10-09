@@ -5230,6 +5230,11 @@ func TestGetLatestFundingRate(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	// The live pager has no loop guard of its own, so bound the whole run to
+	// keep a paging slip from re-requesting one page until go test's timeout.
+	ctx, cancel := context.WithTimeout(contextGenerate(), 30*time.Second)
+	t.Cleanup(cancel)
+
 	r := &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 perpetualSwapPair,
@@ -5240,19 +5245,19 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
-	_, err := e.GetHistoricalFundingRates(contextGenerate(), r)
+	_, err := e.GetHistoricalFundingRates(ctx, r)
 	require.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits)
 
 	if sharedtestvalues.AreAPICredentialsSet(e) {
 		r.IncludePayments = true
 	}
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 12)
-	result, err := e.GetHistoricalFundingRates(contextGenerate(), r)
+	result, err := e.GetHistoricalFundingRates(ctx, r)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
 	r.RespectHistoryLimits = true
-	result, err = e.GetHistoricalFundingRates(contextGenerate(), r)
+	result, err = e.GetHistoricalFundingRates(ctx, r)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5546,6 +5551,7 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 			var mu sync.Mutex
 			rateCalls := 0
 			billsCalls := 0
+			var ratesAfter, billsEnd string
 
 			now := time.Now()
 			start := now.Add(-24 * time.Hour)
@@ -5563,6 +5569,9 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 					mu.Lock()
 					rateCalls++
 					calls := rateCalls
+					if calls == 1 {
+						ratesAfter = r.URL.Query().Get("after")
+					}
 					mu.Unlock()
 					if calls > 4 {
 						// A short page ends the rates loop; refuse to feed the storm.
@@ -5580,6 +5589,7 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 					mu.Lock()
 					billsCalls++
 					calls := billsCalls
+					billsEnd = r.URL.Query().Get("end")
 					mu.Unlock()
 					if calls > 4 {
 						// A short page ends the bills loop; refuse to feed the storm.
@@ -5605,6 +5615,7 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 			e.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 			sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.PerpetualSwap, perpetualSwapPair)
 
+			called := time.Now()
 			result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 				Asset:                asset.PerpetualSwap,
 				Pair:                 perpetualSwapPair,
@@ -5613,16 +5624,21 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 				IncludePayments:      includePayments,
 				IncludePredictedRate: true,
 			})
+			returned := time.Now()
 			require.NoError(t, err, "an unset end date must be read as open-ended, not error")
 
 			require.Len(t, result.FundingRates, 1, "the newest page must be returned")
 			assert.Equal(t, fundingTime.UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come back, not the old page a before-only query returns")
 
 			mu.Lock()
-			bills := billsCalls
+			bills, after, end := billsCalls, ratesAfter, billsEnd
 			mu.Unlock()
+			afterMS, err := strconv.ParseInt(after, 10, 64)
+			require.NoError(t, err, "the first rates query must page from an after cursor")
+			assert.WithinRange(t, time.UnixMilli(afterMS), called.Truncate(time.Millisecond), returned, "an unset end should read as the time of the call")
 			if includePayments {
 				require.Equal(t, 1, bills, "the bills loop must page against the same effective window")
+				assert.Equal(t, after, end, "the bills query should end where the rates query does")
 				assert.Equal(t, "-1.5", result.FundingRates[0].Payment.String(), "the payment should come from the matching funding fee bill")
 			} else {
 				assert.Zero(t, bills, "no bills request should be made without payments")
