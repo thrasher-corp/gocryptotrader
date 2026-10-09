@@ -101,7 +101,10 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("submit validation error quote %w, suppled: %v", ErrAmountIsInvalid, s.QuoteAmount)
 	}
 
-	if s.Type == Limit && s.Price <= 0 {
+	if s.Type == Limit && s.Price <= 0 && s.AssetType != asset.Spread {
+		// A spread price is a differential between the legs of the spread, so
+		// it can be negative; an unset spread limit price is refused by the
+		// exchange wrapper instead.
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
@@ -1125,7 +1128,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Open, nil
 	case Closed.String(), "POSITION_CLOSED":
 		return Closed, nil
-	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED", "MMP_CANCELED":
 		return Cancelled, nil
 	case Pending.String():
 		return Pending, nil

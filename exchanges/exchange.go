@@ -1953,6 +1953,16 @@ func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
 	return common.ErrFunctionNotSupported
 }
 
+// WebsocketCancelBatchOrders cancels a batch of orders via the websocket connection
+func (*Base) WebsocketCancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelAllOrders cancels all orders via the websocket connection
+func (*Base) WebsocketCancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
+}
+
 // MessageID returns a universally unique id using UUID V7
 // In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
 func (b *Base) MessageID() string {

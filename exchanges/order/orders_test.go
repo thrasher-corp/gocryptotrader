@@ -157,6 +157,19 @@ func TestSubmitValidate(t *testing.T) {
 			},
 		}, // valid pair, order side, type, amount but invalid price
 		{
+			ExpectedErr: nil,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Ask,
+				Type:      Limit,
+				Amount:    1,
+				Price:     -41.2,
+				AssetType: asset.Spread,
+			},
+			ValidOpts: validate.Check(func() error { return nil }),
+		}, // a spread price is a differential between the legs and can be negative
+		{
 			ExpectedErr: errValidationCheckFailed,
 			Submit: &Submit{
 				Exchange:  "test",
@@ -902,6 +915,7 @@ var stringsToOrderStatus = []struct {
 	{"cancelled", Cancelled, nil},
 	{"CANCELlED", Cancelled, nil},
 	{"cAnCellEd", Cancelled, nil},
+	{"MMP_CANCELED", Cancelled, nil},
 	{"pending_cancel", PendingCancel, nil},
 	{"PENDING_CANCEL", PendingCancel, nil},
 	{"pENdInG_cAnCeL", PendingCancel, nil},

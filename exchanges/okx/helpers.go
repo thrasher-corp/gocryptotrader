@@ -2,6 +2,7 @@ package okx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -35,6 +36,12 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.TrailingStop, order.UnknownTIF, nil
 	case orderChase:
 		return order.Chase, order.UnknownTIF, nil
+	case orderRPI:
+		return order.Limit, order.UnknownTIF, nil
+	case orderELP:
+		return order.Limit, order.UnknownTIF, nil
+	case orderOptionFOK:
+		return order.Limit, order.FillOrKill, nil
 	default:
 		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}
@@ -44,15 +51,23 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
-		if tif == order.PostOnly {
+		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
 		}
 		return orderMarketMakerProtection, nil
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
 	case order.Limit:
-		if tif == order.PostOnly {
+		// TimeInForce.IsValid lets PostOnly combine with flags such as
+		// GoodTillCancel, and the order must still place as post-only.
+		if tif.Is(order.PostOnly) {
 			return orderPostOnly, nil
+		}
+		switch tif {
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
 		}
 		return orderLimit, nil
 	case order.Market:
@@ -68,10 +83,22 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		order.TWAP,
 		order.OCO:
 		return orderType.Lower(), nil
+	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so a time in force
+		// that fills immediately contradicts it.
+		if tif == order.ImmediateOrCancel || tif == order.FillOrKill {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
+		}
+		return orderPostOnly, nil
 	case order.ConditionalStop:
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
+	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket, order.Liquidation:
+		// A trigger order cannot ride the time-in-force fallback below: it
+		// would reach OKX as a plain limit-style order with no trigger
+		// attached.
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	default:
 		switch tif {
 		case order.PostOnly:
@@ -82,6 +109,99 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 			return orderIOC, nil
 		}
 		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+	}
+}
+
+// spreadOrderTypeString returns the ordType a spread order places for the
+// order type and time in force. The spread endpoints document only market,
+// limit, post_only and ioc: fok is rejected outright rather than silently
+// downgraded to a resting limit order, and order types the spread book does
+// not list, such as trigger-style orders, are rejected too.
+func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
+	switch orderType {
+	case order.Market:
+		if tif == order.FillOrKill {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		}
+		return orderMarket, nil // an ioc market order is already immediate
+	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so it places as
+		// post_only, and a time in force that fills immediately is refused.
+		switch tif {
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.PostOnly:
+			return orderPostOnly, nil
+		}
+	case order.Limit:
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		case order.FillOrKill:
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
+			return orderLimit, nil
+		}
+	}
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+}
+
+// orderTypeFilter returns the ordType filter for the OKX order types that
+// orderTypeFromString reads back as orderType, and as tif when one is set, as
+// the comma-separated list OKX accepts: a limit order without a time in force
+// spans limit, post_only, fok, ioc, op_fok and rpi. A pair no OKX order type
+// reads back as, such as a limit order with GoodTillCancel, falls back to
+// orderTypeString. elp is left out: OKX retires it on 31 October 2026 as the
+// old name of rpi.
+func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	var oTypes []string
+	for _, oType := range []string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly, orderOptionFOK, orderRPI} {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
+		}
+	}
+	if len(oTypes) > 0 {
+		return strings.Join(oTypes, ","), nil
+	}
+	return orderTypeString(orderType, tif)
+}
+
+// spreadOrderTypeFilter returns the ordType filter for the spread order
+// endpoints, which document only market, limit, post_only and ioc as single
+// values: the comma-separated lists the ordinary order endpoints accept are
+// rejected with 51000 there. One matching type is sent as-is; several matches
+// (limit, post_only and ioc all read back as Limit) send no filter and leave
+// the request filter to narrow by type. No match filters on the type spread
+// placement uses when it accepts the request, as a market order with
+// ImmediateOrCancel places as market, and otherwise falls back to
+// orderTypeString and rejects values outside the four spread types, such as
+// the fok a market or limit order with FillOrKill maps to: spread orders
+// cannot be fill-or-kill.
+func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	spreadTypes := []string{orderMarket, orderLimit, orderPostOnly, orderIOC}
+	var oTypes []string
+	for _, oType := range spreadTypes {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
+		}
+	}
+	switch len(oTypes) {
+	case 0:
+		if placed, err := spreadOrderTypeString(orderType, tif); err == nil {
+			return placed, nil
+		}
+		fallback, err := orderTypeString(orderType, tif)
+		if err != nil {
+			return "", err
+		}
+		if !slices.Contains(spreadTypes, fallback) {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, fallback)
+		}
+		return fallback, nil
+	case 1:
+		return oTypes[0], nil
+	default:
+		return "", nil
 	}
 }
 
