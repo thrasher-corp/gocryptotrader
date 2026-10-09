@@ -117,8 +117,8 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, "grid-client-1", row.AlgoClientOrderID, "the documented algoClOrdId should decode")
 		assert.Equal(t, 29181.46, row.AveragePrice.Float64(), "the entry price should decode")
 		assert.Equal(t, "USDT", row.Currency.String(), "the margin currency should decode")
-		assert.Equal(t, 12.5, row.UnrealisedPNL.Float64(), "the unrealised PnL should decode")
-		assert.Equal(t, 0.012, row.UnrealisedPNLRatio.Float64(), "the unrealised PnL ratio should decode")
+		assert.Equal(t, 12.5, row.UnrealizedProfitAndLoss.Float64(), "the unrealised PnL should decode")
+		assert.Equal(t, 0.012, row.UnrealizedProfitAndLossRatio.Float64(), "the unrealised PnL ratio should decode")
 		assert.Equal(t, 35.0, row.Position.Float64(), "the position size should decode")
 	})
 
@@ -217,7 +217,7 @@ func TestWSGridOrderSchemasDecode(t *testing.T) {
 	assert.Equal(t, uint64(3), spotRow.TradeNumber, "the documented tradeNum quoted count should decode")
 	assert.Equal(t, 100.0, spotRow.Investment.Float64(), "the documented investment should decode")
 	assert.Equal(t, 30478.1, spotRow.RunPrice.Float64(), "the documented runPx should decode")
-	assert.Equal(t, -0.9643551057262827, spotRow.TotalAnnualizedRate.Float64(), "the documented totalAnnualizedRate should decode")
+	assert.Equal(t, -0.9643551057262827, spotRow.TotalAnnualisedRate.Float64(), "the documented totalAnnualizedRate should decode")
 	assert.Zero(t, spotRow.StopLossTriggerPrice.Float64(), "the empty slTriggerPx should decode as zero")
 
 	var contract WsContractGridAlgoOrder

@@ -2571,7 +2571,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		totalEquity = acc[0].Details[i].TotalEquity.Decimal()
 		isolatedEquity = acc[0].Details[i].IsoEquity.Decimal()
 		isolatedLiabilities = acc[0].Details[i].IsolatedLiabilities.Decimal()
-		isolatedUnrealisedProfit = acc[0].Details[i].IsoUpl.Decimal()
+		isolatedUnrealisedProfit = acc[0].Details[i].IsolatedUnrealizedProfitAndLoss.Decimal()
 		notionalLeverage = acc[0].Details[i].NotionalLever.Decimal()
 		strategyEquity = acc[0].Details[i].StrategyEquity.Decimal()
 
@@ -2611,7 +2611,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
-		UnrealisedPNL:                positionSummary.UPNL.Decimal(),
+		UnrealisedPNL:                positionSummary.UnrealizedProfitAndLoss.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
 		FreeCollateral:               freeCollateral,
 		TotalCollateral:              totalCollateral,

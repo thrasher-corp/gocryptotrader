@@ -1478,7 +1478,7 @@ func (e *Exchange) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestI
 	if arg.RFQAmount <= 0 {
 		return nil, fmt.Errorf("%w, RFQ amount required", limits.ErrAmountBelowMin)
 	}
-	if arg.RFQSzCurrency == "" {
+	if arg.RFQSzCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, missing RFQ currency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp *EstimateQuoteResponse
@@ -1490,10 +1490,10 @@ func (e *Exchange) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*C
 	if *arg == (ConvertTradeInput{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.BaseCurrency == "" {
+	if arg.BaseCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, base currency required", currency.ErrCurrencyCodeEmpty)
 	}
-	if arg.QuoteCurrency == "" {
+	if arg.QuoteCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, quote currency required", currency.ErrCurrencyCodeEmpty)
 	}
 	arg.Side = strings.ToLower(arg.Side)
@@ -2467,8 +2467,8 @@ func (e *Exchange) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (
 	if arg.MinPrice <= 0 {
 		return nil, limits.ErrPriceBelowMin
 	}
-	if arg.GridQuantity < 0 {
-		return nil, errInvalidGridQuantity
+	if arg.GridNumber < 0 {
+		return nil, errInvalidGridNumber
 	}
 	isSpotGridOrder := arg.QuoteSize > 0 || arg.BaseSize > 0
 	if !isSpotGridOrder {
@@ -2799,7 +2799,7 @@ func (e *Exchange) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestm
 		return nil, fmt.Errorf("%w, minPrice = %f", limits.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.GridNumber == 0 {
-		return nil, fmt.Errorf("%w, grid number is required", errInvalidGridQuantity)
+		return nil, fmt.Errorf("%w, grid number is required", errInvalidGridNumber)
 	}
 	if arg.RunType == "" {
 		return nil, errRunTypeRequired
@@ -3352,12 +3352,12 @@ func (e *Exchange) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentT
 		params.Set("instType", instrumentType)
 	}
 	var resp []TraderProfitAndLossResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderWeeklyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderWeeklyProfitAndLossEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetDailyLeadTraderPNL retrieve lead trader daily pnl. Results are returned in counter chronological order.
+// GetDailyLeadTraderProfitAndLoss retrieve lead trader daily pnl. Results are returned in counter chronological order.
 // Last days "1": last 7 days  "2": last 30 days "3": last 90 days  "4": last 365 days
-func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]TraderProfitAndLossResponse, error) {
+func (e *Exchange) GetDailyLeadTraderProfitAndLoss(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]TraderProfitAndLossResponse, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -3371,7 +3371,7 @@ func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, un
 		params.Set("instType", instrumentType)
 	}
 	var resp []TraderProfitAndLossResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-pnl", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyProfitAndLossEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetLeadTraderStats retrieves key data related to lead trader performance
@@ -5169,17 +5169,17 @@ func (e *Exchange) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code,
 		return nil, fmt.Errorf("%w, client ID is required", errIDNotSet)
 	}
 	arg := &struct {
-		PaymentMethod string  `json:"paymentMethod"`
-		PaymentAcctID string  `json:"paymentAcctId"`
-		ClientID      string  `json:"clientId"`
-		Amount        float64 `json:"amt,string"`
-		Currency      string  `json:"ccy"`
+		PaymentMethod    string  `json:"paymentMethod"`
+		PaymentAccountID string  `json:"paymentAcctId"`
+		ClientID         string  `json:"clientId"`
+		Amount           float64 `json:"amt,string"`
+		Currency         string  `json:"ccy"`
 	}{
-		PaymentMethod: paymentMethod,
-		PaymentAcctID: paymentAccountID,
-		ClientID:      clientID,
-		Amount:        amount,
-		Currency:      ccy.String(),
+		PaymentMethod:    paymentMethod,
+		PaymentAccountID: paymentAccountID,
+		ClientID:         clientID,
+		Amount:           amount,
+		Currency:         ccy.String(),
 	}
 	var resp *FiatOrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createWithdrawalOrderEPL, http.MethodPost, "fiat/create-withdrawal", arg, &resp, request.AuthenticatedRequest)

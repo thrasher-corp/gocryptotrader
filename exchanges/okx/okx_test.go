@@ -2237,7 +2237,7 @@ func TestEstimateQuote(t *testing.T) {
 		QuoteCurrency: currency.USDT,
 		Side:          order.Sell.Lower(),
 		RFQAmount:     30,
-		RFQSzCurrency: "USDT",
+		RFQSzCurrency: currency.USDT,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2251,11 +2251,11 @@ func TestConvertTrade(t *testing.T) {
 	_, err = e.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	arg.BaseCurrency = "BTC"
+	arg.BaseCurrency = currency.BTC
 	_, err = e.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	arg.QuoteCurrency = "USDT"
+	arg.QuoteCurrency = currency.USDT
 	_, err = e.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -2273,8 +2273,8 @@ func TestConvertTrade(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ConvertTrade(contextGenerate(), &ConvertTradeInput{
-		BaseCurrency:  "BTC",
-		QuoteCurrency: "USDT",
+		BaseCurrency:  currency.BTC,
+		QuoteCurrency: currency.USDT,
 		Side:          order.Buy.Lower(),
 		Size:          2,
 		SizeCurrency:  currency.USDT,
@@ -2912,11 +2912,11 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MinPrice = 1200
-	arg.GridQuantity = -1
+	arg.GridNumber = -1
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errInvalidGridQuantity)
+	require.ErrorIs(t, err, errInvalidGridNumber)
 
-	arg.GridQuantity = 123
+	arg.GridNumber = 123
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
@@ -5320,7 +5320,7 @@ func TestComputeMinInvestment(t *testing.T) {
 
 	arg.MinPrice = 5000
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, errInvalidGridQuantity)
+	require.ErrorIs(t, err, errInvalidGridNumber)
 
 	arg.GridNumber = 1234
 	arg.RunType = ""
@@ -5763,13 +5763,13 @@ func TestGetWeeklyTraderProfitAndLoss(t *testing.T) {
 
 func TestGetDailyLeadTraderPNL(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetDailyLeadTraderPNL(contextGenerate(), "SWAP", "", "2")
+	_, err := e.GetDailyLeadTraderProfitAndLoss(contextGenerate(), "SWAP", "", "2")
 	require.ErrorIs(t, err, errUniqueCodeRequired)
-	_, err = e.GetDailyLeadTraderPNL(contextGenerate(), "SWAP", "WOOF", "")
+	_, err = e.GetDailyLeadTraderProfitAndLoss(contextGenerate(), "SWAP", "WOOF", "")
 	require.ErrorIs(t, err, errLastDaysRequired)
 
 	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	mainResult, err := e.GetDailyLeadTraderPNL(contextGenerate(), "SWAP", leadTraderUniqueID, "2")
+	mainResult, err := e.GetDailyLeadTraderProfitAndLoss(contextGenerate(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, mainResult)
 }

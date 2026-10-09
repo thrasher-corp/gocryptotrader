@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -47,6 +48,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		"/account/risk-state":                            `{"code":"0","msg":"","data":[{"atRisk":true,"atRiskIdx":[],"atRiskMgn":[],"ts":"1635745078794"}]}`,
 		"/tradingBot/signal/event-history":               `{"code":"0","msg":"","data":[{"algoId":"12345","alertMsg":"price alert","eventCtime":"1724751378980","eventProcessMsg":"done","state":"done","triggerTime":"1724751378999"}]}`,
 		"/account/positions":                             `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","realizedPnl":"12.5","fundingFee":"-0.1","bePx":"41000","pnl":"5"}]}`,
+		"/account/positions-history":                     `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","instType":"SWAP","mgnMode":"cross","type":"2","cTime":"1619776200285","uTime":"1619776200285","lever":"3","margin":"100","optVal":"0.1","usdPx":"42000.5","bePx":"41000","pnl":"5","closeOrderAlgo":[{"algoId":"123","slTriggerPx":"38000","slTriggerPxType":"last","tpTriggerPx":"50000","tpTriggerPxType":"last","tpOrdPx":"-1","slOrdPx":"39000","closeFraction":"0.5"}]}]}`,
 		"/public/funding-rate":                           `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USD-SWAP","formulaType":"withRate","fundingRate":"0.0001","realizedRate":"0.00012","interestRate":"0.00003","impactValue":"1.2","method":"current_period"}]}`,
 		"/tradingBot/grid/orders-algo-details":           `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"grid-client-1","instFamily":"BTC-USDT","activeOrdNum":"3","ordFrozen":"100","availEq":"500","tpRatio":"0.1","slRatio":"0.05","fee":"-0.2","feeCcy":"USDT","fundingFee":"-0.3","triggerParams":[{"triggerAction":"start","triggerStrategy":"rsi","timeframe":"15m","thold":"30","triggerCond":"cross_up","timePeriod":"14"}]}]}`,
 		"/copytrading/current-subpositions":              `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","margin":"100","ccy":"USDT","uniqueCode":"u1","markPx":"42000","upl":"1.5","uplRatio":"0.015","tpOrdPx":"50000","slOrdPx":"38000","availSubPos":"0.5","pnl":"2","pnlRatio":"0.02"}]}`,
@@ -184,9 +186,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			absent: []string{"tiers"},
 		},
 		{
-			name: "Daily lead trader PNL hits the daily endpoint",
+			name: "Daily lead trader ProfitAndLoss hits the daily endpoint",
 			call: func() error {
-				_, err := e.GetDailyLeadTraderPNL(t.Context(), "SWAP", "trader-1", "2")
+				_, err := e.GetDailyLeadTraderProfitAndLoss(t.Context(), "SWAP", "trader-1", "2")
 				return err
 			},
 			path:   "/copytrading/public-pnl",
@@ -514,9 +516,34 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, accountPositions, 1, "the position row must decode")
-				assert.Equal(t, 12.5, accountPositions[0].RealisedPNL.Float64(), "the documented realizedPnl should decode")
+				assert.Equal(t, 12.5, accountPositions[0].RealizedProfitAndLoss.Float64(), "the documented realizedPnl should decode")
 				assert.Equal(t, -0.1, accountPositions[0].FundingFee.Float64(), "the accumulated funding fee should decode")
-				assert.Equal(t, 41000.0, accountPositions[0].BreakevenPrice.Float64(), "the documented bePx should decode")
+				assert.Equal(t, 41000.0, accountPositions[0].BreakEvenPrice.Float64(), "the documented bePx should decode")
+			},
+		},
+		{
+			name: "Position history decodes the aligned types and close algos",
+			call: func() error {
+				_, err := e.GetPositionsHistory(t.Context(), "SWAP", "", "", "", 0, 100, time.Time{}, time.Time{})
+				return err
+			},
+			path: "/account/positions-history",
+			verify: func(t *testing.T) {
+				t.Helper()
+				history, err := e.GetPositionsHistory(t.Context(), "SWAP", "", "", "", 0, 100, time.Time{}, time.Time{})
+				require.NoError(t, err, "positions history must decode")
+				require.Len(t, history, 1, "the history row must decode")
+				row := history[0]
+				assert.Equal(t, asset.PerpetualSwap, row.InstrumentType, "the documented instType should decode")
+				assert.Equal(t, 3.0, row.Leverage.Float64(), "the documented lever should decode")
+				assert.Equal(t, 100.0, row.Margin.Float64(), "the documented margin should decode")
+				assert.Equal(t, 0.1, row.OptionValue.Float64(), "the documented optVal should decode")
+				assert.Equal(t, 42000.5, row.USDPrice.Float64(), "the documented usdPx should decode")
+				assert.Equal(t, 41000.0, row.BreakEvenPrice.Float64(), "the documented bePx should decode")
+				require.Len(t, row.CloseOrderAlgo, 1, "the close algo row must decode")
+				assert.Equal(t, "123", row.CloseOrderAlgo[0].AlgoID, "the close algo ID should decode")
+				assert.Equal(t, 38000.0, row.CloseOrderAlgo[0].StopLossTriggerPrice.Float64(), "the close algo stop-loss trigger should decode")
+				assert.Equal(t, 0.5, row.CloseOrderAlgo[0].CloseFraction.Float64(), "the close algo fraction should decode")
 			},
 		},
 		{
@@ -568,7 +595,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				require.Len(t, leadingPositions, 1, "the sub position row must decode")
 				assert.Equal(t, 100.0, leadingPositions[0].Margin.Float64(), "the documented margin should decode")
 				assert.Equal(t, "USDT", leadingPositions[0].MarginCurrency.String(), "the documented margin currency should decode")
-				assert.Equal(t, 1.5, leadingPositions[0].UPL.Float64(), "the unrealised PnL should decode")
+				assert.Equal(t, 1.5, leadingPositions[0].UnrealizedProfitAndLoss.Float64(), "the unrealised PnL should decode")
 				assert.Equal(t, 50000.0, leadingPositions[0].TakeProfitOrderPrice.Float64(), "the take-profit order price should decode")
 			},
 		},
@@ -652,12 +679,12 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "BTC-USDT-SWAP", positionBuilder.Positions[0].InstrumentID, "the position instrument should decode")
 				assert.Equal(t, 1.0, positionBuilder.Positions[0].Amount.Float64(), "the position amount should decode")
 				assert.Equal(t, 0.5, positionBuilder.AccountLeverage.Float64(), "the documented acctLever should decode")
-				assert.Equal(t, 1.2, positionBuilder.BorrowMMR.Float64(), "the documented borrowMmr should decode")
-				assert.Equal(t, 0.8, positionBuilder.DerivativesMMR.Float64(), "the documented derivMmr should decode")
+				assert.Equal(t, 1.2, positionBuilder.BorrowMaintenanceMarginRequirement.Float64(), "the documented borrowMmr should decode")
+				assert.Equal(t, 0.8, positionBuilder.DerivativesMaintenanceMarginRequirement.Float64(), "the documented derivMmr should decode")
 				assert.Equal(t, 100.0, positionBuilder.Equity.Float64(), "the documented eq should decode")
 				assert.Equal(t, 0.02, positionBuilder.MarginRatio.Float64(), "the documented marginRatio should decode")
-				assert.Equal(t, 2.5, positionBuilder.TotalIMR.Float64(), "the documented totalImr should decode")
-				assert.Equal(t, 1.5, positionBuilder.TotalMMR.Float64(), "the documented totalMmr should decode")
+				assert.Equal(t, 2.5, positionBuilder.TotalInitialMarginRequirement.Float64(), "the documented totalImr should decode")
+				assert.Equal(t, 1.5, positionBuilder.TotalMaintenanceMarginRequirement.Float64(), "the documented totalMmr should decode")
 				require.Len(t, positionBuilder.Assets, 1, "the documented asset row must decode")
 				assert.Equal(t, "USDT", positionBuilder.Assets[0].Currency.String(), "the asset currency should decode")
 				assert.Equal(t, 5.0, positionBuilder.Assets[0].SpotInUse.Float64(), "the documented spotInUse should decode")
@@ -753,7 +780,7 @@ func TestPositionBuilderRiskUnitDecodesQuotedNumbers(t *testing.T) {
 	require.Len(t, detail.RiskUnitData, 1, "the risk unit row must decode")
 	ru := detail.RiskUnitData[0]
 	assert.Equal(t, "1164.4109244719994", ru.MR1.String(), "the documented mr1 should decode as a number")
-	assert.Equal(t, "-1164.4109244719994", ru.MR1FinalResult.PNL.String(), "the MR1 worst-case PNL should decode as a number")
+	assert.Equal(t, "-1164.4109244719994", ru.MR1FinalResult.ProfitAndLoss.String(), "the MR1 worst-case ProfitAndLoss should decode as a number")
 	assert.Equal(t, "0.12", ru.MR1FinalResult.SpotShock.String(), "the MR1 spot shock should decode as a number")
 	assert.Equal(t, "up", ru.MR1FinalResult.VolatilityShock, "the MR1 volatility shock should decode")
 	assert.Equal(t, "-0.2", ru.MR1Scenarios.VolatilityShockDown["30000"].String(), "the MR1 volatility scenarios should decode as numbers")

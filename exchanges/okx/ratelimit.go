@@ -183,8 +183,8 @@ const (
 	stopCopyingEPL
 	getCopySettingsEPL
 	getLeadTraderRanksEPL
-	getLeadTraderWeeklyPNLEPL
-	getLeadTraderDailyPNLEPL
+	getLeadTraderWeeklyProfitAndLossEPL
+	getLeadTraderDailyProfitAndLossEPL
 	getLeadTraderStatsEPL
 	getLeadTraderCurrencyPreferencesEPL
 	getTraderCurrentLeadPositionsEPL
@@ -475,8 +475,8 @@ var rateLimits = func() request.RateLimitDefinitions {
 		stopCopyingEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getCopySettingsEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderRanksEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getLeadTraderWeeklyPNLEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getLeadTraderDailyPNLEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getLeadTraderWeeklyProfitAndLossEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getLeadTraderDailyProfitAndLossEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderStatsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderCurrencyPreferencesEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getTraderCurrentLeadPositionsEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
