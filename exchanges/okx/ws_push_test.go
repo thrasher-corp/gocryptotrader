@@ -117,8 +117,8 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, "grid-client-1", row.AlgoClientOrderID, "the documented algoClOrdId should decode")
 		assert.Equal(t, 29181.46, row.AveragePrice.Float64(), "the entry price should decode")
 		assert.Equal(t, "USDT", row.Currency.String(), "the margin currency should decode")
-		assert.Equal(t, 12.5, row.UnrealizedProfitAndLoss.Float64(), "the unrealised PnL should decode")
-		assert.Equal(t, 0.012, row.UnrealizedProfitAndLossRatio.Float64(), "the unrealised PnL ratio should decode")
+		assert.Equal(t, 12.5, row.UnrealisedProfitAndLoss.Float64(), "the unrealised PnL should decode")
+		assert.Equal(t, 0.012, row.UnrealisedProfitAndLossRatio.Float64(), "the unrealised PnL ratio should decode")
 		assert.Equal(t, 35.0, row.Position.Float64(), "the position size should decode")
 	})
 

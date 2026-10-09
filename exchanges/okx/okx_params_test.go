@@ -467,7 +467,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			name: "Unrealised profit sharing decodes the unrealised amount",
 			call: func() error {
 				var err error
-				unrealisedProfitSharing, err = e.GetUnrealizedProfitSharingDetails(t.Context(), "SWAP")
+				unrealisedProfitSharing, err = e.GetUnrealisedProfitSharingDetails(t.Context(), "SWAP")
 				return err
 			},
 			path: "/copytrading/unrealized-profit-sharing-details",
@@ -516,7 +516,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, accountPositions, 1, "the position row must decode")
-				assert.Equal(t, 12.5, accountPositions[0].RealizedProfitAndLoss.Float64(), "the documented realizedPnl should decode")
+				assert.Equal(t, 12.5, accountPositions[0].RealisedProfitAndLoss.Float64(), "the documented realizedPnl should decode")
 				assert.Equal(t, -0.1, accountPositions[0].FundingFee.Float64(), "the accumulated funding fee should decode")
 				assert.Equal(t, 41000.0, accountPositions[0].BreakEvenPrice.Float64(), "the documented bePx should decode")
 			},
@@ -595,7 +595,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				require.Len(t, leadingPositions, 1, "the sub position row must decode")
 				assert.Equal(t, 100.0, leadingPositions[0].Margin.Float64(), "the documented margin should decode")
 				assert.Equal(t, "USDT", leadingPositions[0].MarginCurrency.String(), "the documented margin currency should decode")
-				assert.Equal(t, 1.5, leadingPositions[0].UnrealizedProfitAndLoss.Float64(), "the unrealised PnL should decode")
+				assert.Equal(t, 1.5, leadingPositions[0].UnrealisedProfitAndLoss.Float64(), "the unrealised PnL should decode")
 				assert.Equal(t, 50000.0, leadingPositions[0].TakeProfitOrderPrice.Float64(), "the take-profit order price should decode")
 			},
 		},

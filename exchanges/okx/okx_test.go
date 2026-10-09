@@ -5639,10 +5639,10 @@ func TestGetTotalProfitSharing(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUnrealizedProfitSharingDetails(t *testing.T) {
+func TestGetUnrealisedProfitSharingDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUnrealizedProfitSharingDetails(contextGenerate(), "SWAP")
+	result, err := e.GetUnrealisedProfitSharingDetails(contextGenerate(), "SWAP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -3212,9 +3212,9 @@ func (e *Exchange) GetTotalProfitSharing(ctx context.Context, instrumentType str
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTotalProfitSharingEPL, http.MethodGet, common.EncodeURLValues("copytrading/total-profit-sharing", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetUnrealizedProfitSharingDetails gets leading trader gets the profit sharing details that are expected to be shared in the next settlement cycle.
-// The unrealized profit sharing details will update once there copy position is closed
-func (e *Exchange) GetUnrealizedProfitSharingDetails(ctx context.Context, instrumentType string) ([]ProfitSharingItem, error) {
+// GetUnrealisedProfitSharingDetails gets leading trader gets the profit sharing details that are expected to be shared in the next settlement cycle.
+// The unrealised profit sharing details will update once there copy position is closed
+func (e *Exchange) GetUnrealisedProfitSharingDetails(ctx context.Context, instrumentType string) ([]ProfitSharingItem, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)

@@ -1789,7 +1789,7 @@ type Account struct {
 	BorrowFrozen                 string          `json:"borrowFroz"`
 	NotionalUSD                  types.Number    `json:"notionalUsd"`
 	AvailableEquity              types.Number    `json:"availEq"` // Available equity of the account, applicable to Multi-currency margin and Portfolio margin
-	UnrealizedProfitAndLoss      types.Number    `json:"upl"`     // Unrealised profit and loss of the account in USD level
+	UnrealisedProfitAndLoss      types.Number    `json:"upl"`     // Unrealised profit and loss of the account in USD level
 	NotionalUSDBorrow            types.Number    `json:"notionalUsdForBorrow"`
 	NotionalUSDSwap              types.Number    `json:"notionalUsdForSwap"`
 	NotionalUSDFutures           types.Number    `json:"notionalUsdForFutures"`
@@ -1819,14 +1819,14 @@ type AccountDetail struct {
 	FrozenBalance                      types.Number  `json:"frozenBal"`
 	Interest                           types.Number  `json:"interest"`
 	IsolatedLiabilities                types.Number  `json:"isoLiab"`
-	IsolatedUnrealizedProfitAndLoss    types.Number  `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
+	IsolatedUnrealisedProfitAndLoss    types.Number  `json:"isoUpl"` // Isolated unrealised profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
 	LiabilitiesOfCurrency              types.Number  `json:"liab"`
 	MaxLoan                            types.Number  `json:"maxLoan"`
 	MarginRatio                        types.Number  `json:"mgnRatio"`      // Equity of the currency
 	NotionalLever                      types.Number  `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
 	Twap                               types.Number  `json:"twap"`
-	UnrealizedProfitAndLoss            types.Number  `json:"upl"` // unrealized profit & loss of all margin and derivatives positions of currency.
-	UnrealizedProfitAndLossLiabilities types.Number  `json:"uplLiab"`
+	UnrealisedProfitAndLoss            types.Number  `json:"upl"` // unrealised profit & loss of all margin and derivatives positions of currency.
+	UnrealisedProfitAndLossLiabilities types.Number  `json:"uplLiab"`
 	StrategyEquity                     types.Number  `json:"stgyEq"`  // strategy equity
 	TotalEquity                        types.Number  `json:"totalEq"` // Total equity in USD level. Appears unused
 	RewardBalance                      types.Number  `json:"rewardBal"`
@@ -1842,7 +1842,7 @@ type AccountDetail struct {
 	OpenAvgPrice                       types.Number  `json:"openAvgPx"`
 	AccAvgPrice                        types.Number  `json:"accAvgPx"`
 	SpotUPL                            types.Number  `json:"spotUpl"`
-	SpotUnrealizedProfitAndLossRatio   types.Number  `json:"spotUplRatio"`
+	SpotUnrealisedProfitAndLossRatio   types.Number  `json:"spotUplRatio"`
 	TotalPNL                           types.Number  `json:"totalPnl"`
 	TotalProfitAndLossRatio            types.Number  `json:"totalPnlRatio"`
 	ForcedRepaymentType                string        `json:"frpType"`
@@ -1895,8 +1895,8 @@ type AccountPosition struct {
 	ThetaPA                      types.Number  `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
 	TradeID                      string        `json:"tradeId"`
 	UpdatedTime                  types.Time    `json:"uTime"`    // Latest time position was adjusted,
-	UnrealizedProfitAndLoss      types.Number  `json:"upl"`      // Unrealized profit and loss
-	UnrealizedProfitAndLossRatio types.Number  `json:"uplRatio"` // Unrealized profit and loss ratio
+	UnrealisedProfitAndLoss      types.Number  `json:"upl"`      // Unrealised profit and loss
+	UnrealisedProfitAndLossRatio types.Number  `json:"uplRatio"` // Unrealised profit and loss ratio
 	VegaBS                       types.Number  `json:"vegaBS"`   // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
 	VegaPA                       types.Number  `json:"vegaPA"`   // vega：Greeks in coins,only applicable to OPTION
 
@@ -1905,7 +1905,7 @@ type AccountPosition struct {
 	PushTime types.Time `json:"pTime"` // The time when the account position data is pushed.
 
 	NonSettlementAveragePrice             types.Number             `json:"nonSettleAvgPx"`
-	RealizedProfitAndLoss                 types.Number             `json:"realizedPnl"`
+	RealisedProfitAndLoss                 types.Number             `json:"realizedPnl"`
 	SettledPNL                            types.Number             `json:"settledPnl"`
 	ProfitAndLoss                         types.Number             `json:"pnl"`        // Profit and loss of the position, excluding fee
 	Fee                                   types.Number             `json:"fee"`        // Accumulated fee
@@ -1921,8 +1921,8 @@ type AccountPosition struct {
 	BusinessRefID                         string                   `json:"bizRefId"`
 	BusinessRefType                       string                   `json:"bizRefType"`
 	CloseOrderAlgo                        []PositionCloseOrderAlgo `json:"closeOrderAlgo"`
-	UnrealizedProfitAndLossLastPrice      types.Number             `json:"uplLastPx"`
-	UnrealizedProfitAndLossRatioLastPrice types.Number             `json:"uplRatioLastPx"`
+	UnrealisedProfitAndLossLastPrice      types.Number             `json:"uplLastPx"`
+	UnrealisedProfitAndLossRatioLastPrice types.Number             `json:"uplRatioLastPx"`
 	PendingCloseOrderLiability            types.Number             `json:"pendingCloseOrdLiabVal"`
 }
 
@@ -1949,7 +1949,7 @@ type AccountPositionHistory struct {
 	UpdateTime                types.Time   `json:"uTime"`
 	OpenAveragePrice          types.Number `json:"openAvgPx"`
 	CloseAveragePrice         types.Number `json:"closeAvgPx"`
-	RealizedProfitAndLoss     types.Number `json:"realizedPnl"`
+	RealisedProfitAndLoss     types.Number `json:"realizedPnl"`
 	SettledPNL                types.Number `json:"settledPnl"`
 	FundingFee                types.Number `json:"fundingFee"`
 	Direction                 string       `json:"direction"`
@@ -1966,10 +1966,10 @@ type AccountPositionHistory struct {
 	AvailablePositions                    string                   `json:"availPos"`
 	AveragePrice                          types.Number             `json:"avgPx"`
 	MarkPrice                             types.Number             `json:"markPx"`
-	UnrealizedProfitAndLoss               types.Number             `json:"upl"`
-	UnrealizedProfitAndLossRatio          types.Number             `json:"uplRatio"`
-	UnrealizedProfitAndLossLastPrice      types.Number             `json:"uplLastPx"`
-	UnrealizedProfitAndLossRatioLastPrice types.Number             `json:"uplRatioLastPx"`
+	UnrealisedProfitAndLoss               types.Number             `json:"upl"`
+	UnrealisedProfitAndLossRatio          types.Number             `json:"uplRatio"`
+	UnrealisedProfitAndLossLastPrice      types.Number             `json:"uplLastPx"`
+	UnrealisedProfitAndLossRatioLastPrice types.Number             `json:"uplRatioLastPx"`
 	Leverage                              types.Number             `json:"lever"`
 	LiquidationPrice                      types.Number             `json:"liqPx"`
 	InitialMarginRequirement              types.Number             `json:"imr"`
@@ -2712,15 +2712,15 @@ type SubaccountBalanceDetail struct {
 	OrdFrozen                        string       `json:"ordFrozen"`
 	Twap                             string       `json:"twap"`
 	UpdateTime                       types.Time   `json:"uTime"`
-	UnrealizedProfitAndLoss          types.Number `json:"upl"`
-	UnrealizedProfitAndLiabilities   string       `json:"uplLiab"`
+	UnrealisedProfitAndLoss          types.Number `json:"upl"`
+	UnrealisedProfitAndLiabilities   string       `json:"uplLiab"`
 	FixedBalance                     types.Number `json:"fixedBal"`
 	BorrowFroz                       types.Number `json:"borrowFroz"`
 	SpotISOBalance                   types.Number `json:"spotIsoBal"`
 	SMTSyncEquity                    types.Number `json:"smtSyncEq"`
 	InitialMarginRequirement         types.Number `json:"imr"`
 	MaintenanceMarginRequirement     types.Number `json:"mmr"`
-	IsolatedUnrealizedProfitAndLoss  types.Number `json:"isoUpl"`
+	IsolatedUnrealisedProfitAndLoss  types.Number `json:"isoUpl"`
 	SpotInUseAmount                  types.Number `json:"spotInUseAmt"`
 	ClientSpotInUseAmount            types.Number `json:"clSpotInUseAmt"`
 	MaxSpotInUseAmount               types.Number `json:"maxSpotInUse"`
@@ -2728,7 +2728,7 @@ type SubaccountBalanceDetail struct {
 	OpenAvgPrice                     types.Number `json:"openAvgPx"`
 	AccAvgPrice                      types.Number `json:"accAvgPx"`
 	SpotUPL                          types.Number `json:"spotUpl"`
-	SpotUnrealizedProfitAndLossRatio types.Number `json:"spotUplRatio"`
+	SpotUnrealisedProfitAndLossRatio types.Number `json:"spotUplRatio"`
 	TotalPNL                         types.Number `json:"totalPnl"`
 	TotalProfitAndLossRatio          types.Number `json:"totalPnlRatio"`
 	AutoLendStatus                   string       `json:"autoLendStatus"`
@@ -2763,7 +2763,7 @@ type SubaccountBalanceResponse struct {
 	TotalEq                      types.Number              `json:"totalEq"`
 	UpdateTime                   types.Time                `json:"uTime"`
 	BorrowFroz                   types.Number              `json:"borrowFroz"`
-	UnrealizedProfitAndLoss      types.Number              `json:"upl"`
+	UnrealisedProfitAndLoss      types.Number              `json:"upl"`
 }
 
 // FundingBalance holds function balance
@@ -2991,8 +2991,8 @@ type AlgoOrderPosition struct {
 	NotionalUSD                  types.Number  `json:"notionalUsd"`
 	QuantityPosition             types.Number  `json:"pos"`
 	PositionSide                 string        `json:"posSide"`
-	UnrealizedProfitAndLoss      types.Number  `json:"upl"`
-	UnrealizedProfitAndLossRatio types.Number  `json:"uplRatio"`
+	UnrealisedProfitAndLoss      types.Number  `json:"upl"`
+	UnrealisedProfitAndLossRatio types.Number  `json:"uplRatio"`
 	UpdateTime                   types.Time    `json:"uTime"`
 	CreationTime                 types.Time    `json:"cTime"`
 }
@@ -3830,8 +3830,8 @@ type GridPositionDetail struct {
 	Position                     types.Number  `json:"pos"`
 	PositionSide                 string        `json:"posSide"`
 	UpdateTime                   types.Time    `json:"uTime"`
-	UnrealizedProfitAndLoss      types.Number  `json:"upl"`
-	UnrealizedProfitAndLossRatio types.Number  `json:"uplRatio"`
+	UnrealisedProfitAndLoss      types.Number  `json:"upl"`
+	UnrealisedProfitAndLossRatio types.Number  `json:"uplRatio"`
 }
 
 // WsDeliveryEstimatedPrice represents an estimated delivery/exercise price push data as a result of subscription to "estimated-price" channel
@@ -4178,7 +4178,7 @@ type SignalBotOrderDetail struct {
 	SignalChanName          string       `json:"signalChanName"`
 	SignalSourceType        string       `json:"signalSourceType"`
 	TotalProfitAndLossRatio types.Number `json:"totalPnlRatio"`
-	RealizedProfitAndLoss   types.Number `json:"realizedPnl"`
+	RealisedProfitAndLoss   types.Number `json:"realizedPnl"`
 }
 
 // SignalBotPosition holds signal bot position information
@@ -4203,8 +4203,8 @@ type SignalBotPosition struct {
 	Position                     string        `json:"pos"`
 	PositionSide                 string        `json:"posSide"` // Position side 'net'
 	UpdateTime                   types.Time    `json:"uTime"`
-	UnrealizedProfitAndLoss      types.Number  `json:"upl"`
-	UnrealizedProfitAndLossRatio types.Number  `json:"uplRatio"` // Unrealized profit and loss ratio
+	UnrealisedProfitAndLoss      types.Number  `json:"upl"`
+	UnrealisedProfitAndLossRatio types.Number  `json:"uplRatio"` // Unrealised profit and loss ratio
 }
 
 // SubOrder holds signal bot sub orders
@@ -4386,8 +4386,8 @@ type PositionInfo struct {
 	MarginCurrency               currency.Code `json:"ccy"`
 	UniqueCode                   string        `json:"uniqueCode"`
 	MarkPrice                    types.Number  `json:"markPx"`
-	UnrealizedProfitAndLoss      types.Number  `json:"upl"`
-	UnrealizedProfitAndLossRatio types.Number  `json:"uplRatio"`
+	UnrealisedProfitAndLoss      types.Number  `json:"upl"`
+	UnrealisedProfitAndLossRatio types.Number  `json:"uplRatio"`
 	TakeProfitOrderPrice         types.Number  `json:"tpOrdPx"`
 	StopLossOrderPrice           types.Number  `json:"slOrdPx"`
 	AvailableSubPosition         types.Number  `json:"availSubPos"`
@@ -4401,7 +4401,7 @@ type PositionInfo struct {
 	TakeProfitTriggerPrice       types.Number  `json:"tpTriggerPx"`
 	CloseAveragePrice            types.Number  `json:"closeAvgPx"`
 	CloseTime                    types.Time    `json:"closeTime"`
-	RealizedProfitAndLoss        types.Number  `json:"pnl"`
+	RealisedProfitAndLoss        types.Number  `json:"pnl"`
 	RealisedPNLRatio             types.Number  `json:"pnlRatio"`
 	ClosedSubPosition            types.Number  `json:"closeSubPos"`
 	CloseType                    string        `json:"type"`
@@ -5007,7 +5007,7 @@ type CopyTradingLeadTrader struct {
 	ProfitSharingRatio      types.Number `json:"profitSharingRatio"`
 	TodayProfitAndLoss      types.Number `json:"todayPnl"`
 	UniqueCode              string       `json:"uniqueCode"`
-	UnrealizedProfitAndLoss types.Number `json:"upl"`
+	UnrealisedProfitAndLoss types.Number `json:"upl"`
 	CopyMode                string       `json:"copyMode"`
 	CopyNum                 string       `json:"copyNum"`
 	CopyRatio               types.Number `json:"copyRatio"`
@@ -5101,8 +5101,8 @@ type LeadTraderCurrentLeadPosition struct {
 	SubPos                       string       `json:"subPos"`
 	SubPositionID                string       `json:"subPosId"`
 	UniqueCode                   string       `json:"uniqueCode"`
-	UnrealizedProfitAndLoss      types.Number `json:"upl"`
-	UnrealizedProfitAndLossRatio types.Number `json:"uplRatio"`
+	UnrealisedProfitAndLoss      types.Number `json:"upl"`
+	UnrealisedProfitAndLossRatio types.Number `json:"uplRatio"`
 }
 
 // LeadPosition holds lead trader completed leading position
@@ -5351,7 +5351,7 @@ type PositionBuilderRiskUnit struct {
 	MR7                                types.Number                  `json:"mr7"`
 	MR8                                types.Number                  `json:"mr8"`
 	MR9                                types.Number                  `json:"mr9"`
-	UnrealizedProfitAndLoss            types.Number                  `json:"upl"`
+	UnrealisedProfitAndLoss            types.Number                  `json:"upl"`
 	Portfolios                         []PositionBuilderPortfolio    `json:"portfolios"`
 	RiskUnit                           string                        `json:"riskUnit"`
 	Theta                              types.Number                  `json:"theta"`
@@ -5374,7 +5374,7 @@ type PositionBuilderDetail struct {
 	DerivativesMaintenanceMarginRequirement types.Number              `json:"derivMmr"`
 	Equity                                  types.Number              `json:"eq"`
 	AccountLeverage                         types.Number              `json:"acctLever"`
-	UnrealizedProfitAndLoss                 types.Number              `json:"upl"`
+	UnrealisedProfitAndLoss                 types.Number              `json:"upl"`
 	MarginRatio                             types.Number              `json:"marginRatio"`
 	RiskUnitData                            []PositionBuilderRiskUnit `json:"riskUnitData"`
 	Positions                               []PositionBuilderPosition `json:"positions"`
