@@ -397,6 +397,7 @@ func TestGetOrderHistory(t *testing.T) {
 				Date:                 time.Unix(1700000000, 0),
 				LastUpdated:          time.Unix(1700000060, 0),
 				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				Trades:               []order.TradeHistory{{Price: 10, Amount: 2, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "0", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
 			}},
 			wantRequestCount:       1,
 			wantTradeInstrumentIDs: []float64{123},
@@ -423,6 +424,22 @@ func TestGetOrderHistory(t *testing.T) {
 				Date:                 time.Unix(1700000000, 0),
 				LastUpdated:          time.Unix(1700000060, 0),
 				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				Trades:               []order.TradeHistory{{Price: 11, Amount: 1.5, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "0", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
+			}},
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:         "REST second fill completes an order",
+			request:      &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:  map[string]int64{"BTCUSD": 123},
+			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
+			response:     `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.05"},"fill_price":"12","fill_qty":"0.5","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"side":"BUY"},"timestamp":1700000120,"trans_id":2001}]}`,
+			wantOrders: order.FilteredOrders{{
+				Exchange: "COINUT", OrderID: "42", Pair: currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), Side: order.Buy,
+				Date: time.Unix(1700000000, 0), LastUpdated: time.Unix(1700000120, 0), Status: order.Filled, Price: 10, Amount: 2, ExecutedAmount: 2,
+				Trades: []order.TradeHistory{{Price: 12, Amount: 0.5, Fee: 0.05, FeeAsset: "USD", Exchange: "COINUT", TID: "2001", Side: order.Buy, Timestamp: time.Unix(1700000120, 0)}},
 			}},
 			wantRequestCount:       1,
 			wantTradeInstrumentIDs: []float64{123},
@@ -583,6 +600,13 @@ func TestGetOrderHistory(t *testing.T) {
 			wantStarts:  []int64{0},
 		},
 		{
+			name:        "websocket second fill completes an order",
+			mode:        "second fill",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantOrders:  1,
+			wantStarts:  []int64{0},
+		},
+		{
 			name:        "websocket partial results on second page error",
 			mode:        "second page error",
 			instruments: map[string]int64{"BTCUSD": 123},
@@ -643,10 +667,15 @@ func TestGetOrderHistory(t *testing.T) {
 				if tc.mode == "fully filled" {
 					fillQuantity, openQuantity = "2", "0"
 				}
+				fillPrice, fee, timestamp := "11", "0.1", 1700000060
+				if tc.mode == "second fill" {
+					fillQuantity, openQuantity = "0.5", "0"
+					fillPrice, fee, timestamp = "12", "0.05", 1700000120
+				}
 				for i := range tradeCount {
 					trades = append(trades, map[string]any{
-						"commission": map[string]any{"currency": "USD", "amount": "0.1"},
-						"fill_price": "11",
+						"commission": map[string]any{"currency": "USD", "amount": fee},
+						"fill_price": fillPrice,
 						"fill_qty":   fillQuantity,
 						"order": map[string]any{
 							"client_ord_id": i + 1000,
@@ -658,7 +687,7 @@ func TestGetOrderHistory(t *testing.T) {
 							"side":          side,
 							"timestamp":     1700000000,
 						},
-						"timestamp": 1700000060,
+						"timestamp": timestamp,
 						"trans_id":  i + 2000,
 					})
 				}
@@ -706,7 +735,7 @@ func TestGetOrderHistory(t *testing.T) {
 				require.NoError(t, err, "GetOrderHistory must not error")
 			}
 			assert.Len(t, orders, tc.wantOrders, "GetOrderHistory should return the correct number of websocket orders")
-			if tc.mode == "single" || tc.mode == "fully filled" {
+			if tc.mode == "single" || tc.mode == "fully filled" || tc.mode == "second fill" {
 				require.Len(t, orders, 1, "GetOrderHistory must return one websocket order")
 				expected := order.Detail{
 					Exchange:             "COINUT",
@@ -723,11 +752,23 @@ func TestGetOrderHistory(t *testing.T) {
 					RemainingAmount:      0.5,
 					Fee:                  0.1,
 					FeeAsset:             currency.USD,
+					Trades:               []order.TradeHistory{{Price: 11, Amount: 1.5, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "2000", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
 				}
 				if tc.mode == "fully filled" {
 					expected.Status = order.Filled
 					expected.ExecutedAmount = 2
 					expected.RemainingAmount = 0
+					expected.Trades[0].Amount = 2
+				}
+				if tc.mode == "second fill" {
+					expected.Status = order.Filled
+					expected.ExecutedAmount = 2
+					expected.RemainingAmount = 0
+					expected.AverageExecutedPrice = 0
+					expected.Fee = 0
+					expected.FeeAsset = currency.EMPTYCODE
+					expected.LastUpdated = time.Unix(1700000120, 0)
+					expected.Trades = []order.TradeHistory{{Price: 12, Amount: 0.5, Fee: 0.05, FeeAsset: "USD", Exchange: "COINUT", TID: "2000", Side: order.Buy, Timestamp: time.Unix(1700000120, 0)}}
 				}
 				assert.Equal(t, expected, orders[0], "GetOrderHistory should map all websocket history fields")
 			}

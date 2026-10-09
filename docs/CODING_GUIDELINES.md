@@ -289,6 +289,10 @@ Use `require` and `assert` appropriately:
     it. For example, fees of 0.001 BTC and 0.20 USDT cannot be added or stored in
     one `Fee` and `FeeAsset` pair without losing their currencies.
 - Full test coverage is preferable; mock external calls as needed.
+- For order mappings fed by per-fill records, include a later fill of an
+    already partially filled order. Use different fill prices, quantities and
+    fees to distinguish the latest fill from cumulative execution, and verify
+    unavailable cumulative values remain unknown.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - Bound channel receives and other waits in tests so a missing event fails

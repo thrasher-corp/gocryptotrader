@@ -859,22 +859,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						return nil, err
 					}
 
-					detail := order.Detail{
-						Exchange:             e.Name,
-						OrderID:              strconv.FormatInt(trades.Trades[x].Order.OrderID, 10),
-						Pair:                 p,
-						Side:                 side,
-						Date:                 trades.Trades[x].Order.Timestamp.Time(),
-						LastUpdated:          trades.Trades[x].Timestamp.Time(),
-						Status:               tradeOrderStatus(&trades.Trades[x]),
-						Price:                trades.Trades[x].Order.Price,
-						Amount:               trades.Trades[x].Order.Quantity,
-						AverageExecutedPrice: trades.Trades[x].FillPrice,
-						ExecutedAmount:       trades.Trades[x].FillQuantity,
-						RemainingAmount:      trades.Trades[x].Order.OpenQuantity,
-						Fee:                  trades.Trades[x].Commission.Amount,
-						FeeAsset:             currency.NewCode(trades.Trades[x].Commission.Currency),
-					}
+					detail := e.tradeHistoryDetail(&trades.Trades[x], p, side)
 					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}
@@ -933,26 +918,45 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 
-				allOrders = append(allOrders, order.Detail{
-					OrderID:              strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
-					Amount:               orders.Trades[y].Order.Quantity,
-					Price:                orders.Trades[y].Order.Price,
-					AverageExecutedPrice: orders.Trades[y].FillPrice,
-					ExecutedAmount:       orders.Trades[y].FillQuantity,
-					RemainingAmount:      orders.Trades[y].Order.OpenQuantity,
-					Fee:                  orders.Trades[y].Commission.Amount,
-					FeeAsset:             currency.NewCode(orders.Trades[y].Commission.Currency),
-					Exchange:             e.Name,
-					Side:                 side,
-					Status:               tradeOrderStatus(&orders.Trades[y]),
-					Date:                 orders.Trades[y].Order.Timestamp.Time(),
-					LastUpdated:          orders.Trades[y].Timestamp.Time(),
-					Pair:                 p,
-				})
+				allOrders = append(allOrders, e.tradeHistoryDetail(&orders.Trades[y], p, side))
 			}
 		}
 	}
 	return req.Filter(e.Name, allOrders), nil
+}
+
+// tradeHistoryDetail keeps a history row's fill separate from the order's
+// cumulative execution. A later fill cannot establish the order's average or fee.
+func (e *Exchange) tradeHistoryDetail(fill *OrderFilledResponse, pair currency.Pair, side order.Side) order.Detail {
+	detail := order.Detail{
+		Exchange:        e.Name,
+		OrderID:         strconv.FormatInt(fill.Order.OrderID, 10),
+		Pair:            pair,
+		Side:            side,
+		Date:            fill.Order.Timestamp.Time(),
+		LastUpdated:     fill.Timestamp.Time(),
+		Status:          tradeOrderStatus(fill),
+		Price:           fill.Order.Price,
+		Amount:          fill.Order.Quantity,
+		ExecutedAmount:  fill.Order.Quantity - fill.Order.OpenQuantity,
+		RemainingAmount: fill.Order.OpenQuantity,
+		Trades: []order.TradeHistory{{
+			Price:     fill.FillPrice,
+			Amount:    fill.FillQuantity,
+			Fee:       fill.Commission.Amount,
+			FeeAsset:  fill.Commission.Currency,
+			Exchange:  e.Name,
+			TID:       strconv.FormatInt(fill.TransactionID, 10),
+			Side:      side,
+			Timestamp: fill.Timestamp.Time(),
+		}},
+	}
+	if detail.ExecutedAmount == fill.FillQuantity {
+		detail.AverageExecutedPrice = fill.FillPrice
+		detail.Fee = fill.Commission.Amount
+		detail.FeeAsset = currency.NewCode(fill.Commission.Currency)
+	}
+	return detail
 }
 
 // tradeOrderStatus reports fill progress as of the history row's nested order.
