@@ -1532,6 +1532,49 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, nonNegativeExecutedQuoteAmount(-1), "unavailable historical quote amount should be zero")
+	assert.Equal(t, 10.0, nonNegativeExecutedQuoteAmount(10), "available historical quote amount should be retained")
+}
+
+func TestGetOrderExecutionQuoteMappings(t *testing.T) {
+	t.Parallel()
+	for _, cumulativeQuote := range []float64{120, -1} {
+		t.Run(fmt.Sprintf("cumulative quote %v", cumulativeQuote), func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := fmt.Sprintf(`{"symbol":"BTCUSDT","orderId":42,"clientOrderId":"client","price":"60","origQty":"7","executedQty":"2","cummulativeQuoteQty":"%v","status":"PARTIALLY_FILLED","timeInForce":"GTC","type":"LIMIT","side":"BUY","time":1700000000000,"updateTime":1700000001000}`, cumulativeQuote)
+				if r.URL.Path == "/api/v3/allOrders" {
+					response = "[" + response + "]"
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "writing order response should not error")
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			pair := currency.NewBTCUSDT()
+			got, err := ex.GetOrderInfo(t.Context(), "42", pair, asset.Spot)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			exp := cumulativeQuote
+			if exp < 0 {
+				exp = 0
+			}
+			assert.Equal(t, exp, got.ExecutedQuoteAmount, "GetOrderInfo should map the reported cumulative quote amount")
+
+			history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			require.Len(t, history, 1, "GetOrderHistory must return one order")
+			assert.Equal(t, exp, history[0].ExecutedQuoteAmount, "GetOrderHistory should map the reported cumulative quote amount")
+		})
+	}
+}
+
 func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 
@@ -2656,8 +2699,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		QuoteAmount:          0,
 		ExecutedAmount:       0,
 		RemainingAmount:      0.00028400,
-		Cost:                 0,
-		CostAsset:            currency.USDT,
+		ExecutedQuoteAmount:  0,
 		Fee:                  0,
 		FeeAsset:             currency.BTC,
 		Exchange:             "Binance",
@@ -2676,6 +2718,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
 	res := <-e.Websocket.DataHandler.C
 	switch r := res.Data.(type) {
 	case *order.Detail:
@@ -2691,6 +2734,16 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
+	res = <-e.Websocket.DataHandler.C
+	require.IsType(t, &order.Detail{}, res.Data, "single-fill execution report must produce an order detail")
+	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041557,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Moc","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00057200","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783272,"l":"0.00028600","z":"0.00057200","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041556,"t":726946524,"I":11390206313,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"29.99387820","Y":"14.99693910","Q":"0.00000000","W":1616633041555}}`)
+	require.NoError(t, e.wsHandleData(t.Context(), payload), "wsHandleData must not error for a two-fill execution report")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
+	res = <-e.Websocket.DataHandler.C
+	filled, ok := res.Data.(*order.Detail)
+	require.True(t, ok, "two-fill execution report must produce an order detail")
+	assert.Equal(t, 29.9938782, filled.ExecutedQuoteAmount, "ExecutedQuoteAmount should be the cumulative quote transacted, not the last fill's")
 }
 
 func TestWsOutboundAccountPosition(t *testing.T) {

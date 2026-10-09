@@ -1562,7 +1562,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
@@ -1604,21 +1603,21 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 
 	return &order.Detail{
-		Amount:         orderDetail.Size.Float64(),
-		Exchange:       e.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           orderDetail.Side,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           orderDetail.Price.Float64(),
-		AssetType:      assetType,
-		Status:         status,
-		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
-		TimeInForce:    tif,
+		Amount:               orderDetail.Size.Float64(),
+		Exchange:             e.Name,
+		OrderID:              orderDetail.OrderID,
+		ClientOrderID:        orderDetail.ClientOrderID,
+		Side:                 orderDetail.Side,
+		Type:                 orderType,
+		Pair:                 pair,
+		AssetType:            assetType,
+		Status:               status,
+		Price:                orderDetail.Price.Float64(),
+		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+		Date:                 orderDetail.CreationTime.Time(),
+		LastUpdated:          orderDetail.UpdateTime.Time(),
+		TimeInForce:          tif,
 	}, nil
 }
 
@@ -1817,23 +1816,24 @@ allOrders:
 				return nil, err
 			}
 			resp = append(resp, order.Detail{
-				Amount:          orderList[i].Size.Float64(),
-				Pair:            pair,
-				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
-				Fee:             orderList[i].TransactionFee.Float64(),
-				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
-				Exchange:        e.Name,
-				OrderID:         orderList[i].OrderID,
-				ClientOrderID:   orderList[i].ClientOrderID,
-				Type:            oType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				AssetType:       req.AssetType,
-				Date:            orderList[i].CreationTime.Time(),
-				LastUpdated:     orderList[i].UpdateTime.Time(),
-				TimeInForce:     tif,
+				Amount:               orderList[i].Size.Float64(),
+				Pair:                 pair,
+				Price:                orderList[i].Price.Float64(),
+				ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount:      orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64(),
+				AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
+				Fee:                  0 - orderList[i].TransactionFee.Float64(),
+				FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+				Exchange:             e.Name,
+				OrderID:              orderList[i].OrderID,
+				ClientOrderID:        orderList[i].ClientOrderID,
+				Type:                 oType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            req.AssetType,
+				Date:                 orderList[i].CreationTime.Time(),
+				LastUpdated:          orderList[i].UpdateTime.Time(),
+				TimeInForce:          tif,
 			})
 		}
 		if len(orderList) < 100 {
@@ -1972,7 +1972,7 @@ allOrders:
 					Amount:               orderAmount.Float64(),
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remainingAmount,
-					Fee:                  orderList[i].TransactionFee.Float64(),
+					Fee:                  0 - orderList[i].TransactionFee.Float64(),
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             e.Name,
 					OrderID:              orderList[i].OrderID,
@@ -1984,8 +1984,6 @@ allOrders:
 					Date:                 orderList[i].CreationTime.Time(),
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
-					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
 					TimeInForce:          tif,
 				})
 			}
@@ -2706,10 +2704,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			if orderStatus != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
-			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
-			if multiplier != 1 {
-				cost *= multiplier
-			}
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
@@ -2717,7 +2711,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				ContractAmount:       orderAmount.Float64(),
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
-				Fee:                  positions[j].TransactionFee.Float64(),
+				Fee:                  0 - positions[j].TransactionFee.Float64(),
 				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
 				Exchange:             e.Name,
 				OrderID:              positions[j].OrderID,
@@ -2729,8 +2723,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				Date:                 positions[j].CreationTime.Time(),
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
-				Cost:                 cost,
-				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
 				TimeInForce:          tif,
 			})
 		}

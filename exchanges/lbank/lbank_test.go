@@ -533,6 +533,9 @@ func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error for a compound order type")
 	require.Len(t, got, 3, "GetOrderHistory must keep every order on the page")
 	assert.Equal(t, order.Buy, got[0].Side, "GetOrderHistory should map the leading plain order to the buy side")
+	assert.Equal(t, 1.0, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
+	assert.Equal(t, 10.0, got[0].AverageExecutedPrice, "GetOrderHistory should retain the reported average fill price")
+	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an unavailable executed quote total")
 	assert.Equal(t, order.Buy, got[1].Side, "GetOrderHistory should map buy_market to the buy side")
 	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
 }

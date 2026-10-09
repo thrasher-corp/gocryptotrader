@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -166,11 +167,15 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
+	history, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
 	if err != nil && mockTests {
 		t.Error("GetTradeHistory() error", err)
 	} else if err == nil && !mockTests {
 		t.Error("GetTradeHistory() error cannot be nil")
+	}
+	if mockTests {
+		require.NotEmpty(t, history, "trade history must not be empty")
+		assert.Equal(t, currency.USD, history[0].FeeCurrency, "fee currency should be decoded")
 	}
 }
 
@@ -378,6 +383,33 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error("Expecting an error when no keys are set")
 	case err != nil && mockTests:
 		t.Errorf("Could not get order history: %s", err)
+	}
+}
+
+func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
+	t.Parallel()
+	got, err := tradeHistoryToOrderDetail(&TradeHistory{
+		Price: 60, Amount: 2, Type: "buy", OrderID: 42, BaseCurrency: "BTC", QuoteCurrency: "USD", FeeAmount: 0.3, FeeCurrency: currency.USD,
+	}, currency.PairFormat{Delimiter: "-"}, "Gemini")
+	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
+	assert.Equal(t, order.Detail{
+		OrderID: "42", Exchange: "Gemini", Side: order.Buy, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+		Trades: []order.TradeHistory{{TID: "0", Price: 60, Amount: 2, Fee: 0.3, FeeAsset: "USD", Side: order.Buy, Exchange: "Gemini"}},
+	}, got, "conversion should preserve the fill without inventing order totals")
+	for i, fill := range []TradeHistory{
+		{TID: 101, OrderID: 42, Amount: 1.5, Price: 11, FeeAmount: 0.1, FeeCurrency: currency.USD},
+		{TID: 102, OrderID: 42, Amount: 0.5, Price: 12, FeeAmount: 0.05, FeeCurrency: currency.BTC},
+	} {
+		fill.Type, fill.BaseCurrency, fill.QuoteCurrency = "sell", "BTC", "USD"
+		got, err = tradeHistoryToOrderDetail(&fill, currency.PairFormat{Delimiter: "-"}, "Gemini")
+		require.NoError(t, err, "fill conversion must not error")
+		assert.Equal(t, order.Detail{
+			OrderID: "42", Exchange: "Gemini", Side: order.Sell, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Trades: []order.TradeHistory{{
+				TID: strconv.Itoa(101 + i), Price: fill.Price, Amount: fill.Amount,
+				Fee: fill.FeeAmount, FeeAsset: fill.FeeCurrency.String(), Side: order.Sell, Exchange: "Gemini",
+			}},
+		}, got, "each fill should remain separate from unknown order totals")
 	}
 }
 

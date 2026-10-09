@@ -485,6 +485,78 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestGetOrderInfoExecutionMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	spotPair := currency.NewBTCUSDT()
+	inversePair := currency.NewBTCUSD()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotPair}, true), "spot pair must be enabled")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{inversePair}, true), "inverse pair must be enabled")
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response []byte
+		if r.URL.Query().Get("symbol") == spotPair.String() {
+			response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","symbol":"BTCUSDT","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"61000","qty":"0.01","leavesQty":"0","cumExecQty":"0.01","cumExecValue":"600","avgPrice":"60000","cumExecFee":"9","cumFeeDetail":{"USDT":"0.1"},"createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
+		} else {
+			response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","symbol":"BTCUSD","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"61000","qty":"0.01","leavesQty":"0","cumExecQty":"0.01","cumExecValue":"600","avgPrice":"60000","cumExecFee":"0.1","createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
+		}
+		_, err := w.Write(response)
+		assert.NoError(t, err, "mock order response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	spotDetail, err := ex.GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	require.NoError(t, err, "spot GetOrderInfo must not error")
+	assert.Equal(t, 600.0, spotDetail.ExecutedQuoteAmount, "spot order should retain cumulative executed quote value")
+	assert.Equal(t, 60000.0, spotDetail.AverageExecutedPrice, "spot order should retain average execution price")
+	assert.Equal(t, 0.1, spotDetail.Fee, "spot order should retain cumulative fee")
+	assert.Equal(t, currency.USDT, spotDetail.FeeAsset, "spot order should retain the cumulative fee currency")
+
+	inverseDetail, err := ex.GetOrderInfo(t.Context(), "1", inversePair, asset.CoinMarginedFutures)
+	require.NoError(t, err, "inverse GetOrderInfo must not error")
+	assert.Zero(t, inverseDetail.ExecutedQuoteAmount, "inverse order should not expose settlement-denominated execution value as quote amount")
+}
+
+func TestGetOrderFee(t *testing.T) {
+	t.Parallel()
+
+	fee, feeAsset := getOrderFee(FeeDetail{"BTC": 0.001}, 9)
+	assert.Equal(t, 0.001, fee, "single-currency fee detail should provide the cumulative fee")
+	assert.Equal(t, currency.BTC, feeAsset, "single-currency fee detail should provide the fee currency")
+
+	fee, feeAsset = getOrderFee(FeeDetail{"BTC": 0.001, "USDT": 0.2}, 9)
+	assert.Zero(t, fee, "multi-currency fee detail should remain unknown in the single-fee generic model")
+	assert.Equal(t, currency.EMPTYCODE, feeAsset, "multi-currency fee asset should remain unknown in the single-fee generic model")
+
+	fee, feeAsset = getOrderFee(nil, types.Number(0.3))
+	assert.Equal(t, 0.3, fee, "legacy cumulative fee should remain available when fee detail is absent")
+	assert.Equal(t, currency.EMPTYCODE, feeAsset, "legacy cumulative fee should not invent a fee currency")
+}
+
+func TestGetOrderHistorySpotExecutionMappings(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "spot pair must be enabled")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"retCode":0,"retMsg":"OK","result":{"category":"spot","list":[{"orderId":"1","symbol":"BTCUSDT","side":"Buy","orderType":"Limit","orderStatus":"PartiallyFilledCanceled","price":"61000","qty":"2","leavesQty":"0.5","cumExecQty":"1","cumExecValue":"60000","avgPrice":"60000","cumExecFee":"0","cumFeeDetail":{"BTC":"0.001"},"createdTime":"1735720637000","updatedTime":"1735720638000"}],"nextPageCursor":""},"time":1735720638000}`))
+		assert.NoError(t, err, "mock order history response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 1, "GetOrderHistory must return one order")
+	assert.Equal(t, 0.5, orders[0].RemainingAmount, "spot history should retain the reported remaining quantity")
+	assert.Equal(t, 60000.0, orders[0].ExecutedQuoteAmount, "spot history should retain cumulative executed quote value")
+	assert.Equal(t, 0.001, orders[0].Fee, "spot history should retain the cumulative fee")
+	assert.Equal(t, currency.BTC, orders[0].FeeAsset, "spot history should retain the cumulative fee currency")
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3409,6 +3481,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 				assert.Equal(t, 1.7, v[0].Amount, "Amount should be correct")
 				assert.Equal(t, 4.033, v[0].Price, "Price should be correct")
 				assert.Equal(t, 4.24, v[0].AverageExecutedPrice, "AverageExecutedPrice should be correct")
+				assert.Equal(t, 7.2086, v[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should be correct")
 				assert.Equal(t, 0.0, v[0].RemainingAmount, "RemainingAmount should be correct")
 				assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "AssetType should be correct")
 			case "5cf98598-39a7-459e-97bf-76ca765ee020":
@@ -3424,6 +3497,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 				assert.Empty(t, v[0].ClientOrderID, "client order ID should be empty")
 				assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
 				assert.Equal(t, 1.0, v[0].ExecutedAmount, "executed amount should be correct")
+				assert.Equal(t, 75.0, v[0].ExecutedQuoteAmount, "executed quote amount should be correct")
 				assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should be correct")
 				assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 				assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
@@ -3915,7 +3989,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestConstructOrderDetails(t *testing.T) {
 	t.Parallel()
-	const data = `[	{"orderId": "fd4300ae-7847-404e-b947-b46980a4d140","orderLinkId": "test-000005","blockTradeId": "","symbol": "ETHUSDT","price": "1600.00","qty": "0.10","side": "Buy","isLeverage": "","positionIdx": 1,"orderStatus": "New","cancelType": "UNKNOWN","rejectReason": "EC_NoError","avgPrice": "0","leavesQty": "0.10","leavesValue": "160","cumExecQty": "0.00","cumExecValue": "0","cumExecFee": "0","timeInForce": "GTC","orderType": "Limit","stopOrderType": "UNKNOWN","orderIv": "","triggerPrice": "0.00","takeProfit": "2500.00","stopLoss": "1500.00","tpTriggerBy": "LastPrice","slTriggerBy": "LastPrice","triggerDirection": 0,"triggerBy": "UNKNOWN","lastPriceOnCreated": "","reduceOnly": false,"closeOnTrigger": false,"smpType": "None",		"smpGroup": 0,"smpOrderId": "","tpslMode": "Full","tpLimitPrice": "","slLimitPrice": "","placeType": "","createdTime": "1684738540559","updatedTime": "1684738540561"}]`
+	const data = `[	{"orderId": "fd4300ae-7847-404e-b947-b46980a4d140","orderLinkId": "test-000005","blockTradeId": "","symbol": "ETHUSDT","price": "1600.00","qty": "0.10","side": "Buy","isLeverage": "","positionIdx": 1,"orderStatus": "New","cancelType": "UNKNOWN","rejectReason": "EC_NoError","avgPrice": "0","leavesQty": "0.10","leavesValue": "160","cumExecQty": "0.01","cumExecValue": "12.5","cumExecFee": "0","timeInForce": "GTC","orderType": "Limit","stopOrderType": "UNKNOWN","orderIv": "","triggerPrice": "0.00","takeProfit": "2500.00","stopLoss": "1500.00","tpTriggerBy": "LastPrice","slTriggerBy": "LastPrice","triggerDirection": 0,"triggerBy": "UNKNOWN","lastPriceOnCreated": "","reduceOnly": false,"closeOnTrigger": false,"smpType": "None",		"smpGroup": 0,"smpOrderId": "","tpslMode": "Full","tpLimitPrice": "","slLimitPrice": "","placeType": "","createdTime": "1684738540559","updatedTime": "1684738540561"}]`
 	var response []TradeOrder
 	err := json.Unmarshal([]byte(data), &response)
 	if err != nil {
@@ -3933,6 +4007,16 @@ func TestConstructOrderDetails(t *testing.T) {
 	} else if len(orders) != 1 {
 		t.Errorf("expected order with length 1, got %d", len(orders))
 	}
+	require.Len(t, orders, 1, "spot mapping must return one order")
+	assert.Equal(t, 12.5, orders[0].ExecutedQuoteAmount, "spot order should retain cumulative executed quote value")
+
+	formattedInverse, err := e.FormatExchangeCurrency(inverseTradablePair, asset.CoinMarginedFutures)
+	require.NoError(t, err, "inverse pair formatting must not error")
+	response[0].Symbol = formattedInverse.String()
+	orders, err = e.ConstructOrderDetails(response, asset.CoinMarginedFutures, inverseTradablePair, currency.Pairs{})
+	require.NoError(t, err, "inverse order mapping must not error")
+	require.Len(t, orders, 1, "inverse mapping must return one order")
+	assert.Zero(t, orders[0].ExecutedQuoteAmount, "inverse order should not expose settlement-denominated execution value as quote amount")
 }
 
 func TestGetOpenInterest(t *testing.T) {

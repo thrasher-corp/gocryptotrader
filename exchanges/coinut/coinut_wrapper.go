@@ -756,9 +756,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Date:            openOrders.Orders[i].Timestamp.Time(),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
-					Amount:          openOrders.Orders[i].Quantity,
-					ExecutedAmount:  openOrders.Orders[i].Quantity - openOrders.Orders[i].OpenQuantity,
-					RemainingAmount: openOrders.Orders[i].OpenQuantity,
+					Amount:          openOrders.Orders[i].Quantity.Float64(),
+					ExecutedAmount:  openOrders.Orders[i].Quantity.Decimal().Sub(openOrders.Orders[i].OpenQuantity.Decimal()).InexactFloat64(),
+					RemainingAmount: openOrders.Orders[i].OpenQuantity.Float64(),
 				})
 			}
 		}
@@ -810,13 +810,15 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				}
 
 				orders = append(orders, order.Detail{
-					OrderID:  strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
-					Amount:   openOrders.Orders[y].Quantity,
-					Price:    openOrders.Orders[y].Price,
-					Exchange: e.Name,
-					Side:     side,
-					Date:     openOrders.Orders[y].Timestamp.Time(),
-					Pair:     p,
+					OrderID:         strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
+					Amount:          openOrders.Orders[y].Quantity.Float64(),
+					ExecutedAmount:  openOrders.Orders[y].Quantity.Decimal().Sub(openOrders.Orders[y].OpenQuantity.Decimal()).InexactFloat64(),
+					RemainingAmount: openOrders.Orders[y].OpenQuantity.Float64(),
+					Price:           openOrders.Orders[y].Price,
+					Exchange:        e.Name,
+					Side:            side,
+					Date:            openOrders.Orders[y].Timestamp.Time(),
+					Pair:            p,
 				})
 			}
 		}
@@ -846,7 +848,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return allOrders, err
 				}
 				for x := range trades.Trades {
-					curr := e.instrumentMap.LookupInstrument(trades.Trades[x].InstrumentID)
+					curr := e.instrumentMap.LookupInstrument(trades.Trades[x].Order.InstrumentID)
 					var p currency.Pair
 					p, err = currency.NewPairFromString(curr)
 					if err != nil {
@@ -854,24 +856,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					}
 
 					var side order.Side
-					side, err = order.StringToOrderSide(trades.Trades[x].Side)
+					side, err = order.StringToOrderSide(trades.Trades[x].Order.Side)
 					if err != nil {
 						return nil, err
 					}
 
-					detail := order.Detail{
-						Exchange:        e.Name,
-						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
-						Pair:            p,
-						Side:            side,
-						Date:            trades.Trades[x].Timestamp.Time(),
-						Status:          order.Filled,
-						Price:           trades.Trades[x].Price,
-						Amount:          trades.Trades[x].Quantity,
-						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
-						RemainingAmount: trades.Trades[x].OpenQuantity,
-					}
-					detail.InferCostsAndTimes()
+					detail := e.tradeHistoryDetail(&trades.Trades[x], p, side)
+					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {
@@ -929,19 +920,55 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 
-				allOrders = append(allOrders, order.Detail{
-					OrderID:  strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
-					Amount:   orders.Trades[y].Order.Quantity,
-					Price:    orders.Trades[y].Order.Price,
-					Exchange: e.Name,
-					Side:     side,
-					Date:     orders.Trades[y].Order.Timestamp.Time(),
-					Pair:     p,
-				})
+				allOrders = append(allOrders, e.tradeHistoryDetail(&orders.Trades[y], p, side))
 			}
 		}
 	}
 	return req.Filter(e.Name, allOrders), nil
+}
+
+// tradeHistoryDetail keeps a history row's fill separate from the order's
+// cumulative execution. A later fill cannot establish the order's average or fee.
+func (e *Exchange) tradeHistoryDetail(fill *OrderFilledResponse, pair currency.Pair, side order.Side) order.Detail {
+	executed := fill.Order.Quantity.Decimal().Sub(fill.Order.OpenQuantity.Decimal())
+	detail := order.Detail{
+		Exchange:        e.Name,
+		OrderID:         strconv.FormatInt(fill.Order.OrderID, 10),
+		Pair:            pair,
+		Side:            side,
+		Date:            fill.Order.Timestamp.Time(),
+		LastUpdated:     fill.Timestamp.Time(),
+		Status:          tradeOrderStatus(fill),
+		Price:           fill.Order.Price,
+		Amount:          fill.Order.Quantity.Float64(),
+		ExecutedAmount:  executed.InexactFloat64(),
+		RemainingAmount: fill.Order.OpenQuantity.Float64(),
+		Trades: []order.TradeHistory{{
+			Price:     fill.FillPrice,
+			Amount:    fill.FillQuantity.Float64(),
+			Fee:       fill.Commission.Amount,
+			FeeAsset:  fill.Commission.Currency,
+			Exchange:  e.Name,
+			TID:       strconv.FormatInt(fill.TransactionID, 10),
+			Side:      side,
+			Timestamp: fill.Timestamp.Time(),
+		}},
+	}
+	if executed.Equal(fill.FillQuantity.Decimal()) {
+		detail.AverageExecutedPrice = fill.FillPrice
+		detail.Fee = fill.Commission.Amount
+		detail.FeeAsset = currency.NewCode(fill.Commission.Currency)
+	}
+	return detail
+}
+
+// tradeOrderStatus reports fill progress as of the history row's nested order.
+// Trade history does not say whether a partially filled order was later cancelled.
+func tradeOrderStatus(fill *OrderFilledResponse) order.Status {
+	if fill.Order.OpenQuantity.Float64() > 0 {
+		return order.PartiallyFilled
+	}
+	return order.Filled
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

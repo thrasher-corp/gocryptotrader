@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -895,6 +896,12 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
+	return deriveWebsocketSubmitResponse(s, orderDetails)
+}
+
+// Keep response mapping independent of the authenticated trade and private
+// connections so execution quantities and units can be verified in isolation.
+func deriveWebsocketSubmitResponse(s *order.Submit, orderDetails *WebsocketOrderDetails) (*order.SubmitResponse, error) {
 	resp, err := s.DeriveSubmitResponse(orderDetails.OrderID)
 	if err != nil {
 		return nil, err
@@ -910,10 +917,15 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
+	resp.ExecutedAmount = orderDetails.CumulativeExecutedQuantity.Float64()
 	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
 	resp.ClientOrderID = orderDetails.OrderLinkID
-	resp.Fee = orderDetails.CumulativeExecutedFee.Float64()
-	resp.Cost = orderDetails.CumulativeExecutedValue.Float64()
+	resp.Fee, resp.FeeAsset = getOrderFee(orderDetails.CumulativeFeeDetail, orderDetails.CumulativeExecutedFee)
+	if s.AssetType != asset.CoinMarginedFutures {
+		// Cumulative executed value is settlement/base-denominated for inverse
+		// contracts and therefore is not an executed quote amount.
+		resp.ExecutedQuoteAmount = orderDetails.CumulativeExecutedValue.Float64()
+	}
 	return resp, nil
 }
 
@@ -1100,23 +1112,28 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if remainingAmt == 0 {
 			remainingAmt = resp.List[0].OrderQuantity.Float64() - resp.List[0].CumulativeExecQuantity.Float64()
 		}
-		return &order.Detail{
-			Amount:          resp.List[0].OrderQuantity.Float64(),
-			Exchange:        e.Name,
-			OrderID:         resp.List[0].OrderID,
-			ClientOrderID:   resp.List[0].OrderLinkID,
-			Side:            getSide(resp.List[0].Side),
-			Type:            orderType,
-			Pair:            pair,
-			Cost:            resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
-			AssetType:       assetType,
-			Status:          StringToOrderStatus(resp.List[0].OrderStatus),
-			Price:           resp.List[0].Price.Float64(),
-			ExecutedAmount:  resp.List[0].CumulativeExecQuantity.Float64(),
-			RemainingAmount: remainingAmt,
-			Date:            resp.List[0].CreatedTime.Time(),
-			LastUpdated:     resp.List[0].UpdatedTime.Time(),
-		}, nil
+		detail := &order.Detail{
+			Amount:               resp.List[0].OrderQuantity.Float64(),
+			Exchange:             e.Name,
+			OrderID:              resp.List[0].OrderID,
+			ClientOrderID:        resp.List[0].OrderLinkID,
+			Side:                 getSide(resp.List[0].Side),
+			Type:                 orderType,
+			Pair:                 pair,
+			AssetType:            assetType,
+			Status:               StringToOrderStatus(resp.List[0].OrderStatus),
+			Price:                resp.List[0].Price.Float64(),
+			ExecutedAmount:       resp.List[0].CumulativeExecQuantity.Float64(),
+			AverageExecutedPrice: resp.List[0].AveragePrice.Float64(),
+			RemainingAmount:      remainingAmt,
+			Date:                 resp.List[0].CreatedTime.Time(),
+			LastUpdated:          resp.List[0].UpdatedTime.Time(),
+		}
+		detail.Fee, detail.FeeAsset = getOrderFee(resp.List[0].CumulativeFeeDetail, resp.List[0].CumulativeExecFee)
+		if assetType != asset.CoinMarginedFutures {
+			detail.ExecutedQuoteAmount = resp.List[0].CumulativeExecValue.Float64()
+		}
+		return detail, nil
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -1268,7 +1285,7 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 		if err != nil {
 			return nil, err
 		}
-		orders = append(orders, order.Detail{
+		detail := order.Detail{
 			Amount:               tradeOrders[x].OrderQuantity.Float64(),
 			Date:                 tradeOrders[x].CreatedTime.Time(),
 			Exchange:             e.Name,
@@ -1286,9 +1303,12 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 			RemainingAmount:      tradeOrders[x].LeavesQuantity.Float64(),
 			TriggerPrice:         tradeOrders[x].TriggerPrice.Float64(),
 			AverageExecutedPrice: tradeOrders[x].AveragePrice.Float64(),
-			Cost:                 tradeOrders[x].AveragePrice.Float64() * tradeOrders[x].CumulativeExecQuantity.Float64(),
-			Fee:                  tradeOrders[x].CumulativeExecFee.Float64(),
-		})
+		}
+		detail.Fee, detail.FeeAsset = getOrderFee(tradeOrders[x].CumulativeFeeDetail, tradeOrders[x].CumulativeExecFee)
+		if assetType != asset.CoinMarginedFutures {
+			detail.ExecutedQuoteAmount = tradeOrders[x].CumulativeExecValue.Float64()
+		}
+		orders = append(orders, detail)
 	}
 	return orders, nil
 }
@@ -1349,11 +1369,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
-				Cost:                 resp.List[i].AveragePrice.Float64() * resp.List[i].CumulativeExecQuantity.Float64(),
-				CostAsset:            pair.Quote,
-				Fee:                  resp.List[i].CumulativeExecFee.Float64(),
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
+			}
+			detail.Fee, detail.FeeAsset = getOrderFee(resp.List[i].CumulativeFeeDetail, resp.List[i].CumulativeExecFee)
+			if req.AssetType != asset.CoinMarginedFutures {
+				detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			}
 			orders = append(orders, detail)
 		}
@@ -1382,8 +1403,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			detail := order.Detail{
 				Amount:               resp.List[i].OrderQuantity.Float64(),
 				ExecutedAmount:       resp.List[i].CumulativeExecQuantity.Float64(),
-				RemainingAmount:      resp.List[i].CumulativeExecQuantity.Float64() - resp.List[i].CumulativeExecQuantity.Float64(),
-				Cost:                 resp.List[i].AveragePrice.Float64() * resp.List[i].CumulativeExecQuantity.Float64(),
+				RemainingAmount:      resp.List[i].LeavesQuantity.Float64(),
 				Date:                 resp.List[i].CreatedTime.Time(),
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
 				Exchange:             e.Name,
@@ -1396,10 +1416,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
-				CostAsset:            pair.Quote,
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
 			}
+			detail.Fee, detail.FeeAsset = getOrderFee(resp.List[i].CumulativeFeeDetail, resp.List[i].CumulativeExecFee)
+			detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			orders = append(orders, detail)
 		}
 	default:
@@ -1407,6 +1428,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return req.Filter(e.Name, orders), nil
+}
+
+// getOrderFee prefers Bybit's current currency-keyed cumulative fee detail.
+// Detail cannot represent several fee currencies without losing information,
+// so the generic fee remains unknown when more than one currency is reported.
+// UpdateOrderFromDetail treats zero as omitted and may retain an earlier
+// single-currency fee until Detail can represent multiple fee currencies.
+// TODO: Preserve all reported fee currencies through Detail and order updates. See #2456.
+func getOrderFee(details FeeDetail, legacy types.Number) (float64, currency.Code) {
+	if len(details) == 1 {
+		for code, fee := range details {
+			return fee.Float64(), currency.NewCode(code)
+		}
+	}
+	if len(details) > 1 {
+		return 0, currency.EMPTYCODE
+	}
+	return legacy.Float64(), currency.EMPTYCODE
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

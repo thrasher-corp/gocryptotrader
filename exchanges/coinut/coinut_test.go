@@ -338,10 +338,108 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+func TestTradeHistoryDetailDecimalQuantities(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.Name = "COINUT"
+	for _, tc := range []struct {
+		name, quantity, open, fill              string
+		amount, remaining, executed, fillAmount float64
+		soleFill                                bool
+	}{
+		{"first partial decimal fill", "0.03", "0.01", "0.02", 0.03, 0.01, 0.02, 0.02, true},
+		{"small first partial fill", "0.00100000", "0.00030000", "0.00070000", 0.001, 0.0003, 0.0007, 0.0007, true},
+		{"later fill leaves order open", "3", "1", "0.5", 3, 1, 2, 0.5, false},
+		{"large order small earlier fill", "80000000", "40000000", "39999999.99999999", 80000000, 40000000, 40000000, 39999999.99999999, false},
+		{"large order below float resolution", "80000000", "40000000", "39999999.999999999", 80000000, 40000000, 40000000, 40000000, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var fill OrderFilledResponse
+			payload := `{"trans_id":2001,"commission":{"currency":"BTC","amount":"0.05"},"fill_price":"12","fill_qty":"` + tc.fill + `","order":{"order_id":42,"open_qty":"` + tc.open + `","price":"10","qty":"` + tc.quantity + `","timestamp":1700000000,"side":"SELL"},"timestamp":1700000060}`
+			require.NoError(t, json.Unmarshal([]byte(payload), &fill), "fill fixture decoding must not error")
+			want := order.Detail{
+				Exchange: "COINUT", OrderID: "42", Pair: currency.NewBTCUSD(), Side: order.Sell,
+				Date: time.Unix(1700000000, 0), LastUpdated: time.Unix(1700000060, 0), Status: order.PartiallyFilled,
+				Price: 10, Amount: tc.amount, RemainingAmount: tc.remaining, ExecutedAmount: tc.executed,
+				Trades: []order.TradeHistory{{TID: "2001", Price: 12, Amount: tc.fillAmount, Fee: 0.05, FeeAsset: "BTC", Side: order.Sell, Exchange: "COINUT", Timestamp: time.Unix(1700000060, 0)}},
+			}
+			if tc.soleFill {
+				want.AverageExecutedPrice, want.Fee, want.FeeAsset = 12, 0.05, currency.BTC
+			}
+			assert.Equal(t, want, ex.tradeHistoryDetail(&fill, currency.NewBTCUSD(), order.Sell), "mapping should distinguish exact cumulative execution from the latest sell fill")
+		})
+	}
+	for _, invalid := range []string{"NaN", "Inf", "-Inf"} {
+		t.Run(invalid, func(t *testing.T) {
+			t.Parallel()
+			for _, payload := range []string{
+				`{"fill_qty":"` + invalid + `"}`,
+				`{"order":{"qty":"` + invalid + `"}}`,
+				`{"order":{"open_qty":"` + invalid + `"}}`,
+			} {
+				var fill OrderFilledResponse
+				assert.Error(t, json.Unmarshal([]byte(payload), &fill), "non-finite wire quantities should be rejected without a panic")
+			}
+		})
+	}
+}
+
+func TestGetActiveOrdersDecimalQuantities(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "exchange setup must not error")
+	ex.SkipAuthCheck = true
+	ex.instrumentMap.Seed("BTCUSD", 123)
+	pair := currency.NewBTCUSD()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "available pairs setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "enabled pairs setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
+		assert.NoError(t, err, "open-order fixture response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "REST endpoint setup must not error")
+	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	assert.Equal(t, order.FilteredOrders{{
+		OrderID: "42", Exchange: "COINUT", Side: order.Sell,
+		Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"), Date: time.Unix(1700000000, 0),
+		Price: 10, Amount: 0.03, ExecutedAmount: 0.02, RemainingAmount: 0.01,
+	}}, got, "active orders should use exact decimal subtraction")
+}
+
+func TestGetActiveOrdersWebsocketDecimalQuantities(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "exchange setup must not error")
+	ex.instrumentMap.Seed("BTCUSD", 123)
+	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+		var request WsGetOpenOrdersRequest
+		if err := json.Unmarshal(payload, &request); err != nil {
+			return err
+		}
+		return conn.WriteMessage(gws.TextMessage, []byte(`{"nonce":`+strconv.FormatInt(request.Nonce, 10)+`,"reply":"user_open_orders","status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
+	}))
+	server.Start()
+	ex.API.AuthenticatedWebsocketSupport = false
+	ex.Features.Subscriptions = nil
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket URL setup must not error")
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Enable(t.Context()), "websocket connection must not error")
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket shutdown should not error") })
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	assert.Equal(t, order.FilteredOrders{{
+		OrderID: "42", Exchange: "COINUT", Side: order.Sell, Status: order.Active,
+		Pair: currency.NewBTCUSD(), Date: time.Unix(1700000000, 0),
+		Price: 10, Amount: 0.03, ExecutedAmount: 0.02, RemainingAmount: 0.01,
+	}}, got, "websocket active orders should use exact decimal subtraction")
+}
+
 func TestGetOrderHistory(t *testing.T) {
 	const (
 		emptyTradeHistoryResponse = `{"status":["OK"],"total_number":0,"trades":[]}`
-		validTradeHistoryResponse = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"BUY"}}]}`
+		validTradeHistoryResponse = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"BUY"},"timestamp":1700000060}]}`
 		invalidSideResponse       = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"INVALID"}}]}`
 	)
 
@@ -384,13 +482,62 @@ func TestGetOrderHistory(t *testing.T) {
 			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
 			response:     validTradeHistoryResponse,
 			wantOrders: order.FilteredOrders{{
-				OrderID:  "42",
-				Amount:   2,
-				Price:    10,
-				Exchange: "COINUT",
-				Side:     order.Buy,
-				Date:     time.Unix(1700000000, 0),
-				Pair:     currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				OrderID:              "42",
+				Amount:               2,
+				Price:                10,
+				AverageExecutedPrice: 10,
+				ExecutedAmount:       2,
+				Fee:                  0.1,
+				FeeAsset:             currency.USD,
+				Exchange:             "COINUT",
+				Side:                 order.Buy,
+				Status:               order.Filled,
+				Date:                 time.Unix(1700000000, 0),
+				LastUpdated:          time.Unix(1700000060, 0),
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				Trades:               []order.TradeHistory{{Price: 10, Amount: 2, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "0", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
+			}},
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:         "REST partially filled trade",
+			request:      &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:  map[string]int64{"BTCUSD": 123},
+			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
+			response:     `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"11","fill_qty":"1.5","order":{"order_id":42,"open_qty":"0.5","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"side":"BUY"},"timestamp":1700000060}]}`,
+			wantOrders: order.FilteredOrders{{
+				OrderID:              "42",
+				Amount:               2,
+				Price:                10,
+				AverageExecutedPrice: 11,
+				ExecutedAmount:       1.5,
+				RemainingAmount:      0.5,
+				Fee:                  0.1,
+				FeeAsset:             currency.USD,
+				Exchange:             "COINUT",
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Date:                 time.Unix(1700000000, 0),
+				LastUpdated:          time.Unix(1700000060, 0),
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				Trades:               []order.TradeHistory{{Price: 11, Amount: 1.5, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "0", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
+			}},
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:         "REST second fill completes an order",
+			request:      &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:  map[string]int64{"BTCUSD": 123},
+			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
+			response:     `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.05"},"fill_price":"12","fill_qty":"0.5","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"side":"BUY"},"timestamp":1700000120,"trans_id":2001}]}`,
+			wantOrders: order.FilteredOrders{{
+				Exchange: "COINUT", OrderID: "42", Pair: currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), Side: order.Buy,
+				Date: time.Unix(1700000000, 0), LastUpdated: time.Unix(1700000120, 0), Status: order.Filled, Price: 10, Amount: 2, ExecutedAmount: 2,
+				Trades: []order.TradeHistory{{Price: 12, Amount: 0.5, Fee: 0.05, FeeAsset: "USD", Exchange: "COINUT", TID: "2001", Side: order.Buy, Timestamp: time.Unix(1700000120, 0)}},
 			}},
 			wantRequestCount:       1,
 			wantTradeInstrumentIDs: []float64{123},
@@ -544,6 +691,20 @@ func TestGetOrderHistory(t *testing.T) {
 			wantStarts:  []int64{0},
 		},
 		{
+			name:        "websocket fully filled trade",
+			mode:        "fully filled",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantOrders:  1,
+			wantStarts:  []int64{0},
+		},
+		{
+			name:        "websocket second fill completes an order",
+			mode:        "second fill",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantOrders:  1,
+			wantStarts:  []int64{0},
+		},
+		{
 			name:        "websocket partial results on second page error",
 			mode:        "second page error",
 			instruments: map[string]int64{"BTCUSD": 123},
@@ -600,17 +761,32 @@ func TestGetOrderHistory(t *testing.T) {
 				if tc.mode == "invalid side" {
 					side = "INVALID"
 				}
+				fillQuantity, openQuantity := "1.5", "0.5"
+				if tc.mode == "fully filled" {
+					fillQuantity, openQuantity = "2", "0"
+				}
+				fillPrice, fee, timestamp := "11", "0.1", 1700000060
+				if tc.mode == "second fill" {
+					fillQuantity, openQuantity = "0.5", "0"
+					fillPrice, fee, timestamp = "12", "0.05", 1700000120
+				}
 				for i := range tradeCount {
 					trades = append(trades, map[string]any{
-						"client_ord_id": i + 1000,
-						"inst_id":       instrumentID,
-						"open_qty":      "0.5",
-						"order_id":      i + 42,
-						"price":         "10",
-						"qty":           "2",
-						"side":          side,
-						"status":        []string{"FILLED"},
-						"timestamp":     1700000000,
+						"commission": map[string]any{"currency": "USD", "amount": fee},
+						"fill_price": fillPrice,
+						"fill_qty":   fillQuantity,
+						"order": map[string]any{
+							"client_ord_id": i + 1000,
+							"inst_id":       instrumentID,
+							"open_qty":      openQuantity,
+							"order_id":      i + 42,
+							"price":         "10",
+							"qty":           "2",
+							"side":          side,
+							"timestamp":     1700000000,
+						},
+						"timestamp": timestamp,
+						"trans_id":  i + 2000,
 					})
 				}
 				response, err := json.Marshal(map[string]any{
@@ -657,11 +833,42 @@ func TestGetOrderHistory(t *testing.T) {
 				require.NoError(t, err, "GetOrderHistory must not error")
 			}
 			assert.Len(t, orders, tc.wantOrders, "GetOrderHistory should return the correct number of websocket orders")
-			if tc.mode == "single" {
+			if tc.mode == "single" || tc.mode == "fully filled" || tc.mode == "second fill" {
 				require.Len(t, orders, 1, "GetOrderHistory must return one websocket order")
-				assert.Equal(t, "42", orders[0].OrderID, "GetOrderHistory should return the correct websocket order ID")
-				assert.Equal(t, currency.NewBTCUSD(), orders[0].Pair, "GetOrderHistory should return the correct websocket pair")
-				assert.Equal(t, order.Buy, orders[0].Side, "GetOrderHistory should return the correct websocket side")
+				expected := order.Detail{
+					Exchange:             "COINUT",
+					OrderID:              "42",
+					Pair:                 currency.NewBTCUSD(),
+					Side:                 order.Buy,
+					Date:                 time.Unix(1700000000, 0),
+					LastUpdated:          time.Unix(1700000060, 0),
+					Status:               order.PartiallyFilled,
+					Price:                10,
+					Amount:               2,
+					AverageExecutedPrice: 11,
+					ExecutedAmount:       1.5,
+					RemainingAmount:      0.5,
+					Fee:                  0.1,
+					FeeAsset:             currency.USD,
+					Trades:               []order.TradeHistory{{Price: 11, Amount: 1.5, Fee: 0.1, FeeAsset: "USD", Exchange: "COINUT", TID: "2000", Side: order.Buy, Timestamp: time.Unix(1700000060, 0)}},
+				}
+				if tc.mode == "fully filled" {
+					expected.Status = order.Filled
+					expected.ExecutedAmount = 2
+					expected.RemainingAmount = 0
+					expected.Trades[0].Amount = 2
+				}
+				if tc.mode == "second fill" {
+					expected.Status = order.Filled
+					expected.ExecutedAmount = 2
+					expected.RemainingAmount = 0
+					expected.AverageExecutedPrice = 0
+					expected.Fee = 0
+					expected.FeeAsset = currency.EMPTYCODE
+					expected.LastUpdated = time.Unix(1700000120, 0)
+					expected.Trades = []order.TradeHistory{{Price: 12, Amount: 0.5, Fee: 0.05, FeeAsset: "USD", Exchange: "COINUT", TID: "2000", Side: order.Buy, Timestamp: time.Unix(1700000120, 0)}}
+				}
+				assert.Equal(t, expected, orders[0], "GetOrderHistory should map all websocket history fields")
 			}
 
 			requestMutex.Lock()

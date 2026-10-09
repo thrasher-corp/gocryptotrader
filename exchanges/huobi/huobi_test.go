@@ -512,6 +512,53 @@ func TestGetOrderHistory(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGetOrderHistorySpotExecutionMappings(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1"+huobiGetOrders, r.URL.Path, "request path should be the order history endpoint")
+		_, err := w.Write([]byte(`{"status":"ok","data":[{"id":123,"symbol":"btcusdt","account-id":7,"amount":"2","price":"61","created-at":1700000000000,"type":"buy-limit","filled-amount":"1.5","filled-cash-amount":"90","filled-fees":"0.3","finished-at":1700000060000,"state":"partial-canceled"}]}`))
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	pair := currency.NewBTCUSDT()
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{pair},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, got, 1, "GetOrderHistory must return the fixture order")
+
+	exp := order.Detail{
+		Price:                61,
+		Amount:               2,
+		AverageExecutedPrice: 60,
+		ExecutedAmount:       1.5,
+		RemainingAmount:      0.5,
+		ExecutedQuoteAmount:  90,
+		Fee:                  0.3,
+		Exchange:             ex.Name,
+		OrderID:              "123",
+		AccountID:            "7",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.PartiallyCancelled,
+		Date:                 time.UnixMilli(1700000000000),
+		CloseTime:            time.UnixMilli(1700000060000),
+		LastUpdated:          time.UnixMilli(1700000060000),
+		Pair:                 pair,
+	}
+	assert.Equal(t, exp, got[0], "GetOrderHistory should map all order fields")
+}
+
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
