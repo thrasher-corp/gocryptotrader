@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"go/token"
 	"io"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,21 +22,30 @@ var (
 	errSampleCount      = errors.New("benchmark did not produce the expected number of samples")
 	errEvenSampleCount  = errors.New("a median needs an odd number of samples")
 	errMalformedResult  = errors.New("benchmark result line is malformed")
+	errMixedProcs       = errors.New("benchmark results end in different -N suffixes")
 )
 
 const modulePrefix = "github.com/thrasher-corp/gocryptotrader/"
 
-// Run is what one `go test -bench` invocation reported
+// Run holds what one `go test -bench` run reported
 type Run struct {
-	// Platform is the goos/goarch pair from the output's headers, such as "linux/amd64", or empty
-	// when the output carries none
+	// Platform is the goos/goarch pair from the output's headers, such as "linux/amd64"
 	Platform string
 	Samples  map[string]*Samples
-	// Finished holds the packages whose output ran to go test's closing "ok" line
+	// Skipped maps the key of each benchmark that skipped to its package
+	Skipped map[string]string
+	// Finished holds the packages whose output reached go test's ok line
 	Finished map[string]bool
+	// Verbose holds the packages whose output came from go test -v
+	Verbose map[string]bool
+	// Headers holds each package a pkg: header named
+	Headers map[string]bool
+	// SkipRecords maps the key of each benchmark named by skip record text ending a line, go test's
+	// or not, to the package it appeared under
+	SkipRecords map[string]string
 }
 
-// Samples holds every measurement recorded for a single benchmark across all -count runs
+// Samples holds every measurement recorded for one benchmark across all -count runs
 type Samples struct {
 	Pkg    string
 	Name   string
@@ -42,12 +53,12 @@ type Samples struct {
 	Allocs []float64
 }
 
-// Key returns the baseline key for the benchmark, in the form "exchanges/orderbook.BenchmarkProcess"
+// Key returns the baseline key, such as "exchanges/orderbook.BenchmarkProcess"
 func (s *Samples) Key() string {
 	return s.Pkg + "." + s.Name
 }
 
-// Result is a benchmark's median measurements, the values compared against its budget
+// Result holds a benchmark's median measurements
 type Result struct {
 	Pkg    string
 	Name   string
@@ -55,29 +66,62 @@ type Result struct {
 	Bytes  uint64
 }
 
-// Key returns the baseline key for a result, in the form "exchanges/orderbook.BenchmarkProcess"
+// Key returns the baseline key, such as "exchanges/orderbook.BenchmarkProcess"
 func (r *Result) Key() string {
 	return r.Pkg + "." + r.Name
 }
 
-// Parse reads `go test -bench` output and gathers the samples for each benchmark. Package
-// attribution comes from the "pkg:" header Go emits before each package's results, so the input
-// must not be filtered through anything that strips those lines.
+// Parse reads `go test -bench` output and gathers each benchmark's samples. Results are attributed
+// to packages by go test's pkg: headers, so the output must not be filtered.
 func Parse(r io.Reader) (*Run, error) {
-	run := &Run{Samples: make(map[string]*Samples), Finished: make(map[string]bool)}
-	var pkg, goos, goarch string
+	run := &Run{
+		Samples:     make(map[string]*Samples),
+		Skipped:     make(map[string]string),
+		Finished:    make(map[string]bool),
+		Verbose:     make(map[string]bool),
+		Headers:     make(map[string]bool),
+		SkipRecords: make(map[string]string),
+	}
+	var pkg, goos, goarch, procs string
+	var seenProcs bool
+	var announced []string
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
 		line := sc.Text()
-		// A failed benchmark still prints a result line for each sample it completed, so the output
-		// of a broken run reads as a clean one with nothing to say it stopped short. One that fails
-		// partway through a run has its failure printed after its name, on the same line.
-		if line == "FAIL" || strings.HasPrefix(line, "FAIL\t") || strings.Contains(line, "--- FAIL:") {
+		// A failed run still prints a result for each sample it completed
+		if failureRecord(line) {
 			return nil, fmt.Errorf("%w: %q", errRunFailed, line)
 		}
-		if f := strings.Fields(line); len(f) >= 2 && f[0] == "ok" {
+		// Checked first, since printed text joined to a result can make the line read as another record
+		if embeddedResult(line, announced) {
+			return nil, fmt.Errorf("%w: %q has output run into its start", errMalformedResult, line)
+		}
+		if name, ok := skipRecordName(line); ok {
+			run.SkipRecords[pkg+"."+name] = pkg
+		}
+		// A logged "ok" is indented, so only one starting the line is go test's
+		if f := strings.Fields(line); len(f) >= 2 && f[0] == "ok" && strings.HasPrefix(line, "ok") {
 			run.Finished[strings.TrimPrefix(f[1], modulePrefix)] = true
+			continue
+		}
+		// After a package's ok line, text before the next pkg: header is the next package's TestMain's
+		if name, ok := embeddedSkip(line, announced); ok && !run.Finished[pkg] {
+			line = "--- SKIP: " + name
+		}
+		if v, ok := strings.CutPrefix(line, "--- SKIP: "); ok {
+			f := strings.Fields(v)
+			if len(f) == 0 {
+				return nil, fmt.Errorf("%w: %q", errMalformedResult, line)
+			}
+			// A test's skip, when tests ran too
+			if !strings.HasPrefix(f[0], "Benchmark") {
+				continue
+			}
+			if pkg == "" {
+				return nil, fmt.Errorf("%w: %s", errNoPackageContext, f[0])
+			}
+			run.Skipped[pkg+"."+f[0]] = pkg
 			continue
 		}
 		if v, ok := strings.CutPrefix(line, "goos:"); ok {
@@ -89,7 +133,18 @@ func Parse(r io.Reader) (*Run, error) {
 			continue
 		}
 		if p, ok := strings.CutPrefix(line, "pkg:"); ok {
-			pkg = strings.TrimPrefix(strings.TrimSpace(p), modulePrefix)
+			// go test prints an import path, so anything else is text a benchmark printed
+			if p = strings.TrimSpace(p); p == "" || strings.ContainsFunc(p, func(r rune) bool { return !importPathRune(r) }) {
+				return nil, fmt.Errorf("%w: %q is not a package header", errMalformedResult, line)
+			}
+			recordUnreported(run, pkg, announced)
+			pkg = strings.TrimPrefix(p, modulePrefix)
+			// go test prints each package's header once, so a repeat is text a benchmark printed
+			if run.Headers[pkg] {
+				return nil, fmt.Errorf("%w: %q repeats a package header", errMalformedResult, line)
+			}
+			run.Headers[pkg] = true
+			announced = nil
 			if goos != "" || goarch != "" {
 				platform := goos + "/" + goarch
 				if run.Platform != "" && run.Platform != platform {
@@ -99,31 +154,58 @@ func Parse(r io.Reader) (*Run, error) {
 			}
 			continue
 		}
-		// -v announces each benchmark with its bare name on a line of its own
-		if !strings.HasPrefix(line, "Benchmark") || len(strings.Fields(line)) == 1 {
+		if !strings.HasPrefix(line, "Benchmark") {
 			continue
 		}
-		// Otherwise go test prints a line starting with the benchmark's name for every sample, and
-		// nothing else starts that way, so one that fails to parse is a result something has written
-		// into: the benchmark's own output, or a line cut short. Skipping it would drop the sample
-		// silently, and a benchmark with every sample hit would vanish from the run along with any
-		// finding.
-		name, metrics, ok := parseBenchLine(line)
+		// -v announces each benchmark by name on a line of its own
+		if f := strings.Fields(line); len(f) == 1 {
+			// go test writes a result's padded name and its measurements separately, so a name with
+			// whitespace after it is a result that a printed newline split in two
+			if f[0] != line {
+				return nil, fmt.Errorf("%w: %q is cut short", errMalformedResult, line)
+			}
+			if !benchmarkName(f[0]) {
+				continue
+			}
+			if pkg != "" {
+				run.Verbose[pkg] = true
+			}
+			announced = append(announced, strings.TrimSpace(line))
+			continue
+		}
+		// Only go test starts a line with a benchmark's name, so one that fails to parse is a result
+		// something printed into, and skipping it would drop the sample silently
+		result, ok := parseBenchLine(line, announced)
 		if !ok {
 			return nil, fmt.Errorf("%w: %q", errMalformedResult, line)
 		}
-		// A key such as ".BenchmarkX" matches no baseline entry and no listed package, so an
-		// unattributed result would pass the gate rather than fail it
+		name, metrics := result.name, result.metrics
+		// An unattributed result matches no budget, so it would pass the gate
 		if pkg == "" {
 			return nil, fmt.Errorf("%w: %s", errNoPackageContext, name)
+		}
+		// -v announces every benchmark before its results, so any other name is printed text joined
+		// to a result
+		if len(announced) > 0 && !slices.Contains(announced, name) {
+			return nil, fmt.Errorf("%w: %q names no benchmark -v announced (is a benchmark writing to stdout or stderr?)", errMalformedResult, line)
+		}
+		// Every result of a run carries the same suffix, so differing ones mean a name ending in digits
+		// was misread as one, as under -cpu 1
+		if seenProcs && result.procs != procs {
+			return nil, fmt.Errorf("%w: %s and %s, at %s.%s; run with one -cpu value above 1, as BENCH_FLAGS does",
+				errMixedProcs, describeProcSuffix(procs), describeProcSuffix(result.procs), pkg, name)
+		}
+		procs, seenProcs = result.procs, true
+		// A benchmark that skips after go test's first round reports zero iterations, not a skip record
+		if result.iterations == 0 {
+			run.Skipped[pkg+"."+name] = pkg
+			continue
 		}
 		s, ok := run.Samples[pkg+"."+name]
 		if !ok {
 			s = &Samples{Pkg: pkg, Name: name}
 			run.Samples[s.Key()] = s
 		}
-		// A line without -benchmem carries no B/op or allocs/op. Recording it would leave the
-		// gated metrics empty, so the benchmark could never fail the gate.
 		b, hasBytes := metrics["B/op"]
 		a, hasAllocs := metrics["allocs/op"]
 		if !hasBytes || !hasAllocs {
@@ -142,15 +224,47 @@ func Parse(r io.Reader) (*Run, error) {
 		s.Allocs = append(s.Allocs, a)
 	}
 	if err := sc.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading benchmark output: %w", err)
 	}
+	recordUnreported(run, pkg, announced)
 	return run, nil
 }
 
-// SampleCountMismatches reports, in key order, the benchmarks that did not record exactly expected
-// samples of each gated metric. go test runs every benchmark -count times, so any other number is a
-// truncated run, a result line that failed to parse, or -cpu naming several values, whose results
-// the suffix stripping files under one key.
+// recordUnreported records as skipped each benchmark -v announced in a finished package that reported
+// nothing for itself or a subbenchmark. Printed text can hide go test's skip record, and without one
+// the budget would read as deleted.
+func recordUnreported(run *Run, pkg string, announced []string) {
+	if !run.Finished[pkg] {
+		return
+	}
+	for _, name := range announced {
+		key := pkg + "." + name
+		if reportsUnder(run.Samples, key) || reportsUnder(run.Skipped, key) ||
+			slices.ContainsFunc(announced, func(a string) bool { return strings.HasPrefix(a, name+"/") }) {
+			continue
+		}
+		run.Skipped[key] = pkg
+	}
+}
+
+// reportsUnder reports whether keys holds key or the key of one of its subbenchmarks
+func reportsUnder[V any](keys map[string]V, key string) bool {
+	for k := range keys {
+		if k == key || strings.HasPrefix(k, key+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// benchmarkName reports whether name is one go test could announce
+func benchmarkName(name string) bool {
+	top, _, _ := strings.Cut(name, "/")
+	return token.IsIdentifier(top) && benchmarkFuncName(top)
+}
+
+// SampleCountMismatches returns, in key order, the benchmarks without exactly expected samples of each
+// gated metric
 func SampleCountMismatches(samples map[string]*Samples, expected int) []string {
 	var mismatched []string
 	for _, key := range sortedKeys(samples) {
@@ -162,13 +276,11 @@ func SampleCountMismatches(samples map[string]*Samples, expected int) []string {
 	return mismatched
 }
 
-// describeSamples renders a mismatched benchmark's sample counts for an error line
 func describeSamples(s *Samples, expected int) string {
 	return fmt.Sprintf("B/op=%d allocs/op=%d, expected %d", len(s.Bytes), len(s.Allocs), expected)
 }
 
-// Summarise reduces each benchmark's samples to their medians, which are the values compared
-// against its budget
+// Summarise reduces each benchmark's samples to their medians
 func Summarise(samples map[string]*Samples) (map[string]*Result, error) {
 	results := make(map[string]*Result, len(samples))
 	for _, key := range sortedKeys(samples) {
@@ -186,56 +298,153 @@ func Summarise(samples map[string]*Samples) (map[string]*Result, error) {
 	return results, nil
 }
 
-// parseBenchLine extracts the benchmark name and its value/unit pairs from a single result line,
-// reporting false for any line that is not a well-formed benchmark result
-func parseBenchLine(line string) (name string, metrics map[string]float64, ok bool) {
+// resultStart matches go test's first write of a result: the name, padded with spaces, and a tab. The
+// measurements are a separate write, so printed text can come between them.
+var resultStart = regexp.MustCompile(`^Benchmark\S* +\t`)
+
+// embeddedResult reports whether printed text has run into a result, pushing it off the start of the
+// line where it would be skipped. Only an occurrence in go test's layout counts, so a logged result
+// written out with spaces does not fail a passing run.
+func embeddedResult(line string, announced []string) bool {
+	if strings.HasPrefix(line, "Benchmark") {
+		return false
+	}
+	for i := 0; i < len(line); i++ {
+		next := strings.Index(line[i:], "Benchmark")
+		if next < 0 {
+			return false
+		}
+		i += next
+		if !resultStart.MatchString(line[i:]) {
+			continue
+		}
+		if _, ok := parseBenchLine(line[i:], announced); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// failureRecord reports whether line is go test reporting a failure. go test starts those records at
+// the start of a line and indents logged text, so a logged "--- FAIL:" does not count.
+func failureRecord(line string) bool {
+	if line == "FAIL" || strings.HasPrefix(line, "FAIL\t") {
+		return true
+	}
+	const record = "--- FAIL: Benchmark"
+	return strings.HasPrefix(line, record) ||
+		(strings.HasPrefix(line, "Benchmark") && strings.Contains(line, "\t"+record))
+}
+
+// loggedLine matches b.Log output: four spaces and the file and line, which a //line directive can
+// name anything, then eight spaces on the message's later lines
+var loggedLine = regexp.MustCompile(`^(?: {4}.+?:\d+: | {8})`)
+
+// embeddedSkip returns the benchmark named by a skip record that printed text has pushed off the start
+// of the line. The record must end a line that is not logged, and name a benchmark announced in the
+// package or a subbenchmark of one.
+func embeddedSkip(line string, announced []string) (string, bool) {
+	if loggedLine.MatchString(line) {
+		return "", false
+	}
+	i := strings.LastIndex(line, "--- SKIP: Benchmark")
+	if i <= 0 {
+		return "", false
+	}
+	name := line[i+len("--- SKIP: "):]
+	if strings.ContainsAny(name, " \t") {
+		return "", false
+	}
+	for _, a := range announced {
+		if name == a || strings.HasPrefix(name, a+"/") {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// skipRecordName returns the benchmark named by skip record text ending line, wherever it starts
+func skipRecordName(line string) (string, bool) {
+	i := strings.LastIndex(line, "--- SKIP: Benchmark")
+	if i < 0 {
+		return "", false
+	}
+	name := line[i+len("--- SKIP: "):]
+	return name, !strings.ContainsAny(name, " \t")
+}
+
+type benchLine struct {
+	name string
+	// procs is the GOMAXPROCS suffix without its dash, or "" for none
+	procs      string
+	iterations uint64
+	metrics    map[string]float64
+}
+
+// parseBenchLine parses a result line, reporting false for any other line
+func parseBenchLine(line string, announced []string) (benchLine, bool) {
 	f := strings.Fields(line)
 	if len(f) < 4 || !strings.HasPrefix(f[0], "Benchmark") {
-		return "", nil, false
+		return benchLine{}, false
 	}
-	// The iteration count separates a result line from output such as "--- BENCH: BenchmarkX"
-	if _, err := strconv.ParseUint(f[1], 10, 64); err != nil {
-		return "", nil, false
+	iterations, err := strconv.ParseUint(f[1], 10, 64)
+	if err != nil {
+		return benchLine{}, false
 	}
 	pairs := f[2:]
 	if len(pairs)%2 != 0 {
-		return "", nil, false
+		return benchLine{}, false
 	}
-	metrics = make(map[string]float64, len(pairs)/2)
+	metrics := make(map[string]float64, len(pairs)/2)
 	for i := 0; i < len(pairs); i += 2 {
 		v, err := strconv.ParseFloat(pairs[i], 64)
 		if err != nil {
-			return "", nil, false
+			return benchLine{}, false
 		}
-		// NaN and infinities parse cleanly but convert to nonsense budgets via uint64, and a
-		// negative measurement is not something the testing package emits. Recorded rather than
-		// skipped: silently dropping the line removes its package from the results entirely, and
-		// with any other package still parsing, the gate would report success.
+		// Kept as NaN for Parse to reject, rather than dropped, which would lose the sample silently
 		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
 			metrics[pairs[i+1]] = math.NaN()
 			continue
 		}
 		metrics[pairs[i+1]] = v
 	}
-	return trimProcSuffix(f[0]), metrics, true
+	name, procs := splitProcSuffix(f[0], announced)
+	return benchLine{name: name, procs: procs, iterations: iterations, metrics: metrics}, true
 }
 
-// trimProcSuffix removes the -N GOMAXPROCS suffix that the testing package appends to result names
-func trimProcSuffix(name string) string {
+// splitProcSuffix splits off the -N GOMAXPROCS suffix go test appends when N is above 1. The newest
+// announcement that matches settles where the name ends, so a subbenchmark named "size-4" keeps its
+// digits; failing that, a final dash and digits is the suffix.
+func splitProcSuffix(name string, announced []string) (base, procs string) {
+	for _, a := range slices.Backward(announced) {
+		if name == a {
+			return name, ""
+		}
+		if rest, ok := strings.CutPrefix(name, a+"-"); ok {
+			if _, err := strconv.ParseUint(rest, 10, 64); err == nil {
+				return a, rest
+			}
+		}
+	}
 	i := strings.LastIndexByte(name, '-')
 	if i <= 0 {
-		return name
+		return name, ""
 	}
 	if _, err := strconv.ParseUint(name[i+1:], 10, 64); err != nil {
-		return name
+		return name, ""
 	}
-	return name[:i]
+	return name[:i], name[i+1:]
 }
 
-// median returns the middle sample, rather than a mean, so one noisy iteration on a shared CI
-// runner cannot move the compared value. It refuses an even count, which has no middle sample:
-// averaging the two middles compares a value the run never measured, and picking either one biases
-// the comparison towards that side.
+func describeProcSuffix(procs string) string {
+	if procs == "" {
+		return "no suffix"
+	}
+	return "-" + procs
+}
+
+// median returns the middle sample, so one noisy sample cannot move the result. An even count has no
+// middle sample and is refused.
 func median(samples []float64) (float64, error) {
 	if len(samples)%2 == 0 {
 		return 0, fmt.Errorf("%w: got %d", errEvenSampleCount, len(samples))

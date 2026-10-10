@@ -31,22 +31,18 @@ var (
 	errRootBenchmarks       = errors.New("the module root declares benchmarks, which the package list cannot name; move them into a package")
 )
 
-// Packages is the benchmarked package list in file order, and the packages excluded from it with
-// the reason given for each
+// Packages is the benchmarked package list in file order, and the excluded packages with their reasons
 type Packages struct {
 	List     []string
 	Excluded map[string]string
 }
 
-// LoadPackages reads the package list. Each line is a package path relative to the module root,
-// which is benchmarked and gated, or a path followed by the word "excluded" and a # comment giving
-// the reason it is not run. Blank lines and other # comments are ignored. Entries are reduced to
-// the form go test reports, via canonicalPackage.
+// LoadPackages reads the package list: a package path per line, relative to the module root, or a
+// path followed by "excluded" and a # comment giving the reason
 func LoadPackages(path string) (*Packages, error) {
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
-		// Not tolerated: an empty list gates nothing, so a mistyped -packages path would let every
-		// benchmark through with no baseline entry and no finding
+		// An empty list gates nothing, so a mistyped path must not pass as one
 		return nil, fmt.Errorf("%w: %s", errNoPackageList, path)
 	}
 	if err != nil {
@@ -67,7 +63,7 @@ func LoadPackages(path string) (*Packages, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Two spellings of one package would otherwise run it twice and double every sample count
+		// One entry per package, so a package cannot be both listed and excluded
 		if seen[pkg] {
 			return nil, fmt.Errorf("%w: %q", errDuplicatePackage, pkg)
 		}
@@ -88,17 +84,14 @@ func LoadPackages(path string) (*Packages, error) {
 	if err := sc.Err(); err != nil {
 		return nil, fmt.Errorf("error reading package list: %w", err)
 	}
-	// Same reasoning as an absent file: a list that benchmarks nothing gates nothing, and -list then
-	// hands go test no packages at all
 	if len(pkgs.List) == 0 {
 		return nil, fmt.Errorf("%w: %s", errEmptyPackageList, path)
 	}
 	return pkgs, nil
 }
 
-// Covers checks the list against the packages that declare benchmarks. Every one of them must be
-// listed or excluded, so a new benchmark package cannot escape the gate by never being added, and
-// every listed or excluded package must still declare one, so the list cannot outlive a rename.
+// Covers checks that every package declaring benchmarks is listed or excluded, and that every listed
+// or excluded package still declares one
 func (p *Packages) Covers(declared []string) error {
 	have := make(map[string]bool, len(declared))
 	var errs []error
@@ -116,21 +109,14 @@ func (p *Packages) Covers(declared []string) error {
 	return errors.Join(errs...)
 }
 
-// canonicalPackage reduces a package list entry to the path go test prints in its pkg: header,
-// which is the only form the configured lookups ever see. An entry that resolves to a different
-// string runs its benchmarks and gates none of them.
-//
-// Cleaning handles redundant separators and "." elements. What it cannot resolve is refused: "..."
-// covers several packages under one lookup key, and a path leaving the module has no header to
-// match. So is anything outside a Go import path's character set, because -list is interpolated
-// into go test unquoted and the shell rewrites the rest - "'currency'" loses its quotes,
-// "currenc[y]" globs.
+// canonicalPackage reduces a package list entry to the path go test prints in its pkg: header, since
+// an entry spelt any other way would run its benchmarks and gate none of them. It refuses wildcards,
+// paths outside the module, and characters a shell would rewrite, since -list reaches go test
+// unquoted.
 func canonicalPackage(entry string) (string, error) {
 	root := strings.TrimSuffix(modulePrefix, "/")
 	pkg := pathpkg.Clean(entry)
-	// Cleaning erases the module boundary, so a module-qualified entry is checked against it before
-	// the prefix comes off: ".../gocryptotrader/../../../currency" cleans to a real package and
-	// would otherwise be accepted as one, silently naming something the entry never spelled.
+	// Cleaning erases the module boundary, so ".../gocryptotrader/../../../currency" is caught here
 	if strings.HasPrefix(entry, root) && pkg != root && !strings.HasPrefix(pkg, modulePrefix) {
 		return "", fmt.Errorf("%w: %q traverses outside the module", errBadPackagePath, entry)
 	}
@@ -153,9 +139,8 @@ func canonicalPackage(entry string) (string, error) {
 	return pkg, nil
 }
 
-// importPathRune reports whether r may appear in a Go import path. The set is x/mod/module's
-// importPathOK, which is alphanumerics plus "-._~+", together with the element separator. None of
-// those carry meaning to a shell, which is the property the caller needs.
+// importPathRune reports whether r may appear in a Go import path, as x/mod/module's importPathOK
+// allows, or is its separator; none of those mean anything to a shell
 func importPathRune(r rune) bool {
 	switch {
 	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
@@ -166,11 +151,8 @@ func importPathRune(r rune) bool {
 	return false
 }
 
-// BenchmarkPackages returns, in path order, every package under root, the module root, whose test
-// files declare a benchmark, as the relative path go test reports in its pkg: header. Build
-// constraints are evaluated for the canonical platform with no extra tags, which is what the gate
-// runs. Directories the go command skips are skipped too - testdata, vendor, names starting with
-// "." or "_", and nested modules - since `go test ./...` from the root would never run them.
+// BenchmarkPackages returns, in path order, every package under the module root whose test files
+// declare a benchmark under the gate's build constraints, skipping what `go test ./...` skips
 func BenchmarkPackages(root string) ([]string, error) {
 	ctx := build.Default
 	ctx.GOOS, ctx.GOARCH = canonicalGOOS, canonicalGOARCH
@@ -226,8 +208,8 @@ func declaresBenchmark(dir string, files []string) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("error reading %s: %w", path, err)
 		}
-		// Most test files declare none, and parsing them all would dominate the run. The filter is
-		// the bare name, since a declaration may separate it from "func" with a comment.
+		// Parsing every test file would dominate the run. The filter is the bare name, since a comment
+		// can separate it from "func".
 		if !bytes.Contains(src, []byte("Benchmark")) {
 			continue
 		}
@@ -244,15 +226,10 @@ func declaresBenchmark(dir string, files []string) (bool, error) {
 	return false, nil
 }
 
-// isBenchmark applies go test's own rule from cmd/go/internal/load: a top-level function named
-// Benchmark, or Benchmark followed by anything but a lower-case letter, taking a single *B. Like go
-// test it matches the parameter by its type name, since the testing import may be renamed.
+// isBenchmark applies go test's rule from cmd/go/internal/load: a top-level function with a
+// benchmark's name taking a single *B, matched by type name since the testing import can be renamed
 func isBenchmark(fn *ast.FuncDecl) bool {
-	suffix, ok := strings.CutPrefix(fn.Name.Name, "Benchmark")
-	if !ok || fn.Recv != nil {
-		return false
-	}
-	if r, _ := utf8.DecodeRuneInString(suffix); unicode.IsLower(r) {
+	if fn.Recv != nil || !benchmarkFuncName(fn.Name.Name) {
 		return false
 	}
 	params := fn.Type.Params.List
@@ -270,4 +247,15 @@ func isBenchmark(fn *ast.FuncDecl) bool {
 		return x.Sel.Name == "B"
 	}
 	return false
+}
+
+// benchmarkFuncName reports whether name is Benchmark alone or followed by anything but a lower-case
+// letter, as go test requires
+func benchmarkFuncName(name string) bool {
+	suffix, ok := strings.CutPrefix(name, "Benchmark")
+	if !ok {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(suffix)
+	return !unicode.IsLower(r)
 }

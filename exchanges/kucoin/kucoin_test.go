@@ -51,11 +51,8 @@ var apiCredentials = &accounts.Credentials{
 var (
 	e *Exchange
 
-	// Bootstrapped on first use rather than in TestMain, which must not make API calls: the pairs
-	// come from a live KuCoin request, and TestMain runs for every invocation of this package
-	// including `-run '^$' -bench .`, where no test needs them at all. Read them through the
-	// accessors below so the fetch happens once, only for the tests that actually want a pair; a
-	// test reading e's pairs directly calls loadTradablePairs first, so it sees the live list.
+	// Fetched on first use rather than in TestMain, which must make no API calls. A test that relies on
+	// e's pairs calls loadTradablePairs first.
 	tradablePairsOnce        sync.Once
 	tradablePairs            map[asset.Item]currency.Pair
 	errFetchingTradablePairs error
@@ -80,9 +77,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// loadTradablePairs fetches the first tradable pair of each asset once per run. A failed fetch is
-// kept and reported to every caller, failing each test that needs a pair rather than exiting the
-// process mid-run.
+// loadTradablePairs fetches the first tradable pair of each asset once, reporting a failure to every caller
 func loadTradablePairs(tb testing.TB) map[asset.Item]currency.Pair {
 	tb.Helper()
 	tradablePairsOnce.Do(func() {
@@ -92,25 +87,21 @@ func loadTradablePairs(tb testing.TB) map[asset.Item]currency.Pair {
 	return tradablePairs
 }
 
-// spotTradablePair returns the first enabled spot pair, fetching it on first use
 func spotTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
 	return loadTradablePairs(tb)[asset.Spot]
 }
 
-// marginTradablePair returns the first enabled margin pair, fetching it on first use
 func marginTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
 	return loadTradablePairs(tb)[asset.Margin]
 }
 
-// futuresTradablePair returns the first enabled futures pair, fetching it on first use
 func futuresTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
 	return loadTradablePairs(tb)[asset.Futures]
 }
 
-// assertToTradablePairMap returns the per-asset tradable pairs, fetching them on first use
 func assertToTradablePairMap(tb testing.TB) map[asset.Item]currency.Pair {
 	tb.Helper()
 	return loadTradablePairs(tb)
@@ -148,6 +139,7 @@ func TestGetAllTickers(t *testing.T) {
 
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
+	loadTradablePairs(t)
 	tickers, err := e.GetFuturesTickers(t.Context())
 	assert.NoError(t, err)
 	for i := range tickers {
@@ -2929,8 +2921,7 @@ func TestGetFundingHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// getFirstTradablePairOfAssets updates ex's tradable pairs from the API and returns the first enabled
-// pair of each asset the tests trade
+// getFirstTradablePairOfAssets updates ex's tradable pairs and returns the first enabled pair of each asset
 func getFirstTradablePairOfAssets(ctx context.Context, ex *Exchange) (map[asset.Item]currency.Pair, error) {
 	if err := ex.UpdateTradablePairs(ctx); err != nil {
 		return nil, fmt.Errorf("error updating tradable pairs: %w", err)
@@ -2938,8 +2929,8 @@ func getFirstTradablePairOfAssets(ctx context.Context, ex *Exchange) (map[asset.
 	return firstEnabledPairs(ex)
 }
 
-// firstEnabledPairs returns the first enabled spot, margin and futures pair of ex. The futures pair
-// drops its delimiter, which is how the futures endpoints take a symbol.
+// firstEnabledPairs returns ex's first enabled spot, margin and futures pairs, the futures one without
+// a delimiter, as its endpoints take a symbol
 func firstEnabledPairs(ex *Exchange) (map[asset.Item]currency.Pair, error) {
 	pairs := make(map[asset.Item]currency.Pair, 3)
 	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {

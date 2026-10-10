@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"maps"
 	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,19 +15,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-// defaultBytesTolerance is the fractional B/op movement ignored when an entry does not set its own.
-// B/op is near-reproducible rather than exact: a few bytes of runtime bookkeeping can move between
-// runs of an otherwise identical benchmark.
+// defaultBytesTolerance is the fractional B/op movement ignored when an entry sets none, since a few
+// bytes of runtime bookkeeping can move between identical runs
 const defaultBytesTolerance = 0.01
 
-// Entry is the recorded budget for a single benchmark: the median allocs/op and B/op measured on
-// the canonical platform.
-//
-// The tolerances are fractional per-benchmark overrides, for counts that are not reproducible.
-// AllocsTolerance defaults to zero. BytesTolerance replaces defaultBytesTolerance whenever it is
-// set, so an explicit zero asks for an exact match. Ignore drops a benchmark from the gate
-// entirely; prefer a tolerance, since an ignored benchmark still costs CI time and tells nobody
-// anything. Each requires a Reason.
+// Entry is a benchmark's budget: its median allocs/op and B/op on the canonical platform. The
+// tolerances are fractional overrides, BytesTolerance replacing defaultBytesTolerance whenever it is
+// set, and Ignore drops the benchmark from the gate; each needs a Reason.
 type Entry struct {
 	Allocs          uint64   `json:"allocs"`
 	Bytes           uint64   `json:"bytes"`
@@ -35,7 +31,6 @@ type Entry struct {
 	Reason          string   `json:"reason,omitempty"`
 }
 
-// bytesTolerance returns the B/op tolerance that applies to the entry
 func (e *Entry) bytesTolerance() float64 {
 	if e.BytesTolerance != nil {
 		return *e.BytesTolerance
@@ -43,7 +38,7 @@ func (e *Entry) bytesTolerance() float64 {
 	return defaultBytesTolerance
 }
 
-// Baseline maps a benchmark key to its recorded budget
+// Baseline maps a benchmark key to its budget
 type Baseline map[string]*Entry
 
 var (
@@ -52,10 +47,16 @@ var (
 	errToleranceOutOfRange  = errors.New("tolerance out of range")
 	errNoBaseline           = errors.New("baseline file does not exist")
 	errDuplicateName        = errors.New("baseline repeats a name")
+	errUnknownField         = errors.New("baseline entry has a field Save does not write")
 )
 
-// LoadBaseline reads a baseline file. seeding permits an absent file so the first -update can
-// create one; in check mode it must be an error, since an empty baseline passes any numbers at all.
+// entryFields are the member names Save writes for an entry
+var entryFields = map[string]bool{
+	"allocs": true, "bytes": true, "allocs_tolerance": true, "bytes_tolerance": true, "ignore": true, "reason": true,
+}
+
+// LoadBaseline reads a baseline file. seeding allows the file to be absent, which only an update may;
+// a check would otherwise report each measured benchmark as untracked rather than name the file.
 func LoadBaseline(path string, seeding bool) (Baseline, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -71,25 +72,23 @@ func LoadBaseline(path string, seeding bool) (Baseline, error) {
 	if err := json.Unmarshal(data, &b); err != nil {
 		return nil, fmt.Errorf("error parsing baseline %q: %w", path, err)
 	}
-	if name, ok := duplicateName(data); ok {
-		return nil, fmt.Errorf("%w: %s in %s", errDuplicateName, name, path)
+	if err := checkNames(data); err != nil {
+		return nil, fmt.Errorf("%w in %s", err, path)
 	}
 	if b == nil {
-		// A file containing literal null unmarshals to a nil map, which -update would then panic on
+		// A literal null decodes to a nil map, which an update would panic on
 		b = Baseline{}
 	}
 	return b, nil
 }
 
-// duplicateName returns the first name repeated within one object of data, a baseline that has
-// already decoded cleanly: a benchmark key, or an entry's field qualified by its benchmark. The JSON
-// package keeps the last of two members sharing a name, and matches an entry's fields without
-// regard to case, so a repeat would replace a budget or widen a tolerance while its diff read as
-// something being added.
-func duplicateName(data []byte) (string, bool) {
+// checkNames rejects what the JSON decoder accepts silently: a name repeated within an object, where
+// the last copy wins, and an entry field spelt other than as Save writes it, which the decoder matches
+// case-insensitively or ignores.
+func checkNames(data []byte) error {
 	type object struct {
 		names map[string]bool
-		key   string // the top-level name this object is the value of
+		key   string // the top-level name whose value this object is
 	}
 	var stack []*object // nil for an array
 	var lastName string
@@ -111,7 +110,7 @@ func duplicateName(data []byte) (string, bool) {
 				}
 			}
 			if end >= len(data) {
-				return "", false
+				return nil
 			}
 			next := end + 1
 			for next < len(data) && strings.ContainsRune(" \t\r\n", rune(data[next])) {
@@ -121,18 +120,16 @@ func duplicateName(data []byte) (string, bool) {
 			if next < len(data) && data[next] == ':' && len(stack) > 0 && stack[len(stack)-1] != nil &&
 				json.Unmarshal(data[i:end+1], &name) == nil {
 				obj := stack[len(stack)-1]
-				// Benchmark keys are matched exactly, an entry's fields without regard to case
-				folded := name
-				if len(stack) > 1 {
-					folded = strings.ToLower(name)
+				if len(stack) > 1 && !entryFields[name] {
+					return fmt.Errorf("%w: %s: %q", errUnknownField, obj.key, name)
 				}
-				if obj.names[folded] {
+				if obj.names[name] {
 					if len(stack) > 1 {
-						return obj.key + ": " + name, true
+						return fmt.Errorf("%w: %s: %s", errDuplicateName, obj.key, name)
 					}
-					return name, true
+					return fmt.Errorf("%w: %s", errDuplicateName, name)
 				}
-				obj.names[folded] = true
+				obj.names[name] = true
 				if len(stack) == 1 {
 					lastName = name
 				}
@@ -140,18 +137,17 @@ func duplicateName(data []byte) (string, bool) {
 			i = end
 		}
 	}
-	return "", false
+	return nil
 }
 
-// Validate rejects tolerance overrides that carry no justification, so that widening a budget
-// cannot be slipped through as a one-character diff
+// Validate rejects overrides without a reason and tolerances outside [0, 1)
 func (b Baseline) Validate() error {
 	for _, key := range sortedKeys(b) {
 		e := b[key]
 		if e == nil {
 			return fmt.Errorf("%w: %s", errNullEntry, key)
 		}
-		// Trimmed, or " " buys the same exemption as a justification while reviewing as an empty diff
+		// A blank reason is no reason
 		if (e.AllocsTolerance != 0 || e.BytesTolerance != nil || e.Ignore) && strings.TrimSpace(e.Reason) == "" {
 			return fmt.Errorf("%w: %s", errToleranceNeedsReason, key)
 		}
@@ -165,9 +161,8 @@ func (b Baseline) Validate() error {
 	return nil
 }
 
-// validTolerance rejects tolerances that would invert or disable the gate. A negative value reports
-// an unchanged benchmark as a regression; a value of 1 or more puts the lower bound at or below zero
-// so the ratchet can never fire; NaN makes every comparison false.
+// validTolerance rejects tolerances outside [0, 1): a finite one of 1 or more can never report an
+// improvement, and any other would silently act as zero
 func validTolerance(t float64) error {
 	if math.IsNaN(t) || t < 0 || t >= 1 {
 		return fmt.Errorf("%w: %v is not in [0, 1)", errToleranceOutOfRange, t)
@@ -175,13 +170,15 @@ func validTolerance(t float64) error {
 	return nil
 }
 
-// Save writes the baseline with sorted keys and a trailing newline so diffs stay reviewable. It
-// renames a temporary file from the same directory into place, which keeps an interrupted run from
-// truncating the baseline; the same directory because rename is only atomic within a filesystem.
-// Concurrent updates are still unsafe - the last rename wins.
+// Save writes the baseline with sorted keys, renaming a temporary file from the same directory into
+// place so an interrupted run cannot truncate it
 func (b Baseline) Save(path string) error {
-	data, err := json.MarshalIndent(b, "", "  ")
-	if err != nil {
+	var data bytes.Buffer
+	enc := json.NewEncoder(&data)
+	enc.SetIndent("", "  ")
+	// Reasons are written by hand, so an update must leave their <, > and & as written
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(b); err != nil {
 		return fmt.Errorf("error encoding baseline: %w", err)
 	}
 	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp")
@@ -190,7 +187,7 @@ func (b Baseline) Save(path string) error {
 	}
 	tmp := f.Name()
 	defer os.Remove(tmp) // No-op once the rename has succeeded
-	if _, err := f.Write(append(data, '\n')); err != nil {
+	if _, err := f.Write(data.Bytes()); err != nil {
 		f.Close()
 		return fmt.Errorf("error writing temporary baseline: %w", err)
 	}
@@ -206,18 +203,21 @@ func (b Baseline) Save(path string) error {
 	return nil
 }
 
-// Update folds results into the baseline and returns a line describing each change, in key order.
-//
-// A new benchmark gains an entry, and an existing one has each metric moved as updatedBudget decides.
-// Ignored entries are left as they are.
-//
-// prune deletes every entry without a result: in a listed package its benchmark was renamed or
-// deleted, and outside one its package was. Callers prune only on a run that covered every listed
-// package, or a package that merely did not run loses every budget it had.
-func (b Baseline) Update(results map[string]*Result, prune bool) []string {
+// Update folds results into the baseline and describes each change, in key order. An entry without a
+// result is kept when a skip accounts for it, and prune deletes the rest. A skip with no entry is
+// named too, since the check that follows fails on it.
+func (b Baseline) Update(results map[string]*Result, skipped map[string]string, prune bool) []string {
 	var changes []string
 	for _, key := range sortedKeys(b) {
 		if _, ok := results[key]; ok {
+			continue
+		}
+		if s, ok := skipCovering(skipped, key); ok {
+			if s == key {
+				changes = append(changes, key+" skipped in this run; keeping it")
+			} else {
+				changes = append(changes, key+" has no result because "+s+" skipped; keeping it")
+			}
 			continue
 		}
 		if !prune {
@@ -226,6 +226,11 @@ func (b Baseline) Update(results map[string]*Result, prune bool) []string {
 		}
 		delete(b, key)
 		changes = append(changes, "pruned "+key)
+	}
+	for _, s := range sortedKeys(skipped) {
+		if _, ok := b[s]; !ok {
+			changes = append(changes, s+" skipped in this run and has no entry; 'make bench' reports it until it stops skipping or the baseline ignores it")
+		}
 	}
 	for _, key := range sortedKeys(results) {
 		r := results[key]
@@ -250,23 +255,23 @@ func (b Baseline) Update(results map[string]*Result, prune bool) []string {
 	return changes
 }
 
-// updatedBudget returns the budget an update records for a metric measured at got. It rises only past
-// the tolerance, where Compare reports a regression, so a budget never loosens without a finding
-// saying so, and drift too small to report on any one run accumulates against a fixed budget. It
-// falls once got is more than half the tolerance below it, or on any decrease when the tolerance is
-// zero, which keeps run-to-run noise out of the diff while leaving every measurement at least half a
-// tolerance clear of reading as stale.
+// updatedBudget returns the budget recorded for a metric measured at got: raised only past the
+// tolerance, where the check reports a regression, and lowered once got is more than half the exact
+// tolerance below it
 func updatedBudget(got, budget uint64, tolerance float64) uint64 {
-	if budgetDrift(got, budget, tolerance) > 0 || budgetDrift(got, budget, tolerance/2) < 0 {
+	exact := exactTolerance(tolerance)
+	var half *big.Rat
+	if exact != nil {
+		half = new(big.Rat).Mul(exact, big.NewRat(1, 2))
+	}
+	if exactDrift(got, budget, exact) > 0 || exactDrift(got, budget, half) < 0 {
 		return got
 	}
 	return budget
 }
 
-// packageOf resolves a baseline key to one of the known packages, returning "" when none matches.
-// Keys cannot be split on the final dot: both package paths and subbenchmark names contain dots,
-// so matching against the known set is the only unambiguous attribution. The longest match wins, so
-// a key under "a/b.c" is never attributed to a package "a/b" that happens to be listed too.
+// packageOf returns the longest known package key falls under, or "". Package paths and subbenchmark
+// names both contain dots, so a key cannot simply be split.
 func packageOf(key string, known map[string]bool) string {
 	var match string
 	for pkg := range known {
@@ -285,11 +290,19 @@ func seenPackages(results map[string]*Result) map[string]bool {
 	return seen
 }
 
+// reportedPackages returns the packages that reported a result or a skip
+func reportedPackages(results map[string]*Result, skipped map[string]string) map[string]bool {
+	reported := seenPackages(results)
+	for _, pkg := range skipped {
+		reported[pkg] = true
+	}
+	return reported
+}
+
 func sortedKeys[V any](m map[string]V) []string {
 	return slices.Sorted(maps.Keys(m))
 }
 
-// configuredSet turns the ordered package list into a set for lookups
 func configuredSet(list []string) map[string]bool {
 	set := make(map[string]bool, len(list))
 	for _, p := range list {

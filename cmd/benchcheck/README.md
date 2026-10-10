@@ -1,7 +1,7 @@
 # benchcheck
 
 `benchcheck` gates benchmark allocations against a checked-in baseline, so that allocation counts in
-GoCryptoTrader ratchet downwards over time instead of drifting up unnoticed.
+GoCryptoTrader cannot drift up unnoticed.
 
 ## Usage
 
@@ -12,19 +12,21 @@ make bench_apply BENCH_OUT=f    # fold in output measured elsewhere, such as CI'
 make bench_pkg PKG=./currency/  # measure one package with the gate's exact flags
 ```
 
-`make bench` fails when a benchmark allocates **more** than its recorded budget, and equally when it
-allocates **less**. The second case is the point of the tool: an improvement is only permanent once
-it has been written back with `make bench_update`, which makes every optimisation a new floor and
-turns the baseline into a ratchet rather than a ceiling that only ever moves up.
+`make bench` fails when a benchmark allocates **more** than its recorded budget. One that allocates
+**less** passes and is reported as `stale`: write it back with `make bench_update`, which lowers the
+budget so a later regression cannot quietly take the improvement back.
 
 Each budget is compared against the **median** of the samples, not any single one, so one unlucky
-run does not trip the gate. Per-entry tolerances are applied on top of that median.
+run does not trip the gate. Per-entry tolerances are applied on top of that median, and include
+their edge: a measurement exactly a tolerance away from its budget is within it. A tolerance is
+taken exactly as the baseline spells it, so `0.15` means 15% rather than the binary value a hair
+below it.
 
 ## What is gated, and what is not
 
 | Metric | Reproducibility | Treatment |
 | --- | --- | --- |
-| `allocs/op` | Reproducible on one platform and toolchain | Hard gate; any change in the median fails, unless the entry carries a tolerance |
+| `allocs/op` | Reproducible on one platform and toolchain | Hard gate; any increase in the median fails, unless the entry carries a tolerance |
 | `B/op` | Near-reproducible | Hard gate with a 1% default tolerance |
 | `ns/op` | Depends on the host and its current load | **Never gated or recorded**; it stays in the raw output CI uploads |
 
@@ -49,7 +51,7 @@ One caveat on reading `allocs/op`: the testing package reports it as `MemAllocs 
 arithmetic, so it is a truncated average rather than a count. A benchmark allocating once every
 tenth iteration reports `0`, and one allocating on nine iterations in ten still reports `0`. A zero
 in the baseline therefore means "under one allocation per operation", not "allocation free", and a
-regression of less than a whole allocation per operation cannot move the number at all. `B/op` is
+regression of less than a whole allocation per operation can leave the number unchanged. `B/op` is
 the finer-grained of the two gated metrics for exactly that reason, and is what catches sub-integer
 movement — worth remembering before widening a `bytes_tolerance`.
 
@@ -60,9 +62,10 @@ changes between Go releases, and code paths can differ between platforms. The bu
 recorded against one profile, the one the `benchmarks` workflow measures:
 
 - `linux/amd64`
-- the Go version the workflow installs, which matches the other workflows
-- no build tags, so the default backends, such as `encoding/json/v2` and shopspring's decimal
-- `BENCH_FLAGS` in the Makefile
+- the Go version `go.mod` names, which every workflow installs
+- no build tags or `GOEXPERIMENT` settings, so the default backends, such as `encoding/json/v2` and
+  shopspring's decimal, and the runtime's default garbage collection settings
+- `BENCH_ENV` and `BENCH_FLAGS` in the Makefile
 
 `benchcheck` refuses to record budgets from output produced on any other platform, and a check run
 elsewhere says so above its findings. To update the baseline from another machine, push the change
@@ -92,10 +95,15 @@ finds every package whose test files declare a benchmark, applying `go test`'s o
 profile's build constraints, and fails while any of them is neither listed nor excluded, or while
 the list names a package that declares none.
 
-Skipping is the one way a benchmark escapes. One that calls `b.Skip` emits no result line without
-`-v`, so it is invisible here rather than untracked. A skip is still caught once the benchmark has
-an entry, which then reads as missing, and a listed package whose benchmarks all skip is reported as
-reporting nothing, so this only hides a newly added benchmark that skips from the start.
+A skip cannot hide a benchmark either. `BENCH_FLAGS` runs go test with `-v`, without which a
+benchmark that calls `b.Skip` before measuring anything prints nothing at all. One that skips after
+go test's first round prints a result of zero iterations instead, in either mode, and `benchcheck`
+reads that as a skip too. Each skip is a `skipped` finding, whether or not the benchmark has a
+budget, and the budgets beneath a skipped benchmark are not reported missing as well: it still
+exists, so the cure is to stop it skipping rather than to delete its budgets. Text a benchmark prints
+without a newline just before go test's skip record runs into it, so `benchcheck` reads a record
+that ends a line as well as one that starts it, and reads a benchmark that `-v` announced and that
+then reported nothing at all, in a package that ran to its `ok` line, as a skip too.
 
 ## Updating the baseline
 
@@ -112,10 +120,14 @@ output alone, exactly like a full run in which the rest disappeared, so entries 
 result are reported and kept.
 
 `make bench_update` and `make bench_apply` pass `-prune`, which deletes them: entries whose
-benchmark was renamed or deleted, and entries whose whole package has left the list. `benchcheck`
-refuses to prune unless every listed package reported and its output ran to go test's closing `ok`
-line, so running either target against a subset of the packages, or on output from a run that
-stopped early, fails rather than deleting budgets.
+benchmark was renamed or deleted, and entries whose whole package has left the list. Entries a skip
+accounts for are kept. `benchcheck` refuses to prune unless every listed package reported, its
+output ran to go test's closing `ok` line, and it came from `go test -v`, so running either target
+against a subset of the packages, on output from a run that stopped early, or on output that could
+not have shown a skip, fails rather than deleting budgets. It also refuses to delete an entry that
+text in go test's skip record layout names, unless a skip `benchcheck` read already accounts for it:
+output a benchmark prints can hide its own record, so the benchmark may have skipped. Remove such an
+entry by hand once its benchmark is gone.
 
 ## Escape hatches
 
@@ -129,6 +141,12 @@ Every override requires a `reason`, enforced by `Baseline.Validate`, and a toler
     "bytes": 156,
     "bytes_tolerance": 0.1,           // widen one metric's budget
     "reason": "worker goroutines make B/op scheduler dependent; observed 151-161 across runs"
+  },
+  "some/pkg.BenchmarkFileIO": {
+    "allocs": 37991,
+    "bytes": 9383689,
+    "allocs_tolerance": 0.004,        // allocs/op otherwise has to match exactly
+    "reason": "reads a file; the median moves by tens of allocations between runs"
   },
   "some/pkg.BenchmarkExact": {
     "allocs": 2,
@@ -145,13 +163,29 @@ Every override requires a `reason`, enforced by `Baseline.Validate`, and a toler
 
 Prefer a tolerance to `ignore`: an ignored benchmark still costs CI time but tells nobody anything.
 Note that `ignore` only skips *comparison* — the benchmark still runs, so one that is unsafe to
-execute must be excluded in `packages.txt` instead.
+execute must be excluded in `packages.txt` instead. An ignored entry also exempts its benchmark from
+the skip check.
+
+`benchcheck` accepts only the field names shown here, spelt exactly as `make bench_update` writes
+them. The JSON decoder matches field names regardless of case, so a variant spelling could otherwise
+replace a budget while its diff read as an addition, and a misspelt override would do nothing at all.
 
 ## Flag settings
 
-`BENCH_FLAGS` in the Makefile is the single definition of how a benchmark is measured; the workflow
-calls `make` rather than restating it, and `make bench_pkg` reuses it so an audit of one package
-matches the gate.
+`BENCH_FLAGS` in the Makefile is the single definition of how a benchmark is measured, and
+`BENCH_ENV` of the environment it runs in; the workflow calls `make` rather than restating them, and
+`make bench_pkg` reuses both so an audit of one package matches the gate.
+
+`BENCH_ENV` clears `GOFLAGS`, `GOEXPERIMENT`, `GOGC` and `GOMEMLIMIT`. go test's output records
+none of them, so a `GOFLAGS=-tags=sonic_on` left set in a shell would otherwise measure a different
+JSON backend under the same `linux/amd64` headers, and `make bench_update` would record it; a low
+`GOGC` or a `GOMEMLIMIT` runs the garbage collector more often, which moves allocation counts that
+depend on it. benchcheck runs under it too, since `GOFLAGS` can make `go run` exit zero without
+running it, as `-exec=/bin/true` and `-n` do. An empty variable does not override the go env file,
+so the measuring targets and `make bench_apply` refuse to run while `go env -w` has set `GOFLAGS` or
+`GOEXPERIMENT`, which `go env -u GOFLAGS GOEXPERIMENT` removes. The measuring targets also refuse a
+Go release other than the major and minor version `go.mod` names, which a newer local toolchain or
+`GOTOOLCHAIN` can select.
 
 It pins `-cpu 4` and `-p 1` so that CI and a developer's machine measure the same thing whatever the
 host's core count: `-cpu` fixes GOMAXPROCS inside each test binary, and `-p` stops several package
@@ -164,16 +198,22 @@ reproducible.
 
 The count is **odd, and must stay odd**. The compared value is the median, and an even count has no
 middle sample: averaging the two middles compares a value the run never measured, and picking either
-one biases the gate, which fails on improvements as well as regressions, towards that side.
+one biases the comparison towards that side.
 `benchcheck` refuses an even count rather than choosing.
 
 The count is also passed to benchcheck as `-samples`, which is required and rejects any benchmark
 that did not report exactly that many measurements. A truncated run, or a result line that failed to
 parse, would otherwise change which sample sits in the middle with nothing to notice it.
 
-Keep `-cpu` single valued. benchcheck strips the `-N` suffix Go appends to result names, so
-`-cpu 1,4` files two populations under one key; `-samples` then sees twice the count and rejects the
-run.
+Keep `-cpu` a single value above 1. benchcheck strips the `-N` suffix go test appends to result
+names, and refuses output in which results carry different ones, as `-cpu 1,4` produces. In output
+without `-v` that check is also what tells the suffix from a name ending in digits: under `-cpu 1`,
+which appends no suffix, a subbenchmark named `size-1` would otherwise lose its `-1`.
+
+`-v` is there for its skip reports, described under
+[Which packages are benchmarked](#which-packages-are-benchmarked). It also announces each benchmark
+by name before its results, which settles exactly where each name ends, and shows a result under any
+other name to be output a benchmark printed, which fails the run.
 
 ## Timings
 

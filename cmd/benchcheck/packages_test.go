@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// writeFiles creates each file under dir, along with its parent directories
 func writeFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
 	for name, body := range files {
@@ -108,8 +107,6 @@ func TestPackagesCovers(t *testing.T) {
 	assert.ErrorContains(t, err, "exchanges/kraken", "the error should name the stale exclusion")
 }
 
-// TestCanonicalPackage pins every spelling go test resolves to a package while the configured
-// lookups, which only ever see the pkg: header, would miss it and gate nothing.
 func TestCanonicalPackage(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -130,12 +127,10 @@ func TestCanonicalPackage(t *testing.T) {
 		{entry: modulePrefix + "/currency", want: "currency"},
 		{entry: "currency/forexprovider/exchangeratesapi.io", want: "currency/forexprovider/exchangeratesapi.io"},
 		{entry: strings.TrimSuffix(modulePrefix, "/"), err: errBadPackagePath},
-		// Cleaning erases the module boundary, so these must be caught before the prefix comes off:
-		// the second cleans to a real package the entry never named
+		// Cleaning erases the module boundary, so these are checked first
 		{entry: modulePrefix + "../outside", err: errBadPackagePath},
 		{entry: modulePrefix + "../../../currency", err: errBadPackagePath},
-		// -list is interpolated into go test unquoted, so the shell rewrites these into a real
-		// package after the gate has already filed them under the spelling in the file
+		// -list reaches go test unquoted, so a shell would rewrite these
 		{entry: "'currency'", err: errBadPackagePath},
 		{entry: `"currency"`, err: errBadPackagePath},
 		{entry: "typ[e]s", err: errBadPackagePath},
@@ -163,10 +158,8 @@ func TestCanonicalPackage(t *testing.T) {
 	}
 }
 
-// TestListOutputSurvivesTheShell pins the property the gate actually depends on: make interpolates
-// -list into the go test command unquoted, so an accepted entry must mean the same thing after the
-// shell has had it. Any entry whose emitted argument the shell would rewrite must be refused, or
-// go test measures one package while the gate waits on a name nothing reports.
+// TestListOutputSurvivesTheShell checks that each accepted entry reaches go test unchanged through a
+// real shell, since make passes -list unquoted
 func TestListOutputSurvivesTheShell(t *testing.T) {
 	t.Parallel()
 	for _, entry := range []string{
@@ -187,11 +180,7 @@ func TestListOutputSurvivesTheShell(t *testing.T) {
 				if _, err := exec.LookPath(sh); err != nil {
 					continue
 				}
-				// Interpolated unquoted on purpose: that is what make does, and reproducing it is
-				// the only way to check the emitted argument against a real shell rather than
-				// against the same assumption the code was written from. Run from the module root
-				// so a glob has the real package tree to expand against; from this package's own
-				// directory nothing matches and a globbing entry would pass by accident.
+				// Unquoted, as make passes it, and from the module root so a glob has the real tree to match
 				cmd := exec.CommandContext(t.Context(), sh, "-c", "printf %s "+arg)
 				cmd.Dir = filepath.Join("..", "..")
 				out, shErr := cmd.CombinedOutput()
@@ -275,13 +264,27 @@ func TestBenchmarkPackagesRejectsRootBenchmarks(t *testing.T) {
 	assert.ErrorIs(t, err, errRootBenchmarks, "a benchmark in the module root, which the list cannot name, should be refused")
 }
 
-func TestBenchmarkPackagesFindsThisModule(t *testing.T) {
-	t.Parallel()
-	// The real tree is the case that matters: discovery must succeed on it and find, at the very
-	// least, this repository's own long-standing benchmark packages
-	got, err := BenchmarkPackages(filepath.Join("..", ".."))
-	require.NoError(t, err, "BenchmarkPackages must not error on the repository")
-	assert.Subset(t, got, []string{"currency", "exchanges/orderbook", "types"}, "the repository's benchmark packages should be discovered")
+func TestBenchmarkPackagesRelativeRoot(t *testing.T) {
+	// No t.Parallel, since t.Chdir changes the process's working directory. A root named "." or ".."
+	// must not be skipped as a hidden directory.
+	root := t.TempDir()
+	const bench = "package p\n\nimport \"testing\"\n\nfunc BenchmarkX(b *testing.B) {}\n"
+	writeFiles(t, root, map[string]string{
+		"currency/x_test.go":            bench,
+		"exchanges/orderbook/x_test.go": bench,
+		"types/x_test.go":               bench,
+		"cmd/tool/main.go":              "package main\n",
+	})
+	for _, tc := range []struct{ dir, root string }{
+		{root, "."},
+		{filepath.Join(root, "cmd", "tool"), filepath.Join("..", "..")},
+	} {
+		t.Chdir(tc.dir)
+		got, err := BenchmarkPackages(tc.root)
+		require.NoErrorf(t, err, "BenchmarkPackages must not error on the relative root %q", tc.root)
+		assert.Equalf(t, []string{"currency", "exchanges/orderbook", "types"}, got,
+			"the relative root %q should discover every benchmark package beneath it", tc.root)
+	}
 }
 
 func TestDeclaresBenchmark(t *testing.T) {

@@ -55,7 +55,7 @@
     "allocs": 37991,
     "bytes": 9383689,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs on the merged tree in October 2026 gave medians from 37973 to 38037. Updates lower the budget to the smallest median they see, so the tolerance covers that whole range above it, with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs on the merged tree in October 2026 gave medians from 37973 to 38037. 0.4% is about 150 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -378,7 +378,7 @@
     "bytes": 16
   },
   "log.BenchmarkInfof": {
-    "allocs": 3,
+    "allocs": 4,
     "bytes": 152
   },
   "log.BenchmarkInfoln": {

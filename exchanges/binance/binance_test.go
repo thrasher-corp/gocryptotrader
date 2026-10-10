@@ -2067,41 +2067,25 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// BenchmarkWsHandleData measures each message type separately, so a regression names the handler it
-// came from instead of moving one aggregate figure.
+// BenchmarkWsHandleData measures each message type separately, so a regression names its handler
 func BenchmarkWsHandleData(b *testing.B) {
 	e := new(Exchange)
 	require.NoError(b, testexch.Setup(e), "Test instance Setup must not error")
 
 	pair, err := e.MatchSymbolWithAvailablePairs("BNBBTC", asset.Spot, false)
 	require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
-	// Only the fixture's own pair is enabled. Enabling every available spot pair made the execution
-	// report scan them all while resolving its symbol, which measured the pair manager rather than
-	// the handler.
-	//
-	// ExecutionReport still costs far more than its siblings, and that is real rather than an
-	// artefact of this setup: resolving a symbol calls GetPairs for the enabled pairs, and
-	// Pairs.ContainsAll clones the whole available list to do it, so every execution report copies
-	// every available pair. Keeping the available list at its configured size measures what
-	// production actually pays.
+	// Only the fixture's pair is enabled. ExecutionReport still pays for Pairs.ContainsAll cloning every
+	// available pair, as production does.
 	require.NoError(b, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
-	// Symbol resolution walks the enabled assets, and a map's iteration order is not fixed, so
-	// leaving the others enabled makes the work per iteration vary run to run
+	// Other enabled assets would make the work per iteration vary with map order
 	for _, a := range e.CurrencyPairs.GetAssetTypes(true) {
 		if a != asset.Spot {
 			require.NoErrorf(b, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
 		}
 	}
 
-	// The depth lines route through e.obm, which is otherwise only built when the websocket
-	// connects, so without it the benchmark dereferences a nil orderbookManager. It is constructed
-	// directly rather than via setupOrderbookManager because that also starts the synchronisation
-	// workers, which seed order books over REST and outlive the benchmark: they exit only on
-	// websocket shutdown, so their errors land on stdout mid-result-line and corrupt the output.
-	//
-	// The state is seeded mid-synchronisation so the depth line takes one repeatable path:
-	// stageWsUpdate rejects an update whose first ID is not lastUpdateID+1, and the fixture opens at
-	// 157, so the loop restores 156 each iteration. fetchingBook stops a REST fetch being queued.
+	// Built directly, since setupOrderbookManager starts REST sync workers that outlive the benchmark and
+	// print into its output. Seeded mid-sync at lastUpdateID 156, as the fixture's update starts at 157.
 	depth := &update{
 		buffer:       make(chan *WebsocketDepthStream, 1),
 		fetchingBook: true,
@@ -2127,8 +2111,7 @@ func BenchmarkWsHandleData(b *testing.B) {
 	}{
 		{name: "Ticker", line: lines[0], relays: true},
 		{name: "Kline", line: lines[1], relays: true},
-		// Trades are only relayed when trade data saving or streaming is enabled, which the default
-		// test config leaves off
+		// Trades relay only when trade saving or streaming is enabled
 		{name: "Trade", line: lines[2]},
 		{name: "Depth", line: lines[3], depth: true},
 		{name: "BalanceUpdate", line: lines[4], relays: true},
@@ -2144,9 +2127,8 @@ func BenchmarkWsHandleData(b *testing.B) {
 					<-depth.buffer
 					depth.lastUpdateID = 156
 				}
-				// Relay.Send has already queued the payload by the time it returns, so a
-				// non-blocking receive cannot lose a race with it. Draining every iteration keeps
-				// the relay from filling and turning a later Send into an error.
+				// Relay.Send has queued the payload by the time it returns, so a non-blocking
+				// receive is safe, and draining keeps the relay from filling
 				select {
 				case <-e.Websocket.DataHandler.C:
 					if !tc.relays {

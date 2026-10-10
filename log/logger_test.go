@@ -1212,8 +1212,7 @@ func TestBenchmarkLoggerWorkloads(t *testing.T) {
 	})
 }
 
-// benchmarkWriter signals each write without keeping it. A benchmark waits on it for the worker to
-// finish each event, without also measuring the copy of every message testBuffer takes.
+// benchmarkWriter signals each write without copying it, so a benchmark can wait on the worker
 type benchmarkWriter chan struct{}
 
 func (w benchmarkWriter) Write(p []byte) (int, error) {
@@ -1234,9 +1233,8 @@ func TestBenchmarkWriter(t *testing.T) {
 	}
 }
 
-// BenchmarkNewLogEvent waits for each staged event to be written, which holds the job pool in a
-// steady state and stops the jobs channel filling; StageLogEvent's filled-channel warning goes to
-// the standard logger, which go test interleaves into the result lines.
+// BenchmarkNewLogEvent waits for each event to be written, so the jobs channel never fills and warns
+// into the benchmark output
 func BenchmarkNewLogEvent(b *testing.B) {
 	w := make(benchmarkWriter, 1)
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
@@ -1322,7 +1320,8 @@ func BenchmarkInfof(b *testing.B) {
 	w := make(benchmarkWriter, 1)
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
-	var n int
+	// Starts at 256: the runtime boxes 0 to 255 without allocating, which left allocs/op varying with b.N
+	n := 256
 	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 		<-w

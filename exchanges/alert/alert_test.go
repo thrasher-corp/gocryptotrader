@@ -100,10 +100,8 @@ func BenchmarkAlert(b *testing.B) {
 	}
 }
 
-// BenchmarkWait kicks every waiter rather than passing a nil kick channel. hold only returns when
-// one of its two channels fires, so an unkicked waiter that is never alerted leaks its routine and
-// its wait-group count for the life of the run; at a long benchtime that accumulates millions.
-// Receiving the reply also returns the channel to the pool, which is the path being measured.
+// BenchmarkWait kicks every waiter, since one never alerted nor kicked leaks its routine, and receives
+// each reply, which returns the channel to the pool
 func BenchmarkWait(b *testing.B) {
 	n := Notice{}
 	kick := make(chan struct{})

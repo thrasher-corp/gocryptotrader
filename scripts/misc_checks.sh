@@ -311,15 +311,13 @@ fi
 # ---------------------------------------------------------------------------
 # 10. Benchmark results pasted into comments
 # ---------------------------------------------------------------------------
-# benchmarks/baseline.json is the single source of truth for benchmark numbers, and `make bench`
-# verifies it on every run, so a number pasted into a comment can only go stale. The test scans the
-# comments of every tracked Go file with the Go scanner, so a measurement inside a string literal is
-# not mistaken for one and one on an unstarred line of a block comment is not missed.
+# Nothing checks a benchmark result pasted into a comment, so the test rejects any in tracked Go
+# files and Go templates.
 info "Check for benchmark results stored in comments"
 if go test ./cmd/benchcheck -run '^TestNoBenchmarkResultsInComments$' -count=1; then
     pass "No benchmark results stored in comments"
 else
-    fail "Remove benchmark results from comments; benchmarks/baseline.json records them, run 'make bench_update'"
+    fail "Remove benchmark results from comments, where nothing checks them; allocation budgets belong in benchmarks/baseline.json ('make bench_update')"
 fi
 
 # ---------------------------------------------------------------------------
