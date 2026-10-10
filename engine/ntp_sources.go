@@ -90,6 +90,11 @@ func newNTPSurvey(names []string) (*ntpSurvey, error) {
 			return nil, err
 		}
 		key := net.JoinHostPort(host, port)
+		if ip, err := netip.ParseAddr(host); err == nil {
+			// Different spellings of one server must not get several votes.
+			// Compare servers by IP alone, as chrony does, which stores no zone: https://github.com/mlichvar/chrony/blob/8df4f1263e206585e6c4e61352d042c2dd12916a/ntp_sources.c#L374-L379
+			key = net.JoinHostPort(ip.WithZone("").String(), port)
+		}
 		if !seen[key] {
 			seen[key] = true
 			source := ntpSource{host: host, port: port}
@@ -184,9 +189,21 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			case len(addresses) == 0:
 				failures = append(failures, fmt.Errorf("%w %s: DNS returned no IP address", errNTPSourceAddress, source.host))
 			default:
+				var current netip.Addr
+				if len(source.addresses) != 0 {
+					current = source.addresses[0].Unmap()
+				}
 				source.addresses = addresses
 				source.refreshAfter = elapsed + time.Hour
 				rand.Shuffle(len(addresses), func(a, b int) { addresses[a], addresses[b] = addresses[b], addresses[a] }) //nolint:gosec // Only spreads load across DNS answers, so predictable order is harmless
+				// Refresh must not swap working address for one that may time out and cost entry its vote.
+				// Keep current address as chrony does on refresh: https://github.com/mlichvar/chrony/blob/8df4f1263e206585e6c4e61352d042c2dd12916a/ntp_sources.c#L543-L562
+				for j, address := range source.addresses {
+					if address.Unmap() == current {
+						source.addresses[0], source.addresses[j] = source.addresses[j], source.addresses[0]
+						break
+					}
+				}
 			}
 		}
 		if len(source.addresses) == 0 {
@@ -205,11 +222,11 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 				blocked |= ntpNameNotFound
 				continue
 			}
-			if used[candidate] {
+			if used[candidate.WithZone("")] {
 				blocked |= ntpDuplicateAddress
 				continue
 			}
-			endpoint := s.endpoints[candidate]
+			endpoint := s.endpoints[candidate.WithZone("")]
 			if endpoint.denied {
 				blocked |= ntpRefused
 				unavailable = errors.Join(unavailable, fmt.Errorf("NTP source %s at %s refused further queries: %w", source.host, candidate, ntp.ErrKissOfDeath))
@@ -229,7 +246,7 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			address = candidate
 			// Count each IP address at most once, even if several names or ports lead to it.
 			// Different IP addresses don't prove different operators.
-			used[address] = true
+			used[address.WithZone("")] = true
 			response, err = s.query(ctx, net.JoinHostPort(address.String(), source.port))
 			// A socket that couldn't be opened sent nothing, such as an IPv6 address on an IPv4-only host.
 			// Try the entry's next address this round, so DNS answers for one address family can't cost the entry its vote.
@@ -253,7 +270,7 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			}
 		}
 		if errors.Is(err, ntp.ErrKissOfDeath) && response != nil {
-			endpoint := s.endpoints[address]
+			endpoint := s.endpoints[address.WithZone("")]
 			switch response.KissCode {
 			case "DENY", "RSTR":
 				endpoint.denied = true
@@ -265,7 +282,7 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 				endpoint.backoff = min(max(defaultNTPCheckInterval*2, endpoint.backoff*2, response.Poll), 8192*time.Second)
 				endpoint.nextAllowed = elapsed + endpoint.backoff
 			}
-			s.endpoints[address] = endpoint
+			s.endpoints[address.WithZone("")] = endpoint
 		}
 		if err != nil {
 			failed = append(failed, address)

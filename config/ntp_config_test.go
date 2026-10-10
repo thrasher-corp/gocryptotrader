@@ -7,10 +7,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestNTPConfigRoundTrip(t *testing.T) {
 	t.Parallel()
+	latestConfig, err := versions.Manager.Deploy(t.Context(), []byte(`{}`), versions.UseLatestVersion)
+	require.NoError(t, err, "latest config version must resolve")
+	var latest struct {
+		Version int `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(latestConfig, &latest), "latest config version must decode")
 	for _, level := range []int{-1, 0, 1} {
 		for _, pool := range [][]string{
 			{},
@@ -28,7 +36,7 @@ func TestNTPConfigRoundTrip(t *testing.T) {
 			var loaded Config
 			require.NoError(t, loaded.ReadConfigFromFile(path, true), "real loader must read the config")
 			loaded.CheckNTPConfig()
-			assert.Equal(t, 15, loaded.Version, "NTP settings should not advance the configuration version")
+			assert.Equal(t, latest.Version, loaded.Version, "loading should upgrade the configuration to the latest version")
 			assert.Equal(t, saved.NTPClient, loaded.NTPClient, "loading should preserve explicit servers, empty defaults, mode and tolerances")
 			require.NoError(t, loaded.SaveConfigToFile(path), "loaded config must save")
 			var reloaded Config

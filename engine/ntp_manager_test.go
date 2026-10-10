@@ -105,7 +105,13 @@ func TestNTPManagerStopJoinsBeforeRestart(t *testing.T) {
 			return nil, ctx.Err()
 		}
 		require.NoError(t, manager.Start(t.Context()), "first run must start")
-		<-entered
+		select {
+		case <-entered:
+		case <-time.After(time.Hour):
+			// Let a late query return, so the cleanup's Stop can finish.
+			close(release)
+			require.FailNow(t, "first run must start its query")
+		}
 		assert.ErrorIs(t, manager.Start(t.Context()), ErrSubSystemAlreadyStarted, "duplicate Start should not launch another worker")
 		stopped := make(chan error, 1)
 		go func() { stopped <- manager.Stop() }()
@@ -125,7 +131,11 @@ func TestNTPManagerStopJoinsBeforeRestart(t *testing.T) {
 		synctest.Wait()
 		assert.Zero(t, active.Load(), "restart should preserve the next query deadline")
 		time.Sleep(15 * time.Minute)
-		<-entered
+		select {
+		case <-entered:
+		case <-time.After(time.Hour):
+			require.FailNow(t, "restarted run must start its due query")
+		}
 		require.NoError(t, manager.Stop(), "restarted run must also stop cleanly")
 		assert.Equal(t, int32(2), calls.Load(), "there should be exactly one query per due round")
 		assert.Zero(t, overlap.Load(), "old and new rounds should never overlap")
@@ -186,7 +196,11 @@ func TestNTPManagerCancelledDNSRecoversNextRound(t *testing.T) {
 			return []netip.Addr{netip.MustParseAddr("192.0.2.1")}, nil
 		}
 		require.NoError(t, manager.Start(t.Context()), "worker must start the first lookup")
-		<-entered
+		select {
+		case <-entered:
+		case <-time.After(time.Hour):
+			require.FailNow(t, "worker must reach its first lookup")
+		}
 		require.NoError(t, manager.Stop(), "Stop must cancel and join DNS resolution")
 		assert.False(t, manager.history.unknown, "shutdown alone should not open an unknown episode")
 		require.NoError(t, manager.Start(t.Context()), "worker must restart with request deadlines preserved")

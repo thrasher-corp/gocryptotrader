@@ -31,10 +31,29 @@ func TestNTPSourceNormalisation(t *testing.T) {
 	}
 }
 
+func TestNTPSourceZoneNormalisation(t *testing.T) {
+	t.Parallel()
+	for _, names := range [][]string{
+		{"[::1]", "[::1%lo]", "[::1%1]"},
+		{"[::1%lo]", "[::1%1]", "[::1]"},
+		{"[::1%1]", "[::1]", "[::1%lo]"},
+	} {
+		t.Run(names[0], func(t *testing.T) {
+			t.Parallel()
+			survey, err := newNTPSurvey(names)
+			require.NoError(t, err, "zone spellings must parse")
+			require.Len(t, survey.sources, 1, "zone spellings of one IP on one port must collapse")
+			assert.Equal(t, names[0]+":123", net.JoinHostPort(survey.sources[0].host, survey.sources[0].port), "the first configured spelling should be kept")
+			assert.Equal(t, "["+survey.sources[0].addresses[0].String()+"]", names[0], "the cached literal should keep its configured zone")
+		})
+	}
+}
+
 func TestNTPSurveyScopedAddresses(t *testing.T) {
 	t.Parallel()
-	survey, err := newNTPSurvey([]string{"[fe80::123%1]:123", "[fe80::123%2]:123"})
+	survey, err := newNTPSurvey([]string{"[fe80::1%eth0]:123", "[fe80::1%2]:124"})
 	require.NoError(t, err, "scoped sources must parse")
+	require.Len(t, survey.sources, 2, "different ports must remain separate configured entries")
 	survey.resolve = func(context.Context, string, string) ([]netip.Addr, error) {
 		return nil, errors.New("test resolver should not be called for IP literals")
 	}
@@ -46,10 +65,33 @@ func TestNTPSurveyScopedAddresses(t *testing.T) {
 	for _, elapsed := range []time.Duration{0, 2 * time.Hour} {
 		queried = nil
 		result := survey.observe(t.Context(), elapsed, 50*time.Millisecond, 50*time.Millisecond)
-		assert.Equalf(t, []string{"[fe80::123%1]:123", "[fe80::123%2]:123"}, queried, "each link-local server should be queried with its zone after %s", elapsed)
-		assert.Equalf(t, 2, result.usable, "servers on different links should count as separate votes after %s", elapsed)
-		assert.NoErrorf(t, result.diagnostics, "IP literals should not be resolved after %s", elapsed)
+		assert.Equalf(t, []string{"[fe80::1%eth0]:123"}, queried, "one IP should be queried once with its configured zone after %s", elapsed)
+		assert.Equalf(t, 1, result.usable, "zone spellings should share one vote after %s", elapsed)
+		assert.Equalf(t, 2, result.configured, "different ports should retain the configured denominator after %s", elapsed)
+		assert.ErrorIsf(t, result.diagnostics, errNTPSourceAddress, "the duplicate IP should be reported after %s", elapsed)
+		assert.Equalf(t, ntpDuplicateAddress, result.failures, "the shared IP should be the only failure, with no DNS lookup, after %s", elapsed)
 	}
+}
+
+func TestNTPSurveyScopedAddressesShareRate(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"[fe80::1%eth0]:123", "[fe80::1%2]:124"})
+	require.NoError(t, err, "scoped sources must parse")
+	require.Len(t, survey.sources, 2, "different ports must remain separate configured entries")
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		return &ntp.Response{KissCode: "RATE"}, ntp.ErrKissOfDeath
+	}
+	first := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, []string{"[fe80::1%eth0]:123"}, queried, "the first RATE should not allow a query through another zone spelling")
+	assert.ErrorIs(t, first.diagnostics, ntp.ErrKissOfDeath, "the initial RATE should retain its diagnostic cause")
+	queried = nil
+	second := survey.observe(t.Context(), 15*time.Minute, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Empty(t, queried, "shared RATE backoff should prevent queries through either zone spelling")
+	assert.Zero(t, second.usable, "RATE backoff should provide no votes")
+	assert.Equal(t, ntpRateLimited, second.failures, "both entries should share the RATE restriction")
+	assert.ErrorIs(t, second.diagnostics, errNTPSourceBackoff, "shared backoff should explain the missing queries")
 }
 
 func TestNTPSurveyDuplicateAddresses(t *testing.T) {
@@ -249,6 +291,70 @@ func TestNTPSurveyAddressRecovery(t *testing.T) {
 			assert.Equal(t, []string{"192.0.2.1:123", "192.0.2.2:123", "192.0.2.2:123"}, queried, "successful address should not rotate back to a failed member")
 		})
 	}
+}
+
+func TestNTPSurveyDNSRefreshKeepsCurrentAddress(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"one.invalid"})
+	require.NoError(t, err, "source must parse")
+	v6, v4 := netip.MustParseAddr("2001:db8::1"), netip.MustParseAddr("192.0.2.1")
+	survey.sources[0].addresses = []netip.Addr{v6, v4}
+	survey.sources[0].refreshAfter = time.Hour
+	instant := time.Now()
+	survey.now = func() time.Time { return instant }
+	lookups := 0
+	survey.resolve = func(context.Context, string, string) ([]netip.Addr, error) {
+		lookups++
+		return []netip.Addr{v6, v4}, nil
+	}
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		if address == "[2001:db8::1]:123" {
+			return nil, &net.OpError{Op: "read", Net: "udp", Err: context.DeadlineExceeded}
+		}
+		return &ntp.Response{RootDistance: time.Millisecond}, nil
+	}
+	first := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, []string{"[2001:db8::1]:123"}, queried, "a read timeout should not send a second query in the round")
+	assert.Zero(t, first.usable, "a read timeout should cost the initial round its vote")
+	queried = nil
+	second := survey.observe(t.Context(), 15*time.Minute, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, []string{"192.0.2.1:123"}, queried, "the next round should use the address that can answer")
+	assert.Equal(t, v4, survey.sources[0].addresses[0], "the working IPv4 address should be first after recovery")
+	assert.Equal(t, 1, second.usable, "IPv4 recovery should restore the entry's vote")
+	for hour := 1; hour <= 128; hour++ {
+		queried = nil
+		result := survey.observe(t.Context(), time.Duration(hour)*time.Hour, 50*time.Millisecond, 50*time.Millisecond)
+		assert.Equalf(t, []string{"192.0.2.1:123"}, queried, "refresh %d should query the current address before the timed-out IPv6 address", hour)
+		assert.Equalf(t, v4, survey.sources[0].addresses[0], "refresh %d should keep the working address first", hour)
+		assert.Equalf(t, 1, result.usable, "refresh %d should keep the entry's vote", hour)
+		assert.Equalf(t, ntpHealthy, result.state, "refresh %d should preserve clock verification", hour)
+	}
+	assert.Equal(t, 128, lookups, "each hourly round should exercise a fresh DNS answer and the real shuffle")
+}
+
+func TestNTPSurveyDNSRefreshDropsCurrentAddress(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"one.invalid"})
+	require.NoError(t, err, "source must parse")
+	old, replacement := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")
+	survey.sources[0].addresses = []netip.Addr{old}
+	survey.sources[0].refreshAfter = time.Hour
+	instant := time.Now()
+	survey.now = func() time.Time { return instant }
+	survey.resolve = func(context.Context, string, string) ([]netip.Addr, error) {
+		return []netip.Addr{replacement}, nil
+	}
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		return &ntp.Response{RootDistance: time.Millisecond}, nil
+	}
+	result := survey.observe(t.Context(), time.Hour, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, []string{"192.0.2.2:123"}, queried, "a refresh without the current address should query the new answer")
+	assert.Equal(t, []netip.Addr{replacement}, survey.sources[0].addresses, "the stale address should not survive a successful refresh")
+	assert.Equal(t, 1, result.usable, "the replacement address should supply a fresh vote")
 }
 
 func TestNTPSurveyEligibleAddresses(t *testing.T) {
