@@ -514,12 +514,14 @@ func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
 func TestRateLimitAdmittedRequestConsumesCapacity(t *testing.T) {
 	t.Parallel()
 
-	limiter := NewRateLimit(time.Hour, 1)
-	weighted := GetRateLimiterWithWeight(limiter, 1)
-	ctx := WithDelayNotAllowed(t.Context())
-	require.NoError(t, weighted.RateLimit(ctx), "first request must be admitted without delay")
-	require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
-		"an admitted request must retain its reservation")
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		limiter := NewRateLimit(time.Hour, 1)
+		weighted := GetRateLimiterWithWeight(limiter, 1)
+		ctx := WithDelayNotAllowed(t.Context())
+		require.NoError(t, weighted.RateLimit(ctx), "first request must be admitted without delay")
+		require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
+			"an admitted request must retain its reservation")
+	})
 }
 
 func TestRateLimitBarrierRejectedAdmissionRestoresCapacity(t *testing.T) {
