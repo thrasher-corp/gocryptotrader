@@ -195,6 +195,65 @@ func TestConvertTradesToCandles(t *testing.T) {
 	}
 }
 
+// TestConvertTradesToCandlesNormalisesNegativePrices ensures negative prices and
+// amounts are normalised before any candle field is derived. Reading Open and
+// Close from the raw trades, while High and Low come from the normalised ones,
+// produces a candle whose own fields contradict each other.
+func TestConvertTradesToCandlesNormalisesNegativePrices(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewBTCUSD()
+	startDate := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		trades   []Data
+		expected kline.Candle
+	}{
+		{
+			name: "every trade negative",
+			trades: []Data{
+				{Timestamp: startDate, Price: -100, Amount: -1},
+				{Timestamp: startDate.Add(time.Second), Price: -110, Amount: -2},
+				{Timestamp: startDate.Add(2 * time.Second), Price: -90, Amount: -3},
+			},
+			expected: kline.Candle{Time: startDate, Open: 100, High: 110, Low: 90, Close: 90, Volume: 6},
+		},
+		{
+			name: "mixed sign prices",
+			trades: []Data{
+				{Timestamp: startDate, Price: -100, Amount: 1},
+				{Timestamp: startDate.Add(time.Second), Price: 50, Amount: -2},
+				{Timestamp: startDate.Add(2 * time.Second), Price: -75, Amount: 3},
+			},
+			expected: kline.Candle{Time: startDate, Open: 100, High: 100, Low: 50, Close: 75, Volume: 6},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			trades := make([]Data, len(tt.trades))
+			copy(trades, tt.trades)
+			for i := range trades {
+				trades[i].Exchange = "test!"
+				trades[i].CurrencyPair = cp
+				trades[i].AssetType = asset.Spot
+				trades[i].Side = order.Buy
+			}
+			candles, err := ConvertTradesToCandles(kline.FifteenSecond, trades...)
+			require.NoError(t, err, "ConvertTradesToCandles must not error")
+			require.Len(t, candles.Candles, 1, "trades in one interval must produce one candle")
+			c := candles.Candles[0]
+			assert.Equal(t, tt.expected.Time.Unix(), c.Time.Unix(), "candle time should be the start of the interval")
+			assert.Equal(t, tt.expected.Open, c.Open, "open should use the normalised price")
+			assert.Equal(t, tt.expected.High, c.High, "high should use the normalised price")
+			assert.Equal(t, tt.expected.Low, c.Low, "low should use the normalised price")
+			assert.Equal(t, tt.expected.Close, c.Close, "close should use the normalised price")
+			assert.Equal(t, tt.expected.Volume, c.Volume, "volume should total the normalised amounts")
+			assert.True(t, c.Open >= c.Low && c.Open <= c.High, "open should fall between low and high")
+			assert.True(t, c.Close >= c.Low && c.Close <= c.High, "close should fall between low and high")
+		})
+	}
+}
+
 func TestShutdown(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive

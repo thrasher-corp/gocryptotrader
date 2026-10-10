@@ -263,8 +263,9 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	SortByDate(datas)
-	c.Open = datas[0].Price
-	c.Close = datas[len(datas)-1].Price
+	// Normalise before any candle field is derived, otherwise Open and Close keep
+	// the signed price while High and Low use the absolute one, which yields a
+	// candle whose own fields contradict each other.
 	for i := range datas {
 		if datas[i].Price < 0 {
 			datas[i].Price *= -1
@@ -272,6 +273,10 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 		if datas[i].Amount < 0 {
 			datas[i].Amount *= -1
 		}
+	}
+	c.Open = datas[0].Price
+	c.Close = datas[len(datas)-1].Price
+	for i := range datas {
 		if datas[i].Price < c.Low || c.Low == 0 {
 			c.Low = datas[i].Price
 		}
