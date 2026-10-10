@@ -226,6 +226,33 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 		assert.Equal(t, "single-channel", unexpanded.Channel, "Modifying the result should not change the unexpanded input")
 	})
 
+	t.Run("MixedKeys", func(t *testing.T) {
+		t.Parallel()
+		custom := &Subscription{Channel: "single-channel", QualifiedChannel: "custom keyed", Key: "custom-key"}
+		pointerKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "pointer keyed"}
+		pointerKey := &ExactKey{pointerKeyed}
+		pointerKeyed.SetKey(pointerKey)
+		valueKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "value keyed"}
+		valueKeyed.SetKey(ChannelKey{valueKeyed})
+		otherKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "other keyed"}
+		otherKey := &ExactKey{otherKeyed.Clone()}
+		otherKeyed.SetKey(otherKey)
+
+		got, err := List{custom, pointerKeyed, valueKeyed, otherKeyed, {Channel: "single-channel"}}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 5, "Must get every subscription back")
+		assert.Equal(t, "custom-key", got[0].Key, "Should keep a custom key")
+		if key, ok := got[1].Key.(*ExactKey); assert.True(t, ok, "Should keep a pointer key's type") {
+			assert.Same(t, got[1], key.Subscription, "Pointer key should reference the returned subscription")
+		}
+		if key, ok := got[2].Key.(ChannelKey); assert.True(t, ok, "Should keep a value key's type") {
+			assert.Same(t, got[2], key.Subscription, "Value key should reference the returned subscription")
+		}
+		assert.Same(t, otherKey, got[3].Key, "Should carry over a key for another subscription untouched")
+		assert.Same(t, pointerKey, pointerKeyed.Key, "Should leave the input key in place")
+		assert.Same(t, pointerKeyed, pointerKey.Subscription, "Should leave the input key referencing the input")
+	})
+
 	t.Run("CustomKey", func(t *testing.T) {
 		t.Parallel()
 		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT", Key: "custom-key"}
