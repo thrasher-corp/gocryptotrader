@@ -509,14 +509,14 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := subs.ExpandTemplates(e)
+	subs, errs := subs.ExpandTemplatesIfNeeded(e)
 	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := subs.ExpandTemplates(e)
+	subs, errs := subs.ExpandTemplatesIfNeeded(e)
 	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubOp, l) }, 1))
 }
 

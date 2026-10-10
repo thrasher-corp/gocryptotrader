@@ -74,6 +74,17 @@ func (l List) Clone() List {
 	return n
 }
 
+// cloneWithKeys is Clone but retains the Key of each subscription, re-pointing built-in keys which
+// reference the original subscription at its copy. It is used by ExpandTemplates for subscriptions
+// which pass through unexpanded
+func (l List) cloneWithKeys() List {
+	n := make(List, len(l))
+	for i, s := range l {
+		n[i] = s.cloneWithKey()
+	}
+	return n
+}
+
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list
 func (l List) QualifiedChannels() []string {
 	c := make([]string, len(l))

@@ -464,7 +464,7 @@ func channelName(s *subscription.Subscription) string {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, err := subs.ExpandTemplates(e)
+	subs, err := subs.ExpandTemplatesIfNeeded(e)
 	if err != nil {
 		return err
 	}
@@ -473,7 +473,7 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, err := subs.ExpandTemplates(e)
+	subs, err := subs.ExpandTemplatesIfNeeded(e)
 	if err != nil {
 		return err
 	}
