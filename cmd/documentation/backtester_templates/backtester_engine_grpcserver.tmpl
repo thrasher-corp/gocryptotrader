@@ -1,8 +1,9 @@
 {{define "engine grpcserver" -}}
 {{template "backtester-header" .}}
+
 ## {{.CapitalName}} package overview
 
-The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented [here](/backtester/btrpc)
+The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented in the [backtester RPC package]({{.RepoRoot}}/backtester/btrpc).
 
 {{template "donations" .}}
 {{end}}

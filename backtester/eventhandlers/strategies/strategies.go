@@ -39,12 +39,12 @@ func createNewStrategy(name string, useSimultaneousProcessing bool, h Handler) (
 	}
 
 	strategyValue := reflect.ValueOf(h)
-	if strategyValue.Kind() != reflect.Ptr || strategyValue.IsNil() {
+	if strategyValue.Kind() != reflect.Pointer || strategyValue.IsNil() {
 		return nil, fmt.Errorf("cannot load strategy %q: handler must be a non-nil pointer, got %T", name, h)
 	}
 
 	// create new instance so strategy is not shared across all tasks
-	strategy, ok := reflect.New(strategyValue.Elem().Type()).Interface().(Handler)
+	strategy, ok := reflect.TypeAssert[Handler](reflect.New(strategyValue.Elem().Type()))
 	if !ok {
 		return nil, fmt.Errorf("cannot load strategy %q: type %T doesn't implement Handler interface: %w",
 			name, strategy, common.ErrTypeAssertFailure)

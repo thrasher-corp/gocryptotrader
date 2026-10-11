@@ -472,6 +472,9 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.AUD.String(), "-")
 	_, err := e.UpdateTicker(t.Context(), cp, asset.Spot)
 	if err != nil {
@@ -1022,7 +1025,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	exp := subscription.List{}
+	exp := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, baseSub := range e.Features.Subscriptions {
 		s := baseSub.Clone()
 		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {

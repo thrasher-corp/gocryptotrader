@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -43,7 +43,6 @@ type Engine struct {
 	ntpManager               *ntpManager
 	OrderManager             *OrderManager
 	portfolioManager         *portfolioManager
-	gctScriptManager         *gctscript.GctScriptManager
 	WebsocketRoutineManager  *WebsocketRoutineManager
 	WithdrawManager          *WithdrawManager
 	dataHistoryManager       *DataHistoryManager
@@ -114,11 +113,6 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %w", err)
 	}
 
-	b.gctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create script manager. Err: %w", err)
-	}
-
 	b.ExchangeManager = NewExchangeManager()
 
 	validateSettings(&b, settings, flagSet)
@@ -179,7 +173,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
 	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
-	flagSet.WithBool("gctscriptmanager", &b.Settings.EnableGCTScriptManager, b.Config.GCTScript.Enabled)
 
 	flagSet.WithBool("tickersync", &b.Settings.EnableTickerSyncing, b.Config.SyncManagerConfig.SynchronizeTicker)
 	flagSet.WithBool("orderbooksync", &b.Settings.EnableOrderbookSyncing, b.Config.SyncManagerConfig.SynchronizeOrderbook)
@@ -199,11 +192,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	if b.Settings.EnableGRPCShutdown {
 		b.GRPCShutdownSignal = make(chan struct{}, 1)
 		go b.waitForGPRCShutdown()
-	}
-
-	if flagSet["maxvirtualmachines"] {
-		maxMachines := b.Settings.MaxVirtualMachines
-		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
@@ -473,7 +461,8 @@ func (bot *Engine) Start() error {
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
-			&bot.Config.OrderManager); err != nil {
+			&bot.Config.OrderManager,
+		); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {
 			bot.OrderManager = o
@@ -538,17 +527,6 @@ func (bot *Engine) Start() error {
 			bot.WebsocketRoutineManager = w
 			if err = bot.WebsocketRoutineManager.Start(runtimeCtx); err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start websocket routine manager. Err: %s", err)
-			}
-		}
-	}
-
-	if bot.Settings.EnableGCTScriptManager {
-		if g, err := gctscript.NewManager(&bot.Config.GCTScript); err != nil {
-			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
-		} else {
-			bot.gctScriptManager = g
-			if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
-				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
 			}
 		}
 	}
@@ -660,7 +638,7 @@ func (bot *Engine) EnsureRuntimeContext() context.Context {
 		return context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is retained as bot.runtimeCancel and invoked on shutdown
 	bot.runtimeCtx = ctx
 	bot.runtimeCancel = cancel
 	return ctx
@@ -688,11 +666,6 @@ func (bot *Engine) Stop() {
 		bot.Config.Portfolio = bot.portfolioManager.GetPortfolio()
 	}
 
-	if bot.gctScriptManager.IsRunning() {
-		if err := bot.gctScriptManager.Stop(); err != nil {
-			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to stop. Error: %v", err)
-		}
-	}
 	if bot.OrderManager.IsRunning() {
 		if err := bot.OrderManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
@@ -795,7 +768,7 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 		return err
 	}
 
-	exchCfg.Enabled = false
+	exchCfg.SetEnabled(false)
 	return nil
 }
 
@@ -874,12 +847,12 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	// NOTE: This will standardize name to default and apply it to the config.
-	exchCfg.Name = exch.GetName()
+	// NOTE: This will standardise name to default and apply it to the config.
+	exchCfg.SetName(exch.GetName())
 
-	exchCfg.Enabled = true
+	exchCfg.SetEnabled(true)
 	if err := exch.Setup(exchCfg); err != nil {
-		exchCfg.Enabled = false
+		exchCfg.SetEnabled(false)
 		return err
 	}
 
@@ -892,24 +865,14 @@ func (bot *Engine) LoadExchange(name string) error {
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
-		var preferredAsset asset.Item
-		switch {
-		case enabledAssets.Contains(asset.Spot): // prioritise validating credentials with spot due to wide usage across GCT
-			preferredAsset = asset.Spot
-		default:
-			for _, a := range enabledAssets { // second priority to futures if spot isn't available
-				if a.IsFutures() {
-					preferredAsset = a
-					break
-				}
-			}
-			if preferredAsset == 0 {
-				preferredAsset = enabledAssets[0] // last resort pick first available
-			}
+		// Structurally unusable credentials fail identically for every account
+		// type, so establish that once rather than once per asset.
+		_, err := exch.GetCredentials(ctx)
+		if err == nil {
+			err = validateAPICredentials(ctx, b.Name, enabledAssets, exch.ValidateAPICredentials)
 		}
-
-		if err := exch.ValidateAPICredentials(ctx, preferredAsset); err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, preferredAsset)
+		if err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Credential validation failed, disabling authenticated support: %v", b.Name, err)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
@@ -919,6 +882,46 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	return exchange.Bootstrap(ctx, exch)
+}
+
+func validateAPICredentials(ctx context.Context, exchangeName string, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
+	// Spot covers the widest set of GCT functionality, followed by futures;
+	// other account types are fallbacks, and the first successful validation wins.
+	// This assumes validation is asset-specific; global validators repeat the same request.
+	assets := make(asset.Items, 0, len(enabledAssets))
+	if enabledAssets.Contains(asset.Spot) {
+		assets = append(assets, asset.Spot)
+	}
+	for _, a := range enabledAssets {
+		if a != asset.Spot && a.IsFutures() {
+			assets = append(assets, a)
+		}
+	}
+	for _, a := range enabledAssets {
+		if a != asset.Spot && !a.IsFutures() {
+			assets = append(assets, a)
+		}
+	}
+	if len(assets) == 0 {
+		return fmt.Errorf("%s: %w", exchangeName, asset.ErrNotEnabled)
+	}
+
+	var errs error
+	for _, a := range assets {
+		if err := validate(ctx, a); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", a, err))
+			// A transport failure means the venue is unreachable, so no other account can answer either.
+			if _, ok := errors.AsType[net.Error](err); ok || errors.Is(err, exchange.ErrCredentialsAreEmpty) || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+				break
+			}
+			continue
+		}
+		if errs != nil { // the caller only logs errs when every account fails, so surface the recovered ones here
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Authenticated support retained on %s after earlier failures: %v", exchangeName, a, errs)
+		}
+		return nil
+	}
+	return errs
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {
@@ -1001,9 +1004,8 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 
-		wg.Add(1)
-		go func(c config.Exchange) {
-			defer wg.Done()
+		c := configs[x]
+		wg.Go(func() {
 			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 			} else {
@@ -1014,7 +1016,7 @@ func (bot *Engine) SetupExchanges() error {
 					common.IsEnabled(c.Verbose),
 				)
 			}
-		}(configs[x])
+		})
 	}
 	wg.Wait()
 	if len(bot.GetExchanges()) == 0 {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -150,44 +151,23 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	err = startedCurrencyStateManager(nil).Start(t.Context())
 	require.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
-	man := &CurrencyStateManager{
-		shutdown:         make(chan struct{}),
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-		sleep:            time.Minute,
-	}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	if !man.IsRunning() {
-		t.Fatal("this should be running")
-	}
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	if man.IsRunning() {
-		t.Fatal("this should be stopped")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		man := &CurrencyStateManager{
+			shutdown:         make(chan struct{}),
+			iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
+			sleep:            time.Minute,
+		}
+		// a failed require would otherwise leave the monitor blocked on its timer, which panics the bubble and aborts the package
+		t.Cleanup(func() { _ = man.Stop() })
+		for range 3 {
+			require.NoError(t, man.Start(t.Context()), "Start must not error")
+			// the first sync fires on a zero timer, so this lets it finish before the manager is inspected
+			synctest.Sleep(time.Millisecond)
+			require.True(t, man.IsRunning(), "manager must be running after Start")
+			require.NoError(t, man.Stop(), "Stop must not error")
+			require.False(t, man.IsRunning(), "manager must not be running after Stop")
+		}
+	})
 }
 
 func TestGetAllRPC(t *testing.T) {

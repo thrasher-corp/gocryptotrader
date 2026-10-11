@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -11,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -21,6 +22,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -122,6 +126,7 @@ type Attributes struct {
 	Name            string
 	Contributors    []Contributor
 	NameURL         string
+	RepoRoot        string
 	Year            int
 	CapitalName     string
 	DonationAddress string
@@ -201,9 +206,7 @@ func main() {
 			},
 		}...)
 
-		sort.Slice(contributors, func(i, j int) bool {
-			return contributors[i].Contributions > contributors[j].Contributions
-		})
+		slices.SortFunc(contributors, func(a, b Contributor) int { return cmp.Compare(b.Contributions, a.Contributions) })
 
 		if verbose {
 			fmt.Println("Contributor List Fetched")
@@ -510,22 +513,96 @@ func UpdateDocumentation(details DocumentationDetails) {
 }
 
 func runTemplate(details DocumentationDetails, mainPath, name string) error {
-	err := os.Remove(mainPath)
-	if err != nil && !os.IsNotExist(err) {
-		return err
+	var output bytes.Buffer
+	attr := GetDocumentationAttributes(name, details.Contributors)
+	root := repoDir
+	if root == "" {
+		root = filepath.Dir(mainPath)
 	}
-
-	f, err := os.Create(mainPath)
+	var err error
+	attr.RepoRoot, err = relativeRepoRoot(mainPath, root)
 	if err != nil {
 		return err
 	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			log.Printf("could not close file %s: %v", mainPath, err)
-		}
-	}(f)
+	if err := details.Tmpl.ExecuteTemplate(&output, name, attr); err != nil {
+		return err
+	}
 
-	attr := GetDocumentationAttributes(name, details.Contributors)
-	return details.Tmpl.ExecuteTemplate(f, name, attr)
+	contents := normaliseMarkdown(output.String())
+	if err := os.Remove(mainPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return os.WriteFile(mainPath, []byte(contents), 0o644)
+}
+
+func relativeRepoRoot(mainPath, root string) (string, error) {
+	relativeRoot, err := filepath.Rel(filepath.Dir(mainPath), root)
+	if err != nil {
+		return "", fmt.Errorf("cannot determine repository root for %s: %w", mainPath, err)
+	}
+	return filepath.ToSlash(relativeRoot), nil
+}
+
+var markdownParser = goldmark.New().Parser()
+
+func normaliseMarkdown(contents string) string {
+	contents = strings.ReplaceAll(contents, "\r\n", "\n")
+	code := markdownCodeLines([]byte(contents))
+	lines := strings.Split(contents, "\n")
+	output := lines[:0]
+	previousBlank := false
+	for i, line := range lines {
+		if code[i] {
+			output = append(output, line)
+			previousBlank = false
+			continue
+		}
+		line = strings.TrimRight(expandTabs(line), " ")
+		blank := line == ""
+		if blank && previousBlank {
+			continue
+		}
+		output = append(output, line)
+		previousBlank = blank
+	}
+	return strings.TrimRight(strings.Join(output, "\n"), "\n") + "\n"
+}
+
+// markdownCodeLines returns the indexes of lines that hold fenced or indented code block content.
+func markdownCodeLines(source []byte) map[int]bool {
+	code := make(map[int]bool)
+	doc := markdownParser.Parse(text.NewReader(source))
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch n.(type) {
+		case *ast.FencedCodeBlock, *ast.CodeBlock:
+			segments := n.Lines()
+			for i := range segments.Len() {
+				code[bytes.Count(source[:segments.At(i).Start], []byte("\n"))] = true
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	return code
+}
+
+func expandTabs(line string) string {
+	if !strings.Contains(line, "\t") {
+		return line
+	}
+	var b strings.Builder
+	column := 0
+	for _, r := range line {
+		if r == '\t' {
+			n := 4 - column%4
+			b.WriteString(strings.Repeat(" ", n))
+			column += n
+			continue
+		}
+		b.WriteRune(r)
+		column++
+	}
+	return b.String()
 }

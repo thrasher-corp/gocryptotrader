@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var errSnapshotNotFound = errors.New("snapshot not found")

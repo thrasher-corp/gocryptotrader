@@ -16,8 +16,10 @@ package currencylayer
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -66,12 +68,7 @@ func (c *CurrencyLayer) GetSupportedCurrencies() ([]string, error) {
 		return nil, errors.New(resp.Error.Info)
 	}
 
-	currencies := make([]string, 0, len(resp.Currencies))
-	for key := range resp.Currencies {
-		currencies = append(currencies, key)
-	}
-
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(resp.Currencies)), maps.Keys(resp.Currencies)), nil
 }
 
 // GetliveData returns live quotes for foreign exchange currencies

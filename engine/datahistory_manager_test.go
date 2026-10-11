@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -731,7 +731,7 @@ func TestRunJobSkipsPersistenceOnCancelledContext(t *testing.T) {
 	require.NoError(t, m.UpsertJob(tc, false))
 	tc.Status = dataHistoryStatusActive
 
-	jobService := &countingDataHistoryJobService{dataHistoryJobService: dataHistoryJobService{job: dbJob}}
+	jobService := &countingDataHistoryJobService{job: dbJob}
 	resultService := &countingDataHistoryJobResultService{}
 	m.jobDB = jobService
 	m.jobResultDB = resultService
@@ -781,7 +781,7 @@ func TestRunJobSkipsPersistenceWhenStoppedDuringRun(t *testing.T) {
 	require.NoError(t, m.UpsertJob(tc, false))
 	tc.Status = dataHistoryStatusActive
 
-	jobService := &countingDataHistoryJobService{dataHistoryJobService: dataHistoryJobService{job: dbJob}}
+	jobService := &countingDataHistoryJobService{job: dbJob}
 	resultService := &countingDataHistoryJobResultService{}
 	m.jobDB = jobService
 	m.jobResultDB = resultService
@@ -843,11 +843,9 @@ func TestRunJobs(t *testing.T) {
 func TestConverters(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
-	id2, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id2 := uuid.NewV4()
 
 	dhj := &DataHistoryJob{
 		ID:        id,
@@ -1209,8 +1207,7 @@ func TestSetJobRelationship(t *testing.T) {
 	err := m.SetJobRelationship("test", "123")
 	assert.NoError(t, err)
 
-	jID, err := uuid.NewV4()
-	assert.NoError(t, err)
+	jID := uuid.NewV4()
 
 	j.ID = jID.String()
 	j.PrerequisiteJobID = ""

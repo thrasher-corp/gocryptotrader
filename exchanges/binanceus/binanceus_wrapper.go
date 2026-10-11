@@ -3,7 +3,6 @@ package binanceus
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -144,7 +142,6 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -176,11 +173,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.GenerateSubscriptions,
 		Features:              &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-		TradeFeed: e.Features.Enabled.TradeFeed,
+		TradeFeed:             e.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
@@ -250,7 +243,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.LowPrice,
 		Bid:          tick.BidPrice,
 		Ask:          tick.AskPrice,
-		Volume:       tick.Volume,
+		BaseVolume:   tick.Volume,
 		QuoteVolume:  tick.QuoteVolume,
 		Open:         tick.OpenPrice,
 		Close:        tick.PrevClosePrice,
@@ -293,7 +286,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          tick[y].LowPrice,
 				Bid:          tick[y].BidPrice,
 				Ask:          tick[y].AskPrice,
-				Volume:       tick[y].Volume,
+				BaseVolume:   tick[y].Volume,
 				QuoteVolume:  tick[y].QuoteVolume,
 				Open:         tick[y].OpenPrice,
 				Close:        tick[y].PrevClosePrice,
@@ -420,7 +413,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

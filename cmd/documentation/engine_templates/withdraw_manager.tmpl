@@ -1,6 +1,8 @@
 {{define "engine withdraw_manager" -}}
 {{template "header" .}}
+
 ## Current Features for {{.CapitalName}}
+
 + The withdraw manager subsystem is responsible for the processing of withdrawal requests and submitting them to exchanges
 + The withdraw manager can be interacted with via GRPC commands such as `WithdrawFiatRequest` and `WithdrawCryptoRequest`
 + Supports caching of responses to allow for quick viewing of withdrawal events via GRPC

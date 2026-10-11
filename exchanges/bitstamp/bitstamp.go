@@ -165,6 +165,12 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string, hourly bool) (*
 	return &response, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
+// AllCurrencyPairTickers returns the latest ticker for every available market.
+func (e *Exchange) AllCurrencyPairTickers(ctx context.Context) ([]Ticker, error) {
+	var response []Ticker
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/ticker/", &response)
+}
+
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
 // the amount.
@@ -557,7 +563,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			case map[string]any:
 				var details strings.Builder
 				for k, v := range data {
-					details.WriteString(fmt.Sprintf("%s: %v", k, v))
+					fmt.Fprintf(&details, "%s: %v", k, v)
 				}
 				return errors.New(details.String())
 			case string:

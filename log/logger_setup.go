@@ -6,8 +6,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 var (
@@ -52,17 +50,15 @@ func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 // GenDefaultSettings return struct with known sane/working logger settings
 func GenDefaultSettings() *Config {
 	return &Config{
-		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
-			Level:  "INFO|DEBUG|WARN|ERROR",
-			Output: "console",
-		},
+		Enabled: new(true),
+		Level:   "INFO|DEBUG|WARN|ERROR",
+		Output:  "console",
 		LoggerFileConfig: &loggerFileConfig{
 			FileName: "log.txt",
-			Rotate:   convert.BoolPtr(false),
+			Rotate:   new(false),
 		},
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: convert.BoolPtr(false),
+			ShowLogSystemName: new(false),
 			Spacer:            spacer,
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
@@ -89,7 +85,7 @@ func SetGlobalLogConfig(incoming *Config) error {
 	mu.Lock()
 	defer mu.Unlock()
 	globalLogConfig.SubLoggerConfig = incoming.SubLoggerConfig
-	globalLogConfig.Enabled = convert.BoolPtr(incoming.Enabled != nil && *incoming.Enabled)
+	globalLogConfig.Enabled = new(incoming.Enabled != nil && *incoming.Enabled)
 	globalLogConfig.LoggerFileConfig = &fileConf
 	globalLogConfig.AdvancedSettings = incoming.AdvancedSettings
 	return nil
@@ -135,11 +131,16 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 	mu.Lock()
 	defer mu.Unlock()
 	for x := range s {
+		name := strings.ToUpper(s[x].Name)
+		if _, found := SubLoggers[name]; !found && name == "GCTSCRIPT" {
+			// GCTScript has been removed, but older saved configurations may still list its sublogger.
+			continue
+		}
 		output, err := getWriters(&s[x])
 		if err != nil {
 			return err
 		}
-		err = configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
+		err = configureSubLogger(name, s[x].Level, output)
 		if err != nil {
 			return err
 		}
@@ -245,7 +246,6 @@ func init() {
 	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
 	SyncMgr = registerNewSubLogger("SYNC")
 	TimeMgr = registerNewSubLogger("TIMEKEEPER")
-	GCTScriptMgr = registerNewSubLogger("GCTSCRIPT")
 	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
 	EventMgr = registerNewSubLogger("EVENT")
 	DispatchMgr = registerNewSubLogger("DISPATCH")

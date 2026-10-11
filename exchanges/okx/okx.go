@@ -46,6 +46,8 @@ const (
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
+
+	expiryDateLayout = "20060102"
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -346,8 +348,11 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	if arg.InstrumentID != "" {
-		params.Set("instId", arg.InstrumentID)
+	if arg.OrderID != "" {
+		params.Set("ordId", arg.OrderID)
+	}
+	if arg.SubType != "" {
+		params.Set("subType", arg.SubType)
 	}
 	if arg.After != "" {
 		params.Set("after", arg.After)
@@ -2382,7 +2387,7 @@ func (e *Exchange) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currenc
 	arg := &struct {
 		Currency     string  `json:"ccy"`
 		Amount       float64 `json:"amt,string"`
-		MaxRate      float64 `jsons:"maxRate,string"`
+		MaxRate      float64 `json:"maxRate,string"`
 		Term         string  `json:"term"`
 		Reborrow     bool    `json:"reborrow,omitempty"`
 		ReborrowRate float64 `json:"reborrowRate,string,omitempty"`
@@ -3007,7 +3012,7 @@ func (e *Exchange) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrde
 		return nil, common.ErrEmptyParams
 	}
 	for x := range arg {
-		if (arg[x]) == (StopGridAlgoOrderRequest{}) {
+		if arg[x] == (StopGridAlgoOrderRequest{}) {
 			return nil, common.ErrEmptyParams
 		}
 		if arg[x].AlgoID == "" {
@@ -5444,7 +5449,7 @@ func (e *Exchange) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy curre
 		return nil, errMissingExpiryTimeParameter
 	}
 	params := url.Values{}
-	params.Set("expTime", expTime.UTC().Format("20060102"))
+	params.Set("expTime", expTime.UTC().Format(expiryDateLayout))
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
@@ -5735,7 +5740,7 @@ func (e *Exchange) GetDepositOrderDetail(ctx context.Context, orderID string) (*
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("ordID", orderID)
+	params.Set("ordId", orderID)
 	var resp *FiatOrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
 }

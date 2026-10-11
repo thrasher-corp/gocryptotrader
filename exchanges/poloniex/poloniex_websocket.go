@@ -162,9 +162,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelTicker:
 		return e.processTicker(ctx, &result)
 	case channelBookLevel2:
-		return e.processBooksLevel2(&result)
+		return e.processBooksLevel2(ctx, &result)
 	case channelBooks:
-		return e.processBooks(&result)
+		return e.processBooks(ctx, &result)
 	case channelOrders:
 		return e.processOrders(ctx, &result)
 	case channelBalances:
@@ -226,7 +226,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 			Price:           r.Price.Float64(),
 			Amount:          r.BaseAmount.Float64(),
 			QuoteAmount:     r.OrderAmount.Float64(),
-			ExecutedAmount:  r.FilledAmount.Float64(),
+			ExecutedAmount:  r.FilledQuantity.Float64(),
 			RemainingAmount: r.BaseAmount.Float64() - r.FilledQuantity.Float64(),
 			Fee:             r.TradeFee.Float64(),
 			FeeAsset:        r.FeeCurrency,
@@ -251,7 +251,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
-					Total:     r.BaseAmount.Float64(),
+					Total:     r.TradeAmount.Float64(),
 				},
 			},
 		}
@@ -259,13 +259,13 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
-func (e *Exchange) processBooks(result *SubscriptionResponse) error {
+func (e *Exchange) processBooks(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []*WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	for _, r := range resp {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         r.Symbol,
 			Exchange:     e.Name,
 			LastUpdateID: r.ID,
@@ -281,7 +281,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
+func (e *Exchange) processBooksLevel2(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -292,7 +292,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 
 	r := resp[0]
 	if result.Action == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:     e.Name,
 			Pair:         r.Symbol,
 			Asset:        asset.Spot,
@@ -303,7 +303,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		})
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       r.Symbol,
 		UpdateTime: r.Timestamp.Time(),
 		UpdateID:   r.ID,
@@ -321,10 +321,11 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 	tickerData := make([]ticker.Price, len(resp))
 	for x, r := range resp {
 		tickerData[x] = ticker.Price{
+			Last:         r.Close.Float64(),
 			MarkPrice:    r.MarkPrice.Float64(),
 			High:         r.High.Float64(),
 			Low:          r.Low.Float64(),
-			Volume:       r.BaseAmount.Float64(),
+			BaseVolume:   r.BaseAmount.Float64(),
 			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.Open.Float64(),
 			Close:        r.Close.Float64(),
@@ -334,7 +335,11 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerData)
+	processed, err := ticker.ProcessBatch(tickerData)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 func (e *Exchange) processTrades(result *SubscriptionResponse) error {

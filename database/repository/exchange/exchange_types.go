@@ -2,8 +2,8 @@ package exchange
 
 import (
 	"errors"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 )
 

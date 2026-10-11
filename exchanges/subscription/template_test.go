@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,9 +92,9 @@ func TestExpandTemplates(t *testing.T) {
 	}
 	got, err = l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	exp = List{
+	exp = slices.Grow(List{
 		{Channel: "expand-assets", QualifiedChannel: "spot-expand-assets@1h", Asset: asset.Spot, Pairs: e.pairs[asset.Spot], Interval: kline.OneHour},
-	}
+	}, len(e.pairs[asset.Spot]))
 	for _, p := range e.pairs[asset.Spot] {
 		exp = append(exp, List{
 			{Channel: "expand-pairs", QualifiedChannel: "spot-" + p.Swap().String() + "-expand-pairs@4", Asset: asset.Spot, Pairs: currency.Pairs{p}, Levels: 4},

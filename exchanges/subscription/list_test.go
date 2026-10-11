@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,9 +48,9 @@ func TestQualifiedChannels(t *testing.T) {
 // TestListGroupPairs exercises List.GroupPairs()
 func TestListGroupPairs(t *testing.T) {
 	t.Parallel()
-	l := List{
+	l := slices.Grow(List{
 		{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}},
-	}
+	}, 4)
 	for _, c := range []string{TickerChannel, OrderbookChannel} {
 		for _, p := range []currency.Pair{ethusdcPair, btcusdtPair} {
 			l = append(l, &Subscription{

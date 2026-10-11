@@ -181,10 +181,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			Open:         wsTicker.Params.Open,
-			Volume:       wsTicker.Params.Volume,
+			BaseVolume:   wsTicker.Params.Volume,
 			QuoteVolume:  wsTicker.Params.VolumeQuote,
 			High:         wsTicker.Params.High,
 			Low:          wsTicker.Params.Low,
@@ -194,14 +194,18 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			LastUpdated:  wsTicker.Params.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         p,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
 		err := json.Unmarshal(respRaw, &obSnapshot)
 		if err != nil {
 			return err
 		}
-		err = e.WsProcessOrderbookSnapshot(&obSnapshot)
+		err = e.WsProcessOrderbookSnapshot(ctx, &obSnapshot)
 		if err != nil {
 			return err
 		}
@@ -211,7 +215,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		err = e.WsProcessOrderbookUpdate(&obUpdate)
+		err = e.WsProcessOrderbookUpdate(ctx, &obUpdate)
 		if err != nil {
 			return err
 		}
@@ -380,7 +384,7 @@ func candlePeriodToInterval(period string) (kline.Interval, error) {
 }
 
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
-func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
+func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbook) error {
 	if len(ob.Params.Bid) == 0 || len(ob.Params.Ask) == 0 {
 		return errors.New("no orderbooks to process")
 	}
@@ -423,7 +427,7 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 	newOrderBook.LastUpdated = ob.Params.Timestamp
 
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
 
 func (e *Exchange) wsHandleOrderData(ctx context.Context, o *wsOrderData) error {
@@ -481,7 +485,7 @@ func (e *Exchange) wsHandleOrderData(ctx context.Context, o *wsOrderData) error 
 }
 
 // WsProcessOrderbookUpdate updates a local cache
-func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbook) error {
+func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrderbook) error {
 	if len(update.Params.Bid) == 0 && len(update.Params.Ask) == 0 {
 		// Periodically HitBTC sends empty updates which includes a sequence
 		// can return this as nil.
@@ -521,7 +525,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		return err
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Asks:       asks,
 		Bids:       bids,
 		Pair:       p,

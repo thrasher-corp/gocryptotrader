@@ -2,6 +2,7 @@ package compliance
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -12,7 +13,7 @@ func (m *Manager) AddSnapshot(snap *Snapshot, overwriteExisting bool) error {
 		if len(m.Snapshots) == 0 {
 			return errSnapshotNotFound
 		}
-		for i := len(m.Snapshots) - 1; i >= 0; i-- {
+		for i := range slices.Backward(m.Snapshots) {
 			if snap.Offset == m.Snapshots[i].Offset {
 				m.Snapshots[i].Orders = snap.Orders
 				return nil
@@ -27,9 +28,9 @@ func (m *Manager) AddSnapshot(snap *Snapshot, overwriteExisting bool) error {
 
 // GetSnapshotAtTime returns the snapshot of orders a t time
 func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
-	for i := len(m.Snapshots) - 1; i >= 0; i-- {
-		if t.Equal(m.Snapshots[i].Timestamp) {
-			return m.Snapshots[i], nil
+	for _, v := range slices.Backward(m.Snapshots) {
+		if t.Equal(v.Timestamp) {
+			return v, nil
 		}
 	}
 	return Snapshot{}, fmt.Errorf("%w at %v", errSnapshotNotFound, t)

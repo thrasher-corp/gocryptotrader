@@ -2,14 +2,19 @@ package gateio
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,7 +28,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -32,10 +39,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -62,6 +71,86 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+func TestSetUnixTimeRangeParams(t *testing.T) {
+	t.Parallel()
+	from := time.Unix(1710000000, 0)
+	to := from.Add(time.Hour)
+	for _, tc := range []struct {
+		name           string
+		from           time.Time
+		to             time.Time
+		expectedParams url.Values
+		expectedErr    error
+	}{
+		{
+			name:           "both set",
+			from:           from,
+			to:             to,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "from only",
+			from:           from,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:           "to only",
+			to:             to,
+			expectedParams: url.Values{"to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "both zero",
+			expectedParams: url.Values{},
+		},
+		{
+			name:           "start after end",
+			from:           to,
+			to:             from,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterEnd,
+		},
+		{
+			name:           "start equals end",
+			from:           from,
+			to:             from,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:           "start after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "equal times after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "unix epoch",
+			from:           time.Unix(0, 0),
+			to:             to,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrDateUnset,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{}
+			err := setUnixTimeRangeParams(&params, tc.from, tc.to)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "setUnixTimeRangeParams must return the expected error")
+			} else {
+				require.NoError(t, err, "setUnixTimeRangeParams must not error")
+			}
+			assert.Equal(t, tc.expectedParams, params, "params should match expected values")
+		})
+	}
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -101,6 +190,131 @@ func TestGetAccountBalances(t *testing.T) {
 	}
 }
 
+func TestSetCrossMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, nil)
+
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+		Balances: map[string]CrossMarginCurrencyBalance{
+			"BTC": {
+				Available: types.Number(2),
+				Freeze:    types.Number(0.5),
+				Borrowed:  types.Number(0.25),
+				Interest:  types.Number(0.05),
+			},
+		},
+	})
+
+	got := balances[currency.BTC]
+	assert.InDelta(t, 2.5, got.Total, 0.00000001, "total should include available and frozen balances")
+	assert.InDelta(t, 0.5, got.Hold, 0.00000001, "hold should match frozen balance")
+	assert.InDelta(t, 2, got.Free, 0.00000001, "free should match available balance")
+	assert.InDelta(t, 0.3, got.Borrowed, 0.00000001, "borrowed should include principal and interest")
+	assert.InDelta(t, 1.7, got.AvailableWithoutBorrow, 0.00000001, "available without borrow should subtract borrowed principal and interest")
+}
+
+func TestSetIsolatedMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		Base: AccountBalanceInformation{Currency: currency.BTC},
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		AccountType: "inactive",
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	balances := accounts.CurrencyBalances{}
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(1),
+				LockedAmount: types.Number(0.2),
+				Borrowed:     types.Number(0.25),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(10),
+				LockedAmount: types.Number(2),
+				Borrowed:     types.Number(2),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(3),
+				LockedAmount: types.Number(0.4),
+				Borrowed:     types.Number(0.5),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(5),
+				LockedAmount: types.Number(0.6),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(7),
+				LockedAmount: types.Number(0.8),
+				Borrowed:     types.Number(1),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(20),
+				LockedAmount: types.Number(4),
+			},
+		},
+	})
+	require.NoError(t, err, "setIsolatedMarginAccountBalances must add valid isolated margin balances")
+
+	btc := balances[currency.BTC]
+	assert.InDelta(t, 4.6, btc.Total, 0.00000001, "BTC total should include all isolated margin markets")
+	assert.InDelta(t, 0.6, btc.Hold, 0.00000001, "BTC hold should include all isolated margin markets")
+	assert.InDelta(t, 4, btc.Free, 0.00000001, "BTC free should include all isolated margin markets")
+	assert.InDelta(t, 0.75, btc.Borrowed, 0.00000001, "BTC borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 3.25, btc.AvailableWithoutBorrow, 0.00000001, "BTC available without borrow should subtract borrowed principal")
+
+	usdt := balances[currency.USDT]
+	assert.InDelta(t, 36, usdt.Total, 0.00000001, "USDT total should include all isolated margin markets")
+	assert.InDelta(t, 6, usdt.Hold, 0.00000001, "USDT hold should include all isolated margin markets")
+	assert.InDelta(t, 30, usdt.Free, 0.00000001, "USDT free should include all isolated margin markets")
+	assert.InDelta(t, 2, usdt.Borrowed, 0.00000001, "USDT borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 28, usdt.AvailableWithoutBorrow, 0.00000001, "USDT available without borrow should subtract borrowed principal")
+
+	eth := balances[currency.ETH]
+	assert.InDelta(t, 13.4, eth.Total, 0.00000001, "ETH total should include base and quote isolated margin entries")
+	assert.InDelta(t, 1.4, eth.Hold, 0.00000001, "ETH hold should include base and quote isolated margin entries")
+	assert.InDelta(t, 12, eth.Free, 0.00000001, "ETH free should include base and quote isolated margin entries")
+	assert.InDelta(t, 1, eth.Borrowed, 0.00000001, "ETH borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
+}
+
+func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+		Currency:  currency.LRC,
+		Available: types.Number(-0.01462404),
+		Borrowed:  types.Number(4.85),
+	})
+	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+	lrc := balances[currency.LRC]
+	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
+}
+
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -130,11 +344,182 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+var mockedTickerTestCases = []struct {
+	name         string
+	asset        asset.Item
+	pair         currency.Pair
+	expectedPath string
+}{
+	{
+		name:         "mocked USDT margined futures mark and index prices",
+		asset:        asset.USDTMarginedFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/futures/usdt/tickers",
+	},
+	{
+		name:         "mocked coin margined futures mark and index prices",
+		asset:        asset.CoinMarginedFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/futures/btc/tickers",
+	},
+	{
+		name:         "mocked delivery futures mark and index prices",
+		asset:        asset.DeliveryFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/delivery/usdt/tickers",
+	},
+	{
+		name:         "mocked options mark and index prices",
+		asset:        asset.Options,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/options/tickers",
+	},
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+
+	t.Run("all supported assets", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range e.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				pair := getPair(t, a)
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				testexch.UpdatePairsOnce(t, ex)
+				// Isolate the cache so another test cannot supply the ticker being checked.
+				ex.Name = t.Name()
+				got, err := ex.UpdateTicker(t.Context(), pair, a)
+				require.NoError(t, err, "UpdateTicker must not error")
+				require.NotNil(t, got, "live ticker must not be nil")
+				switch a {
+				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options:
+					if a == asset.Options {
+						// Out-of-the-money options can have a zero mark price near expiry.
+						assert.GreaterOrEqual(t, got.MarkPrice, 0.0, "live options mark price should be non-negative")
+					} else {
+						assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					}
+					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
+				}
+			})
+		}
+	})
+
+	for _, tc := range mockedTickerTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			if tc.asset == asset.Options {
+				require.NoError(t, ex.UpdatePairs(currency.Pairs{tc.pair}, tc.asset, true), "mocked options pair must be enabled")
+			}
+
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
+				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
+				if tc.asset == asset.Options {
+					assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "options underlying should match")
+					_, err := fmt.Fprintf(w, `[{"name":%q,"last_price":"118.4","mark_price":"118.35","index_price":"100000.25"}]`, tc.pair.String())
+					assert.NoError(t, err, "mocked response should be written")
+					return
+				}
+				assert.Equal(t, tc.pair.String(), r.URL.Query().Get("contract"), "ticker request contract should match the pair")
+				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h_base":"5526","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
+				assert.NoError(t, err, "mocked ticker response should be written")
+			}))
+
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+			got, err := ex.UpdateTicker(t.Context(), tc.pair, tc.asset)
+			require.NoError(t, err, "mocked ticker retrieval must succeed")
+			assert.Equal(t, 118.35, got.MarkPrice, "ticker mark price should match the mocked response")
+			if tc.asset == asset.Options {
+				assert.Equal(t, 100000.25, got.IndexPrice, "options index price should match")
+			} else {
+				assert.Equal(t, 118.36, got.IndexPrice, "ticker index price should match the mocked response")
+			}
+		})
+	}
+
+	// presence alone cannot tell base from quote, so compare against the source fields. Both are
+	// picked by volume rather than positionally, since InEpsilon errors outright on a zero
+	// expected value and an untraded pair would decide the test on liquidity, not on the mapping
+	spotTicks, err := e.GetTickers(t.Context(), currency.EMPTYPAIR.String(), "")
+	require.NoError(t, err, "GetTickers must not error")
+	require.NotEmpty(t, spotTicks, "GetTickers must return tickers")
+	// a pair quoting near parity reports both volumes alike and cannot tell a correct mapping from
+	// a swapped one, so those are filtered out before picking rather than asserted against
+	spotTicks = slices.DeleteFunc(spotTicks, func(tk Ticker) bool {
+		return tk.BaseVolume.Float64() == 0 || tk.BaseVolume.Float64() == tk.QuoteVolume.Float64()
+	})
+	require.NotEmpty(t, spotTicks, "at least one spot pair must report base and quote volumes that differ")
+	busiestSpot := slices.MaxFunc(spotTicks, func(a, b Ticker) int {
+		return cmp.Compare(a.QuoteVolume.Float64(), b.QuoteVolume.Float64())
+	})
+	p, err := currency.NewPairFromString(busiestSpot.CurrencyPair)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestSpot.BaseVolume.Float64(), tick.BaseVolume, 0.05, "UpdateTicker should take the spot base volume for %s from base_volume", p)
+	assert.InEpsilonf(t, busiestSpot.QuoteVolume.Float64(), tick.QuoteVolume, 0.05, "UpdateTicker should take the spot quote volume for %s from quote_volume", p)
+
+	futuresTicks, err := e.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, futuresTicks, "GetFuturesTickers must return tickers")
+	// a multiplier of 1 reports the contract count and the base volume identically, so those
+	// contracts are filtered out before picking the busiest rather than asserted against
+	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk FuturesTicker) bool {
+		return tk.Volume24HourBase.Float64() == 0 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64()
+	})
+	require.NotEmpty(t, futuresTicks, "at least one futures contract must report a base volume that differs from its contract count")
+	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b FuturesTicker) int {
+		return cmp.Compare(a.Volume24HourQuote.Float64(), b.Volume24HourQuote.Float64())
+	})
+	fp, err := currency.NewPairFromString(busiestFutures.Contract)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresTick, err := e.UpdateTicker(t.Context(), fp, asset.USDTMarginedFutures)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestFutures.Volume24HourBase.Float64(), futuresTick.BaseVolume, 0.05,
+		"UpdateTicker should report a base volume for %s of the right order, not the contract count in volume_24h", fp)
+	assert.InEpsilonf(t, busiestFutures.Volume24HourQuote.Float64(), futuresTick.QuoteVolume, 0.05,
+		"UpdateTicker should take the quote volume for %s from volume_24h_quote", fp)
+}
+
+// TestFuturesTickerUnmarshal pins the tags futuresBaseVolume reads: constructing the fields
+// directly cannot catch one of them being renamed on the wire
+func TestFuturesTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tk FuturesTicker
+	require.NoError(t, json.Unmarshal([]byte(`{"contract":"UB_USDT","volume_24h":"8819","volume_24h_base":"8819700","volume_24h_quote":"1234","quanto_multiplier":"1000"}`), &tk), "Unmarshal must not error")
+	assert.Equal(t, "UB_USDT", tk.Contract, "Contract should unmarshal")
+	assert.Equal(t, 8819.0, tk.Volume24Hour.Float64(), "volume_24h should unmarshal")
+	assert.Equal(t, 8819700.0, tk.Volume24HourBase.Float64(), "volume_24h_base should unmarshal")
+	assert.Equal(t, 1000.0, tk.QuantoMultiplier.Float64(), "quanto_multiplier should unmarshal")
+	assert.Equal(t, 8819700.0, futuresBaseVolume(&tk), "futuresBaseVolume should keep the explicit base volume when volume_24h dropped a part contract")
+}
+
+func TestFuturesBaseVolume(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		tick FuturesTicker
+		exp  float64
+	}{
+		{"base truncated a whole unit off the product", FuturesTicker{Volume24HourBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
+		{"base truncated the contract away entirely", FuturesTicker{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
+		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HourBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
+		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HourBase: 30, Volume24Hour: 2352026}, 30},
+		{"nothing traded", FuturesTicker{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDelta(t, tc.exp, futuresBaseVolume(&tc.tick), 1e-9, "futuresBaseVolume should return the 24h volume in the base currency")
+		})
 	}
 }
 
@@ -482,37 +867,6 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 	}
 }
 
-func TestGetMarginAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "GetMarginAccountList must not error")
-	for i := range result {
-		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
-		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
-	}
-}
-
-func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, currency.Pair{
-		Base:      currency.BTC,
-		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT,
-	}, time.Time{}, time.Time{}, 0, 0); err != nil {
-		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginFundingAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginFundingAccountList(t.Context(), currency.BTC); err != nil {
-		t.Errorf("%s GetMarginFundingAccountList %v", e.Name, err)
-	}
-}
-
 func TestMarginLoan(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -590,49 +944,6 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
-func TestUniLoanBorrowOrRepay(t *testing.T) {
-	t.Parallel()
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), nil), errNilArgument)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		Currency: currency.BTC,
-		Type:     "borrow",
-		Amount:   1,
-	}), currency.ErrCurrencyPairEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Type:         "borrow",
-		Amount:       1,
-	}), currency.ErrCurrencyCodeEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "invalid",
-		Amount:       1,
-	}), errInvalidUniLoanType)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0,
-	}), errInvalidAmount)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	assert.NoError(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0.001,
-	}))
-}
-
-func TestGetUniLoanInterestRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-	assert.NotNil(t, records)
-}
-
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -671,41 +982,22 @@ func TestModifyALoanRecord(t *testing.T) {
 	}
 }
 
-func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
+func TestQueryInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.UpdateUsersAutoRepaymentSetting(t.Context(), true); err != nil {
-		t.Errorf("%s UpdateUsersAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
 
-func TestGetUserAutoRepaymentSetting(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetUserAutoRepaymentSetting(t.Context()); err != nil {
-		t.Errorf("%s GetUserAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
+	_, err := e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 101, time.Time{}, time.Time{}, "")
+	require.ErrorIs(t, err, errInvalidLimit)
 
-func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMaxTransferableAmountForSpecificMarginCurrency() error %v", e.Name, err)
-	}
-}
+	tn := time.Now()
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, tn.Add(time.Hour), tn, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, BTCUSDT)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, time.Time{}, time.Time{}, "invalid")
+	require.ErrorIs(t, err, errInvalidLoanType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, BTCUSDT)
-	assert.NoError(t, err, "GetMaxBorrowableAmountForSpecificMarginCurrency should not error")
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{}, "")
+	require.NoError(t, err, "QueryInterestDeductionRecords must not error")
 }
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
@@ -852,6 +1144,54 @@ func TestTransferCurrency(t *testing.T) {
 	}
 }
 
+func TestAssetTypeToString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		asset    asset.Item
+		expected string
+	}{
+		{name: "spot", asset: asset.Spot, expected: spotAccount},
+		{name: "margin", asset: asset.Margin, expected: marginAccount},
+		{name: "cross margin", asset: asset.CrossMargin, expected: crossMarginAccount},
+		{name: "options", asset: asset.Options, expected: optionsAccount},
+		{name: "fallback", asset: asset.CoinMarginedFutures, expected: asset.CoinMarginedFutures.String()},
+		{name: "empty", asset: asset.Empty, expected: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, e.assetTypeToString(tc.asset), "assetTypeToString should return expected account type")
+		})
+	}
+}
+
+func TestIsSpotOrderAccount(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		account  string
+		expected bool
+	}{
+		{name: "spot", account: spotAccount, expected: true},
+		{name: "margin", account: marginAccount, expected: true},
+		{name: "cross margin", account: crossMarginAccount, expected: true},
+		{name: "empty", account: "", expected: false},
+		{name: "options", account: optionsAccount, expected: false},
+		{name: "futures", account: futuresAccount, expected: false},
+		{name: "spot uppercase", account: "SPOT", expected: true},
+		{name: "margin mixed case", account: "Margin", expected: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isSpotOrderAccount(tc.account), "isSpotOrderAccount should return expected support status")
+		})
+	}
+}
+
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -872,10 +1212,151 @@ func TestSubAccountTransfer(t *testing.T) {
 
 func TestGetSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.GetSubAccountTransferHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 0); err != nil {
-		t.Errorf("%s GetSubAccountTransferHistory() error %v", e.Name, err)
+
+	from := time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	earliest := time.Date(2020, time.April, 10, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name          string
+		from          time.Time
+		to            time.Time
+		offset        uint64
+		limit         uint64
+		allAccounts   bool
+		expectedQuery url.Values
+		expectedErr   error
+	}{
+		{
+			name:          "unset range keeps the exchange default window",
+			expectedQuery: url.Values{"sub_uid": {"1337"}},
+		},
+		{
+			name:          "unset sub-account includes all accounts",
+			allAccounts:   true,
+			expectedQuery: url.Values{},
+		},
+		{
+			name:          "full range and pagination are forwarded",
+			from:          from,
+			to:            to,
+			offset:        5,
+			limit:         10,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(to.Unix(), 10)}, "offset": {"5"}, "limit": {"10"}},
+		},
+		{
+			name:          "start without end is forwarded",
+			from:          from,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:          "end without start is forwarded",
+			to:            to,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:          "earliest time is accepted",
+			from:          earliest,
+			to:            earliest.Add(time.Hour),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(earliest.Unix(), 10)}, "to": {strconv.FormatInt(earliest.Add(time.Hour).Unix(), 10)}},
+		},
+		{
+			name:          "30 day range is accepted",
+			from:          from,
+			to:            from.Add(30 * 24 * time.Hour),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Add(30*24*time.Hour).Unix(), 10)}},
+		},
+		{
+			name:          "30 day range with fractional seconds is accepted",
+			from:          from.Add(100 * time.Millisecond),
+			to:            from.Add(30*24*time.Hour + 500*time.Millisecond),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Add(30*24*time.Hour).Unix(), 10)}},
+		},
+		{
+			name:        "start after end is rejected",
+			from:        to,
+			to:          from,
+			expectedErr: common.ErrStartAfterEnd,
+		},
+		{
+			name:        "range over 30 days is rejected",
+			from:        from,
+			to:          from.Add(30*24*time.Hour + time.Second),
+			expectedErr: errSubAccountTransferHistoryRange,
+		},
+		{
+			name:        "range over 30 days with fractional seconds is rejected",
+			from:        from.Add(900 * time.Millisecond),
+			to:          from.Add(30*24*time.Hour + 1100*time.Millisecond),
+			expectedErr: errSubAccountTransferHistoryRange,
+		},
+		{
+			name:        "start before the earliest available record is rejected",
+			from:        earliest.Add(-time.Second),
+			to:          to,
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
+		{
+			name:        "start before the earliest available record without an end is rejected",
+			from:        earliest.Add(-time.Second),
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
+		{
+			name:        "start before the earliest available record is reported before start after end",
+			from:        earliest.Add(-time.Hour),
+			to:          earliest.Add(-2 * time.Hour),
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var requests atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, http.MethodGet, r.Method, "transfer history request method should be GET")
+				assert.Equal(t, "/api/v4/wallet/sub_account_transfers", r.URL.Path, "transfer history request path should match the endpoint")
+				assert.Equal(t, tc.expectedQuery, r.URL.Query(), "query parameters should match the requested transfer history")
+				_, err := w.Write([]byte(`[{"timest":"1709251200","uid":"10001","sub_account":"1337","sub_account_type":"spot","currency":"BTC","amount":"1.5","direction":"to","source":"web"}]`))
+				assert.NoError(t, err, "Mocked transfer history response should be written")
+			}))
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+			subAccountUserID := "1337"
+			if tc.allAccounts {
+				subAccountUserID = ""
+			}
+			got, err := ex.GetSubAccountTransferHistory(t.Context(), subAccountUserID, tc.from, tc.to, tc.offset, tc.limit)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "an unusable time range must be reported to the caller")
+				assert.Zero(t, requests.Load(), "a request with an unusable time range should not be sent")
+				return
+			}
+			require.NoError(t, err, "GetSubAccountTransferHistory must not error")
+			assert.Equal(t, int64(1), requests.Load(), "a valid request should reach the exchange once")
+			assert.Equal(t, []SubAccountTransferResponse{{
+				MainAccountUserID: "10001",
+				Timestamp:         types.Time(time.Unix(1709251200, 0)),
+				Source:            "web",
+				Currency:          "BTC",
+				SubAccount:        "1337",
+				TransferDirection: "to",
+				Amount:            1.5,
+				SubAccountType:    "spot",
+			}}, got, "transfer history should decode the mocked record")
+		})
 	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.GetSubAccountTransferHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 0)
+		require.NoError(t, err, "GetSubAccountTransferHistory must not error")
+	})
 }
 
 func TestSubAccountTransferToSubAccount(t *testing.T) {
@@ -952,20 +1433,6 @@ func TestGetUsersTotalBalance(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if _, err := e.GetUsersTotalBalance(t.Context(), currency.BTC); err != nil {
 		t.Errorf("%s GetUsersTotalBalance() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPairs(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetMarginSupportedCurrencyPairs(t.Context()); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetSingleMarginSupportedCurrencyPair(t.Context(), getPair(t, asset.Margin)); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
 	}
 }
 
@@ -1674,10 +2141,11 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	}
 }
 
-func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
+func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
-		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", e.Name, err)
+
+	if _, err := e.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.EMPTYCODE, 0, 0); err != nil {
+		t.Errorf("%s GetSupportedFlashSwapCurrencyPairs() error %v", e.Name, err)
 	}
 }
 
@@ -1952,10 +2420,110 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateTickers(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
+
+	t.Run("all supported assets", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range e.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				switch a {
+				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options:
+					pair := getPair(t, a)
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Setup must not error")
+					if a == asset.Options {
+						testexch.UpdatePairsOnce(t, ex)
+					}
+					// Isolate the cache so another test cannot supply the ticker being checked.
+					ex.Name = t.Name()
+					require.NoError(t, ex.UpdateTickers(t.Context(), a), "live UpdateTickers must not error")
+					got, err := ticker.GetTicker(ex.Name, pair, a)
+					require.NoError(t, err, "live UpdateTickers must cache the requested ticker")
+					require.NotNil(t, got, "live ticker must not be nil")
+					if a == asset.Options {
+						// Out-of-the-money options can have a zero mark price near expiry.
+						assert.GreaterOrEqual(t, got.MarkPrice, 0.0, "live options mark price should be non-negative")
+					} else {
+						assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					}
+					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
+				default:
+					assert.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers should not error")
+				}
+			})
+		}
+	})
+
+	for _, tc := range mockedTickerTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			if tc.asset == asset.Options {
+				require.NoError(t, ex.UpdatePairs(currency.Pairs{tc.pair}, tc.asset, true), "mocked options pair must be enabled")
+			}
+
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
+				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
+				if tc.asset == asset.Options {
+					assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "options underlying should match")
+					_, err := fmt.Fprintf(w, `[{"name":%q,"last_price":"118.4","mark_price":"118.35","index_price":"100000.25"}]`, tc.pair.String())
+					assert.NoError(t, err, "mocked response should be written")
+					return
+				}
+				assert.Empty(t, r.URL.Query().Get("contract"), "bulk ticker request should not filter by contract")
+				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h":"745487577","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
+				assert.NoError(t, err, "mocked ticker response should be written")
+			}))
+
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+			require.NoError(t, ex.UpdateTickers(t.Context(), tc.asset), "mocked bulk ticker update must succeed")
+			got, err := ticker.GetTicker(ex.Name, tc.pair, tc.asset)
+			require.NoError(t, err, "mocked ticker retrieval must succeed")
+			assert.Equal(t, 118.35, got.MarkPrice, "ticker mark price should match the mocked response")
+			if tc.asset == asset.Options {
+				assert.Equal(t, 100000.25, got.IndexPrice, "options index price should match")
+			} else {
+				assert.Equal(t, 118.36, got.IndexPrice, "ticker index price should match the mocked response")
+			}
+		})
 	}
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.USDTMarginedFutures), "UpdateTickers must not error")
+
+	// a multiplier of 1 reports both fields identically, and truncation to a whole number can
+	// cost a full unit, so pick a contract that differs and carries enough base
+	tickers, err := ex.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, tickers, "GetFuturesTickers must return tickers")
+	var checked bool
+	for i := range tickers {
+		tk := tickers[i]
+		if tk.Volume24HourBase.Float64() < 1000 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64() {
+			continue
+		}
+		p, err := currency.NewPairFromString(tk.Contract)
+		if err != nil {
+			continue
+		}
+		stored, err := ticker.GetTicker(ex.Name, p, asset.USDTMarginedFutures)
+		if err != nil {
+			continue
+		}
+		assert.InEpsilonf(t, tk.Volume24HourBase.Float64(), stored.BaseVolume, 0.05,
+			"UpdateTickers should report the base volume for %s, not the contract count in volume_24h", p)
+		checked = true
+		break
+	}
+	require.True(t, checked, "must find a futures contract whose base volume and contract count differ")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2239,6 +2807,16 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 
 const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
 
+func TestTickerHandlersSkipEmptyBatches(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.processTicker(t.Context(), []byte(`{"currency_pair":"UNTRACKED_USDT","last":"1"}`), time.Now()), "processTicker must not error for an untracked pair")
+	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[]}`), asset.USDTMarginedFutures), "processFuturesTickers must not error for an empty result")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "ticker handlers should not relay an empty batch")
+}
+
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()
 	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsTickerPushDataJSON)); err != nil {
@@ -2381,10 +2959,228 @@ func TestFuturesDataHandler(t *testing.T) {
 	})
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	var sawPosition, sawPositionClose bool
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
+		if positions, ok := resp.Data.([]futures.Position); ok {
+			require.Len(t, positions, 1, "position update must contain one position")
+			assert.Equal(t, asset.CoinMarginedFutures, positions[0].Asset, "asset should match the websocket")
+			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalised")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalised")
+			if positions[0].CloseDate.IsZero() {
+				sawPosition = true
+				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
+				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalised")
+				assert.Equal(t, "5", positions[0].Leverage.String(), "replacement cross-margin leverage should take precedence")
+				assert.True(t, positions[0].PositionMargin.Equal(decimal.MustFromFloat(49.999890611186)), "position margin should be populated")
+				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.005)), "maintenance margin rate should be populated")
+				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.MustFromFloat(0.1)), "liquidation price should be populated")
+				assert.Equal(t, int64(42), positions[0].UpdateID, "update ID should be populated")
+			} else {
+				sawPositionClose = true
+				assert.Equal(t, order.Closed, positions[0].Status, "position close status should be closed")
+				assert.True(t, positions[0].LatestSize.IsZero(), "close size should be zero")
+			}
+		}
+	}
+	require.True(t, sawPosition, "futures fixture must emit a normalised position")
+	require.True(t, sawPositionClose, "futures fixture must emit a normalised position close")
+}
+
+func TestFuturesPositionCapturedPayload(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"time":1787206135,"time_ms":1787206135040,"channel":"futures.positions","event":"update","result":[{"time":1787206135,"time_ms":1787206135038,"size":"-55","user":"12870774","leverage_max":25,"mode":"single","update_id":267,"cross_leverage_limit":40,"liq_price":0.023554,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.802254544,"entry_price":0.012071295652,"leverage":1,"realised_pnl":0.079661896,"contract":"GPS_USDT","history_point":0,"margin":66.491714276087,"realised_point":0,"history_pnl":17.1379873471,"pos_margin_mode":"isolated","lever":"1"}]}`)
+	response := struct {
+		Time      types.Time          `json:"time"`
+		TimeMilli types.Time          `json:"time_ms"`
+		Channel   string              `json:"channel"`
+		Event     string              `json:"event"`
+		Result    []WsFuturesPosition `json:"result"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "captured position payload must unmarshal without unknown fields")
+	require.Len(t, response.Result, 1, "captured payload must contain one position")
+	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time(), "position timestamp should preserve millisecond precision")
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures))
+	message := <-e.Websocket.DataHandler.C
+	positions, ok := message.Data.([]futures.Position)
+	require.True(t, ok, "captured payload must emit canonical futures positions")
+	require.Len(t, positions, 1, "captured payload must emit one position")
+	position := positions[0]
+	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalised")
+	assert.Equal(t, order.Open, position.Status, "position status should be open")
+	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
+	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")
+	assert.Equal(t, "1", position.Leverage.String(), "position leverage should use the isolated leverage field")
+	assert.Equal(t, int64(267), position.UpdateID, "position update ID should be preserved")
+	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated, "position update time should be preserved")
+	assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(0.012071295652)), "position opening price should be correct")
+	assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(66.491714276087)), "position margin should be correct")
+	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.9)), "position maintenance rate should be correct")
+	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.MustFromFloat(0.023554)), "position liquidation price should be correct")
+	assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(0.079661896)), "position realised PNL should be correct")
+
+	classicCrossPayload := []byte(strings.NewReplacer(
+		`"leverage":1`, `"leverage":0`,
+		`"pos_margin_mode":"isolated"`, `"pos_margin_mode":""`,
+		`"lever":"1"`, `"lever":"0"`,
+	).Replace(string(payload)))
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), classicCrossPayload, asset.USDTMarginedFutures),
+		"processFuturesPositionsNotification must process classic cross margin")
+	message = <-e.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "classic cross-margin payload must emit canonical futures positions")
+	require.Len(t, positions, 1, "classic cross-margin payload must emit one position")
+	assert.Equal(t, "40", positions[0].Leverage.String(),
+		"classic cross-margin leverage should use the cross leverage limit")
+
+	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
+		"processFuturesPositionsNotification must process a zero-size update")
+	message = <-e.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "zero-size update must emit canonical futures positions")
+	require.Len(t, positions, 1, "zero-size update must emit one position")
+	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
+	assert.Equal(t, order.UnknownSide, positions[0].LatestDirection, "zero-size single-mode direction should be unknown")
+	assert.Equal(t, time.UnixMilli(1787206135038), positions[0].CloseDate, "zero-size position close time should be preserved")
+
+	for _, tt := range []struct {
+		mode      string
+		direction order.Side
+	}{
+		{mode: "dual_long", direction: order.Long},
+		{mode: "dual_short", direction: order.Short},
+	} {
+		t.Run(tt.mode, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			dualPayload := []byte(strings.Replace(string(closedPayload), `"mode":"single"`, `"mode":"`+tt.mode+`"`, 1))
+			require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), dualPayload, asset.USDTMarginedFutures),
+				"processFuturesPositionsNotification must process a zero-size dual-mode update")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "zero-size dual-mode update must emit canonical futures positions")
+			require.Len(t, positions, 1, "zero-size dual-mode update must emit one position")
+			assert.Equal(t, tt.direction, positions[0].LatestDirection, "zero-size dual-mode direction should be preserved")
+		})
+	}
+
+	t.Run("delivery collateral", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		deliveryPairs, err := ex.GetEnabledPairs(asset.DeliveryFutures)
+		require.NoError(t, err, "GetEnabledPairs must return delivery pairs")
+		require.NotEmpty(t, deliveryPairs, "delivery pairs must not be empty")
+		deliveryPair := deliveryPairs[0]
+		formattedPair, err := ex.FormatExchangeCurrency(deliveryPair, asset.DeliveryFutures)
+		require.NoError(t, err, "FormatExchangeCurrency must format the delivery pair")
+		deliveryPayload := []byte(strings.Replace(string(payload), "GPS_USDT", formattedPair.String(), 1))
+		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), deliveryPayload, asset.DeliveryFutures),
+			"processFuturesPositionsNotification must process a delivery position")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "delivery update must emit canonical futures positions")
+		require.Len(t, positions, 1, "delivery update must emit one position")
+		assert.Equal(t, currency.USDT, positions[0].CollateralCurrency,
+			"delivery collateral currency should exclude the dated contract suffix")
+	})
+}
+
+func TestProcessPositionCloseData(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name       string
+		text       string
+		riskStatus order.Status
+	}{
+		{name: "web", text: "web"},
+		{name: "liquidation", text: "liquidation", riskStatus: order.Liquidated},
+		{name: "liquidation prefix", text: "liq-123", riskStatus: order.Liquidated},
+		{name: "hedge liquidation prefix", text: "hedge-liq-123", riskStatus: order.Liquidated},
+		{name: "portfolio margin liquidation", text: "pm_liquidate", riskStatus: order.Liquidated},
+		{name: "combined margin liquidation", text: "comb_margin_liquidate", riskStatus: order.Liquidated},
+		{name: "single currency margin liquidation", text: "scm_liquidate", riskStatus: order.Liquidated},
+		{name: "insurance", text: "insurance", riskStatus: order.Liquidated},
+		{name: "auto deleveraging", text: "auto_deleveraging", riskStatus: order.AutoDeleverage},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			payload := []byte(`{"time":1541505434,"channel":"futures.position_closes","event":"update","result":[{"contract":"BTC_USD","pnl":-0.000624354791,"side":"long","text":"` + tt.text + `","time":1547198562,"time_ms":1547198562123,"user":"211xxxx"}]}`)
+			require.NoError(t, ex.processPositionCloseData(t.Context(), payload, asset.CoinMarginedFutures),
+				"processPositionCloseData must process the close update")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "position close must emit canonical futures positions")
+			require.Len(t, positions, 1, "position close must emit one position")
+			assert.Equal(t, order.Closed, positions[0].Status, "position close status should identify a completed lifecycle")
+			assert.Equal(t, tt.riskStatus, positions[0].RiskStatus, "position risk status should preserve its close cause")
+			assert.Equal(t, order.Long, positions[0].OpeningDirection, "opening direction should be preserved")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "latest direction should be preserved")
+		})
+	}
+}
+
+func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
+	t.Parallel()
+	payloads := [][]byte{
+		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"112","user":"12870774","leverage_max":10,"mode":"single","update_id":2498,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032,"leverage":1,"realised_pnl":-0.027052032,"contract":"BOB_USDT","history_point":0,"margin":56.4006688,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
+		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"126","user":"12870774","leverage_max":10,"mode":"single","update_id":2499,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032444444,"leverage":1,"realised_pnl":-0.030436224,"contract":"BOB_USDT","history_point":0,"margin":63.4563566,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
+	}
+	wantSizes := []string{"112", "126"}
+	wantUpdateIDs := []int64{2498, 2499}
+	wantMargins := []float64{56.4006688, 63.4563566}
+	wantOpeningPrices := []float64{0.005032, 0.005032444444}
+	wantRealisedPNLs := []float64{-0.027052032, -0.030436224}
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures,
+		currency.Pairs{currency.NewPair(currency.NewCode("BOB"), currency.USDT)}, false),
+		"StorePairs must register the captured contract")
+	for i := range payloads {
+		response := struct {
+			Time      types.Time          `json:"time"`
+			TimeMilli types.Time          `json:"time_ms"`
+			Channel   string              `json:"channel"`
+			Event     string              `json:"event"`
+			Result    []WsFuturesPosition `json:"result"`
+		}{}
+		decoder := json.NewDecoder(bytes.NewReader(payloads[i]))
+		decoder.DisallowUnknownFields()
+		require.NoError(t, decoder.Decode(&response), "captured BOB position payload must unmarshal without unknown fields")
+		require.Len(t, response.Result, 1, "captured BOB payload must contain one position")
+		assert.Equal(t, "BOB_USDT", response.Result[0].Contract, "captured contract should be preserved")
+
+		require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
+			"WsHandleFuturesData must process the captured position update")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "captured payload must emit canonical futures positions")
+		require.Len(t, positions, 1, "captured payload must emit one position")
+		position := positions[0]
+		assert.Equal(t, order.Open, position.Status, "position status should be open")
+		assert.Equal(t, order.Long, position.LatestDirection, "positive position size should be long")
+		assert.Equal(t, wantSizes[i], position.LatestSize.String(), "position size should be preserved")
+		assert.Equal(t, "1", position.Leverage.String(), "isolated position should use the quoted lever field")
+		assert.Equal(t, wantUpdateIDs[i], position.UpdateID, "position update ID should be preserved")
+		assert.Equal(t, time.UnixMilli(1788148634648), position.LastUpdated, "position update time should preserve milliseconds")
+		assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(wantOpeningPrices[i])), "position opening price should be correct")
+		assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(wantMargins[i])), "position margin should be correct")
+		assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(wantRealisedPNLs[i])), "position realised PNL should be correct")
 	}
 }
 
@@ -2629,6 +3425,19 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	var spotV2Count int
+	for _, sub := range subs {
+		if sub.Asset == asset.Spot && sub.Channel == subscription.OrderbookChannel {
+			assert.Fail(t, "legacy spot orderbook subscription should be disabled")
+		}
+		if sub.Asset == asset.Spot && sub.Channel == spotOrderbookV2 {
+			spotV2Count++
+			assert.Equal(t, 50, sub.Levels, "V2 spot orderbook subscription should request 50 levels")
+		}
+	}
+	spotPairs, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	assert.Equal(t, len(spotPairs), spotV2Count, "each enabled spot pair should generate one V2 orderbook subscription")
 	exp := subscription.List{}
 	assets := slices.DeleteFunc(e.GetAssetTypes(true), func(a asset.Item) bool { return !e.IsAssetWebsocketSupported(a) })
 	for _, s := range e.Features.Subscriptions {
@@ -2687,16 +3496,330 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	_, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "Options must not use the perpetual futures subscription generator")
+	subs, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	var orderbooks int
+	for _, sub := range subs {
+		if sub.Channel != futuresOrderbookV2 {
+			continue
+		}
+		orderbooks++
+		assert.Equal(t, "ob."+sub.Pairs[0].String()+".50", sub.QualifiedChannel, "V2 recovery key should identify the pair and depth")
+		for _, event := range []string{subscribeEvent, unsubscribeEvent} {
+			payload, err := e.generateFuturesPayload(t.Context(), event, subscription.List{sub})
+			require.NoError(t, err, "V2 payload generation must succeed")
+			require.Len(t, payload, 1, "V2 subscription must generate one request")
+			assert.Equal(t, []string{sub.QualifiedChannel}, payload[0].Payload, "V2 payload should match the recovery key")
+		}
+	}
+	require.Positive(t, orderbooks, "futures defaults must include V2 orderbooks")
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+	var accountRequests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		if _, err := w.Write([]byte(`{"user":20011}`)); err != nil {
+			t.Errorf("Mock futures account response should be written: %v", err)
+		}
+	}))
+	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range e.API.Endpoints.GetURLMap() {
+		require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	e.API.AuthenticatedSupport = true
+	e.API.AuthenticatedWebsocketSupport = true
+	e.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.setFuturesUserID("key", currency.USDT, "20011")
+	continueBootstrap, err := e.Bootstrap(t.Context())
+	require.NoError(t, err, "Bootstrap must not error")
+	assert.True(t, continueBootstrap, "Bootstrap should continue with common startup actions")
+	assert.Equal(t, int64(1), accountRequests.Load(), "Bootstrap should request the uncached futures account ID")
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), accountRequests.Load(), "Subscription generation should not perform another account request")
+	require.NoError(t, e.Websocket.Disable(), "Websocket.Disable must not error")
+	e.SetCredentials(&accounts.Credentials{Key: "rotated-key", Secret: "secret"})
+	continueBootstrap, err = e.Bootstrap(t.Context())
+	require.NoError(t, err, "Bootstrap must not error")
+	assert.True(t, continueBootstrap, "Bootstrap should continue with common startup actions")
+	assert.Equal(t, int64(1), accountRequests.Load(), "Bootstrap should not request futures account IDs when websocket support is disabled")
+	authenticatedChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoPositionCloseChannel: false,
+		futuresAutoOrdersChannel:        false,
+	}
+	accountSubscriptions := make(map[string]*subscription.Subscription)
+	for _, sub := range subs {
+		if _, ok := authenticatedChannels[sub.Channel]; ok {
+			authenticatedChannels[sub.Channel] = true
+			accountSubscriptions[sub.Channel] = sub
+		}
+	}
+	for channel, found := range authenticatedChannels {
+		assert.Truef(t, found, "%s should be generated for authenticated futures", channel)
+	}
+	require.Len(t, accountSubscriptions, len(authenticatedChannels),
+		"authenticated futures channels must each have one account-wide subscription")
+	positionsSubscription := accountSubscriptions[futuresPositionsChannel]
+	require.NotNil(t, positionsSubscription, "positions subscription must be generated")
+	require.Len(t, positionsSubscription.Pairs, 1, "account-wide subscription must retain one identity pair")
+	assert.NotEqual(t, allFuturesContracts, positionsSubscription.Pairs[0].String(),
+		"account-wide subscription should not register the selector as a currency")
+	assert.Equal(t, allFuturesContracts, positionsSubscription.Params[contractPayloadOverrideParam],
+		"account-wide subscription should serialise the documented selector")
+	requiresUserPlaceholder, ok := positionsSubscription.Params[requiresUserPlaceholderParam].(bool)
+	require.True(t, ok, "user placeholder parameter must be a boolean")
+	assert.True(t, requiresUserPlaceholder,
+		"positions subscription should retain the deprecated user placeholder")
+	require.Equal(t, asset.CoinMarginedFutures, positionsSubscription.Asset,
+		"account-wide subscription must retain its futures asset")
+	closeSubscription := accountSubscriptions[futuresAutoPositionCloseChannel]
+	require.NotNil(t, closeSubscription, "position closes subscription must be generated")
+	assert.Equal(t, "20011", closeSubscription.Params["user"],
+		"position closes subscription should use the futures account user ID")
+	accountSubscriptionList := make(subscription.List, 0, len(accountSubscriptions))
+	for _, sub := range accountSubscriptions {
+		accountSubscriptionList = append(accountSubscriptionList, sub)
+	}
+	payloads, err := e.generateFuturesPayload(t.Context(), subscribeEvent, accountSubscriptionList)
+	require.NoError(t, err, "generateFuturesPayload must generate account-wide payloads")
+	require.Len(t, payloads, len(authenticatedChannels),
+		"account-wide subscriptions must each generate one payload")
+	expectedPayloads := map[string][]string{
+		futuresOrdersChannel:            {"20011", allFuturesContracts},
+		futuresUserTradesChannel:        {"20011", allFuturesContracts},
+		futuresLiquidatesChannel:        {"20011", allFuturesContracts},
+		futuresAutoDeleveragesChannel:   {"20011", allFuturesContracts},
+		futuresAutoPositionCloseChannel: {"20011", allFuturesContracts},
+		futuresBalancesChannel:          {"20011"},
+		futuresReduceRiskLimitsChannel:  {"20011", allFuturesContracts},
+		futuresPositionsChannel:         {"", allFuturesContracts},
+		futuresAutoOrdersChannel:        {allFuturesContracts},
+	}
+	for i := range payloads {
+		assert.Equalf(t, expectedPayloads[payloads[i].Channel], payloads[i].Payload,
+			"%s payload should match Gate's documented parameters", payloads[i].Channel)
+		require.NotNilf(t, payloads[i].Auth, "%s payload must be authenticated", payloads[i].Channel)
+	}
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, nil, true),
+		"StorePairs must clear enabled coin-margined futures pairs")
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "Enabled asset without pairs must not tear down other Gate connections")
+	require.Empty(t, subs, "Enabled asset without pairs must return no subscriptions")
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")
 	require.Empty(t, subs, "Disabled asset must return no pairs")
+}
+
+func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	var accountRequests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	ex.prepareFuturesUserIDs(t.Context())
+
+	assert.Equal(t, int64(2), accountRequests.Load(), "preparation should try each enabled futures settlement account")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.USDT), "failed preparation should leave the USDT account ID uncached")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.BTC), "failed preparation should leave the BTC account ID uncached")
+}
+
+func TestPreConnectWiring(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	var accountRequests atomic.Int64
+	var healthy atomic.Bool
+	rest := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		if !healthy.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(rest.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, rest.URL+"/"), "SetRunningURL must not error")
+	}
+
+	// Refuses the upgrade, so Connect fails locally after preparation has run.
+	ws := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}))
+	ws.Start()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(ws.URL, "http")), "SetAllConnectionURLs must not error")
+
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(2), accountRequests.Load(), "Connect should run futures account preparation for both settlement accounts")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.USDT), "a failed lookup should leave the cache cold")
+
+	healthy.Store(true)
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(4), accountRequests.Load(), "a later connection attempt should retry the failed lookup")
+	assert.Equal(t, "20011", ex.getFuturesUserID("key", currency.USDT), "a successful retry should populate the cache")
+
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(4), accountRequests.Load(), "a warm cache should not perform further account requests")
+}
+
+func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "Missing credentials must degrade to public futures subscriptions")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated websocket support should be disabled")
+	for _, sub := range subs {
+		assert.NotContains(t, []string{
+			futuresOrdersChannel,
+			futuresUserTradesChannel,
+			futuresLiquidatesChannel,
+			futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel,
+			futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel,
+			futuresPositionsChannel,
+			futuresAutoOrdersChannel,
+		}, sub.Channel, "private channel should not be generated without credentials")
+	}
+}
+
+func TestGenerateFuturesDefaultSubscriptionsColdCache(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	var accountRequests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "Missing cached account ID must not prevent futures subscription generation")
+	assert.Zero(t, accountRequests.Load(), "subscription generation should not perform an account request")
+
+	authenticatedChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresAutoPositionCloseChannel: false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoOrdersChannel:        false,
+	}
+	for _, sub := range subs {
+		if _, ok := authenticatedChannels[sub.Channel]; ok {
+			authenticatedChannels[sub.Channel] = true
+		}
+	}
+	assert.True(t, authenticatedChannels[futuresPositionsChannel], "Positions subscription should not require a user ID")
+	assert.True(t, authenticatedChannels[futuresAutoOrdersChannel], "Auto-orders subscription should not require a user ID")
+	for channel, generated := range authenticatedChannels {
+		if channel == futuresPositionsChannel || channel == futuresAutoOrdersChannel {
+			continue
+		}
+		assert.Falsef(t, generated, "%s should be skipped without a valid user ID", channel)
+	}
+}
+
+func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	err := ex.cacheFuturesUserID(t.Context(), "key", currency.USDT)
+	require.NoError(t, err, "Initial account lookup must populate the futures user ID cache")
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "Subscription generation must reuse the matching cached user ID")
+	privateChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresAutoPositionCloseChannel: false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoOrdersChannel:        false,
+	}
+	for _, sub := range subs {
+		if _, ok := privateChannels[sub.Channel]; ok {
+			privateChannels[sub.Channel] = true
+		}
+	}
+	for channel, generated := range privateChannels {
+		assert.Truef(t, generated, "%s should remain generated from the cached account ID", channel)
+	}
+
+	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "A user ID cached for another settlement account must not affect generation")
+	ex.SetCredentials(&accounts.Credentials{Key: "rotated-key", Secret: "secret"})
+	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "A user ID cached for another API key must not affect generation")
 }
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
@@ -2989,7 +4112,9 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{
+	_, err := e.getOpenInterestContracts(t.Context(), asset.Options, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "options should remain unsupported by futures open interest endpoints")
+	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.NewCode("GOLDFISH").Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
@@ -2997,31 +4122,28 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "GetOpenInterest should error correctly")
 
 	var resp []futures.OpenInterest
+	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		p := getPair(t, a)
-		resp, err = e.GetOpenInterest(t.Context(), key.PairAsset{
-			Base:  p.Base.Item,
-			Quote: p.Quote.Item,
-			Asset: a,
-		})
-		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
+		pair, response := getPairWithOpenInterest(t, a)
+		validPairs[a] = pair
+		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
 		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
 
-	coinPair := getPair(t, asset.CoinMarginedFutures)
-	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	coinPair := validPairs[asset.CoinMarginedFutures]
+	usdtPair := validPairs[asset.USDTMarginedFutures]
 	resp, err = e.GetOpenInterest(
 		t.Context(),
-		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
-		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+		coinPair,
+		usdtPair,
 	)
 	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
 	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
 
 	expected := map[asset.Item]currency.Pair{
-		asset.CoinMarginedFutures: coinPair,
-		asset.USDTMarginedFutures: usdtPair,
+		asset.CoinMarginedFutures: coinPair.Pair(),
+		asset.USDTMarginedFutures: usdtPair.Pair(),
 	}
 	found := make(map[asset.Item]bool, len(expected))
 	for _, oi := range resp {
@@ -3084,7 +4206,139 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 		incoming string
 		status   order.Status
 	}{
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","stp_id":"123456","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+	}
+	processed, err := e.processFuturesOrdersPushData([]byte(testCases[0].incoming), asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	require.Len(t, processed, 1, "futures order update must contain one order")
+	assert.Equal(t, testCases[0].status, processed[0].Status, "futures order status should be open")
+
+	incomingWithoutTIF := strings.Replace(testCases[0].incoming, `,"tif":"gtc"`, "", 1)
+	processed, err = e.processFuturesOrdersPushData([]byte(incomingWithoutTIF), asset.CoinMarginedFutures)
+	require.NoError(t, err, "futures order update without TIF must use Gate's default")
+	require.Len(t, processed, 1, "futures order update without TIF must contain one order")
+	assert.Equal(t, order.GoodTillCancel, processed[0].TimeInForce, "futures order without TIF should default to GTC")
+}
+
+// Captured from live GateIO websocket data on 2026-09-03.
+// Treat these payloads as semi-trusted until independently confirmed.
+func TestFuturesLiveCapturedPayloads(t *testing.T) {
+	t.Parallel()
+
+	t.Run("orders", func(t *testing.T) {
+		t.Parallel()
+		for _, tt := range []struct {
+			name             string
+			payload          string
+			direction        order.Side
+			amount           float64
+			price            float64
+			averageFillPrice float64
+			timeInForce      order.TimeInForce
+			orderType        order.Type
+			reduceOnly       bool
+		}{
+			{
+				name:      "reduce-only IOC close",
+				payload:   `{"time":1788387249,"time_ms":1788387249995,"channel":"futures.orders","event":"update","result":[{"create_time":1788387249,"create_time_ms":1788387249995,"fill_price":0.242073333333,"finish_as":"filled","iceberg":"0","id":294985777215626819,"id_string":"294985777215626819","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":true,"status":"finished","tkfr":0.00048,"price":0,"refu":0,"refr":0,"size":"21","text":"apiv4-ws","tif":"ioc","finish_time":1788387249,"finish_time_ms":1788387249995,"user":"12870774","contract":"RAVE_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387249995,"fee":0.024400992,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0.025","pos_margin_mode":"isolated","leverage":"1"}]}`,
+				direction: order.Long, orderType: order.Market, amount: 21, averageFillPrice: 0.242073333333,
+				timeInForce: order.ImmediateOrCancel, reduceOnly: true,
+			},
+			{
+				name:      "short FOK open",
+				payload:   `{"time":1788387300,"time_ms":1788387300728,"channel":"futures.orders","event":"update","result":[{"create_time":1788387300,"create_time_ms":1788387300727,"fill_price":60.97,"finish_as":"filled","iceberg":"0","id":296956100605608003,"id_string":"296956100605608003","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":false,"status":"finished","tkfr":0.00048,"price":60.91,"refu":0,"refr":0,"size":"-3","text":"apiv4-ws","tif":"fok","finish_time":1788387300,"finish_time_ms":1788387300727,"user":"12870774","contract":"SLVON_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387300727,"fee":0.00877968,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0","pos_margin_mode":"isolated","leverage":"1"}]}`,
+				direction: order.Short, orderType: order.Limit, amount: 3, price: 60.91, averageFillPrice: 60.97,
+				timeInForce: order.FillOrKill,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				processed, err := e.processFuturesOrdersPushData([]byte(tt.payload), asset.USDTMarginedFutures)
+				require.NoError(t, err, "processFuturesOrdersPushData must process captured live data")
+				require.Len(t, processed, 1, "captured order payload must contain one order")
+				assert.Equal(t, order.Filled, processed[0].Status, "captured order status should be filled")
+				assert.Equal(t, tt.orderType, processed[0].Type, "captured order type should follow the request price")
+				assert.Equal(t, tt.direction, processed[0].Side, "captured order direction should follow signed size")
+				assert.Equal(t, tt.amount, processed[0].Amount, "captured order amount should be absolute")
+				assert.Equal(t, tt.amount, processed[0].ExecutedAmount, "captured order should be fully executed")
+				assert.Zero(t, processed[0].RemainingAmount, "captured order should have no remaining amount")
+				assert.Equal(t, tt.price, processed[0].Price, "captured order price should be preserved")
+				assert.Equal(t, tt.averageFillPrice, processed[0].AverageExecutedPrice, "captured fill price should be preserved")
+				assert.Equal(t, tt.timeInForce, processed[0].TimeInForce, "captured time in force should be preserved")
+				assert.Equal(t, tt.reduceOnly, processed[0].ReduceOnly, "captured reduce-only flag should be preserved")
+			})
+		}
+	})
+
+	t.Run("user trade", func(t *testing.T) {
+		t.Parallel()
+		for _, tt := range []struct {
+			name      string
+			payload   string
+			direction order.Side
+			amount    float64
+			tradeID   string
+			orderID   string
+			timestamp time.Time
+		}{
+			{
+				name: "long", direction: order.Long, amount: 13.4,
+				tradeID: "27640330", orderID: "294985777215626819", timestamp: time.UnixMilli(1788387249995),
+				payload: `{"time":1788387249,"time_ms":1788387249995,"channel":"futures.usertrades","event":"update","result":[{"id":"27640330","order_id":"294985777215626819","contract":"RAVE_USDT","create_time":1788387249,"create_time_ms":1788387249995,"size":"13.4","role":"taker","price":"0.242","text":"apiv4-ws","fee":0.01556544,"point_fee":0,"amend_text":"-","biz_info":"-","close_size":"13.4"}]}`,
+			},
+			{
+				name: "short", direction: order.Short, amount: 6,
+				tradeID: "1762690", orderID: "296956100605606387", timestamp: time.UnixMilli(1788387276248),
+				payload: `{"time":1788387276,"time_ms":1788387276249,"channel":"futures.usertrades","event":"update","result":[{"id":"1762690","order_id":"296956100605606387","contract":"SLVON_USDT","create_time":1788387276,"create_time_ms":1788387276248,"size":"-6","role":"taker","price":"61.13","text":"apiv4-ws","fee":0.01760544,"point_fee":0,"amend_text":"-","biz_info":"-","close_size":"0"}]}`,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+				ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+				require.NoError(t, ex.processFuturesUserTrades([]byte(tt.payload), asset.USDTMarginedFutures),
+					"processFuturesUserTrades must process captured live data")
+				message := <-ex.Websocket.DataHandler.C
+				fills, ok := message.Data.([]fill.Data)
+				require.True(t, ok, "captured user trade must emit fills")
+				require.Len(t, fills, 1, "captured user trade must contain one fill")
+				assert.Equal(t, tt.direction, fills[0].Side, "captured trade direction should follow signed size")
+				assert.Equal(t, tt.amount, fills[0].Amount, "captured trade amount should be absolute")
+				assert.Equal(t, tt.tradeID, fills[0].TradeID, "captured trade ID should be preserved")
+				assert.Equal(t, tt.orderID, fills[0].OrderID, "captured order ID should be preserved")
+				assert.Equal(t, tt.timestamp, fills[0].Timestamp, "captured trade timestamp should preserve millisecond precision")
+			})
+		}
+	})
+
+	t.Run("position", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures,
+			currency.Pairs{currency.NewPair(currency.NewCode("RAVE"), currency.USDT)}, false),
+			"StorePairs must register the captured contract")
+		payload := []byte(`{"time":1788387249,"time_ms":1788387249995,"channel":"futures.positions","event":"update","result":[{"time":1788387249,"time_ms":1788387249995,"size":"-37","user":"12870774","leverage_max":25,"mode":"single","update_id":4815,"cross_leverage_limit":20,"liq_price":0.4942,"maintenance_rate":0.8,"risk_limit":10000000,"last_close_pnl":0.00672032,"entry_price":0.252077758621,"leverage":1,"realised_pnl":2.0063498704,"contract":"RAVE_USDT","history_point":0,"margin":93.40867384569,"realised_point":0,"history_pnl":-55.48692517441,"pos_margin_mode":"isolated","lever":"1"}]}`)
+		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures),
+			"processFuturesPositionsNotification must process captured live data")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "captured position must emit canonical positions")
+		require.Len(t, positions, 1, "captured position payload must contain one position")
+		assert.Equal(t, order.Short, positions[0].LatestDirection, "negative captured position size should map to short")
+		assert.Equal(t, "37", positions[0].LatestSize.String(), "captured position size should be absolute")
+		assert.Equal(t, int64(4815), positions[0].UpdateID, "captured position update ID should be preserved")
+		assert.True(t, positions[0].RealisedPNL.Equal(decimal.MustFromFloat(2.0063498704)), "captured realised PNL should be preserved")
+	})
+}
+
+func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		incoming string
+		status   order.Status
+	}{
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},
@@ -3100,12 +4354,40 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 			t.Parallel()
 			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
-			require.NotNil(t, processed)
+			require.Len(t, processed, 1, "futures order update must contain one order")
 			for i := range processed {
 				assert.Equal(t, tc.status.String(), processed[i].Status.String())
+				assert.Equal(t, order.Long, processed[i].Side, "positive futures order size should map to long")
+				assert.Equal(t, 1.0, processed[i].Amount, "futures order amount should be absolute")
+				assert.Equal(t, order.Limit, processed[i].Type, "priced GTC futures order should be a limit order")
+				assert.Equal(t, order.GoodTillCancel, processed[i].TimeInForce, "GTC futures order should preserve time in force")
+				assert.Equal(t, 40000.4, processed[i].AverageExecutedPrice, "futures order should preserve its fill price")
 			}
 		})
 	}
+
+	t.Run("negative size", func(t *testing.T) {
+		t.Parallel()
+		incoming := strings.Replace(testCases[0].incoming, `"size":1`, `"size":-1`, 1)
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.CoinMarginedFutures)
+		require.NoError(t, err)
+		require.Len(t, processed, 1, "futures order update must contain one order")
+		assert.Equal(t, order.Short, processed[0].Side, "negative futures order size should map to short")
+		assert.Equal(t, 1.0, processed[0].Amount, "futures order amount should be absolute")
+		assert.Equal(t, 1.0, processed[0].ExecutedAmount, "executed futures order amount should be absolute")
+	})
+
+	t.Run("market order", func(t *testing.T) {
+		t.Parallel()
+		incoming := strings.NewReplacer(`"price":40000.4`, `"price":0`, `"tif":"gtc"`, `"tif":"ioc"`).Replace(testCases[1].incoming)
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.USDTMarginedFutures)
+		require.NoError(t, err)
+		require.Len(t, processed, 1, "futures order update must contain one order")
+		assert.Equal(t, order.Market, processed[0].Type, "zero-price IOC futures order should be a market order")
+		assert.Equal(t, order.ImmediateOrCancel, processed[0].TimeInForce, "IOC futures order should preserve time in force")
+		assert.Zero(t, processed[0].Price, "market order request price should remain zero")
+		assert.Equal(t, 40000.4, processed[0].AverageExecutedPrice, "market order should preserve its fill price")
+	})
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
@@ -3145,6 +4427,8 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.Futures, currency.EMPTYPAIR, currency.EMPTYCODE, asset.ErrNotSupported},
 		{asset.DeliveryFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), currency.USDT, nil},
+		{asset.Options, currency.EMPTYPAIR, currency.USDT, nil},
+		{asset.Options, currency.NewBTCUSDT(), currency.USDT, nil},
 		{asset.USDTMarginedFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.EMPTYCODE, errInvalidSettlementQuote},
@@ -3217,7 +4501,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
 	var resp *WebsocketOrderResponse
-	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","stp_id":"123456","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
 	got, err := e.deriveSpotWebsocketOrderResponse(resp)
 	require.NoError(t, err)
@@ -3431,14 +4715,14 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
 	var resp *WebsocketFuturesOrderResponse
-	require.NoError(t, json.Unmarshal([]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`), &resp), "unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","stp_id":"123456","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`), &resp), "unmarshal must not error")
 
-	got, err := e.deriveFuturesWebsocketOrderResponse(resp)
+	got, err := e.deriveFuturesWebsocketOrderResponse(resp, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	assert.Equal(t, &order.SubmitResponse{
 		Exchange:             e.Name,
 		OrderID:              "596729318437",
-		AssetType:            asset.Futures,
+		AssetType:            asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 		ClientOrderID:        "t-1337",
 		Date:                 time.UnixMilli(1735787107449),
@@ -3451,6 +4735,12 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		TimeInForce:          order.ImmediateOrCancel,
 		ReduceOnly:           true,
 	}, got)
+
+	// Pairing a USDT contract with a coin-margined caller proves the asset comes from the caller, not the contract.
+	got, err = e.deriveFuturesWebsocketOrderResponse(resp, asset.CoinMarginedFutures)
+	require.NoError(t, err, "deriveFuturesWebsocketOrderResponse must not error")
+	require.NotNil(t, got, "response must not be nil")
+	assert.Equal(t, asset.CoinMarginedFutures, got.AssetType, "AssetType should follow the caller")
 }
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
@@ -3481,7 +4771,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "596729318437",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:        "t-1337",
 					Date:                 time.UnixMilli(1735787107449),
@@ -3497,7 +4787,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "596662040388",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:        "t-1336",
 					Date:                 time.UnixMilli(1735778597374),
@@ -3512,7 +4802,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:        e.Name,
 					OrderID:         "596746193678",
-					AssetType:       asset.Futures,
+					AssetType:       asset.USDTMarginedFutures,
 					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735789790476),
 					LastUpdated:     time.UnixMilli(1735789790476),
@@ -3527,7 +4817,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:        e.Name,
 					OrderID:         "596748780649",
-					AssetType:       asset.Futures,
+					AssetType:       asset.USDTMarginedFutures,
 					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735790222185),
 					LastUpdated:     time.UnixMilli(1735790222185),
@@ -3542,7 +4832,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827161124",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
@@ -3556,7 +4846,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827225781",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740109172060),
 					LastUpdated:          time.UnixMilli(1740109172060),
@@ -3582,7 +4872,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 			var resp []*WebsocketFuturesOrderResponse
 			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
 
-			got, err := e.deriveFuturesWebsocketOrderResponses(resp)
+			got, err := e.deriveFuturesWebsocketOrderResponses(resp, asset.USDTMarginedFutures)
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))
@@ -3630,6 +4920,33 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		return p[0]
 	}
 	return currency.EMPTYPAIR
+}
+
+func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+	t.Helper()
+	var lastErr error
+	var receivedResponse bool
+	for _, pair := range getPairs(t, a) {
+		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
+		response, err := e.GetOpenInterest(t.Context(), pairAsset)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		receivedResponse = true
+		if len(response) == 1 && response[0].OpenInterest > 0 {
+			return pairAsset, response
+		}
+	}
+	switch {
+	case !receivedResponse:
+		t.Fatalf("GetOpenInterest must find a live pair for %s asset: every request failed, last error: %v", a, lastErr)
+	case lastErr != nil:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no pair returned positive open interest and some requests failed, last error: %v", a, lastErr)
+	default:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no request errored, but no pair returned positive open interest", a)
+	}
+	return key.PairAsset{}, nil
 }
 
 func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
@@ -4047,36 +5364,4 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
-}
-
-func TestGetEstimatedInterestRate(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
-		currency.USDT,
-		currency.BTC,
-		currency.ETH,
-		currency.XRP,
-		currency.LTC,
-		currency.DOGE,
-		currency.BCH,
-		currency.SOL,
-		currency.ADA,
-		currency.DOT,
-		currency.MATIC,
-	})
-	require.ErrorIs(t, err, errTooManyCurrencyCodes)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
-	require.NoError(t, err)
-	val, ok := got["BTC"]
-	require.True(t, ok, "result map must contain BTC key")
-	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }

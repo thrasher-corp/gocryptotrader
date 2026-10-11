@@ -446,10 +446,10 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 		params.Set("currency", arg.Currency.String())
 	}
 	if arg.FromAccountID != "" {
-		params.Set("fromAccountID", arg.FromAccountID)
+		params.Set("fromAccountId", arg.FromAccountID)
 	}
 	if arg.ToAccountID != "" {
-		params.Set("toAccountID", arg.ToAccountID)
+		params.Set("toAccountId", arg.ToAccountID)
 	}
 	if arg.FromAccountType != "" {
 		params.Set("fromAccountType", arg.FromAccountType)
@@ -649,7 +649,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 			return nil, err
 		}
 	}
-	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](ctx, e, exchange.RestSpot, sBatchOrderEPL, http.MethodPost, "/orders/batch", nil, args)
+	resp, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](ctx, exchange.RestSpot, sBatchOrderEPL, http.MethodPost, "/orders/batch", nil, args)
 	if err != nil {
 		return resp, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
@@ -732,7 +732,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	if len(clientOrderIDs) > 0 {
 		params["clientOrderIds"] = clientOrderIDs
 	}
-	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params)
+	resp, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params)
 	if err != nil {
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -748,7 +748,7 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 	if len(accountTypes) > 0 {
 		args["accountTypes"] = accountTypes
 	}
-	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args)
+	resp, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args)
 	if err != nil {
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -875,7 +875,7 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
-	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelSmartOrdersByIDEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args)
+	resp, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, exchange.RestSpot, sCancelSmartOrdersByIDEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args)
 	if err != nil {
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -894,7 +894,7 @@ func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pai
 	if len(orderTypes) > 0 {
 		args["orderTypes"] = orderTypes
 	}
-	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelAllSmartOrdersEPL, http.MethodDelete, "/smartorders", nil, args)
+	resp, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, exchange.RestSpot, sCancelAllSmartOrdersEPL, http.MethodDelete, "/smartorders", nil, args)
 	if err != nil {
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -1117,7 +1117,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 }
 
 // SendBatchValidatedAuthenticatedHTTPRequest sends an authenticated V3 HTTP request and returns a slice response after validating errors on each batch item.
-func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context, e *Exchange, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body any) (result []T, err error) {
+func (e *Exchange) SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body any) (result []T, err error) {
 	if err := e.SendAuthenticatedHTTPRequest(ctx, ep, epl, method, path, values, body, &result); err != nil {
 		return nil, err
 	}

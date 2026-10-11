@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -33,7 +34,50 @@ var (
 	ignoreTimeout bool
 )
 
-const defaultTimeout = time.Second * 30
+const (
+	defaultTimeout   = time.Second * 30
+	commandArgsUsage = "<command>"
+)
+
+var errPositionalArgument = errors.New("unexpected positional argument; use named flags")
+
+func rejectPositionalArguments(commands []*cli.Command) {
+	for _, command := range commands {
+		before := command.Before
+		command.Before = func(c *cli.Context) error {
+			if c.NArg() > 0 && c.Command.Command(c.Args().First()) == nil {
+				return fmt.Errorf("%w: %q", errPositionalArgument, c.Args().First())
+			}
+			if before != nil {
+				return before(c)
+			}
+			return nil
+		}
+		rejectPositionalArguments(command.Subcommands)
+	}
+}
+
+// Flag names shared across command definitions and their lookups
+const (
+	exchangeFlag = "exchange"
+	assetFlag    = "asset"
+	pairFlag     = "pair"
+	startFlag    = "start"
+	endFlag      = "end"
+	amountFlag   = "amount"
+	sideFlag     = "side"
+	enableFlag   = "enable"
+)
+
+// Usage strings shared across command definitions
+const (
+	exchangeUsage        = "the exchange to act on"
+	pairUsage            = "the currency pair"
+	assetUsage           = "the asset type of the currency pair"
+	assetFlagUsage       = "asset"
+	futuresAssetUsage    = "the asset type of the currency pair, must be a futures type"
+	futuresExchangeUsage = "the exchange to retrieve futures positions from"
+)
 
 func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
@@ -73,6 +117,13 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 }
 
 func main() {
+	flagString := cli.FlagStringer
+	cli.FlagStringer = func(f cli.Flag) string {
+		if required, ok := f.(cli.RequiredFlag); ok && required.IsRequired() {
+			return flagString(f) + " (required)"
+		}
+		return flagString(f)
+	}
 	app := cli.NewApp()
 	app.Name = "gctcli"
 	app.Version = core.Version(true)
@@ -209,7 +260,6 @@ func main() {
 		getHistoricCandlesCommand,
 		getHistoricCandlesExtendedCommand,
 		findMissingSavedCandleIntervalsCommand,
-		gctScriptCommand,
 		websocketManagerCommand,
 		tradeCommand,
 		dataHistoryCommands,
@@ -221,6 +271,7 @@ func main() {
 		orderbookCommand,
 		getCurrencyTradeURLCommand,
 	}
+	rejectPositionalArguments(app.Commands)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
