@@ -1807,14 +1807,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				od := order.Detail{
-					OrderID:   strconv.FormatInt(o[j].ID, 10),
-					Amount:    o[j].Size.Float64(),
-					Price:     o[j].Price.Float64(),
-					Date:      o[j].CreateTime.Time(),
+					OrderID:   o[j].OrderID,
+					Date:      o[j].FillTime.Time(),
+					Side:      order.Buy,
 					Exchange:  e.Name,
 					Pair:      fp,
 					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: strconv.FormatInt(o[j].ID, 10), Amount: math.Abs(o[j].Size.Float64()), Price: o[j].Price.Float64(),
+						Timestamp: o[j].FillTime.Time(), Exchange: e.Name, Side: order.Buy, IsMaker: o[j].Role == "maker",
+						Fee: o[j].Fee.Float64(), FeeAsset: settle.String(),
+					}},
 				}
+				if o[j].Size.Float64() < 0 {
+					od.Side, od.Trades[0].Side = order.Sell, order.Sell
+				}
+				// TODO: #2456 represent fees in multiple currencies. PointFee is in
+				// Gate points, not settlement currency; obtain it separately through
+				// GetMyFuturesTradingHistory or GetMyDeliveryTradingHistory.
 				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
@@ -1836,12 +1846,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			for j := range o {
 				od := order.Detail{
 					OrderID:   strconv.FormatInt(o[j].OrderID, 10),
-					Amount:    o[j].Size.Float64(),
-					Price:     o[j].Price.Float64(),
 					Date:      o[j].CreateTime.Time(),
+					Side:      order.Buy,
 					Exchange:  e.Name,
 					Pair:      fp,
 					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: strconv.FormatInt(o[j].ID, 10), Amount: math.Abs(o[j].Size.Float64()), Price: o[j].Price.Float64(),
+						Timestamp: o[j].CreateTime.Time(), Exchange: e.Name, Side: order.Buy, IsMaker: o[j].TradeRole == "maker",
+					}},
+				}
+				if o[j].Size.Float64() < 0 {
+					od.Side, od.Trades[0].Side = order.Sell, order.Sell
 				}
 				od.InferExecutionAndTimes()
 				resp = append(resp, od)

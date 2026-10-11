@@ -755,7 +755,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Side:            side,
 					Date:            openOrders.Orders[i].Timestamp.Time(),
 					Status:          order.Active,
-					Price:           openOrders.Orders[i].Price,
+					Price:           openOrders.Orders[i].Price.Float64(),
 					Amount:          openOrders.Orders[i].Quantity.Float64(),
 					ExecutedAmount:  openOrders.Orders[i].Quantity.Decimal().Sub(openOrders.Orders[i].OpenQuantity.Decimal()).InexactFloat64(),
 					RemainingAmount: openOrders.Orders[i].OpenQuantity.Float64(),
@@ -814,7 +814,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Amount:          openOrders.Orders[y].Quantity.Float64(),
 					ExecutedAmount:  openOrders.Orders[y].Quantity.Decimal().Sub(openOrders.Orders[y].OpenQuantity.Decimal()).InexactFloat64(),
 					RemainingAmount: openOrders.Orders[y].OpenQuantity.Float64(),
-					Price:           openOrders.Orders[y].Price,
+					Price:           openOrders.Orders[y].Price.Float64(),
 					Exchange:        e.Name,
 					Side:            side,
 					Date:            openOrders.Orders[y].Timestamp.Time(),
@@ -939,12 +939,12 @@ func (e *Exchange) tradeHistoryDetail(fill *OrderFilledResponse, pair currency.P
 		Date:            fill.Order.Timestamp.Time(),
 		LastUpdated:     fill.Timestamp.Time(),
 		Status:          tradeOrderStatus(fill),
-		Price:           fill.Order.Price,
+		Price:           fill.Order.Price.Float64(),
 		Amount:          fill.Order.Quantity.Float64(),
 		ExecutedAmount:  executed.InexactFloat64(),
 		RemainingAmount: fill.Order.OpenQuantity.Float64(),
 		Trades: []order.TradeHistory{{
-			Price:     fill.FillPrice,
+			Price:     fill.FillPrice.Float64(),
 			Amount:    fill.FillQuantity.Float64(),
 			Fee:       fill.Commission.Amount,
 			FeeAsset:  fill.Commission.Currency,
@@ -955,7 +955,7 @@ func (e *Exchange) tradeHistoryDetail(fill *OrderFilledResponse, pair currency.P
 		}},
 	}
 	if executed.Equal(fill.FillQuantity.Decimal()) {
-		detail.AverageExecutedPrice = fill.FillPrice
+		detail.AverageExecutedPrice = fill.FillPrice.Float64()
 		detail.Fee = fill.Commission.Amount
 		detail.FeeAsset = currency.NewCode(fill.Commission.Currency)
 	}

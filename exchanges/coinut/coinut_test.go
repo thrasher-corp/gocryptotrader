@@ -385,6 +385,34 @@ func TestTradeHistoryDetailDecimalQuantities(t *testing.T) {
 	}
 }
 
+func TestOrderResponsePriceRepresentations(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, value string
+		want        float64
+	}{
+		{"quoted", `"12.5"`, 12.5},
+		{"bare", `12.5`, 12.5},
+		{"empty", `""`, 0},
+		{"null", `null`, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload := []byte(`{"price":` + tc.value + `,"order_price":` + tc.value + `}`)
+			var rest OrderResponse
+			require.NoError(t, json.Unmarshal(payload, &rest), "REST order price decoding must not error")
+			assert.Equal(t, tc.want, rest.Price.Float64(), "REST price should accept the supported representation")
+			assert.Equal(t, tc.want, rest.OrderPrice.Float64(), "REST order price should accept the supported representation")
+			var ws WsOrderData
+			require.NoError(t, json.Unmarshal(payload, &ws), "websocket order price decoding must not error")
+			assert.Equal(t, tc.want, ws.Price.Float64(), "websocket price should accept the supported representation")
+			var fill OrderFilledResponse
+			require.NoError(t, json.Unmarshal([]byte(`{"fill_price":`+tc.value+`}`), &fill), "fill price decoding must not error")
+			assert.Equal(t, tc.want, fill.FillPrice.Float64(), "fill price should accept the supported representation")
+		})
+	}
+}
+
 func TestGetActiveOrdersDecimalQuantities(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "exchange setup must not error")
@@ -394,7 +422,7 @@ func TestGetActiveOrdersDecimalQuantities(t *testing.T) {
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "available pairs setup must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "enabled pairs setup must not error")
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
+		_, err := w.Write([]byte(`{"status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"},{"order_id":43,"open_qty":"200000000.00000001","price":"10","qty":"200000000.00000003","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
 		assert.NoError(t, err, "open-order fixture response should be written")
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must not error")
@@ -405,6 +433,10 @@ func TestGetActiveOrdersDecimalQuantities(t *testing.T) {
 		OrderID: "42", Exchange: "COINUT", Side: order.Sell,
 		Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"), Date: time.Unix(1700000000, 0),
 		Price: 10, Amount: 0.03, ExecutedAmount: 0.02, RemainingAmount: 0.01,
+	}, {
+		OrderID: "43", Exchange: "COINUT", Side: order.Sell,
+		Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"), Date: time.Unix(1700000000, 0),
+		Price: 10, Amount: 200000000.00000003, ExecutedAmount: 0.00000002, RemainingAmount: 200000000.00000001,
 	}}, got, "active orders should use exact decimal subtraction")
 }
 
@@ -417,7 +449,7 @@ func TestGetActiveOrdersWebsocketDecimalQuantities(t *testing.T) {
 		if err := json.Unmarshal(payload, &request); err != nil {
 			return err
 		}
-		return conn.WriteMessage(gws.TextMessage, []byte(`{"nonce":`+strconv.FormatInt(request.Nonce, 10)+`,"reply":"user_open_orders","status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
+		return conn.WriteMessage(gws.TextMessage, []byte(`{"nonce":`+strconv.FormatInt(request.Nonce, 10)+`,"reply":"user_open_orders","status":["OK"],"orders":[{"order_id":42,"open_qty":"0.01","price":"10","qty":"0.03","inst_id":123,"timestamp":1700000000,"side":"SELL"},{"order_id":43,"open_qty":"200000000.00000001","price":"10","qty":"200000000.00000003","inst_id":123,"timestamp":1700000000,"side":"SELL"}]}`))
 	}))
 	server.Start()
 	ex.API.AuthenticatedWebsocketSupport = false
@@ -433,6 +465,10 @@ func TestGetActiveOrdersWebsocketDecimalQuantities(t *testing.T) {
 		OrderID: "42", Exchange: "COINUT", Side: order.Sell, Status: order.Active,
 		Pair: currency.NewBTCUSD(), Date: time.Unix(1700000000, 0),
 		Price: 10, Amount: 0.03, ExecutedAmount: 0.02, RemainingAmount: 0.01,
+	}, {
+		OrderID: "43", Exchange: "COINUT", Side: order.Sell, Status: order.Active,
+		Pair: currency.NewBTCUSD(), Date: time.Unix(1700000000, 0),
+		Price: 10, Amount: 200000000.00000003, ExecutedAmount: 0.00000002, RemainingAmount: 200000000.00000001,
 	}}, got, "websocket active orders should use exact decimal subtraction")
 }
 

@@ -53,6 +53,9 @@ Never relay an empty batch.
 - Use the most appropriate native Go types for struct fields:
   - If the API always returns a number as a bare JSON number, use `float64`.
   - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
+    Use `types.PreciseNumber` instead when accounting or reconciliation needs
+    exact wire-decimal arithmetic. `types.Number.Decimal()` converts through
+    float64 and cannot recover digits lost during decoding.
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
@@ -295,9 +298,10 @@ Use `require` and `assert` appropriately:
     unavailable cumulative values remain unknown.
     Preserve individual fills in `Trades`; a fill alone does not establish the
     order's total quantity, status, average price or cumulative fee. When the
-    payload includes cumulative quantities, use exact wire-decimal arithmetic
-    to distinguish a sole fill from a later fill, not float equality or a
-    tolerance that could hide earlier fills on large orders.
+    payload includes cumulative quantities, decode them and the fill quantity
+    as `types.PreciseNumber` and compare their `Decimal()` values to distinguish
+    a sole fill from a later fill, not float equality or a tolerance that could
+    hide earlier fills on large orders.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - Bound channel receives and other waits in tests so a missing event fails

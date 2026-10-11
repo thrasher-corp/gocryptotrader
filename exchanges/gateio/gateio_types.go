@@ -698,6 +698,8 @@ type FuturesContract struct {
 type TradingHistoryItem struct {
 	ID         int64        `json:"id"`
 	CreateTime types.Time   `json:"create_time_ms"`
+	FillTime   types.Time   `json:"create_time"` // Personal trades use seconds; public trades retain CreateTime.
+	OrderID    string       `json:"order_id"`
 	Contract   string       `json:"contract"`
 	Text       string       `json:"text"`
 	Size       types.Number `json:"size"`

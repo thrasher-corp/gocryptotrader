@@ -115,12 +115,12 @@ type Order struct {
 type OrderResponse struct {
 	OrderID       int64               `json:"order_id"`
 	OpenQuantity  types.PreciseNumber `json:"open_qty"`
-	Price         float64             `json:"price,string"`
+	Price         types.Number        `json:"price"`
 	Quantity      types.PreciseNumber `json:"qty"`
 	InstrumentID  int64               `json:"inst_id"`
 	ClientOrderID int64               `json:"client_ord_id"`
 	Timestamp     types.Time          `json:"timestamp"`
-	OrderPrice    float64             `json:"order_price,string"`
+	OrderPrice    types.Number        `json:"order_price"`
 	Side          string              `json:"side"`
 }
 
@@ -134,7 +134,7 @@ type Commission struct {
 type OrderFilledResponse struct {
 	GenericResponse
 	Commission   Commission          `json:"commission"`
-	FillPrice    float64             `json:"fill_price,string"`
+	FillPrice    types.Number        `json:"fill_price"`
 	FillQuantity types.PreciseNumber `json:"fill_qty"`
 	Order        OrderResponse       `json:"order"`
 	Timestamp    types.Time          `json:"timestamp"`
@@ -478,7 +478,7 @@ type WsOrderData struct {
 	InstrumentID  int64               `json:"inst_id"`
 	OpenQuantity  types.PreciseNumber `json:"open_qty"`
 	OrderID       int64               `json:"order_id"`
-	Price         float64             `json:"price,string"`
+	Price         types.Number        `json:"price"`
 	Quantity      types.PreciseNumber `json:"qty"`
 	Side          string              `json:"side"`
 	Timestamp     types.Time          `json:"timestamp"`

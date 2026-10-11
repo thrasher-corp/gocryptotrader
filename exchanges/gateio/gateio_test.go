@@ -2906,6 +2906,92 @@ func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
 	}, orders, "spot history should preserve both fills without inventing order totals")
 }
 
+func TestGetOrderHistoryDerivativeFills(t *testing.T) {
+	for _, market := range []struct {
+		asset    asset.Item
+		pair     currency.Pair
+		feeAsset string
+	}{
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT(), "USDT"},
+		{asset.CoinMarginedFutures, currency.NewBTCUSD(), "BTC"},
+		{asset.DeliveryFutures, currency.NewPairWithDelimiter("BTC", "USDT_20261225", "_"), "USDT"},
+		{asset.Options, currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", "_"), ""},
+	} {
+		t.Run(market.asset.String(), func(t *testing.T) {
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(market.asset, currency.Pairs{market.pair}, false), "available-pair setup must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(market.asset, currency.Pairs{market.pair}, true), "enabled-pair setup must not error")
+			format, err := ex.GetPairFormat(market.asset, true)
+			require.NoError(t, err, "pair format must be available")
+			pair := market.pair.Format(format)
+			orderID := `"42"`
+			if market.asset == asset.Options {
+				orderID = "42"
+			}
+			payload := `[{"id":101,"order_id":` + orderID + `,"contract":"` + pair.String() + `","create_time":1700000000,"size":15,"price":"11","fee":"0.1","point_fee":"0.7","role":"maker"},{"id":102,"order_id":` + orderID + `,"contract":"` + pair.String() + `","create_time":1700000060,"size":-5,"price":"12","fee":"0.05","point_fee":"0.8","role":"taker"}]`
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(payload))
+				assert.NoError(t, err, "derivative fill response should be written")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must not error")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			want := order.FilteredOrders{
+				{
+					OrderID: "42", Exchange: ex.Name, Pair: market.pair, AssetType: market.asset, Side: order.Buy,
+					Date: time.Unix(1700000000, 0), LastUpdated: time.Unix(1700000000, 0),
+					Trades: []order.TradeHistory{{TID: "101", Price: 11, Amount: 15, Fee: 0.1, FeeAsset: market.feeAsset, IsMaker: true, Side: order.Buy, Exchange: ex.Name, Timestamp: time.Unix(1700000000, 0)}},
+				},
+				{
+					OrderID: "42", Exchange: ex.Name, Pair: market.pair, AssetType: market.asset, Side: order.Sell,
+					Date: time.Unix(1700000060, 0), LastUpdated: time.Unix(1700000060, 0),
+					Trades: []order.TradeHistory{{TID: "102", Price: 12, Amount: 5, Fee: 0.05, FeeAsset: market.feeAsset, Side: order.Sell, Exchange: ex.Name, Timestamp: time.Unix(1700000060, 0)}},
+				},
+			}
+			if market.asset == asset.Options {
+				want[0].Trades[0].Fee, want[1].Trades[0].Fee = 0, 0 // The options response type does not report fees.
+			}
+			for _, filter := range []struct {
+				name       string
+				side       order.Side
+				start, end time.Time
+				want       order.FilteredOrders
+			}{
+				{name: "all fills", side: order.AnySide, want: want},
+				{name: "buy filter", side: order.Buy, want: want[:1]},
+				{name: "sell filter", side: order.Sell, want: want[1:]},
+				{name: "time filter", side: order.AnySide, start: time.Unix(1700000030, 0), end: time.Unix(1700000090, 0), want: want[1:]},
+				{name: "old time window", side: order.AnySide, start: time.Unix(1600000000, 0), end: time.Unix(1600000060, 0)},
+			} {
+				t.Run(filter.name, func(t *testing.T) {
+					got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+						AssetType: market.asset,
+						Pairs:     currency.Pairs{market.pair}, Type: order.AnyType, Side: filter.side, StartTime: filter.start, EndTime: filter.end,
+					})
+					require.NoError(t, err, "GetOrderHistory must not error")
+					if len(filter.want) == 0 {
+						assert.Empty(t, got, "out-of-window fills should be excluded using their personal trade timestamp")
+					} else {
+						assert.Equal(t, filter.want, got, "history should preserve individual fills without inventing order totals or combining point fees")
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestTradingHistoryItemTimestamps(t *testing.T) {
+	t.Parallel()
+	var got TradingHistoryItem
+	require.NoError(t, json.Unmarshal([]byte(`{"id":101,"order_id":"42","create_time":1700000000,"create_time_ms":1700000060000,"fee":"0.1","point_fee":"0.7"}`), &got), "history fixture decoding must not error")
+	assert.Equal(t, time.Unix(1700000000, 0), got.FillTime.Time(), "personal fill time should decode seconds independently")
+	assert.Equal(t, time.Unix(1700000060, 0), got.CreateTime.Time(), "public trade time should retain its millisecond field")
+	assert.Equal(t, "42", got.OrderID, "the order ID should be independent of the fill ID")
+	assert.Equal(t, 0.1, got.Fee.Float64(), "settlement fee should remain separate")
+	assert.Equal(t, 0.7, got.PointFee.Float64(), "raw point fees should remain available in their own field")
+}
+
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	for _, a := range e.GetAssetTypes(false) {
