@@ -66,6 +66,34 @@ func TestRateLimit(t *testing.T) {
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error when context deadline exceeded")
 	})
+
+	t.Run("deadline refusal preserves capacity and admission waits", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			limiter := NewRateLimit(time.Second, 60)
+			weighted := GetRateLimiterWithWeight(limiter, 3)
+			single := GetRateLimiterWithWeight(limiter, 1)
+			at := time.Now()
+
+			deadlineCtx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+			defer cancel()
+			require.ErrorIs(t, weighted.RateLimit(deadlineCtx), context.DeadlineExceeded,
+				"a request requiring more than 25ms must be refused")
+			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
+				"deadline refusal should leave capacity untouched")
+
+			require.NoError(t, single.RateLimit(WithDelayNotAllowed(t.Context())),
+				"the untouched token must be available immediately")
+			waitCtx, cancelWait := context.WithTimeout(t.Context(), time.Minute)
+			defer cancelWait()
+			start := time.Now()
+			require.NoError(t, single.RateLimit(waitCtx),
+				"a deadline allowing the delay must admit the request")
+			assert.Equal(t, 16_666_666*time.Nanosecond, time.Since(start),
+				"admission with a deadline should wait for one token")
+		})
+	})
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
