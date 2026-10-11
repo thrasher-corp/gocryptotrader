@@ -207,7 +207,7 @@ func TestEncryptAESGCMCiphertext(t *testing.T) {
 	aead, err := cipher.NewGCMWithRandomNonce(block)
 	require.NoError(t, err)
 
-	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil)
+	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil) //nolint:gosec // NewGCMWithRandomNonce generates the nonce itself, so Seal takes none
 
 	data, err := decryptAESGCMCiphertext(ciphertext, validKey)
 	require.NoError(t, err)

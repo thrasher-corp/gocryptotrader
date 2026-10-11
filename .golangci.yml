@@ -222,11 +222,6 @@ linters:
         path: exchanges/mock/server\.go
         text: 'G706' # G706 log injection via taint analysis
       - linters:
-          - gosec
-        text: 'G407'
-        # A nil nonce is only valid for an AEAD that generates its own, such as cipher.NewGCMWithRandomNonce; any other panics
-        source: '\.Seal\(nil, nil,'
-      - linters:
           - dupword
         path: config/config_encryption_test\.go
         # The encryption prompts are driven by scripted stdin that deliberately repeats answers
