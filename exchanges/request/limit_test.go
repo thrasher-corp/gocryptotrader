@@ -120,19 +120,23 @@ func TestRateLimitBarrier(t *testing.T) {
 
 	t.Run("acceptance retains final reservations", func(t *testing.T) {
 		t.Parallel()
-		contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
-		require.NoError(t, err)
-		left := NewRateLimitWithWeight(time.Hour, 1, 1)
-		right := NewRateLimitWithWeight(time.Hour, 1, 1)
-		errs := make(chan error, 2)
-		go func() { errs <- left.RateLimit(contexts[0]) }()
-		go func() { errs <- right.RateLimit(contexts[1]) }()
-		require.NoError(t, <-errs)
-		require.NoError(t, <-errs)
-		require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
-		require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
+			require.NoError(t, err)
+			left := NewRateLimitWithWeight(time.Hour, 1, 1)
+			right := NewRateLimitWithWeight(time.Hour, 1, 1)
+			errs := make(chan error, 2)
+			go func() { errs <- left.RateLimit(contexts[0]) }()
+			go func() { errs <- right.RateLimit(contexts[1]) }()
+			require.NoError(t, <-errs)
+			require.NoError(t, <-errs)
+			// The limiter interval is one hour: on the fake clock a wrongly admitted
+			// (i.e. non-delayed) call fails immediately instead of hanging for an hour.
+			require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+			require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+		})
 	})
 
 	t.Run("one delayed rejects both and restores reservations", func(t *testing.T) {
