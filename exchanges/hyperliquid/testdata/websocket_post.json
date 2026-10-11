@@ -1,0 +1,298 @@
+[
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "coin": "ETH",
+    "nSigFigs": 5
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "data": {
+     "coin": "ETH",
+     "time": 1791279145054,
+     "levels": [
+      [
+       {
+        "px": "2702.5",
+        "sz": "138.1974",
+        "n": 17
+       }
+      ],
+      [
+       {
+        "px": "2702.6",
+        "sz": "84.4867",
+        "n": 17
+       }
+      ]
+     ],
+     "spread": "0.1"
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "coin": "NOTACOIN"
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "data": null
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "coin": "BTC"
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "data": {
+     "coin": "BTC",
+     "time": 1791279151499,
+     "levels": [
+      [
+       {
+        "px": "85895.0",
+        "sz": "0.00271",
+        "n": 2
+       }
+      ],
+      [
+       {
+        "px": "85896.0",
+        "sz": "8.0337",
+        "n": 32
+       }
+      ]
+     ]
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "l2Book",
+    "coin": "BTC",
+    "nSigFigs": 7
+   }
+  },
+  "response": {
+   "type": "error",
+   "payload": "500 Internal Server Error"
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "bogusInfoType"
+   }
+  },
+  "parseFailure": true
+ },
+ {
+  "request": {
+   "type": "action",
+   "payload": {
+    "action": {
+     "type": "order",
+     "orders": [
+      {
+       "a": 0,
+       "b": true,
+       "p": "85000",
+       "s": "0.001",
+       "r": false,
+       "t": {
+        "limit": {
+         "tif": "Gtc"
+        }
+       },
+       "c": "0x000000000000000000065d27f23d749f"
+      }
+     ],
+     "grouping": "na"
+    }
+   }
+  },
+  "response": {
+   "type": "action",
+   "payload": {
+    "status": "ok",
+    "response": {
+     "type": "order",
+     "data": {
+      "statuses": [
+       {
+        "resting": {
+         "oid": 566563303535,
+         "cloid": "0x000000000000000000065d27f23d749f"
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "action",
+   "payload": {
+    "action": {
+     "type": "cancel",
+     "cancels": [
+      {
+       "a": 0,
+       "o": 566563303535
+      }
+     ]
+    }
+   }
+  },
+  "response": {
+   "type": "action",
+   "payload": {
+    "status": "ok",
+    "response": {
+     "type": "cancel",
+     "data": {
+      "statuses": [
+       "success"
+      ]
+     }
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "action",
+   "payload": {
+    "action": {
+     "type": "cancelByCloid",
+     "cancels": [
+      {
+       "asset": 0,
+       "cloid": "0x000000000000000000065d27f23d749f"
+      }
+     ]
+    }
+   }
+  },
+  "response": {
+   "type": "action",
+   "payload": {
+    "status": "ok",
+    "response": {
+     "type": "cancel",
+     "data": {
+      "statuses": [
+       "success"
+      ]
+     }
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "action",
+   "payload": {
+    "action": {
+     "type": "modify",
+     "oid": 566563303535,
+     "order": {
+      "a": 0,
+      "b": true,
+      "p": "84500",
+      "s": "0.001",
+      "r": false,
+      "t": {
+       "limit": {
+        "tif": "Gtc"
+       }
+      },
+      "c": "0x000000000000000000065d27f23d749f"
+     }
+    }
+   }
+  },
+  "response": {
+   "type": "action",
+   "payload": {
+    "status": "ok",
+    "response": {
+     "type": "default"
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "action",
+   "payload": {
+    "action": {
+     "type": "batchModify",
+     "modifies": [
+      {
+       "oid": 566563303535,
+       "order": {
+        "a": 0,
+        "b": true,
+        "p": "84000",
+        "s": "0.001",
+        "r": false,
+        "t": {
+         "limit": {
+          "tif": "Gtc"
+         }
+        },
+        "c": "0x000000000000000000065d27f23d749f"
+       }
+      }
+     ]
+    }
+   }
+  },
+  "response": {
+   "type": "action",
+   "payload": {
+    "status": "ok",
+    "response": {
+     "type": "order",
+     "data": {
+      "statuses": [
+       {
+        "resting": {
+         "oid": 566563303537,
+         "cloid": "0x000000000000000000065d27f23d749f"
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ }
+]

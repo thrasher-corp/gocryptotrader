@@ -608,7 +608,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 			asset.Futures: {
 				AssetEnabled: true,
 				Available: []Pair{
-					NewPair(BTC, USDC),
+					NewBTCUSDC(),
 				},
 			},
 			asset.Spot: {

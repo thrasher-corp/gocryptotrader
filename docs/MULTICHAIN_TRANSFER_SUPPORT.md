@@ -58,6 +58,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Gemini | No | No | |
 | HitBTC | No | No | |
 | Huobi.Pro | Yes | Yes | |
+| Hyperliquid | No | No | USDC withdrawals use the Arbitrum bridge only |
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Kucoin |  Yes | Yes | |
 | Lbank | No | No | |

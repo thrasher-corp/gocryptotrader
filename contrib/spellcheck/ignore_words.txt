@@ -6,3 +6,4 @@ flate
 zar
 insid
 totalin
+alltime

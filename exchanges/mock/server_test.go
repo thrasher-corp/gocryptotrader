@@ -326,6 +326,41 @@ func TestMatchAndGetResponse(t *testing.T) {
 			wantResult:  `{"match":"float"}`,
 		},
 		{
+			name:        "json object body with nested object value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":{"coin":"BTC","interval":"1m","startTime":1,"endTime":2}}`, Data: json.RawMessage(`{"match":"nested object"}`)}},
+			requestVals: url.Values{"type": {"candleSnapshot"}, "req": {`{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}`}},
+			isQueryData: false,
+			wantResult:  `{"match":"nested object"}`,
+		},
+		{
+			name:        "json object body with reordered and spaced nested object",
+			mockData:    []HTTPResponse{{BodyParams: `{ "req": { "endTime": 2, "startTime": 1, "interval": "1m", "coin": "BTC" }, "type": "candleSnapshot" }`, Data: json.RawMessage(`{"match":"reordered"}`)}},
+			requestVals: url.Values{"type": {"candleSnapshot"}, "req": {`{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}`}},
+			isQueryData: false,
+			wantResult:  `{"match":"reordered"}`,
+		},
+		{
+			name:        "json object body with different nested object value returns errNoDataMatched",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":{"coin":"ETH","interval":"1m","startTime":1,"endTime":2}}`, Data: json.RawMessage(`{"match":"eth"}`)}},
+			requestVals: url.Values{"type": {"candleSnapshot"}, "req": {`{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}`}},
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "json object body with nested array value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"cancel","cancels":[{"a":0,"o":1}]}`, Data: json.RawMessage(`{"match":"nested array"}`)}},
+			requestVals: url.Values{"type": {"cancel"}, "cancels": {`[{"a":0,"o":1}]`}},
+			isQueryData: false,
+			wantResult:  `{"match":"nested array"}`,
+		},
+		{
+			name:        "json object body with null value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"meta","dex":null}`, Data: json.RawMessage(`{"match":"null"}`)}},
+			requestVals: url.Values{"type": {"meta"}, "dex": {"null"}},
+			isQueryData: false,
+			wantResult:  `{"match":"null"}`,
+		},
+		{
 			name: "json array body params entry skipped falling through to next",
 			mockData: []HTTPResponse{
 				{BodyParams: `[1,2,3]`, Data: json.RawMessage(`{"match":"should-not-reach"}`)},

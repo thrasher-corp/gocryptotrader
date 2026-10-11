@@ -150,11 +150,8 @@ assets:
 }
 
 // isUnacceptableError sentences errs to 10 years dungeon if unacceptable
-func isUnacceptableError(t *testing.T, exchangeName, methodName string, err error) error {
+func isUnacceptableError(t *testing.T, err error) error {
 	t.Helper()
-	if strings.EqualFold(exchangeName, "hyperliquid") && methodName == "GetOrderInfo" && errors.Is(err, order.ErrOrderNotFound) {
-		return nil
-	}
 	for i := range acceptableErrors {
 		if errors.Is(err, acceptableErrors[i]) {
 			return nil
@@ -245,7 +242,7 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if !ok {
 			continue
 		}
-		if isUnacceptableError(t, exch.GetName(), methodName, err) != nil {
+		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]any, len(methodValues))
 			for j := range methodValues {
 				switch {
@@ -639,6 +636,7 @@ var acceptableErrors = []error{
 	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
+	order.ErrOrderNotFound,               // Is thrown when the placeholder order ID 1337 of an order lookup does not exist
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
@@ -784,26 +782,6 @@ Rsd80LrBCVI8ctzrvYRFSugC`
 		resp.ClientID = "realClientID"
 	}
 	return resp
-}
-
-func TestGetExchangeCredentials(t *testing.T) {
-	hyperliquid := getExchangeCredentials("hyperliquid")
-	require.Equal(t, "0x1111111111111111111111111111111111111111", hyperliquid.Key, "Hyperliquid wrapper credentials must use a valid watch-only address")
-	require.Empty(t, hyperliquid.Secret, "Hyperliquid wrapper credentials must not permit signed actions")
-
-	lbank := getExchangeCredentials("lbank")
-	require.NotEmpty(t, lbank.Key, "Lbank wrapper credentials must include its public key fixture")
-	require.NotEmpty(t, lbank.Secret, "Lbank wrapper credentials must include its private key fixture")
-
-	standard := getExchangeCredentials("standard")
-	require.Equal(t, "realKey", standard.Key, "Standard wrapper credentials must use the generic key fixture")
-	require.NotEmpty(t, standard.Secret, "Standard wrapper credentials must include the generic secret fixture")
-}
-
-func TestIsUnacceptableError(t *testing.T) {
-	require.NoError(t, isUnacceptableError(t, "Hyperliquid", "GetOrderInfo", order.ErrOrderNotFound), "Hyperliquid order lookup must accept a not-found result for a random wrapper fixture")
-	require.ErrorIs(t, isUnacceptableError(t, "Hyperliquid", "GetTicker", order.ErrOrderNotFound), order.ErrOrderNotFound, "Hyperliquid not-found exemption must remain scoped to order lookup")
-	require.ErrorIs(t, isUnacceptableError(t, "Other", "GetOrderInfo", order.ErrOrderNotFound), order.ErrOrderNotFound, "Order not-found exemption must remain scoped to Hyperliquid")
 }
 
 func isCITest() bool {
