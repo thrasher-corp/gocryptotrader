@@ -453,6 +453,28 @@ func TestNewBasicRateLimit(t *testing.T) {
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
 }
 
+func TestRateLimitCancellationReleasesReservation(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		limiter := NewRateLimitWithWeight(time.Second, 1, 1)
+		require.NoError(t, limiter.RateLimit(t.Context()), "initial call must not be delayed")
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		errs := make(chan error, 1)
+		go func() { errs <- limiter.RateLimit(ctx) }()
+		synctest.Wait()
+		cancel()
+		require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
+
+		start := time.Now()
+		require.NoError(t, limiter.RateLimit(t.Context()), "follow-up call must not error")
+		assert.InDelta(t, time.Second, time.Since(start), float64(50*time.Millisecond),
+			"follow-up call should wait a single token period once the cancelled reservation is released")
+	})
+}
+
 func TestCancelAll(t *testing.T) {
 	t.Parallel()
 

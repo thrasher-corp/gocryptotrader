@@ -172,6 +172,17 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		// The caller is abandoning the request, so release the reserved capacity
+		// instead of letting it stand. Otherwise every subsequent request is
+		// forced to wait an extra rate-limit period for capacity that will never
+		// be used. Cancelling at the reservation time keeps this consistent with
+		// the abandonment paths above, which restore the reservations as if the
+		// request had never been admitted.
+		rateLimitReservationMu.Lock()
+		r.m.Lock()
+		cancelAll(reserved, tn)
+		r.m.Unlock()
+		rateLimitReservationMu.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
