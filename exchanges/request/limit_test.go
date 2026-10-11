@@ -2,6 +2,7 @@ package request
 
 import (
 	"context"
+	"math"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -468,6 +469,142 @@ func TestCancelAll(t *testing.T) {
 	require.Equal(t, -1.0, r.TokensAt(tn), "must have negative tokens remaining")
 	cancelAll(reservations, tn)
 	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
+}
+
+func TestDurationFromTokens(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		tokens float64
+		limit  rate.Limit
+		want   time.Duration
+	}{
+		{
+			name:   "no deficit",
+			tokens: 0,
+			limit:  60,
+			want:   0,
+		},
+		{
+			name:   "fraction of a token",
+			tokens: 0.5,
+			limit:  1,
+			want:   500 * time.Millisecond,
+		},
+		{
+			name:   "one token at sixty per second",
+			tokens: 1,
+			limit:  60,
+			want:   16666666 * time.Nanosecond,
+		},
+		{
+			name:   "two tokens at sixty per second",
+			tokens: 2,
+			limit:  60,
+			want:   33333333 * time.Nanosecond,
+		},
+		{
+			name:   "duration beyond a second",
+			tokens: 200,
+			limit:  60,
+			want:   3333333333 * time.Nanosecond,
+		},
+		{
+			name:   "unlimited limiter needs no time",
+			tokens: 5,
+			limit:  rate.Inf,
+			want:   0,
+		},
+		{
+			name:   "zero limit is unbounded",
+			tokens: 1,
+			limit:  0,
+			want:   time.Duration(math.MaxInt64),
+		},
+		{
+			name:   "negative limit is unbounded",
+			tokens: 1,
+			limit:  -1,
+			want:   time.Duration(math.MaxInt64),
+		},
+		{
+			name:   "overflow clamps to the maximum duration",
+			tokens: 1e19,
+			limit:  1,
+			want:   time.Duration(math.MaxInt64),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, durationFromTokens(tc.tokens, tc.limit),
+				"delay should match the token deficit at the configured limit")
+		})
+	}
+}
+
+func TestPendingDelayLocked(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		limit  rate.Limit
+		burst  int
+		weight Weight
+		want   time.Duration
+	}{
+		{
+			name:   "weight matches available tokens",
+			limit:  1,
+			burst:  1,
+			weight: 1,
+			want:   0,
+		},
+		{
+			name:   "surplus tokens need no delay",
+			limit:  1,
+			burst:  5,
+			weight: 1,
+			want:   0,
+		},
+		{
+			name:   "two missing tokens at one per second",
+			limit:  1,
+			burst:  1,
+			weight: 3,
+			want:   2 * time.Second,
+		},
+		{
+			name:   "two missing tokens at sixty per second",
+			limit:  60,
+			burst:  1,
+			weight: 3,
+			want:   33333333 * time.Nanosecond,
+		},
+		{
+			name:   "extreme rate truncates to zero",
+			limit:  1.08e10,
+			burst:  1,
+			weight: 11,
+			want:   0,
+		},
+		{
+			name:   "unlimited limiter needs no delay",
+			limit:  rate.Inf,
+			burst:  1,
+			weight: 5,
+			want:   0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := GetRateLimiterWithWeight(rate.NewLimiter(tc.limit, tc.burst), tc.weight)
+			assert.Equal(t, tc.want, r.pendingDelayLocked(time.Now()),
+				"pending delay should match the missing capacity at the configured limit")
+		})
+	}
 }
 
 func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
