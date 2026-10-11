@@ -93,7 +93,16 @@ func TestRPCOrderbookStringValues(t *testing.T) {
 	expectedBids[0].Id, expectedBids[1].Id = 17, 18
 	expectedAsks[0].Id, expectedAsks[1].Id = 29, 30
 	stream := &orderbookResponseStream{}
-	require.ErrorIs(t, s.GetOrderbookStream(&gctrpc.GetOrderbookStreamRequest{Exchange: base.Name, Pair: rpcPair, AssetType: "spot"}, stream), errExpectedTestError, "sending the stream response must return the test stop error")
+	sent := make(chan error, 1)
+	go func() {
+		sent <- s.GetOrderbookStream(&gctrpc.GetOrderbookStreamRequest{Exchange: base.Name, Pair: rpcPair, AssetType: "spot"}, stream)
+	}()
+	select {
+	case err := <-sent:
+		require.ErrorIs(t, err, errExpectedTestError, "sending the stream response must return the test stop error")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stream must send the current book before waiting for an update")
+	}
 	checkResponse(stream.response)
 
 	stream = &orderbookResponseStream{}

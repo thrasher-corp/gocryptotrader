@@ -3,13 +3,22 @@ package main
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/urfave/cli/v2"
 )
+
+func renderOrderbook(w io.Writer, book *gctrpc.OrderbookResponse, exchangeStyle bool, depthLimit int) error {
+	if exchangeStyle {
+		return renderOrderbookExchangeStyle(w, book, "test", "spot", depthLimit)
+	}
+	return renderOrderbookStream(w, book, "test", depthLimit)
+}
 
 type orderbookCountingWriter struct {
 	writes int
@@ -39,14 +48,8 @@ func BenchmarkOrderbookRendering(b *testing.B) {
 					var writer orderbookCountingWriter
 					b.ReportAllocs()
 					for b.Loop() {
-						if exchangeStyle {
-							if err := renderOrderbookExchangeStyle(&writer, book, "test", "spot", depth); err != nil {
-								b.Fatal(err)
-							}
-						} else {
-							if err := renderOrderbookStream(&writer, book, "test", depth); err != nil {
-								b.Fatal(err)
-							}
+						if err := renderOrderbook(&writer, book, exchangeStyle, depth); err != nil {
+							b.Fatal(err)
 						}
 					}
 					b.ReportMetric(float64(writer.writes)/float64(b.N), "writes/frame")
@@ -72,17 +75,11 @@ func TestOrderbookRenderingWrites(t *testing.T) {
 	for _, exchangeStyle := range []bool{false, true} {
 		t.Run(fmt.Sprintf("exchangeStyle=%t", exchangeStyle), func(t *testing.T) {
 			t.Parallel()
-			render := func(w io.Writer) error {
-				if exchangeStyle {
-					return renderOrderbookExchangeStyle(w, book, "test", "spot", 50)
-				}
-				return renderOrderbookStream(w, book, "test", 50)
-			}
 			var writer orderbookCountingWriter
-			require.NoError(t, render(&writer), "writing the frame must succeed")
+			require.NoError(t, renderOrderbook(&writer, book, exchangeStyle, 50), "writing the frame must succeed")
 			assert.Equal(t, 1, writer.writes, "the complete frame should use one write even for an empty book")
-			require.ErrorIs(t, render(orderbookErrorWriter{err: io.ErrClosedPipe}), io.ErrClosedPipe, "writer errors must be returned")
-			require.ErrorIs(t, render(orderbookErrorWriter{}), io.ErrShortWrite, "incomplete writes must be reported")
+			require.ErrorIs(t, renderOrderbook(orderbookErrorWriter{err: io.ErrClosedPipe}, book, exchangeStyle, 50), io.ErrClosedPipe, "writer errors must be returned")
+			require.ErrorIs(t, renderOrderbook(orderbookErrorWriter{}, book, exchangeStyle, 50), io.ErrShortWrite, "incomplete writes must be reported")
 		})
 	}
 }
@@ -110,11 +107,7 @@ func TestOrderbookDisplayLevels(t *testing.T) {
 			book := &gctrpc.OrderbookResponse{Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}, Bids: []*gctrpc.OrderbookItem{&tc.item}}
 			for _, exchangeStyle := range []bool{false, true} {
 				var output strings.Builder
-				if exchangeStyle {
-					require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 1), "exchange-style rendering must succeed")
-				} else {
-					require.NoError(t, renderOrderbookStream(&output, book, "test", 1), "side-by-side rendering must succeed")
-				}
+				require.NoErrorf(t, renderOrderbook(&output, book, exchangeStyle, 1), "rendering must succeed with exchangeStyle %t", exchangeStyle)
 				assert.Contains(t, output.String(), tc.expected.price, "both layouts should use the selected price representation")
 				assert.Contains(t, output.String(), tc.expected.amount, "both layouts should use the selected amount representation")
 			}
@@ -146,12 +139,126 @@ func TestOrderbookRenderingAlignment(t *testing.T) {
 	assert.Equal(t, greenText+"         1            0", lines[5], "short values should remain right-aligned")
 	for _, exchangeStyle := range []bool{false, true} {
 		var writer orderbookCountingWriter
-		if exchangeStyle {
-			require.NoError(t, renderOrderbookExchangeStyle(&writer, book, "test", "spot", 50), "exchange-style rendering must succeed")
-		} else {
-			require.NoError(t, renderOrderbookStream(&writer, book, "test", 50), "side-by-side rendering must succeed")
-		}
+		require.NoErrorf(t, renderOrderbook(&writer, book, exchangeStyle, 50), "rendering must succeed with exchangeStyle %t", exchangeStyle)
 		assert.Equal(t, 1, writer.writes, "populated frames should use one write")
+	}
+}
+
+func TestOrderbookRenderingWideValues(t *testing.T) {
+	t.Parallel()
+	book := &gctrpc.OrderbookResponse{
+		Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+		Bids: []*gctrpc.OrderbookItem{{StrPrice: "99999.90000", StrAmount: "125.00000000"}},
+		Asks: []*gctrpc.OrderbookItem{{StrPrice: "100000.10000", StrAmount: "0.01000000"}},
+	}
+	var output strings.Builder
+	require.NoError(t, renderOrderbookStream(&output, book, "test", 50), "rendering must succeed")
+	lines := strings.Split(output.String(), "\n")
+	require.Len(t, lines, 6, "the frame must include its title, headings and one row")
+	assert.Equal(t, "Orderbook stream for test BTC-USD:", lines[0], "the title should use a stable currency pair rather than protobuf debug text")
+	assert.Equal(t, "  Price(USD)   Amount(BTC) |   Price(USD)   Amount(BTC)", lines[3], "headings should widen to the widest value on either side")
+	assert.Equal(t, " 99999.90000  125.00000000 | 100000.10000    0.01000000", lines[4], "values wider than their headings should stay aligned")
+	output.Reset()
+	require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
+	lines = strings.Split(output.String(), "\n")
+	require.Len(t, lines, 7, "the frame must contain one ask and one bid")
+	assert.Equal(t, grayText+"  Price(USD)   Amount(BTC)", lines[1], "exchange-style headings should widen to the widest value")
+	assert.Equal(t, redText+"100000.10000    0.01000000", lines[2], "the ask should align with the widest bid amount")
+	assert.Equal(t, greenText+" 99999.90000  125.00000000", lines[4], "the bid should align with the widest ask price")
+}
+
+func TestOrderbookRenderingUnicodeHeadings(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, code              string
+		priceWidth, amountWidth int
+	}{
+		{"ASCII", "btc", 10, 11},
+		{"wide", "\u5e01\u5b89\u4eba\u751f", 15, 16},
+		{"fullwidth", "\uff22\uff34\uff23", 13, 14},
+		{"combining", "e\u0301th", 10, 11},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			book := &gctrpc.OrderbookResponse{
+				Pair: &gctrpc.CurrencyPair{Base: tc.code, Quote: tc.code},
+				Bids: []*gctrpc.OrderbookItem{{StrPrice: "1", StrAmount: "2"}},
+				Asks: []*gctrpc.OrderbookItem{{StrPrice: "3", StrAmount: "4"}},
+			}
+			code := strings.ToUpper(tc.code)
+			heading := "Price(" + code + ")  Amount(" + code + ")"
+			bid := strings.Repeat(" ", tc.priceWidth-1) + "1  " + strings.Repeat(" ", tc.amountWidth-1) + "2"
+			ask := strings.Repeat(" ", tc.priceWidth-1) + "3  " + strings.Repeat(" ", tc.amountWidth-1) + "4"
+			var output strings.Builder
+			require.NoError(t, renderOrderbookStream(&output, book, "test", 50), "rendering must succeed")
+			lines := strings.Split(output.String(), "\n")
+			require.Len(t, lines, 6, "the frame must contain its headings and one row")
+			assert.Equal(t, "Orderbook stream for test "+code+"-"+code+":", lines[0], "the title should upper-case the pair consistently with the headings")
+			assert.Equal(t, heading+" | "+heading, lines[3], "Unicode headings should occupy terminal columns rather than byte or rune widths")
+			assert.Equal(t, bid+" | "+ask, lines[4], "values should align with the Unicode headings on both sides")
+			output.Reset()
+			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
+			lines = strings.Split(output.String(), "\n")
+			require.Len(t, lines, 7, "the frame must contain one ask and one bid")
+			assert.Equal(t, grayText+heading, lines[1], "exchange-style Unicode headings should use terminal widths")
+			assert.Equal(t, redText+ask, lines[2], "the ask should align with the Unicode headings")
+			assert.Equal(t, greenText+bid, lines[4], "the bid should align with the Unicode headings")
+		})
+	}
+}
+
+func TestOrderbookDepthLimit(t *testing.T) {
+	// app.Run mutates urfave/cli's package-level help flag, so keep these sequential.
+	for _, source := range []struct {
+		command *cli.Command
+		ceiling uint
+	}{{getOrderbookCommand, 100}, {getOrderbookStreamCommand, 50}} {
+		ceiling := source.ceiling
+		var depthFlag cli.Flag
+		for _, flag := range source.command.Flags {
+			if flag.Names()[0] == "depthlimit" {
+				depthFlag = flag
+				break
+			}
+		}
+		require.NotNil(t, depthFlag, "the actual command must define a depth flag")
+		for _, tc := range []struct {
+			name      string
+			args      []string
+			expected  uint
+			wantError bool
+		}{
+			{name: "omitted", expected: ceiling},
+			{name: "zero", args: []string{"--depthlimit", "0"}, expected: ceiling},
+			{name: "negative", args: []string{"--depthlimit=-1"}, wantError: true},
+			{name: "negative separate argument", args: []string{"--depthlimit", "-1"}, wantError: true},
+			{name: "minimum", args: []string{"--depthlimit", "1"}, expected: 1},
+			{name: "below ceiling", args: []string{"--depthlimit", strconv.FormatUint(uint64(ceiling-1), 10)}, expected: ceiling - 1},
+			{name: "at ceiling", args: []string{"--depthlimit", strconv.FormatUint(uint64(ceiling), 10)}, expected: ceiling},
+			{name: "above ceiling", args: []string{"--depthlimit", strconv.FormatUint(uint64(ceiling+1), 10)}, expected: ceiling},
+			{name: "maximum uint", args: []string{"--depthlimit", strconv.FormatUint(uint64(^uint(0)), 10)}, expected: ceiling},
+			{name: "overflow", args: []string{"--depthlimit", "18446744073709551616"}, wantError: true},
+		} {
+			t.Run(fmt.Sprintf("ceiling %d/%s", ceiling, tc.name), func(t *testing.T) {
+				var got uint
+				var called bool
+				command := &cli.Command{Name: "depth", Flags: []cli.Flag{depthFlag}, Action: func(c *cli.Context) error {
+					called = true
+					got = orderbookDepthLimit(c, ceiling)
+					return nil
+				}}
+				app := &cli.App{Commands: []*cli.Command{command}, Writer: io.Discard, ErrWriter: io.Discard}
+				err := app.Run(append([]string{"gctcli", "depth"}, tc.args...))
+				if tc.wantError {
+					require.Error(t, err, "negative and overflowing depth flags must fail parsing")
+					assert.False(t, called, "invalid depth flags should not reach the command action")
+					return
+				}
+				require.NoError(t, err, "parsing the depth limit must succeed")
+				assert.True(t, called, "valid depth flags should reach the command action")
+				assert.Equal(t, tc.expected, got, "the depth limit should fall back to the ceiling when unset or out of range")
+			})
+		}
 	}
 }
 
@@ -239,11 +346,7 @@ func TestOrderbookRenderingDepth(t *testing.T) {
 					book.Asks = append(book.Asks, &gctrpc.OrderbookItem{Price: float64(200 + i), Amount: float64(i + 2)})
 				}
 				var output strings.Builder
-				if exchangeStyle {
-					require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", tc.limit), "rendering must succeed")
-				} else {
-					require.NoError(t, renderOrderbookStream(&output, book, "test", tc.limit), "rendering must succeed")
-				}
+				require.NoError(t, renderOrderbook(&output, book, exchangeStyle, tc.limit), "rendering must succeed")
 				var got []string
 				for line := range strings.SplitSeq(output.String(), "\n") {
 					if strings.HasPrefix(line, redText) || strings.HasPrefix(line, greenText) {

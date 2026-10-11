@@ -227,6 +227,14 @@ Use `require` and `assert` appropriately:
 - For length, index and display-limit changes, test empty and single-entry
     collections, unequal collection lengths and values below, at and above the
     limit. Assert the final included entry and ordering, not only the count.
+    Test command-line defaults and clamping through flag parsing rather than
+    passing only precomputed limits to the renderer.
+- For terminal alignment, measure and pad in display columns, not bytes or
+    rune counts. Test values wider than their headings on opposing columns and
+    sides, and headings containing wide, fullwidth and combining characters.
+- Bound asynchronous waits in tests with deadlines so missing events fail
+    promptly rather than relying on the package timeout. Keep tests sequential
+    when an invoked library mutates package-level state.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 

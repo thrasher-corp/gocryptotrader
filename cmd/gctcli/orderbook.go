@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/text/width"
 )
 
 var orderbookCommonFlags = []cli.Flag{
@@ -338,7 +340,7 @@ var getOrderbookCommand = &cli.Command{
 			Name:  "exchangestyle",
 			Usage: "optional - renders the books like on an exchange website",
 		},
-		&cli.Int64Flag{
+		&cli.UintFlag{
 			Name:  "depthlimit",
 			Usage: "optional - limit how deep the book rendering is, max 100 - only works if exchangestyle is true",
 		}),
@@ -375,11 +377,8 @@ func getOrderbook(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling = 100 // The maximum the depth can be regardless of user entry
-	depthLimit := depthCeiling
-	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = int(d)
-	}
+	const depthCeiling = 100                                // The maximum the depth can be regardless of user entry
+	depthLimit := int(orderbookDepthLimit(c, depthCeiling)) // Clamped to 100 before converting for slice-based rendering.
 
 	assetType = strings.ToLower(assetType)
 	if !validAsset(assetType) {
@@ -452,7 +451,7 @@ var getOrderbookStreamCommand = &cli.Command{
 			Name:  "exchangestyle",
 			Usage: "optional - renders the books like on an exchange website",
 		},
-		&cli.Int64Flag{
+		&cli.UintFlag{
 			Name:  "depthlimit",
 			Usage: "optional - limit how deep the book rendering is, max 50",
 		}),
@@ -489,11 +488,8 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling = 50 // The maximum the depth can be regardless of user entry
-	depthLimit := depthCeiling
-	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = int(d)
-	}
+	const depthCeiling = 50                                 // The maximum the depth can be regardless of user entry
+	depthLimit := int(orderbookDepthLimit(c, depthCeiling)) // Clamped to 50 before converting for slice-based rendering.
 
 	assetType = strings.ToLower(assetType)
 
@@ -555,6 +551,35 @@ func getOrderbookStream(c *cli.Context) error {
 	}
 }
 
+func orderbookDepthLimit(c *cli.Context, ceiling uint) uint {
+	if d := c.Uint("depthlimit"); d > 0 && d < ceiling {
+		return d
+	}
+	return ceiling
+}
+
+// orderbookTextWidth measures terminal columns rather than bytes or runes.
+// Exchange currency codes can contain wide glyphs and combining marks.
+func orderbookTextWidth(text string) int {
+	var columns int
+	for _, char := range text {
+		if char < 128 {
+			columns++
+			continue
+		}
+		if unicode.Is(unicode.M, char) || unicode.Is(unicode.Cf, char) {
+			continue
+		}
+		switch width.LookupRune(char).Kind() {
+		case width.EastAsianWide, width.EastAsianFullwidth:
+			columns += 2
+		default:
+			columns++
+		}
+	}
+	return columns
+}
+
 type orderbookDisplayLevel struct {
 	price, amount string
 }
@@ -577,11 +602,11 @@ func orderbookDisplayLevels(items []*gctrpc.OrderbookItem, depthLimit int) []ord
 }
 
 func orderbookColumnWidths(bids, asks []orderbookDisplayLevel, priceHeader, amountHeader string) (priceWidth, amountWidth int) {
-	priceWidth, amountWidth = len(priceHeader), len(amountHeader)
+	priceWidth, amountWidth = orderbookTextWidth(priceHeader), orderbookTextWidth(amountHeader)
 	for _, side := range [][]orderbookDisplayLevel{bids, asks} {
 		for _, level := range side {
-			priceWidth = max(priceWidth, len(level.price))
-			amountWidth = max(amountWidth, len(level.amount))
+			priceWidth = max(priceWidth, orderbookTextWidth(level.price))
+			amountWidth = max(amountWidth, orderbookTextWidth(level.amount))
 		}
 	}
 	return priceWidth, amountWidth
@@ -632,12 +657,12 @@ func normaliseOrderbookPrecision(bids, asks []orderbookDisplayLevel) {
 }
 
 func writeOrderbookColumns(frame *bytes.Buffer, level orderbookDisplayLevel, priceWidth, amountWidth int) {
-	for range priceWidth - len(level.price) {
+	for range priceWidth - orderbookTextWidth(level.price) {
 		frame.WriteByte(' ')
 	}
 	frame.WriteString(level.price)
 	frame.WriteString("  ")
-	for range amountWidth - len(level.amount) {
+	for range amountWidth - orderbookTextWidth(level.amount) {
 		frame.WriteByte(' ')
 	}
 	frame.WriteString(level.amount)
@@ -661,9 +686,13 @@ func renderOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchange
 	priceWidth, amountWidth := orderbookColumnWidths(bids, asks, priceHeader, amountHeader)
 	var frame bytes.Buffer
 	frame.Grow(256 + (2*(priceWidth+amountWidth+2)+4)*max(len(bids), len(asks)))
-	fmt.Fprintf(&frame, "Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
+	fmt.Fprintf(&frame, "Orderbook stream for %s %s-%s:\n\n", exchangeName, strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote))
 	fmt.Fprintf(&frame, "%-*s | Asks\n", priceWidth+amountWidth+2, "Bids")
-	fmt.Fprintf(&frame, "%*s  %*s | %*s  %*s\n", priceWidth, priceHeader, amountWidth, amountHeader, priceWidth, priceHeader, amountWidth, amountHeader)
+	headings := orderbookDisplayLevel{price: priceHeader, amount: amountHeader}
+	writeOrderbookColumns(&frame, headings, priceWidth, amountWidth)
+	frame.WriteString(" | ")
+	writeOrderbookColumns(&frame, headings, priceWidth, amountWidth)
+	frame.WriteByte('\n')
 	for i := range max(len(bids), len(asks)) {
 		var bid, ask orderbookDisplayLevel
 		if i < len(bids) {
@@ -690,7 +719,9 @@ func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, e
 	frame.Grow(256 + (len(redText)+priceWidth+amountWidth+3)*(len(bids)+len(asks)))
 	fmt.Fprintf(&frame, "%sOrderbook stream for %v %v %v - Last updated %v\n",
 		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
-	fmt.Fprintf(&frame, "%s%*s  %*s\n", grayText, priceWidth, priceHeader, amountWidth, amountHeader)
+	frame.WriteString(grayText)
+	writeOrderbookColumns(&frame, orderbookDisplayLevel{price: priceHeader, amount: amountHeader}, priceWidth, amountWidth)
+	frame.WriteByte('\n')
 	for i := len(asks); i > 0; i-- {
 		frame.WriteString(redText)
 		writeOrderbookColumns(&frame, asks[i-1], priceWidth, amountWidth)
