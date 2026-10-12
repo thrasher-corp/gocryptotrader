@@ -169,6 +169,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("currencylayer", &b.Settings.EnableCurrencyLayer, b.Config.Currency.ForexProviders.IsEnabled("currencylayer"))
 	flagSet.WithBool("exchangerates", &b.Settings.EnableExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("exchangerates"))
 	flagSet.WithBool("fixer", &b.Settings.EnableFixer, b.Config.Currency.ForexProviders.IsEnabled("fixer"))
+	flagSet.WithBool("fxmacrodata", &b.Settings.EnableFXMacroData, b.Config.Currency.ForexProviders.IsEnabled("fxmacrodata"))
 	flagSet.WithBool("openexchangerates", &b.Settings.EnableOpenExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("openexchangerates"))
 
 	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
@@ -403,6 +404,7 @@ func (bot *Engine) Start() error {
 			CurrencyLayer:     bot.Settings.EnableCurrencyLayer,
 			ExchangeRates:     bot.Settings.EnableExchangeRates,
 			Fixer:             bot.Settings.EnableFixer,
+			FXMacroData:       bot.Settings.EnableFXMacroData,
 			OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
 		},
 		&bot.Config.Currency,
