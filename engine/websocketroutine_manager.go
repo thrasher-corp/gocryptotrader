@@ -298,6 +298,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			return err
 		}
 		if err := m.syncer.WebsocketUpdate(exchName, base.Pair, base.Asset, SyncItemOrderbook, nil); err != nil {
+			if errors.Is(err, errCouldNotSyncNewData) {
+				return nil
+			}
 			return err
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)

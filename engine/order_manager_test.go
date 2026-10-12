@@ -483,29 +483,55 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
-	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(t.Context(), "", "", currency.EMPTYPAIR, asset.Empty)
-	if err == nil {
-		t.Error("Expected error due to empty order")
-	}
-
-	var result order.Detail
-	result, err = m.GetOrderInfo(t.Context(),
-		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
-	if err != nil {
-		t.Error(err)
-	}
-	if result.OrderID != "1337" {
-		t.Error("unexpected order returned")
-	}
-
-	result, err = m.GetOrderInfo(t.Context(),
-		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
-	if err != nil {
-		t.Error(err)
-	}
-	if result.OrderID != "1337" {
-		t.Error("unexpected order returned")
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		returnedPair  currency.Pair
+		returnedAsset asset.Item
+		disabledAsset bool
+		nilResponse   bool
+		emptyID       bool
+		managed       bool
+		wantErr       error
+	}{
+		{name: "enabled returned pair is managed", returnedPair: currency.NewBTCUSDT(), returnedAsset: asset.Spot, managed: true},
+		{name: "available-only returned pair stays unmanaged", returnedPair: currency.NewPair(currency.ETH, currency.USDT), returnedAsset: asset.Spot},
+		{name: "disabled returned asset stays unmanaged", returnedPair: currency.NewBTCUSDT(), returnedAsset: asset.Margin, disabledAsset: true},
+		{name: "nil response", nilResponse: true, wantErr: common.ErrInvalidResponse},
+		{name: "empty ID", emptyID: true, wantErr: ErrOrderIDCannotBeEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			base, err := em.NewExchangeByName("Binance")
+			require.NoError(t, err)
+			base.SetDefaults()
+			pair := currency.NewBTCUSDT()
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				require.NoError(t, base.GetBase().CurrencyPairs.Store(a, &currency.PairStore{AssetEnabled: !tc.disabledAsset || a != tc.returnedAsset, Available: currency.Pairs{pair, currency.NewPair(currency.ETH, currency.USDT)}, Enabled: currency.Pairs{pair}, ConfigFormat: &currency.EMPTYFORMAT}))
+			}
+			ex := &orderLookupExchange{IBotExchange: base}
+			if !tc.nilResponse {
+				ex.response = &order.Detail{Exchange: "Binance", OrderID: "123", Pair: tc.returnedPair, AssetType: tc.returnedAsset, Status: order.Active}
+			}
+			require.NoError(t, em.Add(ex))
+			var wg sync.WaitGroup
+			m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+			require.NoError(t, err)
+			m.started.Store(true)
+			id := "123"
+			if tc.emptyID {
+				id = ""
+			}
+			result, err := m.GetOrderInfo(t.Context(), "Binance", id, pair, asset.Spot)
+			require.ErrorIs(t, err, tc.wantErr)
+			if tc.wantErr == nil {
+				assert.Equal(t, ex.response.OrderID, result.OrderID)
+				assert.Equal(t, tc.returnedPair, result.Pair)
+				assert.Equal(t, tc.returnedAsset, result.AssetType)
+			}
+			assert.Equal(t, tc.managed, m.orderStore.getByDetail(ex.response) != nil, "management should depend on the returned instrument, not the requested pair")
+		})
 	}
 }
 

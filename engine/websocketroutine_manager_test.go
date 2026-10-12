@@ -1,11 +1,17 @@
 package engine
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -16,10 +22,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+type bookSyncRecorder struct {
+	*SyncManager
+	err       error
+	updates   int
+	summaries []asset.Item
+	failed    []error
+}
+
+func (r *bookSyncRecorder) WebsocketUpdate(name string, pair currency.Pair, a asset.Item, kind syncItemType, err error) error {
+	r.updates++
+	if r.err != nil {
+		return r.err
+	}
+	err = r.SyncManager.WebsocketUpdate(name, pair, a, kind, err)
+	if err != nil {
+		r.failed = append(r.failed, err)
+	}
+	return err
+}
+
+func (r *bookSyncRecorder) PrintOrderbookSummary(book *orderbook.Book, _ string, _ error) {
+	r.summaries = append(r.summaries, book.Asset)
+}
 
 type tickerSyncRecorder struct {
 	*SyncManager
@@ -446,6 +479,135 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 
 func TestWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		asset   asset.Item
+		tracked bool
+		syncErr error
+		invalid bool
+		wantErr error
+	}{
+		{name: "tracked orderbook", asset: asset.Spot, tracked: true},
+		{name: "untracked margin orderbook", asset: asset.Margin},
+		{name: "untracked futures orderbook", asset: asset.Futures},
+		{name: "wrapped untracked error", asset: asset.Spot, syncErr: fmt.Errorf("wrapped: %w", errCouldNotSyncNewData)},
+		{name: "other sync error", asset: asset.Spot, syncErr: ErrSubSystemNotStarted, wantErr: ErrSubSystemNotStarted},
+		{name: "wrapped other sync error", asset: asset.Spot, syncErr: fmt.Errorf("wrapped: %w", ErrNilSubsystem), wantErr: ErrNilSubsystem},
+		{name: "invalid orderbook", asset: asset.Spot, invalid: true, wantErr: orderbook.ErrOrderbookInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			sm := &SyncManager{config: config.SyncManagerConfig{SynchronizeOrderbook: true}}
+			sm.started.Store(true)
+			sm.initSyncStarted.Store(true)
+			sm.initSyncCompleted.Store(true)
+			pair := currency.NewBTCUSDT()
+			if tc.tracked {
+				sm.add(key.NewExchangeAssetPair(t.Name(), tc.asset, pair), syncBase{})
+			}
+			r := &bookSyncRecorder{SyncManager: sm, err: tc.syncErr}
+			m := &WebsocketRoutineManager{syncer: r}
+			depth, err := orderbook.DeployDepth(t.Name(), pair, tc.asset)
+			require.NoError(t, err)
+			book := &orderbook.Book{Exchange: t.Name(), Pair: pair, Asset: tc.asset, LastUpdated: time.Now()}
+			depth.AssignOptions(book)
+			require.NoError(t, depth.LoadSnapshot(book))
+			if tc.invalid {
+				require.ErrorIs(t, depth.Invalidate(ErrNilSubsystem), orderbook.ErrOrderbookInvalid)
+			}
+			require.ErrorIs(t, m.websocketDataHandler(t.Name(), depth), tc.wantErr)
+			if tc.invalid {
+				assert.Zero(t, r.updates)
+			} else {
+				assert.Equal(t, 1, r.updates)
+			}
+			if tc.tracked {
+				assert.Equal(t, []asset.Item{tc.asset}, r.summaries)
+				assert.True(t, sm.currencyPairs[key.NewExchangeAssetPair(t.Name(), tc.asset, pair)].trackers[SyncItemOrderbook].HaveData)
+			} else {
+				assert.Empty(t, r.summaries, "untracked and failed books should not produce successful summaries")
+			}
+		})
+	}
+	t.Run("OKX books5 available margin fan-out", func(t *testing.T) {
+		t.Parallel()
+		ex := new(okx.Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		ex.Name = t.Name()
+		pair := currency.NewBTCUSDT()
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			store := &currency.PairStore{Available: currency.Pairs{pair}, AssetEnabled: true, ConfigFormat: &currency.PairFormat{Delimiter: "-", Uppercase: true}, RequestFormat: &currency.PairFormat{Delimiter: "-", Uppercase: true}}
+			if a == asset.Spot {
+				store.Enabled = currency.Pairs{pair}
+			}
+			require.NoError(t, ex.CurrencyPairs.Store(a, store))
+		}
+		require.NoError(t, ex.Websocket.Orderbook.Setup(ex.Name, ex.Websocket.DataHandler, false))
+		var sent atomic.Bool
+		upgrader := gws.Upgrader{}
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+			conn, err := upgrader.Upgrade(w, request, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer conn.Close()
+			if sent.CompareAndSwap(false, true) {
+				assert.NoError(t, conn.WriteMessage(gws.TextMessage, []byte(`{"arg":{"channel":"books5","instId":"BTC-USDT"},"data":[{"asks":[["101","3","0","1"]],"bids":[["100","2","0","1"]],"ts":"1700000000000"}]}`)))
+			}
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					return
+				}
+			}
+		}))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			require.NoError(t, ex.Websocket.Disable())
+			if err := ex.Websocket.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrNotConnected)
+			}
+		})
+		ex.Features.Subscriptions = subscription.List{}
+		ex.Websocket.SetSubscriptionsNotRequired()
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+server.URL[len("http"):]))
+		require.NoError(t, ex.Websocket.Connect(t.Context()))
+		sm := &SyncManager{config: config.SyncManagerConfig{SynchronizeOrderbook: true}}
+		sm.started.Store(true)
+		sm.initSyncStarted.Store(true)
+		sm.initSyncCompleted.Store(true)
+		tracked := sm.add(key.NewExchangeAssetPair(ex.Name, asset.Spot, pair), syncBase{})
+		r := &bookSyncRecorder{SyncManager: sm}
+		m := &WebsocketRoutineManager{syncer: r}
+		var received []asset.Item
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		for len(received) < 2 {
+			select {
+			case payload := <-ex.Websocket.DataHandler.C:
+				depth, ok := payload.Data.(*orderbook.Depth)
+				if !ok {
+					continue
+				}
+				book, err := depth.Retrieve()
+				require.NoError(t, err)
+				received = append(received, book.Asset)
+				require.NoError(t, m.websocketDataHandler(ex.Name, depth), "real OKX available-only margin pushes must not be logged as sync failures")
+			case <-ctx.Done():
+				require.FailNow(t, "OKX must fan out the raw snapshot to spot and available-only margin")
+			}
+		}
+		assert.ElementsMatch(t, []asset.Item{asset.Spot, asset.Margin}, received)
+		assert.Equal(t, []asset.Item{asset.Spot}, r.summaries)
+		require.Len(t, r.failed, 1)
+		assert.ErrorIs(t, r.failed[0], errCouldNotSyncNewData)
+		assert.True(t, tracked.trackers[SyncItemOrderbook].HaveData)
+		for _, a := range received {
+			cached, err := orderbook.Get(ex.Name, pair, a)
+			require.NoError(t, err)
+			assert.Equal(t, 100.0, cached.Bids[0].Price)
+		}
+	})
 	pair := currency.NewBTCUSD()
 	untracked := currency.NewPair(currency.ETH, currency.USD)
 	for _, tc := range []struct {

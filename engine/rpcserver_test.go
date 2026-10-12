@@ -1349,15 +1349,17 @@ func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	errLookup := errors.New("order lookup failed")
 	for _, tc := range []struct {
-		name         string
-		assetEnabled bool
-		pairEnabled  bool
-		nilManager   bool
-		nilResponse  bool
-		emptyID      bool
-		lookupErr    error
-		wantErr      error
-		managed      bool
+		name          string
+		assetEnabled  bool
+		pairEnabled   bool
+		nilManager    bool
+		nilResponse   bool
+		emptyID       bool
+		lookupErr     error
+		wantErr       error
+		managed       bool
+		returnedPair  currency.Pair
+		returnedAsset asset.Item
 	}{
 		{name: "enabled lookup remains managed", assetEnabled: true, pairEnabled: true, managed: true},
 		{name: "available pair remains unmanaged", assetEnabled: true},
@@ -1369,6 +1371,9 @@ func TestGetOrder(t *testing.T) {
 		{name: "lookup error", assetEnabled: true, lookupErr: errLookup, wantErr: errLookup},
 		{name: "enabled lookup error", assetEnabled: true, pairEnabled: true, lookupErr: errLookup, wantErr: errLookup},
 		{name: "nil exchange response", assetEnabled: true, nilResponse: true, wantErr: common.ErrInvalidResponse},
+		{name: "enabled request returning available-only pair", assetEnabled: true, pairEnabled: true, returnedPair: currency.NewPair(currency.ETH, currency.USDT)},
+		{name: "enabled request returning disabled asset", assetEnabled: true, pairEnabled: true, returnedAsset: asset.Margin},
+		{name: "enabled nil exchange response", assetEnabled: true, pairEnabled: true, nilResponse: true, wantErr: common.ErrInvalidResponse},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1378,14 +1383,21 @@ func TestGetOrder(t *testing.T) {
 			base.SetDefaults()
 			base.SetEnabled(true)
 			pair := currency.NewBTCUSDT()
-			store := &currency.PairStore{Available: currency.Pairs{pair}, AssetEnabled: tc.assetEnabled, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}}
+			store := &currency.PairStore{Available: currency.Pairs{pair, currency.NewPair(currency.ETH, currency.USDT)}, AssetEnabled: tc.assetEnabled, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}}
 			if tc.pairEnabled {
 				store.Enabled = currency.Pairs{pair}
 			}
 			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, store), "pair scope must be configured")
+			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Margin, &currency.PairStore{Available: currency.Pairs{pair}, Enabled: currency.Pairs{pair}, ConfigFormat: &currency.PairFormat{Uppercase: true}}))
 			ex := &orderLookupExchange{IBotExchange: base, err: tc.lookupErr}
 			if !tc.nilResponse {
 				ex.response = &order.Detail{Exchange: "Binance", OrderID: "123", Pair: pair, AssetType: asset.Spot, Status: order.Active}
+				if !tc.returnedPair.IsEmpty() {
+					ex.response.Pair = tc.returnedPair
+				}
+				if tc.returnedAsset.IsValid() {
+					ex.response.AssetType = tc.returnedAsset
+				}
 			}
 			require.NoError(t, em.Add(ex), "exchange must be registered")
 			var wg sync.WaitGroup
@@ -2264,47 +2276,42 @@ func TestCurrencyStateTrading(t *testing.T) {
 
 func TestCurrencyStateTradingPair(t *testing.T) {
 	t.Parallel()
-	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := exch.GetBase()
-	b.Name = fakeExchangeName
-	b.Enabled = true
-
-	cp, err := currency.NewPairFromString("btc-usd")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: true,
-		ConfigFormat: &currency.EMPTYFORMAT,
-		Available:    currency.Pairs{cp},
-		Enabled:      currency.Pairs{cp},
-	}
-	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
-	require.NoError(t, err)
-	fakeExchange := fExchange{
-		IBotExchange: exch,
-	}
-	err = em.Add(fakeExchange)
-	require.NoError(t, err)
-
-	s := RPCServer{Engine: &Engine{
-		ExchangeManager:      em,
-		currencyStateManager: getDummyStateManager(em),
-	}}
-
-	_, err = s.CurrencyStateTradingPair(t.Context(),
-		&gctrpc.CurrencyStateTradingPairRequest{
-			Exchange: fakeExchangeName,
-			Pair:     "btc-usd",
-			Asset:    "spot",
+	for _, tc := range []struct {
+		name         string
+		assetEnabled bool
+		enabled      currency.Pairs
+		wantErr      error
+	}{
+		{name: "enabled pair", assetEnabled: true, enabled: currency.Pairs{currency.NewBTCUSD()}},
+		{name: "available pair without enabled pairs", assetEnabled: true, wantErr: errCurrencyNotEnabled},
+		{name: "available pair beside another enabled pair", assetEnabled: true, enabled: currency.Pairs{currency.NewPair(currency.ETH, currency.USD)}, wantErr: errCurrencyNotEnabled},
+		{name: "disabled asset with enabled pair", enabled: currency.Pairs{currency.NewBTCUSD()}, wantErr: asset.ErrNotEnabled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			exch, err := em.NewExchangeByName(testExchange)
+			require.NoError(t, err)
+			exch.SetDefaults()
+			exch.SetEnabled(true)
+			exch.GetBase().Name = t.Name()
+			require.NoError(t, exch.GetBase().CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				AssetEnabled: tc.assetEnabled,
+				ConfigFormat: &currency.EMPTYFORMAT,
+				Available:    currency.Pairs{currency.NewBTCUSD(), currency.NewPair(currency.ETH, currency.USD)},
+				Enabled:      tc.enabled,
+			}))
+			require.NoError(t, em.Add(fExchange{IBotExchange: exch}))
+			s := RPCServer{Engine: &Engine{ExchangeManager: em, currencyStateManager: getDummyStateManager(em)}}
+			response, err := s.CurrencyStateTradingPair(t.Context(), &gctrpc.CurrencyStateTradingPairRequest{Exchange: t.Name(), Pair: "btc-usd", Asset: "spot"})
+			require.ErrorIs(t, err, tc.wantErr)
+			if tc.wantErr == nil {
+				require.NotNil(t, response)
+			} else {
+				assert.Nil(t, response, "disabled scope should be rejected before the trading-state lookup")
+			}
 		})
-	require.NoError(t, err)
+	}
 }
 
 func getDummyStateManager(em *ExchangeManager) *CurrencyStateManager {

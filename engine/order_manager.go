@@ -359,6 +359,18 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 	if err != nil {
 		return order.Detail{}, err
 	}
+	if result == nil {
+		return order.Detail{}, common.ErrInvalidResponse
+	}
+	// ID-based lookups may return a different instrument from the requested pair.
+	// Only orders in the returned instrument's enabled scope are managed.
+	enabled, err := exch.IsPairEnabled(result.Pair, result.AssetType)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	if !enabled {
+		return *result, nil
+	}
 
 	upsertResponse, err := m.orderStore.upsert(result)
 	if err != nil {

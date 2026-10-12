@@ -2151,7 +2151,11 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
+	ctx := stream.Context()
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		resp := &gctrpc.OrderbookResponse{
 			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
 			AssetType: r.AssetType,
@@ -2183,7 +2187,9 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		if err := stream.Send(resp); err != nil {
 			return err
 		}
-		<-depth.Wait(nil)
+		if <-depth.Wait(ctx.Done()) {
+			return ctx.Err()
+		}
 	}
 }
 
@@ -3828,6 +3834,16 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 
 	if err := checkParamsWithAvailable(exch, ai, cp); err != nil {
 		return nil, err
+	}
+	if err := exch.GetBase().CurrencyPairs.IsAssetEnabled(ai); err != nil {
+		return nil, err
+	}
+	enabled, err := exch.IsPairEnabled(cp, ai)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, fmt.Errorf("%s %w", cp, errCurrencyNotEnabled)
 	}
 
 	if err := exch.CanTradePair(cp, ai); err != nil {
