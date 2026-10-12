@@ -7244,10 +7244,11 @@ func TestWsProcessSpreadOrdersReportsFills(t *testing.T) {
 	stamp := time.UnixMilli(1597026383085)
 	exp := []order.Detail{{
 		AssetType: asset.Spread, Amount: 3, AverageExecutedPrice: 998, ClientOrderID: "b1", Date: stamp, Exchange: ex.Name,
-		ExecutedAmount: 2, OrderID: "312269865356374016", Pair: spreadPair, Price: 999, QuoteAmount: 2997, RemainingAmount: 1,
+		ExecutedAmount: 2, OrderID: "312269865356374016", Pair: spreadPair, Price: 999, RemainingAmount: 1,
 		Side: order.Buy, Status: order.PartiallyFilled, Type: order.Limit, LastUpdated: stamp, TimeInForce: order.PostOnly,
 	}}
 	assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
+	assert.Zero(t, details[0].QuoteAmount, "the spread stream should leave the quote amount unset")
 }
 
 func TestWsProcessSpreadTradesJSON(t *testing.T) {

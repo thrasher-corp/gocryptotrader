@@ -586,6 +586,9 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
+// No quote amount is reported: a spread's price is the difference between its
+// legs, and OKX sizes inverse spreads in USD, so size times price is not a
+// notional.
 func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) error {
 	resp := &struct {
 		Argument SubscriptionInfo `json:"arg"`
@@ -634,7 +637,6 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
-			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
 			RemainingAmount:      spreadRemaining,
 			Side:                 oSide,
 			Status:               oStatus,

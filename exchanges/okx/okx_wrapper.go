@@ -2188,7 +2188,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.AveragePrice.Float64() * resp.AccFillSize.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
@@ -2463,7 +2462,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Pair:                 pair,
 				Price:                spreads[x].Price.Float64(),
 				AverageExecutedPrice: spreads[x].AveragePrice.Float64(),
-				Cost:                 spreads[x].AveragePrice.Float64() * spreads[x].AccFillSize.Float64(),
 				ExecutedAmount:       spreadExec,
 				RemainingAmount:      spreadRemaining,
 				Exchange:             e.Name,
@@ -2707,7 +2705,9 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 // order Detail. OKX documents sprdId, not instId, so the pair comes from the
 // spread ID like the other spread listings; cutting at the first delimiter
 // keeps the same encoding the pair manager stores for asset.Spread, so
-// formatting the pair reproduces the spread ID.
+// formatting the pair reproduces the spread ID. No cost is reported: a
+// spread's price is the difference between its legs, and OKX sizes inverse
+// spreads in USD, so price times size is not what the fills cost.
 func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, format currency.PairFormat) (order.Detail, error) {
 	pair, err := currency.NewPairDelimiter(so.SpreadID, format.Delimiter)
 	if err != nil {
@@ -2734,7 +2734,6 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 	return order.Detail{
 		Price:                so.Price.Float64(),
 		AverageExecutedPrice: so.AveragePrice.Float64(),
-		Cost:                 so.AveragePrice.Float64() * so.AccFillSize.Float64(),
 		Amount:               amount,
 		ExecutedAmount:       executed,
 		RemainingAmount:      remaining,
@@ -3645,13 +3644,16 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			} else if avgPx := positions[j].AveragePrice.Float64(); avgPx > 0 {
 				cost = multiplier * positions[j].AccumulatedFillSize.Float64() / avgPx
 			}
+			// The amount, its executed and remaining parts are scaled by the
+			// contract value so they share a unit, while ContractAmount keeps
+			// the contract count OKX states them in.
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
 				Amount:               orderAmount.Float64() * multiplier,
 				ContractAmount:       orderAmount.Float64(),
-				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
-				RemainingAmount:      remainingAmount,
+				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64() * multiplier,
+				RemainingAmount:      remainingAmount * multiplier,
 				Fee:                  okxFee(positions[j].TransactionFee),
 				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
 				Exchange:             e.Name,

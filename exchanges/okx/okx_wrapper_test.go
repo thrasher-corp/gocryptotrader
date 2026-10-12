@@ -2662,7 +2662,7 @@ func TestSpreadOrderDetails(t *testing.T) {
 			assert.Equal(t, tc.executed, detail.ExecutedAmount, "GetOrderInfo should report the accumulated fill")
 			assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
 			assert.Equal(t, 90.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
-			assert.InDelta(t, 90*tc.executed, detail.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill, not the order price")
+			assert.Zero(t, detail.Cost, "GetOrderInfo should leave a spread order's cost unset")
 		})
 	}
 }
@@ -2713,7 +2713,7 @@ func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	assert.Equal(t, order.Active, first.Status, "GetOrderHistory should read the order state")
 	assert.Equal(t, 100.0, first.Price, "GetOrderHistory should read the limit price")
 	assert.Equal(t, 90.0, first.AverageExecutedPrice, "GetOrderHistory should read the average filled price")
-	assert.InDelta(t, 27.0, first.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill")
+	assert.Zero(t, first.Cost, "GetOrderHistory should leave a spread order's cost unset")
 	assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
 	assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
 	assert.InDelta(t, 0.7, first.RemainingAmount, 1e-9, "an unfilled spread order should keep its remaining amount")
@@ -2723,7 +2723,10 @@ func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	second := rows["2"]
 	assert.Equal(t, order.Filled, second.Status, "GetOrderHistory should read the filled state")
 	assert.Equal(t, 0.0, second.RemainingAmount, "a filled spread order should have nothing remaining")
-	assert.InDelta(t, 176.0, second.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill")
+	assert.Equal(t, 2.0, second.Amount, "GetOrderHistory should read the filled order size")
+	assert.Equal(t, 2.0, second.ExecutedAmount, "GetOrderHistory should read the filled order's accumulated fill")
+	assert.Equal(t, 88.0, second.AverageExecutedPrice, "GetOrderHistory should read the filled order's average price")
+	assert.Zero(t, second.Cost, "GetOrderHistory should leave a filled spread order's cost unset")
 }
 
 // TestOCOStopLossTriggerPrice guards the OCO submit path: the stop loss leg
@@ -5248,8 +5251,8 @@ func TestGetActiveOrdersReportExecutionValues(t *testing.T) {
 }
 
 // TestGetActiveSpreadOrdersReportExecutionValues guards the pending spread
-// order mapping: it reports the average executed price and the cost of the
-// fills like the spread history does.
+// order mapping: it reports the average executed price and, like the spread
+// history, leaves the cost unset.
 func TestGetActiveSpreadOrdersReportExecutionValues(t *testing.T) {
 	t.Parallel()
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5269,7 +5272,9 @@ func TestGetActiveSpreadOrdersReportExecutionValues(t *testing.T) {
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, active, 1, "the pending spread order must be returned")
 	assert.Equal(t, 90.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
-	assert.InDelta(t, 27.0, active[0].Cost, 1e-9, "the cost should be the average filled price times the accumulated fill")
+	assert.Equal(t, 1.0, active[0].Amount, "GetActiveOrders should read the order size")
+	assert.Equal(t, 0.3, active[0].ExecutedAmount, "GetActiveOrders should read the accumulated fill")
+	assert.Zero(t, active[0].Cost, "GetActiveOrders should leave a spread order's cost unset")
 }
 
 // TestGetFuturesPositionOrdersFeeSign guards the fee sign on the futures
@@ -5414,6 +5419,41 @@ func TestGetFuturesPositionOrdersReportsContractCosts(t *testing.T) {
 			assert.False(t, math.IsNaN(got.Cost), "an unfilled order's cost should never be not-a-number")
 		})
 	}
+}
+
+// TestGetFuturesPositionOrdersScalesExecutionAmounts guards the unit of the
+// execution sizes: the amount is scaled by the contract value, so its executed
+// and remaining parts are scaled with it, while ContractAmount keeps the
+// contract count: 100 contracts of 0.01 BTC with 40 filled read as an amount
+// of 1 with 0.4 executed and 0.6 remaining.
+func TestGetFuturesPositionOrdersScalesExecutionAmounts(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-time.Minute).UnixMilli(), 10)
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/public/instruments":
+			writeOKXData(t, w, []map[string]string{{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "uly": "BTC-USDT", "ctType": "linear", "settleCcy": "USDT", "ctVal": "0.01", "state": "live"}})
+		case "/trade/orders-history":
+			writeOKXData(t, w, []map[string]string{{
+				"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "live",
+				"sz": "100", "accFillSz": "40", "avgPx": "60000", "px": "60000", "cTime": created, "uTime": created,
+			}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	positions, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{
+		Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair}, StartDate: time.Now().Add(-time.Hour), EndDate: time.Now(),
+	})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, positions, 1, "GetFuturesPositionOrders must return the requested pair")
+	require.Len(t, positions[0].Orders, 1, "GetFuturesPositionOrders must return the order")
+	got := positions[0].Orders[0]
+	assert.Equal(t, 1.0, got.Amount, "the amount should be the contract count scaled by the contract value")
+	assert.Equal(t, 0.4, got.ExecutedAmount, "the executed amount should share the amount's unit")
+	assert.Equal(t, 0.6, got.RemainingAmount, "the remaining amount should share the amount's unit")
+	assert.Equal(t, 100.0, got.ContractAmount, "the contract amount should keep the contract count")
 }
 
 // TestGetOrderHistoryKeepsTheStartTimeMillisecond guards the history crawl's
