@@ -586,8 +586,63 @@ func TestOrderSideFromType(t *testing.T) {
 	}
 }
 
+// TestGetAllOpenOrderIDShortPage ensures a page shorter than the one before
+// it is read in full, and that the next pair is still queried. Indexing with
+// the previous page length panics on the shorter page, and returning on the
+// first empty page skips every pair after it.
+func TestGetAllOpenOrderIDShortPage(t *testing.T) {
+	t.Parallel()
+	ethPair := currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Delimiter: "_"})
+	btcSymbol := testPair.String()
+	ethSymbol := ethPair.String()
+	var calls []string
+	ex := setupOrderGuard(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		assert.Truef(t, strings.HasSuffix(r.URL.Path, lbankOpeningOrders), "the wrapper should only request open orders, got %s", r.URL.Path)
+		symbol := r.Form.Get("symbol")
+		page := r.Form.Get("current_page")
+		calls = append(calls, symbol+"#"+page)
+		var body string
+		switch symbol + "#" + page {
+		case btcSymbol + "#1":
+			body = orderGuardOpenOrders("1", "2")
+		case btcSymbol + "#2":
+			body = orderGuardOpenOrders("3")
+		case ethSymbol + "#1":
+			body = orderGuardOpenOrders("4")
+		default:
+			body = orderGuardNoOrders
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	pairs := currency.Pairs{testPair, ethPair}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error for enabled pairs")
+
+	ids, err := ex.getAllOpenOrderID(t.Context())
+	require.NoError(t, err, "getAllOpenOrderID must not error")
+	assert.Equal(t, []string{"1", "2", "3"}, ids[btcSymbol], "a shorter second page should still return every order id")
+	assert.Equal(t, []string{"4"}, ids[ethSymbol], "the next pair should still be queried after a short page")
+	assert.Equal(t, []string{btcSymbol + "#1", btcSymbol + "#2", btcSymbol + "#3", ethSymbol + "#1", ethSymbol + "#2"}, calls, "each page should be requested once")
+}
+
 // orderGuardNoOrders is an empty LBank order query response.
 const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
+
+// orderGuardOpenOrders returns an open order listing carrying the supplied ids.
+func orderGuardOpenOrders(ids ...string) string {
+	var b strings.Builder
+	b.WriteString(`{"result":"true","error_code":0,"orders":[`)
+	for i, id := range ids {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, `{"order_id":%q,"symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}`, id)
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
 
 // orderGuardOpenOrder returns an open order listing carrying a single order.
 func orderGuardOpenOrder(orderID string) string {

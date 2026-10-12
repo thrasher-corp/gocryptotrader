@@ -741,33 +741,23 @@ func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, 
 		if err != nil {
 			return nil, err
 		}
-		b := int64(1)
-		tempResp, err := e.GetOpenOrders(ctx,
-			fPair.String(),
-			strconv.FormatInt(b, 10),
-			"200")
-		if err != nil {
-			return resp, err
-		}
-		tempData := len(tempResp.Orders)
-		for tempData != 0 {
-			tempResp, err = e.GetOpenOrders(ctx,
+		// Index each page by the orders it returned. The previous page's length
+		// panics when this page is shorter, and returning on the first empty
+		// page skips every pair after it.
+		for page := int64(1); ; page++ {
+			tempResp, err := e.GetOpenOrders(ctx,
 				fPair.String(),
-				strconv.FormatInt(b, 10),
+				strconv.FormatInt(page, 10),
 				"200")
 			if err != nil {
 				return resp, err
 			}
-
 			if len(tempResp.Orders) == 0 {
-				return resp, nil
+				break
 			}
-
-			for c := range tempData {
+			for c := range tempResp.Orders {
 				resp[fPair.String()] = append(resp[fPair.String()], tempResp.Orders[c].OrderID)
 			}
-			tempData = len(tempResp.Orders)
-			b++
 		}
 	}
 	return resp, nil
