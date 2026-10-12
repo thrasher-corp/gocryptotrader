@@ -923,6 +923,8 @@ var stringsToOrderStatus = []struct {
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
 	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
+	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
+	{"partially_canceled", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
