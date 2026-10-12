@@ -737,6 +737,12 @@ func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, e
 	return writeOrderbookFrame(w, &frame)
 }
 
+func renderExchangeOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName string) error {
+	_, err := fmt.Fprintf(w, "Orderbook streamed for %s %s-%s at %s",
+		exchangeName, strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote), time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+	return err
+}
+
 var getExchangeOrderbookStreamCommand = &cli.Command{
 	Name:   "getexchangeorderbookstream",
 	Usage:  "gets a stream for all orderbooks associated with an exchange",
@@ -786,7 +792,9 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook streamed for %s %s at %s", exchangeName, resp.Pair, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+		if err := renderExchangeOrderbookStream(os.Stdout, resp, exchangeName); err != nil {
+			return err
+		}
 		if resp.Error != "" {
 			fmt.Printf("%s\n", resp.Error)
 		}

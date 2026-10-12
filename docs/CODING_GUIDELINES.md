@@ -232,6 +232,8 @@ Use `require` and `assert` appropriately:
 - For terminal alignment, measure and pad in display columns, not bytes or
     rune counts. Test values wider than their headings on opposing columns and
     sides, and headings containing wide, fullwidth and combining characters.
+    Include values wider than Unicode headings so heading padding is exercised,
+    not only numeric padding; cover zero-width format characters as well.
 - Bound asynchronous waits in tests with deadlines so missing events fail
     promptly rather than relying on the package timeout. Keep tests sequential
     when an invoked library mutates package-level state.

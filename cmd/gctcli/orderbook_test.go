@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
@@ -203,6 +205,59 @@ func TestOrderbookRenderingUnicodeHeadings(t *testing.T) {
 			assert.Equal(t, grayText+heading, lines[1], "exchange-style Unicode headings should use terminal widths")
 			assert.Equal(t, redText+ask, lines[2], "the ask should align with the Unicode headings")
 			assert.Equal(t, greenText+bid, lines[4], "the bid should align with the Unicode headings")
+		})
+	}
+}
+
+func TestRenderExchangeOrderbookStream(t *testing.T) {
+	t.Parallel()
+	for _, pair := range []*gctrpc.CurrencyPair{
+		{Base: "btc", Quote: "usd"},
+		{Base: "\u5e01", Quote: "usdt"},
+	} {
+		t.Run(pair.Base, func(t *testing.T) {
+			t.Parallel()
+			book := &gctrpc.OrderbookResponse{Pair: pair, LastUpdated: 1234567890123456}
+			var output strings.Builder
+			require.NoError(t, renderExchangeOrderbookStream(&output, book, "kraken"), "stream summary rendering must succeed")
+			expected := "Orderbook streamed for kraken " + strings.ToUpper(pair.Base) + "-" + strings.ToUpper(pair.Quote) + " at " + time.UnixMicro(book.LastUpdated).Format(common.SimpleTimeFormatWithTimezone)
+			assert.Equal(t, expected, output.String(), "the summary should render the pair without protobuf debug formatting")
+			require.ErrorIs(t, renderExchangeOrderbookStream(orderbookErrorWriter{err: io.ErrClosedPipe}, book, "kraken"), io.ErrClosedPipe, "stream summary writer errors must be propagated")
+		})
+	}
+}
+
+func TestOrderbookRenderingUnicodeHeadingPadding(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, code                  string
+		pricePadding, amountPadding int
+	}{
+		{"wide", "\u5e01", 3, 2},
+		{"combining", "e\u0301", 4, 3},
+		{"format", "x\u200d", 4, 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			book := &gctrpc.OrderbookResponse{
+				Pair: &gctrpc.CurrencyPair{Base: tc.code, Quote: tc.code},
+				Bids: []*gctrpc.OrderbookItem{{StrPrice: "1234567890.5", StrAmount: "1234567890.5"}},
+				Asks: []*gctrpc.OrderbookItem{{StrPrice: "1234567890.6", StrAmount: "1234567890.6"}},
+			}
+			code := strings.ToUpper(tc.code)
+			heading := strings.Repeat(" ", tc.pricePadding) + "Price(" + code + ")  " + strings.Repeat(" ", tc.amountPadding) + "Amount(" + code + ")"
+			for _, exchangeStyle := range []bool{false, true} {
+				var output strings.Builder
+				require.NoError(t, renderOrderbook(&output, book, exchangeStyle, 50), "rendering must succeed")
+				lines := strings.Split(output.String(), "\n")
+				if exchangeStyle {
+					require.Len(t, lines, 7, "the frame must contain one ask and one bid")
+					assert.Equal(t, grayText+heading, lines[1], "exchange-style Unicode headings should be padded in terminal columns")
+				} else {
+					require.Len(t, lines, 6, "the frame must contain its headings and one row")
+					assert.Equal(t, heading+" | "+heading, lines[3], "Unicode headings should be padded in terminal columns")
+				}
+			}
 		})
 	}
 }
