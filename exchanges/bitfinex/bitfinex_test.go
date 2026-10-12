@@ -618,62 +618,102 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickersStoresTradingTimestampFromBatch(t *testing.T) {
-	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp spot test", [][]any{{
-		"tBTCUSD",
-		1.1,
-		2.2,
-		3.3,
-		4.4,
-		5.5,
-		6.6,
-		7.7,
-		8.8,
-		9.9,
-		10.10,
-		1747143592992.0,
-	}})
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error")
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		firstTrade bool
+	}{
+		{name: "FIRST_TRADE present", firstTrade: true},
+		{name: "FIRST_TRADE omitted"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload := []any{
+				"tBTCUSD",
+				1.1,
+				2.2,
+				3.3,
+				4.4,
+				5.5,
+				6.6,
+				7.7,
+				8.8,
+				9.9,
+				10.10,
+				1747143592992.0,
+			}
+			if !tc.firstTrade {
+				payload = payload[:len(payload)-1]
+			}
+			ex := newMockTickerBatchExchange(t, t.Name(), [][]any{payload})
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error")
 
-	err := ex.UpdateTickers(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateTickers must not error")
+			before := time.Now()
+			err := ex.UpdateTickers(t.Context(), asset.Spot)
+			after := time.Now()
+			require.NoError(t, err, "UpdateTickers must not error")
 
-	stored, err := ticker.GetTicker(ex.Name, btcusdPair, asset.Spot)
-	require.NoError(t, err, "GetTicker must not error")
-	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for spot tickers")
+			stored, err := ticker.GetTicker(ex.Name, btcusdPair, asset.Spot)
+			require.NoError(t, err, "GetTicker must not error")
+			assert.False(t, stored.LastUpdated.Before(before), "Stored spot ticker timestamp should be at or after receipt")
+			assert.False(t, stored.LastUpdated.After(after), "Stored spot ticker timestamp should be at or before processing completes")
+			assert.Equal(t, 7.7, stored.Last, "Stored spot ticker price should be preserved")
+		})
+	}
 }
 
 func TestUpdateTickersStoresFundingTimestampFromBatch(t *testing.T) {
-	fundingPair, err := currency.NewPairFromString("USD")
-	require.NoError(t, err, "NewPairFromString must not error")
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		firstTrade bool
+	}{
+		{name: "FIRST_TRADE present", firstTrade: true},
+		{name: "FIRST_TRADE omitted"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fundingPair, err := currency.NewPairFromString("USD")
+			require.NoError(t, err, "NewPairFromString must not error")
 
-	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp funding test", [][]any{{
-		"fUSD",
-		1.1,
-		2.2,
-		3.0,
-		4.4,
-		5.5,
-		6.0,
-		7.7,
-		8.8,
-		9.9,
-		10.10,
-		11.11,
-		12.12,
-		13.13,
-		nil,
-		nil,
-		15.15,
-		1747143592992.0,
-	}})
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.MarginFunding, currency.Pairs{fundingPair}, true), "StorePairs must not error")
+			payload := []any{
+				"fUSD",
+				1.1,
+				2.2,
+				3.0,
+				4.4,
+				5.5,
+				6.0,
+				7.7,
+				8.8,
+				9.9,
+				10.10,
+				11.11,
+				12.12,
+				13.13,
+				nil,
+				nil,
+				15.15,
+				1747143592992.0,
+			}
+			if !tc.firstTrade {
+				payload = payload[:len(payload)-1]
+			}
+			ex := newMockTickerBatchExchange(t, t.Name(), [][]any{payload})
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.MarginFunding, currency.Pairs{fundingPair}, true), "StorePairs must not error")
 
-	err = ex.UpdateTickers(t.Context(), asset.MarginFunding)
-	require.NoError(t, err, "UpdateTickers must not error")
+			before := time.Now()
+			err = ex.UpdateTickers(t.Context(), asset.MarginFunding)
+			after := time.Now()
+			require.NoError(t, err, "UpdateTickers must not error")
 
-	stored, err := ticker.GetTicker(ex.Name, fundingPair, asset.MarginFunding)
-	require.NoError(t, err, "GetTicker must not error")
-	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for funding tickers")
+			stored, err := ticker.GetTicker(ex.Name, fundingPair, asset.MarginFunding)
+			require.NoError(t, err, "GetTicker must not error")
+			assert.False(t, stored.LastUpdated.Before(before), "Stored funding ticker timestamp should be at or after receipt")
+			assert.False(t, stored.LastUpdated.After(after), "Stored funding ticker timestamp should be at or before processing completes")
+			assert.Equal(t, 10.10, stored.Last, "Stored funding ticker price should be preserved")
+		})
+	}
 }
 
 func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exchange {
@@ -1851,19 +1891,27 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	conn, connErr := e.Websocket.CreateTestConnection(asset.Spot)
 	require.NoError(t, connErr, "connection must be created")
 	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "connection must be tracked")
 	err := e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: websocketChannelKey{conn, 11534}})
 	require.NoError(t, err, "AddSubscriptions must not error")
 
+	before := time.Now()
 	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
+	after := time.Now()
 	require.NoError(t, err, "wsHandleData must not error for optional trailing ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
 		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.False(t, tick.LastUpdated.Before(before), "Ticker timestamp should be at or after receipt")
+		assert.False(t, tick.LastUpdated.After(after), "Ticker timestamp should be at or before processing completes")
+		stored, err := ticker.GetTicker(e.Name, btcusdPair, asset.Spot)
+		require.NoError(t, err, "Ticker must be cached before it is emitted")
+		assert.Equal(t, tick, stored, "Cached ticker should match the emitted ticker")
 		assert.Equal(t, btcusdPair, tick.Pair, "Ticker pair should be correct")
 		assert.Equal(t, asset.Spot, tick.AssetType, "Ticker asset should be correct")
 		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
@@ -1872,7 +1920,6 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 50973.3020771, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
-		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1883,6 +1930,7 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	fundingPair, err := currency.NewPairFromStrings("USD", "")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 	conn, connErr := e.Websocket.CreateTestConnection(asset.Spot)
@@ -1891,13 +1939,20 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: websocketChannelKey{conn, 22334}})
 	require.NoError(t, err, "AddSubscriptions must not error")
 
+	before := time.Now()
 	err = e.wsHandleData(t.Context(), conn, []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
+	after := time.Now()
 	require.NoError(t, err, "wsHandleData must not error for optional trailing funding ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
 		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.False(t, tick.LastUpdated.Before(before), "Ticker timestamp should be at or after receipt")
+		assert.False(t, tick.LastUpdated.After(after), "Ticker timestamp should be at or before processing completes")
+		stored, err := ticker.GetTicker(e.Name, fundingPair, asset.MarginFunding)
+		require.NoError(t, err, "Ticker must be cached before it is emitted")
+		assert.Equal(t, tick, stored, "Cached ticker should match the emitted ticker")
 		assert.Equal(t, fundingPair, tick.Pair, "Ticker pair should be correct")
 		assert.Equal(t, asset.MarginFunding, tick.AssetType, "Ticker asset should be correct")
 		assert.Equal(t, 1.1, tick.FlashReturnRate, "Ticker flash return rate should be correct")
@@ -1910,7 +1965,6 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
-		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
 	}
@@ -1921,20 +1975,30 @@ func TestWSTickerResponseTrailingTimestamp(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	conn, connErr := e.Websocket.CreateTestConnection(asset.Spot)
 	require.NoError(t, connErr, "connection must be created")
 	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "connection must be tracked")
 	err := e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: websocketChannelKey{conn, 11534}})
 	require.NoError(t, err, "AddSubscriptions must not error")
 
+	before := time.Now()
 	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,1747143592992]]`))
+	after := time.Now()
 	require.NoError(t, err, "wsHandleData must not error for trailing ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
 		require.True(t, ok, "DataHandler must receive a ticker.Price")
-		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve FIRST_TRADE timestamps")
+		assert.False(t, tick.LastUpdated.Before(before), "Ticker timestamp should be at or after receipt")
+		assert.False(t, tick.LastUpdated.After(after), "Ticker timestamp should be at or before processing completes")
+		stored, err := ticker.GetTicker(e.Name, btcusdPair, asset.Spot)
+		require.NoError(t, err, "Ticker must be cached before it is emitted")
+		assert.Equal(t, tick, stored, "Cached ticker should match the emitted ticker")
+		assert.Equal(t, btcusdPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.Spot, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 61.371, tick.Last, "Ticker last should be correct")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1945,6 +2009,7 @@ func TestWSFundingTickerResponseTrailingTimestamp(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	fundingPair, err := currency.NewPairFromStrings("USD", "")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 	conn, connErr := e.Websocket.CreateTestConnection(asset.Spot)
@@ -1953,14 +2018,23 @@ func TestWSFundingTickerResponseTrailingTimestamp(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: websocketChannelKey{conn, 22334}})
 	require.NoError(t, err, "AddSubscriptions must not error")
 
+	before := time.Now()
 	err = e.wsHandleData(t.Context(), conn, []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,1747143592992]]`))
+	after := time.Now()
 	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
 		require.True(t, ok, "DataHandler must receive a ticker.Price")
-		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve funding FIRST_TRADE timestamps")
+		assert.False(t, tick.LastUpdated.Before(before), "Ticker timestamp should be at or after receipt")
+		assert.False(t, tick.LastUpdated.After(after), "Ticker timestamp should be at or before processing completes")
+		stored, err := ticker.GetTicker(e.Name, fundingPair, asset.MarginFunding)
+		require.NoError(t, err, "Ticker must be cached before it is emitted")
+		assert.Equal(t, tick, stored, "Cached ticker should match the emitted ticker")
+		assert.Equal(t, fundingPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.MarginFunding, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 10.1, tick.Last, "Ticker last should be correct")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
 	}

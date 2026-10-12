@@ -325,6 +325,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			continue
 		}
 
+		// The optional FIRST_TRADE field describes market history, so
+		// ProcessTicker stamps receipt time instead of using it for freshness.
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         val.Last,
 			High:         val.High,
@@ -333,7 +335,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Ask:          val.Ask,
 			BaseVolume:   val.Volume,
 			Pair:         pair,
-			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
 			ExchangeName: e.Name,
 		})
