@@ -980,14 +980,86 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeHistory(t.Context(), btcusdtPair, 50)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, body, wantSize, wantError string
+		size                            int64
+		want                            []TradeHistory
+	}{
+		{
+			name: "documented grouped trades", size: 2, wantSize: "2",
+			body: `{"ch":"market.btcusdt.trade.detail","status":"ok","ts":1629793657842,"data":[{"id":136108764379,"ts":1629793656939,"data":[{"id":136108764379348400430265987,"ts":1629793656939,"trade-id":102517381182,"amount":1.24e-4,"price":49656.4,"direction":"buy"}]},{"id":136108763320,"ts":1629793656198,"data":[{"id":136108763320348400439066863,"ts":1629793656198,"trade-id":102517381181,"amount":0.01125,"price":49655.0,"direction":"buy"},{"id":136108763320348400429773626,"ts":1629793656198,"trade-id":102517381180,"amount":8.3e-4,"price":49651.35,"direction":"buy"}]}]}`,
+			want: []TradeHistory{
+				{ID: 136108764379, Timestamp: types.Time(time.UnixMilli(1629793656939)), Trades: []Trade{{TradeID: 102517381182, Timestamp: types.Time(time.UnixMilli(1629793656939)), Amount: 1.24e-4, Price: 49656.4, Direction: "buy"}}},
+				{ID: 136108763320, Timestamp: types.Time(time.UnixMilli(1629793656198)), Trades: []Trade{{TradeID: 102517381181, Timestamp: types.Time(time.UnixMilli(1629793656198)), Amount: 0.01125, Price: 49655, Direction: "buy"}, {TradeID: 102517381180, Timestamp: types.Time(time.UnixMilli(1629793656198)), Amount: 8.3e-4, Price: 49651.35, Direction: "buy"}}},
+			},
+		},
+		{name: "default size and empty data", body: `{"status":"ok","data":[]}`, want: []TradeHistory{}},
+		{name: "venue rejection", size: 2, wantSize: "2", body: `{"status":"error","err-code":"invalid-parameter","err-msg":"request limit"}`, wantError: "request limit"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "trade history should use GET")
+				assert.Equal(t, "/market/history/trade", r.URL.Path, "trade history should select its endpoint")
+				assert.Equal(t, "btcusdt", r.URL.Query().Get("symbol"), "trade history should format the selected spot pair")
+				assert.Equal(t, tc.wantSize, r.URL.Query().Get("size"), "trade history should request the selected group count or leave the venue default")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "trade response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			got, err := ex.GetTradeHistory(t.Context(), btcusdtPair, tc.size)
+			if tc.wantError != "" {
+				assert.ErrorContains(t, err, tc.wantError, "trade rejection should retain the venue reason")
+			} else {
+				require.NoError(t, err, "documented trade history must decode")
+			}
+			assert.Equal(t, tc.want, got, "trade history should retain both timestamp groups and every trade's fields")
+		})
+	}
 }
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarketDetail(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, body, wantError string
+		want                  Detail
+	}{
+		{
+			name: "documented market summary",
+			body: `{"ch":"market.btcusdt.detail","status":"ok","ts":1629795484817,"tick":{"id":272164011416,"low":48767.0,"high":50500.0,"open":50266.89,"close":49728.71,"vol":6.010379336834868e8,"amount":12110.642402972368,"version":272164011416,"count":420452}}`,
+			want: Detail{ID: 272164011416, Low: 48767, High: 50500, Open: 50266.89, Close: 49728.71, Volume: 6.010379336834868e8, Amount: 12110.642402972368, Count: 420452},
+		},
+		{
+			name:      "venue rejection",
+			body:      `{"status":"error","err-code":"invalid-parameter","err-msg":"request limit"}`,
+			wantError: "request limit",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "market summary should use GET")
+				assert.Equal(t, "/market/detail", r.URL.Path, "market summary should select its endpoint")
+				assert.Equal(t, "btcusdt", r.URL.Query().Get("symbol"), "market summary should format the selected spot pair")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "market response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			got, err := ex.GetMarketDetail(t.Context(), btcusdtPair)
+			if tc.wantError != "" {
+				assert.ErrorContains(t, err, tc.wantError, "market rejection should retain the venue reason")
+			} else {
+				require.NoError(t, err, "documented market summary must decode")
+			}
+			assert.Equal(t, tc.want, got, "market summary should retain all documented fields represented by Detail")
+		})
+	}
 }
 
 func TestGetSymbols(t *testing.T) {
