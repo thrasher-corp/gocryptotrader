@@ -3312,6 +3312,20 @@ func TestWsPushOrders(t *testing.T) {
 	}
 }
 
+func TestProcessSpotOrdersFeeCurrency(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	msg := `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784436","create_time_ms":"1605175506123","update_time_ms":"1605175507123","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"60000","time_in_force":"gtc","left":"0.5","filled_amount":"0.5","filled_total":"30000","avg_deal_price":"60000","fee":"60","fee_currency":"USDT"}]}`
+	require.NoError(t, ex.processSpotOrders(t.Context(), []byte(msg)), "processSpotOrders must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must send one update")
+	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "processSpotOrders must send order details")
+	require.Len(t, details, 1, "processSpotOrders must send one order detail")
+	assert.Equal(t, 60.0, details[0].Fee, "Fee should retain the exchange value")
+	assert.Equal(t, currency.USDT, details[0].FeeAsset, "FeeAsset should retain the reported currency rather than the pair's base")
+}
+
 func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 	t.Parallel()
 

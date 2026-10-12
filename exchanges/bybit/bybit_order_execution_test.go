@@ -74,12 +74,14 @@ func TestDeriveWebsocketSubmitResponse(t *testing.T) {
 func TestConstructOrderDetailsFee(t *testing.T) {
 	t.Parallel()
 	var tradeOrders []TradeOrder
-	require.NoError(t, json.Unmarshal([]byte(`[{"orderId":"1","symbol":"ETHUSDT","side":"Buy","orderType":"Limit","orderStatus":"PartiallyFilled","timeInForce":"GTC","price":"1600","qty":"0.1","leavesQty":"0.09","cumExecQty":"0.01","cumExecValue":"16","avgPrice":"1600","cumExecFee":"0.5","cumFeeDetail":{"ETH":"0.00001"}}]`), &tradeOrders), "trade orders must unmarshal")
+	require.NoError(t, json.Unmarshal([]byte(`[{"orderId":"1","symbol":"ETHUSDT","side":"Buy","orderType":"Limit","orderStatus":"PartiallyFilled","timeInForce":"GTC","price":"1600","qty":"0.1","leavesQty":"0.09","cumExecQty":"0.01","cumExecValue":"16","avgPrice":"1600","cumExecFee":"0.5","cumFeeDetail":{"ETH":"0.00001"}},{"orderId":"2","symbol":"ETHUSDT","side":"Sell","orderType":"Limit","orderStatus":"PartiallyFilled","timeInForce":"GTC","price":"1650","qty":"0.1","leavesQty":"0.08","cumExecQty":"0.02","cumExecValue":"33","avgPrice":"1650","cumExecFee":"0.5","cumFeeDetail":{"MNT":"0.00242968"}}]`), &tradeOrders), "trade orders must unmarshal")
 	orders, err := e.ConstructOrderDetails(tradeOrders, asset.Spot, currency.EMPTYPAIR, currency.Pairs{})
 	require.NoError(t, err, "ConstructOrderDetails must not error")
-	require.Len(t, orders, 1, "ConstructOrderDetails must return one order")
+	require.Len(t, orders, 2, "ConstructOrderDetails must return both orders")
 	assert.Equal(t, 0.00001, orders[0].Fee, "Fee should come from cumFeeDetail")
 	assert.Equal(t, currency.ETH, orders[0].FeeAsset, "FeeAsset should come from cumFeeDetail")
+	assert.Equal(t, 0.00242968, orders[1].Fee, "Fee charged outside the pair should come from cumFeeDetail")
+	assert.Equal(t, currency.MNT, orders[1].FeeAsset, "FeeAsset outside the pair should come from cumFeeDetail")
 }
 
 func TestGetOrderHistoryDerivativeExecutionMappings(t *testing.T) {
@@ -113,6 +115,14 @@ func TestGetOrderHistoryDerivativeExecutionMappings(t *testing.T) {
 			pair:      currency.NewBTCUSD(),
 			row:       `{"orderId":"1","symbol":"BTCUSD","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"61000","qty":"300","leavesQty":"0","cumExecQty":"300","cumExecValue":"0.005","avgPrice":"60000.1","cumExecFee":"0.000003","createdTime":"1735720637000","updatedTime":"1735720638000"}`,
 			fee:       0.000003,
+		},
+		{
+			assetType:           asset.USDTMarginedFutures,
+			pair:                currency.NewPair(currency.ETH, currency.USDT),
+			row:                 `{"orderId":"1","symbol":"ETHUSDT","side":"Sell","orderType":"Limit","orderStatus":"Filled","price":"1650","qty":"0.1","leavesQty":"0","cumExecQty":"0.1","cumExecValue":"165","avgPrice":"1650","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720637000","updatedTime":"1735720638000"}`,
+			executedQuoteAmount: 165,
+			fee:                 0.00242968,
+			feeAsset:            currency.MNT,
 		},
 	} {
 		t.Run(tc.assetType.String(), func(t *testing.T) {
@@ -149,15 +159,18 @@ func TestWSProcessOrderExecutionMappings(t *testing.T) {
 	}
 	require.NoError(t, ex.wsProcessOrder(t.Context(), &WebsocketResponse{Data: json.RawMessage(`[` +
 		`{"category":"linear","symbol":"BTCUSDT","orderId":"1","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","price":"61000","qty":"2","cumExecQty":"2","cumExecValue":"120000.3","avgPrice":"60000.1","cumExecFee":"9","cumFeeDetail":{"USDT":"0.066"}},` +
-		`{"category":"inverse","symbol":"BTCUSD","orderId":"2","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","price":"61000","qty":"300","cumExecQty":"300","cumExecValue":"0.005","avgPrice":"60000.1","cumExecFee":"0.000003"}]`)}), "wsProcessOrder must not error")
+		`{"category":"inverse","symbol":"BTCUSD","orderId":"2","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","price":"61000","qty":"300","cumExecQty":"300","cumExecValue":"0.005","avgPrice":"60000.1","cumExecFee":"0.000003"},` +
+		`{"category":"linear","symbol":"BTCUSDT","orderId":"3","side":"Sell","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","price":"62000","qty":"1","cumExecQty":"1","cumExecValue":"62000","avgPrice":"62000","cumExecFee":"9","cumFeeDetail":{"MNT":"0.00242968"}}]`)}), "wsProcessOrder must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessOrder must send one update")
 	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
 	require.True(t, ok, "wsProcessOrder must send order details")
-	require.Len(t, details, 2, "wsProcessOrder must send both orders")
+	require.Len(t, details, 3, "wsProcessOrder must send every order")
 	assert.Equal(t, 120000.3, details[0].ExecutedQuoteAmount, "linear order should retain the quote-denominated executed value")
 	assert.Equal(t, 0.066, details[0].Fee, "linear order fee should come from cumFeeDetail")
 	assert.Equal(t, currency.USDT, details[0].FeeAsset, "linear order fee currency should come from cumFeeDetail")
 	assert.Zero(t, details[1].ExecutedQuoteAmount, "inverse order should not expose its settlement-denominated executed value as a quote amount")
 	assert.Equal(t, 0.000003, details[1].Fee, "inverse order fee should come from cumExecFee")
 	assert.Equal(t, currency.EMPTYCODE, details[1].FeeAsset, "inverse order fee currency should stay unset when only cumExecFee is reported")
+	assert.Equal(t, 0.00242968, details[2].Fee, "linear order fee charged outside the pair should come from cumFeeDetail")
+	assert.Equal(t, currency.MNT, details[2].FeeAsset, "linear order fee currency outside the pair should come from cumFeeDetail")
 }

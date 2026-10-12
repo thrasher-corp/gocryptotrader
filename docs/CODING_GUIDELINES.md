@@ -277,6 +277,9 @@ Use `require` and `assert` appropriately:
     fixture values that fail when an assignment is removed or reads the wrong
     field, and include omitted optional fields where practical. Unaffected
     transports and unrelated fields need no new coverage.
+    Fee-currency fixtures must distinguish the reported currency from both
+    pair currencies where supported. Otherwise cover reported base and quote
+    fees separately, so guessing either currency from the pair fails a test.
 - In merge and upsert logic, keep a stored value when an update omits it unless
     a newer fill makes the value stale. For example, when a stored order has
     filled 0.01 BTC for 600 USDT and a new update reports 0.02 BTC filled without
@@ -356,6 +359,7 @@ Use `require` and `assert` appropriately:
 ## Comments
 
 - API methods and public types must have comments for GoDoc.
+- Start doc comments with the declaration's name, including those on unexported helpers.
 - Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behaviour needs clarification.
