@@ -311,16 +311,14 @@ func channelSuffix(channel string) string {
 	return ""
 }
 
-// subscriptionAccepted reports whether MEXC actually accepted the subscription. MEXC answers a
-// rejected subscription with code 0 and an error text in msg (measured live:
+// subscriptionAccepted reports whether MEXC actually accepted the subscribe or unsubscribe request.
+// MEXC answers a rejected request with code 0 and an error text in msg (measured live:
 // `code=0 msg="Not Subscribed successfully! [<channel>]. Reason: Blocked!"`), so the code alone
-// cannot distinguish success from failure and a rejected channel would be registered as live.
-// An accepted request echoes the qualified channel back verbatim.
+// cannot distinguish success from failure. Both the subscribe and unsubscribe acknowledgements echo
+// the qualified channel back verbatim; anything else (including an unsubscribe reply that does not
+// name the channel) is a rejection, so treating it as accepted would drop a still-live channel.
 func subscriptionAccepted(method, qualifiedChannel, msg string) bool {
-	if method != "SUBSCRIPTION" {
-		return true
-	}
-	return msg == qualifiedChannel
+	return (method == "SUBSCRIPTION" || method == "UNSUBSCRIPTION") && msg == qualifiedChannel
 }
 
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
@@ -344,16 +342,17 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 			confirmed = append(confirmed, subs[s])
 		}
 	}
+	// A confirmed request updates the local set either way: an unsubscription removes the channels, a
+	// subscription registers them. A rejected channel keeps its previous state - a rejected unsubscribe
+	// is still live, a rejected subscription was never stored - and is named in the returned error so
+	// the caller is not told the request succeeded. The earlier code returned straight after removing
+	// the confirmed unsubscriptions, dropping the rejected ones silently.
+	var err error
 	if method == "UNSUBSCRIPTION" {
-		// A confirmed unsubscription removes the channel from the active set; a rejected one is left
-		// registered because it is still live. The previous code added every confirmed channel via
-		// AddSuccessfulSubscriptions, so an accepted unsubscribe (MEXC replies code 0 echoing the
-		// channel, measured live) re-registered the channel it had just cancelled.
-		return e.Websocket.RemoveSubscriptions(conn, confirmed...)
+		err = e.Websocket.RemoveSubscriptions(conn, confirmed...)
+	} else {
+		err = e.Websocket.AddSuccessfulSubscriptions(conn, confirmed...)
 	}
-	// A rejected subscription was never stored, so there is nothing to remove: register the confirmed
-	// ones and name the rejected ones in the error.
-	err := e.Websocket.AddSuccessfulSubscriptions(conn, confirmed...)
 	if len(rejected) > 0 {
 		err = common.AppendError(err, fmt.Errorf("%w: %s", websocket.ErrSubscriptionFailure, rejected))
 	}
@@ -517,20 +516,23 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		ask := orderbook.Level{}
 		var err error
-		ask.Price, err = strconv.ParseFloat(body.AskPrice, 64)
+		// MEXC documents a valid book-ticker frame with one side empty (a bid with empty askPrice and
+		// askQuantity, or the reverse). parseOptionalFloat reads those as zero so the present side still
+		// applies and the absent side clears its cached values; a malformed non-empty number still errors.
+		ask.Price, err = parseOptionalFloat(body.AskPrice)
 		if err != nil {
 			return err
 		}
-		ask.Amount, err = strconv.ParseFloat(body.AskQuantity, 64)
+		ask.Amount, err = parseOptionalFloat(body.AskQuantity)
 		if err != nil {
 			return err
 		}
 		bid := orderbook.Level{}
-		bid.Price, err = strconv.ParseFloat(body.BidPrice, 64)
+		bid.Price, err = parseOptionalFloat(body.BidPrice)
 		if err != nil {
 			return err
 		}
-		bid.Amount, err = strconv.ParseFloat(body.BidQuantity, 64)
+		bid.Amount, err = parseOptionalFloat(body.BidQuantity)
 		if err != nil {
 			return err
 		}
@@ -741,19 +743,21 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		// ticker.Price values: the batch frame carries only the best bid/offer, so replacing the ticker
 		// would blank the last/high/low/volume fields the miniTicker channel maintains.
 		for a := range body.Items {
-			bid, err := strconv.ParseFloat(body.Items[a].BidPrice, 64)
+			// The batch frame uses the same representation as the single book-ticker, so a side can be
+			// empty; parseOptionalFloat keeps the present side and clears the absent one (see above).
+			bid, err := parseOptionalFloat(body.Items[a].BidPrice)
 			if err != nil {
 				return err
 			}
-			ask, err := strconv.ParseFloat(body.Items[a].AskPrice, 64)
+			ask, err := parseOptionalFloat(body.Items[a].AskPrice)
 			if err != nil {
 				return err
 			}
-			bidSize, err := strconv.ParseFloat(body.Items[a].BidQuantity, 64)
+			bidSize, err := parseOptionalFloat(body.Items[a].BidQuantity)
 			if err != nil {
 				return err
 			}
-			askSize, err := strconv.ParseFloat(body.Items[a].AskQuantity, 64)
+			askSize, err := parseOptionalFloat(body.Items[a].AskQuantity)
 			if err != nil {
 				return err
 			}

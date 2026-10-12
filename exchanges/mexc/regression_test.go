@@ -29,10 +29,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -2455,5 +2457,87 @@ func TestGetAnnouncementsReportsRejectedParameters(t *testing.T) {
 		pages, err := ex.GetAnnouncements(t.Context(), "en", 1, 5)
 		require.ErrorIsf(t, err, want, "a reply of %s must be reported", reply)
 		assert.Nilf(t, pages, "no announcements should be returned for %s", reply)
+	}
+}
+
+// TestWsHandleData checks both book-ticker formats keep the documented empty side: a frame carrying
+// only one side applies it and clears the other on top of a previously populated ticker.
+func TestWsHandleData(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name              string
+		batch, missingAsk bool
+	}{
+		{"single missing ask", false, true},
+		{"single missing bid", false, false},
+		{"batch missing ask", true, true},
+		{"batch missing bid", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+			ex.Name = t.Name()
+			pair := currency.NewBTCUSDT()
+			require.NoError(t, ex.setEnabledPairs(pair))
+			require.NoError(t, ex.wsUpdateSpotTicker(t.Context(), pair, time.Now(), func(p *ticker.Price) {
+				p.Bid, p.BidSize, p.Ask, p.AskSize = 99, 2, 101, 3
+			}))
+			bid, bidQty, ask, askQty := "100", "4", "", ""
+			if !tc.missingAsk {
+				bid, bidQty, ask, askQty = "", "", "102", "5"
+			}
+			channel := "spot@" + channelBookTiker + "@BTCUSDT"
+			var body isPushBody = &mexc_proto_types.PublicAggreBookTickerV3Api{
+				BidPrice: bid, BidQuantity: bidQty, AskPrice: ask, AskQuantity: askQty,
+			}
+			if tc.batch {
+				channel = "spot@" + channelBookTickerBatch + "@BTCUSDT"
+				body = &mexc_proto_types.PublicBookTickerBatchV3Api{Items: []*mexc_proto_types.PublicBookTickerV3Api{
+					{BidPrice: bid, BidQuantity: bidQty, AskPrice: ask, AskQuantity: askQty},
+				}}
+			}
+			require.NoError(t, ex.WsHandleData(t.Context(), nil, wsPushFrame(t, channel, time.Now().UnixMilli(), body)))
+			got, err := ticker.GetTicker(ex.Name, pair, asset.Spot)
+			require.NoError(t, err)
+			if tc.missingAsk {
+				assert.Equal(t, float64(100), got.Bid)
+				assert.Equal(t, float64(4), got.BidSize)
+				assert.Zero(t, got.Ask)
+				assert.Zero(t, got.AskSize)
+			} else {
+				assert.Zero(t, got.Bid)
+				assert.Zero(t, got.BidSize)
+				assert.Equal(t, float64(102), got.Ask)
+				assert.Equal(t, float64(5), got.AskSize)
+			}
+		})
+	}
+}
+
+// TestHandleSubscription checks a rejected unsubscribe keeps its channel and surfaces the failure: the
+// accepted channel is removed, the refused one stays subscribed, and the caller sees ErrSubscriptionFailure.
+func TestHandleSubscription(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, reply string }{
+		{"non-zero code", `{"code":1,"msg":"rejected"}`},
+		{"zero code without channel echo", `{"code":0,"msg":"Not Unsubscribed successfully!"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+			accepted := &subscription.Subscription{Channel: channelLimitDepthV3, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 5, QualifiedChannel: "spot@public.limit.depth.v3.api.pb@BTCUSDT@5"}
+			refused := &subscription.Subscription{Channel: channelLimitDepthV3, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, Levels: 5, QualifiedChannel: "spot@public.limit.depth.v3.api.pb@ETHUSDT@5"}
+			conn := &subscriptionTestConn{replies: map[string]string{
+				accepted.QualifiedChannel: `{"code":0,"msg":"` + accepted.QualifiedChannel + `"}`,
+				refused.QualifiedChannel:  tc.reply,
+			}}
+			require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, accepted, refused))
+			err := ex.handleSubscription(t.Context(), conn, "UNSUBSCRIPTION", subscription.List{accepted, refused})
+			require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
+			got := ex.Websocket.GetSubscriptions()
+			require.Len(t, got, 1)
+			assert.Equal(t, refused.QualifiedChannel, got[0].QualifiedChannel)
+			assert.Equal(t, subscription.SubscribedState, got[0].State())
+		})
 	}
 }

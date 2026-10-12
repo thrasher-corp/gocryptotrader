@@ -210,7 +210,8 @@ func TestSubscriptionAccepted(t *testing.T) {
 	const ch = "spot@public.miniTicker.v3.api.pb@BTCUSDT@UTC+8"
 	assert.True(t, subscriptionAccepted("SUBSCRIPTION", ch, ch), "an echoed channel means accepted")
 	assert.False(t, subscriptionAccepted("SUBSCRIPTION", ch, "Not Subscribed successfully! ["+ch+"].  Reason: Blocked! "), "a rejection carrying code 0 should not count as accepted")
-	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, "no subscription"), "unsubscribe responses are not channel echoes")
+	assert.False(t, subscriptionAccepted("UNSUBSCRIPTION", ch, "no subscription"), "an unsubscribe reply that does not echo the channel is a rejection")
+	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, ch), "an echoed channel means the unsubscribe was accepted")
 }
 
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {

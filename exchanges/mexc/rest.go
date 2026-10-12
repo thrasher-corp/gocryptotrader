@@ -826,6 +826,9 @@ func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, pa
 			return nil, err
 		}
 	}
+	// MEXC documents limit as optional (default 1), but this wrapper requires the caller to state it
+	// rather than lean on a server-side default that the venue can change, so a non-positive limit is
+	// rejected here.
 	if limit <= 0 {
 		return nil, errPaginationLimitIsRequired
 	}
@@ -1509,7 +1512,9 @@ func (e *Exchange) GetAffiliateCommissionDetailRecord(ctx context.Context, start
 		params.Set("inviteCode", inviteCode)
 	}
 	if commissionType != "" {
-		params.Set("commissionType", commissionType)
+		// MEXC documents this optional filter under "type" (1 spot, 2 futures, 3 ETF); the venue ignores
+		// any other key, so sending "commissionType" dropped the filter and returned every category.
+		params.Set("type", commissionType)
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
