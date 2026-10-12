@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -778,8 +779,28 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTickers(t.Context(), asset.Spot)
-	assert.NoError(t, err, "UpdateTickers should not error")
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, false))
+	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, true))
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/v2/ticker.do", r.URL.Path)
+		assert.Equal(t, "all", r.URL.Query().Get("symbol"))
+		_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"symbol":"btc_usdt","timestamp":1603878749908,"ticker":{"latest":100,"high":110,"low":90,"vol":25}}]}`))
+		assert.NoError(t, err)
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
+	stored, err := ticker.GetTicker(ex.Name, testPair, asset.Spot)
+	require.NoError(t, err)
+	assert.Equal(t, 100.0, stored.Last)
+	assert.Equal(t, 110.0, stored.High)
+	assert.Equal(t, 90.0, stored.Low)
+	assert.Equal(t, 25.0, stored.BaseVolume)
+	assert.Equal(t, time.UnixMilli(1603878749908), stored.LastUpdated)
 }
 
 func TestGetStatus(t *testing.T) {
