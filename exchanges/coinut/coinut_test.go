@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -637,10 +638,15 @@ func TestGetOrderHistory(t *testing.T) {
 			ex.Features.Subscriptions = nil
 			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "GetOrderHistory websocket URL setup must not error")
 			ex.Websocket.SetSubscriptionsNotRequired()
-			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			t.Cleanup(func() {
-				assert.NoError(t, ex.Websocket.Shutdown(), "GetOrderHistory websocket shutdown should not error")
+				if err := ex.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
+				}
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected)
+				}
 			})
+			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
@@ -732,7 +738,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Run("REST cancellation statuses", func(t *testing.T) {
 		t.Parallel()
 		var cancellations atomic.Int32
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				Request string         `json:"request"`
 				Entries []CancelOrders `json:"entries"`
@@ -750,12 +756,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 			cancellations.Add(1)
 			_, _ = w.Write([]byte(`{"status":["OK"],"results":[{"order_id":2,"status":"ORDER_NOT_FOUND"},{"order_id":1,"status":"OK"}]}`))
 		}))
-		t.Cleanup(server.Close)
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "REST test exchange must be configured")
 		ex.instrumentMap.Seed("BTCUSD", 123)
 		ex.API.AuthenticatedSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "key", ClientID: "client"})
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "REST mock client must be installed")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "REST endpoint must use the mock server")
 		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSD()})
 		require.NoError(t, err, "REST batch cancellation must succeed")
@@ -808,8 +814,15 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 			ex.Features.Subscriptions = nil
 			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket URL must update")
 			ex.Websocket.SetSubscriptionsNotRequired()
+			t.Cleanup(func() {
+				if err := ex.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
+				}
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected)
+				}
+			})
 			require.NoError(t, ex.Websocket.Enable(t.Context()), "mock websocket must connect")
-			t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USD", delimiter)})
 			require.NoError(t, err, "formatted websocket cancellation must succeed")
@@ -1113,7 +1126,14 @@ func TestWsHandleData(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "heartbeat test exchange must be configured")
 			for range 2 {
-				require.NoError(t, ex.wsHandleData(t.Context(), []byte(reply)), "unmatched heartbeats must not block or error")
+				errs := make(chan error, 1)
+				go func() { errs <- ex.wsHandleData(t.Context(), []byte(reply)) }()
+				select {
+				case err := <-errs:
+					require.NoError(t, err, "unmatched heartbeats must not error")
+				case <-time.After(time.Second):
+					require.FailNow(t, "unmatched heartbeats must not block")
+				}
 			}
 			assert.Empty(t, ex.Websocket.DataHandler.C, "heartbeat replies should not dispatch events")
 		})

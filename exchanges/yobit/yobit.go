@@ -1,6 +1,7 @@
 package yobit
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -143,9 +145,6 @@ func (e *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, erro
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result); err != nil {
 		return result, err
 	}
-	if result.Error != "" {
-		return result, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
-	}
 	return result, nil
 }
 
@@ -161,9 +160,6 @@ func (e *Exchange) Trade(ctx context.Context, pair, orderType string, amount, pr
 
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result); err != nil {
 		return int64(result.OrderID), err
-	}
-	if result.Error != "" {
-		return -1, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 	return int64(result.OrderID), nil
 }
@@ -198,9 +194,6 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result); err != nil {
 		return err
 	}
-	if result.Error != "" {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
-	}
 	return nil
 }
 
@@ -216,16 +209,12 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, 
 	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	result := TradeHistoryResponse{}
+	result := map[string]TradeHistory{}
 
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result); err != nil {
 		return nil, err
 	}
-	if result.Success == 0 {
-		return nil, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
-	}
-
-	return result.Data, nil
+	return result, nil
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
@@ -237,18 +226,14 @@ func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, cre
 	}
 
 	var result DepositAddress
-	err := e.SendAuthenticatedHTTPRequest(ctx,
+	if err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		privateGetDepositAddress,
 		req,
-		&result)
-	if err != nil {
+		&result.Return); err != nil {
 		return nil, err
 	}
-	if result.Success != 1 {
-		return nil, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
-	}
-
+	result.Success = 1
 	return &result, nil
 }
 
@@ -264,9 +249,6 @@ func (e *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amou
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result); err != nil {
 		return result, err
 	}
-	if result.Error != "" {
-		return WithdrawCoinsToAddress{}, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
-	}
 	return result, nil
 }
 
@@ -281,9 +263,6 @@ func (e *Exchange) CreateCoupon(ctx context.Context, ccy string, amount float64)
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result); err != nil {
 		return result, err
 	}
-	if result.Error != "" {
-		return result, errors.New(result.Error)
-	}
 	return result, nil
 }
 
@@ -296,9 +275,6 @@ func (e *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupo
 
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result); err != nil {
 		return result, err
-	}
-	if result.Error != "" {
-		return result, errors.New(result.Error)
 	}
 	return result, nil
 }
@@ -339,7 +315,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		params = url.Values{}
 	}
 
-	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	var payload json.RawMessage
+	response := Response{Return: &payload}
+	if err := e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		n := e.Requester.GetNonce(nonce.Unix).String()
 
 		params.Set("nonce", n)
@@ -361,14 +339,23 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Path:                   endpoint,
 			Headers:                headers,
 			Body:                   strings.NewReader(encoded),
-			Result:                 result,
+			Result:                 &response,
 			NonceEnabled:           true,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
-	}, request.AuthenticatedRequest)
+	}, request.AuthenticatedRequest); err != nil {
+		return err
+	}
+	if response.Success != 1 || response.Error != "" {
+		return fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, response.Error)
+	}
+	if len(payload) == 0 || bytes.Equal(payload, []byte("null")) {
+		return fmt.Errorf("%w: missing Yobit return payload", common.ErrInvalidResponse)
+	}
+	return json.Unmarshal(payload, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

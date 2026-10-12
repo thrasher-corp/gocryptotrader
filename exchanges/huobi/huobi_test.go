@@ -514,7 +514,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
+	for a, path := range map[asset.Item]string{asset.Futures: fCancelAllOrders, asset.CoinMarginedFutures: huobiSwapCancelAllOrders} {
 		for _, tc := range []struct {
 			name      string
 			successes string
@@ -529,9 +529,10 @@ func TestCancelAllOrders(t *testing.T) {
 		} {
 			t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
 				t.Parallel()
-				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, path, r.URL.Path, "cancellation should use the asset endpoint")
 					data := fmt.Sprintf(`{"successes":%q,"errors":%s}`, tc.successes, tc.errors)
-					_, err := fmt.Fprintf(w, `{"status":"ok","successes":%q,"errors":%s,"data":%s}`, tc.successes, tc.errors, data)
+					_, err := fmt.Fprintf(w, `{"status":"ok","data":%s,"ts":1603871951673}`, data)
 					assert.NoError(t, err, "mock cancellation response should write")
 				}))
 				ex := new(Exchange)
@@ -810,6 +811,26 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 
 func TestCancelSwapOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("documented nested response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "test exchange must configure")
+		ex.SkipAuthCheck = true
+		ex.API.AuthenticatedSupport = true
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, huobiSwapCancelOrder, r.URL.Path, "cancellation should use the requested endpoint")
+			_, err := w.Write([]byte(`{"status":"ok","data":{"successes":"123","errors":[{"order_id":"456","err_code":1,"err_msg":"rejected"}]},"ts":1603871951673}`))
+			assert.NoError(t, err, "nested cancellation response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "mock endpoint must install")
+		got, err := ex.CancelSwapOrder(t.Context(), "123", "", btcusdPair)
+		require.NoError(t, err, "nested cancellation response must decode")
+		assert.Equal(t, "123", got.Data.Successes, "nested successes should retain order IDs")
+		require.Len(t, got.Data.Errors, 1, "nested failure must exist")
+		assert.Equal(t, "456", got.Data.Errors[0].OrderID, "nested rejection should retain order ID")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelSwapOrder(t.Context(), "test123", "", ethusdPair)
 	require.NoError(t, err)
@@ -817,6 +838,26 @@ func TestCancelSwapOrder(t *testing.T) {
 
 func TestCancelAllSwapOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("documented nested response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "test exchange must configure")
+		ex.SkipAuthCheck = true
+		ex.API.AuthenticatedSupport = true
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, huobiSwapCancelAllOrders, r.URL.Path, "cancellation should use the requested endpoint")
+			_, err := w.Write([]byte(`{"status":"ok","data":{"successes":"123","errors":[{"order_id":"456","err_code":1,"err_msg":"rejected"}]},"ts":1603871951673}`))
+			assert.NoError(t, err, "nested cancellation response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "mock endpoint must install")
+		got, err := ex.CancelAllSwapOrders(t.Context(), btcusdPair)
+		require.NoError(t, err, "nested cancellation response must decode")
+		assert.Equal(t, "123", got.Data.Successes, "nested successes should retain order IDs")
+		require.Len(t, got.Data.Errors, 1, "nested failure must exist")
+		assert.Equal(t, "456", got.Data.Errors[0].OrderID, "nested rejection should retain order ID")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelAllSwapOrders(t.Context(), ethusdPair)
 	require.NoError(t, err)
@@ -986,8 +1027,43 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarketDetail(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, body, wantError string
+		want                  Detail
+	}{
+		{
+			name: "documented market summary",
+			body: `{"ch":"market.btcusdt.detail","status":"ok","ts":1629795484817,"tick":{"id":272164011416,"low":48767.0,"high":50500.0,"open":50266.89,"close":49728.71,"vol":6.010379336834868e8,"amount":12110.642402972368,"version":272164011416,"count":420452}}`,
+			want: Detail{ID: 272164011416, Low: 48767, High: 50500, Open: 50266.89, Close: 49728.71, Volume: 6.010379336834868e8, Amount: 12110.642402972368, Count: 420452},
+		},
+		{
+			name:      "venue rejection",
+			body:      `{"status":"error","err-code":"invalid-parameter","err-msg":"request limit"}`,
+			wantError: "request limit",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "market summary should use GET")
+				assert.Equal(t, "/market/detail", r.URL.Path, "market summary should select its endpoint")
+				assert.Equal(t, "btcusdt", r.URL.Query().Get("symbol"), "market summary should format the selected spot pair")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "market response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			got, err := ex.GetMarketDetail(t.Context(), btcusdtPair)
+			if tc.wantError != "" {
+				assert.ErrorContains(t, err, tc.wantError, "market rejection should retain the venue reason")
+			} else {
+				require.NoError(t, err, "documented market summary must decode")
+			}
+			assert.Equal(t, tc.want, got, "market summary should retain all documented fields represented by Detail")
+		})
+	}
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -1235,8 +1311,49 @@ func TestSubmitOrder(t *testing.T) {
 	assert.Equal(t, order.New, response.Status, "response status should be correct")
 }
 
-func TestCancelExchangeOrder(t *testing.T) {
+func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.Futures} {
+		for _, tc := range []struct {
+			name, data string
+			want       error
+		}{
+			{name: "success", data: `{"successes":"9","errors":[]}`},
+			{name: "rejected", data: `{"successes":"","errors":[{"order_id":"9","err_code":1061,"err_msg":"order cannot be cancelled"}]}`, want: errOrderCancellationFailed},
+			{name: "missing result", data: `{}`, want: common.ErrInvalidResponse},
+			{name: "wrong order", data: `{"successes":"19","errors":[]}`, want: common.ErrInvalidResponse},
+		} {
+			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "exchange must configure")
+				ex.API.AuthenticatedSupport = true
+				ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					wantPath := huobiSwapCancelOrder
+					if a == asset.Futures {
+						wantPath = fCancelOrder
+					}
+					assert.Equal(t, wantPath, r.URL.Path, "cancellation should select the requested contract endpoint")
+					var body map[string]any
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "cancellation request should decode") {
+						return
+					}
+					assert.Equal(t, "9", body["order_id"], "cancellation should send order ID rather than client name")
+					assert.Equal(t, "7", body["client_order_id"], "cancellation should send the client order ID rather than client name")
+					_, err := w.Write([]byte(`{"status":"ok","ts":1655280216476,"data":` + tc.data + `}`))
+					assert.NoError(t, err, "cancellation response should write")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "mock endpoint must install")
+				err := ex.CancelOrder(t.Context(), &order.Cancel{AssetType: a, Pair: currency.NewBTCUSD(), OrderID: "9", ClientID: "client-name", ClientOrderID: "7"})
+				assert.ErrorIs(t, err, tc.want, "cancellation should require acknowledgement for the requested order")
+				if tc.name == "rejected" {
+					assert.ErrorContains(t, err, "order cannot be cancelled", "rejection should retain the venue reason")
+				}
+			})
+		}
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",

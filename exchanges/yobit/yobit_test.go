@@ -325,6 +325,25 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
+
+	t.Run("documented envelope", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "test exchange must configure")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(`{"success":1,"return":{"address":"deposit-address","processed_amount":1,"server_time":1437146228}}`))
+			assert.NoError(t, err, "venue response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "mock endpoint must install")
+		got, err := ex.GetCryptoDepositAddress(t.Context(), "BTC", false)
+		require.NoError(t, err, "deposit address must decode")
+		require.NotNil(t, got, "deposit address response must exist")
+		assert.Equal(t, int64(1), got.Success, "public envelope should preserve its success flag")
+		assert.Equal(t, "deposit-address", got.Return.Address, "public envelope should expose the return address")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetCryptoDepositAddress(t.Context(), "bTc", false)
@@ -626,14 +645,14 @@ func TestCancelAllOrders(t *testing.T) {
 				if !assert.NoError(t, r.ParseForm(), "request form should parse") {
 					return
 				}
-				body := `{"1":{"type":"buy"},"2":{"type":"sell"}}`
+				body := `{"success":1,"return":{"1":{"type":"buy"},"2":{"type":"sell"}}}`
 				if r.Form.Get("method") == privateActiveOrders {
 					assert.Equal(t, "ltc_btc", r.Form.Get("pair"), "query should retain requested pair")
 				} else {
 					assert.Equal(t, privateCancelOrder, r.Form.Get("method"), "request should cancel an order")
 					cancellations.Add(1)
 					assert.Contains(t, []string{"1", "2"}, r.Form.Get("order_id"), "wire request should use returned order ID")
-					body = `{"order_id":1}`
+					body = `{"success":1,"return":{"order_id":1}}`
 					if tc.failure && r.Form.Get("order_id") == "2" {
 						body = `{"success":0,"error":"cancel rejected"}`
 					}

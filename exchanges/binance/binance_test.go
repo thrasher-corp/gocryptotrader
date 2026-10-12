@@ -1913,6 +1913,24 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("margin account route", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "/sapi/v1/margin/order", r.URL.Path)
+			assert.Equal(t, "42", r.URL.Query().Get("orderId"))
+			assert.Equal(t, "BTCUSDT", r.URL.Query().Get("symbol"))
+			_, _ = w.Write([]byte(`{"orderId":42}`))
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: asset.Margin, OrderID: "42"}))
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	p, err := currency.NewPairFromString("EOS-USDT")
 	if err != nil {

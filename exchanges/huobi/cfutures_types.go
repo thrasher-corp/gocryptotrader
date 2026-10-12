@@ -550,13 +550,21 @@ type batchOrderData struct {
 
 // CancelOrdersData stores order cancellation data
 type CancelOrdersData struct {
-	Errors []struct {
-		OrderID string `json:"order_id"`
-		ErrCode int64  `json:"err_code"`
-		ErrMsg  string `json:"err_msg"`
-	} `json:"errors"`
-	Successes string     `json:"successes"`
-	Timestamp types.Time `json:"ts"`
+	Data      CancelOrdersResult `json:"data"`
+	Timestamp types.Time         `json:"ts"`
+}
+
+// CancelOrdersResult retains each successful and rejected cancellation.
+type CancelOrdersResult struct {
+	Errors    []CancelOrderError `json:"errors"`
+	Successes string             `json:"successes"`
+}
+
+// CancelOrderError reports the venue's reason for rejecting an order cancellation.
+type CancelOrderError struct {
+	OrderID string `json:"order_id"`
+	ErrCode int64  `json:"err_code"`
+	ErrMsg  string `json:"err_msg"`
 }
 
 // LightningCloseOrderData stores order data from a lightning close order

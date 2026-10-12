@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -204,6 +205,34 @@ func TestGetLastTransaction(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		after time.Time
+		want  string
+	}{
+		{name: "no timestamp"},
+		{name: "millisecond timestamp", after: time.UnixMilli(1417160401000), want: "1417160401000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !assert.NoError(t, r.ParseForm(), "listing form should parse") {
+					return
+				}
+				assert.Equal(t, tc.want, r.Form.Get("after"), "after should use Unix milliseconds")
+				_, err := w.Write([]byte(`{"status":"0000","data":[]}`))
+				assert.NoError(t, err, "listing response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			_, err := ex.GetOrders(t.Context(), "", "", 100, tc.after, testPair.Base, testPair.Quote)
+			require.NoError(t, err, "listing must succeed")
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrders(t.Context(), "1337", order.Bid.Lower(), 100, time.Time{}, testPair.Base, testPair.Quote)
@@ -228,6 +257,51 @@ func TestPlaceTrade(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
+
+	t.Run("documented query and object response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "test exchange must configure")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "detail request should parse") {
+				return
+			}
+			assert.Equal(t, "/info/order_detail", r.URL.Path, "detail lookup should use the detail endpoint")
+			assert.Equal(t, "Opaque-aB", r.Form.Get("order_id"), "detail query should preserve opaque ID")
+			assert.Equal(t, "BTC", r.Form.Get("order_currency"), "detail query should send required order currency")
+			assert.NotContains(t, r.Form, "currency", "obsolete currency field should be absent")
+			assert.NotContains(t, r.Form, "type", "obsolete transaction type should be absent")
+			_, err := w.Write([]byte(`{"status":"0000","data":{"order_date":"1655280216476000","type":"bid","order_status":"Cancel","order_currency":"BTC","payment_currency":"KRW","watch_price":"100","order_price":"100","order_qty":"2","cancel_date":"1655280316476000","cancel_type":"user","stp_type":"expire_taker","canceling_order_id":"Opaque-cD","contract":[{"transaction_date":"1655280266476000","price":"100","units":"0.5","fee_currency":"BTC","fee":"0.001","total":"50"}]}}`))
+			assert.NoError(t, err, "detail response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+		got, err := ex.GetOrderDetails(t.Context(), "Opaque-aB", "bid", "btc")
+		require.NoError(t, err, "documented object response must decode")
+		assert.Equal(t, "0000", got.Status, "response should retain status")
+		assert.Equal(t, "bid", got.Data.Type, "order should retain its side")
+		assert.Equal(t, "Cancel", got.Data.OrderStatus, "order should retain cancellation state")
+		assert.Equal(t, "BTC", got.Data.OrderCurrency, "order should retain base currency")
+		assert.Equal(t, "KRW", got.Data.PaymentCurrency, "order should retain payment currency")
+		assert.Equal(t, int64(1655280216476), got.Data.OrderDate.Time().UnixMilli(), "order timestamp should decode microseconds")
+		assert.Equal(t, int64(1655280316476), got.Data.CancelDate.Time().UnixMilli(), "cancellation timestamp should decode microseconds")
+		assert.Equal(t, 100.0, got.Data.WatchPrice.Float64(), "watch price should decode a quoted number")
+		assert.Equal(t, 100.0, got.Data.OrderPrice.Float64(), "order price should decode a quoted number")
+		assert.Equal(t, 2.0, got.Data.OrderQuantity.Float64(), "order quantity should decode a quoted number")
+		assert.Equal(t, "user", got.Data.CancelType, "order should retain cancellation reason")
+		assert.Equal(t, "expire_taker", got.Data.STPType, "order should retain self-trade prevention type")
+		assert.Equal(t, "Opaque-cD", got.Data.CancellingOrderID, "order should retain opaque cancelling ID")
+		require.Len(t, got.Data.Contract, 1, "order must retain completed trades")
+		fill := got.Data.Contract[0]
+		assert.Equal(t, int64(1655280266476), fill.TransactionDate.Time().UnixMilli(), "fill timestamp should decode microseconds")
+		assert.Equal(t, 100.0, fill.Price.Float64(), "fill should retain price")
+		assert.Equal(t, 0.5, fill.Units.Float64(), "fill should retain quantity")
+		assert.Equal(t, "BTC", fill.FeeCurrency, "fill should retain fee currency")
+		assert.Equal(t, 0.001, fill.Fee.Float64(), "fill should retain fee")
+		assert.Equal(t, 50.0, fill.Total.Float64(), "fill should retain total")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderDetails(t.Context(), "1337", order.Bid.Lower(), testPair.Base.String())
@@ -247,20 +321,20 @@ func TestCancelTrade(t *testing.T) {
 				return
 			}
 			assert.Equal(t, "123", r.Form.Get("order_id"), "wire request should include order ID")
-			assert.Equal(t, "ASK", r.Form.Get("type"), "wire request should include side")
-			assert.Equal(t, "BTC", r.Form.Get("currency"), "wire request should include currency")
+			assert.Equal(t, "ask", r.Form.Get("type"), "wire request should include side")
+			assert.Equal(t, "BTC", r.Form.Get("order_currency"), "wire request should include currency")
 			_, err := w.Write([]byte(`{"status":"0000"}`))
 			assert.NoError(t, err, "mock response should write")
 		}))
 		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must update")
-		_, err := ex.CancelTrade(t.Context(), "ask", "123", "btc")
+		_, err := ex.CancelTrade(t.Context(), "ask", "123", testPair)
 		require.NoError(t, err, "cancellation must succeed")
 	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := e.CancelTrade(t.Context(), "", "", "")
+	_, err := e.CancelTrade(t.Context(), "", "", testPair)
 	require.NoError(t, err, "CancelTrade must not error")
 }
 
@@ -512,6 +586,85 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, count := range []int{999, 1000} {
+		t.Run(fmt.Sprintf("listing size %d", count), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			var requests atomic.Int32
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, "/info/orders", r.URL.Path, "a full listing should stop before cancellation")
+				if !assert.NoError(t, r.ParseForm(), "listing form should parse") {
+					return
+				}
+				assert.Equal(t, "1000", r.Form.Get("count"), "listing should request the documented maximum")
+				entries := make([]string, count)
+				for i := range entries {
+					entries[i] = `{"order_id":"other-id","payment_currency":"USD","type":"bid"}`
+				}
+				_, err := w.Write([]byte(`{"status":"0000","data":[` + strings.Join(entries, ",") + `]}`))
+				assert.NoError(t, err, "listing response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: testPair, Side: order.AnySide})
+			if count == 1000 {
+				assert.ErrorIs(t, err, errOrderListingTruncated, "full listing should reject unproven completeness")
+				assert.Nil(t, resp, "full listing should not report cancellation success")
+			} else {
+				require.NoError(t, err, "short listing must complete")
+				require.NotNil(t, resp, "short listing must return a result")
+				assert.Empty(t, resp.Status, "foreign quote orders should remain untouched")
+			}
+			assert.Equal(t, int32(1), requests.Load(), "listing should terminate after one request")
+		})
+	}
+
+	for _, tc := range []struct {
+		name string
+		side order.Side
+		want map[string]string
+	}{
+		{name: "buy", side: order.Buy, want: map[string]string{"bid-id": order.Cancelled.String()}},
+		{name: "sell", side: order.Sell, want: map[string]string{"ask-id": order.Cancelled.String()}},
+		{name: "any", side: order.AnySide, want: map[string]string{"bid-id": order.Cancelled.String(), "ask-id": order.Cancelled.String()}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "test exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+					return
+				}
+				assert.Equal(t, "BTC", r.Form.Get("order_currency"), "query and cancellation should retain base")
+				assert.Equal(t, "KRW", r.Form.Get("payment_currency"), "query and cancellation should retain quote")
+				body := `{"status":"0000"}`
+				if r.URL.Path == "/info/orders" {
+					assert.NotContains(t, r.Form, "type", "listing without an order ID should omit side")
+					body = `{"status":"0000","data":[{"order_id":"bid-id","payment_currency":"KRW","type":"bid"},{"order_id":"ask-id","payment_currency":"krw","type":"ask"},{"order_id":"other-id","payment_currency":"BTC","type":"ask"}]}`
+				} else {
+					assert.Equal(t, "/trade/cancel", r.URL.Path, "only cancellation should follow listing")
+					assert.Contains(t, tc.want, r.Form.Get("order_id"), "only matching side and quote should be cancelled")
+					assert.NotContains(t, r.Form, "currency", "obsolete currency field should not be sent")
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "venue response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: testPair, Side: tc.side})
+			require.NoError(t, err, "sided cancellation must complete")
+			require.NotNil(t, resp, "cancellation response must exist")
+			assert.Equal(t, tc.want, resp.Status, "results should contain only matching orders")
+		})
+	}
 	t.Run("quote scoped cancellation", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
@@ -532,9 +685,9 @@ func TestCancelAllOrders(t *testing.T) {
 			} else {
 				assert.Equal(t, "/trade/cancel", r.URL.Path, "only cancellation endpoint should be called")
 				cancellations.Add(1)
-				assert.Equal(t, "KRW-ORDER", r.Form.Get("order_id"), "only requested quote order should be cancelled")
-				assert.Equal(t, "BID", r.Form.Get("type"), "cancellation should use returned order side")
-				assert.Equal(t, "BTC", r.Form.Get("currency"), "cancellation should retain base currency")
+				assert.Equal(t, "krw-order", r.Form.Get("order_id"), "only requested quote order should be cancelled")
+				assert.Equal(t, "bid", r.Form.Get("type"), "cancellation should use returned order side")
+				assert.Equal(t, "BTC", r.Form.Get("order_currency"), "cancellation should retain base currency")
 			}
 			_, err := w.Write([]byte(body))
 			assert.NoError(t, err, "mock response should write")

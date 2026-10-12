@@ -271,15 +271,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	for i := range pairs {
-		for y := range tick {
-			pairFmt, err := e.FormatExchangeCurrency(pairs[i], a)
-			if err != nil {
-				return err
-			}
-			if tick[y].Symbol != pairFmt.String() {
-				continue
-			}
+	if len(tick) == 0 {
+		return nil
+	}
+	bySymbol := make(map[string][]int, len(tick))
+	for y := range tick {
+		bySymbol[tick[y].Symbol] = append(bySymbol[tick[y].Symbol], y)
+	}
+	for _, pair := range pairs {
+		pairFmt, err := e.FormatExchangeCurrency(pair, a)
+		if err != nil {
+			return err
+		}
+		for _, y := range bySymbol[pairFmt.String()] {
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
 				High:         tick[y].HighPrice,

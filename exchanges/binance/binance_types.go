@@ -1158,3 +1158,10 @@ type FlexibleCollateralAssetsData struct {
 	Rows  []FlexibleCollateralAssetsDataItem `json:"rows"`
 	Total int64                              `json:"total"`
 }
+
+// MarginCancellation contains a cancelled order or an order list's individual reports.
+type MarginCancellation struct {
+	OrderID      int64            `json:"orderId"`
+	Status       string           `json:"status"`
+	OrderReports []QueryOrderData `json:"orderReports"`
+}

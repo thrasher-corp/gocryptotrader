@@ -544,6 +544,35 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, symbol currency.Pair
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, orderEndpoint, params, spotOrderRate, &resp)
 }
 
+// CancelMarginOrder cancels an order in the cross margin account.
+// https://developers.binance.com/docs/margin_trading/trade/Margin-Account-Cancel-Order
+func (e *Exchange) CancelMarginOrder(ctx context.Context, pair currency.Pair, orderID int64, clientOrderID string) (CancelOrderResponse, error) {
+	var resp CancelOrderResponse
+	symbol, err := e.FormatSymbol(pair, asset.Margin)
+	if err != nil {
+		return resp, err
+	}
+	params := url.Values{"symbol": {symbol}}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if clientOrderID != "" {
+		params.Set("origClientOrderId", clientOrderID)
+	}
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/order", params, marginCancelOrderRate, &resp)
+}
+
+// CancelAllMarginOrders cancels cross margin orders for a symbol, including order lists.
+// https://developers.binance.com/docs/margin_trading/trade/Margin-Account-Cancel-all-Open-Orders-on-a-Symbol
+func (e *Exchange) CancelAllMarginOrders(ctx context.Context, pair currency.Pair) ([]MarginCancellation, error) {
+	symbol, err := e.FormatSymbol(pair, asset.Margin)
+	if err != nil {
+		return nil, err
+	}
+	var resp []MarginCancellation
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/openOrders", url.Values{"symbol": {symbol}}, spotDefaultRate, &resp)
+}
+
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted
 // against the rate limiter is significantly higher

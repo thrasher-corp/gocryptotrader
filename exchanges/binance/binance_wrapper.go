@@ -952,7 +952,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	switch o.AssetType {
-	case asset.Spot, asset.Margin:
+	case asset.Spot:
 		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
@@ -962,6 +962,14 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			orderIDInt,
 			o.AccountID)
 		if err != nil {
+			return err
+		}
+	case asset.Margin:
+		orderID, err := strconv.ParseInt(o.OrderID, 10, 64)
+		if err != nil {
+			return err
+		}
+		if _, err := e.CancelMarginOrder(ctx, o.Pair, orderID, o.ClientOrderID); err != nil {
 			return err
 		}
 	case asset.CoinMarginedFutures:
@@ -991,7 +999,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	switch req.AssetType {
-	case asset.Spot, asset.Margin:
+	case asset.Spot:
 		openOrders, err := e.OpenOrders(ctx, req.Pair)
 		if err != nil {
 			return nil, err
@@ -1001,9 +1009,34 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 				req.Pair,
 				openOrders[i].OrderID,
 				"")
+			status := order.Cancelled.String()
 			if err != nil {
-				cancelAllOrdersResponse.Add(strconv.FormatInt(openOrders[i].OrderID, 10), err.Error())
+				status = err.Error()
 			}
+			cancelAllOrdersResponse.Add(strconv.FormatInt(openOrders[i].OrderID, 10), status)
+		}
+	case asset.Margin:
+		cancelled, err := e.CancelAllMarginOrders(ctx, req.Pair)
+		if err != nil {
+			return nil, err
+		}
+		for _, result := range cancelled {
+			if len(result.OrderReports) != 0 {
+				for i := range result.OrderReports {
+					report := &result.OrderReports[i]
+					status := report.Status
+					if status == "CANCELED" {
+						status = order.Cancelled.String()
+					}
+					cancelAllOrdersResponse.Add(strconv.FormatInt(report.OrderID, 10), status)
+				}
+				continue
+			}
+			status := result.Status
+			if status == "CANCELED" {
+				status = order.Cancelled.String()
+			}
+			cancelAllOrdersResponse.Add(strconv.FormatInt(result.OrderID, 10), status)
 		}
 	case asset.CoinMarginedFutures:
 		if _, err := e.FuturesCancelAllOpenOrders(ctx, req.Pair); err != nil {

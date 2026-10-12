@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -99,9 +100,54 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTickers(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range []struct {
+		name             string
+		body             string
+		wantBTC, wantETH float64
+		wantErr          error
+	}{
+		{name: "empty payload", body: `[]`},
+		{name: "available pairs and request format", body: `[{"symbol":"","lastPrice":"1"},{"symbol":"DOGEUSDT","lastPrice":"2"},{"symbol":"BTCUSDT","lastPrice":"100","bidPrice":"99","askPrice":"101"},{"symbol":"ETHUSDT","lastPrice":"10","bidPrice":"9","askPrice":"11"}]`, wantBTC: 100, wantETH: 10},
+		{name: "pair processing order", body: `[{"symbol":"ETHUSDT","lastPrice":"10","bidPrice":"10","askPrice":"10"},{"symbol":"BTCUSDT","lastPrice":"100","bidPrice":"99","askPrice":"101"}]`, wantBTC: 100, wantErr: ticker.ErrBidEqualsAsk},
+		{name: "first duplicate rejected", body: `[{"symbol":"BTCUSDT","lastPrice":"100","bidPrice":"99","askPrice":"101"},{"symbol":"ETHUSDT","lastPrice":"10","bidPrice":"10","askPrice":"10"},{"symbol":"ETHUSDT","lastPrice":"11","bidPrice":"10","askPrice":"12"}]`, wantBTC: 100, wantErr: ticker.ErrBidEqualsAsk},
+		{name: "later duplicate rejected", body: `[{"symbol":"BTCUSDT","lastPrice":"100","bidPrice":"99","askPrice":"101"},{"symbol":"ETHUSDT","lastPrice":"11","bidPrice":"10","askPrice":"12"},{"symbol":"ETHUSDT","lastPrice":"10","bidPrice":"10","askPrice":"10"}]`, wantBTC: 100, wantETH: 11, wantErr: ticker.ErrBidEqualsAsk},
+		{name: "successful duplicate updates", body: `[{"symbol":"BTCUSDT","lastPrice":"100","bidPrice":"99","askPrice":"101"},{"symbol":"ETHUSDT","lastPrice":"10","bidPrice":"9","askPrice":"11"},{"symbol":"ETHUSDT","lastPrice":"11","bidPrice":"10","askPrice":"12"}]`, wantBTC: 100, wantETH: 11},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.Name = t.Name()
+			btc, eth := currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc, eth}, false))
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+			err := ex.UpdateTickers(t.Context(), asset.Spot)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			for _, expected := range []struct {
+				pair currency.Pair
+				last float64
+			}{{btc, tc.wantBTC}, {eth, tc.wantETH}} {
+				stored, err := ticker.GetTicker(ex.Name, expected.pair, asset.Spot)
+				if expected.last == 0 {
+					require.ErrorIs(t, err, ticker.ErrTickerNotFound)
+					continue
+				}
+				require.NoError(t, err)
+				assert.Equal(t, expected.last, stored.Last)
+				assert.Equal(t, expected.pair.Base.String()+expected.pair.Quote.String(), stored.Pair.String(), "stored pair should use request formatting")
+			}
+			_, err = ticker.GetTicker(ex.Name, currency.NewPair(currency.DOGE, currency.USDT), asset.Spot)
+			require.ErrorIs(t, err, ticker.ErrTickerNotFound)
+		})
 	}
 }
 

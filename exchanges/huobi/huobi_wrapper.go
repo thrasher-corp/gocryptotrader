@@ -1085,23 +1085,44 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	var err error
+	var successes string
 	switch o.AssetType {
 	case asset.Spot:
-		var orderIDInt int64
-		orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
+		orderID, err := strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
 		}
-		_, err = e.CancelExistingOrder(ctx, orderIDInt)
+		_, err = e.CancelExistingOrder(ctx, orderID)
+		return err
 	case asset.CoinMarginedFutures:
-		_, err = e.CancelSwapOrder(ctx, o.OrderID, o.ClientID, o.Pair)
+		result, err := e.CancelSwapOrder(ctx, o.OrderID, o.ClientOrderID, o.Pair)
+		if err != nil {
+			return err
+		}
+		if len(result.Data.Errors) != 0 {
+			failure := result.Data.Errors[0]
+			return fmt.Errorf("%w: order %s code %d: %s", errOrderCancellationFailed, failure.OrderID, failure.ErrCode, failure.ErrMsg)
+		}
+		successes = result.Data.Successes
 	case asset.Futures:
-		_, err = e.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
+		result, err := e.FCancelOrder(ctx, o.Pair.Base, o.OrderID, o.ClientOrderID)
+		if err != nil {
+			return err
+		}
+		if len(result.Data.Errors) != 0 {
+			failure := result.Data.Errors[0]
+			return fmt.Errorf("%w: order %d code %d: %s", errOrderCancellationFailed, failure.OrderID, failure.ErrCode, failure.ErrMsg)
+		}
+		successes = result.Data.Successes
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
+		return fmt.Errorf("%w %s", asset.ErrNotSupported, o.AssetType)
 	}
-	return err
+	for id := range strings.SplitSeq(successes, ",") {
+		if id == o.OrderID {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: cancellation response missing order %s", common.ErrInvalidResponse, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -1161,14 +1182,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return nil, err
 		}
-		for id := range strings.SplitSeq(a.Successes, ",") {
+		for id := range strings.SplitSeq(a.Data.Successes, ",") {
 			if id != "" {
 				cancelAllOrdersResponse.Add(id, "success")
 			}
 		}
-		for y := range a.Errors {
-			if a.Errors[y].OrderID != "" {
-				cancelAllOrdersResponse.Add(a.Errors[y].OrderID, "fail: "+a.Errors[y].ErrMsg)
+		for y := range a.Data.Errors {
+			if a.Data.Errors[y].OrderID != "" {
+				cancelAllOrdersResponse.Add(a.Data.Errors[y].OrderID, "fail: "+a.Data.Errors[y].ErrMsg)
 			}
 		}
 	case asset.Futures:

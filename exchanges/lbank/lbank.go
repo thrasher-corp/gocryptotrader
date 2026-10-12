@@ -598,17 +598,32 @@ func (e *Exchange) sign(data string) (string, error) {
 	return base64.StdEncoding.EncodeToString(r), nil
 }
 
-// SendAuthHTTPRequest sends an authenticated request
+// SendAuthHTTPRequest sends an authenticated request. The signed parameters and
+// headers follow https://www.lbank.com/docs/#authentication
 func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint string, vals url.Values, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
-	if vals == nil {
-		vals = url.Values{}
+	requestValues := url.Values{}
+	for name, values := range vals {
+		requestValues[name] = append([]string(nil), values...)
 	}
+	vals = requestValues
+	vals.Del("sign")
 
+	endpointURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+	if err != nil {
+		return err
+	}
+	echo, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	if err != nil {
+		return err
+	}
+	vals.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	vals.Set("signature_method", "RSA")
+	vals.Set("echostr", echo)
 	vals.Set("api_key", creds.Key)
 	sig, err := e.sign(vals.Encode())
 	if err != nil {
@@ -619,20 +634,31 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 	payload := vals.Encode()
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	headers["timestamp"] = vals.Get("timestamp")
+	headers["signature_method"] = vals.Get("signature_method")
+	headers["echostr"] = echo
+	var raw json.RawMessage
 
 	item := &request.Item{
 		Method:                 method,
-		Path:                   endpoint,
+		Path:                   endpointURL + endpoint,
 		Headers:                headers,
-		Result:                 result,
+		Result:                 &raw,
 		Verbose:                e.Verbose,
 		HTTPDebugging:          e.HTTPDebugging,
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBufferString(payload)
 		return item, nil
-	}, request.AuthenticatedRequest)
+	}, request.AuthenticatedRequest); err != nil {
+		return err
+	}
+	payloadData, err := unwrapV2Response(raw)
+	if err != nil {
+		return fmt.Errorf("%s: %w", e.Name, err)
+	}
+	return json.Unmarshal(payloadData, result)
 }

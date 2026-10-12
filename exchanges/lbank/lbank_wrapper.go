@@ -162,19 +162,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	for i := range pairs {
-		for j := range tickerInfo {
-			if !pairs[i].Equal(tickerInfo[j].Symbol) {
-				continue
-			}
-
+	indexed := make(map[[2]*currency.Item][]TickerResponse, len(tickerInfo))
+	for _, value := range tickerInfo {
+		key := [2]*currency.Item{value.Symbol.Base.Item, value.Symbol.Quote.Item}
+		indexed[key] = append(indexed[key], value)
+	}
+	for _, pair := range pairs {
+		for _, value := range indexed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] {
 			if err := ticker.ProcessTicker(&ticker.Price{
-				Last:         tickerInfo[j].Ticker.Latest,
-				High:         tickerInfo[j].Ticker.High,
-				Low:          tickerInfo[j].Ticker.Low,
-				BaseVolume:   tickerInfo[j].Ticker.Volume,
-				Pair:         tickerInfo[j].Symbol,
-				LastUpdated:  tickerInfo[j].Timestamp.Time(),
+				Last:         value.Ticker.Latest,
+				High:         value.Ticker.High,
+				Low:          value.Ticker.Low,
+				BaseVolume:   value.Ticker.Volume,
+				Pair:         value.Symbol,
+				LastUpdated:  value.Timestamp.Time(),
 				ExchangeName: e.Name,
 				AssetType:    a,
 			}); err != nil {
@@ -422,13 +423,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 		return &resp, nil
 	}
 
-	for _, batch := range common.Batch(orderIDs, 3) {
+	for _, batch := range common.Batch(orderIDs, 10) {
 		cancelResponse, err := e.RemoveOrder(ctx, fPair.String(), strings.Join(batch, ","))
 		if err != nil {
 			if len(resp.Status) > 0 {
 				return &resp, err
 			}
 			return nil, err
+		}
+		if cancelResponse.OrderID != "" {
+			resp.Add(cancelResponse.OrderID, order.Cancelled.String())
 		}
 		for success := range strings.SplitSeq(cancelResponse.Success, ",") {
 			if success != "" {

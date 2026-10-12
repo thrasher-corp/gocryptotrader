@@ -491,7 +491,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 	}
 
 	for i := range resp {
-		if resp[i].Status != "canceled" {
+		if resp[i].Status == "canceled" {
+			cancelAllOrdersResponse.Add(strconv.FormatInt(resp[i].ID, 10), order.Cancelled.String())
+		} else {
 			cancelAllOrdersResponse.Add(strconv.FormatInt(resp[i].ID, 10), fmt.Sprintf("Could not cancel order %v. Status: %v",
 				resp[i].ID,
 				resp[i].Status))

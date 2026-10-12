@@ -371,14 +371,14 @@ func TestCancelAllOrders(t *testing.T) {
 			if failBatch == 0 {
 				require.NoError(t, err, "successful batches must complete")
 				require.NotNil(t, response, "successful result must exist")
-				assert.Len(t, response.Status, 4, "all cancellations should be retained")
+				assert.Len(t, response.Status, 11, "all cancellations should be retained")
 			} else {
 				require.ErrorIs(t, err, errBatch, "batch failure must propagate")
 				if failBatch == 1 {
 					assert.Nil(t, response, "failure before cancellation should have no partial result")
 				} else {
 					require.NotNil(t, response, "first batch must survive second batch failure")
-					assert.Equal(t, map[string]string{"1": "Cancelled", "2": "Cancelled", "3": "Cancelled"}, response.Status, "successful batch statuses should be retained")
+					assert.Equal(t, map[string]string{"1": "Cancelled", "2": "Cancelled", "3": "Cancelled", "4": "Cancelled", "5": "Cancelled", "6": "Cancelled", "7": "Cancelled", "8": "Cancelled", "9": "Cancelled", "10": "Cancelled"}, response.Status, "successful batch statuses should be retained")
 				}
 			}
 		})
@@ -860,28 +860,43 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	ex.Name = t.Name()
-	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, false))
-	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, true))
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "/v2/ticker.do", r.URL.Path)
-		assert.Equal(t, "all", r.URL.Query().Get("symbol"))
-		_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"symbol":"btc_usdt","timestamp":1603878749908,"ticker":{"latest":100,"high":110,"low":90,"vol":25}}]}`))
-		assert.NoError(t, err)
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()))
-	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
-	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
-	stored, err := ticker.GetTicker(ex.Name, testPair, asset.Spot)
-	require.NoError(t, err)
-	assert.Equal(t, 100.0, stored.Last)
-	assert.Equal(t, 110.0, stored.High)
-	assert.Equal(t, 90.0, stored.Low)
-	assert.Equal(t, 25.0, stored.BaseVolume)
-	assert.Equal(t, time.UnixMilli(1603878749908), stored.LastUpdated)
+	for _, duplicate := range []bool{false, true} {
+		t.Run(fmt.Sprintf("duplicate %t", duplicate), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.Name = t.Name()
+			require.NoError(t, ex.SetPairs(currency.Pairs{testPair.Format(currency.PairFormat{Delimiter: "-", Uppercase: true})}, asset.Spot, false))
+			require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, true))
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, "/v2/ticker.do", r.URL.Path)
+				assert.Equal(t, "all", r.URL.Query().Get("symbol"))
+				payload := `{"symbol":"btc_usdt","timestamp":1603878749908,"ticker":{"latest":100,"high":110,"low":90,"vol":25}}`
+				if duplicate {
+					payload = `{"symbol":"eth_usdt","timestamp":1603878749908,"ticker":{"latest":999}},` + payload + `,{"symbol":"BTC_USDT","timestamp":1603878749909,"ticker":{"latest":101,"high":110,"low":90,"vol":25}}`
+				}
+				_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[` + payload + `]}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
+			require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
+			stored, err := ticker.GetTicker(ex.Name, testPair, asset.Spot)
+			require.NoError(t, err)
+			expectedLast := 100.0
+			expectedTime := int64(1603878749908)
+			if duplicate {
+				expectedLast = 101
+				expectedTime++
+			}
+			assert.Equal(t, expectedLast, stored.Last)
+			assert.Equal(t, 110.0, stored.High)
+			assert.Equal(t, 90.0, stored.Low)
+			assert.Equal(t, 25.0, stored.BaseVolume)
+			assert.Equal(t, time.UnixMilli(expectedTime), stored.LastUpdated)
+		})
+	}
 }
 
 func TestGetStatus(t *testing.T) {
@@ -932,7 +947,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
-// cancellationTransport isolates batching from Lbank's authenticated URL construction.
+// cancellationTransport records discovery and cancellation batches.
 type cancellationTransport struct {
 	t         *testing.T
 	calls     int
@@ -949,7 +964,7 @@ func (c *cancellationTransport) RoundTrip(r *http.Request) (*http.Response, erro
 	body := `{"orders":[]}`
 	if strings.HasSuffix(r.URL.Path, lbankOpeningOrders) {
 		if r.Form.Get("current_page") == "1" {
-			body = `{"orders":[{"order_id":"1"},{"order_id":"2"},{"order_id":"3"},{"order_id":"4"}]}`
+			body = `{"orders":[{"order_id":"1"},{"order_id":"2"},{"order_id":"3"},{"order_id":"4"},{"order_id":"5"},{"order_id":"6"},{"order_id":"7"},{"order_id":"8"},{"order_id":"9"},{"order_id":"10"},{"order_id":"11"}]}`
 		}
 	} else {
 		assert.True(c.t, strings.HasSuffix(r.URL.Path, lbankCancelOrder), "only cancellation requests should follow discovery")
@@ -959,11 +974,14 @@ func (c *cancellationTransport) RoundTrip(r *http.Request) (*http.Response, erro
 		}
 		ids := r.Form.Get("order_id")
 		if c.calls == 1 {
-			assert.Equal(c.t, "1,2,3", ids, "first batch should contain three orders")
+			assert.Equal(c.t, "1,2,3,4,5,6,7,8,9,10", ids, "first batch should contain ten orders")
 		} else {
-			assert.Equal(c.t, "4", ids, "second batch should contain the remaining order")
+			assert.Equal(c.t, "11", ids, "second batch should contain the remaining order")
 		}
 		body = `{"success":"` + ids + `"}`
+		if c.calls == 2 {
+			body = `{"order_id":"` + ids + `"}`
+		}
 	}
 	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
 }
@@ -1095,4 +1113,68 @@ func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
 	assert.ErrorIs(t, err, errRequestFailed, "a failed envelope should be reported as a failed request")
 	assert.ErrorContains(t, err, "(error_code 10076)", "a failed envelope should carry the exchange error code")
 	assert.ErrorContains(t, err, ex.Name+": request failed", "SendHTTPRequest should wrap the bare helper error with the exchange name")
+}
+
+func TestSendAuthHTTPRequest(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, body string
+		failure    bool
+	}{
+		{"boolean envelope", `{"result":true,"data":{"order_id":"1"}}`, false},
+		{"string envelope", `{"result":"true","data":{"order_id":"1"}}`, false},
+		{"legacy response", `{"order_id":"1"}`, false},
+		{"failed envelope", `{"result":false,"error_code":10008,"msg":"Invalid amount"}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+			var err error
+			ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+			require.NoError(t, err)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/v2/cancel_order.do", r.URL.Path)
+				if !assert.NoError(t, r.ParseForm()) {
+					return
+				}
+				assert.Equal(t, "mock-key", r.Form.Get("api_key"))
+				assert.Equal(t, "1", r.Form.Get("order_id"))
+				assert.Equal(t, "RSA", r.Header.Get("signature_method"))
+				assert.Equal(t, r.Form.Get("signature_method"), r.Header.Get("signature_method"))
+				assert.Equal(t, r.Form.Get("timestamp"), r.Header.Get("timestamp"))
+				assert.Equal(t, r.Form.Get("echostr"), r.Header.Get("echostr"))
+				assert.Regexp(t, `^[a-zA-Z0-9]{30,40}$`, r.Form.Get("echostr"))
+				assert.Regexp(t, `^[0-9]{13}$`, r.Form.Get("timestamp"))
+				assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
+				signature, err := base64.StdEncoding.DecodeString(r.Form.Get("sign"))
+				if !assert.NoError(t, err) {
+					return
+				}
+				r.Form.Del("sign")
+				digest := md5.Sum([]byte(r.Form.Encode())) //nolint:gosec // Exchange signing contract
+				hash := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(digest[:]))))
+				assert.NoError(t, rsa.VerifyPKCS1v15(&ex.privateKey.PublicKey, crypto.SHA256, hash[:], signature))
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			values := url.Values{"order_id": {"1"}}
+			for range 2 {
+				var result RemoveOrderResponse
+				err := ex.SendAuthHTTPRequest(t.Context(), http.MethodPost, "/v2/cancel_order.do", values, &result)
+				assert.Equal(t, url.Values{"order_id": {"1"}}, values, "caller parameters should remain reusable")
+				if tc.failure {
+					require.ErrorIs(t, err, errRequestFailed)
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, "1", result.OrderID)
+				}
+			}
+		})
+	}
 }

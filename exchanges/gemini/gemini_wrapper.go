@@ -501,6 +501,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 		return nil, err
 	}
 
+	for _, orderID := range resp.Details.CancelledOrders {
+		cancelAllOrdersResponse.Add(orderID, order.Cancelled.String())
+	}
 	for i := range resp.Details.CancelRejects {
 		cancelAllOrdersResponse.Add(resp.Details.CancelRejects[i], "Could not cancel order")
 	}

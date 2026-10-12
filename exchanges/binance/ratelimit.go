@@ -29,6 +29,7 @@ const (
 // Binance Spot rate limits
 const (
 	spotDefaultRate request.EndpointLimit = iota
+	marginCancelOrderRate
 	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
@@ -107,6 +108,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		spotDefaultRate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 1),
 		spotOrderbookTickerAllRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
+		marginCancelOrderRate:           request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
 		spotHistoricalTradesRate:        request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
 		spotOrderbookDepth100Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
 		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 25),

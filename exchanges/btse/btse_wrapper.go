@@ -514,9 +514,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 
 	for x := range allOrders {
-		if allOrders[x].Status == orderCancelled {
-			resp.Add(allOrders[x].OrderID, order.Cancelled.String())
+		status := order.Cancelled.String()
+		if allOrders[x].Status != orderCancelled {
+			status = fmt.Sprintf("Cancellation status %d", allOrders[x].Status)
 		}
+		resp.Add(allOrders[x].OrderID, status)
 	}
 	return &resp, nil
 }

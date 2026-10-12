@@ -166,19 +166,38 @@ type OrderPlace struct {
 	Message string `json:"message"`
 }
 
-// OrderDetails contains specific order information
+// OrderDetails contains specific order information.
 type OrderDetails struct {
-	Status string `json:"status"`
-	Data   []struct {
-		TransactionDate int64   `json:"transaction_date,string"`
-		Type            string  `json:"type"`
-		OrderCurrency   string  `json:"order_currency"`
-		PaymentCurrency string  `json:"payment_currency"`
-		UnitsTraded     float64 `json:"units_traded,string"`
-		Price           float64 `json:"price,string"`
-		Total           float64 `json:"total,string"`
-	} `json:"data"`
-	Message string `json:"message"`
+	Status  string          `json:"status"`
+	Data    OrderDetailData `json:"data"`
+	Message string          `json:"message"`
+}
+
+// OrderDetailData contains the order state and its completed trades.
+type OrderDetailData struct {
+	OrderDate         types.Time      `json:"order_date"`
+	Type              string          `json:"type"`
+	OrderStatus       string          `json:"order_status"`
+	OrderCurrency     string          `json:"order_currency"`
+	PaymentCurrency   string          `json:"payment_currency"`
+	WatchPrice        types.Number    `json:"watch_price"`
+	OrderPrice        types.Number    `json:"order_price"`
+	OrderQuantity     types.Number    `json:"order_qty"`
+	CancelDate        types.Time      `json:"cancel_date"`
+	CancelType        string          `json:"cancel_type"`
+	Contract          []OrderContract `json:"contract"`
+	STPType           string          `json:"stp_type"`
+	CancellingOrderID string          `json:"canceling_order_id"`
+}
+
+// OrderContract contains the price, quantity and fees of a completed trade.
+type OrderContract struct {
+	TransactionDate types.Time   `json:"transaction_date"`
+	Price           types.Number `json:"price"`
+	Units           types.Number `json:"units"`
+	FeeCurrency     string       `json:"fee_currency"`
+	Fee             types.Number `json:"fee"`
+	Total           types.Number `json:"total"`
 }
 
 // ActionStatus holds the return status

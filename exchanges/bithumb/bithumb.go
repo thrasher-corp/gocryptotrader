@@ -55,8 +55,9 @@ const (
 )
 
 var (
-	errSymbolIsEmpty       = errors.New("symbol cannot be empty")
-	errUnhandledBalanceTag = errors.New("unhandled balance tag")
+	errOrderListingTruncated = errors.New("order listing may be truncated; complete cancellation cannot be confirmed")
+	errSymbolIsEmpty         = errors.New("symbol cannot be empty")
+	errUnhandledBalanceTag   = errors.New("unhandled balance tag")
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bithumb
@@ -358,7 +359,7 @@ func (e *Exchange) GetOrders(ctx context.Context, orderID, transactionType strin
 	}
 
 	if !after.IsZero() {
-		params.Set("after", after.Format(time.DateTime))
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 
 	return response,
@@ -409,39 +410,28 @@ func (e *Exchange) PlaceTrade(ctx context.Context, orderCurrency, transactionTyp
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privatePlaceTrade, params, &response)
 }
 
-// GetOrderDetails returns specific order details
-//
-// orderID: Order number registered for purchase/sales
-// transactionType: Transaction type(bid : purchase, ask : sales)
-// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
-// (default value: BTC)
-func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType, ccy string) (OrderDetails, error) {
+// GetOrderDetails returns order details for the order currency.
+// The transactionType argument is retained for source compatibility; the endpoint does not document a type parameter.
+func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, _, ccy string) (OrderDetails, error) {
 	response := OrderDetails{}
-
 	params := url.Values{}
-	params.Set("order_id", strings.ToUpper(orderID))
-	params.Set("type", transactionType)
-	params.Set("currency", strings.ToUpper(ccy))
-
-	return response,
-		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateOrderDetail, params, &response)
+	params.Set("order_id", orderID)
+	params.Set("order_currency", strings.ToUpper(ccy))
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateOrderDetail, params, &response)
 }
 
-// CancelTrade cancels a customer purchase/sales transaction
-// transactionType: Transaction type(bid : purchase, ask : sales)
-// orderID: Order number registered for purchase/sales
-// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
-// (default value: BTC)
-func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, ccy string) (ActionStatus, error) {
+// CancelTrade cancels an order using its base and payment currencies.
+// transactionType is bid or ask, or empty when the side is unknown.
+func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID string, pair currency.Pair) (ActionStatus, error) {
 	response := ActionStatus{}
-
 	params := url.Values{}
-	params.Set("order_id", strings.ToUpper(orderID))
-	params.Set("type", strings.ToUpper(transactionType))
-	params.Set("currency", strings.ToUpper(ccy))
-
-	return response,
-		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, params, &response)
+	params.Set("order_id", orderID)
+	if transactionType != "" {
+		params.Set("type", strings.ToLower(transactionType))
+	}
+	params.Set("order_currency", pair.Base.Upper().String())
+	params.Set("payment_currency", pair.Quote.Upper().String())
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, params, &response)
 }
 
 // WithdrawCrypto withdraws a customer currency to an address

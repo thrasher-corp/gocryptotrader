@@ -437,8 +437,25 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err := e.CancelTrade(ctx, o.Side.String(), o.OrderID, o.Pair.Base.String())
+	side, err := orderTransactionType(o.Side)
+	if err != nil {
+		return err
+	}
+	_, err = e.CancelTrade(ctx, side, o.OrderID, o.Pair)
 	return err
+}
+
+// orderTransactionType maps side aliases to Bithumb's optional bid or ask filter.
+func orderTransactionType(side order.Side) (string, error) {
+	switch {
+	case side.IsLong():
+		return order.Bid.Lower(), nil
+	case side.IsShort():
+		return order.Ask.Lower(), nil
+	case side == order.AnySide || side == order.UnknownSide:
+		return "", nil
+	}
+	return "", fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -458,29 +475,29 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 
-	var side string
-	switch {
-	case orderCancellation.Side.IsLong():
-		side = order.Bid.Lower()
-	case orderCancellation.Side.IsShort():
-		side = order.Ask.Lower()
-	case orderCancellation.Side == order.AnySide || orderCancellation.Side == order.UnknownSide:
-	default:
-		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, orderCancellation.Side)
+	side, err := orderTransactionType(orderCancellation.Side)
+	if err != nil {
+		return nil, err
 	}
-	allOrders, err := e.GetOrders(ctx, "", side, 100, time.Time{}, orderCancellation.Pair.Base, orderCancellation.Pair.Quote)
+	const listingLimit = 1000
+	allOrders, err := e.GetOrders(ctx, "", "", listingLimit, time.Time{}, orderCancellation.Pair.Base, orderCancellation.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(allOrders.Data) >= listingLimit {
+		return nil, errOrderListingTruncated
+	}
+
 	for i := range allOrders.Data {
-		if !strings.EqualFold(allOrders.Data[i].PaymentCurrency, orderCancellation.Pair.Quote.String()) {
+		if !strings.EqualFold(allOrders.Data[i].PaymentCurrency, orderCancellation.Pair.Quote.String()) ||
+			side != "" && !strings.EqualFold(allOrders.Data[i].Type, side) {
 			continue
 		}
 		_, err := e.CancelTrade(ctx,
 			allOrders.Data[i].Type,
 			allOrders.Data[i].OrderID,
-			orderCancellation.Pair.Base.String())
+			orderCancellation.Pair)
 		if err != nil {
 			cancelAllOrdersResponse.Add(allOrders.Data[i].OrderID, err.Error())
 			continue
