@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -3900,6 +3901,12 @@ func TestSubmitOrder(t *testing.T) {
 			var orderRequests, modeRequests atomic.Int64
 			check := func(payload []byte) {
 				orderRequests.Add(1)
+				if tc.route == "OCO" {
+					assert.Contains(t, string(payload), `"tpTriggerPx":"120"`, "OCO take-profit trigger should retain its independent price")
+					assert.Contains(t, string(payload), `"slTriggerPx":"80"`, "OCO stop-loss trigger should retain its independent price")
+					assert.Contains(t, string(payload), `"tpOrdPx":"121"`, "OCO take-profit order should retain its limit price")
+					assert.Contains(t, string(payload), `"slOrdPx":"79"`, "OCO stop-loss order should retain its limit price")
+				}
 				assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
 				assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
 				if tc.reduce && tc.mode == "net_mode" {
@@ -3963,8 +3970,8 @@ func TestSubmitOrder(t *testing.T) {
 				submission.Type = order.TWAP
 			case "OCO":
 				submission.Type = order.OCO
-				submission.RiskManagementModes.TakeProfit.Price = 2
-				submission.RiskManagementModes.StopLoss.Price = 1
+				submission.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 120, LimitPrice: 121}
+				submission.RiskManagementModes.StopLoss = order.RiskManagement{Price: 80, LimitPrice: 79}
 			}
 			response, err := ex.SubmitOrder(t.Context(), submission)
 			require.NoError(t, err, "order must succeed in its configured account mode")
