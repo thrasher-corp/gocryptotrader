@@ -5623,16 +5623,58 @@ func TestGetLeverage(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
-	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
-	require.NoError(t, err)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
+	for _, tc := range []struct {
+		name     string
+		asset    asset.Item
+		margin   margin.Type
+		side     order.Side
+		wantSide string
+		wantErr  error
+	}{
+		{name: "isolated unknown side", asset: asset.Futures, margin: margin.Isolated, side: order.UnknownSide, wantErr: order.ErrSideIsInvalid},
+		{name: "isolated invalid side", asset: asset.Futures, margin: margin.Isolated, side: order.CouldNotBuy, wantErr: order.ErrSideIsInvalid},
+		{name: "unsupported spot", asset: asset.Spot, margin: margin.Multi, side: order.UnknownSide, wantErr: asset.ErrNotSupported},
+		{name: "cross net", asset: asset.Futures, margin: margin.Multi, side: order.UnknownSide, wantSide: "net"},
+		{name: "isolated long", asset: asset.Futures, margin: margin.Isolated, side: order.Long, wantSide: "long"},
+		{name: "isolated short", asset: asset.Futures, margin: margin.Isolated, side: order.Short, wantSide: "short"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "local setup must succeed")
+			ex.API.AuthenticatedSupport, ex.SkipAuthCheck = true, true
+			var requests atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				var req struct {
+					InstrumentID string `json:"instId"`
+					PositionSide string `json:"posSide"`
+					Leverage     string `json:"lever"`
+				}
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "leverage request should decode")
+				assert.Equal(t, "BTC-USD-261225", req.InstrumentID, "local fixture should determine the instrument")
+				assert.Equal(t, tc.wantSide, req.PositionSide, "leverage side should match the position intent")
+				assert.Equal(t, "5", req.Leverage, "requested leverage should reach the endpoint")
+				_, err := w.Write([]byte(`{"code":"0","data":[{"lever":"5"}]}`))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must be configured")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+			err := ex.SetLeverage(t.Context(), tc.asset, currency.NewPairWithDelimiter("BTC", "USD-261225", "-"), tc.margin, 5, tc.side)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid leverage parameters must retain their validation error")
+				assert.Zero(t, requests.Load(), "invalid parameters should not reach the endpoint")
+			} else {
+				require.NoError(t, err, "valid leverage request must succeed")
+				assert.EqualValues(t, 1, requests.Load(), "valid request should reach the endpoint once")
+			}
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.UpdatePairsOnce(t, e)
+	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
+	require.NoError(t, err, "live futures pairs must be available")
+	require.NotEmpty(t, pp, "live futures pairs must not be empty")
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)
 	require.NoError(t, err)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.Long)

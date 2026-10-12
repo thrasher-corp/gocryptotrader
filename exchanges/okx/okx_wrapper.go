@@ -933,12 +933,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 
 	positionMode, err := e.contractPositionMode(ctx, s.AssetType)
 	if err != nil {
@@ -1183,12 +1182,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 
 	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
@@ -1319,12 +1317,12 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
@@ -1364,12 +1362,11 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 
 	if ord.AssetType == asset.Spread {
 		if e.canUseWebsocketForAccount(ctx, businessConnection) {
@@ -1587,12 +1584,12 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 		return order.ErrCancelOrderIsNil
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	if ord.AssetType == asset.Spread {
 		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		return err
@@ -1716,12 +1713,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 
 	if s.AssetType == asset.Spread {
 		pairFormat, err := e.GetPairFormat(s.AssetType, true)
@@ -1862,12 +1858,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 	}
 	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return order.CancelAllResponse{}, err
+	if err == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	}
-	store := &accounts.ContextCredentialsStore{}
-	store.Load(creds)
-	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},
 	}
