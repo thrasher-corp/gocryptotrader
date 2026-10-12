@@ -2000,6 +2000,47 @@ func TestMonitorFrame(t *testing.T) {
 	ws.Wg.Wait()
 }
 
+func TestObserveConnection(t *testing.T) {
+	t.Parallel()
+	for _, state := range []uint32{disconnectedState, connectingState, connectedState} {
+		t.Run(strconv.FormatUint(uint64(state), 10), func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.useMultiConnectionManagement = true
+			m.setEnabled(true)
+			m.setState(state)
+			m.connectionMonitorRunning.Store(true)
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			timer := time.NewTimer(time.Hour)
+			defer timer.Stop()
+			result := make(chan bool, 1)
+			go func() { result <- m.observeConnection(ctx, timer) }()
+			finished := false
+			defer func() {
+				if !finished {
+					// Release the original timer-only observer if a regression ignores cancellation.
+					timer.Reset(0)
+					select {
+					case <-result:
+					case <-time.After(time.Second):
+						assert.Fail(t, "observer fixture should finish during cleanup")
+					}
+				}
+			}()
+			select {
+			case stopped := <-result:
+				finished = true
+				require.True(t, stopped, "cancelled monitor context must stop the observer without waiting for its timer")
+			case <-time.After(time.Second):
+				require.FailNow(t, "cancelled monitor context must stop the observer promptly")
+			}
+			assert.False(t, m.connectionMonitorRunning.Load())
+			assert.Equal(t, state, m.state.Load(), "monitor cancellation should leave explicit socket shutdown to the lifecycle owner")
+		})
+	}
+}
+
 func TestMonitorConnection(t *testing.T) {
 	t.Parallel()
 	ws := Manager{verbose: true, ReadMessageErrors: make(chan error, 1), ShutdownC: make(chan struct{})}

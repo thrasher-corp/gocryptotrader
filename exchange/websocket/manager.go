@@ -83,6 +83,7 @@ type Manager struct {
 	enabled                       atomic.Bool
 	state                         atomic.Uint32
 	idle                          atomic.Bool
+	refreshPending                atomic.Bool
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
 	authenticatedSupport          atomic.Bool
@@ -460,7 +461,7 @@ func (m *Manager) Connect(ctx context.Context) error {
 	return m.connect(ctx)
 }
 
-func (m *Manager) connect(ctx context.Context) error {
+func (m *Manager) connect(ctx context.Context) (connectErr error) {
 	if !m.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
@@ -478,6 +479,17 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	m.setState(connectingState)
 	m.idle.Store(false)
+	defer func() {
+		// Pair changes can finish while a dial uses an older subscription snapshot.
+		// Reconcile them under the connection lock after a successful connection;
+		// a failed or idle connection keeps them pending for the monitor's retry.
+		if m.IsConnected() && m.refreshPending.Swap(false) {
+			if err := m.flushChannels(ctx); err != nil {
+				m.refreshPending.Store(true)
+				connectErr = common.AppendError(connectErr, err)
+			}
+		}
+	}()
 
 	if !m.useMultiConnectionManagement {
 		m.Wg.Add(1)
@@ -675,6 +687,9 @@ func (m *Manager) connect(ctx context.Context) error {
 	if !connected {
 		m.idle.Store(true)
 		m.setState(disconnectedState)
+		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
+			go m.monitorFrame(ctx, nil, m.monitorConnection)
+		}
 		return subscriptionError
 	}
 
@@ -917,14 +932,15 @@ func (m *Manager) IsConnecting() bool {
 }
 
 // IsIdle reports whether a successful connect found no subscriptions or sockets,
-// allowing pair or asset changes to activate the manager without reconnecting failures.
+// allowing pair or asset changes to activate the manager. The connection monitor
+// retries failed activations.
 func (m *Manager) IsIdle() bool {
 	return m.idle.Load()
 }
 
 // CanFlushChannels reports whether configuration changes should refresh subscriptions.
 // Read idle before the state snapshot so activation cannot hide between the two reads.
-// Ordinary disconnected managers are excluded to avoid redialling failed venues.
+// Ordinary disconnected managers are excluded because the connection monitor owns retries.
 func (m *Manager) CanFlushChannels() bool {
 	if !m.IsEnabled() {
 		return false
@@ -1189,6 +1205,10 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 // observeConnection observes the connection and attempts to reconnect if the connection is lost
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
+	case <-ctx.Done():
+		t.Stop()
+		m.connectionMonitorRunning.Store(false)
+		return true
 	case err := <-m.ReadMessageErrors:
 		if errors.Is(err, errConnectionFault) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
@@ -1232,6 +1252,10 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 		if !m.IsConnecting() && !m.IsConnected() {
 			err := m.Connect(ctx)
 			if err != nil {
+				log.Errorln(log.WebsocketMgr, err)
+			}
+		} else if m.IsConnected() && m.refreshPending.Load() {
+			if err := m.FlushChannels(ctx); err != nil {
 				log.Errorln(log.WebsocketMgr, err)
 			}
 		}

@@ -318,14 +318,37 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (m *Manager) FlushChannels(ctx context.Context) error {
-	if m.IsIdle() {
+	idle, connecting := m.IsIdle(), m.IsConnecting()
+	m.refreshPending.Store(true)
+	if connecting {
+		// Recheck after queuing so a connect that completed between these reads
+		// cannot leave an already connected manager with an unapplied change.
+		if m.IsConnecting() || !m.IsConnected() {
+			return nil
+		}
+	}
+	if idle {
 		if err := m.Connect(ctx); !errors.Is(err, errAlreadyConnected) {
 			return err
 		}
 	}
-	m.m.Lock()
+	if !m.m.TryLock() {
+		if m.IsConnecting() {
+			return nil
+		}
+		m.m.Lock()
+	}
+	if m.IsIdle() {
+		m.m.Unlock()
+		return m.FlushChannels(ctx)
+	}
 	defer m.m.Unlock()
-	return m.flushChannels(ctx)
+	pending := m.refreshPending.Swap(false)
+	err := m.flushChannels(ctx)
+	if err != nil && pending {
+		m.refreshPending.Store(true)
+	}
+	return err
 }
 
 func (m *Manager) flushChannels(ctx context.Context) error {
@@ -375,6 +398,17 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		if err := m.scaleConnectionsToSubscriptions(ctx, ws, newSubs); err != nil {
 			return err
 		}
+	}
+	m.connectionManagerMu.RLock()
+	connected := len(m.connections) != 0
+	m.connectionManagerMu.RUnlock()
+	if !connected {
+		// Stop the previous traffic monitor before a later pair change activates
+		// the manager. The connection monitor remains responsible for retries.
+		if err := m.shutdown(); err != nil {
+			return common.AppendError(subscriptionError, err)
+		}
+		m.idle.Store(true)
 	}
 	return subscriptionError
 }

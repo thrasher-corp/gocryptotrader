@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -161,138 +162,201 @@ func TestRPCPairChangesActivateIdleWebsocket(t *testing.T) {
 
 func TestRPCPairChangesDuringIdleActivation(t *testing.T) {
 	t.Parallel()
-	for _, operation := range []string{"SetExchangePair", "SetExchangeAsset", "SetAllExchangePairs"} {
-		t.Run(operation, func(t *testing.T) {
-			t.Parallel()
-			em := NewExchangeManager()
-			exch, err := em.NewExchangeByName("GateIO")
-			require.NoError(t, err, "GateIO must be available")
-			exch.SetDefaults()
-			exch.SetEnabled(true)
-			base := exch.GetBase()
-			btc, eth := currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)
-			stores := make([]*currency.PairsManager, 2)
-			for i := range stores {
-				stores[i] = &currency.PairsManager{Pairs: currency.FullStore{
-					asset.Spot:   {Available: currency.Pairs{btc, eth}, AssetEnabled: true, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
-					asset.Margin: {Available: currency.Pairs{eth}, Enabled: currency.Pairs{eth}, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
-				}}
-			}
-			base.CurrencyPairs.Pairs = stores[0].Pairs
-			cfg := config.Exchange{Name: "GateIO", Enabled: true, CurrencyPairs: stores[1], Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}, WebsocketTrafficTimeout: time.Minute, ConnectionMonitorDelay: 10 * time.Millisecond}
-			base.Config = &cfg
-			m := websocket.NewManager()
-			base.Websocket = m
-			require.NoError(t, m.Setup(&websocket.ManagerSetup{ExchangeConfig: &cfg, UseMultiConnectionManagement: true, Features: &protocol.Features{Subscribe: true, Unsubscribe: true}}), "manager setup must succeed")
-			srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-			t.Cleanup(func() {
-				require.NoError(t, m.Disable(), "manager must disable during cleanup")
-				if m.IsConnected() {
-					require.NoError(t, m.Shutdown(), "manager must shut down during cleanup")
-				} else {
-					close(m.ShutdownC)
+	for _, outcome := range []string{"successful reconnect", "failed reconnect", "queued subscription failure", "several queued changes"} {
+		for _, operation := range []string{"SetExchangePair", "SetExchangeAsset", "SetAllExchangePairs"} {
+			t.Run(outcome+"/"+operation, func(t *testing.T) {
+				t.Parallel()
+				em := NewExchangeManager()
+				exch, err := em.NewExchangeByName("GateIO")
+				require.NoError(t, err, "GateIO must be available")
+				exch.SetDefaults()
+				exch.SetEnabled(true)
+				base := exch.GetBase()
+				btc, eth := currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)
+				stores := make([]*currency.PairsManager, 2)
+				for i := range stores {
+					stores[i] = &currency.PairsManager{Pairs: currency.FullStore{
+						asset.Spot:   {Available: currency.Pairs{btc, eth}, AssetEnabled: true, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
+						asset.Margin: {Available: currency.Pairs{eth}, Enabled: currency.Pairs{eth}, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
+					}}
 				}
-			})
-			connecting, release := make(chan struct{}), make(chan struct{})
-			var releaseOnce sync.Once
-			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-			var firstDial sync.Once
-			require.NoError(t, m.SetupNewConnection(&websocket.ConnectionSetup{
-				URL: "ws" + srv.URL[len("http"):],
-				Connector: func(ctx context.Context, conn websocket.Connection) error {
-					firstDial.Do(func() { close(connecting) })
-					select {
-					case <-release:
-					case <-ctx.Done():
-						return ctx.Err()
+				base.CurrencyPairs.Pairs = stores[0].Pairs
+				cfg := config.Exchange{Name: "GateIO", Enabled: true, CurrencyPairs: stores[1], Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}, WebsocketTrafficTimeout: time.Minute, ConnectionMonitorDelay: 10 * time.Millisecond}
+				if outcome == "successful reconnect" || outcome == "several queued changes" {
+					cfg.ConnectionMonitorDelay = time.Hour
+				}
+				base.Config = &cfg
+				m := websocket.NewManager()
+				base.Websocket = m
+				require.NoError(t, m.Setup(&websocket.ManagerSetup{ExchangeConfig: &cfg, UseMultiConnectionManagement: true, Features: &protocol.Features{Subscribe: true, Unsubscribe: true}}), "manager setup must succeed")
+				srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+				ownerCtx, cancelOwner := context.WithCancel(t.Context())
+				t.Cleanup(func() {
+					cancelOwner()
+					require.NoError(t, m.Disable(), "manager must disable during cleanup")
+					if m.IsConnected() {
+						require.NoError(t, m.Shutdown(), "manager must shut down during cleanup")
+					} else {
+						close(m.ShutdownC)
 					}
-					return conn.Dial(ctx, dialer, nil, nil)
-				},
-				GenerateSubscriptions: func() (subscription.List, error) {
-					var subs subscription.List
-					for _, a := range base.CurrencyPairs.GetAssetTypes(true) {
-						pairs, err := base.CurrencyPairs.GetPairs(a, true)
-						if err != nil {
-							return nil, err
+				})
+				connecting, release := make(chan struct{}), make(chan struct{})
+				var releaseOnce sync.Once
+				t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+				var firstDial sync.Once
+				var refuseDial, refuseSubscription atomic.Bool
+				var dialFailures, subscriptionFailures atomic.Int32
+				refuseDial.Store(outcome == "failed reconnect")
+				refuseSubscription.Store(outcome == "queued subscription failure")
+				require.NoError(t, m.SetupNewConnection(&websocket.ConnectionSetup{
+					URL: "ws" + srv.URL[len("http"):],
+					Connector: func(ctx context.Context, conn websocket.Connection) error {
+						firstDial.Do(func() { close(connecting) })
+						select {
+						case <-release:
+						case <-ctx.Done():
+							return ctx.Err()
 						}
-						for _, pair := range pairs {
-							subs = append(subs, &subscription.Subscription{Channel: "ticker", Asset: a, Pairs: currency.Pairs{pair}})
+						if refuseDial.Swap(false) {
+							dialFailures.Add(1)
+							return errExpectedTestError
 						}
-					}
-					return subs, nil
-				},
-				Subscriber: func(_ context.Context, conn websocket.Connection, subs subscription.List) error {
-					return m.AddSuccessfulSubscriptions(conn, subs...)
-				},
-				Unsubscriber: func(_ context.Context, conn websocket.Connection, subs subscription.List) error {
-					return m.RemoveSubscriptions(conn, subs...)
-				},
-				Handler: func(context.Context, websocket.Connection, []byte) error { return nil },
-			}), "connection setup must succeed")
-			require.NoError(t, m.Connect(t.Context()), "empty startup connect must succeed")
-			require.True(t, m.IsIdle(), "empty manager must start idle")
-			require.NoError(t, em.Add(exch), "exchange registration must succeed")
-			s := RPCServer{Engine: &Engine{ExchangeManager: em, Config: &config.Config{Exchanges: []config.Exchange{cfg}}}}
-			firstDone := make(chan error, 1)
-			go func() {
-				_, err := s.SetExchangePair(t.Context(), &gctrpc.SetExchangePairRequest{Exchange: "GateIO", AssetType: asset.Spot.String(), Enable: true, Pairs: []*gctrpc.CurrencyPair{{Base: "BTC", Quote: "USDT"}}})
-				firstDone <- err
-			}()
-			select {
-			case <-connecting:
-			case <-time.After(time.Second):
-				require.FailNow(t, "first RPC must begin connecting before the second change")
-			}
-			require.True(t, m.IsConnecting(), "first RPC must remain connecting while its snapshot is stale")
-			secondDone := make(chan error, 1)
-			go func() {
-				var err error
-				switch operation {
-				case "SetExchangePair":
-					_, err = s.SetExchangePair(t.Context(), &gctrpc.SetExchangePairRequest{Exchange: "GateIO", AssetType: asset.Spot.String(), Enable: true, Pairs: []*gctrpc.CurrencyPair{{Base: "ETH", Quote: "USDT"}}})
-				case "SetExchangeAsset":
-					_, err = s.SetExchangeAsset(t.Context(), &gctrpc.SetExchangeAssetRequest{Exchange: "GateIO", Asset: asset.Margin.String(), Enable: true})
-				case "SetAllExchangePairs":
-					_, err = s.SetAllExchangePairs(t.Context(), &gctrpc.SetExchangeAllPairsRequest{Exchange: "GateIO", Enable: true})
-				}
-				secondDone <- err
-			}()
-			require.Eventually(t, func() bool {
-				if operation == "SetExchangeAsset" {
-					return base.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
-				}
-				pairs, err := base.CurrencyPairs.GetPairs(asset.Spot, true)
-				return err == nil && pairs.Contains(eth, true)
-			}, time.Second, time.Millisecond, "second RPC must apply its configuration change while connecting")
-			select {
-			case err := <-secondDone:
-				require.FailNowf(t, "Second RPC must wait for the active connection before flushing", "returned early: %v", err)
-			case <-time.After(100 * time.Millisecond):
-			}
-			releaseOnce.Do(func() { close(release) })
-			for _, done := range []<-chan error{firstDone, secondDone} {
+						return conn.Dial(ctx, dialer, nil, nil)
+					},
+					GenerateSubscriptions: func() (subscription.List, error) {
+						var subs subscription.List
+						for _, a := range base.CurrencyPairs.GetAssetTypes(true) {
+							pairs, err := base.CurrencyPairs.GetPairs(a, true)
+							if err != nil {
+								return nil, err
+							}
+							for _, pair := range pairs {
+								subs = append(subs, &subscription.Subscription{Channel: "ticker", Asset: a, Pairs: currency.Pairs{pair}})
+							}
+						}
+						return subs, nil
+					},
+					Subscriber: func(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+						if err := ctx.Err(); err != nil {
+							return err
+						}
+						for _, sub := range subs {
+							if sub.Pairs.Contains(eth, true) && refuseSubscription.Swap(false) {
+								subscriptionFailures.Add(1)
+								return errExpectedTestError
+							}
+						}
+						return m.AddSuccessfulSubscriptions(conn, subs...)
+					},
+					Unsubscriber: func(_ context.Context, conn websocket.Connection, subs subscription.List) error {
+						return m.RemoveSubscriptions(conn, subs...)
+					},
+					Handler: func(context.Context, websocket.Connection, []byte) error { return nil },
+				}), "connection setup must succeed")
+				require.NoError(t, m.Connect(ownerCtx), "empty startup connect must succeed")
+				require.True(t, m.IsIdle(), "empty manager must start idle")
+				require.NoError(t, em.Add(exch), "exchange registration must succeed")
+				s := RPCServer{Engine: &Engine{ExchangeManager: em, Config: &config.Config{Exchanges: []config.Exchange{cfg}}}}
+				firstDone := make(chan error, 1)
+				go func() {
+					_, err := s.SetExchangePair(t.Context(), &gctrpc.SetExchangePairRequest{Exchange: "GateIO", AssetType: asset.Spot.String(), Enable: true, Pairs: []*gctrpc.CurrencyPair{{Base: "BTC", Quote: "USDT"}}})
+					firstDone <- err
+				}()
 				select {
-				case err := <-done:
-					require.NoError(t, err, "concurrent RPC change must succeed")
+				case <-connecting:
+				case <-time.After(time.Second):
+					require.FailNow(t, "first RPC must begin connecting before the second change")
+				}
+				require.True(t, m.IsConnecting(), "first RPC must remain connecting while its snapshot is stale")
+				secondCtx, cancelSecond := context.WithCancel(t.Context())
+				defer cancelSecond()
+				secondDone := make(chan error, 1)
+				go func() {
+					var err error
+					switch operation {
+					case "SetExchangePair":
+						_, err = s.SetExchangePair(secondCtx, &gctrpc.SetExchangePairRequest{Exchange: "GateIO", AssetType: asset.Spot.String(), Enable: true, Pairs: []*gctrpc.CurrencyPair{{Base: "ETH", Quote: "USDT"}}})
+					case "SetExchangeAsset":
+						_, err = s.SetExchangeAsset(secondCtx, &gctrpc.SetExchangeAssetRequest{Exchange: "GateIO", Asset: asset.Margin.String(), Enable: true})
+					case "SetAllExchangePairs":
+						_, err = s.SetAllExchangePairs(secondCtx, &gctrpc.SetExchangeAllPairsRequest{Exchange: "GateIO", Enable: true})
+					}
+					secondDone <- err
+				}()
+				require.Eventually(t, func() bool {
+					if operation == "SetExchangeAsset" {
+						return base.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
+					}
+					pairs, err := base.CurrencyPairs.GetPairs(asset.Spot, true)
+					return err == nil && pairs.Contains(eth, true)
+				}, time.Second, time.Millisecond, "second RPC must apply its configuration change while connecting")
+				select {
+				case err := <-secondDone:
+					require.NoError(t, err, "saved configuration change must return before the dial completes")
+				case <-time.After(time.Second):
+					require.FailNow(t, "RPC must return promptly while the existing connection attempt is paused")
+				}
+				if outcome == "several queued changes" {
+					thirdDone := make(chan error, 1)
+					go func() {
+						_, err := s.SetExchangePair(secondCtx, &gctrpc.SetExchangePairRequest{Exchange: "GateIO", AssetType: asset.Spot.String(), Enable: false, Pairs: []*gctrpc.CurrencyPair{{Base: "BTC", Quote: "USDT"}}})
+						thirdDone <- err
+					}()
+					select {
+					case err := <-thirdDone:
+						require.NoError(t, err)
+					case <-time.After(time.Second):
+						require.FailNow(t, "each saved configuration change must return before the paused dial completes")
+					}
+				}
+				cancelSecond() // The pending refresh must use the reconnect's context, not the completed RPC's.
+				releaseOnce.Do(func() { close(release) })
+				select {
+				case err := <-firstDone:
+					if err != nil {
+						require.ErrorIs(t, err, errExpectedTestError, "only the controlled connect or queued subscription failure must be reported")
+					}
 				case <-time.After(time.Second):
 					require.FailNow(t, "Concurrent RPC must finish after the connection is released")
 				}
-			}
-			got := m.GetSubscriptions()
-			wantAsset := asset.Spot
-			if operation == "SetExchangeAsset" {
-				wantAsset = asset.Margin
-			}
-			keys := make([]string, 0, len(got))
-			for _, sub := range got {
-				require.Len(t, sub.Pairs, 1, "each subscription must contain one enabled pair")
-				keys = append(keys, sub.Asset.String()+":"+sub.Pairs[0].String())
-			}
-			want := []string{asset.Spot.String() + ":" + btc.String(), wantAsset.String() + ":" + eth.String()}
-			if operation == "SetAllExchangePairs" {
-				want = append(want, asset.Margin.String()+":"+eth.String())
-			}
-			assert.ElementsMatch(t, want, keys, "all enabled pairs should be subscribed with their asset scopes")
-		})
+				wantCount := 2
+				if operation == "SetAllExchangePairs" {
+					wantCount = 3
+				}
+				if outcome == "several queued changes" {
+					wantCount--
+				}
+				if outcome == "successful reconnect" || outcome == "several queued changes" {
+					require.True(t, m.IsConnected())
+					require.Len(t, m.GetSubscriptions(), wantCount, "successful reconnect must apply every queued change before returning")
+				} else {
+					require.Eventually(t, func() bool { return m.IsConnected() && len(m.GetSubscriptions()) == wantCount }, time.Second, time.Millisecond, "the monitor must apply every saved change after a failed dial or queued subscription")
+				}
+				if outcome == "failed reconnect" {
+					assert.Equal(t, int32(1), dialFailures.Load())
+				}
+				if outcome == "queued subscription failure" {
+					assert.Equal(t, int32(1), subscriptionFailures.Load())
+				}
+				got := m.GetSubscriptions()
+				wantAsset := asset.Spot
+				if operation == "SetExchangeAsset" {
+					wantAsset = asset.Margin
+				}
+				keys := make([]string, 0, len(got))
+				for _, sub := range got {
+					require.Len(t, sub.Pairs, 1, "each subscription must contain one enabled pair")
+					keys = append(keys, sub.Asset.String()+":"+sub.Pairs[0].String())
+				}
+				want := []string{asset.Spot.String() + ":" + btc.String(), wantAsset.String() + ":" + eth.String()}
+				if operation == "SetAllExchangePairs" {
+					want = append(want, asset.Margin.String()+":"+eth.String())
+				}
+				if outcome == "several queued changes" {
+					want = want[1:]
+				}
+				assert.ElementsMatch(t, want, keys, "all enabled pairs should be subscribed with their asset scopes")
+			})
+		}
 	}
 }
