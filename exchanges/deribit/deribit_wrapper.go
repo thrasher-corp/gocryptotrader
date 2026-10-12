@@ -209,8 +209,16 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 		return nil, err
 	}
 
+	if instruments == nil {
+		return nil, common.ErrInvalidResponse
+	}
+
 	resp := make(currency.Pairs, 0, len(instruments))
+	routed := make(map[[2]*currency.Item]bool)
 	for _, inst := range instruments {
+		if inst == nil {
+			return nil, common.ErrInvalidResponse
+		}
 		if !inst.IsActive {
 			continue
 		}
@@ -219,6 +227,15 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 			return nil, err
 		}
 		resp = resp.Add(cp)
+		if assetType == asset.Spot && (inst.IsCBERouted || inst.IsCSR) {
+			routed[[2]*currency.Item{cp.Base.Item, cp.Quote.Item}] = true
+		}
+	}
+	if assetType == asset.Spot {
+		// Publish only complete discoveries; failed refreshes must retain the last routing snapshot.
+		e.spotRoutingMtx.Lock()
+		e.routedSpotPairs = routed
+		e.spotRoutingMtx.Unlock()
 	}
 	return resp, nil
 }

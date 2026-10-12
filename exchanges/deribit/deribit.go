@@ -32,6 +32,8 @@ type Exchange struct {
 	// data handler's consumer writes it behind the reader, so it can hold an older state
 	incrementalTickers    map[string]*WsIncrementalTicker
 	incrementalTickersMtx sync.Mutex
+	spotRoutingMtx        sync.RWMutex
+	routedSpotPairs       map[[2]*currency.Item]bool
 }
 
 const (

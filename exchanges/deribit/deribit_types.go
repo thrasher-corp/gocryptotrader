@@ -194,6 +194,8 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
+	IsCBERouted                  bool          `json:"is_cbe_routed"`
+	IsCSR                        bool          `json:"is_csr"`
 	InstrumentName               string        `json:"instrument_name"`
 	BaseCurrency                 currency.Code `json:"base_currency"`
 	Kind                         string        `json:"kind"`

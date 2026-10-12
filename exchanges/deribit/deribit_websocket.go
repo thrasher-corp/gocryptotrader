@@ -981,7 +981,7 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 // supportsChannel requires an asset supported by this exchange and excludes
-// unsupported USDC spot trade and candle streams.
+// public trade and candle streams for instruments routed to Coinbase.
 func (e *Exchange) supportsChannel(s *subscription.Subscription, a asset.Item, p currency.Pair) bool {
 	if !e.SupportsAsset(a) {
 		return false
@@ -989,7 +989,10 @@ func (e *Exchange) supportsChannel(s *subscription.Subscription, a asset.Item, p
 	if a != asset.Spot {
 		return true
 	}
-	if !p.Quote.Equal(currency.USDC) {
+	e.spotRoutingMtx.RLock()
+	routed := e.routedSpotPairs[[2]*currency.Item{p.Base.Item, p.Quote.Item}]
+	e.spotRoutingMtx.RUnlock()
+	if !routed {
 		return true
 	}
 	channel, ok := subscriptionNames[s.Channel]

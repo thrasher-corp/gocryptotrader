@@ -4474,11 +4474,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
-	t.Run("USDC spot streams", func(t *testing.T) {
+	t.Run("routing metadata spot streams", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
-		pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.USDC), currency.NewPair(currency.ETH, currency.USDC)}
+		pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.USDC), currency.NewPair(currency.ETH, currency.USDC), currency.NewPair(currency.SOL, currency.ETH)}
+		ex.routedSpotPairs = map[[2]*currency.Item]bool{{currency.SOL.Item, currency.ETH.Item}: true}
 		require.NoError(t, ex.UpdatePairs(pairs, asset.Spot, false), "available spot pairs must update")
 		require.NoError(t, ex.UpdatePairs(pairs, asset.Spot, true), "enabled spot pairs must update")
 		ex.Features.Subscriptions = subscription.List{
@@ -4493,7 +4494,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		for _, s := range generated {
 			channels = append(channels, s.QualifiedChannel)
 		}
-		assert.ElementsMatch(t, []string{"ticker.BTC_USDC.100ms", "ticker.ETH_USDC.100ms", "book.BTC_USDC.100ms", "book.ETH_USDC.100ms"}, channels, "only supported USDC spot channels should be generated")
+		assert.ElementsMatch(t, []string{"trades.BTC_USDC.100ms", "trades.ETH_USDC.100ms", "chart.trades.BTC_USDC.1D", "chart.trades.ETH_USDC.1D", "ticker.BTC_USDC.100ms", "ticker.ETH_USDC.100ms", "ticker.SOL_ETH.100ms", "book.BTC_USDC.100ms", "book.ETH_USDC.100ms", "book.SOL_ETH.100ms"}, channels, "native USDC streams and routed ticker and book streams should be generated")
 	})
 }
 
@@ -6081,15 +6082,21 @@ func TestSupportsChannel(t *testing.T) {
 		{asset.PerpetualSwap, false},
 		{asset.Binary, false},
 	} {
-		for _, channel := range []string{subscription.AllTradesChannel, tradesChannel, subscription.CandlesChannel, chartTradesChannel, subscription.TickerChannel, subscription.OrderbookChannel, "custom.channel"} {
-			for _, quote := range []currency.Code{currency.USDC, currency.BTC} {
-				t.Run(fmt.Sprintf("%s/%s/%s", tc.asset, channel, quote), func(t *testing.T) {
-					t.Parallel()
-					ex := new(Exchange)
-					ex.SetDefaults()
-					unsupportedChannel := tc.asset == asset.Spot && quote.Equal(currency.USDC) && (channel == subscription.AllTradesChannel || channel == tradesChannel || channel == subscription.CandlesChannel || channel == chartTradesChannel)
-					assert.Equal(t, tc.supported && !unsupportedChannel, ex.supportsChannel(&subscription.Subscription{Channel: channel}, tc.asset, currency.NewPair(currency.ETH, quote)), "only supported assets and streams should be accepted")
-				})
+		for _, channel := range []string{subscription.AllTradesChannel, tradesChannel, subscription.CandlesChannel, chartTradesChannel, subscription.TickerChannel, subscription.OrderbookChannel, "custom.channel", "user.trades"} {
+			for _, quote := range []currency.Code{currency.USDC, currency.ETH} {
+				for _, routing := range []string{"unknown", "native", "routed"} {
+					t.Run(fmt.Sprintf("%s/%s/%s/%s", tc.asset, channel, quote, routing), func(t *testing.T) {
+						t.Parallel()
+						ex := new(Exchange)
+						ex.SetDefaults()
+						pair := currency.NewPair(currency.SOL, quote)
+						if routing != "unknown" {
+							ex.routedSpotPairs = map[[2]*currency.Item]bool{{pair.Base.Item, pair.Quote.Item}: routing == "routed"}
+						}
+						unsupported := tc.asset == asset.Spot && routing == "routed" && (channel == subscription.AllTradesChannel || channel == tradesChannel || channel == subscription.CandlesChannel || channel == chartTradesChannel)
+						assert.Equal(t, tc.supported && !unsupported, ex.supportsChannel(&subscription.Subscription{Channel: channel}, tc.asset, pair), "only routed spot public trades and candles should be excluded")
+					})
+				}
 			}
 		}
 	}
