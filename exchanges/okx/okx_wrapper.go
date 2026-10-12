@@ -1455,13 +1455,36 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if curr == "" && orderCancellation.OrderID == "" && orderCancellation.ClientOrderID == "" {
 		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
-	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
+	// Enumerate before cancelling so our cancellations cannot move orders between pages.
+	const pageSize = 100
+	params := OrderListRequestParams{
 		InstrumentType: instrumentType,
 		OrderType:      oType,
 		InstrumentID:   curr,
-	})
-	if err != nil {
-		return nil, err
+		Limit:          pageSize,
+	}
+	var myOrders []OrderDetail
+	seen := make(map[string]struct{})
+	for {
+		page, err := e.GetOrderList(ctx, &params)
+		if err != nil {
+			return nil, err
+		}
+		for i := range page {
+			id := page[i].OrderID
+			if id == "" {
+				return nil, fmt.Errorf("%w: pending order has no order ID", common.ErrInvalidResponse)
+			}
+			if _, exists := seen[id]; exists {
+				return nil, fmt.Errorf("%w: pending order pagination repeated order %s", common.ErrInvalidResponse, id)
+			}
+			seen[id] = struct{}{}
+		}
+		myOrders = append(myOrders, page...)
+		if len(page) < pageSize {
+			break
+		}
+		params.After = page[len(page)-1].OrderID
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
 	for i := range myOrders {

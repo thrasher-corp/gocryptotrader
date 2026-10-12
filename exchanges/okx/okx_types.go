@@ -963,7 +963,7 @@ type OrderListRequestParams struct {
 	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
-	OrderType      string    `json:"orderType"`
+	OrderType      string    `json:"ordType"`
 	State          string    `json:"state"`            // live, partially_filled
 	Before         string    `json:"before,omitempty"` // used for order IDs
 	After          string    `json:"after,omitempty"`  // used for order IDs
