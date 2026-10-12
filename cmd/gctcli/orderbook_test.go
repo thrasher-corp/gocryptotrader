@@ -227,6 +227,24 @@ func TestRenderExchangeOrderbookStream(t *testing.T) {
 	}
 }
 
+func TestRenderExchangeOrderbookStreamWithoutPair(t *testing.T) {
+	t.Parallel()
+	for _, streamError := range []string{"kraken BTCUSD spot Reason: [orderbook data integrity compromised]", ""} {
+		t.Run(fmt.Sprintf("error=%q", streamError), func(t *testing.T) {
+			t.Parallel()
+			resp := &gctrpc.OrderbookResponse{Error: streamError, LastUpdated: 1234567890123456}
+			var output strings.Builder
+			require.NoError(t, renderExchangeOrderbookStream(&output, resp, "kraken"), "rendering a pairless response must not fail")
+			assert.Empty(t, output.String(), "a pairless response should print no summary")
+			require.NoError(t, renderExchangeOrderbookStream(orderbookErrorWriter{err: io.ErrClosedPipe}, resp, "kraken"), "a pairless response must not write to the output")
+			assert.Equal(t, streamError, resp.Error, "the stream error should remain available for the caller to print")
+			resp.Pair = &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"}
+			require.NoError(t, renderExchangeOrderbookStream(&output, resp, "kraken"), "a subsequent paired response must render")
+			assert.Contains(t, output.String(), "Orderbook streamed for kraken BTC-USD at ", "paired responses should still produce a summary")
+		})
+	}
+}
+
 func TestOrderbookRenderingUnicodeHeadingPadding(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

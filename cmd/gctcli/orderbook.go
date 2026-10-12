@@ -738,6 +738,10 @@ func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, e
 }
 
 func renderExchangeOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName string) error {
+	// Exchange stream errors carry no pair; the caller prints resp.Error.
+	if resp.Pair == nil {
+		return nil
+	}
 	_, err := fmt.Fprintf(w, "Orderbook streamed for %s %s-%s at %s",
 		exchangeName, strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote), time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
 	return err

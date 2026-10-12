@@ -237,6 +237,9 @@ Use `require` and `assert` appropriately:
 - Bound asynchronous waits in tests with deadlines so missing events fail
     promptly rather than relying on the package timeout. Keep tests sequential
     when an invoked library mutates package-level state.
+- Test stream consumers with both successful and error-only responses from
+    the producer. Fields required on success may be absent on error; preserve
+    error reporting and verify that subsequent valid responses still work.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 
