@@ -138,7 +138,7 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	require.Len(t, subs, 1)
 	assert.Equal(t, beforeRollover, subs[0].QualifiedChannel, "dated topic should remain stable across rollover and reconnect generation")
 	aliasPair := currency.NewPairWithDelimiter("BTC", "CW", "_")
-	require.NoError(t, h.SetPairs(append(multipleDeliveryPairs, aliasPair), asset.Futures, false))
+	require.NoError(t, h.SetPairs(currency.Pairs{multipleDeliveryPairs[0], multipleDeliveryPairs[1], aliasPair}, asset.Futures, false))
 	require.NoError(t, h.SetPairs(currency.Pairs{aliasPair}, asset.Futures, true))
 	h.Features.Subscriptions[0].Pairs = currency.Pairs{aliasPair}
 	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)

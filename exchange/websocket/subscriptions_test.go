@@ -720,7 +720,7 @@ func TestFlushChannels(t *testing.T) {
 			m.features.Subscribe = true
 			m.features.Unsubscribe = true
 			var calls []int
-			var changed []*subscription.Subscription
+			changed := make([]*subscription.Subscription, 0, 2)
 			for i := range 2 {
 				keep := &subscription.Subscription{Channel: "keep"}
 				change := &subscription.Subscription{Channel: "change"}
