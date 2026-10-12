@@ -327,7 +327,10 @@ const (
 	websocketRequestEPL
 )
 
-var rateLimits = func() request.RateLimitDefinitions {
+var rateLimits = newRateLimitDefinitions()
+
+// newRateLimitDefinitions gives each owner independent reservation state.
+func newRateLimitDefinitions() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
 		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
@@ -669,4 +672,4 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// This will fallback to the websocket connection specific rate limit
 		websocketRequestEPL: request.RateLimitNotRequired,
 	}
-}()
+}

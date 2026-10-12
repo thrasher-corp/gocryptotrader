@@ -1,9 +1,12 @@
 package okx
 
 import (
+	"context"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -267,16 +270,53 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getUserAffiliateRebateInformation":              getUserAffiliateRebateInformationEPL,
 	}
 
-	rl, err := request.New("RateLimit_Static", &http.Client{}, request.WithLimiter(rateLimits))
+	rl, err := request.New("RateLimit_Static", &http.Client{}, request.WithLimiter(newRateLimitDefinitions()))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
-				t.Fatalf("error applying rate limit: %v", err)
-			}
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			require.NoError(t, rl.InitiateRateLimit(ctx, tt), "fresh endpoint limit must permit its initial request")
+		})
+	}
+}
+
+func TestNewRateLimitDefinitions(t *testing.T) {
+	t.Parallel()
+	t.Run("every endpoint has independent reservation state", func(t *testing.T) {
+		t.Parallel()
+		first, second := newRateLimitDefinitions(), newRateLimitDefinitions()
+		require.Len(t, first, int(websocketRequestEPL), "every endpoint must have a limiter entry")
+		require.Len(t, second, len(first), "each factory result must contain every endpoint")
+		for endpoint := placeOrderEPL; endpoint < websocketRequestEPL; endpoint++ {
+			require.Contains(t, first, endpoint, "endpoint mapping must exist")
+			require.Contains(t, second, endpoint, "fresh endpoint mapping must exist")
+			require.NotNil(t, first[endpoint], "HTTP endpoint limiter must exist")
+			require.NotNil(t, second[endpoint], "fresh HTTP endpoint limiter must exist")
+			assert.NotSame(t, first[endpoint], second[endpoint], "factory results should own independent limiter state")
+			assert.Equal(t, request.Weight(1), first[endpoint].Weight(), "endpoint reservation should consume one request")
+		}
+		assert.Nil(t, first[websocketRequestEPL], "websocket endpoint should defer to connection limiting")
+	})
+	for _, tc := range []struct {
+		name     string
+		endpoint request.EndpointLimit
+	}{
+		{name: "daily transaction archive", endpoint: setTransactionDetail2YearIntervalEPL},
+		{name: "monthly statement", endpoint: applyForMonthlyStatementEPL},
+		{name: "daily bill archive", endpoint: billHistoryArchiveEPL},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			first, second := newRateLimitDefinitions(), newRateLimitDefinitions()
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			require.NoError(t, first[tc.endpoint].RateLimit(ctx), "initial reservation must be available")
+			require.ErrorIs(t, first[tc.endpoint].RateLimit(ctx), context.DeadlineExceeded, "exhausted long-interval limit must reject a bounded wait")
+			require.NoError(t, second[tc.endpoint].RateLimit(ctx), "separate factory result must retain its initial reservation")
 		})
 	}
 }
