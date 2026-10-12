@@ -558,6 +558,14 @@ func TestGetV3HistoryWindows(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("spot incomplete cancellation", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchCancelOpenOrders", `{"status":"ok","data":{"success-count":100,"failed-count":0,"next-id":5454600}}`, nil)
+		_, err := h.CancelAllOrders(t.Context(), &order.Cancel{AccountID: "1", Pair: btcusdtPair, AssetType: asset.Spot})
+		assert.ErrorIs(t, err, errOrderCancellationFailed, "remaining open orders should prevent complete cancellation success")
+		assert.ErrorContains(t, err, "5454600", "incomplete result should retain the next order identifier")
+	})
+
 	for _, tt := range []struct {
 		name     string
 		endpoint exchange.URL
@@ -568,7 +576,7 @@ func TestCancelAllOrders(t *testing.T) {
 		{
 			name: "spot", endpoint: exchange.RestSpot, path: "/v1/order/orders/batchCancelOpenOrders",
 			cancel:   order.Cancel{AccountID: "1", Pair: btcusdtPair, AssetType: asset.Spot},
-			response: `{"status":"ok","data":{"success-count":1,"failed-count":0}}`,
+			response: `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":-1}}`,
 		},
 		{
 			name: "coin margined futures", endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancelall",
@@ -1112,6 +1120,7 @@ func TestCancelOrder(t *testing.T) {
 			name: "coin margined client order ID", endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel",
 			cancel:        order.Cancel{ClientOrderID: "client-42", Pair: btcusdPair, AssetType: asset.CoinMarginedFutures},
 			expectedField: "client_order_id", expectedValue: "client-42",
+			response: `{"status":"ok","data":{"successes":"client-42","errors":[]}}`,
 		},
 		{
 			name: "USDT margined client order ID", endpoint: exchange.RestUSDTMargined, path: "/v5/trade/cancel_order",
@@ -1122,6 +1131,7 @@ func TestCancelOrder(t *testing.T) {
 			name: "delivery futures order ID", endpoint: exchange.RestFutures, path: fCancelOrder,
 			cancel:        order.Cancel{OrderID: "42", Pair: btccwPair, AssetType: asset.Futures},
 			expectedField: "order_id", expectedValue: "42",
+			response: `{"status":"ok","data":{"successes":"42","errors":[]}}`,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1150,6 +1160,53 @@ func TestCancelOrder(t *testing.T) {
 				require.NoError(t, err, "CancelOrder must not error")
 			}
 		})
+	}
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.Futures} {
+		for _, identifiers := range []struct{ name, orderID, clientID, acknowledgement string }{
+			{"order ID", "9", "", "9"}, {"client ID", "", "7", "7"}, {"order ID takes precedence", "9", "7", "9"},
+		} {
+			for _, tc := range []struct {
+				name, data string
+				want       error
+			}{
+				{"success", `{"successes":"` + identifiers.acknowledgement + `","errors":[]}`, nil},
+				{"rejected", `{"successes":"","errors":[{"order_id":"9","err_code":1061,"err_msg":"order cannot be cancelled"}]}`, errAPIResponse},
+				{"partial rejection", `{"successes":"` + identifiers.acknowledgement + `","errors":[{"order_id":"9","err_code":1061,"err_msg":"order cannot be cancelled"}]}`, errAPIResponse},
+				{"empty acknowledgement", `{}`, common.ErrInvalidResponse},
+				{"unrelated acknowledgement", `{"successes":"19","errors":[]}`, common.ErrInvalidResponse},
+			} {
+				t.Run(a.String()+"/"+identifiers.name+"/"+tc.name, func(t *testing.T) {
+					t.Parallel()
+					path := "/swap-api/v1/swap_cancel"
+					if a == asset.Futures {
+						path = fCancelOrder
+					}
+					h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, path, `{"status":"ok","data":`+tc.data+`}`, func(r *http.Request) {
+						var body map[string]any
+						if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "cancellation request should decode") {
+							return
+						}
+						for field, value := range map[string]string{"order_id": identifiers.orderID, "client_order_id": identifiers.clientID} {
+							if value == "" {
+								assert.NotContains(t, body, field, "unused identifier should be omitted")
+							} else {
+								assert.Equal(t, value, body[field], "request should preserve the selected identifier")
+							}
+						}
+						if a == asset.Futures {
+							assert.Equal(t, "BTC", body["symbol"], "delivery cancellation should select the base currency")
+						} else {
+							assert.Equal(t, "BTC-USD", body["contract_code"], "perpetual cancellation should select the contract")
+						}
+					})
+					err := h.CancelOrder(t.Context(), &order.Cancel{AssetType: a, Pair: btcusdPair, OrderID: identifiers.orderID, ClientOrderID: identifiers.clientID, ClientID: "client-name"})
+					assert.ErrorIs(t, err, tc.want, "cancellation should acknowledge the requested identifier and preserve rejections")
+					if tc.want == errAPIResponse {
+						assert.ErrorContains(t, err, "order cannot be cancelled", "rejection should retain the venue reason")
+					}
+				})
+			}
+		}
 	}
 }
 
@@ -2402,6 +2459,31 @@ var (
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, data string
+		want       map[string]string
+	}{
+		{"client failures", `{"success":[],"failed":[{"client-order-id":"client-1","err-msg":"first rejected"},{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": "first rejected", "client-2": "second rejected"}},
+		{"mixed partial results", `{"success":["client-1"],"failed":[{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "client-2": "second rejected"}},
+		{"exchange ID preferred", `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "42": "second rejected"}},
+	} {
+		t.Run("spot "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", `{"status":"ok","data":`+tc.data+`}`, func(r *http.Request) {
+				var payload struct {
+					ClientOrderIDs []string `json:"client-order-ids"`
+				}
+				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "client cancellation body should decode") {
+					assert.Equal(t, []string{"client-1", "client-2"}, payload.ClientOrderIDs, "both client identifiers should be attempted")
+				}
+			})
+			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, ClientOrderID: "client-1"}, {AssetType: asset.Spot, ClientOrderID: "client-2"}})
+			require.NoError(t, err, "partial result envelope must decode")
+			require.NotNil(t, response, "completed statuses must exist")
+			assert.Equal(t, tc.want, response.Status, "each failed client identifier should retain its individual reason")
+		})
+	}
+
 	for _, tc := range []struct {
 		name                       string
 		orders, clients, failBatch int

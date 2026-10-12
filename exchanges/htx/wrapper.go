@@ -1603,6 +1603,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return order.ErrOrderIDNotSet
 	}
 	var err error
+	var successes string
 	switch o.AssetType {
 	case asset.Spot:
 		if o.OrderID == "" {
@@ -1631,7 +1632,15 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		}
 		_, err = e.CancelExistingOrder(ctx, orderIDInt)
 	case asset.CoinMarginedFutures:
-		_, err = e.CancelSwapOrder(ctx, o.OrderID, o.ClientOrderID, o.Pair)
+		result, cancelErr := e.CancelSwapOrder(ctx, o.OrderID, o.ClientOrderID, o.Pair)
+		if cancelErr != nil {
+			return cancelErr
+		}
+		if len(result.Data.Errors) != 0 {
+			failure := result.Data.Errors[0]
+			return fmt.Errorf("%w: order %s code %d: %s", errAPIResponse, failure.OrderID, failure.ErrCode, failure.ErrMsg)
+		}
+		successes = result.Data.Successes
 	case asset.USDTMarginedFutures:
 		var cancelledOrder *V5OrderResponse
 		cancelledOrder, err = e.CancelV5Order(ctx, o.Pair, o.OrderID, o.ClientOrderID)
@@ -1639,9 +1648,26 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return errEmptyResult
 		}
 	case asset.Futures:
-		_, err = e.FCancelOrder(ctx, o.Pair.Base, o.OrderID, o.ClientOrderID)
+		result, cancelErr := e.FCancelOrder(ctx, o.Pair.Base, o.OrderID, o.ClientOrderID)
+		if cancelErr != nil {
+			return cancelErr
+		}
+		if len(result.Data.Errors) != 0 {
+			failure := result.Data.Errors[0]
+			return fmt.Errorf("%w: order %d code %d: %s", errAPIResponse, failure.OrderID, failure.ErrCode, failure.ErrMsg)
+		}
+		successes = result.Data.Successes
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
+	}
+	if o.AssetType == asset.Futures || o.AssetType == asset.CoinMarginedFutures {
+		identifier := o.OrderID
+		if identifier == "" {
+			identifier = o.ClientOrderID
+		}
+		if !slices.Contains(strings.Split(successes, ","), identifier) {
+			return fmt.Errorf("%w: cancellation response missing identifier %s", common.ErrInvalidResponse, identifier)
+		}
 	}
 	return err
 }
@@ -1686,7 +1712,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			resp.Status[cancelledOrders.Success[i]] = htxStatusSuccess
 		}
 		for i := range cancelledOrders.Failed {
-			resp.Status[cancelledOrders.Failed[i].OrderID] = cancelledOrders.Failed[i].ErrorMessage
+			identifier := cancelledOrders.Failed[i].OrderID
+			if identifier == "" {
+				identifier = cancelledOrders.Failed[i].ClientOrderID
+			}
+			resp.Status[identifier] = cancelledOrders.Failed[i].ErrorMessage
 		}
 	case asset.CoinMarginedFutures:
 		if pair.IsEmpty() {

@@ -756,7 +756,7 @@ func TestCancelOrderBatch(t *testing.T) {
 
 func TestCancelOpenOrdersBatch(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxBatchCancelOpenOrders, `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":0}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxBatchCancelOpenOrders, `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":-1}}`, nil)
 	_, err := h.CancelOpenOrdersBatch(t.Context(), "1", btcusdtPair)
 	require.NoError(t, err, "CancelOpenOrdersBatch must not error")
 }
@@ -766,17 +766,21 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		failedCount uint64
+		nextID      int64
 		status      string
 		errorMsg    string
 		want        error
 	}{
-		{name: "success"},
-		{name: "failed orders", failedCount: 2, want: errOrderCancellationFailed},
+		{name: "success", nextID: -1},
+		{name: "failed orders", failedCount: 2, nextID: -1, want: errOrderCancellationFailed},
+		{name: "more open orders", nextID: 5454600, want: errOrderCancellationFailed},
+		{name: "missing terminal cursor", want: errOrderCancellationFailed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result := CancelOpenOrdersBatch{Status: tc.status, ErrorMessage: tc.errorMsg}
 			result.Data.FailedCount = tc.failedCount
+			result.Data.NextID = tc.nextID
 			err := validateCancelOpenOrdersBatchResponse(result)
 			if tc.want == nil {
 				assert.NoError(t, err, "successful response should not error")

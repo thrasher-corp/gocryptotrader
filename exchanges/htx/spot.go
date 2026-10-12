@@ -505,6 +505,9 @@ func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
 	if result.Data.FailedCount > 0 {
 		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Data.FailedCount)
 	}
+	if result.Data.NextID != -1 {
+		return fmt.Errorf("%w: cancellation incomplete; next open order %d", errOrderCancellationFailed, result.Data.NextID)
+	}
 	return nil
 }
 
