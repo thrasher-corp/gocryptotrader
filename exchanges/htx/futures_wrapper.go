@@ -95,6 +95,10 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 					return nil, errEmptyResult
 				}
 				for i := range history.Data {
+					rateTime := history.Data[i].FundingTime.Time()
+					if (!r.StartDate.IsZero() && rateTime.Before(r.StartDate)) || (!r.EndDate.IsZero() && rateTime.After(r.EndDate)) {
+						continue
+					}
 					result.FundingRates = append(result.FundingRates, fundingrate.Rate{
 						Time: history.Data[i].FundingTime.Time(),
 						Rate: decimal.MustFromFloat(history.Data[i].FundingRate.Float64()),

@@ -4,9 +4,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -55,13 +53,4 @@ func (t wsFuturesTimestamp) MarshalJSON() ([]byte, error) {
 type wsFuturesPong struct {
 	Operation string             `json:"op"`
 	Timestamp wsFuturesTimestamp `json:"ts"`
-}
-
-// WsFundingRate contains a public derivative funding-rate update.
-type WsFundingRate struct {
-	Asset     asset.Item       `json:"-"`
-	Pair      currency.Pair    `json:"-"`
-	Channel   string           `json:"ch"`
-	Timestamp types.Time       `json:"ts"`
-	Tick      FundingRatesData `json:"tick"`
 }

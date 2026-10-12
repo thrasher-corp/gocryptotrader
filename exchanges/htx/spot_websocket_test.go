@@ -206,8 +206,8 @@ func TestWSHandleTickerMsg(t *testing.T) {
 		err   error
 	}{
 		{name: "spot quotes", asset: asset.Spot, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 40},
-		{name: "delivery turnover", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
-		{name: "coin turnover", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
+		{name: "delivery volume", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},
+		{name: "coin volume", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},
 		{name: "USDT turnover", asset: asset.USDTMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
 		{name: "short bid", asset: asset.Spot, raw: `{"tick":{"bid":[100]}}`, err: errInvalidBidData},
 		{name: "long ask", asset: asset.Spot, raw: `{"tick":{"ask":[101,3,4]}}`, err: errInvalidAskData},
@@ -384,6 +384,7 @@ func TestWSHandleMyTradesMsg(t *testing.T) {
 				Price:     9999.99,
 				Amount:    0.96,
 				Fee:       19.88,
+				FeeAsset:  "btc",
 				Exchange:  e.Name,
 				TID:       "919219323232",
 				Side:      order.Buy,
@@ -593,6 +594,7 @@ func TestWSHandleData(t *testing.T) {
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	require.NoError(t, h.wsHandleData(t.Context(), nil, []byte(`{"unexpected":true}`)), "unmatched websocket data must be forwarded")
+	require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 	message := <-h.Websocket.DataHandler.C
 	assert.IsType(t, websocket.UnhandledMessageWarning{}, message.Data, "unmatched websocket data should produce a warning")
 	require.ErrorIs(t, h.wsHandleData(t.Context(), nil, []byte(`{"ping":123}`)), common.ErrNilPointer, "websocket ping data must require a connection")

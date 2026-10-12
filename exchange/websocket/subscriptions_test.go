@@ -710,6 +710,77 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
+	for _, operation := range []string{"subscribe", "unsubscribe"} {
+		t.Run(operation+" failure leaves subsequent setup usable", func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.useMultiConnectionManagement = true
+			m.setEnabled(true)
+			m.setState(connectedState)
+			m.features.Subscribe = true
+			m.features.Unsubscribe = true
+			var calls []int
+			var changed []*subscription.Subscription
+			for i := range 2 {
+				keep := &subscription.Subscription{Channel: "keep"}
+				change := &subscription.Subscription{Channel: "change"}
+				changed = append(changed, change)
+				conn := &fakeConnection{subscriptions: subscription.NewStore()}
+				ws := &websocket{subscriptions: subscription.NewStore(), connections: []Connection{conn}}
+				require.NoError(t, ws.subscriptions.Add(keep))
+				require.NoError(t, conn.subscriptions.Add(keep))
+				incoming := subscription.List{keep, change}
+				if operation == "unsubscribe" {
+					require.NoError(t, ws.subscriptions.Add(change))
+					require.NoError(t, conn.subscriptions.Add(change))
+					incoming = subscription.List{keep}
+				}
+				ws.setup = &ConnectionSetup{
+					GenerateSubscriptions: func() (subscription.List, error) { return incoming, nil },
+					Subscriber: func(ctx context.Context, c Connection, subs subscription.List) error {
+						calls = append(calls, i)
+						if i == 0 {
+							return errDastardlyReason
+						}
+						return currySimpleSubConn(m)(ctx, c, subs)
+					},
+					Unsubscriber: func(ctx context.Context, c Connection, subs subscription.List) error {
+						calls = append(calls, i)
+						if i == 0 {
+							return errDastardlyReason
+						}
+						return currySimpleUnsubConn(m)(ctx, c, subs)
+					},
+				}
+				m.connectionManager = append(m.connectionManager, ws)
+				m.trackConnection(conn, ws)
+			}
+			require.ErrorIs(t, m.FlushChannels(t.Context()), errDastardlyReason)
+			assert.Equal(t, []int{0, 1}, calls, "the second setup must perform its refresh after the first callback fails")
+			for i, ws := range m.connectionManager {
+				wantChange := (operation == "subscribe" && i == 1) || (operation == "unsubscribe" && i == 0)
+				assert.Equal(t, wantChange, ws.subscriptions.Get(changed[i]) != nil, "manager store must reflect each callback outcome")
+				assert.Equal(t, wantChange, ws.connections[0].Subscriptions().Get(changed[i]) != nil, "connection store must reflect each callback outcome")
+			}
+		})
+	}
+	t.Run("generation failure leaves subsequent setup usable", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.useMultiConnectionManagement = true
+		m.setEnabled(true)
+		m.setState(connectedState)
+		m.features.Subscribe = true
+		m.features.Unsubscribe = true
+		visited := false
+		m.connectionManager = []*websocket{
+			{setup: &ConnectionSetup{GenerateSubscriptions: func() (subscription.List, error) { return nil, errDastardlyReason }}},
+			{setup: &ConnectionSetup{GenerateSubscriptions: func() (subscription.List, error) { visited = true; return nil, nil }}},
+		}
+		require.ErrorIs(t, m.FlushChannels(t.Context()), errDastardlyReason)
+		assert.True(t, visited, "a failed setup should not prevent subsequent setup refresh")
+	})
+
 	// Enabled pairs/setup system
 
 	dodgyWs := Manager{}

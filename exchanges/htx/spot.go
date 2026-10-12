@@ -445,18 +445,36 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (int6
 
 // CancelOrderBatch cancels a batch of orders
 func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs []string) (*CancelOrderBatch, error) {
-	resp := struct {
-		Response
-		Data *CancelOrderBatch `json:"data"`
-	}{}
-	data := struct {
-		ClientOrderIDs []string `json:"client-order-ids"`
-		OrderIDs       []string `json:"order-ids"`
-	}{
-		ClientOrderIDs: clientOrderIDs,
-		OrderIDs:       orderIDs,
+	result := new(CancelOrderBatch)
+	var errs error
+	for kind, identifiers := range [][]string{orderIDs, clientOrderIDs} {
+		for _, batch := range common.Batch(identifiers, 50) {
+			resp := struct {
+				Response
+				Data *CancelOrderBatch `json:"data"`
+			}{}
+			data := struct {
+				ClientOrderIDs []string `json:"client-order-ids,omitempty"`
+				OrderIDs       []string `json:"order-ids,omitempty"`
+			}{}
+			if kind == 0 {
+				data.OrderIDs = batch
+			} else {
+				data.ClientOrderIDs = batch
+			}
+			if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, &resp, false); err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			if resp.Data == nil {
+				errs = common.AppendError(errs, errEmptyResult)
+				continue
+			}
+			result.Success = append(result.Success, resp.Data.Success...)
+			result.Failed = append(result.Failed, resp.Data.Failed...)
+		}
 	}
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, &resp, false)
+	return result, errs
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do

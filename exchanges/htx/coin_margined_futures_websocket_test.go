@@ -45,6 +45,7 @@ func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
 				assert.Empty(t, h.Websocket.DataHandler.C, "transient cancellation states should not dispatch an order")
 				return
 			}
+			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
 			if changes, ok := message.Data.([]accounts.Change); ok {

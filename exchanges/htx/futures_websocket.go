@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -93,10 +94,12 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 		return nil, err
 	}
 	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
+	var unsupported error
 	for _, sub := range e.Features.Subscriptions {
 		if sub.Enabled && sub.Asset == a && sub.Authenticated == private {
 			if sub.Channel == wsFundingRateChannel || sub.Channel == wsFundingRateTopic {
-				return nil, fmt.Errorf("%w: %s", common.ErrNotYetImplemented, sub.Channel)
+				unsupported = common.AppendError(unsupported, fmt.Errorf("%w: %w: %s", websocket.ErrSubscriptionPartial, common.ErrNotYetImplemented, sub.Channel))
+				continue
 			}
 			cloned := sub.Clone()
 			if a == asset.Futures && !private {
@@ -109,17 +112,12 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 					}
 				}
 				for _, pair := range pairs {
-					quote := pair.Quote.String()
-					e.futureContractCodesMutex.RLock()
-					for expiryCode, expiryDate := range e.futureContractCodes {
-						if quote == expiryDate.String() {
-							quote = expiryCode
-							break
-						}
+					delimiter := ""
+					if slices.Contains(validContractExpiryCodes, pair.Quote.Upper().String()) {
+						delimiter = "_"
 					}
-					e.futureContractCodesMutex.RUnlock()
 					topicSub := cloned.Clone()
-					topicSub.Pairs = currency.Pairs{currency.NewPairWithDelimiter(pair.Base.String(), quote, "_")}
+					topicSub.Pairs = currency.Pairs{currency.NewPairWithDelimiter(pair.Base.String(), pair.Quote.String(), delimiter)}
 					expanded, errs := subscription.List{topicSub}.ExpandTemplates(e)
 					if errs != nil {
 						return nil, errs
@@ -134,7 +132,8 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 			subs = append(subs, cloned)
 		}
 	}
-	return subs.ExpandTemplates(e)
+	expanded, err := subs.ExpandTemplates(e)
+	return expanded, common.AppendError(unsupported, err)
 }
 
 // getWebsocketConnection resolves legacy subscription calls onto the asset-specific connection.
@@ -344,6 +343,8 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
 			tradeTurnover:  response.TradeTurnover,
+			averagePrice:   response.TradeAvgPrice,
+			trades:         response.Trade,
 			fee:            response.Fee,
 			feeAsset:       response.FeeAsset,
 			leverage:       float64(response.LeverageRate),
@@ -402,11 +403,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 				},
 			})
 		}
-		subAccounts := accounts.SubAccounts{accounts.NewSubAccount(sub.Asset, "")}
-		for _, change := range changes {
-			subAccounts[0].Balances.Set(change.Balance.Currency, change.Balance)
-		}
-		if err := e.Accounts.Save(ctx, subAccounts, false); err != nil {
+		if err := e.storeWebsocketBalances(ctx, sub.Asset, changes); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
@@ -443,6 +440,8 @@ type legacyFuturesWSOrder struct {
 	price          float64
 	tradeVolume    float64
 	tradeTurnover  float64
+	averagePrice   float64
+	trades         []LegacyFuturesWSTrade
 	fee            float64
 	leverage       float64
 	createdAt      int64
@@ -488,44 +487,54 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 	if data.cancelledAt != 0 {
 		cancelledAt = time.UnixMilli(data.cancelledAt)
 	}
+	trades := make([]order.TradeHistory, 0, len(data.trades))
+	for _, fill := range data.trades {
+		id := fill.ID
+		if id == "" {
+			id = strconv.FormatInt(fill.TradeID, 10)
+		}
+		feeAsset := fill.FeeAsset
+		if feeAsset == "" {
+			feeAsset = data.feeAsset
+		}
+		trades = append(trades, order.TradeHistory{TID: id, Exchange: e.Name, Price: fill.TradePrice, Amount: fill.TradeVolume, Fee: fill.TradeFee, FeeAsset: feeAsset, Total: fill.TradeTurnover, Timestamp: time.UnixMilli(fill.CreatedAt), IsMaker: strings.EqualFold(fill.Role, "maker"), Type: orderVars.OrderType, Side: orderVars.Side})
+	}
 	return order.Detail{
-		Exchange:        e.Name,
-		OrderID:         orderID,
-		ClientOrderID:   clientOrderID,
-		Pair:            pair,
-		Type:            orderVars.OrderType,
-		Side:            orderVars.Side,
-		TimeInForce:     orderVars.TimeInForce,
-		Date:            createdAt,
-		CloseTime:       cancelledAt,
-		Status:          orderVars.Status,
-		Price:           data.price,
-		Amount:          data.volume,
-		ExecutedAmount:  data.tradeVolume,
-		RemainingAmount: data.volume - data.tradeVolume,
-		Cost:            data.tradeTurnover,
-		Fee:             data.fee,
-		FeeAsset:        currency.NewCode(data.feeAsset),
-		Leverage:        data.leverage,
-		ReduceOnly:      data.reduceOnly,
-		AssetType:       data.asset,
-		MarginType:      margin.Isolated,
+		AverageExecutedPrice: data.averagePrice,
+		Trades:               trades,
+		Exchange:             e.Name,
+		OrderID:              orderID,
+		ClientOrderID:        clientOrderID,
+		Pair:                 pair,
+		Type:                 orderVars.OrderType,
+		Side:                 orderVars.Side,
+		TimeInForce:          orderVars.TimeInForce,
+		Date:                 createdAt,
+		CloseTime:            cancelledAt,
+		Status:               orderVars.Status,
+		Price:                data.price,
+		Amount:               data.volume,
+		ExecutedAmount:       data.tradeVolume,
+		RemainingAmount:      data.volume - data.tradeVolume,
+		Cost:                 data.tradeTurnover,
+		Fee:                  data.fee,
+		FeeAsset:             currency.NewCode(data.feeAsset),
+		Leverage:             data.leverage,
+		ReduceOnly:           data.reduceOnly,
+		AssetType:            data.asset,
+		MarginType:           margin.Isolated,
 	}, nil
 }
 
-// wsHandleFundingRateMsg forwards derivative funding-rate updates to the websocket data handler.
-func (e *Exchange) wsHandleFundingRateMsg(ctx context.Context, s *subscription.Subscription, raw []byte) error {
-	if s.Asset != asset.CoinMarginedFutures && s.Asset != asset.USDTMarginedFutures {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, s.Asset)
+// storeWebsocketBalances records balances at their local arrival time so REST snapshots and venue clock skew cannot reject subsequent updates.
+func (e *Exchange) storeWebsocketBalances(ctx context.Context, a asset.Item, changes []accounts.Change) error {
+	for _, change := range changes {
+		b := change.Balance
+		if _, err := e.Accounts.UpdateBalance(ctx, "", a, b.Currency, func(stored *accounts.Balance) {
+			stored.Total, stored.Hold, stored.Free = b.Total, b.Hold, b.Free
+		}); err != nil {
+			return err
+		}
 	}
-	if len(s.Pairs) != 1 {
-		return subscription.ErrNotSinglePair
-	}
-	var response *WsFundingRate
-	if err := json.Unmarshal(raw, &response); err != nil {
-		return err
-	}
-	response.Asset = s.Asset
-	response.Pair = s.Pairs[0]
-	return e.Websocket.DataHandler.Send(ctx, response)
+	return nil
 }

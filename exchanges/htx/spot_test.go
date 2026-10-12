@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -692,9 +693,65 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderCancelBatch, `{"status":"ok","data":{"success":["1234"],"failed":[]}}`, nil)
-	_, err := h.CancelOrderBatch(t.Context(), []string{"1234"}, nil)
-	require.NoError(t, err, "CancelOrderBatch must not error")
+	for _, tc := range []struct {
+		name      string
+		count     int
+		failFirst bool
+		nullFirst bool
+	}{
+		{name: "single", count: 1}, {name: "limit", count: 50}, {name: "chunked", count: 51}, {name: "multiple chunks", count: 101}, {name: "partial HTTP failure", count: 51, failFirst: true}, {name: "partial empty reply", count: 51, nullFirst: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			calls := 0
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderCancelBatch, `{"status":"ok","data":{"success":["ack"],"failed":[]}}`, func(r *http.Request) {
+				calls++
+				var payload map[string][]string
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+				require.Len(t, payload, 1, "only one identifier kind may be sent")
+				for _, ids := range payload {
+					assert.LessOrEqual(t, len(ids), 50)
+					assert.NotEmpty(t, ids)
+				}
+			})
+			// The transport also lets the fixture return an error or empty result for the first batch.
+			if tc.failFirst || tc.nullFirst {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					calls++
+					if calls == 1 {
+						if tc.failFirst {
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
+						_, err := w.Write([]byte(`{"status":"ok","data":null}`))
+						assert.NoError(t, err)
+						return
+					}
+					_, err := w.Write([]byte(`{"status":"ok","data":{"success":["ack"],"failed":[]}}`))
+					assert.NoError(t, err)
+				}))
+				t.Cleanup(server.Close)
+				require.NoError(t, h.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
+			}
+			ids := make([]string, tc.count)
+			for i := range ids {
+				ids[i] = strconv.Itoa(i + 1)
+			}
+			result, err := h.CancelOrderBatch(t.Context(), ids, []string{"client"})
+			if tc.failFirst || tc.nullFirst {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.NotNil(t, result)
+			wantCalls := (tc.count+49)/50 + 1
+			assert.Equal(t, wantCalls, calls)
+			if tc.failFirst || tc.nullFirst {
+				wantCalls--
+			}
+			assert.Len(t, result.Success, wantCalls, "successful later batches should be retained")
+		})
+	}
 }
 
 func TestCancelOpenOrdersBatch(t *testing.T) {

@@ -67,7 +67,7 @@ func TestUpgradeExchange(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(out, &config), "upgraded exchange must decode")
 		assert.Contains(t, config.CurrencyPairs.Pairs, "usdtmarginedfutures", "USDT-margined pairs should be added")
-		assert.Len(t, config.Features.Subscriptions, 32, "spot account and all derivative subscriptions should be retained")
+		assert.Len(t, config.Features.Subscriptions, 30, "spot account and all derivative subscriptions should be retained")
 		assert.Equal(t, "spot", config.Features.Subscriptions[0].Asset, "spot account subscription should retain its asset")
 		privateCount := 0
 		fundingRateCount := 0
@@ -81,11 +81,42 @@ func TestUpgradeExchange(t *testing.T) {
 			}
 		}
 		assert.Equal(t, 17, privateCount, "all private derivative subscriptions should be added")
-		assert.Equal(t, 2, fundingRateCount, "both perpetual assets should receive a plain funding-rate channel")
+		assert.Zero(t, fundingRateCount, "unsupported funding defaults should not be added")
 
 		second, err := new(v18.Version).UpgradeExchange(t.Context(), out)
 		require.NoError(t, err, "repeated UpgradeExchange must not error")
 		assert.JSONEq(t, string(out), string(second), "UpgradeExchange should be idempotent")
+	})
+	t.Run("implicit defaults", func(t *testing.T) {
+		t.Parallel()
+		for _, field := range []string{"", `"subscriptions":null`, `"subscriptions":[]`} {
+			t.Run(field, func(t *testing.T) {
+				t.Parallel()
+				input := `{"name":"HTX","features":{` + field + `}}`
+				out, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "implicit defaults must migrate")
+				assert.JSONEq(t, input, string(out), "implicit defaults should remain unchanged")
+			})
+		}
+	})
+	t.Run("custom funding choices", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"name":"HTX","features":{"subscriptions":[{"enabled":false,"channel":"fundingRate","asset":"coinmarginedfutures"},{"enabled":true,"channel":"fundingRate","asset":"usdtmarginedfutures","pairs":["ETH-USDT"]},{"enabled":true,"channel":"fundingRate","asset":"coinmarginedfutures"},{"enabled":true,"channel":"fundingRate","asset":"usdtmarginedfutures"}]}}`)
+		out, err := new(v18.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "custom funding choices must migrate")
+		var cfg struct {
+			Features struct {
+				Subscriptions []map[string]any `json:"subscriptions"`
+			} `json:"features"`
+		}
+		require.NoError(t, json.Unmarshal(out, &cfg), "subscriptions must decode")
+		var funding []map[string]any
+		for _, sub := range cfg.Features.Subscriptions {
+			if sub["channel"] == "fundingRate" {
+				funding = append(funding, sub)
+			}
+		}
+		assert.Equal(t, []map[string]any{{"enabled": false, "channel": "fundingRate", "asset": "coinmarginedfutures"}, {"enabled": true, "channel": "fundingRate", "asset": "usdtmarginedfutures", "pairs": []any{"ETH-USDT"}}}, funding, "only exact unsupported defaults should be removed")
 	})
 }
 
@@ -108,6 +139,13 @@ func TestDowngradeExchange(t *testing.T) {
 			assert.Equalf(t, `{"name":"`+tt.want+`"}`, string(out), "exchange name %s should migrate correctly", tt.in)
 		})
 	}
+	t.Run("persisted endpoints", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"name":"HTX","api":{"urlEndpoints":{"WebsocketCoinMarginedPrivateURL":"wss://coin.example","WebsocketUSDTMarginedPrivateURL":"wss://usdt.example","RestSpotURL":"https://custom.example","WebsocketPrivateURL":"wss://spot.example"}}}`)
+		out, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "persisted endpoints must downgrade")
+		assert.JSONEq(t, `{"name":"Huobi","api":{"urlEndpoints":{"RestSpotURL":"https://custom.example","WebsocketPrivateURL":"wss://spot.example"}}}`, string(out), "downgrade should remove only endpoints unavailable in version 17")
+	})
 }
 
 func TestRegisteredUpgrade(t *testing.T) {

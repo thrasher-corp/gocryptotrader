@@ -72,17 +72,18 @@ type MarketOverviewData struct {
 
 // MarketOverview contains the latest aggregate market values for a perpetual swap.
 type MarketOverview struct {
-	Vol       types.Number `json:"vol"`
-	Ask       []float64    `json:"ask"`
-	Bid       []float64    `json:"bid"`
-	Close     types.Number `json:"close"`
-	Count     float64      `json:"count"`
-	High      types.Number `json:"high"`
-	ID        int64        `json:"id"`
-	Low       types.Number `json:"low"`
-	Open      types.Number `json:"open"`
-	Timestamp types.Time   `json:"ts"`
-	Amount    types.Number `json:"amount"`
+	TradeTurnover types.Number `json:"trade_turnover"`
+	Vol           types.Number `json:"vol"`
+	Ask           []float64    `json:"ask"`
+	Bid           []float64    `json:"bid"`
+	Close         types.Number `json:"close"`
+	Count         float64      `json:"count"`
+	High          types.Number `json:"high"`
+	ID            int64        `json:"id"`
+	Low           types.Number `json:"low"`
+	Open          types.Number `json:"open"`
+	Timestamp     types.Time   `json:"ts"`
+	Amount        types.Number `json:"amount"`
 }
 
 // LastTradeData stores last trade's data of a contract

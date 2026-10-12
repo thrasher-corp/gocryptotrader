@@ -66,12 +66,12 @@ type V5FeeDeductionCurrencyResponse struct {
 
 // V5UniversalTransferRequest defines a transfer between supported HTX account types.
 type V5UniversalTransferRequest struct {
-	Amount          types.Number `json:"amount"`
-	Currency        string       `json:"currency"`
-	FromAccountType string       `json:"from_account_type"`
-	ToAccountType   string       `json:"to_account_type"`
-	FromAssetType   string       `json:"from_asset_type,omitempty"`
-	ToAssetType     string       `json:"to_asset_type,omitempty"`
+	Amount          uint64 `json:"amount"`
+	Currency        string `json:"currency"`
+	FromAccountType string `json:"from_account_type"`
+	ToAccountType   string `json:"to_account_type"`
+	FromAssetType   string `json:"from_asset_type,omitempty"`
+	ToAssetType     string `json:"to_asset_type,omitempty"`
 }
 
 // V5UniversalTransferResponse stores a universal-transfer acknowledgement.

@@ -288,24 +288,23 @@ type V5OrderData struct {
 
 // V5AccountBalanceDetails contains details fields from V5AccountBalance.
 type V5AccountBalanceDetails struct {
-	IsolatedAvailableMargin types.Number `json:"isolated_available_margin"`
-	Currency                string       `json:"currency"`
-	Equity                  types.Number `json:"equity"`
-	IsolatedEquity          types.Number `json:"isolated_equity"`
-	Available               types.Number `json:"available"`
-	IsolatedAvailable       types.Number `json:"isolated_available"`
-	WithdrawAvailable       types.Number `json:"withdraw_available"`
-	ProfitUnreal            types.Number `json:"profit_unreal"`
-	IsolatedProfitUnreal    types.Number `json:"isolated_profit_unreal"`
-	InitialMargin           types.Number `json:"initial_margin"`
-	MaintenanceMargin       types.Number `json:"maintenance_margin"`
-	MaintenanceMarginRate   types.Number `json:"maintenance_margin_rate"`
-	InitialMarginRate       types.Number `json:"initial_margin_rate"`
-	Voucher                 types.Number `json:"voucher"`
-	VoucherValue            types.Number `json:"voucher_value"`
-	AvailableMargin         types.Number `json:"available_margin"`
-	CrossOrderFrozen        types.Number `json:"cross_order_frozen"`
-	IsolatedOrderFrozen     types.Number `json:"isolated_order_frozen"`
-	CreatedTime             types.Time   `json:"created_time"`
-	UpdatedTime             types.Time   `json:"updated_time"`
+	Currency              string       `json:"currency"`
+	Equity                types.Number `json:"equity"`
+	IsolatedEquity        types.Number `json:"isolated_equity"`
+	Available             types.Number `json:"available"`
+	IsolatedAvailable     types.Number `json:"isolated_available"`
+	WithdrawAvailable     types.Number `json:"withdraw_available"`
+	ProfitUnreal          types.Number `json:"profit_unreal"`
+	IsolatedProfitUnreal  types.Number `json:"isolated_profit_unreal"`
+	InitialMargin         types.Number `json:"initial_margin"`
+	MaintenanceMargin     types.Number `json:"maintenance_margin"`
+	MaintenanceMarginRate types.Number `json:"maintenance_margin_rate"`
+	InitialMarginRate     types.Number `json:"initial_margin_rate"`
+	Voucher               types.Number `json:"voucher"`
+	VoucherValue          types.Number `json:"voucher_value"`
+	AvailableMargin       types.Number `json:"available_margin"`
+	CrossOrderFrozen      types.Number `json:"cross_order_frozen"`
+	IsolatedOrderFrozen   types.Number `json:"isolated_order_frozen"`
+	CreatedTime           types.Time   `json:"created_time"`
+	UpdatedTime           types.Time   `json:"updated_time"`
 }

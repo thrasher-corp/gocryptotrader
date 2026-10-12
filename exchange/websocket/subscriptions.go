@@ -355,7 +355,8 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
-			return fatalErr
+			subscriptionError = common.AppendError(subscriptionError, fatalErr)
+			continue
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
@@ -364,7 +365,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 
 		if err := m.scaleConnectionsToSubscriptions(ctx, ws, newSubs); err != nil {
-			return err
+			subscriptionError = common.AppendError(subscriptionError, err)
 		}
 	}
 	return subscriptionError

@@ -204,8 +204,6 @@ func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subs
 		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
 		return e.wsHandleAllTradesMsg(ctx, s, respRaw)
-	case wsFundingRateChannel, wsFundingRateTopic:
-		return e.wsHandleFundingRateMsg(ctx, s, respRaw)
 	case subscription.MyAccountChannel:
 		return e.wsHandleMyAccountMsg(ctx, respRaw)
 	case subscription.MyOrdersChannel:
@@ -321,9 +319,10 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 		tickPrice.Ask = wsTicker.Tick.Ask[0]
 		tickPrice.AskSize = wsTicker.Tick.Ask[1]
 	}
-	if s.Asset == asset.Spot {
+	switch s.Asset {
+	case asset.Spot:
 		tickPrice.QuoteVolume = wsTicker.Tick.Volume
-	} else {
+	case asset.USDTMarginedFutures:
 		tickPrice.QuoteVolume = wsTicker.Tick.TradeTurnover
 	}
 	if err := ticker.ProcessTicker(tickPrice); err != nil {
@@ -512,6 +511,7 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 			Price:     t.TradePrice.Float64(),
 			Amount:    t.TradeVolume.Float64(),
 			Fee:       t.TransactFee.Float64(),
+			FeeAsset:  t.FeeCurrency,
 			Exchange:  e.Name,
 			TID:       strconv.FormatInt(t.TradeID, 10),
 			Type:      d.Type,

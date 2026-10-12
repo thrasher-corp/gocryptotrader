@@ -15,8 +15,8 @@
 Position mode is fetched using each order call's credentials. Avoid changing account
 position mode concurrently with order submission, including through other clients.
 
-Configuration version 18 renames Huobi to HTX and adds derivative pairs and subscriptions.
-Version 19 restores implicit spot defaults and removes unsupported funding subscriptions.
+Configuration version 18 renames Huobi to HTX, adds derivative pairs and subscriptions,
+preserves implicit spot defaults and removes unsupported funding defaults.
 Funding notifications require a separate public notification transport and are not enabled.
 Private derivative subscriptions default to disabled and require authenticated access.
 

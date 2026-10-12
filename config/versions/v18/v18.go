@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
+	"slices"
 	"strings"
 
 	"github.com/buger/jsonparser"
@@ -100,14 +101,25 @@ func addDerivativeSubscriptions(config map[string]any) {
 		return
 	}
 	subscriptions, _ := features["subscriptions"].([]any)
+	if len(subscriptions) == 0 {
+		// Missing, null and empty selections use runtime defaults, including spot.
+		return
+	}
+	// V17 ignored derivative funding defaults; the market sockets still cannot deliver them.
+	subscriptions = slices.DeleteFunc(subscriptions, func(sub any) bool {
+		entry, ok := sub.(map[string]any)
+		assetName, _ := entry["asset"].(string)
+		return ok && len(entry) == 3 && entry["enabled"] == true && entry["channel"] == "fundingRate" &&
+			(strings.EqualFold(assetName, "coinmarginedfutures") || strings.EqualFold(assetName, "usdtmarginedfutures"))
+	})
 	for _, sub := range subscriptions {
 		entry, ok := sub.(map[string]any)
 		if !ok {
 			continue
 		}
-		channel, _ := entry["channel"].(string)
 		assetName, _ := entry["asset"].(string)
-		if channel == "myAccount" && assetName == "" {
+		// V17 served only spot, so wildcard scope meant spot for every channel.
+		if assetName == "" || strings.EqualFold(assetName, "all") {
 			entry["asset"] = "spot"
 		}
 	}
@@ -123,12 +135,12 @@ func addDerivativeSubscriptions(config map[string]any) {
 		},
 		{
 			asset:           "coinmarginedfutures",
-			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades", "fundingRate"},
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
 			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
 		},
 		{
 			asset:          "usdtmarginedfutures",
-			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades", "fundingRate"},
+			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades"},
 			privateChannels: []string{
 				"myOrders",
 				"tradeUpdates",
@@ -158,7 +170,7 @@ func addDerivativeSubscriptions(config map[string]any) {
 					assetName, _ := entry["asset"].(string)
 					channelName, _ := entry["channel"].(string)
 					authenticated, _ := entry["authenticated"].(bool)
-					if assetName == item.asset && channelName == channel && authenticated == group.authenticated {
+					if strings.EqualFold(assetName, item.asset) && channelName == channel && authenticated == group.authenticated {
 						found = true
 						break
 					}
@@ -187,6 +199,10 @@ func addDerivativeSubscriptions(config map[string]any) {
 // DowngradeExchange changes the HTX exchange name back to Huobi.
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
 	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "HTX" {
+		// Setup persists new endpoint keys that version 17 cannot load.
+		for _, key := range []string{"WebsocketCoinMarginedPrivateURL", "WebsocketUSDTMarginedPrivateURL"} {
+			exchange = jsonparser.Delete(exchange, "api", "urlEndpoints", key)
+		}
 		return jsonparser.Set(exchange, []byte(`"Huobi"`), "name")
 	}
 	return exchange, nil

@@ -4,6 +4,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +37,30 @@ func TestWSConnect(t *testing.T) {
 
 func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	t.Parallel()
+	t.Run("valid spot survives unsupported funding connection", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h))
+		h.API.AuthenticatedWebsocketSupport = false
+		h.Features.Subscriptions = subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{btcusdtPair}},
+			{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: wsFundingRateChannel, Pairs: currency.Pairs{btcusdPair}},
+		}
+		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsFixture))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			require.NoError(t, h.Websocket.Disable())
+			require.NoError(t, h.Websocket.Shutdown())
+		})
+		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")))
+		err := h.Websocket.Connect(t.Context())
+		require.ErrorIs(t, err, websocket.ErrSubscriptionPartial)
+		require.ErrorIs(t, err, common.ErrNotYetImplemented)
+		conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "valid spot connection must survive")
+		assert.NotEmpty(t, conn.Subscriptions().List())
+	})
+
 	for _, channel := range []string{wsFundingRateChannel, wsFundingRateTopic} {
 		t.Run("unsupported "+channel, func(t *testing.T) {
 			t.Parallel()
@@ -42,7 +68,8 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 			h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: channel}}
 			_, err := h.generateSubscriptionsForAsset(asset.CoinMarginedFutures, false)
-			require.ErrorIs(t, err, common.ErrNotYetImplemented, "custom unsupported funding subscription must fail before connecting")
+			require.ErrorIs(t, err, common.ErrNotYetImplemented, "unsupported funding must report its contract error")
+			require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "unsupported funding must leave other subscriptions usable")
 			h.Features.Subscriptions[0].Enabled = false
 			subs, err := h.generateSubscriptionsForAsset(asset.CoinMarginedFutures, false)
 			require.NoError(t, err, "disabled legacy funding subscription must be preserved safely")
@@ -92,7 +119,7 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	require.NoError(t, err, "delivery generateSubscriptionsForAsset must not error")
 	require.Len(t, subs, 4, "delivery subscriptions must include each public market channel")
 	for _, sub := range subs {
-		assert.Contains(t, sub.QualifiedChannel, "BTC_CW", "delivery channel should use HTX's expiry shorthand")
+		assert.Contains(t, sub.QualifiedChannel, "BTC250829", "dated delivery channel should use its immutable contract code")
 		require.Len(t, sub.Pairs, 1, "delivery subscription must retain one canonical pair")
 		assert.True(t, sub.Pairs[0].Equal(deliveryPairs[0]), "delivery subscription should retain the configured canonical pair")
 	}
@@ -104,6 +131,22 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	require.NoError(t, err, "scoped delivery subscription generation must not error")
 	require.Len(t, subs, 1, "scoped delivery subscription must not expand to every enabled contract")
 	assert.Equal(t, deliveryPairs, subs[0].Pairs, "scoped delivery subscription should preserve its configured pair")
+	beforeRollover := subs[0].QualifiedChannel
+	h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("250905")}
+	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
+	require.NoError(t, err, "generation after rollover must succeed")
+	require.Len(t, subs, 1)
+	assert.Equal(t, beforeRollover, subs[0].QualifiedChannel, "dated topic should remain stable across rollover and reconnect generation")
+	aliasPair := currency.NewPairWithDelimiter("BTC", "CW", "_")
+	require.NoError(t, h.SetPairs(append(multipleDeliveryPairs, aliasPair), asset.Futures, false))
+	require.NoError(t, h.SetPairs(currency.Pairs{aliasPair}, asset.Futures, true))
+	h.Features.Subscriptions[0].Pairs = currency.Pairs{aliasPair}
+	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
+	require.NoError(t, err)
+	require.Len(t, subs, 1)
+	assert.Contains(t, subs[0].QualifiedChannel, "BTC_CW", "alias pairs should retain their moving venue aliases")
+	assert.Equal(t, currency.Pairs{aliasPair}, subs[0].Pairs)
+
 	require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "delivery futures must be disabled")
 	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
 	require.NoError(t, err, "disabled delivery subscription generation must not error")
@@ -428,6 +471,7 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 			assert.Same(t, sub, h.getFuturesPrivateSubscription(conn, "orders.BTC-USD"), "early notification should resolve its own setup wildcard")
 			assert.Same(t, sub, h.getFuturesPrivateSubscription(conn, "orders.*"), "exact topic should resolve its own setup")
 			require.NoError(t, h.wsHandleData(t.Context(), conn, []byte(`{"op":"notify","topic":"orders.BTC-USD","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6,"order_id":1,"volume":2,"trade_volume":1}`)), "notification must dispatch before the batch finishes")
+			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
 			detail, ok := message.Data.(*order.Detail)
 			require.True(t, ok, "notification must produce canonical order")
@@ -466,6 +510,7 @@ func TestWSHandleDataFuturesPrivateNotification(t *testing.T) {
 	require.NoError(t, conn.Subscriptions().Add(sub), "wildcard subscription must be stored")
 	raw := []byte(`{"op":"notify","topic":"positions.BTC-USD","ts":1603878749908,"event":"order.match","data":[]}`)
 	require.NoError(t, h.wsHandleData(t.Context(), conn, raw), "wsHandleData must route a concrete private derivative topic")
+	require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 	message := <-h.Websocket.DataHandler.C
 	assert.IsType(t, &SwapWsSubPositionUpdates{}, message.Data, "notification should be decoded using its subscription")
 }
@@ -489,6 +534,7 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 	} {
 		sub := &subscription.Subscription{Asset: tt.a, Channel: wsPositionsChannel, Authenticated: true}
 		require.NoErrorf(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, []byte(`{"op":"notify","topic":"orders.*","ts":1603878749908}`)), "%s private message must be dispatched", tt.a)
+		require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 		message := <-h.Websocket.DataHandler.C
 		assert.IsType(t, tt.expected, message.Data, "notification should use the asset schema")
 	}
@@ -584,6 +630,7 @@ func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 				assert.Empty(t, h.Websocket.DataHandler.C, "transient cancellation states should not dispatch an order")
 				return
 			}
+			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
 			if changes, ok := message.Data.([]accounts.Change); ok {
@@ -607,31 +654,34 @@ func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil private delivery subscriptions must be rejected")
 }
 
-func TestWSHandleFundingRateMsg(t *testing.T) {
+func TestStoreWebsocketBalances(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	sub := &subscription.Subscription{
-		Asset: asset.CoinMarginedFutures,
-		Pairs: currency.Pairs{btcusdPair},
+	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h))
+			h.API.AuthenticatedSupport = true
+			creds := &accounts.Credentials{Key: "key", Secret: "secret"}
+			h.SetCredentials(creds)
+			for i, skew := range []time.Duration{-time.Second, -200 * time.Millisecond, 2 * time.Second} {
+				before := time.Now()
+				change := accounts.Change{AssetType: a, Balance: accounts.Balance{Currency: currency.USDT, Total: float64(i + 2), Free: float64(i + 1), Hold: 1, UpdatedAt: before.Add(skew)}}
+				require.NoError(t, h.storeWebsocketBalances(t.Context(), a, []accounts.Change{change}))
+				stored, err := h.Accounts.GetBalance("", creds, a, currency.USDT)
+				require.NoError(t, err)
+				assert.Equal(t, change.Balance.Total, stored.Total)
+				assert.Equal(t, change.Balance.Free, stored.Free)
+				assert.Equal(t, change.Balance.Hold, stored.Hold)
+				assert.WithinRange(t, stored.UpdatedAt, before, time.Now())
+				// A REST-style snapshot must remain admissible after a future-dated push.
+				snapshot := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
+				snapshot[0].Balances.Set(currency.USDT, accounts.Balance{Currency: currency.USDT, Total: 100, Free: 99, Hold: 1, UpdatedAt: time.Now()})
+				require.NoError(t, h.Accounts.Save(t.Context(), snapshot, false))
+			}
+			require.NoError(t, h.storeWebsocketBalances(t.Context(), a, nil))
+			err := h.storeWebsocketBalances(t.Context(), a, []accounts.Change{{Balance: accounts.Balance{Currency: currency.EMPTYCODE}}})
+			require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+		})
 	}
-	err := h.wsHandleFundingRateMsg(t.Context(), sub, []byte(`{
-		"ch":"public.BTC-USD.funding_rate",
-		"ts":1604312615051,
-		"tick":{
-			"estimated_rate":"0.0002",
-			"funding_rate":"0.0001",
-			"contract_code":"BTC-USD",
-			"funding_time":"1604312615051",
-			"next_funding_time":"1604341415051"
-		}
-	}`))
-	require.NoError(t, err, "wsHandleFundingRateMsg must not error")
-	message := <-h.Websocket.DataHandler.C
-	rate, ok := message.Data.(*WsFundingRate)
-	require.True(t, ok, "websocket funding update must have the expected type")
-	assert.Equal(t, asset.CoinMarginedFutures, rate.Asset, "asset should match")
-	assert.Equal(t, btcusdPair, rate.Pair, "pair should match")
-	assert.Equal(t, 0.0001, rate.Tick.FundingRate.Float64(), "funding rate should match")
-	assert.Equal(t, time.UnixMilli(1604312615051), rate.Tick.FundingTime.Time(), "funding time should match")
 }

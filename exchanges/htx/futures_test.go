@@ -437,9 +437,18 @@ func TestFGetAvailableLeverage(t *testing.T) {
 
 func TestFOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrder, emptySuccessResponse, nil)
-	_, err := h.FOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "123", "buy", "open", "limit", 1, 1, 1)
-	require.NoError(t, err, "FOrder must not error")
+	for _, priceType := range []string{orderPriceTypeLimit, orderPriceTypePostOnly} {
+		t.Run(priceType, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrder, emptySuccessResponse, func(r *http.Request) {
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, priceType, body["order_price_type"])
+			})
+			_, err := h.FOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "123", "buy", "open", priceType, 1, 1, 1)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestFPlaceBatchOrder(t *testing.T) {

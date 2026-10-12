@@ -730,13 +730,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		ask, askSize := bookLevel(marketData.Tick.Ask)
 		// vol counts contracts on this endpoint, so it cannot supply quote volume.
 		if err := ticker.ProcessTicker(&ticker.Price{
-			High:       marketData.Tick.High.Float64(),
-			Low:        marketData.Tick.Low.Float64(),
-			BaseVolume: marketData.Tick.Amount.Float64(),
-			Open:       marketData.Tick.Open.Float64(),
-			Last:       marketData.Tick.Close.Float64(),
-			Close:      marketData.Tick.Close.Float64(),
-			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			High:        marketData.Tick.High.Float64(),
+			Low:         marketData.Tick.Low.Float64(),
+			BaseVolume:  marketData.Tick.Amount.Float64(),
+			QuoteVolume: marketData.Tick.TradeTurnover.Float64(),
+			Open:        marketData.Tick.Open.Float64(),
+			Last:        marketData.Tick.Close.Float64(),
+			Close:       marketData.Tick.Close.Float64(),
+			Pair:        p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
 			ExchangeName: e.Name, AssetType: a,
 		}); err != nil {
 			return nil, err
@@ -984,7 +985,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Data.Details {
 			curr := currency.NewCode(resp.Data.Details[i].Currency)
-			free := resp.Data.Details[i].Available.Float64() + resp.Data.Details[i].IsolatedAvailable.Float64()
+			free := v5FreeMargin(&resp.Data.Details[i])
 			subAccts[0].Balances.Set(curr, accounts.Balance{
 				Total: resp.Data.Details[i].Equity.Float64() + resp.Data.Details[i].IsolatedEquity.Float64(),
 				Hold:  resp.Data.Details[i].Equity.Float64() + resp.Data.Details[i].IsolatedEquity.Float64() - free,
@@ -1716,9 +1717,6 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		}
 	case asset.USDTMarginedFutures:
-		if len(ids)+len(cIDs) > 10 {
-			return nil, errBatchOrderLimitExceeded
-		}
 		if pair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
@@ -1726,26 +1724,35 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if err != nil {
 			return nil, err
 		}
-		cancelledOrders, err := e.CancelV5BatchOrders(ctx, &V5CancelBatchOrdersRequest{
-			ContractCode:   formattedPair,
-			OrderIDs:       ids,
-			ClientOrderIDs: cIDs,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if cancelledOrders == nil {
-			return nil, errEmptyResult
-		}
-		for i := range cancelledOrders.Data {
-			id := cancelledOrders.Data[i].OrderID
-			if id == "" {
-				id = cancelledOrders.Data[i].ClientOrderID
-			}
-			if cancelledOrders.Data[i].Code == 0 || cancelledOrders.Data[i].Code == 200 {
-				resp.Status[id] = htxStatusSuccess
-			} else {
-				resp.Status[id] = cancelledOrders.Data[i].Message
+		// HTX gives order IDs precedence when both kinds are supplied, so each request carries one kind.
+		for kind, identifiers := range [][]string{ids, cIDs} {
+			for _, batch := range common.Batch(identifiers, 10) {
+				cancelRequest := &V5CancelBatchOrdersRequest{ContractCode: formattedPair}
+				if kind == 0 {
+					cancelRequest.OrderIDs = batch
+				} else {
+					cancelRequest.ClientOrderIDs = batch
+				}
+				cancelledOrders, err := e.CancelV5BatchOrders(ctx, cancelRequest)
+				if err != nil {
+					errs = common.AppendError(errs, err)
+					continue
+				}
+				if cancelledOrders == nil {
+					errs = common.AppendError(errs, errEmptyResult)
+					continue
+				}
+				for i := range cancelledOrders.Data {
+					id := cancelledOrders.Data[i].OrderID
+					if id == "" {
+						id = cancelledOrders.Data[i].ClientOrderID
+					}
+					if cancelledOrders.Data[i].Code == 0 || cancelledOrders.Data[i].Code == 200 {
+						resp.Status[id] = htxStatusSuccess
+					} else {
+						resp.Status[id] = cancelledOrders.Data[i].Message
+					}
+				}
 			}
 		}
 	case asset.Futures:
@@ -1941,6 +1948,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	return cancelAllOrdersResponse, errs
 }
 
+// v5FreeMargin derives free cross margin from fields shared by HTX REST balances and account pushes.
+func v5FreeMargin(data *V5AccountBalanceDetails) float64 {
+	return data.Available.Float64() + data.ProfitUnreal.Float64() - data.InitialMargin.Float64()
+}
+
 // formatV5OrderDetail converts V5 REST and websocket responses into the canonical order type.
 func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (order.Detail, error) {
 	if data == nil {
@@ -1965,8 +1977,10 @@ func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (orde
 		return order.Detail{}, err
 	}
 	if timeInForce == order.UnknownTIF {
-		timeInForce, err = order.StringToTimeInForce(data.TimeInForce)
-		if err != nil {
+		if strings.EqualFold(data.TimeInForce, "rpi") {
+			// RPI liquidity can only rest on the book for retail takers.
+			timeInForce = order.PostOnly
+		} else if timeInForce, err = order.StringToTimeInForce(data.TimeInForce); err != nil {
 			return order.Detail{}, err
 		}
 	}
@@ -1996,7 +2010,7 @@ func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (orde
 		Cost:                 data.TradeTurnover.Float64(),
 		AverageExecutedPrice: data.TradeAveragePrice.Float64(),
 		Fee:                  data.Fee.Float64(),
-		FeeAsset:             currency.NewCode(data.FeeCurrency),
+		FeeAsset:             currency.USDT,
 		Leverage:             data.LeverageRate.Float64(),
 		ReduceOnly:           data.ReduceOnly.Bool(),
 		AssetType:            item,
@@ -2421,7 +2435,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.Futures:
+		seenBases := make(map[currency.Code]struct{}, len(req.Pairs))
 		for x := range req.Pairs {
+			if _, seen := seenBases[req.Pairs[x].Base]; seen {
+				continue
+			}
+			seenBases[req.Pairs[x].Base] = struct{}{}
 			for currentPage := int64(1); ; currentPage++ {
 				openOrders, err := e.FGetOpenOrders(ctx,
 					req.Pairs[x].Base, currentPage, 50)
@@ -2886,7 +2905,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	case asset.Futures:
 		// if size, from, to are all populated, only size is considered
 		size := int64(-1)
-		candles, err := e.FGetKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
+		candles, err := e.FGetKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End.Add(-time.Second))
 		if err != nil {
 			return nil, err
 		}
@@ -2894,14 +2913,14 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	case asset.CoinMarginedFutures:
 		// if size, from, to are all populated, only size is considered
 		size := int64(-1)
-		candles, err := e.GetSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
+		candles, err := e.GetSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End.Add(-time.Second))
 		if err != nil {
 			return nil, err
 		}
 		timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 	case asset.USDTMarginedFutures:
 		size := int64(-1)
-		candles, err := e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
+		candles, err := e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End.Add(-time.Second))
 		if err != nil {
 			return nil, err
 		}

@@ -35,6 +35,8 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
 			tradeTurnover:  response.TradeTurnover,
+			averagePrice:   response.TradeAvgPrice,
+			trades:         response.Trade,
 			fee:            response.Fee,
 			feeAsset:       response.FeeAsset,
 			leverage:       response.LeverageRate,
@@ -97,11 +99,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 				},
 			})
 		}
-		subAccounts := accounts.SubAccounts{accounts.NewSubAccount(sub.Asset, "")}
-		for _, change := range changes {
-			subAccounts[0].Balances.Set(change.Balance.Currency, change.Balance)
-		}
-		if err := e.Accounts.Save(ctx, subAccounts, false); err != nil {
+		if err := e.storeWebsocketBalances(ctx, sub.Asset, changes); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)

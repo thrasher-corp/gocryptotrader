@@ -275,6 +275,8 @@ func TestPlaceSwapOrders(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order", emptySuccessResponse, nil)
 	_, err := h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "limit", 0.01, 1, 1)
 	require.NoError(t, err, "PlaceSwapOrders must not error")
+	_, err = h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", orderPriceTypePostOnly, 0.01, 1, 1)
+	require.NoError(t, err, "post-only orders must be accepted")
 	_, err = h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "invalid", 0.01, 1, 1)
 	require.ErrorIs(t, err, errInvalidOrderType, "PlaceSwapOrders must reject an invalid order type")
 }

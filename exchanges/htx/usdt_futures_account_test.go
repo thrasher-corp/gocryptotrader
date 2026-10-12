@@ -76,16 +76,18 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
-	t.Run("fractional transfer", func(t *testing.T) {
+	t.Run("documented integer transfer", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, func(r *http.Request) {
-			var req V5UniversalTransferRequest
+			var req struct {
+				Amount json.RawMessage `json:"amount"`
+			}
 			if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "transfer payload should decode") {
-				assert.Equal(t, 0.5, req.Amount.Float64(), "fractional transfer amount should be preserved")
+				assert.JSONEq(t, `123`, string(req.Amount), "amount should be a bare integer, not a quoted number")
 			}
 		})
-		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 0.5, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
-		require.NoError(t, err, "fractional transfer must succeed")
+		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 123, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
+		require.NoError(t, err, "documented integer transfer must succeed")
 	})
 
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)

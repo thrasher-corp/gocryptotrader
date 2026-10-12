@@ -68,6 +68,27 @@ func TestAppendFuturesCandles(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	for _, bounded := range []bool{false, true} {
+		t.Run(fmt.Sprintf("exact millisecond bounds/%t", bounded), func(t *testing.T) {
+			t.Parallel()
+			at := time.Date(2026, time.July, 1, 18, 0, 0, 0, time.UTC)
+			body := fmt.Sprintf(`{"code":200,"data":[{"id":"1","funding_time":"%d","funding_rate":"0.001"},{"id":"2","funding_time":"%d","funding_rate":"0.002"},{"id":"3","funding_time":"%d","funding_rate":"0.003"}]}`, at.UnixMilli(), at.Add(time.Second).UnixMilli(), at.Add(2*time.Second).UnixMilli())
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", body, nil)
+			req := &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair}
+			if bounded {
+				req.StartDate = at.Add(500 * time.Millisecond)
+				req.EndDate = at.Add(1500 * time.Millisecond)
+			}
+			result, err := h.GetHistoricalFundingRates(t.Context(), req)
+			require.NoError(t, err, "funding history must decode")
+			if bounded {
+				require.Len(t, result.FundingRates, 1, "only the exact requested interval must remain")
+				assert.Equal(t, at.Add(time.Second), result.FundingRates[0].Time.UTC(), "sub-second bounds should exclude earlier and later settlements")
+			} else {
+				require.Len(t, result.FundingRates, 3, "omitted dates must preserve all settlements")
+			}
+		})
+	}
 	t.Run("null V5 response", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `null`, nil)

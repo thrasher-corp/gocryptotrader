@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -177,6 +178,32 @@ func TestSendV5TradeRequest(t *testing.T) {
 
 func TestWSPlaceV5Order(t *testing.T) {
 	t.Parallel()
+	for _, quoted := range []bool{false, true} {
+		t.Run(map[bool]string{false: "object acknowledgement", true: "string acknowledgement"}[quoted], func(t *testing.T) {
+			t.Parallel()
+			h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+				tb.Helper()
+				cid, err := jsonparser.GetString(payload, "cid")
+				if err != nil {
+					return err
+				}
+				rate := `{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}`
+				if quoted {
+					encoded, err := json.Marshal(rate)
+					if err != nil {
+						return err
+					}
+					rate = string(encoded)
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"code":200,"message":"Success","cid":"`+cid+`","data":{"order_id":"1"},"rate_limit":`+rate+`}`))
+			})
+			resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1})
+			require.NoError(t, err, "trade acknowledgement must decode both documented shapes")
+			require.NotNil(t, resp, "placed order acknowledgement must remain available")
+			assert.Equal(t, "1", resp.Data.OrderID, "placed order should retain its ID")
+			assert.Equal(t, types.Number(19), resp.RateLimit.Remaining, "remaining limit should decode through actual transport")
+		})
+	}
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSPlaceV5Order(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSPlaceV5Order must reject nil request")
@@ -247,24 +274,26 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 			LeverageRate:      5,
 			State:             "filled",
 			ReduceOnly:        true,
-			TimeInForce:       "gtc",
+			TimeInForce:       "rpi",
 			TradeAveragePrice: 100,
 			TradeVolume:       1,
 			TradeTurnover:     100,
-			FeeCurrency:       "USDT",
+			FeeCurrency:       "HTX",
 			Fee:               0.1,
 			CreatedTime:       1000,
 			UpdatedTime:       2000,
 		}
 		sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures}
 		require.NoError(t, h.sendV5WSOrderUpdate(t.Context(), sub, "BTC-USDT", data), "sendV5WSOrderUpdate must convert and send the update")
+		require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 		message := <-h.Websocket.DataHandler.C
 		detail, ok := message.Data.(*order.Detail)
 		require.True(t, ok, "update must use the canonical order type")
 		assert.Equal(t, "1", detail.OrderID, "order ID should match")
 		assert.Equal(t, "2", detail.ClientOrderID, "client order ID should match")
 		assert.Equal(t, order.Limit, detail.Type, "order type should match")
-		assert.Equal(t, order.PostOnly, detail.TimeInForce, "time in force should match")
+		assert.Equal(t, order.PostOnly, detail.TimeInForce, "RPI should retain resting liquidity behaviour")
+		assert.Equal(t, currency.USDT, detail.FeeAsset, "aggregate fee should remain USDT despite HTX payment currency")
 		assert.Equal(t, 5.0, detail.Leverage, "leverage should match")
 		assert.True(t, detail.ReduceOnly, "reduce-only should match")
 		assert.Equal(t, time.UnixMilli(1000), detail.Date, "creation time should match")
@@ -288,11 +317,11 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 		expected any
 		raw      string
 	}{
-		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"gtc","volume":"2","trade_volume":"1"}}`},
+		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"rpi","volume":"2","trade_volume":"1"}}`},
 		{name: "trades", channel: wsTradeUpdatesChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "trade details", channel: wsExecutionDetailsChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "positions", channel: wsPositionsChannel, expected: &V5WsPositionUpdate{}},
-		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"4","isolated_available":"0.9","available_margin":"1","isolated_available_margin":"0.5"}]}}`},
+		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"4","profit_unreal":"-2","initial_margin":"1","isolated_available":"0.9","available_margin":"1"}]}}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":[{"side":"buy","type":"limit","order_id":"1381717672952373249","state":"partially_filled","volume":"5","trade_volume":"1","total_trade_volume":"3","trade_price":"100","lever_rate":"","match_time":"1749468764315"}]}`},
 		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WsAlgoOrderUpdate{}},
 	} {
@@ -308,6 +337,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 				raw = []byte(`{"op":"notify","topic":"private","ts":1603878749908,"uid":"123","contract_code":"BTC-USDT","data":{}}`)
 			}
 			require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "private USDT-margined notification must be decoded")
+			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
 			if tt.name == "matches" {
@@ -322,11 +352,15 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 			if changes, ok := message.Data.([]accounts.Change); ok {
 				require.Len(t, changes, 1, "account change must be returned")
 				assert.Equal(t, 5.0, changes[0].Balance.Total, "total should include isolated equity")
-				assert.Equal(t, 1.5, changes[0].Balance.Free, "free should include isolated availability")
-				assert.Equal(t, 3.5, changes[0].Balance.Hold, "held should reconcile with total and free")
+				assert.Equal(t, 1.0, changes[0].Balance.Free, "free should follow cross-margin availability")
+				assert.Equal(t, 4.0, changes[0].Balance.Hold, "held should reconcile with total and free")
 				stored, err := h.Accounts.GetBalance("", &accounts.Credentials{Key: "key", Secret: "secret"}, sub.Asset, changes[0].Balance.Currency)
 				require.NoError(t, err, "account notification must reach the balance store")
-				assert.Equal(t, changes[0].Balance, stored, "stored balance should match the notification")
+				assert.Equal(t, changes[0].Balance.Total, stored.Total, "stored equity should match the notification")
+				assert.Equal(t, changes[0].Balance.Free, stored.Free, "stored free margin should match the notification")
+				assert.Equal(t, changes[0].Balance.Hold, stored.Hold, "stored held margin should match the notification")
+				assert.Equal(t, time.UnixMilli(1603878749908), changes[0].Balance.UpdatedAt, "emitted changes should retain venue time")
+				assert.WithinDuration(t, time.Now(), stored.UpdatedAt, time.Second, "stored balances should use local arrival time")
 			}
 		})
 	}
@@ -363,6 +397,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	}`)
 	sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}
 	require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "V5 order notification must be decoded")
+	require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 	message := <-h.Websocket.DataHandler.C
 	orderUpdate, ok := message.Data.(*order.Detail)
 	require.True(t, ok, "V5 order notification must use the canonical order type")
@@ -398,6 +433,7 @@ func TestSendV5WSExecutionUpdates(t *testing.T) {
 				assert.Empty(t, h.Websocket.DataHandler.C, "empty updates should emit nothing")
 				return
 			}
+			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
 			fills, ok := message.Data.([]fill.Data)
 			require.True(t, ok, "executions must use canonical fills")
