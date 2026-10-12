@@ -514,6 +514,43 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		nextID int64
+		want   error
+	}{
+		{name: "spot complete", nextID: -1},
+		{name: "spot incomplete", nextID: 5454600, want: errOrderCancellationIncomplete},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			calls := 0
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				assert.Equal(t, http.MethodPost, r.Method, "cancel-all should submit a cancellation")
+				assert.Equal(t, "/v1"+huobiBatchCancelOpenOrders, r.URL.Path, "cancel-all should use the spot endpoint")
+				var body map[string]string
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "request should decode")
+				assert.Equal(t, map[string]string{"account-id": "123", "symbol": "btcusdt"}, body, "cancel-all should retain scope")
+				_, err := fmt.Fprintf(w, `{"status":"ok","data":{"success-count":100,"failed-count":0,"next-id":%d}}`, tc.nextID)
+				assert.NoError(t, err, "response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "fixture client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "fixture endpoint must install")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), AccountID: "123"})
+			assert.ErrorIs(t, err, tc.want, "cancel-all should propagate an incomplete cancellation")
+			if tc.want != nil {
+				assert.Nil(t, resp, "incomplete cancellation should not be reported as success")
+			} else {
+				assert.NotNil(t, resp, "complete cancellation should return a response")
+			}
+			assert.Equal(t, 1, calls, "asynchronous cancellation should not be retried blindly")
+		})
+	}
 	for a, path := range map[asset.Item]string{asset.Futures: fCancelAllOrders, asset.CoinMarginedFutures: huobiSwapCancelAllOrders} {
 		for _, tc := range []struct {
 			name      string
@@ -1433,16 +1470,61 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestCancelOpenOrdersBatch checks the terminal indicator documented for batchCancelOpenOrders.
+func TestCancelOpenOrdersBatch(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, data string
+		want       error
+	}{
+		{name: "complete", data: `{"success-count":2,"failed-count":0,"next-id":-1}`},
+		{name: "more open orders", data: `{"success-count":100,"failed-count":0,"next-id":5454600}`, want: errOrderCancellationIncomplete},
+		{name: "missing result", data: `{}`, want: errOrderCancellationIncomplete},
+		{name: "failed order", data: `{"success-count":1,"failed-count":1,"next-id":-1}`, want: errOrderCancellationFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			calls := 0
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				assert.Equal(t, http.MethodPost, r.Method, "batch cancellation should use POST")
+				assert.Equal(t, "/v1"+huobiBatchCancelOpenOrders, r.URL.Path, "spot batch cancellation endpoint should be selected")
+				var body map[string]string
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "request should decode")
+				assert.Equal(t, map[string]string{"account-id": "123", "symbol": "btcusdt"}, body, "account and pair scope should be retained")
+				_, err := w.Write([]byte(`{"status":"ok","data":` + tc.data + `}`))
+				assert.NoError(t, err, "response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "fixture client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "fixture endpoint must install")
+			result, err := ex.CancelOpenOrdersBatch(t.Context(), "123", currency.NewBTCUSDT())
+			assert.ErrorIs(t, err, tc.want, "terminal state should determine cancellation completeness")
+			if tc.want == nil {
+				assert.EqualValues(t, 2, result.Data.SuccessCount, "success count should decode")
+				assert.EqualValues(t, -1, result.Data.NextID, "terminal marker should decode")
+			}
+			assert.Equal(t, 1, calls, "asynchronous cancellation should not be retried blindly")
+		})
+	}
+}
+
 func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name        string
 		failedCount uint64
+		nextID      int64
 		status      string
 		errorMsg    string
 		want        error
 	}{
-		{name: "success"},
+		{name: "success", nextID: -1},
+		{name: "more orders remain", nextID: 5454600, want: errOrderCancellationIncomplete},
+		{name: "missing terminal indication", want: errOrderCancellationIncomplete},
 		{
 			name:        "failed orders",
 			failedCount: 2,
@@ -1459,6 +1541,7 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 			t.Parallel()
 			result := CancelOpenOrdersBatch{Status: tc.status, ErrorMessage: tc.errorMsg}
 			result.Data.FailedCount = tc.failedCount
+			result.Data.NextID = tc.nextID
 			err := validateCancelOpenOrdersBatchResponse(result)
 			if tc.want == nil {
 				assert.NoError(t, err, "successful response should not error")

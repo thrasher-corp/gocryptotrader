@@ -34,7 +34,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-var errOrderCancellationFailed = errors.New("order cancellation failed")
+var (
+	errOrderCancellationFailed     = errors.New("order cancellation failed")
+	errOrderCancellationIncomplete = errors.New("order cancellation incomplete")
+)
 
 // SetDefaults sets default values for the exchange
 func (e *Exchange) SetDefaults() {

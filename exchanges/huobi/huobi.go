@@ -517,6 +517,9 @@ func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
 	if result.Status == huobiStatusError {
 		return fmt.Errorf("%w: %s", errOrderCancellationFailed, result.ErrorMessage)
 	}
+	if result.Data.NextID != -1 {
+		return fmt.Errorf("%w: next cancellable order ID %d", errOrderCancellationIncomplete, result.Data.NextID)
+	}
 	return nil
 }
 
