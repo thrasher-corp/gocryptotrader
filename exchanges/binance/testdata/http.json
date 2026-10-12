@@ -8183,6 +8183,15 @@
      "queryString": "algoId=1\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=10\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
     }
    ],
    "POST": [

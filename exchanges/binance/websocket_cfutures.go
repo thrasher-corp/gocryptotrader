@@ -5,7 +5,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -17,17 +16,9 @@ const (
 	coinmPrivateFilter = "coin-m-private"
 )
 
-// defaultCFuturesSubscriptions are the default COIN-M subscriptions, expanded to every enabled pair
-var defaultCFuturesSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.TickerChannel},
-	{Enabled: true, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-}
-
-// generateCFuturesSubscriptions returns the default COIN-M stream subscriptions
+// generateCFuturesSubscriptions returns the COIN-M stream subscriptions
 func (e *Exchange) generateCFuturesSubscriptions() (subscription.List, error) {
-	return e.generateDerivativesSubscriptions(asset.CoinMarginedFutures, defaultCFuturesSubscriptions)
+	return e.generateDerivativesSubscriptions(asset.CoinMarginedFutures, func(*subscription.Subscription) bool { return true })
 }
 
 // generateCFuturesUserDataSubscriptions returns the COIN-M user data stream subscription when it can be used

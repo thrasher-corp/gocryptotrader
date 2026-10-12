@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/buger/jsonparser"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -26,33 +27,21 @@ const (
 	optionsPrivateFilter = "options-private"
 )
 
-// Default options subscriptions, expanded to every enabled pair; candles belong to /market, the rest to /public. A
-// connection takes at most 200 streams
-var (
-	defaultOptionsPublicSubscriptions = subscription.List{
-		{Enabled: true, Channel: subscription.TickerChannel},
-		{Enabled: true, Channel: subscription.AllTradesChannel},
-		{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	}
-	defaultOptionsMarketSubscriptions = subscription.List{
-		{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	}
-)
-
 // optionsKlineIntervals are the candle intervals the options kline stream accepts
 var optionsKlineIntervals = []kline.Interval{
 	kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.TwoHour,
 	kline.FourHour, kline.SixHour, kline.TwelveHour, kline.OneDay, kline.ThreeDay, kline.OneWeek,
 }
 
-// generateOptionsPublicSubscriptions returns the default options /public stream subscriptions
+// generateOptionsPublicSubscriptions returns the options /public stream subscriptions, all but its candles. A
+// connection takes at most 200 streams
 func (e *Exchange) generateOptionsPublicSubscriptions() (subscription.List, error) {
-	return e.generateDerivativesSubscriptions(asset.Options, defaultOptionsPublicSubscriptions)
+	return e.generateDerivativesSubscriptions(asset.Options, func(s *subscription.Subscription) bool { return s.Channel != subscription.CandlesChannel })
 }
 
-// generateOptionsMarketSubscriptions returns the default options /market stream subscriptions
+// generateOptionsMarketSubscriptions returns the options /market stream subscriptions, its candles
 func (e *Exchange) generateOptionsMarketSubscriptions() (subscription.List, error) {
-	return e.generateDerivativesSubscriptions(asset.Options, defaultOptionsMarketSubscriptions)
+	return e.generateDerivativesSubscriptions(asset.Options, func(s *subscription.Subscription) bool { return s.Channel == subscription.CandlesChannel })
 }
 
 // generateOptionsUserDataSubscriptions returns the options user data stream subscription when it can be used
@@ -256,18 +245,30 @@ func (e *Exchange) wsHandleOptionsUserData(ctx context.Context, conn websocket.C
 
 // processOptionsBalancePositionUpdate stores changed balances and relays them with the changed positions. The event
 // carries account balances only, so the margin held from the last REST snapshot is kept and the free balance follows
-// the account balance. A position whose symbol has no pair is left out, so it cannot hold back the others
+// the account balance until a REST refresh reports the margin the change took or released. A position whose symbol
+// has no pair is left out, so it cannot hold back the others
 func (e *Exchange) processOptionsBalancePositionUpdate(ctx context.Context, data []byte) error {
 	var resp OptionsBalancePositionUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	if len(resp.Balances) > 0 {
+		codes := make([]currency.Code, len(resp.Balances))
+		for i := range resp.Balances {
+			codes[i] = resp.Balances[i].MarginAsset
+		}
+		// Recorded before the balances are stored, so a refresh whose request goes out in between still holds its
+		// snapshot to this event
+		e.refreshBalances(ctx, asset.Options, resp.TransactionTime.Time(), codes...)
 		subAccount := accounts.NewSubAccount(asset.Options, "")
 		for _, b := range resp.Balances {
 			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Options, b.MarginAsset, func(balance *accounts.Balance) {
-				balance.Total = b.AccountBalance.Float64()
-				balance.Free = max(balance.Total-balance.Hold, 0)
+				// Unrealised profit can lift the free balance above the account balance, which the hold cannot show, so an
+				// unchanged account balance keeps the free balance REST reported
+				if total := b.AccountBalance.Float64(); total != balance.Total {
+					balance.Total = total
+					balance.Free = max(total-balance.Hold, 0)
+				}
 			})
 			if err != nil {
 				return err

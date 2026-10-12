@@ -888,7 +888,7 @@ func (e *Exchange) UCancelAlgoOrder(ctx context.Context, algoID uint64, clientAl
 		return nil, err
 	}
 	var resp *UCancelAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/algoOrder", params, uFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/algoOrder", params, uFuturesCancelRate, &resp)
 }
 
 // uAlgoOrderIDParams returns the parameters identifying one algo order, which Binance requires by either ID
@@ -916,7 +916,7 @@ func (e *Exchange) UCancelAllAlgoOpenOrders(ctx context.Context, symbol currency
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/algoOpenOrders", params, uFuturesDefaultRate, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/algoOpenOrders", params, uFuturesCancelRate, nil)
 }
 
 // UCancelAllOpenOrders cancels a symbol's open orders with Cancel All Open Orders
@@ -930,7 +930,7 @@ func (e *Exchange) UCancelAllOpenOrders(ctx context.Context, symbol currency.Pai
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/allOpenOrders", params, uFuturesDefaultRate, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/allOpenOrders", params, uFuturesCancelRate, nil)
 }
 
 // UModifyMultipleOrders modifies up to five limit orders with Modify Multiple Orders, which processes them
@@ -1024,7 +1024,7 @@ func (e *Exchange) UCancelBatchOrders(ctx context.Context, symbol currency.Pair,
 		params.Set("origClientOrderIdList", string(ids))
 	}
 	var resp []UCancelBatchOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/batchOrders", params, uFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/batchOrders", params, uFuturesCancelRate, &resp)
 }
 
 // UGetOrderData returns an order's state from Query Order, by its order ID or, when orderID is 0, its client order
@@ -1201,7 +1201,7 @@ func (e *Exchange) UCancelOrder(ctx context.Context, symbol currency.Pair, order
 		return nil, err
 	}
 	var resp *UCancelOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/order", params, uFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/order", params, uFuturesCancelRate, &resp)
 }
 
 // UChangeInitialLeverageRequest changes a symbol's initial leverage, 1 to 125, with Change Initial Leverage

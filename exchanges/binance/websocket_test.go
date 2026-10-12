@@ -803,6 +803,32 @@ func TestSpotOrderbookDropsStaleEvents(t *testing.T) {
 	assert.Equal(t, int32(1), fetches.Load(), "late events should not take a new snapshot")
 }
 
+func TestSpotOrderbookLoadsQuietBook(t *testing.T) {
+	t.Parallel()
+	// One event, then a snapshot newer than it, then nothing for a while: Binance's procedure sets the book to the
+	// snapshot rather than withholding it until an event follows it, and the next event applies to it
+	ex := newTestExchange(t)
+	streams := newSpotDepthStreams()
+	var fetches atomic.Int32
+	useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+		fetches.Add(1)
+		return streams.snapshotBook(ex, p, a), nil
+	})
+	pair := currency.NewPairWithDelimiter("DOGE", "USDT", "-")
+	first := streams.frame("DOGEUSDT")
+	streams.skip("DOGEUSDT", 2)
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, first), "wsHandleData must not error")
+	require.Eventually(t, func() bool {
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
+	}, 5*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, streams.frame("DOGEUSDT")), "wsHandleData must not error")
+	got, err := storedOrderbookState(ex, pair, asset.Spot)
+	require.NoError(t, err, "the book must stay valid")
+	assert.Equal(t, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
+	assert.Equal(t, int32(1), fetches.Load(), "the book should load from one snapshot")
+}
+
 // spotDepthServer serves spot diff depth streams over websocket and their snapshots over REST, as Binance does: each
 // subscribed stream sends a frame every 20ms, and a resubscribed stream resumes after the updates it missed
 type spotDepthServer struct {
@@ -1062,7 +1088,13 @@ func TestSpotOrderbookSyncAfterReconnect(t *testing.T) {
 	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
 	release()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	requireBooksFollow(t, ex, pairs, nil)
+	// The outdated snapshot loads when it arrives, so a book follows its stream once it is past the updates the
+	// reconnection skipped
+	reconnected := make(map[currency.Pair]int64, len(pairs))
+	for _, p := range pairs {
+		reconnected[p] = srv.streams.finalUpdateID(p.Base.String() + p.Quote.String())
+	}
+	requireBooksFollow(t, ex, pairs, reconnected)
 	for p, fetches := range srv.snapshotFetches(pairs) {
 		assert.Equalf(t, 2, fetches, "%s should synchronise again from one new snapshot after the outdated one", p)
 	}
@@ -1306,26 +1338,69 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestSetupSpotConnections(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	_, err := ex.Websocket.CreateTestConnection(asset.Spot)
-	require.NoError(t, err, "the spot stream connection must be registered")
-	_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
-	require.NoError(t, err, "the WebSocket API connection must be registered with spot and margin enabled")
-	assert.NotNil(t, ex.orderbookSync, "Setup should create the order book synchronisation every connection shares")
-
 	root, err := testutils.RootPathFromCWD()
 	require.NoError(t, err, "RootPathFromCWD must not error")
-	cfg := &config.Config{}
-	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
-	exchCfg, err := cfg.GetExchangeConfig("Binance")
-	require.NoError(t, err, "GetExchangeConfig must not error")
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		require.NoErrorf(t, exchCfg.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	setup := func(t *testing.T, configure func(*testing.T, *config.Exchange)) *Exchange {
+		t.Helper()
+		cfg := &config.Config{}
+		require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+		exchCfg, err := cfg.GetExchangeConfig("Binance")
+		require.NoError(t, err, "GetExchangeConfig must not error")
+		configure(t, exchCfg)
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+		return ex
 	}
-	ex = new(Exchange)
-	ex.SetDefaults()
-	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	require.NoError(t, ex.Setup(exchCfg), "Setup must not error with spot and margin disabled")
-	_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
-	assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "the WebSocket API connection should not be registered with spot and margin disabled")
+	authenticated := func(_ *testing.T, c *config.Exchange) {
+		c.API.AuthenticatedWebsocketSupport = true
+		c.API.Credentials.Key, c.API.Credentials.Secret = "test-api-key", "test-api-secret"
+	}
+	// The WebSocket API serves market data requests without credentials too, and is optional, so it is registered
+	// whenever spot or margin is enabled
+	for _, tc := range []struct {
+		name         string
+		configure    func(*testing.T, *config.Exchange)
+		websocketAPI bool
+	}{
+		{"unauthenticated", func(*testing.T, *config.Exchange) {}, true},
+		{"authenticated", authenticated, true},
+		{"authenticated without credentials", func(_ *testing.T, c *config.Exchange) { c.API.AuthenticatedWebsocketSupport = true }, true},
+		{"credentials without authenticated websocket use", func(t *testing.T, c *config.Exchange) {
+			t.Helper()
+			authenticated(t, c)
+			c.API.AuthenticatedWebsocketSupport = false
+		}, true},
+		{"authenticated with spot and margin disabled", func(t *testing.T, c *config.Exchange) {
+			t.Helper()
+			authenticated(t, c)
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				require.NoErrorf(t, c.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+			}
+		}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, tc.configure)
+			_, err := ex.Websocket.CreateTestConnection(asset.Spot)
+			require.NoError(t, err, "the spot stream connection must be registered")
+			assert.NotNil(t, ex.orderbookSync, "Setup should create the order book synchronisation every connection shares")
+			_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+			if tc.websocketAPI {
+				assert.NoError(t, err, "the WebSocket API connection should be registered")
+			} else {
+				assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "the WebSocket API connection should not be registered")
+			}
+		})
+	}
+
+	const spotStreamsURL = "wss://stream.binance.com:443/stream"
+	ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+		c.API.Endpoints[exchange.WebsocketSpot.String()] = spotStreamsURL
+	})
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
+	assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
 }

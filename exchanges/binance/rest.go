@@ -30,6 +30,10 @@ type Exchange struct {
 	userData userDataStreams
 	// orderbookSync synchronises every asset's websocket diff depth with REST snapshots
 	orderbookSync *orderbookmanager.UpdateManager
+	// balanceRefresh refreshes the derivatives balances user data stream balance events change
+	balanceRefresh balanceRefresher
+	// wsAPI is the WebSocket API connection requests are sent on
+	wsAPI wsAPIConnection
 }
 
 const (
@@ -272,7 +276,7 @@ func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRe
 		return nil, err
 	}
 	if req.WindowSize != 0 {
-		windowSize, err := formatWindowSize(req.WindowSize)
+		windowSize, err := windowSizeToString(req.WindowSize)
 		if err != nil {
 			return nil, err
 		}
@@ -286,21 +290,6 @@ func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRe
 	}
 	var resp objectOrArray[TickerStatistics]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker", params), spotTickerSymbolsLimit(len(req.Symbols)), &resp)
-}
-
-// formatWindowSize renders a window size in the largest whole unit of days, hours or minutes, since units cannot be
-// combined
-func formatWindowSize(windowSize time.Duration) (string, error) {
-	switch {
-	case windowSize <= 0 || windowSize%time.Minute != 0:
-		return "", fmt.Errorf("%w: %s is not a whole number of minutes", errInvalidWindowSize, windowSize)
-	case windowSize%(24*time.Hour) == 0:
-		return strconv.FormatInt(int64(windowSize/(24*time.Hour)), 10) + "d", nil
-	case windowSize%time.Hour == 0:
-		return strconv.FormatInt(int64(windowSize/time.Hour), 10) + "h", nil
-	default:
-		return strconv.FormatInt(int64(windowSize/time.Minute), 10) + "m", nil
-	}
 }
 
 // GetPriceChangeStats returns 24hr ticker price change statistics. A request without symbols returns every symbol, at
@@ -467,7 +456,7 @@ func (e *Exchange) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol curren
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp []CancelledOpenOrder
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/openOrders", params, spotDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/openOrders", params, spotCancelRate, &resp)
 }
 
 // NewOrder sends in a new order
@@ -580,7 +569,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, req *CancelOrderRequ
 		params.Set("cancelRestrictions", req.CancelRestrictions)
 	}
 	var resp *CancelOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotCancelRate, &resp)
 }
 
 // CancelOCOOrder cancels an entire order list. Cancelling any order of a list cancels the whole list
@@ -610,7 +599,7 @@ func (e *Exchange) CancelOCOOrder(ctx context.Context, req *CancelOrderListReque
 		params.Set("newClientOrderId", req.NewClientOrderID)
 	}
 	var resp *OCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/orderList", params, spotDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/orderList", params, spotCancelRate, &resp)
 }
 
 // CancelExistingOrderAndSendNewOrder cancels an existing order and places a new order on the same symbol. Filters and
@@ -1282,12 +1271,12 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 }
 
 // setTimeRangeParams validates a query's time range and sets its bounds in milliseconds. An unset bound is left out,
-// so the endpoint applies its documented default window
+// so the endpoint applies its documented default window. Binance takes both bounds as inclusive, so equal bounds ask
+// for the records of one millisecond, as the wrapper's window splitting and paging can; only a reversed window is
+// rejected
 func setTimeRangeParams(params url.Values, startTime, endTime time.Time) error {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return err
-		}
+	if !startTime.IsZero() && !endTime.IsZero() && startTime.After(endTime) {
+		return common.ErrStartAfterEnd
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

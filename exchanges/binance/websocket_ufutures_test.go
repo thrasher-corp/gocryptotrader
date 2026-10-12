@@ -7,15 +7,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -27,11 +31,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -91,7 +97,14 @@ func newDerivativesWsTestExchange(t *testing.T, recorder *streamRequestRecorder)
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetSubscriptionsNotRequired()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error") })
+	t.Cleanup(func() {
+		// Disabled first, as the connection monitor would otherwise redial the closed mock server; the monitor may then
+		// shut the websocket down itself
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		}
+	})
 	return ex
 }
 
@@ -159,8 +172,90 @@ func TestGenerateDerivativesSubscriptionsPartialFailure(t *testing.T) {
 		Available:    currency.Pairs{testUFuturesPair},
 		Enabled:      currency.Pairs{testUFuturesPair},
 	}), "Store must not error")
-	_, err := ex.generateDerivativesSubscriptions(asset.USDTMarginedFutures, defaultUFuturesMarketSubscriptions)
+	_, err := ex.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(*subscription.Subscription) bool { return true })
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateDerivativesSubscriptions should return a partial subscription error")
+}
+
+func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
+	t.Parallel()
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	// The configuration asks for a USDⓈ-M partial book, USDⓈ-M trades of a pair of its own and no USDⓈ-M candles, for
+	// COIN-M tickers alone, for options candles of another interval without tickers, and for nothing on spot; the order
+	// book subscriptions of an asset keep to one a pair, and a subscription Binance has no stream for is reported
+	// without holding up the others
+	setup := func(t *testing.T, subs subscription.List) *Exchange {
+		t.Helper()
+		cfg := &config.Config{}
+		require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+		exchCfg, err := cfg.GetExchangeConfig("Binance")
+		require.NoError(t, err, "GetExchangeConfig must not error")
+		exchCfg.Features.Subscriptions = subs
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+		for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testUFuturesPair, asset.CoinMarginedFutures: testCFuturesPair, asset.Options: testOptionsPair} {
+			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, false), "StorePairs must not error for %s available pairs", a)
+			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, true), "StorePairs must not error for %s enabled pairs", a)
+		}
+		return ex
+	}
+	ex := setup(t, subscription.List{
+		{Enabled: false, Asset: asset.Spot, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{testUFuturesDisabledPair}},
+		{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.OrderbookChannel, Levels: 20, Interval: kline.HundredMilliseconds},
+		{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.OrderbookChannel, Interval: kline.OneMin},
+		{Enabled: false, Asset: asset.Options, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.Options, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds},
+		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	})
+	for _, tc := range []struct {
+		name     string
+		generate func() (subscription.List, error)
+		exp      subscription.List
+		partial  bool
+	}{
+		{"spot", ex.generateSubscriptions, subscription.List{}, false},
+		{"USDⓈ-M /public", ex.generateUFuturesPublicSubscriptions, subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUFuturesPair}, Levels: 20, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth20@100ms"},
+		}, false},
+		{"USDⓈ-M /market", ex.generateUFuturesMarketSubscriptions, subscription.List{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
+			{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUFuturesDisabledPair}, QualifiedChannel: "ethusdt@aggTrade"},
+		}, false},
+		{"COIN-M", ex.generateCFuturesSubscriptions, subscription.List{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
+		}, true},
+		{"options /public", ex.generateOptionsPublicSubscriptions, subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btc-261030-85000-c@depth@100ms"},
+		}, true},
+		{"options /market", ex.generateOptionsMarketSubscriptions, subscription.List{
+			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.FiveMin, QualifiedChannel: "btc-261030-85000-c@kline_5m"},
+		}, false},
+	} {
+		subs, err := tc.generate()
+		if tc.partial {
+			assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
+		} else {
+			assert.NoErrorf(t, err, "%s generation should not error", tc.name)
+		}
+		testsubs.EqualLists(t, tc.exp, subs)
+	}
+
+	// An asset the configuration has no subscription of, enabled or not, streams its defaults
+	ex = setup(t, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}})
+	subs, err := ex.generateCFuturesSubscriptions()
+	require.NoError(t, err, "generateCFuturesSubscriptions must not error")
+	assert.Len(t, subs, 4, "an asset without configured subscriptions should stream its four defaults")
+	ex = setup(t, subscription.List{{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel}})
+	subs, err = ex.generateCFuturesSubscriptions()
+	require.NoError(t, err, "generateCFuturesSubscriptions must not error")
+	assert.Empty(t, subs, "an asset whose configured subscriptions are all disabled should stream nothing")
 }
 
 func TestDerivativesStreamName(t *testing.T) {
@@ -214,6 +309,8 @@ func TestSubscribeDerivatives(t *testing.T) {
 	ex := newDerivativesWsTestExchange(t, recorder)
 	conn, err := ex.Websocket.GetConnection(usdtmMarketFilter)
 	require.NoError(t, err, "GetConnection must not error")
+	// The connection was set up without subscriptions, so the subscriptions come from the defaults
+	ex.Features.Subscriptions = defaultSubscriptions.Clone()
 	subs, err := ex.generateUFuturesMarketSubscriptions()
 	require.NoError(t, err, "generateUFuturesMarketSubscriptions must not error")
 
@@ -1280,6 +1377,391 @@ func TestUserDataUnknownSymbols(t *testing.T) {
 	}
 }
 
+// balanceRefreshReplies are REST balance snapshots, by path, of each derivatives product's USDT or BTC margin asset
+var balanceRefreshReplies = map[string]string{
+	"/fapi/v3/balance":       `[{"accountAlias":"SgsR","asset":"USDT","balance":"999.96","crossWalletBalance":"999.96","crossUnPnl":"0","availableBalance":"159.96","maxWithdrawAmount":"159.96","marginAvailable":true,"updateTime":1791300000000},{"accountAlias":"SgsR","asset":"BNB","balance":"0.5","crossWalletBalance":"0.5","crossUnPnl":"0","availableBalance":"0.5","maxWithdrawAmount":"0.5","marginAvailable":true,"updateTime":1791200000000}]`,
+	"/dapi/v1/account":       `{"assets":[{"asset":"BTC","walletBalance":"1.5","marginBalance":"1.5","availableBalance":"0.4","updateTime":1791300000000},{"asset":"ETH","walletBalance":"2","marginBalance":"2","availableBalance":"2","updateTime":1791200000000}],"positions":[],"canTrade":true,"updateTime":1791300000000}`,
+	"/eapi/v1/marginAccount": `{"asset":[{"asset":"USDT","marginBalance":"10099.448","equity":"10094.44662","available":"8725.92524","initialMargin":"1084.52138","maintMargin":"151.00138","unrealizedPNL":"-5.00138"},{"asset":"BTC","marginBalance":"0.1","equity":"0.1","available":"0.1","initialMargin":"0","maintMargin":"0","unrealizedPNL":"0"}],"time":1791300000000}`,
+}
+
+// balanceEvent is a user data stream balance event of a derivatives product, with how its handler processes it
+type balanceEvent struct {
+	a           asset.Item
+	code        currency.Code
+	path        string
+	processedBy func(*Exchange) func(context.Context, []byte) error
+	// walletEvent returns the event reporting a wallet balance for code
+	walletEvent func(walletBalance float64) []byte
+	// eventTotal is a wallet balance the REST snapshot predates
+	eventTotal float64
+	restTotal  float64
+	restFree   float64
+	// restOnly is a currency the REST reply has and no event reports, with its wallet balance
+	restOnly      currency.Code
+	restOnlyTotal float64
+	// flatReply is a REST snapshot of the same wallet balance with no margin held, last updated before the events
+	flatReply string
+}
+
+// walletBalanceEvent returns a function filling a balance event's wallet balance, its %[1]q verbs, in Binance's form
+func walletBalanceEvent(format string) func(float64) []byte {
+	return func(walletBalance float64) []byte {
+		return fmt.Appendf(nil, format, strconv.FormatFloat(walletBalance, 'f', -1, 64))
+	}
+}
+
+var balanceEvents = []balanceEvent{
+	{
+		a: asset.USDTMarginedFutures, code: currency.USDT, path: "/fapi/v3/balance",
+		walletEvent: walletBalanceEvent(`{"e":"ACCOUNT_UPDATE","E":1791300000001,"T":1791300000000,"a":{"m":"ORDER","B":[{"a":"USDT","wb":%[1]q,"cw":%[1]q,"bc":"0"}],"P":[]}}`),
+		processedBy: func(ex *Exchange) func(context.Context, []byte) error {
+			return func(ctx context.Context, data []byte) error {
+				return ex.processFuturesAccountUpdate(ctx, data, asset.USDTMarginedFutures)
+			}
+		},
+		eventTotal: 1012, restTotal: 999.96, restFree: 159.96, restOnly: currency.BNB, restOnlyTotal: 0.5,
+		flatReply: `[{"accountAlias":"SgsR","asset":"USDT","balance":"999.96","crossWalletBalance":"999.96","crossUnPnl":"0","availableBalance":"999.96","maxWithdrawAmount":"999.96","marginAvailable":true,"updateTime":1791200000000}]`,
+	},
+	{
+		a: asset.CoinMarginedFutures, code: currency.BTC, path: "/dapi/v1/account",
+		walletEvent: walletBalanceEvent(`{"e":"ACCOUNT_UPDATE","E":1791300000001,"T":1791300000000,"i":"SfsR","a":{"m":"ORDER","B":[{"a":"BTC","wb":%[1]q,"cw":%[1]q,"bc":"0"}],"P":[]}}`),
+		processedBy: func(ex *Exchange) func(context.Context, []byte) error {
+			return func(ctx context.Context, data []byte) error {
+				return ex.processFuturesAccountUpdate(ctx, data, asset.CoinMarginedFutures)
+			}
+		},
+		eventTotal: 1.6, restTotal: 1.5, restFree: 0.4, restOnly: currency.ETH, restOnlyTotal: 2,
+		flatReply: `{"assets":[{"asset":"BTC","walletBalance":"1.5","marginBalance":"1.5","availableBalance":"1.5","updateTime":1791200000000}],"positions":[],"canTrade":true,"updateTime":1791200000000}`,
+	},
+	{
+		a: asset.Options, code: currency.USDT, path: "/eapi/v1/marginAccount",
+		walletEvent: walletBalanceEvent(`{"e":"BALANCE_POSITION_UPDATE","E":1791300000001,"T":1791300000000,"m":"ORDER","B":[{"a":"USDT","b":%[1]q,"bc":"0"}],"P":[]}`),
+		processedBy: func(ex *Exchange) func(context.Context, []byte) error {
+			return ex.processOptionsBalancePositionUpdate
+		},
+		eventTotal: 9500, restTotal: 10099.448, restFree: 8725.92524, restOnly: currency.BTC, restOnlyTotal: 0.1,
+		flatReply: `{"asset":[{"asset":"USDT","marginBalance":"10099.448","equity":"10099.448","available":"10099.448","initialMargin":"0","maintMargin":"0","unrealizedPNL":"0"}],"time":1791200000000}`,
+	},
+}
+
+// serveBalanceRefreshReplies answers the REST balance requests with balanceRefreshReplies
+func serveBalanceRefreshReplies(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		reply, ok := balanceRefreshReplies[r.URL.Path]
+		if !assert.Truef(t, ok, "%s should not be requested", r.URL.Path) {
+			return
+		}
+		_, err := w.Write([]byte(reply))
+		assert.NoError(t, err, "Write should not error")
+	}
+}
+
+// storedBalance returns the exchange's stored balance of a currency
+func storedBalance(t *testing.T, ex *Exchange, a asset.Item, code currency.Code) accounts.Balance {
+	t.Helper()
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	balance, err := ex.Accounts.GetBalance("", creds, a, code)
+	require.NoError(t, err, "GetBalance must not error")
+	return balance
+}
+
+func TestStreamBalanceKeepsRESTAvailableBalance(t *testing.T) {
+	t.Parallel()
+	// A REST snapshot, then a stream event carrying the same balance, leaves the available balance as REST reported it,
+	// and a later change of wallet balance keeps the margin REST reported held
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, serveBalanceRefreshReplies(t))
+			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+			process := tc.processedBy(ex)
+			require.NoError(t, process(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
+			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.Equal(t, tc.restTotal, stored.Total, "the stream event should store its balance")
+			assert.InDelta(t, tc.restFree, stored.Free, 1e-9, "an unchanged stream balance should leave the free balance REST reported")
+			require.NoError(t, process(t.Context(), tc.walletEvent(tc.restTotal+1)), "processing the balance event must not error")
+			stored = storedBalance(t, ex, tc.a, tc.code)
+			assert.InDelta(t, tc.restTotal+1, stored.Total, 1e-9, "the stream event should store its balance")
+			assert.InDelta(t, tc.restFree+1, stored.Free, 1e-9, "a changed stream balance should keep the margin REST reported held")
+		})
+	}
+}
+
+func TestStreamBalanceEventFree(t *testing.T) {
+	t.Parallel()
+	// The events carry no available balance. An unchanged wallet balance keeps the one stored, which unrealised profit
+	// can lift above the wallet balance, and a changed one keeps the margin stored as held
+	for _, tc := range balanceEvents {
+		for _, c := range []struct {
+			name   string
+			stored accounts.Balance
+			events []float64
+			free   []float64 // the free balance after each event
+		}{
+			{name: "profit above the wallet balance", stored: accounts.Balance{Total: 100, Free: 120}, events: []float64{100}, free: []float64{120}},
+			{name: "margin held above the wallet balance", stored: accounts.Balance{Total: 100, Hold: 90, Free: 10}, events: []float64{50, 100}, free: []float64{0, 10}},
+		} {
+			t.Run(tc.a.String()+" "+c.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTradingTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+					assert.Failf(t, "no request should be sent", "%s was requested", r.URL.Path)
+				})
+				stored := accounts.NewSubAccount(tc.a, "")
+				stored.Balances.Set(tc.code, c.stored)
+				require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
+				for i, walletBalance := range c.events {
+					require.NoErrorf(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(walletBalance)), "processing the balance event of %v must not error", walletBalance)
+					got := storedBalance(t, ex, tc.a, tc.code)
+					assert.Equalf(t, walletBalance, got.Total, "the stream event of %v should store its balance", walletBalance)
+					assert.Equalf(t, c.free[i], got.Free, "the stream event of %v should leave the expected free balance", walletBalance)
+				}
+			})
+		}
+	}
+}
+
+func TestRefreshAvailableBalances(t *testing.T) {
+	t.Parallel()
+	// A REST snapshot that predates a stream event disagrees with the wallet balance the event reported, so the refresh
+	// stores none of it: the event's balance stands, and the margin held stays as the last snapshot that agreed
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, serveBalanceRefreshReplies(t))
+			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+			require.NoError(t, ex.refreshAvailableBalances(t.Context(), tc.a), "refreshAvailableBalances must not error")
+			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.Equal(t, tc.eventTotal, stored.Total, "the refresh should keep the wallet balance the stream reported")
+			assert.InDelta(t, max(tc.eventTotal-(tc.restTotal-tc.restFree), 0), stored.Free, 1e-9, "the refresh should keep the free balance the event left")
+			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should keep the margin held the last snapshot reported")
+		})
+	}
+}
+
+func TestRefreshKeepsNewerBalance(t *testing.T) {
+	t.Parallel()
+	// A REST poll stored while a refresh's request is answered is newer than the refresh's snapshot, though both report
+	// the same wallet balance
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			entered, release := make(chan struct{}), make(chan struct{})
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+					return
+				}
+				reply := balanceRefreshReplies[tc.path]
+				if requests.Add(1) == 1 {
+					close(entered)
+					select {
+					case <-release:
+					case <-time.After(10 * time.Second):
+						assert.Fail(t, "the refresh's request should be released")
+					}
+					reply = tc.flatReply
+				}
+				_, err := w.Write([]byte(reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			refreshed := make(chan error, 1)
+			go func() { refreshed <- ex.refreshAvailableBalances(t.Context(), tc.a) }()
+			select {
+			case <-entered:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "the refresh must request the balances")
+			}
+			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+			close(release)
+			select {
+			case err := <-refreshed:
+				require.NoError(t, err, "refreshAvailableBalances must not error")
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "the refresh must finish")
+			}
+			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.InDelta(t, tc.restFree, stored.Free, 1e-9, "the refresh should keep the newer poll's available balance")
+			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should keep the newer poll's margin held")
+		})
+	}
+}
+
+func TestRefreshSkipsSnapshotBeforeEvent(t *testing.T) {
+	t.Parallel()
+	// A REST snapshot Binance reports as last updated before a stream event predates it, though its wallet balance
+	// matches the event's
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+					return
+				}
+				_, err := w.Write([]byte(tc.flatReply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			stored := accounts.NewSubAccount(tc.a, "")
+			stored.Balances.Set(tc.code, accounts.Balance{Total: tc.restTotal, Hold: tc.restTotal - tc.restFree, Free: tc.restFree})
+			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
+			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
+			require.NoError(t, ex.refreshAvailableBalances(t.Context(), tc.a), "refreshAvailableBalances must not error")
+			got := storedBalance(t, ex, tc.a, tc.code)
+			assert.InDelta(t, tc.restFree, got.Free, 1e-9, "a snapshot older than the stream event should not replace the available balance")
+			assert.InDelta(t, tc.restTotal-tc.restFree, got.Hold, 1e-9, "a snapshot older than the stream event should not replace the margin held")
+		})
+	}
+}
+
+func TestStreamBalanceRefreshOutlivesEventContext(t *testing.T) {
+	t.Parallel()
+	// The refresh an event starts carries on for later events after that event's context ends
+	tc := balanceEvents[0]
+	var requests atomic.Int32
+	entered, release := make(chan struct{}), make(chan struct{})
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+			return
+		}
+		if requests.Add(1) == 1 {
+			close(entered)
+			select {
+			case <-release:
+			case <-time.After(10 * time.Second):
+				assert.Fail(t, "the first refresh should be released")
+			}
+		}
+		_, err := w.Write([]byte(balanceRefreshReplies[tc.path]))
+		assert.NoError(t, err, "Write should not error")
+	})
+	setup := ex.spotStreamConnectionSetup(ex.Config)
+	setup.SubscriptionsNotRequired = true
+	useMockWebsocket(t, ex, setup, func(testing.TB, []byte, *gws.Conn) error { return nil })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.balanceRefresh.interval = 10 * time.Millisecond
+	process := tc.processedBy(ex)
+	eventCtx, cancel := context.WithCancel(t.Context())
+	require.NoError(t, process(eventCtx, tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "the refresh must request the balances")
+	}
+	require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+	cancel()
+	close(release)
+	require.Eventually(t, func() bool { return requests.Load() == 2 }, 5*time.Second, 5*time.Millisecond, "the later event must be refreshed")
+}
+
+func TestStreamBalanceRefresh(t *testing.T) {
+	t.Parallel()
+	// A stream balance event carries no available balance, which a fill's margin changes, so it starts a REST refresh.
+	// Events arriving while a refresh runs are covered by one more, and nothing is refreshed while disconnected
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var requests int
+			release := make(chan struct{})
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+					return
+				}
+				mu.Lock()
+				requests++
+				first := requests == 1
+				mu.Unlock()
+				if first {
+					select {
+					case <-release:
+					case <-time.After(10 * time.Second):
+						assert.Fail(t, "the first refresh should be released")
+					}
+				}
+				_, err := w.Write([]byte(balanceRefreshReplies[tc.path]))
+				assert.NoError(t, err, "Write should not error")
+			})
+			process := tc.processedBy(ex)
+			running := func() bool {
+				ex.balanceRefresh.mu.Lock()
+				defer ex.balanceRefresh.mu.Unlock()
+				return ex.balanceRefresh.running[tc.a]
+			}
+			event := tc.walletEvent(tc.restTotal)
+			require.NoError(t, process(t.Context(), event), "processing the balance event must not error")
+			assert.False(t, running(), "a balance event should not start a refresh while the websocket is disconnected")
+
+			setup := ex.spotStreamConnectionSetup(ex.Config)
+			setup.SubscriptionsNotRequired = true
+			useMockWebsocket(t, ex, setup, func(testing.TB, []byte, *gws.Conn) error { return nil })
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			ex.balanceRefresh.interval = 10 * time.Millisecond
+			for range 3 {
+				require.NoError(t, process(t.Context(), event), "processing the balance event must not error")
+			}
+			close(release)
+			require.Eventually(t, func() bool { return !running() }, 5*time.Second, 5*time.Millisecond, "the refreshes must finish")
+			mu.Lock()
+			assert.Equal(t, 2, requests, "three events during a refresh should be covered by one more refresh")
+			mu.Unlock()
+			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.Equal(t, tc.restTotal, stored.Total, "the refresh should keep the wallet balance the stream reported")
+			assert.Equal(t, tc.restFree, stored.Free, "the refresh should store the available balance REST reports")
+			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should store the margin REST reports held")
+			assert.Equal(t, tc.restOnlyTotal, storedBalance(t, ex, tc.a, tc.restOnly).Total, "the refresh should store the wallet balance of a currency without one")
+		})
+	}
+}
+
+func TestStreamBalanceRefreshStopsOnDisconnect(t *testing.T) {
+	t.Parallel()
+	// A refresh running when the websocket disconnects finishes its request, and the events that arrived meanwhile start
+	// no other
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			release := make(chan struct{})
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+					return
+				}
+				if requests.Add(1) == 1 {
+					select {
+					case <-release:
+					case <-time.After(10 * time.Second):
+						assert.Fail(t, "the first refresh should be released")
+					}
+				}
+				_, err := w.Write([]byte(balanceRefreshReplies[tc.path]))
+				assert.NoError(t, err, "Write should not error")
+			})
+			process := tc.processedBy(ex)
+			setup := ex.spotStreamConnectionSetup(ex.Config)
+			setup.SubscriptionsNotRequired = true
+			useMockWebsocket(t, ex, setup, func(testing.TB, []byte, *gws.Conn) error { return nil })
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			ex.balanceRefresh.interval = 10 * time.Millisecond
+			require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+			require.Eventually(t, func() bool { return requests.Load() == 1 }, 5*time.Second, 5*time.Millisecond, "the refresh must request the balances")
+			require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+			require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+			close(release)
+			require.Eventually(t, func() bool {
+				ex.balanceRefresh.mu.Lock()
+				defer ex.balanceRefresh.mu.Unlock()
+				return !ex.balanceRefresh.running[tc.a]
+			}, 5*time.Second, 5*time.Millisecond, "the refresh must finish")
+			assert.Equal(t, int32(1), requests.Load(), "no refresh should be requested once the websocket disconnects")
+		})
+	}
+}
+
 func TestFuturesOrderTradeUpdateFills(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -1669,7 +2151,14 @@ func TestDerivativesStreamsLive(t *testing.T) {
 	}
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error") })
+	t.Cleanup(func() {
+		// Disabled first, as the connection monitor would otherwise keep reconnecting after the test; the monitor may
+		// then shut the websocket down itself
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		}
+	})
 
 	type key struct {
 		a    asset.Item

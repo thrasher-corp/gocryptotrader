@@ -2,14 +2,17 @@ package binance
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -66,18 +69,6 @@ var (
 	errUpdateIDOutOfRange      = errors.New("order book update ID out of range")
 )
 
-// Default USDⓈ-M subscriptions, expanded to every enabled pair; order books belong to /public, the rest to /market
-var (
-	defaultUFuturesPublicSubscriptions = subscription.List{
-		{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	}
-	defaultUFuturesMarketSubscriptions = subscription.List{
-		{Enabled: true, Channel: subscription.TickerChannel},
-		{Enabled: true, Channel: subscription.AllTradesChannel},
-		{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	}
-)
-
 // futuresKlineIntervals are the candle intervals the USDⓈ-M and COIN-M kline streams accept
 var futuresKlineIntervals = []kline.Interval{
 	kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.TwoHour,
@@ -103,14 +94,19 @@ func (e *Exchange) WsDerivativesConnect(ctx context.Context, conn websocket.Conn
 	return nil
 }
 
-// generateUFuturesPublicSubscriptions returns the default USDⓈ-M /public stream subscriptions
+// generateUFuturesPublicSubscriptions returns the USDⓈ-M /public stream subscriptions, its order books
 func (e *Exchange) generateUFuturesPublicSubscriptions() (subscription.List, error) {
-	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, defaultUFuturesPublicSubscriptions)
+	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, isOrderbookSubscription)
 }
 
-// generateUFuturesMarketSubscriptions returns the default USDⓈ-M /market stream subscriptions
+// generateUFuturesMarketSubscriptions returns the USDⓈ-M /market stream subscriptions, all but its order books
 func (e *Exchange) generateUFuturesMarketSubscriptions() (subscription.List, error) {
-	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, defaultUFuturesMarketSubscriptions)
+	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(s *subscription.Subscription) bool { return !isOrderbookSubscription(s) })
+}
+
+// isOrderbookSubscription reports whether a subscription streams an order book
+func isOrderbookSubscription(s *subscription.Subscription) bool {
+	return s.Channel == subscription.OrderbookChannel
 }
 
 // generateUFuturesUserDataSubscriptions returns the USDⓈ-M user data stream subscription when it can be used
@@ -118,34 +114,49 @@ func (e *Exchange) generateUFuturesUserDataSubscriptions() (subscription.List, e
 	return e.generateUserDataSubscriptions(asset.USDTMarginedFutures)
 }
 
-// generateDerivativesSubscriptions expands channel templates into one subscription per enabled pair of an asset. A
-// disabled asset generates nothing, so its connection is skipped rather than failing every other connection
-func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, templates subscription.List) (subscription.List, error) {
+// generateDerivativesSubscriptions expands an asset's subscriptions that belong on a connection into one subscription
+// per pair: the subscription's pairs, or every enabled pair. A disabled asset generates nothing, so its connection is
+// skipped rather than failing every other connection, and a subscription that cannot be expanded, or an order book
+// subscription left out for conflicting with another, is reported as partial generation
+func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, belongs func(*subscription.Subscription) bool) (subscription.List, error) {
 	if !e.GetAssetTypes(true).Contains(a) {
 		return subscription.List{}, nil
 	}
-	pairs, err := e.GetEnabledPairs(a)
+	enabled, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", websocket.ErrSubscriptionPartial, a, err)
 	}
-	subs := make(subscription.List, 0, len(pairs)*len(templates))
-	for _, p := range pairs {
-		symbol, err := e.FormatSymbol(p, a)
-		if err != nil {
-			return nil, err
+	var subs subscription.List
+	var errs error
+	for _, t := range e.Features.Subscriptions {
+		if t.Asset != a || !belongs(t) {
+			continue
 		}
-		for _, t := range templates {
-			stream, err := e.derivativesStreamName(a, t)
+		stream, err := e.derivativesStreamName(a, t)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		pairs := t.Pairs
+		if len(pairs) == 0 {
+			pairs = enabled
+		}
+		for _, p := range pairs {
+			symbol, err := e.FormatSymbol(p, a)
 			if err != nil {
-				return nil, err
+				errs = common.AppendError(errs, err)
+				continue
 			}
 			s := t.Clone()
-			s.Asset = a
 			s.Pairs = currency.Pairs{p}
 			// Stream names are lower case
 			s.QualifiedChannel = strings.ToLower(symbol) + "@" + stream
 			subs = append(subs, s)
 		}
+	}
+	subs, conflicts := oneOrderbookSubscription(subs)
+	if err := common.AppendError(errs, conflicts); err != nil {
+		return subs, fmt.Errorf("%w: %s: %w", websocket.ErrSubscriptionPartial, a, err)
 	}
 	return subs, nil
 }
@@ -1050,18 +1061,30 @@ func (e *Exchange) userDataPair(symbol string, a asset.Item) (currency.Pair, err
 
 // processFuturesAccountUpdate stores changed balances and relays them with the changed positions. The event carries
 // wallet balances only, so the margin held from the last REST snapshot is kept and the free balance follows the
-// wallet. A position whose symbol has no pair is left out, so it cannot hold back the others
+// wallet until a REST refresh reports the margin the change took or released. A position whose symbol has no pair is
+// left out, so it cannot hold back the others
 func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte, a asset.Item) error {
 	var resp FuturesAccountUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	if len(resp.UpdateData.Balances) > 0 {
+		codes := make([]currency.Code, len(resp.UpdateData.Balances))
+		for i := range resp.UpdateData.Balances {
+			codes[i] = resp.UpdateData.Balances[i].Asset
+		}
+		// Recorded before the balances are stored, so a refresh whose request goes out in between still holds its
+		// snapshot to this event
+		e.refreshBalances(ctx, a, resp.TransactionTime.Time(), codes...)
 		subAccount := accounts.NewSubAccount(a, "")
 		for _, b := range resp.UpdateData.Balances {
 			balance, err := e.Accounts.UpdateBalance(ctx, "", a, b.Asset, func(balance *accounts.Balance) {
-				balance.Total = b.WalletBalance.Float64()
-				balance.Free = max(balance.Total-balance.Hold, 0)
+				// Unrealised profit can lift the free balance above the wallet balance, which the hold cannot show, so an
+				// unchanged wallet balance keeps the free balance REST reported
+				if total := b.WalletBalance.Float64(); total != balance.Total {
+					balance.Total = total
+					balance.Free = max(total-balance.Hold, 0)
+				}
 			})
 			if err != nil {
 				return err
@@ -1091,6 +1114,123 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 		return nil
 	}
 	return e.Websocket.DataHandler.Send(ctx, positions)
+}
+
+// balanceRefreshInterval is the least time between the REST balance refreshes of an asset that its user data stream
+// balance events start, so a burst of events costs one refresh at the end of each interval
+const balanceRefreshInterval = time.Second
+
+// balanceRefresher runs the REST balance refreshes the USDⓈ-M, COIN-M and options user data stream balance events start,
+// one at a time for each asset. The events carry no available balance, and a fill changes the margin held, which only
+// a REST snapshot reports
+type balanceRefresher struct {
+	mu      sync.Mutex
+	running map[asset.Item]bool
+	// pending marks an asset whose balances changed again while its refresh ran, so it is refreshed once more
+	pending map[asset.Item]bool
+	// eventTimes holds, by asset and currency, the transaction time of the latest stream event to report the
+	// currency's balance, which a REST snapshot must not predate
+	eventTimes map[asset.Item]map[*currency.Item]time.Time
+	// interval is the time between refreshes of an asset, balanceRefreshInterval when zero
+	interval time.Duration
+}
+
+// refreshBalances records when a user data stream balance event changed an asset's balances, then refreshes its
+// available balances over REST, or has the refresh running for it go once more. Refreshes run while the websocket is
+// connected, as the events that start them arrive
+func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item, transactionTime time.Time, codes ...currency.Code) {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.eventTimes == nil {
+		r.eventTimes = make(map[asset.Item]map[*currency.Item]time.Time)
+	}
+	if r.eventTimes[a] == nil {
+		r.eventTimes[a] = make(map[*currency.Item]time.Time)
+	}
+	for _, c := range codes {
+		if transactionTime.After(r.eventTimes[a][c.Item]) {
+			r.eventTimes[a][c.Item] = transactionTime
+		}
+	}
+	if !e.Websocket.IsConnected() {
+		return
+	}
+	if r.running[a] {
+		r.pending[a] = true
+		return
+	}
+	if r.running == nil {
+		r.running = make(map[asset.Item]bool)
+		r.pending = make(map[asset.Item]bool)
+	}
+	r.running[a] = true
+	// The refresh outlives the event: it stops when the websocket disconnects, and a later event's refresh must not end
+	// with this event's context
+	go e.runBalanceRefresh(context.WithoutCancel(ctx), a, cmp.Or(r.interval, balanceRefreshInterval))
+}
+
+// runBalanceRefresh refreshes an asset's available balances, then once more after each interval in which they changed
+// again, while the websocket is connected; a refresh already under way when it disconnects finishes its request
+func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval time.Duration) {
+	r := &e.balanceRefresh
+	for {
+		// Checked under the lock events take to ask for another refresh, so one made after a reconnection starts its own
+		// rather than being cleared here
+		r.mu.Lock()
+		if !e.Websocket.IsConnected() {
+			r.running[a], r.pending[a] = false, false
+			r.mu.Unlock()
+			return
+		}
+		r.mu.Unlock()
+		if err := e.refreshAvailableBalances(ctx, a); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s balance refresh after a user data stream balance update failed: %v", e.Name, a, err)
+		}
+		time.Sleep(interval)
+		r.mu.Lock()
+		again := r.pending[a]
+		r.pending[a] = false
+		r.running[a] = again
+		r.mu.Unlock()
+		if !again {
+			return
+		}
+	}
+}
+
+// refreshAvailableBalances stores the available balances and margin held that REST reports for an asset, for each
+// currency nothing has stored since the request: a balance an event or a REST poll stored after it is newer. The user
+// data stream reports each wallet balance as it changes, so a currency REST reports as last updated before the latest
+// event to report it, or without an update time, is skipped as predating that event, and REST's available balance is
+// only stored beside the wallet balance REST reports with it: a snapshot that disagrees predates an event, or an event
+// still on its way will start another refresh. A currency without a balance takes REST's
+func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) error {
+	requested := time.Now()
+	subAccount, updated, err := e.accountBalances(ctx, a)
+	if err != nil {
+		return err
+	}
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	eventTimes := maps.Clone(r.eventTimes[a])
+	r.mu.Unlock()
+	var errs error
+	for c, fetched := range subAccount.Balances {
+		if eventTime, ok := eventTimes[c.Item]; ok && updated[c.Item].Before(eventTime) {
+			continue
+		}
+		_, err := e.Accounts.UpdateBalance(ctx, "", a, c, func(stored *accounts.Balance) {
+			if stored.UpdatedAt.After(requested) {
+				return
+			}
+			if stored.UpdatedAt.IsZero() || stored.Total == fetched.Total {
+				stored.Total, stored.Hold, stored.Free = fetched.Total, fetched.Hold, fetched.Free
+			}
+		})
+		errs = common.AppendError(errs, err)
+	}
+	return errs
 }
 
 // futuresPosition builds a position from its signed size. Hedge mode reports the side; one-way mode, BOTH, signs the

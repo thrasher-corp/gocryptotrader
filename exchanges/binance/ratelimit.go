@@ -12,17 +12,22 @@ import (
 type rateLimitPool uint8
 
 // Rate limit pools: the shared budgets of each host, then dedicated budgets for endpoints whose own documented limit
-// is stricter than their weight on a shared pool
+// is stricter than their weight on a shared pool. A host's cancel pool is the share of its IP budget kept for order
+// cancellations: a limiter queues requests in turn, so a cancellation drawing on the shared pool waits behind every
+// market data request reserved before it, such as an order book synchronisation's snapshots
 const (
 	spotIPPool rateLimitPool = iota
+	spotCancelPool
 	spotOrderPool
 	sapiIPPool
 	sapiUIDPool
 	derivativesIPPool
+	derivativesCancelPool
 	derivativesOrderPool
 	futuresDataPool
 	uFuturesFundingPool
 	optionsIPPool
+	optionsCancelPool
 	optionsOrderPool
 	portfolioMarginIPPool
 	portfolioMarginOrderPool
@@ -57,10 +62,12 @@ type rateLimitBudget struct {
 
 // poolBudgets holds the budget of every pool, from each host's exchangeInfo rateLimits and the documentation. The
 // limiter spreads a budget evenly with a burst of one, so where a host has two windows the stricter sustained rate
-// applies, and daily or monthly quotas are left to Binance: spread evenly they would hold a second call for hours
+// applies, and daily or monthly quotas are left to Binance: spread evenly they would hold a second call for hours. A
+// host's IP and cancel pools together hold its IP limit, and the cancellations' share is about the host's order rate
 var poolBudgets = map[rateLimitPool]rateLimitBudget{
-	spotIPPool:    {time.Minute, 6000},     // REQUEST_WEIGHT per IP; WebSocket API requests count against it too
-	spotOrderPool: {10 * time.Second, 100}, // ORDERS (unfilled order count) per account; 200000 a day also applies
+	spotIPPool:     {time.Minute, 5400},     // REQUEST_WEIGHT per IP, 6000 less the cancellations' share
+	spotCancelPool: {time.Minute, 600},      // WebSocket API requests count against REQUEST_WEIGHT too
+	spotOrderPool:  {10 * time.Second, 100}, // ORDERS (unfilled order count) per account; 200000 a day also applies
 	// Binance gives each /sapi endpoint a budget of its own, so every endpoint limit heavier than 1 gets a limiter of
 	// its own and a heavy call never holds up another endpoint. The weight-1 defaults, which most /sapi endpoints
 	// use, share one limiter per pool: stricter, but still 200 IP-limited requests a second
@@ -68,11 +75,13 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	sapiUIDPool: {time.Minute, 180000},
 	// USDⓈ-M and COIN-M share their budgets since the 2026-06-30 CM-UM integration. Orders are also limited to 300 per
 	// 10 seconds, a looser sustained rate
-	derivativesIPPool:        {time.Minute, 2400},
+	derivativesIPPool:        {time.Minute, 2100}, // 2400 less the cancellations' share
+	derivativesCancelPool:    {time.Minute, 300},
 	derivativesOrderPool:     {time.Minute, 1200},
 	futuresDataPool:          {5 * time.Minute, 1000}, // per IP, for the /futures/data endpoints of both hosts
 	uFuturesFundingPool:      {5 * time.Minute, 500},  // per IP, shared by /fapi/v1/fundingRate and /fapi/v1/fundingInfo
-	optionsIPPool:            {time.Minute, 400},
+	optionsIPPool:            {time.Minute, 340},      // 400 less the cancellations' share
+	optionsCancelPool:        {time.Minute, 60},
 	optionsOrderPool:         {time.Minute, 100}, // 30 per 10 seconds also applies, a looser sustained rate
 	portfolioMarginIPPool:    {time.Minute, 6000},
 	portfolioMarginOrderPool: {time.Minute, 1200},
@@ -97,6 +106,25 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	pmBNBTransferPool:         {10 * time.Minute, 10}, // POST /papi/v1/bnb-transfer
 }
 
+// poolBursts holds the weight of the pools whose requests may go out at once, as a cancellation of every order does,
+// which the rest of the pool's budget refills over its interval, so no interval exceeds the budget. Every other pool
+// spreads its budget evenly
+var poolBursts = map[rateLimitPool]int{
+	spotCancelPool:        100,
+	derivativesCancelPool: 50,
+	optionsCancelPool:     10,
+}
+
+// newPoolLimiter returns a limiter holding a pool to its budget
+func newPoolLimiter(pool rateLimitPool) *rate.Limiter {
+	budget := poolBudgets[pool]
+	burst := poolBursts[pool]
+	if burst <= 1 {
+		return request.NewRateLimit(budget.interval, budget.limit)
+	}
+	return rate.NewLimiter(rate.Limit(float64(budget.limit-burst)/budget.interval.Seconds()), burst)
+}
+
 // Endpoint limits, grouped by host and documentation section. They start after request.UnAuth, so a stray
 // request.Unset, request.Auth or request.UnAuth finds no Binance limiter instead of silently using one. Weight-1
 // endpoints share their pool's default limit, and an endpoint whose weight depends on a parameter has a limit per
@@ -104,6 +132,7 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 const (
 	// Spot /api, REST and WebSocket API
 	spotDefaultRate request.EndpointLimit = request.UnAuth + 1 + iota
+	spotCancelRate
 	spotExchangeInfoRate
 	aggTradesRate
 	getCurrentAveragePriceRate
@@ -352,6 +381,7 @@ const (
 
 	// USDⓈ-M futures /fapi
 	uFuturesDefaultRate
+	uFuturesCancelRate
 	uFuturesAccountInformationRate
 	uFuturesTradingStatusAllRate
 	uFuturesMultiAssetMarginRate
@@ -400,6 +430,7 @@ const (
 
 	// COIN-M futures /dapi
 	cFuturesDefaultRate
+	cFuturesCancelRate
 	cFuturesAccountInformationRate
 	cFuturesIncomeHistoryRate
 	cFuturesAggregateTradesRate
@@ -430,6 +461,7 @@ const (
 
 	// Options /eapi
 	optionsDefaultRate
+	optionsCancelRate
 	optionsMarginAccountInfoRate
 	optionsDownloadIDForOptionTransactionHistoryRate
 	optionsGetTransHistoryDownloadLinkByIDRate
@@ -526,6 +558,7 @@ type endpointCost struct {
 var endpointCosts = map[request.EndpointLimit]endpointCost{
 	// Spot /api, REST and WebSocket API
 	spotDefaultRate:                {spotIPPool, 1},
+	spotCancelRate:                 {spotCancelPool, 1},
 	spotExchangeInfoRate:           {spotIPPool, 20},
 	aggTradesRate:                  {spotIPPool, 4},
 	getCurrentAveragePriceRate:     {spotIPPool, 2},
@@ -774,6 +807,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 
 	// USDⓈ-M futures /fapi
 	uFuturesDefaultRate:            {derivativesIPPool, 1},
+	uFuturesCancelRate:             {derivativesCancelPool, 1},
 	uFuturesAccountInformationRate: {derivativesIPPool, 5},
 	uFuturesTradingStatusAllRate:   {derivativesIPPool, 10},
 	uFuturesMultiAssetMarginRate:   {derivativesIPPool, 30},
@@ -822,6 +856,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 
 	// COIN-M futures /dapi
 	cFuturesDefaultRate:            {derivativesIPPool, 1},
+	cFuturesCancelRate:             {derivativesCancelPool, 1},
 	cFuturesAccountInformationRate: {derivativesIPPool, 5},
 	cFuturesIncomeHistoryRate:      {derivativesIPPool, 20},
 	cFuturesAggregateTradesRate:    {derivativesIPPool, 20},
@@ -852,6 +887,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 
 	// Options /eapi
 	optionsDefaultRate:                               {optionsIPPool, 1},
+	optionsCancelRate:                                {optionsCancelPool, 1},
 	optionsMarginAccountInfoRate:                     {optionsIPPool, 3},
 	optionsDownloadIDForOptionTransactionHistoryRate: {optionsIPPool, 5},
 	optionsGetTransHistoryDownloadLinkByIDRate:       {optionsIPPool, 5},
@@ -865,9 +901,9 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	optionsAllTickerPriceStatisticsRate:              {optionsIPPool, 40},
 	optionsAutoCancelAllOpenOrdersHeartbeatRate:      {optionsIPPool, 10},
 	optionsAccountTradeListRate:                      {optionsIPPool, 5},
-	optionsCancelAllByUnderlyingRate:                 {optionsIPPool, 5},
+	optionsCancelAllByUnderlyingRate:                 {optionsCancelPool, 5},
 	optionsBatchOrderRate:                            {optionsOrderPool, 5},
-	optionsCancelBatchOrdersRate:                     {optionsIPPool, 5},
+	optionsCancelBatchOrdersRate:                     {optionsCancelPool, 5},
 	optionsDefaultOrderRate:                          {optionsOrderPool, 1},
 	optionsPositionInformationRate:                   {optionsIPPool, 5},
 	optionsAllQueryOpenOrdersRate:                    {optionsIPPool, 40},
@@ -951,13 +987,12 @@ func endpointLimiters(costs map[request.EndpointLimit]endpointCost) map[request.
 	shared := make(map[rateLimitPool]*rate.Limiter, len(poolBudgets))
 	limiters := make(map[request.EndpointLimit]*rate.Limiter, len(costs))
 	for epl, cost := range costs {
-		budget := poolBudgets[cost.pool]
 		if cost.pool.perEndpoint() && cost.weight > 1 {
-			limiters[epl] = request.NewRateLimit(budget.interval, budget.limit)
+			limiters[epl] = newPoolLimiter(cost.pool)
 			continue
 		}
 		if shared[cost.pool] == nil {
-			shared[cost.pool] = request.NewRateLimit(budget.interval, budget.limit)
+			shared[cost.pool] = newPoolLimiter(cost.pool)
 		}
 		limiters[epl] = shared[cost.pool]
 	}

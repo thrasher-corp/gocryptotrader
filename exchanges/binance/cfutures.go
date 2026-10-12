@@ -47,12 +47,10 @@ func (e *Exchange) FuturesIncomeHistory(ctx context.Context, req *CFuturesIncome
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
-	}
 	params := url.Values{}
+	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
+		return nil, err
+	}
 	if !req.Symbol.IsEmpty() {
 		symbol, err := e.FormatSymbol(req.Symbol, asset.CoinMarginedFutures)
 		if err != nil {
@@ -62,12 +60,6 @@ func (e *Exchange) FuturesIncomeHistory(ctx context.Context, req *CFuturesIncome
 	}
 	if req.IncomeType != "" {
 		params.Set("incomeType", req.IncomeType)
-	}
-	if !req.StartTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
-	}
-	if !req.EndTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
 	if req.Page != 0 {
 		params.Set("page", strconv.FormatUint(req.Page, 10))
@@ -242,23 +234,15 @@ func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, req *CFuturesFu
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	params := url.Values{}
+	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
 	params.Set("symbol", symbol)
-	if !req.StartTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
-	}
-	if !req.EndTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
-	}
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
@@ -626,23 +610,15 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, req *CFuturesAllOrde
 	if err := checkSymbolOrPair(req.Symbol, req.Pair, req.OrderID); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
-	}
 	params, err := e.symbolOrPairParams(req.Symbol, req.Pair)
 	if err != nil {
 		return nil, err
 	}
+	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
+		return nil, err
+	}
 	if req.OrderID != 0 {
 		params.Set("orderId", strconv.FormatUint(req.OrderID, 10))
-	}
-	if !req.StartTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
-	}
-	if !req.EndTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
@@ -680,7 +656,7 @@ func (e *Exchange) FuturesCancelAllOpenOrders(ctx context.Context, symbol curren
 	params := url.Values{}
 	params.Set("symbol", s)
 	var resp *CFuturesStatusResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/allOpenOrders", params, cFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/allOpenOrders", params, cFuturesCancelRate, &resp)
 }
 
 // FuturesModifyMultipleOrders modifies up to five coin margined futures limit orders through Modify Multiple Orders,
@@ -778,7 +754,7 @@ func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency
 		params.Set("origClientOrderIdList", string(clientOrderIDList))
 	}
 	var resp []CFuturesBatchOrderData
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesCancelRate, &resp)
 }
 
 // orderIdentityParams builds the symbol and order identity parameters of the single coin margined futures order
@@ -950,7 +926,7 @@ func (e *Exchange) FuturesCancelOrder(ctx context.Context, symbol currency.Pair,
 		return nil, err
 	}
 	var resp *FuturesOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/order", params, cFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/order", params, cFuturesCancelRate, &resp)
 }
 
 // FuturesChangeInitialLeverage sets the initial leverage of a coin margined futures symbol through Change Initial

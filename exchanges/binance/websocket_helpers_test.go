@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -58,12 +57,7 @@ func newDerivativesTestExchange(tb testing.TB) *Exchange {
 // useTestOrderbookSync replaces the order book synchronisation with one taking its snapshots from fetch, without the
 // fetch delay
 func useTestOrderbookSync(ex *Exchange, fetch func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error)) {
-	ex.orderbookSync = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
-		FetchDeadline:      time.Second * 5,
-		FetchOrderbook:     fetch,
-		CheckPendingUpdate: checkPendingUpdate,
-		Orderbook:          &ex.Websocket.Orderbook,
-	})
+	ex.orderbookSync = ex.newOrderbookSync(fetch, 0, 5*time.Second)
 }
 
 // fixtureFrames returns the frames of a websocket fixture file, one per line

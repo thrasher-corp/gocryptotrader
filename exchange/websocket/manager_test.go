@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -675,6 +676,375 @@ func TestConnectTrackOnExistingConnectionManagerRecordsTrackedSubscriptions(t *t
 
 	mgr.setEnabled(false)
 	require.NoError(t, mgr.Shutdown())
+}
+
+func TestOptionalConnection(t *testing.T) {
+	t.Parallel()
+
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	mockURL := "ws" + mock.URL[len("http"):] + "/ws"
+	noopHandler := func(context.Context, Connection, []byte) error { return nil }
+	errRefused := errors.New("connection refused")
+
+	// newManager returns a manager with a required connection and an optional one, which dials only while it is let
+	newManager := func(t *testing.T, monitorDelay time.Duration) (m *Manager, optional *websocket, dialOptional *atomic.Bool) {
+		t.Helper()
+		m = NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = monitorDelay
+		setup.ExchangeConfig.WebsocketTrafficTimeout = time.Hour // A reconnection would bring the optional connection up too
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		dial := func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) }
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true}), "SetupNewConnection must not error")
+		dialOptional = new(atomic.Bool)
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL: mockURL, MessageFilter: "optional", Handler: noopHandler, SubscriptionsNotRequired: true, Optional: true,
+			Connector: func(ctx context.Context, conn Connection) error {
+				if !dialOptional.Load() {
+					return errRefused
+				}
+				return dial(ctx, conn)
+			},
+		}), "SetupNewConnection must not error")
+		t.Cleanup(func() {
+			if m.IsEnabled() {
+				assert.NoError(t, m.Disable(), "Disable should not error")
+			}
+			if err := m.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+			}
+		})
+		return m, m.connectionManager[1], dialOptional
+	}
+	connections := func(m *Manager, ws *websocket) int {
+		m.connectionManagerMu.RLock()
+		defer m.connectionManagerMu.RUnlock()
+		return len(ws.connections)
+	}
+	retryAt := func(m *Manager, ws *websocket) time.Time {
+		m.m.Lock()
+		defer m.m.Unlock()
+		return ws.optionalRetryAt
+	}
+	retryNow := func(m *Manager, ws *websocket) {
+		m.m.Lock()
+		defer m.m.Unlock()
+		ws.optionalRetryAt = time.Now()
+	}
+	latestReader := func(m *Manager, ws *websocket) chan struct{} {
+		m.m.Lock()
+		defer m.m.Unlock()
+		return ws.optionalReaderDone
+	}
+	readerReturned := func(t *testing.T, done chan struct{}) {
+		t.Helper()
+		require.NotNil(t, done, "the optional connection must have started a reader")
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			require.Fail(t, "the optional connection's reader must return")
+		}
+	}
+	firstConnection := func(m *Manager, ws *websocket) *connection {
+		m.connectionManagerMu.RLock()
+		defer m.connectionManagerMu.RUnlock()
+		if len(ws.connections) == 0 {
+			return nil
+		}
+		conn, _ := ws.connections[0].(*connection)
+		return conn
+	}
+
+	t.Run("setup", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		err := m.SetupNewConnection(&ConnectionSetup{
+			URL: mockURL, Optional: true, Handler: noopHandler,
+			Connector:             func(context.Context, Connection) error { return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+		})
+		assert.ErrorIs(t, err, errOptionalConnectionSubscriptions, "SetupNewConnection should reject an optional connection with subscriptions")
+		legacy := NewManager()
+		require.NoError(t, legacy.Setup(newDefaultSetup()), "Setup must not error")
+		err = legacy.SetupNewConnection(&ConnectionSetup{URL: mockURL, Optional: true})
+		assert.ErrorIs(t, err, errOptionalConnectionUnsupported, "SetupNewConnection should reject an optional connection without multi-connection management")
+	})
+
+	t.Run("a websocket without optional connections leaves its lock alone", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL: mockURL, Handler: noopHandler, SubscriptionsNotRequired: true,
+			Connector: func(context.Context, Connection) error { return nil },
+		}), "SetupNewConnection must not error")
+		m.m.Lock()
+		defer m.m.Unlock()
+		returned := make(chan struct{})
+		go func() {
+			m.connectOptional(t.Context())
+			close(returned)
+		}()
+		select {
+		case <-returned:
+		case <-time.After(5 * time.Second):
+			assert.Fail(t, "connectOptional should not wait on the websocket's lock")
+		}
+	})
+
+	t.Run("failing to connect leaves the others connected", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		err := m.Connect(t.Context())
+		require.ErrorIs(t, err, errRefused, "Connect must report the optional connection's failure")
+		assert.NotErrorIs(t, err, ErrSubscriptionFailure, "Connect should not report a subscription failure")
+		assert.True(t, m.IsConnected(), "the websocket should stay connected")
+		assert.Equal(t, 1, connections(m, m.connectionManager[0]), "the required connection should stay up")
+		assert.Zero(t, connections(m, optional), "the optional connection should not be kept")
+		assert.True(t, retryAt(m, optional).After(time.Now()), "the optional connection should await another attempt")
+
+		require.NoError(t, m.Shutdown(), "Shutdown must not error")
+		dialOptional.Store(true)
+		require.NoError(t, m.Connect(t.Context()), "Connect must not error")
+		assert.Equal(t, 1, connections(m, optional), "connecting again should not wait for the optional connection's retry")
+	})
+
+	t.Run("a connector failing after it dials leaves no socket open", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			fail func(*connection) error
+			err  error
+		}{
+			{"connector error", func(*connection) error { return errRefused }, errRefused},
+			{"not connected", func(c *connection) error { c.setConnectedStatus(false); return nil }, ErrNotConnected},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m, optional, _ := newManager(t, time.Hour)
+				var dialled *connection
+				optional.setup.Connector = func(ctx context.Context, conn Connection) error {
+					if err := conn.Dial(ctx, dialer, nil, nil); err != nil {
+						return err
+					}
+					var ok bool
+					if dialled, ok = conn.(*connection); !ok {
+						return common.GetTypeAssertError("*connection", conn)
+					}
+					return tc.fail(dialled)
+				}
+				require.ErrorIs(t, m.Connect(t.Context()), tc.err, "Connect must report the optional connection's failure")
+				require.NotNil(t, dialled, "the connector must dial")
+				assert.ErrorIs(t, dialled.Connection.NetConn().Close(), net.ErrClosed, "the dialled socket should be closed")
+			})
+		}
+	})
+
+	t.Run("failing to authenticate releases the connection", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		dialOptional.Store(true)
+		var dialled *connection
+		connector := optional.setup.Connector
+		optional.setup.Connector = func(ctx context.Context, conn Connection) error {
+			if err := connector(ctx, conn); err != nil {
+				return err
+			}
+			var ok bool
+			if dialled, ok = conn.(*connection); !ok {
+				return common.GetTypeAssertError("*connection", conn)
+			}
+			conn.SetupPingHandler(request.Unset, PingHandler{MessageType: gws.TextMessage, Message: []byte("ping"), Delay: time.Hour})
+			return nil
+		}
+		optional.setup.Authenticate = func(context.Context, Connection) error { return errFailedToAuthenticate }
+		m.SetCanUseAuthenticatedEndpoints(true)
+		err := m.Connect(t.Context())
+		require.ErrorIs(t, err, errFailedToAuthenticate, "Connect must report the optional connection's failure")
+		assert.True(t, m.IsConnected(), "the websocket should stay connected")
+		assert.Zero(t, connections(m, optional), "the optional connection should be released")
+		m.connectionManagerMu.RLock()
+		assert.Len(t, m.connections, 1, "only the required connection should be tracked")
+		m.connectionManagerMu.RUnlock()
+		require.NotNil(t, dialled, "the optional connection must be dialled")
+		select {
+		case <-dialled.shutdown:
+		default:
+			assert.Fail(t, "releasing the optional connection should stop its routines")
+			if dialled.stopRoutines != nil {
+				dialled.stopRoutines() // Shutting the websocket down waits for the routine
+			}
+		}
+	})
+
+	t.Run("a lost connection is replaced on its own", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		dialOptional.Store(true)
+		require.NoError(t, m.Connect(t.Context()), "Connect must not error")
+		required, lost := firstConnection(m, m.connectionManager[0]), firstConnection(m, optional)
+		require.NotNil(t, lost, "the optional connection must be established")
+
+		// Closing the socket under the connection's reader faults it as the peer going away does
+		require.NoError(t, lost.Connection.NetConn().Close(), "closing the optional connection's socket must not error")
+		require.Eventually(t, func() bool { return len(lost.readMessageErrors) == 1 }, 5*time.Second, time.Millisecond, "the lost connection must report its fault")
+		assert.Empty(t, m.ReadMessageErrors, "the lost optional connection should not reconnect the websocket")
+
+		m.connectOptional(t.Context())
+		assert.Zero(t, connections(m, optional), "the lost connection should be released")
+		readerReturned(t, latestReader(m, optional))
+		m.connectOptional(t.Context())
+		assert.Zero(t, connections(m, optional), "a connection lost soon after it connected should wait for its retry")
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		replaced := firstConnection(m, optional)
+		require.NotNil(t, replaced, "a due attempt must replace the lost connection")
+		assert.NotSame(t, lost, replaced, "the lost connection should be replaced")
+
+		retryNow(m, optional)
+		replacedReader := latestReader(m, optional)
+		require.NoError(t, replaced.Shutdown(), "Shutdown must not error")
+		readerReturned(t, replacedReader)
+		m.connectOptional(t.Context())
+		again := firstConnection(m, optional)
+		require.NotNil(t, again, "a connection shut down after its retry delay must be replaced once its reader returns")
+		assert.NotSame(t, replaced, again, "the connection shut down should be replaced")
+		assert.Same(t, required, firstConnection(m, m.connectionManager[0]), "the required connection should not be reconnected")
+		assert.True(t, m.IsConnected(), "the websocket should stay connected")
+	})
+
+	t.Run("a replacement waits for the released connection's reader", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		dialOptional.Store(true)
+		entered, release := make(chan struct{}), make(chan struct{})
+		unblock := sync.OnceFunc(func() { close(release) })
+		t.Cleanup(unblock) // Shutting the websocket down waits for the reader
+		optional.setup.Handler = func(_ context.Context, _ Connection, msg []byte) error {
+			if string(msg) == "hold" {
+				close(entered)
+				<-release
+			}
+			return nil
+		}
+		require.NoError(t, m.Connect(t.Context()), "Connect must not error")
+		held := firstConnection(m, optional)
+		require.NoError(t, held.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("hold")), "SendRawMessage must not error")
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			require.Fail(t, "the optional connection's reader must handle the message")
+		}
+
+		require.NoError(t, held.Shutdown(), "Shutdown must not error")
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		assert.Zero(t, connections(m, optional), "a replacement should wait for the released connection's reader")
+
+		unblock()
+		require.Eventually(t, func() bool {
+			m.connectOptional(t.Context())
+			return connections(m, optional) == 1
+		}, 5*time.Second, 10*time.Millisecond, "a replacement must follow once the released connection's reader returns")
+	})
+
+	t.Run("trying again", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		require.ErrorIs(t, m.Connect(t.Context()), errRefused, "Connect must report the optional connection's failure")
+		scheduled := retryAt(m, optional)
+
+		m.connectOptional(t.Context())
+		assert.Equal(t, scheduled, retryAt(m, optional), "an attempt should wait until it is due")
+
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		assert.Zero(t, connections(m, optional), "a failed attempt should keep no connection")
+		assert.True(t, retryAt(m, optional).After(time.Now()), "a failed attempt should schedule the next")
+
+		dialOptional.Store(true)
+		handled := make(chan error, 1)
+		optional.setup.Handler = func(ctx context.Context, _ Connection, _ []byte) error {
+			handled <- ctx.Err()
+			return nil
+		}
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		require.Equal(t, 1, connections(m, optional), "a due attempt must establish the optional connection")
+		// The dial's deadline does not reach the reader, so the connection's messages are read once the attempt is over
+		conn := firstConnection(m, optional)
+		require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("echo")), "SendRawMessage must not error")
+		select {
+		case err := <-handled:
+			assert.NoError(t, err, "the optional connection's messages should be read under the websocket's context")
+		case <-time.After(5 * time.Second):
+			assert.Fail(t, "the optional connection's messages should be read")
+		}
+
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		assert.Same(t, conn, firstConnection(m, optional), "an established connection should not be dialled again")
+
+		require.NoError(t, m.Shutdown(), "Shutdown must not error")
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		assert.Zero(t, connections(m, optional), "nothing should be tried while the websocket is disconnected")
+	})
+
+	t.Run("only the dial is bounded", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, time.Hour)
+		require.ErrorIs(t, m.Connect(t.Context()), errRefused, "Connect must report the optional connection's failure")
+		dialOptional.Store(true)
+		var dialBounded, authenticationBounded bool
+		connector := optional.setup.Connector
+		optional.setup.Connector = func(ctx context.Context, conn Connection) error {
+			_, dialBounded = ctx.Deadline()
+			return connector(ctx, conn)
+		}
+		optional.setup.Authenticate = func(ctx context.Context, _ Connection) error {
+			_, authenticationBounded = ctx.Deadline()
+			return nil
+		}
+		m.SetCanUseAuthenticatedEndpoints(true)
+		retryNow(m, optional)
+		m.connectOptional(t.Context())
+		require.Equal(t, 1, connections(m, optional), "a due attempt must establish the optional connection")
+		assert.True(t, dialBounded, "the dial should be bounded")
+		assert.False(t, authenticationBounded, "authentication should wait on its requests' own response limits rather than the dial's")
+	})
+
+	t.Run("connection monitor", func(t *testing.T) {
+		t.Parallel()
+		m, optional, dialOptional := newManager(t, 10*time.Millisecond)
+		require.ErrorIs(t, m.Connect(t.Context()), errRefused, "Connect must report the optional connection's failure")
+		m.connectionManagerMu.RLock()
+		required := m.connectionManager[0].connections[0]
+		m.connectionManagerMu.RUnlock()
+		dialOptional.Store(true)
+		retryNow(m, optional)
+		require.Eventually(t, func() bool { return connections(m, optional) == 1 }, 5*time.Second, 10*time.Millisecond, "the connection monitor must establish the optional connection")
+		assert.Same(t, required, firstConnection(m, m.connectionManager[0]), "the required connection should not be reconnected")
+
+		lost := firstConnection(m, optional)
+		retryNow(m, optional)
+		require.NoError(t, lost.Connection.NetConn().Close(), "closing the optional connection's socket must not error")
+		assert.Eventually(t, func() bool {
+			conn := firstConnection(m, optional)
+			return conn != nil && conn != lost
+		}, 5*time.Second, 10*time.Millisecond, "the connection monitor should replace the lost optional connection")
+		assert.Same(t, required, firstConnection(m, m.connectionManager[0]), "the required connection should not be reconnected")
+	})
 }
 
 func TestCreateConnectAndSubscribe(t *testing.T) {

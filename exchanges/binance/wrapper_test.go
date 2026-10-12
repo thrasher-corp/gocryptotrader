@@ -630,6 +630,12 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 	assert.ErrorIs(t, err, context.Canceled, "UpdateTradablePairs should return the request errors")
 
+	unloaded := new(Exchange)
+	unloaded.SetDefaults()
+	err = unloaded.UpdateTradablePairs(ctx)
+	assert.ErrorIs(t, err, context.Canceled, "UpdateTradablePairs should return the request errors without stored pairs")
+	assert.NotErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "UpdateTradablePairs should not report missing pairs when no asset updated")
+
 	require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
 	for _, a := range ex.GetAssetTypes(false) {
 		pairs, err := ex.GetAvailablePairs(a)
@@ -1678,7 +1684,7 @@ func TestSubmitOrder(t *testing.T) {
 			submit: &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 90000, Amount: 0.001, TimeInForce: order.PostOnly},
 			exp: &order.SubmitResponse{
 				Exchange:        "Binance",
-				Type:            order.Limit,
+				Type:            order.LimitMaker,
 				Side:            order.Sell,
 				Pair:            currency.NewBTCUSDT(),
 				AssetType:       asset.Spot,
@@ -2350,7 +2356,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 		{
 			a: asset.Options,
 			exp: accounts.CurrencyBalances{
-				currency.USDT: {Currency: currency.USDT, Total: 10099.448, Hold: 1084.52138, Free: 8725.92524},
+				// Binance's available balance is not the margin balance less the initial margin, so Hold is what is not
+				// available, as for USDⓈ-M and COIN-M: the float64 difference of the two
+				currency.USDT: {Currency: currency.USDT, Total: 10099.448, Hold: 1373.5227599999998, Free: 8725.92524},
 			},
 		},
 	} {
@@ -2422,6 +2430,380 @@ func TestCancelOrder(t *testing.T) {
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: "12569099454", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}), "CancelOrder must cancel an order over the WebSocket API")
 		assert.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{Type: order.OCO, OrderID: "1274514", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}), "CancelOrder should cancel an order list over the WebSocket API")
+	})
+}
+
+// cancelStep is a request a cancellation must send, the parameters it must carry, "" for one it must not, and the reply
+type cancelStep struct {
+	method, path string
+	params       map[string]string
+	reply        string
+}
+
+// newCancelStepsExchange returns an exchange whose requests must be exactly steps, in order, and a function reporting
+// how many were sent
+func newCancelStepsExchange(t *testing.T, steps []cancelStep) (ex *Exchange, sent func() int) {
+	t.Helper()
+	var mu sync.Mutex
+	var count int
+	ex = newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		i := count
+		count++
+		mu.Unlock()
+		if !assert.Lessf(t, i, len(steps), "%s %s should not be sent", r.Method, r.URL.Path) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		step := steps[i]
+		assert.Equalf(t, step.method+" "+step.path, r.Method+" "+r.URL.Path, "request %d should be the expected one", i)
+		q := r.URL.Query()
+		for k, v := range step.params {
+			if v == "" {
+				assert.NotContainsf(t, q, k, "request %d should not carry %s", i, k)
+			} else {
+				assert.Equalf(t, v, q.Get(k), "request %d should carry %s", i, k)
+			}
+		}
+		// A batch reply carries its orders' rejections with a success status
+		if strings.HasPrefix(step.reply, `{"code":-`) {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		_, err := w.Write([]byte(step.reply))
+		assert.NoError(t, err, "Write should not error")
+	})
+	url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	require.NoError(t, err, "GetURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), url), "SetRunningURL must not error")
+	return ex, func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return count
+	}
+}
+
+func TestCancelOrderUntyped(t *testing.T) {
+	t.Parallel()
+	// The RPC server and order manager cancel without a type, and orders drop their margin type, while SubmitOrder
+	// identifies OCO orders by order list ID and USDⓈ-M conditional orders by algo ID
+	const (
+		unknownOrder  = `{"code":-2011,"msg":"Unknown order sent."}`
+		unknownList   = `{"code":-2011,"msg":"Order list does not exist."}`
+		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
+		restricted    = `{"code":-2011,"msg":"Order was not canceled due to cancel restrictions."}`
+		outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
+		cancelled     = `{"symbol":"BTCUSDT","orderId":28,"status":"CANCELED"}`
+		listCancelled = `{"orderListId":1930,"contingencyType":"OCO","listStatusType":"ALL_DONE","listOrderStatus":"ALL_DONE","symbol":"BTCUSDT"}`
+		algoCancelled = `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`
+	)
+	algo := func(symbol string, id uint64) string {
+		return fmt.Sprintf(`{"algoId":%d,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":%q,"side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`, id, symbol)
+	}
+	spotOrder := func(params map[string]string, reply string) cancelStep {
+		return cancelStep{http.MethodDelete, "/api/v3/order", params, reply}
+	}
+	spotList := func(params map[string]string, reply string) cancelStep {
+		return cancelStep{http.MethodDelete, "/api/v3/orderList", params, reply}
+	}
+	marginOrder := func(isolated, reply string) cancelStep {
+		return cancelStep{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"orderId": "28", "isIsolated": isolated}, reply}
+	}
+	marginList := func(isolated, reply string) cancelStep {
+		return cancelStep{http.MethodDelete, "/sapi/v1/margin/orderList", map[string]string{"orderListId": "28", "isIsolated": isolated}, reply}
+	}
+	uOrder := func(params map[string]string, reply string) cancelStep {
+		return cancelStep{http.MethodDelete, "/fapi/v1/order", params, reply}
+	}
+	byID := map[string]string{"orderId": "3000000123"}
+	for _, tc := range []struct {
+		name   string
+		cancel order.Cancel
+		steps  []cancelStep
+		errMsg string
+	}{
+		{
+			name:   "spot order list by order list ID",
+			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(map[string]string{"orderId": "1930"}, unknownOrder), spotList(map[string]string{"orderListId": "1930"}, listCancelled)},
+		},
+		{
+			name:   "spot order list by list client order ID",
+			cancel: order.Cancel{AssetType: asset.Spot, ClientOrderID: "gct-oco"},
+			steps:  []cancelStep{spotOrder(map[string]string{"origClientOrderId": "gct-oco"}, unknownOrder), spotList(map[string]string{"listClientOrderId": "gct-oco"}, listCancelled)},
+		},
+		{
+			name:   "spot order list of any type",
+			cancel: order.Cancel{AssetType: asset.Spot, Type: order.AnyType, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(nil, unknownOrder), spotList(map[string]string{"orderListId": "1930"}, listCancelled)},
+		},
+		{
+			name:   "spot unknown ID",
+			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(nil, unknownOrder), spotList(nil, unknownList)},
+			errMsg: "Order list does not exist.",
+		},
+		{
+			name:   "spot limit order",
+			cancel: order.Cancel{AssetType: asset.Spot, Type: order.Limit, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(nil, unknownOrder)},
+			errMsg: "Unknown order sent.",
+		},
+		{
+			name:   "spot order cancellation restricted",
+			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(nil, restricted)},
+			errMsg: "cancel restrictions",
+		},
+		{
+			name:   "margin isolated order",
+			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginOrder("TRUE", cancelled)},
+		},
+		{
+			name:   "margin isolated order list",
+			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginOrder("TRUE", unknownOrder), marginList("", unknownList), marginList("TRUE", listCancelled)},
+		},
+		{
+			name:   "margin isolated OCO without a margin type",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.OCO, OrderID: "28"},
+			steps:  []cancelStep{marginList("", unknownList), marginList("TRUE", listCancelled)},
+		},
+		{
+			name:   "margin isolated limit order without a margin type",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginOrder("TRUE", cancelled)},
+		},
+		{
+			// A client order ID is unique only among an account's open orders, so the isolated account is not tried
+			name:   "margin limit order by client order ID",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, ClientOrderID: "gct-margin"},
+			steps:  []cancelStep{{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"origClientOrderId": "gct-margin", "isIsolated": ""}, unknownOrder}},
+			errMsg: "Unknown order sent.",
+		},
+		{
+			name:   "margin order list by list client order ID",
+			cancel: order.Cancel{AssetType: asset.Margin, ClientOrderID: "gct-margin"},
+			steps: []cancelStep{
+				{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"origClientOrderId": "gct-margin", "isIsolated": ""}, unknownOrder},
+				{http.MethodDelete, "/sapi/v1/margin/orderList", map[string]string{"listClientOrderId": "gct-margin", "isIsolated": ""}, unknownList},
+			},
+			errMsg: "Order list does not exist.",
+		},
+		{
+			name:   "margin isolated order by client order ID with its margin type",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, MarginType: margin.Isolated, ClientOrderID: "gct-margin"},
+			steps:  []cancelStep{{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"origClientOrderId": "gct-margin", "isIsolated": "TRUE"}, cancelled}},
+		},
+		{
+			name:   "margin isolated order list with its margin type",
+			cancel: order.Cancel{AssetType: asset.Margin, MarginType: margin.Isolated, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("TRUE", unknownOrder), marginList("TRUE", listCancelled)},
+		},
+		{
+			name:   "margin cross limit order",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, MarginType: margin.Multi, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder)},
+			errMsg: "Unknown order sent.",
+		},
+		{
+			name:   "margin isolated limit order",
+			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, MarginType: margin.Isolated, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("TRUE", cancelled)},
+		},
+		{
+			name:   "margin failure",
+			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", outsideWindow)},
+			errMsg: "outside of the recvWindow",
+		},
+		{
+			name:   "USDⓈ-M algo order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps: []cancelStep{
+				uOrder(byID, unknownOrder),
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
+			},
+		},
+		{
+			name:   "USDⓈ-M algo order by client ID",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, ClientOrderID: "gct-algo"},
+			steps: []cancelStep{
+				uOrder(map[string]string{"origClientOrderId": "gct-algo"}, unknownOrder),
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo"}, algo("BTCUSDT", 77)},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algoCancelled},
+			},
+		},
+		{
+			name:   "USDⓈ-M algo order of another symbol",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps:  []cancelStep{uOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}},
+			errMsg: "Unknown order sent.",
+		},
+		{
+			name:   "USDⓈ-M unknown ID",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps:  []cancelStep{uOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}},
+			errMsg: "Unknown order sent.",
+		},
+		{
+			name:   "USDⓈ-M limit order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.Limit, OrderID: "3000000123"},
+			steps:  []cancelStep{uOrder(byID, unknownOrder)},
+			errMsg: "Unknown order sent.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			tc.cancel.Pair = currency.NewBTCUSDT()
+			err := ex.CancelOrder(t.Context(), &tc.cancel)
+			if tc.errMsg == "" {
+				assert.NoError(t, err, "CancelOrder should cancel the order")
+			} else {
+				assert.ErrorContains(t, err, tc.errMsg, "CancelOrder should return the cancellation error")
+			}
+			assert.Equal(t, len(tc.steps), sent(), "CancelOrder should send every expected request")
+		})
+	}
+
+	// A batch entry falls back on the rejections a single cancellation falls back on, matched by code as well as message
+	for _, tc := range []struct {
+		name      string
+		rejection string
+		status    string // the entry's status when no algo order is cancelled
+	}{
+		{name: "unknown order", rejection: unknownOrder},
+		{name: "order not found", rejection: notFound},
+		{name: "cancellation restricted", rejection: restricted, status: "Order was not canceled due to cancel restrictions."},
+		{name: "unknown order message of another code", rejection: `{"code":-2010,"msg":"Unknown order sent."}`, status: "Unknown order sent."},
+	} {
+		t.Run("USDⓈ-M batch "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			steps := []cancelStep{{
+				http.MethodDelete, "/fapi/v1/batchOrders",
+				map[string]string{"orderIdList": "[1,3000000123]"},
+				`[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"},` + tc.rejection + `]`,
+			}}
+			exp := map[string]string{"1": "CANCELED", "3000000123": tc.status}
+			if tc.status == "" {
+				steps = append(steps,
+					cancelStep{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
+					cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
+				)
+				exp["3000000123"] = "CANCELED"
+			}
+			ex, sent := newCancelStepsExchange(t, steps)
+			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1"},
+				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"},
+			})
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			assert.Equal(t, exp, resp.Status, "CancelBatchOrders should cancel an algo order only for an unknown order rejection")
+			assert.Equal(t, len(steps), sent(), "CancelBatchOrders should send every expected request")
+		})
+	}
+
+	// An ID one entry cancelled names an order, so a repeat of it, which Binance rejects as unknown, is not an algo
+	// order's, whichever entry is untyped and whichever reply comes first
+	for _, tc := range []struct {
+		name    string
+		entries []order.Cancel
+		replies string
+	}{
+		{
+			name:    "untyped entry cancelled before a typed repeat",
+			entries: []order.Cancel{{OrderID: "77"}, {Type: order.Limit, OrderID: "77"}},
+			replies: `[{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"},` + notFound + `]`,
+		},
+		{
+			name:    "untyped repeat of a cancelled ID",
+			entries: []order.Cancel{{OrderID: "77"}, {OrderID: "077"}},
+			replies: `[{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"},` + unknownOrder + `]`,
+		},
+		{
+			name:    "untyped entry rejected before a typed one cancels its ID",
+			entries: []order.Cancel{{OrderID: "77"}, {Type: order.Limit, OrderID: "77"}},
+			replies: `[` + unknownOrder + `,{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"}]`,
+		},
+	} {
+		t.Run("USDⓈ-M batch "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, []cancelStep{{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77,77]"}, tc.replies}})
+			for i := range tc.entries {
+				tc.entries[i].AssetType, tc.entries[i].Pair = asset.USDTMarginedFutures, currency.NewBTCUSDT()
+			}
+			_, err := ex.CancelBatchOrders(t.Context(), tc.entries)
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			assert.Equal(t, 1, sent(), "CancelBatchOrders should not look up an algo order for an ID another entry cancelled")
+		})
+	}
+
+	t.Run("USDⓈ-M batch order named by both its IDs", func(t *testing.T) {
+		t.Parallel()
+		// The client order ID the cancelled order's reply carries names that order, not an algo order
+		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"clientOrderId":"ordinary-client","symbol":"BTCUSDT","status":"CANCELED"}]`},
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["ordinary-client"]`}, `[` + notFound + `]`},
+		})
+		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "77"},
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), ClientOrderID: "ordinary-client"},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, 2, sent(), "CancelBatchOrders should not look up an algo order for the cancelled order's client order ID")
+	})
+
+	t.Run("USDⓈ-M batch zero order ID", func(t *testing.T) {
+		t.Parallel()
+		// Zero names no order, so there is no algo order to look up by it
+		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[0]"}, `[` + notFound + `]`},
+		})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "0"},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, map[string]string{"0": "Order does not exist."}, resp.Status, "CancelBatchOrders should report the rejection alone")
+		assert.Equal(t, 1, sent(), "CancelBatchOrders should not look up an algo order for a zero order ID")
+	})
+
+	t.Run("USDⓈ-M batch rejection ahead of a cancellation", func(t *testing.T) {
+		t.Parallel()
+		// Each entry's outcome is its own, in request order
+		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{
+				http.MethodDelete, "/fapi/v1/batchOrders",
+				map[string]string{"orderIdList": "[3000000123,1]"},
+				`[` + unknownOrder + `,{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`,
+			},
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
+			{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
+		})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"},
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1"},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, map[string]string{"1": "CANCELED", "3000000123": "CANCELED"}, resp.Status, "CancelBatchOrders should cancel the algo order the rejected entry names")
+		assert.Equal(t, 3, sent(), "CancelBatchOrders should send every expected request")
+	})
+
+	t.Run("USDⓈ-M batch order ID sharing a client order ID's text", func(t *testing.T) {
+		t.Parallel()
+		// The order cancelled by its ID must not take the rejection of the client order ID with the same text
+		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"}]`},
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["77"]`}, `[` + notFound + `]`},
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, notFound},
+		})
+		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "77"},
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), ClientOrderID: "77"},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, 3, sent(), "CancelBatchOrders should look up an algo order only for the rejected client order ID")
 	})
 }
 
@@ -2728,6 +3110,19 @@ func TestGetOrderInfo(t *testing.T) {
 			err:     order.ErrOrderNotFound,
 		},
 		{
+			// An OTO order list is not an OCO order, and its orders are found by their own order IDs
+			name:    "spot OTO order list",
+			a:       asset.Spot,
+			replies: map[string]string{"/api/v3/order": notFound, "/api/v3/orderList": strings.Replace(listReply("BTCUSDT"), `"OCO"`, `"OTO"`, 1)},
+			err:     order.ErrOrderNotFound,
+		},
+		{
+			name:    "margin OTO order list",
+			a:       asset.Margin,
+			replies: map[string]string{"/sapi/v1/margin/order": notFound, "/sapi/v1/margin/orderList": strings.Replace(listReply("BTCUSDT"), `"OCO"`, `"OTO"`, 1)},
+			err:     order.ErrOrderNotFound,
+		},
+		{
 			name:    "USDⓈ-M algo order with an unknown status",
 			a:       asset.USDTMarginedFutures,
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"WEIRD","triggerPrice":"3000","icebergQuantity":"null"}`},
@@ -2764,6 +3159,41 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "GetOrderInfo should return the order list")
 		})
 	}
+}
+
+func TestListedOrderListsAreOCO(t *testing.T) {
+	t.Parallel()
+	// The order list endpoints return every contingency type, while GCT tracks only OCO order lists as orders; the orders
+	// of an OTO list are listed as orders
+	const lists = `[{"orderListId":1,"contingencyType":"OCO","listStatusType":"EXEC_STARTED","listOrderStatus":"EXECUTING","listClientOrderId":"gct-oco","transactionTime":1791284812300,"symbol":"BTCUSDT"},` +
+		`{"orderListId":2,"contingencyType":"OTO","listStatusType":"EXEC_STARTED","listOrderStatus":"EXECUTING","listClientOrderId":"gct-oto","transactionTime":1791284812300,"symbol":"BTCUSDT"}]`
+	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Contains(t, []string{"/api/v3/openOrderList", "/api/v3/allOrderList", "/sapi/v1/margin/openOrderList", "/sapi/v1/margin/allOrderList"}, r.URL.Path, "only the order list endpoints should be requested") {
+			return
+		}
+		_, err := w.Write([]byte(lists))
+		assert.NoError(t, err, "Write should not error")
+	})
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		exp := order.FilteredOrders{{
+			Exchange: ex.Name, OrderID: "1", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: a,
+			Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812300), Pair: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter),
+		}}
+		if a == asset.Margin {
+			exp[0].MarginType = margin.Multi
+		}
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Type: order.OCO, Side: order.AnySide})
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+		assert.Equalf(t, exp, active, "GetActiveOrders should list only the %s OCO order lists", a)
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Type: order.OCO, Side: order.AnySide, Pairs: currency.Pairs{currency.NewBTCUSDT()}})
+		require.NoErrorf(t, err, "GetOrderHistory must not error for %s", a)
+		assert.Equalf(t, exp, history, "GetOrderHistory should list only the %s OCO order lists", a)
+	}
+
+	ws := newTestExchange(t)
+	oto := &WsListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING"}
+	require.NoError(t, ws.processListStatus(t.Context(), asset.Spot, []byte(`{"e":"listStatus","s":"BTCUSDT","g":2,"c":"OTO","L":"EXECUTING"}`)), "processListStatus must not error")
+	assert.Equal(t, []any{oto}, relayedPayloads(ws), "processListStatus should relay an OTO list status without reporting the list as an order")
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -3920,6 +4350,79 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 }
 
+func TestHistoricalFundingRatesWindowEnd(t *testing.T) {
+	t.Parallel()
+	// A full page of rates ending at the window's end, or a millisecond before it, needs no request after the end, or one
+	// of the last millisecond alone. A window of exactly 500 hours ends in a funding fee window of that millisecond too
+	end := time.UnixMilli(1791273600000)
+	start := end.Add(-500 * time.Hour)
+	for _, tc := range []struct {
+		name            string
+		lastRate        time.Time
+		includePayments bool
+	}{
+		{"full page ending at the end", end, false},
+		{"full page ending a millisecond before the end", end.Add(-time.Millisecond), false},
+		{"payments over 500 hours", time.Time{}, true},
+	} {
+		for _, product := range []struct {
+			a      asset.Item
+			pair   currency.Pair
+			prefix string
+		}{
+			{asset.USDTMarginedFutures, currency.NewBTCUSDT(), "/fapi/v1/"},
+			{asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), "/dapi/v1/"},
+		} {
+			t.Run(tc.name+"/"+product.a.String(), func(t *testing.T) {
+				t.Parallel()
+				symbol := strings.ToUpper(product.pair.Base.String() + product.pair.Delimiter + product.pair.Quote.String())
+				var mu sync.Mutex
+				var ratePages int
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					reply := "[]"
+					q := r.URL.Query()
+					switch strings.TrimPrefix(r.URL.Path, product.prefix) {
+					case "fundingRate", "income":
+						assert.LessOrEqual(t, q.Get("startTime"), q.Get("endTime"), "a request should not start after its end")
+						assert.LessOrEqual(t, q.Get("endTime"), strconv.FormatInt(end.UnixMilli(), 10), "a request should not end after the window")
+						if r.URL.Path != product.prefix+"fundingRate" || tc.lastRate.IsZero() {
+							break
+						}
+						mu.Lock()
+						ratePages++
+						first := ratePages == 1
+						mu.Unlock()
+						if !first {
+							break
+						}
+						rates := make([]string, fundingRatePageLimit)
+						for i := range rates {
+							rates[i] = fmt.Sprintf(`{"symbol":%q,"fundingTime":%d,"fundingRate":"0.0001"}`, symbol, tc.lastRate.Add(time.Duration(i+1-fundingRatePageLimit)*time.Millisecond).UnixMilli())
+						}
+						reply = "[" + strings.Join(rates, ",") + "]"
+					case "premiumIndex":
+						reply = fmt.Sprintf(`[{"symbol":%q,"lastFundingRate":"0.0001","nextFundingTime":1791302400000,"time":1791273600000}]`, symbol)
+					case "fundingInfo":
+					default:
+						assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
+					}
+					_, err := w.Write([]byte(reply))
+					assert.NoError(t, err, "Write should not error")
+				})
+				url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+				require.NoError(t, err, "GetURL must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), url), "SetRunningURL must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestCoinMargined.String(), url), "SetRunningURL must not error")
+				result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: product.a, Pair: product.pair, StartDate: start, EndDate: end, IncludePayments: tc.includePayments})
+				require.NoError(t, err, "GetHistoricalFundingRates must not error")
+				if !tc.lastRate.IsZero() {
+					assert.Len(t, result.FundingRates, fundingRatePageLimit, "GetHistoricalFundingRates should keep every rate fetched")
+				}
+			})
+		}
+	}
+}
+
 func TestFundingFeeWindows(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1744070400000)
@@ -4300,6 +4803,100 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	}
 }
 
+func TestGetOrderHistoryFromOrderID(t *testing.T) {
+	t.Parallel()
+	// Binance lets a window override the order ID, or refuses the two together, so a request from an order ID carries no
+	// window, even one longer than the endpoints take
+	var mu sync.Mutex
+	var queries []map[string][]string
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.Query())
+		mu.Unlock()
+		_, err := w.Write([]byte(`[]`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	end := time.Now()
+	for _, tc := range []struct {
+		a         asset.Item
+		orderType order.Type
+		pair      currency.Pair
+		idParam   string
+	}{
+		{asset.Spot, order.Limit, currency.NewBTCUSDT(), "orderId"},
+		{asset.Spot, order.OCO, currency.NewBTCUSDT(), "fromId"},
+		{asset.Margin, order.Limit, currency.NewBTCUSDT(), "orderId"},
+		{asset.Margin, order.OCO, currency.NewBTCUSDT(), "fromId"},
+		{asset.USDTMarginedFutures, order.Limit, currency.NewBTCUSDT(), "orderId"},
+		{asset.CoinMarginedFutures, order.Limit, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), "orderId"},
+		{asset.Options, order.Limit, currency.NewPairWithDelimiter("BTC", "270924-90000-C", currency.DashDelimiter), "orderId"},
+	} {
+		mu.Lock()
+		queries = nil
+		mu.Unlock()
+		_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: tc.a, Type: tc.orderType, Side: order.AnySide, Pairs: currency.Pairs{tc.pair},
+			FromOrderID: "5", StartTime: end.AddDate(0, 0, -30), EndTime: end,
+		})
+		require.NoErrorf(t, err, "GetOrderHistory must not error for %s %s orders from an order ID", tc.a, tc.orderType)
+		mu.Lock()
+		require.Lenf(t, queries, 1, "GetOrderHistory must send one request for %s %s orders from an order ID", tc.a, tc.orderType)
+		assert.Equalf(t, []string{"5"}, queries[0][tc.idParam], "GetOrderHistory should send the %s %s order ID", tc.a, tc.orderType)
+		assert.NotContainsf(t, queries[0], "startTime", "GetOrderHistory should send no start time with the %s %s order ID", tc.a, tc.orderType)
+		assert.NotContainsf(t, queries[0], "endTime", "GetOrderHistory should send no end time with the %s %s order ID", tc.a, tc.orderType)
+		mu.Unlock()
+	}
+}
+
+func TestPagedOrderHistoryFromOrderID(t *testing.T) {
+	t.Parallel()
+	// A request from an order ID carries no window, which Binance would let override the ID or refuse, so the window
+	// applies to the orders from the ID in the whole milliseconds Binance compares
+	start := time.UnixMilli(1744103854944)
+	type testOrder struct {
+		id   uint64
+		time time.Time
+	}
+	timeOf := func(o *testOrder) time.Time { return o.time }
+	idOf := func(o *testOrder) uint64 { return o.id }
+	orders := []testOrder{{5, start}, {6, start.Add(time.Millisecond)}, {7, start.Add(2 * time.Millisecond)}}
+	for _, tc := range []struct {
+		name       string
+		begin, end time.Time
+		exp        []uint64
+	}{
+		{name: "no window", exp: []uint64{5, 6, 7}},
+		{name: "window within a millisecond", begin: start.Add(time.Millisecond + 300*time.Microsecond), end: start.Add(time.Millisecond + 600*time.Microsecond), exp: []uint64{6}},
+		{name: "start only", begin: start.Add(time.Millisecond), exp: []uint64{6, 7}},
+		{name: "end only", end: start.Add(time.Millisecond), exp: []uint64{5, 6}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requests int
+			got, err := pagedOrderHistory(tc.begin, tc.end, 5, time.Hour, 1000, func(from, to time.Time) ([]testOrder, error) {
+				requests++
+				assert.Zero(t, from, "a request from an order ID should carry no start")
+				assert.Zero(t, to, "a request from an order ID should carry no end")
+				return slices.Clone(orders), nil
+			}, timeOf, idOf)
+			require.NoError(t, err, "pagedOrderHistory must not error")
+			ids := make([]uint64, len(got))
+			for i := range got {
+				ids[i] = got[i].id
+			}
+			assert.Equal(t, tc.exp, ids, "pagedOrderHistory should return the orders from the ID within the window")
+			assert.Equal(t, 1, requests, "pagedOrderHistory should make one request from the order ID")
+		})
+	}
+	var requests int
+	_, err := pagedOrderHistory(start.Add(time.Millisecond), start, 5, time.Hour, 1000, func(time.Time, time.Time) ([]testOrder, error) {
+		requests++
+		return nil, nil
+	}, timeOf, idOf)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "pagedOrderHistory should reject a window ending before it starts")
+	assert.Zero(t, requests, "pagedOrderHistory should not request orders for a window ending before it starts")
+}
+
 func TestPagedOrderHistory(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1744103854944)
@@ -4322,7 +4919,7 @@ func TestPagedOrderHistory(t *testing.T) {
 		exp      []uint64
 	}{
 		{name: "no window", requests: []window{{}}, orders: []testOrder{at(1, 0)}, exp: []uint64{1}},
-		{name: "from an order ID", end: start.Add(72 * time.Hour), fromID: 7, maxSpan: time.Hour, requests: []window{{start, start.Add(72 * time.Hour)}}, orders: []testOrder{at(1, 0), at(2, 0), at(3, 0)}, exp: []uint64{1, 2}},
+		{name: "from an order ID", end: start.Add(72 * time.Hour), fromID: 7, maxSpan: time.Hour, requests: []window{{}}, orders: []testOrder{at(1, 0), at(2, 0), at(3, 0)}, exp: []uint64{1, 2}},
 		{name: "one span", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, requests: []window{{start, start.Add(time.Hour)}}, orders: []testOrder{at(1, 0)}, exp: []uint64{1}},
 		{
 			name: "split", end: start.Add(50 * time.Hour), maxSpan: 24 * time.Hour,
@@ -4420,6 +5017,21 @@ func TestPagedOrderHistory(t *testing.T) {
 	}, timeOf, idOf)
 	assert.ErrorIs(t, err, errAPIResponse, "pagedOrderHistory should return a fetch error")
 
+	// A window ending more than a span in the future stops before a span starting after now, which the requests'
+	// validation refuses
+	now := time.Now()
+	var requests []window
+	got, err := pagedOrderHistory(now.Add(-time.Hour), now.Add(48*time.Hour), 0, 24*time.Hour, 2, func(from, to time.Time) ([]testOrder, error) {
+		requests = append(requests, window{from, to})
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+		return []testOrder{{1, now}}, nil
+	}, timeOf, idOf)
+	require.NoError(t, err, "pagedOrderHistory must not error for a window ending in the future")
+	assert.Equal(t, []testOrder{{1, now}}, got, "pagedOrderHistory should return the orders up to now")
+	assert.Equal(t, []window{{now.Add(-time.Hour).Truncate(time.Millisecond), now.Add(23 * time.Hour).Truncate(time.Millisecond)}}, requests, "pagedOrderHistory should request no span starting after now")
+
 	// A spot history longer than Binance's 24 hours is requested in spans it accepts
 	var spans []time.Duration
 	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
@@ -4475,6 +5087,26 @@ func TestKlineCandles(t *testing.T) {
 	t.Parallel()
 	_, err := e.klineCandles(t.Context(), asset.Futures, currency.NewBTCUSDT(), kline.OneHour, time.Now().Add(-time.Hour), time.Now(), 1)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "klineCandles should reject an unsupported asset")
+}
+
+func TestGetFuturesPositionOrdersClampedWindow(t *testing.T) {
+	t.Parallel()
+	// RespectOrderHistoryLimits clamps an older start to exactly seven days ago, a window split at the longest the
+	// endpoints take into one ending a millisecond before now and one of that last millisecond
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[]`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	for _, tc := range []struct {
+		a    asset.Item
+		pair currency.Pair
+	}{
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT()},
+		{asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)},
+	} {
+		_, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: tc.a, Pairs: currency.Pairs{tc.pair}, StartDate: time.Now().AddDate(-1, 0, 0), RespectOrderHistoryLimits: true})
+		assert.NoErrorf(t, err, "GetFuturesPositionOrders should collect the orders of a clamped %s window", tc.a)
+	}
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -5014,6 +5646,30 @@ func TestResolveTriggerOrderType(t *testing.T) {
 		{order.Limit, 70000, order.Limit},
 	} {
 		assert.Equalf(t, tc.exp, resolveTriggerOrderType(tc.orderType, tc.price), "resolveTriggerOrderType should resolve %s with price %v", tc.orderType, tc.price)
+	}
+}
+
+func TestSubmittedOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		a         asset.Item
+		orderType order.Type
+		tif       order.TimeInForce
+		price     float64
+		exp       order.Type
+	}{
+		{asset.Spot, order.Limit, order.PostOnly, 70000, order.LimitMaker},
+		{asset.Margin, order.Limit, order.PostOnly | order.GoodTillCancel, 70000, order.LimitMaker},
+		{asset.Spot, order.Limit, order.GoodTillCancel, 70000, order.Limit},
+		{asset.Spot, order.LimitMaker, order.UnknownTIF, 70000, order.LimitMaker},
+		{asset.Spot, order.Stop, order.PostOnly, 70000, order.StopLimit},
+		{asset.USDTMarginedFutures, order.Limit, order.PostOnly, 70000, order.Limit},
+		{asset.CoinMarginedFutures, order.Limit, order.PostOnly, 70000, order.Limit},
+		{asset.Options, order.Limit, order.PostOnly, 100, order.Limit},
+		{asset.USDTMarginedFutures, order.TakeProfit, order.UnknownTIF, 0, order.TakeProfitMarket},
+	} {
+		s := &order.Submit{AssetType: tc.a, Type: tc.orderType, TimeInForce: tc.tif, Price: tc.price}
+		assert.Equalf(t, tc.exp, submittedOrderType(s), "submittedOrderType should place a %s %s %s order as its type", tc.a, tc.tif, tc.orderType)
 	}
 }
 

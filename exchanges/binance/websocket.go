@@ -63,6 +63,48 @@ const (
 	optionsOrderbookSnapshotLimit = 50
 )
 
+// defaultSubscriptions are the subscriptions of every asset, each expanded to the asset's enabled pairs. Each
+// derivatives connection takes its share of its asset's: USDⓈ-M order books stream on /public and the rest on /market,
+// while options candles stream on /market and the rest on /public
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Options, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Options, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Options, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+}
+
+// addDefaultDerivativesSubscriptions streams the default subscriptions of each derivatives asset that the configuration
+// has no subscription of, enabled or not, since configurations from before the derivatives streams list only spot's;
+// an asset with configured subscriptions streams exactly its enabled ones
+func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
+	var configured subscription.List
+	if exch.Features != nil {
+		configured = exch.Features.Subscriptions
+	}
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool { return s.Asset == a }) {
+			continue
+		}
+		for _, s := range defaultSubscriptions {
+			if s.Asset == a {
+				e.Features.Subscriptions = append(e.Features.Subscriptions, s.Clone())
+			}
+		}
+	}
+}
+
 // spotStreamConnectionSetup returns the setup of the spot market data stream connection
 func (e *Exchange) spotStreamConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
@@ -112,7 +154,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return fmt.Errorf("%w: %s", errUnhandledMessage, respRaw)
 	}
 	if stream == serverShutdownStream {
-		return e.handleServerShutdown(data)
+		return e.handleServerShutdown(data, e.Websocket.Shutdown)
 	}
 	symbol, channel, _ := strings.Cut(stream, "@")
 	switch {
@@ -133,17 +175,19 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	return fmt.Errorf("%w: %s", errUnhandledMessage, respRaw)
 }
 
-// handleServerShutdown reconnects when a serverShutdown event warns that the server is about to close the connection
-func (e *Exchange) handleServerShutdown(event []byte) error {
+// handleServerShutdown runs closeConnection when a serverShutdown event warns that the server is about to close the
+// connection, for the connection monitor to connect again
+func (e *Exchange) handleServerShutdown(event []byte, closeConnection func() error) error {
 	var resp WsServerShutdown
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
 	log.Warnf(log.WebsocketMgr, "%s server shutting down at %s, reconnecting", e.Name, resp.EventTime.Time())
-	// Shutting down waits for this connection's reader, so it cannot run on it; the connection monitor reconnects
+	// Closing waits for a write in progress and shutting the websocket down for this connection's reader, so neither can
+	// run on the reader
 	go func() {
-		if err := e.Websocket.Shutdown(); err != nil {
-			log.Errorf(log.WebsocketMgr, "%s unable to shut down for reconnection: %s", e.Name, err)
+		if err := closeConnection(); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s unable to close the connection for reconnection: %s", e.Name, err)
 		}
 	}()
 	return nil

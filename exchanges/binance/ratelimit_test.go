@@ -26,15 +26,18 @@ func TestPoolBudgets(t *testing.T) {
 		limit       int
 		perEndpoint bool
 	}{
-		{spotIPPool, time.Minute, 6000, false},
+		{spotIPPool, time.Minute, 5400, false},
+		{spotCancelPool, time.Minute, 600, false},
 		{spotOrderPool, 10 * time.Second, 100, false},
 		{sapiIPPool, time.Minute, 12000, true},
 		{sapiUIDPool, time.Minute, 180000, true},
-		{derivativesIPPool, time.Minute, 2400, false},
+		{derivativesIPPool, time.Minute, 2100, false},
+		{derivativesCancelPool, time.Minute, 300, false},
 		{derivativesOrderPool, time.Minute, 1200, false},
 		{futuresDataPool, 5 * time.Minute, 1000, false},
 		{uFuturesFundingPool, 5 * time.Minute, 500, false},
-		{optionsIPPool, time.Minute, 400, false},
+		{optionsIPPool, time.Minute, 340, false},
+		{optionsCancelPool, time.Minute, 60, false},
 		{optionsOrderPool, time.Minute, 100, false},
 		{portfolioMarginIPPool, time.Minute, 6000, false},
 		{portfolioMarginOrderPool, time.Minute, 1200, false},
@@ -65,6 +68,20 @@ func TestPoolBudgets(t *testing.T) {
 	}
 	assert.Equal(t, len(rows), len(poolBudgets), "poolBudgets should hold exactly the documented pools")
 
+	// A host's IP and cancel pools share its documented IP limit, the cancel pools' bursts included
+	for _, tc := range []struct {
+		ip, cancel rateLimitPool
+		limit      int
+	}{
+		{spotIPPool, spotCancelPool, 6000},
+		{derivativesIPPool, derivativesCancelPool, 2400},
+		{optionsIPPool, optionsCancelPool, 400},
+	} {
+		assert.Equalf(t, tc.limit, poolBudgets[tc.ip].limit+poolBudgets[tc.cancel].limit, "pools %d and %d should share their host's IP limit", tc.ip, tc.cancel)
+		assert.Lessf(t, poolBursts[tc.cancel], poolBudgets[tc.cancel].limit, "pool %d should refill part of its budget", tc.cancel)
+	}
+	assert.Equal(t, map[rateLimitPool]int{spotCancelPool: 100, derivativesCancelPool: 50, optionsCancelPool: 10}, poolBursts, "only the cancel pools should burst")
+
 	used := make(map[rateLimitPool]bool, len(poolBudgets))
 	for _, cost := range endpointCosts {
 		used[cost.pool] = true
@@ -83,7 +100,8 @@ func TestEndpointCosts(t *testing.T) {
 		endpoints string
 	}{
 		// Spot /api, REST and WebSocket API
-		{spotDefaultRate, spotIPPool, 1, "weight-1 /api endpoints: GET /api/v3/time, order cancels, order tests without commission rates"},
+		{spotDefaultRate, spotIPPool, 1, "weight-1 /api endpoints: GET /api/v3/time, order tests without commission rates"},
+		{spotCancelRate, spotCancelPool, 1, "DELETE /api/v3/order, /api/v3/openOrders and /api/v3/orderList, WS order.cancel, openOrders.cancelAll and orderList.cancel"},
 		{spotExchangeInfoRate, spotIPPool, 20, "GET /api/v3/exchangeInfo"},
 		{aggTradesRate, spotIPPool, 4, "GET /api/v3/aggTrades, WS trades.aggregate"},
 		{getCurrentAveragePriceRate, spotIPPool, 2, "GET /api/v3/avgPrice, WS avgPrice"},
@@ -317,6 +335,7 @@ func TestEndpointCosts(t *testing.T) {
 		{brokerSubAccountCommissionRate, sapiUIDPool, 4, "POST /sapi/v1/broker/subAccountApi/commission"},
 		// USDⓈ-M futures /fapi
 		{uFuturesDefaultRate, derivativesIPPool, 1, "weight-1 /fapi endpoints, and the single-symbol forms of those weighted by symbol"},
+		{uFuturesCancelRate, derivativesCancelPool, 1, "DELETE /fapi/v1/order, /fapi/v1/batchOrders, /fapi/v1/allOpenOrders, /fapi/v1/algoOrder and /fapi/v1/algoOpenOrders"},
 		{uFuturesAccountInformationRate, derivativesIPPool, 5, "GET /fapi/v3/balance, GET /fapi/v2/account, GET /fapi/v3/account"},
 		{uFuturesTradingStatusAllRate, derivativesIPPool, 10, "GET /fapi/v1/apiTradingStatus without symbol"},
 		{uFuturesMultiAssetMarginRate, derivativesIPPool, 30, "GET /fapi/v1/multiAssetsMargin"},
@@ -363,6 +382,7 @@ func TestEndpointCosts(t *testing.T) {
 		{futuresDataRate, futuresDataPool, 1, "GET /futures/data/* on both hosts: 1000 requests per 5 minutes"},
 		// COIN-M futures /dapi
 		{cFuturesDefaultRate, derivativesIPPool, 1, "weight-1 /dapi endpoints, and the single-symbol forms of those weighted by symbol"},
+		{cFuturesCancelRate, derivativesCancelPool, 1, "DELETE /dapi/v1/order, /dapi/v1/batchOrders and /dapi/v1/allOpenOrders"},
 		{cFuturesAccountInformationRate, derivativesIPPool, 5, "GET /dapi/v1/account"},
 		{cFuturesIncomeHistoryRate, derivativesIPPool, 20, "GET /dapi/v1/income"},
 		{cFuturesAggregateTradesRate, derivativesIPPool, 20, "GET /dapi/v1/aggTrades"},
@@ -392,6 +412,7 @@ func TestEndpointCosts(t *testing.T) {
 		{cFuturesAllForceOrdersRate, derivativesIPPool, 50, "GET /dapi/v1/forceOrders, all symbols"},
 		// Options /eapi
 		{optionsDefaultRate, optionsIPPool, 1, "weight-1 /eapi endpoints; GET /eapi/v1/openInterest is documented at 0"},
+		{optionsCancelRate, optionsCancelPool, 1, "DELETE /eapi/v1/order and /eapi/v1/allOpenOrders"},
 		{optionsMarginAccountInfoRate, optionsIPPool, 3, "GET /eapi/v1/marginAccount"},
 		{optionsDownloadIDForOptionTransactionHistoryRate, optionsIPPool, 5, "GET /eapi/v1/income/asyn, no longer documented"},
 		{optionsGetTransHistoryDownloadLinkByIDRate, optionsIPPool, 5, "GET /eapi/v1/income/asyn/id, no longer documented"},
@@ -405,9 +426,9 @@ func TestEndpointCosts(t *testing.T) {
 		{optionsAllTickerPriceStatisticsRate, optionsIPPool, 40, "GET /eapi/v1/ticker, all symbols"},
 		{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsIPPool, 10, "POST /eapi/v1/countdownCancelAllHeartBeat"},
 		{optionsAccountTradeListRate, optionsIPPool, 5, "GET /eapi/v1/userTrades"},
-		{optionsCancelAllByUnderlyingRate, optionsIPPool, 5, "DELETE /eapi/v1/allOpenOrdersByUnderlying"},
+		{optionsCancelAllByUnderlyingRate, optionsCancelPool, 5, "DELETE /eapi/v1/allOpenOrdersByUnderlying"},
 		{optionsBatchOrderRate, optionsOrderPool, 5, "POST /eapi/v1/batchOrders: weight 5"},
-		{optionsCancelBatchOrdersRate, optionsIPPool, 5, "DELETE /eapi/v1/batchOrders"},
+		{optionsCancelBatchOrdersRate, optionsCancelPool, 5, "DELETE /eapi/v1/batchOrders"},
 		{optionsDefaultOrderRate, optionsOrderPool, 1, "POST /eapi/v1/order: 1 order"},
 		{optionsPositionInformationRate, optionsIPPool, 5, "GET /eapi/v1/position"},
 		{optionsAllQueryOpenOrdersRate, optionsIPPool, 40, "GET /eapi/v1/openOrders, all symbols"},
@@ -576,7 +597,13 @@ func TestSAPIEndpointLimiters(t *testing.T) {
 	for epl, cost := range endpointCosts {
 		limiter := limiters[epl]
 		budget := poolBudgets[cost.pool]
-		assert.InDeltaf(t, float64(budget.limit)/budget.interval.Seconds(), float64(limiter.Limit()), 1e-9, "endpoint limit %d should have its pool's budget", epl)
+		burst := poolBursts[cost.pool]
+		refill := budget.limit
+		if burst > 1 {
+			refill -= burst
+		}
+		assert.InDeltaf(t, float64(refill)/budget.interval.Seconds(), float64(limiter.Limit()), 1e-9, "endpoint limit %d should have its pool's budget", epl)
+		assert.Equalf(t, max(burst, 1), limiter.Burst(), "endpoint limit %d should have its pool's burst", epl)
 		if cost.pool.perEndpoint() && cost.weight > 1 {
 			assert.Lenf(t, owners[limiter], 1, "/sapi endpoint limit %d should have a limiter of its own", epl)
 			continue
@@ -592,6 +619,37 @@ func TestSAPIEndpointLimiters(t *testing.T) {
 	assert.Same(t, poolLimiters[sapiUIDPool], limiters[sapiUIDDefaultRate], "sapiUIDDefaultRate should keep its pool's shared limiter")
 	assert.NotSame(t, limiters[sapiDefaultRate], limiters[sapiUIDDefaultRate], "the /sapi IP and UID defaults should not share a limiter")
 	assert.Same(t, limiters[spotDefaultRate], limiters[spotExchangeInfoRate], "spot limits should share the spot IP limiter")
+}
+
+func TestCancelsDoNotQueueBehindMarketData(t *testing.T) {
+	t.Parallel()
+	// A limiter queues requests in turn, so order book snapshots reserving a host's IP pool seconds ahead would hold up a
+	// cancellation drawing on the same pool
+	limiters := endpointLimiters(endpointCosts)
+	now := time.Now()
+	for _, tc := range []struct {
+		snapshot, marketData request.EndpointLimit
+		snapshots            int
+		cancels              []request.EndpointLimit
+		burst                int
+	}{
+		{spotOrderbookDepth1000Rate, spotExchangeInfoRate, 10, []request.EndpointLimit{spotCancelRate}, 100},
+		{uFuturesOrderbook1000Rate, cFuturesOrderbook1000Rate, 10, []request.EndpointLimit{uFuturesCancelRate, cFuturesCancelRate}, 50},
+		{optionsOrderbook1000Rate, optionsDefaultRate, 10, []request.EndpointLimit{optionsCancelRate, optionsCancelBatchOrdersRate, optionsCancelAllByUnderlyingRate}, 10},
+	} {
+		for range tc.snapshots * int(endpointCosts[tc.snapshot].weight) {
+			limiters[tc.snapshot].ReserveN(now, 1)
+		}
+		assert.Positivef(t, limiters[tc.marketData].ReserveN(now, 1).DelayFrom(now), "market data limit %d should queue behind the snapshots", tc.marketData)
+		for _, epl := range tc.cancels[1:] {
+			assert.Samef(t, limiters[tc.cancels[0]], limiters[epl], "cancellation limit %d should share its host's cancel pool", epl)
+		}
+		// The burst lets a cancellation of every order go out at once, after which cancellations are spread out
+		for range tc.burst {
+			assert.Zerof(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind market data", tc.cancels[0])
+		}
+		assert.Positivef(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should be spread out beyond its burst", tc.cancels[0])
+	}
 }
 
 func TestEndpointLimitHelpers(t *testing.T) {
@@ -716,6 +774,84 @@ func TestEndpointLimitArguments(t *testing.T) {
 			}
 			return true
 		})
+	}
+}
+
+func TestCancelEndpointLimits(t *testing.T) {
+	t.Parallel()
+	// Every cancellation draws on its host's cancel pool, so none queues behind market data
+	want := map[string]string{
+		"/api/v3/order":                      "spotCancelRate",
+		"/api/v3/openOrders":                 "spotCancelRate",
+		"/api/v3/orderList":                  "spotCancelRate",
+		"order.cancel":                       "spotCancelRate",
+		"openOrders.cancelAll":               "spotCancelRate",
+		"orderList.cancel":                   "spotCancelRate",
+		"/fapi/v1/order":                     "uFuturesCancelRate",
+		"/fapi/v1/batchOrders":               "uFuturesCancelRate",
+		"/fapi/v1/allOpenOrders":             "uFuturesCancelRate",
+		"/fapi/v1/algoOrder":                 "uFuturesCancelRate",
+		"/fapi/v1/algoOpenOrders":            "uFuturesCancelRate",
+		"/dapi/v1/order":                     "cFuturesCancelRate",
+		"/dapi/v1/batchOrders":               "cFuturesCancelRate",
+		"/dapi/v1/allOpenOrders":             "cFuturesCancelRate",
+		"/eapi/v1/order":                     "optionsCancelRate",
+		"/eapi/v1/batchOrders":               "optionsCancelBatchOrdersRate",
+		"/eapi/v1/allOpenOrders":             "optionsCancelRate",
+		"/eapi/v1/allOpenOrdersByUnderlying": "optionsCancelAllByUnderlyingRate",
+	}
+	found := make(map[string]bool, len(want))
+	files, err := filepath.Glob("*.go")
+	require.NoError(t, err, "the package's files must be listed")
+	fset := token.NewFileSet()
+	literal := func(e ast.Expr) string {
+		if lit, ok := e.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+			return strings.Trim(lit.Value, `"`)
+		}
+		return ""
+	}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, file, nil, 0)
+		require.NoErrorf(t, err, "%s must parse", file)
+		ast.Inspect(f, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			var endpoint string
+			var limit ast.Expr
+			switch {
+			case sel.Sel.Name == "SendAuthHTTPRequest" && len(call.Args) > 5:
+				if method, isSelector := call.Args[2].(*ast.SelectorExpr); !isSelector || method.Sel.Name != "MethodDelete" {
+					return true
+				}
+				endpoint, limit = literal(call.Args[3]), call.Args[5]
+			case sel.Sel.Name == "SendSignedWsAPIRequest" && len(call.Args) > 2:
+				endpoint, limit = literal(call.Args[2]), call.Args[1]
+			default:
+				return true
+			}
+			exp, ok := want[endpoint]
+			if !ok {
+				return true
+			}
+			found[endpoint] = true
+			got, _ := limit.(*ast.Ident)
+			if assert.NotNilf(t, got, "%s should pass a named endpoint limit for %s", fset.Position(call.Pos()), endpoint) {
+				assert.Equalf(t, exp, got.Name, "%s should cancel %s on its host's cancel pool", fset.Position(call.Pos()), endpoint)
+			}
+			return true
+		})
+	}
+	for endpoint := range want {
+		assert.Truef(t, found[endpoint], "a cancellation should be sent to %s", endpoint)
 	}
 }
 

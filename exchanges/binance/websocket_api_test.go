@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
@@ -23,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -34,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -310,11 +313,17 @@ func TestSendSignedWsAPIRequestSignsAfterRateLimit(t *testing.T) {
 func TestSendSignedWsAPIRequestChargesRateLimitOnce(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
+	// An order pool refilling once an hour keeps the second order waiting however long the first takes to answer
+	definitions := GetRateLimits()
+	definitions[spotOrderRate] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
+	requester, err := request.New(ex.Name, &http.Client{}, request.WithLimiter(definitions))
+	require.NoError(t, err, "request.New must not error")
+	ex.Requester = requester
 	useRateLimitedWsAPI(t, ex, orderPlacedMock)
 	ex.SkipAuthCheck = true
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	// A fresh order pool admits one order at once, so charging an order twice would need a delay
-	_, err := ex.WsPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+	_, err = ex.WsPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
 	require.NoError(t, err, "WsPlaceNewOrder must charge the order pool once")
 	_, err = ex.WsPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
 	assert.ErrorIs(t, err, request.ErrDelayNotAllowed, "WsPlaceNewOrder should wait for the order pool before a second order")
@@ -599,6 +608,7 @@ func TestWindowSizeToString(t *testing.T) {
 	t.Parallel()
 	for windowSize, exp := range map[time.Duration]string{
 		time.Minute:        "1m",
+		20 * time.Minute:   "20m",
 		59 * time.Minute:   "59m",
 		time.Hour:          "1h",
 		23 * time.Hour:     "23h",
@@ -609,7 +619,7 @@ func TestWindowSizeToString(t *testing.T) {
 		require.NoErrorf(t, err, "windowSizeToString must not error for %s", windowSize)
 		assert.Equalf(t, exp, got, "windowSizeToString should format %s", windowSize)
 	}
-	for _, windowSize := range []time.Duration{0, 30 * time.Second, 90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
+	for _, windowSize := range []time.Duration{-time.Minute, 0, 30 * time.Second, 90 * time.Second, 90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
 		_, err := windowSizeToString(windowSize)
 		assert.ErrorIsf(t, err, errInvalidWindowSize, "windowSizeToString should reject %s", windowSize)
 	}
@@ -2142,6 +2152,168 @@ func TestWsSubscribeUserDataStreamWithListenToken(t *testing.T) {
 	assert.Equal(t, map[uint64]asset.Item{got.SubscriptionID: asset.Margin}, userDataAssets(ex), "the subscription should deliver the margin account's events")
 }
 
+func TestWebsocketAPIConnectionDuringFlush(t *testing.T) {
+	t.Parallel()
+	// Order requests look the WebSocket API connection up each time, so the lookup must not wait while the websocket
+	// manager holds its lock, as flushing does while it subscribes a connection
+	ex := newTestExchange(t)
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         ex.Config,
+		Features:                               &ex.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 1024,
+	}), "Websocket Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsAPIMock))
+	apiServer.Start()
+	api := ex.spotWebsocketAPIConnectionSetup(ex.Config)
+	api.URL = "ws" + strings.TrimPrefix(apiServer.URL, "http")
+	require.NoError(t, ex.Websocket.SetupNewConnection(api), "SetupNewConnection must not error")
+
+	subscribing, release := make(chan struct{}), make(chan struct{})
+	var subscribingOnce sync.Once
+	streamsServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+		tb.Helper()
+		var req WsPayload
+		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+		subscribingOnce.Do(func() { close(subscribing) })
+		select {
+		case <-release:
+		case <-time.After(10 * time.Second):
+		}
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%q}`, req.ID))
+	}))
+	streamsServer.Start()
+	var subscribe atomic.Bool
+	streams := ex.spotStreamConnectionSetup(ex.Config)
+	streams.URL = "ws" + strings.TrimPrefix(streamsServer.URL, "http")
+	streams.GenerateSubscriptions = func() (subscription.List, error) {
+		if !subscribe.Load() {
+			return subscription.List{}, nil
+		}
+		return subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@ticker"}}, nil
+	}
+	require.NoError(t, ex.Websocket.SetupNewConnection(streams), "SetupNewConnection must not error")
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	t.Cleanup(func() {
+		if ex.Websocket.IsConnected() {
+			assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error")
+		}
+	})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, ex.canUseWebsocketAPIForOrders(), "orders must use the connected WebSocket API")
+
+	subscribe.Store(true)
+	flushed := make(chan error, 1)
+	go func() { flushed <- ex.Websocket.FlushChannels(t.Context()) }()
+	select {
+	case <-subscribing:
+	case <-time.After(10 * time.Second):
+		close(release)
+		require.FailNow(t, "FlushChannels must subscribe the streams connection")
+	}
+	checked := make(chan bool, 1)
+	go func() { checked <- ex.canUseWebsocketAPIForOrders() }()
+	select {
+	case ok := <-checked:
+		assert.True(t, ok, "orders should keep using the WebSocket API while a connection subscribes")
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "canUseWebsocketAPIForOrders should not wait on the websocket manager's lock")
+	}
+	close(release)
+	select {
+	case err := <-flushed:
+		assert.NoError(t, err, "FlushChannels should not error")
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "FlushChannels should finish once the subscription is answered")
+	}
+}
+
+// useAPIAndStreamWebsockets replaces the exchange's websocket connections with the WebSocket API at apiURL and a market
+// data stream connection served by a mock, which the connection monitor does not reconnect within the test
+func useAPIAndStreamWebsockets(tb testing.TB, ex *Exchange, apiURL string) {
+	tb.Helper()
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(tb, ex.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         ex.Config,
+		Features:                               &ex.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 1024,
+	}), "Websocket Setup must not error")
+	api := ex.spotWebsocketAPIConnectionSetup(ex.Config)
+	api.URL = apiURL
+	require.NoError(tb, ex.Websocket.SetupNewConnection(api), "SetupNewConnection must not error")
+	streamsServer := httptest.NewTestServer(tb, mockws.CurryWsMockUpgrader(tb, func(testing.TB, []byte, *gws.Conn) error { return nil }))
+	streamsServer.Start()
+	streams := ex.spotStreamConnectionSetup(ex.Config)
+	streams.URL = "ws" + strings.TrimPrefix(streamsServer.URL, "http")
+	streams.SubscriptionsNotRequired = true
+	require.NoError(tb, ex.Websocket.SetupNewConnection(streams), "SetupNewConnection must not error")
+	tb.Cleanup(func() {
+		if ex.Websocket.IsEnabled() {
+			assert.NoError(tb, ex.Websocket.Disable(), "Disable should not error")
+		}
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		}
+	})
+}
+
+func TestWebsocketAPIOutageLeavesStreams(t *testing.T) {
+	t.Parallel()
+	// The WebSocket API is optional, so a WebSocket API host refusing connections leaves the market data streams up,
+	// with orders going over REST
+	ex := newTestExchange(t)
+	refusing := httptest.NewTestServer(t, http.NotFoundHandler())
+	refusing.Start()
+	refusedURL := "ws" + strings.TrimPrefix(refusing.URL, "http")
+	refusing.Close()
+	useAPIAndStreamWebsockets(t, ex, refusedURL)
+
+	err := ex.Websocket.Connect(t.Context())
+	require.Error(t, err, "Connect must report the WebSocket API outage")
+	assert.Contains(t, err.Error(), "unable to connect to the WebSocket API", "Connect should report the WebSocket API's failure")
+	require.True(t, ex.Websocket.IsConnected(), "the market data streams must stay connected")
+	_, err = ex.Websocket.GetConnection(asset.Spot)
+	assert.NoError(t, err, "the market data stream connection should be up")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	assert.False(t, ex.IsAPIStreamConnected(), "the WebSocket API should not count as connected")
+	assert.False(t, ex.canUseWebsocketAPIForOrders(), "orders should go over REST")
+}
+
+func TestClosedWebsocketAPIConnection(t *testing.T) {
+	t.Parallel()
+	// Shutting the websocket down closes each connection before the websocket counts as disconnected, so a request in
+	// between must not be routed to the closed WebSocket API connection
+	ex := newWsAPITestExchange(t, false)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, ex.canUseWebsocketAPIForOrders(), "orders must use the connected WebSocket API")
+	conn := ex.wsAPI.get()
+	require.NotNil(t, conn, "the WebSocket API connection must be kept")
+	require.NoError(t, conn.Shutdown(), "Shutdown must not error")
+	require.True(t, ex.Websocket.IsConnected(), "the websocket must still count as connected")
+	_, err := ex.getWsAPIConnection()
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "getWsAPIConnection should not return a closed connection")
+	assert.False(t, ex.canUseWebsocketAPIForOrders(), "orders should not use a closed WebSocket API connection")
+}
+
+func TestSpotWebsocketAPIConnectionSetup(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	for _, tc := range []struct {
+		configured, exp time.Duration
+	}{
+		{config.DefaultWebsocketResponseMaxLimit, 11 * time.Second},
+		{20 * time.Second, 20 * time.Second},
+	} {
+		setup := ex.spotWebsocketAPIConnectionSetup(&config.Exchange{WebsocketResponseMaxLimit: tc.configured})
+		assert.Equalf(t, tc.exp, setup.ResponseMaxLimit, "spotWebsocketAPIConnectionSetup should await a response beyond Binance's 10 second processing timeout with %s configured", tc.configured)
+	}
+}
+
 func TestWsAuthenticateAPI(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -2671,7 +2843,7 @@ func TestWsHandleSpotAPIDataErrors(t *testing.T) {
 		{"S", "UNKNOWN", order.ErrSideIsInvalid},
 		{"f", "UNKNOWN", order.ErrInvalidTimeInForce},
 	} {
-		frame := map[string]any{"e": "executionReport", "s": "BTCUSDT", "i": 5340845958, "X": "NEW", "o": "LIMIT", "S": "BUY", "f": "GTC"}
+		frame := map[string]any{"e": "executionReport", "s": "BTCUSDT", "i": int64(5340845958), "X": "NEW", "o": "LIMIT", "S": "BUY", "f": "GTC"}
 		frame[tc.field] = tc.value
 		raw, err := json.Marshal(map[string]any{"subscriptionId": 0, "event": frame})
 		require.NoError(t, err, "Marshal must not error")
@@ -2685,13 +2857,13 @@ func TestWsHandleSpotAPIDataErrors(t *testing.T) {
 
 	// A list status is relayed as it arrives even when its symbol is unknown, and an unknown list order status is
 	// reported to the order manager instead of the order list
-	err := ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCXYZ","g":3,"L":"EXECUTING"}}`))
+	err := ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCXYZ","g":3,"c":"OCO","L":"EXECUTING"}}`))
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleSpotAPIData should report a list status of an unknown symbol")
-	assert.Equal(t, []any{&WsListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
-	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCUSDT","g":3,"L":"UNKNOWN"}}`)), "wsHandleSpotAPIData must relay an unclassifiable list status")
+	assert.Equal(t, []any{&WsListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
+	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCUSDT","g":3,"c":"OCO","L":"UNKNOWN"}}`)), "wsHandleSpotAPIData must relay an unclassifiable list status")
 	relayed := relayedPayloads(ex)
 	require.Len(t, relayed, 2, "relay must hold the list status and its classification error")
-	assert.Equal(t, &WsListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
+	assert.Equal(t, &WsListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
 	got, ok := relayed[1].(order.ClassificationError)
 	require.True(t, ok, "relay must hold a classification error")
 	assert.Equal(t, "3", got.OrderID, "the classification error should name the order list")
@@ -2738,11 +2910,25 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 
 func TestWsHandleSpotAPIDataServerShutdown(t *testing.T) {
 	t.Parallel()
-	ex := newWsAPITestExchange(t, false)
-	conn, err := ex.Websocket.GetConnection(spotWebsocketAPI)
-	require.NoError(t, err, "GetConnection must not error")
-	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), conn, []byte(`{"event":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleSpotAPIData must not error")
-	assert.Eventually(t, func() bool { return !ex.Websocket.IsConnected() }, 5*time.Second, 10*time.Millisecond, "serverShutdown should shut the connections down for the monitor to reconnect")
+	ex := newTestExchange(t)
+	apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsAPIMock))
+	apiServer.Start()
+	useAPIAndStreamWebsockets(t, ex, "ws"+strings.TrimPrefix(apiServer.URL, "http"))
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	api, err := ex.Websocket.GetConnection(spotWebsocketAPI)
+	require.NoError(t, err, "GetConnection must not error for the WebSocket API")
+	streams, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must not error for the streams")
+
+	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), api, []byte(`{"event":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleSpotAPIData must not error")
+	apiConnected, ok := api.(interface{ IsConnected() bool })
+	require.True(t, ok, "the WebSocket API connection must report whether it is connected")
+	assert.Eventually(t, func() bool { return !apiConnected.IsConnected() }, 5*time.Second, 10*time.Millisecond, "serverShutdown should close the WebSocket API connection for the connection monitor to replace")
+	// Shutting the websocket down would hold its lock while closing the WebSocket API connection, so this waits for it
+	stillStreams, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must not error for the streams")
+	assert.Same(t, streams, stillStreams, "the stream connection should not be reconnected")
+	assert.True(t, ex.Websocket.IsConnected(), "the websocket should stay connected")
 }
 
 func TestWsHandleSpotAPIDataUnmatchedResponse(t *testing.T) {

@@ -402,7 +402,7 @@ func (e *Exchange) CancelAllOptionOrdersOnSpecificSymbol(ctx context.Context, sy
 	}
 	params := url.Values{}
 	params.Set("symbol", s)
-	return e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsDefaultRate, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsCancelRate, nil)
 }
 
 // PlaceBatchEOptionsOrder places up to ten options orders through Place Multiple Orders
@@ -572,7 +572,7 @@ func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol currency.Pair,
 		return nil, err
 	}
 	var resp *OptionsCancelOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/order", params, optionsDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/order", params, optionsCancelRate, &resp)
 }
 
 // GetOptionPositionInformation returns the Option Position Information of a symbol, or of every symbol when it is

@@ -33,6 +33,10 @@ const (
 	binanceWebsocketAPIURL = "wss://ws-api.binance.com:443/ws-api/v3"
 	// spotWebsocketAPI is the message filter of the spot WebSocket API connection
 	spotWebsocketAPI = "Spot-Websocket-API"
+	// wsAPIResponseMaxLimit is the least time the WebSocket API connection waits for a response. Binance gives a request
+	// 10 seconds before answering -1007, execution status unknown, so a shorter wait reports an order Binance may still
+	// place as failed, and a caller that retries can place it twice
+	wsAPIResponseMaxLimit = 11 * time.Second
 )
 
 var (
@@ -43,6 +47,26 @@ var (
 	errUserDataEventWithoutSubscription  = errors.New("user data event without a subscription ID")
 	errUnknownUserDataStreamSubscription = errors.New("unknown user data stream subscription")
 )
+
+// wsAPIConnection keeps the WebSocket API connection for the requests sent on it. Looking the connection up through the
+// websocket manager waits on the manager's lock, which connecting and flushing hold across every dial, so each order
+// request would wait while any connection connects
+type wsAPIConnection struct {
+	mu   sync.RWMutex
+	conn websocket.Connection
+}
+
+func (w *wsAPIConnection) set(conn websocket.Connection) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.conn = conn
+}
+
+func (w *wsAPIConnection) get() websocket.Connection {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.conn
+}
 
 // userDataStreams maps the WebSocket API connection's User Data Stream subscriptions to the asset of the account they
 // deliver events for, since events only carry their subscription's ID
@@ -234,14 +258,16 @@ func (e *Exchange) spotWebsocketAPIConnectionSetup(exch *config.Exchange) *webso
 		Handler:                  e.wsHandleSpotAPIData,
 		MessageFilter:            spotWebsocketAPI,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		ResponseMaxLimit:         max(exch.WebsocketResponseMaxLimit, wsAPIResponseMaxLimit),
 		SubscriptionsNotRequired: true,
+		Optional:                 true,
 	}
 }
 
-// WsConnectAPI connects to the spot WebSocket API
+// WsConnectAPI connects to the spot WebSocket API and keeps the connection for the requests sent on it
 func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) error {
 	e.userData.reset()
+	e.wsAPI.set(nil)
 	// The WebSocket API handshake often takes longer than the default HTTP timeout
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout * 2,
@@ -255,6 +281,7 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
+	e.wsAPI.set(conn)
 	return nil
 }
 
@@ -284,7 +311,7 @@ func (e *Exchange) reportUserDataStreamError(ctx context.Context, a asset.Item, 
 
 // IsAPIStreamConnected reports whether the WebSocket API connection is established
 func (e *Exchange) IsAPIStreamConnected() bool {
-	_, err := e.Websocket.GetConnection(spotWebsocketAPI)
+	_, err := e.getWsAPIConnection()
 	return err == nil
 }
 
@@ -304,7 +331,8 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 		return fmt.Errorf("%w: %s", errUnhandledMessage, respRaw)
 	}
 	if eventType == "serverShutdown" {
-		return e.handleServerShutdown(event)
+		// The WebSocket API connection is optional, so the connection monitor replaces it alone, leaving the streams up
+		return e.handleServerShutdown(event, conn.Shutdown)
 	}
 	subscriptionID, err := parseSubscriptionID(respRaw, "subscriptionId")
 	if err != nil {
@@ -472,7 +500,7 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 	return e.Websocket.DataHandler.Send(ctx, detail)
 }
 
-// processListStatus relays a listStatus event, and the order list as the order GCT tracks it: SubmitOrder returns an
+// processListStatus relays a listStatus event, and an OCO order list as the order GCT tracks it: SubmitOrder returns an
 // OCO order list by its list ID, which only this event updates, since the legs' executionReport events carry their
 // own order IDs
 func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []byte) error {
@@ -482,6 +510,9 @@ func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []
 	}
 	if err := e.Websocket.DataHandler.Send(ctx, &resp); err != nil {
 		return err
+	}
+	if resp.ContingencyType != ocoContingencyType {
+		return nil
 	}
 	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, a, false)
 	if err != nil {
@@ -494,9 +525,24 @@ func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []
 	return e.Websocket.DataHandler.Send(ctx, &detail)
 }
 
-// getWsAPIConnection returns the WebSocket API connection
+// getWsAPIConnection returns the WebSocket API connection while the websocket is connected. The connection kept is the
+// one last connected; connecting the WebSocket API again, as the websocket reconnects or as the connection monitor
+// replaces it alone, keeps the new one
 func (e *Exchange) getWsAPIConnection() (websocket.Connection, error) {
-	return e.Websocket.GetConnection(spotWebsocketAPI)
+	if !e.Websocket.IsConnected() {
+		return nil, websocket.ErrNotConnected
+	}
+	conn := e.wsAPI.get()
+	if conn == nil {
+		return nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
+	}
+	// The websocket counts as connected until its shutdown has closed every connection, and a connection whose reads
+	// failed or that was closed stays down until a new one replaces it, so orders go over REST rather than to a closed
+	// connection
+	if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
+		return nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
+	}
+	return conn, nil
 }
 
 // SendWsAPIRequest sends a WebSocket API request and decodes its result into result, which may be nil
@@ -819,7 +865,7 @@ func (e *Exchange) WsCancelOpenOrders(ctx context.Context, symbol currency.Pair)
 		return nil, err
 	}
 	var resp []WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotDefaultRate, "openOrders.cancelAll", params, &resp)
+	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "openOrders.cancelAll", params, &resp)
 }
 
 // WsCancelOrder cancels an order (Cancel order); cancelling an order list's leg cancels the whole list
@@ -839,7 +885,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, arg *WsCancelOrderRequest)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	params.setString("cancelRestrictions", arg.CancelRestrictions)
 	var resp *WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotDefaultRate, "order.cancel", params, &resp)
+	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "order.cancel", params, &resp)
 }
 
 // WsCancelAndReplaceTradeOrder cancels an order and places a new order in its place (Cancel and replace order)
@@ -907,7 +953,7 @@ func (e *Exchange) WsCancelOCOOrder(ctx context.Context, arg *WsCancelOrderListR
 	params.setString("listClientOrderId", arg.ListClientOrderID)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	var resp *WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotDefaultRate, "orderList.cancel", params, &resp)
+	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "orderList.cancel", params, &resp)
 }
 
 // WsPlaceOCOOrder places a one-cancels-the-other order list: a LIMIT_MAKER order and a STOP_LOSS or STOP_LOSS_LIMIT

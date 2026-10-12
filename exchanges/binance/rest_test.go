@@ -870,6 +870,10 @@ func TestGetTickerData(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTickerData must reject an empty pair")
 	_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 30 * time.Second})
 	require.ErrorIs(t, err, errInvalidWindowSize, "GetTickerData must reject a window size that is not whole minutes")
+	for _, windowSize := range []time.Duration{90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
+		_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
+		require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which Binance rejects with -1102", windowSize)
+	}
 
 	ensureTradablePairs(t)
 	result, err := e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{spotTradablePair}, WindowSize: 20 * time.Minute, Type: "FULL"})
@@ -899,30 +903,6 @@ func TestGetTickerData(t *testing.T) {
 	}
 	require.Len(t, result, 1, "GetTickerData must return the requested symbol")
 	assert.Equal(t, 20*time.Minute, result[0].CloseTime.Time().Sub(result[0].OpenTime.Time()).Truncate(time.Minute), "GetTickerData should return statistics over the window size")
-}
-
-func TestFormatWindowSize(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		windowSize time.Duration
-		exp        string
-	}{
-		{time.Minute, "1m"},
-		{20 * time.Minute, "20m"},
-		{90 * time.Minute, "90m"},
-		{time.Hour, "1h"},
-		{25 * time.Hour, "25h"},
-		{24 * time.Hour, "1d"},
-		{7 * 24 * time.Hour, "7d"},
-	} {
-		got, err := formatWindowSize(tc.windowSize)
-		require.NoErrorf(t, err, "formatWindowSize must not error for %s", tc.windowSize)
-		assert.Equalf(t, tc.exp, got, "formatWindowSize should render %s", tc.windowSize)
-	}
-	for _, windowSize := range []time.Duration{-time.Minute, 30 * time.Second, 90 * time.Second} {
-		_, err := formatWindowSize(windowSize)
-		assert.ErrorIsf(t, err, errInvalidWindowSize, "formatWindowSize should reject %s", windowSize)
-	}
 }
 
 func TestGetPriceChangeStats(t *testing.T) {
@@ -2655,6 +2635,15 @@ func TestAllOrders(t *testing.T) {
 	assert.NotNil(t, result, "AllOrders should return the orders")
 }
 
+// jsonDecimal decodes a quoted decimal the way a response is decoded. The udecimal backend keeps a decoded value's
+// trailing zeros, which decimal.MustFromString drops, so expectations built this way compare equal under every backend
+func jsonDecimal(tb testing.TB, s string) decimal.Decimal {
+	tb.Helper()
+	var d decimal.Decimal
+	require.NoError(tb, json.Unmarshal([]byte(strconv.Quote(s)), &d), "decimal must unmarshal")
+	return d
+}
+
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -2685,13 +2674,13 @@ func TestGetAccount(t *testing.T) {
 			Balances: []Balance{
 				{
 					Asset:  currency.BTC,
-					Free:   decimal.MustFromString("1.25000000"),
-					Locked: decimal.MustFromString("0.01000000"),
+					Free:   jsonDecimal(t, "1.25000000"),
+					Locked: jsonDecimal(t, "0.01000000"),
 				},
 				{
 					Asset:  currency.USDT,
-					Free:   decimal.MustFromString("86168.13000000"),
-					Locked: decimal.MustFromString("120.50000000"),
+					Free:   jsonDecimal(t, "86168.13000000"),
+					Locked: jsonDecimal(t, "120.50000000"),
 				},
 			},
 			Permissions: []string{
@@ -3496,6 +3485,8 @@ func TestSetTimeRangeParams(t *testing.T) {
 		exp        url.Values
 	}{
 		{"both bounds", start, end, url.Values{"startTime": {"1744103854944"}, "endTime": {"1744190254944"}}},
+		{"equal bounds", start, start, url.Values{"startTime": {"1744103854944"}, "endTime": {"1744103854944"}}},
+		{"future bounds", time.UnixMilli(4102444800000), time.UnixMilli(4102531200000), url.Values{"startTime": {"4102444800000"}, "endTime": {"4102531200000"}}},
 		{"start only", start, time.Time{}, url.Values{"startTime": {"1744103854944"}}},
 		{"end only", time.Time{}, end, url.Values{"endTime": {"1744190254944"}}},
 		{"neither", time.Time{}, time.Time{}, url.Values{}},
