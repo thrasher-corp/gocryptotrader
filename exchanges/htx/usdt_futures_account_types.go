@@ -66,7 +66,7 @@ type V5FeeDeductionCurrencyResponse struct {
 
 // V5UniversalTransferRequest defines a transfer between supported HTX account types.
 type V5UniversalTransferRequest struct {
-	Amount          uint64 `json:"amount"`
+	Amount          int64  `json:"amount"`
 	Currency        string `json:"currency"`
 	FromAccountType string `json:"from_account_type"`
 	ToAccountType   string `json:"to_account_type"`

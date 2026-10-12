@@ -76,19 +76,28 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
-	t.Run("documented integer transfer", func(t *testing.T) {
-		t.Parallel()
-		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, func(r *http.Request) {
-			var req struct {
-				Amount json.RawMessage `json:"amount"`
-			}
-			if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "transfer payload should decode") {
-				assert.JSONEq(t, `123`, string(req.Amount), "amount should be a bare integer, not a quoted number")
-			}
+	for _, tc := range []struct {
+		name   string
+		amount int64
+		wire   string
+	}{
+		{"documented integer", 123, "123"},
+		{"signed long precision", 9223372036854775807, "9223372036854775807"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, func(r *http.Request) {
+				var req struct {
+					Amount json.RawMessage `json:"amount"`
+				}
+				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "transfer payload should decode") {
+					assert.Equal(t, tc.wire, string(req.Amount), "amount should retain exact integer precision without quotes")
+				}
+			})
+			_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: tc.amount, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
+			require.NoError(t, err, "integer transfer payload must send")
 		})
-		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 123, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
-		require.NoError(t, err, "documented integer transfer must succeed")
-	})
+	}
 
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
 	_, err := h.V5UniversalTransfer(t.Context(), nil)
