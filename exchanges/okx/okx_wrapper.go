@@ -932,20 +932,21 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
-		creds, err := e.GetCredentials(ctx)
-		if err != nil {
-			return nil, err
-		}
-		store := &accounts.ContextCredentialsStore{}
-		store.Load(creds)
-		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	positionMode, err := e.contractPositionMode(ctx, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
 	positionSide := derivePositionSide(s, positionMode)
+	// Hedge-mode closing orders are identified by posSide; OKX scopes reduceOnly to net contracts and margin.
+	reduceOnly := s.ReduceOnly && positionMode != "long_short_mode"
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
@@ -966,7 +967,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Price:         s.Price,
 		}
 		var placeSpreadOrderResponse *SpreadOrderResponse
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, businessConnection) {
 			placeSpreadOrderResponse, err = e.WSPlaceSpreadOrder(ctx, spreadParam)
 			if err != nil {
 				return nil, err
@@ -998,7 +999,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Price:          s.Price,
 			TargetCurrency: targetCurrency,
 			AssetType:      s.AssetType,
-			ReduceOnly:     s.ReduceOnly,
+			ReduceOnly:     reduceOnly,
 		}
 		switch s.Type.Lower() {
 		case orderLimit, orderPostOnly, orderFOK, orderIOC:
@@ -1009,14 +1010,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderRequest.OrderType = orderOptimalLimitIOC
 			}
 		}
-		useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
-		if useWebsocket && (s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap) {
-			conn, err := e.Websocket.GetConnection(privateConnection)
-			if err == nil {
-				err = e.checkWebsocketOrderCredentials(ctx, conn)
-			}
-			useWebsocket = err == nil
-		}
+		useWebsocket := e.canUseWebsocketForAccount(ctx, privateConnection)
 		if useWebsocket {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, orderRequest.InstrumentID)
 			if resolveErr != nil {
@@ -1039,7 +1033,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:     positionSide,
 			OrderType:        orderTypeString,
 			Size:             s.Amount,
-			ReduceOnly:       s.ReduceOnly,
+			ReduceOnly:       reduceOnly,
 			TriggerPrice:     s.TriggerPrice,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -1052,7 +1046,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:             positionSide,
 			OrderType:                orderTypeString,
 			Size:                     s.Amount,
-			ReduceOnly:               s.ReduceOnly,
+			ReduceOnly:               reduceOnly,
 			StopLossTriggerPrice:     s.TriggerPrice,
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
@@ -1071,7 +1065,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
 			Size:          s.Amount,
-			ReduceOnly:    s.ReduceOnly,
+			ReduceOnly:    reduceOnly,
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: s.TrackingValue,
 		})
@@ -1093,7 +1087,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:           positionSide,
 			OrderType:              orderTypeString,
 			Size:                   s.Amount,
-			ReduceOnly:             s.ReduceOnly,
+			ReduceOnly:             reduceOnly,
 			CallbackRatio:          callbackRatio,
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
@@ -1116,7 +1110,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
 			Size:          s.Amount,
-			ReduceOnly:    s.ReduceOnly,
+			ReduceOnly:    reduceOnly,
 			PriceVariance: priceVar,
 			PriceSpread:   priceSpread,
 			SizeLimit:     s.Amount,
@@ -1137,7 +1131,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide: positionSide,
 			OrderType:    orderTypeString,
 			Size:         s.Amount,
-			ReduceOnly:   s.ReduceOnly,
+			ReduceOnly:   reduceOnly,
 
 			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
@@ -1188,7 +1182,14 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if !e.SupportsAsset(action.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
-	var err error
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
@@ -1200,7 +1201,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewSize:       action.Amount,
 			NewPrice:      action.Price,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, businessConnection) {
 			_, err = e.WSAmendSpreadOrder(ctx, amendSpreadOrder)
 		} else {
 			_, err = e.AmendSpreadOrder(ctx, amendSpreadOrder)
@@ -1227,7 +1228,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, privateConnection) {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID)
 			if resolveErr != nil {
 				return nil, resolveErr
@@ -1317,6 +1318,13 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if !e.SupportsAsset(action.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
@@ -1355,9 +1363,16 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
-	var err error
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	if ord.AssetType == asset.Spread {
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, businessConnection) {
 			_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		} else {
 			_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
@@ -1379,7 +1394,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, privateConnection) {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID)
 			if resolveErr != nil {
 				return resolveErr
@@ -1467,7 +1482,7 @@ func (e *Exchange) deriveSubmitOrderArguments(ctx context.Context, s *order.Subm
 		Price:          s.Price,
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
-		ReduceOnly:     s.ReduceOnly,
+		ReduceOnly:     s.ReduceOnly && positionMode != "long_short_mode",
 	}, nil
 }
 
@@ -1571,6 +1586,13 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if ord == nil {
 		return order.ErrCancelOrderIsNil
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	if ord.AssetType == asset.Spread {
 		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		return err
@@ -1597,7 +1619,14 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
 	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
+	creds, credentialsErr := e.GetCredentials(ctx)
+	if credentialsErr == nil {
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+	}
 	var err error
+
 	for x := range o {
 		ord := o[x]
 		if !e.SupportsAsset(ord.AssetType) {
@@ -1641,16 +1670,16 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
 		}
 	}
+	if credentialsErr != nil {
+		return nil, credentialsErr
+	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketForAccount(ctx, privateConnection) {
 			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
 		} else {
 			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
-		}
-		if err != nil {
-			return nil, err
 		}
 		for x := range canceledOrders {
 			resp.Status[canceledOrders[x].OrderID] = func() string {
@@ -1660,18 +1689,15 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				return order.Cancelled.String()
 			}()
 		}
+		if err != nil {
+			return resp, err
+		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
 		cancelationResponse, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
-			return nil, err
+			return resp, err
 		} else if cancelationResponse.StatusCode != 0 {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
 			return resp, getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
 		}
 		for x := range cancelAlgoOrderParams {
@@ -1689,22 +1715,14 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
-		creds, err := e.GetCredentials(ctx)
-		if err != nil {
-			return nil, err
-		}
-		store := &accounts.ContextCredentialsStore{}
-		store.Load(creds)
-		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
-		conn, err := e.Websocket.GetConnection(privateConnection)
-		if err != nil {
-			return nil, err
-		}
-		if err := e.checkWebsocketOrderCredentials(ctx, conn); err != nil {
-			return nil, err
-		}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+
 	if s.AssetType == asset.Spread {
 		pairFormat, err := e.GetPairFormat(s.AssetType, true)
 		if err != nil {
@@ -1838,6 +1856,18 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
+	if orderCancellation.AssetType.IsValid() {
+		if err := e.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType); err != nil {
+			return order.CancelAllResponse{}, err
+		}
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},
 	}
@@ -1913,22 +1943,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	for range loop {
 		var response []*OrderData
 		if len(remaining) > 20 {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if e.canUseWebsocketForAccount(ctx, privateConnection) {
 				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
 			} else {
 				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if e.canUseWebsocketForAccount(ctx, privateConnection) {
 				response, err = e.WSCancelMultipleOrders(ctx, remaining)
 			} else {
 				response, err = e.CancelMultipleOrders(ctx, remaining)
-			}
-		}
-		if err != nil {
-			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
 			}
 		}
 		for y := range response {
@@ -1937,6 +1962,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
 			}
+		}
+		if err != nil {
+			return cancelAllResponse, err
 		}
 	}
 	return cancelAllResponse, nil

@@ -116,8 +116,12 @@ func TestWsProcessPublicTrade(t *testing.T) {
 			t.Parallel()
 			err := testInstance().wsProcessPublicTrade(asset.Options, &WebsocketResponse{Data: json.RawMessage(tc.data)})
 			if tc.name == "malformed payload" {
-				var syntaxError *json.SyntaxError
-				assert.ErrorAs(t, err, &syntaxError, "malformed payload should return its decode error")
+				if json.Implementation == "bytedance/sonic" {
+					assert.ErrorContains(t, err, "Syntax error", "malformed payload should return its decode error")
+				} else {
+					var syntaxError *json.SyntaxError
+					assert.ErrorAs(t, err, &syntaxError, "malformed payload should return its decode error")
+				}
 				return
 			}
 			assert.NoError(t, err, "option batches containing no known contracts should not error")

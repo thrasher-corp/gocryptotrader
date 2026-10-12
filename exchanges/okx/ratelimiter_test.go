@@ -267,7 +267,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getUserAffiliateRebateInformation":              getUserAffiliateRebateInformationEPL,
 	}
 
-	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(rateLimits))
+	rl, err := request.New("RateLimit_Static", &http.Client{}, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {

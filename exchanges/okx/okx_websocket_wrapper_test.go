@@ -130,11 +130,13 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	}, time.Second, 10*time.Millisecond, "websocket connections were not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ex.API.AuthenticatedSupport, ex.SkipAuthCheck = true, true
-	privateConn, err := ex.Websocket.GetConnection(privateConnection)
-	require.NoError(t, err, "mock private connection must be available")
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "mock credentials must be available")
-	ex.setWebsocketOrderCredentials(privateConn, creds)
+	for _, filter := range []string{privateConnection, businessConnection} {
+		conn, err := ex.Websocket.GetConnection(filter)
+		require.NoError(t, err, "mock connection must be available")
+		ex.setWebsocketOrderCredentials(conn, creds)
+	}
 	t.Cleanup(func() {
 		if err := ex.Websocket.Disable(); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "mock websocket should only report already disabled")

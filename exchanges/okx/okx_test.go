@@ -3864,12 +3864,14 @@ func TestSubmitOrder(t *testing.T) {
 				orderRequests.Add(1)
 				assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
 				assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
-				if tc.reduce {
+				if tc.reduce && tc.mode == "net_mode" {
 					wantReduceOnly := `"reduceOnly":true`
 					if tc.route == "REST" || tc.route == "websocket" {
 						wantReduceOnly = `"reduceOnly":"true"`
 					}
-					assert.Contains(t, string(payload), wantReduceOnly, "wire payload should retain reduce-only intent")
+					assert.Contains(t, string(payload), wantReduceOnly, "net-mode wire payload should retain reduce-only intent")
+				} else {
+					assert.NotContains(t, string(payload), `"reduceOnly"`, "opening and hedge-mode orders should omit the unsupported flag")
 				}
 			}
 			var ex *Exchange
@@ -4218,6 +4220,34 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("websocket partial result", func(t *testing.T) {
+		t.Parallel()
+		ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+			tb.Helper()
+			var req struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return err
+			}
+			return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"2","data":[{"ordId":"1","sCode":"0"},{"ordId":"2","sCode":"51400","sMsg":"already cancelled"}]}`))
+		})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":42}]}`
+			if strings.HasSuffix(r.URL.Path, "trade/orders-pending") {
+				response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","ordId":"1","side":"buy","ordType":"limit","state":"live"},{"instId":"` + mainPair.String() + `","ordId":"2","side":"buy","ordType":"limit","state":"live"}]}`
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must be configured")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+		response, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: asset.Spot, Pair: mainPair}, {OrderID: "2", AssetType: asset.Spot, Pair: mainPair}})
+		require.ErrorIs(t, err, errPartialSuccess, "partial cancellation must retain the error")
+		assert.Equal(t, order.Cancelled.String(), response.Status["1"], "successful cancellation should survive the partial error")
+		assert.Contains(t, response.Status, "2", "failed cancellation should remain represented")
+	})
+
 	_, err := e.CancelBatchOrders(contextGenerate(), make([]order.Cancel, 21))
 	require.ErrorIs(t, err, errExceedLimit)
 	_, err = e.CancelBatchOrders(contextGenerate(), nil)
@@ -4276,6 +4306,34 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("websocket partial result", func(t *testing.T) {
+		t.Parallel()
+		ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+			tb.Helper()
+			var req struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return err
+			}
+			return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"2","data":[{"ordId":"1","sCode":"0"},{"ordId":"2","sCode":"51400","sMsg":"already cancelled"}]}`))
+		})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":42}]}`
+			if strings.HasSuffix(r.URL.Path, "trade/orders-pending") {
+				response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","ordId":"1","side":"buy","ordType":"limit","state":"live"},{"instId":"` + mainPair.String() + `","ordId":"2","side":"buy","ordType":"limit","state":"live"}]}`
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must be configured")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+		response, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
+		require.ErrorIs(t, err, errPartialSuccess, "partial cancellation must retain the error")
+		assert.Equal(t, order.Cancelled.String(), response.Status["1"], "successful cancellation should survive the partial error")
+		assert.Contains(t, response.Status, "2", "failed cancellation should remain represented")
+	})
+
 	for _, tc := range []struct {
 		name, id, clientID, want string
 		noMatch                  bool
