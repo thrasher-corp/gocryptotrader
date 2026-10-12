@@ -247,7 +247,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("uly", arg.Underlying)
 	}
 	if arg.OrderType != "" {
-		params.Set("orderType", strings.ToLower(arg.OrderType))
+		params.Set("ordType", strings.ToLower(arg.OrderType))
 	}
 	if arg.State != "" {
 		params.Set("state", arg.State)

@@ -1176,6 +1176,31 @@ func TestGetOrderDetail(t *testing.T) {
 
 func TestGetOrderList(t *testing.T) {
 	t.Parallel()
+	t.Run("documented query parameters", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange must configure")
+		ex.SkipAuthCheck = true
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method, "listing should use GET")
+			assert.Equal(t, "/trade/orders-pending", r.URL.Path, "pending orders endpoint should be used")
+			assert.Equal(t, url.Values{
+				"instType": {"SPOT"}, "instId": {"BTC-USDT"}, "ordType": {"limit"},
+				"after": {"123"}, "limit": {"100"},
+			}, r.URL.Query(), "venue order type and pagination keys must match the documented contract")
+			_, err := w.Write([]byte(`{"code":"0","data":[{"ordId":"122","instId":"BTC-USDT","ordType":"limit"}]}`))
+			assert.NoError(t, err, "response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "fixture client must install")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "fixture endpoint must install")
+		orders, err := ex.GetOrderList(t.Context(), &OrderListRequestParams{
+			InstrumentType: instTypeSpot, InstrumentID: "BTC-USDT", OrderType: "LIMIT", After: "123", Limit: 100,
+		})
+		require.NoError(t, err, "documented response must decode")
+		require.Len(t, orders, 1, "one order must be returned")
+		assert.Equal(t, "122", orders[0].OrderID, "order ID should decode")
+		assert.Equal(t, "limit", orders[0].OrderType, "order type should decode")
+	})
 	_, err := e.GetOrderList(contextGenerate(), &OrderListRequestParams{})
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 
@@ -4346,6 +4371,110 @@ func TestCancelAllOrders(t *testing.T) {
 		assert.Equal(t, order.Cancelled.String(), response.Status["1"], "successful cancellation should survive the partial error")
 		assert.Contains(t, response.Status, "2", "failed cancellation should remain represented")
 	})
+
+	for _, tc := range []struct {
+		name    string
+		count   int
+		invalid string
+		want    error
+	}{
+		{name: "empty", count: 0},
+		{name: "short page", count: 3},
+		{name: "exact page", count: 100},
+		{name: "multiple pages", count: 121},
+		{name: "repeated page", count: 121, invalid: "repeat", want: common.ErrInvalidResponse},
+		{name: "missing order ID", count: 121, invalid: "missing", want: common.ErrInvalidResponse},
+		{name: "later listing failure", count: 121, invalid: "listing error"},
+		{name: "cancelled listing", count: 121, invalid: "cancelled", want: context.Canceled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must configure")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			listed, batches := 0, 0
+			finished := false
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/trade/orders-pending":
+					listed++
+					assert.Equal(t, http.MethodGet, r.Method, "listing should use GET")
+					assert.Equal(t, "100", r.URL.Query().Get("limit"), "maximum documented page size should be explicit")
+					assert.Equal(t, "SPOT", r.URL.Query().Get("instType"), "asset scope should survive every page")
+					assert.Equal(t, "BTC-USDT", r.URL.Query().Get("instId"), "pair scope should survive every page")
+					assert.Equal(t, "limit", r.URL.Query().Get("ordType"), "order type scope should survive every page")
+					start := (listed - 1) * 100
+					if start == 0 {
+						assert.Empty(t, r.URL.Query().Get("after"), "first page should not have a cursor")
+					} else {
+						assert.Equal(t, strconv.Itoa(tc.count-start+1), r.URL.Query().Get("after"), "next page should use the last order ID")
+						if tc.invalid == "listing error" {
+							w.WriteHeader(http.StatusInternalServerError)
+							return
+						}
+						if tc.invalid == "repeat" {
+							start = 0
+						}
+					}
+					end := min(start+100, tc.count)
+					data := make([]map[string]string, end-start)
+					for i := range data {
+						data[i] = map[string]string{"ordId": strconv.Itoa(tc.count - start - i), "instId": "BTC-USDT", "ordType": "limit"}
+					}
+					if tc.invalid == "missing" && listed == 2 {
+						delete(data[0], "ordId")
+					}
+					finished = len(data) < 100
+					assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": "0", "data": data}), "orders should encode")
+					if tc.invalid == "cancelled" {
+						cancel()
+					}
+				case "/trade/cancel-batch-orders":
+					batches++
+					assert.True(t, finished, "all pages should be enumerated before any cancellation")
+					assert.Equal(t, http.MethodPost, r.Method, "batch cancellation should use POST")
+					var args []CancelOrderRequestParam
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&args), "cancellation should decode") {
+						return
+					}
+					assert.LessOrEqual(t, len(args), 20, "cancellations should respect the batch limit")
+					data := make([]map[string]string, len(args))
+					for i, arg := range args {
+						assert.Equal(t, "BTC-USDT", arg.InstrumentID, "each cancellation should retain its instrument")
+						data[i] = map[string]string{"ordId": arg.OrderID, "sCode": "0"}
+					}
+					assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": "0", "data": data}), "cancellations should encode")
+				default:
+					assert.Fail(t, "unexpected endpoint", r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "fixture client must install")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "fixture endpoint must install")
+			resp, err := ex.CancelAllOrders(ctx, &order.Cancel{
+				AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "-"), Type: order.Limit,
+			})
+			if tc.invalid != "" {
+				require.Error(t, err, "failed enumeration must be an error")
+				if tc.want != nil {
+					assert.ErrorIs(t, err, tc.want, "failure cause should survive")
+				}
+				assert.Empty(t, resp.Status, "failed enumeration should have no cancellation results")
+				assert.Zero(t, batches, "failed enumeration should not cancel any orders")
+				return
+			}
+			require.NoError(t, err, "every pending order must be cancelled")
+			assert.Equal(t, tc.count/100+1, listed, "enumeration should reach a terminal page")
+			assert.Equal(t, (tc.count+19)/20, batches, "all orders should be batched")
+			assert.Len(t, resp.Status, tc.count, "all pages should be represented")
+			for i := 1; i <= tc.count; i++ {
+				assert.Equal(t, order.Cancelled.String(), resp.Status[strconv.Itoa(i)], "each order should be acknowledged")
+			}
+		})
+	}
 
 	for _, tc := range []struct {
 		name, id, clientID, want string
