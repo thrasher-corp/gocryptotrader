@@ -763,12 +763,44 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().AddDate(69, 0, 0), time.Now())
-	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
-	_, err = e.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	assert.NoError(t, err, "GetHistoricTrades should not error")
+	start := time.UnixMilli(1603878749908)
+	end := start.Add(time.Minute)
+	for _, tc := range []struct {
+		name       string
+		pair       currency.Pair
+		start, end time.Time
+		wantErr    error
+	}{
+		{name: "invalid range", pair: testPair, start: end, end: start, wantErr: common.ErrStartAfterEnd},
+		{name: "empty pair", start: start, end: end, wantErr: currency.ErrCurrencyPairEmpty},
+		{name: "bounded history", pair: testPair, start: start, end: end},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/v2/trades.do", r.URL.Path)
+				assert.Equal(t, "btc_usdt", r.URL.Query().Get("symbol"))
+				assert.Equal(t, "600", r.URL.Query().Get("size"))
+				_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"date_ms":1603878749908,"amount":2,"price":100,"type":"sell","tid":"exact-id"},{"date_ms":1603878810908,"amount":3,"price":101,"type":"buy","tid":"outside-range"}]}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
+			got, err := ex.GetHistoricTrades(t.Context(), tc.pair, asset.Spot, tc.start, tc.end)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, got, 1, "history must exclude records outside the requested range")
+			assert.Equal(t, "exact-id", got[0].TID)
+			assert.Equal(t, order.Sell, got[0].Side)
+			assert.Equal(t, 2.0, got[0].Amount)
+			assert.Equal(t, start, got[0].Timestamp)
+		})
+	}
 }
 
 func TestUpdateTicker(t *testing.T) {
