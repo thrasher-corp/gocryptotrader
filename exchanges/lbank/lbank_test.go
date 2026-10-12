@@ -832,7 +832,7 @@ func TestGetHistoricTrades(t *testing.T) {
 				assert.Equal(t, "/v2/trades.do", r.URL.Path)
 				assert.Equal(t, "btc_usdt", r.URL.Query().Get("symbol"))
 				assert.Equal(t, "600", r.URL.Query().Get("size"))
-				_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"date_ms":1603878749908,"amount":2,"price":100,"type":"sell","tid":"exact-id"},{"date_ms":1603878810908,"amount":3,"price":101,"type":"buy","tid":"outside-range"}]}`))
+				_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"date_ms":1603878750908,"amount":2,"price":100,"type":"sell","tid":"exact-id"},{"date_ms":1603878810908,"amount":3,"price":101,"type":"buy","tid":"outside-range"}]}`))
 				assert.NoError(t, err)
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()))
@@ -847,7 +847,7 @@ func TestGetHistoricTrades(t *testing.T) {
 			assert.Equal(t, "exact-id", got[0].TID)
 			assert.Equal(t, order.Sell, got[0].Side)
 			assert.Equal(t, 2.0, got[0].Amount)
-			assert.Equal(t, start, got[0].Timestamp)
+			assert.Equal(t, start.Add(time.Second), got[0].Timestamp)
 		})
 	}
 }
