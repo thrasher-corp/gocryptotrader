@@ -756,11 +756,11 @@ func TestFlushChannels(t *testing.T) {
 				m.trackConnection(conn, ws)
 			}
 			require.ErrorIs(t, m.FlushChannels(t.Context()), errDastardlyReason)
-			assert.Equal(t, []int{0, 1}, calls, "the second setup must perform its refresh after the first callback fails")
+			assert.Equal(t, []int{0, 1}, calls, "the second setup should perform its refresh after the first callback fails")
 			for i, ws := range m.connectionManager {
 				wantChange := (operation == "subscribe" && i == 1) || (operation == "unsubscribe" && i == 0)
-				assert.Equal(t, wantChange, ws.subscriptions.Get(changed[i]) != nil, "manager store must reflect each callback outcome")
-				assert.Equal(t, wantChange, ws.connections[0].Subscriptions().Get(changed[i]) != nil, "connection store must reflect each callback outcome")
+				assert.Equal(t, wantChange, ws.subscriptions.Get(changed[i]) != nil, "manager store should reflect each callback outcome")
+				assert.Equal(t, wantChange, ws.connections[0].Subscriptions().Get(changed[i]) != nil, "connection store should reflect each callback outcome")
 			}
 		})
 	}
