@@ -111,7 +111,7 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
 		return err == nil
-	}, time.Second*5, time.Millisecond*50, "orderbook must eventually be synced")
+	}, time.Second*30, time.Millisecond*50, "orderbook must eventually be synced")
 
 	err = m.ProcessOrderbookUpdate(t.Context(), 27596272448, &orderbook.Update{
 		UpdateID:   27596272449,

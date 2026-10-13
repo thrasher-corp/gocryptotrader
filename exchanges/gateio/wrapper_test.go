@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -21,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -28,59 +32,58 @@ func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject a nil cancellation")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.EMPTYPAIR, AssetType: 1336})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: 1336})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject an unsupported asset")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
 		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Options,
 		Side:      order.ClosePosition,
 	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders must reject a side it cannot cancel by")
 
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.Long,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.Short,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.AnySide,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	for _, side := range []order.Side{order.Long, order.Short, order.AnySide} {
+		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
+			Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
+			AssetType: asset.USDTMarginedFutures,
+			Side:      side,
+		})
+		require.ErrorIsf(t, err, errInvalidSettlementQuote, "CancelAllOrders must reject a pair the asset does not settle for side %s", side)
+	}
 
 	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			r := &order.Cancel{
-				OrderID:   "1",
-				AccountID: "1",
-				AssetType: a,
-				Pair:      currency.EMPTYPAIR,
-			}
-			_, err := e.CancelAllOrders(t.Context(), r)
-			assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair for %s", a)
+	}
 
-			r.Pair = getPair(t, a)
-			_, err = e.CancelAllOrders(t.Context(), r)
-			assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	for _, tc := range []struct {
+		a    asset.Item
+		side order.Side
+		exp  order.CancelAllResponse
+	}{
+		{a: asset.Spot, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454420": "cancelled"}}},
+		{a: asset.Margin, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454430": "cancelled"}}},
+		{a: asset.CrossMargin, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454431": "cancelled"}}},
+		{a: asset.USDTMarginedFutures, side: order.Sell, exp: order.CancelAllResponse{Status: map[string]string{"15675394": "cancelled"}}},
+		{a: asset.CoinMarginedFutures, exp: order.CancelAllResponse{Status: map[string]string{"15675405": "cancelled"}}},
+		{a: asset.DeliveryFutures, side: order.Short, exp: order.CancelAllResponse{Status: map[string]string{"123456": "cancelled"}}},
+		{a: asset.Options, exp: order.CancelAllResponse{Status: map[string]string{"1236": "cancelled"}}},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: tc.a, Pair: getPair(t, tc.a), Side: tc.side})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, got, "CancelAllOrders should report each cancelled order")
+			}
 		})
 	}
 }
@@ -493,6 +496,8 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
+	ensureTestPairs(t)
+
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
@@ -553,8 +558,8 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, e.Name, got.Exchange, "Exchange name should be correct")
 			assert.True(t, tc.pair.Equal(got.Pair), "Pair should be correct")
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
-			assert.LessOrEqual(t, len(got.Asks), 5, "Asks count should not exceed limit, but may be empty especially for options")
-			assert.LessOrEqual(t, len(got.Bids), 5, "Bids count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
 			if tc.a == asset.Options && len(got.Asks) == 0 && len(got.Bids) == 0 {
 				t.Skip("GateIO may return an empty options order book without timestamp metadata")
 			}
@@ -697,4 +702,60 @@ func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
 	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
 	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
 	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
+}
+
+// TestSetupUpgradesLegacyRESTEndpoints loads a config saved before the REST endpoints dropped their version prefix
+// through the config loader, and checks the old defaults no longer override the endpoints GateIO now prefixes itself
+func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
+	t.Parallel()
+
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	raw, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+	require.NoError(t, err, "ReadFile must not error")
+	var cfgMap map[string]any
+	require.NoError(t, json.Unmarshal(raw, &cfgMap), "Unmarshal must not error")
+	cfgMap["version"] = 17
+	exchanges, ok := cfgMap["exchanges"].([]any)
+	require.True(t, ok, "config must hold an exchange list")
+	var found bool
+	for _, x := range exchanges {
+		exch, ok := x.(map[string]any)
+		require.True(t, ok, "exchange config must be an object")
+		if exch["name"] != "GateIO" {
+			continue
+		}
+		api, ok := exch["api"].(map[string]any)
+		require.True(t, ok, "GateIO api config must be an object")
+		api["urlEndpoints"] = map[string]any{
+			"RestSpotURL":              "https://api.gateio.ws/api/v4/",
+			"RestFuturesURL":           "https://fx-api.gateio.ws/api/v4/",
+			"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
+			"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
+		}
+		found = true
+	}
+	require.True(t, found, "config must hold a GateIO exchange")
+	legacy, err := json.Marshal(cfgMap)
+	require.NoError(t, err, "Marshal must not error")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, legacy, 0o600), "WriteFile must not error")
+
+	cfg := &config.Config{}
+	require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must not error")
+	exchCfg, err := cfg.GetExchangeConfig("GateIO")
+	require.NoError(t, err, "GetExchangeConfig must not error")
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+	for ep, exp := range map[exchange.URL]string{
+		exchange.RestSpot:              gateioTradeURL,
+		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
+		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
+	} {
+		got, err := ex.API.Endpoints.GetURL(ep)
+		require.NoErrorf(t, err, "GetURL must not error for %s", ep)
+		assert.Equalf(t, exp, got, "%s should use the default endpoint after the upgrade", ep)
+	}
 }

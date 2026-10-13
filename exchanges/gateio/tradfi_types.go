@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -31,73 +33,100 @@ func klineIntervalToTypeString(interval kline.Interval) (string, error) {
 	return "", fmt.Errorf("%w: %v", kline.ErrUnsupportedInterval, interval)
 }
 
-// TradFiMT5Account holds MT5 account information.
-type TradFiMT5Account struct {
-	MT5UID       int64  `json:"mt5_uid"`
-	Leverage     int64  `json:"leverage"`
-	StopOutLevel string `json:"stop_out_level"`
-	Status       int64  `json:"status"` // Status: 1=not opened, 2=pending review, 3=active.
+// tradFiResponse is the envelope shared by the TradFi (CFD) and Stock APIs, which report business failures through a
+// non-empty label
+type tradFiResponse[T any] struct {
+	Label   string `json:"label"`
+	Message string `json:"message"`
+	Data    T      `json:"data"`
 }
 
-// TradFiCategory holds a single symbol category.
+// AsError returns the response label and message as an error, or nil when the request succeeded
+func (r *tradFiResponse[T]) AsError() error {
+	if r.Label != "" {
+		return fmt.Errorf("label: %s message: %s", r.Label, r.Message)
+	}
+	return nil
+}
+
+// tradFiList holds the list carried in the data field of TradFi and Stock list responses
+type tradFiList[T any] struct {
+	List []T `json:"list"`
+}
+
+// TradFiMT5Account holds MT5 account information
+type TradFiMT5Account struct {
+	Leverage     uint64       `json:"leverage"`
+	StopOutLevel types.Number `json:"stop_out_level"`
+	Status       uint64       `json:"status"` // 1: not opened, 2: pending review, 3: active
+}
+
+// TradFiCategory holds a trading symbol category
 type TradFiCategory struct {
-	CategoryID   int64  `json:"category_id"`
-	IsFavorite   bool   `json:"is_favorite"`
+	CategoryID   uint64 `json:"category_id"`
+	IsFavourite  bool   `json:"is_favorite"`
 	CategoryName string `json:"category_name"`
 }
 
-// TradFiCategoryList wraps the category list data field.
-type TradFiCategoryList struct {
-	List []*TradFiCategory `json:"list"`
+// TradFiSymbolCommission holds the commission charged per lot when trading a symbol
+type TradFiSymbolCommission struct {
+	CategoryCode string       `json:"category_code"`
+	Symbol       string       `json:"symbol"`
+	FeePerLot    types.Number `json:"fee_per_lot"`
 }
 
-// TradFiSymbol holds trading symbol information.
+// TradFiSymbol holds trading symbol information
 type TradFiSymbol struct {
 	Symbol                   string        `json:"symbol"`
-	SymbolDesc               string        `json:"symbol_desc"`
-	CategoryID               int64         `json:"category_id"`
-	Status                   string        `json:"status"`     // Status: open=tradable, closed=non-tradable.
-	TradeMode                string        `json:"trade_mode"` // TradeMode: 0=disabled, 1=long only, 2=short only, 3=close only, 4=full trading access.
+	SymbolDescription        string        `json:"symbol_desc"`
+	CategoryID               uint64        `json:"category_id"`
+	Status                   string        `json:"status"`     // open: tradable, closed: not tradable
+	TradeMode                string        `json:"trade_mode"` // 0: disabled, 1: long only, 2: short only, 3: close only, 4: full trading access
 	IconLink                 string        `json:"icon_link"`
 	CloseTime                types.Time    `json:"close_time"`
 	OpenTime                 types.Time    `json:"open_time"`
 	NextOpenTime             types.Time    `json:"next_open_time"`
 	SettlementCurrency       currency.Code `json:"settlement_currency"`
 	SettlementCurrencySymbol string        `json:"settlement_currency_symbol"`
+	PricePrecision           uint64        `json:"price_precision"`
+	// IsBase and Leverages are returned by the live API but not documented. Orders are placed on base symbols, using
+	// one of the leverages they allow.
+	IsBase    bool           `json:"is_base"`
+	Leverages []types.Number `json:"leverages"`
 }
 
-// TradFiSymbolList wraps the symbol list data field.
-type TradFiSymbolList struct {
-	List []*TradFiSymbol `json:"list"`
-}
-
-// TradFiSymbolDetail holds detailed contract information for a trading symbol.
+// TradFiSymbolDetail holds detailed contract information for a trading symbol
 type TradFiSymbolDetail struct {
-	Symbol             currency.Pair `json:"symbol"`
-	SymbolDesc         string        `json:"symbol_desc"`
+	Symbol             string        `json:"symbol"`
+	SymbolDescription  string        `json:"symbol_desc"`
 	CategoryName       string        `json:"category_name"`
 	ContractVolume     types.Number  `json:"contract_volume"`
 	SettlementCurrency currency.Code `json:"settlement_currency"`
 	MaxOrderVolume     types.Number  `json:"max_order_volume"`
 	MinOrderVolume     types.Number  `json:"min_order_volume"`
 	Leverage           types.Number  `json:"leverage"`
-	PricePrecision     int64         `json:"price_precision"`
+	PricePrecision     uint64        `json:"price_precision"`
 	PriceStopLossLevel types.Number  `json:"price_sl_level"`
 	SwapCostType       string        `json:"swap_cost_type"`
 	BuySwapCostRate    types.Number  `json:"buy_swap_cost_rate"`
 	SellSwapCostRate   types.Number  `json:"sell_swap_cost_rate"`
 	SwapCost3Day       string        `json:"swap_cost_3day"`
 	TradeTimezone      string        `json:"trade_timezone"`
-	TradeMode          string        `json:"trade_mode"` // TradeMode: 0=disabled, 1=long only, 2=short only, 3=close only, 4=full trading access.
+	TradeMode          string        `json:"trade_mode"` // 0: disabled, 1: long only, 2: short only, 3: close only, 4: full trading access
 	IconLink           string        `json:"icon_link"`
 }
 
-// TradFiSymbolDetailList wraps the symbol detail list data field.
-type TradFiSymbolDetailList struct {
-	List []*TradFiSymbolDetail `json:"list"`
+// GetTradFiKlinesRequest holds the query parameters for GetTradFiKlines. The documentation treats the time range and
+// limit as independent, but the live API rejects a BeginTime without an EndTime and a BeginTime with a Limit, so
+// request either a range or a Limit counting back from EndTime.
+type GetTradFiKlinesRequest struct {
+	Interval  kline.Interval // One of 1m, 15m, 1h, 4h, 1d, 7d or 30d
+	BeginTime time.Time
+	EndTime   time.Time
+	Limit     uint64 // Up to 500
 }
 
-// TradFiKline holds a single candlestick data point.
+// TradFiKline holds a single candlestick
 type TradFiKline struct {
 	Open      types.Number `json:"o"`
 	Close     types.Number `json:"c"`
@@ -106,260 +135,270 @@ type TradFiKline struct {
 	Timestamp types.Time   `json:"t"`
 }
 
-// TradFiKlineList wraps the kline list data field.
-type TradFiKlineList struct {
-	List []*TradFiKline `json:"list"`
-}
-
-// TradFiTicker holds ticker information for a trading symbol.
+// TradFiTicker holds ticker information for a trading symbol
 type TradFiTicker struct {
-	HighestPrice        types.Number `json:"highest_price"`
-	LowestPrice         types.Number `json:"lowest_price"`
-	PriceChange         string       `json:"price_change"`
-	PriceChangeAmount   types.Number `json:"price_change_amount"`
-	TodayOpenPrice      types.Number `json:"today_open_price"`
-	LastTodayClosePrice types.Number `json:"last_today_close_price"`
-	LastPrice           types.Number `json:"last_price"`
-	BidPrice            types.Number `json:"bid_price"`
-	AskPrice            types.Number `json:"ask_price"`
-	Favorite            bool         `json:"favorite"`
-	Status              string       `json:"status"` // Status: open=tradable, closed=non-tradable.
-	CloseTime           types.Time   `json:"close_time"`
-	OpenTime            types.Time   `json:"open_time"`
-	NextOpenTime        types.Time   `json:"next_open_time"`
-	TradeMode           string       `json:"trade_mode"`
-	CategoryName        string       `json:"category_name"`
+	HighestPrice          types.Number `json:"highest_price"`
+	LowestPrice           types.Number `json:"lowest_price"`
+	PriceChangePercentage types.Number `json:"price_change"`
+	PriceChangeAmount     types.Number `json:"price_change_amount"`
+	TodayOpenPrice        types.Number `json:"today_open_price"`
+	PreviousClosePrice    types.Number `json:"last_today_close_price"`
+	LastPrice             types.Number `json:"last_price"`
+	BidPrice              types.Number `json:"bid_price"`
+	AskPrice              types.Number `json:"ask_price"`
+	Favourite             bool         `json:"favorite"`
+	Status                string       `json:"status"` // open: tradable, closed: not tradable
+	CloseTime             types.Time   `json:"close_time"`
+	OpenTime              types.Time   `json:"open_time"`
+	NextOpenTime          types.Time   `json:"next_open_time"`
+	TradeMode             string       `json:"trade_mode"`
+	CategoryName          string       `json:"category_name"`
+	// ExchangeRate and SettlementCurrency are returned by the live API but not documented
+	ExchangeRate       types.Number  `json:"exchange_rate"`
+	SettlementCurrency currency.Code `json:"settlement_currency"`
 }
 
-// TradFiUserInfo holds TradFi user account information returned after activation.
+// TradFiUserInfo holds the TradFi account state returned after activation
 type TradFiUserInfo struct {
-	Status   int64  `json:"status"` // Status: 1=not opened, 2=pending review, 3=opened.
-	Leverage int64  `json:"leverage"`
-	MT5UID   string `json:"mt5_uid"`
+	Status   uint64 `json:"status"` // 1: not opened, 2: pending review, 3: opened
+	Leverage uint64 `json:"leverage"`
 }
 
-// TradFiUserAssets holds TradFi account asset information.
+// TradFiUserAssets holds TradFi account balance and margin information
 type TradFiUserAssets struct {
-	Equity        string       `json:"equity"`
-	MarginLevel   string       `json:"margin_level"`
+	Equity        types.Number `json:"equity"`
+	MarginLevel   types.Number `json:"margin_level"` // Percentage
 	Balance       types.Number `json:"balance"`
 	Margin        types.Number `json:"margin"`
 	MarginFree    types.Number `json:"margin_free"`
-	UnrealizedPNL types.Number `json:"unrealized_pnl"`
-	MT5UID        string       `json:"mt5_uid"`
+	UnrealisedPNL types.Number `json:"unrealized_pnl"`
 }
 
-// TradFiTransaction holds a single fund transfer transaction record.
-type TradFiTransaction struct {
-	Asset    currency.Code `json:"asset"`
-	Type     string        `json:"type"` // Type: deposit=transfer in, withdraw=transfer out, dividend=dividend payment, fill_negative=cover negative balance.
-	TypeDesc string        `json:"type_desc"`
-	Change   types.Number  `json:"change"`
-	Balance  types.Number  `json:"balance"`
-	Time     types.Time    `json:"time"`
-}
-
-// TradFiTransactionListData wraps the transaction list data with pagination.
-type TradFiTransactionListData struct {
-	Total     int64                `json:"total"`
-	TotalPage int64                `json:"total_page"`
-	List      []*TradFiTransaction `json:"list"`
-	Timestamp types.Number         `json:"timestamp"`
-}
-
-// TradFiTransactionRequest is the request body for fund deposit or withdrawal.
+// TradFiTransactionRequest holds the parameters for CreateTradFiTransaction
 type TradFiTransactionRequest struct {
-	Asset  currency.Code `json:"asset"`
-	Change types.Number  `json:"change"`
-	Type   string        `json:"type"`
+	Asset  currency.Code `json:"asset"`  // Only USDT is supported
+	Change types.Number  `json:"change"` // Up to two decimal places
+	Type   string        `json:"type"`   // deposit or withdraw
 }
 
-// TradFiOrder holds an active pending order.
-type TradFiOrder struct {
-	OrderID         int64         `json:"order_id"`
-	Symbol          currency.Pair `json:"symbol"`
-	SymbolDesc      string        `json:"symbol_desc"`
-	PriceType       string        `json:"price_type"` // PriceType: market=market price, trigger=trigger price.
-	State           int64         `json:"state"`
-	StateDesc       string        `json:"state_desc"`
-	Finished        int64         `json:"finished"` // Finished: 0=shown in active order list, 1=not shown.
-	Side            int64         `json:"side"`     // Side: 1=sell, 2=buy.
-	Volume          types.Number  `json:"volume"`
-	Price           types.Number  `json:"price"`
-	PriceTakeProfit types.Number  `json:"price_tp"`
-	PriceStopLoss   types.Number  `json:"price_sl"`
-	TimeSetup       string        `json:"time_setup"`
+// GetTradFiTransactionsRequest holds the filters for GetTradFiTransactions
+type GetTradFiTransactionsRequest struct {
+	BeginTime time.Time
+	EndTime   time.Time
+	Type      string // deposit, withdraw, dividend or fill_negative; empty returns every type
+	Page      uint64
+	PageSize  uint64 // Defaults to 10, up to 50
 }
 
-// TradFiOrderList wraps the active order list data field.
-type TradFiOrderList struct {
-	List []*TradFiOrder `json:"list"`
+// TradFiTransaction holds a single fund transfer record
+type TradFiTransaction struct {
+	Asset           currency.Code `json:"asset"`
+	Type            string        `json:"type"` // deposit, withdraw, dividend or fill_negative
+	TypeDescription string        `json:"type_desc"`
+	Change          types.Number  `json:"change"`
+	Balance         types.Number  `json:"balance"`
+	Time            types.Time    `json:"time"`
 }
 
-// TradFiOrderRequest is the request body for creating an order.
+// TradFiTransactionListData holds a page of fund transfer records
+type TradFiTransactionListData struct {
+	Total      uint64               `json:"total"`
+	TotalPages uint64               `json:"total_page"`
+	List       []*TradFiTransaction `json:"list"`
+}
+
+// TradFiOrderRequest holds the parameters for CreateTradFiOrder
 type TradFiOrderRequest struct {
-	Price           types.Number  `json:"price"`
-	PriceType       string        `json:"price_type"`
-	Side            int64         `json:"side"` // Side: 1=sell, 2=buy.
-	Symbol          currency.Pair `json:"symbol"`
-	Volume          types.Number  `json:"volume"`
-	PriceTakeProfit types.Number  `json:"price_tp,omitempty"`
-	PriceStopLoss   types.Number  `json:"price_sl,omitempty"`
+	Symbol          string       `json:"symbol"`
+	Side            order.Side   `json:"side"`       // Buy or Sell
+	PriceType       order.Type   `json:"price_type"` // Market, or Trigger to wait for Price
+	Price           types.Number `json:"price"`
+	Volume          types.Number `json:"volume"`
+	PriceTakeProfit types.Number `json:"price_tp,omitempty"`
+	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
+	Leverage        uint64       `json:"leverage,omitempty"` // Must be one of the leverages the symbol allows
 }
 
-// TradFiCreateOrderResult holds the queue task ID returned after order creation.
+// MarshalJSON converts the side and price type to the values the TradFi API expects
+func (r *TradFiOrderRequest) MarshalJSON() ([]byte, error) {
+	side, err := tradFiSideCode(r.Side)
+	if err != nil {
+		return nil, err
+	}
+	type Alias TradFiOrderRequest
+	return json.Marshal(&struct {
+		Side      uint8  `json:"side"`
+		PriceType string `json:"price_type"`
+		*Alias
+	}{
+		Side:      side,
+		PriceType: r.PriceType.Lower(),
+		Alias:     (*Alias)(r),
+	})
+}
+
+// TradFiCreateOrderResult holds the queue task ID returned after placing an order, which is the log ID that
+// GetTradFiOrderLog takes rather than an order ID
 type TradFiCreateOrderResult struct {
 	ID string `json:"id"`
 }
 
-// TradFiOrderUpdateRequest is the request body for modifying an existing order.
+// TradFiOrder holds an active order
+type TradFiOrder struct {
+	OrderID           uint64       `json:"order_id"`
+	Symbol            string       `json:"symbol"`
+	SymbolDescription string       `json:"symbol_desc"`
+	PriceType         string       `json:"price_type"` // market or trigger
+	State             uint64       `json:"state"`
+	StateDescription  string       `json:"state_desc"`
+	Finished          uint64       `json:"finished"` // 0: shown in the active order list, 1: not shown
+	Side              uint64       `json:"side"`     // 1: sell, 2: buy
+	Volume            types.Number `json:"volume"`
+	Price             types.Number `json:"price"`
+	PriceTakeProfit   types.Number `json:"price_tp"`
+	PriceStopLoss     types.Number `json:"price_sl"`
+	TimeSetup         types.Time   `json:"time_setup"`
+}
+
+// TradFiOrderUpdateRequest holds the parameters for UpdateTradFiOrder
 type TradFiOrderUpdateRequest struct {
-	Price           string       `json:"price"`
+	Price types.Number `json:"price"`
+	// Omitting a take profit or stop loss price clears it, so pass the current price to keep it
 	PriceTakeProfit types.Number `json:"price_tp,omitempty"`
 	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
 }
 
-// TradFiUpdatedOrder holds the order state after modification.
+// TradFiUpdatedOrder holds the order state after modification
 type TradFiUpdatedOrder struct {
-	OrderID         int64         `json:"order_id"`
-	Symbol          currency.Pair `json:"symbol"`
-	State           string        `json:"state"`
-	Volume          types.Number  `json:"volume"`
-	Price           types.Number  `json:"price"`
-	PriceTakeProfit types.Number  `json:"price_tp"`
-	PriceStopLoss   types.Number  `json:"price_sl"`
+	OrderID         uint64       `json:"order_id"`
+	Symbol          string       `json:"symbol"`
+	State           string       `json:"state"`
+	Volume          types.Number `json:"volume"`
+	Price           types.Number `json:"price"`
+	PriceTakeProfit types.Number `json:"price_tp"`
+	PriceStopLoss   types.Number `json:"price_sl"`
 }
 
-// TradFiHistoricalOrder holds a completed order record.
+// GetTradFiOrderHistoryRequest holds the filters for GetTradFiOrderHistory
+type GetTradFiOrderHistoryRequest struct {
+	BeginTime time.Time // No earlier than one month ago
+	EndTime   time.Time
+	Symbol    string
+	Side      order.Side // Buy or Sell; UnknownSide returns both
+}
+
+// TradFiHistoricalOrder holds a completed order
 type TradFiHistoricalOrder struct {
-	OrderID         int64         `json:"order_id"`
-	Symbol          currency.Pair `json:"symbol"`
-	SymbolDesc      string        `json:"symbol_desc"`
-	PriceType       string        `json:"price_type"`     // PriceType: market=market price, trigger=trigger price.
-	OrderOptType    int64         `json:"order_opt_type"` // OrderOptType: 1=sell, 2=buy, 3=close long, 4=close short, 5=force close long, 6=force close short.
-	State           int64         `json:"state"`
-	StateDesc       string        `json:"state_desc"`
-	Side            int64         `json:"side"` // Side: 1=sell, 2=buy.
-	Volume          types.Number  `json:"volume"`
-	FillVolume      types.Number  `json:"fill_volume"`
-	ClosePNL        types.Number  `json:"close_pnl"`
-	Price           types.Number  `json:"price"`
-	TriggerPrice    types.Number  `json:"trigger_price"`
-	PriceTakeProfit types.Number  `json:"price_tp"`
-	PriceStopLoss   types.Number  `json:"price_sl"`
-	TimeSetup       types.Time    `json:"time_setup"`
-	TimeDone        types.Time    `json:"time_done"`
+	OrderID           uint64       `json:"order_id"`
+	Symbol            string       `json:"symbol"`
+	SymbolDescription string       `json:"symbol_desc"`
+	PriceType         string       `json:"price_type"`     // market or trigger
+	OrderOptType      uint64       `json:"order_opt_type"` // 1: sell, 2: buy, 3: close long, 4: close short, 5: force close long, 6: force close short
+	State             uint64       `json:"state"`
+	StateDescription  string       `json:"state_desc"`
+	Side              uint64       `json:"side"` // 1: sell, 2: buy
+	Volume            types.Number `json:"volume"`
+	FillVolume        types.Number `json:"fill_volume"`
+	ClosePNL          types.Number `json:"close_pnl"`
+	Price             types.Number `json:"price"` // Average fill price
+	TriggerPrice      types.Number `json:"trigger_price"`
+	PriceTakeProfit   types.Number `json:"price_tp"`
+	PriceStopLoss     types.Number `json:"price_sl"`
+	TimeSetup         types.Time   `json:"time_setup"`
+	TimeDone          types.Time   `json:"time_done"`
 }
 
-// TradFiOrderHistoryList wraps the historical order list data field.
-type TradFiOrderHistoryList struct {
-	List []*TradFiHistoricalOrder `json:"list"`
+// TradFiOrderLogResponse holds the order recorded against an order placement log ID
+type TradFiOrderLogResponse struct {
+	OrderID   uint64       `json:"order_id"`
+	LogID     uint64       `json:"log_id"`
+	Symbol    string       `json:"symbol"`
+	PriceType string       `json:"price_type"` // market or trigger
+	State     uint64       `json:"state"`      // 1: placed, 2: cancelled, 3: partially filled, 4: filled, 5: rejected
+	Side      uint64       `json:"side"`       // 1: sell, 2: buy
+	Volume    types.Number `json:"volume"`
+	Price     types.Number `json:"price"` // Average fill price
 }
 
-// TradFiPosition holds an active open position.
+// TradFiPosition holds an open position
 type TradFiPosition struct {
-	PositionID        int64         `json:"position_id"`
-	Symbol            currency.Pair `json:"symbol"`
-	SymbolDesc        string        `json:"symbol_desc"`
-	Margin            string        `json:"margin"`
-	UnrealizedPNL     types.Number  `json:"unrealized_pnl"`
-	UnrealizedPNLRate types.Number  `json:"unrealized_pnl_rate"`
-	Volume            types.Number  `json:"volume"`
-	PriceOpen         types.Number  `json:"price_open"`
-	PositionDir       string        `json:"position_dir"` // PositionDir: Long=long position, Short=short position.
+	PositionID        uint64       `json:"position_id"`
+	Symbol            string       `json:"symbol"`
+	SymbolDescription string       `json:"symbol_desc"`
+	Margin            types.Number `json:"margin"`
+	UnrealisedPNL     types.Number `json:"unrealized_pnl"`
+	UnrealisedPNLRate types.Number `json:"unrealized_pnl_rate"`
+	Volume            types.Number `json:"volume"`
+	PriceOpen         types.Number `json:"price_open"`
+	PositionDirection string       `json:"position_dir"` // Long or Short
+	PriceTakeProfit   types.Number `json:"price_tp"`
+	PriceStopLoss     types.Number `json:"price_sl"`
+	CounterpartyPrice types.Number `json:"counterparty_price"`
+	TimeCreate        types.Time   `json:"time_create"`
 }
 
-// TradFiPositionList wraps the active position list data field.
-type TradFiPositionList struct {
-	List []*TradFiPosition `json:"list"`
-}
-
-// TradFiPositionUpdateRequest is the request body for modifying a position's TP/SL.
+// TradFiPositionUpdateRequest holds the parameters for UpdateTradFiPosition. Omitting a take profit or stop loss price
+// clears it, so pass the current price to keep it.
 type TradFiPositionUpdateRequest struct {
 	PriceTakeProfit types.Number `json:"price_tp,omitempty"`
 	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
 }
 
-// TradFiClosePositionRequest is the request body for closing a position.
+// TradFiClosePositionRequest holds the parameters for CloseTradFiPosition
 type TradFiClosePositionRequest struct {
-	CloseType   int64        `json:"close_type"` // CloseType: 1=full close, 2=partial close.
-	CloseVolume types.Number `json:"close_volume,omitempty"`
+	CloseType   uint64       `json:"close_type"`             // 1: partial close of CloseVolume, 2: full close
+	CloseVolume types.Number `json:"close_volume,omitempty"` // Required for a partial close
 }
 
-// TradFiLiquidationDetail holds margin details recorded at the time of liquidation.
+// GetTradFiPositionHistoryRequest holds the filters for GetTradFiPositionHistory
+type GetTradFiPositionHistoryRequest struct {
+	Page              uint64
+	PageSize          uint64    // Defaults to 10, up to 100
+	BeginTime         time.Time // No earlier than one month ago
+	EndTime           time.Time
+	Symbol            string
+	PositionDirection order.Side // Long or Short; UnknownSide returns both
+}
+
+// TradFiLiquidationDetail holds the margin state recorded when a position was liquidated
 type TradFiLiquidationDetail struct {
-	MarginLevel  string `json:"margin_level"`
-	Margin       string `json:"margin"`
-	Equity       string `json:"equity"`
-	StopOutLevel string `json:"stop_out_level"`
+	MarginLevel  types.Number `json:"margin_level"` // Multiplied by 100
+	Margin       types.Number `json:"margin"`
+	Equity       types.Number `json:"equity"`
+	StopOutLevel types.Number `json:"stop_out_level"` // Multiplied by 100
 }
 
-// TradFiRealizedPnlDetail holds a breakdown of realized profit and loss.
-type TradFiRealizedPnlDetail struct {
-	ClosedPNL string       `json:"closed_pnl"`
-	Swap      string       `json:"swap"`
+// TradFiRealisedPNLDetail holds a breakdown of realised profit and loss
+type TradFiRealisedPNLDetail struct {
+	ClosedPNL types.Number `json:"closed_pnl"`
+	Swap      types.Number `json:"swap"`
 	Fee       types.Number `json:"fee"`
 }
 
-// TradFiHistoricalPosition holds a closed position record.
+// TradFiHistoricalPosition holds a closed position
 type TradFiHistoricalPosition struct {
-	PositionID        int64                    `json:"position_id"`
-	Symbol            currency.Pair            `json:"symbol"`
-	RealizedPNL       types.Number             `json:"realized_pnl"`
-	RealizedPNLRate   types.Number             `json:"realized_pnl_rate"`
+	PositionID        uint64                   `json:"position_id"`
+	Symbol            string                   `json:"symbol"`
+	RealisedPNL       types.Number             `json:"realized_pnl"`
+	RealisedPNLRate   types.Number             `json:"realized_pnl_rate"`
 	Volume            types.Number             `json:"volume"`
 	VolumeClosed      types.Number             `json:"volume_closed"`
 	PriceOpen         types.Number             `json:"price_open"`
-	PositionDir       string                   `json:"position_dir"` // PositionDir: Long=long position, Short=short position.
-	PriceTP           types.Number             `json:"price_tp"`
-	PriceSL           types.Number             `json:"price_sl"`
+	PositionDirection string                   `json:"position_dir"` // Long or Short
+	PriceTakeProfit   types.Number             `json:"price_tp"`
+	PriceStopLoss     types.Number             `json:"price_sl"`
 	CounterpartyPrice types.Number             `json:"counterparty_price"`
 	ClosePrice        types.Number             `json:"close_price"`
 	TimeCreate        types.Time               `json:"time_create"`
 	TimeClose         types.Time               `json:"time_close"`
-	PositionStatus    string                   `json:"position_status"` // PositionStatus: 1=fully closed, 2=forced liquidation.
-	CloseDetail       *TradFiLiquidationDetail `json:"close_detail"`
-	RealizedPnlDetail TradFiRealizedPnlDetail  `json:"realized_pnl_detail"`
+	PositionStatus    string                   `json:"position_status"` // 1: fully closed, 2: forced liquidation
+	CloseDetail       *TradFiLiquidationDetail `json:"close_detail"`    // Only set for a forced liquidation
+	RealisedPNLDetail TradFiRealisedPNLDetail  `json:"realized_pnl_detail"`
 }
 
-// TradFiHistoricalPositionListData wraps historical position data with pagination.
+// TradFiHistoricalPositionListData holds a page of closed positions
 type TradFiHistoricalPositionListData struct {
-	Total     int64                       `json:"total"`
-	TotalPage int64                       `json:"total_page"`
-	List      []*TradFiHistoricalPosition `json:"list"`
-}
-
-// GetTradFiKlinesRequest holds the query parameters for the klines endpoint.
-type GetTradFiKlinesRequest struct {
-	KlineType string // KlineType is required: TradFiKlineType1m, 15m, 1h, 4h, 1d, 7d, or 30d.
-	BeginTime time.Time
-	EndTime   time.Time
-	Limit     uint64
-}
-
-// GetTradFiTransactionsRequest holds the query parameters for listing transactions.
-type GetTradFiTransactionsRequest struct {
-	BeginTime time.Time
-	EndTime   time.Time
-	Type      string // Type filters by transaction type; one of TradFiTransaction* constants or empty for all.
-	Page      uint64
-	PageSize  uint64
-}
-
-// GetTradFiOrderHistoryRequest holds the query parameters for historical order list.
-type GetTradFiOrderHistoryRequest struct {
-	BeginTime time.Time
-	EndTime   time.Time
-	Symbol    currency.Pair
-	Side      uint64 // Side filters by order side: 1=sell, 2=buy; 0 means no filter.
-}
-
-// GetTradFiPositionHistoryRequest holds the query parameters for historical position list.
-type GetTradFiPositionHistoryRequest struct {
-	Page        uint64
-	PageSize    uint64
-	BeginTime   time.Time
-	EndTime     time.Time
-	Symbol      currency.Pair
-	PositionDir string // PositionDir filters by direction: TradFiPositionLong, TradFiPositionShort, or empty for all.
+	Total      uint64                      `json:"total"`
+	TotalPages uint64                      `json:"total_page"`
+	List       []*TradFiHistoricalPosition `json:"list"`
 }

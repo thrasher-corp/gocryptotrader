@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 17,
+ "version": 18,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -1736,7 +1736,7 @@
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
+   "websocketResponseMaxLimit": 30000000000,
    "websocketTrafficTimeout": 30000000000,
    "connectionMonitorDelay": 2000000000,
    "baseCurrencies": "USD",
@@ -1751,16 +1751,6 @@
      "delimiter": "_"
     },
     "useGlobalFormat": true,
-    "assetTypes": [
-     "spot",
-     "option",
-     "coinmarginedfutures",
-     "usdtmarginedfutures",
-     "margin",
-     "cross_margin",
-     "delivery",
-     "option"
-    ],
     "pairs": {
      "coinmarginedfutures": {
       "assetEnabled": true,

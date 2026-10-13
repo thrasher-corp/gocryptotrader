@@ -1,35 +1,73 @@
 package gateio
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
+)
+
+// P2P merchant working statuses accepted by SetMerchantWorkingStatusAndCustomWorking
+const (
+	P2PWorkStatusResting     uint8 = 0
+	P2PWorkStatusWorking     uint8 = 1
+	P2PWorkStatusCustomHours uint8 = 2
+)
+
+// P2P advertisement operations accepted by PublishP2PAdOrder
+const (
+	P2PAdOperationPublishSell uint8 = 0
+	P2PAdOperationPublishBuy  uint8 = 1
+	P2PAdOperationEditSell    uint8 = 2
+	P2PAdOperationEditBuy     uint8 = 3
+)
+
+// P2P advertisement trading limit units
+const (
+	P2PLimitBasisCrypto uint8 = 0
+	P2PLimitBasisFiat   uint8 = 1
 )
 
 // P2PMerchantInfo holds P2P merchant account information.
 type P2PMerchantInfo struct {
-	IsSelf                    bool         `json:"is_self"`
-	UserLined                 string       `json:"user_lined"`
-	CounterpartiesNum         int64        `json:"counterparties_num"`
-	EmailVerified             string       `json:"email_verified"`
-	Verified                  string       `json:"verified"`
-	NickName                  string       `json:"nick_name"`
-	BizUID                    string       `json:"biz_uid"`
-	HaveTraded                int64        `json:"have_traded"`
-	CompleteTransactions      string       `json:"complete_transactions"`
-	PaidTransactions          string       `json:"paid_transactions"`
-	AcceptableTransactions    string       `json:"acceptable_transactions"`
-	CompleteTransactionsMonth string       `json:"complete_transactions_month"`
-	CompleteRateMonth         string       `json:"complete_rate_month"`
-	OrdersBuySaleMonth        int64        `json:"orders_buy_sale_month"`
-	IsFixed                   int64        `json:"is_fixed"`
-	FirstTradeDays            int64        `json:"first_trade_days"`
-	TrendRegression           int64        `json:"trend_regression"`
-	PayType                   string       `json:"pay_type"`
-	PayMethod                 string       `json:"pay_method"`
-	AccountStatus             int64        `json:"account_status"`
-	TransactionsMonth         types.Number `json:"transactions_month"`
-	TransactionsAll           types.Number `json:"transactions_all"`
-	TradeVersatile            bool         `json:"trade_versatile"`
+	IsSelf                    bool                   `json:"is_self"`
+	UserRegistrationTime      string                 `json:"user_timest"` // Formatted date, such as 2025/11/19
+	CounterpartiesNumber      uint64                 `json:"counterparties_num"`
+	EmailVerified             types.Boolean          `json:"email_verified"`
+	Verified                  types.Boolean          `json:"verified"`
+	HasPhone                  types.Boolean          `json:"has_phone"`
+	UserName                  string                 `json:"user_name"`
+	UserNote                  string                 `json:"user_note"`
+	CompleteTransactions      types.Number           `json:"complete_transactions"`
+	PaidTransactions          types.Number           `json:"paid_transactions"`
+	AcceptedTransactions      types.Number           `json:"accepted_transactions"`
+	TransactionsUsedTime      types.Number           `json:"transactions_used_time"`
+	CancelledUsedTimeMonth    types.Number           `json:"cancelled_used_time_month"`
+	CompleteTransactionsMonth types.Number           `json:"complete_transactions_month"`
+	CompleteRateMonth         types.Number           `json:"complete_rate_month"`
+	OrdersBuyRateMonth        types.Number           `json:"orders_buy_rate_month"`
+	IsBlack                   types.Boolean          `json:"is_black"`
+	IsFollow                  types.Boolean          `json:"is_follow"`
+	HaveTraded                types.Boolean          `json:"have_traded"`
+	BizUID                    string                 `json:"biz_uid"`
+	BlueVIP                   uint8                  `json:"blue_vip"`
+	WorkStatus                uint8                  `json:"work_status"`
+	RegistrationDays          uint64                 `json:"registration_days"`
+	FirstTradeDays            uint64                 `json:"first_trade_days"`
+	NeedReplenish             types.Boolean          `json:"need_replenish"`
+	MerchantInfo              *P2PMerchantMarketInfo `json:"merchant_info"`
+	OnlineStatus              uint8                  `json:"online_status"`
+	WorkHours                 json.RawMessage        `json:"work_hours"` // Gate documents no fields for the work hours object
+	TransactionsMonth         types.Number           `json:"transactions_month"`
+	TransactionsAll           types.Number           `json:"transactions_all"`
+	TradeVersatile            bool                   `json:"trade_versatile"`
+}
+
+// P2PMerchantMarketInfo holds the markets a merchant can place orders in
+type P2PMerchantMarketInfo struct {
+	Type   string `json:"type"`
+	Market string `json:"market"`
 }
 
 // GetCounterpartyInfoRequest holds the request parameters for getting counterparty info.
@@ -39,32 +77,30 @@ type GetCounterpartyInfoRequest struct {
 
 // P2PCounterpartyInfo holds P2P counterparty user information.
 type P2PCounterpartyInfo struct {
-	UserLined                 string `json:"user_lined"`
-	EmailVerified             string `json:"email_verified"`
-	Verified                  string `json:"verified"`
-	HasPhone                  string `json:"has_phone"`
-	UserName                  string `json:"user_name"`
-	CompleteTransactions      string `json:"complete_transactions"`
-	PaidTransactions          string `json:"paid_transactions"`
-	AcceptableTransactions    string `json:"acceptable_transactions"`
-	CompleteTransactionsMonth string `json:"complete_transactions_month"`
-	CancelledUserTimeMonth    string `json:"cancelled_user_time_month"`
-	CompleteRateMonth         string `json:"complete_rate_month"`
-	UserTimest                string `json:"user_timest"`
-	AcceptedTransactions      string `json:"accepted_transactions"`
-	TransactionsUsedTime      string `json:"transactions_used_time"`
-	CancelledUsedTimeMonth    string `json:"cancelled_used_time_month"`
-	IsFollow                  uint64 `json:"is_follow"`
-	HaveTraded                uint64 `json:"have_traded"`
-	BizUID                    string `json:"biz_uid"`
-	RegistrationDays          uint64 `json:"registration_days"`
-	FirstTradeDays            uint64 `json:"first_trade_days"`
-	TradeVersatile            bool   `json:"trade_versatile"`
+	UserRegistrationTime      string        `json:"user_timest"` // Formatted date, such as 2025/11/19
+	EmailVerified             types.Boolean `json:"email_verified"`
+	Verified                  types.Boolean `json:"verified"`
+	HasPhone                  types.Boolean `json:"has_phone"`
+	UserName                  string        `json:"user_name"`
+	UserNote                  string        `json:"user_note"`
+	CompleteTransactions      types.Number  `json:"complete_transactions"`
+	PaidTransactions          types.Number  `json:"paid_transactions"`
+	AcceptedTransactions      types.Number  `json:"accepted_transactions"`
+	TransactionsUsedTime      types.Number  `json:"transactions_used_time"`
+	CancelledUsedTimeMonth    types.Number  `json:"cancelled_used_time_month"`
+	CompleteTransactionsMonth types.Number  `json:"complete_transactions_month"`
+	CompleteRateMonth         types.Number  `json:"complete_rate_month"`
+	IsFollow                  types.Boolean `json:"is_follow"`
+	HaveTraded                types.Boolean `json:"have_traded"`
+	BizUID                    string        `json:"biz_uid"`
+	RegistrationDays          uint64        `json:"registration_days"`
+	FirstTradeDays            uint64        `json:"first_trade_days"`
+	TradeVersatile            bool          `json:"trade_versatile"`
 }
 
 // GetP2PPaymentMethodsRequest holds the request parameters for getting payment methods.
 type GetP2PPaymentMethodsRequest struct {
-	Fiat string `json:"fiat,omitempty"`
+	Fiat currency.Code // Optional; all payment methods are returned when empty
 }
 
 // P2PPaymentMethodGroup holds a group of payment methods of the same type.
@@ -75,175 +111,224 @@ type P2PPaymentMethodGroup struct {
 	List    []*P2PPaymentMethod `json:"list"`
 }
 
-// P2PPaymentMethod holds a single bound payment method account.
+// P2PPaymentMethod holds a single bound payment method account. Bank accounts populate the bank fields, while
+// other payment types populate the account fields.
 type P2PPaymentMethod struct {
 	UID                   uint64 `json:"uid"`
-	ID                    string `json:"id"`
 	BankID                string `json:"bankid"`
+	Nickname              uint64 `json:"nickname"` // Gate documents this as the cardholder UID
 	BankName              string `json:"bankname"`
 	BankBranch            string `json:"bankbranch"`
-	BankAddress           string `json:"bankaddr"`
 	BankCity              string `json:"bankcity"`
 	BankProvince          string `json:"bankprov"`
+	BankCardNumber        string `json:"bankaddr"` // Possibly masked
 	BankDescription       string `json:"bankdesc"`
+	HolderUID             uint64 `json:"hold_uid"`
+	HolderUsername        string `json:"hold_username"`
 	RealName              string `json:"real_name"`
+	ID                    string `json:"id"`
 	AccountDescription    string `json:"account_des"`
-	BankHolderUID         string `json:"hold_uid"`
-	BankHoderUsername     string `json:"hold_username"`
 	PaymentMethodType     string `json:"pay_type"`
 	PaymentMethodFileLink string `json:"file"`
 	PaymentMethodFileKey  string `json:"file_key"`
-	Account               string `json:"account"`
+	Account               string `json:"account"` // Possibly masked
 	Memo                  string `json:"memo"`
 	Code                  string `json:"code"`
 	MemoExtended          string `json:"memo_ext"`
 	TradeTips             string `json:"trade_tips"`
-	Version               string `json:"version"`
-	Nickname              int64  `json:"nickname"`
 }
 
-// SetMerchantWorkHoursRequest represents request parameters to sent merchant working hour
+// SetMerchantWorkHoursRequest represents request parameters to set a merchant's working status and hours. The
+// remaining fields are only used, and except DayOfWeek are then required, when WorkStatus is
+// P2PWorkStatusCustomHours.
 type SetMerchantWorkHoursRequest struct {
-	WorkStatus int64  `json:"work_status"`
-	CycleType  string `json:"cycle_type"`
-	DayOfWeek  string `json:"day_of_week"`
-	TimeZone   string `json:"time_zone"`
-	StartTime  string `json:"start_time"`
-	EndTime    string `json:"end_time"`
+	WorkStatus uint8  `json:"work_status"`
+	CycleType  string `json:"cycle_type,omitempty"`  // Weekly or Daily
+	DayOfWeek  string `json:"day_of_week,omitempty"` // Comma separated 1 (Monday) to 7 (Sunday); required for a Weekly cycle
+	TimeZone   string `json:"time_zone,omitempty"`   // UTC offset from -12 to +14
+	StartTime  string `json:"start_time,omitempty"`  // HH:mm
+	EndTime    string `json:"end_time,omitempty"`    // HH:mm
 }
 
-// WorkStatusResponse represents a response payload after setting working time
-type WorkStatusResponse struct {
-	WorkStatus int64 `json:"work_status"`
+// P2PMerchantWorkStatusResponse holds the merchant's working status after it has been set: 0 normal resting,
+// 1 normal working, 2 custom resting or 3 custom working
+type P2PMerchantWorkStatusResponse struct {
+	WorkStatus uint8 `json:"work_status"`
 }
 
-// PendingP2POrderRequest represents a p2p order request parameter
+// PendingP2POrderRequest represents a pending P2P order list request parameter
 type PendingP2POrderRequest struct {
 	CryptoCurrency currency.Code `json:"crypto_currency"`
 	FiatCurrency   currency.Code `json:"fiat_currency"`
-	OrderTab       string        `json:"order_tab"`
-	SelectType     string        `json:"select_type"`
-	Status         string        `json:"status"`
-	TransatinoID   uint64        `json:"txid"`
-	StartTime      uint64        `json:"start_time"`
-	EndTime        uint64        `json:"end_time"`
+	OrderTab       string        `json:"order_tab,omitempty"`   // pending or dispute
+	SelectType     string        `json:"select_type,omitempty"` // buy or sell
+	Status         string        `json:"status,omitempty"`      // open, paid, locked or dispute
+	TransactionID  uint64        `json:"txid,omitempty"`
+	StartTime      time.Time     `json:"-"`
+	EndTime        time.Time     `json:"-"`
+}
+
+// MarshalJSON sends the time range as Unix seconds
+func (r *PendingP2POrderRequest) MarshalJSON() ([]byte, error) {
+	type Alias PendingP2POrderRequest
+	return json.Marshal(&struct {
+		*Alias
+		StartTime int64 `json:"start_time,omitempty"`
+		EndTime   int64 `json:"end_time,omitempty"`
+	}{
+		Alias:     (*Alias)(r),
+		StartTime: unixSecondsOrZero(r.StartTime),
+		EndTime:   unixSecondsOrZero(r.EndTime),
+	})
+}
+
+// P2PCompletedOrderRequest holds request parameters to retrieve completed P2P orders
+type P2PCompletedOrderRequest struct {
+	CryptoCurrency currency.Code `json:"crypto_currency"`
+	FiatCurrency   currency.Code `json:"fiat_currency"`
+	SelectType     string        `json:"select_type,omitempty"` // buy or sell
+	Status         string        `json:"status,omitempty"`      // closed, cancel, locked, open, paid or completed
+	TransactionID  uint64        `json:"txid,omitempty"`
+	StartTime      time.Time     `json:"-"`
+	EndTime        time.Time     `json:"-"`
+	QueryDispute   bool          `json:"-"`
+	Page           uint64        `json:"page,omitempty"`
+	PerPage        uint64        `json:"per_page,omitempty"`
+}
+
+// MarshalJSON sends the time range as Unix seconds and the dispute flag as 1 or 0
+func (r *P2PCompletedOrderRequest) MarshalJSON() ([]byte, error) {
+	type Alias P2PCompletedOrderRequest
+	aux := &struct {
+		*Alias
+		StartTime    int64 `json:"start_time,omitempty"`
+		EndTime      int64 `json:"end_time,omitempty"`
+		QueryDispute uint8 `json:"query_dispute,omitempty"`
+	}{
+		Alias:     (*Alias)(r),
+		StartTime: unixSecondsOrZero(r.StartTime),
+		EndTime:   unixSecondsOrZero(r.EndTime),
+	}
+	if r.QueryDispute {
+		aux.QueryDispute = 1
+	}
+	return json.Marshal(aux)
+}
+
+// unixSecondsOrZero returns t as Unix seconds, or 0 for an unset time so it can be omitted
+func unixSecondsOrZero(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.Unix()
 }
 
 // P2POrderList represents a P2P transactions detail list
 type P2POrderList struct {
 	List            []*P2POrderInfo             `json:"list"`
-	TransactionTime []*P2pTransactionTimeMarker `json:"trans_time"`
+	TransactionTime []*P2PTransactionTimeMarker `json:"trans_time"`
 	Count           uint64                      `json:"count"`
-	ExportedNum     uint64                      `json:"exported_num"`
+	ExportedNumber  uint64                      `json:"exported_num"`
 }
 
-// P2pTransactionTimeMarker represents the transaction time maker info
-type P2pTransactionTimeMarker struct {
-	OrderTime uint64 `json:"od_time"`
+// P2PTransactionTimeMarker represents an order countdown
+type P2PTransactionTimeMarker struct {
+	OrderTime int64 `json:"od_time"`
 }
 
-// P2POrderInfo represents a P2P order detail instance
+// P2POrderInfo represents a P2P order list item
 type P2POrderInfo struct {
-	TypeBuy        int64                `json:"type_buy"`
-	Timest         string               `json:"timest"`
-	TimestExpire   string               `json:"timest_expire"`
-	Timestamp      types.Time           `json:"timestamp"`
-	Rate           types.Number         `json:"rate"`
-	Amount         types.Number         `json:"amount"`
-	Total          types.Number         `json:"total"`
-	TransactionID  uint64               `json:"txid"`
-	Status         string               `json:"status"`
-	ItsRealname    string               `json:"its_realname"`
-	ItsUID         string               `json:"its_uid"`
-	ItsNick        string               `json:"its_nick"`
-	SellerRealname string               `json:"seller_realname"`
-	BuyerRealname  string               `json:"buyer_realname"`
-	Cancelable     int64                `json:"cancelable"`
-	CurrencyType   string               `json:"currency_type"`
-	WantType       string               `json:"want_type"`
-	HidePayment    int64                `json:"hide_payment"`
-	SelPaytype     string               `json:"sel_paytype"`
-	CountdownTime  int64                `json:"cd_time"`
-	OrderType      int64                `json:"order_type"`
-	OrderTag       []string             `json:"order_tag"`
-	ConvertInfo    *P2PConvertInfo      `json:"convert_info"`
-	PayOthers      []OtherPaymentMethod `json:"pay_others"`
-	IsSelf         uint64               `json:"is_self"`
-	BizID          uint64               `json:"bizid"`
-	LastPayTime    types.Number         `json:"last_pay_time"`
-	Type           string               `json:"type"`
-	TotalFiat      string               `json:"totalfat"`
-	DisputeTime    types.Time           `json:"dispute_time"`
-	TradeType      string               `json:"trade_type"`
-	TradeNote      string               `json:"trade_note"`
-	BankName       string               `json:"bankname"`
-	BankBranch     string               `json:"bankbranch"`
+	IsBuy                types.Boolean            `json:"type_buy"` // From the current user's view
+	CreationTime         string                   `json:"timest"`   // Display time, as Timestamp carries the same moment
+	ExpiryTime           string                   `json:"timest_expire"`
+	Timestamp            types.Time               `json:"timestamp"`
+	Rate                 types.Number             `json:"rate"`
+	Amount               types.Number             `json:"amount"`
+	Total                types.Number             `json:"total"`
+	TransactionID        uint64                   `json:"txid"`
+	Status               string                   `json:"status"`
+	CounterpartyRealName string                   `json:"its_realname"`
+	CounterpartyUID      string                   `json:"its_uid"`
+	CounterpartyNickname string                   `json:"its_nick"`
+	SellerRealName       string                   `json:"seller_realname"`
+	BuyerRealName        string                   `json:"buyer_realname"`
+	Cancelable           types.Boolean            `json:"cancelable"`
+	CurrencyType         currency.Code            `json:"currency_type"`
+	WantType             currency.Code            `json:"want_type"`
+	HidePayment          types.Boolean            `json:"hide_payment"`
+	SelectedPayType      string                   `json:"sel_paytype"`
+	PayOthers            []*P2POtherPaymentMethod `json:"pay_others"`
+	CountdownSeconds     int64                    `json:"cd_time"`
+	OrderType            uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
+	OrderTags            []string                 `json:"order_tag"`
+	ConvertInfo          *P2PConvertInfo          `json:"convert_info"`
 }
 
 // P2POrderDetail represents a P2P order detail
 type P2POrderDetail struct {
-	IsSell                int64                `json:"is_sell"`
-	Txid                  int64                `json:"txid"`
-	Orderid               int64                `json:"orderid"`
-	Timest                int64                `json:"timest"`
-	LastPayTime           int64                `json:"last_pay_time"`
-	RemainPayTime         int64                `json:"remain_pay_time"`
-	CurrencyType          string               `json:"currency_type"`
-	WantType              string               `json:"want_type"`
-	Symbol                currency.Pair        `json:"symbol"`
-	Rate                  types.Number         `json:"rate"`
-	Amount                types.Number         `json:"amount"`
-	Total                 types.Number         `json:"total"`
-	Status                string               `json:"status"`
-	ReasonID              string               `json:"reason_id"`
-	ReasonDesc            string               `json:"reason_desc"`
-	CancelTime            types.Time           `json:"cancel_time"`
-	InAppeal              int64                `json:"in_appeal"`
-	DisputeTime           types.Number         `json:"dispute_time"`
-	Cancelable            int64                `json:"cancelable"`
-	HidePayment           int64                `json:"hide_payment"`
-	TradeTips             string               `json:"trade_tips"`
-	ShowBank              string               `json:"show_bank"`
-	BankName              string               `json:"bankname"`
-	BankBranch            string               `json:"bankbranch"`
-	BankID                string               `json:"bankid"`
-	BankHolderRealname    string               `json:"bank_holder_realname"`
-	ShowAlipayDetail      string               `json:"show_ali"`
-	Aliname               string               `json:"aliname"`
-	IsAlicode             int64                `json:"is_alicode"`
-	ShowWechat            string               `json:"show_wechat"`
-	Wename                string               `json:"wename"`
-	ShowOthers            string               `json:"show_others"`
-	PayOthers             []OtherPaymentMethod `json:"pay_others"`
-	SelPaytype            string               `json:"sel_paytype"`
-	ItsUID                string               `json:"its_uid"`
-	ItsNickname           string               `json:"its_nickname"`
-	ItsRealname           string               `json:"its_realname"`
-	HaveTraded            int64                `json:"have_traded"`
-	AppealAllowCancel     int64                `json:"appeal_allow_cancel"`
-	AppealVerdictHasOpen  string               `json:"appeal_verdict_has_open"`
-	ImUnread              int64                `json:"im_unread"`
-	PaymentVoucherURL     []string             `json:"payment_voucher_url"`
-	TimestPaid            int64                `json:"timest_paid"`
-	OwnRealname           string               `json:"own_realname"`
-	OrderType             int64                `json:"order_type"`
-	IsShowReceive         int64                `json:"is_show_receive"`
-	ShowSellerContactInfo bool                 `json:"show_seller_contact_info"`
-	SupportedPayTypes     []string             `json:"supported_pay_types"`
+	IsSell                  types.Boolean            `json:"is_sell"`
+	TransactionID           uint64                   `json:"txid"`
+	OrderID                 uint64                   `json:"orderid"`
+	CreationTime            types.Time               `json:"timest"`
+	PaymentDeadline         types.Time               `json:"last_pay_time"`
+	RemainingPaymentSeconds int64                    `json:"remain_pay_time"`
+	CurrencyType            currency.Code            `json:"currency_type"`
+	WantType                currency.Code            `json:"want_type"`
+	FiatSymbol              string                   `json:"symbol"`
+	Rate                    types.Number             `json:"rate"`
+	Amount                  types.Number             `json:"amount"`
+	Total                   types.Number             `json:"total"`
+	Status                  string                   `json:"status"`
+	ReasonID                string                   `json:"reason_id"`
+	ReasonDescription       string                   `json:"reason_desc"`
+	CancelTime              string                   `json:"cancel_time"` // Kept as sent, since Gate documents no format
+	InAppeal                types.Boolean            `json:"in_appeal"`
+	DisputeTime             types.Time               `json:"dispute_time"`
+	Cancelable              types.Boolean            `json:"cancelable"`
+	HidePayment             types.Boolean            `json:"hide_payment"`
+	TradeTips               string                   `json:"trade_tips"`
+	ShowBank                types.Boolean            `json:"show_bank"`
+	BankName                string                   `json:"bankname"`
+	BankBranch              string                   `json:"bankbranch"`
+	BankAccount             string                   `json:"bankid"` // Possibly masked
+	BankHolderRealName      string                   `json:"bank_holder_realname"`
+	ShowAlipay              types.Boolean            `json:"show_ali"`
+	AlipayName              string                   `json:"aliname"`
+	HasAlipayCode           types.Boolean            `json:"is_alicode"`
+	ShowWechat              types.Boolean            `json:"show_wechat"`
+	WechatName              string                   `json:"wename"`
+	ShowOthers              types.Boolean            `json:"show_others"`
+	PayOthers               []*P2POtherPaymentMethod `json:"pay_others"`
+	SelectedPayType         string                   `json:"sel_paytype"`
+	CounterpartyUID         string                   `json:"its_uid"`
+	CounterpartyNickname    string                   `json:"its_nickname"`
+	CounterpartyRealName    string                   `json:"its_realname"`
+	HaveTraded              types.Boolean            `json:"have_traded"`
+	AppealAllowCancel       types.Boolean            `json:"appeal_allow_cancel"`
+	AppealVerdictHasOpen    string                   `json:"appeal_verdict_has_open"`
+	UnreadMessages          uint64                   `json:"im_unread"`
+	PaymentVoucherURLs      []string                 `json:"payment_voucher_url"`
+	PaidTime                types.Time               `json:"timest_paid"`
+	OwnRealName             string                   `json:"own_realname"`
+	OrderType               uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
+	IsShowReceive           types.Boolean            `json:"is_show_receive"`
+	ShowSellerContactInfo   bool                     `json:"show_seller_contact_info"`
+	SupportedPayTypes       []string                 `json:"supported_pay_types"`
 }
 
-// OtherPaymentMethod represents other payment methods detail
-type OtherPaymentMethod struct {
-	ID                         string `json:"id"`
-	PaymentAccountDescriptions string `json:"account_des"`
-	PayType                    string `json:"pay_type"`
-	PayName                    string `json:"pay_name"`
-	Account                    string `json:"account"`
-	Memo                       string `json:"memo"`
-	TradeTips                  string `json:"trade_tips"`
+// P2POtherPaymentMethod represents a payment method other than bank, Alipay or WeChat. Order lists only populate
+// the pay type and name.
+type P2POtherPaymentMethod struct {
+	ID                 string `json:"id"`
+	AccountDescription string `json:"account_des"`
+	PayType            string `json:"pay_type"`
+	PayName            string `json:"pay_name"`
+	Account            string `json:"account"` // Possibly masked
+	Memo               string `json:"memo"`
+	TradeTips          string `json:"trade_tips"`
 }
 
-// P2PConvertInfo represents a P2P order transaction convert info
+// P2PConvertInfo represents a P2P flash swap order's conversion details
 type P2PConvertInfo struct {
 	ConvertType         string       `json:"convert_type"`
 	ConvertStatus       string       `json:"convert_status"`
@@ -257,65 +342,16 @@ type P2PConvertInfo struct {
 	Status              string       `json:"status"`
 }
 
-// P2PCompletedOrderRequest holds request parameters to retrieve completed p2p orders
-type P2PCompletedOrderRequest struct {
-	CryptoCurrency currency.Code `json:"crypto_currency"`
-	FiatCurrency   currency.Code `json:"fiat_currency"`
-	SelectType     string        `json:"select_type"`
-	Status         string        `json:"status"`
-	TransactionID  int64         `json:"txid"`
-	StartTime      int64         `json:"start_time"`
-	EndTime        int64         `json:"end_time"`
-	QueryDispute   int64         `json:"query_dispute"`
-	Page           int64         `json:"page"`
-	PerPage        int64         `json:"per_page"`
-}
-
-// GetP2POrdersRequest holds request parameters for getting pending P2P orders.
-type GetP2POrdersRequest struct {
-	StatusList []uint64 `json:"status_list,omitempty"`
-	Page       uint64   `json:"page,omitempty"`
-	Limit      uint64   `json:"limit,omitempty"`
-}
-
-// GetP2PHistoricalOrdersRequest holds request parameters for getting historical P2P orders.
-type GetP2PHistoricalOrdersRequest struct {
-	StatusList []int64 `json:"status_list,omitempty"`
-	Page       uint64  `json:"page,omitempty"`
-	Limit      uint64  `json:"limit,omitempty"`
-	From       int64   `json:"from,omitempty"`
-	To         int64   `json:"to,omitempty"`
-}
-
-// P2POrdersData wraps the list of P2P orders returned in a response.
-type P2POrdersData struct {
-	List []*P2POrderItem `json:"list"`
-}
-
-// P2POrderItem holds a single P2P order item.
-type P2POrderItem struct {
-	TransactionID uint64        `json:"txid"`
-	Type          string        `json:"type"`
-	Currency      currency.Code `json:"currency"`
-	Fiat          string        `json:"fiat"`
-	Amount        types.Number  `json:"amount"`
-	Total         types.Number  `json:"total"`
-	Price         types.Number  `json:"price"`
-	Status        int64         `json:"status"`
-	PaymentMethod string        `json:"pay_method"`
-	CreateTime    types.Time    `json:"create_time"`
-}
-
 // GetP2POrderDetailsRequest holds request parameters for querying P2P order details.
 type GetP2POrderDetailsRequest struct {
 	TransactionID uint64 `json:"txid"`
-	Channel       string `json:"channel,omitempty"`
+	Channel       string `json:"channel,omitempty"` // web3 for Web3 orders, empty for normal P2P orders
 }
 
 // ConfirmP2PPaymentRequest holds request parameters for confirming P2P payment.
 type ConfirmP2PPaymentRequest struct {
 	TransactionID string `json:"txid"`
-	PaymentMethod string `json:"payment_method,omitempty"`
+	PaymentMethod string `json:"payment_method,omitempty"` // One of the order's supported pay types
 }
 
 // ConfirmP2PReceiptRequest holds request parameters for confirming P2P receipt.
@@ -324,95 +360,145 @@ type ConfirmP2PReceiptRequest struct {
 }
 
 // CancelP2POrderRequest holds request parameters for cancelling a P2P order.
-// ReasonID values: 1=no longer want to buy, 2=cannot reach seller, 3=will not pay,
-// 4=seller account not real, 5=price mismatch, 6=mutually agreed cancel,
-// 7=poor communication, 8=other, 9=seller cannot release with refund,
-// 10=terms not met, 11=seller payout risk-controlled.
+// ReasonID values: 1=no longer want to buy, 2=cannot reach seller, 3=will not pay, 4=seller account not real,
+// 5=payout account issue, 6=price mismatch, 7=mutually agreed cancel, 8=poor communication, 9=other,
+// 10=seller cannot release with refund, 11=terms not met, 12=seller payout risk-controlled.
 type CancelP2POrderRequest struct {
 	TransactionID string `json:"txid"`
-	ReasonID      int64  `json:"reason_id,omitempty"`
-	ReasonMemo    string `json:"reason_memo,omitempty"`
+	ReasonID      uint8  `json:"reason_id,omitempty,string"`
+	ReasonMemo    string `json:"reason_memo,omitempty"` // Explains the cancellation, such as for reason 9
 }
 
-// PublishP2PAdRequest holds request parameters for publishing a P2P advertisement.
-// PriceType: 1=floating (premium-based), 2=fixed.
+// PublishP2PAdRequest holds request parameters for publishing or editing a P2P advertisement. The per-order limits
+// are set with MinAmount and MaxAmount when LimitBasis is P2PLimitBasisCrypto, or with FiatMinAmount and
+// FiatMaxAmount when it is P2PLimitBasisFiat.
 type PublishP2PAdRequest struct {
-	Asset             currency.Code `json:"asset"`
-	FiatUnit          string        `json:"fiat_unit"`
-	TradeType         string        `json:"trade_type"`
-	PayIDs            string        `json:"pay_ids"`
-	PriceType         int64         `json:"price_type"`
-	PremiumRatio      types.Number  `json:"premium_ratio,omitempty"`
-	FixedPrice        types.Number  `json:"fixed_price,omitempty"`
-	MaxAmount         types.Number  `json:"max_amount"`
-	MinAmount         types.Number  `json:"min_amount"`
-	Remarks           string        `json:"remarks,omitempty"`
-	AutoReply         string        `json:"auto_reply,omitempty"`
-	RegDaysLimit      int64         `json:"reg_days_limit,omitempty"`
-	KycLimit          int64         `json:"kyc_limit,omitempty"`
-	CounterpartyLimit int64         `json:"counterparty_limit,omitempty"`
-	NewKyc            int64         `json:"new_kyc,omitempty"`
-	HasUnfinished     int64         `json:"has_unfinished,omitempty"`
-	AdvOrderNumLimit  int64         `json:"adv_ordernum_limit,omitempty"`
-	IsTrusted         int64         `json:"is_trusted,omitempty"`
-	TradeAmount       types.Number  `json:"trade_amount,omitempty"`
-	TradeDays         int64         `json:"trade_days,omitempty"`
-	MaxCompletedLimit int64         `json:"max_completed_limit,omitempty"`
-	CompleteRateLimit int64         `json:"complete_rate_limit,omitempty"`
-	IsHedge           int64         `json:"is_hedge,omitempty"`
+	CurrencyType          currency.Code `json:"currencyType"`
+	ExchangeType          currency.Code `json:"exchangeType"` // Fiat currency
+	Type                  uint8         `json:"type,string"`  // One of the P2PAdOperation values
+	UnitPrice             types.Number  `json:"unitPrice"`
+	Number                types.Number  `json:"number"`
+	PayType               string        `json:"payType"`                 // Comma separated pay types enabled for the ad, such as bank,swift
+	PayTypeJSON           string        `json:"pay_type_json,omitempty"` // JSON text mapping each pay type to a payment method ID
+	RateFixed             string        `json:"rateFixed,omitempty"`     // 0 floating or 1 fixed
+	AdvertisementID       string        `json:"oid,omitempty"`           // Required when editing an ad
+	MinAmount             types.Number  `json:"minAmount,omitempty"`
+	MaxAmount             types.Number  `json:"maxAmount,omitempty"`
+	LimitBasis            uint8         `json:"limitBasis,omitempty"`
+	FiatMinAmount         types.Number  `json:"fiatMinAmount,omitempty"`
+	FiatMaxAmount         types.Number  `json:"fiatMaxAmount,omitempty"`
+	TierLimit             types.Number  `json:"tierLimit,omitempty"`
+	VerifiedLimit         types.Number  `json:"verifiedLimit,omitempty"`
+	RegistrationTimeLimit types.Number  `json:"regTimeLimit,omitempty"`
+	AdvertisersLimit      string        `json:"advertisersLimit,omitempty"` // 0 unrestricted or 1 restricted
+	PolymarketLimit       uint8         `json:"polymarket_limit,omitempty"` // 0 unrestricted or 1 restricted
+	ExpireMinutes         types.Number  `json:"expire_min,omitempty"`
+	TradeTips             string        `json:"trade_tips,omitempty"`
+	AutoReply             string        `json:"auto_reply,omitempty"`
+	MinCompletedLimit     types.Number  `json:"min_completed_limit,omitempty"` // -1 unlimited
+	MaxCompletedLimit     types.Number  `json:"max_completed_limit,omitempty"` // -1 unlimited
+	CompletedRateLimit    types.Number  `json:"completed_rate_limit,omitempty"`
+	UserCountryLimit      string        `json:"user_country_limit,omitempty"` // -1 unrestricted
+	UserOrderLimit        types.Number  `json:"user_order_limit,omitempty"`   // -1 unlimited
+	RateReferenceID       string        `json:"rateReferenceId,omitempty"`    // 1 platform, 2 Gate or 3 spot reference
+	RateOffset            types.Number  `json:"rateOffset,omitempty"`         // Absolute percentage, 0.5 being 0.5%
+	FloatTrend            string        `json:"float_trend,omitempty"`        // 0 markup or 1 markdown
+	TeamPaymentUID        string        `json:"team_payment_uid,omitempty"`
+}
+
+// P2PPublishAdResponse holds the risk control details returned when an advertisement's trade tips or auto reply
+// are rejected; it is empty when the advertisement is accepted
+type P2PPublishAdResponse struct {
+	RiskCode  int64         `json:"risk_code"`
+	RiskEvent *P2PRiskEvent `json:"risk_event"`
+}
+
+// P2PRiskEvent holds a risk control prompt
+type P2PRiskEvent struct {
+	Type            string                `json:"type"`
+	Title           string                `json:"title"`
+	Message         string                `json:"msg"`
+	Actions         []*P2PRiskEventAction `json:"action"`
+	ContentRiskType string                `json:"content_risk_type"` // trade_tips, auto_reply or trade_tips_auto_reply
+	TradeTips       string                `json:"trade_tips"`
+	AutoReply       string                `json:"auto_reply"`
+}
+
+// P2PRiskEventAction holds an action offered by a risk control prompt
+type P2PRiskEventAction struct {
+	ActionType string          `json:"action_type"`
+	Title      string          `json:"title"`
+	IsPrimary  types.Boolean   `json:"mainly"`
+	ActionData json.RawMessage `json:"action_data"`
 }
 
 // UpdateP2PAdStatusRequest holds request parameters for updating P2P ad status.
-// AdvStatus: 1=listed, 3=delisted, 4=closed.
 type UpdateP2PAdStatusRequest struct {
-	AdvNo     int64 `json:"adv_no"`
-	AdvStatus int64 `json:"adv_status"`
+	AdvertisementID uint64 `json:"adv_no"`
+	Status          uint8  `json:"adv_status"` // 1 listed, 3 delisted or 4 closed
 }
 
 // P2PUpdateAdStatusResult holds the result of updating a P2P ad status.
 type P2PUpdateAdStatusResult struct {
-	Status int64 `json:"status"`
+	Status uint8 `json:"status"`
 }
 
 // GetP2PAdDetailsRequest holds request parameters for querying P2P ad details.
 type GetP2PAdDetailsRequest struct {
-	AdvNo string `json:"adv_no"`
+	AdvertisementID string `json:"adv_no"`
 }
 
 // P2PAdDetail holds detailed P2P advertisement information.
 type P2PAdDetail struct {
-	Rate              types.Number `json:"rate"`
-	Type              string       `json:"type"`
-	Amount            types.Number `json:"amount"`
-	MinAmount         types.Number `json:"min_amount"`
-	MaxAmount         types.Number `json:"max_amount"`
-	PayBest           int64        `json:"pay_best"`
-	PayWeight         int64        `json:"pay_weight"`
-	TradeType         string       `json:"trade_type"`
-	TradeNote         string       `json:"trade_note"`
-	NodeReply         string       `json:"node_reply"`
-	Status            string       `json:"status"`
-	AdvertisementNo   types.Number `json:"adv_no"`
-	LockedAmount      types.Number `json:"locked_amount"`
-	CurrencyType      string       `json:"currency_type"`
-	CreatedAt         types.Time   `json:"created_at"`
-	TradeAmount       types.Number `json:"trade_amount"`
-	TradeTypeID       int64        `json:"trade_type_id"`
-	NoteState         int64        `json:"note_state"`
-	OriginRate        types.Number `json:"origin_rate"`
-	MaxCompletedLimit types.Number `json:"max_completed_limit"`
-	RegLimit          types.Number `json:"reg_limit"`
-	RegionAsk         types.Number `json:"region_ask"`
-	MaxNumOrdersLimit types.Number `json:"max_num_orders_limit"`
-	IsHedge           int64        `json:"is_hedge"`
-	HidePayment       int64        `json:"hide_payment"`
+	Rate                  types.Number  `json:"rate"`
+	Type                  string        `json:"type"`
+	Amount                types.Number  `json:"amount"`
+	MinAmount             types.Number  `json:"min_amount"`
+	MaxAmount             types.Number  `json:"max_amount"`
+	FiatMinAmount         types.Number  `json:"fiat_min_amount"`
+	FiatMaxAmount         types.Number  `json:"fiat_max_amount"`
+	LimitBasis            uint8         `json:"limit_basis"`
+	LimitBasisText        string        `json:"limit_basis_text"`
+	Total                 types.Number  `json:"total"`
+	PayAlipay             types.Boolean `json:"pay_ali"`
+	PayBank               types.Boolean `json:"pay_bank"`
+	PayPaypal             types.Boolean `json:"pay_paypal"`
+	PayWechat             types.Boolean `json:"pay_wechat"`
+	PayTypeNumbers        string        `json:"pay_type_num"`  // Comma separated payment method IDs
+	PayTypeJSON           string        `json:"pay_type_json"` // JSON text mapping each pay type to a payment method ID
+	LockedAmount          types.Number  `json:"locked_amount"`
+	OrderID               uint64        `json:"orderid"`
+	Timestamp             types.Time    `json:"timestamp"`
+	CurrencyType          currency.Code `json:"currency_type"`
+	WantType              currency.Code `json:"want_type"`
+	HiddenRate            types.Number  `json:"hide_rate"`
+	TradeTips             string        `json:"trade_tips"`
+	AutoReply             string        `json:"auto_reply"`
+	RateReferenceID       int64         `json:"rate_ref_id"` // 1 platform, 2 Gate, 3 spot, or 0 or below for a fixed price
+	RateOffset            types.Number  `json:"rate_offset"`
+	Status                string        `json:"status"`
+	RateFixed             types.Boolean `json:"rate_fixed"`
+	FloatTrend            uint8         `json:"float_trend"` // 0 markup or 1 markdown
+	ExpireMinutes         uint64        `json:"expire_min"`
+	TierLimit             uint64        `json:"tier_limit"`
+	RegistrationTimeLimit uint64        `json:"reg_time_limit"`
+	AdvertisersLimit      types.Boolean `json:"advertisers_limit"`
+	PolymarketLimit       types.Boolean `json:"polymarket_limit"`
+	MinCompletedLimit     int64         `json:"min_completed_limit"`
+	MaxCompletedLimit     int64         `json:"max_completed_limit"`
+	UserOrdersLimit       int64         `json:"user_orders_limit"`
+	CompletedRateLimit    types.Number  `json:"completed_rate_limit"`
+	LimitCountryCN        string        `json:"limit_country_cn"`
+	LimitCountryEN        string        `json:"limit_country_en"`
+	IsHedge               types.Boolean `json:"is_hedge"`
+	HidePayment           types.Boolean `json:"hide_payment"`
 }
 
-// GetMyP2PAdsRequest holds request parameters for getting the current user's P2P ads.
+// GetMyP2PAdsRequest holds the optional filters for getting the current user's P2P ads.
 type GetMyP2PAdsRequest struct {
-	Asset     currency.Code `json:"asset"`
-	FiatUnit  string        `json:"fiat_unit,omitempty"`
-	TradeType string        `json:"trade_type,omitempty"`
+	Asset     currency.Code
+	FiatUnit  currency.Code
+	TradeType string // buy or sell
 }
 
 // P2PMyAdsData wraps the list of the user's own P2P ads.
@@ -422,119 +508,174 @@ type P2PMyAdsData struct {
 
 // P2PMyAdItem holds a single item from the user's P2P ad list.
 type P2PMyAdItem struct {
-	Type              string        `json:"type"`
-	Price             types.Number  `json:"price"`
-	Rate              types.Number  `json:"rate"`
-	Status            string        `json:"status"`
-	AdvNo             string        `json:"adv_no"`
-	BuyTypeNum        types.Number  `json:"buy_type_num"`
-	FiatUnit          string        `json:"fiat_unit"`
-	Asset             currency.Code `json:"asset"`
-	RegTimeLimit      int64         `json:"reg_time_limit"`
-	NewKYC            int64         `json:"new_kyc"`
-	PriceLimit        int64         `json:"price_limit"`
-	CompleteRateLimit types.Number  `json:"complete_rate_limit"`
-	Timestamp         types.Time    `json:"timestamp"`
-	IsBadge           int64         `json:"is_badge"`
+	Type                  string        `json:"type"`
+	Rate                  types.Number  `json:"rate"`
+	OriginalRate          types.Number  `json:"original_rate"`
+	Amount                types.Number  `json:"amount"`
+	Total                 types.Number  `json:"total"`
+	LimitTotal            string        `json:"limit_total"` // Per-order crypto range, such as 10~500
+	LimitFiat             string        `json:"limit_fiat"`  // Per-order fiat range, such as 12.7~635
+	MinAmount             types.Number  `json:"min_amount"`
+	MaxAmount             types.Number  `json:"max_amount"`
+	PayTypeNumbers        string        `json:"pay_type_num"`  // Comma separated payment method IDs
+	PayTypeJSON           string        `json:"pay_type_json"` // JSON text mapping each pay type to a payment method ID
+	ExpireMinutes         types.Number  `json:"expire_min"`
+	TierLimit             types.Number  `json:"tier_limit"`
+	AdvertisersLimit      types.Boolean `json:"advertisers_limit"`
+	RegistrationTimeLimit uint64        `json:"reg_time_limit"`
+	VerifiedLimit         uint64        `json:"verified_limit"`
+	MinCompletedLimit     int64         `json:"min_completed_limit"`
+	MaxCompletedLimit     int64         `json:"max_completed_limit"`
+	UserCountryLimit      int64         `json:"user_country_limit"`
+	CompletedRateLimit    types.Number  `json:"completed_rate_limit"`
+	UserOrdersLimit       int64         `json:"user_orders_limit"`
+	HidePayment           types.Boolean `json:"hide_payment"`
+	CurrencyType          currency.Code `json:"currencyType"`
+	WantType              currency.Code `json:"want_type"`
+	TradeTips             string        `json:"trade_tips"`
+	NewHand               uint8         `json:"new_hand"` // Special ad type, 0 being a normal ad
+	ID                    string        `json:"id"`
+	Status                string        `json:"status"`
+	LockedAmount          types.Number  `json:"locked_amount"`
+	HiddenRate            types.Number  `json:"hide_rate"`
+	IsOutTime             types.Boolean `json:"is_out_time"`
+	RateReferenceID       int64         `json:"rate_ref_id"` // 1 platform, 2 Gate, 3 spot, or 0 or below for a fixed price
+	RateOffset            types.Number  `json:"rate_offset"`
+	RateFixed             types.Boolean `json:"rate_fixed"`
+	FloatTrend            uint8         `json:"float_trend"` // 0 markup or 1 markdown
+	InDispute             types.Boolean `json:"in_dispute"`
+	AutoReply             string        `json:"auto_reply"`
+	Timestamp             types.Time    `json:"timestamp"`
+	IsHedge               types.Boolean `json:"is_hedge"`
 }
 
 // GetP2PAdsListRequest holds request parameters for getting the public P2P ads list.
 type GetP2PAdsListRequest struct {
 	Asset     currency.Code `json:"asset"`
-	FiatUnit  string        `json:"fiat_unit"`
-	TradeType string        `json:"trade_type"`
+	FiatUnit  currency.Code `json:"fiat_unit"`
+	TradeType string        `json:"trade_type"` // buy or sell
 }
 
 // P2PAdListItem holds a single item from the public P2P ads list.
 type P2PAdListItem struct {
-	Index                int64         `json:"index"`
-	Asset                currency.Code `json:"asset"`
-	FiatUnit             string        `json:"fiat_unit"`
-	Price                types.Number  `json:"price"`
-	MaxSingleTransAmount types.Number  `json:"max_single_trans_amount"`
-	LibName              string        `json:"lib_name"`
-	AdvertizementNo      uint64        `json:"adv_no"`
+	Index                   uint64               `json:"index"`
+	Asset                   currency.Code        `json:"asset"`
+	FiatUnit                currency.Code        `json:"fiat_unit"`
+	AdvertisementID         uint64               `json:"adv_no"`
+	Price                   types.Number         `json:"price"`
+	SurplusAmount           types.Number         `json:"surplus_amount"`
+	MaxSingleTransferAmount types.Number         `json:"max_single_trans_amount"`
+	MinSingleTransferAmount types.Number         `json:"min_single_trans_amount"`
+	FiatMinAmount           types.Number         `json:"fiat_min_amount"`
+	FiatMaxAmount           types.Number         `json:"fiat_max_amount"`
+	LimitBasis              uint8                `json:"limit_basis"`
+	LimitBasisText          string               `json:"limit_basis_text"`
+	TradeMethods            []*P2PAdsTradeMethod `json:"trade_methods"`
+	AdvertiserNickname      string               `json:"nick_name"`
 }
 
-// P2PChatMessagesResponse holds a single P2P chat message.
+// P2PAdsTradeMethod holds a payment method supported by a P2P advertisement
+type P2PAdsTradeMethod struct {
+	IconURL         string `json:"icon_url_color"`
+	Identifier      string `json:"identifier"`
+	PayID           string `json:"pay_id"`
+	PayType         string `json:"pay_type"`
+	TradeMethodName string `json:"trade_method_name"`
+}
+
+// GetP2PChatHistoryRequest holds the request parameters for retrieving P2P chat history
+type GetP2PChatHistoryRequest struct {
+	TransactionID uint64    `json:"txid,omitempty"` // The latest order with chat history is used when unset
+	LastReceived  time.Time `json:"-"`              // Fetches messages after this one, for incremental updates
+	FirstReceived time.Time `json:"-"`              // Fetches messages before this one, for paging backwards
+}
+
+// MarshalJSON sends the message times as Unix seconds
+func (r *GetP2PChatHistoryRequest) MarshalJSON() ([]byte, error) {
+	type Alias GetP2PChatHistoryRequest
+	return json.Marshal(&struct {
+		*Alias
+		LastReceived  int64 `json:"lastreceived,omitempty"`
+		FirstReceived int64 `json:"firstreceived,omitempty"`
+	}{
+		Alias:         (*Alias)(r),
+		LastReceived:  unixSecondsOrZero(r.LastReceived),
+		FirstReceived: unixSecondsOrZero(r.FirstReceived),
+	})
+}
+
+// P2PChatMessagesResponse holds a P2P order's chat history.
 type P2PChatMessagesResponse struct {
-	Messages      []*P2PMessageDetail `json:"messages"`
-	Memo          string              `json:"memo"`
-	HasHistory    bool                `json:"has_history"`
-	TransactionID uint64              `json:"txid"`
-	ServerTime    uint64              `json:"SRVTM"`
-	OrderStatus   string              `json:"order_status"`
+	Messages          []*P2PMessageDetail `json:"messages"`
+	Memo              string              `json:"memo"`
+	HasHistory        bool                `json:"has_history"`
+	TransactionID     uint64              `json:"txid"`
+	LatestMessageTime types.Time          `json:"SRVTM"`
+	OrderStatus       string              `json:"order_status"`
 }
 
-// P2PMessageDetail represents a P2P conversation message detail
+// P2PMessageDetail represents a P2P conversation message
 type P2PMessageDetail struct {
-	IsSell        int64          `json:"is_sell,omitempty"`
-	MessageType   int64          `json:"msg_type,omitempty"`
-	Msg           string         `json:"msg"`
-	Username      string         `json:"username"`
-	Timest        types.Time     `json:"timest"`
-	RiskType      int64          `json:"risk_type,omitempty"`
-	ToastMsg      string         `json:"toast_msg,omitempty"`
-	UID           string         `json:"uid,omitempty"`
-	Type          int64          `json:"type,omitempty"`
-	MessageObject *MessageObject `json:"msg_obj,omitempty"`
-	Pic           string         `json:"pic,omitempty"`
-	FileKey       string         `json:"file_key,omitempty"`
-	FileType      string         `json:"file_type,omitempty"`
+	IsSell        types.Boolean     `json:"is_sell"`
+	MessageType   uint8             `json:"msg_type"` // 0 text, 1 file, 2 template, 3 order share, 4 payment share or 5 status update
+	Message       string            `json:"msg"`
+	Username      string            `json:"username"`
+	Timestamp     types.Time        `json:"timest"`
+	MessageObject *P2PMessageObject `json:"msg_obj"`
+	UID           string            `json:"uid"`
+	Type          uint8             `json:"type"` // 1 file or 2 system message
+	Picture       string            `json:"pic"`
+	FileKey       string            `json:"file_key"`
+	FileType      string            `json:"file_type"`
+	RiskType      uint8             `json:"risk_type"`
+	ToastMessage  string            `json:"toast_msg"`
 }
 
-// MessageObject represents
-type MessageObject struct {
-	ID                 string `json:"id"`
-	Status             string `json:"status"`
-	Text               string `json:"text"`
-	ReasonID           int    `json:"reason_id"`
-	ToastID            int    `json:"toast_id"`
-	ReasonMemo         string `json:"reason_memo"`
-	CancelTime         int64  `json:"cancel_time"`
-	SellerConfirm      int64  `json:"seller_confirm"`
-	PaymentVoucher     []any  `json:"payment_voucher"`
-	AccountDescription string `json:"account_des"`
-	PaymentType        string `json:"pay_type"`
-	File               string `json:"file"`
-	FileKey            string `json:"file_key"`
-	Account            string `json:"account"`
-	Memo               string `json:"memo"`
-	Code               string `json:"code"`
-	MemoExtended       string `json:"memo_ext"`
-	TradeTips          string `json:"trade_tips"`
-	RealName           string `json:"real_name"`
-	IsDelete           int    `json:"is_delete"`
-	PayName            string `json:"pay_name"`
-}
-
-// P2PChatSenderInfo holds basic info about the sender of a P2P chat message.
-type P2PChatSenderInfo struct {
-	UserName string `json:"user_name"`
-	BizUID   string `json:"biz_uid"`
+// P2PMessageObject holds the order status update or shared payment method carried by a P2P chat message
+type P2PMessageObject struct {
+	Status             string        `json:"status"`
+	Text               string        `json:"text"`
+	PaymentVoucher     []string      `json:"payment_voucher"`
+	ReasonID           uint8         `json:"reason_id"`
+	ToastID            uint64        `json:"toast_id"`
+	ReasonMemo         string        `json:"reason_memo"`
+	CancelTime         types.Time    `json:"cancel_time"`
+	SellerConfirm      uint8         `json:"seller_confirm"` // 0 pending, 1 confirmed or 2 rejected
+	ID                 string        `json:"id"`
+	AccountDescription string        `json:"account_des"`
+	PaymentType        string        `json:"pay_type"`
+	File               string        `json:"file"`
+	FileKey            string        `json:"file_key"`
+	Account            string        `json:"account"`
+	Memo               string        `json:"memo"`
+	Code               string        `json:"code"`
+	MemoExtended       string        `json:"memo_ext"`
+	TradeTips          string        `json:"trade_tips"`
+	RealName           string        `json:"real_name"`
+	IsDeleted          types.Boolean `json:"is_delete"`
+	PayName            string        `json:"pay_name"`
 }
 
 // SendP2PChatMessageRequest holds request parameters for sending a P2P chat message.
-// Type: 0=text (default), 1=file (image or video).
 type SendP2PChatMessageRequest struct {
 	TransactionID uint64 `json:"txid"`
-	Type          int64  `json:"type,omitempty"`
+	Type          uint8  `json:"type,omitempty"` // 0 text (default) or 1 file, whose Message is the file key from UploadP2PChatFile
 	Message       string `json:"message"`
 }
 
 // P2PSendMessageResult holds the result of sending a P2P chat message.
 type P2PSendMessageResult struct {
-	Srvtm          int64  `json:"SRVTM"`
-	TransactionID  int64  `json:"txid"`
-	ConversationID string `json:"conversation_id"`
-	MessageType    int64  `json:"msg_type"`
-	RiskType       int64  `json:"risk_type"`
-	ToastMessge    string `json:"toast_msg"`
+	SentTime       types.Time `json:"SRVTM"`
+	TransactionID  uint64     `json:"txid"`
+	ConversationID string     `json:"conversation_id"`
+	MessageType    uint8      `json:"msg_type"`
+	RiskType       uint8      `json:"risk_type"` // 1 when the message hit off-platform traffic diversion risk control
+	ToastMessage   string     `json:"toast_msg"`
 }
 
 // UploadP2PChatFileRequest holds request parameters for uploading a P2P chat file.
 type UploadP2PChatFileRequest struct {
-	ImageContentType string `json:"image_content_type"`
+	ImageContentType string `json:"image_content_type"` // image/jpeg, image/jpg, image/png or video/mp4
 	Base64Img        string `json:"base64_img"`
 }
 

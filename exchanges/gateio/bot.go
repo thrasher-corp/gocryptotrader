@@ -33,7 +33,7 @@ var (
 
 // botResponseError converts a non-zero bot API response code into an error. The trace ID is
 // included so failures can be correlated with Gate support requests.
-func botResponseError(code int32, message, traceID string) error {
+func botResponseError(code int64, message, traceID string) error {
 	if code != 0 && code != 200 {
 		return fmt.Errorf("bot api error code: %d message: %s trace id: %s", code, message, traceID)
 	}
@@ -63,7 +63,7 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 			params.Set("refresh_recommendation_id", arg.RefreshRecommendationID)
 		}
 		if arg.Limit > 0 {
-			params.Set("limit", strconv.FormatUint(uint64(arg.Limit), 10))
+			params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 		}
 		if arg.MaxDrawdownLTE != "" {
 			params.Set("max_drawdown_lte", arg.MaxDrawdownLTE)
@@ -93,7 +93,7 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateReq
 	if arg.CreateParams.HighPrice <= 0 {
 		return nil, errBotHighPriceRequired
 	}
-	if arg.CreateParams.GridNumber <= 0 {
+	if arg.CreateParams.GridNumber == 0 {
 		return nil, errBotGridNumRequired
 	}
 	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
@@ -121,7 +121,7 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 	if arg.CreateParams.HighPrice <= 0 {
 		return nil, errBotHighPriceRequired
 	}
-	if arg.CreateParams.GridNum <= 0 {
+	if arg.CreateParams.GridNumber == 0 {
 		return nil, errBotGridNumRequired
 	}
 	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
@@ -177,7 +177,7 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCre
 	if arg.CreateParams.HighPrice <= 0 {
 		return nil, errBotHighPriceRequired
 	}
-	if arg.CreateParams.GridNum <= 0 {
+	if arg.CreateParams.GridNumber == 0 {
 		return nil, errBotGridNumRequired
 	}
 	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
@@ -199,16 +199,16 @@ func (e *Exchange) CreateSpotMartingaleBot(ctx context.Context, arg *SpotMarting
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.InvestAmount == 0 {
+	if arg.CreateParams.InvestAmount <= 0 {
 		return nil, errBotInvestAmountRequired
 	}
-	if arg.CreateParams.PriceDeviation == 0 {
+	if arg.CreateParams.PriceDeviation <= 0 {
 		return nil, errBotPriceDeviationRequired
 	}
-	if arg.CreateParams.MaxOrders <= 0 {
+	if arg.CreateParams.MaxOrders == 0 {
 		return nil, errBotMaxOrdersRequired
 	}
-	if arg.CreateParams.TakeProfitRatio == 0 {
+	if arg.CreateParams.TakeProfitRatio <= 0 {
 		return nil, errBotTakeProfitRequired
 	}
 	arg.StrategyType = BotStrategySpotMartingale
@@ -230,7 +230,7 @@ func (e *Exchange) CreateContractMartingaleBot(ctx context.Context, arg *Contrac
 	if arg.CreateParams.PriceDeviation <= 0 {
 		return nil, errBotPriceDeviationRequired
 	}
-	if arg.CreateParams.MaxOrders <= 0 {
+	if arg.CreateParams.MaxOrders == 0 {
 		return nil, errBotMaxOrdersRequired
 	}
 	if arg.CreateParams.TakeProfitRatio <= 0 {
@@ -248,7 +248,7 @@ func (e *Exchange) CreateContractMartingaleBot(ctx context.Context, arg *Contrac
 }
 
 // GetBotRunningStrategies queries the list of AIHub strategies currently running by the user. Supports filtering by strategy type, trading pair, and paging.
-func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, market string, page, pageSize int32) (*BotPortfolioRunningData, error) {
+func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, market string, page, pageSize uint64) (*BotPortfolioRunningData, error) {
 	params := url.Values{}
 	if strategyType != "" {
 		params.Set("strategy_type", strategyType)
@@ -257,10 +257,10 @@ func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, ma
 		params.Set("market", market)
 	}
 	if page > 0 {
-		params.Set("page", strconv.Itoa(int(page)))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if pageSize > 0 {
-		params.Set("page_size", strconv.Itoa(int(pageSize)))
+		params.Set("page_size", strconv.FormatUint(pageSize, 10))
 	}
 	var resp BotPortfolioRunningResponse
 	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botPortfolioRunningEPL, http.MethodGet, "bot/portfolio/running", params, nil, &resp)

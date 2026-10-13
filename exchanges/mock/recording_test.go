@@ -292,7 +292,7 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 
 	// For write methods, repeated same request should overwrite existing record.
-	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch} {
 		for range 2 {
 			err = callRecord(method, "https://api.abc.com/test/payload", content)
 			require.NoError(t, err, "HTTPRecord must not error")

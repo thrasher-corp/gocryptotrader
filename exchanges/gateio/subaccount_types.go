@@ -16,15 +16,15 @@ type SubAccount struct {
 	LoginName  string     `json:"login_name"`
 	Password   string     `json:"password"`
 	Email      string     `json:"email"`
-	State      int64      `json:"state"`
-	Type       int64      `json:"type"`
+	State      uint64     `json:"state"` // 1 - Normal, 2 - Locked
+	Type       uint64     `json:"type"`  // 1 - Regular sub-account, 3 - Cross margin sub-account
 	UserID     uint64     `json:"user_id"`
 	CreateTime types.Time `json:"create_time"`
 }
 
 // SubAccountKeyRequest holds parameters for creating or updating a sub-account API key.
 type SubAccountKeyRequest struct {
-	Mode        int64                `json:"mode,omitempty"`
+	Mode        uint64               `json:"mode,omitempty"` // 1 - Classic, 2 - Portfolio account
 	Name        string               `json:"name,omitempty"`
 	Permissions []*SubAccountKeyPerm `json:"perms,omitempty"`
 	IPWhitelist []string             `json:"ip_whitelist,omitempty"`
@@ -39,17 +39,18 @@ type SubAccountKeyPerm struct {
 // SubAccountAPIKey holds detailed information about a sub-account API key.
 type SubAccountAPIKey struct {
 	UserID      uint64               `json:"user_id"`
-	Mode        int64                `json:"mode"`
+	Mode        uint64               `json:"mode"` // 1 - Classic, 2 - Portfolio account
 	Name        string               `json:"name"`
 	Permissions []*SubAccountKeyPerm `json:"perms"`
 	IPWhitelist []string             `json:"ip_whitelist"`
 	Key         string               `json:"key"`
 	Secret      string               `json:"secret,omitempty"`
-	State       int64                `json:"state"`
+	State       uint64               `json:"state"` // 1 - Normal, 2 - Frozen, 3 - Locked
 	CreatedAt   types.Time           `json:"created_at"`
-	UpdatedAt   types.Time           `json:"updated_at"`
-	LastAccess  int64                `json:"last_access"`
-	UpdateAt    types.Time           `json:"update_at"`
+	// Gate documents updated_at but its list and get examples send update_at, so both are decoded
+	UpdatedAt  types.Time `json:"updated_at"`
+	UpdateAt   types.Time `json:"update_at"`
+	LastAccess types.Time `json:"last_access"`
 }
 
 // SubAccountMode holds unified account mode information for a sub-account.

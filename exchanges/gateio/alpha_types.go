@@ -2,8 +2,8 @@ package gateio
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -23,32 +23,33 @@ func (a *alphaStatusError) AsError() error {
 	return nil
 }
 
-// AlphaAccount represents an alpha account information
+// AlphaAccount represents an alpha account information. Alpha currency symbols are case sensitive, such as
+// memeboxTUT, so they are kept as strings rather than currency codes.
 type AlphaAccount struct {
-	Currency     currency.Code `json:"currency"`
-	Available    types.Number  `json:"available"`
-	Locked       types.Number  `json:"locked"`
-	TokenAddress string        `json:"token_address"`
-	Chain        string        `json:"chain"`
+	Currency     string       `json:"currency"`
+	Available    types.Number `json:"available"`
+	Locked       types.Number `json:"locked"`
+	TokenAddress string       `json:"token_address"`
+	Chain        string       `json:"chain"`
 }
 
 // AlphaAccountTransactionItem holds alpha account transaction item
 type AlphaAccountTransactionItem struct {
-	ID       string        `json:"id"`
-	Time     types.Time    `json:"time"`
-	Currency currency.Code `json:"currency"`
-	Change   types.Number  `json:"change"`
-	Balance  types.Number  `json:"balance"`
+	ID       string       `json:"id"`
+	Time     types.Time   `json:"time"`
+	Currency string       `json:"currency"`
+	Change   types.Number `json:"change"`
+	Balance  types.Number `json:"balance"`
 }
 
 // AlphaCurrencyQuoteInfoRequest represents a currency quote information request parameters
 type AlphaCurrencyQuoteInfoRequest struct {
-	Currency currency.Code `json:"currency"`
-	Side     order.Side    `json:"side"`
-	Amount   types.Number  `json:"amount"`
-	GasMode  string        `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
-	Slippage types.Number  `json:"slippage,omitempty"`
-	QuoteID  string        `json:"quote_id,omitempty"`
+	Currency string       `json:"currency"` // Case sensitive alpha currency symbol, such as memeboxTUT
+	Side     order.Side   `json:"side"`
+	Amount   types.Number `json:"amount"`   // Quote currency (USDT) amount for a buy and base currency amount for a sell
+	GasMode  string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
+	Slippage types.Number `json:"slippage,omitempty"`
+	QuoteID  string       `json:"quote_id,omitempty"`
 }
 
 // MarshalJSON lowercases the order side, which order.Side otherwise marshals as "BUY"/"SELL"
@@ -67,16 +68,17 @@ func (a *AlphaCurrencyQuoteInfoRequest) MarshalJSON() ([]byte, error) {
 // AlphaCurrencyQuoteDetail holds a currency quote information detail
 type AlphaCurrencyQuoteDetail struct {
 	alphaStatusError
-	QuoteID                  string       `json:"quote_id"`
-	MinAmount                types.Number `json:"min_amount"`
-	MaxAmount                types.Number `json:"max_amount"`
-	Price                    types.Number `json:"price"`
-	Slippage                 types.Number `json:"slippage"`
-	EstimateGasFeeAmountUSDT types.Number `json:"estimate_gas_fee_amount_usdt"`
-	OrderFee                 types.Number `json:"order_fee"`
-	TargetTokenMinAmount     types.Number `json:"target_token_min_amount"`
-	TargetTokenMaxAmount     types.Number `json:"target_token_max_amount"`
-	ErrorType                uint64       `json:"error_type"`
+	QuoteID              string       `json:"quote_id"`
+	MinAmount            types.Number `json:"min_amount"`
+	MaxAmount            types.Number `json:"max_amount"`
+	Price                types.Number `json:"price"`
+	Slippage             types.Number `json:"slippage"`
+	TargetTokenMinAmount types.Number `json:"target_token_min_amount"`
+	TargetTokenMaxAmount types.Number `json:"target_token_max_amount"`
+	ErrorType            uint64       `json:"error_type"` // 0 success, 1 above the maximum or 2 below the minimum
+	// The fees are kept as sent, since Gate formats them for display with a currency sign, such as $0.04
+	EstimateGasFeeAmountUSDT string `json:"estimate_gas_fee_amount_usdt"`
+	OrderFee                 string `json:"order_fee"`
 }
 
 // AlphaPlaceOrderResponse represents response details returned after placing alpha orders
@@ -92,40 +94,53 @@ type AlphaPlaceOrderResponse struct {
 	Chain        string       `json:"chain"`
 }
 
+// GetAlphaOrdersRequest holds the optional filters for listing alpha orders
+type GetAlphaOrdersRequest struct {
+	Currency string     // Case sensitive alpha currency symbol, such as memeboxTUT
+	Side     order.Side // Buy or Sell
+	// Status is 1 processing, 2 successful, 3 failed, 4 cancelled, 5 buy order placed but transfer not completed or
+	// 6 order cancelled but transfer not completed, with 0 returning every status
+	Status    uint8
+	StartTime time.Time
+	EndTime   time.Time
+	Page      uint64
+	Limit     uint64
+}
+
 // AlphaOrderDetail holds a alpha order details
 type AlphaOrderDetail struct {
 	alphaStatusError
-	OrderID         string        `json:"order_id"`
-	TransactionHash string        `json:"tx_hash"`
-	Side            string        `json:"side"`
-	USDTAmount      types.Number  `json:"usdt_amount"`
-	Currency        currency.Code `json:"currency"`
-	CurrencyAmount  types.Number  `json:"currency_amount"`
-	Status          uint8         `json:"status"`
-	GasMode         string        `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
-	Chain           string        `json:"chain"`
-	GasFee          types.Number  `json:"gas_fee"`
-	TransactionFee  types.Number  `json:"transaction_fee"`
-	CreateTime      types.Time    `json:"create_time"`
-	FailedReason    string        `json:"failed_reason"`
+	OrderID         string       `json:"order_id"`
+	TransactionHash string       `json:"tx_hash"`
+	Side            string       `json:"side"`
+	USDTAmount      types.Number `json:"usdt_amount"`
+	Currency        string       `json:"currency"`
+	CurrencyAmount  types.Number `json:"currency_amount"`
+	Status          uint8        `json:"status"`
+	GasMode         string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
+	Chain           string       `json:"chain"`
+	GasFee          types.Number `json:"gas_fee"`
+	TransactionFee  types.Number `json:"transaction_fee"`
+	CreateTime      types.Time   `json:"create_time"`
+	FailedReason    string       `json:"failed_reason"`
 }
 
 // AlphaCurrencyDetail holds an alpha currency detail
 type AlphaCurrencyDetail struct {
-	Currency        currency.Code `json:"currency"`
-	Name            string        `json:"name"`
-	Chain           string        `json:"chain"`
-	Address         string        `json:"address"`
-	Status          int32         `json:"status"`
-	Precision       int32         `json:"precision"`
-	AmountPrecision int32         `json:"amount_precision"`
+	Currency        string `json:"currency"`
+	Name            string `json:"name"`
+	Chain           string `json:"chain"`
+	Address         string `json:"address"`
+	Status          uint8  `json:"status"` // 1 trading, 2 suspended or 3 delisted
+	Precision       uint8  `json:"precision"`
+	AmountPrecision uint8  `json:"amount_precision"`
 }
 
 // AlphaCurrencyTickerInfo represents an alpha currency ticker detail
 type AlphaCurrencyTickerInfo struct {
-	Currency  currency.Code `json:"currency"`
-	Change    types.Number  `json:"change"`
-	Last      types.Number  `json:"last"`
-	Volume    types.Number  `json:"volume"`
-	MarketCap types.Number  `json:"market_cap"`
+	Currency  string       `json:"currency"`
+	Change    types.Number `json:"change"` // 24 hour percentage change
+	Last      types.Number `json:"last"`
+	Volume    types.Number `json:"volume"` // 24 hour USDT volume
+	MarketCap types.Number `json:"market_cap"`
 }

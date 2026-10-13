@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -12,7 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var errStatusNotSet = errors.New("status not set")
+var (
+	errStatusNotSet    = errors.New("status not set")
+	errTooManyOrderIDs = errors.New("too many order IDs")
+)
 
 // authenticateFutures sends an authentication message to the websocket connection
 func (e *Exchange) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
@@ -85,6 +89,25 @@ func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Contex
 
 	var resp []*WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
+}
+
+// WebsocketFuturesCancelOrdersByIDs cancels up to 20 futures orders by ID via the websocket connection. Each order's
+// outcome is reported separately, so a failed cancellation does not fail the request.
+func (e *Exchange) WebsocketFuturesCancelOrdersByIDs(ctx context.Context, a asset.Item, orderIDs []string) ([]*WebsocketFuturesCancelOrderByIDResponse, error) {
+	if err := validateFuturesAsset(a); err != nil {
+		return nil, err
+	}
+	if len(orderIDs) == 0 {
+		return nil, errNoOrdersToCancel
+	}
+	if len(orderIDs) > 20 {
+		return nil, fmt.Errorf("%w: %d exceeds the limit of 20", errTooManyOrderIDs, len(orderIDs))
+	}
+	if slices.Contains(orderIDs, "") {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []*WebsocketFuturesCancelOrderByIDResponse
+	return resp, e.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_ids", a, orderIDs, &resp, 1)
 }
 
 // WebsocketFuturesAmendOrder amends an order via the websocket connection

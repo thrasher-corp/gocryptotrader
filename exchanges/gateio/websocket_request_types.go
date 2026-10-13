@@ -1,6 +1,8 @@
 package gateio
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -120,6 +122,9 @@ type WebsocketFuturesOrderResponse struct {
 	MarketOrderSlipRatio      types.Number  `json:"market_order_slip_ratio"`
 	UpdateTime                types.Time    `json:"update_time"`
 	Succeeded                 *bool         `json:"succeeded"` // Nil if not present in returned response.
+	// Label and Detail say why Gate rejected an order of a batch
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
 }
 
 // WebsocketOrderBatchRequest defines a websocket order batch request
@@ -146,8 +151,8 @@ type WebsocketCancellAllResponse struct {
 
 // WebsocketCancelParam is a struct to hold the parameters for cancelling orders
 type WebsocketCancelParam struct {
-	Pair    currency.Pair `json:"pair"`
-	Side    string        `json:"side"`
+	Pair    currency.Pair `json:"currency_pair,omitzero"`
+	Side    string        `json:"side,omitempty"`
 	Account string        `json:"account,omitempty"`
 }
 
@@ -169,6 +174,38 @@ type WebsocketFuturesAmendOrder struct {
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
 	Size      int64         `json:"size,omitempty"`
+}
+
+// WebsocketSpotListOrdersRequest holds the filters for listing spot orders over the websocket API
+type WebsocketSpotListOrdersRequest struct {
+	Pair      currency.Pair
+	Status    string // open or finished
+	Page      uint64
+	Limit     uint64
+	Account   string
+	StartTime time.Time
+	EndTime   time.Time
+	Side      string
+}
+
+// websocketSpotListOrdersParams is the wire form of WebsocketSpotListOrdersRequest
+type websocketSpotListOrdersParams struct {
+	Pair    string `json:"currency_pair,omitempty"`
+	Status  string `json:"status"`
+	Page    uint64 `json:"page,omitempty"`
+	Limit   uint64 `json:"limit,omitempty"`
+	Account string `json:"account,omitempty"`
+	From    int64  `json:"from,omitempty"`
+	To      int64  `json:"to,omitempty"`
+	Side    string `json:"side,omitempty"`
+}
+
+// WebsocketFuturesCancelOrderByIDResponse is the outcome of cancelling one futures order of a batch
+type WebsocketFuturesCancelOrderByIDResponse struct {
+	OrderID   string `json:"id"`
+	UserID    uint64 `json:"user_id"`
+	Succeeded bool   `json:"succeeded"`
+	Message   string `json:"message"`
 }
 
 // WebsocketFutureOrdersList defines a websocket future orders list

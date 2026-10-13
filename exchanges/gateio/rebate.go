@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -194,30 +195,51 @@ func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error)
 	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserInfoEPL, http.MethodGet, "rebate/user/info", nil, nil, &resp)
 }
 
-// GetUserSubordinateRelationship queries whether the specified users are within the system.
-func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDList []string) (*UserSubordinateRelationResponse, error) {
-	if len(userIDList) == 0 {
+// GetUserSubordinateRelationship queries whether the specified users are within the system. Gate only reports the first
+// 100 users
+func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDs []uint64) (*UserSubordinateRelationResponse, error) {
+	if len(userIDs) == 0 || slices.Contains(userIDs, 0) {
 		return nil, errUserIDRequired
 	}
+	ids := make([]string, len(userIDs))
+	for i := range userIDs {
+		ids[i] = strconv.FormatUint(userIDs[i], 10)
+	}
 	params := url.Values{}
-	params.Set("user_id_list", strings.Join(userIDList, ","))
+	params.Set("user_id_list", strings.Join(ids, ","))
 	var resp *UserSubordinateRelationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserSubRelationEPL, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
 }
 
-// GetRecentPartnerApplicationRecords retrieves the current user's recent partner application records.
-func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*RecentPartnerApplicationRecords, error) {
-	var resp *RecentPartnerApplicationRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerApplicationsRecentEPL, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp)
+// GetRecentPartnerApplicationRecords retrieves the current user's most recent partner application within the last 30
+// days
+func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*PartnerApplicationRecord, error) {
+	var resp gateioAPIResponse[*PartnerApplicationRecord]
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerApplicationsRecentEPL, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data == nil {
+		return nil, common.ErrNoResults
+	}
+	return resp.Data, nil
 }
 
-// CheckPartnerApplicationEligibility check partner application eligibility
-func (e *Exchange) CheckPartnerApplicationEligibility(ctx context.Context) (*RebaseEligibilityResponse, error) {
-	var resp *RebaseEligibilityResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerEligibilityEPL, http.MethodGet, "rebate/partner/eligibility", nil, nil, &resp)
+// CheckPartnerApplicationEligibility checks whether the current user is eligible to apply as a partner
+func (e *Exchange) CheckPartnerApplicationEligibility(ctx context.Context) (*PartnerEligibilityResponse, error) {
+	var resp gateioAPIResponse[*PartnerEligibilityResponse]
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerEligibilityEPL, http.MethodGet, "rebate/partner/eligibility", nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data == nil {
+		return nil, common.ErrNoResults
+	}
+	return resp.Data, nil
 }
 
-// GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics
+// partnerStatisticsTimezone is the UTC+8 zone the aggregated partner statistics endpoint reads its dates in
+var partnerStatisticsTimezone = time.FixedZone("UTC+8", 8*60*60)
+
+// GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics, which default to the last 7 days.
 // Business type filter: - 0: All (default) - 1: Spot - 2: Futures - 3: Alpha - 4: Web3 - 5: Perps (DEX) - 6: Exchange All - 7: Web3 All - 8: TradFi
 func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, startTime, endTime time.Time, businessType uint64) (*RebateAgentStatisticsResponse, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -227,14 +249,20 @@ func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, star
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("start_date", startTime.Format("2006-01-02 15:04:05"))
+		params.Set("start_date", startTime.In(partnerStatisticsTimezone).Format(time.DateTime))
 	}
 	if !endTime.IsZero() {
-		params.Set("end_date", endTime.Format("2006-01-02 15:04:05"))
+		params.Set("end_date", endTime.In(partnerStatisticsTimezone).Format(time.DateTime))
 	}
 	if businessType > 0 {
 		params.Set("business_type", strconv.FormatUint(businessType, 10))
 	}
-	var resp *RebateAgentStatisticsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerDataAggregatedEPL, http.MethodGet, "rebate/partner/data/aggregated", params, nil, &resp)
+	var resp gateioAPIResponse[*RebateAgentStatisticsResponse]
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerDataAggregatedEPL, http.MethodGet, "rebate/partner/data/aggregated", params, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data == nil {
+		return nil, common.ErrNoResults
+	}
+	return resp.Data, nil
 }

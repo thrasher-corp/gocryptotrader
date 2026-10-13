@@ -140,6 +140,47 @@ func (e *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *Websocket
 	return resp, e.SendWebsocketRequest(ctx, spotAmendOrderEPL, "spot.order_amend", asset.Spot, amend, &resp, 1)
 }
 
+// WebsocketSpotListOrders lists spot orders via the websocket connection
+func (e *Exchange) WebsocketSpotListOrders(ctx context.Context, arg *WebsocketSpotListOrdersRequest) ([]*WebsocketOrderResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	switch arg.Status {
+	case statusOpen:
+		if arg.Pair.IsEmpty() {
+			return nil, fmt.Errorf("%w: required for open orders", currency.ErrCurrencyPairEmpty)
+		}
+	case statusFinished:
+	case "":
+		return nil, errStatusNotSet
+	default:
+		return nil, fmt.Errorf("%w: %q", errInvalidOrderStatus, arg.Status)
+	}
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
+	}
+	params := &websocketSpotListOrdersParams{
+		Status:  arg.Status,
+		Page:    arg.Page,
+		Limit:   arg.Limit,
+		Account: arg.Account,
+		Side:    arg.Side,
+	}
+	if !arg.Pair.IsEmpty() {
+		params.Pair = arg.Pair.String()
+	}
+	if !arg.StartTime.IsZero() {
+		params.From = arg.StartTime.Unix()
+	}
+	if !arg.EndTime.IsZero() {
+		params.To = arg.EndTime.Unix()
+	}
+	var resp []*WebsocketOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_list", asset.Spot, params, &resp, 1)
+}
+
 // WebsocketSpotGetOrderStatus gets the status of an order via the websocket connection
 func (e *Exchange) WebsocketSpotGetOrderStatus(ctx context.Context, orderID string, pair currency.Pair, account string) (*WebsocketOrderResponse, error) {
 	if orderID == "" {

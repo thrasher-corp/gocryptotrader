@@ -1037,10 +1037,11 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 
 type wsRespAckInspector struct{}
 
-// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
-// This will force the cancellation of further waiting for responses.
+// IsFinal reports whether a response is the request's result rather than its ack, ending the wait for further
+// responses. Only the top level ack field marks an ack, since a result may carry the word in any field.
 func (wsRespAckInspector) IsFinal(data []byte) bool {
-	return !strings.Contains(string(data), "ack")
+	ack, err := jsonparser.GetBoolean(data, "ack")
+	return err != nil || !ack
 }
 
 func getWSPingHandler(channel string) (websocket.PingHandler, error) {

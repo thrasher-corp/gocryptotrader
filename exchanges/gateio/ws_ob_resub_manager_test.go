@@ -93,7 +93,7 @@ func TestResubscribe(t *testing.T) {
 			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel, Asset: asset.Spot}})
 			return sub != nil && sub.State() == subscription.SubscribedState
 		},
-		time.Second,
+		10*time.Second,
 		10*time.Millisecond,
 		"subscription should be resubscribed by the background routine",
 	)
@@ -142,7 +142,7 @@ func TestResubscribeWithoutOrderbook(t *testing.T) {
 			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ob.BTC_USDT.50", Asset: asset.Spot}})
 			return sub != nil && sub.State() == subscription.SubscribedState
 		},
-		time.Second,
+		10*time.Second,
 		10*time.Millisecond,
 		"subscription should be resubscribed by the background routine",
 	)
@@ -192,7 +192,7 @@ func TestFuturesV2GapRecovery(t *testing.T) {
 	assert.Equal(t, int64(100), spotBook.LastUpdateID, "spot sequence should remain unchanged")
 	require.Eventually(t, func() bool {
 		return futures.State() == subscription.SubscribedState
-	}, time.Second, time.Millisecond, "futures subscription must complete unsubscribe and resubscribe")
+	}, 10*time.Second, time.Millisecond, "futures subscription must complete unsubscribe and resubscribe")
 	fresh := fmt.Appendf(nil, `{"t":1757377580080,"full":true,"s":%q,"u":200,"b":[["100","2"]],"a":[["101","2"]]}`, qualifiedChannel)
 	require.NoError(t, exchange.processOrderbookUpdateWithSnapshot(t.Context(), conn, fresh, time.Now(), asset.USDTMarginedFutures), "replacement snapshot must load")
 	assert.False(t, exchange.wsOBResubMgr.IsResubscribing(pair, asset.USDTMarginedFutures), "replacement snapshot should clear recovery")

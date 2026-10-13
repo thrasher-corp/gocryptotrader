@@ -33,12 +33,14 @@ func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency curre
 	if tableID == "" {
 		return nil, errTableIDEmpty
 	}
+	params := url.Values{}
+	params.Set("table_id", tableID)
 	var result []*RiskTable
-	path := futuresPath + settleCurrency.Lower().String() + "/risk_limit_table?table_id=" + tableID
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesRiskTableEPL, path, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesRiskTableEPL, common.EncodeURLValues(futuresPath+settleCurrency.Lower().String()+"/risk_limit_table", params), &result)
 }
 
-// GetFuturesRiskLimitTiers retrieves the futures risk limit tiers
+// GetFuturesRiskLimitTiers retrieves the futures risk limit tiers of a contract, or of a page of up to 100 markets
+// when no contract is supplied, in which case limit and offset page through markets rather than tiers
 func (e *Exchange) GetFuturesRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
 	return e.getRiskLimitTiers(ctx, futuresPath, publicFuturesRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
 }
@@ -75,20 +77,16 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 
 // DeliveryUpdatePositionRiskLimit updates the position risk limit for a delivery contract
 func (e *Exchange) DeliveryUpdatePositionRiskLimit(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
-	return e.updatePositionRiskLimit(ctx, deliveryPath, positionsPath, deliveryUpdateRiskLimitEPL, settleCurrency, contract, riskLimit)
+	return e.updatePositionRiskLimit(ctx, deliveryPath, deliveryUpdateRiskLimitEPL, settleCurrency, contract, riskLimit)
 }
 
-// FuturesUpdatePositionRiskLimit updates the position risk limit for a futures contract
+// FuturesUpdatePositionRiskLimit updates the position risk limit for a futures contract. Hedge mode positions are
+// updated with UpdatePositionRiskLimitInDualMode.
 func (e *Exchange) FuturesUpdatePositionRiskLimit(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
-	return e.updatePositionRiskLimit(ctx, futuresPath, positionsPath, perpetualUpdateRiskEPL, settleCurrency, contract, riskLimit)
+	return e.updatePositionRiskLimit(ctx, futuresPath, perpetualUpdateRiskEPL, settleCurrency, contract, riskLimit)
 }
 
-// FuturesUpdatePositionRiskLimitDualMode updates the position risk limit for a futures contract in dual/hedge mode
-func (e *Exchange) FuturesUpdatePositionRiskLimitDualMode(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
-	return e.updatePositionRiskLimit(ctx, futuresPath, hedgeModePath, perpetualUpdateRiskDualModeEPL, settleCurrency, contract, riskLimit)
-}
-
-func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath, positionsTypePath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
+func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -98,22 +96,9 @@ func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath, posit
 	if riskLimit <= 0 {
 		return nil, errInvalidRiskLimit
 	}
-	path := assetPath + settleCurrency.Lower().String() + positionsTypePath + contract.Upper().String() + "/risk_limit"
+	path := assetPath + settleCurrency.Lower().String() + positionsPath + contract.Upper().String() + "/risk_limit"
 	param := url.Values{}
 	param.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
-
-	if positionsTypePath == hedgeModePath {
-		var result []Position
-		if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, param, nil, &result); err != nil {
-			return nil, err
-		}
-		// Endpoint returns an array but only one position is expected
-		if len(result) != 1 {
-			return nil, common.ErrNoResults
-		}
-		return &result[0], nil
-	}
-
-	var result Position
-	return &result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, param, nil, &result)
+	var result *Position
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, param, nil, &result)
 }
