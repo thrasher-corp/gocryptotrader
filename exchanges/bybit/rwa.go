@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -43,19 +44,25 @@ func (e *Exchange) PlaceRWAOrder(ctx context.Context, req *PlaceRWAOrderRequest)
 	if req.OrderLinkID == "" {
 		return nil, errOrderLinkIDMissing
 	}
-	if req.StakeAmount <= 0 && req.RedeemShares <= 0 {
-		return nil, order.ErrAmountIsInvalid
-	}
 	body := make(map[string]any)
 	body["productId"] = req.ProductID
 	body["orderType"] = req.OrderType
 	body["coin"] = req.Coin.Upper().String()
 	body["orderLinkId"] = req.OrderLinkID
-	if req.StakeAmount > 0 {
+	// Bybit requires the amount of the order's own type and ignores the other
+	switch req.OrderType {
+	case "Stake":
+		if req.StakeAmount <= 0 {
+			return nil, fmt.Errorf("%w: a stake needs a stake amount", order.ErrAmountIsInvalid)
+		}
 		body["stakeAmount"] = strconv.FormatFloat(req.StakeAmount, 'f', -1, 64)
-	}
-	if req.RedeemShares > 0 {
+	case "Redeem":
+		if req.RedeemShares <= 0 {
+			return nil, fmt.Errorf("%w: a redemption needs redeem shares", order.ErrAmountIsInvalid)
+		}
 		body["redeemShares"] = strconv.FormatFloat(req.RedeemShares, 'f', -1, 64)
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrTypeIsInvalid, req.OrderType)
 	}
 	if req.AccountType != "" {
 		body["accountType"] = req.AccountType

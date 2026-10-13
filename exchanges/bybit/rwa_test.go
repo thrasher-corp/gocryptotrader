@@ -99,6 +99,14 @@ func TestPlaceRWAOrder(t *testing.T) {
 	req.OrderLinkID = "my-stake-001"
 	_, err = e.PlaceRWAOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "PlaceRWAOrder must reject an order without a stake amount or redeem shares")
+	// Bybit ignores the other order type's amount, so it cannot stand in for the order's own
+	req.RedeemShares = 97.560975
+	_, err = e.PlaceRWAOrder(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "PlaceRWAOrder must reject a stake with only redeem shares")
+	_, err = e.PlaceRWAOrder(t.Context(), &PlaceRWAOrderRequest{ProductID: 3, OrderType: "Redeem", Coin: currency.USDC, OrderLinkID: "my-redeem-001", StakeAmount: 500})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "PlaceRWAOrder must reject a redemption with only a stake amount")
+	_, err = e.PlaceRWAOrder(t.Context(), &PlaceRWAOrderRequest{ProductID: 3, OrderType: "Buy", Coin: currency.USDC, OrderLinkID: "my-buy-001", StakeAmount: 500})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "PlaceRWAOrder must reject an order type other than Stake and Redeem")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

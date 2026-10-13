@@ -47,6 +47,11 @@ func TestGenerateSystemStatusSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSystemStatusSubscriptions must not error")
 	assert.Nil(t, subs, "generateSystemStatusSubscriptions should generate nothing unless system.status is configured")
 
+	ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Channel: chanSystemStatus})
+	subs, err = ex.generateSystemStatusSubscriptions()
+	require.NoError(t, err, "generateSystemStatusSubscriptions must not error")
+	assert.Nil(t, subs, "generateSystemStatusSubscriptions should generate nothing for a disabled system.status")
+
 	configured := &subscription.Subscription{Enabled: true, Channel: chanSystemStatus}
 	ex.Features.Subscriptions = append(ex.Features.Subscriptions, configured)
 	subs, err = ex.generateSystemStatusSubscriptions()
