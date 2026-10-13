@@ -1,13 +1,11 @@
 # GoCryptoTrader package Documentation
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/cmd/documentation)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This documentation package is part of the GoCryptoTrader codebase.
 
@@ -19,12 +17,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for documentation
 
-#### This tool allows for the generation of new documentation through templating
+### This tool allows for the generation of new documentation through templating
 
 From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation across the **GoCryptoTrader** code base.
 >Using the -v command will, ie **go run documentation.go -v** put the tool into verbose mode allowing you to see what is happening with a little more depth.
 
 Be aware, this tool will:
+
 - Works off a configuration JSON file located at ``gocryptotrader/cmd/documentation/`` for future use with multiple repositories.
 - Automatically find the directory and file tree for the GoCryptoTrader source code and alert you of undocumented file systems which **need** to be updated.
 - Automatically find the template folder tree.
@@ -50,10 +49,12 @@ Be aware, this tool will:
  "referencePathToRepo": "../../"
 }
 ```
+
 ### Template example
+>
 >place a new template **example_file.tmpl** located in the current gocryptotrader/cmd/documentation/ folder; when the documentation tool finishes it will give you the define template associated name e.g. ``Template not found for path ../../cmd/documentation create new template with \{\{define "cmd documentation" -\}\} TEMPLATE HERE \{\{end}}`` so you can replace the below example with ``\{\{define "cmd documentation" -}}``
 
-```
+```gotemplate
 \{\{\define "example_definition_created_by_documentation_tool" -}}
 \{\{\template "header" .}}
 ## Current Features for documentation
@@ -71,12 +72,12 @@ upper := strings.ToUpper(testString)
 {\{\end}}
 ```
 
-### ALL NEW UPDATES AND FILE SYSTEM ADDITIONS NEED A DOCUMENTATION UPDATE USING THIS TOOL OR PR MERGE REQUEST MAY BE POSTPONED.
+### ALL NEW UPDATES AND FILE SYSTEM ADDITIONS NEED A DOCUMENTATION UPDATE USING THIS TOOL OR PR MERGE REQUEST MAY BE POSTPONED
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

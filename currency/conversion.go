@@ -212,8 +212,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 
 			p := c.m[key][key2]
 			if p == nil {
-				newPalsAndFriends := val2
-				c.m[key][key2] = &newPalsAndFriends
+				c.m[key][key2] = new(val2)
 			} else {
 				*p = val2
 			}

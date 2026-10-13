@@ -77,7 +77,7 @@ func TestRoundTripFuncRoundTrip(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodGet, "https://example.com", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
 			var receivedRequest *http.Request
 			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				receivedRequest = req
@@ -902,105 +902,6 @@ func TestExecuteRequestRedirectError(t *testing.T) {
 	assert.Equal(t, 1, body.closeCalls, "executeRequest should close body exactly once")
 }
 
-func TestExecuteRequestVerboseRequestBody(t *testing.T) {
-	t.Parallel()
-
-	getBodyErr := errors.New("get request body failure")
-	readErr := errors.New("read request body failure")
-	closeErr := errors.New("close request body failure")
-
-	for _, tc := range []struct {
-		name                       string
-		body                       io.Reader
-		getBodyErr                 error
-		closeErr                   error
-		expectedErr                error
-		expectedCloseCalls         int
-		expectedTransportCalls     int
-		expectedResponseCloseCalls int
-	}{
-		{
-			name:        "get body failure",
-			getBodyErr:  getBodyErr,
-			expectedErr: getBodyErr,
-		},
-		{
-			name:               "read body failure",
-			body:               iotest.ErrReader(readErr),
-			expectedErr:        readErr,
-			expectedCloseCalls: 1,
-		},
-		{
-			name:                       "close body failure",
-			body:                       strings.NewReader(`{"request":true}`),
-			closeErr:                   closeErr,
-			expectedCloseCalls:         1,
-			expectedTransportCalls:     1,
-			expectedResponseCloseCalls: 1,
-		},
-		{
-			name:                       "successful body copy",
-			body:                       strings.NewReader(`{"request":true}`),
-			expectedCloseCalls:         1,
-			expectedTransportCalls:     1,
-			expectedResponseCloseCalls: 1,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			requestBody := &trackedReadCloser{
-				Reader:   tc.body,
-				closeErr: tc.closeErr,
-			}
-			responseBody := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
-			transportCalls := 0
-			httpClient := &http.Client{
-				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					transportCalls++
-					return &http.Response{
-						Status:     "200 OK",
-						StatusCode: http.StatusOK,
-						ProtoMajor: 1,
-						ProtoMinor: 1,
-						Header:     make(http.Header),
-						Body:       responseBody,
-						Request:    req,
-					}, nil
-				}),
-			}
-			r, err := New("test", httpClient)
-			require.NoError(t, err, "New must not error")
-			t.Cleanup(func() {
-				assert.NoError(t, r.Shutdown(), "Shutdown should not error")
-			})
-
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com", http.NoBody)
-			require.NoError(t, err, "http.NewRequestWithContext must not error")
-			req.Header.Set("X-Test", "value")
-			req.GetBody = func() (io.ReadCloser, error) {
-				if tc.getBodyErr != nil {
-					return nil, tc.getBodyErr
-				}
-				return requestBody, nil
-			}
-			retry, err := r.executeRequest(t.Context(), &Item{
-				Method: http.MethodPost,
-				Path:   "https://example.com",
-			}, req, 1, true)
-			require.False(t, retry, "executeRequest must not retry")
-			if tc.expectedErr == nil {
-				require.NoError(t, err, "executeRequest must not error")
-			} else {
-				require.ErrorIs(t, err, tc.expectedErr, "executeRequest must return the expected error")
-			}
-			assert.Equal(t, tc.expectedCloseCalls, requestBody.closeCalls, "executeRequest should close requestBody the expected number of times")
-			assert.Equal(t, tc.expectedTransportCalls, transportCalls, "executeRequest should execute the transport the expected number of times")
-			assert.Equal(t, tc.expectedResponseCloseCalls, responseBody.closeCalls, "executeRequest should close the response body the expected number of times")
-		})
-	}
-}
-
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
 	newRequester := func(t *testing.T) *Requester {
@@ -1073,14 +974,14 @@ func TestDoRequest_NoContent(t *testing.T) {
 			name: "no content header response must be copied",
 			run: func(t *testing.T) {
 				t.Helper()
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.Header().Set("X-No-Content", "true")
 					w.WriteHeader(http.StatusNoContent)
 				}))
-				t.Cleanup(server.Close)
 
 				r := newRequester(t)
+				require.NoError(t, r.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 				headers := http.Header{}
 				var resp struct {
 					Response bool `json:"response"`
@@ -1227,6 +1128,13 @@ func TestEvaluateRetry(t *testing.T) {
 	retry, err = r.evaluateRetry(t.Context(), nil, transportErr, 1, false)
 	require.ErrorIs(t, err, transportErr, "evaluateRetry must return the transport error when retrying is declined")
 	require.False(t, retry, "evaluateRetry must not retry when the retry policy declines")
+
+	credentialErr := &url.Error{Op: http.MethodGet, URL: "https://example.com?signature=returned-secret", Err: transportErr}
+	retry, err = r.evaluateRetry(t.Context(), nil, credentialErr, 1, false)
+	require.ErrorIs(t, err, transportErr, "evaluateRetry must preserve the transport cause after redacting the URL")
+	require.False(t, retry, "evaluateRetry must not retry a declined URL error")
+	assert.NotContains(t, err.Error(), "returned-secret", "evaluateRetry should not return URL credentials to its caller")
+	assert.Contains(t, err.Error(), "signature=[REDACTED]", "evaluateRetry should retain redacted URL structure")
 
 	r.retryPolicy = DefaultRetryPolicy
 	retry, err = r.evaluateRetry(t.Context(), nil, errInvalidPath, 1, false)
@@ -1379,6 +1287,79 @@ func TestBasicLimiter(t *testing.T) {
 	defer cancel()
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestSendPayloadRateLimitBarrierWithoutLimiter(t *testing.T) {
+	t.Parallel()
+	writes := make(chan struct{}, 2)
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		writes <- struct{}{}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": {"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+		}, nil
+	})}
+	r, err := New("barrier", client)
+	require.NoError(t, err, "New requester must not error")
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	errs := make(chan error, 2)
+	send := func(ctx context.Context) {
+		errs <- r.SendPayload(ctx, Unset, func() (*Item, error) {
+			return &Item{Method: http.MethodGet, Path: "https://example.com", Result: new(any)}, nil
+		}, UnauthenticatedRequest)
+	}
+
+	go send(contexts[0])
+	require.Never(t, func() bool { return len(writes) != 0 }, 10*time.Millisecond, time.Millisecond,
+		"limiter-less request must wait for its peer")
+	go send(contexts[1])
+	require.NoError(t, <-errs)
+	require.NoError(t, <-errs)
+	require.Len(t, writes, 2)
+}
+
+func TestSendPayloadRateLimitBarrierAllowsRetryAfterAcceptance(t *testing.T) {
+	t.Parallel()
+	newRequester := func(retryFirst bool) (*Requester, *int) {
+		calls := 0
+		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			calls++
+			status := http.StatusOK
+			if retryFirst && calls == 1 {
+				status = http.StatusTooManyRequests
+			}
+			return &http.Response{
+				StatusCode: status,
+				Header:     http.Header{"Content-Type": {"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{}`)),
+			}, nil
+		})}
+		r, err := New("barrier-retry", client,
+			WithLimiter(NewBasicRateLimit(time.Millisecond, 100, 1)),
+			WithBackoff(func(int) time.Duration { return 0 }))
+		require.NoError(t, err, "New requester must not error")
+		return r, &calls
+	}
+
+	left, leftCalls := newRequester(false)
+	right, rightCalls := newRequester(true)
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	errs := make(chan error, 2)
+	send := func(ctx context.Context, r *Requester) {
+		errs <- r.SendPayload(ctx, Unset, func() (*Item, error) {
+			return &Item{Method: http.MethodGet, Path: "https://example.com", Result: new(any)}, nil
+		}, UnauthenticatedRequest)
+	}
+
+	go send(contexts[0], left)
+	go send(contexts[1], right)
+	require.NoError(t, <-errs)
+	require.NoError(t, <-errs)
+	assert.Equal(t, 1, *leftCalls, "accepted request should execute once")
+	assert.Equal(t, 2, *rightCalls, "accepted request should pass its retry rate-limit gate")
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {

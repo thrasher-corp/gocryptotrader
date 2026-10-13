@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const testExchange = "test"
@@ -152,7 +152,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if c.latestDirection != order.Short {
 		t.Error("expected recognition that its short")
 	}
-	if !c.exposure.Equal(decimal.NewFromFloat(0.2)) {
+	if !c.exposure.Equal(decimal.MustFromFloat(0.2)) {
 		t.Errorf("expected %v received %v", 0.2, c.exposure)
 	}
 

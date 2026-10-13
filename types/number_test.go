@@ -3,8 +3,8 @@ package types
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // TestNumberUnmarshalJSON asserts the following behaviour:
@@ -59,7 +59,7 @@ func TestNumberFloat64(t *testing.T) {
 // TestNumberDecimal asserts Decimal() returns a valid decimal.Decimal
 func TestNumberDecimal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, decimal.NewFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
+	assert.Equal(t, decimal.MustFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
 }
 
 // TestNumberInt64 asserts Int64() returns a valid truncated int64

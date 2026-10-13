@@ -97,7 +97,7 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 	case current64 >= UseLatestVersion:
 		return j, fmt.Errorf("%w: %w `version`: `%d`", errConfigVersion, errConfigVersionMax, current64)
 	}
-	current := uint16(current64)
+	current := uint16(current64) //nolint:gosec // Bounded above by UseLatestVersion (math.MaxUint16) and below by zero
 
 	switch {
 	case target == current:

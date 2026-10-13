@@ -3,8 +3,6 @@ package log
 import (
 	"errors"
 	"fmt"
-
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 var (
@@ -32,7 +30,7 @@ func CloseLogger() error {
 	ch := make(chan struct{})
 	mu.Lock()
 	defer mu.Unlock()
-	globalLogConfig.Enabled = convert.BoolPtr(false)
+	globalLogConfig.Enabled = new(false)
 	jobsChannel <- &job{Passback: ch}
 	<-ch
 	return globalLogFile.Close()

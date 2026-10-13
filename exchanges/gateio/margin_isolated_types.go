@@ -115,10 +115,10 @@ type MarginAccountItem struct {
 type IsolatedMarginPoolLoanResponse struct {
 	Timestamp types.Time `json:"timestamp"`
 	Method    string     `json:"method"`
-	Code      int        `json:"code"`
+	Code      int64      `json:"code"` // Signed because a failed request reports -1
 	Message   string     `json:"message"`
 	Data      struct {
-		Total       int          `json:"total"`
+		Total       uint64       `json:"total"`
 		List        []Loan       `json:"list"`
 		VIPSettings []VIPSetting `json:"vip_settings"`
 	} `json:"data"`

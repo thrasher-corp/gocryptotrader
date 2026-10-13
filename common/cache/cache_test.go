@@ -3,142 +3,87 @@ package cache
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCache(t *testing.T) {
+	t.Parallel()
 	lruCache := New(5)
 	lruCache.Add("hello", "world")
-	c := lruCache.Contains("hello")
-	if !c {
-		t.Fatal("expected cache to contain \"hello\" key")
-	}
+	require.True(t, lruCache.Contains("hello"), "Contains must return true for a stored key")
 
-	v := lruCache.Get("hello")
-	if v == nil {
-		t.Fatal("expected cache to contain \"hello\" key")
-	}
-	if convert.InterfaceToStringOrZeroValue(v) != "world" {
-		t.Fatal("expected \"hello\" key to contain value \"world\"")
-	}
-
-	if r := lruCache.Remove("hello"); !r {
-		t.Fatal("expected \"hello\" key to be removed from cache")
-	}
-
-	v = lruCache.Get("hello")
-	if v != nil {
-		t.Fatal("expected cache to not contain \"hello\" key")
-	}
+	assert.Equal(t, "world", lruCache.Get("hello"), "Get should return the stored value")
+	assert.True(t, lruCache.Remove("hello"), "Remove should return true for a stored key")
+	assert.Nil(t, lruCache.Get("hello"), "Get should return nil after the key is removed")
 }
 
 func TestContainsOrAdd(t *testing.T) {
+	t.Parallel()
 	lruCache := New(5)
-
-	if lruCache.ContainsOrAdd("hello", "world") {
-		t.Fatal("expected ContainsOrAdd() to add new key when not found")
-	}
-
-	if !lruCache.ContainsOrAdd("hello", "world") {
-		t.Fatal("expected ContainsOrAdd() to return true when key found")
-	}
+	assert.False(t, lruCache.ContainsOrAdd("hello", "world"), "ContainsOrAdd should return false and add the key when not found")
+	assert.True(t, lruCache.ContainsOrAdd("hello", "world"), "ContainsOrAdd should return true when the key is found")
 }
 
 func TestClear(t *testing.T) {
+	t.Parallel()
 	lruCache := New(5)
 	for x := range 5 {
 		lruCache.Add(x, x)
 	}
-	if lruCache.Len() != 5 {
-		t.Fatal("expected cache to have 5 entries")
-	}
+	require.Equal(t, uint64(5), lruCache.Len(), "Len must report every added entry")
 	lruCache.Clear()
-	if lruCache.Len() != 0 {
-		t.Fatal("expected cache to have 0 entries")
-	}
+	assert.Zero(t, lruCache.Len(), "Len should be zero after Clear")
 }
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	lruCache := New(2)
 	lruCache.Add(1, 1)
 	lruCache.Add(2, 2)
-	if lruCache.Len() != 2 {
-		t.Fatal("expected cache to have 2 entries")
-	}
-	lruCache.Add(3, 3)
-	if lruCache.Len() != 2 {
-		t.Fatal("expected cache to have 2 entries")
-	}
+	require.Equal(t, uint64(2), lruCache.Len(), "Len must match the number of added entries")
 
-	v := lruCache.Get(1)
-	if v != nil {
-		t.Fatal("expected cache to no longer contain \"1\" key")
-	}
-	v = lruCache.Get(2)
-	if v == nil {
-		t.Fatal("expected cache to contain \"2\" key")
-	}
-	if convert.InterfaceToIntOrZeroValue(v) != 2 {
-		t.Fatal("expected \"2\" key to contain value \"2\"")
-	}
+	lruCache.Add(3, 3)
+	require.Equal(t, uint64(2), lruCache.Len(), "Len must not exceed capacity")
+
+	assert.Nil(t, lruCache.Get(1), "Get should evict the oldest key")
+	assert.Equal(t, 2, lruCache.Get(2), "Get should return the retained value")
+
 	k, v := lruCache.getNewest()
-	if convert.InterfaceToIntOrZeroValue(k) != 2 {
-		t.Fatal("expected latest key to be 2")
-	}
-	if convert.InterfaceToIntOrZeroValue(v) != 2 {
-		t.Fatal("expected latest value to be 2")
-	}
+	assert.Equal(t, 2, k, "getNewest should return the most recently used key")
+	assert.Equal(t, 2, v, "getNewest should return the most recently used value")
+
 	lruCache.Add(3, 3)
 	k, _ = lruCache.getNewest()
-	if convert.InterfaceToIntOrZeroValue(k) != 3 {
-		t.Fatal("expected latest key to be 3")
-	}
-	k, _ = lruCache.getOldest()
-	if convert.InterfaceToIntOrZeroValue(k) != 2 {
-		t.Fatal("expected oldest key to be 2")
-	}
+	assert.Equal(t, 3, k, "getNewest should return the freshly added key")
+
 	k, v = lruCache.getOldest()
-	if convert.InterfaceToIntOrZeroValue(k) != 2 {
-		t.Fatal("expected oldest key to be 2")
-	}
-	if convert.InterfaceToIntOrZeroValue(v) != 2 {
-		t.Fatal("expected latest value to be 2")
-	}
+	assert.Equal(t, 2, k, "getOldest should return the least recently used key")
+	assert.Equal(t, 2, v, "getOldest should return the least recently used value")
+
 	lruCache.Add(2, 2)
 	k, _ = lruCache.getNewest()
-	if convert.InterfaceToIntOrZeroValue(k) != 2 {
-		t.Fatal("expected latest key to be 2")
-	}
+	assert.Equal(t, 2, k, "getNewest should return the re-added key")
 	k, _ = lruCache.getOldest()
-	if convert.InterfaceToIntOrZeroValue(k) != 3 {
-		t.Fatal("expected oldest key to be 3")
-	}
+	assert.Equal(t, 3, k, "getOldest should return the displaced key")
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
 	lruCache := New(2)
 	lruCache.Add(1, 1)
-
-	v := lruCache.Remove(1)
-	if !v {
-		t.Fatal("expected remove on valid key to return true")
-	}
-	v = lruCache.Remove(2)
-	if v {
-		t.Fatal("expected remove on invalid key to return false")
-	}
+	assert.True(t, lruCache.Remove(1), "Remove should return true for a valid key")
+	assert.False(t, lruCache.Remove(2), "Remove should return false for an invalid key")
 }
 
 func TestGetNewest(t *testing.T) {
-	lruCache := New(2)
-	if k, _ := lruCache.getNewest(); k != nil {
-		t.Fatal("expected GetNewest() on empty cache to return nil")
-	}
+	t.Parallel()
+	k, _ := New(2).getNewest()
+	assert.Nil(t, k, "getNewest should return nil on an empty cache")
 }
 
 func TestGetOldest(t *testing.T) {
-	lruCache := New(2)
-	if k, _ := lruCache.getOldest(); k != nil {
-		t.Fatal("expected GetOldest() on empty cache to return nil")
-	}
+	t.Parallel()
+	k, _ := New(2).getOldest()
+	assert.Nil(t, k, "getOldest should return nil on an empty cache")
 }

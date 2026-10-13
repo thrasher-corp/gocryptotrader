@@ -77,11 +77,11 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 			} else {
 				tickersC <- &ticker.Price{
 					Last:         tick.Price.Float64(),
+					LastSize:     tick.Size,
 					Bid:          tick.BestBidPrice.Float64(),
 					Ask:          tick.BestAskPrice.Float64(),
 					BidSize:      tick.BestBidSize,
 					AskSize:      tick.BestAskSize,
-					Volume:       tick.Size,
 					Pair:         p,
 					LastUpdated:  tick.FilledTime.Time(),
 					ExchangeName: e.Name,
@@ -381,9 +381,6 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		if arg.Size <= 0 {
 			return fmt.Errorf("%w, must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
-		if arg.VisibleSize < 0 {
-			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
-		}
 	case "market":
 		if arg.Size <= 0 {
 			return fmt.Errorf("%w, market size must be > 0", limits.ErrAmountBelowMin)
@@ -618,7 +615,8 @@ func (e *Exchange) GetMaxWithdrawMargin(ctx context.Context, symbol string) (flo
 		return 0, currency.ErrSymbolStringEmpty
 	}
 	var resp types.Number
-	return resp.Float64(), e.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
+	err := e.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
+	return resp.Float64(), err
 }
 
 // RemoveMarginManually removes a margin manually

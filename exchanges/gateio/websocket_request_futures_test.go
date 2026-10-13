@@ -89,6 +89,8 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Binary, out)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Options, out)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 

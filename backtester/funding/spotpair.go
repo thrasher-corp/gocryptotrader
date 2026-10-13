@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // ErrNotCollateral is returned when a user requests collateral pair details when it is a funding pair

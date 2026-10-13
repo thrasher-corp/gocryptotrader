@@ -2,10 +2,11 @@ package kline
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -117,9 +118,7 @@ func validateData(trades []order.TradeHistory) error {
 		}
 	}
 
-	sort.Slice(trades, func(i, j int) bool {
-		return trades[i].Timestamp.Before(trades[j].Timestamp)
-	})
+	slices.SortFunc(trades, func(a, b order.TradeHistory) int { return a.Timestamp.Compare(b.Timestamp) })
 	return nil
 }
 
@@ -419,10 +418,10 @@ func (k *Item) RemoveOutsideRange(start, end time.Time) {
 // SortCandlesByTimestamp sorts candles by timestamp
 func (k *Item) SortCandlesByTimestamp(desc bool) {
 	if desc {
-		sort.Slice(k.Candles, func(i, j int) bool { return k.Candles[i].Time.After(k.Candles[j].Time) })
+		slices.SortFunc(k.Candles, func(a, b Candle) int { return b.Time.Compare(a.Time) })
 		return
 	}
-	sort.Slice(k.Candles, func(i, j int) bool { return k.Candles[i].Time.Before(k.Candles[j].Time) })
+	slices.SortFunc(k.Candles, func(a, b Candle) int { return a.Time.Compare(b.Time) })
 }
 
 // FormatDates converts all dates to UTC time
@@ -811,7 +810,7 @@ func (k *Item) EqualSource(i *Item) error {
 // DeployExchangeIntervals aligns and stores supported intervals for an exchange
 // for future matching.
 func DeployExchangeIntervals(enabled ...IntervalCapacity) ExchangeIntervals {
-	sort.Slice(enabled, func(i, j int) bool { return enabled[i].Interval < enabled[j].Interval })
+	slices.SortFunc(enabled, func(a, b IntervalCapacity) int { return cmp.Compare(a.Interval, b.Interval) })
 
 	supported := make(map[Interval]uint64)
 	for x := range enabled {

@@ -19,7 +19,7 @@ type GenericResponse struct {
 // InstrumentBase holds information on base currency
 type InstrumentBase struct {
 	Base          string `json:"base"`
-	DecimalPlaces int    `json:"decimal_places"`
+	DecimalPlaces uint64 `json:"decimal_places"`
 	InstrumentID  int64  `json:"inst_id"`
 	Quote         string `json:"quote"`
 }
@@ -33,7 +33,7 @@ type Instruments struct {
 type Ticker struct {
 	High24                float64    `json:"high24,string"`
 	HighestBuy            float64    `json:"highest_buy,string"`
-	InstrumentID          int        `json:"inst_id"`
+	InstrumentID          uint64     `json:"inst_id"`
 	Last                  float64    `json:"last,string"`
 	Low24                 float64    `json:"low24,string"`
 	LowestSell            float64    `json:"lowest_sell,string"`
@@ -51,7 +51,7 @@ type Ticker struct {
 
 // OrderbookBase is a sub-type holding price and quantity
 type OrderbookBase struct {
-	Count    int     `json:"count"`
+	Count    uint64  `json:"count"`
 	Price    float64 `json:"price,string"`
 	Quantity float64 `json:"qty,string"`
 }
@@ -60,7 +60,7 @@ type OrderbookBase struct {
 type Orderbook struct {
 	Buy           []OrderbookBase `json:"buy"`
 	Sell          []OrderbookBase `json:"sell"`
-	InstrumentID  int             `json:"inst_id"`
+	InstrumentID  uint64          `json:"inst_id"`
 	TotalBuy      float64         `json:"total_buy,string"`
 	TotalSell     float64         `json:"total_sell,string"`
 	TransactionID int64           `json:"trans_id"`
@@ -107,8 +107,8 @@ type Order struct {
 	InstrumentID  int64   `json:"inst_id"`
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
-	ClientOrderID int     `json:"client_ord_id"`
-	Side          string  `json:"side,string"`
+	ClientOrderID uint64  `json:"client_ord_id"`
+	Side          string  `json:"side"`
 }
 
 // OrderResponse is a response for orders
@@ -139,12 +139,6 @@ type OrderFilledResponse struct {
 	Order        OrderResponse `json:"order"`
 }
 
-// OrderRejectResponse holds information on a rejected order
-type OrderRejectResponse struct {
-	OrderResponse
-	Reasons []string `json:"reasons"`
-}
-
 // OrdersBase contains generic response and order responses
 type OrdersBase struct {
 	GenericResponse
@@ -153,11 +147,11 @@ type OrdersBase struct {
 
 // GetOpenOrdersResponse holds all order data from GetOpenOrders request
 type GetOpenOrdersResponse struct {
-	Nonce         int             `json:"nonce"`
+	Nonce         uint64          `json:"nonce"`
 	Orders        []OrderResponse `json:"orders"`
 	Reply         string          `json:"reply"`
 	Status        []string        `json:"status"`
-	TransactionID int             `json:"trans_id"`
+	TransactionID uint64          `json:"trans_id"`
 }
 
 // OrdersResponse holds the full data range on orders
@@ -196,7 +190,7 @@ type IndexTicker struct {
 // Option holds options information
 type Option struct {
 	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
+	InstrumentID uint64  `json:"inst_id"`
 	Last         float64 `json:"last,string"`
 	LowestSell   float64 `json:"lowest_sell,string"`
 	OpenInterest float64 `json:"open_interest,string"`
@@ -211,27 +205,17 @@ type OptionChainResponse struct {
 		Call   Option  `json:"call"`
 		Put    Option  `json:"put"`
 		Strike float64 `json:"strike,string"`
-	}
-}
-
-// OptionChainUpdate contains information on the chain update options
-type OptionChainUpdate struct {
-	Option
-	GenericResponse
-	Asset        string     `json:"asset"`
-	ExpiryTime   types.Time `json:"expiry_time"`
-	SecurityType string     `json:"sec_type"`
-	Volume       float64    `json:"volume,string"`
+	} `json:"entries"`
 }
 
 // PositionHistory holds the complete position history
 type PositionHistory struct {
 	Positions []struct {
-		PositionID int `json:"position_id"`
+		PositionID uint64 `json:"position_id"`
 		Records    []struct {
 			Commission    Commission `json:"commission"`
 			FillPrice     float64    `json:"fill_price,string,omitempty"`
-			TransactionID int        `json:"trans_id"`
+			TransactionID uint64     `json:"trans_id"`
 			FillQuantity  float64    `json:"fill_qty,omitempty"`
 			Position      struct {
 				Commission Commission `json:"commission"`
@@ -247,25 +231,25 @@ type PositionHistory struct {
 			ContractSize   float64    `json:"contract_size,string"`
 			ConversionRate float64    `json:"conversion_rate,string"`
 			OptionType     string     `json:"option_type"`
-			InstrumentID   int        `json:"inst_id"`
+			InstrumentID   uint64     `json:"inst_id"`
 			SecType        string     `json:"sec_type"`
 			Asset          string     `json:"asset"`
 			Strike         float64    `json:"strike,string"`
 		} `json:"inst"`
 		OpenTimestamp types.Time `json:"open_timestamp"`
 	} `json:"positions"`
-	TotalNumber int `json:"total_number"`
+	TotalNumber uint64 `json:"total_number"`
 }
 
 // OpenPosition holds information on an open position
 type OpenPosition struct {
-	PositionID    int        `json:"position_id"`
+	PositionID    uint64     `json:"position_id"`
 	Commission    Commission `json:"commission"`
 	OpenPrice     float64    `json:"open_price,string"`
 	RealizedPL    float64    `json:"realized_pl,string"`
 	Quantity      float64    `json:"qty,string"`
 	OpenTimestamp types.Time `json:"open_timestamp"`
-	InstrumentID  int        `json:"inst_id"`
+	InstrumentID  uint64     `json:"inst_id"`
 }
 
 type wsRequest struct {
@@ -367,22 +351,6 @@ type WsTradeUpdate struct {
 	Reply     string     `json:"reply"`
 }
 
-// WsInstrumentList defines instrument list
-type WsInstrumentList struct {
-	Spot   map[string][]InstrumentBase `json:"SPOT"`
-	Nonce  int64                       `json:"nonce,omitempty"`
-	Reply  string                      `json:"inst_list,omitempty"`
-	Status []any                       `json:"status,omitempty"`
-}
-
-// WsSupportedCurrency defines supported currency on the exchange
-type WsSupportedCurrency struct {
-	Base          string `json:"base"`
-	InstID        int64  `json:"inst_id"`
-	DecimalPlaces int64  `json:"decimal_places"`
-	Quote         string `json:"quote"`
-}
-
 // WsRequest base request
 type WsRequest struct {
 	Request string `json:"request"`
@@ -464,7 +432,7 @@ type WsSubmitOrdersRequestData struct {
 	InstrumentID  int64   `json:"inst_id"`
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
-	ClientOrderID int     `json:"client_ord_id"`
+	ClientOrderID uint64  `json:"client_ord_id"`
 	Side          string  `json:"side"`
 }
 
@@ -503,34 +471,6 @@ type WsUserBalanceResponse struct {
 	TransactionID      int64    `json:"trans_id"`
 }
 
-// WsOrderAcceptedResponse ws response
-type WsOrderAcceptedResponse struct {
-	Nonce         int64    `json:"nonce"`
-	Status        []string `json:"status"`
-	OrderID       int64    `json:"order_id"`
-	OpenQuantity  float64  `json:"open_qty,string"`
-	InstrumentID  int64    `json:"inst_id"`
-	Quantity      float64  `json:"qty,string"`
-	ClientOrderID int64    `json:"client_ord_id"`
-	OrderPrice    float64  `json:"order_price,string"`
-	Reply         string   `json:"reply"`
-	Side          string   `json:"side"`
-	TransactionID int64    `json:"trans_id"`
-}
-
-// WsOrderFilledResponse ws response
-type WsOrderFilledResponse struct {
-	Commission    WsOrderFilledCommissionData `json:"commission"`
-	FillPrice     float64                     `json:"fill_price,string"`
-	FillQuantity  float64                     `json:"fill_qty,string"`
-	Nonce         int64                       `json:"nonce"`
-	Order         WsOrderData                 `json:"order"`
-	Reply         string                      `json:"reply"`
-	Status        []string                    `json:"status"`
-	Timestamp     types.Time                  `json:"timestamp"`
-	TransactionID int64                       `json:"trans_id"`
-}
-
 // WsOrderData ws response data
 type WsOrderData struct {
 	ClientOrderID int64      `json:"client_ord_id"`
@@ -544,36 +484,13 @@ type WsOrderData struct {
 	Status        []string   `json:"status"`
 }
 
-// WsOrderFilledCommissionData ws response data
-type WsOrderFilledCommissionData struct {
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency"`
-}
-
-// WsOrderRejectedResponse ws response
-type WsOrderRejectedResponse struct {
-	Nonce         int64      `json:"nonce"`
-	Status        []string   `json:"status"`
-	OrderID       int64      `json:"order_id"`
-	OpenQuantity  float64    `json:"open_qty,string"`
-	Price         float64    `json:"price,string"`
-	InstrumentID  int64      `json:"inst_id"`
-	Reasons       []string   `json:"reasons"`
-	ClientOrderID int64      `json:"client_ord_id"`
-	Timestamp     types.Time `json:"timestamp"`
-	Reply         string     `json:"reply"`
-	Quantity      float64    `json:"qty,string"`
-	Side          string     `json:"side"`
-	TransactionID int64      `json:"trans_id"`
-}
-
 type wsInstList struct {
 	Spot map[string][]struct {
 		Base          string `json:"base"`
 		DecimalPlaces int64  `json:"decimal_places"`
 		InstrumentID  int64  `json:"inst_id"`
 		Quote         string `json:"quote"`
-	} `json:"spot"`
+	} `json:"SPOT"`
 }
 
 // WsUserOpenOrdersResponse ws response
@@ -593,22 +510,6 @@ type WsTradeHistoryResponse struct {
 	Trades      []WsOrderData `json:"trades"`
 }
 
-// WsTradeHistoryCommissionData ws response data
-type WsTradeHistoryCommissionData struct {
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency"`
-}
-
-// WsTradeHistoryTradeData ws response data
-type WsTradeHistoryTradeData struct {
-	Commission    WsTradeHistoryCommissionData `json:"commission"`
-	Order         WsOrderData                  `json:"order"`
-	FillPrice     float64                      `json:"fill_price,string"`
-	FillQuantity  float64                      `json:"fill_qty,string"`
-	Timestamp     types.Time                   `json:"timestamp"`
-	TransactionID int64                        `json:"trans_id"`
-}
-
 // WsLoginReq Login request message
 type WsLoginReq struct {
 	Request   string `json:"request"`
@@ -616,61 +517,6 @@ type WsLoginReq struct {
 	Nonce     int64  `json:"nonce"`
 	Hmac      string `json:"hmac_sha256"`
 	Timestamp int64  `json:"timestamp"`
-}
-
-// WsLoginResponse ws response data
-type WsLoginResponse struct {
-	APIKey          string     `json:"api_key"`
-	Country         string     `json:"country"`
-	DepositEnabled  bool       `json:"deposit_enabled"`
-	Deposited       bool       `json:"deposited"`
-	Email           string     `json:"email"`
-	FailedTimes     types.Time `json:"failed_times"`
-	KycPassed       bool       `json:"kyc_passed"`
-	Language        string     `json:"lang"`
-	Nonce           int64      `json:"nonce"`
-	OTPEnabled      bool       `json:"otp_enabled"`
-	PhoneNumber     string     `json:"phone_number"`
-	ProductsEnabled []string   `json:"products_enabled"`
-	Referred        bool       `json:"referred"`
-	Reply           string     `json:"reply"`
-	SessionID       string     `json:"session_id"`
-	Status          []string   `json:"status"`
-	Timezone        string     `json:"timezone"`
-	Traded          bool       `json:"traded"`
-	UnverifiedEmail string     `json:"unverified_email"`
-	Username        string     `json:"username"`
-	WithdrawEnabled bool       `json:"withdraw_enabled"`
-}
-
-// WsNewOrderResponse returns if new_order response fails
-type WsNewOrderResponse struct {
-	Message string   `json:"msg"`
-	Nonce   int64    `json:"nonce"`
-	Reply   string   `json:"reply"`
-	Status  []string `json:"status"`
-}
-
-// WsGetAccountBalanceResponse contains values of each currency
-type WsGetAccountBalanceResponse struct {
-	BCH     float64  `json:"BCH,string"`
-	BTC     float64  `json:"BTC,string"`
-	BTG     float64  `json:"BTG,string"`
-	CAD     float64  `json:"CAD,string"`
-	ETC     float64  `json:"ETC,string"`
-	ETH     float64  `json:"ETH,string"`
-	LCH     float64  `json:"LCH,string"`
-	LTC     float64  `json:"LTC,string"`
-	MYR     float64  `json:"MYR,string"`
-	SGD     float64  `json:"SGD,string"`
-	USD     float64  `json:"USD,string"`
-	USDT    float64  `json:"USDT,string"`
-	XMR     float64  `json:"XMR,string"`
-	ZEC     float64  `json:"ZEC,string"`
-	Nonce   int64    `json:"nonce"`
-	Reply   string   `json:"reply"`
-	Status  []string `json:"status"`
-	TransID int64    `json:"trans_id"`
 }
 
 type instrumentMap struct {

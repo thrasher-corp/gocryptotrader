@@ -1,10 +1,10 @@
 package order
 
 import (
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // IsOrder returns whether the event is an order event
@@ -64,7 +64,7 @@ func (o *Order) GetID() string {
 
 // IsLeveraged returns if it is leveraged
 func (o *Order) IsLeveraged() bool {
-	return o.Leverage.GreaterThan(decimal.NewFromFloat(1))
+	return o.Leverage.GreaterThan(decimal.MustFromFloat(1))
 }
 
 // GetLeverage returns leverage rate

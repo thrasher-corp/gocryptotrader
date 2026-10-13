@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -173,18 +174,132 @@ func TestGetTicker(t *testing.T) {
 	tick, err := e.GetTicker(t.Context(),
 		currency.BTC.String()+currency.USD.String(), false)
 	require.NoError(t, err, "GetTicker must not error")
-	assert.Positive(t, tick.Ask, "Ask should be positive")
-	assert.Positive(t, tick.Bid, "Bid should be positive")
+	assert.Positive(t, tick.BestAsk, "BestAsk should be positive")
+	assert.Positive(t, tick.BestBid, "BestBid should be positive")
 	assert.Positive(t, tick.High, "High should be positive")
 	assert.Positive(t, tick.Low, "Low should be positive")
 	assert.Positive(t, tick.Last, "Last should be positive")
 	assert.Positive(t, tick.Open, "Open should be positive")
 	assert.Positive(t, tick.Volume, "Volume should be positive")
-	assert.Positive(t, tick.Vwap, "Vwap should be positive")
-	assert.Positive(t, tick.Open24, "Open24 should be positive")
-	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
+	assert.Positive(t, tick.VolumeWeightedAveragePrice, "volume weighted average price should be positive")
+	assert.Positive(t, tick.Open24Hour, "Open24Hour should be positive")
+	assert.NotEmpty(t, tick.PercentChange24Hour, "PercentChange24Hour should be positive")
+	if mockTests {
+		assert.Positive(t, tick.MarkPrice, "MarkPrice should be positive")
+		assert.Positive(t, tick.IndexPrice, "IndexPrice should be positive")
+		assert.Positive(t, tick.OpenInterest, "OpenInterest should be positive")
+		assert.Positive(t, tick.OpenInterestValue, "OpenInterestValue should be positive")
+	}
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
+}
+
+func TestAllCurrencyPairTickers(t *testing.T) {
+	t.Parallel()
+	result, err := e.AllCurrencyPairTickers(t.Context())
+	require.NoError(t, err, "AllCurrencyPairTickers must not error")
+	require.NotEmpty(t, result, "AllCurrencyPairTickers must return tickers")
+	assert.False(t, result[0].Market.IsEmpty(), "ticker market should be set")
+	assert.Contains(t, []order.Side{order.Buy, order.Sell}, result[0].Side.Side(), "ticker side should decode")
+	if mockTests {
+		require.Len(t, result, 4, "fixture must include locked, enabled, perpetual and disabled markets")
+		assert.Equal(t, currency.NewPairWithDelimiter("XRP", "EUR", "/"), result[0].Market, "locked market should decode")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"), result[2].Market, "perpetual market should decode")
+		assert.Equal(t, currency.NewPairWithDelimiter("ZRX", "USD", "/"), result[3].Market, "disabled spot market should decode")
+		assert.Zero(t, result[3].PercentChange24Hour, "empty percentage change should decode as zero")
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	got, err := e.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	require.NotNil(t, got, "UpdateTicker must return the stored price")
+	assert.Positive(t, got.Bid, "best bid should be positive")
+	assert.Positive(t, got.Ask, "best ask should be positive")
+	assert.Positive(t, got.Open24Hour, "24-hour open should be positive")
+	if mockTests {
+		expected := &ticker.Price{
+			Last:                       2211,
+			VolumeWeightedAveragePrice: 2189.8,
+			High:                       2811,
+			Low:                        2188.97,
+			Bid:                        2188.97,
+			Ask:                        2211,
+			BaseVolume:                 213.268011,
+			Open:                       2211,
+			Open24Hour:                 2211,
+			PercentChange24Hour:        13.57,
+			OpenInterest:               10.1,
+			OpenInterestValue:          10234,
+			MarkPrice:                  2812,
+			IndexPrice:                 2814,
+			Pair:                       currency.NewBTCUSD().Lower(),
+			ExchangeName:               e.Name,
+			AssetType:                  asset.Spot,
+			LastUpdated:                time.Unix(1643640186, 0),
+		}
+		assert.Equal(t, expected, got, "single-market ticker should match every decoded field")
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(e, "api"), "Test instance MockHTTPInstance must not error")
+	}
+	e.Name = t.Name()
+	assert.ErrorIs(t, e.UpdateTickers(t.Context(), asset.Empty), asset.ErrNotSupported, "UpdateTickers should reject an empty asset")
+	assert.ErrorIs(t, e.UpdateTickers(t.Context(), asset.Futures), asset.ErrNotSupported, "UpdateTickers should reject a non-spot asset")
+	assets := e.GetAssetTypes(false)
+	require.NotEmpty(t, assets, "Bitstamp must have supported assets")
+	for _, a := range assets {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			err := e.UpdateTickers(t.Context(), a)
+			if mockTests {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "locked XRP/EUR must report an error")
+			} else {
+				require.NoError(t, err, "UpdateTickers must not error")
+			}
+			got, err := ticker.GetTicker(e.Name, currency.NewBTCUSD(), a)
+			require.NoError(t, err, "BTC/USD ticker must be stored")
+			if mockTests {
+				expected := &ticker.Price{
+					Last:                       2200,
+					VolumeWeightedAveragePrice: 2189.8,
+					High:                       2811,
+					Low:                        2170,
+					Bid:                        2188.97,
+					Ask:                        2211,
+					BaseVolume:                 213.268011,
+					Open:                       2190,
+					Open24Hour:                 2185,
+					PercentChange24Hour:        13.57,
+					OpenInterest:               10.1,
+					OpenInterestValue:          10234,
+					MarkPrice:                  2812,
+					IndexPrice:                 2814,
+					Pair:                       currency.NewBTCUSD().Lower(),
+					ExchangeName:               e.Name,
+					AssetType:                  a,
+					LastUpdated:                time.Unix(1643640186, 0),
+				}
+				assert.Equal(t, expected, got, "batch ticker should match every decoded field")
+				_, err = ticker.GetTicker(e.Name, currency.NewPair(currency.BTC, currency.NewCode("USD-PERP")), a)
+				assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "perpetual market should not be cached as spot")
+				_, err = ticker.GetTicker(e.Name, currency.NewPair(currency.NewCode("ZRX"), currency.USD), a)
+				assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "disabled spot market should not be cached")
+			} else {
+				assert.Positive(t, got.Last, "BTC/USD last price should be positive")
+				assert.Positive(t, got.Bid, "BTC/USD best bid should be positive")
+				assert.Positive(t, got.Ask, "BTC/USD best ask should be positive")
+				assert.False(t, got.LastUpdated.IsZero(), "BTC/USD timestamp should be set")
+			}
+		})
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -420,7 +535,7 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 		assert.NotEmpty(t, d, "Deposits should not be empty")
 		for _, res := range d {
 			assert.Equal(t, "0x6a56f5b80f04b4fd70d64d72e1396698635e5436", res.Address, "Address should match")
-			assert.Equal(t, 89473951, res.DestinationTag, "DestinationTag should match")
+			assert.Equal(t, uint64(89473951), res.DestinationTag, "DestinationTag should match")
 			assert.Equal(t, "299576079", res.MemoID, "MemoID should match")
 		}
 	}
@@ -1008,9 +1123,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
+	exp := make(subscription.List, 0, len(e.Features.Subscriptions)*len(pairs))
 	for _, baseSub := range e.Features.Subscriptions {
 		for _, p := range pairs.Format(currency.PairFormat{Uppercase: false}) {
 			s := baseSub.Clone()

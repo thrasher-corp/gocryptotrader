@@ -312,7 +312,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		optionsUnderlyingCandlesticksChannel:
 		return e.processOptionsCandlestickPushData(ctx, respRaw)
 	case optionsOrderbookChannel:
-		return e.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
+		return e.processOptionsOrderbookSnapshotPushData(ctx, push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
 		var data *WsOptionsOrderbookTicker
 		return e.processResponse(ctx, respRaw, &data)
@@ -350,16 +350,22 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tick := &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
+		MarkPrice:    data.MarkPrice.Float64(),
+		IndexPrice:   data.IndexPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
 		AskSize:      data.Ask1Size.Float64(),
 		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
-	})
+	}
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 func (e *Exchange) processOptionsTradesPushData(data []byte) error {
@@ -468,7 +474,7 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	})
 }
 
-func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOptionsOrderbookSnapshotPushData(ctx context.Context, event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data *WsOptionsOrderbookSnapshot
 		if err := json.Unmarshal(incoming, &data); err != nil {
@@ -481,18 +487,18 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 			LastUpdated:       data.Timestamp.Time(),
 			LastPushed:        lastPushed,
 			ValidateOrderbook: e.ValidateOrderbook,
+			Asks:              make([]orderbook.Level, len(data.Asks)),
+			Bids:              make([]orderbook.Level, len(data.Bids)),
 		}
-		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
-		return e.Websocket.Orderbook.LoadSnapshot(&base)
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &base)
 	}
 	var data []*WsFuturesOrderbookUpdateEvent
 	if err := json.Unmarshal(incoming, &data); err != nil {
@@ -525,7 +531,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		if err != nil {
 			return err
 		}
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Asks:              ab[0],
 			Bids:              ab[1],
 			Asset:             asset.Options,

@@ -1,13 +1,11 @@
 # GoCryptoTrader package Portfolio Manager
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/portfolio_manager)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This portfolio_manager package is part of the GoCryptoTrader codebase.
 
@@ -18,6 +16,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
 ## Current Features for Portfolio Manager
+
 + The portfolio manager subsystem is used to synchronise and monitor wallet addresses
 + It can read addresses specified in your config file
 + If you have set API keys for an enabled exchange and enabled `authenticatedSupport`, it will store your exchange addresses
@@ -44,8 +43,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

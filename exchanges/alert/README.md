@@ -1,13 +1,11 @@
 # GoCryptoTrader package Alert
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/alert)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This alert package is part of the GoCryptoTrader codebase.
 
@@ -21,7 +19,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package allows for multiple routines to wait for a state change on any required data.
 
-### Examples:
+### Examples
 
 + Implementation:
 
@@ -29,28 +27,28 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 // SomeChangingType defines an example struct with an embedded alert.Notice
 // type for easy access to the notice methods.
 type SomeChangingType struct {
-	ValueThatChanges int64
-	alert.Notice
-	mu sync.Mutex // Protection for routine shenanigans
+    ValueThatChanges int64
+    alert.Notice
+    mu sync.Mutex // Protection for routine shenanigans
 }
 
 // Update will update in a separate routine
 func (s *SomeChangingType) Update(newValue int64) {
-	// This simulates a changing variable or state
-	s.mu.Lock()
-	s.ValueThatChanges = newValue
-	// This will alert any routines that are currently waiting for a change
-	s.Alert()
-	s.mu.Unlock()
+    // This simulates a changing variable or state
+    s.mu.Lock()
+    s.ValueThatChanges = newValue
+    // This will alert any routines that are currently waiting for a change
+    s.Alert()
+    s.mu.Unlock()
 }
 
 // WhatsTheValue will retrieve the value that was changed and should be
 // different from the past value. Efficiency++
 func (s *SomeChangingType) WhatsTheValue() int64 {
-	s.mu.Lock()
-	value := s.ValueThatChanges
-	s.mu.Unlock()
-	return value
+    s.mu.Lock()
+    value := s.ValueThatChanges
+    s.mu.Unlock()
+    return value
 }
 ```
 
@@ -60,53 +58,53 @@ func (s *SomeChangingType) WhatsTheValue() int64 {
 // ExampleRoutineThatWaits defines an exchange potential routine that will wait
 // for an impending change.
 func ExampleRoutineThatWaits(potentialChange *SomeChangingType) {
-	// Every iteration requires a Wait() call.
-	for range potentialChange.Wait(nil) {
-		val := potentialChange.WhatsTheValue()
-		fmt.Println("Value:", val)
-	}
+    // Every iteration requires a Wait() call.
+    for range potentialChange.Wait(nil) {
+        val := potentialChange.WhatsTheValue()
+        fmt.Println("Value:", val)
+    }
 }
 
-// AnotherExampleRoutineThatWaits defines an exchange potential routine that 
+// AnotherExampleRoutineThatWaits defines an exchange potential routine that
 // will wait for an impending change.
 func AnotherExampleRoutineThatWaits(potentialChange *SomeChangingType) {
-	// Every iteration requires a Wait() call.
-	for {
-		select {
-			case <-potentialChange.Wait(nil):
-				val := potentialChange.WhatsTheValue()
-				fmt.Println("Value:", val)
-			case <-shutdownChannel:
-				fmt.Println("Good-Bye!")
-			return 
-		}
-	}
+    // Every iteration requires a Wait() call.
+    for {
+        select {
+            case <-potentialChange.Wait(nil):
+                val := potentialChange.WhatsTheValue()
+                fmt.Println("Value:", val)
+            case <-shutdownChannel:
+                fmt.Println("Good-Bye!")
+            return
+        }
+    }
 }
 
 
 // WARNING: PLEASE DON'T DO THIS.
-// This will stop alerting for this specific data type due to the shared nature 
+// This will stop alerting for this specific data type due to the shared nature
 // of the underlying channels using a sync.Pool.
 func ABadExampleRoutineThatWaits(potentialChange *SomeChangingType) {
-	capturedChannel := potentialChange.Wait(nil)
-	for {
-		select {
-			case <-capturedChannel:
-				// This will produce incorrect results or no change. 
-				val := potentialChange.WhatsTheValue()
-				fmt.Println("Value:", val)
-			case <-shutdownChannel:
-				fmt.Println("Good-Bye!")
-			return 
-		}
-	}
+    capturedChannel := potentialChange.Wait(nil)
+    for {
+        select {
+            case <-capturedChannel:
+                // This will produce incorrect results or no change.
+                val := potentialChange.WhatsTheValue()
+                fmt.Println("Value:", val)
+            case <-shutdownChannel:
+                fmt.Println("Good-Bye!")
+            return
+        }
+    }
 }
 ```
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

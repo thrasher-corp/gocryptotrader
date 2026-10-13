@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -71,15 +72,10 @@ func (c Currencies) Match(other Currencies) bool {
 	if len(c) != len(other) {
 		return false
 	}
-
-match:
 	for x := range c {
-		for y := range other {
-			if c[x].Equal(other[y]) {
-				continue match
-			}
+		if !slices.ContainsFunc(other, c[x].Equal) {
+			return false
 		}
-		return false
 	}
 	return true
 }

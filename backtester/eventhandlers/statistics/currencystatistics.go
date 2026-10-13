@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
@@ -98,7 +98,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
-	riskFreeRatePerCandle := riskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRatePerCandle := riskFreeRate.Div(decimal.MustFromFloat(intervalsPerYear))
 	c.ArithmeticRatios, c.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &c.MaxDrawdown, sep)
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			last.Holdings.QuoteInitialFunds,
 			last.Holdings.TotalValue,
-			decimal.NewFromFloat(intervalsPerYear),
+			decimal.MustFromFloat(intervalsPerYear),
 			decimal.NewFromInt(int64(len(c.Events))),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {

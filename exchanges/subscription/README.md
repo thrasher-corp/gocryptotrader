@@ -1,13 +1,11 @@
 # GoCryptoTrader package Subscription
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/subscription)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This subscription package is part of the GoCryptoTrader codebase.
 
@@ -17,7 +15,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
-# Exchange Subscriptions
+## Exchange Subscriptions
 
 Exchange Subscriptions are streams of data delivered via websocket.
 
@@ -25,13 +23,14 @@ GoCryptoTrader engine will subscribe automatically to configured channels.
 A subset of exchanges currently support user configured channels, with the remaining using hardcoded defaults.
 See configuration Features.Subscriptions for whether an exchange is configurable.
 
-## Templating
+### Templating
 
 Exchange Contributors should implement `GetSubscriptionTemplate` to return a text/template Template.
 
 Exchanges are free to implement template caching, a map or a mono-template, inline or file templates.
 
 The template is provided with a single context structure:
+
 ```go
   S              *subscription.Subscription
   AssetPairs     map[asset.Item]currency.Pairs
@@ -40,14 +39,15 @@ The template is provided with a single context structure:
   BatchSize      string
 ```
 
-Subscriptions may fan out many channels for assets and pairs, to support exchanges which require individual subscriptions.  
-To allow the template to communicate how to handle its output it should use the provided directives:
+Subscriptions may fan out many channels for assets and pairs, to support exchanges which require individual subscriptions. To allow the template to communicate how to handle its output it should use the provided directives:
+
 - AssetSeparator should be added at the end of each section related to assets
 - PairSeparator should be added at the end of each pair
 - BatchSize should be added with a number directly before AssetSeparator to indicate pairs have been batched
 
 Example:
-```
+
+```gotemplate
 {{- range $asset, $pairs := $.AssetPairs }}
     {{- range $b := batch $pairs 30 -}}
         {{- $.S.Channel -}} : {{- $b.Join -}}
@@ -72,8 +72,8 @@ Template functions should panic to handle errors. They are caught by text/templa
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

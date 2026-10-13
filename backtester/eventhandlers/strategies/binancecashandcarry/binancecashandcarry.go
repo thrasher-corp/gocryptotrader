@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Name returns the name of the strategy
@@ -286,13 +286,13 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || osdp <= 0 {
 				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
+			s.openShortDistancePercentage = decimal.MustFromFloat(osdp)
 		case closeShortDistancePercentageString:
 			csdp, ok := v.(float64)
 			if !ok || csdp <= 0 {
 				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
+			s.closeShortDistancePercentage = decimal.MustFromFloat(csdp)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}

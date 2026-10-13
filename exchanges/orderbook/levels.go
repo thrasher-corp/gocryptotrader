@@ -13,7 +13,6 @@ const FullLiquidityExhaustedPercentage = -100
 
 var (
 	errIDCannotBeMatched               = errors.New("cannot match ID")
-	errCollisionDetected               = errors.New("cannot insert update, collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
 	errInvalidImpactSlippage           = errors.New("invalid slippage amount, its value must be greater than zero")
@@ -58,9 +57,8 @@ updates:
 			if updts[x].ID != l[y].ID { // Filter IDs that don't match
 				continue
 			}
+			// Preserve the existing price when an amount-only update supplies a zero price.
 			if updts[x].Price > 0 {
-				// Only apply changes when zero values are not present, Bitmex
-				// for example sends 0 price values.
 				l[y].Price = updts[x].Price
 				l[y].StrPrice = updts[x].StrPrice
 			}
@@ -209,32 +207,6 @@ updates:
 	return nil
 }
 
-// insertUpdates inserts new updates for bids or asks based on price level
-// TODO: Remove when BitMEX support is removed.
-func (l *Levels) insertUpdates(updts Levels, comp comparison) error {
-updates:
-	for _, update := range updts {
-		if len(*l) == 0 {
-			*l = append(*l, update)
-			continue
-		}
-
-		for y := range *l {
-			switch {
-			case (*l)[y].Price == update.Price: // Price already found
-				return fmt.Errorf("%w for price %f", errCollisionDetected, update.Price)
-			case comp((*l)[y].Price, update.Price): // price at correct spot
-				*l = append(*l, Level{})
-				copy((*l)[y+1:], (*l)[y:])
-				(*l)[y] = update
-				continue updates
-			}
-		}
-		*l = append(*l, update)
-	}
-	return nil
-}
-
 // getHeadPriceNoLock gets best/head price
 func (l Levels) getHeadPriceNoLock() (float64, error) {
 	if len(l) == 0 {
@@ -365,11 +337,6 @@ func (bids *bidLevels) updateInsertByID(updts Levels) error {
 	return bids.Levels.updateInsertByID(updts, bidCompare)
 }
 
-// insertUpdates inserts new updates for bids based on price level
-func (bids *bidLevels) insertUpdates(updts Levels) error {
-	return bids.Levels.insertUpdates(updts, bidCompare)
-}
-
 // hitBidsByNominalSlippage hits the bids by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
@@ -496,11 +463,6 @@ func (ask *askLevels) updateInsertByPrice(updts Levels, maxChainLength int) {
 // updateInsertByID updates or inserts if not found
 func (ask *askLevels) updateInsertByID(updts Levels) error {
 	return ask.Levels.updateInsertByID(updts, askCompare)
-}
-
-// insertUpdates inserts new updates for asks based on price level
-func (ask *askLevels) insertUpdates(updts Levels) error {
-	return ask.Levels.insertUpdates(updts, askCompare)
 }
 
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage

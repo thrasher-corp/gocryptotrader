@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -104,6 +104,16 @@ func TestMain(m *testing.M) {
 		}
 	}
 	os.Exit(m.Run())
+}
+
+func TestWsProcessTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"update","tickers":[{"type":"ticker","product_id":"UNTRACKED-USD","price":"1"}]}]`)}
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "wsProcessTicker must not error for a product with no alias")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessTicker should not relay an empty batch")
 }
 
 func TestSetup(t *testing.T) {
@@ -342,28 +352,24 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errInvalidOrderType)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 	ord = &PlaceOrderInfo{
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),
 		MarginType: "CROSS",
 		Leverage:   9999,
-		OrderInfo: OrderInfo{
-			PostOnly:   false,
-			EndTime:    time.Now().Add(time.Hour),
-			OrderType:  order.Limit,
-			BaseAmount: testAmount,
-			LimitPrice: testPrice,
-		},
+		PostOnly:   false,
+		EndTime:    time.Now().Add(time.Hour),
+		OrderType:  order.Limit,
+		BaseAmount: testAmount,
+		LimitPrice: testPrice,
 	}
 	resp, err := e.PlaceOrder(t.Context(), ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
-	id, err = uuid.NewV4()
-	assert.NoError(t, err)
+	id = uuid.NewV4()
 	ord.ClientOID = id.String()
 	ord.MarginType = "MULTI"
 	resp, err = e.PlaceOrder(t.Context(), ord)
@@ -705,10 +711,25 @@ func TestGetHistoricKlines(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestDurationFieldsUnmarshal(t *testing.T) {
+	t.Parallel()
+	var fp FutureProductDetails
+	require.NoError(t, json.Unmarshal([]byte(`{"venue":"FCM","contract_code":"BIT","time_to_expiry_ms":"1814400000"}`), &fp), "Unmarshal must not error")
+	assert.Equal(t, 1814400000.0, fp.TimeToExpiryMilliseconds.Float64(), "TimeToExpiryMilliseconds should decode as milliseconds")
+
+	var bm TWAPBucketMetadata
+	require.NoError(t, json.Unmarshal([]byte(`{"bucket_duration":"3600s","bucket_size":"0.5","number_buckets":"4","start_time":"2026-08-21T07:52:43Z","end_time":"2026-08-21T08:52:43Z"}`), &bm), "Unmarshal must not error")
+	assert.Equal(t, "3600s", bm.BucketDuration, "BucketDuration should decode as the exchange's duration string")
+	assert.Equal(t, 0.5, bm.BucketSize.Float64(), "BucketSize should decode")
+	assert.Equal(t, int64(4), int64(bm.NumberBuckets), "NumberBuckets should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 7, 52, 43, 0, time.UTC), bm.StartTime, "StartTime should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 8, 52, 43, 0, time.UTC), bm.EndTime, "EndTime should decode")
+}
+
 func TestGetAllProducts(t *testing.T) {
 	t.Parallel()
 	testPairs := []string{testPairFiat.String(), "ETH-USD"}
-	resp, err := e.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
+	resp, err := e.GetAllProducts(t.Context(), 1000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
@@ -1196,6 +1217,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, exchangeBaseHelper(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := e.UpdateTicker(t.Context(), testPairFiat, asset.Spot)
@@ -1585,6 +1609,12 @@ func TestWsAuth(t *testing.T) {
 	timer.Stop()
 }
 
+// isUnmarshalTypeErr reports whether err is, or wraps, a json.UnmarshalTypeError
+func isUnmarshalTypeErr(err error) bool {
+	_, ok := errors.AsType[*json.UnmarshalTypeError](err)
+	return ok
+}
+
 func TestWsHandleData(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() {
@@ -1601,39 +1631,38 @@ func TestWsHandleData(t *testing.T) {
 		}
 	}()
 	_, err := e.wsHandleData(t.Context(), nil)
-	var syntaxErr *json.SyntaxError
-	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
+	_, isSyntaxErr := errors.AsType[*json.SyntaxError](err)
+	assert.True(t, isSyntaxErr || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.Error(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
-	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
@@ -1645,7 +1674,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
@@ -1699,14 +1728,14 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := e.ProcessSnapshot(&req, time.Time{})
+	err := e.ProcessSnapshot(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.ProcessUpdate(&req, time.Time{})
+	err = e.ProcessUpdate(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	req.Changes[0].Side = "offer"
-	err = e.ProcessSnapshot(&req, time.Now())
+	err = e.ProcessSnapshot(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
-	err = e.ProcessUpdate(&req, time.Now())
+	err = e.ProcessUpdate(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
 }
 
@@ -1760,16 +1789,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "matches"},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 	e.checkSubscriptions()
 	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)

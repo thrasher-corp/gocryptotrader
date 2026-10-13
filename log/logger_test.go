@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"log"
@@ -11,23 +12,20 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
 	testConfigEnabled = &Config{
-		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
-			Output: "console",
-			Level:  "INFO|WARN|DEBUG|ERROR",
-		},
+		Enabled: new(true),
+		Output:  "console",
+		Level:   "INFO|WARN|DEBUG|ERROR",
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: convert.BoolPtr(true),
+			ShowLogSystemName: new(true),
 			Spacer:            " | ",
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
@@ -46,8 +44,8 @@ var (
 		},
 	}
 	testConfigDisabled = &Config{
-		Enabled:         convert.BoolPtr(false),
-		SubLoggerConfig: SubLoggerConfig{Output: "console"},
+		Enabled: new(false),
+		Output:  "console",
 	}
 
 	tempDir string
@@ -110,6 +108,12 @@ func TestSetGlobalLogConfig(t *testing.T) {
 
 	err = SetGlobalLogConfig(testConfigEnabled)
 	require.NoError(t, err)
+}
+
+func TestSetupSubLoggersIgnoresRemovedGCTScript(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, SetupSubLoggers([]SubLoggerConfig{{Name: "gctscript", Output: "console"}}), "SetupSubLoggers must ignore the removed GCTScript sublogger")
+	require.Error(t, SetupSubLoggers([]SubLoggerConfig{{Name: "unknown", Output: "console"}}), "SetupSubLoggers must reject other unknown subloggers")
 }
 
 func TestSetLogPath(t *testing.T) {
@@ -427,7 +431,6 @@ func TestPooledFieldsUseCurrentLogger(t *testing.T) {
 		levels: Levels{Info: true},
 		output: &multiWriterHolder{writers: []io.Writer{w}},
 	}
-	enabled := true
 	currentLogger := Logger{InfoHeader: "current", Spacer: " "}
 	staleLogger := Logger{InfoHeader: "stale", Spacer: " "}
 
@@ -436,7 +439,7 @@ func TestPooledFieldsUseCurrentLogger(t *testing.T) {
 	originalHook := customLogHook
 	originalLogger := logger
 	originalPool := logFieldsPool
-	globalLogConfig = &Config{Enabled: &enabled}
+	globalLogConfig = &Config{Enabled: new(true)}
 	customLogHook = nil
 	logger = staleLogger
 	pooled := originalPool.New().(*fields) //nolint:forcetypeassert // Not necessary from a pool
@@ -956,7 +959,7 @@ func TestNewSubLogger(t *testing.T) {
 
 func TestRotateWrite(t *testing.T) {
 	t.Parallel()
-	empty := Rotate{Rotate: convert.BoolPtr(true), FileName: "test.txt"}
+	empty := Rotate{Rotate: new(true), FileName: "test.txt"}
 	payload := make([]byte, defaultMaxSize*megabyte+1)
 	_, err := empty.Write(payload)
 	require.ErrorIs(t, err, errExceedsMaxFileSize)
@@ -1000,9 +1003,7 @@ type testBuffer struct {
 }
 
 func (tb *testBuffer) Write(p []byte) (int, error) {
-	cpy := make([]byte, len(p))
-	copy(cpy, p)
-	tb.value = cpy
+	tb.value = bytes.Clone(p)
 	tb.Finished <- struct{}{}
 	return len(p), nil
 }
@@ -1014,9 +1015,7 @@ func (tb *testBuffer) Read() string {
 
 func (tb *testBuffer) ReadRaw() []byte {
 	defer func() { tb.value = tb.value[:0] }()
-	cpy := make([]byte, len(tb.value))
-	copy(cpy, tb.value)
-	return cpy
+	return bytes.Clone(tb.value)
 }
 
 func newTestBuffer() *testBuffer {
@@ -1302,9 +1301,11 @@ func BenchmarkCustomLogHookFallthrough(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		Infof(sl, "formatted %s %d", "message", 1)
 	}
+	// b.Loop stops the timer once it returns false, so the async flush this measures has to be timed back in
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
@@ -1318,9 +1319,12 @@ func BenchmarkInfof(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for n := range b.N {
+	var n int
+	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		n++
 	}
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
@@ -1333,9 +1337,10 @@ func BenchmarkInfoln(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		Infoln(sl, "Hello this is an infoln benchmark")
 	}
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
@@ -1361,8 +1366,7 @@ func TestWithFields(t *testing.T) {
 	err = sl.setOutputProtected(mwh)
 	require.NoError(t, err, "setOutputProtected must not error")
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err, "uuid.NewV4 must not error")
+	id := uuid.NewV4()
 
 	ErrorlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")

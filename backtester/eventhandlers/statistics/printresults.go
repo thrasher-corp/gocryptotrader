@@ -3,10 +3,9 @@ package statistics
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -106,11 +106,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 		}
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		b1 := results[i]
-		b2 := results[j]
-		return b1.Time.Before(b2.Time)
-	})
+	slices.SortFunc(results, func(a, b eventOutputHolder) int { return a.Time.Compare(b.Time) })
 	for i := range results {
 		for j := range results[i].Events {
 			log.Infoln(common.Statistics, results[i].Events[j])
@@ -204,9 +200,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	if len(c.Events) == 0 {
 		return errCurrencyStatisticsUnset
 	}
-	sort.Slice(c.Events, func(i, j int) bool {
-		return c.Events[i].Time.Before(c.Events[j].Time)
-	})
+	slices.SortFunc(c.Events, func(a, b DataAtOffset) int { return a.Time.Compare(b.Time) })
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
 	if first.DataEvent == nil {
