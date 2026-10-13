@@ -328,6 +328,7 @@ message OrderDetails {
   double cost = 16;
   repeated TradeHistory trades = 17;
   double contract_amount = 18;
+  Fees fees = 20;
 }
 
 message TradeHistory {
@@ -340,6 +341,7 @@ message TradeHistory {
   string order_side = 7;
   double fee = 8;
   double total = 9;
+  Fees fees = 10;
 }
 
 message GetOrdersRequest {
@@ -378,12 +380,14 @@ message Trades {
   double price = 2;
   double fee = 3;
   string fee_asset = 4;
+  Fees fees = 5;
 }
 
 message SubmitOrderResponse {
   bool order_placed = 1;
   string order_id = 2;
   repeated Trades trades = 3;
+  Fees fees = 4;
 }
 
 message SimulateOrderRequest {
@@ -1500,6 +1504,18 @@ message GetCurrencyTradeURLRequest {
 
 message GetCurrencyTradeURLResponse {
   string url = 1;
+}
+
+// FeeAmount is a fee in one currency; a negative amount is a rebate.
+message FeeAmount {
+  string currency = 1;
+  double amount = 2;
+}
+
+// Fees holds the fees an exchange reported, one amount per currency. A fees field is unset when the exchange did not
+// report fees, and set without amounts when it reported that there are none.
+message Fees {
+  repeated FeeAmount amounts = 1;
 }
 
 service GoCryptoTraderService {

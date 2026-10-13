@@ -5119,6 +5119,32 @@
         }
       }
     },
+    "gctrpcFeeAmount": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "description": "FeeAmount is a fee in one currency; a negative amount is a rebate."
+    },
+    "gctrpcFees": {
+      "type": "object",
+      "properties": {
+        "amounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcFeeAmount"
+          }
+        }
+      },
+      "description": "Fees holds the fees an exchange reported, one amount per currency. A fees field is unset when the exchange did not\nreport fees, and set without amounts when it reported that there are none."
+    },
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
@@ -6517,6 +6543,9 @@
         "contractAmount": {
           "type": "number",
           "format": "double"
+        },
+        "fees": {
+          "$ref": "#/definitions/gctrpcFees"
         }
       }
     },
@@ -6973,6 +7002,9 @@
             "type": "object",
             "$ref": "#/definitions/gctrpcTrades"
           }
+        },
+        "fees": {
+          "$ref": "#/definitions/gctrpcFees"
         }
       }
     },
@@ -7142,6 +7174,9 @@
         "total": {
           "type": "number",
           "format": "double"
+        },
+        "fees": {
+          "$ref": "#/definitions/gctrpcFees"
         }
       }
     },
@@ -7162,6 +7197,9 @@
         },
         "feeAsset": {
           "type": "string"
+        },
+        "fees": {
+          "$ref": "#/definitions/gctrpcFees"
         }
       }
     },

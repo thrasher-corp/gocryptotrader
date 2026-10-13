@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1725,4 +1726,154 @@ func TestGetByDetail(t *testing.T) {
 		assert.NotSame(t, byID, od, "Retrieve by new pointer should return a different new pointer than the original object")
 		assert.Equal(t, od.ClientOrderID, byID.ClientOrderID, "Retrieve by id pointer should contain the correct ClientOrderID")
 	}
+}
+
+// feesExchange serves programmed order lookups, active orders, submissions and position orders, and records the last
+// submission it receives, so tests can follow fees and orders through the order manager and RPC server without API calls
+type feesExchange struct {
+	exchange.IBotExchange
+	orderInfo      *order.Detail
+	activeOrders   []order.Detail
+	submitted      *order.SubmitResponse
+	submission     *order.Submit
+	positionOrders []order.Detail
+}
+
+func (f *feesExchange) GetOrderInfo(context.Context, string, currency.Pair, asset.Item) (*order.Detail, error) {
+	return f.orderInfo.CopyToPointer(), nil
+}
+
+func (f *feesExchange) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	return f.activeOrders, nil
+}
+
+func (f *feesExchange) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	f.submission = s
+	return f.submitted, nil
+}
+
+func (f *feesExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	return []futures.PositionResponse{{Asset: req.Asset, Pair: req.Pairs[0], Orders: f.positionOrders}}, nil
+}
+
+// setupFeesExchange returns an RPC server whose order manager tracks orders from a feesExchange trading BTCUSDT spot
+// and USDT margined futures, set up without API calls
+func setupFeesExchange(t *testing.T) (*RPCServer, *feesExchange) {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.States = currencystate.NewCurrencyStates()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+		b.CurrencyPairs.Pairs[a] = &currency.PairStore{
+			Available:     currency.Pairs{currency.NewBTCUSDT()},
+			Enabled:       currency.Pairs{currency.NewBTCUSDT()},
+			AssetEnabled:  true,
+			ConfigFormat:  &currency.PairFormat{Uppercase: true},
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+		}
+	}
+	fake := &feesExchange{IBotExchange: exch}
+	require.NoError(t, em.Add(fake), "Add must not error")
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	om.started.Store(true)
+	return &RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em, OrderManager: om}}, fake
+}
+
+func newTestFees(t *testing.T, amounts ...order.FeeAmount) order.Fees {
+	t.Helper()
+	f, err := order.NewFees(amounts...)
+	require.NoError(t, err, "NewFees must not error")
+	return f
+}
+
+// TestOrderManagerFees follows #2456's lookups through the order manager's REST paths, GetOrderInfo and
+// FetchAndUpdateExchangeOrder: a second currency must replace the stored single fee, a lookup without fees keeps the
+// stored ones even when it carries a single fee, and an empty snapshot clears them
+func TestOrderManagerFees(t *testing.T) {
+	t.Parallel()
+	s, exch := setupFeesExchange(t)
+	btc := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001})
+	btcUSDT := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
+	none := newTestFees(t)
+	for _, step := range []struct {
+		name     string
+		fees     order.Fees
+		fee      float64
+		expFees  order.Fees
+		expFee   float64
+		expAsset currency.Code
+	}{
+		{name: "one currency", fees: btc, expFees: btc, expFee: 0.001, expAsset: currency.BTC},
+		{name: "two currencies", fees: btcUSDT, expFees: btcUSDT},
+		{name: "a single fee without fees", fee: 0.3, expFees: btcUSDT},
+		{name: "no fees", fees: none, expFees: none},
+	} {
+		exch.orderInfo = &order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Fee: step.fee}
+		exch.orderInfo.SetFees(step.fees)
+		got, err := s.OrderManager.GetOrderInfo(t.Context(), exch.GetName(), "1", currency.NewBTCUSDT(), asset.Spot)
+		require.NoErrorf(t, err, "GetOrderInfo must not error for %s", step.name)
+		stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
+		require.NoErrorf(t, err, "GetByExchangeAndID must not error for %s", step.name)
+		for _, d := range []*order.Detail{&got, stored} {
+			assert.Equalf(t, step.expFees, d.Fees, "the order should have the expected fees for %s", step.name)
+			assert.Equalf(t, step.expFee, d.Fee, "the order should have the expected single fee for %s", step.name)
+			assert.Equalf(t, step.expAsset, d.FeeAsset, "the order should have the expected single fee asset for %s", step.name)
+		}
+	}
+
+	exch.orderInfo.SetFees(btcUSDT)
+	err := s.OrderManager.FetchAndUpdateExchangeOrder(t.Context(), exch, &order.Detail{OrderID: "1", Pair: currency.NewBTCUSDT()}, asset.Spot)
+	require.NoError(t, err, "FetchAndUpdateExchangeOrder must not error")
+	stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, btcUSDT, stored.Fees, "FetchAndUpdateExchangeOrder should replace the stored fees")
+	assert.Zero(t, stored.Fee, "FetchAndUpdateExchangeOrder should not leave a single fee for fees in two currencies")
+}
+
+// TestOrderStoreFeesIsolation checks that an order's fees in the order store cannot be changed from outside it: not
+// through the update that was merged into it, nor through any order the store returns
+func TestOrderStoreFeesIsolation(t *testing.T) {
+	t.Parallel()
+	s, exch := setupFeesExchange(t)
+	m := s.OrderManager
+	exp := []order.FeeAmount{{Currency: currency.BTC, Amount: 0.001}, {Currency: currency.USDT, Amount: 0.2}}
+	fees := newTestFees(t, exp...)
+	other := newTestFees(t, order.FeeAmount{Currency: currency.ETH, Amount: 1})
+
+	_, err := m.UpsertOrder(&order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.Active, Amount: 1})
+	require.NoError(t, err, "UpsertOrder must not error adding the order")
+	update := &order.Detail{Exchange: exch.GetName(), OrderID: "1", Trades: []order.TradeHistory{{TID: "1"}}}
+	update.SetFees(fees)
+	update.Trades[0].SetFees(fees)
+	upserted, err := m.UpsertOrder(update)
+	require.NoError(t, err, "UpsertOrder must not error updating the order")
+	byID, err := m.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	filtered, err := m.GetOrdersFiltered(&order.Filter{Exchange: exch.GetName()})
+	require.NoError(t, err, "GetOrdersFiltered must not error")
+	require.Len(t, filtered, 1, "GetOrdersFiltered must return the order")
+	active, err := m.GetOrdersActive(&order.Filter{Exchange: exch.GetName()})
+	require.NoError(t, err, "GetOrdersActive must not error")
+	require.Len(t, active, 1, "GetOrdersActive must return the order")
+	snapshot := m.GetOrdersSnapshot(order.AnyStatus)
+	require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the order")
+	all := m.orderStore.get()[strings.ToLower(exch.GetName())]
+	require.Len(t, all, 1, "get must return the order")
+
+	for _, d := range []*order.Detail{update, &upserted.OrderDetails, byID, &filtered[0], &active[0], &snapshot[0], all[0]} {
+		require.Len(t, d.Trades, 1, "every copy must hold the fill")
+		d.SetFees(other)
+		d.Trades[0].SetFees(other)
+	}
+	stored, err := m.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, exp, stored.Fees.Amounts(), "the stored order's fees should not change from outside the store")
+	require.Len(t, stored.Trades, 1, "the stored order must hold the fill")
+	assert.Equal(t, exp, stored.Trades[0].Fees.Amounts(), "the stored fill's fees should not change from outside the store")
 }

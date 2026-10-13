@@ -423,6 +423,156 @@ func TestNewWeightedRateLimitByDuration(t *testing.T) {
 	assert.Equal(t, rate.Limit(1), r.limiter.Limit(), "limit should be 1 per second")
 }
 
+func TestGetRateLimiterWithShared(t *testing.T) {
+	t.Parallel()
+
+	own := rate.NewLimiter(rate.Limit(10), 1)
+	shared := rate.NewLimiter(rate.Limit(2), 1)
+	limiters := []*rate.Limiter{nil, shared, nil}
+	r := GetRateLimiterWithShared(own, 3, limiters...)
+	require.NotNil(t, r, "limiter must not be nil")
+	assert.Same(t, own, r.limiter, "the endpoint's own limiter should be kept, so that definitions can share it")
+	assert.Equal(t, Weight(3), r.weight, "weight should be 3")
+	assert.Equal(t, []*rate.Limiter{shared}, r.shared, "shared limiters should be kept without nil entries")
+	limiters[1] = rate.NewLimiter(rate.Limit(1), 1)
+	assert.Same(t, shared, r.shared[0], "shared limiters should not alias the caller's slice")
+	assert.Empty(t, GetRateLimiterWithShared(own, 1).shared, "a limiter without shared limiters should hold none")
+}
+
+func TestRateLimitWithShared(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		shared := rate.NewLimiter(rate.Limit(2), 1)
+		first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+		second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+
+		start := time.Now()
+		require.NoError(t, first.RateLimit(t.Context()), "first request must not error")
+		assert.Zero(t, time.Since(start), "first request should not wait")
+
+		start = time.Now()
+		require.NoError(t, second.RateLimit(t.Context()), "second request must not error")
+		assert.Equal(t, 500*time.Millisecond, time.Since(start), "a request on another endpoint should wait for the shared limiter")
+
+		slow := GetRateLimiterWithShared(NewRateLimit(time.Second, 1), 1, rate.NewLimiter(rate.Limit(2), 1))
+		require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's first request must not error")
+		start = time.Now()
+		require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's second request must not error")
+		assert.Equal(t, time.Second, time.Since(start), "a request should wait for the slowest of its limiters")
+
+		weighted := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 5, rate.NewLimiter(rate.Limit(1), 1))
+		start = time.Now()
+		require.NoError(t, weighted.RateLimit(t.Context()), "weighted request must not error")
+		assert.Equal(t, 40*time.Millisecond, time.Since(start), "a weighted request should take its weight from its own limiter but one reservation from a shared one")
+
+		time.Sleep(time.Second)
+		require.NoError(t, first.RateLimit(t.Context()), "request must not error once the shared budget refills")
+		err := second.RateLimit(WithDelayNotAllowed(t.Context()))
+		assert.ErrorIs(t, err, ErrDelayNotAllowed, "a request the shared limiter would delay should be refused when delays are not allowed")
+		time.Sleep(500 * time.Millisecond)
+		require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a refused request must give its reservations back")
+	})
+}
+
+func TestRateLimitWithSharedReleasesReservations(t *testing.T) {
+	t.Parallel()
+
+	t.Run("cancelled while waiting", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			shared := rate.NewLimiter(rate.Limit(1), 1)
+			own := rate.NewLimiter(rate.Limit(1), 1)
+			first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+			waiting := GetRateLimiterWithShared(own, 2, shared)
+			require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
+
+			ctx, cancel := context.WithCancel(t.Context())
+			errs := make(chan error, 1)
+			go func() { errs <- waiting.RateLimit(ctx) }()
+			synctest.Wait()
+			cancel()
+			require.ErrorIs(t, <-errs, context.Canceled, "a request cancelled while waiting must return the cancellation")
+
+			// Without the release, the cancelled request's reservations, due in one second, would keep both budgets
+			// empty for another second
+			time.Sleep(time.Second)
+			require.NoError(t, first.RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its shared reservation")
+			require.NoError(t, GetRateLimiterWithWeight(own, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its own reservations")
+		})
+	})
+
+	t.Run("deadline exceeded", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			shared := rate.NewLimiter(rate.Limit(1), 1)
+			first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+			second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+			require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
+
+			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+			defer cancel()
+			require.ErrorIs(t, second.RateLimit(ctx), context.DeadlineExceeded, "a request the shared limiter would delay past its deadline must be refused")
+			time.Sleep(time.Second)
+			require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a request refused for its deadline must give back its shared reservation")
+		})
+	})
+}
+
+func TestRateLimitBarrierWithShared(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		burst int
+		err   error
+	}{
+		{"shared burst for one participant rejects the group", 1, ErrDelayNotAllowed},
+		{"shared burst for every participant admits the group", 2, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+			require.NoError(t, err, "barrier contexts must be created")
+			shared := rate.NewLimiter(rate.Every(time.Hour), tc.burst)
+			left := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
+			right := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
+			errs := make(chan error, 2)
+			go func() { errs <- left.RateLimit(contexts[0]) }()
+			go func() { errs <- right.RateLimit(contexts[1]) }()
+			for range 2 {
+				if tc.err != nil {
+					assert.ErrorIs(t, <-errs, tc.err, "every participant should be refused")
+				} else {
+					assert.NoError(t, <-errs, "every participant should be admitted")
+				}
+			}
+			if tc.err != nil {
+				assert.InDelta(t, float64(tc.burst), shared.Tokens(), 0.001, "a refused group should give back its shared reservations")
+				assert.NoError(t, left.RateLimit(WithDelayNotAllowed(t.Context())), "a refused group should give back its own reservations")
+				return
+			}
+			assert.InDelta(t, 0, shared.Tokens(), 0.001, "an admitted group should keep one shared reservation for each participant")
+		})
+	}
+}
+
+func TestRateLimitWithSharedConcurrent(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		shared := rate.NewLimiter(rate.Limit(10), 1)
+		start := time.Now()
+		errs := common.ErrorCollector{}
+		for range 10 {
+			endpoint := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 1, shared)
+			errs.Go(func() error { return endpoint.RateLimit(t.Context()) })
+		}
+		require.NoError(t, errs.Collect(), "concurrent requests must not error")
+		assert.Equal(t, 900*time.Millisecond, time.Since(start), "requests on separate endpoints should queue on their shared limiter")
+	})
+}
+
 func TestGetRateLimiterWithWeight(t *testing.T) {
 	t.Parallel()
 
@@ -498,4 +648,19 @@ func TestInitiateRateLimit(t *testing.T) {
 	r.limiter = NewBasicRateLimit(time.Second, 10, 1)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.NoError(t, err, "should not error on valid rate limit initiation")
+}
+
+func TestReserveLockedShared(t *testing.T) {
+	t.Parallel()
+
+	at := time.Now()
+	sharedA := rate.NewLimiter(rate.Limit(4), 1)
+	sharedB := rate.NewLimiter(rate.Limit(1), 1)
+	require.True(t, sharedB.AllowN(at, 1), "priming the shared limiter must succeed")
+	r := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 2, sharedA, sharedB)
+	reserved, delay := r.reserveLocked(at)
+	assert.Len(t, reserved, 4, "reserveLocked should reserve the weight plus one per shared limiter")
+	assert.Equal(t, time.Second, delay, "reserveLocked should return the longest delay of all limiters")
+	cancelAll(reserved, at)
+	assert.True(t, sharedA.AllowN(at, 1), "cancelling should give the shared reservation back")
 }
