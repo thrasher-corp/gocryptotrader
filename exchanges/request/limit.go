@@ -46,7 +46,10 @@ type RateLimitDefinitions map[any]*RateLimiterWithWeight
 // This is used to define the rate limit for a specific endpoint.
 type RateLimiterWithWeight struct {
 	limiter *rate.Limiter
-	weight  Weight
+	// shared limiters, such as a venue's per-IP budget, take one reservation per request whatever its weight, on top
+	// of the limiter's own
+	shared []*rate.Limiter
+	weight Weight
 	// Redundant under rateLimitReservationMu in production, but retained so
 	// TestRateLimitReservationLock and TestRateLimitBarrierCancellationDuringAdmission
 	// can pause admission deterministically to verify locking and cancellation safeguards.
@@ -83,6 +86,16 @@ func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeig
 // struct.
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
 	return &RateLimiterWithWeight{limiter: l, weight: weight}
+}
+
+// GetRateLimiterWithShared couples a rate limiter with a weight count like GetRateLimiterWithWeight, and also takes one
+// reservation from each shared limiter per request, for venues that count every request against a common budget, such
+// as a per-IP limit, on top of each endpoint's own limit. A request waits until every limiter allows it. Taking the
+// limiter rather than a rate lets several definitions draw on one endpoint budget, with or without the shared ones
+func GetRateLimiterWithShared(l *rate.Limiter, weight Weight, shared ...*rate.Limiter) *RateLimiterWithWeight {
+	r := GetRateLimiterWithWeight(l, weight)
+	r.shared = slices.DeleteFunc(slices.Clone(shared), func(s *rate.Limiter) bool { return s == nil })
+	return r
 }
 
 // Weight returns the number of reservations consumed by each request.
@@ -172,6 +185,11 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		// A request that will not be sent gives back what it reserved, so that it holds up no later request on its own
+		// budget or on a shared one
+		rateLimitReservationMu.Lock()
+		cancelAll(reserved, time.Now())
+		rateLimitReservationMu.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
@@ -179,12 +197,18 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 }
 
 func (r *RateLimiterWithWeight) reserveLocked(at time.Time) ([]*rate.Reservation, time.Duration) {
-	reserved := make([]*rate.Reservation, 0, r.weight)
+	reserved := make([]*rate.Reservation, 0, int(r.weight)+len(r.shared))
 	for range r.weight {
 		// This avoids needing burst capacity in the limiter, which would otherwise allow the rate limit to be exceeded over short periods
 		reserved = append(reserved, r.limiter.ReserveN(at, 1))
 	}
-	return reserved, reserved[len(reserved)-1].DelayFrom(at)
+	delay := reserved[len(reserved)-1].DelayFrom(at)
+	for _, s := range r.shared {
+		res := s.ReserveN(at, 1)
+		reserved = append(reserved, res)
+		delay = max(delay, res.DelayFrom(at))
+	}
+	return reserved, delay
 }
 
 // admitLocked reserves every participant's capacity as one transaction. The barrier lock must be held by the caller.

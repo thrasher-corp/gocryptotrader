@@ -1137,6 +1137,23 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+
+	t.Run("fill side and type", func(t *testing.T) {
+		t.Parallel()
+		stored := &Detail{OrderID: "1", LastUpdated: updated, Trades: []TradeHistory{{TID: "1", Price: 100, Amount: 1, Side: Buy, Type: Limit}}}
+		correction := stored.Copy()
+		correction.Trades[0].Side = Sell
+		correction.LastUpdated = updated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's side")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's side")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's side changes")
+
+		correction.Trades[0].Type = Market
+		correction.LastUpdated = correction.LastUpdated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's type")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's type")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's type changes")
+	})
 }
 
 // TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an

@@ -1,0 +1,966 @@
+package bybit
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"maps"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+)
+
+var errUnexpectedRequest = errors.New("unexpected request type")
+
+// FixtureConnection is a websocket connection that answers requests without a server
+type FixtureConnection struct {
+	dialError                         error
+	sendMessageReturnResponseOverride []byte
+	// reply answers each request sent through SendMessageReturnResponse when set
+	reply func(request any) ([]byte, error)
+	sent  []any
+	match *websocket.Match
+	websocket.Connection
+}
+
+func (d *FixtureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
+
+func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return d.dialError
+}
+
+func (d *FixtureConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
+	d.sent = append(d.sent, req)
+	if d.reply != nil {
+		return d.reply(req)
+	}
+	if d.sendMessageReturnResponseOverride != nil {
+		return d.sendMessageReturnResponseOverride, nil
+	}
+	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
+}
+
+func (d *FixtureConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
+	return nil
+}
+
+func (d *FixtureConnection) RequireMatchWithData(signature any, data []byte) error {
+	return d.match.RequireMatchWithData(signature, data)
+}
+
+func (d *FixtureConnection) IncomingWithData(signature any, data []byte) bool {
+	return d.match.IncomingWithData(signature, data)
+}
+
+// signatureConnection is a FixtureConnection that records the signature each request waits on, which decides whether
+// the reply can reach it
+type signatureConnection struct {
+	*FixtureConnection
+	signatures []any
+}
+
+func (c *signatureConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, req any) ([]byte, error) {
+	c.signatures = append(c.signatures, signature)
+	return c.FixtureConnection.SendMessageReturnResponse(ctx, epl, signature, req)
+}
+
+// replySequence returns a reply func answering each request with the next of replies in turn; an empty reply fails
+// the send with errFixtureSend
+func replySequence(replies ...string) func(any) ([]byte, error) {
+	return func(any) ([]byte, error) {
+		if len(replies) == 0 {
+			return nil, errUnexpectedRequest
+		}
+		reply := replies[0]
+		replies = replies[1:]
+		if reply == "" {
+			return nil, errFixtureSend
+		}
+		return []byte(reply), nil
+	}
+}
+
+// websocketTestInstance returns an exchange of its own for a websocket test, without the recorded REST responses
+func websocketTestInstance(tb testing.TB) *Exchange {
+	tb.Helper()
+	ex := new(Exchange)
+	require.NoError(tb, testexch.Setup(ex), "Setup must not error")
+	return ex
+}
+
+// withMockCredentials gives ex the placeholder credentials, which account storage keys balances by
+func withMockCredentials(ex *Exchange) *Exchange {
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	return ex
+}
+
+// stopWebsocket disables and shuts down the websocket of ex, so its connection monitor does not reconnect to a closed
+// mock server
+func stopWebsocket(t *testing.T, ex *Exchange) {
+	t.Helper()
+	assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+	if err := ex.Websocket.Shutdown(); err != nil {
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail because the websocket is not connected")
+	}
+}
+
+// fixtureFrames returns the frames a fixture file holds, one per line
+func fixtureFrames(tb testing.TB, path string) [][]byte {
+	tb.Helper()
+	f, err := os.Open(path)
+	require.NoErrorf(tb, err, "fixture %s must open", path)
+	defer f.Close()
+	var frames [][]byte
+	s := bufio.NewScanner(f)
+	s.Buffer(nil, 1<<20)
+	for s.Scan() {
+		if line := bytes.TrimSpace(s.Bytes()); len(line) != 0 {
+			frames = append(frames, bytes.Clone(line))
+		}
+	}
+	require.NoErrorf(tb, s.Err(), "fixture %s must read", path)
+	require.NotEmptyf(tb, frames, "fixture %s must hold frames", path)
+	return frames
+}
+
+// decodeFramesStrictly decodes each frame into T, refusing keys T does not model
+func decodeFramesStrictly[T any](tb testing.TB, frames [][]byte) []T {
+	tb.Helper()
+	decoded := make([]T, len(frames))
+	for i, frame := range frames {
+		d := json.NewDecoder(bytes.NewReader(frame))
+		d.DisallowUnknownFields()
+		require.NoErrorf(tb, d.Decode(&decoded[i]), "frame %d must decode into %T without unknown keys", i, decoded[i])
+	}
+	return decoded
+}
+
+// liveStreamFrames subscribes to topics on a Bybit stream and returns up to perTopic frames pushed for each topic, and
+// the reply to the subscription, within the wait. Reads run in a goroutine so the window never needs a read deadline
+func liveStreamFrames(tb testing.TB, streamURL string, wait time.Duration, perTopic int, topics ...string) (frames [][]byte, reply []byte) {
+	tb.Helper()
+	conn, resp, err := gws.DefaultDialer.DialContext(tb.Context(), streamURL, nil)
+	if resp != nil {
+		resp.Body.Close()
+	}
+	require.NoError(tb, err, "Dial must not error")
+	defer conn.Close()
+	read := make(chan []byte, 256)
+	go func() {
+		defer close(read)
+		for {
+			_, p, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			select {
+			case read <- p:
+			default: // A busy topic must not stall the reader; later frames are not needed
+			}
+		}
+	}()
+	req, err := json.Marshal(&SubscriptionRequest{RequestID: "1", Operation: subscribeOperation, Arguments: topics})
+	require.NoError(tb, err, "Marshal must not error")
+	require.NoError(tb, conn.WriteMessage(gws.TextMessage, req), "WriteMessage must not error")
+	counts := make(map[string]int, len(topics))
+	window := time.After(wait)
+	for {
+		select {
+		case p, ok := <-read:
+			require.True(tb, ok, "stream must stay open")
+			topic, _ := jsonparser.GetString(p, "topic")
+			switch {
+			case topic == "" && reply == nil:
+				reply = p
+			case slices.Contains(topics, topic) && counts[topic] < perTopic:
+				counts[topic]++
+				frames = append(frames, p)
+			}
+			if reply != nil && len(counts) == len(topics) && !slices.ContainsFunc(slices.Collect(maps.Values(counts)), func(c int) bool { return c < perTopic }) {
+				return frames, reply
+			}
+		case <-window:
+			require.NotNil(tb, reply, "subscription must be answered")
+			return frames, reply
+		}
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := e.WsConnect(t.Context(), &FixtureConnection{dialError: nil})
+	require.NoError(t, err, "WsConnect must not error")
+	exp := errors.New("dial error")
+	err = e.WsConnect(t.Context(), &FixtureConnection{dialError: exp})
+	require.ErrorIs(t, err, exp, "WsConnect must return the dial error")
+}
+
+func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	err := ex.WebsocketAuthenticatePrivateConnection(t.Context(), &FixtureConnection{})
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "WebsocketAuthenticatePrivateConnection must error without authentication support")
+
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	conn := &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"Invalid apikey","op":"auth","conn_id":"cejreaspqfh3sjdnldmg-p","req_id":"1"}`)}
+	err = ex.WebsocketAuthenticatePrivateConnection(ctx, conn)
+	require.ErrorIs(t, err, errWebsocketAuthFailed, "WebsocketAuthenticatePrivateConnection must report a rejected authentication")
+
+	err = ex.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{reply: func(any) ([]byte, error) { return nil, errors.New("connection lost") }})
+	require.ErrorContains(t, err, "connection lost", "WebsocketAuthenticatePrivateConnection must return a failed send")
+	err = ex.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":"maybe"}`)})
+	require.Error(t, err, "WebsocketAuthenticatePrivateConnection must error for an undecodable reply")
+
+	conn = &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":true,"ret_msg":"","op":"auth","conn_id":"cejreaspqfh3sjdnldmg-p","req_id":"1"}`)}
+	require.NoError(t, ex.WebsocketAuthenticatePrivateConnection(ctx, conn), "WebsocketAuthenticatePrivateConnection must not error")
+	require.Len(t, conn.sent, 1, "WebsocketAuthenticatePrivateConnection must send one request")
+	req, ok := conn.sent[0].(*AuthenticationRequest)
+	require.True(t, ok, "WebsocketAuthenticatePrivateConnection must send an AuthenticationRequest")
+	assert.Equal(t, authOperation, req.Operation, "request operation should be auth")
+	assert.NotEmpty(t, req.RequestID, "request should carry a request ID to match the reply")
+}
+
+func TestGetAuthenticationPayload(t *testing.T) {
+	t.Parallel()
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	start := time.Now()
+	req, err := ex.GetAuthenticationPayload(ctx, "10001")
+	require.NoError(t, err, "GetAuthenticationPayload must not error")
+	require.Len(t, req.Arguments, 3, "arguments must hold the key, expiry and signature")
+	assert.Equal(t, "10001", req.RequestID, "request ID should be kept")
+	assert.Equal(t, authOperation, req.Operation, "operation should be auth")
+	assert.Equal(t, "mock-api-key", req.Arguments[0], "first argument should be the API key")
+	expires, ok := req.Arguments[1].(int64)
+	require.True(t, ok, "expiry must be Unix milliseconds")
+	assert.Greater(t, expires, start.UnixMilli(), "expiry should be in the future")
+	sig, ok := req.Arguments[2].(string)
+	require.True(t, ok, "signature must be a string")
+	expSig := getSign("GET/realtime"+strconv.FormatInt(expires, 10), "mock-api-secret")
+	assert.Equal(t, expSig, sig, "signature should sign GET/realtime and the expiry with the secret")
+}
+
+func TestWebsocketAuthenticationArguments(t *testing.T) {
+	t.Parallel()
+	ex := websocketTestInstance(t)
+	_, err := ex.websocketAuthenticationArguments(t.Context())
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "websocketAuthenticationArguments must error without authentication support")
+
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	start := time.Now()
+	args, err := ex.websocketAuthenticationArguments(ctx)
+	end := time.Now()
+	require.NoError(t, err, "websocketAuthenticationArguments must not error")
+	require.Len(t, args, 3, "websocketAuthenticationArguments must return the key, expiry and signature")
+	expires, ok := args[1].(int64)
+	require.True(t, ok, "websocketAuthenticationArguments must return the expiry in Unix milliseconds")
+	// Bybit refuses an expiry that has passed; the arguments stay valid for six hours
+	assert.GreaterOrEqual(t, expires, start.Add(6*time.Hour).UnixMilli(), "websocketAuthenticationArguments should expire six hours ahead")
+	assert.LessOrEqual(t, expires, end.Add(6*time.Hour).UnixMilli(), "websocketAuthenticationArguments should expire six hours ahead")
+	mac := hmac.New(sha256.New, []byte("mock-api-secret"))
+	_, err = mac.Write([]byte("GET/realtime" + strconv.FormatInt(expires, 10)))
+	require.NoError(t, err, "Write must not error")
+	exp := []any{"mock-api-key", expires, hex.EncodeToString(mac.Sum(nil))}
+	assert.Equal(t, exp, args, "websocketAuthenticationArguments should return the key, the expiry and the HMAC-SHA256 of GET/realtime and the expiry")
+}
+
+func TestSendSubscriptions(t *testing.T) {
+	t.Parallel()
+	sub := func(topic string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(topic, "USDT", "")}, QualifiedChannel: "tickers." + topic + "USDT"}
+	}
+	reject := func(named ...string) func(any) ([]byte, error) {
+		return func(r any) ([]byte, error) {
+			req, ok := r.(*SubscriptionRequest)
+			if !ok {
+				return nil, errUnexpectedRequest
+			}
+			for _, topic := range req.Arguments {
+				if slices.Contains(named, topic) {
+					return json.Marshal(&SubscriptionResponse{ReturnMessage: "error:handler not found,topic:" + topic, RequestID: req.RequestID, Operation: req.Operation})
+				}
+			}
+			return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+		}
+	}
+	for _, tc := range []struct {
+		name         string
+		topics       []string
+		reply        func(any) ([]byte, error)
+		expSent      [][]string
+		expStored    []string
+		expRejected  []string
+		expErrString string
+	}{
+		{
+			name:      "all accepted",
+			topics:    []string{"A", "B", "C"},
+			reply:     reject(),
+			expSent:   [][]string{{"tickers.AUSDT", "tickers.BUSDT", "tickers.CUSDT"}},
+			expStored: []string{"tickers.AUSDT", "tickers.BUSDT", "tickers.CUSDT"},
+		},
+		{
+			name:        "one bad topic in the first batch costs only itself",
+			topics:      []string{"A", "BAD", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"},
+			reply:       reject("tickers.BADUSDT"),
+			expSent:     [][]string{{"tickers.AUSDT", "tickers.BADUSDT", "tickers.CUSDT", "tickers.DUSDT", "tickers.EUSDT", "tickers.FUSDT", "tickers.GUSDT", "tickers.HUSDT", "tickers.IUSDT", "tickers.JUSDT"}, {"tickers.AUSDT", "tickers.CUSDT", "tickers.DUSDT", "tickers.EUSDT", "tickers.FUSDT", "tickers.GUSDT", "tickers.HUSDT", "tickers.IUSDT", "tickers.JUSDT"}, {"tickers.KUSDT", "tickers.LUSDT"}},
+			expStored:   []string{"tickers.AUSDT", "tickers.CUSDT", "tickers.DUSDT", "tickers.EUSDT", "tickers.FUSDT", "tickers.GUSDT", "tickers.HUSDT", "tickers.IUSDT", "tickers.JUSDT", "tickers.KUSDT", "tickers.LUSDT"},
+			expRejected: []string{"tickers.BADUSDT"},
+		},
+		{
+			name:        "each bad topic named in turn is dropped",
+			topics:      []string{"A", "BAD", "WORSE"},
+			reply:       reject("tickers.BADUSDT", "tickers.WORSEUSDT"),
+			expSent:     [][]string{{"tickers.AUSDT", "tickers.BADUSDT", "tickers.WORSEUSDT"}, {"tickers.AUSDT", "tickers.WORSEUSDT"}, {"tickers.AUSDT"}},
+			expStored:   []string{"tickers.AUSDT"},
+			expRejected: []string{"tickers.BADUSDT", "tickers.WORSEUSDT"},
+		},
+		{
+			name:   "a rejection naming no topic rejects its batch only",
+			topics: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"},
+			reply: func(r any) ([]byte, error) {
+				req, ok := r.(*SubscriptionRequest)
+				if !ok {
+					return nil, errUnexpectedRequest
+				}
+				if len(req.Arguments) == subscriptionBatchSize {
+					return json.Marshal(&SubscriptionResponse{ReturnMessage: "args size >10", RequestID: req.RequestID, Operation: req.Operation})
+				}
+				return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+			},
+			expSent:      [][]string{{"tickers.AUSDT", "tickers.BUSDT", "tickers.CUSDT", "tickers.DUSDT", "tickers.EUSDT", "tickers.FUSDT", "tickers.GUSDT", "tickers.HUSDT", "tickers.IUSDT", "tickers.JUSDT"}, {"tickers.KUSDT"}},
+			expStored:    []string{"tickers.KUSDT"},
+			expRejected:  []string{"tickers.AUSDT", "tickers.JUSDT"},
+			expErrString: "args size >10",
+		},
+		{
+			name:         "a failed send skips its batch only",
+			topics:       []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"},
+			reply:        func(r any) ([]byte, error) { return sendOrFail(r, "tickers.AUSDT") },
+			expSent:      [][]string{{"tickers.AUSDT", "tickers.BUSDT", "tickers.CUSDT", "tickers.DUSDT", "tickers.EUSDT", "tickers.FUSDT", "tickers.GUSDT", "tickers.HUSDT", "tickers.IUSDT", "tickers.JUSDT"}, {"tickers.KUSDT"}},
+			expStored:    []string{"tickers.KUSDT"},
+			expRejected:  []string{"tickers.AUSDT"},
+			expErrString: "connection lost",
+		},
+		{
+			name:         "an undecodable reply skips its batch only",
+			topics:       []string{"A"},
+			reply:        func(any) ([]byte, error) { return []byte(`{"success":"maybe"}`), nil },
+			expSent:      [][]string{{"tickers.AUSDT"}},
+			expRejected:  []string{"tickers.AUSDT"},
+			expErrString: "success",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := websocketTestInstance(t)
+			subs := make(subscription.List, len(tc.topics))
+			for i, topic := range tc.topics {
+				subs[i] = sub(topic)
+			}
+			conn := &FixtureConnection{reply: tc.reply}
+			err := ex.sendSubscriptions(t.Context(), conn, subscribeOperation, subs)
+			sent := make([][]string, len(conn.sent))
+			for i, r := range conn.sent {
+				req, ok := r.(*SubscriptionRequest)
+				require.True(t, ok, "sendSubscriptions must send SubscriptionRequests")
+				assert.Equal(t, subscribeOperation, req.Operation, "request operation should be subscribe")
+				sent[i] = req.Arguments
+			}
+			assert.Equal(t, tc.expSent, sent, "sendSubscriptions should send every batch, resending a rejected one without the topics it names")
+			assert.ElementsMatch(t, tc.expStored, ex.Websocket.GetSubscriptions().QualifiedChannels(), "sendSubscriptions should store only accepted subscriptions")
+			if len(tc.expRejected) == 0 {
+				require.NoError(t, err, "sendSubscriptions must not error")
+				return
+			}
+			require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendSubscriptions must report rejected topics as subscription failures")
+			for _, topic := range tc.expRejected {
+				assert.ErrorContains(t, err, topic, "error should name each rejected topic")
+			}
+			if tc.expErrString != "" {
+				assert.ErrorContains(t, err, tc.expErrString, "error should carry the cause")
+			}
+		})
+	}
+
+	ex := websocketTestInstance(t)
+	subs := subscription.List{sub("A"), sub("B")}
+	require.NoError(t, ex.sendSubscriptions(t.Context(), &FixtureConnection{reply: reject()}, subscribeOperation, subs), "sendSubscriptions must not error")
+	conn := &FixtureConnection{reply: reject()}
+	require.NoError(t, ex.sendSubscriptions(t.Context(), conn, unsubscribeOperation, subs), "sendSubscriptions must not error when unsubscribing")
+	require.Len(t, conn.sent, 1, "unsubscribing must send one request")
+	req, ok := conn.sent[0].(*SubscriptionRequest)
+	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
+	assert.Equal(t, unsubscribeOperation, req.Operation, "request operation should be unsubscribe")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribed subscriptions should be removed")
+}
+
+// sendOrFail fails a request that holds topic and accepts the rest
+func sendOrFail(r any, topic string) ([]byte, error) {
+	req, ok := r.(*SubscriptionRequest)
+	if !ok {
+		return nil, errUnexpectedRequest
+	}
+	if slices.Contains(req.Arguments, topic) {
+		return nil, errors.New("connection lost")
+	}
+	return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+}
+
+func TestSendSubscriptionBatch(t *testing.T) {
+	t.Parallel()
+	const (
+		subscribed   = `{"success":true,"ret_msg":"subscribe","conn_id":"2324d924-aa4d-45b0-a858-7b8be29ab52b","req_id":"10001","op":"subscribe"}`
+		unsubscribed = `{"success":true,"ret_msg":"","conn_id":"3cd84cb1-4d06-4a05-930a-2efe5fc70f0f","req_id":"10002","op":"unsubscribe"}`
+		rejectsBad   = `{"success":false,"ret_msg":"Invalid symbol :[tickers.BADUSDT]","conn_id":"d9avrat34tmf5pih98i0-gsmne","req_id":"10001","op":"subscribe"}`
+		rejectsAll   = `{"success":false,"ret_msg":"args size >10","conn_id":"d9avrat34tmf5pih98i0-gsmne","req_id":"10001","op":"subscribe"}`
+	)
+	for _, tc := range []struct {
+		name      string
+		operation string
+		stored    bool // the batch is stored before it is sent
+		bases     []string
+		replies   []string // the reply to each request in turn; an empty one fails the send
+		expSent   [][]string
+		expStored []string
+		expErrs   []error
+		expNamed  []string // topics the error names
+	}{
+		{name: "subscribed", operation: subscribeOperation, bases: []string{"A", "B"}, replies: []string{subscribed}, expSent: [][]string{{"tickers.AUSDT", "tickers.BUSDT"}}, expStored: []string{"tickers.AUSDT", "tickers.BUSDT"}},
+		{name: "rejected topic is resent without it", operation: subscribeOperation, bases: []string{"A", "BAD", "C"}, replies: []string{rejectsBad, subscribed}, expSent: [][]string{{"tickers.AUSDT", "tickers.BADUSDT", "tickers.CUSDT"}, {"tickers.AUSDT", "tickers.CUSDT"}}, expStored: []string{"tickers.AUSDT", "tickers.CUSDT"}, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.BADUSDT"}},
+		{name: "rejection naming no topic rejects the batch", operation: subscribeOperation, bases: []string{"A", "B"}, replies: []string{rejectsAll}, expSent: [][]string{{"tickers.AUSDT", "tickers.BUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.AUSDT", "tickers.BUSDT", "args size >10"}},
+		{name: "failed send", operation: subscribeOperation, bases: []string{"A"}, replies: []string{""}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.AUSDT"}},
+		{name: "failed resend keeps the rejection", operation: subscribeOperation, bases: []string{"A", "BAD"}, replies: []string{rejectsBad, ""}, expSent: [][]string{{"tickers.AUSDT", "tickers.BADUSDT"}, {"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.BADUSDT", "tickers.AUSDT"}},
+		{name: "undecodable reply", operation: subscribeOperation, bases: []string{"A"}, replies: []string{`{"success":"maybe"}`}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.AUSDT"}},
+		{name: "unsubscribed", operation: unsubscribeOperation, stored: true, bases: []string{"A", "B"}, replies: []string{unsubscribed}, expSent: [][]string{{"tickers.AUSDT", "tickers.BUSDT"}}},
+		{name: "unsubscribed topic not stored", operation: unsubscribeOperation, bases: []string{"A"}, replies: []string{unsubscribed}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{subscription.ErrNotFound}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := websocketTestInstance(t)
+			batch := make(subscription.List, len(tc.bases))
+			for i, base := range tc.bases {
+				batch[i] = &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "USDT", "")}, QualifiedChannel: "tickers." + base + "USDT"}
+			}
+			conn := &signatureConnection{FixtureConnection: &FixtureConnection{reply: replySequence(tc.replies...)}}
+			if tc.stored {
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, batch...), "AddSuccessfulSubscriptions must not error")
+			}
+			err := ex.sendSubscriptionBatch(t.Context(), conn, tc.operation, batch)
+			sent := make([][]string, len(conn.sent))
+			for i, r := range conn.sent {
+				req, ok := r.(*SubscriptionRequest)
+				require.True(t, ok, "sendSubscriptionBatch must send SubscriptionRequests")
+				assert.Equal(t, tc.operation, req.Operation, "sendSubscriptionBatch should send the operation")
+				assert.Equal(t, req.RequestID, conn.signatures[i], "sendSubscriptionBatch should wait on the request ID, which the reply echoes")
+				sent[i] = req.Arguments
+			}
+			assert.Equal(t, tc.expSent, sent, "sendSubscriptionBatch should send the batch, and resend it without the topics a rejection names")
+			assert.ElementsMatch(t, tc.expStored, ex.Websocket.GetSubscriptions().QualifiedChannels(), "sendSubscriptionBatch should store only the subscriptions Bybit accepted")
+			if len(tc.expErrs) == 0 {
+				require.NoError(t, err, "sendSubscriptionBatch must not error")
+				return
+			}
+			for _, expErr := range tc.expErrs {
+				require.ErrorIs(t, err, expErr, "sendSubscriptionBatch must return the expected error")
+			}
+			for _, named := range tc.expNamed {
+				assert.ErrorContains(t, err, named, "sendSubscriptionBatch should name each failed topic and Bybit's reason")
+			}
+		})
+	}
+}
+
+// TestSpotSubscribeRejectedBatch reproduces issue #2431 through the websocket manager: a server rejecting the batch
+// that holds one invalid symbol must not stop the later batches, and only the invalid topic may go unsubscribed
+func TestSpotSubscribeRejectedBatch(t *testing.T) {
+	t.Parallel()
+	const badTopic = "orderbook.50.ZZZQUSDT"
+	var mu sync.Mutex
+	var received [][]string
+	handler := func(_ testing.TB, msg []byte, c *gws.Conn) error {
+		var req SubscriptionRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		if req.Operation != subscribeOperation {
+			return nil
+		}
+		mu.Lock()
+		received = append(received, req.Arguments)
+		mu.Unlock()
+		resp := &SubscriptionResponse{Success: true, ReturnMessage: "subscribe", ConnectionID: "d9avrat34tmf5pih98i0-gsmne", RequestID: req.RequestID, Operation: subscribeOperation}
+		if slices.Contains(req.Arguments, badTopic) {
+			resp.Success = false
+			resp.ReturnMessage = "Invalid symbol :[" + badTopic + "]"
+		}
+		return c.WriteJSON(resp)
+	}
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	}
+	bases := []string{"ZZZQ", "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "LTC", "DOT", "LINK", "TRX", "AVAX"}
+	pairs := make(currency.Pairs, 0, len(bases))
+	for _, base := range bases {
+		pairs = append(pairs, currency.NewPair(currency.NewCode(base), currency.USDT))
+	}
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50, Pairs: pairs}}
+	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handler))
+	s.Start()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+
+	err := ex.Websocket.Connect(context.WithoutCancel(t.Context()))
+	t.Cleanup(func() { stopWebsocket(t, ex) })
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Connect must report the rejected subscription")
+	assert.ErrorContains(t, err, badTopic, "Connect should name the rejected topic")
+
+	exp := make([]string, 0, len(pairs)-1)
+	for _, p := range pairs[1:] {
+		exp = append(exp, "orderbook.50."+p.Base.String()+"USDT")
+	}
+	assert.ElementsMatch(t, exp, ex.Websocket.GetSubscriptions().QualifiedChannels(), "every topic but the rejected one should be subscribed")
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, received, 3, "the server must receive the rejected batch, its resend and the next batch")
+	assert.Contains(t, received[0], badTopic, "the first batch should hold the invalid topic")
+	assert.NotContains(t, received[1], badTopic, "the resent batch should drop the invalid topic")
+	assert.Len(t, received[1], subscriptionBatchSize-1, "the resent batch should keep every other topic")
+	assert.Len(t, received[2], len(pairs)-subscriptionBatchSize, "the later batch should still be sent")
+}
+
+func TestSplitRejectedSubscriptions(t *testing.T) {
+	t.Parallel()
+	a := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSDT"}
+	b := &subscription.Subscription{QualifiedChannel: "orderbook.50.ZZZQUSDT"}
+	c := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSD"}
+	for _, tc := range []struct {
+		message      string
+		expRejected  subscription.List
+		expRemaining subscription.List
+	}{
+		{message: "Invalid symbol :[orderbook.50.ZZZQUSDT]", expRejected: subscription.List{b}, expRemaining: subscription.List{a, c}},
+		{message: "error:handler not found,topic:orderbook.50.ZZZQUSDT", expRejected: subscription.List{b}, expRemaining: subscription.List{a, c}},
+		{message: "Invalid symbol :[orderbook.50.ZZZQUSDT, orderbook.50.BTCUSD]", expRejected: subscription.List{b, c}, expRemaining: subscription.List{a}},
+		{message: "error:handler not found,topic:orderbook.50.BTCUSD", expRejected: subscription.List{c}, expRemaining: subscription.List{a, b}},
+		{message: "args size >10", expRejected: subscription.List{a, b, c}},
+	} {
+		rejected, remaining := splitRejectedSubscriptions(subscription.List{a, b, c}, tc.message)
+		assert.Equalf(t, tc.expRejected, rejected, "splitRejectedSubscriptions should reject the named topics for %q", tc.message)
+		assert.Equalf(t, tc.expRemaining, remaining, "splitRejectedSubscriptions should keep the other topics for %q", tc.message)
+	}
+}
+
+func TestSendCommandSubscriptions(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{
+		{Channel: chanPublicTicker, Asset: asset.Options, QualifiedChannel: "tickers.BTC-24SEP27-170000-P-USDT"},
+		{Channel: chanPublicTrade, Asset: asset.Options, QualifiedChannel: "publicTrade.BTC"},
+		{Channel: chanPublicTrade, Asset: asset.Options, QualifiedChannel: "publicTrade.BTC"},
+	}
+	ex := websocketTestInstance(t)
+	conn := &FixtureConnection{reply: func(any) ([]byte, error) {
+		return []byte(`{"success":true,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":["publicTrade.BTC"],"successTopics":["tickers.BTC-24SEP27-170000-P-USDT"]},"type":"COMMAND_RESP"}`), nil
+	}}
+	err := ex.sendCommandSubscriptions(t.Context(), conn, subscribeOperation, subs)
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendCommandSubscriptions must report failed topics")
+	assert.ErrorContains(t, err, "publicTrade.BTC", "error should name the failed topic")
+	require.Len(t, conn.sent, 1, "sendCommandSubscriptions must send one request")
+	req, ok := conn.sent[0].(*SubscriptionRequest)
+	require.True(t, ok, "sendCommandSubscriptions must send a SubscriptionRequest")
+	assert.Equal(t, []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}, req.Arguments, "a topic shared by subscriptions should be sent once")
+	assert.Equal(t, []string{"tickers.BTC-24SEP27-170000-P-USDT"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "only applied topics should be stored")
+
+	ex = websocketTestInstance(t)
+	conn = &FixtureConnection{reply: func(any) ([]byte, error) {
+		return []byte(`{"success":false,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":[],"successTopics":[]},"type":"COMMAND_RESP"}`), nil
+	}}
+	err = ex.sendCommandSubscriptions(t.Context(), conn, subscribeOperation, subs[:1])
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendCommandSubscriptions must treat an unsuccessful reply as a failure")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "nothing should be stored after an unsuccessful reply")
+
+	err = ex.sendCommandSubscriptions(t.Context(), &FixtureConnection{reply: func(any) ([]byte, error) { return nil, errors.New("connection lost") }}, subscribeOperation, subs[:1])
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendCommandSubscriptions must report a failed send")
+	err = ex.sendCommandSubscriptions(t.Context(), &FixtureConnection{reply: func(any) ([]byte, error) { return []byte(`{"success":"maybe"}`), nil }}, subscribeOperation, subs[:1])
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendCommandSubscriptions must report an undecodable reply")
+
+	fresh := subscription.List{{Channel: chanPublicTicker, Asset: asset.Options, QualifiedChannel: "tickers.BTC-24SEP27-170000-P-USDT"}}
+	conn = &FixtureConnection{reply: func(any) ([]byte, error) {
+		return []byte(`{"success":true,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":[],"successTopics":["tickers.BTC-24SEP27-170000-P-USDT"]},"type":"COMMAND_RESP"}`), nil
+	}}
+	require.NoError(t, ex.sendCommandSubscriptions(t.Context(), conn, subscribeOperation, fresh), "sendCommandSubscriptions must not error")
+	require.NoError(t, ex.sendCommandSubscriptions(t.Context(), conn, unsubscribeOperation, fresh), "sendCommandSubscriptions must not error when unsubscribing")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribed topics should be removed")
+}
+
+func TestSendCommandSubscriptionBatch(t *testing.T) {
+	t.Parallel()
+	const (
+		applied      = `{"success":true,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":[],"successTopics":["tickers.BTC-24SEP27-170000-P-USDT","publicTrade.BTC"]},"type":"COMMAND_RESP"}`
+		tradesFailed = `{"success":true,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":["publicTrade.BTC"],"successTopics":["tickers.BTC-24SEP27-170000-P-USDT"]},"type":"COMMAND_RESP"}`
+		unsuccessful = `{"success":false,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":[],"successTopics":[]},"type":"COMMAND_RESP"}`
+	)
+	for _, tc := range []struct {
+		name      string
+		operation string
+		stored    bool // the batch is stored before it is sent
+		reply     string
+		expStored []string
+		expErrs   []error
+		expNamed  []string // topics the error names
+	}{
+		{name: "applied", operation: subscribeOperation, reply: applied, expStored: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC", "publicTrade.BTC"}},
+		{name: "failed topic", operation: subscribeOperation, reply: tradesFailed, expStored: []string{"tickers.BTC-24SEP27-170000-P-USDT"}, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"publicTrade.BTC"}},
+		{name: "unsuccessful reply rejects every topic", operation: subscribeOperation, reply: unsuccessful, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
+		{name: "failed send", operation: subscribeOperation, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
+		{name: "undecodable reply", operation: subscribeOperation, reply: `{"success":"maybe"}`, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
+		{name: "unsubscribed", operation: unsubscribeOperation, stored: true, reply: applied},
+		{name: "unsubscribed topics not stored", operation: unsubscribeOperation, reply: applied, expErrs: []error{subscription.ErrNotFound}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := websocketTestInstance(t)
+			otherContract := currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", currency.DashDelimiter)
+			batch := subscription.List{
+				{Channel: chanPublicTicker, Asset: asset.Options, Pairs: currency.Pairs{fixtureOptionPair}, QualifiedChannel: "tickers.BTC-24SEP27-170000-P-USDT"},
+				{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{fixtureOptionPair}, QualifiedChannel: "publicTrade.BTC"},
+				{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{otherContract}, QualifiedChannel: "publicTrade.BTC"},
+			}
+			conn := &signatureConnection{FixtureConnection: &FixtureConnection{reply: replySequence(tc.reply)}}
+			if tc.stored {
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, batch...), "AddSuccessfulSubscriptions must not error")
+			}
+			err := ex.sendCommandSubscriptionBatch(t.Context(), conn, tc.operation, batch)
+			require.Len(t, conn.sent, 1, "sendCommandSubscriptionBatch must send one request")
+			req, ok := conn.sent[0].(*SubscriptionRequest)
+			require.True(t, ok, "sendCommandSubscriptionBatch must send a SubscriptionRequest")
+			assert.Equal(t, tc.operation, req.Operation, "sendCommandSubscriptionBatch should send the operation")
+			assert.Equal(t, []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}, req.Arguments, "sendCommandSubscriptionBatch should send a topic shared by subscriptions once")
+			assert.Equal(t, []any{commandResponseType}, conn.signatures, "sendCommandSubscriptionBatch should wait on COMMAND_RESP, since the reply echoes no request ID")
+			assert.ElementsMatch(t, tc.expStored, ex.Websocket.GetSubscriptions().QualifiedChannels(), "sendCommandSubscriptionBatch should store only the applied subscriptions")
+			if len(tc.expErrs) == 0 {
+				require.NoError(t, err, "sendCommandSubscriptionBatch must not error")
+				return
+			}
+			for _, expErr := range tc.expErrs {
+				require.ErrorIs(t, err, expErr, "sendCommandSubscriptionBatch must return the expected error")
+			}
+			for _, named := range tc.expNamed {
+				assert.ErrorContains(t, err, named, "sendCommandSubscriptionBatch should name each failed topic")
+			}
+		})
+	}
+}
+
+func TestRecordSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := websocketTestInstance(t)
+	conn := &FixtureConnection{}
+	subs := subscription.List{
+		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 50, QualifiedChannel: "orderbook.50.BTCUSDT"},
+	}
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subs), "recordSubscriptions must not error")
+	assert.ElementsMatch(t, []string{"tickers.BTCUSDT", "orderbook.50.BTCUSDT"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "recordSubscriptions should store the subscriptions")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "recordSubscriptions should mark %s subscribed", s.QualifiedChannel)
+	}
+	err := ex.recordSubscriptions(conn, subscribeOperation, subs[:1])
+	require.ErrorIs(t, err, subscription.ErrDuplicate, "recordSubscriptions must not store a subscription twice")
+
+	require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subs), "recordSubscriptions must not error when unsubscribing")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "recordSubscriptions should remove unsubscribed subscriptions")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "recordSubscriptions should mark %s unsubscribed", s.QualifiedChannel)
+	}
+	err = ex.recordSubscriptions(conn, unsubscribeOperation, subs[:1])
+	require.ErrorIs(t, err, subscription.ErrNotFound, "recordSubscriptions must report removing a subscription it does not hold")
+}
+
+func TestHandleNoTopicWebsocketResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		frame    string
+		match    string
+		err      error
+		relayed  bool
+		consumed bool
+	}{
+		{name: "spot subscribe reply", frame: `{"success":true,"ret_msg":"subscribe","conn_id":"2324d924-aa4d-45b0-a858-7b8be29ab52b","req_id":"10001","op":"subscribe"}`, match: "10001", consumed: true},
+		{name: "unsubscribe reply", frame: `{"success":true,"ret_msg":"","conn_id":"3cd84cb1-4d06-4a05-930a-2efe5fc70f0f","req_id":"10002","op":"unsubscribe"}`, match: "10002", consumed: true},
+		{name: "auth reply", frame: `{"success":true,"ret_msg":"","op":"auth","conn_id":"cejreaspqfh3sjdnldmg-p","req_id":"10003"}`, match: "10003", consumed: true},
+		{name: "unmatched reply", frame: `{"success":true,"ret_msg":"","op":"auth","conn_id":"cejreaspqfh3sjdnldmg-p","req_id":"noMatch"}`, err: websocket.ErrSignatureNotMatched},
+		{name: "reply without request ID", frame: `{"success":true,"ret_msg":"","op":"subscribe","conn_id":"cejreassvfrsfvb9v1a0-2m"}`},
+		{name: "option subscribe reply", frame: `{"success":true,"conn_id":"aa01fbfffe80af37-00000001-000b37b9-7147f432704fd28c-00e1c172","data":{"failTopics":[],"successTopics":["orderbook.100.BTC-6JAN23-18000-C"]},"type":"COMMAND_RESP"}`, match: commandResponseType, consumed: true},
+		{name: "unsolicited option reply", frame: `{"success":true,"conn_id":"aa01fbfffe80af37-00000001-000b37b9-7147f432704fd28c-00e1c172","data":{"failTopics":[],"successTopics":["orderbook.100.BTC-6JAN23-18000-C"]},"type":"COMMAND_RESP"}`},
+		{name: "unsolicited option failure", frame: `{"success":true,"conn_id":"aa01fbfffe80af37-00000001-000b37b9-7147f432704fd28c-00e1c172","data":{"failTopics":["orderbook.100.BTC-6JAN23-18000-C"],"successTopics":[]},"type":"COMMAND_RESP"}`, err: websocket.ErrSubscriptionFailure},
+		{name: "spot pong", frame: `{"success":true,"ret_msg":"pong","conn_id":"0970e817-426e-429a-a679-ff7f55e0b16a","op":"ping"}`},
+		{name: "option pong", frame: `{"args":["1672916271846"],"op":"pong"}`},
+		{name: "private pong", frame: `{"req_id":"test","op":"pong","args":["1675418560633"],"conn_id":"cfcb4ocsvfriu23r3er0-1b"}`},
+		{name: "unknown", frame: `{"op":"welcome"}`, relayed: true},
+		{name: "undecodable", frame: `{"op":1}`, err: errors.New("op")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := websocketTestInstance(t)
+			conn := &FixtureConnection{match: websocket.NewMatch()}
+			var ch <-chan []byte
+			if tc.match != "" {
+				var err error
+				ch, err = conn.match.Set(tc.match, 1)
+				require.NoError(t, err, "match.Set must not error")
+			}
+			err := ex.handleNoTopicWebsocketResponse(t.Context(), conn, []byte(tc.frame))
+			switch {
+			case tc.err == nil:
+				require.NoError(t, err, "handleNoTopicWebsocketResponse must not error")
+			case tc.err.Error() == "op":
+				require.Error(t, err, "handleNoTopicWebsocketResponse must error for an undecodable frame")
+			default:
+				require.ErrorIs(t, err, tc.err, "handleNoTopicWebsocketResponse must return the expected error")
+			}
+			if tc.consumed {
+				require.Len(t, ch, 1, "the reply must reach its request")
+				assert.Equal(t, tc.frame, string(<-ch), "the reply should reach its request unchanged")
+			}
+			if tc.relayed {
+				require.Len(t, ex.Websocket.DataHandler.C, 1, "an unknown frame must be relayed")
+				payload := <-ex.Websocket.DataHandler.C
+				assert.Equal(t, websocket.UnhandledMessageWarning{Message: tc.frame}, payload.Data, "an unknown frame should be relayed as a warning")
+			} else {
+				assert.Empty(t, ex.Websocket.DataHandler.C, "nothing should be relayed")
+			}
+		})
+	}
+}
+
+func TestUniqueTopics(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{{QualifiedChannel: "publicTrade.BTC"}, {QualifiedChannel: "tickers.BTC-24SEP27-170000-P-USDT"}, {QualifiedChannel: "publicTrade.BTC"}}
+	assert.Equal(t, []string{"publicTrade.BTC", "tickers.BTC-24SEP27-170000-P-USDT"}, uniqueTopics(subs), "uniqueTopics should list each topic once in order")
+}
+
+func TestGenerateSpotSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "StorePairs must not error")
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 200},
+		{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+		{Enabled: true, Asset: asset.Spot, Channel: chanRPIOrderbook},
+		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: chanInsurancePool},
+		{Enabled: true, Channel: chanSystemStatus},
+	}
+	subs, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	for _, s := range subs {
+		assert.Equal(t, asset.Spot, s.Asset, "the spot connection should only generate spot subscriptions")
+	}
+	assert.ElementsMatch(t, []string{"orderbook.200.BTCUSDT", "kline.5.BTCUSDT", "orderbook.rpi.BTCUSDT"}, subs.QualifiedChannels(), "generateSubscriptions should expand the spot topics")
+
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel}}
+	_, err = ex.generateSubscriptions()
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must reject a subscription without a topic")
+}
+
+func TestGetSubscriptionTemplate(t *testing.T) {
+	t.Parallel()
+	tpl, err := e.GetSubscriptionTemplate(nil)
+	require.NoError(t, err, "GetSubscriptionTemplate must not error")
+	require.NotNil(t, tpl, "GetSubscriptionTemplate must return a template")
+	// The context mirrors the one subscription.List.ExpandTemplates executes the template with
+	templateContext := func(s *subscription.Subscription) map[string]any {
+		return map[string]any{
+			"S":              s,
+			"AssetPairs":     map[asset.Item]currency.Pairs{asset.Spot: {currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}},
+			"PairSeparator":  "|",
+			"AssetSeparator": ";",
+		}
+	}
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		exp string
+	}{
+		{sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "tickers.BTCUSDT|tickers.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 200}, exp: "orderbook.200.BTCUSDT|orderbook.200.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: chanRPIOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "publicTrade.BTCUSDT|publicTrade.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneHour}, exp: "kline.60.BTCUSDT|kline.60.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: subscription.MyWalletChannel}, exp: ";"},
+	} {
+		var buf bytes.Buffer
+		require.NoErrorf(t, tpl.Execute(&buf, templateContext(tc.sub)), "Execute must not error for %s", tc.sub.Channel)
+		assert.Equalf(t, tc.exp, strings.TrimSpace(buf.String()), "GetSubscriptionTemplate should expand %s into one topic per pair", tc.sub.Channel)
+	}
+	err = tpl.Execute(new(bytes.Buffer), templateContext(&subscription.Subscription{Channel: subscription.CandlesChannel}))
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "GetSubscriptionTemplate must refuse a candle subscription without an interval")
+}
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel string
+		exp     string
+	}{
+		{channel: subscription.TickerChannel, exp: "tickers"},
+		{channel: subscription.OrderbookChannel, exp: "orderbook"},
+		{channel: subscription.AllTradesChannel, exp: "publicTrade"},
+		{channel: subscription.CandlesChannel, exp: "kline"},
+		{channel: subscription.MyOrdersChannel, exp: "order"},
+		{channel: subscription.MyWalletChannel, exp: "wallet"},
+		{channel: subscription.MyTradesChannel, exp: "execution"},
+		{channel: chanRPIOrderbook, exp: "orderbook.rpi"},
+		{channel: "dcp.future", exp: "dcp.future"},
+	} {
+		assert.Equalf(t, tc.exp, channelName(&subscription.Subscription{Channel: tc.channel}), "channelName should name %s by its Bybit topic", tc.channel)
+	}
+}
+
+func TestIsSymbolChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		exp  bool
+	}{
+		{name: chanPublicTicker, exp: true},
+		{name: chanOrderbook, exp: true},
+		{name: chanRPIOrderbook, exp: true},
+		{name: chanFullOrderbook, exp: true},
+		{name: chanPublicTrade, exp: true},
+		{name: chanKline, exp: true},
+		{name: chanAllLiquidation, exp: true},
+		{name: chanPriceLimit, exp: true},
+		{name: chanPositions},
+		{name: chanExecution},
+		{name: chanOrder},
+		{name: chanWallet},
+		{name: chanInsurancePool},
+		{name: chanADLAlert},
+		{name: chanSystemStatus},
+	} {
+		assert.Equalf(t, tc.exp, isSymbolChannel(tc.name), "isSymbolChannel should report whether a %s topic names a symbol", tc.name)
+	}
+}
+
+func TestSymbol(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		pair  currency.Pair
+		asset asset.Item
+		exp   string
+	}{
+		{pair: currency.NewBTCUSDT(), asset: asset.Spot, exp: "BTCUSDT"},
+		{pair: currency.NewPair(currency.BTC, currency.NewCode("USDT-16OCT26")), asset: asset.USDTMarginedFutures, exp: "BTCUSDT-16OCT26"},
+		{pair: currency.NewPair(currency.BTC, currency.PERP), asset: asset.USDCMarginedFutures, exp: "BTCPERP"},
+		{pair: currency.NewPair(currency.BTC, currency.NewCode("26DEC25")), asset: asset.USDCMarginedFutures, exp: "BTC-26DEC25"},
+		{pair: currency.NewBTCUSD(), asset: asset.CoinMarginedFutures, exp: "BTCUSD"},
+		{pair: currency.NewPair(currency.BTC, currency.NewCode("24SEP27-170000-P-USDT")), asset: asset.Options, exp: "BTC-24SEP27-170000-P-USDT"},
+	} {
+		symbol, err := e.symbol(tc.pair, tc.asset)
+		require.NoErrorf(t, err, "symbol must not error for %s", tc.asset)
+		assert.Equalf(t, tc.exp, symbol, "symbol should name %s as Bybit does", tc.asset)
+	}
+	_, err := e.symbol(currency.NewBTCUSDT(), asset.Binary)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "symbol must error for an unsupported asset")
+}
+
+func TestMatchPairAssetFromResponse(t *testing.T) {
+	t.Parallel()
+	ensureTradablePairs(t)
+
+	noDelim := currency.PairFormat{Uppercase: true}
+	for _, tc := range []struct {
+		pair          string
+		category      string
+		expectedAsset asset.Item
+		expectedPair  currency.Pair
+		err           error
+	}{
+		{pair: noDelim.Format(spotTradablePair), category: cSpot, expectedAsset: asset.Spot, expectedPair: spotTradablePair},
+		{pair: noDelim.Format(usdtMarginedTradablePair), category: cLinear, expectedAsset: asset.USDTMarginedFutures, expectedPair: usdtMarginedTradablePair},
+		{pair: noDelim.Format(usdcMarginedTradablePair), category: cLinear, expectedAsset: asset.USDCMarginedFutures, expectedPair: usdcMarginedTradablePair},
+		{pair: noDelim.Format(inverseTradablePair), category: cInverse, expectedAsset: asset.CoinMarginedFutures, expectedPair: inverseTradablePair},
+		{pair: optionsTradablePair.String(), category: cOption, expectedAsset: asset.Options, expectedPair: optionsTradablePair},
+		{pair: optionsTradablePair.String(), category: "silly", err: errUnsupportedCategory, expectedAsset: 0},
+		{pair: "bad pair", category: cSpot, err: currency.ErrPairNotFound},
+		{pair: "", category: cSpot, err: currency.ErrSymbolStringEmpty},
+	} {
+		t.Run(fmt.Sprintf("pair: %s, category: %s", tc.pair, tc.category), func(t *testing.T) {
+			t.Parallel()
+			p, a, err := e.matchPairAssetFromResponse(tc.category, tc.pair)
+			require.ErrorIs(t, err, tc.err, "matchPairAssetFromResponse must return the expected error")
+			assert.Equal(t, tc.expectedAsset, a, "matchPairAssetFromResponse should return the expected asset")
+			assert.True(t, tc.expectedPair.Equal(p), "matchPairAssetFromResponse should return the expected pair")
+		})
+	}
+}
+
+func TestHasPotentialDelimiter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset asset.Item
+		exp   bool
+	}{
+		{asset: asset.Options, exp: true},             // BTC-24SEP27-170000-P-USDT
+		{asset: asset.USDCMarginedFutures, exp: true}, // BTC-26DEC25
+		{asset: asset.Spot},                           // BTCUSDT
+		{asset: asset.USDTMarginedFutures},            // BTCUSDT-16OCT26, whose dash belongs to the quote
+		{asset: asset.CoinMarginedFutures},            // BTCUSDH26
+	} {
+		assert.Equalf(t, tc.exp, hasPotentialDelimiter(tc.asset), "hasPotentialDelimiter should report whether %s symbols separate base and quote with a dash", tc.asset)
+	}
+}
+
+func TestStringToInterval(t *testing.T) {
+	t.Parallel()
+	interval, err := stringToInterval("60")
+	require.NoError(t, err, "stringToInterval must not error")
+	assert.Equal(t, kline.OneHour, interval, "stringToInterval should parse minutes")
+	interval, err = stringToInterval("720")
+	require.NoError(t, err, "stringToInterval must not error")
+	assert.Equal(t, kline.TwelveHour, interval, "stringToInterval should parse 720 minutes as 12 hours")
+	_, err = stringToInterval("2")
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "stringToInterval must reject an interval Bybit does not offer")
+}
