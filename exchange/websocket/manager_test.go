@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -1636,6 +1637,48 @@ func TestReadMessageBinary(t *testing.T) {
 	}
 }
 
+// readerTestConnection returns its responses in order and then an empty response, which stops the reader
+type readerTestConnection struct {
+	Connection
+	url       string
+	responses []Response
+}
+
+func (c *readerTestConnection) ReadMessage() Response {
+	if len(c.responses) == 0 {
+		return Response{}
+	}
+	resp := c.responses[0]
+	c.responses = c.responses[1:]
+	return resp
+}
+
+func (c *readerTestConnection) GetURL() string {
+	return c.url
+}
+
+func TestReaderRedactsQuery(t *testing.T) {
+	// Not parallel: captureLogs changes process-wide log settings
+	logged := captureLogs(t)
+	m := &Manager{DataHandler: stream.NewRelay(1)}
+	conn := &readerTestConnection{
+		url:       "wss://websocketconnection.place/ws?token=secret-token",
+		responses: []Response{{Raw: []byte("relayed")}, {Raw: []byte("logged")}},
+	}
+	m.Wg.Add(1)
+	m.Reader(t.Context(), conn, func(context.Context, Connection, []byte) error { return errDastardlyReason })
+
+	require.Len(t, m.DataHandler.C, 1, "Reader must relay the first handler error")
+	payload := <-m.DataHandler.C
+	err, ok := payload.Data.(error)
+	require.True(t, ok, "Reader must relay an error")
+	require.ErrorIs(t, err, errDastardlyReason, "Reader must relay the handler error")
+	assert.ErrorContains(t, err, "connection URL:[wss://websocketconnection.place/ws]", "Reader should name the connection's URL")
+	assert.NotContains(t, err.Error(), "secret-token", "Reader should leave the query out of its error")
+	assert.Contains(t, logged(), "connection URL:[wss://websocketconnection.place/ws]", "Reader should log the error it cannot relay")
+	assert.NotContains(t, logged(), "secret-token", "Reader should leave the query out of its log")
+}
+
 // TestCanUseAuthenticatedWebsocketForWrapper logic test
 func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	t.Parallel()
@@ -1650,6 +1693,38 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	assert.True(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return true")
 }
 
+func TestSetWebsocketURL(t *testing.T) {
+	// Not parallel: captureLogs changes process-wide log settings
+	logged := captureLogs(t)
+	const baseURL = "wss://websocketconnection.place/ws"
+	const u = baseURL + "?listenKey=secret-key"
+
+	multi := NewManager()
+	multi.useMultiConnectionManagement = true
+	assert.ErrorIs(t, multi.SetWebsocketURL(u, false, false), errCannotChangeConnectionURL, "SetWebsocketURL should error for multi-connection management")
+
+	m := NewManager()
+	m.verbose = true
+	m.Conn = &connection{}
+	m.AuthConn = &connection{}
+	require.NoError(t, m.SetWebsocketURL(u, true, false), "SetWebsocketURL must not error")
+	assert.Equal(t, u, m.runningURLAuth, "SetWebsocketURL should keep the query for dialling")
+	assert.Equal(t, u, m.AuthConn.GetURL(), "SetWebsocketURL should give the authenticated connection the full URL")
+	m.setState(connectedState)
+	require.NoError(t, m.SetWebsocketURL(u, false, true), "SetWebsocketURL must not error when flushing the connection")
+	assert.Equal(t, u, m.runningURL, "SetWebsocketURL should keep the query for dialling")
+	assert.Equal(t, u, m.Conn.GetURL(), "SetWebsocketURL should give the connection the full URL")
+
+	for _, line := range []string{
+		"setting authenticated websocket URL: " + baseURL + "\n",
+		"setting unauthenticated websocket URL: " + baseURL + "\n",
+		"flushing websocket connection to " + baseURL + "\n",
+	} {
+		assert.Containsf(t, logged(), line, "SetWebsocketURL should log %q", line)
+	}
+	assert.NotContains(t, logged(), "secret-key", "SetWebsocketURL should leave the query out of its log")
+}
+
 func TestCheckWebsocketURL(t *testing.T) {
 	err := checkWebsocketURL("")
 	assert.ErrorIs(t, err, errInvalidWebsocketURL, "checkWebsocketURL should error correctly on empty string")
@@ -1662,6 +1737,16 @@ func TestCheckWebsocketURL(t *testing.T) {
 
 	err = checkWebsocketURL("http://www.google.com")
 	assert.ErrorIs(t, err, errInvalidWebsocketURL, "checkWebsocketURL should error correctly on wrong proto")
+
+	err = checkWebsocketURL("http://www.google.com?key=secret-key")
+	require.ErrorIs(t, err, errInvalidWebsocketURL, "checkWebsocketURL must error on wrong proto")
+	assert.NotContains(t, err.Error(), "secret-key", "checkWebsocketURL should leave the query out of its error")
+
+	err = checkWebsocketURL("ws://bad host?key=secret-key")
+	var urlErr *url.Error
+	require.ErrorAs(t, err, &urlErr, "checkWebsocketURL must return the error parsing a malformed URL")
+	assert.Equal(t, "ws://bad host", urlErr.URL, "checkWebsocketURL should leave the query out of the parse error's URL")
+	assert.NotContains(t, err.Error(), "secret-key", "checkWebsocketURL should leave the query out of a parse error")
 
 	err = checkWebsocketURL("wss://websocketconnection.place")
 	assert.NoError(t, err, "checkWebsocketURL should not error")
@@ -2069,6 +2154,16 @@ func TestLatency(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, r.t, "Latency must have a duration")
 	require.Equal(t, exch, r.name, "Latency must have the correct exchange name")
+}
+
+func TestRemoveURLErrorQueryString(t *testing.T) {
+	t.Parallel()
+	urlErr := &url.Error{Op: "parse", URL: "ws://websocketconnection.place/ws?token=secret-token", Err: errDastardlyReason}
+	removeURLErrorQueryString(urlErr)
+	assert.Equal(t, "ws://websocketconnection.place/ws", urlErr.URL, "removeURLErrorQueryString should remove the query from the URL")
+
+	assert.NotPanics(t, func() { removeURLErrorQueryString(nil) }, "removeURLErrorQueryString should accept a nil error")
+	assert.NotPanics(t, func() { removeURLErrorQueryString(errDastardlyReason) }, "removeURLErrorQueryString should ignore other errors")
 }
 
 func TestRemoveURLQueryString(t *testing.T) {
