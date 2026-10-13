@@ -1197,7 +1197,7 @@ func prepareTransfer(destination string, amount float64) (normalisedDestination,
 }
 
 // abstractionUser returns the address an abstraction action applies to: the requested user, else the configured
-// subaccount, else the account; the configured subaccount must be owned by the account, and credentials must come from
+// subaccount, else the account; every non-account target must be an owned subaccount, and credentials must come from
 // getSigningCredentials, which normalises the account address
 func (e *Exchange) abstractionUser(ctx context.Context, credentials *accounts.Credentials, subAccount, user string) (string, error) {
 	if strings.TrimSpace(user) == "" {
@@ -1210,8 +1210,8 @@ func (e *Exchange) abstractionUser(ctx context.Context, credentials *accounts.Cr
 	if err != nil {
 		return "", err
 	}
-	if normalised == subAccount {
-		if err := e.validateUserSignedSubAccount(ctx, credentials, subAccount); err != nil {
+	if normalised != credentials.Key {
+		if err := e.validateUserSignedSubAccount(ctx, credentials, normalised); err != nil {
 			return "", err
 		}
 	}

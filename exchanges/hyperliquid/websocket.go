@@ -338,6 +338,13 @@ func (e *Exchange) wsHandleSubscriptionResponse(raw []byte, authenticated bool) 
 	if (response.Method != wsMethodSubscribe && response.Method != wsMethodUnsubscribe) || strings.TrimSpace(response.Subscription.Type) == "" {
 		return fmt.Errorf("%w: invalid response method %q or subscription", errWebsocketSubscription, response.Method)
 	}
+	if response.Method == wsMethodSubscribe && (response.Subscription.Type == wsSubscriptionUserEvents ||
+		response.Subscription.Type == wsChannelUserTWAPSliceFills ||
+		(response.Subscription.Type == wsChannelUserFills && !response.Subscription.AggregateByTime)) {
+		// A newly started fills feed may have missed execution, including when its acknowledgement arrives after the
+		// local operation timed out. Keep the fills for deduplication and recovery, but require a row to prove coverage.
+		e.uncoverWebsocketOrders()
+	}
 	if response.Subscription.Type == wsChannelTrades {
 		// Hyperliquid sends a trades subscription's replay of recent trades straight after acknowledging it, even when
 		// subscriptions are sent together, so awaiting the replay from here keeps one replay awaited at a time

@@ -281,15 +281,34 @@ func TestMatchAndGetResponseJSONSlice(t *testing.T) {
 
 func TestMatchAndGetResponse(t *testing.T) {
 	t.Parallel()
-	type mockResponseAndMatch struct {
+	for _, tc := range []struct {
 		name        string
 		mockData    []HTTPResponse
 		requestVals url.Values
 		isQueryData bool
 		wantResult  string
 		wantErr     error
-	}
-	tcs := []*mockResponseAndMatch{
+		decodeError bool
+	}{
+		{
+			name:        "valid JSON with an overflowing number",
+			mockData:    []HTTPResponse{{BodyParams: `{"amount":1e1000}`, Data: json.RawMessage(`{"match":"overflow"}`)}},
+			requestVals: url.Values{"amount": {"1e1000"}},
+			decodeError: true,
+		},
+		{
+			name:        "invalid query escape",
+			mockData:    []HTTPResponse{{QueryString: "currency=%ZZ", Data: json.RawMessage(`{"match":"invalid"}`)}},
+			requestVals: url.Values{"currency": {"%ZZ"}},
+			isQueryData: true,
+			wantErr:     url.EscapeError("%ZZ"),
+		},
+		{
+			name:        "invalid body escape",
+			mockData:    []HTTPResponse{{BodyParams: "currency=%ZZ", Data: json.RawMessage(`{"match":"invalid"}`)}},
+			requestVals: url.Values{"currency": {"%ZZ"}},
+			wantErr:     url.EscapeError("%ZZ"),
+		},
 		{
 			name:        "query string match",
 			mockData:    []HTTPResponse{{QueryString: "currency=btc&amount=1", Data: json.RawMessage(`{"match":"query"}`)}},
@@ -390,14 +409,23 @@ func TestMatchAndGetResponse(t *testing.T) {
 			isQueryData: false,
 			wantResult:  `{"match":"empty"}`,
 		},
-	}
-
-	for _, tc := range tcs {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := MatchAndGetResponse(tc.mockData, tc.requestVals, tc.isQueryData)
+			if tc.decodeError {
+				body := []byte(tc.mockData[0].BodyParams)
+				require.True(t, json.Valid(body), "Valid must accept the overflow fixture's JSON syntax")
+				var decoded map[string]any
+				decodeErr := json.Unmarshal(body, &decoded)
+				require.Error(t, decodeErr, "Unmarshal must reject the overflowing number")
+				assert.EqualError(t, err, decodeErr.Error(), "MatchAndGetResponse should propagate the JSON decoding error")
+				assert.Nil(t, got, "MatchAndGetResponse should return no data after a decoding error")
+				return
+			}
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "MatchAndGetResponse must return expected error")
+				assert.Nil(t, got, "MatchAndGetResponse should return no data after a matching error")
 				return
 			}
 			require.NoError(t, err, "MatchAndGetResponse must not error")

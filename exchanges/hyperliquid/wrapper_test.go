@@ -327,8 +327,14 @@ func TestFetchTradablePairs(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an unsupported asset")
 	_, err = new(Exchange).FetchTradablePairs(t.Context(), asset.Spot)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an asset without pair storage")
+	configured := newTestExchange(t)
+	require.NoError(t, configured.SetAssetPairStore(asset.Options, currency.PairStore{AssetEnabled: true, RequestFormat: &dashFormat, ConfigFormat: &dashFormat}), "SetAssetPairStore must register the extra asset")
+	assert.True(t, configured.SupportsAsset(asset.Options), "SupportsAsset should recognise the configured asset")
+	pairs, err := configured.FetchTradablePairs(t.Context(), asset.Options)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs should reject a configured asset without a market implementation")
+	assert.Nil(t, pairs, "FetchTradablePairs should return no pairs for the unimplemented asset")
 
-	pairs, err := e.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+	pairs, err = e.FetchTradablePairs(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err, "FetchTradablePairs must not error for perpetuals")
 	if mockTests {
 		exp := currency.Pairs{
@@ -931,6 +937,11 @@ func TestUpdateTickers(t *testing.T) {
 	ex := newTestExchange(t)
 	require.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Options), asset.ErrNotSupported, "UpdateTickers must reject an unsupported asset")
 	require.ErrorIs(t, new(Exchange).UpdateTickers(t.Context(), asset.Spot), asset.ErrNotSupported, "UpdateTickers must reject an asset without pair storage")
+	configured := newInfoServerExchange(t, nil, nil)
+	require.NoError(t, configured.SetAssetPairStore(asset.Options, currency.PairStore{AssetEnabled: true, RequestFormat: &dashFormat, ConfigFormat: &dashFormat}), "SetAssetPairStore must register the extra asset")
+	setTestPairs(t, configured, asset.Options, testPerpetualMapping)
+	assert.True(t, configured.SupportsAsset(asset.Options), "SupportsAsset should recognise the configured asset")
+	assert.ErrorIs(t, configured.UpdateTickers(t.Context(), asset.Options), asset.ErrNotSupported, "UpdateTickers should reject a configured asset without a ticker implementation")
 
 	for _, a := range ex.GetAssetTypes(false) {
 		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
@@ -1393,6 +1404,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 		"userAbstraction":        `"default"`,
 		"perpDexs":               `[null,{"name":"xyz"}]`,
 		"spotMeta":               `{"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150}]}`,
+		"allPerpMetas":           `[{"universe":[],"collateralToken":0}]`,
 		"meta:":                  `{"universe":[],"collateralToken":0}`,
 		"meta:xyz":               `{"universe":[],"collateralToken":150}`,
 		"clearinghouseState:":    `{"marginSummary":{"accountValue":"20","totalMarginUsed":"3"},"withdrawable":"16"}`,
@@ -1407,6 +1419,107 @@ func TestUpdateAccountBalances(t *testing.T) {
 	builderDEX.Balances.Set(currency.HYPE, accounts.Balance{Total: 7, Hold: 2, Free: 4})
 	assert.Equal(t, accounts.SubAccounts{defaultDEX, builderDEX}, result, "UpdateAccountBalances should hold each DEX's collateral in its own subaccount")
 
+	const (
+		defaultMeta = `{"universe":[{"name":"BTC"},{"name":"ETH"}],"collateralToken":0}`
+		builderMeta = `{"universe":[{"name":"xyz:XYZ100"},{"name":"xyz:TSLA"}],"collateralToken":150}`
+		otherMeta   = `{"universe":[{"name":"flx:TSLA"}],"collateralToken":360}`
+	)
+	for _, tc := range []struct {
+		name, bulk, failureKey, fallbackBody string
+		fallbacks                            []string
+		err                                  error
+	}{
+		{name: "ordered", bulk: `[` + defaultMeta + `,` + builderMeta + `,` + otherMeta + `]`},
+		{name: "reordered", bulk: `[` + otherMeta + `,` + defaultMeta + `,` + builderMeta + `]`},
+		{name: "unrelated extra", bulk: `[{"universe":[{"name":"unknown:X"}],"collateralToken":999},` + otherMeta + `,` + defaultMeta + `,` + builderMeta + `]`},
+		{name: "missing default", bulk: `[` + builderMeta + `,` + otherMeta + `]`, fallbacks: []string{""}},
+		{name: "missing builder", bulk: `[` + defaultMeta + `,` + otherMeta + `]`, fallbacks: []string{"xyz"}},
+		{name: "empty default", bulk: `[{"universe":[],"collateralToken":999},` + builderMeta + `,` + otherMeta + `]`, fallbacks: []string{""}},
+		{name: "empty builder", bulk: `[` + defaultMeta + `,{"universe":[],"collateralToken":999},` + otherMeta + `]`, fallbacks: []string{"xyz"}},
+		{name: "duplicate default", bulk: `[` + defaultMeta + `,` + defaultMeta + `,` + builderMeta + `,` + otherMeta + `]`, fallbacks: []string{""}},
+		{name: "duplicate builder", bulk: `[` + defaultMeta + `,` + builderMeta + `,` + builderMeta + `,` + otherMeta + `]`, fallbacks: []string{"xyz"}},
+		{name: "mixed builder prefixes", bulk: `[` + defaultMeta + `,{"universe":[{"name":"xyz:X"},{"name":"flx:Y"}],"collateralToken":999},` + otherMeta + `]`, fallbacks: []string{"xyz", "flx"}},
+		{name: "mixed default and builder", bulk: `[{"universe":[{"name":"BTC"},{"name":"xyz:Y"}],"collateralToken":999},` + builderMeta + `,` + otherMeta + `]`, fallbacks: []string{"", "xyz"}},
+		{name: "bulk network failure", failureKey: "allPerpMetas", err: request.ErrBadStatus},
+		{name: "bulk empty response", bulk: `[]`, err: common.ErrNoResponse},
+		{name: "fallback network failure", bulk: `[` + defaultMeta + `,` + otherMeta + `]`, failureKey: "meta:xyz", fallbacks: []string{"xyz"}, err: request.ErrBadStatus},
+		{name: "fallback empty response", bulk: `[` + defaultMeta + `,` + otherMeta + `]`, fallbackBody: `null`, fallbacks: []string{"xyz"}, err: common.ErrNoResponse},
+		{name: "fallback collateral mismatch", bulk: `[` + defaultMeta + `,` + otherMeta + `]`, fallbackBody: `{"collateralToken":999}`, fallbacks: []string{"xyz"}, err: errSpotTokenNotFound},
+		{name: "bulk collateral mismatch", bulk: `[` + defaultMeta + `,{"universe":[{"name":"xyz:X"}],"collateralToken":999},` + otherMeta + `]`, err: errSpotTokenNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			responses := map[string]string{
+				"userAbstraction":        `"default"`,
+				"perpDexs":               `[null,{"name":"xyz"},{"name":"flx"}]`,
+				"spotMeta":               `{"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150},{"name":"USDH","index":360}]}`,
+				"allPerpMetas":           tc.bulk,
+				"meta:":                  `{"universe":[],"collateralToken":0}`,
+				"meta:xyz":               `{"universe":[],"collateralToken":150}`,
+				"meta:flx":               `{"universe":[],"collateralToken":360}`,
+				"clearinghouseState:":    `{"marginSummary":{"accountValue":"20","totalMarginUsed":"3"},"withdrawable":"16"}`,
+				"clearinghouseState:xyz": `{"marginSummary":{"accountValue":"7","totalMarginUsed":"2"},"withdrawable":"4"}`,
+				"clearinghouseState:flx": `{"marginSummary":{"accountValue":"9","totalMarginUsed":"1"},"withdrawable":"8"}`,
+			}
+			if tc.fallbackBody != "" {
+				responses["meta:xyz"] = tc.fallbackBody
+			}
+			var mu sync.Mutex
+			calls := make(map[string]int)
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body InfoRequest
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decode should read the info request") {
+					return
+				}
+				key := body.Type
+				if key == "meta" || key == "clearinghouseState" {
+					key += ":" + body.DEX
+				}
+				mu.Lock()
+				calls[key]++
+				mu.Unlock()
+				if key == tc.failureKey {
+					http.Error(w, "metadata unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				response, ok := responses[key]
+				if !assert.True(t, ok, "UpdateAccountBalances should request only expected info") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "Write should return the info response")
+			}))
+			setTestCredentials(ex, signingCredentials())
+			result, err := ex.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+			require.ErrorIs(t, err, tc.err, "UpdateAccountBalances must propagate metadata errors")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, 1, calls["allPerpMetas"], "UpdateAccountBalances should request bulk metadata once")
+			for _, dex := range []string{"", "xyz", "flx"} {
+				expectedCalls := 0
+				if slices.Contains(tc.fallbacks, dex) {
+					expectedCalls = 1
+				}
+				assert.Equalf(t, expectedCalls, calls["meta:"+dex], "UpdateAccountBalances should fall back only for unidentified DEX %q", dex)
+			}
+			if tc.err != nil {
+				assert.Nil(t, result, "UpdateAccountBalances should return no partial balances")
+				assert.Zero(t, calls["clearinghouseState:flx"], "UpdateAccountBalances should stop fetching after a metadata failure")
+				return
+			}
+			clearBalanceTimes(t, result)
+			other := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress+":flx")
+			other.Balances.Set(currency.NewCode("USDH"), accounts.Balance{Total: 9, Hold: 1, Free: 8})
+			assert.Equal(t, accounts.SubAccounts{defaultDEX, builderDEX, other}, result, "UpdateAccountBalances should attribute collateral by DEX irrespective of metadata order")
+			expectedCalls := map[string]int{"userAbstraction": 1, "perpDexs": 1, "spotMeta": 1, "allPerpMetas": 1, "clearinghouseState:": 1, "clearinghouseState:xyz": 1, "clearinghouseState:flx": 1}
+			for _, dex := range tc.fallbacks {
+				expectedCalls["meta:"+dex] = 1
+			}
+			assert.Equal(t, expectedCalls, calls, "UpdateAccountBalances should use seven requests instead of nine when bulk metadata identifies all three DEXs")
+		})
+	}
+
 	for _, tc := range []struct {
 		name      string
 		responses map[string]string
@@ -1416,9 +1529,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 		{name: "registry failure", responses: map[string]string{"userAbstraction": `"default"`, "perpDexs": `{`}},
 		{name: "spot metadata failure", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{`}},
 		{name: "duplicate token index", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":0}]}`}, err: errMalformedResponse},
-		{name: "metadata failure", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "meta": `{`}},
-		{name: "missing collateral token", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "meta": `{"collateralToken":150}`}, err: errSpotTokenNotFound},
-		{name: "clearinghouse failure", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "meta": `{"collateralToken":0}`, "clearinghouseState": `{`}},
+		{name: "metadata failure", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "allPerpMetas": `{`}},
+		{name: "missing collateral token", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "allPerpMetas": `[{"universe":[{"name":"BTC"}],"collateralToken":150}]`}, err: errSpotTokenNotFound},
+		{name: "clearinghouse failure", responses: map[string]string{"userAbstraction": `"default"`, "spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "allPerpMetas": `[{"universe":[{"name":"BTC"}],"collateralToken":0}]`, "clearinghouseState": `{`}},
 	} {
 		_, err := newInfoServerExchange(t, tc.responses, nil).UpdateAccountBalances(t.Context(), asset.PerpetualContract)
 		if tc.err == nil {
@@ -1456,6 +1569,49 @@ func TestUpdateAccountBalances(t *testing.T) {
 	expFLX := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress+":flx")
 	expFLX.Balances.Set(currency.NewCode("USDH"), accounts.Balance{Total: 120, Hold: 3.955, Free: 116.045})
 	assert.Equal(t, accounts.SubAccounts{expDefault, expXYZ, expFLX}, perpetual, "UpdateAccountBalances should return each perpetual DEX's collateral balance")
+}
+
+func TestPerpetualMetadataForDEX(t *testing.T) {
+	t.Parallel()
+	defaultMeta := PerpetualMetadataResponse{Universe: []PerpetualAssetMetadata{{Name: "BTC"}, {Name: "ETH"}}, CollateralToken: 0}
+	builderMeta := PerpetualMetadataResponse{Universe: []PerpetualAssetMetadata{{Name: "xyz:X"}, {Name: "xyz:Y"}}, CollateralToken: 150}
+	otherMeta := PerpetualMetadataResponse{Universe: []PerpetualAssetMetadata{{Name: "flx:X"}}, CollateralToken: 360}
+	for _, tc := range []struct {
+		name, dex string
+		metadata  []PerpetualMetadataResponse
+		index     int
+	}{
+		{name: "no entries", index: -1},
+		{name: "default", metadata: []PerpetualMetadataResponse{defaultMeta}, index: 0},
+		{name: "reordered default", metadata: []PerpetualMetadataResponse{builderMeta, defaultMeta, otherMeta}, index: 1},
+		{name: "reordered builder", dex: "xyz", metadata: []PerpetualMetadataResponse{otherMeta, defaultMeta, builderMeta}, index: 2},
+		{name: "missing builder", dex: "xyz", metadata: []PerpetualMetadataResponse{defaultMeta, otherMeta}, index: -1},
+		{name: "missing default", metadata: []PerpetualMetadataResponse{builderMeta}, index: -1},
+		{name: "empty default", metadata: []PerpetualMetadataResponse{{CollateralToken: 999}, builderMeta}, index: -1},
+		{name: "empty builder", dex: "xyz", metadata: []PerpetualMetadataResponse{defaultMeta, {CollateralToken: 999}}, index: -1},
+		{name: "mixed default", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: "BTC"}, {Name: "xyz:X"}}}}, index: -1},
+		{name: "mixed builder", dex: "xyz", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: "xyz:X"}, {Name: "flx:Y"}}}}, index: -1},
+		{name: "mixed entry after valid", dex: "xyz", metadata: []PerpetualMetadataResponse{builderMeta, {Universe: []PerpetualAssetMetadata{{Name: "xyz:X"}, {Name: "flx:Y"}}}}, index: -1},
+		{name: "duplicate default", metadata: []PerpetualMetadataResponse{defaultMeta, defaultMeta}, index: -1},
+		{name: "duplicate builder", dex: "xyz", metadata: []PerpetualMetadataResponse{builderMeta, otherMeta, builderMeta}, index: -1},
+		{name: "three duplicate builders", dex: "xyz", metadata: []PerpetualMetadataResponse{builderMeta, builderMeta, builderMeta}, index: -1},
+		{name: "unrelated extras", dex: "xyz", metadata: []PerpetualMetadataResponse{{}, otherMeta, builderMeta, defaultMeta}, index: 2},
+		{name: "empty name", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: ""}}}}, index: -1},
+		{name: "blank name", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: " "}}}}, index: -1},
+		{name: "empty prefix", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: ":BTC"}}}}, index: -1},
+		{name: "empty coin", dex: "xyz", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: "xyz:"}}}}, index: -1},
+		{name: "nested prefix", dex: "xyz", metadata: []PerpetualMetadataResponse{{Universe: []PerpetualAssetMetadata{{Name: "xyz:flx:BTC"}}}}, index: -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := perpetualMetadataForDEX(tc.metadata, tc.dex)
+			if tc.index < 0 {
+				assert.Nil(t, result, "perpetualMetadataForDEX should leave unverifiable metadata for fallback")
+				return
+			}
+			assert.Same(t, &tc.metadata[tc.index], result, "perpetualMetadataForDEX should select the unique entry whose markets all identify the DEX")
+		})
+	}
 }
 
 func TestConvertSpotBalance(t *testing.T) {
@@ -2196,8 +2352,10 @@ func TestModifyOrder(t *testing.T) {
 		_, err := unavailable.ModifyOrder(t.Context(), tc.modify)
 		assert.ErrorIsf(t, err, tc.err, "ModifyOrder should reject %+v before any request", tc.modify)
 	}
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 0.000001})
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1.000001})
 	assert.ErrorIs(t, err, errSizePrecision, "ModifyOrder should reject a size beyond the market's precision")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1})
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "ModifyOrder should reject an amount the executed size already reaches")
 	_, err = unavailable.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ModifyOrder should return an order status failure")
 	triggerOrder := newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"80","sz":"1","origSz":"1","oid":12,"timestamp":1791275926947,"isTrigger":true,"triggerPx":"90","reduceOnly":true,"orderType":"Stop Market","tif":null},"status":"open","statusTimestamp":1791275930650}}`}, nil)
@@ -2223,7 +2381,7 @@ func TestModifyOrder(t *testing.T) {
 		NewClientOrderID: "0x00000000000000000000000000000002",
 	})
 	require.NoError(t, err, "ModifyOrder must not error")
-	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":7,"order":{"a":0,"b":false,"p":"101","s":"1.5","r":true,"t":{"limit":{"tif":"Alo"}},"c":"0x00000000000000000000000000000002"}}]}`, action, "ModifyOrder should send the replacement")
+	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":7,"order":{"a":0,"b":false,"p":"101","s":"0.5","r":true,"t":{"limit":{"tif":"Alo"}},"c":"0x00000000000000000000000000000002"}}]}`, action, "ModifyOrder should send a replacement of the amount less the executed size")
 	exp := &order.ModifyResponse{
 		Exchange:        explicit.Name,
 		OrderID:         "8",
@@ -2235,18 +2393,93 @@ func TestModifyOrder(t *testing.T) {
 		AssetType:       asset.PerpetualContract,
 		TimeInForce:     order.PostOnly,
 		Price:           101,
-		Amount:          1.5,
-		RemainingAmount: 1.5,
+		Amount:          0.5,
+		RemainingAmount: 0.5,
 		Date:            time.UnixMilli(1791275926947).UTC(),
 		LastUpdated:     result.LastUpdated,
 	}
 	assert.Equal(t, exp, result, "ModifyOrder should return the resting replacement")
 
-	inherited := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":7}}`)))
+	for _, tc := range []struct {
+		name, original, remaining string
+		total, replacement        float64
+		err                       error
+	}{
+		{name: "omitted total", original: "2", remaining: "1", replacement: 1},
+		{name: "engine price only", original: "2", remaining: "1", total: 2, replacement: 1},
+		{name: "unexecuted", original: "2", remaining: "2", total: 1.5, replacement: 1.5},
+		{name: "below executed", original: "2", remaining: "1", total: 0.5, err: order.ErrAmountIsInvalid},
+		{name: "equal executed", original: "2", remaining: "1", total: 1, err: order.ErrAmountIsInvalid},
+		{name: "over precise total", original: "2", remaining: "1", total: 1.000001, err: errSizePrecision},
+		{name: "over precise below executed", original: "2", remaining: "1", total: 0.000001, err: errSizePrecision},
+		{name: "minimum remaining unit", original: "2", remaining: "1", total: 1.00001, replacement: 0.00001},
+		{name: "floating subtraction residue", original: "0.3", remaining: "0.2", total: 0.3, replacement: 0.2},
+		{name: "inherited floating subtraction residue", original: "0.3", remaining: "0.2", replacement: 0.2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			status := strings.ReplaceAll(strings.ReplaceAll(openOrderStatus, `"origSz":"2"`, `"origSz":"`+tc.original+`"`), `"sz":"1"`, `"sz":"`+tc.remaining+`"`)
+			var calls atomic.Int32
+			ex := newTradingServerExchange(t, map[string]string{"orderStatus": status}, func(action map[string]any) string {
+				calls.Add(1)
+				encoded, err := json.Marshal(action)
+				assert.NoError(t, err, "Marshal should encode the replacement")
+				assert.Contains(t, string(encoded), `"s":"`+strconv.FormatFloat(tc.replacement, 'f', -1, 64)+`"`, "ModifyOrder should send only the unexecuted requested size")
+				return statusesResponse("order", `{"resting":{"oid":8}}`)
+			})
+			modified, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 99, Amount: tc.total})
+			require.ErrorIs(t, err, tc.err, "ModifyOrder must return the expected error")
+			if tc.err != nil {
+				if tc.err == order.ErrAmountIsInvalid {
+					assert.ErrorContains(t, err, fmt.Sprintf("total %v does not exceed executed size 1", tc.total), "ModifyOrder should explain the total and executed size conflict")
+				}
+				assert.Zero(t, calls.Load(), "ModifyOrder should reject invalid totals before an exchange request")
+				assert.Nil(t, modified, "ModifyOrder should return no invalid replacement")
+				return
+			}
+			require.NotNil(t, modified, "ModifyOrder must return a replacement")
+			assert.Equal(t, int32(1), calls.Load(), "ModifyOrder should send one replacement")
+			assert.Equal(t, tc.replacement, modified.Amount, "ModifyOrder should report the replacement total")
+			assert.Equal(t, tc.replacement, modified.RemainingAmount, "ModifyOrder should report the resting replacement size")
+		})
+	}
+
+	// OrderManager defaults an omitted amount to the stored total; each replacement starts its own execution history.
+	for _, tc := range []struct {
+		name, remaining string
+		exp             float64
+	}{
+		{name: "resting replacement", remaining: "1", exp: 1},
+		{name: "partly filled replacement", remaining: "0.6", exp: 0.6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			stored := &order.Detail{OrderID: "7", Amount: 2, ExecutedAmount: 1, RemainingAmount: 1}
+			for _, tc := range []struct {
+				status      string
+				replacement uint64
+				exp         float64
+			}{
+				{status: openOrderStatus, replacement: 8, exp: 1},
+				{status: strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(openOrderStatus, `"origSz":"2"`, `"origSz":"1"`), `"sz":"1"`, `"sz":"`+tc.remaining+`"`), `"oid":7`, `"oid":8`), replacement: 9, exp: tc.exp},
+			} {
+				var replacementAction string
+				ex := newTradingServerExchange(t, map[string]string{"orderStatus": tc.status}, captureAction(t, &replacementAction, statusesResponse("order", `{"resting":{"oid":`+strconv.FormatUint(tc.replacement, 10)+`}}`)))
+				modified, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: stored.OrderID, Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 99, Amount: stored.Amount})
+				require.NoError(t, err, "ModifyOrder must accept consecutive engine amendments")
+				assert.Contains(t, replacementAction, `"s":"`+strconv.FormatFloat(tc.exp, 'f', -1, 64)+`"`, "ModifyOrder should subtract only the current venue order's execution")
+				stored.UpdateOrderFromModifyResponse(modified)
+				assert.Equal(t, strconv.FormatUint(tc.replacement, 10), stored.OrderID, "UpdateOrderFromModifyResponse should track the replacement ID")
+				assert.Equal(t, tc.exp, stored.Amount, "UpdateOrderFromModifyResponse should track the replacement total")
+			}
+		})
+	}
+
+	inherited := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
 	result, err = inherited.ModifyOrder(t.Context(), &order.Modify{ClientOrderID: "0X00000000000000000000000000000001", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	require.NoError(t, err, "ModifyOrder must not error by client order ID")
 	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":"0x00000000000000000000000000000001","order":{"a":0,"b":true,"p":"100","s":"1","r":true,"t":{"limit":{"tif":"Gtc"}},"c":"0x00000000000000000000000000000001"}}]}`, action, "ModifyOrder should replace the order with its own remaining size and fields")
-	assert.Equal(t, "7", result.OrderID, "ModifyOrder should return the order ID")
+	assert.Equal(t, "8", result.OrderID, "ModifyOrder should return the order ID")
 
 	for _, tc := range []struct {
 		status    string
@@ -2641,6 +2874,34 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.Equal(t, exp, orders[0], "GetActiveOrders should keep the frontend fields of the orders within the limit")
 	exp = order.Detail{Price: 100, Amount: 1, RemainingAmount: 1, Exchange: capped.Name, OrderID: "101", Side: order.Buy, Status: order.Open, AssetType: asset.PerpetualContract, Date: placed, LastUpdated: placed, Pair: perpetualPair}
 	assert.Equal(t, exp, orders[maximumFrontendOpenOrders], "GetActiveOrders should add an order beyond the limit without its order type or time in force")
+	for _, a := range []asset.Item{asset.Spot, asset.PerpetualContract} {
+		t.Run(a.String()+" fallback asset filtering", func(t *testing.T) {
+			t.Parallel()
+			filtered, requests := newCountingServerExchange(t, map[string]string{
+				"frontendOpenOrders": `[` + strings.Join(frontendOrders, ",") + `]`,
+				"openOrders":         `[` + basicOrders[maximumFrontendOpenOrders] + `,{"coin":"@107","side":"A","limitPx":"95.5","sz":"1.5","origSz":"1.5","oid":103,"timestamp":1791275926947}]`,
+			})
+			filtered.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+			filtered.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+			filteredOrders, filterErr := filtered.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, filterErr, "GetActiveOrders must filter fallback orders by asset")
+			expected := order.FilteredOrders{{Price: 95.5, Amount: 1.5, RemainingAmount: 1.5, Exchange: filtered.Name, OrderID: "103", Side: order.Sell, Status: order.Open, AssetType: asset.Spot, Date: placed, LastUpdated: placed, Pair: spotPair}}
+			expectedRequests := map[string]int{"frontendOpenOrders:": 1, "openOrders:": 1}
+			if a == asset.PerpetualContract {
+				expected = make(order.FilteredOrders, maximumFrontendOpenOrders+1)
+				for i := range expected {
+					expected[i] = order.Detail{Price: 100, Amount: 1, RemainingAmount: 1, Exchange: filtered.Name, OrderID: strconv.Itoa(i + 1), Side: order.Buy, Status: order.Open, AssetType: asset.PerpetualContract, Date: placed, LastUpdated: placed, Pair: perpetualPair}
+					if i < maximumFrontendOpenOrders {
+						expected[i].Type = order.Limit
+						expected[i].TimeInForce = order.PostOnly
+					}
+				}
+				expectedRequests["perpDexs:"] = 1
+			}
+			assert.Equal(t, expected, filteredOrders, "GetActiveOrders should retain only orders of the requested asset")
+			assert.Equal(t, expectedRequests, requests(), "GetActiveOrders should fetch fallback orders once without extra metadata requests")
+		})
+	}
 	unavailable := newTradingServerExchange(t, map[string]string{"frontendOpenOrders": `[` + strings.Join(frontendOrders, ",") + `]`, "openOrders": `{`}, nil)
 	_, err = unavailable.GetActiveOrders(t.Context(), perpetualRequest)
 	assert.Error(t, err, "GetActiveOrders should return an openOrders failure")

@@ -625,6 +625,327 @@ func TestModifyOrders(t *testing.T) {
 	assert.NotNilf(t, statuses[0].Resting, "ModifyOrders should rest the live replacement, got %+v", statuses[0])
 }
 
+func TestCancelOrdersInternal(t *testing.T) {
+	t.Parallel()
+	for _, overWebsocket := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			arg  *CancelOrdersRequest
+			err  error
+		}{
+			{name: "nil request", err: common.ErrNilPointer},
+			{name: "empty batch", arg: &CancelOrdersRequest{}, err: errNoActionItems},
+			{name: "invalid second order", arg: &CancelOrdersRequest{Cancels: []CancelRequest{{OrderID: 1}, {Asset: 1}}}, err: order.ErrOrderIDNotSet},
+			{name: "expired action", arg: &CancelOrdersRequest{Cancels: []CancelRequest{{OrderID: 1}}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				statuses, err := new(Exchange).cancelOrders(t.Context(), tc.arg, overWebsocket)
+				assert.ErrorIs(t, err, tc.err, "cancelOrders should reject invalid requests before sending")
+				assert.Nil(t, statuses, "cancelOrders should return no statuses for invalid requests")
+			})
+		}
+		for _, tc := range []struct {
+			name     string
+			response string
+			expected []CancelActionStatus
+			err      error
+		}{
+			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatus{{}, {Error: "Order not found"}}},
+			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
+			{name: "missing statuses", response: statusesResponse("cancel"), err: errActionStatusCount},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				var captured SignedActionRequest
+				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
+				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
+				ex.Websocket.Conn = connection
+				expires := time.Now().Add(time.Hour)
+				statuses, err := ex.cancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 0, OrderID: 1}, {Asset: 1, OrderID: 2}}, Fast: true, ExpiresAfter: expires}, overWebsocket)
+				require.ErrorIs(t, err, tc.err, "cancelOrders must return the action result")
+				assert.Equal(t, tc.expected, statuses, "cancelOrders should preserve status order")
+				if overWebsocket {
+					assert.Nil(t, captured.Action, "cancelOrders should leave the REST endpoint unused for websocket actions")
+					sent := connection.sentRequests()
+					require.Len(t, sent, 1, "cancelOrders must post one websocket action")
+					var post websocketVenueRequest
+					require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+					require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+				} else {
+					assert.Empty(t, connection.sentRequests(), "cancelOrders should leave the websocket unused for REST actions")
+				}
+				assert.JSONEq(t, `{"type":"cancel","cancels":[{"a":0,"o":1},{"a":1,"o":2}],"f":true}`, capturedAction(t, &captured), "cancelOrders should send every order and the fast flag")
+				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "cancelOrders should act for the configured subaccount")
+				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "cancelOrders should preserve the expiry")
+			})
+		}
+	}
+}
+
+func TestCancelOrdersByClientOrderIDInternal(t *testing.T) {
+	t.Parallel()
+	for _, overWebsocket := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			arg  *CancelOrdersByClientOrderIDRequest
+			err  error
+		}{
+			{name: "nil request", err: common.ErrNilPointer},
+			{name: "empty batch", arg: &CancelOrdersByClientOrderIDRequest{}, err: errNoActionItems},
+			{name: "invalid second identifier", arg: &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: testClientOrderID}, {ClientOrderID: "0x1"}}}, err: errClientOrderIDInvalid},
+			{name: "expired action", arg: &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: testClientOrderID}}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				statuses, err := new(Exchange).cancelOrdersByClientOrderID(t.Context(), tc.arg, overWebsocket)
+				assert.ErrorIs(t, err, tc.err, "cancelOrdersByClientOrderID should reject invalid requests before sending")
+				assert.Nil(t, statuses, "cancelOrdersByClientOrderID should return no statuses for invalid requests")
+			})
+		}
+		for _, tc := range []struct {
+			name     string
+			response string
+			expected []CancelActionStatus
+			err      error
+		}{
+			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatus{{}, {Error: "Order not found"}}},
+			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
+			{name: "missing statuses", response: statusesResponse("cancel"), err: errActionStatusCount},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				var captured SignedActionRequest
+				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
+				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
+				ex.Websocket.Conn = connection
+				expires := time.Now().Add(time.Hour)
+				arg := &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: 0, ClientOrderID: strings.ToUpper(testClientOrderID)}, {Asset: 1, ClientOrderID: testPriorityClientOrderID}}, Fast: true, ExpiresAfter: expires}
+				statuses, err := ex.cancelOrdersByClientOrderID(t.Context(), arg, overWebsocket)
+				require.ErrorIs(t, err, tc.err, "cancelOrdersByClientOrderID must return the action result")
+				assert.Equal(t, tc.expected, statuses, "cancelOrdersByClientOrderID should preserve status order")
+				assert.Equal(t, strings.ToUpper(testClientOrderID), arg.Cancels[0].ClientOrderID, "cancelOrdersByClientOrderID should preserve the caller's identifier")
+				if overWebsocket {
+					assert.Nil(t, captured.Action, "cancelOrdersByClientOrderID should leave the REST endpoint unused for websocket actions")
+					sent := connection.sentRequests()
+					require.Len(t, sent, 1, "cancelOrdersByClientOrderID must post one websocket action")
+					var post websocketVenueRequest
+					require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+					require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+				} else {
+					assert.Empty(t, connection.sentRequests(), "cancelOrdersByClientOrderID should leave the websocket unused for REST actions")
+				}
+				assert.JSONEq(t, `{"type":"cancelByCloid","cancels":[{"asset":0,"cloid":"`+testClientOrderID+`"},{"asset":1,"cloid":"`+testPriorityClientOrderID+`"}],"f":true}`, capturedAction(t, &captured), "cancelOrdersByClientOrderID should normalise identifiers and send the fast flag")
+				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "cancelOrdersByClientOrderID should act for the configured subaccount")
+				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "cancelOrdersByClientOrderID should preserve the expiry")
+			})
+		}
+	}
+}
+
+func TestModifySingleOrderInternal(t *testing.T) {
+	t.Parallel()
+	replacement := OrderRequest{Asset: 0, IsBuy: true, Price: 84500, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}
+	for _, overWebsocket := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			arg  *ModifyOrderRequest
+			err  error
+		}{
+			{name: "nil request", err: common.ErrNilPointer},
+			{name: "missing identifier", arg: &ModifyOrderRequest{Order: replacement}, err: order.ErrOrderIDNotSet},
+			{name: "conflicting identifiers", arg: &ModifyOrderRequest{OrderID: 1, ClientOrderID: testClientOrderID, Order: replacement}, err: errOrderIdentifiersConflict},
+			{name: "invalid client identifier", arg: &ModifyOrderRequest{ClientOrderID: "0x1", Order: replacement}, err: errClientOrderIDInvalid},
+			{name: "invalid replacement", arg: &ModifyOrderRequest{OrderID: 1}, err: order.ErrAmountIsInvalid},
+			{name: "expired action", arg: &ModifyOrderRequest{OrderID: 1, Order: replacement, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				assert.ErrorIs(t, new(Exchange).modifySingleOrder(t.Context(), tc.arg, overWebsocket), tc.err, "modifySingleOrder should reject invalid requests before sending")
+			})
+		}
+		for _, tc := range []struct {
+			name          string
+			orderID       uint64
+			clientOrderID string
+			alwaysPlace   bool
+			response      string
+			err           error
+			action        string
+		}{
+			{name: "order identifier", orderID: 1, alwaysPlace: true, response: defaultActionResponse, action: `{"type":"modify","oid":1,"order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}}},"a":true}`},
+			{name: "client identifier", clientOrderID: strings.ToUpper(testClientOrderID), response: defaultActionResponse, action: `{"type":"modify","oid":"` + testClientOrderID + `","order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}}}}`},
+			{name: "rejected action", orderID: 1, response: rejectedActionResponse, err: errActionResponse, action: `{"type":"modify","oid":1,"order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}}}}`},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				var captured SignedActionRequest
+				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
+				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
+				ex.Websocket.Conn = connection
+				expires := time.Now().Add(time.Hour)
+				err := ex.modifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, Order: replacement, AlwaysPlace: tc.alwaysPlace, ExpiresAfter: expires}, overWebsocket)
+				require.ErrorIs(t, err, tc.err, "modifySingleOrder must return the action result")
+				if overWebsocket {
+					assert.Nil(t, captured.Action, "modifySingleOrder should leave the REST endpoint unused for websocket actions")
+					sent := connection.sentRequests()
+					require.Len(t, sent, 1, "modifySingleOrder must post one websocket action")
+					var post websocketVenueRequest
+					require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+					require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+				} else {
+					assert.Empty(t, connection.sentRequests(), "modifySingleOrder should leave the websocket unused for REST actions")
+				}
+				assert.JSONEq(t, tc.action, capturedAction(t, &captured), "modifySingleOrder should serialise the identifier and replacement")
+				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "modifySingleOrder should act for the configured subaccount")
+				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "modifySingleOrder should preserve the expiry")
+			})
+		}
+	}
+}
+
+func TestModifyOrdersInternal(t *testing.T) {
+	t.Parallel()
+	replacement := OrderRequest{Asset: 0, Price: 79500, Size: 0.001, ReduceOnly: true, Trigger: &TriggerOrderType{IsMarket: true, TriggerPrice: 80500, TakeProfitStopLoss: TriggerStopLoss}}
+	for _, overWebsocket := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			arg  *ModifyOrdersRequest
+			err  error
+		}{
+			{name: "nil request", err: common.ErrNilPointer},
+			{name: "empty batch", arg: &ModifyOrdersRequest{}, err: errNoActionItems},
+			{name: "invalid second identifier", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {Order: replacement}}}, err: order.ErrOrderIDNotSet},
+			{name: "invalid second replacement", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {OrderID: 2}}}, err: order.ErrAmountIsInvalid},
+			{name: "expired action", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				statuses, err := new(Exchange).modifyOrders(t.Context(), tc.arg, overWebsocket)
+				assert.ErrorIs(t, err, tc.err, "modifyOrders should reject invalid requests before sending")
+				assert.Nil(t, statuses, "modifyOrders should return no statuses for invalid requests")
+			})
+		}
+		for _, tc := range []struct {
+			name     string
+			response string
+			expected []OrderActionStatus
+			err      error
+		}{
+			{name: "mixed statuses", response: statusesResponse("order", `{"resting":{"oid":3}}`, `{"error":"Order not found"}`), expected: []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 3}}, {Error: "Order not found"}}},
+			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
+			{name: "missing statuses", response: statusesResponse("order"), err: errActionStatusCount},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				var captured SignedActionRequest
+				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
+				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
+				ex.Websocket.Conn = connection
+				expires := time.Now().Add(time.Hour)
+				statuses, err := ex.modifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {ClientOrderID: strings.ToUpper(testClientOrderID), Order: replacement}}, AlwaysPlace: true, ExpiresAfter: expires}, overWebsocket)
+				require.ErrorIs(t, err, tc.err, "modifyOrders must return the action result")
+				assert.Equal(t, tc.expected, statuses, "modifyOrders should preserve replacement status order")
+				if overWebsocket {
+					assert.Nil(t, captured.Action, "modifyOrders should leave the REST endpoint unused for websocket actions")
+					sent := connection.sentRequests()
+					require.Len(t, sent, 1, "modifyOrders must post one websocket action")
+					var post websocketVenueRequest
+					require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+					require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+				} else {
+					assert.Empty(t, connection.sentRequests(), "modifyOrders should leave the websocket unused for REST actions")
+				}
+				assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":1,"order":{"a":0,"b":false,"p":"79500","s":"0.001","r":true,"t":{"trigger":{"isMarket":true,"triggerPx":"80500","tpsl":"sl"}}}},{"oid":"`+testClientOrderID+`","order":{"a":0,"b":false,"p":"79500","s":"0.001","r":true,"t":{"trigger":{"isMarket":true,"triggerPx":"80500","tpsl":"sl"}}}}],"a":true}`, capturedAction(t, &captured), "modifyOrders should serialise every identifier and replacement")
+				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "modifyOrders should act for the configured subaccount")
+				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "modifyOrders should preserve the expiry")
+			})
+		}
+	}
+}
+
+func TestPlaceOrdersInternal(t *testing.T) {
+	t.Parallel()
+	limit := OrderRequest{Asset: 0, IsBuy: true, Price: 85000, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceIOC}}
+	for _, overWebsocket := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			arg  *PlaceOrdersRequest
+			err  error
+		}{
+			{name: "nil request", err: common.ErrNilPointer},
+			{name: "empty batch", arg: &PlaceOrdersRequest{}, err: errNoActionItems},
+			{name: "unknown grouping", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Grouping: "unknown"}, err: errInvalidGrouping},
+			{name: "invalid priority", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, PriorityRate: maximumPriorityRate + 1}, err: errPriorityRateInvalid},
+			{name: "invalid second order", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit, {Price: 1}}}, err: order.ErrAmountIsInvalid},
+			{name: "invalid builder", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Builder: &BuilderFee{Builder: "invalid"}}, err: errInvalidAddress},
+			{name: "excessive builder fee", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Builder: &BuilderFee{Builder: testBuilderAddress, Fee: maximumPerpetualBuilderFee + 1}}, err: errBuilderFeeInvalid},
+			{name: "expired action", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				statuses, err := new(Exchange).placeOrders(t.Context(), tc.arg, overWebsocket)
+				assert.ErrorIs(t, err, tc.err, "placeOrders should reject invalid requests before sending")
+				assert.Nil(t, statuses, "placeOrders should return no statuses for invalid requests")
+			})
+		}
+		for _, tc := range []struct {
+			name         string
+			grouping     string
+			priorityRate uint64
+			builder      *BuilderFee
+			wireGrouping string
+			response     string
+			err          error
+		}{
+			{name: "default grouping", wireGrouping: `"na"`},
+			{name: "explicit grouping", grouping: GroupingNone, wireGrouping: `"na"`},
+			{name: "normal TP SL", grouping: GroupingNormalTPSL, wireGrouping: `"normalTpsl"`},
+			{name: "position TP SL", grouping: GroupingPositionTPSL, wireGrouping: `"positionTpsl"`},
+			{name: "priority and builder", priorityRate: maximumPriorityRate, builder: &BuilderFee{Builder: strings.ToUpper(testBuilderAddress), Fee: maximumPerpetualBuilderFee}, wireGrouping: `{"p":100000000}`},
+			{name: "rejected action", wireGrouping: `"na"`, response: rejectedActionResponse, err: errActionResponse},
+			{name: "missing statuses", wireGrouping: `"na"`, response: statusesResponse("order"), err: errActionStatusCount},
+		} {
+			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+				t.Parallel()
+				response := tc.response
+				if response == "" {
+					response = statusesResponse("order", `{"filled":{"totalSz":"0.001","avgPx":"85000","oid":1}}`, `{"error":"Insufficient margin"}`)
+				}
+				var captured SignedActionRequest
+				ex := newActionServerExchange(t, subAccountCredentials(), &captured, response)
+				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + response + `}`)}
+				ex.Websocket.Conn = connection
+				expires := time.Now().Add(time.Hour)
+				statuses, err := ex.placeOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{limit, limit}, Grouping: tc.grouping, PriorityRate: tc.priorityRate, Builder: tc.builder, ExpiresAfter: expires}, overWebsocket)
+				require.ErrorIs(t, err, tc.err, "placeOrders must return the action result")
+				if tc.err == nil {
+					assert.Equal(t, []OrderActionStatus{{Filled: &FilledOrderStatus{TotalSize: 0.001, AveragePrice: 85000, OrderID: 1}}, {Error: "Insufficient margin"}}, statuses, "placeOrders should preserve each order's status")
+				} else {
+					assert.Nil(t, statuses, "placeOrders should return no statuses for an invalid response")
+				}
+				if overWebsocket {
+					assert.Nil(t, captured.Action, "placeOrders should leave the REST endpoint unused for websocket actions")
+					sent := connection.sentRequests()
+					require.Len(t, sent, 1, "placeOrders must post one websocket action")
+					var post websocketVenueRequest
+					require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+					require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+				} else {
+					assert.Empty(t, connection.sentRequests(), "placeOrders should leave the websocket unused for REST actions")
+				}
+				expected := `{"type":"order","orders":[{"a":0,"b":true,"p":"85000","s":"0.001","r":false,"t":{"limit":{"tif":"Ioc"}}},{"a":0,"b":true,"p":"85000","s":"0.001","r":false,"t":{"limit":{"tif":"Ioc"}}}],"grouping":` + tc.wireGrouping
+				if tc.builder != nil {
+					expected += `,"builder":{"b":"` + testBuilderAddress + `","f":100}`
+				}
+				assert.JSONEq(t, expected+`}`, capturedAction(t, &captured), "placeOrders should serialise every order and its grouping and builder")
+				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "placeOrders should act for the configured subaccount")
+				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "placeOrders should preserve the expiry")
+			})
+		}
+	}
+}
+
 func TestUpdateLeverage(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.UpdateLeverage(t.Context(), nil), common.ErrNilPointer, "UpdateLeverage must reject a nil request")
@@ -1480,6 +1801,17 @@ func TestSetUserDEXAbstraction(t *testing.T) {
 	_, err = newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{})
 	require.ErrorIs(t, err, errUserSignedMasterRequired, "SetUserDEXAbstraction must require the account's own key")
 
+	for _, subAccount := range []string{"", testSubAccountAddress} {
+		rejected, lookups := newRoleServerExchange(t, map[string]string{testTraderAddress: `{"role":"user"}`}, nil, nil)
+		credentials := signingCredentials()
+		credentials.SubAccount = subAccount
+		setTestCredentials(rejected, credentials)
+		_, err := rejected.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{User: testTraderAddress})
+		assert.ErrorIs(t, err, errTransferSubAccountInvalid, "SetUserDEXAbstraction should reject an unowned target before signing")
+		assert.Equal(t, int32(1), lookups.Load(), "SetUserDEXAbstraction should validate the target irrespective of configuration")
+		assert.Zero(t, rejected.lastNonce.Load(), "SetUserDEXAbstraction should not sign an unowned target")
+	}
+
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
 	_, err = ex.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{User: "invalid"})
@@ -1532,6 +1864,17 @@ func TestSetUserAbstraction(t *testing.T) {
 	}
 	_, err = newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{Abstraction: AccountAbstractionDisabled})
 	require.ErrorIs(t, err, errUserSignedMasterRequired, "SetUserAbstraction must require the account's own key")
+
+	for _, subAccount := range []string{"", testSubAccountAddress} {
+		rejected, lookups := newRoleServerExchange(t, map[string]string{testTraderAddress: `{"role":"user"}`}, nil, nil)
+		credentials := signingCredentials()
+		credentials.SubAccount = subAccount
+		setTestCredentials(rejected, credentials)
+		_, err := rejected.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{User: testTraderAddress, Abstraction: AccountAbstractionDisabled})
+		assert.ErrorIs(t, err, errTransferSubAccountInvalid, "SetUserAbstraction should reject an unowned target before signing")
+		assert.Equal(t, int32(1), lookups.Load(), "SetUserAbstraction should validate the target irrespective of configuration")
+		assert.Zero(t, rejected.lastNonce.Load(), "SetUserAbstraction should not sign an unowned target")
+	}
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
@@ -2415,25 +2758,41 @@ func TestPrepareTransfer(t *testing.T) {
 
 func TestAbstractionUser(t *testing.T) {
 	t.Parallel()
-	ex, _ := newRoleServerExchange(t, map[string]string{testSubAccountAddress: `{"role":"subAccount","data":{"master":"` + testAccountAddress + `"}}`}, nil, nil)
-	credentials := signingCredentials()
 	for _, tc := range []struct {
-		subAccount, user string
-		exp              string
-		err              error
+		name, subAccount, user, role, exp string
+		lookups                           int32
+		err                               error
 	}{
-		{exp: testAccountAddress},
-		{subAccount: testSubAccountAddress, exp: testSubAccountAddress},
-		{subAccount: testSubAccountAddress, user: "0x" + strings.ToUpper(testSubAccountAddress[2:]), exp: testSubAccountAddress},
-		{subAccount: testSubAccountAddress, user: testAccountAddress, exp: testAccountAddress},
-		{user: "0x" + strings.ToUpper(testTraderAddress[2:]), exp: testTraderAddress},
-		{subAccount: testSubAccountAddress, user: strings.ToUpper(testAccountAddress[2:]), err: errInvalidAddress},
-		{subAccount: testVaultAddress, err: errTransferSubAccountInvalid},
-		{subAccount: testVaultAddress, user: testVaultAddress, err: errTransferSubAccountInvalid},
+		{name: "default master", exp: testAccountAddress},
+		{name: "blank user", user: "  ", exp: testAccountAddress},
+		{name: "explicit master", user: testAccountAddress, exp: testAccountAddress},
+		{name: "master casing", subAccount: testSubAccountAddress, user: "0X" + strings.ToUpper(testAccountAddress[2:]), exp: testAccountAddress},
+		{name: "configured owned", subAccount: testSubAccountAddress, exp: testSubAccountAddress, lookups: 1},
+		{name: "configured owned casing", subAccount: testSubAccountAddress, user: "0X" + strings.ToUpper(testSubAccountAddress[2:]), exp: testSubAccountAddress, lookups: 1},
+		{name: "unconfigured owned", user: testSubAccountAddress, exp: testSubAccountAddress, lookups: 1},
+		{name: "another owned", subAccount: testTraderAddress, user: testSubAccountAddress, exp: testSubAccountAddress, lookups: 1},
+		{name: "malformed", subAccount: testSubAccountAddress, user: strings.ToUpper(testAccountAddress[2:]), err: errInvalidAddress},
+		{name: "unrelated user", user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "unrelated despite configuration", subAccount: testSubAccountAddress, user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "missing role", user: testTraderAddress, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "another master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"` + testWithdrawalAddress + `"}}`, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "malformed master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"invalid"}}`, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "explicit vault", user: testVaultAddress, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "configured vault", subAccount: testVaultAddress, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "role failure", user: testTraderAddress, role: roleServerUnavailable, lookups: 1, err: request.ErrBadStatus},
 	} {
-		user, err := ex.abstractionUser(t.Context(), credentials, tc.subAccount, tc.user)
-		require.ErrorIsf(t, err, tc.err, "abstractionUser must return the expected error for subaccount %q and user %q", tc.subAccount, tc.user)
-		assert.Equalf(t, tc.exp, user, "abstractionUser should resolve subaccount %q and user %q", tc.subAccount, tc.user)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, lookups := newRoleServerExchange(t, map[string]string{
+				testSubAccountAddress: `{"role":"subAccount","data":{"master":"0X` + strings.ToUpper(testAccountAddress[2:]) + `"}}`,
+				testTraderAddress:     tc.role,
+				testVaultAddress:      `{"role":"vault"}`,
+			}, map[string]string{testVaultAddress: testAccountAddress}, nil)
+			user, err := ex.abstractionUser(t.Context(), signingCredentials(), tc.subAccount, tc.user)
+			require.ErrorIs(t, err, tc.err, "abstractionUser must return the expected error")
+			assert.Equal(t, tc.exp, user, "abstractionUser should resolve the target")
+			assert.Equal(t, tc.lookups, lookups.Load(), "abstractionUser should validate every non-master target")
+		})
 	}
 }
 

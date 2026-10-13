@@ -741,10 +741,16 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
+		allMetadata, err := e.GetAllPerpetualMetadata(ctx)
+		if err != nil {
+			return nil, err
+		}
 		for i := range dexes {
-			metadata, err := e.GetPerpetualMetadata(ctx, dexes[i])
-			if err != nil {
-				return nil, err
+			metadata := perpetualMetadataForDEX(allMetadata, dexes[i])
+			if metadata == nil {
+				if metadata, err = e.GetPerpetualMetadata(ctx, dexes[i]); err != nil {
+					return nil, err
+				}
 			}
 			collateral, ok := tokenNames[metadata.CollateralToken]
 			if !ok {
@@ -764,6 +770,37 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		}
 	}
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+}
+
+// perpetualMetadataForDEX identifies a DEX by every market's prefix, never by the bulk response's position. Empty,
+// mixed or duplicate entries cannot identify its collateral safely, so callers must fetch that DEX's metadata instead.
+func perpetualMetadataForDEX(metadata []PerpetualMetadataResponse, dex string) *PerpetualMetadataResponse {
+	var result *PerpetualMetadataResponse
+	for i := range metadata {
+		var matched, mismatched bool
+		for j := range metadata[i].Universe {
+			prefix, coin, hasPrefix := strings.Cut(metadata[i].Universe[j].Name, ":")
+			if !hasPrefix {
+				coin, prefix = prefix, ""
+			}
+			if prefix == dex {
+				matched = true
+			} else {
+				mismatched = true
+			}
+			if strings.TrimSpace(coin) == "" || strings.Contains(coin, ":") || (hasPrefix && prefix == "") {
+				mismatched = true
+			}
+		}
+		if !matched {
+			continue
+		}
+		if mismatched || result != nil {
+			return nil
+		}
+		result = &metadata[i]
+	}
+	return result
 }
 
 // convertSpotBalance converts a spot token balance; portfolio margin accounts report a spot hold beside a hold that can
@@ -904,7 +941,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 	return result, nil
 }
 
-// ModifyOrder replaces a resting limit order, keeping any fields the modification omits
+// ModifyOrder replaces a resting limit order, keeping any fields the modification omits. Amount is the requested total
+// of the current order; its executed size is subtracted before replacement. The response reports the replacement size,
+// which becomes the total for subsequent amendments of the replacement order.
 // Without always place, Hyperliquid only accepts a replacement that rests: it must not be a trigger order and must be
 // ALO or a GTC that would not execute, which then rests as ALO
 func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*order.ModifyResponse, error) {
@@ -953,13 +992,22 @@ func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*orde
 		return nil, err
 	}
 	side := cmp.Or(modify.Side, existing.Side)
-	amount := cmp.Or(modify.Amount, existing.RemainingAmount)
+	amount := cmp.Or(modify.Amount, existing.Amount)
 	price := cmp.Or(modify.Price, existing.Price)
 	clientOrderID := cmp.Or(modify.NewClientOrderID, existing.ClientOrderID)
 	replacement, mapping, err := e.buildOrderRequest(ctx, modify.Pair, modify.AssetType, orderType, side, timeInForce, amount, price, 0, 0, existing.ReduceOnly, clientOrderID)
 	if err != nil {
 		return nil, err
 	}
+	// buildOrderRequest validates the total before subtraction. Whole size units avoid residue from the venue's
+	// original-minus-remaining execution calculation becoming an over-precise replacement.
+	scale := math.Pow10(int(mapping.sizeDecimals)) //nolint:gosec // buildOrderRequest limits sizeDecimals to 8
+	total := amount
+	amount = (math.Round(total*scale) - math.Round(existing.ExecutedAmount*scale)) / scale
+	if amount <= 0 {
+		return nil, fmt.Errorf("%w: total %v does not exceed executed size %v", order.ErrAmountIsInvalid, total, existing.ExecutedAmount)
+	}
+	replacement.Size = amount
 	modifyRequest.Order = replacement
 	statuses, err := e.ModifyOrders(ctx, &ModifyOrdersRequest{Modifies: []OrderModification{modifyRequest}})
 	if err != nil {
