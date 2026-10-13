@@ -1,5 +1,11 @@
 name: golangci-lint
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+      - 'dependabot/**'
+  pull_request:
+  merge_group:
 permissions:
   contents: read
 jobs:
@@ -8,15 +14,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.x'
+          go-version-file: go.mod
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.2
+          version-file: .golangci-lint-version
       - name: golangci-lint (udecimal)
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.2
+          version-file: .golangci-lint-version
           args: --build-tags=udecimal_on

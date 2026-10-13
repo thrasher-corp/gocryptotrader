@@ -151,6 +151,8 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 					Exchange:        f.GetName(),
 					Price:           1337,
 					Amount:          1337,
+					Fee:             0.25,
+					FeeAsset:        currency.USDT,
 					InternalOrderID: id,
 					OrderID:         "1337",
 					ClientOrderID:   "1337",
@@ -1837,6 +1839,8 @@ func TestGetManagedOrders(t *testing.T) {
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
+		Fee:       0.25,
+		FeeAsset:  currency.USDT,
 		Exchange:  "Binance",
 		Type:      order.Limit,
 		Side:      order.Sell,
@@ -1862,6 +1866,9 @@ func TestGetManagedOrders(t *testing.T) {
 	creationTime := oo.GetOrders()[0].GetTrades()[0].GetCreationTime()
 	require.NotNil(t, creationTime, "GetManagedOrders must return the trade timestamp")
 	assert.Equal(t, tradeTime, creationTime.AsTime(), "GetManagedOrders should preserve trade timestamp nanoseconds")
+	got := oo.GetOrders()[0]
+	assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
+	assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
 }
 
 func TestRPCServer_tickerResponse(t *testing.T) {
@@ -2217,7 +2224,7 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	}
 
-	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+	resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2227,6 +2234,9 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the position order should carry its fee currency")
 
 	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
@@ -3118,6 +3128,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 		ExecutedAmount:       1337,
 		RemainingAmount:      1337,
 		Cost:                 1337,
+		Fee:                  1.5,
+		FeeAsset:             currency.USDT,
 		Exchange:             fakeExchangeName,
 		OrderID:              "1337",
 		Type:                 order.Market,
@@ -3134,8 +3146,11 @@ func TestGetAllManagedPositions(t *testing.T) {
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
-	_, err = s.GetAllManagedPositions(t.Context(), request)
-	assert.NoError(t, err)
+	resp, err := s.GetAllManagedPositions(t.Context(), request)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the managed position's order should carry its fee currency")
 }
 
 func TestGetOrderbookMovement(t *testing.T) {
