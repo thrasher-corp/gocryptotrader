@@ -225,7 +225,7 @@ func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 		return udecimal.Zero
 	}
 	scale := powerOfTenUdecimal(int(zeroes))
-	return value.MustDiv(scale).RoundHAZ(0).Mul(scale)
+	return divideUdecimal(value, scale).RoundHAZ(0).Mul(scale)
 }
 
 // truncateUdecimal handles negative precision because udecimal.Trunc accepts
@@ -247,7 +247,7 @@ func truncateUdecimal(value udecimal.Decimal, precision int32) udecimal.Decimal 
 		return udecimal.Zero
 	}
 	scale := powerOfTenUdecimal(int(zeroes))
-	return value.MustDiv(scale).Trunc(0).Mul(scale)
+	return divideUdecimal(value, scale).Trunc(0).Mul(scale)
 }
 
 // integerDigitCount returns the number of significant digits before the

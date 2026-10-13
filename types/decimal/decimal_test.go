@@ -47,6 +47,7 @@ func TestDecimalTruncate(t *testing.T) {
 		{name: "beyond integer digits", value: "5432", precision: -5, expected: "0"},
 		{name: "fraction only", value: "1.239", precision: -1, expected: "0"},
 		{name: "beyond u128", value: beyondU128, precision: -1, expected: "5" + strings.Repeat("0", 41)},
+		{name: "u128 division overflow", value: "184467440737095516160", precision: -20, expected: "100000000000000000000"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

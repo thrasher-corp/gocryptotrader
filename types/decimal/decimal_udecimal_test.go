@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/quagmt/udecimal" //nolint:depguard // Verifies errors from the selected backend.
 	"github.com/stretchr/testify/assert"
@@ -842,6 +843,7 @@ func TestRoundUdecimal(t *testing.T) {
 		{name: "minimum int32 places", value: "1.25", places: math.MinInt32, expected: "0"},
 		{name: "large positive half", value: largeHalf, places: -maxStringDigits - 1, expected: largeRounded},
 		{name: "large negative half", value: "-" + largeHalf, places: -maxStringDigits - 1, expected: "-" + largeRounded},
+		{name: "u128 division overflow", value: "184467440737095516160", places: -20, expected: "200000000000000000000"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -868,6 +870,7 @@ func TestTruncateUdecimal(t *testing.T) {
 		{name: "every integer digit", value: "5432", precision: -4, expected: "0"},
 		{name: "beyond parser cap", value: "1.25", precision: -maxStringDigits - 1, expected: "0"},
 		{name: "minimum int32 precision", value: "1.25", precision: math.MinInt32, expected: "0"},
+		{name: "minimum int32 precision plus one", value: "1.25", precision: math.MinInt32 + 1, expected: "0"},
 		{name: "large positive value", value: largeValue, precision: -1, expected: largeTruncated},
 		{name: "large negative value", value: "-" + largeValue, precision: -1, expected: "-" + largeTruncated},
 	} {
@@ -875,8 +878,16 @@ func TestTruncateUdecimal(t *testing.T) {
 			t.Parallel()
 			value, err := parseUdecimal(tc.value)
 			require.NoError(t, err, "parseUdecimal must parse the value")
-			assert.Equal(t, tc.expected, truncateUdecimal(value, tc.precision).String(),
-				"truncateUdecimal should return the expected value")
+			// A regressed zero guard can make extreme precision build an enormous
+			// power of ten, so bound the call to fail rather than hang.
+			result := make(chan string, 1)
+			go func() { result <- truncateUdecimal(value, tc.precision).String() }()
+			select {
+			case got := <-result:
+				assert.Equal(t, tc.expected, got, "truncateUdecimal should return the expected value")
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "truncateUdecimal must return promptly")
+			}
 		})
 	}
 }
