@@ -741,9 +741,6 @@ func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, 
 		if err != nil {
 			return nil, err
 		}
-		// Index each page by the orders it returned. The previous page's length
-		// panics when this page is shorter, and returning on the first empty
-		// page skips every pair after it.
 		for page := int64(1); ; page++ {
 			tempResp, err := e.GetOpenOrders(ctx,
 				fPair.String(),
