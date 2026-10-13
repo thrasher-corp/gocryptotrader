@@ -1,0 +1,23 @@
+// spot@public.cny.v2.pb
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PrivateAccountV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PrivateAccountV3Api {
+  string vcoinName = 1;
+  string coinId = 2;
+
+  string balanceAmount = 3;
+  string balanceAmountChange = 4;
+  string frozenAmount = 5;
+  string frozenAmountChange = 6;
+
+  string type = 7;
+
+  int64 time = 8;
+}

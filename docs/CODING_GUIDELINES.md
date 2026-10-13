@@ -245,6 +245,15 @@ Use `require` and `assert` appropriately:
     display timestamp when its unit is unavailable rather than guessing it.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- For interface-valued inputs with nil guards, cover both a nil interface and
+    a typed-nil concrete value. For format detection and segmented-name rules,
+    include missing metadata, malformed inputs and multiple separators so the
+    tests distinguish the intended guard and segment from nearby alternatives.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
 
 ### Interface Contracts
 
