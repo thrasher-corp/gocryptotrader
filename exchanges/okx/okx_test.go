@@ -5504,11 +5504,10 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 	}
 
 	require.Len(t, result.FundingRates, rateCount, "every funding rate in the window must be kept exactly once")
-	seen := make(map[int64]struct{}, rateCount)
+	seen := make(common.Seen[int64], rateCount)
 	for i := range result.FundingRates {
 		ms := result.FundingRates[i].Time.UnixMilli()
-		require.NotContains(t, seen, ms, "a repeated boundary record must not duplicate a rate")
-		seen[ms] = struct{}{}
+		require.False(t, seen.CheckAndRecord(ms), "a repeated boundary record must not duplicate a rate")
 	}
 	assert.Equal(t, rateTime(0).UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come first")
 	assert.Equal(t, rateTime(rateCount-1).UnixMilli(), result.FundingRates[rateCount-1].Time.UnixMilli(), "the oldest rate should be reached, not stranded behind repeated pages")
