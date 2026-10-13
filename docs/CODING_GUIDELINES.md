@@ -238,6 +238,15 @@ Use `require` and `assert` appropriately:
     whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
     Process a non-empty page before applying a cursor-progress guard: a cursor
     that cannot advance may still accompany unseen records at its boundary.
+- For interface-valued inputs with nil guards, cover both a nil interface and
+    a typed-nil concrete value. For format detection and segmented-name rules,
+    include missing metadata, malformed inputs and multiple separators so the
+    tests distinguish the intended guard and segment from nearby alternatives.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
 
 ### Interface Contracts
 
