@@ -2483,7 +2483,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeFilter(req.Type, req.TimeInForce)
+		orderType, err = listingOrderTypeFilter(req.Type, req.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -2770,7 +2770,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 	// back with no time in force.
 	var ordTypes []string
 	if req.TimeInForce != order.UnknownTIF && req.Type != order.UnknownType && req.Type != order.AnyType {
-		filter, err := orderTypeFilter(req.Type, req.TimeInForce)
+		filter, err := listingOrderTypeFilter(req.Type, req.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -3804,15 +3804,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				if err != nil {
 					return nil, err
 				}
+			}
 
-				settleCurr = currency.NewCode(result[i].SettlementCurrency)
+			// A contract keeps its settlement terms in every state: a suspended
+			// contract still has orders, which GetFuturesPositionOrders costs in
+			// its settlement currency.
+			settleCurr = currency.NewCode(result[i].SettlementCurrency)
 
-				contractSettlementType = futures.Linear
-				// OKX leaves baseCcy empty on derivatives, so ctType is the
-				// only reliable inverse marker; absent types stay linear.
-				if result[i].ContractType == "inverse" {
-					contractSettlementType = futures.Inverse
-				}
+			contractSettlementType = futures.Linear
+			// OKX leaves baseCcy empty on derivatives, so ctType is the
+			// only reliable inverse marker; absent types stay linear.
+			if result[i].ContractType == "inverse" {
+				contractSettlementType = futures.Inverse
 			}
 
 			var ct futures.ContractType

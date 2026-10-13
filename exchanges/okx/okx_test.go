@@ -7248,7 +7248,6 @@ func TestWsProcessSpreadOrdersReportsFills(t *testing.T) {
 		Side: order.Buy, Status: order.PartiallyFilled, Type: order.Limit, LastUpdated: stamp, TimeInForce: order.PostOnly,
 	}}
 	assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
-	assert.Zero(t, details[0].QuoteAmount, "the spread stream should leave the quote amount unset")
 }
 
 func TestWsProcessSpreadTradesJSON(t *testing.T) {

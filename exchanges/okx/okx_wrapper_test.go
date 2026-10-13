@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"uuid"
@@ -47,13 +48,37 @@ func writeOKXData(t *testing.T, w http.ResponseWriter, data any) {
 	_, _ = w.Write(encoded)
 }
 
+// mockRequestLimit caps the requests one mock exchange answers. A pager whose
+// stop regresses asks for the same page forever, so past the cap the mock fails
+// the request and the test fails instead of hanging until go test's timeout.
+// The busiest test sends 29.
+const mockRequestLimit = 100
+
+// limitMockRequests serves the first mockRequestLimit requests with h and fails
+// the rest.
+func limitMockRequests(t *testing.T, h http.Handler) http.Handler {
+	t.Helper()
+	var served atomic.Int64
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if served.Add(1) > mockRequestLimit {
+			t.Errorf("mock exchange received more than %d requests, the last for %s", mockRequestLimit, r.URL)
+			http.Error(w, "mock request limit exceeded", http.StatusBadRequest)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // newMockExchange returns an exchange whose REST endpoints all point at a test
 // server running h.
 func newMockExchange(t *testing.T, h http.Handler) *Exchange {
 	t.Helper()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	srv := httptest.NewTestServer(t, h)
+	// The mock answers at once, so the rate limiters every test in the package
+	// shares would only hold its requests back behind other tests.
+	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
+	srv := httptest.NewTestServer(t, limitMockRequests(t, h))
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
@@ -789,6 +814,47 @@ func TestOrderTypeFilter(t *testing.T) {
 	}
 	_, err := orderTypeFilter(order.Stop, order.UnknownTIF)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "orderTypeFilter should reject an order type OKX does not list")
+}
+
+// TestMarketListingsKeepToMarketOrders guards a market listing with a time in
+// force: the ioc and fok orders such a request places as read back as Limit,
+// so the listings must ask for market orders instead.
+func TestMarketListingsKeepToMarketOrders(t *testing.T) {
+	t.Parallel()
+	row := func(id, ordType, state string) map[string]string {
+		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": state, "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": "1700000000000"}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		state := "filled"
+		switch r.URL.Path {
+		case "/trade/orders-pending":
+			state = "live"
+		case "/trade/orders-history-archive", "/trade/orders-history":
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		ordTypes := strings.Split(r.URL.Query().Get("ordType"), ",")
+		rows := make([]map[string]string, 0, 4)
+		for _, o := range []map[string]string{row("MARKET-1", orderMarket, state), row("LIMIT-1", orderLimit, state), row("IOC-1", orderIOC, state), row("FOK-1", orderFOK, state)} {
+			if ordTypes[0] == "" || slices.Contains(ordTypes, o["ordType"]) {
+				rows = append(rows, o)
+			}
+		}
+		writeOKXData(t, w, rows)
+	}))
+	for _, tif := range []order.TimeInForce{order.ImmediateOrCancel, order.FillOrKill} {
+		req := &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: tif, Side: order.AnySide}
+		active, err := e.GetActiveOrders(t.Context(), req)
+		require.NoErrorf(t, err, "GetActiveOrders must not error for a market order with %s", tif)
+		require.Lenf(t, active, 1, "GetActiveOrders must return the market order for a market order with %s", tif)
+		assert.Equalf(t, "MARKET-1", active[0].OrderID, "GetActiveOrders should return the market order for a market order with %s", tif)
+		history, err := e.GetOrderHistory(t.Context(), req)
+		require.NoErrorf(t, err, "GetOrderHistory must not error for a market order with %s", tif)
+		require.Lenf(t, history, 1, "GetOrderHistory must return the market order for a market order with %s", tif)
+		assert.Equalf(t, "MARKET-1", history[0].OrderID, "GetOrderHistory should return the market order for a market order with %s", tif)
+	}
 }
 
 // TestSpreadOrderTypeFilter guards the spread order type filter: the spread
@@ -2324,15 +2390,30 @@ func TestBatchAndGridReplies(t *testing.T) {
 	assert.ErrorContains(t, err, "Parameter algoId error", "AmendGridAlgoOrder should report OKX's status message")
 }
 
+// stopMockWebsocket stops the websocket manager MockWsInstance leaves
+// running. Left alone, it redials the closed mock's port a minute later and
+// logs in again, by when another test's server may hold that port. Registered
+// after the server's cleanup, it runs first.
+func stopMockWebsocket(t *testing.T, e *Exchange) {
+	t.Helper()
+	t.Cleanup(func() {
+		if e.Websocket.IsEnabled() {
+			assert.NoError(t, e.Websocket.Disable(), "Disable should not error")
+		}
+		_ = e.Websocket.Shutdown()
+	})
+}
+
 // newMockWebsocketExchange returns an exchange whose authenticated websocket is
 // available to the wrapper, with every REST endpoint pointed at the same test
 // server and mainPair's instrument code cached. rest answers REST requests, and
 // wsReply returns the code and data of OKX's reply to each websocket operation.
 func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(op string, args json.RawMessage) (code string, data any)) *Exchange {
 	t.Helper()
+	limitedRest := limitMockRequests(t, rest)
 	e := testexch.MockWsInstance[Exchange](t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Upgrade") != "websocket" {
-			rest(w, r)
+			limitedRest.ServeHTTP(w, r)
 			return
 		}
 		mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
@@ -2355,6 +2436,7 @@ func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(
 			return c.WriteMessage(gws.TextMessage, reply)
 		})
 	}))
+	stopMockWebsocket(t, e)
 	mockURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 	require.NoError(t, err, "GetURL must not error for RestSpot")
 	for k := range e.API.Endpoints.GetURLMap() {
@@ -2363,6 +2445,7 @@ func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the mock websocket must be available to the wrapper")
 	e.instrumentIDCodeMap = map[string]uint64{mainPair.String(): 12345}
+	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
 	return e
 }
 
@@ -4155,6 +4238,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 	})
 
 	e := testexch.MockWsInstance[Exchange](t, handler)
+	stopMockWebsocket(t, e)
 	// MockWsInstance points RestSpotURL at the server without a trailing
 	// slash, which breaks the REST path join, so every endpoint is re-pointed
 	// at the mock server; the websocket connections are already established.
@@ -4629,9 +4713,6 @@ func TestContractPositionModeKeepsConfirmedSwitch(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	// Every test in the package shares the rate limiters, so a busy run could
-	// otherwise hold the fetch back past the deadline below.
-	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
 	// Registered after the mock server's cleanup, so it runs first and frees
 	// a handler still waiting on release.
 	t.Cleanup(releaseOnce)
@@ -5087,9 +5168,6 @@ func TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	// Every test in the package shares the rate limiters, so a busy run could
-	// otherwise hold the fetch back past the deadline below.
-	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
 	// Registered after the mock server's cleanup, so it runs first and frees
 	// a handler still waiting on release.
 	t.Cleanup(releaseOnce)
@@ -5371,6 +5449,16 @@ func TestGetFuturesPositionOrdersReportsContractCosts(t *testing.T) {
 		{
 			name:       "inverse",
 			instrument: map[string]string{"instType": instTypeSwap, "instId": "BTC-USD-SWAP", "uly": "BTC-USD", "ctType": "inverse", "settleCcy": "BTC", "ctVal": "100", "state": "live"},
+			pair:       inverseSwapPair,
+			state:      "filled",
+			avgPx:      "60000",
+			expType:    futures.Inverse,
+			expCost:    100.0 * 100.0 / 60000.0,
+			expAsset:   currency.BTC,
+		},
+		{
+			name:       "suspended inverse",
+			instrument: map[string]string{"instType": instTypeSwap, "instId": "BTC-USD-SWAP", "uly": "BTC-USD", "ctType": "inverse", "settleCcy": "BTC", "ctVal": "100", "state": "suspend"},
 			pair:       inverseSwapPair,
 			state:      "filled",
 			avgPx:      "60000",

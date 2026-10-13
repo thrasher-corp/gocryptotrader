@@ -166,6 +166,18 @@ func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error
 	return orderTypeString(orderType, tif)
 }
 
+// listingOrderTypeFilter returns the ordType filter an order listing sends:
+// orderTypeFilter's, except that a market listing keeps to market orders
+// whatever its time in force. orderTypeFilter falls back to the ioc or fok such
+// an order places as, which read back as Limit, so the request's type filter
+// would drop every row.
+func listingOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	if orderType == order.Market {
+		return orderMarket, nil
+	}
+	return orderTypeFilter(orderType, tif)
+}
+
 // spreadOrderTypeFilter returns the ordType filter for the spread order
 // endpoints, which document only market, limit, post_only and ioc as single
 // values: the comma-separated lists the ordinary order endpoints accept are
