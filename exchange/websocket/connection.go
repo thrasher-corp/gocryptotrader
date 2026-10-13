@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -346,15 +347,24 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 	return msg, nil
 }
 
-// Shutdown shuts down and closes specific connection
+// Shutdown shuts down and closes specific connection.
+// It closes the socket beneath any TLS layer before taking writeControl: a write blocked on a peer which has stopped
+// reading holds that lock until the socket closes, and a TLS close_notify would block on the same socket under a
+// deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
+// return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
 	if c == nil || c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
+	conn := c.Connection.NetConn()
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		conn = tlsConn.NetConn()
+	}
+	err := conn.Close()
 	c.writeControl.Lock()
 	defer c.writeControl.Unlock()
-	return c.Connection.NetConn().Close()
+	return err
 }
 
 // SetURL sets connection URL
