@@ -1994,3 +1994,52 @@ func TestShutdown(t *testing.T) {
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }
+
+func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager()
+	mgr.useMultiConnectionManagement = true
+	server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+
+	ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+		URL: "ws" + server.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.Dial(ctx, dialer, nil, nil)
+		},
+		Subscriber: partialSubscriber(mgr),
+		Handler:    func(context.Context, Connection, []byte) error { return nil },
+	}}
+	t.Cleanup(func() { cleanupManagedConnectionReaders(t, mgr, ws) })
+
+	accepted := &subscription.Subscription{Channel: "accepted"}
+	rejected := &subscription.Subscription{Channel: "rejected"}
+	err := mgr.createConnectAndSubscribe(t.Context(), ws, subscription.List{accepted, rejected})
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "subscriber error must bubble as subscription failure")
+	require.ErrorIs(t, err, errSubscriptionRejected, "must include wrapped subscriber error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	connStore := ws.connections[0].Subscriptions()
+	assert.NotNil(t, connStore.Get(accepted), "accepted subscription should be recorded against the connection")
+	assert.Nil(t, connStore.Get(rejected), "rejected subscription should not be recorded against the connection")
+	assert.Equal(t, 1, connStore.Len(), "connection store should only hold the accepted subscription")
+
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	accepted = &subscription.Subscription{Channel: "accepted-again"}
+	rejected = &subscription.Subscription{Channel: "missing"}
+	ws.setup.Subscriber = func(_ context.Context, c Connection, subs subscription.List) error {
+		return mgr.AddSuccessfulSubscriptions(c, subs[0])
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subscription.List{accepted, rejected})
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "missing subscriptions must return subscription failure")
+	require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "missing subscriptions must return subs not added error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	connStore = ws.connections[0].Subscriptions()
+	assert.NotNil(t, connStore.Get(accepted), "accepted subscription should be recorded against the connection")
+	assert.Nil(t, connStore.Get(rejected), "missing subscription should not be recorded against the connection")
+}

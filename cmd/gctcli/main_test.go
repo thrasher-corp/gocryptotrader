@@ -114,7 +114,6 @@ func TestRequiredCommandFlags(t *testing.T) {
 		{name: "bank account ID optional", command: withdrawFiatFundsCommand, flagName: "bankaccountid"},
 		{name: "nominal percentage optional", command: nominal, flagName: "percent"},
 		{name: "whale bomb price optional", command: whaleBombCommand, flagName: "price"},
-		{name: "script filename optional", command: gctScriptCommand.Command("execute"), flagName: "filename"},
 		{name: "margin rates currency", command: getMarginRatesHistoryCommand, flagName: "currency", required: true},
 		{name: "job id alternative", command: dataHistoryCommands.Command("getajob"), flagName: "id"},
 		{name: "job nickname alternative", command: dataHistoryCommands.Command("getajob"), flagName: "nickname"},

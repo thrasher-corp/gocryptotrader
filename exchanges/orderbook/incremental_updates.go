@@ -78,7 +78,7 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 	}
 
 	// This will process out of order updates but will not error on them.
-	// TODO: Error on out of order updates; this is intentionally kept as is from the buffer package.
+	// TODO: Error on out-of-order updates; this behaviour is retained for compatibility.
 	// Add update.UpdateTime time check to ensure that the update is newer than the last update,
 	// this should screen zero values as well.
 	if u.SkipOutOfOrderLastUpdateID && d.lastUpdateID >= u.UpdateID {

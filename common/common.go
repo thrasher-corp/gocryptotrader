@@ -31,9 +31,7 @@ import (
 const (
 	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
 	SimpleTimeFormatWithTimezone = time.DateTime + " MST"
-	// GctExt is the extension for GCT Tengo script files
-	GctExt         = ".gct"
-	defaultTimeout = time.Second * 15
+	defaultTimeout               = time.Second * 15
 )
 
 // Strings representing the full lower, upper case English character alphabet and base-10 numbers for generating a random string.

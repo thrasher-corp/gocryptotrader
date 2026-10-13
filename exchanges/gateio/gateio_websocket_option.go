@@ -315,7 +315,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		optionsUnderlyingCandlesticksChannel:
 		return e.processOptionsCandlestickPushData(ctx, respRaw)
 	case optionsOrderbookChannel:
-		return e.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
+		return e.processOptionsOrderbookSnapshotPushData(ctx, push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
 		return e.processOrderbookTickerPushData(ctx, respRaw)
 	case optionsOrderbookUpdateChannel:
@@ -349,7 +349,7 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tick := &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		MarkPrice:    data.MarkPrice.Float64(),
@@ -360,7 +360,11 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
-	})
+	}
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {
@@ -518,7 +522,7 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	})
 }
 
-func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOptionsOrderbookSnapshotPushData(ctx context.Context, event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -543,7 +547,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
-		return e.Websocket.Orderbook.LoadSnapshot(&base)
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &base)
 	}
 	var data []WsFuturesOrderbookUpdateEvent
 	err := json.Unmarshal(incoming, &data)
@@ -577,7 +581,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		if err != nil {
 			return err
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Asks:              ab[0],
 			Bids:              ab[1],
 			Asset:             asset.Options,

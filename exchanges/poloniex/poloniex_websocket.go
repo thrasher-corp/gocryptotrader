@@ -47,6 +47,11 @@ const (
 	// Authenticated channels
 	channelOrders   = "orders"
 	channelBalances = "balances"
+
+	// Order event types and match roles as documented by Poloniex. Only trade
+	// events carry a fill, so only they should produce an order.TradeHistory.
+	orderEventTrade     = "trade"
+	orderMatchRoleMaker = "MAKER"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -162,9 +167,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelTicker:
 		return e.processTicker(ctx, &result)
 	case channelBookLevel2:
-		return e.processBooksLevel2(&result)
+		return e.processBooksLevel2(ctx, &result)
 	case channelBooks:
-		return e.processBooks(&result)
+		return e.processBooks(ctx, &result)
 	case channelOrders:
 		return e.processOrders(ctx, &result)
 	case channelBalances:
@@ -222,7 +227,11 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 		if err != nil {
 			return err
 		}
-		orderDetails[x] = order.Detail{
+		lastUpdated := r.TradeTime.Time()
+		if lastUpdated.IsZero() {
+			lastUpdated = r.Timestamp.Time()
+		}
+		detail := order.Detail{
 			Price:           r.Price.Float64(),
 			Amount:          r.BaseAmount.Float64(),
 			QuoteAmount:     r.OrderAmount.Float64(),
@@ -238,9 +247,11 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 			Status:          oStatus,
 			AssetType:       stringToAccountType(r.AccountType),
 			Date:            r.CreateTime.Time(),
-			LastUpdated:     r.TradeTime.Time(),
+			LastUpdated:     lastUpdated,
 			Pair:            r.Symbol,
-			Trades: []order.TradeHistory{
+		}
+		if strings.EqualFold(r.EventType, orderEventTrade) {
+			detail.Trades = []order.TradeHistory{
 				{
 					Price:     r.TradePrice.Float64(),
 					Amount:    r.TradeQty.Float64(),
@@ -249,23 +260,25 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 					TID:       r.TradeID,
 					Type:      oType,
 					Side:      r.Side,
-					Timestamp: r.Timestamp.Time(),
+					Timestamp: r.TradeTime.Time(),
+					IsMaker:   strings.EqualFold(r.MatchRole, orderMatchRoleMaker),
 					FeeAsset:  r.FeeCurrency.String(),
 					Total:     r.TradeAmount.Float64(),
 				},
-			},
+			}
 		}
+		orderDetails[x] = detail
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
-func (e *Exchange) processBooks(result *SubscriptionResponse) error {
+func (e *Exchange) processBooks(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []*WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	for _, r := range resp {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         r.Symbol,
 			Exchange:     e.Name,
 			LastUpdateID: r.ID,
@@ -281,7 +294,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
+func (e *Exchange) processBooksLevel2(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -292,7 +305,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 
 	r := resp[0]
 	if result.Action == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:     e.Name,
 			Pair:         r.Symbol,
 			Asset:        asset.Spot,
@@ -303,7 +316,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		})
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       r.Symbol,
 		UpdateTime: r.Timestamp.Time(),
 		UpdateID:   r.ID,
@@ -335,7 +348,11 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerData)
+	processed, err := ticker.ProcessBatch(tickerData)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 func (e *Exchange) processTrades(result *SubscriptionResponse) error {

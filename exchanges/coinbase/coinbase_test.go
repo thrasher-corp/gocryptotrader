@@ -106,6 +106,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestWsProcessTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"update","tickers":[{"type":"ticker","product_id":"UNTRACKED-USD","price":"1"}]}]`)}
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "wsProcessTicker must not error for a product with no alias")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessTicker should not relay an empty batch")
+}
+
 func TestSetup(t *testing.T) {
 	cfg, err := e.GetStandardConfig()
 	assert.NoError(t, err)
@@ -1207,6 +1217,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, exchangeBaseHelper(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := e.UpdateTicker(t.Context(), testPairFiat, asset.Spot)
@@ -1715,14 +1728,14 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := e.ProcessSnapshot(&req, time.Time{})
+	err := e.ProcessSnapshot(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.ProcessUpdate(&req, time.Time{})
+	err = e.ProcessUpdate(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	req.Changes[0].Side = "offer"
-	err = e.ProcessSnapshot(&req, time.Now())
+	err = e.ProcessSnapshot(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
-	err = e.ProcessUpdate(&req, time.Now())
+	err = e.ProcessUpdate(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
 }
 

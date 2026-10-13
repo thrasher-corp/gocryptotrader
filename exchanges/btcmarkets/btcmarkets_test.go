@@ -472,6 +472,9 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.AUD.String(), "-")
 	_, err := e.UpdateTicker(t.Context(), cp, asset.Spot)
 	if err != nil {

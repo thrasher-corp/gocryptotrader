@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 15,
+ "version": 17,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -103,14 +103,6 @@
   "pool": [],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
- },
- "gctscript": {
-  "enabled": true,
-  "timeout": 60000000000,
-  "max_virtual_machines": 10,
-  "allow_imports": true,
-  "auto_load": [],
-  "verbose": false
  },
  "currencyConfig": {
   "forexProviders": [
@@ -398,9 +390,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -506,9 +496,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -653,9 +641,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -734,9 +720,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -882,9 +866,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -971,9 +953,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1074,9 +1054,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1183,9 +1161,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1347,9 +1323,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1430,9 +1404,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1558,9 +1530,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1733,9 +1703,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -1911,9 +1879,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2007,9 +1973,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2121,9 +2085,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2270,9 +2232,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2403,9 +2363,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2572,9 +2530,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2655,9 +2611,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2791,9 +2745,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2910,9 +2862,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {
@@ -2996,9 +2946,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   }
  ],

@@ -399,6 +399,82 @@ func TestLoadExchangeConcurrently(t *testing.T) {
 	}
 }
 
+// TestLoadExchangeEnabledRaceIsProtected checks that LoadExchange's writes to an exchange
+// config's Enabled field are synchronised with the config's readers, so that a bot loading
+// an exchange cannot race a concurrently served GetInfo request
+func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	testExchanges := []string{testExchange, "Bitfinex"}
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range testExchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
+	}
+
+	var wg sync.WaitGroup
+	for _, name := range testExchanges {
+		// The cancelled context stops Bootstrap after Setup, so each load still enables the config and each unload disables it
+		wg.Go(func() {
+			for range 20 {
+				err := e.LoadExchange(name)
+				assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+				assert.NoErrorf(t, e.UnloadExchange(name), "UnloadExchange should not error for %s", name)
+			}
+		})
+	}
+	for range 2 {
+		// CountEnabledExchanges, GetEnabledExchanges and GetDisabledExchanges serve RPC and startup reads
+		wg.Go(func() {
+			for range 200 {
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		})
+	}
+	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "UnloadExchange should leave every exchange config disabled")
+}
+
+// TestLoadExchangeRollbackRaceIsProtected checks that LoadExchange's rollback after a failed Setup is synchronised
+// with the config's readers
+func TestLoadExchangeRollbackRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	// Should Setup ever pass, the cancelled context stops Bootstrap before it sends a request
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	// Setup rejects a config without websocket timeouts, so every load takes LoadExchange's rollback path
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}}, runtimeCtx: ctx}
+	loaded := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		defer close(loaded)
+		for range 20 {
+			assert.ErrorContains(t, e.LoadExchange(testExchange), "invalid traffic timeout", "LoadExchange should fail Setup without websocket timeouts")
+		}
+	})
+	wg.Go(func() {
+		for {
+			select {
+			case <-loaded:
+				return
+			default:
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		}
+	})
+	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "LoadExchange should roll the exchange config back to disabled when Setup fails")
+}
+
 // onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
 func onlyCancelled(err error) bool {
 	switch e := err.(type) {

@@ -260,7 +260,6 @@ func main() {
 		getHistoricCandlesCommand,
 		getHistoricCandlesExtendedCommand,
 		findMissingSavedCandleIntervalsCommand,
-		gctScriptCommand,
 		websocketManagerCommand,
 		tradeCommand,
 		dataHistoryCommands,

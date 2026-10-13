@@ -168,11 +168,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	err = ticker.ProcessTicker(&ticker.Price{
 		Pair:         fPair,
 		Ask:          tickerNew.BestAsk,
+		AskSize:      tickerNew.BestAskSize,
 		Bid:          tickerNew.BestBid,
+		BidSize:      tickerNew.BestBidSize,
 		Last:         tickerNew.Last,
 		BaseVolume:   tickerNew.VolumeByProduct,
 		ExchangeName: e.Name,
 		AssetType:    a,
+		LastUpdated:  tickerNew.TimeStamp.Time(),
 	})
 	if err != nil {
 		return nil, err

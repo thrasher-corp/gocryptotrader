@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -152,9 +153,9 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 		}
 		return e.Websocket.DataHandler.Send(ctx, resp)
 	case channelFuturesOrderbookLvl2:
-		return e.processFuturesOrderbookLevel2(result.Data, result.Action)
+		return e.processFuturesOrderbookLevel2(ctx, result.Data, result.Action)
 	case channelFuturesOrderbook:
-		return e.processFuturesOrderbook(result.Data)
+		return e.processFuturesOrderbook(ctx, result.Data)
 	case channelFuturesTickers:
 		return e.processFuturesTickers(ctx, result.Data)
 	case channelFuturesTrades:
@@ -374,13 +375,13 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(ctx context.Conte
 	return e.Websocket.DataHandler.Send(ctx, candles)
 }
 
-func (e *Exchange) processFuturesOrderbook(data []byte) error {
+func (e *Exchange) processFuturesOrderbook(ctx context.Context, data []byte) error {
 	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	for _, r := range resp {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Bids:         r.Bids.Levels(),
 			Asks:         r.Asks.Levels(),
 			Exchange:     e.Name,
@@ -395,14 +396,14 @@ func (e *Exchange) processFuturesOrderbook(data []byte) error {
 	return nil
 }
 
-func (e *Exchange) processFuturesOrderbookLevel2(data []byte, action string) error {
+func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, data []byte, action string) error {
 	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	for _, r := range resp {
 		if action == "snapshot" {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 				Bids:         r.Bids.Levels(),
 				Asks:         r.Asks.Levels(),
 				Exchange:     e.Name,
@@ -415,7 +416,7 @@ func (e *Exchange) processFuturesOrderbookLevel2(data []byte, action string) err
 			}
 			continue
 		}
-		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+		if err := e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 			UpdateID:   r.ID,
 			UpdateTime: r.CreationTime.Time(),
 			LastPushed: r.Timestamp.Time(),
@@ -440,7 +441,11 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 	for i, r := range resp {
 		tickerPrices[i] = *e.futuresTicker(r)
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // processFuturesTrades handles latest trading data for this product, including the latest price, trading volume, trading direction, etc.
