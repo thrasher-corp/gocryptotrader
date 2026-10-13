@@ -1183,8 +1183,6 @@ func TestShutdownDoesNotReconnect(t *testing.T) {
 	before := upgrades.Load()
 
 	require.NoError(t, e.Shutdown(), "Shutdown must not error")
-	time.Sleep(3 * time.Second)
-	t.Logf("3s after Shutdown: new upgrades=%d IsConnected=%v", upgrades.Load()-before, e.Websocket.IsConnected())
 	assert.Zero(t, upgrades.Load()-before, "a shut down exchange should not dial again")
 	assert.False(t, e.Websocket.IsConnected(), "websocket should stay disconnected after Shutdown")
 }
