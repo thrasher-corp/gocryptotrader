@@ -129,7 +129,7 @@ func (c *Config) encryptConfigData(configData []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	ciphertext := aead.Seal(nil, nil, configData, nil) // #nosec G407 -- NewGCMWithRandomNonce generates the nonce and requires an empty nonce argument.
+	ciphertext := aead.Seal(nil, nil, configData, nil) //nolint:gosec // NewGCMWithRandomNonce generates the nonce itself, so Seal takes none
 
 	appendedFile := make([]byte, len(encryptionPrefix)+len(c.storedSalt)+len(encryptionVersionPrefix)+versionSize+len(ciphertext))
 	offset := 0

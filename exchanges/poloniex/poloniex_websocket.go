@@ -47,6 +47,11 @@ const (
 	// Authenticated channels
 	channelOrders   = "orders"
 	channelBalances = "balances"
+
+	// Order event types and match roles as documented by Poloniex. Only trade
+	// events carry a fill, so only they should produce an order.TradeHistory.
+	orderEventTrade     = "trade"
+	orderMatchRoleMaker = "MAKER"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -222,7 +227,11 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 		if err != nil {
 			return err
 		}
-		orderDetails[x] = order.Detail{
+		lastUpdated := r.TradeTime.Time()
+		if lastUpdated.IsZero() {
+			lastUpdated = r.Timestamp.Time()
+		}
+		detail := order.Detail{
 			Price:           r.Price.Float64(),
 			Amount:          r.BaseAmount.Float64(),
 			QuoteAmount:     r.OrderAmount.Float64(),
@@ -238,9 +247,11 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 			Status:          oStatus,
 			AssetType:       stringToAccountType(r.AccountType),
 			Date:            r.CreateTime.Time(),
-			LastUpdated:     r.TradeTime.Time(),
+			LastUpdated:     lastUpdated,
 			Pair:            r.Symbol,
-			Trades: []order.TradeHistory{
+		}
+		if strings.EqualFold(r.EventType, orderEventTrade) {
+			detail.Trades = []order.TradeHistory{
 				{
 					Price:     r.TradePrice.Float64(),
 					Amount:    r.TradeQty.Float64(),
@@ -249,12 +260,14 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 					TID:       r.TradeID,
 					Type:      oType,
 					Side:      r.Side,
-					Timestamp: r.Timestamp.Time(),
+					Timestamp: r.TradeTime.Time(),
+					IsMaker:   strings.EqualFold(r.MatchRole, orderMatchRoleMaker),
 					FeeAsset:  r.FeeCurrency.String(),
 					Total:     r.TradeAmount.Float64(),
 				},
-			},
+			}
 		}
+		orderDetails[x] = detail
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
