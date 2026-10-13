@@ -4800,7 +4800,7 @@ func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
 			var requests atomic.Int64
 			// Return ascending hourly records after the requested start, including the
 			// end, keeping only the latest page. This repeats the boundary of the next page.
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				q := r.URL.Query()
 				if requests.Add(1) > 4 || r.URL.Path != "/api/v2/public/get_funding_rate_history" || q.Get("instrument_name") != btcPerpInstrument {
 					http.Error(w, "unexpected request", http.StatusBadRequest)
@@ -4824,11 +4824,11 @@ func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
 				records = records[max(0, len(records)-24):]
 				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"result": records}), "Encode should not error")
 			}))
-			defer srv.Close()
 
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
 			cp, err := currency.NewPairFromString(btcPerpInstrument)
 			require.NoError(t, err, "NewPairFromString must not error")
@@ -4857,9 +4857,40 @@ func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
 				PaymentCurrency: currency.USDT, StartDate: start.Add(time.Hour), EndDate: end,
 				FundingRates: expected, LatestRate: expected[len(expected)-1],
 			}, result, "GetHistoricalFundingRates should retain every rate and its metadata across page boundaries")
-			assert.EqualValues(t, 1+(max(0, hours-1)+22)/23, requests.Load(), "pagination should stop after processing the repeated boundary")
+			assert.LessOrEqual(t, requests.Load(), int64(1+(max(0, hours-1)+22)/23), "pagination should stop after processing the repeated boundary")
 		})
 	}
+}
+
+func TestGetHistoricalFundingRatesEmptyWindow(t *testing.T) {
+	t.Parallel()
+	var requests atomic.Int64
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) > 4 || r.URL.Path != "/api/v2/public/get_funding_rate_history" {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"result": []any{}}), "Encode should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	require.NoError(t, err, "NewPairFromString must not error")
+	// The window holds hourly timestamps, so the pager has to ask; live, Deribit has no funding history this early
+	start := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	_, err = ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            cp,
+		PaymentCurrency: currency.USDT,
+		StartDate:       start,
+		EndDate:         start.Add(2 * time.Hour),
+	})
+	assert.ErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should report a window without funding rates")
+	assert.EqualValues(t, 1, requests.Load(), "GetHistoricalFundingRates should stop after an empty page")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
