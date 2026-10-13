@@ -1170,7 +1170,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	return &respData, nil
 }
 
-// Binance reports a negative total when it is unavailable for a historical order.
+// nonNegativeExecutedQuoteAmount returns zero for the negative total Binance
+// reports when it is unavailable for a historical order.
 func nonNegativeExecutedQuoteAmount(amount float64) float64 {
 	if amount < 0 {
 		return 0
