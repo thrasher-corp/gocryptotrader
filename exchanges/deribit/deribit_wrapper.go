@@ -1502,7 +1502,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if err != nil {
 			return nil, err
 		}
-		if len(records) == 0 || ed.Equal(records[0].Timestamp.Time()) {
+		if len(records) == 0 {
 			break
 		}
 		for i := range records {
@@ -1518,7 +1518,12 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				Time: rt,
 			})
 		}
-		ed = records[0].Timestamp.Time()
+		nextEnd := records[0].Timestamp.Time()
+		// Retain an unseen boundary record before stopping a page that cannot advance.
+		if !nextEnd.Before(ed) {
+			break
+		}
+		ed = nextEnd
 	}
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound

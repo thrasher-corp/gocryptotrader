@@ -236,6 +236,8 @@ Use `require` and `assert` appropriately:
     relying only on its length.
     Include a partial final page, particularly a single remaining record, so
     whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
+    Process a non-empty page before applying a cursor-progress guard: a cursor
+    that cannot advance may still accompany unseen records at its boundary.
 
 ### Interface Contracts
 
