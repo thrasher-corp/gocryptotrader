@@ -741,10 +741,10 @@ func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, 
 		if err != nil {
 			return nil, err
 		}
-		for page := int64(1); ; page++ {
+		for page := uint64(1); ; page++ {
 			tempResp, err := e.GetOpenOrders(ctx,
 				fPair.String(),
-				strconv.FormatInt(page, 10),
+				strconv.FormatUint(page, 10),
 				"200")
 			if err != nil {
 				return resp, err
