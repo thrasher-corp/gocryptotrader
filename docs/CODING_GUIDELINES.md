@@ -235,6 +235,47 @@ Use `require` and `assert` appropriately:
     indefinitely if the implementation regresses, such as `errors.Is`,
     `errors.As` or recursive error formatting. Assert the expected termination
     point without following the potentially cyclic remainder.
+- When adding a regression test or another scenario, add a `t.Run` inside the existing test for the function or method. This also applies to helpers, parsers and validators. Do not create a separate test function for each scenario or bug. If no test exists, create one named after the function. For table-driven tests, add a row to the existing table and run each row with `t.Run`.
+- Tests that check several components working together may stay in a separate integration test. Add new scenarios to that test using `t.Run`.
+- Give each `t.Run` a name that describes the behaviour being checked. A separate comment is usually not needed if the name already explains it. Add a comment when extra context is useful.
+- Call `t.Parallel()` inside each `t.Run`. Keep data and setup separate where cases could affect each other. If a case cannot run in parallel, leave out `t.Parallel()` from that case and any parent tests that must also run serially. Add a comment explaining why.
+- For functions that call an exchange API, keep live testing available through either a live case in the same function test or the existing mock/live test mode. Do not rely only on a mock HTTP server.
+- If live requests cannot run in GitHub Actions, run mocked tests in CI and keep live testing available locally. Use the existing test settings and credential checks. Put checks that skip only a live case inside its `t.Run`, so the other cases still run.
+- Functions that do not call an exchange API do not need a live API case.
+
+#### Regression test example
+
+**Desirable:** Add the new scenario inside the existing function test.
+
+```go
+func TestGetOrderBookDepth(t *testing.T) {
+    t.Parallel()
+
+    t.Run("live API", func(t *testing.T) {
+        t.Parallel()
+        result, err := e.GetOrderBookDepth(t.Context(), "BTC-USDT", 400)
+        require.NoError(t, err, "GetOrderBookDepth must not error")
+        assert.NotNil(t, result, "order book should be returned")
+    })
+
+    t.Run("missing instrument ID returns an error", func(t *testing.T) {
+        t.Parallel()
+        _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+        require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+    })
+}
+```
+
+**Less desirable:** A separate test function for the new scenario.
+
+```go
+// TestGetOrderBookDepthMissingID checks for a missing instrument ID.
+func TestGetOrderBookDepthMissingID(t *testing.T) {
+    t.Parallel()
+    _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+    require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+}
+```
 
 ### Interface Contracts
 
