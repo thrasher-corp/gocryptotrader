@@ -7202,6 +7202,14 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 	t.Parallel()
 	err := e.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
 	assert.NoError(t, err)
+	trades, err := e.spreadPublicTrades([]byte(wsProcessPublicSpreadTradesJSON))
+	require.NoError(t, err, "spreadPublicTrades must not error")
+	require.Len(t, trades, 1, "a public spread trade push should reach the trade buffer")
+	exp := trade.Data{
+		TID: "2499206329160695808", Exchange: e.Name, CurrencyPair: spreadPair, AssetType: asset.Spread,
+		Side: order.Sell, Price: -10, Amount: 0.001, Timestamp: time.UnixMilli(1726801105519),
+	}
+	assert.Equal(t, exp, trades[0], "the push should decode its trade rather than drop it")
 }
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {

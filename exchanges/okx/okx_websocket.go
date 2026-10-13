@@ -773,22 +773,33 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 // Data will be pushed whenever there is a trade.
 // Every update contains only one trade.
 func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
-	var resp WsSpreadPushData
-	data := []WsSpreadPublicTrade{}
-	resp.Data = data
-	err := json.Unmarshal(respRaw, &resp)
+	trades, err := e.spreadPublicTrades(respRaw)
 	if err != nil {
 		return err
 	}
+	return trade.AddTradesToBuffer(trades...)
+}
+
+// spreadPublicTrades decodes a sprd-public-trades push and converts its
+// trades. resp.Data must point at data: a plain slice value decodes into a
+// copy, leaving the trades empty.
+func (e *Exchange) spreadPublicTrades(respRaw []byte) ([]trade.Data, error) {
+	var resp WsSpreadPushData
+	data := []WsSpreadPublicTrade{}
+	resp.Data = &data
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return nil, err
+	}
 	pair, err := currency.NewPairFromString(resp.Argument.SpreadID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	trades := make([]trade.Data, len(data))
 	for x := range data {
 		oSide, err := order.StringToOrderSide(data[x].Side)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		trades[x] = trade.Data{
 			TID:          data[x].TradeID,
@@ -801,7 +812,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 			Timestamp:    data[x].Timestamp.Time(),
 		}
 	}
-	return trade.AddTradesToBuffer(trades...)
+	return trades, nil
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
