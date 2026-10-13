@@ -22,11 +22,13 @@ const (
 	maxEncodedBinaryBytes    = 255
 	u128MaxDecimalDigits     = 39
 	udecimalDivisionOverflow = "runtime error: integer overflow"
+	maxDecodeExponent        = 10000 // shopspring's default MaxDecodeExponent
 )
 
 var (
 	errInvalidDecimal      = errors.New("invalid decimal")
 	errPrecisionOutOfRange = errors.New("decimal precision out of range")
+	errExponentOutOfRange  = errors.New("decimal exponent out of range")
 )
 
 // udecimalBigIntDivisionFactor exceeds u128 while retaining zero precision.
@@ -216,12 +218,7 @@ func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 	}
 
 	zeroes := -int64(places)
-	integerText := strings.TrimPrefix(value.String(), "-")
-	if decimalPoint := strings.IndexByte(integerText, '.'); decimalPoint >= 0 {
-		integerText = integerText[:decimalPoint]
-	}
-	integerDigits := len(strings.TrimLeft(integerText, "0"))
-	if zeroes > int64(integerDigits) {
+	if zeroes > integerDigitCount(value) {
 		// The rounding position is left of every significant digit, so the result
 		// is zero. Besides avoiding unnecessary work, this makes extreme int32
 		// places safe without attempting to construct an enormous power of ten.
@@ -229,6 +226,38 @@ func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 	}
 	scale := powerOfTenUdecimal(int(zeroes))
 	return value.MustDiv(scale).RoundHAZ(0).Mul(scale)
+}
+
+// truncateUdecimal handles negative precision because udecimal.Trunc accepts
+// only an unsigned fractional precision, while shopspring's Truncate clears
+// integer digits for negative precision.
+func truncateUdecimal(value udecimal.Decimal, precision int32) udecimal.Decimal {
+	if precision >= 0 {
+		if precision >= maxPrecision {
+			return value
+		}
+		return value.Trunc(uint8(precision))
+	}
+
+	zeroes := -int64(precision)
+	if zeroes > integerDigitCount(value) {
+		// Truncating left of every significant digit leaves zero. As in
+		// roundUdecimal, this also keeps extreme int32 precision from
+		// constructing an enormous power of ten.
+		return udecimal.Zero
+	}
+	scale := powerOfTenUdecimal(int(zeroes))
+	return value.MustDiv(scale).Trunc(0).Mul(scale)
+}
+
+// integerDigitCount returns the number of significant digits before the
+// decimal point.
+func integerDigitCount(value udecimal.Decimal) int64 {
+	integerText := strings.TrimPrefix(value.String(), "-")
+	if decimalPoint := strings.IndexByte(integerText, '.'); decimalPoint >= 0 {
+		integerText = integerText[:decimalPoint]
+	}
+	return int64(len(strings.TrimLeft(integerText, "0")))
 }
 
 // parseDecimalParts validates a decimal string and converts its mantissa and
@@ -278,6 +307,12 @@ func parseDecimalParts(value string) (digits string, scale int64, negative bool,
 
 	digits = strings.TrimLeft(digits, "0")
 	scale = int64(len(fractionalPart)) - exponent
+	if scale > maxDecodeExponent || scale < -maxDecodeExponent {
+		// shopspring's default limit rejects these exponents even for zero and
+		// trailing-zero input which udecimal could represent. Rejecting the same
+		// input keeps parsing independent of the selected backend.
+		return "", 0, false, fmt.Errorf("%w: %q", errExponentOutOfRange, value)
+	}
 	for scale > 0 && strings.HasSuffix(digits, "0") {
 		digits = strings.TrimSuffix(digits, "0")
 		scale--

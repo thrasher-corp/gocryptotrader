@@ -65,6 +65,8 @@ func TestNewFromString(t *testing.T) {
 	highPrecision := "0." + strings.Repeat("1", 20)
 	_, err := NewFromString(highPrecision)
 	assert.ErrorIs(t, err, errPrecisionOutOfRange, "NewFromString should reject excess precision")
+	_, err = NewFromString("0e10001")
+	assert.ErrorIs(t, err, errExponentOutOfRange, "NewFromString should reject an exponent beyond the decode limit")
 	_, err = NewFromString("not-a-number")
 	assert.ErrorIs(t, err, errInvalidDecimal, "NewFromString should reject invalid input")
 	for _, value := range []string{
@@ -268,12 +270,6 @@ func TestDecimalRound(t *testing.T) {
 				"Round should return the expected value")
 		})
 	}
-}
-
-func TestDecimalTruncate(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "1.23", MustFromString("1.239").Truncate(2).String(), "Truncate should remove excess digits")
-	assert.Equal(t, "1.239", MustFromString("1.239").Truncate(-1).String(), "Truncate should ignore negative precision")
 }
 
 func TestDecimalFloor(t *testing.T) {
@@ -553,6 +549,8 @@ func TestParseDecimalParts(t *testing.T) {
 		{name: "leading decimal point", input: ".5", expectedDigits: "5", expectedScale: 1},
 		{name: "trailing decimal point", input: "1.", expectedDigits: "1"},
 		{name: "signed zero", input: "-000.000", expectedDigits: "0", expectedNegative: true},
+		{name: "positive exponent limit", input: "0e10000", expectedDigits: "0"},
+		{name: "fractional digits at exponent limit", input: "1." + strings.Repeat("0", maxDecodeExponent), expectedDigits: "1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -580,6 +578,21 @@ func TestParseDecimalParts(t *testing.T) {
 			t.Parallel()
 			_, _, _, err := parseDecimalParts(tc.input)
 			assert.ErrorIs(t, err, errInvalidDecimal, "parseDecimalParts should reject invalid input")
+		})
+	}
+
+	for _, tc := range []struct {
+		name, input string
+	}{
+		{name: "beyond positive exponent limit", input: "0e10001"},
+		{name: "beyond negative exponent limit", input: "-0e-10001"},
+		{name: "fractional digits beyond exponent limit", input: "1." + strings.Repeat("0", maxDecodeExponent+1)},
+		{name: "integer digits cancelling the exponent", input: "1" + strings.Repeat("0", maxDecodeExponent+1) + "e-10001"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, _, err := parseDecimalParts(tc.input)
+			assert.ErrorIs(t, err, errExponentOutOfRange, "parseDecimalParts should reject an exponent beyond the decode limit")
 		})
 	}
 }
@@ -647,6 +660,7 @@ func TestNormalise(t *testing.T) {
 		{name: "expanded value too long", input: "1e200", expected: errInvalidDecimal},
 		{name: "negative expanded value too long", input: "-1e200", expected: errInvalidDecimal},
 		{name: "precision", input: "0.12345678901234567899", expected: errPrecisionOutOfRange},
+		{name: "exponent beyond decode limit", input: "0e-10001", expected: errExponentOutOfRange},
 	}
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -835,6 +849,55 @@ func TestRoundUdecimal(t *testing.T) {
 			require.NoError(t, err, "parseUdecimal must parse the value")
 			assert.Equal(t, tc.expected, roundUdecimal(value, tc.places).String(),
 				"roundUdecimal should return the expected value")
+		})
+	}
+}
+
+func TestTruncateUdecimal(t *testing.T) {
+	t.Parallel()
+	largeValue := "5" + strings.Repeat("0", maxStringDigits-1) + "7"
+	largeTruncated := "5" + strings.Repeat("0", maxStringDigits)
+	for _, tc := range []struct {
+		name, value, expected string
+		precision             int32
+	}{
+		{name: "fractional", value: "1.239", precision: 2, expected: "1.23"},
+		{name: "maximum precision", value: "0.1234567890123456789", precision: maxPrecision, expected: "0.1234567890123456789"},
+		{name: "precision beyond uint8", value: "1.239", precision: math.MaxUint8 + 3, expected: "1.239"},
+		{name: "integer digits", value: "-5432.987", precision: -2, expected: "-5400"},
+		{name: "every integer digit", value: "5432", precision: -4, expected: "0"},
+		{name: "beyond parser cap", value: "1.25", precision: -maxStringDigits - 1, expected: "0"},
+		{name: "minimum int32 precision", value: "1.25", precision: math.MinInt32, expected: "0"},
+		{name: "large positive value", value: largeValue, precision: -1, expected: largeTruncated},
+		{name: "large negative value", value: "-" + largeValue, precision: -1, expected: "-" + largeTruncated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value, err := parseUdecimal(tc.value)
+			require.NoError(t, err, "parseUdecimal must parse the value")
+			assert.Equal(t, tc.expected, truncateUdecimal(value, tc.precision).String(),
+				"truncateUdecimal should return the expected value")
+		})
+	}
+}
+
+func TestIntegerDigitCount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, value string
+		expected    int64
+	}{
+		{name: "zero", value: "0", expected: 0},
+		{name: "fraction only", value: "-0.5", expected: 0},
+		{name: "integer and fraction", value: "5432.987", expected: 4},
+		{name: "negative integer", value: "-5432", expected: 4},
+		{name: "beyond parser cap", value: "1" + strings.Repeat("0", maxStringDigits), expected: maxStringDigits + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value, err := parseUdecimal(tc.value)
+			require.NoError(t, err, "parseUdecimal must parse the value")
+			assert.Equal(t, tc.expected, integerDigitCount(value), "integerDigitCount should count the integer digits")
 		})
 	}
 }
