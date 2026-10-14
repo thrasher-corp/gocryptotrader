@@ -312,7 +312,14 @@ func TestAmountStepCommonBaseIncrementUnparsable(t *testing.T) {
 		t.Skip("big.Rat rejects more than 1e6 fractional digits, which udecimal cannot represent")
 	}
 	parseable := AmountStep{Increment: decimal.MustFromString("0.2"), ContractMultiplier: decimal.NewFromInt(1)}
-	unparsable := AmountStep{Increment: decimal.MustFromString("3e-1000001"), ContractMultiplier: decimal.NewFromInt(1)}
+	// By default shopspring refuses to decode exponents beyond 10,000, so build
+	// 3e-1000001 with exact multiplication instead.
+	unparsableIncrement := decimal.MustFromString("0.3")
+	exponentStep := decimal.MustFromString("1e-10000")
+	for range 100 {
+		unparsableIncrement = unparsableIncrement.Mul(exponentStep)
+	}
+	unparsable := AmountStep{Increment: unparsableIncrement, ContractMultiplier: decimal.NewFromInt(1)}
 	_, err := unparsable.CommonBaseIncrement(parseable)
 	assert.ErrorIs(t, err, errCannotParseBaseIncrement, "CommonBaseIncrement should reject a first increment big.Rat cannot parse")
 	_, err = parseable.CommonBaseIncrement(unparsable)
