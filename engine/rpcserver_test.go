@@ -150,6 +150,8 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 					Exchange:        f.GetName(),
 					Price:           1337,
 					Amount:          1337,
+					Fee:             0.25,
+					FeeAsset:        currency.USDT,
 					InternalOrderID: id,
 					OrderID:         "1337",
 					ClientOrderID:   "1337",
@@ -1884,6 +1886,7 @@ func TestGetManagedOrders(t *testing.T) {
 				Total:     244,
 			},
 		},
+		FeeAsset: currency.USDT,
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -1914,6 +1917,7 @@ func TestGetManagedOrders(t *testing.T) {
 		OpenVolume:          5,
 		Fee:                 3,
 		ExecutedQuoteAmount: 120,
+		FeeCurrency:         currency.USDT.String(),
 		Trades: []*gctrpc.TradeHistory{
 			{
 				CreationTime: createdAt.Add(time.Second).Unix(),
@@ -2300,7 +2304,7 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	}
 
-	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+	resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2310,6 +2314,9 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the position order should carry its fee currency")
 
 	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
@@ -3249,6 +3256,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 		RemainingAmount:      5,
 		ExecutedQuoteAmount:  120,
 		Fee:                  3,
+		FeeAsset:             currency.USDT,
 		Exchange:             fakeExchangeName,
 		OrderID:              "order-id",
 		ClientOrderID:        "client-order-id",
@@ -3287,6 +3295,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 		OpenVolume:          5,
 		Fee:                 3,
 		ExecutedQuoteAmount: 120,
+		FeeCurrency:         currency.USDT.String(),
 	}
 	assert.Equal(t, exp, response.Positions[0].Orders[0], "returned order should match the managed position order")
 }

@@ -982,6 +982,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Fee:                 resp[x].Fee,
 			ExecutedQuoteAmount: resp[x].ExecutedQuoteAmount,
 			Trades:              trades,
+			FeeCurrency:         resp[x].FeeAsset.String(),
 		}
 		if !resp[x].Date.IsZero() {
 			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
@@ -1072,6 +1073,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Fee:                 resp[x].Fee,
 			ExecutedQuoteAmount: resp[x].ExecutedQuoteAmount,
 			Trades:              trades,
+			FeeCurrency:         resp[x].FeeAsset.String(),
 		}
 		if !resp[x].Date.IsZero() {
 			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
@@ -1161,6 +1163,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Trades:              trades,
 		ExecutedQuoteAmount: result.ExecutedQuoteAmount,
 		UpdateTime:          updateTime,
+		FeeCurrency:         result.FeeAsset.String(),
 	}, err
 }
 
@@ -3843,6 +3846,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 				OpenVolume:          position.Orders[i].RemainingAmount,
 				Fee:                 position.Orders[i].Fee,
 				ExecutedQuoteAmount: position.Orders[i].ExecutedQuoteAmount,
+				FeeCurrency:         position.Orders[i].FeeAsset.String(),
 			}
 			if !position.Orders[i].LastUpdated.IsZero() {
 				od.UpdateTime = position.Orders[i].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
@@ -4184,6 +4188,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Fee:                 positionDetails[i].Orders[j].Fee,
 				ExecutedQuoteAmount: positionDetails[i].Orders[j].ExecutedQuoteAmount,
 				ContractAmount:      positionDetails[i].Orders[j].ContractAmount,
+				FeeCurrency:         positionDetails[i].Orders[j].FeeAsset.String(),
 			}
 		}
 		positions[i] = details

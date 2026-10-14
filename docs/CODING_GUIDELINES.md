@@ -312,6 +312,15 @@ Use `require` and `assert` appropriately:
     buffered channel, assert the event count after a synchronous handler
     returns and before receiving. For asynchronous delivery or shared channels,
     use a select with a deadline.
+- For interface-valued inputs with nil guards, cover both a nil interface and
+    a typed-nil concrete value. For format detection and segmented-name rules,
+    include missing metadata, malformed inputs and multiple separators so the
+    tests distinguish the intended guard and segment from nearby alternatives.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
 
 ### Interface Contracts
 

@@ -227,7 +227,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Fee = m.Fee
 		updated = true
 	}
-	if m.Fee != 0 && !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+	if (m.Fee != 0 || d.Fee == 0) && !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
 		d.FeeAsset = m.FeeAsset
 		updated = true
 	}
