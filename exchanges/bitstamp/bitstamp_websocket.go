@@ -66,12 +66,18 @@ const (
 	orderEventStopInactive = "stop_inactive"
 )
 
+// maxOrderEventRecoveryFailures is the number of failed recoveries in a row after which missed order events are given
+// up on, so that a recovery which keeps failing does not hold back every later event
+const maxOrderEventRecoveryFailures = 3
+
 var (
 	errParsingWSPair      = errors.New("unable to parse currency pair from channel")
 	errMalformedChannel   = errors.New("malformed channel name")
 	errWebsocketError     = errors.New("websocket error")
 	errOrderIDMissing     = errors.New("order event missing an order ID")
 	errOrderEventRecovery = errors.New("unable to recover missed order events")
+	errOrderEventsSkipped = errors.New("missed order events skipped")
+	errStaleOrderEvent    = errors.New("order event is not after the last one handled")
 	errOrderIDOverflow    = errors.New("order ID exceeds the maximum orderbook level ID")
 
 	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
@@ -365,46 +371,67 @@ func (e *Exchange) handleWSFundingRate(ctx context.Context, data []byte, pair cu
 
 // handleWSAccountOrder processes an event for one of the account's orders
 // Each event names the event before it, so events missed by a reconnection or a server restart are recovered through
-// the REST API before the event is processed. A failed recovery is retried with the next event
+// the REST API before the event is processed. Events are relayed in order, so an event whose recovery fails is held
+// back, and the next event recovers it along with the events missed before it
 func (e *Exchange) handleWSAccountOrder(ctx context.Context, respRaw []byte, event string, data []byte, pair currency.Pair, a asset.Item) error {
 	var o OrderEventData
 	if err := json.Unmarshal(data, &o); err != nil {
 		return err
 	}
-	var errs error
 	eventID, eventErr := jsonparser.GetString(respRaw, "event_id")
 	preEventID, preEventType, _, preEventErr := jsonparser.Get(respRaw, "pre_event_id")
-	if eventErr == nil && eventID != "" && preEventErr == nil {
-		orderSource, _ := jsonparser.GetString(respRaw, "order_source")
-		key := pair.String() + "|" + a.String() + "|" + orderSource
-		e.orderEventMu.Lock()
-		last := e.orderEventIDs[key]
-		e.orderEventMu.Unlock()
-		// A null preceding event follows a server restart, which may have dropped any number of events
-		if last != "" && (preEventType == jsonparser.Null || string(preEventID) != last) {
-			errs = e.recoverOrderEvents(ctx, pair, a, orderSource, last, eventID)
+	if eventErr != nil || eventID == "" || preEventErr != nil {
+		return e.processOrderEvent(ctx, event, &o, pair, a)
+	}
+	orderSource, _ := jsonparser.GetString(respRaw, "order_source")
+	key := pair.String() + "|" + a.String() + "|" + orderSource
+	e.orderEventMu.Lock()
+	checkpoint, ok := e.orderEventCheckpoints[key]
+	e.orderEventMu.Unlock()
+	var errs error
+	switch {
+	case ok && checkpoint.eventID == eventID:
+		// A repeated event has nothing to recover before it, and is only relayed again if it was refused
+		if !checkpoint.pending {
+			return nil
 		}
-		if errs == nil {
-			e.orderEventMu.Lock()
-			if e.orderEventIDs == nil {
-				e.orderEventIDs = make(map[string]string)
+	case ok && (checkpoint.pending || preEventType == jsonparser.Null || string(preEventID) != checkpoint.eventID):
+		// A null preceding event follows a server restart, which may have dropped any number of events
+		failures := checkpoint.failures
+		checkpoint, errs = e.recoverOrderEvents(ctx, pair, a, orderSource, checkpoint, eventID)
+		if errors.Is(errs, errOrderEventRecovery) {
+			// The API refuses a recovery range when the event is not after the checkpoint, so it is dropped rather than
+			// relayed over the newer order state
+			if errors.Is(errs, errInvalidEventIDRange) {
+				return fmt.Errorf("%w: %s for %s %s", errStaleOrderEvent, eventID, pair, a)
 			}
-			e.orderEventIDs[key] = eventID
-			e.orderEventMu.Unlock()
+			// The event is held back until the events missed before it are recovered, unless recovery keeps failing or
+			// the API key lacks permission for it, as every later event would be held back too
+			checkpoint.failures = failures + 1
+			if checkpoint.failures < maxOrderEventRecoveryFailures && !errors.Is(errs, errNoPermission) {
+				e.setOrderEventCheckpoint(key, checkpoint)
+				return errs
+			}
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s %s before event %s", errOrderEventsSkipped, pair, a, eventID))
 		}
 	}
-	return common.AppendError(errs, e.processOrderEvent(ctx, event, &o, pair, a))
+	err := e.processOrderEvent(ctx, event, &o, pair, a)
+	e.setOrderEventCheckpoint(key, orderEventCheckpoint{eventID: eventID, pending: isOrderEventRetryable(err)})
+	return common.AppendError(errs, err)
 }
 
-// recoverOrderEvents processes the account's order events between the last processed event and the current event
-// The API returns events from the since ID inclusive to the until ID exclusive, at most 1000 at a time
-func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a asset.Item, orderSource, sinceID, untilID string) error {
-	req := &OrderEventsRequest{Pair: pair, OrderSource: orderSource, SinceID: sinceID, UntilID: untilID}
-	processed := map[string]bool{sinceID: true}
+// recoverOrderEvents processes the account's order events after a checkpoint and before the current event, and returns
+// the checkpoint of the last event handled
+// The API returns events from the since ID inclusive to the until ID exclusive, at most 1000 at a time. The error wraps
+// errOrderEventRecovery when recovery stopped before reaching the current event
+func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a asset.Item, orderSource string, checkpoint orderEventCheckpoint, untilID string) (orderEventCheckpoint, error) {
+	req := &OrderEventsRequest{Pair: pair, OrderSource: orderSource, SinceID: checkpoint.eventID, UntilID: untilID}
+	processed := map[string]bool{checkpoint.eventID: !checkpoint.pending}
+	var errs error
 	for {
 		events, err := e.GetAccountOrderData(ctx, req)
 		if err != nil {
-			return fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, pair, a, err)
+			return checkpoint, common.AppendError(errs, fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, pair, a, err))
 		}
 		var added bool
 		for i := range events {
@@ -413,18 +440,38 @@ func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a
 			}
 			processed[events[i].EventID] = true
 			added = true
-			if err := e.processOrderEvent(ctx, events[i].Event, &events[i].Data, pair, a); err != nil {
-				return fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, pair, a, err)
+			err := e.processOrderEvent(ctx, events[i].Event, &events[i].Data, pair, a)
+			if isOrderEventRetryable(err) {
+				return orderEventCheckpoint{eventID: events[i].EventID, pending: true}, common.AppendError(errs, fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, pair, a, err))
 			}
+			errs = common.AppendError(errs, err)
+			checkpoint = orderEventCheckpoint{eventID: events[i].EventID}
 		}
 		if !added || len(events) < maxResultLimit {
-			return nil
+			return checkpoint, errs
 		}
 		req.SinceID = events[len(events)-1].EventID
 	}
 }
 
-// processOrderEvent relays an order event as order details; a replacement also reports the replaced order as cancelled
+// setOrderEventCheckpoint stores the last private order event handled for a market and order source
+func (e *Exchange) setOrderEventCheckpoint(key string, checkpoint orderEventCheckpoint) {
+	e.orderEventMu.Lock()
+	defer e.orderEventMu.Unlock()
+	if e.orderEventCheckpoints == nil {
+		e.orderEventCheckpoints = make(map[string]orderEventCheckpoint)
+	}
+	e.orderEventCheckpoints[key] = checkpoint
+}
+
+// isOrderEventRetryable returns whether an order event which failed processing is retried by the next recovery
+// Only events the data handler refused are retried, since an event without an order ID is recovered without one too
+func isOrderEventRetryable(err error) bool {
+	return err != nil && !errors.Is(err, errOrderIDMissing)
+}
+
+// processOrderEvent relays an order event as order details; a replacement also reports the replaced order as cancelled,
+// in the same payload
 func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *OrderEventData, pair currency.Pair, a asset.Item) error {
 	if o.ID == 0 && o.ClientOrderID == "" {
 		return fmt.Errorf("%w: %s %+v", errOrderIDMissing, event, o)
@@ -478,7 +525,7 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 		LastUpdated:     o.Microtimestamp.Time(),
 		Pair:            pair,
 		ReduceOnly:      o.ReduceOnly,
-		TriggerPrice:    o.StopPrice.Float64(),
+		TriggerPrice:    triggerPrice(o.StopPrice.Float64(), o.ActivationPrice.Float64()),
 	}}
 	if o.ID != 0 {
 		details[0].OrderID = strconv.FormatUint(o.ID, 10)
@@ -497,12 +544,11 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 			LastUpdated: o.Microtimestamp.Time(),
 		})
 	}
-	for i := range details {
-		if err := e.Websocket.DataHandler.Send(ctx, &details[i]); err != nil {
-			return err
-		}
+	if len(details) == 1 {
+		return e.Websocket.DataHandler.Send(ctx, &details[0])
 	}
-	return nil
+	// Both orders are relayed in one payload, so a refused replacement is retried without repeating either of them
+	return e.Websocket.DataHandler.Send(ctx, details)
 }
 
 // orderTypeFromSubtypeID returns the order type and time in force of a websocket order subtype
@@ -677,9 +723,10 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 // Subscribing to private channels needs a new token, as a token cannot be reused for later subscriptions, whereas
 // unsubscribing only needs the user ID which names the private channels, which is kept from the last token
 func (e *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.List, op string) error {
+	subs = normaliseSubscriptions(subs)
 	var errs error
 	var creds *WebsocketTokenResponse
-	if len(subs.Private()) > 0 {
+	if slices.ContainsFunc(subs, isPrivateSubscription) {
 		if userID := e.websocketUserID.Load(); op == "unsub" && userID != 0 {
 			creds = &WebsocketTokenResponse{UserID: userID}
 		} else {
@@ -692,8 +739,16 @@ func (e *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.Li
 	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return e.manageSubs(ctx, s, op, creds) }, 1))
 }
 
+// isPrivateSubscription returns whether a subscription needs a token, as it is either marked as authenticated or is to
+// a private channel
+// Expanded subscriptions are not marked by normaliseSubscriptions, since a marked copy would no longer be the
+// subscription that the websocket manager tracks
+func isPrivateSubscription(s *subscription.Subscription) bool {
+	return s.Authenticated || slices.Contains(privateChannels, s.Channel)
+}
+
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketTokenResponse) error {
-	subs, errs := normaliseSubscriptions(subs).ExpandTemplates(e)
+	subs, errs := subs.ExpandTemplates(e)
 	for _, s := range subs {
 		req := WebsocketEventRequest{
 			Event: "bts:" + op + "scribe",
@@ -701,7 +756,7 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op st
 				Channel: s.QualifiedChannel,
 			},
 		}
-		if s.Authenticated {
+		if isPrivateSubscription(s) {
 			if creds == nil {
 				return request.ErrAuthRequestFailed
 			}

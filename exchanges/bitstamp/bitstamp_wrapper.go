@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -925,7 +926,9 @@ func setLimitOrderTimeInForce(req *LimitOrderRequest, tif order.TimeInForce, end
 }
 
 // ModifyOrder modifies an existing order by atomically replacing it with a new order at the supplied amount and price
-// The replacement order has a new order ID
+// The amount is the order's new total, as the engine fills it with the order's amount when only the price changes, so
+// the replacement, which has a new order ID, is placed for the part not yet executed. The response holds the
+// replacement's own amount, so that modifying the replacement deducts only its own executions
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -933,13 +936,17 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if _, err := marketTypeForAsset(action.AssetType); err != nil {
 		return nil, err
 	}
-	// The replace endpoint only takes a new amount, price and client order ID
-	if action.TriggerPrice != 0 || action.TimeInForce != order.UnknownTIF {
+	// The replace endpoint only takes a new amount, price and client order ID. A time in force is accepted without being
+	// sent, as the engine sets every modification's time in force to the order's own, unless it is one which no order
+	// could be submitted with
+	if action.TriggerPrice != 0 {
 		return nil, fmt.Errorf("%w: %w", common.ErrFunctionNotSupported, errModifyUnsupported)
+	}
+	if !action.TimeInForce.IsValid() {
+		return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, action.TimeInForce)
 	}
 	req := &ReplaceOrderRequest{
 		ClientOrderID: action.NewClientOrderID,
-		Amount:        action.Amount,
 		Price:         action.Price,
 	}
 	if action.OrderID != "" {
@@ -951,17 +958,70 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	} else {
 		req.OriginalClientOrderID = action.ClientOrderID
 	}
+	total, err := decimal.NewFromString(strconv.FormatFloat(action.Amount, 'f', -1, 64))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", order.ErrAmountIsInvalid, err)
+	}
+	executed, err := e.orderExecutedAmount(ctx, req.OrderID, req.OriginalClientOrderID)
+	if err != nil {
+		return nil, err
+	}
+	// Amounts are subtracted as decimals, as float subtraction loses precision with large amounts, and rounded to the 8
+	// decimal places the API takes, as a float total can carry a residue, such as the 0.30000000000000004 GetOrderInfo
+	// reports for 0.1 executed and 0.2 remaining
+	remaining := total.Sub(executed).Round(8)
+	if !remaining.IsPositive() {
+		return nil, fmt.Errorf("%w: %s is not above the executed amount %s", order.ErrAmountIsInvalid, total, executed)
+	}
+	req.Amount = remaining.InexactFloat64()
 	replaced, err := e.ReplaceOrder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := action.DeriveModifyResponse()
+	// No time in force is reported, as the replace endpoint takes none
+	return &order.ModifyResponse{
+		Exchange:      action.Exchange,
+		OrderID:       strconv.FormatUint(replaced.OrderID, 10),
+		ClientOrderID: action.NewClientOrderID,
+		Pair:          action.Pair,
+		Type:          action.Type,
+		Side:          action.Side,
+		AssetType:     action.AssetType,
+		Price:         action.Price,
+		Amount:        req.Amount,
+	}, nil
+}
+
+// orderExecutedAmount returns the amount of an order which has executed, from the transactions in its status
+func (e *Exchange) orderExecutedAmount(ctx context.Context, orderID uint64, clientOrderID string) (decimal.Decimal, error) {
+	status, err := e.GetOrderStatus(ctx, &OrderStatusRequest{OrderID: orderID, ClientOrderID: clientOrderID})
 	if err != nil {
-		return nil, err
+		return decimal.Zero, err
 	}
-	resp.OrderID = strconv.FormatUint(replaced.OrderID, 10)
-	resp.ClientOrderID = action.NewClientOrderID
-	return resp, nil
+	pair, _, err := marketPairAsset(status.Market)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return executedAmount(status.Transactions, pair.Base)
+}
+
+// executedAmount returns the base currency amount executed by an order's transactions, summed as decimals so that it
+// carries no float residue. A transaction without a base amount is an error rather than nothing executed, as a
+// modification would otherwise place its amount again
+func executedAmount(transactions []OrderTransaction, base currency.Code) (decimal.Decimal, error) {
+	executed := decimal.Zero
+	for i := range transactions {
+		amount, ok := transactions[i].Amounts[base.Upper()]
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%w %d: no %s amount", errMalformedTransaction, transactions[i].TradeID, base)
+		}
+		value, err := decimal.NewFromString(strconv.FormatFloat(math.Abs(amount), 'f', -1, 64))
+		if err != nil {
+			return decimal.Zero, fmt.Errorf("%w %d: %w", errMalformedTransaction, transactions[i].TradeID, err)
+		}
+		executed = executed.Add(value)
+	}
+	return executed, nil
 }
 
 // CancelOrder cancels an order by its order ID, or by its client order ID when the order ID is not set
@@ -1065,6 +1125,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if err != nil {
 		return nil, err
 	}
+	executed, err := executedAmount(status.Transactions, pair.Base)
+	if err != nil {
+		return nil, err
+	}
+	remaining, err := decimal.NewFromString(strconv.FormatFloat(status.AmountRemaining.Float64(), 'f', -1, 64))
+	if err != nil {
+		return nil, fmt.Errorf("%w: amount remaining: %w", order.ErrAmountIsInvalid, err)
+	}
 
 	// Only derivatives orders have a subtype, so the type of a spot order is unknown
 	orderType := order.UnknownType
@@ -1085,7 +1153,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		RemainingAmount: status.AmountRemaining.Float64(),
 		Leverage:        status.Leverage.Float64(),
 		MarginType:      marginTypeFromMode(status.MarginMode),
-		TriggerPrice:    status.StopPrice.Float64(),
+		TriggerPrice:    triggerPrice(status.StopPrice.Float64(), status.ActivationPrice.Float64()),
 		FeeAsset:        feeAsset,
 		CostAsset:       feeAsset,
 		Trades:          make([]order.TradeHistory, len(status.Transactions)),
@@ -1103,19 +1171,31 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Timestamp: tx.DateTime,
 			FeeAsset:  feeAsset.String(),
 		}
-		d.ExecutedAmount += amount
-		d.Cost += amount * tx.Price
+		// The conversion rounds the product before the sum, as arm64 would otherwise fuse them and round differently
+		d.Cost += float64(amount * tx.Price)
 		d.Fee += tx.Fee
 		if tx.DateTime.After(d.LastUpdated) {
 			d.LastUpdated = tx.DateTime
 		}
 	}
-	d.Amount = d.ExecutedAmount + d.RemainingAmount
+	// The amounts are summed as decimals, as a float sum such as 100000000.1 and 10000000.1 carries a residue into the
+	// total, which ModifyOrder would then send
+	d.ExecutedAmount = executed.InexactFloat64()
+	d.Amount = executed.Add(remaining).InexactFloat64()
 	if d.ExecutedAmount > 0 {
 		d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
 	}
 	d.Status = orderStatus(status.Status, d.ExecutedAmount > 0)
 	return d, nil
+}
+
+// triggerPrice returns the price which triggers an order: the stop price of a stop order, or the activation price of a
+// trailing order, which SubmitOrder sends from the trigger price
+func triggerPrice(stopPrice, activationPrice float64) float64 {
+	if stopPrice != 0 {
+		return stopPrice
+	}
+	return activationPrice
 }
 
 // orderStatus returns the order status of an order status description
@@ -1342,7 +1422,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			RemainingAmount: o.RemainingAmount.Float64(),
 			Leverage:        o.Leverage.Float64(),
 			MarginType:      marginTypeFromMode(o.MarginMode),
-			TriggerPrice:    o.StopPrice.Float64(),
+			TriggerPrice:    triggerPrice(o.StopPrice.Float64(), o.ActivationPrice.Float64()),
 			ReduceOnly:      o.ReduceOnly,
 		})
 	}
@@ -1613,7 +1693,8 @@ func addTrade(d *order.Detail, t *order.TradeHistory) {
 	d.Trades = append(d.Trades, *t)
 	d.Amount += t.Amount
 	d.ExecutedAmount += t.Amount
-	d.Cost += t.Amount * t.Price
+	// The conversion rounds the product before the sum, as arm64 would otherwise fuse them and round differently
+	d.Cost += float64(t.Amount * t.Price)
 	d.Fee += t.Fee
 	if t.Timestamp.Before(d.Date) {
 		d.Date = t.Timestamp
@@ -1929,6 +2010,10 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 func (e *Exchange) SetLeverage(ctx context.Context, a asset.Item, pair currency.Pair, marginType margin.Type, amount float64, _ order.Side) error {
 	if a != asset.PerpetualContract {
 		return fmt.Errorf("%w %q", futures.ErrNotPerpetualFuture, a)
+	}
+	// UpdateLeverageSetting omits a zero leverage to only change the margin mode, so it is rejected here
+	if err := validateLeverage(amount); err != nil {
+		return err
 	}
 	marginMode, err := formatMarginMode(marginType)
 	if err != nil {

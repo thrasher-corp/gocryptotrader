@@ -35,7 +35,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Testing
 
 + Tests run against recorded mock responses in `testdata/http.json` by default
-+ Live tests are enabled with the `mock_test_off` build tag, for example `go test -tags=mock_test_off ./exchanges/bitstamp/...`, and are skipped when `GCT_SKIP_LIVE_TESTS` is set to `true`
++ Live tests are enabled with the `mock_test_off` build tag, for example `go test -tags=mock_test_off ./exchanges/bitstamp/...`
 + Authenticated live tests require credentials in `bitstamp_live_test.go`, and order placement tests also require `canManipulateRealOrders` to be enabled in `bitstamp_test.go`
 + Setting `useTestNet` in `bitstamp_test.go` runs the live REST tests against the Bitstamp sandbox, which requires sandbox credentials; the sandbox does not provide a websocket server
 

@@ -61,6 +61,10 @@ func TestOrderbookLevelUnmarshalJSON(t *testing.T) {
 	}
 	assert.Equal(t, exp, levels, "OrderbookLevel should unmarshal grouped and ungrouped levels")
 
+	reused := OrderbookLevel{Price: 1, Amount: 1, OrderID: 1}
+	require.NoError(t, reused.UnmarshalJSON([]byte(`["84010","0.01190"]`)), "UnmarshalJSON must not error")
+	assert.Equal(t, OrderbookLevel{Price: 84010, Amount: 0.0119}, reused, "UnmarshalJSON should clear the order ID of a reused level")
+
 	for _, data := range []string{
 		`["84010"]`,
 		`["84010","0.01190","1","2"]`,
@@ -205,6 +209,11 @@ func TestDateTimeUnmarshalJSON(t *testing.T) {
 		var d DateTime
 		require.NoErrorf(t, json.Unmarshal([]byte(data), &d), "Unmarshal must not error for %s", data)
 		assert.Truef(t, exp.Equal(d.Time()), "Unmarshal should decode %s as %s, not %s", data, exp, d.Time())
+	}
+	for _, data := range []string{`""`, `null`} {
+		reused := DateTime(time.Unix(1, 0))
+		require.NoErrorf(t, reused.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
+		assert.Truef(t, reused.Time().IsZero(), "UnmarshalJSON should clear a reused time for %s", data)
 	}
 	for _, data := range []string{`"wibble"`, `"2026-05-14"`, `1778752800`, `[]`} {
 		var d DateTime

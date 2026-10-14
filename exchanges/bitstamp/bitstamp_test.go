@@ -65,6 +65,10 @@ func skipIfLiveWithoutCredentials(t *testing.T, canManipulateOrders ...bool) {
 	}
 }
 
+// maxTestServerRequests caps the requests a test server answers. It is above the 201 requests the offset pagers make to
+// reach their limit, so a pager which never stops fails its test instead of hanging it
+const maxTestServerRequests = 250
+
 // newTestExchange returns an exchange whose REST requests are served by handler
 func newTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	t.Helper()
@@ -74,10 +78,27 @@ func newTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	server := httptest.NewTestServer(t, handler)
+	var requests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !assert.LessOrEqualf(t, requests.Add(1), int64(maxTestServerRequests), "test server should receive at most %d requests", maxTestServerRequests) {
+			http.Error(w, "too many requests", http.StatusBadRequest)
+			return
+		}
+		handler(w, r)
+	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
 	return ex
+}
+
+// newResponseTestExchange returns an exchange whose REST requests are all answered with the same status and body
+func newResponseTestExchange(t *testing.T, status int, body string) *Exchange {
+	t.Helper()
+	return newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Write should not error")
+	})
 }
 
 func TestSendAuthenticatedHTTPRequestSignature(t *testing.T) {
@@ -229,6 +250,7 @@ func TestCheckResponseError(t *testing.T) {
 		contains           string
 	}{
 		{name: "array", data: `[{"status":"error"}]`},
+		{name: "malformed", data: `{"status":`},
 		{name: "empty", data: ``},
 		{name: "null", data: `null`},
 		{name: "cancelled order", data: `{"id":1,"status":"Canceled"}`},
@@ -238,7 +260,12 @@ func TestCheckResponseError(t *testing.T) {
 		{name: "reason list", data: `{"status":"error","reason":["a","b"]}`, err: errAPIResponse, contains: "a, b"},
 		{name: "numeric code", data: `{"code":4009,"message":"Connection is unauthorized."}`, err: errAPIResponse, contains: "4009 Connection is unauthorized."},
 		{name: "error object", data: `{"error":{"amount":["Required"]}}`, err: errAPIResponse, contains: "amount: Required"},
+		{name: "field", data: `{"status":"error","reason":"Invalid amount","field":"amount"}`, err: errAPIResponse, contains: "Invalid amount; field: amount"},
 		{name: "code only on failure", data: `{"code":"API0001"}`, unsuccessfulStatus: true, err: errAPIResponse, contains: "API0001"},
+		{name: "no permission", data: `{"status":"error","reason":"No permission found","code":"API0003"}`, unsuccessfulStatus: true, err: errNoPermission, contains: "API0003 No permission found"},
+		{name: "no permission code only", data: `{"code":"API0003"}`, unsuccessfulStatus: true, err: errNoPermission, contains: "API0003"},
+		{name: "invalid event ID range", data: `{"status":"error","reason":"Invalid event ID range: until_id must be greater than since_id.","response_code":"400.085"}`, unsuccessfulStatus: true, err: errInvalidEventIDRange, contains: "400.085 Invalid event ID range"},
+		{name: "invalid event ID range code only", data: `{"response_code":"400.085"}`, unsuccessfulStatus: true, err: errInvalidEventIDRange, contains: "400.085"},
 		{name: "unrecognised failure", data: `{"detail":"nope"}`, unsuccessfulStatus: true},
 		{name: "mismatched types", data: `{"status":["error"],"reason":1}`, unsuccessfulStatus: true, err: errAPIResponse, contains: "API returned an error: 1"},
 	} {
@@ -250,8 +277,15 @@ func TestCheckResponseError(t *testing.T) {
 				return
 			}
 			assert.ErrorIs(t, err, tc.err, "checkResponseError should return the correct error")
+			assert.ErrorIs(t, err, errAPIResponse, "checkResponseError should report an API error")
 			assert.ErrorContains(t, err, tc.contains, "checkResponseError should include the details")
 		})
+	}
+	for _, data := range []string{`{"code":"API0001"}`, `{"code":"API0004"}`, `{"code":"API00030"}`, `{"response_code":"API0003"}`, `{"code":"400.085"}`, `{"response_code":"400.084"}`, `{"response_code":"400.0850"}`} {
+		err := checkResponseError(json.RawMessage(data), true)
+		require.ErrorIsf(t, err, errAPIResponse, "checkResponseError must report %s as an API error", data)
+		assert.NotErrorIsf(t, err, errNoPermission, "checkResponseError should not report %s as a permission error", data)
+		assert.NotErrorIsf(t, err, errInvalidEventIDRange, "checkResponseError should not report %s as an invalid event ID range", data)
 	}
 }
 

@@ -171,3 +171,13 @@ type TradingHaltDetails struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
 }
+
+// orderEventCheckpoint is the last private order event handled for a market and order source, which missed events are
+// recovered from
+// A pending event was received but not relayed, so recovery starts with it rather than after it. Failures counts the
+// recoveries from it which have failed in a row
+type orderEventCheckpoint struct {
+	eventID  string
+	pending  bool
+	failures uint8
+}

@@ -1,7 +1,10 @@
 package bitstamp
 
 import (
+	"context"
 	"fmt"
+	"maps"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -1106,9 +1109,6 @@ func TestModifyOrder(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "ModifyOrder should error on an invalid order ID")
 	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: spotPair, AssetType: asset.Spot, OrderID: "1", TriggerPrice: 1})
 	assert.ErrorIs(t, err, errModifyUnsupported, "ModifyOrder should error when modifying a trigger price")
-	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: spotPair, AssetType: asset.Spot, OrderID: "1", TimeInForce: order.ImmediateOrCancel})
-	assert.ErrorIs(t, err, errModifyUnsupported, "ModifyOrder should error when modifying a time in force")
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should report modifying a time in force as unsupported")
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 	resp, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotPair, AssetType: asset.Spot, OrderID: "1453282316578816", Amount: 0.02, Price: 2100.45})
@@ -1125,6 +1125,126 @@ func TestModifyOrder(t *testing.T) {
 	require.NoError(t, err, "ModifyOrder must not error with a client order ID")
 	exp.ClientOrderID = "my-order-456"
 	assert.Equal(t, exp, resp, "ModifyOrder should return the replacement order's client order ID")
+}
+
+func TestModifyOrderAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		modify         order.Modify
+		statusBy       url.Values
+		executed       []string
+		refused        string
+		replacedBy     url.Values
+		expAmount      string
+		expErr         error
+		expErrContains string
+	}{
+		// The cases vary the time in force, which the engine sets to the stored order's own and ModifyOrder must accept
+		{name: "buy", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
+		{name: "sell", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel | order.PostOnly, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"-0.30000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
+		{name: "float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.PostOnly, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.7"},
+		{name: "total above its float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.ImmediateOrCancel, Amount: 0.30000000000000004}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.2"},
+		{name: "total below its float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.FillOrKill, Amount: 0.19999999999999998}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.1"},
+		{name: "eight decimal places", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel, Amount: 0.22345678}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.12345678"},
+		{name: "large amounts", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCrossing, Amount: 90000000000.3}, statusBy: url.Values{"id": {"1"}}, executed: []string{"90000000000.20000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.1"},
+		{name: "two executions", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillDay, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000", "0.20000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
+		{name: "client order ID", modify: order.Modify{ClientOrderID: "my-order-1", TimeInForce: order.PostOnly | order.GoodTillTime, Amount: 0.8}, statusBy: url.Values{"client_order_id": {"my-order-1"}}, executed: []string{"0.30000000"}, replacedBy: url.Values{"orig_client_order_id": {"my-order-1"}}, expAmount: "0.5"},
+		{name: "executed", modify: order.Modify{OrderID: "1", Amount: 0.3}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, expErr: order.ErrAmountIsInvalid, expErrContains: "executed amount 0.3"},
+		{name: "below executed", modify: order.Modify{OrderID: "1", Amount: 0.2}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, expErr: order.ErrAmountIsInvalid, expErrContains: "executed amount 0.3"},
+		{name: "time in force combined with immediate or cancel", modify: order.Modify{OrderID: "1", TimeInForce: order.ImmediateOrCancel | order.PostOnly, Amount: 0.8}, expErr: order.ErrUnsupportedTimeInForce},
+		{name: "unknown time in force", modify: order.Modify{OrderID: "1", TimeInForce: order.TimeInForce(1 << 12), Amount: 0.8}, expErr: order.ErrUnsupportedTimeInForce},
+		{name: "not a number", modify: order.Modify{OrderID: "1", Amount: math.NaN()}, expErr: order.ErrAmountIsInvalid},
+		{name: "infinite", modify: order.Modify{OrderID: "1", Amount: math.Inf(1)}, expErr: order.ErrAmountIsInvalid},
+		{name: "status refused", modify: order.Modify{OrderID: "1", Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, refused: "/api/v2/order_status/", expErr: errAPIResponse},
+		{name: "replacement refused", modify: order.Modify{OrderID: "1", Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, refused: "/api/v2/replace_order/", replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5", expErr: errAPIResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var replaced []url.Values
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+				var body string
+				switch r.URL.Path {
+				case "/api/v2/order_status/":
+					assert.Equal(t, tc.statusBy, r.PostForm, "the order status should be requested for the order")
+					transactions := make([]string, len(tc.executed))
+					for i, amount := range tc.executed {
+						transactions[i] = fmt.Sprintf(`{"tid":%d,"price":"84000","btc":%q,"usd":"25200","fee":"1","datetime":"2025-06-16 10:00:01","type":2}`, i+1, amount)
+					}
+					body = `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[` + strings.Join(transactions, ",") + `],"amount_remaining":"0.50000000"}`
+				case "/api/v2/replace_order/":
+					mu.Lock()
+					replaced = append(replaced, r.PostForm)
+					mu.Unlock()
+					body = `{"order_id":2,"order_type":"0","market":"BTC/USD","amount":"0.5","price":"85000","datetime":"2025-10-17T14:23:01.725000Z","orig_order_id":1}`
+				default:
+					assert.Failf(t, "unexpected request", "path %s should not be requested", r.URL.Path)
+				}
+				if r.URL.Path == tc.refused {
+					w.WriteHeader(http.StatusNotFound)
+					body = `{"status":"error","reason":"Order not found.","response_code":"404.002"}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "Write should not error")
+			})
+			tc.modify.Exchange, tc.modify.Pair, tc.modify.AssetType, tc.modify.Price = ex.Name, spotPair, asset.Spot, 85000
+			resp, err := ex.ModifyOrder(t.Context(), &tc.modify)
+			var expReplaced []url.Values
+			if tc.expAmount != "" {
+				exp := url.Values{"amount": {tc.expAmount}, "price": {"85000"}}
+				maps.Copy(exp, tc.replacedBy)
+				expReplaced = []url.Values{exp}
+			}
+			mu.Lock()
+			assert.Equal(t, expReplaced, replaced, "ModifyOrder should replace the order once with the amount not yet executed")
+			mu.Unlock()
+			if tc.expErr != nil {
+				assert.ErrorIs(t, err, tc.expErr, "ModifyOrder should return the expected error")
+				if tc.expErrContains != "" {
+					assert.ErrorContains(t, err, tc.expErrContains, "ModifyOrder should report the executed amount")
+				}
+				return
+			}
+			require.NoError(t, err, "ModifyOrder must not error")
+			amount, err := strconv.ParseFloat(tc.expAmount, 64)
+			require.NoError(t, err, "ParseFloat must not error")
+			exp := &order.ModifyResponse{Exchange: ex.Name, OrderID: "2", Pair: spotPair, AssetType: asset.Spot, Price: 85000, Amount: amount}
+			assert.Equal(t, exp, resp, "ModifyOrder should return the replacement order with its own amount and no time in force")
+		})
+	}
+}
+
+func TestOrderExecutedAmount(t *testing.T) {
+	t.Parallel()
+	_, err := newResponseTestExchange(t, http.StatusNotFound, `{"status":"error","reason":"Order not found.","response_code":"404.002"}`).orderExecutedAmount(t.Context(), 1, "")
+	assert.ErrorIs(t, err, errAPIResponse, "orderExecutedAmount should error when the order status cannot be fetched")
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTCUSD","transactions":[]}`).orderExecutedAmount(t.Context(), 1, "")
+	assert.ErrorContains(t, err, "BTCUSD", "orderExecutedAmount should error on a malformed market")
+	// The decoder skips a non-numeric currency field, so the transaction has no base amount
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[{"tid":7,"price":"84000","btc":"oops","usd":"25200","fee":"1","datetime":"2025-06-16 10:00:01","type":2}]}`).orderExecutedAmount(t.Context(), 1, "")
+	assert.ErrorIs(t, err, errMalformedTransaction, "orderExecutedAmount should error on a transaction without a base amount")
+	executed, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"1","status":"Open","market":"BTC/USD","transactions":[{"tid":7,"price":"84000","btc":"-0.10000000","usd":"8400","fee":"1","datetime":"2025-06-16 10:00:01","type":2},{"tid":8,"price":"84000","btc":"-0.20000000","usd":"16800","fee":"1","datetime":"2025-06-16 10:00:02","type":2}]}`).orderExecutedAmount(t.Context(), 1, "")
+	require.NoError(t, err, "orderExecutedAmount must not error")
+	assert.Equal(t, "0.3", executed.String(), "orderExecutedAmount should sum the base amounts of the order's transactions")
+}
+
+func TestExecutedAmount(t *testing.T) {
+	t.Parallel()
+	executed, err := executedAmount(nil, currency.BTC)
+	require.NoError(t, err, "executedAmount must not error without transactions")
+	assert.True(t, executed.IsZero(), "executedAmount should be zero without transactions")
+	executed, err = executedAmount([]OrderTransaction{
+		{TradeID: 1, Amounts: map[currency.Code]float64{currency.BTC: -0.1, currency.USD: 8400}},
+		{TradeID: 2, Amounts: map[currency.Code]float64{currency.BTC: 0.22345678, currency.USD: -18773.97}},
+	}, currency.NewCode("btc"))
+	require.NoError(t, err, "executedAmount must not error")
+	assert.Equal(t, "0.32345678", executed.String(), "executedAmount should sum the absolute base amounts without a float residue")
+	_, err = executedAmount([]OrderTransaction{{TradeID: 1, Amounts: map[currency.Code]float64{currency.USD: 8400}}}, currency.BTC)
+	assert.ErrorIs(t, err, errMalformedTransaction, "executedAmount should error on a transaction without a base amount")
+	_, err = executedAmount([]OrderTransaction{{TradeID: 1, Amounts: map[currency.Code]float64{currency.BTC: math.NaN()}}}, currency.BTC)
+	assert.ErrorIs(t, err, errMalformedTransaction, "executedAmount should error on a base amount which is not a number")
 }
 
 func TestCancelOrder(t *testing.T) {
@@ -1190,6 +1310,46 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err := e.GetOrderInfo(t.Context(), "nope", spotPair, asset.Spot)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo should error on an invalid order ID")
 
+	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v2/order_status/", r.URL.Path, "path should be the order status")
+		_, err := w.Write([]byte(`{"id":1458532827766786,"datetime":"2025-06-16 10:00:00","type":"1","subtype":"TRAILING_STOP_LOSS","status":"Open","market":"BTC/USD-PERP","transactions":[],"amount_remaining":"0.01000","margin_mode":"CROSS","leverage":"3","trigger":"LAST_TRADED_PRICE","activation_price":"50000","trailing_delta":50}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	trailing, err := ex.GetOrderInfo(t.Context(), "1458532827766786", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a trailing order")
+	assert.Equal(t, &order.Detail{
+		Exchange:        ex.Name,
+		OrderID:         "1458532827766786",
+		Type:            order.TrailingStop,
+		Side:            order.Sell,
+		Status:          order.Open,
+		AssetType:       asset.PerpetualContract,
+		Pair:            currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
+		MarginType:      margin.Multi,
+		Leverage:        3,
+		TriggerPrice:    50000,
+		Date:            time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+		LastUpdated:     time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+		Amount:          0.01,
+		RemainingAmount: 0.01,
+		CostAsset:       currency.USD,
+		FeeAsset:        currency.USD,
+		Trades:          []order.TradeHistory{},
+	}, trailing, "GetOrderInfo should return the activation price of a trailing order as its trigger price")
+
+	_, err = newResponseTestExchange(t, http.StatusNotFound, `{"status":"error","reason":"Order not found.","response_code":"404.002"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	assert.ErrorIs(t, err, errAPIResponse, "GetOrderInfo should error when the order status cannot be fetched")
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTCUSD","transactions":[]}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	assert.ErrorContains(t, err, "BTCUSD", "GetOrderInfo should error on a malformed market")
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[{"tid":7,"price":"84000","usd":"25200","fee":"1","datetime":"2025-06-16 10:00:01","type":2}]}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	assert.ErrorIs(t, err, errMalformedTransaction, "GetOrderInfo should error on a transaction without a base amount")
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[],"amount_remaining":"NaN"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "GetOrderInfo should error on a remaining amount which is not a number")
+	large, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"PEPE/USD","transactions":[{"tid":7,"price":"0.00001","pepe":"100000000.1","usd":"-1000.000001","fee":"1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"10000000.1"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for a large order")
+	assert.Equal(t, "110000000.2", strconv.FormatFloat(large.Amount, 'f', -1, 64), "GetOrderInfo should sum the executed and remaining amounts without a float residue")
+	assert.Equal(t, "100000000.1", strconv.FormatFloat(large.ExecutedAmount, 'f', -1, 64), "GetOrderInfo should return the executed amount")
+
 	skipIfLiveWithoutCredentials(t)
 	d, err := e.GetOrderInfo(t.Context(), "1458532827766784", spotPair, asset.Spot)
 	if !mockTests {
@@ -1249,6 +1409,14 @@ func TestGetOrderInfo(t *testing.T) {
 			{TID: "209895703", Price: 84000, Amount: 0.01, Fee: 0.34, Exchange: e.Name, Side: order.Sell, Timestamp: time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC), FeeAsset: "USD"},
 		},
 	}, d, "GetOrderInfo should return the perpetual order with its trades")
+}
+
+func TestTriggerPrice(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 84500.0, triggerPrice(84500, 0), "triggerPrice should return the stop price of a stop order")
+	assert.Equal(t, 50000.0, triggerPrice(0, 50000), "triggerPrice should return the activation price of a trailing order")
+	assert.Equal(t, 84500.0, triggerPrice(84500, 50000), "triggerPrice should prefer the stop price")
+	assert.Zero(t, triggerPrice(0, 0), "triggerPrice should be zero for an order without either price")
 }
 
 func TestOrderStatus(t *testing.T) {
@@ -1400,6 +1568,55 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetActiveOrders should error on an unsupported asset")
 
+	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v2/open_orders/", r.URL.Path, "path should be the open orders")
+		_, err := w.Write([]byte(`[{"id":"1234123412341236","datetime":"2025-06-16 10:00:00","type":"1","subtype":"TRAILING_STOP_LOSS","price":"0","amount":"0.01000","amount_at_create":"0.01000","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"3.00","trigger":"LAST_TRADED_PRICE","activation_price":"50000","trailing_delta":50,"reduce_only":true}]`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	trailing, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "GetActiveOrders must not error for a trailing order")
+	assert.Equal(t, order.FilteredOrders{{
+		Exchange:        ex.Name,
+		OrderID:         "1234123412341236",
+		Type:            order.TrailingStop,
+		Side:            order.Sell,
+		Status:          order.Open,
+		AssetType:       asset.PerpetualContract,
+		Pair:            currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
+		MarginType:      margin.Multi,
+		Leverage:        3,
+		ReduceOnly:      true,
+		Date:            time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+		TriggerPrice:    50000,
+		Amount:          0.01,
+		RemainingAmount: 0.01,
+	}}, trailing, "GetActiveOrders should return the activation price of a trailing order as its trigger price")
+
+	spotOrders := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}
+	_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{currency.EMPTYPAIR}})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetActiveOrders should error on an empty pair")
+	_, err = newResponseTestExchange(t, http.StatusForbidden, `{"status":"error","reason":"Invalid signature","code":"API0005"}`).GetActiveOrders(t.Context(), spotOrders)
+	assert.ErrorIs(t, err, errAPIResponse, "GetActiveOrders should error when the open orders cannot be fetched")
+	_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTCUSD"}]`).GetActiveOrders(t.Context(), spotOrders)
+	assert.ErrorContains(t, err, "BTCUSD", "GetActiveOrders should error on a malformed market")
+
+	ex = newResponseTestExchange(t, http.StatusOK, `[{"id":"1234123412341237","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTC/USD"}]`)
+	withoutAmountAtCreate, err := ex.GetActiveOrders(t.Context(), spotOrders)
+	require.NoError(t, err, "GetActiveOrders must not error for an order without its amount at creation")
+	assert.Equal(t, order.FilteredOrders{{
+		Exchange:        ex.Name,
+		OrderID:         "1234123412341237",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.Open,
+		AssetType:       asset.Spot,
+		Pair:            currency.NewPairWithDelimiter("BTC", "USD", "/"),
+		Date:            time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+		Price:           84000,
+		Amount:          0.4,
+		RemainingAmount: 0.4,
+	}}, withoutAmountAtCreate, "GetActiveOrders should use the remaining amount as the amount of an order without its amount at creation")
+
 	skipIfLiveWithoutCredentials(t)
 	for _, req := range []*order.MultiOrderRequest{
 		{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType},
@@ -1460,6 +1677,7 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderHistory should error on an unsupported asset")
 
 	skipIfLiveWithoutCredentials(t)
+	ctx := recordedPagerContext(t)
 	for _, tc := range []struct {
 		req *order.MultiOrderRequest
 		exp []string
@@ -1468,7 +1686,7 @@ func TestGetOrderHistory(t *testing.T) {
 		{req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.Sell, Type: order.AnyType}, exp: []string{"1458532827766790"}},
 		{req: &order.MultiOrderRequest{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType}, exp: []string{"1234123412341241", "1234123412341235"}},
 	} {
-		orders, err := e.GetOrderHistory(t.Context(), tc.req)
+		orders, err := e.GetOrderHistory(ctx, tc.req)
 		require.NoErrorf(t, err, "GetOrderHistory must not error for %s %s orders", tc.req.AssetType, tc.req.Side)
 		if !mockTests {
 			continue
@@ -1546,7 +1764,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "derivativesOrderHistory should error on an invalid side")
 
 	skipIfLiveWithoutCredentials(t)
-	orders, err := e.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+	orders, err := e.derivativesOrderHistory(recordedPagerContext(t), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
 	require.NoError(t, err, "derivativesOrderHistory must not error")
 	if !mockTests {
 		return
@@ -1946,6 +2164,9 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.Spot, spotPair, margin.Isolated, 5, order.Buy), futures.ErrNotPerpetualFuture, "SetLeverage should error on a spot asset")
 	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.SpotIsolated, 5, order.Buy), margin.ErrMarginTypeUnsupported, "SetLeverage should error on an unsupported margin type")
+	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Isolated, 0, order.Buy), errLeverageRequired, "SetLeverage should error without a leverage")
+	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Isolated, maxLeverage+1, order.Buy), errInvalidLeverage, "SetLeverage should error on a leverage above the maximum")
+	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, currency.EMPTYPAIR, margin.Isolated, 5, order.Buy), currency.ErrCurrencyPairEmpty, "SetLeverage should error on an empty pair")
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 	assert.NoError(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Isolated, 5, order.Buy), "SetLeverage should not error")
@@ -2194,6 +2415,18 @@ func TestOrderTypeFromSubtype(t *testing.T) {
 	}
 }
 
+// recordedPagerContext returns the context for paging the recorded mock, which serves the same response to every request,
+// so a pager which never stops fails at the deadline instead of hanging its test; live histories can take longer to page
+func recordedPagerContext(t *testing.T) context.Context {
+	t.Helper()
+	if !mockTests {
+		return t.Context()
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
 // pagedTestExchange returns an exchange whose test server responds to each request with the page built from its
 // parameters, and a function returning the parameters of every request received
 func pagedTestExchange(t *testing.T, path string, page func(params url.Values) string) (ex *Exchange, requests func() []url.Values) {
@@ -2430,7 +2663,11 @@ func TestWithdrawCryptocurrencyFundsTags(t *testing.T) {
 	requests := make(chan url.Values, 1)
 	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-		requests <- r.PostForm
+		select {
+		case requests <- r.PostForm:
+		default:
+			assert.Fail(t, "WithdrawCryptocurrencyFunds should send only one request")
+		}
 		_, err := w.Write([]byte(`{"id":1}`))
 		assert.NoError(t, err, "Write should not error")
 	})
@@ -2459,6 +2696,7 @@ func TestWithdrawCryptocurrencyFundsTags(t *testing.T) {
 		assert.Equalf(t, "1", resp.ID, "ID should be correct for %s", tc.c)
 		tc.exp.Set("amount", "1")
 		tc.exp.Set("address", "address")
+		require.Lenf(t, requests, 1, "WithdrawCryptocurrencyFunds must send a request for %s", tc.c)
 		assert.Equalf(t, tc.exp, <-requests, "WithdrawCryptocurrencyFunds should send the tag in the field for the %s network", tc.c)
 	}
 

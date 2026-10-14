@@ -43,6 +43,7 @@ func (d *DateTime) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: %s", errInvalidDateTime, data)
 	}
 	if s == nil || *s == "" {
+		*d = DateTime{}
 		return nil
 	}
 	for _, layout := range dateTimeLayouts {
@@ -114,6 +115,7 @@ func (l *OrderbookLevel) UnmarshalJSON(data []byte) error {
 	if len(level) != 2 && len(level) != 3 {
 		return fmt.Errorf("%w: %s", errMalformedOrderbookLevel, data)
 	}
+	*l = OrderbookLevel{}
 	var err error
 	if l.Price, err = strconv.ParseFloat(level[0], 64); err != nil {
 		return fmt.Errorf("%w price %q: %w", errMalformedOrderbookLevel, level[0], err)

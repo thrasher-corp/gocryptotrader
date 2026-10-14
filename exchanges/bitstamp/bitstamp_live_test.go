@@ -14,7 +14,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
 const sandboxAPIURL = "https://sandbox.bitstamp.net/api"
@@ -30,11 +29,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	if livetest.ShouldSkip() {
-		log.Printf(livetest.LiveTestingSkipped, "Bitstamp")
-		os.Exit(0)
-	}
-
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)

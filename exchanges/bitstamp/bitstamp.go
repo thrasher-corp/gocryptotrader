@@ -57,13 +57,15 @@ type Exchange struct {
 
 	// websocketUserID is the user ID of the last websocket token, which names the private channels
 	websocketUserID atomic.Uint64
-	// orderEventIDs holds the ID of the last private order event processed for each market and order source
-	orderEventIDs map[string]string
-	orderEventMu  sync.Mutex
+	// orderEventCheckpoints holds the last private order event handled for each market and order source
+	orderEventCheckpoints map[string]orderEventCheckpoint
+	orderEventMu          sync.Mutex
 }
 
 var (
 	errAPIResponse              = errors.New("API returned an error")
+	errNoPermission             = errors.New("API key lacks permission")
+	errInvalidEventIDRange      = errors.New("invalid event ID range")
 	errMalformedOrderbookLevel  = errors.New("malformed orderbook level")
 	errMalformedTransaction     = errors.New("malformed transaction")
 	errNullNumber               = errors.New("number is null")
@@ -1788,6 +1790,15 @@ func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	if field := formatErrorDetail(resp.Field); field != "" {
 		details = append(details, "field: "+field)
 	}
+	apiErr := errAPIResponse
+	switch {
+	case code == "API0003":
+		// The API documents API0003 as an API key without permission for the endpoint, which retrying cannot fix
+		apiErr = fmt.Errorf("%w: %w", errAPIResponse, errNoPermission)
+	case formatErrorDetail(resp.ResponseCode) == "400.085":
+		// The API documents 400.085 as an event ID range whose until ID is not after its since ID
+		apiErr = fmt.Errorf("%w: %w", errAPIResponse, errInvalidEventIDRange)
+	}
 	switch {
 	case len(codes) == 0 && len(details) == 0:
 		if unsuccessfulStatus {
@@ -1797,9 +1808,9 @@ func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	case len(codes) == 0:
 		return fmt.Errorf("%w: %s", errAPIResponse, strings.Join(details, "; "))
 	case len(details) == 0:
-		return fmt.Errorf("%w: %s", errAPIResponse, strings.Join(codes, " "))
+		return fmt.Errorf("%w: %s", apiErr, strings.Join(codes, " "))
 	default:
-		return fmt.Errorf("%w: %s %s", errAPIResponse, strings.Join(codes, " "), strings.Join(details, "; "))
+		return fmt.Errorf("%w: %s %s", apiErr, strings.Join(codes, " "), strings.Join(details, "; "))
 	}
 }
 

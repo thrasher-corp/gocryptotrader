@@ -3877,6 +3877,43 @@
       ]
      },
      "queryString": ""
+    },
+    {
+     "bodyParams": "id=1453282316578816",
+     "data": {
+      "amount_remaining": "0.02000000",
+      "datetime": "2025-10-17 14:23:01",
+      "id": 1453282316578816,
+      "market": "BTC/USD",
+      "status": "Open",
+      "transactions": [],
+      "type": "0"
+     },
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ]
+     },
+     "queryString": ""
+    },
+    {
+     "bodyParams": "client_order_id=my-order-123",
+     "data": {
+      "amount_remaining": "0.02000000",
+      "client_order_id": "my-order-123",
+      "datetime": "2025-10-17 14:23:01",
+      "id": 1453282316578816,
+      "market": "BTC/USD",
+      "status": "Open",
+      "transactions": [],
+      "type": "0"
+     },
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ]
+     },
+     "queryString": ""
     }
    ]
   },

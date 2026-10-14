@@ -1283,7 +1283,8 @@ type travelRuleParams struct {
 type OrderSide order.Side
 
 // DateTime decodes a date and time sent either in RFC 3339 form or in Bitstamp's "2006-01-02 15:04:05" form, with or
-// without fractional seconds, since the API documents both forms as date-time values; null leaves it zero
+// without fractional seconds, since the API documents both forms as date-time values; null and an empty string decode as
+// the zero time
 type DateTime time.Time
 
 // unconfirmedDeposits decodes unconfirmed deposits sent as either a list or a single object
