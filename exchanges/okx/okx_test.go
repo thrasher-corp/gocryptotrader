@@ -3595,7 +3595,13 @@ func TestUpdateTickers(t *testing.T) {
 					assert.Equal(t, http.MethodGet, r.Method, "ticker request should use GET")
 					idField := "instId"
 					if tc.assetType == asset.Spread {
-						assert.Equal(t, "/sprd/ticker", r.URL.Path, "spread ticker request should use its public endpoint")
+						if r.URL.Path == "/sprd/books" {
+							assert.Equal(t, url.Values{"sprdId": {tc.pair.String()}, "sz": {"1"}}, r.URL.Query(), "spread book should request one level")
+							_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"asks":[["101","11","1"]],"bids":[[%q,"5","1"]],"ts":"1597026383085"}]}`, bid)
+							assert.NoError(t, err, "spread book response should write")
+							return
+						}
+						assert.Equal(t, "/market/sprd-ticker", r.URL.Path, "spread ticker request should use its public endpoint")
 						assert.Equal(t, url.Values{"sprdId": {tc.pair.String()}}, r.URL.Query(), "spread ticker request should identify the enabled spread")
 						idField = "sprdId"
 					} else {
