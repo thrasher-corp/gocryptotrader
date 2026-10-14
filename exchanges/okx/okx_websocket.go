@@ -624,7 +624,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			return err
 		}
 		spreadAmt := resp.Data[x].Size.Float64()
-		spreadExec := resp.Data[x].AccFillSize.Float64()
+		spreadExec := resp.Data[x].AccumulatedFillSize.Float64()
 		spreadRemaining := float64(0)
 		if oStatus != order.Filled && spreadAmt > spreadExec {
 			spreadRemaining = spreadAmt - spreadExec

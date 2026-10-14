@@ -3156,6 +3156,19 @@ type SpreadInstrumentLeg struct {
 	Side         string `json:"side"`
 }
 
+// SpreadTradeLeg represents one leg of a spread trade transaction.
+type SpreadTradeLeg struct {
+	InstrumentID    string        `json:"instId"`
+	Price           types.Number  `json:"px"`
+	Size            types.Number  `json:"sz"`
+	SizeInContracts types.Number  `json:"szCont"`
+	Side            string        `json:"side"`
+	Fee             types.Number  `json:"fee"`
+	FeeCurrency     currency.Code `json:"feeCcy"`
+	FillPNL         types.Number  `json:"fillPnl"`
+	TradeID         string        `json:"tradeId"`
+}
+
 // SpreadInstrument retrieve all available spreads based on the request parameters
 type SpreadInstrument struct {
 	SpreadID      currency.Pair         `json:"sprdId"`
@@ -5205,6 +5218,13 @@ type AccountInstrument struct {
 	FloatingPriceLimitPercent   types.Number               `json:"floatPxLmtPct"`
 	MaximumPriceLimitPercent    types.Number               `json:"maxPxLmtPct"`
 	UpcomingChanges             []InstrumentUpcomingChange `json:"upcChg"`
+}
+
+// InstrumentUpcomingChange represents a documented parameter change scheduled
+// for an instrument.
+type InstrumentUpcomingChange struct {
+	Parameter string `json:"param"`
+	Value     string `json:"val"`
 }
 
 // BorrowOrRepay represents a borrow and repay operation response
