@@ -178,7 +178,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Position tiers filter uses singular tier",
 			call: func() error {
-				_, err := e.GetPositionTiers(t.Context(), instTypeMargin, "cross", "", "", "BTC-USDT", "1", currency.EMPTYCODE)
+				_, err := e.GetPositionTiers(t.Context(), instTypeMargin, "cross", "", "BTC-USDT", "1", currency.EMPTYCODE)
 				return err
 			},
 			path:   "/public/position-tiers",
@@ -207,7 +207,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Trade fee drops the response-only ruleType",
 			call: func() error {
-				_, err := e.GetTradeFee(t.Context(), instTypeSpot, "BTC-USDT", "", "")
+				_, err := e.GetTradeFee(t.Context(), instTypeSpot, "BTC-USDT", "")
 				return err
 			},
 			path:   "/account/trade-fee",
@@ -425,7 +425,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			name: "Portfolio margin position tiers decode posType",
 			call: func() error {
 				var err error
-				pmPositionLimitations, err = e.GetPMPositionLimitation(t.Context(), "SWAP", "BTC-USD", "")
+				pmPositionLimitations, err = e.GetPMPositionLimitation(t.Context(), "SWAP", "BTC-USD")
 				return err
 			},
 			path: "/account/position-tiers",

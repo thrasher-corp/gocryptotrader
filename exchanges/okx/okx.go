@@ -236,8 +236,8 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if arg.OrderType != "" {
 		params.Set("orderType", strings.ToLower(arg.OrderType))
@@ -252,7 +252,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("after", arg.After)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
@@ -281,8 +281,8 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if arg.OrderType != "" {
 		params.Set("orderType", strings.ToLower(arg.OrderType))
@@ -303,7 +303,7 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.Category != "" {
 		params.Set("category", strings.ToLower(arg.Category))
@@ -336,8 +336,8 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if !arg.Begin.IsZero() {
 		params.Set("begin", strconv.FormatInt(arg.Begin.UnixMilli(), 10))
@@ -346,7 +346,7 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.OrderID != "" {
 		params.Set("ordId", arg.OrderID)
@@ -893,11 +893,11 @@ func (e *Exchange) SetQuoteProducts(ctx context.Context, args []SetQuoteProductP
 			return nil, errMissingMakerInstrumentSettings
 		}
 		for y := range args[x].Data {
-			if slices.Contains([]string{instTypeSwap, instTypeFutures, instTypeOption}, args[x].InstrumentType) && args[x].Data[y].Underlying == "" {
-				return nil, fmt.Errorf("%w, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
+			if slices.Contains([]string{instTypeSwap, instTypeFutures, instTypeOption}, args[x].InstrumentType) && args[x].Data[y].InstrumentFamily == "" {
+				return nil, fmt.Errorf("%w, for instrument type %s", errInstrumentFamilyRequired, args[x].InstrumentType)
 			}
-			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[x].InstrumentID == "" {
-				return nil, fmt.Errorf("%w, for instrument type %s and %s", errMissingInstrumentID, args[x].InstrumentType, args[x].Data[x].InstrumentID)
+			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[y].InstrumentID == "" {
+				return nil, fmt.Errorf("%w, for instrument type %s", errMissingInstrumentID, args[x].InstrumentType)
 			}
 		}
 	}
@@ -1537,27 +1537,16 @@ func (e *Exchange) GetConvertHistory(ctx context.Context, before, after time.Tim
 /********************************** Account endpoints ***************************************************/
 
 // GetAccountInstruments retrieve available instruments info of current account
-func (e *Exchange) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
+func (e *Exchange) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
 	if instrumentType == asset.Empty {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
+	if instrumentType == asset.Options && instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
+	}
 	params := url.Values{}
-	switch instrumentType {
-	case asset.Margin, asset.PerpetualSwap, asset.Futures:
-		if underlying == "" {
-			return nil, fmt.Errorf("%w, underlying is required", errInvalidUnderlying)
-		}
-		params.Set("uly", underlying)
-	case asset.Options:
-		if underlying == "" && instrumentFamily == "" {
-			return nil, errInstrumentFamilyOrUnderlyingRequired
-		}
-		if underlying != "" {
-			params.Set("uly", underlying)
-		}
-		if instrumentFamily != "" {
-			params.Set("instFamily", instrumentFamily)
-		}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
 	}
 	instTypeString, err := assetTypeString(instrumentType)
 	if err != nil {
@@ -1914,11 +1903,13 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		uly, err := e.GetUnderlying(feeBuilder.Pair, asset.Spot)
+		// The spot underlying doubles as the instrument ID the fee rates are
+		// queried by, e.g. BTC-USDT.
+		instID, err := e.GetUnderlying(feeBuilder.Pair, asset.Spot)
 		if err != nil {
 			return 0, err
 		}
-		responses, err := e.GetTradeFee(ctx, instTypeSpot, uly, "", "")
+		responses, err := e.GetTradeFee(ctx, instTypeSpot, instID, "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
@@ -1949,7 +1940,7 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 }
 
 // GetTradeFee queries the trade fee rates for various instrument types and their respective IDs
-func (e *Exchange) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying, instrumentFamily string) ([]TradeFeeRate, error) {
+func (e *Exchange) GetTradeFee(ctx context.Context, instrumentType, instrumentID, instrumentFamily string) ([]TradeFeeRate, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
@@ -1957,9 +1948,6 @@ func (e *Exchange) GetTradeFee(ctx context.Context, instrumentType, instrumentID
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
-	}
-	if underlying != "" {
-		params.Set("uly", underlying)
 	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
@@ -2164,21 +2152,16 @@ func (e *Exchange) GetGreeks(ctx context.Context, ccy currency.Code) ([]GreeksIt
 }
 
 // GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode
-func (e *Exchange) GetPMPositionLimitation(ctx context.Context, instrumentType, underlying, instrumentFamily string) ([]PMLimitationResponse, error) {
+func (e *Exchange) GetPMPositionLimitation(ctx context.Context, instrumentType, instrumentFamily string) ([]PMLimitationResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if underlying == "" && instrumentFamily == "" {
-		return nil, errInstrumentFamilyOrUnderlyingRequired
+	if instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
 	}
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
-	if instrumentFamily != "" {
-		params.Set("instFamily", instrumentFamily)
-	}
+	params.Set("instFamily", instrumentFamily)
 	var resp []PMLimitationResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues("account/position-tiers", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -3646,7 +3629,7 @@ func (e *Exchange) GetAPYHistory(ctx context.Context, days int64) ([]APYItem, er
 }
 
 // GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours
-func (e *Exchange) GetTickers(ctx context.Context, instType, uly, instFamily string) ([]TickerResponse, error) {
+func (e *Exchange) GetTickers(ctx context.Context, instType, instFamily string) ([]TickerResponse, error) {
 	if instType == "" {
 		return nil, errInvalidInstrumentType
 	}
@@ -3654,9 +3637,6 @@ func (e *Exchange) GetTickers(ctx context.Context, instType, uly, instFamily str
 	params.Set("instType", instType)
 	if instFamily != "" {
 		params.Set("instFamily", instFamily)
-	}
-	if uly != "" {
-		params.Set("uly", uly)
 	}
 	var response []TickerResponse
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues("market/tickers", params), nil, &response, request.UnauthenticatedRequest)
@@ -4005,16 +3985,16 @@ func (e *Exchange) GetIndexComponents(ctx context.Context, index string) (*Index
 }
 
 // GetBlockTickers retrieves the latest block trading volume in the last 24 hours.
-// Instrument Type Is Mandatory, and Underlying is Optional
-func (e *Exchange) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
+// Instrument Type Is Mandatory, and Instrument Family is Optional
+func (e *Exchange) GetBlockTickers(ctx context.Context, instrumentType, instrumentFamily string) ([]BlockTicker, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	params := url.Values{}
 	params.Set("instType", instrumentType)
-	if underlying != "" {
-		params.Set("uly", underlying)
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
 	}
 	var resp []BlockTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues("market/block-tickers", params), nil, &resp, request.UnauthenticatedRequest)
@@ -4395,6 +4375,9 @@ func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsFetchPara
 	params := url.Values{}
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	params.Set("instType", arg.InstrumentType)
+	// OKX documents only instFamily, but an underlying such as BTC-USD spans
+	// several families (BTC-USD and BTC-USD_UM), so querying by underlying
+	// still needs the undocumented uly, which OKX continues to honour.
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
@@ -4410,14 +4393,14 @@ func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsFetchPara
 }
 
 // GetDeliveryHistory retrieves the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise
-func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, underlying, instrumentFamily string, after, before time.Time, limit int64) ([]DeliveryHistory, error) {
+func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instrumentFamily string, after, before time.Time, limit uint64) ([]DeliveryHistory, error) {
 	if instrumentType == "" {
 		return nil, errInvalidInstrumentType
 	}
 	switch instrumentType {
 	case instTypeFutures, instTypeOption:
-		if underlying == "" && instrumentFamily == "" {
-			return nil, errInstrumentFamilyOrUnderlyingRequired
+		if instrumentFamily == "" {
+			return nil, errInstrumentFamilyRequired
 		}
 	}
 	if limit > 100 {
@@ -4425,9 +4408,6 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, under
 	}
 	params := url.Values{}
 	params.Set("instType", instrumentType)
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
 	}
@@ -4438,27 +4418,27 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, under
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []DeliveryHistory
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDeliveryExerciseHistoryEPL, http.MethodGet,
 		common.EncodeURLValues("public/delivery-exercise-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOpenInterestData retrieves the total open interest for contracts on OKX
-func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, uly, instrumentFamily, instID string) ([]OpenInterest, error) {
+// GetOpenInterestData retrieves the total open interest for contracts on OKX.
+// An option query must name its instrument family; an underlying spans
+// several families (BTC-USD spans BTC-USD and BTC-USD_UM), so it cannot
+// substitute for one.
+func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, instrumentFamily, instID string) ([]OpenInterest, error) {
 	if instType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if instType == instTypeOption && uly == "" && instrumentFamily == "" {
-		return nil, errInstrumentFamilyOrUnderlyingRequired
+	if instType == instTypeOption && instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
 	}
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
 	params.Set("instType", instType)
-	if uly != "" {
-		params.Set("uly", uly)
-	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
 	}
@@ -4512,17 +4492,12 @@ func (e *Exchange) GetLimitPrice(ctx context.Context, instrumentID string) (*Lim
 }
 
 // GetOptionMarketData retrieves option market data
-func (e *Exchange) GetOptionMarketData(ctx context.Context, underlying, instrumentFamily string, expTime time.Time) ([]OptionMarketDataResponse, error) {
-	if underlying == "" && instrumentFamily == "" {
-		return nil, errInstrumentFamilyOrUnderlyingRequired
+func (e *Exchange) GetOptionMarketData(ctx context.Context, instrumentFamily string, expTime time.Time) ([]OptionMarketDataResponse, error) {
+	if instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
 	}
 	params := url.Values{}
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
-	if instrumentFamily != "" {
-		params.Set("instFamily", instrumentFamily)
-	}
+	params.Set("instFamily", instrumentFamily)
 	if !expTime.IsZero() {
 		params.Set("expTime", fmt.Sprintf("%d%d%d", expTime.Year(), expTime.Month(), expTime.Day()))
 	}
@@ -4561,15 +4536,12 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 }
 
 // GetMarkPrice  retrieve mark price
-func (e *Exchange) GetMarkPrice(ctx context.Context, instrumentType, underlying, instrumentFamily, instrumentID string) ([]MarkPrice, error) {
+func (e *Exchange) GetMarkPrice(ctx context.Context, instrumentType, instrumentFamily, instrumentID string) ([]MarkPrice, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
 	}
@@ -4581,7 +4553,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, instrumentType, underlying,
 }
 
 // GetPositionTiers retrieves position tiers information，maximum leverage depends on your borrowings and margin ratio
-func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentFamily, instrumentID, tier string, ccy currency.Code) ([]PositionTiers, error) {
+func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, instrumentFamily, instrumentID, tier string, ccy currency.Code) ([]PositionTiers, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -4595,14 +4567,11 @@ func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMo
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
 	params.Set("tdMode", tradeMode)
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
 
 	switch instrumentType {
 	case instTypeSwap, instTypeFutures, instTypeOption:
-		if instrumentFamily == "" && underlying == "" {
-			return nil, errInstrumentFamilyOrUnderlyingRequired
+		if instrumentFamily == "" {
+			return nil, errInstrumentFamilyRequired
 		}
 		if ccy.IsEmpty() && instrumentID == "" {
 			return nil, errEitherInstIDOrCcyIsRequired
@@ -4610,9 +4579,6 @@ func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMo
 	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
-	}
-	if underlying != "" {
-		params.Set("uly", underlying)
 	}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -4661,12 +4627,9 @@ func (e *Exchange) GetInsuranceFundInformation(ctx context.Context, arg *Insuran
 	}
 	switch arg.InstrumentType {
 	case instTypeFutures, instTypeSwap, instTypeOption:
-		if arg.Underlying == "" && arg.InstrumentFamily == "" {
-			return nil, errInstrumentFamilyOrUnderlyingRequired
+		if arg.InstrumentFamily == "" {
+			return nil, errInstrumentFamilyRequired
 		}
-	}
-	if arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
 	}
 	if arg.InstrumentFamily != "" {
 		params.Set("instFamily", arg.InstrumentFamily)
@@ -4681,7 +4644,7 @@ func (e *Exchange) GetInsuranceFundInformation(ctx context.Context, arg *Insuran
 		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp *InsuranceFundInformation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInsuranceFundEPL, http.MethodGet, common.EncodeURLValues("public/insurance-fund", params), nil, &resp, request.UnauthenticatedRequest)

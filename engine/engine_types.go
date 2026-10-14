@@ -76,6 +76,7 @@ type ForexSettings struct {
 	EnableCurrencyLayer     bool
 	EnableExchangeRates     bool
 	EnableFixer             bool
+	EnableFXMacroData       bool
 	EnableOpenExchangeRates bool
 }
 
