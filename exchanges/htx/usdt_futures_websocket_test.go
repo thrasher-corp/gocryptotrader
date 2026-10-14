@@ -38,7 +38,10 @@ func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *E
 		return handler(tb, message, conn)
 	}))
 	setupV5TradeWebsocketTestConnection(t, h)
-	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect with the trade endpoint")
+	// The existing monitor may reconnect as soon as the manager is re-enabled.
+	if err := h.Websocket.Enable(t.Context()); err != nil {
+		require.ErrorContains(t, err, "already connected", "websocket connections must reconnect with the trade endpoint")
+	}
 	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.NoError(t, err, "trade connection must be available")
 	return h
@@ -49,7 +52,10 @@ func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMargined)
 	require.NoError(t, err, "public USDT margined connection must be available")
 	mockURL := conn.GetURL()
-	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down before trade setup")
+	require.NoError(t, h.Websocket.Disable(), "websocket must stop reconnecting before trade setup")
+	if err := h.Websocket.Shutdown(); err != nil {
+		require.ErrorIs(t, err, websocket.ErrNotConnected, "existing websocket connections must shut down before trade setup")
+	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.NoError(t, h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      wsUSDTMarginedTradeURL,
@@ -66,6 +72,19 @@ func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
 		},
 	}), "trade connection setup must not error")
 	require.NoError(t, h.Websocket.SetAllConnectionURLs(mockURL), "mock websocket URLs must update")
+}
+
+func TestSetupV5TradeWebsocketTestConnection(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	setupV5TradeWebsocketTestConnection(t, h)
+	assert.False(t, h.Websocket.IsEnabled(), "trade setup should disable the old monitor")
+	// Wait past the monitor's two-second tick to expose an unintended reconnect.
+	time.Sleep(2200 * time.Millisecond)
+	require.False(t, h.Websocket.IsConnected(), "manager must stay disconnected until trade setup is enabled")
+	require.NoError(t, h.Websocket.Enable(t.Context()), "manager must enable with the trade setup")
+	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.NoError(t, err, "trade connection must be available after enabling")
 }
 
 func TestV5TradeConnectionSetupGate(t *testing.T) {

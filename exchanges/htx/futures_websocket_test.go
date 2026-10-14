@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -37,29 +38,39 @@ func TestWSConnect(t *testing.T) {
 
 func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	t.Parallel()
-	t.Run("valid spot survives unsupported funding connection", func(t *testing.T) {
-		t.Parallel()
-		h := new(Exchange)
-		require.NoError(t, testexch.Setup(h))
-		h.API.AuthenticatedWebsocketSupport = false
-		h.Features.Subscriptions = subscription.List{
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{btcusdtPair}},
-			{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: wsFundingRateChannel, Pairs: currency.Pairs{btcusdPair}},
-		}
-		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsFixture))
-		t.Cleanup(server.Close)
-		t.Cleanup(func() {
-			require.NoError(t, h.Websocket.Disable())
-			require.NoError(t, h.Websocket.Shutdown())
+	for _, monitorShutdown := range []bool{false, true} {
+		t.Run(fmt.Sprintf("valid spot survives unsupported funding connection/monitorShutdown=%t", monitorShutdown), func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h))
+			h.API.AuthenticatedWebsocketSupport = false
+			h.Features.Subscriptions = subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{btcusdtPair}},
+				{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: wsFundingRateChannel, Pairs: currency.Pairs{btcusdPair}},
+			}
+			server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsFixture))
+			t.Cleanup(server.Close)
+			t.Cleanup(func() {
+				if err := h.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should not error")
+				}
+				if err := h.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error")
+				}
+			})
+			require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")))
+			err := h.Websocket.Connect(t.Context())
+			require.ErrorIs(t, err, websocket.ErrSubscriptionPartial)
+			require.ErrorIs(t, err, common.ErrNotYetImplemented)
+			conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+			require.NoError(t, err, "valid spot connection must survive")
+			assert.NotEmpty(t, conn.Subscriptions().List())
+			if monitorShutdown {
+				require.NoError(t, h.Websocket.Disable(), "manager must stop reconnecting")
+				require.Eventually(t, func() bool { return !h.Websocket.IsConnected() }, 5*time.Second, 10*time.Millisecond, "monitor must shut down the disabled manager before cleanup")
+			}
 		})
-		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")))
-		err := h.Websocket.Connect(t.Context())
-		require.ErrorIs(t, err, websocket.ErrSubscriptionPartial)
-		require.ErrorIs(t, err, common.ErrNotYetImplemented)
-		conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
-		require.NoError(t, err, "valid spot connection must survive")
-		assert.NotEmpty(t, conn.Subscriptions().List())
-	})
+	}
 
 	for _, channel := range []string{wsFundingRateChannel, wsFundingRateTopic} {
 		t.Run("unsupported "+channel, func(t *testing.T) {
@@ -174,7 +185,7 @@ func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 		price:          100,
 		tradeVolume:    1,
 		tradeTurnover:  100,
-		fee:            0.1,
+		fee:            -0.1,
 		feeAsset:       "BTC",
 		leverage:       5,
 		createdAt:      1000,

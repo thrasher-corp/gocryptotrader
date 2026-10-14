@@ -1702,12 +1702,10 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	switch item {
 	case asset.Spot:
 		cancelledOrders, err := e.CancelOrderBatch(ctx, ids, cIDs)
-		if err != nil {
-			return nil, err
-		}
 		if cancelledOrders == nil {
-			return nil, errEmptyResult
+			return nil, common.AppendError(err, errEmptyResult)
 		}
+		errs = err
 		for i := range cancelledOrders.Success {
 			resp.Status[cancelledOrders.Success[i]] = htxStatusSuccess
 		}
@@ -1717,6 +1715,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				identifier = cancelledOrders.Failed[i].ClientOrderID
 			}
 			resp.Status[identifier] = cancelledOrders.Failed[i].ErrorMessage
+			clientID := cancelledOrders.Failed[i].ClientOrderID
+			// Retain the requested client identity without overwriting another order's status.
+			if _, recorded := resp.Status[clientID]; !recorded && slices.Contains(cIDs, clientID) {
+				resp.Status[clientID] = cancelledOrders.Failed[i].ErrorMessage
+			}
 		}
 	case asset.CoinMarginedFutures:
 		if pair.IsEmpty() {
@@ -2039,7 +2042,7 @@ func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (orde
 		RemainingAmount:      data.Volume.Float64() - data.TradeVolume.Float64(),
 		Cost:                 data.TradeTurnover.Float64(),
 		AverageExecutedPrice: data.TradeAveragePrice.Float64(),
-		Fee:                  data.Fee.Float64(),
+		Fee:                  -data.Fee.Float64(),
 		FeeAsset:             currency.USDT,
 		Leverage:             data.LeverageRate.Float64(),
 		ReduceOnly:           data.ReduceOnly.Bool(),
@@ -2123,8 +2126,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Status:         orderStatus,
 			Price:          respData.Price.Float64(),
 			Amount:         respData.Amount.Float64(),
-			ExecutedAmount: respData.FilledAmount.Float64(),
-			Fee:            respData.FilledFees.Float64(),
+			ExecutedAmount: firstNonZero(respData.FieldAmount, respData.FilledAmount),
+			Cost:           firstNonZero(respData.FieldCashAmount, respData.FilledCashAmount),
+			Fee:            firstNonZero(respData.FieldFees, respData.FilledFees),
 			AssetType:      a,
 		}
 	case asset.CoinMarginedFutures:
@@ -2155,7 +2159,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			RemainingAmount:      data.Volume - data.TradeVolume,
 			Cost:                 data.TradeTurnover,
 			AverageExecutedPrice: data.TradeAvgPrice,
-			Fee:                  data.Fee,
+			Fee:                  -data.Fee,
 			FeeAsset:             currency.NewCode(data.FeeAsset),
 			Leverage:             float64(data.LeverRate),
 			ReduceOnly:           data.Offset == orderOffsetClose,
@@ -2235,7 +2239,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			RemainingAmount:      data.Volume - data.TradeVolume,
 			Cost:                 data.TradeTurnover,
 			AverageExecutedPrice: data.TradeAvgPrice,
-			Fee:                  data.Fee,
+			Fee:                  -data.Fee,
 			FeeAsset:             currency.NewCode(data.FeeAsset),
 			Leverage:             float64(data.LeverRate),
 			ReduceOnly:           data.Offset == orderOffsetClose,
@@ -2402,7 +2406,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 						Amount:          openOrders.Data.Orders[x].Volume,
 						ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
 						RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
-						Fee:             openOrders.Data.Orders[x].Fee,
+						Fee:             -openOrders.Data.Orders[x].Fee,
 						Exchange:        e.Name,
 						AssetType:       req.AssetType,
 						OrderID:         openOrders.Data.Orders[x].OrderIDString,
@@ -2496,7 +2500,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 						Amount:          openOrders.Data.Orders[x].Volume,
 						ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
 						RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
-						Fee:             openOrders.Data.Orders[x].Fee,
+						Fee:             -openOrders.Data.Orders[x].Fee,
 						Exchange:        e.Name,
 						AssetType:       req.AssetType,
 						OrderID:         openOrders.Data.Orders[x].OrderIDString,
@@ -2642,7 +2646,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 							Amount:          orderHistory.Data.Orders[x].Volume,
 							ExecutedAmount:  orderHistory.Data.Orders[x].TradeVolume,
 							RemainingAmount: orderHistory.Data.Orders[x].Volume - orderHistory.Data.Orders[x].TradeVolume,
-							Fee:             orderHistory.Data.Orders[x].Fee,
+							Fee:             -orderHistory.Data.Orders[x].Fee,
 							Exchange:        e.Name,
 							AssetType:       req.AssetType,
 							OrderID:         orderHistory.Data.Orders[x].OrderIDString,
@@ -2804,7 +2808,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 							Amount:          openOrders.Data.Orders[x].Volume,
 							ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
 							RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
-							Fee:             openOrders.Data.Orders[x].Fee,
+							Fee:             -openOrders.Data.Orders[x].Fee,
 							Exchange:        e.Name,
 							AssetType:       req.AssetType,
 							OrderID:         openOrders.Data.Orders[x].OrderIDString,
@@ -2901,7 +2905,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	req, err := e.GetKlineRequest(pair, a, interval, start, end, true)
+	// Spot klines reach back from now; derivative endpoints accept the requested range.
+	req, err := e.GetKlineRequest(pair, a, interval, start, end, a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -3687,4 +3692,14 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+// firstNonZero handles HTX's field-* order details and filled-* open-order values.
+func firstNonZero(values ...types.Number) float64 {
+	for _, value := range values {
+		if value != 0 {
+			return value.Float64()
+		}
+	}
+	return 0
 }

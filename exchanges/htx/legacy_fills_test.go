@@ -41,7 +41,7 @@ func TestLegacyFuturesWSFillLifecycle(t *testing.T) {
 				detail := read()
 				assert.Equal(t, a, detail.AssetType, "handler should retain the derivative asset")
 				assert.Equal(t, 100.0, detail.AverageExecutedPrice, "wire average should remain independent of the limit price")
-				assert.Equal(t, -0.003, detail.Fee, "aggregate fee should retain its venue sign")
+				assert.Equal(t, 0.003, detail.Fee, "aggregate charged fee should be positive in GCT")
 				assert.Equal(t, currency.BTC, detail.FeeAsset, "aggregate fee currency should be retained")
 				require.Len(t, detail.Trades, 2, "both fills must be retained despite their shared match ID")
 				for i, expected := range []struct {
@@ -49,19 +49,21 @@ func TestLegacyFuturesWSFillLifecycle(t *testing.T) {
 					price, fee float64
 					maker      bool
 				}{
-					{id: "9007199254740993", price: 90, fee: -0.001, maker: true},
-					{id: "9007199254740994", price: 110, fee: -0.002},
+					{id: "9007199254740993", price: 90, fee: 0.001, maker: true},
+					{id: "9007199254740994", price: 110, fee: 0.002},
 				} {
 					fill := detail.Trades[i]
 					assert.Equal(t, expected.id, fill.TID, "fill identity should preserve its global integer string")
 					assert.Equal(t, expected.price, fill.Price, "fill execution price should be retained")
 					assert.Equal(t, 1.0, fill.Amount, "fill contract volume should be retained")
-					assert.Equal(t, expected.fee, fill.Fee, "fill fee should retain its venue sign")
+					assert.Equal(t, expected.fee, fill.Fee, "fill charged fee should be positive in GCT")
 					assert.Equal(t, "BTC", fill.FeeAsset, "fill fee currency should use the order currency when omitted")
 					assert.Equal(t, expected.maker, fill.IsMaker, "fill role should distinguish maker and taker")
 					assert.Equal(t, time.UnixMilli(1603878749908+int64(i)), fill.Timestamp, "fill timestamp should retain millisecond precision")
 				}
-				stored := detail.Copy()
+				stored := &order.Detail{OrderID: detail.OrderID, Exchange: detail.Exchange, Pair: detail.Pair, AssetType: detail.AssetType}
+				require.NoError(t, stored.UpdateOrderFromDetail(detail), "order store must accept the charged fee")
+				assert.Equal(t, 0.003, stored.Fee, "order store should record the derivative fee")
 				sub.Channel = subscription.MyTradesChannel
 				match := []byte(`{"op":"notify","topic":"matchOrders.BTC-USD","contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"order_id_str":"order-1","volume":2,"price":110,"trade_volume":2,"trade":[{"id":"9007199254740993","trade_id":42,"trade_volume":1,"trade_price":90,"created_at":1603878749908,"role":"maker"},{"id":"9007199254740994","trade_id":42,"trade_volume":1,"trade_price":110,"created_at":1603878749909,"role":"taker"}]}`)
 				require.NoError(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, match), "fee-less match notification must pass through its asset handler")

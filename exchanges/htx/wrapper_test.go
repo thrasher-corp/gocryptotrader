@@ -36,6 +36,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const emptySuccessResponse = `{"status":"ok","code":200,"msg":"","data":null}`
@@ -176,8 +177,15 @@ func TestSetup(t *testing.T) {
 		h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
 		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must start disabled")
 		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")
+		t.Cleanup(func() {
+			if err := h.Websocket.Disable(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should not error")
+			}
+			if err := h.Websocket.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error")
+			}
+		})
 		require.NoError(t, h.Websocket.Connect(t.Context()), "spot must connect with the trade asset disabled")
-		t.Cleanup(func() { assert.NoError(t, h.Websocket.Shutdown(), "websocket should shut down") })
 		spot, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
 		require.NoError(t, err, "spot connection must be available")
 		_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
@@ -412,6 +420,7 @@ func TestGetOrderHistory(t *testing.T) {
 				case 0:
 					for queryID := int64(1); queryID <= 50; queryID++ {
 						entry := map[string]any{
+							"fee":              -0.1,
 							"query_id":         queryID,
 							"order_id":         queryID,
 							"order_id_str":     strconv.FormatInt(queryID, 10),
@@ -425,6 +434,7 @@ func TestGetOrderHistory(t *testing.T) {
 					}
 				case 50:
 					entry := map[string]any{
+						"fee":              -0.1,
 						"query_id":         int64(51),
 						"order_id":         int64(51),
 						"order_id_str":     "51",
@@ -459,6 +469,9 @@ func TestGetOrderHistory(t *testing.T) {
 			})
 			require.NoError(t, err, "GetOrderHistory must not error")
 			require.Len(t, orders, 51, "all cursor pages must be returned")
+			for _, detail := range orders {
+				assert.Equal(t, 0.1, detail.Fee, "history fees should use GCT charge signs")
+			}
 			assert.Equal(t, order.PostOnly, orders[0].TimeInForce, "numeric history type should retain post-only protection")
 			assert.Equal(t, int64(2), calls.Load(), "pagination should stop after the short final page")
 		})
@@ -633,7 +646,7 @@ func TestGetHistoricCandles(t *testing.T) {
 				case asset.USDTMarginedFutures:
 					pair, path, endpoint = btcusdtPair, "/linear-swap-ex/market/history/kline", exchange.RestUSDTMargined
 				}
-				end := time.Now().UTC().Truncate(time.Minute)
+				end := time.Now().UTC().Truncate(time.Minute).Add(-24 * time.Hour)
 				start := end.Add(-time.Duration(count) * time.Minute)
 				h := newHTTPTestExchange(t, endpoint, http.MethodGet, path, "", nil)
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -768,6 +781,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		item           asset.Item
+		pair           currency.Pair
+		path, contract string
+	}{
+		{asset.Futures, btccwPair, fQueryOpenOrders, "BTC_CW"},
+		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
+	} {
+		for _, fee := range []float64{-0.1, 0, 0.02} {
+			t.Run(fmt.Sprintf("%s fee %g", tc.item, fee), func(t *testing.T) {
+				t.Parallel()
+				response := fmt.Sprintf(`{"status":"ok","data":{"total_page":1,"orders":[{"order_id_str":"1","contract_code":%q,"direction":"buy","order_price_type":"limit","status":3,"fee":%g}]}}`, tc.contract, fee)
+				h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, tc.path, response, nil)
+				orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: tc.item, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{tc.pair}})
+				require.NoError(t, err, "active orders must decode")
+				require.Len(t, orders, 1, "one active order must be returned")
+				assert.Equal(t, -fee, orders[0].Fee, "charges should be positive and rebates negative")
+			})
+		}
+	}
+
 	t.Run("delivery contracts share base", func(t *testing.T) {
 		t.Parallel()
 		var calls atomic.Int32
@@ -1461,7 +1495,7 @@ func TestFormatV5OrderDetail(t *testing.T) {
 				detail, err := h.formatV5OrderDetail(&V5OrderData{ContractCode: "BTC-USDT", Side: "buy", Type: "limit", State: "filled", TimeInForce: tif, MarginMode: "cross", Fee: -0.1143702, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
 				require.NoError(t, err, "documented order enums must decode")
 				assert.Equal(t, currency.USDT, detail.FeeAsset, "aggregate fee should remain denominated in USDT")
-				assert.Equal(t, -0.1143702, detail.Fee, "fee amount should retain its original units")
+				assert.Equal(t, 0.1143702, detail.Fee, "charged fee should be positive in GCT")
 				if strings.EqualFold(tif, "rpi") {
 					assert.Equal(t, order.PostOnly, detail.TimeInForce, "RPI should retain resting liquidity behaviour")
 				}
@@ -1560,7 +1594,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}{
 		{
 			name: "spot maker response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
-			response:     `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-limit-maker","state":"filled","filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"}}`,
+			response:     `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-limit-maker","state":"filled","field-amount":"1","field-cash-amount":"100","field-fees":"0.1"}}`,
 			expectedType: order.Limit, expectedTIF: order.PostOnly,
 		},
 		{
@@ -1580,16 +1614,16 @@ func TestGetOrderInfo(t *testing.T) {
 		},
 		{
 			name: "coin margined response", endpoint: exchange.RestFutures, method: http.MethodPost, path: "/swap-api/v1/swap_order_info", pair: btcusdPair, asset: asset.CoinMarginedFutures,
-			response: `{"status":"ok","data":[{"contract_code":"BTC-USD","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
+			response: `{"status":"ok","data":[{"contract_code":"BTC-USD","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":-0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
 		},
 		{
 			name: "USDT margined response", endpoint: exchange.RestUSDTMargined, method: http.MethodGet, path: "/v5/trade/order", pair: btcusdtPair, asset: asset.USDTMarginedFutures,
-			response:           `{"code":200,"data":{"id":"1","contract_code":"BTC-USDT","order_id":"1","client_order_id":"2","side":"buy","type":"limit","state":"filled","time_in_force":"rpi","margin_mode":"isolated","price":"100","volume":"2","trade_volume":"1","trade_turnover":"100","trade_avg_price":"100","fee":"0.1","fee_currency":"USDT","lever_rate":"5","reduce_only":true}}`,
+			response:           `{"code":200,"data":{"id":"1","contract_code":"BTC-USDT","order_id":"1","client_order_id":"2","side":"buy","type":"limit","state":"filled","time_in_force":"rpi","margin_mode":"isolated","price":"100","volume":"2","trade_volume":"1","trade_turnover":"100","trade_avg_price":"100","fee":"-0.1","fee_currency":"USDT","lever_rate":"5","reduce_only":true}}`,
 			expectedMarginMode: "cross",
 		},
 		{
 			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: fOrderInfo, pair: btccwPair, asset: asset.Futures,
-			response: `{"status":"ok","data":[{"contract_code":"BTC_CW","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
+			response: `{"status":"ok","data":[{"contract_code":"BTC_CW","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":-0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1606,6 +1640,12 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, "1", detail.OrderID, "order ID should match")
 			assert.Equal(t, 2.0, detail.Amount, "amount should match")
 			assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
+			assert.Equal(t, 0.1, detail.Fee, "charged fee should be positive for every asset")
+			assert.Equal(t, 100.0, detail.Cost, "executed cost should match")
+			stored := &order.Detail{OrderID: detail.OrderID, Exchange: detail.Exchange, Pair: detail.Pair, AssetType: detail.AssetType}
+			require.NoError(t, stored.UpdateOrderFromDetail(detail), "order store must accept the completed order")
+			assert.Equal(t, detail.Fee, stored.Fee, "order store should record the charged fee")
+			assert.Equal(t, detail.ExecutedAmount, stored.ExecutedAmount, "order store should record executed volume")
 			assert.Equal(t, tt.asset, detail.AssetType, "asset type should match")
 			if tt.expectedType != order.UnknownType {
 				assert.Equal(t, tt.expectedType, detail.Type, "order type should match")
@@ -2465,7 +2505,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	}{
 		{"client failures", `{"success":[],"failed":[{"client-order-id":"client-1","err-msg":"first rejected"},{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": "first rejected", "client-2": "second rejected"}},
 		{"mixed partial results", `{"success":["client-1"],"failed":[{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "client-2": "second rejected"}},
-		{"exchange ID preferred", `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "42": "second rejected"}},
+		{"exchange ID preferred", `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "42": "second rejected", "client-2": "second rejected"}},
 	} {
 		t.Run("spot "+tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2481,6 +2521,63 @@ func TestCancelBatchOrders(t *testing.T) {
 			require.NoError(t, err, "partial result envelope must decode")
 			require.NotNil(t, response, "completed statuses must exist")
 			assert.Equal(t, tc.want, response.Status, "each failed client identifier should retain its individual reason")
+		})
+	}
+
+	for _, failBatch := range []int{1, 2} {
+		t.Run(fmt.Sprintf("spot partial batch %d", failBatch), func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			want := make(map[string]string)
+			var cancels []order.Cancel
+			for i := 1; i <= 51; i++ {
+				id := strconv.Itoa(i)
+				cancels = append(cancels, order.Cancel{AssetType: asset.Spot, OrderID: id})
+				if (i <= 50 && failBatch != 1) || (i == 51 && failBatch != 2) {
+					want[id] = htxStatusSuccess
+				}
+			}
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", "", nil)
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload struct {
+					OrderIDs []string `json:"order-ids"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "batch request should decode") {
+					return
+				}
+				if int(calls.Add(1)) == failBatch {
+					_, _ = w.Write([]byte(`{"status":"error","err-code":"system-busy","err-msg":"batch refused"}`))
+					return
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"status": "ok", "data": map[string]any{"success": payload.OrderIDs}}), "batch response should encode")
+			}))
+			require.NoError(t, h.SetHTTPClient(server.Client()), "spot mock client must be configured")
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot mock must be configured")
+			response, err := h.CancelBatchOrders(t.Context(), cancels)
+			require.ErrorContains(t, err, "batch refused", "failed batch must remain visible")
+			require.NotNil(t, response, "completed statuses must remain available on error")
+			assert.Equal(t, want, response.Status, "successful batches should retain every status")
+			assert.Equal(t, int32(2), calls.Load(), "both batches should be attempted")
+		})
+	}
+	for _, tc := range []struct {
+		name      string
+		clientID  string
+		successID string
+		want      map[string]string
+	}{
+		{name: "same order by both identifiers", clientID: "client-2", successID: "42", want: map[string]string{"42": "second rejected", "client-2": "second rejected"}},
+		{name: "numeric client ID collision", clientID: "client-2", successID: "client-2", want: map[string]string{"42": "second rejected", "client-2": htxStatusSuccess}},
+		{name: "unrequested client ID", clientID: "other", successID: "client-1", want: map[string]string{"42": "second rejected", "client-1": htxStatusSuccess}},
+	} {
+		t.Run("spot "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			responseBody := fmt.Sprintf(`{"status":"ok","data":{"success":[%q],"failed":[{"order-id":"42","client-order-id":%q,"err-msg":"second rejected"}]}}`, tc.successID, tc.clientID)
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", responseBody, nil)
+			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, OrderID: "42"}, {AssetType: asset.Spot, ClientOrderID: "client-2"}})
+			require.NoError(t, err, "batch response must decode")
+			require.NotNil(t, response, "statuses must exist")
+			assert.Equal(t, tc.want, response.Status, "client aliases should preserve existing statuses and omit unrequested aliases")
 		})
 	}
 
@@ -2745,4 +2842,24 @@ func TestGetFeeByType(t *testing.T) {
 	_, err = h.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "fee type should fall back when credentials are not valid")
+}
+
+func TestFirstNonZero(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		values []types.Number
+		want   float64
+	}{
+		{name: "empty"},
+		{name: "zero", values: []types.Number{0, 0}},
+		{name: "detail preferred", values: []types.Number{2, 3}, want: 2},
+		{name: "open order fallback", values: []types.Number{0, 3}, want: 3},
+		{name: "negative", values: []types.Number{0, -0.1}, want: -0.1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, firstNonZero(tc.values...), "first populated value should be retained")
+		})
+	}
 }

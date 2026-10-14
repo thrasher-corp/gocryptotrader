@@ -497,7 +497,7 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 		if feeAsset == "" {
 			feeAsset = data.feeAsset
 		}
-		trades = append(trades, order.TradeHistory{TID: id, Exchange: e.Name, Price: fill.TradePrice, Amount: fill.TradeVolume, Fee: fill.TradeFee, FeeAsset: feeAsset, Total: fill.TradeTurnover, Timestamp: time.UnixMilli(fill.CreatedAt), IsMaker: strings.EqualFold(fill.Role, "maker"), Type: orderVars.OrderType, Side: orderVars.Side})
+		trades = append(trades, order.TradeHistory{TID: id, Exchange: e.Name, Price: fill.TradePrice, Amount: fill.TradeVolume, Fee: -fill.TradeFee, FeeAsset: feeAsset, Total: fill.TradeTurnover, Timestamp: time.UnixMilli(fill.CreatedAt), IsMaker: strings.EqualFold(fill.Role, "maker"), Type: orderVars.OrderType, Side: orderVars.Side})
 	}
 	return order.Detail{
 		AverageExecutedPrice: data.averagePrice,
@@ -517,7 +517,7 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 		ExecutedAmount:       data.tradeVolume,
 		RemainingAmount:      data.volume - data.tradeVolume,
 		Cost:                 data.tradeTurnover,
-		Fee:                  data.fee,
+		Fee:                  -data.fee,
 		FeeAsset:             currency.NewCode(data.feeAsset),
 		Leverage:             data.leverage,
 		ReduceOnly:           data.reduceOnly,

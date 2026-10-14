@@ -690,6 +690,7 @@ type OrderInfo struct {
 	Price            types.Number `json:"price"`
 	CreatedAt        types.Time   `json:"created-at"`
 	Type             string       `json:"type"`
+	FieldFees        types.Number `json:"field-fees"`
 	FieldAmount      types.Number `json:"field-amount"`
 	FieldCashAmount  types.Number `json:"field-cash-amount"`
 	FilledAmount     types.Number `json:"filled-amount"`
