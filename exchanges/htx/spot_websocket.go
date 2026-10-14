@@ -79,6 +79,9 @@ var subscriptionNames = map[string]string{
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
+		if operation, channel, ok := strings.Cut(id, ":"); ok && (operation == wsSubOp || operation == wsUnsubOp) {
+			return e.wsHandleSubscriptionResponse(conn, operation, channel, respRaw)
+		}
 		var matched bool
 		if conn != nil {
 			matched = conn.IncomingWithData(id, respRaw)
@@ -102,7 +105,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case "ping":
 			return e.wsHandleV2ping(ctx, conn, respRaw)
 		case wsSubOp, wsUnsubOp:
-			return e.wsHandleV2subResp(conn, action, respRaw)
+			channel, err := jsonparser.GetString(respRaw, "ch")
+			if err != nil {
+				return fmt.Errorf("%w 'ch': %w", common.ErrParsingWSField, err)
+			}
+			return e.wsHandleSubscriptionResponse(conn, action, channel, respRaw)
 		case wsRequestOp:
 			ch, err := jsonparser.GetString(respRaw, "ch")
 			if err != nil {
@@ -119,7 +126,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case "ping":
 			return e.wsHandleFuturesPing(ctx, conn, respRaw)
 		case wsSubOp, wsUnsubOp:
-			return e.wsHandleFuturesOperationResponse(conn, operation, respRaw)
+			topic, err := jsonparser.GetString(respRaw, "topic")
+			if err != nil {
+				return fmt.Errorf("%w 'topic': %w", common.ErrParsingWSField, err)
+			}
+			return e.wsHandleSubscriptionResponse(conn, operation, topic, respRaw)
 		case "notify":
 			topic, err := jsonparser.GetString(respRaw, "topic")
 			if err != nil {
@@ -141,8 +152,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		var s *subscription.Subscription
 		if conn == nil {
 			s = e.Websocket.GetSubscription(ch)
-		} else if s = conn.Subscriptions().Get(ch); s == nil {
-			s = e.Websocket.GetConnectionSetupSubscription(conn, ch)
+		} else {
+			s = e.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: ch}}, connection: conn})
 		}
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
@@ -181,14 +192,38 @@ func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection
 	return nil
 }
 
-func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, respRaw []byte) error {
+// wsHandleSubscriptionResponse updates registration before the reader can process the next push.
+func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, operation, channel string, raw []byte) error {
 	if err := common.NilGuard(conn); err != nil {
 		return err
 	}
-	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		return conn.RequireMatchWithData(action+":"+ch, respRaw)
+	key := wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: channel}}, connection: conn}
+	if sub := e.Websocket.GetSubscription(key); sub != nil {
+		if responseErr := getErrResp(raw); responseErr != nil {
+			if operation == wsSubOp {
+				if err := e.Websocket.RemoveSubscriptions(conn, sub); err != nil {
+					return err
+				}
+			}
+		} else if operation == wsUnsubOp {
+			if err := e.Websocket.RemoveSubscriptions(conn, sub); err != nil {
+				return err
+			}
+		} else if sub.State() != subscription.SubscribedState {
+			if err := sub.SetState(subscription.SubscribedState); err != nil {
+				return err
+			}
+		}
 	}
-	return nil
+	return conn.RequireMatchWithData(operation+":"+channel, raw)
+}
+
+// Match scopes wire-topic lookups to their connection; ordinary ExactKey lookups
+// still compare subscription settings during a refresh.
+func (k wsSubscriptionKey) Match(other subscription.MatchableKey) bool {
+	candidate, ok := other.(wsSubscriptionKey)
+	return ok && k.ExactKey != nil && k.Subscription != nil && candidate.ExactKey != nil && candidate.Subscription != nil &&
+		k.connection == candidate.connection && k.QualifiedChannel == candidate.QualifiedChannel
 }
 
 func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
@@ -596,7 +631,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		}
 	}
 	if op == wsSubOp {
-		s.SetKey(s.QualifiedChannel)
+		s.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: s}, connection: conn})
 		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
@@ -606,20 +641,17 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		err = getErrResp(respRaw)
 	}
 	if err != nil {
-		if op == wsSubOp {
-			_ = e.Websocket.RemoveSubscriptions(conn, s)
+		if op == wsSubOp && e.Websocket.GetSubscription(s.EnsureKeyed()) == s {
+			if removeErr := e.Websocket.RemoveSubscriptions(conn, s); removeErr != nil {
+				err = common.AppendError(err, removeErr)
+			}
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
-	if op == wsSubOp {
-		err = s.SetState(subscription.SubscribedState)
-		if e.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
-		}
-	} else {
-		err = e.Websocket.RemoveSubscriptions(conn, s)
+	if e.Verbose && op == wsSubOp {
+		log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 	}
-	return err
+	return nil
 }
 
 func (e *Exchange) wsGenerateSignature(conn websocket.Connection, creds *accounts.Credentials, timestamp string) ([]byte, error) {

@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -208,4 +210,11 @@ type WsTradeUpdate struct {
 	Operator        string       `json:"operator"`
 	OrderCreateTime types.Time   `json:"orderCreateTime"`
 	OrderStatus     string       `json:"orderStatus"`
+}
+
+// wsSubscriptionKey distinguishes identical topics on different HTX connections while
+// retaining ExactKey matching for regenerated subscription lists.
+type wsSubscriptionKey struct {
+	*subscription.ExactKey
+	connection websocket.Connection
 }

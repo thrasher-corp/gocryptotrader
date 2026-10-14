@@ -449,15 +449,15 @@ func TestWSHandleFuturesPing(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleFuturesPing must reject nil connections")
 }
 
-func TestWSHandleFuturesOperationResponse(t *testing.T) {
+func TestWSHandleDataFuturesSubscriptionResponse(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
 	require.NoError(t, err, "delivery private websocket connection must be available")
-	err = h.wsHandleFuturesOperationResponse(conn, wsSubOp, []byte(`{"op":"sub"}`))
-	require.ErrorIs(t, err, common.ErrParsingWSField, "wsHandleFuturesOperationResponse must require a topic")
-	err = h.wsHandleFuturesOperationResponse(nil, wsSubOp, []byte(`{"op":"sub","topic":"orders.*"}`))
-	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleFuturesOperationResponse must reject nil connections")
+	err = h.wsHandleData(t.Context(), conn, []byte(`{"op":"sub"}`))
+	require.ErrorIs(t, err, common.ErrParsingWSField, "derivative acknowledgement must require a topic")
+	err = h.wsHandleSubscriptionResponse(nil, wsSubOp, "orders.*", []byte(`{"op":"sub","topic":"orders.*"}`))
+	require.ErrorIs(t, err, common.ErrNilPointer, "derivative acknowledgement must reject nil connections")
 }
 
 func TestGetFuturesPrivateSubscription(t *testing.T) {
@@ -477,7 +477,8 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 			require.NoError(t, err, "private test connection must be created")
 			require.NoError(t, h.Websocket.TrackTestConnection(tc.filter, conn), "connection must belong to its setup")
 			sub := &subscription.Subscription{Key: "orders.*", QualifiedChannel: "orders.*", Asset: tc.asset, Channel: subscription.MyOrdersChannel, Authenticated: true}
-			require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "acknowledged subscription must enter setup store")
+			sub.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}, connection: conn})
+			require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "pending subscription must enter setup store")
 			assert.Empty(t, conn.Subscriptions().List(), "local store should still await full batch completion")
 			assert.Same(t, sub, h.getFuturesPrivateSubscription(conn, "orders.BTC-USD"), "early notification should resolve its own setup wildcard")
 			assert.Same(t, sub, h.getFuturesPrivateSubscription(conn, "orders.*"), "exact topic should resolve its own setup")
@@ -500,7 +501,8 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 		Authenticated:    true,
 		QualifiedChannel: "orders.*",
 	}
-	require.NoError(t, conn.Subscriptions().Add(sub), "wildcard subscription must be stored")
+	sub.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}, connection: conn})
+	require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "wildcard subscription must be registered")
 	assert.Equal(t, sub, h.getFuturesPrivateSubscription(conn, "orders.BTC"), "concrete notifications should resolve to their wildcard subscription")
 	assert.Equal(t, sub, h.getFuturesPrivateSubscription(conn, "orders"), "bare notification topics should resolve to their wildcard subscription")
 	assert.Nil(t, h.getFuturesPrivateSubscription(conn, "invalid"), "unrecognised topics should not resolve")
@@ -518,7 +520,8 @@ func TestWSHandleDataFuturesPrivateNotification(t *testing.T) {
 		Authenticated:    true,
 		QualifiedChannel: "positions.*",
 	}
-	require.NoError(t, conn.Subscriptions().Add(sub), "wildcard subscription must be stored")
+	sub.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}, connection: conn})
+	require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "wildcard subscription must be registered")
 	raw := []byte(`{"op":"notify","topic":"positions.BTC-USD","ts":1603878749908,"event":"order.match","data":[]}`)
 	require.NoError(t, h.wsHandleData(t.Context(), conn, raw), "wsHandleData must route a concrete private derivative topic")
 	require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")

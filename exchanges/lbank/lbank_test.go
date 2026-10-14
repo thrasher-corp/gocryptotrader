@@ -32,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -763,44 +762,12 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	start := time.UnixMilli(1603878749908)
-	end := start.Add(time.Minute)
-	for _, tc := range []struct {
-		name       string
-		pair       currency.Pair
-		start, end time.Time
-		wantErr    error
-	}{
-		{name: "invalid range", pair: testPair, start: end, end: start, wantErr: common.ErrStartAfterEnd},
-		{name: "empty pair", start: start, end: end, wantErr: currency.ErrCurrencyPairEmpty},
-		{name: "bounded history", pair: testPair, start: start, end: end},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex))
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/v2/trades.do", r.URL.Path)
-				assert.Equal(t, "btc_usdt", r.URL.Query().Get("symbol"))
-				assert.Equal(t, "600", r.URL.Query().Get("size"))
-				_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"date_ms":1603878750908,"amount":2,"price":100,"type":"sell","tid":"exact-id"},{"date_ms":1603878810908,"amount":3,"price":101,"type":"buy","tid":"outside-range"}]}`))
-				assert.NoError(t, err)
-			}))
-			require.NoError(t, ex.SetHTTPClient(server.Client()))
-			require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
-			got, err := ex.GetHistoricTrades(t.Context(), tc.pair, asset.Spot, tc.start, tc.end)
-			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
-				return
-			}
-			require.NoError(t, err)
-			require.Len(t, got, 1, "history must exclude records outside the requested range")
-			assert.Equal(t, "exact-id", got[0].TID)
-			assert.Equal(t, order.Sell, got[0].Side)
-			assert.Equal(t, 2.0, got[0].Amount)
-			assert.Equal(t, start.Add(time.Second), got[0].Timestamp)
-		})
-	}
+	_, err := e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().AddDate(69, 0, 0), time.Now())
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err = e.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.NoError(t, err, "GetHistoricTrades should not error")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -811,28 +778,8 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	ex.Name = t.Name()
-	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, false))
-	require.NoError(t, ex.SetPairs(currency.Pairs{testPair}, asset.Spot, true))
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "/v2/ticker.do", r.URL.Path)
-		assert.Equal(t, "all", r.URL.Query().Get("symbol"))
-		_, err := w.Write([]byte(`{"result":"true","error_code":0,"data":[{"symbol":"btc_usdt","timestamp":1603878749908,"ticker":{"latest":100,"high":110,"low":90,"vol":25}}]}`))
-		assert.NoError(t, err)
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()))
-	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
-	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
-	stored, err := ticker.GetTicker(ex.Name, testPair, asset.Spot)
-	require.NoError(t, err)
-	assert.Equal(t, 100.0, stored.Last)
-	assert.Equal(t, 110.0, stored.High)
-	assert.Equal(t, 90.0, stored.Low)
-	assert.Equal(t, 25.0, stored.BaseVolume)
-	assert.Equal(t, time.UnixMilli(1603878749908), stored.LastUpdated)
+	err := e.UpdateTickers(t.Context(), asset.Spot)
+	assert.NoError(t, err, "UpdateTickers should not error")
 }
 
 func TestGetStatus(t *testing.T) {

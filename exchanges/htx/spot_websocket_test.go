@@ -552,7 +552,8 @@ func TestWSHandleData(t *testing.T) {
 		require.NoError(t, err, "spot test connection must be created")
 		require.NoError(t, h.Websocket.TrackTestConnection(exchange.WebsocketSpot, conn), "connection must belong to setup")
 		sub := &subscription.Subscription{Key: "market.btcusdt.detail", QualifiedChannel: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel}
-		require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "acknowledged subscription must enter setup store")
+		sub.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}, connection: conn})
+		require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "pending subscription must enter setup store")
 		assert.Empty(t, conn.Subscriptions().List(), "local store should still await batch completion")
 		require.NoError(t, h.wsHandleData(t.Context(), conn, []byte(`{"ch":"market.btcusdt.detail","tick":{"close":100}}`)), "early ticker must resolve acknowledged subscription")
 		stored, err := ticker.GetTicker(h.Name, btcusdtPair, asset.Spot)
@@ -600,13 +601,13 @@ func TestWSHandleData(t *testing.T) {
 	require.ErrorIs(t, h.wsHandleData(t.Context(), nil, []byte(`{"ping":123}`)), common.ErrNilPointer, "websocket ping data must require a connection")
 }
 
-func TestWSHandleV2SubResp(t *testing.T) {
+func TestWSHandleDataSpotSubscriptionResponse(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
 	require.NoError(t, err, "private spot websocket connection must be available")
-	require.NoError(t, h.wsHandleV2subResp(conn, wsSubOp, []byte(`{}`)), "subscription response without a channel must be ignored")
-	require.ErrorIs(t, h.wsHandleV2subResp(nil, wsSubOp, []byte(`{}`)), common.ErrNilPointer, "subscription response must require a connection")
+	require.ErrorIs(t, h.wsHandleData(t.Context(), conn, []byte(`{"action":"sub"}`)), common.ErrParsingWSField, "subscription response must require a channel")
+	require.ErrorIs(t, h.wsHandleSubscriptionResponse(nil, wsSubOp, "orders", []byte(`{}`)), common.ErrNilPointer, "subscription response must require a connection")
 }
 
 func TestWSHandleChannelMsgs(t *testing.T) {

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -264,25 +263,10 @@ func (e *Exchange) wsHandleFuturesPing(ctx context.Context, conn websocket.Conne
 	return nil
 }
 
-// wsHandleFuturesOperationResponse correlates derivative subscription acknowledgements with their request.
-func (e *Exchange) wsHandleFuturesOperationResponse(conn websocket.Connection, operation string, raw []byte) error {
-	if err := common.NilGuard(conn); err != nil {
-		return err
-	}
-	topic, err := jsonparser.GetString(raw, "topic")
-	if err != nil {
-		return fmt.Errorf("%w 'topic': %w", common.ErrParsingWSField, err)
-	}
-	return conn.RequireMatchWithData(operation+":"+topic, raw)
-}
-
 // getFuturesPrivateSubscription resolves concrete notification topics against wildcard subscriptions.
 func (e *Exchange) getFuturesPrivateSubscription(conn websocket.Connection, topic string) *subscription.Subscription {
 	if conn != nil {
-		if sub := conn.Subscriptions().Get(topic); sub != nil {
-			return sub
-		}
-		if sub := e.Websocket.GetConnectionSetupSubscription(conn, topic); sub != nil {
+		if sub := e.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: topic}}, connection: conn}); sub != nil {
 			return sub
 		}
 	} else if sub := e.Websocket.GetSubscription(topic); sub != nil {
@@ -294,10 +278,7 @@ func (e *Exchange) getFuturesPrivateSubscription(conn websocket.Connection, topi
 		wildcard = topic[:index+1] + "*"
 	}
 	if conn != nil {
-		if sub := conn.Subscriptions().Get(wildcard); sub != nil {
-			return sub
-		}
-		return e.Websocket.GetConnectionSetupSubscription(conn, wildcard)
+		return e.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: wildcard}}, connection: conn})
 	}
 	return e.Websocket.GetSubscription(wildcard)
 }
