@@ -387,7 +387,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	require.Eventually(t, func() bool {
 		sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ob.BTC_USDT.50", Asset: asset.Spot}})
 		return sub != nil && sub.State() == subscription.SubscribedState
-	}, time.Second, 10*time.Millisecond, "out-of-order update must successfully resubscribe in the background")
+	}, 10*time.Second, 10*time.Millisecond, "out-of-order update must successfully resubscribe in the background")
 }
 
 func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {

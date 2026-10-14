@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,72 +15,75 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject a nil cancellation")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.EMPTYPAIR, AssetType: 1336})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: 1336})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject an unsupported asset")
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
 		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Options,
 		Side:      order.ClosePosition,
 	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders must reject a side it cannot cancel by")
 
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.Long,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.Short,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.AnySide,
-	})
-	require.ErrorIs(t, err, errInvalidSettlementQuote)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	for _, side := range []order.Side{order.Long, order.Short, order.AnySide} {
+		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
+			Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
+			AssetType: asset.USDTMarginedFutures,
+			Side:      side,
+		})
+		require.ErrorIsf(t, err, errInvalidSettlementQuote, "CancelAllOrders must reject a pair the asset does not settle for side %s", side)
+	}
 
 	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			r := &order.Cancel{
-				OrderID:   "1",
-				AccountID: "1",
-				AssetType: a,
-				Pair:      currency.EMPTYPAIR,
-			}
-			_, err := e.CancelAllOrders(t.Context(), r)
-			assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair for %s", a)
+	}
 
-			r.Pair = getPair(t, a)
-			_, err = e.CancelAllOrders(t.Context(), r)
-			assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	for _, tc := range []struct {
+		a    asset.Item
+		side order.Side
+		exp  order.CancelAllResponse
+	}{
+		{a: asset.Spot, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454420": "cancelled"}}},
+		{a: asset.Margin, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454430": "cancelled"}}},
+		{a: asset.CrossMargin, side: order.Buy, exp: order.CancelAllResponse{Status: map[string]string{"1852454431": "cancelled"}}},
+		{a: asset.USDTMarginedFutures, side: order.Sell, exp: order.CancelAllResponse{Status: map[string]string{"15675394": "cancelled"}}},
+		{a: asset.CoinMarginedFutures, exp: order.CancelAllResponse{Status: map[string]string{"15675405": "cancelled"}}},
+		{a: asset.DeliveryFutures, side: order.Short, exp: order.CancelAllResponse{Status: map[string]string{"123456": "cancelled"}}},
+		{a: asset.Options, exp: order.CancelAllResponse{Status: map[string]string{"1236": "cancelled"}}},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: tc.a, Pair: getPair(t, tc.a), Side: tc.side})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, got, "CancelAllOrders should report each cancelled order")
+			}
 		})
 	}
 }
@@ -171,7 +176,7 @@ func TestGetOpenInterestIndependentOfRequestShape(t *testing.T) {
 		assert.NoError(t, err, "writing the contracts response should not error")
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	btcPair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
 	ethPair := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
@@ -226,18 +231,20 @@ func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
 	}))
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
 	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
-	require.Len(t, pairs, 1, "GetSupportedFlashSwapCurrencyPairs must return the mock pair")
-	assert.Equal(t, "BTC_USDT", pairs[0].CurrencyPair, "GetSupportedFlashSwapCurrencyPairs should decode the pair")
-	assert.Equal(t, "BTC", pairs[0].SellCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the sell currency")
-	assert.Equal(t, "USDT", pairs[0].BuyCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the buy currency")
-	assert.Equal(t, 0.001, pairs[0].SellMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum sell amount")
-	assert.Equal(t, 1.0, pairs[0].SellMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum sell amount")
-	assert.Equal(t, 1.0, pairs[0].BuyMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum buy amount")
-	assert.Equal(t, 100000.0, pairs[0].BuyMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum buy amount")
+	exp := []*FlashSwapCurrencyPair{{
+		CurrencyPair:  currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+		SellCurrency:  currency.BTC,
+		BuyCurrency:   currency.USDT,
+		SellMinAmount: 0.001,
+		SellMaxAmount: 1,
+		BuyMinAmount:  1,
+		BuyMaxAmount:  100000,
+	}}
+	assert.Equal(t, exp, pairs, "GetSupportedFlashSwapCurrencyPairs should decode every field")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {
@@ -277,7 +284,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 	}))
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	pair := currency.NewBTCUSDT()
 	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
@@ -318,7 +325,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 	}))
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
 	require.NoError(t, err, "FetchTradablePairs must not error for margin")
@@ -356,6 +363,20 @@ func TestGetRequestedOpenInterestPair(t *testing.T) {
 	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
 	require.NoError(t, err)
 	assert.Equal(t, currency.EMPTYPAIR, requested)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Truef(t, is, "%s should be a perpetual future currency", a)
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+	}
 }
 
 func TestMessageID(t *testing.T) {
@@ -475,7 +496,7 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
-	testexch.UpdatePairsOnce(t, e)
+	ensureTestPairs(t)
 
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -553,13 +574,188 @@ func TestFetchOrderbook(t *testing.T) {
 func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	t.Parallel()
 
+	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
+	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	require.ErrorIs(t, err, errNoSpotInstrument)
+}
+
+func TestSetCrossMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, nil)
+
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+		Balances: map[string]CrossMarginCurrencyBalance{
+			"BTC": {
+				Available: types.Number(2),
+				Freeze:    types.Number(0.5),
+				Borrowed:  types.Number(0.25),
+				Interest:  types.Number(0.05),
+			},
+		},
+	})
+
+	got := balances[currency.BTC]
+	assert.InDelta(t, 2.5, got.Total, 0.00000001, "total should include available and frozen balances")
+	assert.InDelta(t, 0.5, got.Hold, 0.00000001, "hold should match frozen balance")
+	assert.InDelta(t, 2, got.Free, 0.00000001, "free should match available balance")
+	assert.InDelta(t, 0.3, got.Borrowed, 0.00000001, "borrowed should include principal and interest")
+	assert.InDelta(t, 1.7, got.AvailableWithoutBorrow, 0.00000001, "available without borrow should subtract borrowed principal and interest")
+}
+
+func TestSetIsolatedMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		Base: AccountBalanceInformation{Currency: currency.BTC},
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		AccountType: "inactive",
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	balances := accounts.CurrencyBalances{}
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(1),
+				LockedAmount: types.Number(0.2),
+				Borrowed:     types.Number(0.25),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(10),
+				LockedAmount: types.Number(2),
+				Borrowed:     types.Number(2),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(3),
+				LockedAmount: types.Number(0.4),
+				Borrowed:     types.Number(0.5),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(5),
+				LockedAmount: types.Number(0.6),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(7),
+				LockedAmount: types.Number(0.8),
+				Borrowed:     types.Number(1),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(20),
+				LockedAmount: types.Number(4),
+			},
+		},
+	})
+	require.NoError(t, err, "setIsolatedMarginAccountBalances must add valid isolated margin balances")
+
+	btc := balances[currency.BTC]
+	assert.InDelta(t, 4.6, btc.Total, 0.00000001, "BTC total should include all isolated margin markets")
+	assert.InDelta(t, 0.6, btc.Hold, 0.00000001, "BTC hold should include all isolated margin markets")
+	assert.InDelta(t, 4, btc.Free, 0.00000001, "BTC free should include all isolated margin markets")
+	assert.InDelta(t, 0.75, btc.Borrowed, 0.00000001, "BTC borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 3.25, btc.AvailableWithoutBorrow, 0.00000001, "BTC available without borrow should subtract borrowed principal")
+
+	usdt := balances[currency.USDT]
+	assert.InDelta(t, 36, usdt.Total, 0.00000001, "USDT total should include all isolated margin markets")
+	assert.InDelta(t, 6, usdt.Hold, 0.00000001, "USDT hold should include all isolated margin markets")
+	assert.InDelta(t, 30, usdt.Free, 0.00000001, "USDT free should include all isolated margin markets")
+	assert.InDelta(t, 2, usdt.Borrowed, 0.00000001, "USDT borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 28, usdt.AvailableWithoutBorrow, 0.00000001, "USDT available without borrow should subtract borrowed principal")
+
+	eth := balances[currency.ETH]
+	assert.InDelta(t, 13.4, eth.Total, 0.00000001, "ETH total should include base and quote isolated margin entries")
+	assert.InDelta(t, 1.4, eth.Hold, 0.00000001, "ETH hold should include base and quote isolated margin entries")
+	assert.InDelta(t, 12, eth.Free, 0.00000001, "ETH free should include base and quote isolated margin entries")
+	assert.InDelta(t, 1, eth.Borrowed, 0.00000001, "ETH borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
+}
+
+func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+		Currency:  currency.LRC,
+		Available: types.Number(-0.01462404),
+		Borrowed:  types.Number(4.85),
+	})
+	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+	lrc := balances[currency.LRC]
+	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
+}
+
+// TestSetupUpgradesLegacyRESTEndpoints loads a config saved before the REST endpoints dropped their version prefix
+// through the config loader, and checks the old defaults no longer override the endpoints GateIO now prefixes itself
+func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
+	t.Parallel()
+
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	raw, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+	require.NoError(t, err, "ReadFile must not error")
+	var cfgMap map[string]any
+	require.NoError(t, json.Unmarshal(raw, &cfgMap), "Unmarshal must not error")
+	cfgMap["version"] = 17
+	exchanges, ok := cfgMap["exchanges"].([]any)
+	require.True(t, ok, "config must hold an exchange list")
+	var found bool
+	for _, x := range exchanges {
+		exch, ok := x.(map[string]any)
+		require.True(t, ok, "exchange config must be an object")
+		if exch["name"] != "GateIO" {
+			continue
+		}
+		api, ok := exch["api"].(map[string]any)
+		require.True(t, ok, "GateIO api config must be an object")
+		api["urlEndpoints"] = map[string]any{
+			"RestSpotURL":              "https://api.gateio.ws/api/v4/",
+			"RestFuturesURL":           "https://fx-api.gateio.ws/api/v4/",
+			"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
+			"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
+		}
+		found = true
+	}
+	require.True(t, found, "config must hold a GateIO exchange")
+	legacy, err := json.Marshal(cfgMap)
+	require.NoError(t, err, "Marshal must not error")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, legacy, 0o600), "WriteFile must not error")
+
+	cfg := &config.Config{}
+	require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must not error")
+	exchCfg, err := cfg.GetExchangeConfig("GateIO")
+	require.NoError(t, err, "GetExchangeConfig must not error")
 	ex := new(Exchange)
 	ex.SetDefaults()
-	ex.Name = t.Name()
-
-	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
-
-	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
-	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
-	require.ErrorIs(t, err, errNoSpotInstrument)
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+	for ep, exp := range map[exchange.URL]string{
+		exchange.RestSpot:              gateioTradeURL,
+		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
+		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
+	} {
+		got, err := ex.API.Endpoints.GetURL(ep)
+		require.NoErrorf(t, err, "GetURL must not error for %s", ep)
+		assert.Equalf(t, exp, got, "%s should use the default endpoint after the upgrade", ep)
+	}
 }

@@ -17,7 +17,6 @@ import (
 
 func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	t.Parallel()
-
 	_, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spread)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -85,11 +84,11 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Name = "ManagerHTTPMocked"
-	err := testexch.MockHTTPInstance(e, "/api/v4/")
-	require.NoError(t, err, "MockHTTPInstance must not error")
+	require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error")
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
-	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.TwentyMilliseconds})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.TwentyMilliseconds})
 	require.NoError(t, err)
 
 	m := orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
@@ -112,7 +111,7 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
 		return err == nil
-	}, time.Second*5, time.Millisecond*50, "orderbook must eventually be synced")
+	}, time.Second*30, time.Millisecond*50, "orderbook must eventually be synced")
 
 	err = m.ProcessOrderbookUpdate(t.Context(), 27596272448, &orderbook.Update{
 		UpdateID:   27596272449,

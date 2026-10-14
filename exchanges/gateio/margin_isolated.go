@@ -7,16 +7,23 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const frontEndURL = "https://www.gate.com/apiw/v2/"
+
+// Loan operations of the unified and isolated margin borrow or repay endpoints
+const (
+	loanTypeBorrow = "borrow"
+	loanTypeRepay  = "repay"
+)
 
 var (
 	errInvalidLimit                     = errors.New("invalid limit")
@@ -28,13 +35,24 @@ var (
 
 // TransferCollateralToIsolatedMargin transfers collateral from spot account to isolated margin account for a specific currency and pair.
 func (e *Exchange) TransferCollateralToIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: spotAccount, To: marginAccount, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: asset.Spot, To: asset.Margin, Amount: types.Number(amount)})
 }
 
 // TransferCollateralFromIsolatedMargin transfers collateral from an isolated margin account to spot account for a specific currency and pair.
 // NOTE: Collateral can be orphaned when interest deduction has occurred but has not been repaid yet.
 func (e *Exchange) TransferCollateralFromIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: marginAccount, To: spotAccount, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: asset.Margin, To: asset.Spot, Amount: types.Number(amount)})
+}
+
+// GetIsolatedMarginAccounts retrieves the isolated margin account list, optionally filtered by currency pair.
+// GetIsolatedMarginAccountList queries the same accounts through the endpoint that also covers margin ratio accounts.
+func (e *Exchange) GetIsolatedMarginAccounts(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
+	params := url.Values{}
+	if currencyPair.IsPopulated() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	var response []MarginAccountItem
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginIsolatedAccountsEPL, http.MethodGet, "margin/accounts", params, nil, &response)
 }
 
 // GetIsolatedMarginAccountBalanceChangeHistory retrieves margin account balance change history
@@ -77,12 +95,6 @@ func (e *Exchange) GetIsolatedMarginFundingAccountList(ctx context.Context, ccy 
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginFundingAccountListEPL, http.MethodGet, "margin/funding_accounts", params, nil, &response)
 }
 
-// GetIsolatedMarginUserAutoRepaymentSetting retrieve user auto repayment setting
-func (e *Exchange) GetIsolatedMarginUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
-	var response *OnOffStatus
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetAutoRepaySettingsEPL, http.MethodGet, "margin/auto_repay", nil, nil, &response)
-}
-
 // UpdateIsolatedMarginUsersAutoRepaymentSetting represents update user's auto repayment setting
 func (e *Exchange) UpdateIsolatedMarginUsersAutoRepaymentSetting(ctx context.Context, statusOn bool) (*OnOffStatus, error) {
 	status := "on"
@@ -93,6 +105,12 @@ func (e *Exchange) UpdateIsolatedMarginUsersAutoRepaymentSetting(ctx context.Con
 	params.Set("status", status)
 	var response *OnOffStatus
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAutoRepayEPL, http.MethodPost, "margin/auto_repay", params, nil, &response)
+}
+
+// GetIsolatedMarginUserAutoRepaymentSetting retrieve user auto repayment setting
+func (e *Exchange) GetIsolatedMarginUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
+	var response *OnOffStatus
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetAutoRepaySettingsEPL, http.MethodGet, "margin/auto_repay", nil, nil, &response)
 }
 
 // GetIsolatedMarginMaxTransferableAmount get the max transferable amount for a specific margin currency.
@@ -134,27 +152,43 @@ func (e *Exchange) GetIsolatedMarginLendingMarketDetails(ctx context.Context, pa
 
 // GetIsolatedMarginEstimatedInterestRate retrieves estimated interest rate for provided currencies
 func (e *Exchange) GetIsolatedMarginEstimatedInterestRate(ctx context.Context, currencies []currency.Code) (map[string]types.Number, error) {
-	if len(currencies) == 0 {
-		return nil, currency.ErrCurrencyCodesEmpty
-	}
-	if len(currencies) > 10 {
-		return nil, fmt.Errorf("%w: maximum 10", errTooManyCurrencyCodes)
-	}
-	var out strings.Builder
-	for i, c := range currencies {
-		if c.IsEmpty() {
-			return nil, currency.ErrCurrencyCodeEmpty
-		}
-		if i != 0 {
-			out.WriteString(",")
-		}
-		out.WriteString(c.String())
+	currencyList, err := currencyListParam(currencies, 10)
+	if err != nil {
+		return nil, err
 	}
 	params := url.Values{}
-	params.Set("currencies", out.String())
-
+	params.Set("currencies", currencyList)
 	var response map[string]types.Number
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
+}
+
+// IsolatedMarginBorrowOrRepay borrows or repays currency in an isolated margin account. Pass type="borrow" to open a
+// loan or type="repay" to close one.
+// NOTE: 204 no content returned on success for borrow and repay.
+func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *IsolatedBorrowRepayRequest) error {
+	if arg == nil {
+		return common.ErrNilPointer
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Type != loanTypeBorrow && arg.Type != loanTypeRepay {
+		return errInvalidIsolatedMarginLoanType
+	}
+	if arg.RepaidAll {
+		if arg.Type != loanTypeRepay {
+			return errInvalidRepaidAllOperation
+		}
+		if arg.Amount != 0 {
+			return errAmountOverriddenByRepaidAll
+		}
+	} else if arg.Amount <= 0 {
+		return fmt.Errorf("%w: amount must be greater than 0", order.ErrAmountIsInvalid)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateUniLoanEPL, http.MethodPost, "margin/uni/loans", nil, arg, nil)
 }
 
 // GetIsolatedMarginLoans retrieves isolated margin loans (borrows) that are open for your account.
@@ -179,39 +213,13 @@ func (e *Exchange) GetIsolatedMarginLoans(ctx context.Context, ccy currency.Code
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoansEPL, http.MethodGet, "margin/uni/loans", params, nil, &response)
 }
 
-// IsolatedMarginBorrowOrRepay borrows or repays currency in an isolated margin account. Pass type="borrow" to open a
-// loan or type="repay" to close one.
-// NOTE: 204 no content returned on success for borrow and repay.
-func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *IsolatedBorrowRepayRequest) error {
-	if arg == nil {
-		return errNilArgument
-	}
-	if arg.CurrencyPair.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
-	if arg.Currency.IsEmpty() {
-		return currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Type != "borrow" && arg.Type != "repay" {
-		return errInvalidIsolatedMarginLoanType
-	}
-	if arg.RepaidAll {
-		if arg.Type != "repay" {
-			return errInvalidRepaidAllOperation
-		}
-		if arg.Amount > 0 {
-			return errAmountOverriddenByRepaidAll
-		}
-	} else if arg.Amount <= 0 {
-		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateUniLoanEPL, http.MethodPost, "margin/uni/loans", nil, arg, nil)
-}
-
 // GetIsolatedMarginLoanRecords retrieves isolated margin loan records. Loan type can be "borrow" or "repay". If not provided, both types will be returned.
 func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, ccy currency.Code, pair currency.Pair, page, limit uint64, loanType string) ([]IsolatedMarginLoanResponse, error) {
 	params := url.Values{}
 	if loanType != "" {
+		if loanType != loanTypeBorrow && loanType != loanTypeRepay {
+			return nil, errInvalidIsolatedMarginLoanType
+		}
 		params.Set("type", loanType)
 	}
 	if !ccy.IsEmpty() {
@@ -234,7 +242,7 @@ func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, ccy currenc
 }
 
 // GetIsolatedMarginInterestDeductionRecords retrieves interest deduction records for isolated margin loans.
-func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, page, limit uint64, from, to time.Time) ([]LoanInterestDeductionRecord, error) {
+func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, page, limit uint64, from, to time.Time) ([]InterestDeductionRecord, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
@@ -254,7 +262,7 @@ func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
-	var response []LoanInterestDeductionRecord
+	var response []InterestDeductionRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, "margin/uni/interest_records", params, nil, &response)
 }
 
@@ -306,13 +314,7 @@ func (e *Exchange) SetUserMarketLeverageMultiplier(ctx context.Context, market c
 	if leverage <= 0 {
 		return fmt.Errorf("%w, leverage must be greater than 0", errInvalidLeverage)
 	}
-	payload := struct {
-		Leverage types.Number `json:"leverage"`
-		Pair     string       `json:"currency_pair"`
-	}{
-		Leverage: types.Number(leverage),
-		Pair:     market.String(),
-	}
+	payload := &MarginMarketLeverageRequest{CurrencyPair: market, Leverage: types.Number(leverage)}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSetUserMarketLeverageEPL, http.MethodPost, "margin/leverage/user_market_setting", nil, payload, nil)
 }
 
@@ -349,10 +351,12 @@ func (e *Exchange) GetIsolatedMarginPoolLoans(ctx context.Context, coin currency
 	path := common.EncodeURLValues("spot_loan/margin/margin_loan_info", params)
 
 	var resp *IsolatedMarginPoolLoanResponse
-	if err := e.SendHTTPRequest(ctx, exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, path, &resp); err != nil {
+	if err := e.sendUnversionedHTTPRequest(ctx, exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, path, &resp); err != nil {
 		return nil, err
 	}
-
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
 	if resp.Code != 200 {
 		return nil, fmt.Errorf("error code %d: %s", resp.Code, resp.Message)
 	}

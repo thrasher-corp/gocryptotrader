@@ -20,11 +20,11 @@ type IsolatedMarginAccountBalanceChangeInfo struct {
 
 // MarginFundingAccountItem represents funding account list item.
 type MarginFundingAccountItem struct {
-	Currency     string       `json:"currency"`
-	Available    types.Number `json:"available"`
-	LockedAmount types.Number `json:"locked"`
-	Lent         string       `json:"lent"`       // Outstanding loan amount yet to be repaid
-	TotalLent    string       `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
+	Currency     currency.Code `json:"currency"`
+	Available    types.Number  `json:"available"`
+	LockedAmount types.Number  `json:"locked"`
+	Lent         types.Number  `json:"lent"`       // Outstanding loan amount yet to be repaid
+	TotalLent    types.Number  `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
 }
 
 // OnOffStatus represents on or off status response status
@@ -34,9 +34,9 @@ type OnOffStatus struct {
 
 // MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
 type MaxTransferAndLoanAmount struct {
-	Currency     string       `json:"currency"`
-	CurrencyPair string       `json:"currency_pair"`
-	Amount       types.Number `json:"amount"`
+	Currency     currency.Code `json:"currency"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Amount       types.Number  `json:"amount"`
 }
 
 // IsolatedMarginLendingMarket represents an isolated margin lending market
@@ -60,6 +60,12 @@ type IsolatedMarginLendingTier struct {
 	MaximumBorrowingLimit      types.Number `json:"upper_limit"`
 	MaintenanceMarginRate      types.Number `json:"mmr"`
 	MaximumPermissibleLeverage types.Number `json:"leverage"`
+}
+
+// MarginMarketLeverageRequest holds the leverage multiplier to set for an isolated margin market
+type MarginMarketLeverageRequest struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Leverage     types.Number  `json:"leverage"`
 }
 
 // IsolatedBorrowRepayRequest represents the request parameters for the isolated margin borrow-or-repay endpoint.
@@ -102,10 +108,10 @@ type AccountBalanceInformation struct {
 // MarginAccountItem margin account item.
 type MarginAccountItem struct {
 	CurrencyPair          currency.Pair             `json:"currency_pair"`
-	AccountType           string                    `json:"account_type"` // "risk" (risk rate account),"mmr" (maintenance margin rate account), or "inactive" (market not activated).
+	AccountType           string                    `json:"account_type"` // "mmr" (maintenance margin rate account) or "inactive" (market not activated)
 	Leverage              types.Number              `json:"leverage"`
 	Locked                bool                      `json:"locked"`
-	RiskRate              types.Number              `json:"risk"`
+	RiskRate              types.Number              `json:"risk"` // Superseded by MaintenanceMarginRate
 	MaintenanceMarginRate types.Number              `json:"mmr"`
 	Base                  AccountBalanceInformation `json:"base"`
 	Quote                 AccountBalanceInformation `json:"quote"`
@@ -113,15 +119,18 @@ type MarginAccountItem struct {
 
 // IsolatedMarginPoolLoanResponse holds the response from the API when fetching margin loan information, including a list of loans and VIP settings.
 type IsolatedMarginPoolLoanResponse struct {
-	Timestamp types.Time `json:"timestamp"`
-	Method    string     `json:"method"`
-	Code      int64      `json:"code"` // Signed because a failed request reports -1
-	Message   string     `json:"message"`
-	Data      struct {
-		Total       uint64       `json:"total"`
-		List        []Loan       `json:"list"`
-		VIPSettings []VIPSetting `json:"vip_settings"`
-	} `json:"data"`
+	Timestamp types.Time                 `json:"timestamp"`
+	Method    string                     `json:"method"`
+	Code      int64                      `json:"code"` // Signed because a failed request reports -1
+	Message   string                     `json:"message"`
+	Data      IsolatedMarginPoolLoanData `json:"data"`
+}
+
+// IsolatedMarginPoolLoanData holds a page of margin loan pools and the VIP level settings applied to them
+type IsolatedMarginPoolLoanData struct {
+	Total       uint64       `json:"total"`
+	List        []Loan       `json:"list"`
+	VIPSettings []VIPSetting `json:"vip_settings"`
 }
 
 // Loan represents an individual loan entry

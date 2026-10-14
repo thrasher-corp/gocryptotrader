@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 17,
+ "version": 18,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -1787,9 +1787,9 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "RestFuturesURL": "https://fx-api.gateio.ws/api/v4/",
+     "RestFuturesURL": "https://fx-api.gateio.ws",
      "RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
-     "RestSpotURL": "https://api.gateio.ws/api/v4/",
+     "RestSpotURL": "https://api.gateio.ws",
      "WebsocketSpotURL": "wss://api.gateio.ws/ws/v4/"
     }
    },

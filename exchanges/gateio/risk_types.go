@@ -7,7 +7,7 @@ import (
 
 // UserRiskUnitDetails represents the risk unit details for a user
 type UserRiskUnitDetails struct {
-	UserID    int64       `json:"user_id"`
+	UserID    uint64      `json:"user_id"`
 	SpotHedge bool        `json:"spot_hedge"`
 	RiskUnits []RiskUnits `json:"risk_units"`
 }
