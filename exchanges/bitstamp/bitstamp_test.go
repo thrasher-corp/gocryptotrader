@@ -13,9 +13,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -2810,4 +2813,26 @@ func TestValidateCollateral(t *testing.T) {
 	assert.NoError(t, validateCollateral(nil), "validateCollateral should not error without collateral")
 	assert.NoError(t, validateCollateral(map[currency.Code]float64{currency.USD: 0, currency.BTC: 1}), "validateCollateral should not error on amounts which are not negative")
 	assert.ErrorIs(t, validateCollateral(map[currency.Code]float64{currency.BTC: 1, currency.USD: -1}), errInvalidCollateral, "validateCollateral should error on a negative amount")
+}
+
+func TestShutdownDoesNotReconnect(t *testing.T) {
+	t.Parallel()
+	var upgrades atomic.Int64
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if !gws.IsWebSocketUpgrade(r) {
+			http.NotFound(w, r) // REST order book seeding on connect
+			return
+		}
+		upgrades.Add(1)
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}
+	e := testexch.MockWsInstance[Exchange](t, h)
+	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
+	before := upgrades.Load()
+
+	require.NoError(t, e.Shutdown(), "Shutdown must not error")
+	assert.False(t, e.Websocket.IsConnected(), "websocket should be disconnected after Shutdown")
+	assert.Never(t, func() bool {
+		return upgrades.Load() != before || e.Websocket.IsConnected()
+	}, 3*time.Second, 10*time.Millisecond, "a shut down exchange should not reconnect")
 }

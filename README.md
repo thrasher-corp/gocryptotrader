@@ -36,6 +36,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
+| MEXC | Yes | Yes | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -62,7 +63,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC service](./gctrpc/README.md).
 + gRPC client. See [gctcli](./cmd/gctcli/README.md).
-+ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, FXMacroData, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
