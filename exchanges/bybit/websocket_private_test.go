@@ -1300,6 +1300,10 @@ func TestWebsocketWallet(t *testing.T) {
 func TestWsWalletReplacesRESTBalances(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","locked":"15","spotBorrow":"20","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"20","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
+	pushes := decodeFramesStrictly[WebsocketWalletResponse](t, [][]byte{payload})
+	require.Len(t, pushes[0].Data, 1, "the wallet payload must hold one account")
+	require.Len(t, pushes[0].Data[0].Coins, 1, "the wallet payload must hold one coin")
+	assert.Zero(t, pushes[0].Data[0].Coins[0].AvailableToWithdraw, "the deprecated empty availableToWithdraw should decode as zero")
 	ex := withMockCredentials(websocketTestInstance(t))
 	seed := accounts.NewSubAccount(asset.Spot, "")
 	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 90, Hold: 25, Free: 65, Borrowed: 10})
@@ -1313,6 +1317,11 @@ func TestWsWalletReplacesRESTBalances(t *testing.T) {
 	balance, ok := subAccounts[0].Balances[currency.USDT]
 	require.True(t, ok, "wallet handler must emit the USDT balance")
 	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "GetBalance must return the stored USDT balance")
+	assert.Equal(t, balance, stored, "wallet update should store the balance it emits")
 	balance.UpdatedAt = time.Time{}
 	exp := accounts.Balance{Currency: currency.USDT, Total: 100, Hold: 15, Free: 85, Borrowed: 20, AvailableWithoutBorrow: 65}
 	assert.Equal(t, exp, balance, "wallet update should replace the REST snapshot with the push's balances, as REST computes them")

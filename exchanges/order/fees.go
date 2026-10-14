@@ -149,8 +149,8 @@ func (t *TradeHistory) SetFees(f Fees) {
 
 // mergeFees merges the fees in m into d and returns whether d changed. Reported fees replace d's fees and set Fee and
 // FeeAsset from them, while unreported fees keep d's. Once d's fees have been reported, Fee and FeeAsset follow them
-// alone, so a single fee in m cannot stand for part of fees in several currencies; until then, a positive Fee in m
-// replaces d's as it always has.
+// alone, so a single fee in m cannot stand for part of fees in several currencies; until then, a positive Fee and a set
+// FeeAsset in m replace d's.
 func (d *Detail) mergeFees(m *Detail) bool {
 	if m.Fees.reported {
 		fee, feeAsset := m.Fees.scalar()
@@ -160,11 +160,19 @@ func (d *Detail) mergeFees(m *Detail) bool {
 		d.Fees, d.Fee, d.FeeAsset = m.Fees, fee, feeAsset
 		return true
 	}
-	if d.Fees.reported || m.Fee <= 0 || m.Fee == d.Fee {
+	if d.Fees.reported {
 		return false
 	}
-	d.Fee = m.Fee
-	return true
+	var changed bool
+	if m.Fee > 0 && m.Fee != d.Fee {
+		d.Fee = m.Fee
+		changed = true
+	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
+		changed = true
+	}
+	return changed
 }
 
 // mergeFees merges the fees of fill m into fill t and returns whether t changed. It follows Detail.mergeFees, except

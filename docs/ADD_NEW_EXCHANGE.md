@@ -136,6 +136,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
+| MEXC | Yes | Yes | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -163,6 +164,7 @@ var Exchanges = []string{
     "kraken",
     "kucoin",
     "lbank",
+    "mexc",
     "okx",
     "poloniex",
     "yobit",

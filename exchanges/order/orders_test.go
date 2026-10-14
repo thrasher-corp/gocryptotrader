@@ -1156,6 +1156,21 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	})
 }
 
+// TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
+// management. A venue that reports its fee in a named asset (and a zero fee, as with a maker rebate)
+// must not lose the currency when the fresh detail is merged into the stored order.
+func TestUpdateOrderFromDetailMergesFeeAsset(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{}
+	err := stored.UpdateOrderFromDetail(&Detail{Fee: 0, FeeAsset: currency.USDT})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "the fee currency should merge even when the fee is zero")
+
+	err = stored.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "an empty incoming fee currency should not clear the stored one")
+}
+
 // TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an
 // incoming detail carries a RemainingAmount alongside the fill(s) that
 // produced it, the stored RemainingAmount is trusted rather than re-derived

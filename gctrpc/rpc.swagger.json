@@ -6544,6 +6544,9 @@
           "type": "number",
           "format": "double"
         },
+        "feeCurrency": {
+          "type": "string"
+        },
         "fees": {
           "$ref": "#/definitions/gctrpcFees"
         }

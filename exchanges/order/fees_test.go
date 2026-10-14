@@ -272,6 +272,10 @@ func TestDetailMergeFees(t *testing.T) {
 		{name: "positive single fee replaces a single fee", stored: Detail{Fee: 0.1}, update: Detail{Fee: 0.2}, exp: Detail{Fee: 0.2}, changed: true},
 		{name: "zero single fee keeps a single fee", stored: Detail{Fee: 0.1}, update: Detail{}, exp: Detail{Fee: 0.1}},
 		{name: "same single fee", stored: Detail{Fee: 0.1}, update: Detail{Fee: 0.1}, exp: Detail{Fee: 0.1}},
+		{name: "fee asset replaces a single fee asset", stored: Detail{Fee: 0.1, FeeAsset: currency.BTC}, update: Detail{FeeAsset: currency.USDT}, exp: Detail{Fee: 0.1, FeeAsset: currency.USDT}, changed: true},
+		{name: "single fee and asset replace both", stored: Detail{Fee: 0.1, FeeAsset: currency.BTC}, update: Detail{Fee: 0.2, FeeAsset: currency.USDT}, exp: Detail{Fee: 0.2, FeeAsset: currency.USDT}, changed: true},
+		{name: "same fee asset", stored: Detail{Fee: 0.1, FeeAsset: currency.USDT}, update: Detail{FeeAsset: currency.USDT}, exp: Detail{Fee: 0.1, FeeAsset: currency.USDT}},
+		{name: "empty fee asset keeps a single fee asset", stored: Detail{FeeAsset: currency.USDT}, update: Detail{Fee: 0.2}, exp: Detail{Fee: 0.2, FeeAsset: currency.USDT}, changed: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

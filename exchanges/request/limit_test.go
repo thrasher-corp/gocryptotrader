@@ -405,6 +405,68 @@ func TestNewRateLimit(t *testing.T) {
 	assert.Equal(t, rate.Inf, r.Limit(), "limit should be infinite on negative interval")
 }
 
+func TestRateLimiterWithWeightLimit(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, RateLimitNotRequired.Limit(), "the no-op limiter should report no budget")
+	for _, tc := range []struct {
+		name    string
+		limiter *RateLimiterWithWeight
+		want    rate.Limit
+	}{
+		{"10 per second at weight 1", NewRateLimitWithWeight(time.Second, 10, 1), 10},
+		{"10 per second at weight 5", NewRateLimitWithWeight(time.Second, 10, 5), 10},
+		{"one per 3 seconds", NewRateLimitWithWeight(3*time.Second, 1, 5), rate.Every(3 * time.Second)},
+		{"3 per 2 seconds", NewRateLimitWithWeight(2*time.Second, 3, 1), 1.5},
+		{"3 set on the limiter", GetRateLimiterWithWeight(rate.NewLimiter(3, 1), 1), 3},
+		{"1.1 set on the limiter", GetRateLimiterWithWeight(rate.NewLimiter(1.1, 1), 1), 1.1},
+		{"0.9 set on the limiter", GetRateLimiterWithWeight(rate.NewLimiter(0.9, 1), 3), 0.9},
+		{"0.1 set on the limiter", GetRateLimiterWithWeight(rate.NewLimiter(0.1, 1), 3), 0.1},
+		{"unrestricted", NewRateLimitWithWeight(time.Second, 0, 1), rate.Inf},
+	} {
+		assert.Equalf(t, tc.want, tc.limiter.Limit(), "Limit should report the budget of %s exactly", tc.name)
+	}
+}
+
+func TestRateLimiterWithWeightSharesBudgetWith(t *testing.T) {
+	t.Parallel()
+	shared, unrestricted := NewRateLimit(time.Second, 10), NewRateLimit(time.Second, 0)
+	// Each group holds the endpoints drawing on one limiter: an endpoint shares a budget with every endpoint
+	// of its own group, itself included, and with no other.
+	groups := [][]*RateLimiterWithWeight{
+		{GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 5), GetRateLimiterWithWeight(shared, 5)},
+		{GetRateLimiterWithWeight(unrestricted, 1), GetRateLimiterWithWeight(unrestricted, 5)},
+		{NewRateLimitWithWeight(time.Second, 10, 1)},
+		{NewRateLimitWithWeight(time.Second, 10, 5)},
+		{NewRateLimitWithWeight(time.Second, 3, 5)},
+		{NewRateLimitWithWeight(time.Second, 20, 1)},
+		{NewRateLimitWithWeight(time.Second, 20, 5)},
+		{NewRateLimitWithWeight(time.Second, 0, 1)},
+	}
+	for i, group := range groups {
+		for x, endpoint := range group {
+			for j, others := range groups {
+				for y, other := range others {
+					assert.Equalf(t, i == j, endpoint.SharesBudgetWith(other), "endpoint %d of group %d sharing with endpoint %d of group %d should be %t", x, i, y, j, i == j)
+				}
+			}
+		}
+	}
+	assert.False(t, groups[0][0].SharesBudgetWith(RateLimitNotRequired), "a limiter should not share a budget with the no-op limiter")
+	assert.False(t, RateLimitNotRequired.SharesBudgetWith(groups[0][0]), "the no-op limiter should not share a budget with a limiter")
+	assert.True(t, RateLimitNotRequired.SharesBudgetWith(RateLimitNotRequired), "the no-op limiter should share its absent budget with itself")
+}
+
+func TestRateLimiterWithWeightReadsLeaveTheBudget(t *testing.T) {
+	t.Parallel()
+	l := rate.NewLimiter(rate.Every(time.Hour), 1)
+	r := GetRateLimiterWithWeight(l, 5)
+	r.Limit()
+	r.SharesBudgetWith(r)
+	assert.Equal(t, rate.Every(time.Hour), l.Limit(), "reading the budget should not change its rate")
+	assert.Equal(t, 1, l.Burst(), "reading the budget should not change its burst")
+	assert.True(t, l.Allow(), "reading the budget should not spend it")
+}
+
 func TestNewRateLimitWithWeight(t *testing.T) {
 	t.Parallel()
 
