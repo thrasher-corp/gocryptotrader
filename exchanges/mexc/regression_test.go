@@ -691,6 +691,7 @@ func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.InDelta(t, 0.175137, detail.AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
 	assert.Equal(t, 0.183503, detail.Price, "Price should still carry the reported price field")
+	assert.Equal(t, 5.72522853, detail.ExecutedQuoteAmount, "ExecutedQuoteAmount should carry cummulativeQuoteQty, not the price field times executedQty")
 }
 
 // TestGetFeeByTypeWithoutCredentials estimates a trade fee offline when there are no credentials to read the
@@ -917,6 +918,8 @@ func TestGetActiveOrdersAverageExecutedPrice(t *testing.T) {
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 1, "the single order must be returned")
 	assert.InDelta(t, 0.175137, orders[0].AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
+	assert.Equal(t, 5.72522853, orders[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should carry cummulativeQuoteQty, not the price field times executedQty")
+	assert.Zero(t, orders[0].QuoteAmount, "QuoteAmount should remain unknown without the requested quote quantity")
 }
 
 // TestSubmitOrderReportsClientOrderID asserts SubmitOrder falls back to the request client id when the
