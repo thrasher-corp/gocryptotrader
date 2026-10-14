@@ -16,6 +16,22 @@ This document outlines the coding, formatting, and testing standards for impleme
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
 
+### External dependencies
+
+- Prefer the standard library, existing project helpers and existing
+    dependencies before introducing another external dependency.
+- When the requirement can be met clearly and safely with a small, tested
+    implementation tailored to the situation, prefer that approach over adding
+    a dependency for convenience or hypothetical requirements.
+- Add an external dependency only when it provides a clear, substantial
+    benefit, such as significant deduplication, a measured performance
+    optimisation or functionality integral to the implementation that is
+    impractical to maintain locally. Explain the benefit and why existing or
+    project-specific alternatives are insufficient in the pull request.
+- Evaluate maintenance, licensing, security, transitive dependencies and build
+    costs before adding a dependency. This preference does not justify bespoke
+    cryptography or unsafe reimplementation of complex protocols.
+
 ## Security
 
 See [SECURITY.md](../SECURITY.md) for the project's security policy, supported versions and reporting process.
@@ -224,6 +240,25 @@ Use `require` and `assert` appropriately:
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
 - Full test coverage is preferable; mock external calls as needed.
+- For length, index and display-limit changes, test empty and single-entry
+    collections, unequal collection lengths and values below, at and above the
+    limit. Assert the final included entry and ordering, not only the count.
+    Test command-line defaults and clamping through flag parsing rather than
+    passing only precomputed limits to the renderer.
+- For terminal alignment, measure and pad in display columns, not bytes or
+    rune counts. Test values wider than their headings on opposing columns and
+    sides, and headings containing wide, fullwidth and combining characters.
+    Include values wider than Unicode headings so heading padding is exercised,
+    not only numeric padding; cover zero-width format characters as well.
+- Bound asynchronous waits in tests with deadlines so missing events fail
+    promptly rather than relying on the package timeout. Keep tests sequential
+    when an invoked library mutates package-level state.
+- Test stream consumers with both successful and error-only responses from
+    the producer. Fields required on success may be absent on error; preserve
+    error reporting and verify that subsequent valid responses still work.
+- Decode timestamps using the producing endpoint's documented units. Shared
+    renderers must not assume different endpoints use the same unit; omit a
+    display timestamp when its unit is unavailable rather than guessing it.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - For interface-valued inputs with nil guards, cover both a nil interface and
