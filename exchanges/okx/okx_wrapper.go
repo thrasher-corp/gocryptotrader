@@ -1767,8 +1767,10 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		return nil, common.AppendError(err, fmt.Errorf("%w: %d results for %d orders", common.ErrInvalidResponse, len(placed), len(orders)))
 	}
 	responses := make([]*order.SubmitResponse, len(orders))
+	var unplaced int
 	for i := range placed {
 		if placed[i] == nil || placed[i].OrderID == "" {
+			unplaced++
 			continue
 		}
 		// A partial success keeps its transport error alongside the per-order
@@ -1779,6 +1781,11 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if derr != nil {
 			err = common.AppendError(err, derr)
 		}
+	}
+	if err == nil && unplaced != 0 {
+		// A success reply places every order, so a row without an order ID
+		// leaves that order's outcome unknown.
+		err = fmt.Errorf("%w: %d of %d orders returned no order ID", common.ErrInvalidResponse, unplaced, len(orders))
 	}
 	return responses, err
 }

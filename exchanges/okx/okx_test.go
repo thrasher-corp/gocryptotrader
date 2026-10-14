@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -7730,12 +7731,53 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 	assert.NoError(t, err)
 	trades, err := e.spreadPublicTrades([]byte(wsProcessPublicSpreadTradesJSON))
 	require.NoError(t, err, "spreadPublicTrades must not error")
-	require.Len(t, trades, 1, "a public spread trade push should reach the trade buffer")
+	require.Len(t, trades, 1, "spreadPublicTrades must return the pushed trade")
 	exp := trade.Data{
 		TID: "2499206329160695808", Exchange: e.Name, CurrencyPair: spreadPair, AssetType: asset.Spread,
 		Side: order.Sell, Price: -10, Amount: 0.001, Timestamp: time.UnixMilli(1726801105519),
 	}
 	assert.Equal(t, exp, trades[0], "the push should decode its trade rather than drop it")
+}
+
+// TestWsProcessPublicSpreadTradesHonoursSaveTradeData guards the saving gate:
+// with trade saving off a push must not reach the shared trade buffer, while
+// the decode still runs first so a malformed push reports its error. The
+// fixture trades carry a zero size, which the buffer rejects with an error,
+// so that error tells whether the buffer was reached. The database is only
+// configured, never connected: the rejected trade never enters the buffer.
+func TestWsProcessPublicSpreadTradesHonoursSaveTradeData(t *testing.T) {
+	t.Parallel()
+	zeroSize := strings.Replace(wsProcessPublicSpreadTradesJSON, `"sz": "0.001"`, `"sz": "0"`, 1)
+	require.NotEqual(t, wsProcessPublicSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
+	require.NoError(t, database.DB.SetConfig(&database.Config{
+		Enabled: true, Driver: database.DBSQLite3, Host: "localhost", Database: "./tradebuffercheck",
+	}), "enabling the database config must not error")
+	t.Cleanup(func() {
+		require.NoError(t, database.DB.SetConfig(&database.Config{}), "restoring the database config must not error")
+	})
+	for _, tc := range []struct {
+		name   string
+		save   bool
+		push   string
+		expErr string
+	}{
+		{name: "saving off", save: false, push: zeroSize},
+		{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
+		{name: "malformed push with saving off", save: false, push: "{", expErr: "unexpected end of JSON input"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			e.SetSaveTradeDataStatus(tc.save)
+			err := e.wsProcessPublicSpreadTrades([]byte(tc.push))
+			if tc.expErr == "" {
+				assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
+				return
+			}
+			assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
+		})
+	}
 }
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {

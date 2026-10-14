@@ -2622,6 +2622,9 @@ func TestWebsocketSubmitOrdersReplies(t *testing.T) {
 		{"null row", "2", []map[string]string{nil, second}, []string{"", "2 SELL"}, errPartialSuccess},
 		{"more rows than orders", "0", []map[string]string{first, second, second}, []string{}, common.ErrInvalidResponse},
 		{"success without rows", "0", []map[string]string{}, []string{}, common.ErrInvalidResponse},
+		{"success with a null row", "0", []map[string]string{nil, second}, []string{"", "2 SELL"}, common.ErrInvalidResponse},
+		{"success with a row without an order ID", "0", []map[string]string{{"ordId": "", "sCode": "0", "sMsg": ""}, second}, []string{"", "2 SELL"}, common.ErrInvalidResponse},
+		{"success without order IDs", "0", []map[string]string{nil, {"ordId": "", "sCode": "0", "sMsg": ""}}, []string{"", ""}, common.ErrInvalidResponse},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -777,6 +777,9 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	if !e.IsSaveTradeDataEnabled() {
+		return nil
+	}
 	return trade.AddTradesToBuffer(trades...)
 }
 
