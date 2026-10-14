@@ -200,6 +200,9 @@ func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrde
 // sendV5TradeRequest centralises response correlation and exchange error
 // handling for authenticated V5 websocket operations.
 func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, data, response any) error {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return errWebsocketNotAuthenticated
+	}
 	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
 	if err != nil {
 		return err

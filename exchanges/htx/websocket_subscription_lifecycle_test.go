@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -125,4 +127,66 @@ func TestWebsocketSubscriptionLifecycle(t *testing.T) {
 	assert.NotSame(t, conn, reconnected, "restoring an emptied setup should use a new connection")
 	assert.Same(t, h.Websocket.GetSubscriptions()[0], h.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "market.btcusdt.detail"}}, connection: reconnected}), "restored routing should use the new connection identity")
 	assert.Nil(t, h.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "market.btcusdt.detail"}}, connection: conn}), "retired connection identity should not find the replacement subscription")
+}
+
+func TestWebsocketTradeConnectionLifecycle(t *testing.T) {
+	t.Parallel()
+	var tradeAuthentications atomic.Int32
+	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var request struct {
+			Operation string `json:"op"`
+		}
+		if err := json.Unmarshal(message, &request); err != nil {
+			return err
+		}
+		if request.Operation == wsAuthChannel {
+			tradeAuthentications.Add(1)
+		}
+		return wsFixture(tb, message, conn)
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "exchange defaults must load")
+	cfg := h.Config
+	cfg.API.AuthenticatedWebsocketSupport = true
+	cfg.API.AuthenticatedSupport = true
+	h.SetDefaults()
+	require.NoError(t, h.Setup(cfg), "authenticated websocket setup must succeed")
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
+	require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must start disabled")
+	require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")
+	t.Cleanup(func() {
+		if err := h.Websocket.Disable(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should not error")
+		}
+		if err := h.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error")
+		}
+	})
+	require.NoError(t, h.Websocket.Connect(t.Context()), "spot must connect with the trade asset disabled")
+	spot, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+	require.NoError(t, err, "spot connection must be available")
+	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade asset must not create a connection")
+	assert.Zero(t, tradeAuthentications.Load(), "disabled trade asset should not authenticate a socket")
+
+	require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, true), "USDT-margined asset must enable")
+	require.NoError(t, h.Websocket.FlushChannels(t.Context()), "enabling trade asset must create its connection")
+	trade, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.NoError(t, err, "trade connection must be available after enabling the asset")
+	assert.Equal(t, int32(1), tradeAuthentications.Load(), "trade socket should authenticate before use")
+	spotAfterEnable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+	require.NoError(t, err, "spot connection must remain available")
+	assert.Same(t, spot, spotAfterEnable, "enabling trade should retain the spot connection")
+
+	require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must disable")
+	require.NoError(t, h.Websocket.FlushChannels(t.Context()), "disabling trade asset must remove its connection")
+	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade connection must be unavailable")
+	assert.ErrorContains(t, trade.SendJSONMessage(t.Context(), 0, struct{}{}), "disconnected", "disabled trade connection should close")
+	spotAfterDisable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+	require.NoError(t, err, "spot connection must remain available after disabling trade")
+	assert.Same(t, spot, spotAfterDisable, "disabling trade should retain the spot connection")
 }

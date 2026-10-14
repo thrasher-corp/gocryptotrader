@@ -87,15 +87,21 @@ func TestSetupV5TradeWebsocketTestConnection(t *testing.T) {
 	require.NoError(t, err, "trade connection must be available after enabling")
 }
 
-func TestV5TradeConnectionSetupGate(t *testing.T) {
-	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
-	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
-	require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
-}
-
 func TestSendV5TradeRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("authentication required on connected socket", func(t *testing.T) {
+		t.Parallel()
+		h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+			tb.Helper()
+			assert.Fail(tb, "unauthenticated trade request should not reach the socket")
+			return wsFixture(tb, message, conn)
+		})
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		var response *V5WsOrderResponse
+		err := h.sendV5TradeRequest(t.Context(), "place_order", &V5OrderRequest{ContractCode: "BTC-USDT"}, &response)
+		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "trade request must require authentication even when connected")
+		assert.Nil(t, response, "unauthenticated trade request should return no response")
+	})
 	for _, tc := range []struct {
 		name        string
 		setup       func(*testing.T) *Exchange
@@ -115,6 +121,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 				t.Helper()
 				h := new(Exchange)
 				require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+				h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				return h
 			},
 			expectedErr: true,
@@ -230,6 +237,10 @@ func TestWSPlaceV5Order(t *testing.T) {
 	require.NoError(t, err, "WSPlaceV5Order must not error")
 	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
 	assert.Equal(t, types.Number(19), resp.RateLimit.Remaining, "remaining rate limit should decode")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSPlaceV5Order must reject unauthenticated requests")
 }
 
 func TestWSPlaceV5BatchOrders(t *testing.T) {
@@ -241,6 +252,10 @@ func TestWSPlaceV5BatchOrders(t *testing.T) {
 	require.NoError(t, err, "WSPlaceV5BatchOrders must not error")
 	require.Len(t, resp.Data, 1, "one order acknowledgement must decode")
 	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT"}})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSPlaceV5BatchOrders must reject unauthenticated requests")
 }
 
 func TestWSCancelV5Order(t *testing.T) {
@@ -251,6 +266,10 @@ func TestWSCancelV5Order(t *testing.T) {
 	resp, err := h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
 	require.NoError(t, err, "WSCancelV5Order must not error")
 	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelV5Order must reject unauthenticated requests")
 }
 
 func TestWSCancelV5BatchOrders(t *testing.T) {
@@ -262,6 +281,10 @@ func TestWSCancelV5BatchOrders(t *testing.T) {
 	require.NoError(t, err, "WSCancelV5BatchOrders must not error")
 	require.Len(t, resp.Data, 1, "one cancellation must decode")
 	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelV5BatchOrders must reject unauthenticated requests")
 }
 
 func TestWSCancelAllV5Orders(t *testing.T) {
@@ -273,6 +296,10 @@ func TestWSCancelAllV5Orders(t *testing.T) {
 	require.NoError(t, err, "WSCancelAllV5Orders must not error")
 	require.Len(t, resp.Data, 1, "one cancellation must decode")
 	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelAllV5Orders must reject unauthenticated requests")
 }
 
 func TestSendV5WSOrderUpdate(t *testing.T) {
@@ -464,47 +491,6 @@ func TestSendV5WSExecutionUpdates(t *testing.T) {
 			assert.Equal(t, btcusdtPair, fills[1].CurrencyPair, "envelope symbol should provide fallback")
 			assert.Equal(t, time.UnixMilli(1749468764316), fills[1].Timestamp, "creation time should provide fallback")
 			assert.Equal(t, 2.0, fills[1].Amount, "execution volume should be retained")
-		})
-	}
-}
-
-func TestV5WsRateLimitUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name    string
-		raw     string
-		empty   bool
-		wantErr bool
-	}{
-		{name: "object", raw: `{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}`},
-		{name: "encoded string", raw: `"{\"limit\":\"24\",\"interval\":\"3000\",\"remaining\":\"19\",\"reset\":\"1772779491561\"}"`},
-		{name: "null", raw: `null`, empty: true},
-		{name: "empty string", raw: `""`, wantErr: true},
-		{name: "invalid string", raw: `"not JSON"`, wantErr: true},
-		{name: "array", raw: `[]`, wantErr: true},
-		{name: "malformed", raw: `{`, wantErr: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			state := V5WsRateLimit{Limit: 99}
-			err := state.UnmarshalJSON([]byte(tc.raw))
-			if tc.wantErr {
-				require.Error(t, err, "invalid state must return a decoding error")
-				assert.Equal(t, types.Number(99), state.Limit, "failed decode should preserve existing state")
-				return
-			}
-			require.NoError(t, err, "rate limit must decode")
-			if tc.empty {
-				assert.Equal(t, V5WsRateLimit{}, state, "null should clear state")
-				return
-			}
-			assert.Equal(t, types.Number(24), state.Limit)
-			assert.Equal(t, types.Number(3000), state.Interval)
-			assert.Equal(t, types.Number(19), state.Remaining)
-			assert.Equal(t, time.UnixMilli(1772779491561), state.Reset.Time())
-			var response V5WsOrderResponse
-			require.NoError(t, json.Unmarshal([]byte(`{"rate_limit":`+tc.raw+`}`), &response), "embedded trade response must decode")
-			assert.Equal(t, state, response.RateLimit, "embedded rate limit should match standalone state")
 		})
 	}
 }

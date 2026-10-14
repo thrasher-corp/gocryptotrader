@@ -3,25 +3,20 @@ package htx
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -29,13 +24,6 @@ import (
 )
 
 const (
-	wsFuturesURL              = "wss://api.hbdm.com/ws"
-	wsFuturesPrivateURL       = "wss://api.hbdm.com/notification"
-	wsCoinMarginedURL         = "wss://api.hbdm.com/swap-ws"
-	wsCoinMarginedPrivateURL  = "wss://api.hbdm.com/swap-notification"
-	wsUSDTMarginedURL         = "wss://api.hbdm.com/linear-swap-ws"
-	wsUSDTMarginedPrivateURL  = "wss://api.hbdm.com/ws/v5/notification"
-	wsUSDTMarginedTradeURL    = "wss://api.hbdm.com/linear-swap-trade"
 	wsPositionsChannel        = "positions"
 	wsTriggerOrdersChannel    = "triggerOrders"
 	wsTradeUpdatesChannel     = "tradeUpdates"
@@ -43,147 +31,6 @@ const (
 	wsFuturesSignatureVersion = "2"
 	orderOffsetClose          = "close"
 )
-
-var defaultFuturesSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
-	{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
-	{Enabled: false, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.Futures, Channel: wsPositionsChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.Futures, Channel: wsTriggerOrdersChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.OrderbookChannel},
-	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.AllTradesChannel},
-	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyTradesChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyAccountChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: wsPositionsChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: wsTriggerOrdersChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.OrderbookChannel},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsTradeUpdatesChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsExecutionDetailsChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.MyAccountChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsPositionsChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.MyTradesChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsTriggerOrdersChannel, Authenticated: true},
-}
-
-// wsConnect establishes an HTX websocket connection for the asset selected by its connection setup.
-func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
-}
-
-// generateSubscriptionsForAsset isolates configured subscriptions for one websocket connection.
-func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (subscription.List, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
-		if errors.Is(err, asset.ErrNotEnabled) {
-			return subscription.List{}, nil
-		}
-		return nil, err
-	}
-	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
-	var unsupported error
-	for _, sub := range e.Features.Subscriptions {
-		if sub.Enabled && sub.Asset == a && sub.Authenticated == private {
-			if sub.Channel == wsFundingRateChannel || sub.Channel == wsFundingRateTopic {
-				unsupported = common.AppendError(unsupported, fmt.Errorf("%w: %w: %s", websocket.ErrSubscriptionPartial, common.ErrNotYetImplemented, sub.Channel))
-				continue
-			}
-			cloned := sub.Clone()
-			if a == asset.Futures && !private {
-				pairs := cloned.Pairs
-				if len(pairs) == 0 {
-					var err error
-					pairs, err = e.GetEnabledPairs(a)
-					if err != nil {
-						return nil, err
-					}
-				}
-				for _, pair := range pairs {
-					delimiter := ""
-					if slices.Contains(validContractExpiryCodes, pair.Quote.Upper().String()) {
-						delimiter = "_"
-					}
-					topicSub := cloned.Clone()
-					topicSub.Pairs = currency.Pairs{currency.NewPairWithDelimiter(pair.Base.String(), pair.Quote.String(), delimiter)}
-					expanded, errs := subscription.List{topicSub}.ExpandTemplates(e)
-					if errs != nil {
-						return nil, errs
-					}
-					for _, expandedSub := range expanded {
-						expandedSub.Pairs = currency.Pairs{pair}
-					}
-					subs = append(subs, expanded...)
-				}
-				continue
-			}
-			subs = append(subs, cloned)
-		}
-	}
-	expanded, err := subs.ExpandTemplates(e)
-	return expanded, common.AppendError(unsupported, err)
-}
-
-// getWebsocketConnection resolves legacy subscription calls onto the asset-specific connection.
-func (e *Exchange) getWebsocketConnection(sub *subscription.Subscription) (websocket.Connection, error) {
-	switch sub.Asset {
-	case asset.Spot:
-		if sub.Authenticated {
-			if e.Websocket.AuthConn != nil {
-				return e.Websocket.AuthConn, nil
-			}
-			return e.Websocket.GetConnection(exchange.WebsocketPrivate)
-		}
-		if e.Websocket.Conn != nil {
-			return e.Websocket.Conn, nil
-		}
-		return e.Websocket.GetConnection(exchange.WebsocketSpot)
-	case asset.Futures:
-		if sub.Authenticated {
-			return e.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
-		}
-		return e.Websocket.GetConnection(exchange.WebsocketFutures)
-	case asset.CoinMarginedFutures:
-		if sub.Authenticated {
-			return e.Websocket.GetConnection(exchange.WebsocketCoinMarginedPrivate)
-		}
-		return e.Websocket.GetConnection(exchange.WebsocketCoinMargined)
-	case asset.USDTMarginedFutures:
-		if sub.Authenticated {
-			return e.Websocket.GetConnection(exchange.WebsocketUSDTMarginedPrivate)
-		}
-		return e.Websocket.GetConnection(exchange.WebsocketUSDTMargined)
-	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, sub.Asset)
-	}
-}
-
-// subscribeConnection subscribes through the connection selected by the websocket manager.
-func (e *Exchange) subscribeConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
-		return e.manageSubs(ctx, conn, wsSubOp, batch)
-	}, 1))
-}
-
-// unsubscribeConnection unsubscribes through the connection selected by the websocket manager.
-func (e *Exchange) unsubscribeConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
-		return e.manageSubs(ctx, conn, wsUnsubOp, batch)
-	}, 1))
-}
 
 // wsGenerateFuturesSignature signs authentication requests for derivative notification endpoints.
 func (e *Exchange) wsGenerateFuturesSignature(conn websocket.Connection, creds *accounts.Credentials, timestamp string) ([]byte, error) {
@@ -403,31 +250,6 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 	default:
 		return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, sub.Channel)
 	}
-}
-
-// legacyFuturesWSOrder holds the common order fields shared by delivery and coin-margined notifications.
-type legacyFuturesWSOrder struct {
-	asset          asset.Item
-	contractCode   string
-	direction      string
-	orderPriceType string
-	feeAsset       string
-	status         int64
-	orderID        int64
-	clientOrderID  int64
-	orderType      int64
-	orderIDString  string
-	volume         float64
-	price          float64
-	tradeVolume    float64
-	tradeTurnover  float64
-	averagePrice   float64
-	trades         []LegacyFuturesWSTrade
-	fee            float64
-	leverage       float64
-	createdAt      int64
-	cancelledAt    int64
-	reduceOnly     bool
 }
 
 // formatLegacyFuturesWSOrder converts legacy derivative notifications into the canonical order type.

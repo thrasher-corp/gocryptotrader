@@ -13,6 +13,7 @@ import (
 
 func TestGetLinearSwapMarkets(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapMarkets, `{"status":"ok","data":[{"contract_code":"BTC-USDT"}]}`, nil)
 	resp, err := h.GetLinearSwapMarkets(t.Context(), btcusdtPair, "cross", "swap", "futures")
 	require.NoError(t, err, "GetLinearSwapMarkets must not error")
@@ -55,9 +56,4 @@ func TestGetLinearSwapBatchTrades(t *testing.T) {
 	resp, err := h.GetLinearSwapBatchTrades(t.Context(), btcusdtPair, 10)
 	require.NoError(t, err, "GetLinearSwapBatchTrades must not error")
 	assert.Equal(t, int64(123), resp.ID, "batch ID should decode")
-}
-
-func TestUSDTFuturesEndpointPaths(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
 }

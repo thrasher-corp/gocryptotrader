@@ -21,13 +21,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestFuturesHistoryEndpointPaths(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "/api/v3/contract_financial_record", fFinancialRecords, "delivery futures financial records endpoint should match HTX docs")
-	assert.Equal(t, "/api/v3/contract_hisorders", fOrderHistory, "delivery futures order history endpoint should match HTX docs")
-	assert.Equal(t, "/api/v3/contract_matchresults", fMatchResult, "delivery futures trade history endpoint should match HTX docs")
-}
-
 func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -346,6 +339,7 @@ func TestFGetSingleSubPositions(t *testing.T) {
 
 func TestFGetFinancialRecords(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "/api/v3/contract_financial_record", fFinancialRecords, "delivery futures financial records endpoint should match HTX docs")
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fFinancialRecords, emptySuccessResponse, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err, "request body must be readable")
@@ -511,6 +505,7 @@ func TestFGetOpenOrders(t *testing.T) {
 
 func TestFGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "/api/v3/contract_hisorders", fOrderHistory, "delivery futures order history endpoint should match HTX docs")
 	_, err := e.FGetOrderHistory(t.Context(),
 		currency.EMPTYPAIR, "BTC",
 		"all", "all", "limit",
@@ -550,6 +545,7 @@ func TestFGetOrderHistoryByTimeRange(t *testing.T) {
 
 func TestFTradeHistory(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "/api/v3/contract_matchresults", fMatchResult, "delivery futures trade history endpoint should match HTX docs")
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fMatchResult, emptySuccessResponse, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err, "request body must be readable")

@@ -1478,6 +1478,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if s.AssetType != asset.USDTMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketNotAuthenticated
+	}
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
 		return nil, err
@@ -1515,6 +1518,9 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if orders[i].AssetType != asset.USDTMarginedFutures {
 			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, orders[i].AssetType)
 		}
+	}
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketNotAuthenticated
 	}
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
@@ -1569,6 +1575,9 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	}
 	if ord.OrderID == "" && ord.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
+	}
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return errWebsocketNotAuthenticated
 	}
 	formattedPair, err := e.FormatSymbol(ord.Pair, asset.USDTMarginedFutures)
 	if err != nil {

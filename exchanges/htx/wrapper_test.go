@@ -126,66 +126,11 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	t.Run("trade connection follows enabled asset", func(t *testing.T) {
+	t.Run("trade connection requires authenticated websocket support", func(t *testing.T) {
 		t.Parallel()
-		var tradeAuthentications atomic.Int32
-		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
-			tb.Helper()
-			var request struct {
-				Operation string `json:"op"`
-			}
-			if err := json.Unmarshal(message, &request); err != nil {
-				return err
-			}
-			if request.Operation == wsAuthChannel {
-				tradeAuthentications.Add(1)
-			}
-			return wsFixture(tb, message, conn)
-		}))
-		t.Cleanup(server.Close)
-		h := new(Exchange)
-		require.NoError(t, testexch.Setup(h), "exchange defaults must load")
-		cfg := h.Config
-		cfg.API.AuthenticatedWebsocketSupport = true
-		cfg.API.AuthenticatedSupport = true
-		h.SetDefaults()
-		require.NoError(t, h.Setup(cfg), "authenticated websocket setup must succeed")
-		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-		h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
-		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must start disabled")
-		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")
-		t.Cleanup(func() {
-			if err := h.Websocket.Disable(); err != nil {
-				assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should not error")
-			}
-			if err := h.Websocket.Shutdown(); err != nil {
-				assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error")
-			}
-		})
-		require.NoError(t, h.Websocket.Connect(t.Context()), "spot must connect with the trade asset disabled")
-		spot, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
-		require.NoError(t, err, "spot connection must be available")
-		_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
-		require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade asset must not create a connection")
-		assert.Zero(t, tradeAuthentications.Load(), "disabled trade asset should not authenticate a socket")
-
-		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, true), "USDT-margined asset must enable")
-		require.NoError(t, h.Websocket.FlushChannels(t.Context()), "enabling trade asset must create its connection")
-		trade, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
-		require.NoError(t, err, "trade connection must be available after enabling the asset")
-		assert.Equal(t, int32(1), tradeAuthentications.Load(), "trade socket should authenticate before use")
-		spotAfterEnable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
-		require.NoError(t, err, "spot connection must remain available")
-		assert.Same(t, spot, spotAfterEnable, "enabling trade should retain the spot connection")
-
-		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must disable")
-		require.NoError(t, h.Websocket.FlushChannels(t.Context()), "disabling trade asset must remove its connection")
-		_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
-		require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade connection must be unavailable")
-		assert.ErrorContains(t, trade.SendJSONMessage(t.Context(), 0, struct{}{}), "disconnected", "disabled trade connection should close")
-		spotAfterDisable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
-		require.NoError(t, err, "spot connection must remain available after disabling trade")
-		assert.Same(t, spot, spotAfterDisable, "disabling trade should retain the spot connection")
+		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+		require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
 	})
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Setup must not error")
@@ -259,6 +204,97 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		asset          asset.Item
+		pair           currency.Pair
+		invalidPair    currency.Pair
+		expectedErrMsg string
+	}{
+		{name: "spot", asset: asset.Spot, pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "-"), expectedErrMsg: "invalid symbol"},
+		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "USD", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "_"), expectedErrMsg: "symbol data error"},
+		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
+		{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+			h.Name = t.Name()
+			if tc.expectedErrMsg != "" {
+				_, err := h.UpdateTicker(t.Context(), tc.invalidPair, tc.asset)
+				assert.ErrorContains(t, err, tc.expectedErrMsg, "invalid pair should return the venue error")
+			}
+			_, err := h.UpdateTicker(t.Context(), tc.pair, tc.asset)
+			require.NoError(t, err, "UpdateTicker must accept the asset's enabled pair")
+		})
+	}
+	for _, tc := range []struct {
+		name                       string
+		a                          asset.Item
+		pair                       currency.Pair
+		endpoint                   exchange.URL
+		body                       string
+		wantBase, wantQuote        float64
+		wantBid, wantBidSize       float64
+		wantLastUpdatedFromPayload bool
+	}{
+		{
+			// trimmed from GET /market/detail/merged?symbol=btcusdt
+			name: "spot records the quote turnover and the book", a: asset.Spot,
+			pair: currency.NewBTCUSDT(), endpoint: exchange.RestSpot,
+			body:     `{"status":"ok","ts":1788926189000,"tick":{"amount":6454.5661,"vol":506778563.47,"high":79000,"low":78000,"open":78500,"close":78616.33,"bid":[78615,1.5],"ask":[78617,2.5]}}`,
+			wantBase: 6454.5661, wantQuote: 506778563.47, wantBid: 78615, wantBidSize: 1.5,
+			wantLastUpdatedFromPayload: true,
+		},
+		{
+			// trimmed from GET /swap-ex/market/detail/merged?contract_code=BTC-USD, where vol is
+			// 65744 contracts of 100 USD against amount 83.81 BTC
+			name: "coin margined records no quote volume", a: asset.CoinMarginedFutures,
+			pair: currency.NewBTCUSD(), endpoint: exchange.RestFutures,
+			body:     `{"status":"ok","ts":1788926189000,"tick":{"amount":"83.8102","vol":"65744","high":"79434.2","low":"77567.2","open":"79212.4","close":"78741.1","bid":[78740,3600],"ask":[78742,1200]}}`,
+			wantBase: 83.8102, wantQuote: 0, wantBid: 78740, wantBidSize: 3600,
+		},
+		{
+			// trimmed from GET /swap-ex/market/detail/merged?contract_code=OAS-USD, one of the
+			// coin margined swaps with nothing resting on either side, which the batch endpoint
+			// records with a zero book
+			name: "coin margined records an empty book", a: asset.CoinMarginedFutures,
+			pair: currency.NewPair(currency.NewCode("OAS"), currency.USD), endpoint: exchange.RestFutures,
+			body: `{"ch":"market.OAS-USD.detail.merged","status":"ok","tick":{"amount":"0","ask":null,"bid":null,"close":"0.02","count":0,"high":"0.02","id":1789024695,"low":"0.02","open":"0.02","ts":1789024695555,"vol":"0"},"ts":1789024695555}`,
+		},
+		{
+			// A side carrying only its price is recorded with a zero size, as on the futures paths
+			name: "spot records a side carrying only its price", a: asset.Spot,
+			pair: currency.NewPair(currency.ETH, currency.USDT), endpoint: exchange.RestSpot,
+			body:     `{"status":"ok","ts":1788926189000,"tick":{"amount":1.5,"vol":3712.5,"high":2500,"low":2400,"open":2450,"close":2475,"bid":[2474.5],"ask":[2475.5,2]}}`,
+			wantBase: 1.5, wantQuote: 3712.5, wantBid: 2474.5,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := fmt.Fprint(w, tc.body)
+				assert.NoError(t, err, "writing the ticker response should not error")
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(tc.endpoint.String(), server.URL), "SetRunningURL must not error")
+
+			got, err := ex.UpdateTicker(t.Context(), tc.pair, tc.a)
+			require.NoError(t, err, "UpdateTicker must not error")
+			assert.Equal(t, tc.wantBase, got.BaseVolume, "amount should be recorded as the base volume")
+			assert.Equal(t, tc.wantQuote, got.QuoteVolume, "only an endpoint serving the quote currency should set a quote volume")
+			assert.Equal(t, got.Close, got.Last, "Last should carry the latest price, as Close does")
+			assert.Equal(t, tc.wantBid, got.Bid, "the resting bid should reach the store")
+			assert.Equal(t, tc.wantBidSize, got.BidSize, "the resting bid size should reach the store")
+			if tc.wantLastUpdatedFromPayload {
+				assert.Equal(t, int64(1788926189000), got.LastUpdated.UnixMilli(), "the response timestamp should reach the store")
+			}
+		})
+	}
 	t.Run("USDT quote turnover", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/detail/merged", `{"status":"ok","tick":{"amount":"10","trade_turnover":"747978922.8898","vol":"100","open":"1","close":"2","high":"3","low":"1","bid":[1,2],"ask":[2,3]}}`, nil)
@@ -267,74 +303,28 @@ func TestUpdateTicker(t *testing.T) {
 		require.NoError(t, err, "single USDT ticker must decode")
 		assert.Equal(t, 747978922.8898, price.QuoteVolume, "single ticker should retain quoted turnover")
 	})
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Name = t.Name()
-	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
-	assert.ErrorContains(t, err, "invalid symbol")
-	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
-	require.NoError(t, err)
-}
-
-func TestUpdateTickerCMF(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Name = t.Name()
-	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
-	assert.ErrorContains(t, err, "symbol data error")
-	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
-	require.NoError(t, err)
-}
-
-func TestUpdateTickerFutures(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Name = t.Name()
-	_, err := e.UpdateTicker(t.Context(), btccwPair, asset.Futures)
-	require.NoError(t, err)
-}
-
-func TestUpdateTickerUSDTMarginedFutures(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Name = t.Name()
-	_, err := e.UpdateTicker(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
-	require.NoError(t, err)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateOrderbook(t.Context(), btcusdtPair, asset.Spot)
-	require.NoError(t, err)
-}
-
-func TestUpdateOrderbookCMF(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateOrderbook(t.Context(), btcusdPair, asset.CoinMarginedFutures)
-	require.NoError(t, err)
-}
-
-func TestUpdateOrderbookFuture(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateOrderbook(t.Context(), btccwPair, asset.Futures)
-	require.NoError(t, err)
-	_, err = e.UpdateOrderbook(t.Context(), btcusdPair, asset.CoinMarginedFutures)
-	require.NoError(t, err)
-}
-
-func TestUpdateOrderbookUSDTMarginedFutures(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateOrderbook(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
-	require.NoError(t, err)
-}
-
-func TestUpdateOrderbookUnsupportedAsset(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateOrderbook(t.Context(), btcusdtPair, asset.Binary)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateOrderbook must reject unsupported assets")
+	for _, tc := range []struct {
+		name        string
+		asset       asset.Item
+		pair        currency.Pair
+		expectedErr error
+	}{
+		{name: "spot", asset: asset.Spot, pair: btcusdtPair},
+		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: btcusdPair},
+		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
+		{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
+		{name: "unsupported asset", asset: asset.Binary, pair: btcusdtPair, expectedErr: asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.UpdateOrderbook(t.Context(), tc.pair, tc.asset)
+			require.ErrorIs(t, err, tc.expectedErr, "UpdateOrderbook must return the expected asset result")
+		})
+	}
 }
 
 func TestUpdateOrderbookWithLimit(t *testing.T) {
@@ -355,6 +345,45 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		getOrdersRequest := order.MultiOrderRequest{
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+		}
+		_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+		require.ErrorContains(t, err, "currency must be supplied", "GetOrderHistory must require a currency pair for spot")
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		testCases := []struct {
+			name        string
+			pair        currency.Pair
+			asset       asset.Item
+			expectedErr error
+		}{
+			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					Type:      order.AnyType,
+					Pairs:     []currency.Pair{tt.pair},
+					AssetType: tt.asset,
+					Side:      order.AnySide,
+					StartTime: time.Now().AddDate(0, 0, -1),
+					EndTime:   time.Now(),
+				})
+				require.ErrorIs(t, err, tt.expectedErr, "GetOrderHistory must return the expected branch error")
+			})
+		}
+	})
 	for _, tc := range []struct {
 		name       string
 		item       asset.Item
@@ -548,6 +577,37 @@ func TestGetV3HistoryWindows(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.CancelAllOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject nil cancellations")
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		testCases := []struct {
+			name        string
+			pair        currency.Pair
+			asset       asset.Item
+			expectedErr error
+		}{
+			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := h.CancelAllOrders(t.Context(), &order.Cancel{
+					OrderID:   "1",
+					Pair:      tt.pair,
+					AssetType: tt.asset,
+				})
+				require.ErrorIs(t, err, tt.expectedErr, "CancelAllOrders must return the expected branch error")
+			})
+		}
+	})
 	t.Run("spot incomplete cancellation", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchCancelOpenOrders", `{"status":"ok","data":{"success-count":100,"failed-count":0,"next-id":5454600}}`, nil)
@@ -612,6 +672,25 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	t.Run("USDT margined endpoint", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now().UTC().Truncate(time.Minute)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
+			_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, false), "available pair must be set")
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, true), "enabled pair must be set")
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+
+		got, err := h.GetHistoricCandles(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
+		require.NoError(t, err, "GetHistoricCandles must not error for USDT-margined futures")
+		require.NotEmpty(t, got.Candles, "candles must be returned")
+	})
 	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		for _, count := range []int{1999, 2000} {
 			t.Run(a.String()+"/"+strconv.Itoa(count), func(t *testing.T) {
@@ -675,6 +754,25 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	t.Run("USDT margined endpoint", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now().UTC().Truncate(time.Minute)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
+			_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, false), "available pair must be set")
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, true), "enabled pair must be set")
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+
+		got, err := h.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
+		require.NoError(t, err, "GetHistoricCandlesExtended must not error for USDT-margined futures")
+		require.NotEmpty(t, got.Candles, "extended candles must be returned")
+	})
 	for _, tc := range []struct {
 		item     asset.Item
 		pair     currency.Pair
@@ -758,6 +856,44 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+
+		getOrdersRequest := order.MultiOrderRequest{
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+		}
+		_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
+		require.ErrorContains(t, err, "currency must be supplied", "GetActiveOrders must require a currency pair for spot")
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		testCases := []struct {
+			name        string
+			pair        currency.Pair
+			asset       asset.Item
+			expectedErr error
+		}{
+			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+					Type:      order.AnyType,
+					Pairs:     []currency.Pair{tt.pair},
+					AssetType: tt.asset,
+					Side:      order.AnySide,
+				})
+				require.ErrorIs(t, err, tt.expectedErr, "GetActiveOrders must return the expected branch error")
+			})
+		}
+	})
 	for _, tc := range []struct {
 		item           asset.Item
 		pair           currency.Pair
@@ -847,45 +983,6 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.Equal(t, int32(1), isolatedRequests.Load(), "isolated mode should be queried once")
 }
 
-func TestGetActiveOrdersValidation(t *testing.T) {
-	t.Parallel()
-
-	getOrdersRequest := order.MultiOrderRequest{
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-	}
-	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
-	require.ErrorContains(t, err, "currency must be supplied", "GetActiveOrders must require a currency pair for spot")
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
-		name        string
-		pair        currency.Pair
-		asset       asset.Item
-		expectedErr error
-	}{
-		{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
-	}
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
-				Type:      order.AnyType,
-				Pairs:     []currency.Pair{tt.pair},
-				AssetType: tt.asset,
-				Side:      order.AnySide,
-			})
-			require.ErrorIs(t, err, tt.expectedErr, "GetActiveOrders must return the expected branch error")
-		})
-	}
-}
-
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Uint64
@@ -933,6 +1030,60 @@ func TestGetAccountID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := e.SubmitOrder(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder must reject nil submissions")
+
+		_, err = e.SubmitOrder(t.Context(), &order.Submit{
+			Exchange: e.Name, Pair: btcusdtPair, AssetType: asset.Spot,
+			Side: order.Buy, Type: order.Market, Amount: 1, ClientID: "1",
+		})
+		require.ErrorIs(t, err, order.ErrAmountMustBeSet, "SubmitOrder must require quote amount for spot market buys")
+
+		_, err = e.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      btcusdtPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Price:     1,
+			Amount:    1,
+			ClientID:  "invalid",
+		})
+		require.Error(t, err, "SubmitOrder must reject invalid spot account IDs")
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		testCases := []struct {
+			name        string
+			pair        currency.Pair
+			asset       asset.Item
+			expectedErr error
+		}{
+			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := h.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:  h.Name,
+					Pair:      tt.pair,
+					AssetType: tt.asset,
+					Side:      order.Buy,
+					Type:      order.Limit,
+					Price:     1,
+					Amount:    1,
+					Leverage:  1,
+				})
+				require.ErrorIs(t, err, tt.expectedErr, "SubmitOrder must return the expected branch error")
+			})
+		}
+	})
 	for _, tt := range []struct {
 		name       string
 		endpoint   exchange.URL
@@ -998,61 +1149,6 @@ func TestSubmitOrder(t *testing.T) {
 			require.NoError(t, err, "SubmitOrder must not error")
 			assert.Equal(t, "1", response.OrderID, "order ID should match")
 			assert.Equal(t, tt.status, response.Status, "response status should match")
-		})
-	}
-}
-
-func TestSubmitOrderValidation(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.SubmitOrder(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder must reject nil submissions")
-
-	_, err = e.SubmitOrder(t.Context(), &order.Submit{
-		Exchange: e.Name, Pair: btcusdtPair, AssetType: asset.Spot,
-		Side: order.Buy, Type: order.Market, Amount: 1, ClientID: "1",
-	})
-	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "SubmitOrder must require quote amount for spot market buys")
-
-	_, err = e.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  e.Name,
-		Pair:      btcusdtPair,
-		AssetType: asset.Spot,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "invalid",
-	})
-	require.Error(t, err, "SubmitOrder must reject invalid spot account IDs")
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
-		name        string
-		pair        currency.Pair
-		asset       asset.Item
-		expectedErr error
-	}{
-		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
-	}
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := h.SubmitOrder(t.Context(), &order.Submit{
-				Exchange:  h.Name,
-				Pair:      tt.pair,
-				AssetType: tt.asset,
-				Side:      order.Buy,
-				Type:      order.Limit,
-				Price:     1,
-				Amount:    1,
-				Leverage:  1,
-			})
-			require.ErrorIs(t, err, tt.expectedErr, "SubmitOrder must return the expected branch error")
 		})
 	}
 }
@@ -1221,62 +1317,31 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
-func TestCancelBatchOrdersValidation(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.CancelBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders must reject empty requests")
-
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must require an order ID")
-
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
-		{OrderID: "1", AssetType: asset.Spot},
-		{OrderID: "2", AssetType: asset.Futures},
-	})
-	require.ErrorIs(t, err, errBatchAssetMismatch, "CancelBatchOrders must reject mixed assets")
-
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
-		{OrderID: "1", AssetType: asset.Futures, Pair: btccwPair},
-		{OrderID: "2", AssetType: asset.Futures, Pair: currency.NewPair(currency.ETH, currency.NewCode("CW"))},
-	})
-	require.ErrorIs(t, err, errBatchPairMismatch, "CancelBatchOrders must reject mixed derivative pairs")
-}
-
-func TestCancelAllOrdersValidation(t *testing.T) {
-	t.Parallel()
-	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject nil cancellations")
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
-		name        string
-		pair        currency.Pair
-		asset       asset.Item
-		expectedErr error
-	}{
-		{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
-	}
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := h.CancelAllOrders(t.Context(), &order.Cancel{
-				OrderID:   "1",
-				Pair:      tt.pair,
-				AssetType: tt.asset,
-			})
-			require.ErrorIs(t, err, tt.expectedErr, "CancelAllOrders must return the expected branch error")
-		})
-	}
-}
-
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		testCases := []struct {
+			name        string
+			asset       asset.Item
+			expectedErr error
+		}{
+			{name: "spot", asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "coin margined futures", asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "usdt margined futures", asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "futures", asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
+			{name: "unsupported asset", asset: asset.Binary, expectedErr: asset.ErrNotSupported},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := h.UpdateAccountBalances(t.Context(), tt.asset)
+				require.ErrorIs(t, err, tt.expectedErr, "UpdateAccountBalances must return the expected branch error")
+			})
+		}
+	})
 	for _, tc := range []struct {
 		name, data        string
 		total, free, hold float64
@@ -1347,30 +1412,6 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.Equal(t, 9.0, balance.Hold, "held balance should include isolated collateral")
 }
 
-func TestUpdateAccountBalancesValidation(t *testing.T) {
-	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
-		name        string
-		asset       asset.Item
-		expectedErr error
-	}{
-		{name: "spot", asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "coin margined futures", asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "usdt margined futures", asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "futures", asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "unsupported asset", asset: asset.Binary, expectedErr: asset.ErrNotSupported},
-	}
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := h.UpdateAccountBalances(t.Context(), tt.asset)
-			require.ErrorIs(t, err, tt.expectedErr, "UpdateAccountBalances must return the expected branch error")
-		})
-	}
-}
-
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
@@ -1424,6 +1465,13 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
+	t.Run("authentication required", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "Setup must not error")
+		_, err := h.GetDepositAddress(t.Context(), currency.USDT, "", "uSdTeRc20")
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "GetDepositAddress must require credentials")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/account/deposit/address", `{
 		"code":200,
 		"data":[{"currency":"usdt","address":"address","addressTag":"","chain":"usdterc20"}]
@@ -1431,14 +1479,6 @@ func TestGetDepositAddress(t *testing.T) {
 	address, err := h.GetDepositAddress(t.Context(), currency.USDT, "", "uSdTeRc20")
 	require.NoError(t, err, "GetDepositAddress must not error")
 	assert.Equal(t, "address", address.Address, "deposit address should match")
-}
-
-func TestGetDepositAddressAuthentication(t *testing.T) {
-	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	_, err := h.GetDepositAddress(t.Context(), currency.USDT, "", "uSdTeRc20")
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "GetDepositAddress must require credentials")
 }
 
 func TestV5FreeMargin(t *testing.T) {
@@ -1929,6 +1969,13 @@ func TestFormatV5OrderRequest(t *testing.T) {
 
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("authentication required", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+		_, err := h.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1})
+		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketSubmitOrder must require websocket authentication")
+	})
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	setV5PositionModeEndpoint(t, h, "single_side")
 	submission := &order.Submit{
@@ -1948,6 +1995,13 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("authentication required", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+		_, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}})
+		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketSubmitOrders must require websocket authentication")
+	})
 	t.Run("mocked mixed batch results", func(t *testing.T) {
 		t.Parallel()
 		h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
@@ -2003,6 +2057,13 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("authentication required", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+		err := h.WebsocketCancelOrder(t.Context(), &order.Cancel{Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, OrderID: "1"})
+		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketCancelOrder must require websocket authentication")
+	})
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	require.ErrorIs(t, h.WebsocketCancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "WebsocketCancelOrder must reject nil cancellations")
 	require.NoError(t, h.WebsocketCancelOrder(t.Context(), &order.Cancel{
@@ -2011,46 +2072,6 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	require.ErrorIs(t, h.WebsocketCancelOrder(t.Context(), &order.Cancel{
 		Pair: btcusdtPair, AssetType: asset.Spot, OrderID: "1",
 	}), asset.ErrNotSupported, "WebsocketCancelOrder must reject unsupported assets")
-}
-
-func TestGetOrderHistoryValidation(t *testing.T) {
-	t.Parallel()
-	getOrdersRequest := order.MultiOrderRequest{
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-	}
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.ErrorContains(t, err, "currency must be supplied", "GetOrderHistory must require a currency pair for spot")
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
-		name        string
-		pair        currency.Pair
-		asset       asset.Item
-		expectedErr error
-	}{
-		{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
-		{name: "unsupported asset", pair: btcusdtPair, asset: asset.Binary, expectedErr: asset.ErrNotSupported},
-	}
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-				Type:      order.AnyType,
-				Pairs:     []currency.Pair{tt.pair},
-				AssetType: tt.asset,
-				Side:      order.AnySide,
-				StartTime: time.Now().AddDate(0, 0, -1),
-				EndTime:   time.Now(),
-			})
-			require.ErrorIs(t, err, tt.expectedErr, "GetOrderHistory must return the expected branch error")
-		})
-	}
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -2062,6 +2083,11 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Futures)
+		require.ErrorIs(t, err, asset.ErrNotSupported, "GetWithdrawalsHistory must reject unsupported assets")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw", `{
 		"status":"ok",
 		"data":[{"type":"withdraw","currency":"btc","tx-hash":"tx","chain":"btc","amount":1,"address":"address","fee":0.1,"state":"confirmed","created-at":1772779491561}]
@@ -2071,12 +2097,6 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	require.Len(t, history, 1, "one withdrawal must be returned")
 	assert.Equal(t, "tx", history[0].TransferID, "transfer ID should match")
 	assert.Equal(t, "confirmed", history[0].Status, "status should match")
-}
-
-func TestGetWithdrawalsHistoryUnsupportedAsset(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Futures)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "GetWithdrawalsHistory must reject unsupported assets")
 }
 
 func TestCompatibleVars(t *testing.T) {
@@ -2476,6 +2496,27 @@ var (
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := e.CancelBatchOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders must reject empty requests")
+
+		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{}})
+		require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must require an order ID")
+
+		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "1", AssetType: asset.Spot},
+			{OrderID: "2", AssetType: asset.Futures},
+		})
+		require.ErrorIs(t, err, errBatchAssetMismatch, "CancelBatchOrders must reject mixed assets")
+
+		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "1", AssetType: asset.Futures, Pair: btccwPair},
+			{OrderID: "2", AssetType: asset.Futures, Pair: currency.NewPair(currency.ETH, currency.NewCode("CW"))},
+		})
+		require.ErrorIs(t, err, errBatchPairMismatch, "CancelBatchOrders must reject mixed derivative pairs")
+	})
 	for _, tc := range []struct {
 		name, data string
 		want       map[string]string
@@ -2783,30 +2824,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesUSDTMargined(t *testing.T) {
-	t.Parallel()
-	now := time.Now().UTC().Truncate(time.Minute)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, false), "available pair must be set")
-	require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, true), "enabled pair must be set")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
-
-	got, err := h.GetHistoricCandles(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
-	require.NoError(t, err, "GetHistoricCandles must not error for USDT-margined futures")
-	require.NotEmpty(t, got.Candles, "candles must be returned")
-
-	got, err = h.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
-	require.NoError(t, err, "GetHistoricCandlesExtended must not error for USDT-margined futures")
-	require.NotEmpty(t, got.Candles, "extended candles must be returned")
-}
-
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
@@ -2837,6 +2854,29 @@ func TestFirstNonZero(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.want, firstNonZero(tc.values...), "first populated value should be retained")
+		})
+	}
+}
+
+// TestBookLevel covers a tick whose book side is short or absent. HTX serves null for the side
+// when nothing rests there, so neither element can be indexed unconditionally
+func TestBookLevel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                string
+		level               []float64
+		wantPrice, wantSize float64
+	}{
+		{name: "price and size", level: []float64{78553, 12}, wantPrice: 78553, wantSize: 12},
+		{name: "price only", level: []float64{78553}, wantPrice: 78553},
+		{name: "empty side", level: []float64{}},
+		{name: "absent side"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			price, size := bookLevel(tc.level)
+			assert.Equal(t, tc.wantPrice, price, "bookLevel should return the resting price")
+			assert.Equal(t, tc.wantSize, size, "bookLevel should return the resting size")
 		})
 	}
 }

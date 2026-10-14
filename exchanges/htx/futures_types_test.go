@@ -129,3 +129,14 @@ func TestFTradeHistoryDataUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
 	require.Error(t, err, "FTradeHistoryData unmarshal must return malformed data errors")
 }
+
+func TestFMarketOverviewDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	var o FMarketOverviewData
+	err := json.Unmarshal([]byte(`{"ch":"market.BTC_CQ.detail.merged","tick":{"amount":"7.63","ask":[70020.48,2],"bid":[68941.77,3],"close":"69892.45","count":1768,"high":"70288.9","id":1787211582,"low":"67657.1","open":"68860.25","ts":1787211582961,"vol":"5188"},"ts":1787211582961}`), &o)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, []float64{70020.48, 2}, o.Tick.Ask, "Ask should decode")
+	assert.Equal(t, []float64{68941.77, 3}, o.Tick.Bid, "Bid should decode")
+	assert.Equal(t, int64(1787211582), o.Tick.ID, "ID should decode")
+	assert.Equal(t, 69892.45, o.Tick.Close.Float64(), "Close should decode")
+}

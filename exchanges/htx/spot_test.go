@@ -369,11 +369,6 @@ func TestUnmarshalResponse(t *testing.T) {
 	}
 }
 
-func TestSpotMatchResultsEndpoint(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "/order/matchresults", htxGetOrdersMatch, "spot match results endpoint should match HTX docs")
-}
-
 func TestGetCurrenciesIncludingChains(t *testing.T) {
 	t.Parallel()
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, htxCurrenciesReference,
@@ -479,18 +474,17 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
+	t.Run("credentials required", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		h.API.AuthenticatedSupport = true
+		_, err := h.GetAccountBalance(t.Context(), "1")
+		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetAccountBalance must return credentials error")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf(htxAccountBalance, "123"), emptySuccessResponse, nil)
 	_, err := h.GetAccountBalance(t.Context(), "123")
 	require.NoError(t, err, "GetAccountBalance must not error")
-}
-
-func TestGetAccountBalanceCredentialsError(t *testing.T) {
-	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	_, err := h.GetAccountBalance(t.Context(), "1")
-	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetAccountBalance must return credentials error")
 }
 
 func TestGetAggregatedBalance(t *testing.T) {
@@ -564,6 +558,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrdersMatch(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "/order/matchresults", htxGetOrdersMatch, "spot match results endpoint should match HTX docs")
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxGetOrdersMatch, emptySuccessResponse, nil)
 	_, err := h.GetOrdersMatch(t.Context(), btcusdtPair, "buy-limit", "", "", "", "", "10")
 	require.NoError(t, err, "GetOrdersMatch must not error")
