@@ -1974,19 +1974,17 @@ allOrders:
 					RemainingAmount:      remainingAmount,
 					Fee:                  0 - orderList[i].TransactionFee.Float64(),
 					FeeAsset:             orderList[i].FeeCurrency,
-
-					Exchange:      e.Name,
-					OrderID:       orderList[i].OrderID,
-					ClientOrderID: orderList[i].ClientOrderID,
-					Type:          oType,
-					Side:          orderList[i].Side,
-					Status:        orderStatus,
-					AssetType:     req.AssetType,
-					Date:          orderList[i].CreationTime.Time(),
-					LastUpdated:   orderList[i].UpdateTime.Time(),
-					Pair:          pair,
-
-					TimeInForce: tif,
+					Exchange:             e.Name,
+					OrderID:              orderList[i].OrderID,
+					ClientOrderID:        orderList[i].ClientOrderID,
+					Type:                 oType,
+					Side:                 orderList[i].Side,
+					Status:               orderStatus,
+					AssetType:            req.AssetType,
+					Date:                 orderList[i].CreationTime.Time(),
+					LastUpdated:          orderList[i].UpdateTime.Time(),
+					Pair:                 pair,
+					TimeInForce:          tif,
 				})
 			}
 		}
@@ -2746,19 +2744,17 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				RemainingAmount:      remainingAmount,
 				Fee:                  0 - positions[j].TransactionFee.Float64(),
 				FeeAsset:             positions[j].FeeCurrency,
-
-				Exchange:      e.Name,
-				OrderID:       positions[j].OrderID,
-				ClientOrderID: positions[j].ClientOrderID,
-				Type:          oType,
-				Side:          positions[j].Side,
-				Status:        orderStatus,
-				AssetType:     req.Asset,
-				Date:          positions[j].CreationTime.Time(),
-				LastUpdated:   positions[j].UpdateTime.Time(),
-				Pair:          req.Pairs[i],
-
-				TimeInForce: tif,
+				Exchange:             e.Name,
+				OrderID:              positions[j].OrderID,
+				ClientOrderID:        positions[j].ClientOrderID,
+				Type:                 oType,
+				Side:                 positions[j].Side,
+				Status:               orderStatus,
+				AssetType:            req.Asset,
+				Date:                 positions[j].CreationTime.Time(),
+				LastUpdated:          positions[j].UpdateTime.Time(),
+				Pair:                 req.Pairs[i],
+				TimeInForce:          tif,
 			})
 		}
 	}
