@@ -226,6 +226,18 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- When changing a deduplication helper or its callers, test the caller's output
+    as well as the helper. Include duplicates and distinct identities to pin the
+    intended key, retained entry and any associated metadata. Do not substitute
+    tests of built-in allocation behaviour for project behaviour.
+- Pagination fixtures should reproduce relevant ordering, boundary inclusion
+    and overlap behaviour. Bound their request count or duration so a stalled
+    pager fails promptly, and compare the complete expected result rather than
+    relying only on its length.
+    Include a partial final page, particularly a single remaining record, so
+    whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
+    Process a non-empty page before applying a cursor-progress guard: a cursor
+    that cannot advance may still accompany unseen records at its boundary.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the
