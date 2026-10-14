@@ -9,12 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
-	"github.com/clipperhouse/displaywidth"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/text/width"
 )
 
 var orderbookCommonFlags = []cli.Flag{
@@ -558,9 +559,25 @@ func orderbookDepthLimit(c *cli.Context, ceiling uint) uint {
 }
 
 // orderbookTextWidth measures terminal columns rather than bytes or runes.
-// Exchange currency codes can contain wide glyphs, combining marks and joined emoji.
+// Exchange currency codes can contain wide glyphs and combining marks.
 func orderbookTextWidth(text string) int {
-	return displaywidth.String(text)
+	var columns int
+	for _, char := range text {
+		if char < 128 {
+			columns++
+			continue
+		}
+		if unicode.Is(unicode.M, char) || unicode.Is(unicode.Cf, char) {
+			continue
+		}
+		switch width.LookupRune(char).Kind() {
+		case width.EastAsianWide, width.EastAsianFullwidth:
+			columns += 2
+		default:
+			columns++
+		}
+	}
+	return columns
 }
 
 type orderbookDisplayLevel struct {

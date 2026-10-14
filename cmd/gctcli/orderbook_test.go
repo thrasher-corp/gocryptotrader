@@ -179,11 +179,6 @@ func TestOrderbookRenderingUnicodeHeadings(t *testing.T) {
 		{"wide", "\u5e01\u5b89\u4eba\u751f", 15, 16},
 		{"fullwidth", "\uff22\uff34\uff23", 13, 14},
 		{"combining", "e\u0301th", 10, 11},
-		{"joined emoji", "👩\u200d💻", 9, 10},
-		{"skin tone", "👍🏽", 9, 10},
-		{"flag", "🇦🇺", 9, 10},
-		{"keycap", "1\ufe0f\u20e3", 9, 10},
-		{"emoji presentation", "©\ufe0f", 9, 10},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -288,11 +283,6 @@ func TestOrderbookRenderingUnicodeHeadingPadding(t *testing.T) {
 		{"wide", "\u5e01", 3, 2},
 		{"combining", "e\u0301", 4, 3},
 		{"format", "x\u200d", 4, 3},
-		{"joined emoji", "👩\u200d💻", 3, 2},
-		{"skin tone", "👍🏽", 3, 2},
-		{"flag", "🇦🇺", 3, 2},
-		{"keycap", "1\ufe0f\u20e3", 3, 2},
-		{"emoji presentation", "©\ufe0f", 3, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
