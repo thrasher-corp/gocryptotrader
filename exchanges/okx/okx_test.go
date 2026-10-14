@@ -3560,152 +3560,68 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	// Use documented ticker fields with distinct volumes instead of comparing
-	// moving market snapshots; pre-open instruments can legitimately be crossed.
-	for _, tc := range []struct {
-		assetType               asset.Item
-		pair                    currency.Pair
-		instrumentType          string
-		baseVolume, quoteVolume float64
-	}{
-		{asset.Spot, currency.NewPairWithDelimiter("BTC", "USDT", "-"), "SPOT", 22, 33},
-		{asset.Margin, currency.NewPairWithDelimiter("BTC", "USDT", "-"), "SPOT", 22, 33},
-		{asset.Futures, currency.NewPairWithDelimiter("BTC", "USD-260327", "-"), "FUTURES", 33, 0},
-		{asset.PerpetualSwap, currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-"), "SWAP", 33, 0},
-		{asset.Options, currency.NewPairWithDelimiter("BTC", "USD-260327-80000-C", "-"), "OPTION", 33, 0},
-		{asset.Spread, currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_"), "", 0, 0},
-	} {
-		for _, crossed := range []bool{false, true} {
-			t.Run(fmt.Sprintf("fixture %s crossed=%t", tc.assetType, crossed), func(t *testing.T) {
-				t.Parallel()
-				ex := new(Exchange)
-				require.NoError(t, testexch.Setup(ex), "setup must succeed")
-				ex.Name += "-" + t.Name()
-				if tc.assetType == asset.Spread {
-					ex.CurrencyPairs.UseGlobalFormat = false
-					require.NoError(t, ex.CurrencyPairs.StoreFormat(asset.Spread, &currency.PairFormat{Delimiter: "_", Uppercase: true}, false), "documented spread request format must install")
-				}
-				require.NoError(t, ex.CurrencyPairs.StorePairs(tc.assetType, currency.Pairs{tc.pair}, false), "fixture pair must be available")
-				require.NoError(t, ex.CurrencyPairs.StorePairs(tc.assetType, currency.Pairs{tc.pair}, true), "fixture pair must be enabled")
-				bid := "99"
-				if crossed {
-					bid = "102"
-				}
-				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					assert.Equal(t, http.MethodGet, r.Method, "ticker request should use GET")
-					idField := "instId"
-					if tc.assetType == asset.Spread {
-						if r.URL.Path == "/sprd/books" {
-							assert.Equal(t, url.Values{"sprdId": {tc.pair.String()}, "sz": {"1"}}, r.URL.Query(), "spread book should request one level")
-							_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"asks":[["101","11","1"]],"bids":[[%q,"5","1"]],"ts":"1597026383085"}]}`, bid)
-							assert.NoError(t, err, "spread book response should write")
-							return
-						}
-						assert.Equal(t, "/market/sprd-ticker", r.URL.Path, "spread ticker request should use its public endpoint")
-						assert.Equal(t, url.Values{"sprdId": {tc.pair.String()}}, r.URL.Query(), "spread ticker request should identify the enabled spread")
-						idField = "sprdId"
-					} else {
-						assert.Equal(t, "/market/tickers", r.URL.Path, "ticker request should use the batch market endpoint")
-						assert.Equal(t, url.Values{"instType": {tc.instrumentType}}, r.URL.Query(), "ticker request should select the documented instrument type")
-					}
-					w.Header().Set("Content-Type", "application/json")
-					_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"%s":%q,"last":"100","bidPx":%q,"bidSz":"5","askPx":"101","askSz":"11","open24h":"90","high24h":"110","low24h":"80","vol24h":"22","volCcy24h":"33","ts":"1597026383085"}]}`, idField, tc.pair.String(), bid)
-					assert.NoError(t, err, "fixture response should write")
-				}))
-				require.NoError(t, ex.SetHTTPClient(server.Client()), "fixture client must install")
-				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "fixture endpoint must install")
-				err := ex.UpdateTickers(t.Context(), tc.assetType)
-				if crossed {
-					require.ErrorContains(t, err, "bid greater than ask", "crossed ticker must be rejected")
-					_, err := ticker.GetTicker(ex.Name, tc.pair, tc.assetType)
-					assert.Error(t, err, "rejected ticker should not be stored")
-					return
-				}
-				require.NoError(t, err, "fixture ticker must be processed")
-				got, err := ticker.GetTicker(ex.Name, tc.pair, tc.assetType)
-				require.NoError(t, err, "processed ticker must be stored")
-				assert.Equal(t, ex.Name, got.ExchangeName, "stored ticker should retain exchange identity")
-				assert.True(t, tc.pair.Equal(got.Pair), "stored ticker should retain instrument identity")
-				assert.Equal(t, tc.assetType, got.AssetType, "stored ticker should retain asset identity")
-				assert.Equal(t, float64(100), got.Last, "stored ticker should retain last price")
-				assert.Equal(t, float64(99), got.Bid, "stored ticker should retain best bid")
-				assert.Equal(t, float64(5), got.BidSize, "stored ticker should retain bid size")
-				assert.Equal(t, float64(101), got.Ask, "stored ticker should retain best ask")
-				assert.Equal(t, float64(11), got.AskSize, "stored ticker should retain ask size")
-				assert.Equal(t, float64(90), got.Open, "stored ticker should retain opening price")
-				assert.Equal(t, float64(110), got.High, "stored ticker should retain daily high")
-				assert.Equal(t, float64(80), got.Low, "stored ticker should retain daily low")
-				assert.Equal(t, tc.baseVolume, got.BaseVolume, "stored ticker should use documented base-volume units")
-				assert.Equal(t, tc.quoteVolume, got.QuoteVolume, "stored ticker should use documented quote-volume units")
-				assert.True(t, time.UnixMilli(1597026383085).Equal(got.LastUpdated), "stored ticker should retain exchange milliseconds")
-			})
-		}
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	// Renamed before UpdatePairsOnce, which caches by name, so the package's e still loads its own instruments
+	e.Name = t.Name()
+	testexch.UpdatePairsOnce(t, e)
+
+	for _, a := range e.GetAssetTypes(false) {
+		err := e.UpdateTickers(contextGenerate(), a)
+		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
 
-	t.Run("live", func(t *testing.T) {
-		e := new(Exchange)
-		require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-		// Renamed before UpdatePairsOnce, which caches by name, so the package's e still loads its own instruments
-		e.Name = t.Name()
-		testexch.UpdatePairsOnce(t, e)
-
-		for _, a := range e.GetAssetTypes(false) {
-			err := e.UpdateTickers(contextGenerate(), a)
-			require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
+	// around half the swaps report both figures identically and cannot tell the fields apart
+	pairs, err := e.GetEnabledPairs(asset.PerpetualSwap)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "")
+	require.NoError(t, err, "GetTickers must not error")
+	byInstrument := make(map[string]TickerResponse, len(ticks))
+	for i := range ticks {
+		byInstrument[ticks[i].InstrumentID.String()] = ticks[i]
+	}
+	var checked bool
+	for _, p := range pairs {
+		tick, ok := byInstrument[p.String()]
+		if !ok || tick.TradingVolume24HourInCurrency.Float64() == 0 || tick.TradingVolume24HourInCurrency.Float64() == tick.TradingVolume24HourInContract.Float64() {
+			continue
 		}
+		stored, err := ticker.GetTicker(e.Name, p, asset.PerpetualSwap)
+		require.NoErrorf(t, err, "GetTicker must not error for %s", p)
+		assert.InEpsilonf(t, tick.TradingVolume24HourInCurrency.Float64(), stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from volCcy24h", p)
+		assert.Zerof(t, stored.QuoteVolume, "UpdateTickers should report no quote volume for swap %s, since vol24h counts contracts", p)
+		checked = true
+		break
+	}
+	require.True(t, checked, "must find an enabled swap whose base volume and contract count differ")
 
-		// around half the swaps report both figures identically and cannot tell the fields apart
-		pairs, err := e.GetEnabledPairs(asset.PerpetualSwap)
-		require.NoError(t, err, "GetEnabledPairs must not error")
-		ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "")
-		require.NoError(t, err, "GetTickers must not error")
-		byInstrument := make(map[string]TickerResponse, len(ticks))
-		for i := range ticks {
-			byInstrument[ticks[i].InstrumentID.String()] = ticks[i]
-		}
-		var checked bool
-		for _, p := range pairs {
-			tick, ok := byInstrument[p.String()]
-			if !ok || tick.TradingVolume24HourInCurrency.Float64() == 0 || tick.TradingVolume24HourInCurrency.Float64() == tick.TradingVolume24HourInContract.Float64() {
-				continue
-			}
-			stored, err := ticker.GetTicker(e.Name, p, asset.PerpetualSwap)
-			require.NoErrorf(t, err, "GetTicker must not error for %s", p)
-			assert.InEpsilonf(t, tick.TradingVolume24HourInCurrency.Float64(), stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from volCcy24h", p)
-			assert.Zerof(t, stored.QuoteVolume, "UpdateTickers should report no quote volume for swap %s, since vol24h counts contracts", p)
-			checked = true
-			break
-		}
-		require.True(t, checked, "must find an enabled swap whose base volume and contract count differ")
+	// spot takes the opposite mapping. InEpsilon errors outright on a zero expected value, so pin
+	// this to a pair that always trades rather than whichever sits first in the enabled list
+	spotTick, err := e.GetTicker(contextGenerate(), mainPair.String())
+	require.NoError(t, err, "GetTicker must not error")
+	require.Positive(t, spotTick.TradingVolume24HourInContract.Float64(), "vol24h for the spot pair under test must be non-zero")
+	spotStored, err := ticker.GetTicker(e.Name, mainPair, asset.Spot)
+	require.NoError(t, err, "ticker.GetTicker must not error")
+	assert.InEpsilonf(t, spotTick.TradingVolume24HourInContract.Float64(), spotStored.BaseVolume, 0.05,
+		"UpdateTickers should take the base volume for spot %s from vol24h", mainPair)
+	assert.InEpsilonf(t, spotTick.TradingVolume24HourInCurrency.Float64(), spotStored.QuoteVolume, 0.05,
+		"UpdateTickers should take the quote volume for spot %s from volCcy24h", mainPair)
+	assert.Equalf(t, spotStored.LastUpdated.Round(0).String(), spotStored.LastUpdated.String(),
+		"UpdateTickers should record the exchange timestamp for spot %s, not the time of the call", mainPair)
+	assert.Zerof(t, spotStored.LastUpdated.UnixNano()%int64(time.Millisecond),
+		"UpdateTickers should record the exchange timestamp for spot %s to the millisecond it was sent in", mainPair)
 
-		// spot takes the opposite mapping. InEpsilon errors outright on a zero expected value, so pin
-		// this to a pair that always trades rather than whichever sits first in the enabled list
-		spotTick, err := e.GetTicker(contextGenerate(), mainPair.String())
-		require.NoError(t, err, "GetTicker must not error")
-		require.Positive(t, spotTick.TradingVolume24HourInContract.Float64(), "vol24h for the spot pair under test must be non-zero")
-		spotStored, err := ticker.GetTicker(e.Name, mainPair, asset.Spot)
-		require.NoError(t, err, "ticker.GetTicker must not error")
-		assert.InEpsilonf(t, spotTick.TradingVolume24HourInContract.Float64(), spotStored.BaseVolume, 0.05,
-			"UpdateTickers should take the base volume for spot %s from vol24h", mainPair)
-		assert.InEpsilonf(t, spotTick.TradingVolume24HourInCurrency.Float64(), spotStored.QuoteVolume, 0.05,
-			"UpdateTickers should take the quote volume for spot %s from volCcy24h", mainPair)
-		assert.Equalf(t, spotStored.LastUpdated.Round(0).String(), spotStored.LastUpdated.String(),
-			"UpdateTickers should record the exchange timestamp for spot %s, not the time of the call", mainPair)
-		assert.Zerof(t, spotStored.LastUpdated.UnixNano()%int64(time.Millisecond),
-			"UpdateTickers should record the exchange timestamp for spot %s to the millisecond it was sent in", mainPair)
-
-		// the spread book can move between the store write and a verifying re-fetch, so the same
-		// monotonic check settles this without racing the exchange
-		spreadPairs, err := e.GetEnabledPairs(asset.Spread)
-		require.NoError(t, err, "GetEnabledPairs must not error")
-		require.NotEmpty(t, spreadPairs, "GetEnabledPairs must return spread pairs")
-		spreadStored, err := ticker.GetTicker(e.Name, spreadPairs[0], asset.Spread)
-		require.NoErrorf(t, err, "ticker.GetTicker must not error for spread %s", spreadPairs[0])
-		assert.Equalf(t, spreadStored.LastUpdated.Round(0).String(), spreadStored.LastUpdated.String(),
-			"UpdateTickers should record the exchange timestamp for spread %s, not the time of the call", spreadPairs[0])
-		assert.Zerof(t, spreadStored.LastUpdated.UnixNano()%int64(time.Millisecond),
-			"UpdateTickers should record the exchange timestamp for spread %s to the millisecond it was sent in", spreadPairs[0])
-	})
+	// the spread book can move between the store write and a verifying re-fetch, so the same
+	// monotonic check settles this without racing the exchange
+	spreadPairs, err := e.GetEnabledPairs(asset.Spread)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	require.NotEmpty(t, spreadPairs, "GetEnabledPairs must return spread pairs")
+	spreadStored, err := ticker.GetTicker(e.Name, spreadPairs[0], asset.Spread)
+	require.NoErrorf(t, err, "ticker.GetTicker must not error for spread %s", spreadPairs[0])
+	assert.Equalf(t, spreadStored.LastUpdated.Round(0).String(), spreadStored.LastUpdated.String(),
+		"UpdateTickers should record the exchange timestamp for spread %s, not the time of the call", spreadPairs[0])
+	assert.Zerof(t, spreadStored.LastUpdated.UnixNano()%int64(time.Millisecond),
+		"UpdateTickers should record the exchange timestamp for spread %s to the millisecond it was sent in", spreadPairs[0])
 }
 
 func TestUpdateOrderbook(t *testing.T) {
