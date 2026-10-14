@@ -264,15 +264,14 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	SortByDate(datas)
 	c.Open = datas[0].Price
+	c.High = datas[0].Price
+	c.Low = datas[0].Price
 	c.Close = datas[len(datas)-1].Price
 	for i := range datas {
-		if datas[i].Price < 0 {
-			datas[i].Price *= -1
-		}
 		if datas[i].Amount < 0 {
 			datas[i].Amount *= -1
 		}
-		if datas[i].Price < c.Low || c.Low == 0 {
+		if datas[i].Price < c.Low {
 			c.Low = datas[i].Price
 		}
 		if datas[i].Price > c.High {
