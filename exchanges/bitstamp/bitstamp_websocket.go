@@ -259,7 +259,7 @@ func (e *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.Li
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketAuthResponse) error {
-	subs, errs := subs.ExpandTemplates(e)
+	subs, errs := subs.ExpandTemplatesIfNeeded(e)
 	for _, s := range subs {
 		req := websocketEventRequest{
 			Event: "bts:" + op + "scribe",

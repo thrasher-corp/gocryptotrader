@@ -56,5 +56,21 @@ Templates do not need to worry about joining around separators; Trailing separat
 
 Template functions should panic to handle errors. They are caught by text/template and turned into errors for use in `subscription.expandTemplate`.
 
+### Ownership of expanded subscriptions
+
+`ExpandTemplates` guarantees that callers can modify the returned list without changing the list they
+passed in:
+
+- Entries which are expanded generate brand new subscriptions.
+- Entries which are already qualified pass through unexpanded, but are copied first. They keep their
+  `Key`, because they are the same logical subscription and must still reconcile against a
+  `subscription.Store`; built-in key types which reference the subscription are re-pointed at the copy.
+- The returned List itself is always a new list.
+
+That copy is deliberately shallow beyond the subscription's own fields: `Pairs` is cloned and `Params`
+is a copy of the map, but keys and values _nested inside_ `Params` - such as a nested map, slice or
+pointer - are shared with the input. Exchanges which mutate nested parameter values should copy them
+first.
+
 {{template "donations" .}}
 {{end}}
