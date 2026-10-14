@@ -726,7 +726,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          strconv.FormatInt(depositHistories[x].State.Int64(), 10),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
-			Currency:        depositHistories[x].Currency,
+			Currency:        depositHistories[x].Currency.String(),
 			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
@@ -738,7 +738,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
-			Currency:        withdrawalHistories[x].Currency,
+			Currency:        withdrawalHistories[x].Currency.String(),
 			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
@@ -762,7 +762,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
-			Currency:        withdrawals[x].Currency,
+			Currency:        withdrawals[x].Currency.String(),
 			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
@@ -3537,7 +3537,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		totalEquity = acc[0].Details[i].TotalEquity.Decimal()
 		isolatedEquity = acc[0].Details[i].IsoEquity.Decimal()
 		isolatedLiabilities = acc[0].Details[i].IsolatedLiabilities.Decimal()
-		isolatedUnrealisedProfit = acc[0].Details[i].IsoUpl.Decimal()
+		isolatedUnrealisedProfit = acc[0].Details[i].IsolatedUnrealisedProfitAndLoss.Decimal()
 		notionalLeverage = acc[0].Details[i].NotionalLever.Decimal()
 		strategyEquity = acc[0].Details[i].StrategyEquity.Decimal()
 
@@ -3565,7 +3565,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		TotalEquity:                  totalEquity,
 		StrategyEquity:               strategyEquity,
 		IsolatedMargin:               positionSummary.Margin.Decimal(),
-		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),
+		NotionalSize:                 positionSummary.NotionalUSD.Decimal(),
 		Leverage:                     positionSummary.Leverage.Decimal(),
 		MaintenanceMarginRequirement: positionSummary.MaintenanceMarginRequirement.Decimal(),
 		InitialMarginRequirement:     positionSummary.InitialMarginRequirement.Decimal(),
@@ -3577,7 +3577,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
-		UnrealisedPNL:                positionSummary.UPNL.Decimal(),
+		UnrealisedPNL:                positionSummary.UnrealisedProfitAndLoss.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
 		FreeCollateral:               freeCollateral,
 		TotalCollateral:              totalCollateral,
