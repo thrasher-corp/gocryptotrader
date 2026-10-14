@@ -583,6 +583,9 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 			Price:        resp.Data[x].FillPrice.Float64(),
 		}
 	}
+	if !e.IsSaveTradeDataEnabled() {
+		return nil
+	}
 	return trade.AddTradesToBuffer(trades...)
 }
 

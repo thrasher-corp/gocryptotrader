@@ -180,7 +180,17 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	var resp *OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil && resp.StatusMessage != "" {
+			// A rejected amend reports its reason in the row's sCode and
+			// sMsg, not in the top-level reply, matching PlaceOrder and
+			// CancelSingleOrder.
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array

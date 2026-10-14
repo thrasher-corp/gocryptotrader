@@ -351,5 +351,10 @@ func singleItem[T any](resp []*T) (*T, error) {
 	if len(resp) > 1 {
 		return nil, fmt.Errorf("%w, received %d", errMultipleItemsReturned, len(resp))
 	}
+	if resp[0] == nil {
+		// A success reply reports one row for the one requested operation; a
+		// null row leaves its outcome unknown.
+		return nil, fmt.Errorf("%w, success reply has a null row", common.ErrInvalidResponse)
+	}
 	return resp[0], nil
 }

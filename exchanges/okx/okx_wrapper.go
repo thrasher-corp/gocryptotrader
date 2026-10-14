@@ -1083,6 +1083,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
+		if placeSpreadOrderResponse == nil || placeSpreadOrderResponse.OrderID == "" {
+			// A success reply carries the placed order's ID; without it the
+			// order's outcome is unknown.
+			return nil, fmt.Errorf("%w: place spread order reply has no order ID", common.ErrInvalidResponse)
+		}
 		return s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 	}
 	orderTypeStr, err := orderTypeString(s.Type, s.TimeInForce)
@@ -1102,6 +1107,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
+		if placeOrderResponse == nil || placeOrderResponse.OrderID == "" {
+			// A success reply carries the placed order's ID; without it the
+			// order's outcome is unknown.
+			return nil, fmt.Errorf("%w: place order reply has no order ID", common.ErrInvalidResponse)
+		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
 	case orderTrigger:
 		if s.Price == 0 {
@@ -1110,21 +1120,23 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, fmt.Errorf("%w, order price is required, -1 submits a market order when triggered", limits.ErrPriceBelowMin)
 		}
 		result, err = e.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
-			InstrumentID:     p.pairString,
-			TradeMode:        p.tradeMode,
-			Side:             p.sideType,
-			PositionSide:     positionSide,
-			OrderType:        orderTypeStr,
-			Size:             s.Amount,
-			ReduceOnly:       s.ReduceOnly,
-			TriggerPrice:     s.TriggerPrice,
-			OrderPrice:       s.Price,
-			TriggerPriceType: priceTypeString(s.TriggerPriceType),
+			InstrumentID:      p.pairString,
+			AlgoClientOrderID: s.ClientOrderID,
+			TradeMode:         p.tradeMode,
+			Side:              p.sideType,
+			PositionSide:      positionSide,
+			OrderType:         orderTypeStr,
+			Size:              s.Amount,
+			ReduceOnly:        s.ReduceOnly,
+			TriggerPrice:      s.TriggerPrice,
+			OrderPrice:        s.Price,
+			TriggerPriceType:  priceTypeString(s.TriggerPriceType),
 		})
 	case orderConditional:
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = e.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             p.pairString,
+			AlgoClientOrderID:        s.ClientOrderID,
 			TradeMode:                p.tradeMode,
 			Side:                     p.sideType,
 			PositionSide:             positionSide,
@@ -1143,15 +1155,16 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, fmt.Errorf("%w, tracking value required", limits.ErrAmountBelowMin)
 		}
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
-			InstrumentID:  p.pairString,
-			TradeMode:     p.tradeMode,
-			Side:          p.sideType,
-			PositionSide:  positionSide,
-			OrderType:     orderTypeStr,
-			Size:          s.Amount,
-			ReduceOnly:    s.ReduceOnly,
-			MaxChaseType:  chaseTypeString(s.TrackingMode),
-			MaxChaseValue: s.TrackingValue,
+			InstrumentID:      p.pairString,
+			AlgoClientOrderID: s.ClientOrderID,
+			TradeMode:         p.tradeMode,
+			Side:              p.sideType,
+			PositionSide:      positionSide,
+			OrderType:         orderTypeStr,
+			Size:              s.Amount,
+			ReduceOnly:        s.ReduceOnly,
+			MaxChaseType:      chaseTypeString(s.TrackingMode),
+			MaxChaseValue:     s.TrackingValue,
 		})
 	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
@@ -1166,6 +1179,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		result, err = e.PlaceTrailingStopOrder(ctx, &AlgoOrderParams{
 			InstrumentID:           p.pairString,
+			AlgoClientOrderID:      s.ClientOrderID,
 			TradeMode:              p.tradeMode,
 			Side:                   p.sideType,
 			PositionSide:           positionSide,
@@ -1188,17 +1202,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			priceVar = s.TrackingValue
 		}
 		result, err = e.PlaceTWAPOrder(ctx, &AlgoOrderParams{
-			InstrumentID:  p.pairString,
-			TradeMode:     p.tradeMode,
-			Side:          p.sideType,
-			PositionSide:  positionSide,
-			OrderType:     orderTypeStr,
-			Size:          s.Amount,
-			ReduceOnly:    s.ReduceOnly,
-			PriceVariance: priceVar,
-			PriceSpread:   priceSpread,
-			SizeLimit:     s.Amount,
-			LimitPrice:    s.Price,
+			InstrumentID:      p.pairString,
+			AlgoClientOrderID: s.ClientOrderID,
+			TradeMode:         p.tradeMode,
+			Side:              p.sideType,
+			PositionSide:      positionSide,
+			OrderType:         orderTypeStr,
+			Size:              s.Amount,
+			ReduceOnly:        s.ReduceOnly,
+			PriceVariance:     priceVar,
+			PriceSpread:       priceSpread,
+			SizeLimit:         s.Amount,
+			LimitPrice:        s.Price,
 			// order.Submit has no interval field, so the wrapper keeps the 15
 			// minute default, sent in seconds as OKX's timeInterval takes it.
 			TimeInterval: strconv.FormatInt(int64(kline.FifteenMin.Duration().Seconds()), 10),
@@ -1211,27 +1226,33 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, fmt.Errorf("%w, stop loss price is required", limits.ErrPriceBelowMin)
 		}
 		result, err = e.PlaceAlgoOrder(ctx, &AlgoOrderParams{
-			InstrumentID: p.pairString,
-			TradeMode:    p.tradeMode,
-			Side:         p.sideType,
-			PositionSide: positionSide,
-			OrderType:    orderTypeStr,
-			Size:         s.Amount,
-			ReduceOnly:   s.ReduceOnly,
+			InstrumentID:      p.pairString,
+			AlgoClientOrderID: s.ClientOrderID,
+			TradeMode:         p.tradeMode,
+			Side:              p.sideType,
+			PositionSide:      positionSide,
+			OrderType:         orderTypeStr,
+			Size:              s.Amount,
+			ReduceOnly:        s.ReduceOnly,
 
 			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
-			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
+			TakeProfitTriggerPriceType: priceTypeString(s.RiskManagementModes.TakeProfit.TriggerPriceType),
 
 			StopLossTriggerPrice:     s.RiskManagementModes.StopLoss.Price,
 			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
-			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
+			StopLossTriggerPriceType: priceTypeString(s.RiskManagementModes.StopLoss.TriggerPriceType),
 		})
 	default:
 		return nil, fmt.Errorf("%w, order type %s", order.ErrTypeIsInvalid, orderTypeStr)
 	}
 	if err != nil {
 		return nil, err
+	}
+	if result == nil || result.AlgoID == "" {
+		// A success reply carries the placed algo order's ID; without it the
+		// order's outcome is unknown.
+		return nil, fmt.Errorf("%w: algo order reply has no order ID", common.ErrInvalidResponse)
 	}
 	return s.DeriveSubmitResponse(result.AlgoID)
 }
@@ -2155,6 +2176,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		resp, err := e.GetSpreadOrderDetails(ctx, orderID, "")
 		if err != nil {
 			return nil, err
+		}
+		if resp == nil {
+			// A success reply reports the requested order; a missing row
+			// leaves the order's state unknown.
+			return nil, fmt.Errorf("%w: spread order details reply has no row", common.ErrInvalidResponse)
 		}
 		oSide, err := order.StringToOrderSide(resp.Side)
 		if err != nil {
@@ -3495,7 +3521,10 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 	}
 	var positionSummary *AccountPosition
 	for i := range positionSummaries {
-		if positionSummaries[i].QuantityOfPosition.Float64() <= 0 {
+		if positionSummaries[i].QuantityOfPosition.Float64() == 0 {
+			// A zero size marks a closed position; a negative size is a short
+			// in net position mode and keeps its sign, matching how the
+			// futures summary types carry short sizes.
 			continue
 		}
 		positionSummary = &positionSummaries[i]
@@ -3642,13 +3671,30 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			Start:          req.StartDate,
 			End:            req.EndDate,
 		}
-		if time.Since(req.StartDate) <= time.Hour*24*7 {
-			positions, err = e.Get7DayOrderHistory(ctx, historyRequest)
-		} else {
-			positions, err = e.Get3MonthOrderHistory(ctx, historyRequest)
-		}
-		if err != nil {
-			return nil, err
+		// Both history listings page at 100 rows, so follow the after order ID
+		// cursor until a short page ends the instrument's window.
+		for after := ""; ; {
+			historyRequest.After = after
+			var page []OrderDetail
+			if time.Since(req.StartDate) <= time.Hour*24*7 {
+				page, err = e.Get7DayOrderHistory(ctx, historyRequest)
+			} else {
+				page, err = e.Get3MonthOrderHistory(ctx, historyRequest)
+			}
+			if err != nil {
+				return nil, err
+			}
+			if len(page) == 0 || page[len(page)-1].OrderID == after {
+				// The after cursor is exclusive, so a page ending at it
+				// repeats the one already kept; stop rather than request it
+				// forever.
+				break
+			}
+			positions = append(positions, page...)
+			if len(page) < orderListPageSize {
+				break
+			}
+			after = page[len(page)-1].OrderID
 		}
 		for j := range positions {
 			if fPair.String() != positions[j].InstrumentID {
