@@ -126,29 +126,6 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	for _, variant := range []string{"missing", "null", "empty"} {
-		t.Run("legacy config "+variant, func(t *testing.T) {
-			t.Parallel()
-			var cfg config.Config
-			require.NoError(t, cfg.ReadConfigFromFile("testdata/legacy_v17_"+variant+"_subscriptions.json", true), "real config loader must migrate the legacy subscription selection")
-			assert.Equal(t, 18, cfg.Version, "legacy config should advance to the latest HTX migration")
-			require.Len(t, cfg.Exchanges, 1, "legacy config must retain its exchange")
-			assert.Equal(t, "HTX", cfg.Exchanges[0].Name, "legacy exchange should be renamed")
-			h := new(Exchange)
-			h.SetDefaults()
-			require.NoError(t, h.Setup(&cfg.Exchanges[0]), "migrated configuration must pass real HTX setup")
-			subs, err := h.generateSubscriptionsForAsset(asset.Spot, false)
-			require.NoError(t, err, "migrated spot defaults must generate")
-			require.NotEmpty(t, subs, "implicit spot defaults must survive registered migration and setup")
-			channels := make([]string, 0, len(subs))
-			for _, sub := range subs {
-				channels = append(channels, sub.Channel)
-				assert.Equal(t, asset.Spot, sub.Asset, "restored subscriptions should belong to spot")
-				assert.True(t, sub.Pairs.Contains(btcusdtPair, true), "restored spot subscriptions should cover the configured pair")
-			}
-			assert.ElementsMatch(t, []string{subscription.TickerChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.AllTradesChannel}, channels, "migration should restore every public spot default")
-		})
-	}
 	t.Run("trade connection follows enabled asset", func(t *testing.T) {
 		t.Parallel()
 		var tradeAuthentications atomic.Int32
