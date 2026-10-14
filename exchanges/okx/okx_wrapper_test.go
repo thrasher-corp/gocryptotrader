@@ -5682,29 +5682,37 @@ func TestSubmitOrderRejectsNullRows(t *testing.T) {
 			name: "spot reply with data null",
 			path: "/trade/order",
 			data: nil,
-			submit: &order.Submit{Pair: mainPair, AssetType: asset.Spot,
-				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1},
+			submit: &order.Submit{
+				Pair: mainPair, AssetType: asset.Spot,
+				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+			},
 		},
 		{
 			name: "spot reply with a null row",
 			path: "/trade/order",
 			data: []any{nil},
-			submit: &order.Submit{Pair: mainPair, AssetType: asset.Spot,
-				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1},
+			submit: &order.Submit{
+				Pair: mainPair, AssetType: asset.Spot,
+				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+			},
 		},
 		{
 			name: "spread reply with data null",
 			path: "/sprd/order",
 			data: nil,
-			submit: &order.Submit{Pair: spreadPair, AssetType: asset.Spread,
-				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2},
+			submit: &order.Submit{
+				Pair: spreadPair, AssetType: asset.Spread,
+				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2,
+			},
 		},
 		{
 			name: "algo reply with a null row",
 			path: "/trade/order-algo",
 			data: []any{nil},
-			submit: &order.Submit{Pair: mainPair, AssetType: asset.Spot,
-				Side: order.Buy, Type: order.Trigger, Amount: 1, Price: 1, TriggerPrice: 1},
+			submit: &order.Submit{
+				Pair: mainPair, AssetType: asset.Spot,
+				Side: order.Buy, Type: order.Trigger, Amount: 1, Price: 1, TriggerPrice: 1,
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -5804,13 +5812,13 @@ func TestWebsocketNullRowsDoNotPanic(t *testing.T) {
 func TestSubmitOrderOCOPerLegTriggerPriceTypes(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name   string
-		modes  order.RiskManagementModes
-		expTP  string
-		expSL  string
+		name  string
+		modes order.RiskManagementModes
+		expTP string
+		expSL string
 	}{
 		{
-			name:  "per leg types",
+			name: "per leg types",
 			modes: order.RiskManagementModes{
 				TakeProfit: order.RiskManagement{Price: 110, TriggerPriceType: order.IndexPrice},
 				StopLoss:   order.RiskManagement{Price: 90, TriggerPriceType: order.MarkPrice},
@@ -5819,7 +5827,7 @@ func TestSubmitOrderOCOPerLegTriggerPriceTypes(t *testing.T) {
 			expSL: "mark",
 		},
 		{
-			name:  "unset legs default to last",
+			name: "unset legs default to last",
 			modes: order.RiskManagementModes{
 				TakeProfit: order.RiskManagement{Price: 110},
 				StopLoss:   order.RiskManagement{Price: 90},
@@ -5996,7 +6004,7 @@ func TestGetFuturesPositionSummaryReportsShortPositions(t *testing.T) {
 	summary, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{
 		Asset: asset.PerpetualSwap, Pair: perpetualSwapPair,
 	})
-	require.NoError(t, err, "a net mode short should summarize rather than report no positions")
+	require.NoError(t, err, "a net mode short must summarize rather than report no positions")
 	assert.Equal(t, decimal.MustFromFloat(-0.01), summary.CurrentSize, "a short of one 0.01 contract should carry its negative size")
 	assert.Equal(t, decimal.MustFromFloat(-1), summary.ContractSize, "the contract size should keep the signed position")
 }
@@ -6046,7 +6054,7 @@ func TestGetFuturesPositionOrdersPaginates(t *testing.T) {
 	})
 	require.NoError(t, err, "GetFuturesPositionOrders must not error")
 	require.Len(t, positions, 1, "GetFuturesPositionOrders must return the requested pair")
-	require.Len(t, positions[0].Orders, 150, "GetFuturesPositionOrders should crawl every page of the instrument's window")
+	require.Len(t, positions[0].Orders, 150, "GetFuturesPositionOrders must crawl every page of the instrument's window")
 	assert.Equal(t, "ORD-000", positions[0].Orders[0].OrderID, "the first page's orders should come first")
 	assert.Equal(t, "ORD-149", positions[0].Orders[149].OrderID, "the second page's orders should follow")
 }
