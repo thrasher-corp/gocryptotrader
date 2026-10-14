@@ -27,6 +27,7 @@ func testSpotMetadata() SpotMetadataResponse {
 			{Name: currency.USDC, SizeDecimals: 8, WeiDecimals: 8, TokenID: "0x6d1e7cde53ba9467b783cb7c530ce054", IsCanonical: true, EVMContract: &EVMContract{Address: "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24", EVMExtraWeiDecimals: -2}},
 			{Name: currency.NewCode("PURR"), WeiDecimals: 5, Index: 1, TokenID: "0xc1fb593aeffbeb02f85e0308e9956a90", IsCanonical: true, EVMContract: &EVMContract{Address: "0x9b498c3c8a0b8cd8ba1d9851d40d186f1872b44e", EVMExtraWeiDecimals: 13}},
 			{Name: currency.HYPE, SizeDecimals: 2, WeiDecimals: 8, Index: 150, TokenID: "0x0d01dc56dcaaca66ad901c959b4011ec", FullName: "Hyperliquid"},
+			{Name: currency.NewCode("RAT"), SizeDecimals: 2, WeiDecimals: 8, Index: 253, TokenID: "0xd7f58d3c744fbc0100f7d86f3e283d11", EVMContract: &EVMContract{Address: "0xfdc42f844f3aa19f8fc0b2d67d3276cf1efdc4ca", EVMExtraWeiDecimals: 10}, FullName: "Rat Race Combat", DeployerTradingFeeShare: 1, DeployerLabel: "rrc"},
 			{Name: currency.NewCode("USDH"), SizeDecimals: 2, WeiDecimals: 8, Index: 360, TokenID: "0x54e00a5988577cb0b0c9ab0cb6ef7f4b", EVMContract: &EVMContract{Address: "0x111111a1a0667d36bd57c0a9f569b98057111111", EVMExtraWeiDecimals: -2}, FullName: "USDH", DeployerTradingFeeShare: 1},
 		},
 	}

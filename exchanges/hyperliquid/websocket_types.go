@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -198,7 +199,11 @@ type websocketOrder struct {
 	covered  bool
 	executed float64
 	cost     float64
-	tradeIDs map[uint64]struct{}
+	// fee is the order's fills' fees in feeAsset, which a fill in another fee token leaves unknown
+	fee        float64
+	feeAsset   currency.Code
+	feeUnknown bool
+	tradeIDs   map[uint64]struct{}
 	// final is the order's final row when it arrived before the fills that complete its executed size
 	final *order.Detail
 }

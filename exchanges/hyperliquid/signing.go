@@ -119,8 +119,9 @@ func parsePrivateKey(secret string) (*secp256k1.PrivateKey, error) {
 	}
 	var raw [privateKeyByteLength]byte
 	defer clear(raw[:])
+	// The decoding error quotes the invalid character, which is part of the secret
 	if _, err := hex.Decode(raw[:], []byte(secret)); err != nil {
-		return nil, fmt.Errorf("%w: %w", errInvalidPrivateKey, err)
+		return nil, fmt.Errorf("%w: expected 32-byte hexadecimal scalar", errInvalidPrivateKey)
 	}
 	var scalar secp256k1.ModNScalar
 	if scalar.SetBytes(&raw) != 0 || scalar.IsZero() {

@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"bytes"
+	"cmp"
 	"compress/flate"
 	"context"
 	"encoding/base64"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +20,7 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -35,6 +38,11 @@ import (
 const (
 	// websocketPingInterval keeps quiet connections inside the server's 60 second idle timeout
 	websocketPingInterval = 25 * time.Second
+	// accountWebsocketProbeTimeout bounds each probe of the websocket endpoint while the account connection is down
+	accountWebsocketProbeTimeout = 10 * time.Second
+	// maximumAccountWebsocketProbeInterval keeps failed probes well within the 30 new connections a minute that
+	// Hyperliquid accepts from an address
+	maximumAccountWebsocketProbeInterval = time.Minute
 	// websocketMessageInterval spaces requests within the limit of 2000 messages a minute
 	websocketMessageInterval = 30 * time.Millisecond
 	// maximumWebsocketSubscriptions is Hyperliquid's per-IP subscription limit; the manager counts the public and account
@@ -187,7 +195,9 @@ func (e *Exchange) WsConnect() error {
 	}
 	if err := e.connectWebsocket(ctx, e.Websocket.AuthConn); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Warnf(log.WebsocketMgr, "%s account websocket connection failed: %s", e.Name, err)
+		log.Warnf(log.WebsocketMgr, "%s account websocket connection failed, retrying: %s", e.Name, err)
+		interval := cmp.Or(e.Config.ConnectionMonitorDelay, config.DefaultConnectionMonitorDelay)
+		go e.awaitAccountWebsocket(ctx, e.Websocket.AuthConn.GetURL(), e.Websocket.GetProxyAddress(), e.Websocket.ShutdownC, interval)
 		return nil
 	}
 	// Hyperliquid's account feeds are public and keyed by address, so authenticated here only means an address is set
@@ -210,6 +220,68 @@ func (e *Exchange) connectWebsocket(ctx context.Context, connection websocket.Co
 		Delay:       websocketPingInterval,
 	})
 	return nil
+}
+
+// awaitAccountWebsocket probes the websocket endpoint after the account connection failed to dial, keeping the public
+// feeds up, and shuts the websocket down once a probe connects, so the connection monitor reconnects it with the account
+// feeds; it stops when the websocket shuts down. Probes start after the given interval, which doubles after each failed
+// probe up to a minute. The endpoint, proxy and shutdown channel are passed in, as reading them later would race with
+// the manager changing them
+func (e *Exchange) awaitAccountWebsocket(ctx context.Context, endpoint, proxy string, shutdown <-chan struct{}, interval time.Duration) {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+	for {
+		select {
+		case <-shutdown:
+			return
+		case <-timer.C:
+		}
+		if err := probeWebsocket(ctx, endpoint, proxy); err != nil {
+			if e.Verbose {
+				log.Debugf(log.WebsocketMgr, "%s account websocket probe failed: %s", e.Name, err)
+			}
+			interval = nextAccountWebsocketProbeInterval(interval)
+			timer.Reset(interval)
+			continue
+		}
+		select {
+		case <-shutdown:
+			return
+		default:
+		}
+		// A shutdown or reconnection already under way also leaves the connection monitor to reconnect
+		if err := e.Websocket.Shutdown(); err != nil && e.Verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket shutdown for the account feeds: %s", e.Name, err)
+		}
+		return
+	}
+}
+
+// nextAccountWebsocketProbeInterval doubles the interval between probes of the websocket endpoint, up to a minute unless
+// the interval was longer already
+func nextAccountWebsocketProbeInterval(interval time.Duration) time.Duration {
+	return max(interval, min(interval*2, maximumAccountWebsocketProbeInterval))
+}
+
+// probeWebsocket dials a websocket endpoint, through a proxy when one is set, then closes the connection normally
+func probeWebsocket(ctx context.Context, endpoint, proxy string) error {
+	dialer := gws.Dialer{HandshakeTimeout: accountWebsocketProbeTimeout}
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return err
+		}
+		dialer.Proxy = http.ProxyURL(proxyURL)
+	}
+	conn, resp, err := dialer.DialContext(ctx, endpoint, nil)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	if err != nil {
+		return err
+	}
+	_ = conn.WriteControl(gws.CloseMessage, gws.FormatCloseMessage(gws.CloseNormalClosure, ""), time.Now().Add(accountWebsocketProbeTimeout))
+	return conn.Close()
 }
 
 // wsReadData relays a connection's messages until it closes, then fails its outstanding subscription operations; the
@@ -753,6 +825,7 @@ func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, 
 	case matched:
 		if update.ExecutedAmount > 0 {
 			update.Cost, update.AverageExecutedPrice = record.cost, record.cost/record.executed
+			record.setFee(update)
 		}
 	case record.executed > update.ExecutedAmount:
 		if !final && record.covered && record.originalSize > 0 {
@@ -779,8 +852,6 @@ func (e *Exchange) applyWebsocketOrderFill(source *Fill, mapping *pairMapping, a
 	// An order not seen in a row yet is dated by its fill, which is when it was placed if its fill preceded its placement
 	// row; the engine keeps the date it first learns of an order
 	update := order.Detail{
-		Fee:           fee,
-		FeeAsset:      source.FeeToken,
 		Exchange:      e.Name,
 		OrderID:       strconv.FormatUint(source.OrderID, 10),
 		ClientOrderID: source.ClientOrderID,
@@ -816,6 +887,15 @@ func (e *Exchange) applyWebsocketOrderFill(source *Fill, mapping *pairMapping, a
 	record.executed += size
 	// Converting rounds the product first, so an architecture that fuses the multiply and add sums the same cost
 	record.cost += float64(price * size)
+	switch {
+	case record.feeUnknown:
+	case record.feeAsset.IsEmpty() || record.feeAsset.Equal(source.FeeToken):
+		record.fee, record.feeAsset = record.fee+fee, source.FeeToken
+	default:
+		// A spot fill pays its fee in the token it receives but takes a maker rebate in the token it gives, so a spot
+		// order's fees and rebates can be in different tokens, which one total cannot hold
+		record.feeUnknown = true
+	}
 	// Sizes are whole multiples of the market's size step, so sums within half a step of each other are equal
 	record.sizeTolerance = 0.5 / math.Pow(10, float64(mapping.sizeDecimals))
 	if !record.placed.IsZero() {
@@ -827,7 +907,8 @@ func (e *Exchange) applyWebsocketOrderFill(source *Fill, mapping *pairMapping, a
 		}
 		final := *record.final
 		final.Cost, final.AverageExecutedPrice = record.cost, record.cost/record.executed
-		final.Fee, final.FeeAsset, final.Trades = update.Fee, update.FeeAsset, update.Trades
+		record.setFee(&final)
+		final.Trades = update.Trades
 		if filled.After(final.LastUpdated) {
 			final.LastUpdated = filled
 		}
@@ -849,9 +930,17 @@ func (r *websocketOrder) setFillState(update *order.Detail) {
 	}
 	update.Price, update.Amount = r.limitPrice, r.originalSize
 	update.ExecutedAmount, update.Cost, update.AverageExecutedPrice = r.executed, r.cost, r.cost/r.executed
+	r.setFee(update)
 	update.Status, update.RemainingAmount = order.PartiallyFilled, remaining
 	if remaining <= r.sizeTolerance {
 		update.Status, update.RemainingAmount = order.Filled, 0
+	}
+}
+
+// setFee makes an update report the fees of the order's fills, unless they were paid in more than one token
+func (r *websocketOrder) setFee(update *order.Detail) {
+	if !r.feeUnknown {
+		update.Fee, update.FeeAsset = r.fee, r.feeAsset
 	}
 }
 

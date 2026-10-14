@@ -138,6 +138,8 @@ type BasicOrder struct {
 	Timestamp     types.Time   `json:"timestamp"`
 	OriginalSize  types.Number `json:"origSz"`
 	ClientOrderID string       `json:"cloid"`
+	// ReduceOnly is sent by openOrders; FrontendOpenOrder's own ReduceOnly takes the frontendOpenOrders value
+	ReduceOnly bool `json:"reduceOnly"`
 }
 
 // FrontendOpenOrder contains an order with the additional fields the frontend displays

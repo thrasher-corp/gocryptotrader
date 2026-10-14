@@ -322,6 +322,72 @@ func waitForWebsocketReaders(t *testing.T, ex *Exchange) {
 	}
 }
 
+// websocketTestServer is a websocket server that refuses its first upgrades and holds every later connection open until
+// the client closes it
+type websocketTestServer struct {
+	endpoint string
+	// attempts counts the upgrades the server has been asked for, and closed the connections its clients have closed
+	// normally, which a connection the client abandons never is
+	attempts, closed atomic.Int32
+}
+
+// newWebsocketTestServer starts a websocketTestServer refusing its first refusals upgrades
+func newWebsocketTestServer(t *testing.T, refusals int32) *websocketTestServer {
+	t.Helper()
+	ws := new(websocketTestServer)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ws.attempts.Add(1) <= refusals {
+			http.Error(w, "refused", http.StatusServiceUnavailable)
+			return
+		}
+		conn, err := new(gws.Upgrader).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				if gws.IsCloseError(err, gws.CloseNormalClosure) {
+					ws.closed.Add(1)
+				}
+				_ = conn.Close()
+				return
+			}
+		}
+	}))
+	t.Cleanup(server.Close)
+	ws.endpoint = "ws" + strings.TrimPrefix(server.URL, "http")
+	return ws
+}
+
+// newAccountWebsocketTestExchange returns an exchange watching the mock signing account whose public and account
+// websocket connections reach servers of their own, the account server refusing its first refusals upgrades, with the
+// given connection monitor delay, and how many upgrades each server has been asked for; the websocket is disabled and
+// shut down when the test ends
+func newAccountWebsocketTestExchange(t *testing.T, refusals int32, monitorDelay time.Duration) (ex *Exchange, publicAttempts, accountAttempts *atomic.Int32) {
+	t.Helper()
+	public, account := newWebsocketTestServer(t, 0), newWebsocketTestServer(t, refusals)
+	ex = new(Exchange)
+	ex.SetDefaults()
+	ex.Name = t.Name()
+	cfg, err := ex.GetStandardConfig()
+	require.NoError(t, err, "GetStandardConfig must not error")
+	cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
+	cfg.ConnectionMonitorDelay, cfg.WebsocketTrafficTimeout = monitorDelay, time.Hour
+	require.NoError(t, ex.Setup(cfg), "Setup must not error")
+	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
+	require.NoError(t, ex.Websocket.SetWebsocketURL(public.endpoint, false, false), "SetWebsocketURL must not error for the public endpoint")
+	require.NoError(t, ex.Websocket.SetWebsocketURL(account.endpoint, true, false), "SetWebsocketURL must not error for the account endpoint")
+	ex.Websocket.SetSubscriptionsNotRequired()
+	t.Cleanup(func() {
+		// Disabling stops the connection monitor, which may then shut the connection down first
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket is already shut down")
+		}
+	})
+	return ex, &public.attempts, &account.attempts
+}
+
 // newWebsocketConnectTestExchange returns an exchange with the websocket enabled, the credentials set when given, and
 // fixture connections
 func newWebsocketConnectTestExchange(t *testing.T, credentials *accounts.Credentials) (ex *Exchange, public, authenticated *websocketConnectionFixture) {
@@ -502,10 +568,21 @@ func TestWsConnect(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	authenticated.dialErr = errWebsocketFixture
 	require.NoError(t, ex.WsConnect(), "WsConnect must keep the public connection when the account connection fails")
+	// Closing the shutdown channel, as the manager's Shutdown does, stops the probes of the fixture's endpoint
+	close(ex.Websocket.ShutdownC)
 	waitForWebsocketReaders(t, ex)
 	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WsConnect should disable account feeds when the account connection fails")
 	assert.Equal(t, int32(1), public.readCalls.Load(), "WsConnect should start the public reader")
 	assert.Zero(t, authenticated.readCalls.Load(), "WsConnect should not read a failed account connection")
+
+	// A probe of the account endpoint connecting shuts the websocket down, so the connection monitor reconnects both
+	// connections
+	retried, publicAttempts, accountAttempts := newAccountWebsocketTestExchange(t, 2, 10*time.Millisecond)
+	require.NoError(t, retried.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
+	// Probing every connection monitor delay, here 10ms, reconnects well within the 3s that the 2s default delay would need
+	require.Eventually(t, retried.Websocket.CanUseAuthenticatedEndpoints, 3*time.Second, 10*time.Millisecond, "WsConnect must connect the account connection once its endpoint accepts connections")
+	assert.Equal(t, int32(4), accountAttempts.Load(), "the account endpoint should receive the failed dial, a refused probe, an accepted probe and the redial")
+	assert.Equal(t, int32(2), publicAttempts.Load(), "the public endpoint should be redialled once, with the account endpoint")
 
 	ex, public, authenticated = newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
 	require.NoError(t, ex.WsConnect(), "WsConnect must not error")
@@ -544,6 +621,113 @@ func TestConnectWebsocket(t *testing.T) {
 	// The connection's ping handler stops when the manager's shutdown channel closes, as the manager's Shutdown does
 	close(venue.Websocket.ShutdownC)
 	assert.NoError(t, venue.Websocket.Conn.Shutdown(), "Shutdown should close the venue connection")
+}
+
+func TestAwaitAccountWebsocket(t *testing.T) {
+	t.Parallel()
+	ex, _, _ := newAccountWebsocketTestExchange(t, 0, time.Hour)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	probed := newWebsocketTestServer(t, 2)
+
+	stopped := make(chan struct{})
+	close(stopped)
+	ex.awaitAccountWebsocket(t.Context(), probed.endpoint, "", stopped, time.Hour)
+	assert.Zero(t, probed.attempts.Load(), "awaitAccountWebsocket should not probe once the websocket has shut down")
+
+	interrupted := make(chan struct{})
+	interrupting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(interrupted)
+		if conn, err := new(gws.Upgrader).Upgrade(w, r, nil); err == nil {
+			_ = conn.Close()
+		}
+	}))
+	t.Cleanup(interrupting.Close)
+	ex.awaitAccountWebsocket(t.Context(), "ws"+strings.TrimPrefix(interrupting.URL, "http"), "", interrupted, time.Millisecond)
+	assert.True(t, ex.Websocket.IsConnected(), "awaitAccountWebsocket should not shut down a websocket that shut down during its probe")
+
+	ex.awaitAccountWebsocket(t.Context(), probed.endpoint, "", ex.Websocket.ShutdownC, time.Millisecond)
+	assert.Equal(t, int32(3), probed.attempts.Load(), "awaitAccountWebsocket should probe until a probe connects")
+	assert.False(t, ex.Websocket.IsConnected(), "awaitAccountWebsocket should shut the websocket down for the connection monitor to reconnect")
+
+	verbose := new(Exchange)
+	verbose.SetDefaults()
+	verbose.Verbose = true
+	var probesMu sync.Mutex
+	var probes []time.Time
+	refusing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		probesMu.Lock()
+		probes = append(probes, time.Now())
+		probesMu.Unlock()
+		http.Error(w, "refused", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(refusing.Close)
+	shutdown, done := make(chan struct{}), make(chan struct{})
+	go func() {
+		verbose.awaitAccountWebsocket(t.Context(), "ws"+strings.TrimPrefix(refusing.URL, "http"), "", shutdown, 5*time.Millisecond)
+		close(done)
+	}()
+	require.Eventually(t, func() bool {
+		probesMu.Lock()
+		defer probesMu.Unlock()
+		return len(probes) >= 4
+	}, 5*time.Second, time.Millisecond, "awaitAccountWebsocket must keep probing a refusing endpoint")
+	close(shutdown)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "awaitAccountWebsocket must return once the websocket shuts down")
+	}
+	probesMu.Lock()
+	// Timers never fire early, so the intervals after the first three failed probes, 10, 20 and 40ms, bound the gap
+	assert.GreaterOrEqual(t, probes[3].Sub(probes[0]), 70*time.Millisecond, "awaitAccountWebsocket should double the interval after each failed probe")
+	probesMu.Unlock()
+	accepting := newWebsocketTestServer(t, 0)
+	verbose.awaitAccountWebsocket(t.Context(), accepting.endpoint, "", make(chan struct{}), time.Millisecond)
+	assert.Equal(t, int32(1), accepting.attempts.Load(), "awaitAccountWebsocket should stop probing once a probe connects, even when the websocket cannot shut down")
+}
+
+func TestNextAccountWebsocketProbeInterval(t *testing.T) {
+	t.Parallel()
+	for interval, exp := range map[time.Duration]time.Duration{
+		2 * time.Second:  4 * time.Second,
+		40 * time.Second: time.Minute,
+		time.Minute:      time.Minute,
+		time.Hour:        time.Hour,
+	} {
+		assert.Equalf(t, exp, nextAccountWebsocketProbeInterval(interval), "nextAccountWebsocketProbeInterval should follow %s with %s", interval, exp)
+	}
+}
+
+func TestProbeWebsocket(t *testing.T) {
+	t.Parallel()
+	server := newWebsocketTestServer(t, 1)
+	endpoint := server.endpoint
+	assert.ErrorIs(t, probeWebsocket(t.Context(), endpoint, ""), gws.ErrBadHandshake, "probeWebsocket should report a refused upgrade")
+	assert.NoError(t, probeWebsocket(t.Context(), endpoint, ""), "probeWebsocket should connect to an endpoint accepting upgrades")
+	assert.Equal(t, int32(2), server.attempts.Load(), "probeWebsocket should dial the endpoint once a probe")
+	// Hyperliquid allows an address 10 connections, so a probe must not hold one open
+	assert.Eventually(t, func() bool { return server.closed.Load() == 1 }, 5*time.Second, time.Millisecond, "probeWebsocket should close the connection it opens normally")
+
+	targets := make(chan string, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodConnect {
+			targets <- r.Host
+		}
+		http.Error(w, "refused", http.StatusForbidden)
+	}))
+	t.Cleanup(proxy.Close)
+	assert.Error(t, probeWebsocket(t.Context(), endpoint, proxy.URL), "probeWebsocket should report a proxy refusing the connection")
+	endpointURL, err := url.Parse(endpoint)
+	require.NoError(t, err, "url.Parse must not error for the endpoint")
+	select {
+	case target := <-targets:
+		assert.Equal(t, endpointURL.Host, target, "probeWebsocket should ask the proxy for the endpoint")
+	default:
+		assert.Fail(t, "probeWebsocket should dial through the proxy")
+	}
+	assert.Equal(t, int32(2), server.attempts.Load(), "probeWebsocket should not reach the endpoint around the proxy")
+	var invalid *url.Error
+	assert.ErrorAs(t, probeWebsocket(t.Context(), endpoint, "http://[::1"), &invalid, "probeWebsocket should reject an invalid proxy")
 }
 
 func TestWsReadData(t *testing.T) {
@@ -1110,8 +1294,6 @@ func testWebsocketFillUpdate(exchangeName string) order.Detail {
 	filled := time.UnixMilli(1791280942711).UTC()
 	price, size := 86006.0, 0.07905
 	return order.Detail{
-		Fee:           -0.067987,
-		FeeAsset:      currency.USDC,
 		Exchange:      exchangeName,
 		OrderID:       "566617233807",
 		ClientOrderID: "0x000000000000000000065d2917ff6969",
@@ -1130,8 +1312,6 @@ func testWebsocketSpotFillUpdate(exchangeName string) order.Detail {
 	filled := time.UnixMilli(1791279150013).UTC()
 	price, size := 92.7, 0.41
 	return order.Detail{
-		Fee:         0.01787849,
-		FeeAsset:    currency.USDC,
 		Exchange:    exchangeName,
 		OrderID:     "566598918312",
 		Side:        order.Sell,
@@ -1531,8 +1711,8 @@ func TestWebsocketOrderEvents(t *testing.T) {
 	t.Parallel()
 	placed := time.UnixMilli(websocketOrderPlaced).UTC()
 	at := func(offset int64) time.Time { return time.UnixMilli(websocketOrderPlaced + offset).UTC() }
-	// Expected sizes are worked out in float64, as the handlers work them out from the decoded sizes
-	originalSize := 0.02
+	// Expected sizes and fees are worked out in float64, as the handlers work them out from the decoded values
+	originalSize, takerFee, makerFee := 0.02, 0.1, -0.05
 	row := func(exchangeName, orderID string) order.Detail {
 		return order.Detail{
 			Price:         85000,
@@ -1570,10 +1750,11 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		partial.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 11, price1, size1, websocketOrderPlaced+100, false)}
 		filledByFills := row(ex.Name, "1001")
 		filledByFills.AverageExecutedPrice, filledByFills.ExecutedAmount, filledByFills.Cost = cost/executed, executed, cost
-		filledByFills.Fee, filledByFills.FeeAsset, filledByFills.Status, filledByFills.LastUpdated = 0.1, currency.USDC, order.Filled, at(200)
+		filledByFills.Fee, filledByFills.FeeAsset, filledByFills.Status, filledByFills.LastUpdated = makerFee+takerFee, currency.USDC, order.Filled, at(200)
 		filledByFills.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 12, price2, size2, websocketOrderPlaced+200, true)}
 		filledRow := row(ex.Name, "1001")
 		filledRow.AverageExecutedPrice, filledRow.ExecutedAmount, filledRow.Cost, filledRow.Status, filledRow.LastUpdated = cost/executed, 0.02, cost, order.Filled, at(200)
+		filledRow.Fee, filledRow.FeeAsset = makerFee+takerFee, currency.USDC
 		exp := []order.Detail{opened(ex.Name, "1001"), partial, filledByFills, filledRow}
 		relayed := make([]order.Detail, 0, len(exp))
 		for range exp {
@@ -1585,6 +1766,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		assert.Equal(t, 0.02, merged.ExecutedAmount, "the engine should hold the order's executed size")
 		assert.Equal(t, cost, merged.Cost, "the engine should hold the order's cost")
 		assert.Equal(t, cost/executed, merged.AverageExecutedPrice, "the engine should hold the order's average price")
+		assert.Equal(t, makerFee+takerFee, merged.Fee, "the engine should hold the order's total fee")
 		assert.Equal(t, order.Filled, merged.Status, "the engine should hold the order filled")
 		assert.Len(t, merged.Trades, 2, "the engine should hold each trade of the order")
 		assert.Nil(t, ex.websocketWatermarks.orders.byOrderID[1001], "the filled row should forget the order")
@@ -1600,8 +1782,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		)
 		price, size := 85010.0, 0.005
 		tradeOnly := order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       "1002",
 			ClientOrderID: websocketOrderClientID,
@@ -1614,10 +1794,10 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		}
 		ahead := row(ex.Name, "1002")
 		ahead.AverageExecutedPrice, ahead.ExecutedAmount, ahead.RemainingAmount, ahead.Cost = price*size/size, size, originalSize-size, price*size
-		ahead.Status, ahead.LastUpdated = order.PartiallyFilled, placed
+		ahead.Fee, ahead.FeeAsset, ahead.Status, ahead.LastUpdated = takerFee, currency.USDC, order.PartiallyFilled, placed
 		cancelled := row(ex.Name, "1002")
 		cancelled.AverageExecutedPrice, cancelled.ExecutedAmount, cancelled.RemainingAmount, cancelled.Cost = price*size/size, originalSize-0.015, 0.015, price*size
-		cancelled.Status, cancelled.LastUpdated = order.PartiallyFilledCancelled, at(300)
+		cancelled.Fee, cancelled.FeeAsset, cancelled.Status, cancelled.LastUpdated = takerFee, currency.USDC, order.PartiallyFilledCancelled, at(300)
 		relayed := slices.Concat(receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex))
 		assertNoWebsocketData(t, ex)
 		assert.Equal(t, []order.Detail{tradeOnly, ahead, cancelled}, relayed, "the order stream should relay the early fill alone, then the placement row with the fill's execution")
@@ -1639,8 +1819,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		partial := row(ex.Name, "1003")
 		partial.ExecutedAmount, partial.RemainingAmount, partial.Status, partial.LastUpdated = originalSize-0.015, 0.015, order.PartiallyFilled, placed
 		tradeOnly := order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       "1003",
 			ClientOrderID: websocketOrderClientID,
@@ -1681,7 +1859,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		partial.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 41, price, size, websocketOrderPlaced+100, false)}
 		cancelled := row(ex.Name, "1004")
 		cancelled.AverageExecutedPrice, cancelled.ExecutedAmount, cancelled.RemainingAmount, cancelled.Cost = price*size/size, originalSize-0.014, 0.014, price*size
-		cancelled.Status, cancelled.LastUpdated = order.PartiallyFilledCancelled, at(300)
+		cancelled.Fee, cancelled.FeeAsset, cancelled.Status, cancelled.LastUpdated = makerFee, currency.USDC, order.PartiallyFilledCancelled, at(300)
 		relayed := slices.Concat(receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex))
 		assertNoWebsocketData(t, ex)
 		assert.Equal(t, []order.Detail{opened(ex.Name, "1004"), partial, cancelled}, relayed, "the order stream should report the cancel of a partly filled order with its cost")
@@ -1747,8 +1925,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		filledRow := row(ex.Name, "1006")
 		filledRow.ExecutedAmount, filledRow.Status, filledRow.LastUpdated = 0.02, order.Filled, at(300)
 		lagging := order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       "1006",
 			ClientOrderID: websocketOrderClientID,
@@ -1760,7 +1936,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 			Trades:        []order.TradeHistory{websocketOrderTrade(ex.Name, 62, price2, size2, websocketOrderPlaced+250, true)},
 		}
 		completed := filledRow
-		completed.AverageExecutedPrice, completed.Cost, completed.Fee, completed.FeeAsset = cost/executed, cost, -0.05, currency.USDC
+		completed.AverageExecutedPrice, completed.Cost, completed.Fee, completed.FeeAsset = cost/executed, cost, takerFee+takerFee+makerFee, currency.USDC
 		completed.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 63, price3, size3, websocketOrderPlaced+260, false)}
 		relayed := make([]order.Detail, 0, 5)
 		for range 5 {
@@ -1774,6 +1950,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		merged = mergeOrderUpdates(t, relayed...)
 		assert.Equal(t, 0.02, merged.ExecutedAmount, "the engine should hold the order's executed size")
 		assert.Equal(t, cost, merged.Cost, "the engine should hold the order's cost")
+		assert.Equal(t, takerFee+takerFee+makerFee, merged.Fee, "the engine should hold the order's total fee")
 		assert.Equal(t, order.Filled, merged.Status, "the engine should hold the order filled")
 		assert.Len(t, merged.Trades, 3, "the engine should hold each trade of the order")
 		assert.Nil(t, ex.websocketWatermarks.orders.byOrderID[1006], "the completing fill should forget the order")
@@ -1800,8 +1977,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		zeroSized := row(ex.Name, "1008")
 		zeroSized.Amount, zeroSized.Status, zeroSized.LastUpdated = 0, order.Open, placed
 		tradeOnly := order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       "1008",
 			ClientOrderID: websocketOrderClientID,
@@ -1827,8 +2002,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1009, "canceled", "0.015", "0.02", websocketOrderPlaced+300)),
 		)
 		tradeOnly := order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       "1009",
 			ClientOrderID: websocketOrderClientID,
@@ -1842,7 +2015,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		cancelled := row(ex.Name, "1009")
 		price, size := 85000.0, 0.005
 		cancelled.AverageExecutedPrice, cancelled.ExecutedAmount, cancelled.RemainingAmount, cancelled.Cost = price*size/size, originalSize-0.015, 0.015, price*size
-		cancelled.Status, cancelled.LastUpdated = order.PartiallyFilledCancelled, at(300)
+		cancelled.Fee, cancelled.FeeAsset, cancelled.Status, cancelled.LastUpdated = takerFee, currency.USDC, order.PartiallyFilledCancelled, at(300)
 		relayed := slices.Concat(receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex))
 		assertNoWebsocketData(t, ex)
 		assert.Equal(t, []order.Detail{opened(ex.Name, "1009"), tradeOnly, cancelled}, relayed, "the order stream should relay a fill alone after the account connection dropped, until a row shows the fills cover the order")
@@ -1853,8 +2026,6 @@ func TestWebsocketOrderEvents(t *testing.T) {
 	cost, executed := float64(price1*size1)+float64(price2*size2), size1+size2
 	fillOnly := func(exchangeName, orderID string, tradeID uint64, price, size float64, offset int64, date time.Time) order.Detail {
 		return order.Detail{
-			Fee:           0.1,
-			FeeAsset:      currency.USDC,
 			Exchange:      exchangeName,
 			OrderID:       orderID,
 			ClientOrderID: websocketOrderClientID,
@@ -1873,7 +2044,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 	}
 	completed := func(exchangeName, orderID string, tradeID uint64) order.Detail {
 		update := filledRow(exchangeName, orderID)
-		update.AverageExecutedPrice, update.Cost, update.Fee, update.FeeAsset = cost/executed, cost, 0.1, currency.USDC
+		update.AverageExecutedPrice, update.Cost, update.Fee, update.FeeAsset = cost/executed, cost, takerFee+takerFee, currency.USDC
 		update.Trades = []order.TradeHistory{websocketOrderTrade(exchangeName, tradeID, price2, size2, websocketOrderPlaced+250, true)}
 		return update
 	}
@@ -1883,6 +2054,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		assert.Equal(t, originalSize, merged.ExecutedAmount, "the engine should hold the order's executed size")
 		assert.Equal(t, cost, merged.Cost, "the engine should hold the cost of every fill")
 		assert.Equal(t, cost/executed, merged.AverageExecutedPrice, "the engine should hold the average price of every fill")
+		assert.Equal(t, takerFee+takerFee, merged.Fee, "the engine should hold the fees of every fill")
 		assert.Equal(t, order.Filled, merged.Status, "the engine should hold the order filled")
 		assert.Nil(t, ex.websocketWatermarks.orders.byOrderID[orderID], "the completing fill should forget the order")
 	}
@@ -2101,8 +2273,6 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	tradeOnly := func(orderID string, tradeID uint64, price, size float64, offset int64, taker bool, date time.Time) order.Detail {
 		trade := websocketOrderTrade(ex.Name, tradeID, price, size, websocketOrderPlaced+offset, taker)
 		return order.Detail{
-			Fee:           trade.Fee,
-			FeeAsset:      currency.USDC,
 			Exchange:      ex.Name,
 			OrderID:       orderID,
 			ClientOrderID: websocketOrderClientID,
@@ -2121,7 +2291,7 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	record := orders.byOrderID[1]
 	require.NotNil(t, record, "applyWebsocketOrderFill must record the order")
 	price1, size1, price2, size2 := 85000.0, 0.005, 85010.0, 0.015
-	exp := websocketOrder{orderID: 1, touched: now, sizeTolerance: 0.000005, executed: size1, cost: price1 * size1, tradeIDs: map[uint64]struct{}{11: {}}}
+	exp := websocketOrder{orderID: 1, touched: now, sizeTolerance: 0.000005, executed: size1, cost: price1 * size1, fee: 0.1, feeAsset: currency.USDC, tradeIDs: map[uint64]struct{}{11: {}}}
 	assert.Equal(t, exp, *record, "applyWebsocketOrderFill should add the fill to the order's record")
 	_, ok = ex.applyWebsocketOrderFill(source(1, 11, 85000, 0.005, 100, true), &mapping, asset.PerpetualContract, order.Buy, now)
 	assert.False(t, ok, "applyWebsocketOrderFill should not relay a fill twice")
@@ -2133,7 +2303,8 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	cost := float64(price1*size1) + float64(price2*size2)
 	filled := tradeOnly("1", 12, price2, size2, 200, false, placed)
 	filled.Price, filled.Amount, filled.ExecutedAmount, filled.Cost, filled.AverageExecutedPrice, filled.Status = 85000, 0.02, size1+size2, cost, cost/(size1+size2), order.Filled
-	assert.Equal(t, filled, update, "applyWebsocketOrderFill should report the cumulative execution of an order whose fills cover it")
+	filled.Fee, filled.FeeAsset = 0.1+-0.05, currency.USDC
+	assert.Equal(t, filled, update, "applyWebsocketOrderFill should report the cumulative execution and fees of an order whose fills cover it")
 
 	update, ok = ex.applyWebsocketOrderFill(source(1, 13, 85020, 0.01, 300, true), &mapping, asset.PerpetualContract, order.Buy, now)
 	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
@@ -2150,20 +2321,39 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	price3, size3, price4, size4 := 85000.0, 0.01, 85010.0, 0.01
 	cost = float64(price3*size3) + float64(price4*size4)
 	completed := *record.final
-	completed.Cost, completed.AverageExecutedPrice, completed.Fee, completed.FeeAsset = cost, cost/(size3+size4), -0.05, currency.USDC
+	completed.Cost, completed.AverageExecutedPrice, completed.Fee, completed.FeeAsset = cost, cost/(size3+size4), 0.1+-0.05, currency.USDC
 	completed.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 22, 85010, 0.01, websocketOrderPlaced+400, false)}
 	completed.LastUpdated = time.UnixMilli(websocketOrderPlaced + 400).UTC()
 	assert.Equal(t, completed, update, "applyWebsocketOrderFill should complete a final row with the cost of the fills that reach its executed size, as last updated by the later of the two")
 	assert.Nil(t, orders.byOrderID[2], "applyWebsocketOrderFill should forget an order once it completes its final row")
+
+	record = orders.touch(3, now)
+	record.rowSeen, record.covered, record.originalSize, record.limitPrice, record.placed = true, true, 0.03, 85000, placed
+	_, ok = ex.applyWebsocketOrderFill(source(3, 31, 85000, 0.01, 100, true), &mapping, asset.PerpetualContract, order.Buy, now)
+	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
+	otherToken := source(3, 32, 85000, 0.01, 200, false)
+	otherToken.FeeToken = currency.HYPE
+	update, ok = ex.applyWebsocketOrderFill(otherToken, &mapping, asset.PerpetualContract, order.Buy, now)
+	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
+	assert.Equal(t, order.PartiallyFilled, update.Status, "applyWebsocketOrderFill should report the cumulative execution of fills paid in different tokens")
+	assert.Zero(t, update.Fee, "applyWebsocketOrderFill should report no fee total for fills paid in different tokens")
+	assert.True(t, update.FeeAsset.IsEmpty(), "applyWebsocketOrderFill should report no fee asset for fills paid in different tokens")
+	update, ok = ex.applyWebsocketOrderFill(source(3, 33, 85000, 0.01, 300, true), &mapping, asset.PerpetualContract, order.Buy, now)
+	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
+	assert.Equal(t, order.Filled, update.Status, "applyWebsocketOrderFill should report the cumulative execution of a later fill")
+	assert.Zero(t, update.Fee, "applyWebsocketOrderFill should report no fee total once fills were paid in different tokens, whatever later fills pay")
+	assert.True(t, record.feeUnknown, "applyWebsocketOrderFill should keep an order's fee total unknown once its fills were paid in different tokens")
+	assert.Equal(t, 0.1, record.fee, "applyWebsocketOrderFill should stop summing fees once they were paid in different tokens")
 }
 
 func TestWebsocketOrderSetFillState(t *testing.T) {
 	t.Parallel()
 	originalSize, executed, cost := 0.02, 0.005, 425.0
-	record := websocketOrder{originalSize: originalSize, limitPrice: 85000, executed: executed, cost: cost, sizeTolerance: 0.000005}
-	base := order.Detail{OrderID: "1", Fee: 0.1}
+	record := websocketOrder{originalSize: originalSize, limitPrice: 85000, executed: executed, cost: cost, fee: 0.15, feeAsset: currency.USDC, sizeTolerance: 0.000005}
+	base := order.Detail{OrderID: "1"}
 	exp := base
 	exp.Price, exp.Amount, exp.ExecutedAmount, exp.RemainingAmount, exp.Cost, exp.AverageExecutedPrice, exp.Status = 85000, originalSize, executed, originalSize-executed, cost, cost/executed, order.PartiallyFilled
+	exp.Fee, exp.FeeAsset = 0.15, currency.USDC
 	update := base
 	record.setFillState(&update)
 	assert.Equal(t, exp, update, "setFillState should report a partly filled order's cumulative execution")
@@ -2180,7 +2370,7 @@ func TestWebsocketOrderSetFillState(t *testing.T) {
 	record.setFillState(&update)
 	assert.Equal(t, base, update, "setFillState should leave an update unchanged when the fills exceed the order's size")
 
-	residual := websocketOrder{originalSize: 0.00008, limitPrice: 85000, sizeTolerance: 0.000005}
+	residual := websocketOrder{originalSize: 0.00008, limitPrice: 85000, sizeTolerance: 0.000005, feeAsset: currency.USDC}
 	for _, size := range []float64{0.00001, 0.00007} {
 		residual.executed += size
 		residual.cost += float64(85000 * size)
@@ -2188,9 +2378,30 @@ func TestWebsocketOrderSetFillState(t *testing.T) {
 	require.Positive(t, residual.originalSize-residual.executed, "the fills must sum to just below the order's size, leaving a rounding residual")
 	exp = base
 	exp.Price, exp.Amount, exp.ExecutedAmount, exp.Cost, exp.AverageExecutedPrice, exp.Status = 85000, residual.originalSize, residual.executed, residual.cost, residual.cost/residual.executed, order.Filled
+	exp.FeeAsset = currency.USDC
 	update = base
 	residual.setFillState(&update)
 	assert.Equal(t, exp, update, "setFillState should report an order filled with nothing remaining when its fills fall short of its size only by rounding")
+
+	mixedTokens := websocketOrder{originalSize: originalSize, limitPrice: 85000, executed: 0.005, cost: 425, fee: 0.15, feeAsset: currency.USDC, feeUnknown: true, sizeTolerance: 0.000005}
+	update = base
+	mixedTokens.setFillState(&update)
+	assert.Equal(t, order.PartiallyFilled, update.Status, "setFillState should report the cumulative execution of fills paid in different tokens")
+	assert.Zero(t, update.Fee, "setFillState should report no fee total for fills paid in different tokens")
+	assert.True(t, update.FeeAsset.IsEmpty(), "setFillState should report no fee asset for fills paid in different tokens")
+}
+
+func TestWebsocketOrderSetFee(t *testing.T) {
+	t.Parallel()
+	record := websocketOrder{fee: -0.05, feeAsset: currency.USDC}
+	update := order.Detail{OrderID: "1"}
+	record.setFee(&update)
+	assert.Equal(t, order.Detail{OrderID: "1", Fee: -0.05, FeeAsset: currency.USDC}, update, "setFee should report the fees of the order's fills")
+
+	record.feeUnknown = true
+	update = order.Detail{OrderID: "1"}
+	record.setFee(&update)
+	assert.Equal(t, order.Detail{OrderID: "1"}, update, "setFee should leave an update unchanged when the fills paid their fees in different tokens")
 }
 
 func TestUncoverWebsocketOrders(t *testing.T) {

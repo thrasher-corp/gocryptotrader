@@ -587,6 +587,21 @@
         "deployerTradingFeeShare": "0.0"
        },
        {
+        "name": "RAT",
+        "szDecimals": 2,
+        "weiDecimals": 8,
+        "index": 253,
+        "tokenId": "0xd7f58d3c744fbc0100f7d86f3e283d11",
+        "isCanonical": false,
+        "evmContract": {
+         "address": "0xfdc42f844f3aa19f8fc0b2d67d3276cf1efdc4ca",
+         "evm_extra_wei_decimals": 10
+        },
+        "fullName": "Rat Race Combat",
+        "deployerTradingFeeShare": "1.0",
+        "deployerLabel": "rrc"
+       },
+       {
         "name": "USDH",
         "szDecimals": 2,
         "weiDecimals": 8,
@@ -681,6 +696,21 @@
          "evmContract": null,
          "fullName": "Hyperliquid",
          "deployerTradingFeeShare": "0.0"
+        },
+        {
+         "name": "RAT",
+         "szDecimals": 2,
+         "weiDecimals": 8,
+         "index": 253,
+         "tokenId": "0xd7f58d3c744fbc0100f7d86f3e283d11",
+         "isCanonical": false,
+         "evmContract": {
+          "address": "0xfdc42f844f3aa19f8fc0b2d67d3276cf1efdc4ca",
+          "evm_extra_wei_decimals": 10
+         },
+         "fullName": "Rat Race Combat",
+         "deployerTradingFeeShare": "1.0",
+         "deployerLabel": "rrc"
         },
         {
          "name": "USDH",
@@ -4645,7 +4675,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"86671\",\"s\":\"0.00013\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Ioc\"}}}],\"grouping\":\"na\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"86670\",\"s\":\"0.00013\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Ioc\"}}}],\"grouping\":\"na\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
      "headers": {
       "Content-Type": [
        "application/json"

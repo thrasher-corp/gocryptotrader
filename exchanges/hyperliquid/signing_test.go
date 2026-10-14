@@ -76,14 +76,18 @@ func TestParsePrivateKey(t *testing.T) {
 		assert.Equal(t, testPrivateKey[2:], hex.EncodeToString(key.Serialize()), "parsePrivateKey should round trip the key")
 		key.Zero()
 	}
-	for _, secret := range []string{
-		"0x01",
-		"0xzz23456789012345678901234567890123456789012345678901234567890123",
-		"0x0000000000000000000000000000000000000000000000000000000000000000",
-		"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+	// The errors quote no part of a key, as a mistyped key is mostly the account's real one
+	const notHexadecimal, outOfRange = "invalid EVM private key: expected 32-byte hexadecimal scalar", "invalid EVM private key: scalar is outside secp256k1 range"
+	for secret, exp := range map[string]string{
+		"0x01": notHexadecimal,
+		"0xzz23456789012345678901234567890123456789012345678901234567890123": notHexadecimal,
+		"0xQ" + testPrivateKey[3:]: notHexadecimal,
+		"0x0000000000000000000000000000000000000000000000000000000000000000": outOfRange,
+		"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141": outOfRange,
 	} {
 		_, err := parsePrivateKey(secret)
 		assert.ErrorIsf(t, err, errInvalidPrivateKey, "parsePrivateKey should reject %q", secret)
+		assert.EqualErrorf(t, err, exp, "parsePrivateKey should reject %q with a fixed message", secret)
 	}
 }
 

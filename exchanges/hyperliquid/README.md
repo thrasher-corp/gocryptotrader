@@ -67,11 +67,14 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 ### Orders
 
 + Orders are sized in the base currency, so `QuoteAmount` is not supported.
-+ Market orders require a `SlippageTolerance` above zero and below one, and are sent as IOC limit orders bounded by it,
-  so they accept only IOC or no time in force.
++ Market orders are sent as IOC limit orders priced `SlippageTolerance` away from the mid price, so they accept only IOC
+  or no time in force. `SlippageTolerance` must be above zero and below one, and defaults to 5%, as in Hyperliquid's
+  Python SDK. The price is rounded towards the mid price, so the order never executes beyond its tolerance.
 + Trigger orders are supported on perpetual markets only, accept only GTC or no time in force, as Hyperliquid places a
   triggered order as GTC, and need not be reduce-only. Hyperliquid triggers on the mark price, so trigger orders and
-  take-profit or stop-loss children must set `TriggerPriceType` to `order.MarkPrice`.
+  take-profit or stop-loss children must set `TriggerPriceType` to `order.MarkPrice`. A market trigger order or child
+  without a limit price is priced `SlippageTolerance` away from its trigger price, which defaults to 10%, as for
+  Hyperliquid's own TP/SL market orders.
 + `ModifyOrder` replaces resting limit orders only. Hyperliquid replaces an order only when the replacement rests, so a
   GTC replacement that would match is rejected and trigger and IOC replacements are not supported.
 + Fee estimates follow Hyperliquid's fee formula, from the account's rates and referral discount when credentials are
@@ -90,15 +93,17 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 + `GetOrderHistory` covers the account's 2000 most recent order status changes, and returns each order once, with its
   latest status and, for a triggered order, the trigger price and placement time of its earlier changes. `GetOrderInfo`
   reads only the latest status, so a trigger order that has triggered and filled is returned without its trigger price
-  and dated when it triggered.
+  and dated when it triggered. Hyperliquid reports some older open orders as unknown to `orderStatus`, so
+  `GetOrderInfo` looks an unknown order up among the open orders.
 + Delisted perpetual markets are neither tradable nor subscribable, but their orders and fills still convert.
 
 ### Balances
 
 Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot. Other
 accounts hold a balance per perpetual DEX, in that DEX's collateral token, stored under a subaccount ID of the account
-address and DEX name. Portfolio margin accounts report a spot hold beside a hold that can be negative, so a spot
-balance's hold is the larger of the two, from zero up to its total, and the rest of the total is free.
+address and DEX name. Its hold is the margin in use, up to the account value, and its free amount is what can be
+withdrawn. Portfolio margin accounts report a spot hold beside a hold that can be negative, so a spot balance's hold is
+the larger of the two, from zero up to its total, and the rest of the total is free.
 
 ### Websocket
 
@@ -117,6 +122,11 @@ Subscriptions differing only in these parameters select separate feeds and are h
 market's orderbook and the account's `userFills` take one variant at a time: two orderbook variants would replace each
 other's stored book, and two `userFills` variants would relay each fill twice.
 
+Account feeds use a connection of their own, opened when an account address is configured. When it cannot connect, the
+public feeds stay up and the endpoint is probed after a connection monitor cycle, then at intervals doubling up to a
+minute, or staying at the monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an
+address; once a probe connects, the websocket reconnects with the account feeds.
+
 Hyperliquid closes the connection, dropping every feed on it, when a subscription fails validation, so coins, DEXs and
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it
 rejects them or the connection drops. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens,
@@ -129,10 +139,13 @@ are not recovered from the websocket.
 `userTwapSliceFills` when subscribed, are also relayed to the order stream as trades of their orders; a fill both feeds
 deliver is relayed there once. Once an order's fills are known to include all its executions, because its first row
 showed it unfilled or a row's executed size matched its fills, each fill reports the order's executed and remaining
-size, cost and average price, and its final row carries the cost and average price. Otherwise a fill carries the trade
-alone, so it never lowers an executed size learnt elsewhere. Fills from a `userFills` feed with `aggregateByTime` go only
-to the fills feed, as each combines an order's fills within a block under one of their trade IDs. Orders are remembered
-for a day after their last row or fill, 10000 at most, and outcome (HIP-4) orders and fills are skipped.
+size, cost, average price and total fee, and its final row carries the cost, average price and total fee. The total fee
+is left out when the fills paid fees in different tokens, as a spot order's fills can: a spot fill pays its fee in the
+token it receives but takes a maker rebate in the token it gives. Otherwise a fill carries the trade alone, so it never
+lowers an executed size or fee learnt elsewhere. Fills from a `userFills` feed
+with `aggregateByTime` go only to the fills feed, as each combines an order's fills within a block under one of their
+trade IDs. Orders are remembered for a day after their last row or fill, 10000 at most, and outcome (HIP-4) orders and
+fills are skipped.
 
 `WsPostInfo` sends an info request, and `WsPlaceOrders`, `WsCancelOrders`, `WsCancelOrdersByClientOrderID`,
 `WsModifySingleOrder` and `WsModifyOrders` send the same signed actions as their namesakes without the `Ws` prefix,

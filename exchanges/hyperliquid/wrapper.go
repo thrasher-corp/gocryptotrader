@@ -47,7 +47,10 @@ const (
 	marketPriceSignificantFigures = 5
 	perpetualPriceDecimalBase     = 6
 	spotPriceDecimalBase          = 8
-	// defaultTriggerSlippage bounds the execution price of a market TP/SL child that sets no limit price
+	// defaultMarketSlippage bounds a market order that sets no slippage tolerance, as in Hyperliquid's Python SDK
+	defaultMarketSlippage = 0.05
+	// defaultTriggerSlippage bounds a market trigger order or TP/SL child that sets neither a limit price nor a slippage
+	// tolerance, as Hyperliquid bounds its TP/SL market orders
 	defaultTriggerSlippage = 0.1
 	// maximumFrontendOpenOrders is how many of a perpetual DEX's open orders frontendOpenOrders returns for an account
 	// with very many, such as one of HLP's child vaults; it returns every open order of most accounts
@@ -761,11 +764,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				return nil, err
 			}
 			subAccount := accounts.NewSubAccount(a, dexSubAccountID(address, dexes[i]))
-			subAccount.Balances.Set(collateral, accounts.Balance{
-				Total: state.MarginSummary.AccountValue.Float64(),
-				Hold:  state.MarginSummary.TotalMarginUsed.Float64(),
-				Free:  state.Withdrawable.Float64(),
-			})
+			subAccount.Balances.Set(collateral, convertPerpetualBalance(state))
 			subAccounts = append(subAccounts, subAccount)
 		}
 	}
@@ -803,6 +802,17 @@ func perpetualMetadataForDEX(metadata []PerpetualMetadataResponse, dex string) *
 	return result
 }
 
+// convertPerpetualBalance converts a perpetual DEX's account summary; an account whose positions have lost more than
+// their margin is worth less than the margin it uses, so its hold is capped at its total, as a spot balance's is
+func convertPerpetualBalance(state *ClearinghouseStateResponse) accounts.Balance {
+	total := state.MarginSummary.AccountValue.Float64()
+	return accounts.Balance{
+		Total: total,
+		Hold:  min(state.MarginSummary.TotalMarginUsed.Float64(), total),
+		Free:  state.Withdrawable.Float64(),
+	}
+}
+
 // convertSpotBalance converts a spot token balance; portfolio margin accounts report a spot hold beside a hold that can
 // be negative, so the larger of the two, from zero up to the total, is held and the rest of the total is free
 func convertSpotBalance(balance *SpotBalance) accounts.Balance {
@@ -812,7 +822,7 @@ func convertSpotBalance(balance *SpotBalance) accounts.Balance {
 }
 
 // GetAccountFundingHistory returns the configured account's deposits, withdrawals, transfers, rewards and other
-// non-funding ledger movements
+// non-funding ledger movements; a fee the account paid in another currency than its movement has an entry of its own
 func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	user, err := e.getWatchAddress(ctx)
 	if err != nil {
@@ -822,11 +832,13 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	if err != nil {
 		return nil, err
 	}
-	result := make([]exchange.FundingHistory, len(updates))
+	result := make([]exchange.FundingHistory, 0, len(updates))
 	for i := range updates {
-		if result[i], err = e.convertUserLedgerUpdate(&updates[i]); err != nil {
+		entries, err := e.convertUserLedgerUpdate(user, &updates[i])
+		if err != nil {
 			return nil, err
 		}
+		result = append(result, entries...)
 	}
 	slices.SortStableFunc(result, func(a, b exchange.FundingHistory) int { return a.Timestamp.Compare(b.Timestamp) })
 	return result, nil
@@ -1151,7 +1163,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	if response.Status != "order" || response.Order == nil {
-		return nil, order.ErrOrderNotFound
+		// orderStatus can report an older order that is still open as unknown, so such an order is looked up among the
+		// open orders
+		return e.findOpenOrder(ctx, statusRequest, pair, a)
 	}
 	converted, err := e.convertOrder(ctx, &response.Order.Order, response.Order.Status, response.Order.StatusTimestamp.Time())
 	if err != nil {
@@ -1161,6 +1175,39 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, order.ErrOrderNotFound
 	}
 	return &converted, nil
+}
+
+// findOpenOrder returns the open order a status request identifies from the account's open orders of the asset type, or
+// of every supported asset type when none is given
+func (e *Exchange) findOpenOrder(ctx context.Context, identifier *OrderStatusRequest, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+	assets := []asset.Item{asset.PerpetualContract, asset.Spot}
+	if a != asset.Empty {
+		assets = []asset.Item{a}
+	}
+	var pairs currency.Pairs
+	if !pair.IsEmpty() {
+		pairs = currency.Pairs{pair}
+	}
+	orderID := strconv.FormatUint(identifier.OrderID, 10)
+	// An order of one asset type that fails to convert must not hide the requested order of another
+	var errs error
+	for _, item := range assets {
+		orders, err := e.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: item, Pairs: pairs, Side: order.AnySide, Type: order.AnyType})
+		for i := range orders {
+			// The listing's pair filter also matches the reversed pair, which an order status lookup does not
+			if !pair.IsEmpty() && !orders[i].Pair.Equal(pair) {
+				continue
+			}
+			if (identifier.OrderID != 0 && orders[i].OrderID == orderID) || (identifier.ClientOrderID != "" && strings.EqualFold(orders[i].ClientOrderID, identifier.ClientOrderID)) {
+				return &orders[i], nil
+			}
+		}
+		errs = common.AppendError(errs, err)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+	return nil, order.ErrOrderNotFound
 }
 
 // GetDepositAddress is not supported: Hyperliquid credits bridge deposits to the address that sent them, so there is no
@@ -1229,7 +1276,8 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(context.Context, *withdr
 // newest, for an account with very many, such as one of HLP's child vaults, so a DEX at that count has the rest added
 // from openOrders, which omits their order type, time in force and trigger price. Position TP/SL orders, which
 // Hyperliquid lists without a size, take the size of the position they close, and HIP-4 outcome orders are skipped, as
-// no supported asset type covers them
+// no supported asset type covers them. A DEX whose orders cannot all be read is reported in the error, beside the orders
+// that could be read
 func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, err
@@ -1250,7 +1298,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrder
 	for _, dex := range dexes {
 		frontendOrders, err := e.GetFrontendOpenOrders(ctx, address, dex)
 		if err != nil {
-			return nil, err
+			errs = common.AppendError(errs, fmt.Errorf("DEX %q open orders: %w", dex, err))
+			continue
 		}
 		positionCoins := make(map[int]string)
 		listed := make(map[uint64]struct{}, len(frontendOrders))
@@ -1275,7 +1324,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrder
 		if len(frontendOrders) >= maximumFrontendOpenOrders {
 			basicOrders, err := e.GetOpenOrders(ctx, address, dex)
 			if err != nil {
-				return nil, err
+				errs = common.AppendError(errs, fmt.Errorf("DEX %q open orders beyond the frontend limit: %w", dex, err))
 			}
 			for i := range basicOrders {
 				if _, ok := listed[basicOrders[i].OrderID]; ok || isOutcomeCoin(basicOrders[i].Coin) {
@@ -1298,7 +1347,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrder
 		}
 		if len(positionCoins) != 0 {
 			if err := e.sizePositionOrders(ctx, address, dex, converted, positionCoins); err != nil {
-				return nil, err
+				errs = common.AppendError(errs, fmt.Errorf("DEX %q position TP/SL sizes: %w", dex, err))
 			}
 		}
 	}
@@ -1350,7 +1399,12 @@ func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrder) (or
 	if err != nil {
 		return order.Detail{}, err
 	}
-	return e.convertBasicOrder(source, "open", time.Time{}, mapping.pair, a)
+	detail, err := e.convertBasicOrder(source, "open", time.Time{}, mapping.pair, a)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	detail.ReduceOnly = source.ReduceOnly
+	return detail, nil
 }
 
 // GetOrderHistory returns the latest status of the configured account's orders of an asset type, filtered by the
@@ -2077,12 +2131,16 @@ func (e *Exchange) getUserNonFundingLedgerUpdatesPaginated(ctx context.Context, 
 	}
 }
 
-// convertUserLedgerUpdate converts a ledger update into funding history, reading the amount and currency from the
-// fields its delta type populates; amounts are positive, so the description gives the direction of a transfer
-func (e *Exchange) convertUserLedgerUpdate(update *UserLedgerUpdate) (exchange.FundingHistory, error) {
+// convertUserLedgerUpdate converts an account's ledger update into funding history, reading the amount and currency
+// from the fields its delta type populates. Amounts are positive, so the description gives the direction of a class
+// transfer and the addresses that of a transfer between accounts. A transfer's update is the same in the sender's ledger
+// as in the recipient's, so a fee is reported only to the account that paid it, the update's user when it names one, in
+// the movement's entry when the fee is in its currency and in an entry of its own otherwise; a fee without a fee token is
+// in USDC, and a native token fee is in HYPE
+func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpdate) ([]exchange.FundingHistory, error) {
 	deltaType := strings.TrimSpace(update.Delta.Type)
 	if deltaType == "" {
-		return exchange.FundingHistory{}, fmt.Errorf("%w: ledger update type is empty", errMalformedResponse)
+		return nil, fmt.Errorf("%w: ledger update type is empty", errMalformedResponse)
 	}
 	ccy := currency.USDC
 	amount := update.Delta.USDC.Float64()
@@ -2113,7 +2171,7 @@ func (e *Exchange) convertUserLedgerUpdate(update *UserLedgerUpdate) (exchange.F
 	case update.Delta.SourceDEX != "" || update.Delta.DestinationDEX != "":
 		description = deltaType + ": " + ledgerDEXName(update.Delta.SourceDEX) + " to " + ledgerDEXName(update.Delta.DestinationDEX)
 	}
-	return exchange.FundingHistory{
+	entry := exchange.FundingHistory{
 		ExchangeName:      e.Name,
 		Status:            "processed",
 		TransferID:        update.Hash,
@@ -2121,12 +2179,38 @@ func (e *Exchange) convertUserLedgerUpdate(update *UserLedgerUpdate) (exchange.F
 		Timestamp:         update.Time.Time().UTC(),
 		Currency:          ccy.String(),
 		Amount:            amount,
-		Fee:               update.Delta.Fee.Float64(),
 		TransferType:      deltaType,
 		CryptoToAddress:   update.Delta.Destination,
 		CryptoFromAddress: update.Delta.User,
 		CryptoTxID:        update.Hash,
-	}, nil
+	}
+	entries := []exchange.FundingHistory{entry}
+	if update.Delta.User != "" && !strings.EqualFold(update.Delta.User, account) {
+		return entries, nil
+	}
+	for _, fee := range []struct {
+		amount      float64
+		ccy         currency.Code
+		description string
+	}{
+		{amount: update.Delta.Fee.Float64(), ccy: update.Delta.FeeToken, description: description + ": fee"},
+		{amount: update.Delta.NativeTokenFee.Float64(), ccy: currency.HYPE, description: description + ": native token fee"},
+	} {
+		if fee.amount == 0 {
+			continue
+		}
+		if fee.ccy.IsEmpty() {
+			fee.ccy = currency.USDC
+		}
+		if fee.ccy.Equal(ccy) {
+			entries[0].Fee += fee.amount
+			continue
+		}
+		feeEntry := entry
+		feeEntry.Description, feeEntry.Currency, feeEntry.Amount, feeEntry.Fee = fee.description, fee.ccy.String(), 0, fee.amount
+		entries = append(entries, feeEntry)
+	}
+	return entries, nil
 }
 
 // ledgerDEXName names a ledger update's DEX, which Hyperliquid leaves empty for the first perpetual DEX
@@ -2174,7 +2258,7 @@ func (e *Exchange) buildOrderRequest(ctx context.Context, p currency.Pair, a ass
 		if !ok || mid.Float64() <= 0 {
 			return OrderRequest{}, mapping, fmt.Errorf("%w: %s", errMarketMidPriceNotFound, mapping.coin)
 		}
-		if orderRequest.Price, err = roundMarketPrice(slippagePrice(mid.Float64(), slippage, side), a, mapping.sizeDecimals); err != nil {
+		if orderRequest.Price, err = roundMarketPrice(slippagePrice(mid.Float64(), slippage, side), side, a, mapping.sizeDecimals); err != nil {
 			return OrderRequest{}, mapping, err
 		}
 		orderRequest.Limit = &LimitOrderType{TimeInForce: TimeInForceIOC}
@@ -2184,7 +2268,7 @@ func (e *Exchange) buildOrderRequest(ctx context.Context, p currency.Pair, a ass
 		}
 		isMarket := isMarketTriggerOrder(orderType)
 		if isMarket && price == 0 {
-			if price, err = roundMarketPrice(slippagePrice(triggerPrice, slippage, side), a, mapping.sizeDecimals); err != nil {
+			if price, err = roundMarketPrice(slippagePrice(triggerPrice, slippage, side), side, a, mapping.sizeDecimals); err != nil {
 				return OrderRequest{}, mapping, err
 			}
 		} else if err := validateLimitPrice(price, a, mapping.sizeDecimals); err != nil {
@@ -2276,7 +2360,8 @@ func (e *Exchange) buildOrderRequests(ctx context.Context, submit *order.Submit)
 	if err != nil {
 		return nil, pairMapping{}, "", err
 	}
-	parent, mapping, err := e.buildOrderRequest(ctx, submit.Pair, submit.AssetType, submit.Type, submit.Side, submit.TimeInForce, submit.Amount, submit.Price, submit.TriggerPrice, submit.SlippageTolerance, submit.ReduceOnly, submit.ClientOrderID)
+	slippage := orderSlippage(submit.Type, submit.Price, submit.SlippageTolerance)
+	parent, mapping, err := e.buildOrderRequest(ctx, submit.Pair, submit.AssetType, submit.Type, submit.Side, submit.TimeInForce, submit.Amount, submit.Price, submit.TriggerPrice, slippage, submit.ReduceOnly, submit.ClientOrderID)
 	if err != nil {
 		return nil, mapping, "", err
 	}
@@ -2309,7 +2394,7 @@ type riskManagementChild struct {
 
 // riskManagementChildren validates a submission's TP/SL children, which Hyperliquid supports only as mark price
 // triggers grouped with a perpetual parent, and returns the enabled ones, take profit first; a market child without a
-// limit price is bounded by the submission's slippage tolerance, or the default when none is set
+// limit price is bounded by the submission's slippage tolerance, or the trigger default when none is set
 func riskManagementChildren(submit *order.Submit) ([]riskManagementChild, error) {
 	risk := &submit.RiskManagementModes
 	if !risk.TakeProfit.Enabled && !risk.StopLoss.Enabled && !risk.StopEntry.Enabled {
@@ -2333,16 +2418,27 @@ func riskManagementChildren(submit *order.Submit) ([]riskManagementChild, error)
 		if child.orderType, err = riskManagementOrderType(child.settings.OrderType, child.takeProfit); err != nil {
 			return nil, err
 		}
-		child.slippage = submit.SlippageTolerance
-		if isMarketTriggerOrder(child.orderType) && child.settings.LimitPrice == 0 && child.slippage == 0 {
-			child.slippage = defaultTriggerSlippage
-		}
+		child.slippage = orderSlippage(child.orderType, child.settings.LimitPrice, submit.SlippageTolerance)
 		if err := validateOrderParameters(submit.AssetType, child.orderType, order.UnknownTIF, child.settings.LimitPrice, child.settings.Price, child.slippage, ""); err != nil {
 			return nil, err
 		}
 		children = append(children, child)
 	}
 	return children, nil
+}
+
+// orderSlippage returns the slippage tolerance an order is placed with, defaulting it for an order the tolerance prices:
+// a market order, or a market trigger order without a limit price
+func orderSlippage(orderType order.Type, price, slippage float64) float64 {
+	switch {
+	case slippage != 0:
+		return slippage
+	case orderType == order.Market:
+		return defaultMarketSlippage
+	case isMarketTriggerOrder(orderType) && price == 0:
+		return defaultTriggerSlippage
+	}
+	return 0
 }
 
 // riskManagementOrderType maps a TP/SL child's requested order type to a take-profit or stop-loss trigger type
@@ -2493,6 +2589,11 @@ func (e *Exchange) convertBasicOrder(source *BasicOrder, status string, statusTi
 			orderStatus = order.PartiallyFilled
 		case order.Cancelled:
 			orderStatus = order.PartiallyFilledCancelled
+		case order.Filled:
+			// An IOC order that executes part of its size ends filled, keeping its cancelled rest as its size
+			if source.Size.Float64() > 0 {
+				orderStatus = order.PartiallyFilledCancelled
+			}
 		}
 	}
 	placed := source.Timestamp.Time().UTC()
@@ -2782,8 +2883,9 @@ func validateLimitPrice(price float64, a asset.Item, sizeDecimals uint64) error 
 	return nil
 }
 
-// roundMarketPrice rounds a price to five significant figures and the market's price decimals
-func roundMarketPrice(price float64, a asset.Item, sizeDecimals uint64) (float64, error) {
+// roundMarketPrice rounds a slippage-bounded price to a valid price within the bound, down for a buy and up for a sell. A
+// valid price is an integer, or has at most five significant figures and the market's price decimals
+func roundMarketPrice(price float64, side order.Side, a asset.Item, sizeDecimals uint64) (float64, error) {
 	if price <= 0 || math.IsNaN(price) || math.IsInf(price, 0) {
 		return 0, errInvalidMarketPrice
 	}
@@ -2791,13 +2893,28 @@ func roundMarketPrice(price float64, a asset.Item, sizeDecimals uint64) (float64
 	if err != nil {
 		return 0, err
 	}
-	significantPrice, _ := strconv.ParseFloat(strconv.FormatFloat(price, 'g', marketPriceSignificantFigures, 64), 64) // FormatFloat of a finite value always parses
-	scale := math.Pow10(int(decimalBase - sizeDecimals))                                                              //nolint:gosec // priceDecimalBase bounds the difference to 8
-	rounded := math.RoundToEven(significantPrice*scale) / scale
-	if rounded <= 0 {
+	// The exponent comes from the price's decimal form, which always has one for a finite price, as Log10 can be one out
+	// next to a power of ten
+	_, exponentText, _ := strings.Cut(strconv.FormatFloat(price, 'e', -1, 64), "e")
+	exponent, _ := strconv.Atoi(exponentText)
+	decimals := min(max(marketPriceSignificantFigures-1-exponent, 0), int(decimalBase-sizeDecimals)) //nolint:gosec // priceDecimalBase bounds the difference to 8
+	scale := math.Pow10(decimals)
+	// Rounding the product first keeps an architecture that fuses multiplies and adds to the same ticks
+	ticks := float64(price * scale)
+	// The bound carries the rounding error of computing it, a few units in the last place, which must not move it off a
+	// tick it lands on
+	if nearest := math.Round(ticks); math.Abs(ticks-nearest) <= 4*(math.Nextafter(nearest, math.Inf(1))-nearest) {
+		ticks = nearest
+	}
+	if side.IsLong() {
+		ticks = math.Floor(ticks)
+	} else {
+		ticks = math.Ceil(ticks)
+	}
+	if ticks <= 0 {
 		return 0, errInvalidMarketPrice
 	}
-	return rounded, nil
+	return ticks / scale, nil
 }
 
 // slippagePrice moves a reference price against the order by the slippage tolerance

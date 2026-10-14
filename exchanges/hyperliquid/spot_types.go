@@ -34,6 +34,7 @@ type SpotTokenMetadata struct {
 	EVMContract             *EVMContract  `json:"evmContract"`
 	FullName                string        `json:"fullName"`
 	DeployerTradingFeeShare types.Number  `json:"deployerTradingFeeShare"`
+	DeployerLabel           string        `json:"deployerLabel"`
 }
 
 // EVMContract contains the HyperEVM contract linked to a spot token
