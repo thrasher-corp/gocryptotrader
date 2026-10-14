@@ -439,6 +439,11 @@ func TestPackageOf(t *testing.T) {
 	assert.Equal(t, "exchanges/orderbook", packageOf("exchanges/orderbook.BenchmarkSort/case.1", known),
 		"a subbenchmark name containing dots should resolve to its package")
 	assert.Empty(t, packageOf("currency.BenchmarkNewCode", known), "an unknown package should not resolve")
+	assert.Empty(t, packageOf("exchanges/orderbookmanager.BenchmarkProcess", known),
+		"a package whose path only begins with a known one should not resolve to it")
+	assert.Empty(t, packageOf("cmd/exchanges/orderbook.BenchmarkProcess", known),
+		"a package whose path only ends with a known one should not resolve to it")
+	assert.Empty(t, packageOf("exchanges/orderbook", known), "a key naming only a package should not resolve")
 	assert.Empty(t, packageOf("nodot", known), "a key without a package prefix should yield no package")
 }
 

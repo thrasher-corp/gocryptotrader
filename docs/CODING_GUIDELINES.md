@@ -284,6 +284,7 @@ Use `require` and `assert` appropriately:
 - Benchmarks in the packages listed in `benchmarks/packages.txt` are gated on their allocations by `make bench`, which CI runs on every pull request. See the [benchcheck README](../cmd/benchcheck/README.md).
 - A change that raises a benchmark's allocations fails the check until `benchmarks/baseline.json` records it, and one that lowers them is reported so the same change can lower the budget: run `make bench_update` on linux/amd64, or fold in the `bench-output` artifact the `benchmarks` workflow uploads with `make bench_apply BENCH_OUT=<file>`.
 - A new benchmark in a listed package needs a baseline entry, and a package that declares its first benchmark must be listed in `benchmarks/packages.txt`, or excluded there with a reason.
+- Budgets measure fixtures as well as code: `config.BenchmarkUpdateConfig` reloads `testdata/configtest.json` on every iteration, so a change to that file, such as adding an exchange, can move its allocations past the budget; refresh it in the same change.
 - Keep benchmarks hermetic: no network, no shared state between benchmarks, no writes to stdout or stderr, and no `b.Skip` in the canonical profile.
 - Do not paste benchmark results into comments, where nothing checks them: `benchmarks/baseline.json` records the allocation budgets, timings are not gated, and `make misc_checks` rejects comment lines in the formats go test and benchstat print.
 

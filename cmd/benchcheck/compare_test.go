@@ -214,12 +214,16 @@ func TestSkipCovering(t *testing.T) {
 		{key: "types.BenchmarkB/y", exp: "types.BenchmarkB/y", ok: true},
 		{key: "types.BenchmarkB/z"},
 		{key: "currency.BenchmarkAB"},
+		{key: "currency.BenchmarkAB/x"},
+		{key: "types.BenchmarkC/currency.BenchmarkA/x"},
 		{key: "types.BenchmarkB"},
 	} {
 		got, ok := skipCovering(skipped, tc.key)
 		assert.Equalf(t, tc.ok, ok, "skipCovering should report whether a skip covers %s", tc.key)
 		assert.Equalf(t, tc.exp, got, "skipCovering should name the first skip in key order covering %s", tc.key)
 	}
+	_, ok := skipCovering(map[string]string{"types.BenchmarkC/currency.BenchmarkD": "types"}, "currency.BenchmarkD")
+	assert.False(t, ok, "a skip should not cover a budget its name only ends with")
 }
 
 func TestCompareMetric(t *testing.T) {

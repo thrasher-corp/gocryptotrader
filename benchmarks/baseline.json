@@ -52,10 +52,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 37991,
-    "bytes": 9383689,
+    "allocs": 39976,
+    "bytes": 9963232,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs on the merged tree in October 2026 gave medians from 37973 to 38037. 0.4% is about 150 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -341,9 +341,149 @@
     "allocs": 0,
     "bytes": 0
   },
+  "exchanges/request.BenchmarkBodyForLog/credential_array": {
+    "allocs": 7,
+    "bytes": 10672
+  },
+  "exchanges/request.BenchmarkBodyForLog/form_labelled_json": {
+    "allocs": 8,
+    "bytes": 736
+  },
+  "exchanges/request.BenchmarkBodyForLog/inferred_json": {
+    "allocs": 5,
+    "bytes": 392
+  },
+  "exchanges/request.BenchmarkBodyForLog/invalid_json": {
+    "allocs": 8,
+    "bytes": 520
+  },
+  "exchanges/request.BenchmarkBodyForLog/nested_credentials": {
+    "allocs": 9,
+    "bytes": 640
+  },
+  "exchanges/request.BenchmarkBodyForLog/public_array": {
+    "allocs": 105,
+    "bytes": 1200
+  },
+  "exchanges/request.BenchmarkBodyForLog/public_object": {
+    "allocs": 5,
+    "bytes": 392
+  },
+  "exchanges/request.BenchmarkBodyForLog/scalar": {
+    "allocs": 2,
+    "bytes": 368
+  },
   "exchanges/request.BenchmarkGetNonce": {
     "allocs": 0,
     "bytes": 0
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/AccessKeyId": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Api-Sign": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Authent": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Authorization": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Btse-Api": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Btse-Sign": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Content-Type": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Cookie": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Kc-Api-Sign": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/Key": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/OK-ACCESS-KEY": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/OK-ACCESS-PASSPHRASE": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/X-Auth": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/X-BAPI-SIGN": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/X-Exchange-Auth": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/X-USER": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/listenKey": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/refresh_token": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkHeaderValuesForLog/tfa": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkPathForLog/https://example.com/api": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkPathForLog/https://example.com/api?symbol=BTCUSDT&limit=100": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkPathForLog/https://example.com/api?timestamp=1789610256254&signature=example-signature": {
+    "allocs": 2,
+    "bytes": 144
+  },
+  "exchanges/request.BenchmarkRedactEncodedValues/empty": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkRedactEncodedValues/escaped": {
+    "allocs": 2,
+    "bytes": 56
+  },
+  "exchanges/request.BenchmarkRedactEncodedValues/form": {
+    "allocs": 1,
+    "bytes": 80
+  },
+  "exchanges/request.BenchmarkRedactEncodedValues/public": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "exchanges/request.BenchmarkRedactEncodedValues/signed": {
+    "allocs": 1,
+    "bytes": 128
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,

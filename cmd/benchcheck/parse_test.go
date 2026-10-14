@@ -184,7 +184,17 @@ func TestParseRecordsSkipsOutputRanInto(t *testing.T) {
 		{"a parent printing before b.Run", "BenchmarkCase\npreparing fixture: BenchmarkCase/child\n--- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
 		{"a benchmark beside a longer name", "BenchmarkCase\npreparing fixture: --- SKIP: BenchmarkCase\nBenchmarkCaseExtra\n" +
 			"BenchmarkCaseExtra-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
+		{"text laid out as a logged line before b.SkipNow, beside a longer name", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n" +
+			"BenchmarkCaseExtra\nBenchmarkCaseExtra/child\nBenchmarkCaseExtra/child-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
+		{"text laid out as a logged line before b.SkipNow, beside a shorter name", "BenchmarkCas\n" +
+			"BenchmarkCas-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\nBenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
+		{"text laid out as a logged line before b.SkipNow, beside subbenchmarks named after it", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n" +
+			"BenchmarkOther\nBenchmarkOther/currency.BenchmarkCase\nBenchmarkOther/currency.BenchmarkCase-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n" +
+			"BenchmarkOther/currency.BenchmarkCase/child\nBenchmarkOther/currency.BenchmarkCase/child-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
 		{"text laid out as a logged line before b.SkipNow", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
+		{"text laid out as a logged line before the b.SkipNow of a subbenchmark named after a measured benchmark", "BenchmarkCase\n" +
+			"BenchmarkCase-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\nBenchmarkOther\nBenchmarkOther/currency.BenchmarkCase\n" +
+			"        preparing fixture: --- SKIP: BenchmarkOther/currency.BenchmarkCase\n", "currency.BenchmarkOther/currency.BenchmarkCase"},
 		{"text laid out as a logged line before a subbenchmark's b.SkipNow", "BenchmarkCase\nBenchmarkCase/child\n" +
 			"    fixture.go:12: --- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
 		{"a parent printing before b.Run and its child before b.SkipNow", "BenchmarkCase\nBenchmarkCase/small\n" +
@@ -233,6 +243,13 @@ func TestParseRecordsSkipRecords(t *testing.T) {
 	}, run.SkipRecords, "every skip record ending a line should be kept under the last package header, wherever it starts")
 	assert.Equal(t, map[string]string{"currency.BenchmarkCase/skipped": "currency"}, run.Skipped,
 		"only go test's own record, and records run into announced names, should be read as skips")
+
+	run, err = Parse(strings.NewReader("pkg: github.com/thrasher-corp/gocryptotrader/currency\n" +
+		"transcript: --- SKIP: BenchmarkPrior--- SKIP: BenchmarkTwice/BenchmarkInner\ntranscript SKIP: BenchmarkPlain\n" +
+		"transcript: --- SKIP: BenchmarkOuterSKIP: BenchmarkInner\ntranscript: --- SKIP: BenchmarkOuter--- SKIP: TestInner\n"))
+	require.NoError(t, err, "Parse must not error on two skip records in one line")
+	assert.Equal(t, map[string]string{"currency.BenchmarkTwice/BenchmarkInner": "currency"}, run.SkipRecords,
+		"only the skip record ending a line should be kept")
 }
 
 func TestParseRejectsMalformedPackageHeaders(t *testing.T) {
@@ -548,6 +565,9 @@ func TestEmbeddedSkip(t *testing.T) {
 		// Unannounced names are printed text
 		{line: "transcript: --- SKIP: BenchmarkGhost"},
 		{line: "transcript: --- SKIP: BenchmarkCodecs"},
+		{line: "transcript: --- SKIP: BenchmarkCode"},
+		{line: "transcript: --- SKIP: BenchmarkCodecs/large"},
+		{line: "transcript: --- SKIP: BenchmarkOther/BenchmarkCodec/small"},
 		{line: "transcript: --- SKIP: TestCodec"},
 		// b.Log's layout
 		{line: "    codec_test.go:9: --- SKIP: BenchmarkCodec/large"},
@@ -566,6 +586,8 @@ func TestEmbeddedSkip(t *testing.T) {
 		assert.Equalf(t, tc.exp != "", ok, "embeddedSkip should report whether %q holds go test's record", tc.line)
 		assert.Equalf(t, tc.exp, got, "embeddedSkip should return the name in %q", tc.line)
 	}
+	_, ok := embeddedSkip("transcript: --- SKIP: BenchmarkInner", []string{"BenchmarkCodec/BenchmarkInner"})
+	assert.False(t, ok, "embeddedSkip should not match a record naming only the end of an announced name")
 }
 
 func TestFailureRecord(t *testing.T) {
@@ -722,12 +744,22 @@ func TestSplitProcSuffix(t *testing.T) {
 		// An announcement belonging to another benchmark is no guide
 		{"BenchmarkOther-4", []string{"BenchmarkCases/size-4"}, "BenchmarkOther", "4"},
 		{"BenchmarkCases/size-4x", []string{"BenchmarkCases/size-4"}, "BenchmarkCases/size-4x", ""},
+		{"BenchmarkX/size4", []string{"BenchmarkX/size"}, "BenchmarkX/size4", ""},
+		{"BenchmarkX/size-large", []string{"BenchmarkX/size"}, "BenchmarkX/size-large", ""},
+		{"BenchmarkX/size--4", []string{"BenchmarkX/size"}, "BenchmarkX/size-", "4"},
+		{"BenchmarkY/BenchmarkX/size-4", []string{"BenchmarkX/size-4"}, "BenchmarkY/BenchmarkX/size", "4"},
+		{"BenchmarkX/size-4", []string{"BenchmarkY/BenchmarkX/size-4"}, "BenchmarkX/size", "4"},
+		{"BenchmarkX/size-0x10", []string{"BenchmarkX/size"}, "BenchmarkX/size-0x10", ""},
+		{"BenchmarkX/size-+4", []string{"BenchmarkX/size"}, "BenchmarkX/size-+4", ""},
+		{"BenchmarkX/size-4.", []string{"BenchmarkX/size"}, "BenchmarkX/size-4.", ""},
+		{"BenchmarkX/size-4", []string{"BenchmarkX/size", "BenchmarkX/size-4-more"}, "BenchmarkX/size", "4"},
 		// A parent's result can follow its subbenchmarks' announcements
 		{"BenchmarkLateSub/small-4", []string{"BenchmarkLateSub", "BenchmarkLateSub/small-4", "BenchmarkLateSub/small-4/child"}, "BenchmarkLateSub/small-4", ""},
 		// The newest announcement wins
 		{"BenchmarkX/size-4", []string{"BenchmarkX/size"}, "BenchmarkX/size", "4"},
 		{"BenchmarkX/size-4-4", []string{"BenchmarkX/size", "BenchmarkX/size-4"}, "BenchmarkX/size-4", "4"},
 		{"BenchmarkX/size-4", []string{"BenchmarkX/size", "BenchmarkX/size-4"}, "BenchmarkX/size-4", ""},
+		{"BenchmarkX/size-4", []string{"BenchmarkX/size-4", "BenchmarkX/size"}, "BenchmarkX/size", "4"},
 	} {
 		name, procs := splitProcSuffix(tc.in, tc.announced)
 		assert.Equalf(t, tc.name, name, "splitProcSuffix should return the name of %s announced as %q", tc.in, tc.announced)
