@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// defaultHandshakeTimeout bounds the websocket handshake when the dialer does not set its own HandshakeTimeout, matching
+// gorilla's DefaultDialer. gorilla only bounds the handshake by a context deadline and connectors commonly dial without
+// one, so a server that accepts the connection but never answers the upgrade would otherwise block Dial indefinitely
+const defaultHandshakeTimeout = 45 * time.Second
 
 var (
 	// errConnectionFault is a connection fault error which alerts the system that a connection cycle needs to take place.
@@ -135,18 +141,27 @@ type connection struct {
 	readMessageErrors    chan error
 }
 
-// Dial sets proxy urls and then connects to the websocket
+// Dial sets proxy URLs and then connects to the websocket.
+// The dialer is copied so the caller's dialer is left unmodified, and the handshake is bounded by defaultHandshakeTimeout
+// when the dialer does not set a HandshakeTimeout.
 func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header, values url.Values) error {
+	if err := common.NilGuard(dialer); err != nil {
+		return err
+	}
+	d := *dialer
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {
 			return err
 		}
-		dialer.Proxy = http.ProxyURL(proxy)
+		d.Proxy = http.ProxyURL(proxy)
+	}
+	if d.HandshakeTimeout == 0 {
+		d.HandshakeTimeout = defaultHandshakeTimeout
 	}
 
 	path := common.EncodeURLValues(c.URL, values)
-	conn, resp, err := dialer.DialContext(ctx, path, headers)
+	conn, resp, err := d.DialContext(ctx, path, headers)
 	if err != nil {
 		if resp != nil {
 			_ = resp.Body.Close()
@@ -332,15 +347,24 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 	return msg, nil
 }
 
-// Shutdown shuts down and closes specific connection
+// Shutdown shuts down and closes specific connection.
+// It closes the socket beneath any TLS layer before taking writeControl: a write blocked on a peer which has stopped
+// reading holds that lock until the socket closes, and a TLS close_notify would block on the same socket under a
+// deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
+// return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
 	if c == nil || c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
+	conn := c.Connection.NetConn()
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		conn = tlsConn.NetConn()
+	}
+	err := conn.Close()
 	c.writeControl.Lock()
 	defer c.writeControl.Unlock()
-	return c.Connection.NetConn().Close()
+	return err
 }
 
 // SetURL sets connection URL

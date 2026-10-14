@@ -239,7 +239,6 @@ type Base struct {
 	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
-	WebsocketOrderbookBufferLimit int64
 	Websocket                     *websocket.Manager
 	Accounts                      *accounts.Accounts
 	*request.Requester

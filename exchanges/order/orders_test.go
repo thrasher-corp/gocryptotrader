@@ -922,6 +922,8 @@ var stringsToOrderStatus = []struct {
 	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
+	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
+	{"partially_canceled", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
@@ -1135,6 +1137,21 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+}
+
+// TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
+// management. A venue that reports its fee in a named asset (and a zero fee, as with a maker rebate)
+// must not lose the currency when the fresh detail is merged into the stored order.
+func TestUpdateOrderFromDetailMergesFeeAsset(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{}
+	err := stored.UpdateOrderFromDetail(&Detail{Fee: 0, FeeAsset: currency.USDT})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "the fee currency should merge even when the fee is zero")
+
+	err = stored.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "an empty incoming fee currency should not clear the stored one")
 }
 
 // TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an

@@ -136,6 +136,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
+| MEXC | Yes | Yes | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -163,6 +164,7 @@ var Exchanges = []string{
     "kraken",
     "kucoin",
     "lbank",
+    "mexc",
     "okx",
     "poloniex",
     "yobit",
@@ -1021,12 +1023,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         // appropriately if we have a pair/asset enable/disable change. This is 
         // outlined below.
         Features:               &e.Features.Supports.WebsocketCapabilities, 
-
-        // Orderbook buffer specific variables for processing orderbook updates 
-        // via websocket feed: 
-        // SortBuffer            bool 
-        // SortBufferByUpdateIDs bool 
-        // UpdateEntriesByID     bool 
     })
     if err != nil {
         return err

@@ -104,7 +104,7 @@ func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscriptio
 	return inverse, true
 }
 
-func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscription) error {
+func (e *Exchange) refreshEquivalentOrderbookSnapshot(ctx context.Context, sub *subscription.Subscription) error {
 	if sub == nil || sub.Channel != subscription.OrderbookChannel || len(sub.Pairs) == 0 {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscrip
 	cloned := *book
 	cloned.Asset = sub.Asset
 	cloned.Pair = sub.Pairs[0]
-	return e.Websocket.Orderbook.LoadSnapshot(&cloned)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &cloned)
 }
 
 // trackEquivalentSubscriptionsOnExistingConnection identifies spot/margin equivalent subscriptions that can be logically attached to an existing connection, sends any required outbound subscribe payloads, and returns both remaining and tracked subscriptions for manager-level bookkeeping.
@@ -159,7 +159,7 @@ func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.
 		}
 	}
 	for _, sub := range tracked {
-		if err := e.refreshEquivalentOrderbookSnapshot(sub); err != nil {
+		if err := e.refreshEquivalentOrderbookSnapshot(ctx, sub); err != nil {
 			return nil, nil, err
 		}
 	}
