@@ -39,7 +39,7 @@ func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, chan
 		}
 		ws, ok := m.managedWebsocket(conn)
 		if !ok {
-			return fmt.Errorf("%w: %q", errConnectionNotFound, conn.GetURL())
+			return fmt.Errorf("%w: %q", errConnectionNotFound, removeURLQueryString(conn.GetURL()))
 		}
 		return m.unsubscribe(ws.subscriptions, channels, func(channels subscription.List) error {
 			return ws.setup.Unsubscriber(ctx, conn, channels)

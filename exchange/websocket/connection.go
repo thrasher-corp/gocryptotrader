@@ -163,17 +163,18 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 	path := common.EncodeURLValues(c.URL, values)
 	conn, resp, err := d.DialContext(ctx, path, headers)
 	if err != nil {
+		removeURLErrorQueryString(err)
 		if resp != nil {
 			_ = resp.Body.Close()
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, path, resp, resp.StatusCode, err)
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, removeURLQueryString(path), resp, resp.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, path, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, removeURLQueryString(path), err)
 	}
 	_ = resp.Body.Close()
 	c.Connection = conn
 
 	if c.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, path)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, removeURLQueryString(path))
 	}
 	select {
 	case c.Traffic <- struct{}{}:
@@ -296,7 +297,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, removeURLQueryString(c.URL)):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -488,9 +489,19 @@ func (c *connection) MatchReturnResponses(ctx context.Context, signature any, ex
 	return out, nil
 }
 
+// removeURLQueryString returns the URL without its query, which can carry credentials such as a connection token or a
+// signed key
 func removeURLQueryString(u string) string {
 	baseURL, _, _ := strings.Cut(u, "?")
 	return baseURL
+}
+
+// removeURLErrorQueryString removes the query from the URL a *url.Error reports. It must be called before err is wrapped,
+// since fmt.Errorf fixes a wrapping error's message when it is created.
+func removeURLErrorQueryString(err error) {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok {
+		urlErr.URL = removeURLQueryString(urlErr.URL)
+	}
 }
 
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler

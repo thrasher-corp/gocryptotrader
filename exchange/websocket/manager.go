@@ -905,7 +905,7 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		m.runningURLAuth = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, removeURLQueryString(u))
 		}
 
 		if m.AuthConn != nil {
@@ -922,7 +922,7 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		m.runningURL = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, removeURLQueryString(u))
 		}
 
 		if m.Conn != nil {
@@ -931,7 +931,7 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, removeURLQueryString(u))
 		return m.Shutdown()
 	}
 	return nil
@@ -1045,10 +1045,11 @@ func (m *Manager) CanUseAuthenticatedEndpoints() bool {
 func checkWebsocketURL(s string) error {
 	u, err := url.Parse(s)
 	if err != nil {
+		removeURLErrorQueryString(err)
 		return err
 	}
 	if u.Scheme != "ws" && u.Scheme != "wss" {
-		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
+		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, removeURLQueryString(s))
 	}
 	return nil
 }
@@ -1062,7 +1063,7 @@ func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx 
 			return // Connection has been closed
 		}
 		if err := handler(ctx, conn, resp.Raw); err != nil {
-			err = fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+			err = fmt.Errorf("connection URL:[%v] error: %w", removeURLQueryString(conn.GetURL()), err)
 			if errSend := m.DataHandler.Send(ctx, err); errSend != nil {
 				log.Errorf(log.WebsocketMgr, "%s: %s %s", m.exchangeName, errSend, err)
 			}

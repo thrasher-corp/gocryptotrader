@@ -92,6 +92,11 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.NoError(t, multi.UnsubscribeChannels(t.Context(), amazingConn, nil), "Unsubscribing from nil should not error")
 	assert.ErrorIs(t, multi.UnsubscribeChannels(t.Context(), amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
+	assert.ErrorIs(t, multi.UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Unsubscribing should error without a connection under multi-connection management")
+	err = multi.UnsubscribeChannels(t.Context(), &connection{URL: "ws://unmanaged/ws?token=secret-token"}, subs)
+	require.ErrorIs(t, err, errConnectionNotFound, "Unsubscribing must error for an unmanaged connection")
+	assert.ErrorContains(t, err, `"ws://unmanaged/ws"`, "Unsubscribing should name the connection's URL")
+	assert.NotContains(t, err.Error(), "secret-token", "Unsubscribing should leave the query out of its error")
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
 
 	assert.ErrorIs(t, multi.SubscribeToChannels(t.Context(), nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
