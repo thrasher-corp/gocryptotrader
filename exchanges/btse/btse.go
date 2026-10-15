@@ -66,7 +66,7 @@ func (e *Exchange) FetchFundingHistory(ctx context.Context, symbol string) (map[
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, btseFuturesFunding+params.Encode(), &resp, false, queryFunc)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(btseFuturesFunding, params), &resp, false, queryFunc)
 }
 
 // GetRawMarketSummary returns an unfiltered list of market pairs
