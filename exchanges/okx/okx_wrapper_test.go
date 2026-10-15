@@ -6004,7 +6004,7 @@ func TestGetFuturesPositionSummaryReportsShortPositions(t *testing.T) {
 	summary, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{
 		Asset: asset.PerpetualSwap, Pair: perpetualSwapPair,
 	})
-	require.NoError(t, err, "a net mode short must summarize rather than report no positions")
+	require.NoError(t, err, "a net mode short must summarise rather than report no positions")
 	assert.Equal(t, decimal.MustFromFloat(-0.01), summary.CurrentSize, "a short of one 0.01 contract should carry its negative size")
 	assert.Equal(t, decimal.MustFromFloat(-1), summary.ContractSize, "the contract size should keep the signed position")
 }

@@ -7277,14 +7277,17 @@ func TestWsProcessPublicSpreadTradesHonoursSaveTradeData(t *testing.T) {
 		require.NoError(t, database.DB.SetConfig(&database.Config{}), "restoring the database config must not error")
 	})
 	for _, tc := range []struct {
-		name   string
-		save   bool
-		push   string
-		expErr string
+		name       string
+		save       bool
+		push       string
+		expErr     string
+		wantAnyErr bool
 	}{
 		{name: "saving off", save: false, push: zeroSize},
 		{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
-		{name: "malformed push with saving off", save: false, push: "{", expErr: "unexpected end of JSON input"},
+		// The decoder's message differs per JSON backend (stdlib vs sonic),
+		// so only the presence of the error is pinned for the malformed push.
+		{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -7292,6 +7295,10 @@ func TestWsProcessPublicSpreadTradesHonoursSaveTradeData(t *testing.T) {
 			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 			e.SetSaveTradeDataStatus(tc.save)
 			err := e.wsProcessPublicSpreadTrades([]byte(tc.push))
+			if tc.wantAnyErr {
+				assert.Error(t, err, "a malformed push should still report its decode error")
+				return
+			}
 			if tc.expErr == "" {
 				assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
 				return
@@ -7318,14 +7325,17 @@ func TestWsProcessSpreadTradesHonoursSaveTradeData(t *testing.T) {
 		require.NoError(t, database.DB.SetConfig(&database.Config{}), "restoring the database config must not error")
 	})
 	for _, tc := range []struct {
-		name   string
-		save   bool
-		push   string
-		expErr string
+		name       string
+		save       bool
+		push       string
+		expErr     string
+		wantAnyErr bool
 	}{
 		{name: "saving off", save: false, push: zeroSize},
 		{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
-		{name: "malformed push with saving off", save: false, push: "{", expErr: "unexpected end of JSON input"},
+		// The decoder's message differs per JSON backend (stdlib vs sonic),
+		// so only the presence of the error is pinned for the malformed push.
+		{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -7333,6 +7343,10 @@ func TestWsProcessSpreadTradesHonoursSaveTradeData(t *testing.T) {
 			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 			e.SetSaveTradeDataStatus(tc.save)
 			err := e.wsProcessSpreadTrades([]byte(tc.push))
+			if tc.wantAnyErr {
+				assert.Error(t, err, "a malformed push should still report its decode error")
+				return
+			}
 			if tc.expErr == "" {
 				assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
 				return
