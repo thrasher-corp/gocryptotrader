@@ -803,7 +803,7 @@ type syncFixture struct {
 
 func newSyncFixture(t *testing.T, base string) *syncFixture {
 	t.Helper()
-	f := &syncFixture{snapshots: make(chan int64, 1)}
+	f := &syncFixture{snapshots: make(chan int64)}
 	tp := newTestParams()
 	tp.Orderbook.exchangeName = uniqueTestExchange(t)
 	tp.FetchOrderbook = func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
@@ -869,7 +869,11 @@ func (f *syncFixture) processFailing(t *testing.T, firstUpdateID, updateID int64
 // synchronise serves the synchronisation in progress its snapshot and waits for it to finish
 func (f *syncFixture) synchronise(t *testing.T, snapshot int64) {
 	t.Helper()
-	f.snapshots <- snapshot
+	select {
+	case f.snapshots <- snapshot:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the synchronisation must request a snapshot")
+	}
 	require.Eventually(t, func() bool {
 		f.cache.m.Lock()
 		defer f.cache.m.Unlock()

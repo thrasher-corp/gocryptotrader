@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 17,
+ "version": 18,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -605,7 +605,8 @@
      "RestSpotSupplementaryURL": "https://api.binance.com",
      "RestSpotURL": "https://sapi.binance.com",
      "RestUSDTMarginedFuturesURL": "https://fapi.binance.com",
-     "WebsocketSpotURL": "wss://stream.binance.com:9443/stream"
+     "WebsocketSpotURL": "wss://stream.binance.com:9443/stream",
+     "WebsocketTradeURL": "wss://ws-api.binance.com:443/ws-api/v3"
     }
    },
    "features": {

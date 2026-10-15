@@ -70,29 +70,6 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 	assert.NotNil(t, result, "GetDualInvestmentProductList should return a result")
 }
 
-func TestChangeAutoCompoundStatus(t *testing.T) {
-	t.Parallel()
-	_, err := e.ChangeAutoCompoundStatus(t.Context(), "", "STANDARD")
-	require.ErrorIs(t, err, errPositionIDRequired, "ChangeAutoCompoundStatus must reject an empty position ID")
-	_, err = e.ChangeAutoCompoundStatus(t.Context(), "123456789", "")
-	require.ErrorIs(t, err, errAutoCompoundPlanRequired, "ChangeAutoCompoundStatus must reject an empty plan")
-
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	result, err := e.ChangeAutoCompoundStatus(t.Context(), "123456789", "STANDARD")
-	require.NoError(t, err, "ChangeAutoCompoundStatus must not error")
-	if mockTests {
-		exp := &DualInvestmentAutoCompoundStatusResponse{
-			PositionID:       "123456789",
-			AutoCompoundPlan: "STANDARD",
-		}
-		assert.Equal(t, exp, result, "ChangeAutoCompoundStatus should decode every field")
-		return
-	}
-	assert.NotEmpty(t, result.PositionID, "ChangeAutoCompoundStatus should return the position ID")
-}
-
 func TestCheckDualInvestmentAccounts(t *testing.T) {
 	t.Parallel()
 	if !mockTests {

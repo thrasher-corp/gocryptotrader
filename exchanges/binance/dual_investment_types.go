@@ -41,12 +41,6 @@ type DualInvestmentProduct struct {
 	AutoCompoundPlanList []string      `json:"autoCompoundPlanList"`
 }
 
-// DualInvestmentAutoCompoundStatusResponse holds a position's auto-compound plan after a change
-type DualInvestmentAutoCompoundStatusResponse struct {
-	PositionID       string `json:"positionId"`
-	AutoCompoundPlan string `json:"autoCompoundPlan"`
-}
-
 // DualInvestmentAccountsResponse holds the total value held in Dual Investment
 type DualInvestmentAccountsResponse struct {
 	TotalAmountInBTC  types.Number `json:"totalAmountInBTC"`

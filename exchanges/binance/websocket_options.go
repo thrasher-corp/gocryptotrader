@@ -257,23 +257,25 @@ func (e *Exchange) processOptionsBalancePositionUpdate(ctx context.Context, data
 		for i := range resp.Balances {
 			codes[i] = resp.Balances[i].MarginAsset
 		}
-		// Recorded before the balances are stored, so a refresh whose request goes out in between still holds its
-		// snapshot to this event
-		e.refreshBalances(ctx, asset.Options, resp.TransactionTime.Time(), codes...)
 		subAccount := accounts.NewSubAccount(asset.Options, "")
-		for _, b := range resp.Balances {
-			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Options, b.MarginAsset, func(balance *accounts.Balance) {
-				// Unrealised profit can lift the free balance above the account balance, which the hold cannot show, so an
-				// unchanged account balance keeps the free balance REST reported
-				if total := b.AccountBalance.Float64(); total != balance.Total {
-					balance.Total = total
-					balance.Free = max(total-balance.Hold, 0)
+		if err := e.storeBalanceEvent(ctx, asset.Options, resp.TransactionTime.Time(), codes, func() error {
+			for _, b := range resp.Balances {
+				balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Options, b.MarginAsset, func(balance *accounts.Balance) {
+					// Unrealised profit can lift the free balance above the account balance, which the hold cannot show,
+					// so an unchanged account balance keeps the free balance REST reported
+					if total := b.AccountBalance.Float64(); total != balance.Total {
+						balance.Total = total
+						balance.Free = max(total-balance.Hold, 0)
+					}
+				})
+				if err != nil {
+					return err
 				}
-			})
-			if err != nil {
-				return err
+				subAccount.Balances.Set(b.MarginAsset, balance)
 			}
-			subAccount.Balances.Set(b.MarginAsset, balance)
+			return nil
+		}); err != nil {
+			return err
 		}
 		if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
 			return err

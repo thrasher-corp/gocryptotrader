@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3246,10 +3247,26 @@ func newTestServerExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	ex.Name = t.Name()
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "test-api-key", Secret: "test-api-secret"})
-	server := httptest.NewTestServer(t, handler)
+	server := httptest.NewTestServer(t, capRequests(t, handler))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
 	return ex
+}
+
+// capRequests fails a test whose fake venue is asked for more requests than any test needs, as a pager that never stops
+// would ask, rather than letting the test run until go test's timeout
+func capRequests(t *testing.T, handler http.HandlerFunc) http.HandlerFunc {
+	t.Helper()
+	var requests atomic.Int32
+	return func(w http.ResponseWriter, r *http.Request) {
+		if n := requests.Add(1); n > 100 {
+			assert.Failf(t, "too many requests", "%s should not be requested %d times", r.URL.Path, n)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		handler(w, r)
+	}
 }
 
 func TestSendHTTPRequest(t *testing.T) {

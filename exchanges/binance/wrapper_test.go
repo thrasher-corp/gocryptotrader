@@ -13,14 +13,17 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -33,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -148,6 +152,18 @@ func TestGetServerTime(t *testing.T) {
 			assert.WithinDuration(t, time.Now(), result, time.Minute, "GetServerTime should return the current time")
 		})
 	}
+}
+
+// mockContext bounds a request the recorded responses serve, which answer every request, so a pager that never stops
+// fails at the deadline; a live request keeps the test's context
+func mockContext(t *testing.T) context.Context {
+	t.Helper()
+	if !mockTests {
+		return t.Context()
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	t.Cleanup(cancel)
+	return ctx
 }
 
 // newRoutedTestExchange serves every REST host from replies keyed by request path, answering Binance error objects
@@ -1541,7 +1557,7 @@ func TestGetOrderHistory(t *testing.T) {
 				tc.req.Type = order.AnyType
 			}
 			tc.req.Side = order.AnySide
-			resp, err := e.GetOrderHistory(t.Context(), tc.req)
+			resp, err := e.GetOrderHistory(mockContext(t), tc.req)
 			require.NoError(t, err, "GetOrderHistory must not error")
 			if mockTests {
 				assert.Equal(t, tc.exp, resp, "GetOrderHistory should return the orders")
@@ -2311,6 +2327,61 @@ func TestCancelAllOrders(t *testing.T) {
 	})
 }
 
+func TestCancelAllOrdersWithoutOpenOrders(t *testing.T) {
+	t.Parallel()
+	// Binance rejects cancelling every open order of a symbol that has none
+	unknownOrder := `{"code":-2011,"msg":"Unknown order sent."}`
+	for _, tc := range []struct {
+		name   string
+		cancel *order.Cancel
+		path   string
+	}{
+		{"spot", &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()}, "/api/v3/openOrders"},
+		{"cross margin", &order.Cancel{AssetType: asset.Margin, Pair: currency.NewBTCUSDT()}, "/sapi/v1/margin/openOrders"},
+		{"isolated margin", &order.Cancel{AssetType: asset.Margin, MarginType: margin.Isolated, Pair: currency.NewBTCUSDT()}, "/sapi/v1/margin/openOrders"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newRoutedTestExchange(t, map[string]string{tc.path: unknownOrder})
+			resp, err := ex.CancelAllOrders(t.Context(), tc.cancel)
+			require.NoError(t, err, "CancelAllOrders must treat a pair without open orders as having nothing to cancel")
+			assert.Empty(t, resp.Status, "CancelAllOrders should report no cancelled orders")
+		})
+	}
+
+	t.Run("websocket API", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		var cancelAllRequests atomic.Int32
+		useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
+			tb.Helper()
+			var req struct {
+				ID     string `json:"id"`
+				Method string `json:"method"`
+			}
+			require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
+			assert.Equal(tb, "openOrders.cancelAll", req.Method, "CancelAllOrders should only cancel open orders")
+			cancelAllRequests.Add(1)
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":400,"error":{"code":-2011,"msg":"Unknown order sent."}}`, req.ID))
+		})
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()})
+		require.NoError(t, err, "CancelAllOrders must treat a pair without open orders as having nothing to cancel over the WebSocket API")
+		assert.Empty(t, resp.Status, "CancelAllOrders should report no cancelled orders over the WebSocket API")
+		assert.Equal(t, int32(1), cancelAllRequests.Load(), "CancelAllOrders should cancel over the WebSocket API")
+	})
+
+	ex := newRoutedTestExchange(t, map[string]string{"/api/v3/openOrders": `{"code":-2011,"msg":"Order was not canceled due to cancel restrictions."}`})
+	_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()})
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "CancelAllOrders must return a cancel restriction")
+	assert.Equal(t, "Order was not canceled due to cancel restrictions.", apiErr.Message, "CancelAllOrders should return the cancel restriction")
+}
+
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	ex := newMarketTestExchange(t)
@@ -2557,12 +2628,24 @@ func TestCancelOrderUntyped(t *testing.T) {
 		{
 			name:   "margin isolated order",
 			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
-			steps:  []cancelStep{marginOrder("", unknownOrder), marginOrder("TRUE", cancelled)},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginList("", unknownList), marginOrder("TRUE", cancelled)},
 		},
 		{
 			name:   "margin isolated order list",
 			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
-			steps:  []cancelStep{marginOrder("", unknownOrder), marginOrder("TRUE", unknownOrder), marginList("", unknownList), marginList("TRUE", listCancelled)},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginList("", unknownList), marginOrder("TRUE", unknownOrder), marginList("TRUE", listCancelled)},
+		},
+		{
+			// The cross margin account's order list is tried before the isolated margin account, which the pair may not have
+			name:   "margin cross order list",
+			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginList("", listCancelled)},
+		},
+		{
+			name:   "margin without an isolated margin account",
+			cancel: order.Cancel{AssetType: asset.Margin, OrderID: "28"},
+			steps:  []cancelStep{marginOrder("", unknownOrder), marginList("", unknownList), marginOrder("TRUE", `{"code":-3003,"msg":"Margin account does not exist."}`)},
+			errMsg: "Margin account does not exist.",
 		},
 		{
 			name:   "margin isolated OCO without a margin type",
@@ -2805,6 +2888,155 @@ func TestCancelOrderUntyped(t *testing.T) {
 		require.NoError(t, err, "CancelBatchOrders must not error")
 		assert.Equal(t, 3, sent(), "CancelBatchOrders should look up an algo order only for the rejected client order ID")
 	})
+}
+
+func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
+	t.Parallel()
+	const unknownOrder = `{"code":-2011,"msg":"Unknown order sent."}`
+	algo := func(id uint64, clientAlgoID string) string {
+		return fmt.Sprintf(`{"algoId":%d,"clientAlgoId":%q,"algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`, id, clientAlgoID)
+	}
+	algoCancelled := func(id uint64, clientAlgoID string) string {
+		return fmt.Sprintf(`{"algoId":%d,"clientAlgoId":%q,"code":"200","msg":"success"}`, id, clientAlgoID)
+	}
+
+	// The RPC server reports every entry cancelled unless the call errors, so a failed fallback is returned
+	for _, operation := range []string{"query", "cancel"} {
+		t.Run(operation+" failure", func(t *testing.T) {
+			t.Parallel()
+			const failure = `{"code":-1002,"msg":"Not authorised."}`
+			steps := []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1,2]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"},` + unknownOrder + `]`},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "2"}, failure},
+			}
+			if operation == "cancel" {
+				steps[1].reply = algo(2, "gct-algo")
+				steps = append(steps, cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "2"}, failure})
+			}
+			ex, sent := newCancelStepsExchange(t, steps)
+			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1"},
+				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "2"},
+			})
+			require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return the fallback error")
+			assert.ErrorContains(t, err, "error cancelling order 2:", "CancelBatchOrders should identify the failed entry")
+			require.NotNil(t, resp, "CancelBatchOrders must retain the partial response")
+			assert.Equal(t, "CANCELED", resp.Status["1"], "CancelBatchOrders should retain the successful cancellation")
+			assert.Contains(t, resp.Status["2"], "Not authorised.", "CancelBatchOrders should retain the failed cancellation")
+			assert.Equal(t, len(steps), sent(), "CancelBatchOrders should send the expected requests")
+		})
+	}
+
+	// An algo order one entry cancelled is not looked up and cancelled again for another entry naming it by an ID
+	// Binance reported for it, while an entry naming another algo order by a client algo ID that went unused is
+	for _, tc := range []struct {
+		name    string
+		entries []order.Cancel
+		steps   []cancelStep
+		exp     map[string]string
+	}{
+		{
+			name:    "algo ID named twice",
+			entries: []order.Cancel{{OrderID: "77"}, {OrderID: "77"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77,77]"}, `[` + unknownOrder + `,` + unknownOrder + `]`},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
+			},
+			exp: map[string]string{"77": "CANCELED"},
+		},
+		{
+			name:    "algo order named by its algo ID and its client algo ID",
+			entries: []order.Cancel{{OrderID: "77"}, {ClientOrderID: "gct-algo"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["gct-algo"]`}, `[` + unknownOrder + `]`},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
+			},
+			exp: map[string]string{"77": "CANCELED", "gct-algo": "Unknown order sent."},
+		},
+		{
+			name:    "client algo ID sent beside another algo order's algo ID",
+			entries: []order.Cancel{{OrderID: "77", ClientOrderID: "other-algo"}, {ClientOrderID: "other-algo"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["other-algo"]`}, `[` + unknownOrder + `]`},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algo(77, "gct-algo")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "88"}, algoCancelled(88, "other-algo")},
+			},
+			exp: map[string]string{"77": "CANCELED", "other-algo": "CANCELED"},
+		},
+		{
+			name:    "untyped repeat of a typed algo order",
+			entries: []order.Cancel{{Type: order.Stop, OrderID: "77"}, {OrderID: "77"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
+			},
+			exp: map[string]string{"77": "CANCELED"},
+		},
+		{
+			name:    "untyped repeat by algo ID of a typed algo order cancelled by its client algo ID",
+			entries: []order.Cancel{{Type: order.Stop, ClientOrderID: "gct-algo"}, {OrderID: "77"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo", "algoId": ""}, algoCancelled(77, "gct-algo")},
+			},
+			exp: map[string]string{"77": "Unknown order sent.", "gct-algo": "CANCELED"},
+		},
+		{
+			name:    "untyped repeat of a client algo ID a typed entry sent beside another algo order's algo ID",
+			entries: []order.Cancel{{Type: order.Stop, OrderID: "77", ClientOrderID: "other-algo"}, {ClientOrderID: "other-algo"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["other-algo"]`}, `[` + unknownOrder + `]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algoCancelled(77, "gct-algo")},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "88"}, algoCancelled(88, "other-algo")},
+			},
+			exp: map[string]string{"77": "CANCELED", "other-algo": "CANCELED"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			for i := range tc.entries {
+				tc.entries[i].AssetType, tc.entries[i].Pair = asset.USDTMarginedFutures, currency.NewBTCUSDT()
+			}
+			resp, err := ex.CancelBatchOrders(t.Context(), tc.entries)
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			assert.Equal(t, tc.exp, resp.Status, "CancelBatchOrders should report each entry's outcome")
+			assert.Equal(t, len(tc.steps), sent(), "CancelBatchOrders should send every expected request")
+		})
+	}
+}
+
+func TestCancelAlgoOrderLookupRate(t *testing.T) {
+	t.Parallel()
+	// Order book snapshots can hold the derivatives IP pool for seconds, so the algo order lookup an untyped
+	// cancellation makes draws on the cancel pool as the cancellation does, while other lookups stay on the IP pool
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodDelete, "/fapi/v1/order", map[string]string{"orderId": "3000000123"}, `{"code":-2011,"msg":"Unknown order sent."}`},
+		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, `{"algoId":3000000123,"clientAlgoId":"gct-algo","symbol":"BTCUSDT","algoStatus":"NEW"}`},
+		{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`},
+	})
+	require.NoError(t, ex.EnableRateLimiter(), "EnableRateLimiter must not error")
+	exhausted := request.NewRateLimitWithWeight(time.Hour, 1, 1)
+	require.NoError(t, exhausted.RateLimit(t.Context()), "RateLimit must take the limiter's only token")
+	definitions := ex.Requester.GetRateLimiterDefinitions()
+	for epl, cost := range endpointCosts {
+		if cost.pool == derivativesIPPool {
+			definitions[epl] = exhausted
+		}
+	}
+	ctx := request.WithDelayNotAllowed(t.Context())
+	_, err := ex.UQueryAlgoOrder(ctx, 3000000123, "")
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "UQueryAlgoOrder must draw on the IP pool")
+	err = ex.CancelOrder(ctx, &order.Cancel{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"})
+	require.NoError(t, err, "CancelOrder must not wait on the IP pool")
+	assert.Equal(t, 3, sent(), "CancelOrder should send every expected request")
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -4320,7 +4552,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	} {
 		t.Run(tc.a.String(), func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+			result, err := e.GetHistoricalFundingRates(mockContext(t), &fundingrate.HistoricalRatesRequest{
 				Asset:           tc.a,
 				Pair:            tc.exp.Pair,
 				StartDate:       start,
@@ -4801,6 +5033,26 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		_, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: tc.a, Pair: tc.pair})
 		assert.ErrorIsf(t, err, tc.err, "GetFuturesPositionSummary should report the missing %s", tc.name)
 	}
+
+	// Single-asset mode collateral comes from the margin asset's own row; rows of assets that BTCUSDT contains or ends
+	// with must not stand in for it. Multi-Assets Mode collateral is the account's and needs no row
+	const nearMisses = `[{"asset":"DT","walletBalance":"7"},{"asset":"USD","walletBalance":"8"},{"asset":"T","walletBalance":"9"}]`
+	for _, tc := range []struct {
+		multiAssets bool
+		assets      string
+		err         error
+	}{
+		{false, `[]`, currency.ErrCurrencyNotFound},
+		{false, nearMisses, currency.ErrCurrencyNotFound},
+		{true, nearMisses, nil},
+	} {
+		ex := newRoutedTestExchange(t, map[string]string{
+			"/fapi/v2/account":      `{"multiAssetsMargin":` + strconv.FormatBool(tc.multiAssets) + `,"assets":` + tc.assets + `,"positions":[{"symbol":"BTCUSDT","positionSide":"BOTH","leverage":"10"}]}`,
+			"/fapi/v3/positionRisk": `[{"symbol":"BTCUSDT","positionSide":"BOTH","positionAmt":"0.001","marginAsset":"USDT"}]`,
+		})
+		_, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT()})
+		assert.ErrorIsf(t, err, tc.err, "GetFuturesPositionSummary should return the expected error for assets %s in Multi-Assets Mode %t", tc.assets, tc.multiAssets)
+	}
 }
 
 func TestGetOrderHistoryFromOrderID(t *testing.T) {
@@ -4995,6 +5247,10 @@ func TestPagedOrderHistory(t *testing.T) {
 			// Serve like Binance: the first two orders within the window's milliseconds, or from the order ID
 			got, err := pagedOrderHistory(windowStart, tc.end, tc.fromID, tc.maxSpan, 2, func(from, to time.Time) ([]testOrder, error) {
 				requests = append(requests, window{from, to})
+				// A pager that keeps requesting fails here rather than hanging the test
+				if !assert.LessOrEqual(t, len(requests), 100, "pagedOrderHistory should stop requesting") {
+					return nil, errAPIResponse
+				}
 				var page []testOrder
 				for _, o := range tc.orders {
 					if len(page) < 2 && (from.IsZero() || tc.fromID != 0 || (o.time.UnixMilli() >= from.UnixMilli() && o.time.UnixMilli() <= to.UnixMilli())) {
@@ -5023,6 +5279,9 @@ func TestPagedOrderHistory(t *testing.T) {
 	var requests []window
 	got, err := pagedOrderHistory(now.Add(-time.Hour), now.Add(48*time.Hour), 0, 24*time.Hour, 2, func(from, to time.Time) ([]testOrder, error) {
 		requests = append(requests, window{from, to})
+		if !assert.LessOrEqual(t, len(requests), 100, "pagedOrderHistory should stop requesting") {
+			return nil, errAPIResponse
+		}
 		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
 		}
@@ -5525,7 +5784,7 @@ func newTradingTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	ex.Name = t.Name()
 	ex.SkipAuthCheck = true
 	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-	server := httptest.NewTestServer(t, handler)
+	server := httptest.NewTestServer(t, capRequests(t, handler))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {

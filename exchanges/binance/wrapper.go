@@ -205,6 +205,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFuturesSupplementary: pMarginAPIURL,
 		exchange.EdgeCase1:                "https://www.binance.com",
 		exchange.WebsocketSpot:            binanceDefaultWebsocketURL,
+		exchange.WebsocketTrade:           binanceWebsocketAPIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -217,8 +218,10 @@ func (e *Exchange) SetDefaults() {
 
 // newOrderbookSync returns the order book synchronisation every connection's diff depth streams share, fetching
 // snapshots with fetch after delay and giving up on one after deadline. Binance's local order book procedure loads the
-// snapshot, then checks the first event to arrive against it, so a pair that trades rarely, such as an option, still
-// has a book
+// snapshot, then checks the next event to arrive against it, so a book that changes rarely, such as an option's, loads
+// from its first event without waiting for another. A stream sends nothing until its book changes, so a book that does
+// not change stays empty until it does, as the engine does not fetch order books over REST while the websocket is
+// connected
 func (e *Exchange) newOrderbookSync(fetch func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error), delay, deadline time.Duration) *orderbookmanager.UpdateManager {
 	return orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 		FetchDelay:          delay,
@@ -276,9 +279,19 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	e.wsAPI.set(nil)
 	// The WebSocket API serves order requests, the spot and margin User Data Streams and market data requests. It is
 	// an optional connection, so an outage of it leaves the market data streams up, with orders going over REST, while
-	// the connection monitor tries it again
+	// the connection monitor tries it again. Spot orders go over it while it is connected and authenticated websocket use
+	// is on, and over REST otherwise. It is registered only when spot or margin is enabled here, and with authenticated
+	// websocket use it subscribes, each time it connects, the User Data Streams of the accounts then enabled, so an
+	// account enabled later gets its stream when the connection next connects, or after a restart when neither was
+	// enabled here, with its balances coming from polls until then
 	if e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		if err := e.Websocket.SetupNewConnection(e.spotWebsocketAPIConnectionSetup(exch)); err != nil {
+		apiSetup := e.spotWebsocketAPIConnectionSetup(exch)
+		// Spot orders go to a configured WebsocketTrade endpoint, such as a testnet's, as REST requests go to the
+		// configured REST endpoints
+		if apiSetup.URL, err = e.API.Endpoints.GetURL(exchange.WebsocketTrade); err != nil {
+			return err
+		}
+		if err := e.Websocket.SetupNewConnection(apiSetup); err != nil {
 			return err
 		}
 	}
@@ -694,34 +707,42 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	return orderbook.Get(e.Name, p, a)
 }
 
-// UpdateAccountBalances retrieves currency balances
+// UpdateAccountBalances retrieves currency balances. For the configured account, a currency the snapshot reports as last
+// updated before the latest user data stream event to report it keeps its stored balance, as does one the snapshot
+// leaves out while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
+// where Binance gives one
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	subAccount, _, err := e.accountBalances(ctx, assetType)
+	subAccount, updated, asOf, err := e.accountBalances(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
 	subAccts := accounts.SubAccounts{subAccount}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+	err = e.withBalanceStore(func() error {
+		e.keepStreamedBalances(ctx, assetType, subAccount, updated, asOf)
+		return e.Accounts.Save(ctx, subAccts, true)
+	})
+	return subAccts, err
 }
 
 // accountBalances fetches an asset's balances over REST, with the time Binance last updated each currency's balance
-// where it reports one: USDⓈ-M and COIN-M report it by currency, and options give the snapshot's time
-func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (*accounts.SubAccount, map[*currency.Item]time.Time, error) {
-	subAccount := accounts.NewSubAccount(assetType, "")
-	updated := make(map[*currency.Item]time.Time)
+// where it reports one, and the snapshot's own time where it gives one: USDⓈ-M and COIN-M report the update time by
+// currency, while options give the snapshot's time, which stands for every currency
+func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time, err error) {
+	subAccount = accounts.NewSubAccount(assetType, "")
+	updated = make(map[*currency.Item]time.Time)
 	switch assetType {
 	case asset.Spot:
 		creds, err := e.GetCredentials(ctx)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		if creds.SubAccount != "" {
 			// TODO: implement sub-account endpoints
-			return nil, nil, common.ErrNotYetImplemented
+			return nil, nil, time.Time{}, common.ErrNotYetImplemented
 		}
 		resp, err := e.GetAccount(ctx, false)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		for i := range resp.Balances {
 			free := resp.Balances[i].Free.InexactFloat64()
@@ -735,7 +756,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (*
 	case asset.Margin:
 		resp, err := e.GetCrossMarginAccountDetail(ctx)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		for i := range resp.UserAssets {
 			free := resp.UserAssets[i].Free.Float64()
@@ -751,7 +772,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (*
 	case asset.USDTMarginedFutures:
 		resp, err := e.UAccountBalanceV3(ctx)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		// The account alias names the account itself, which the user data stream does not send, so the balances are kept
 		// under the main account where the stream updates them
@@ -762,7 +783,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (*
 	case asset.CoinMarginedFutures:
 		resp, err := e.GetFuturesAccountInfo(ctx)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		for i := range resp.Assets {
 			subAccount.Balances.Set(resp.Assets[i].Asset, futuresBalance(resp.Assets[i].WalletBalance, resp.Assets[i].AvailableBalance))
@@ -771,18 +792,19 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (*
 	case asset.Options:
 		resp, err := e.GetOptionMarginAccountInformation(ctx)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, time.Time{}, err
 		}
 		// Binance's available balance is not the margin balance less the initial margin, so the balance is held the way
 		// USDⓈ-M and COIN-M balances are, which keeps a user data stream update of an unchanged balance unchanged
+		asOf = resp.Time.Time()
 		for i := range resp.Asset {
 			subAccount.Balances.Set(resp.Asset[i].Asset, futuresBalance(resp.Asset[i].MarginBalance, resp.Asset[i].Available))
-			updated[resp.Asset[i].Asset.Item] = resp.Time.Time()
+			updated[resp.Asset[i].Asset.Item] = asOf
 		}
 	default:
-		return nil, nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, nil, time.Time{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return subAccount, updated, nil
+	return subAccount, updated, asOf, nil
 }
 
 // futuresBalance returns a USDⓈ-M, COIN-M or options margin asset's balance from its wallet, or account, balance and its
@@ -2040,11 +2062,11 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		}
 		_, err = e.UCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 		if isUntypedCancel(o.Type) && isUnknownOrder(err) {
-			found, algoErr := e.cancelPairAlgoOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+			algo, algoErr := e.cancelPairAlgoOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 			switch {
 			case algoErr != nil:
 				err = common.AppendError(err, algoErr)
-			case found:
+			case algo != nil:
 				err = nil
 			}
 		}
@@ -2127,23 +2149,23 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 // account, as the order manager's do since orders drop their margin type, is tried in the cross margin account, then
 // in the isolated one when it names an order ID: a client order ID is unique only among an account's open orders, so
 // in the other account it may name an order the caller did not mean. An untyped request whose ID no order has is
-// tried as an order list's
+// tried as an order list's, each account's order and then its order list before the other account's: Binance's answer
+// for a pair without an isolated margin account need not say the order is unknown, which would stop the attempts
+// before a cross margin order list. An isolated margin order with the ID of a cross margin order list is not reached
 func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, orderID uint64) error {
 	isolated := []bool{o.MarginType == margin.Isolated}
 	if o.MarginType == margin.Unset && orderID != 0 {
 		isolated = []bool{false, true}
 	}
 	var attempts []func() error
-	if o.Type != order.OCO {
-		for _, isIsolated := range isolated {
+	for _, isIsolated := range isolated {
+		if o.Type != order.OCO {
 			attempts = append(attempts, func() error {
 				_, err := e.CancelMarginAccountOrder(ctx, &MarginOrderCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
 				return err
 			})
 		}
-	}
-	if o.Type == order.OCO || isUntypedCancel(o.Type) {
-		for _, isIsolated := range isolated {
+		if o.Type == order.OCO || isUntypedCancel(o.Type) {
 			attempts = append(attempts, func() error {
 				_, err := e.CancelMarginAccountOCOOrder(ctx, &MarginOCOCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 				return err
@@ -2154,27 +2176,28 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 }
 
 // cancelPairAlgoOrder cancels the USDⓈ-M algo order with the ID or client ID an untyped cancellation names, when it is
-// the pair's, and reports whether it is: SubmitOrder identifies a conditional order by its algo ID, which Binance
-// numbers apart from order IDs. The algo cancellation takes no symbol, so the algo order is looked up first
-func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, pair currency.Pair, algoID uint64, clientAlgoID string) (bool, error) {
-	algo, err := e.UQueryAlgoOrder(ctx, algoID, clientAlgoID)
+// the pair's, and returns it when it is: SubmitOrder identifies a conditional order by its algo ID, which Binance
+// numbers apart from order IDs. The algo cancellation takes no symbol, so the algo order is looked up first, on the
+// cancel pool as the cancellation is
+func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, pair currency.Pair, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
+	algo, err := e.uQueryAlgoOrder(ctx, algoID, clientAlgoID, uFuturesCancelRate)
 	if isUnknownOrder(err) {
-		return false, nil
+		return nil, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("error fetching algo order: %w", err)
+		return nil, fmt.Errorf("error fetching algo order: %w", err)
 	}
 	symbol, err := e.FormatSymbol(pair, asset.USDTMarginedFutures)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if algo == nil || algo.Symbol != symbol {
-		return false, nil
+		return nil, nil
 	}
 	if _, err := e.UCancelAlgoOrder(ctx, algo.AlgoID, ""); err != nil {
-		return true, fmt.Errorf("error cancelling algo order: %w", err)
+		return algo, fmt.Errorf("error cancelling algo order: %w", err)
 	}
-	return true, nil
+	return algo, nil
 }
 
 // CancelBatchOrders cancels USDⓈ-M, COIN-M or options orders of one pair. Orders are cancelled ten at a time by order
@@ -2267,38 +2290,62 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		}
 	}
+	// Algo IDs are numbered apart from order IDs, so the algo orders cancelled are kept apart too, by the IDs Binance
+	// reports for them: an algo order is selected by its algo ID when one is sent, whatever client algo ID goes with it
+	cancelledAlgoIDs, cancelledClientAlgoIDs := make(map[uint64]bool), make(map[string]bool)
+	markAlgoCancelled := func(algoID uint64, clientAlgoID string) {
+		if algoID != 0 {
+			cancelledAlgoIDs[algoID] = true
+		}
+		if clientAlgoID != "" {
+			cancelledClientAlgoIDs[clientAlgoID] = true
+		}
+	}
 	for _, algo := range algoOrders {
 		statusKey := algo.OrderID
 		if statusKey == "" {
 			statusKey = algo.ClientOrderID
 		}
 		algoID, err := parseOrderID(algo.OrderID)
+		var cancelled *UCancelAlgoOrderResponse
 		if err == nil {
-			_, err = e.UCancelAlgoOrder(ctx, algoID, algo.ClientOrderID)
+			cancelled, err = e.UCancelAlgoOrder(ctx, algoID, algo.ClientOrderID)
+		}
+		if err == nil {
+			if algoID != 0 {
+				markAlgoCancelled(algoID, "")
+			} else {
+				markAlgoCancelled(0, algo.ClientOrderID)
+			}
+			if cancelled != nil {
+				markAlgoCancelled(cancelled.AlgoID, cancelled.ClientAlgoID)
+			}
 		}
 		errs = common.AppendError(errs, recordBatchStatuses(resp, []string{statusKey}, []batchCancelOutcome{{status: "CANCELED"}}, err))
 	}
 	// An untyped USDⓈ-M ID no order has may be the algo ID SubmitOrder returned for a conditional order
 	for _, u := range untyped {
-		statusKey, cancelledByAnother := u.ClientOrderID, cancelledClientOrderIDs[u.ClientOrderID]
+		statusKey, cancelledByAnother := u.ClientOrderID, cancelledClientOrderIDs[u.ClientOrderID] || cancelledClientAlgoIDs[u.ClientOrderID]
 		algoID, err := parseOrderID(u.OrderID)
 		if u.OrderID != "" {
 			// An entry cancelled by order ID is looked up by that ID, which zero is not
 			if err != nil || algoID == 0 {
 				continue
 			}
-			statusKey, cancelledByAnother = strconv.FormatUint(algoID, 10), cancelledOrderIDs[algoID]
+			statusKey, cancelledByAnother = strconv.FormatUint(algoID, 10), cancelledOrderIDs[algoID] || cancelledAlgoIDs[algoID]
 		}
 		if !isUnknownOrder(rejections[u]) || cancelledByAnother {
 			continue
 		}
 		status := resp.Status[statusKey]
-		found, err := e.cancelPairAlgoOrder(ctx, pair, algoID, u.ClientOrderID)
+		algo, err := e.cancelPairAlgoOrder(ctx, pair, algoID, u.ClientOrderID)
 		switch {
 		case err != nil:
 			resp.Status[statusKey] = status + "; " + err.Error()
-		case found:
+			errs = common.AppendError(errs, fmt.Errorf("error cancelling order %s: %w", statusKey, err))
+		case algo != nil:
 			resp.Status[statusKey] = "CANCELED"
+			markAlgoCancelled(algo.AlgoID, algo.ClientAlgoID)
 		}
 	}
 	return resp, errs
@@ -2456,7 +2503,7 @@ func (e *Exchange) cancelAllSpotOrders(ctx context.Context, pair currency.Pair, 
 		if e.canUseWebsocketAPIForOrders() {
 			cancelled, err := e.WsCancelOpenOrders(ctx, p)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
+				errs = common.AppendError(errs, cancelAllPairError(p, err))
 				continue
 			}
 			for i := range cancelled {
@@ -2471,7 +2518,7 @@ func (e *Exchange) cancelAllSpotOrders(ctx context.Context, pair currency.Pair, 
 		}
 		cancelled, err := e.CancelAllOpenOrderOnSymbol(ctx, p)
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
+			errs = common.AppendError(errs, cancelAllPairError(p, err))
 			continue
 		}
 		for i := range cancelled {
@@ -2510,7 +2557,7 @@ func (e *Exchange) cancelAllMarginOrders(ctx context.Context, pair currency.Pair
 	for _, p := range pairs {
 		cancelled, err := e.CancelAllOpenMarginAccountOrdersOnSymbol(ctx, p, isIsolated)
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
+			errs = common.AppendError(errs, cancelAllPairError(p, err))
 			continue
 		}
 		for i := range cancelled {
@@ -2523,6 +2570,15 @@ func (e *Exchange) cancelAllMarginOrders(ctx context.Context, pair currency.Pair
 		}
 	}
 	return errs
+}
+
+// cancelAllPairError returns the error of cancelling every open spot or margin order of a pair, or nil when Binance
+// rejected the request because the pair had no open order left to cancel
+func cancelAllPairError(p currency.Pair, err error) error {
+	if isUnknownOrder(err) {
+		return nil
+	}
+	return fmt.Errorf("error cancelling %s orders: %w", p, err)
 }
 
 // cancelAllUSDTMarginedOrders cancels the open orders and open algo orders of pair, or of every symbol with orders of
@@ -4787,13 +4843,18 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 		summary.TotalCollateral = account.TotalWalletBalance.Decimal()
 		summary.FreeCollateral = account.AvailableBalance.Decimal()
 	} else {
+		var collateralAsset *UAsset
 		for i := range account.Assets {
 			if account.Assets[i].Asset.Equal(position.MarginAsset) {
-				summary.TotalCollateral = account.Assets[i].WalletBalance.Decimal()
-				summary.FreeCollateral = account.Assets[i].AvailableBalance.Decimal()
+				collateralAsset = &account.Assets[i]
 				break
 			}
 		}
+		if collateralAsset == nil {
+			return nil, fmt.Errorf("%w: %s %s %s collateral", currency.ErrCurrencyNotFound, req.Asset, req.Pair, position.MarginAsset)
+		}
+		summary.TotalCollateral = collateralAsset.WalletBalance.Decimal()
+		summary.FreeCollateral = collateralAsset.AvailableBalance.Decimal()
 	}
 	setCollateralFractions(summary)
 	return summary, nil

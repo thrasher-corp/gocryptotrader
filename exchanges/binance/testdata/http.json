@@ -16838,19 +16838,6 @@
     }
    ]
   },
-  "/sapi/v1/dci/product/auto_compound/edit-status": {
-   "POST": [
-    {
-     "data": {
-      "positionId": "123456789",
-      "autoCompoundPlan": "STANDARD"
-     },
-     "queryString": "autoCompoundPlan=STANDARD\u0026positionId=123456789\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
-     "bodyParams": "",
-     "headers": {}
-    }
-   ]
-  },
   "/sapi/v1/dci/product/list": {
    "GET": [
     {

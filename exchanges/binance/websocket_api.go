@@ -451,18 +451,15 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 	}
 	executed := resp.CumulativeFilledQuantity.Float64()
 	quantity := resp.OrderQuantity.Float64()
-	var averagePrice, remaining float64
-	if executed != 0 {
-		averagePrice = resp.CumulativeQuoteAssetTransactedQuantity.Float64() / executed
-	}
+	var remaining float64
 	if quantity > executed {
-		remaining = quantity - executed
+		remaining = remainingAmount(resp.OrderQuantity, resp.CumulativeFilledQuantity)
 	}
 	detail := &order.Detail{
 		Price:                resp.OrderPrice.Float64(),
 		Amount:               quantity,
 		TriggerPrice:         resp.StopPrice.Float64(),
-		AverageExecutedPrice: averagePrice,
+		AverageExecutedPrice: averagePrice(resp.CumulativeQuoteAssetTransactedQuantity, resp.CumulativeFilledQuantity),
 		QuoteAmount:          resp.QuoteOrderQuantity.Float64(),
 		ExecutedAmount:       executed,
 		RemainingAmount:      remaining,

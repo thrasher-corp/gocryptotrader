@@ -1073,23 +1073,25 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 		for i := range resp.UpdateData.Balances {
 			codes[i] = resp.UpdateData.Balances[i].Asset
 		}
-		// Recorded before the balances are stored, so a refresh whose request goes out in between still holds its
-		// snapshot to this event
-		e.refreshBalances(ctx, a, resp.TransactionTime.Time(), codes...)
 		subAccount := accounts.NewSubAccount(a, "")
-		for _, b := range resp.UpdateData.Balances {
-			balance, err := e.Accounts.UpdateBalance(ctx, "", a, b.Asset, func(balance *accounts.Balance) {
-				// Unrealised profit can lift the free balance above the wallet balance, which the hold cannot show, so an
-				// unchanged wallet balance keeps the free balance REST reported
-				if total := b.WalletBalance.Float64(); total != balance.Total {
-					balance.Total = total
-					balance.Free = max(total-balance.Hold, 0)
+		if err := e.storeBalanceEvent(ctx, a, resp.TransactionTime.Time(), codes, func() error {
+			for _, b := range resp.UpdateData.Balances {
+				balance, err := e.Accounts.UpdateBalance(ctx, "", a, b.Asset, func(balance *accounts.Balance) {
+					// Unrealised profit can lift the free balance above the wallet balance, which the hold cannot show, so
+					// an unchanged wallet balance keeps the free balance REST reported
+					if total := b.WalletBalance.Float64(); total != balance.Total {
+						balance.Total = total
+						balance.Free = max(total-balance.Hold, 0)
+					}
+				})
+				if err != nil {
+					return err
 				}
-			})
-			if err != nil {
-				return err
+				subAccount.Balances.Set(b.Asset, balance)
 			}
-			subAccount.Balances.Set(b.Asset, balance)
+			return nil
+		}); err != nil {
+			return err
 		}
 		if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
 			return err
@@ -1120,6 +1122,10 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 // balance events start, so a burst of events costs one refresh at the end of each interval
 const balanceRefreshInterval = time.Second
 
+// balanceRefreshAttempts bounds the refreshes an asset makes for its latest balance event while REST lags the user data
+// stream, reporting a currency as last updated before that event or with another wallet balance
+const balanceRefreshAttempts = 5
+
 // balanceRefresher runs the REST balance refreshes the USDⓈ-M, COIN-M and options user data stream balance events start,
 // one at a time for each asset. The events carry no available balance, and a fill changes the margin held, which only
 // a REST snapshot reports
@@ -1133,12 +1139,36 @@ type balanceRefresher struct {
 	eventTimes map[asset.Item]map[*currency.Item]time.Time
 	// interval is the time between refreshes of an asset, balanceRefreshInterval when zero
 	interval time.Duration
+	// storeMu keeps a balance event from being stored while a REST snapshot is accepted, by a refresh or a poll, so a
+	// snapshot is judged against every event stored before it and no event is stored between its checks and its store
+	storeMu sync.Mutex
 }
 
-// refreshBalances records when a user data stream balance event changed an asset's balances, then refreshes its
-// available balances over REST, or has the refresh running for it go once more. Refreshes run while the websocket is
-// connected, as the events that start them arrive
-func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item, transactionTime time.Time, codes ...currency.Code) {
+// withBalanceStore runs f holding the balance store lock, which events hold to store their balances and refreshes and
+// polls hold to accept a REST snapshot; REST requests are made outside it
+func (e *Exchange) withBalanceStore(f func() error) error {
+	e.balanceRefresh.storeMu.Lock()
+	defer e.balanceRefresh.storeMu.Unlock()
+	return f()
+}
+
+// storeBalanceEvent records a user data stream balance event and stores its balances with store, under the balance
+// store lock, then refreshes the available balances the event does not carry. The refresh starts once the balances are
+// stored, so its request follows the stores and its snapshot is not taken as older than them
+func (e *Exchange) storeBalanceEvent(ctx context.Context, a asset.Item, transactionTime time.Time, codes []currency.Code, store func() error) error {
+	if err := e.withBalanceStore(func() error {
+		e.recordBalanceEvent(a, transactionTime, codes...)
+		return store()
+	}); err != nil {
+		return err
+	}
+	e.refreshBalances(ctx, a)
+	return nil
+}
+
+// recordBalanceEvent records when a user data stream balance event changed an asset's balances, which a REST snapshot
+// of them must not predate
+func (e *Exchange) recordBalanceEvent(a asset.Item, transactionTime time.Time, codes ...currency.Code) {
 	r := &e.balanceRefresh
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1153,6 +1183,24 @@ func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item, transactio
 			r.eventTimes[a][c.Item] = transactionTime
 		}
 	}
+}
+
+// balanceEventTimes returns the transaction time of the latest user data stream event to report each of an asset's
+// currencies
+func (e *Exchange) balanceEventTimes(a asset.Item) map[*currency.Item]time.Time {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return maps.Clone(r.eventTimes[a])
+}
+
+// refreshBalances refreshes an asset's available balances over REST once a user data stream balance event has stored
+// its balances, or has the refresh running for it go once more. Refreshes run while the websocket is connected, as the
+// events that start them arrive
+func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item) {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if !e.Websocket.IsConnected() {
 		return
 	}
@@ -1171,10 +1219,11 @@ func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item, transactio
 }
 
 // runBalanceRefresh refreshes an asset's available balances, then once more after each interval in which they changed
-// again, while the websocket is connected; a refresh already under way when it disconnects finishes its request
+// again, or in which REST still lagged the stream, at most balanceRefreshAttempts times for one event, while the
+// websocket is connected; a refresh already under way when it disconnects finishes its request
 func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval time.Duration) {
 	r := &e.balanceRefresh
-	for {
+	for attempts := 1; ; attempts++ {
 		// Checked under the lock events take to ask for another refresh, so one made after a reconnection starts its own
 		// rather than being cleared here
 		r.mu.Lock()
@@ -1184,12 +1233,19 @@ func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval
 			return
 		}
 		r.mu.Unlock()
-		if err := e.refreshAvailableBalances(ctx, a); err != nil {
+		lagging, err := e.refreshAvailableBalances(ctx, a)
+		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s %s balance refresh after a user data stream balance update failed: %v", e.Name, a, err)
 		}
 		time.Sleep(interval)
 		r.mu.Lock()
 		again := r.pending[a]
+		if again {
+			// Another event changed the balances, so its refresh has attempts of its own
+			attempts = 0
+		} else {
+			again = lagging && attempts < balanceRefreshAttempts
+		}
 		r.pending[a] = false
 		r.running[a] = again
 		r.mu.Unlock()
@@ -1204,33 +1260,82 @@ func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval
 // data stream reports each wallet balance as it changes, so a currency REST reports as last updated before the latest
 // event to report it, or without an update time, is skipped as predating that event, and REST's available balance is
 // only stored beside the wallet balance REST reports with it: a snapshot that disagrees predates an event, or an event
-// still on its way will start another refresh. A currency without a balance takes REST's
-func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) error {
+// still on its way will start another refresh. A currency without a balance takes REST's. It reports whether a currency
+// the stream reported was skipped as predating its event or for disagreeing, so that REST is asked again. The snapshot
+// is accepted under the balance store lock
+func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) (lagging bool, err error) {
 	requested := time.Now()
-	subAccount, updated, err := e.accountBalances(ctx, a)
+	subAccount, updated, _, err := e.accountBalances(ctx, a)
 	if err != nil {
-		return err
+		return false, err
 	}
-	r := &e.balanceRefresh
-	r.mu.Lock()
-	eventTimes := maps.Clone(r.eventTimes[a])
-	r.mu.Unlock()
-	var errs error
-	for c, fetched := range subAccount.Balances {
-		if eventTime, ok := eventTimes[c.Item]; ok && updated[c.Item].Before(eventTime) {
-			continue
+	err = e.withBalanceStore(func() error {
+		eventTimes := e.balanceEventTimes(a)
+		var errs error
+		for c, fetched := range subAccount.Balances {
+			eventTime, streamed := eventTimes[c.Item]
+			if streamed && updated[c.Item].Before(eventTime) {
+				lagging = true
+				continue
+			}
+			_, err := e.Accounts.UpdateBalance(ctx, "", a, c, func(stored *accounts.Balance) {
+				if stored.UpdatedAt.After(requested) {
+					return
+				}
+				if stored.UpdatedAt.IsZero() || stored.Total == fetched.Total {
+					stored.Total, stored.Hold, stored.Free = fetched.Total, fetched.Hold, fetched.Free
+					return
+				}
+				// Asking again cannot reconcile a currency the stream does not report
+				lagging = lagging || streamed
+			})
+			errs = common.AppendError(errs, err)
 		}
-		_, err := e.Accounts.UpdateBalance(ctx, "", a, c, func(stored *accounts.Balance) {
-			if stored.UpdatedAt.After(requested) {
-				return
-			}
-			if stored.UpdatedAt.IsZero() || stored.Total == fetched.Total {
-				stored.Total, stored.Hold, stored.Free = fetched.Total, fetched.Hold, fetched.Free
-			}
-		})
-		errs = common.AppendError(errs, err)
+		return errs
+	})
+	return lagging, err
+}
+
+// keepStreamedBalances puts the stored balance in place of each currency a REST poll's snapshot reports as last updated
+// before the latest user data stream event to report it, as refreshes skip it: the snapshot was taken before the event
+// whose wallet balance is stored, however late the poll stores it, and storing the stored balance unchanged keeps its
+// update time, which refreshes requested before the poll compare against. A currency the snapshot leaves out keeps its
+// stored balance while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
+// asOf, where Binance gives one, rather than being removed by a snapshot that may predate it; a snapshot showing no
+// update or time therefore removes none. The user data streams are the configured account's, so a poll of another
+// account's credentials is left as it is. The caller holds the balance store lock until the snapshot is stored
+func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time) {
+	eventTimes := e.balanceEventTimes(a)
+	if len(eventTimes) == 0 {
+		return
 	}
-	return errs
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return
+	}
+	if streamed := e.GetDefaultCredentials(); streamed == nil || *creds != *streamed {
+		return
+	}
+	newest := asOf
+	reported := make(map[*currency.Item]currency.Code, len(subAccount.Balances))
+	for c := range subAccount.Balances {
+		reported[c.Item] = c
+		if updated[c.Item].After(newest) {
+			newest = updated[c.Item]
+		}
+	}
+	for item, eventTime := range eventTimes {
+		c, ok := reported[item]
+		switch {
+		case ok && !updated[item].Before(eventTime), !ok && !eventTime.After(newest):
+			continue
+		case !ok:
+			c = item.Currency()
+		}
+		if stored, err := e.Accounts.GetBalance("", creds, a, c); err == nil {
+			subAccount.Balances.Set(c, stored)
+		}
+	}
 }
 
 // futuresPosition builds a position from its signed size. Hedge mode reports the side; one-way mode, BOTH, signs the

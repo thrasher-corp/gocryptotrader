@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -787,12 +788,18 @@ func (e *Exchange) UAutoCancelAllOpenOrders(ctx context.Context, symbol currency
 // UQueryAlgoOrder returns an algo (conditional) order's state from Query Algo Order, by its algo ID or, when algoID
 // is 0, its client algo ID
 func (e *Exchange) UQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
+	return e.uQueryAlgoOrder(ctx, algoID, clientAlgoID, uFuturesDefaultRate)
+}
+
+// uQueryAlgoOrder queries an algo order drawing on f, so that the lookup a cancellation makes can draw on the cancel
+// pool as the cancellation does, rather than queue behind order book snapshots on the IP pool
+func (e *Exchange) uQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string, f request.EndpointLimit) (*UAlgoOrderResponse, error) {
 	params, err := uAlgoOrderIDParams(algoID, clientAlgoID)
 	if err != nil {
 		return nil, err
 	}
 	var resp *UAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/algoOrder", params, uFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/algoOrder", params, f, &resp)
 }
 
 // UNewAlgoOrder places an algo (conditional) order, which is how stop, take profit and trailing stop orders are

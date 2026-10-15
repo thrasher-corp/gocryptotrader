@@ -1403,4 +1403,27 @@ func TestSetupSpotConnections(t *testing.T) {
 	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
 	assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
 	assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
+
+	// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
+	// configuration saved before the endpoint existed keeps the production one
+	const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
+	for _, tc := range []struct {
+		name, configured, exp string
+	}{
+		{"WebSocket API endpoint not configured", "", binanceWebsocketAPIURL},
+		{"WebSocket API endpoint configured", testnetAPIURL, testnetAPIURL},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+				delete(c.API.Endpoints, exchange.WebsocketTrade.String())
+				if tc.configured != "" {
+					c.API.Endpoints[exchange.WebsocketTrade.String()] = tc.configured
+				}
+			})
+			conn, err := ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+			require.NoError(t, err, "the WebSocket API connection must be registered")
+			assert.Equal(t, tc.exp, conn.GetURL(), "the WebSocket API connection should take the configured WebsocketTradeURL")
+		})
+	}
 }

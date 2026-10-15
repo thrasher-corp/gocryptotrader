@@ -374,14 +374,26 @@ func TestUserDataStreamSubscriptionLateResponse(t *testing.T) {
 	t.Cleanup(releaseResponse)
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 	errs := make(chan error, 1)
 	go func() {
 		_, err := ex.WsSubscribeUserDataStream(ctx)
 		errs <- err
 	}()
-	<-received
+	select {
+	case <-received:
+	case err := <-errs:
+		require.FailNowf(t, "WsSubscribeUserDataStream must send its request", "it returned first: %v", err)
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "WsSubscribeUserDataStream must send its request")
+	}
 	cancel()
-	assert.ErrorIs(t, <-errs, context.Canceled, "WsSubscribeUserDataStream should return the cancellation")
+	select {
+	case err := <-errs:
+		assert.ErrorIs(t, err, context.Canceled, "WsSubscribeUserDataStream should return the cancellation")
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "WsSubscribeUserDataStream must return once cancelled")
+	}
 	// Binance made the subscription, so its events must still find their account
 	releaseResponse()
 	assert.Eventually(t, func() bool {
@@ -2358,6 +2370,38 @@ func TestWsAuthenticateAPI(t *testing.T) {
 	assert.Empty(t, userDataAssets(ex), "WsAuthenticateAPI should not subscribe for disabled assets")
 }
 
+func TestWebsocketAPIRuntimeChanges(t *testing.T) {
+	t.Parallel()
+	// Spot orders follow authenticated websocket use as it changes, while the User Data Streams of the accounts enabled
+	// are subscribed each time the WebSocket API connects
+	if !mockTests {
+		t.Skip("the subscription IDs Binance assigns cannot be predicted")
+	}
+	ex := newTestExchange(t)
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
+	useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), wsAPIMock)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	require.True(t, ex.IsAPIStreamConnected(), "the WebSocket API must be connected")
+	assert.False(t, ex.canUseWebsocketAPIForOrders(), "spot orders should go over REST while authenticated websocket use is off")
+	assert.Empty(t, userDataAssets(ex), "a connection without authenticated websocket use should subscribe no User Data Stream")
+
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	assert.True(t, ex.canUseWebsocketAPIForOrders(), "spot orders should go over the WebSocket API once authenticated websocket use is on")
+	assert.Empty(t, userDataAssets(ex), "the User Data Streams should wait for the connection to connect again")
+	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	assert.Equal(t, map[uint64]asset.Item{1: asset.Spot}, userDataAssets(ex), "connecting again should subscribe the enabled spot account")
+
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled must not error")
+	assert.Equal(t, map[uint64]asset.Item{1: asset.Spot}, userDataAssets(ex), "an account enabled later should wait for the connection to connect again")
+	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	assert.Equal(t, map[uint64]asset.Item{1: asset.Spot, 2: asset.Margin}, userDataAssets(ex), "connecting again should subscribe the accounts then enabled")
+
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	assert.False(t, ex.canUseWebsocketAPIForOrders(), "spot orders should go over REST once authenticated websocket use is off")
+}
+
 func TestWsHandleSpotAPIData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -2801,6 +2845,46 @@ func TestUserDataEventPayloads(t *testing.T) {
 		require.NoErrorf(t, json.Unmarshal(event, got), "Unmarshal must not error for event %d", i)
 		assert.Equalf(t, exp[i], got, "event %d should decode every field", i)
 	}
+}
+
+func TestProcessExecutionReportAmounts(t *testing.T) {
+	t.Parallel()
+	// REST works out an order's remaining amount and average price in decimal arithmetic, so the stream does too, or the
+	// store would change them on every update from the other source
+	ex := newTestExchange(t)
+	event := []byte(`{"e":"executionReport","E":1791285060000,"s":"BTCUSDT","c":"gct-decimal","S":"BUY","o":"LIMIT","f":"GTC","q":"0.30000000","p":"3.00000000","P":"0.00000000","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":1,"l":"0.10000000","z":"0.10000000","L":"3.00000000","n":"0","N":null,"T":1791285060000,"t":7,"O":1791285059000,"Z":"0.30000000","Y":"0.30000000","Q":"0.00000000"}`)
+	require.NoError(t, ex.processExecutionReport(t.Context(), asset.Spot, event), "processExecutionReport must not error")
+	exp := []any{&order.Detail{
+		Price:                3,
+		Amount:               0.3,
+		AverageExecutedPrice: 3,
+		ExecutedAmount:       0.1,
+		RemainingAmount:      0.2,
+		Cost:                 0.3,
+		CostAsset:            currency.USDT,
+		Exchange:             t.Name(),
+		OrderID:              "1",
+		ClientOrderID:        "gct-decimal",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.PartiallyFilled,
+		AssetType:            asset.Spot,
+		Date:                 time.UnixMilli(1791285059000),
+		LastUpdated:          time.UnixMilli(1791285060000),
+		Pair:                 currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+		TimeInForce:          order.GoodTillCancel,
+		Trades: []order.TradeHistory{{
+			Price:     3,
+			Amount:    0.1,
+			Exchange:  t.Name(),
+			TID:       "7",
+			Type:      order.Limit,
+			Side:      order.Buy,
+			Timestamp: time.UnixMilli(1791285060000),
+			Total:     0.3,
+		}},
+	}}
+	assert.Equal(t, exp, relayedPayloads(ex), "processExecutionReport should relay the amounts REST reports")
 }
 
 func TestWsHandleSpotAPIDataErrors(t *testing.T) {

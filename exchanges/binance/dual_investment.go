@@ -47,21 +47,6 @@ func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, req *DualIn
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/dci/product/list", params, sapiDefaultRate, &resp)
 }
 
-// ChangeAutoCompoundStatus changes the auto-compound plan of a Dual Investment position
-func (e *Exchange) ChangeAutoCompoundStatus(ctx context.Context, positionID, autoCompoundPlan string) (*DualInvestmentAutoCompoundStatusResponse, error) {
-	if positionID == "" {
-		return nil, errPositionIDRequired
-	}
-	if autoCompoundPlan == "" {
-		return nil, errAutoCompoundPlanRequired
-	}
-	params := url.Values{}
-	params.Set("positionId", positionID)
-	params.Set("autoCompoundPlan", autoCompoundPlan)
-	var resp *DualInvestmentAutoCompoundStatusResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/dci/product/auto_compound/edit-status", params, sapiDefaultRate, &resp)
-}
-
 // CheckDualInvestmentAccounts returns the total value held in Dual Investment
 func (e *Exchange) CheckDualInvestmentAccounts(ctx context.Context) (*DualInvestmentAccountsResponse, error) {
 	var resp *DualInvestmentAccountsResponse
