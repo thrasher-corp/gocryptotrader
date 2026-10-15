@@ -1824,6 +1824,13 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 	filled, ok := res.Data.(*order.Detail)
 	require.True(t, ok, "two-fill execution report must produce an order detail")
 	assert.Equal(t, 29.9938782, filled.ExecutedQuoteAmount, "ExecutedQuoteAmount should be the cumulative quote transacted, not the last fill's")
+	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041558,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mod","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":5341783273,"l":"0.00028600","z":"0.00057200","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041557,"t":726946526,"I":11390206315,"w":true,"m":false,"M":true,"O":1616633041555,"Z":"29.99191910","Y":"14.99693910","Q":"0.00000000"}}`)
+	require.NoError(t, e.wsHandleData(t.Context(), payload), "wsHandleData must not error for a partly filled report whose first fill was below the limit price")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
+	res = <-e.Websocket.DataHandler.C
+	improved, ok := res.Data.(*order.Detail)
+	require.True(t, ok, "partly filled execution report must produce an order detail")
+	assert.Equal(t, 29.9919191, improved.ExecutedQuoteAmount, "ExecutedQuoteAmount should be the reported cumulative quote, not one rebuilt from the limit or last fill price")
 }
 
 func TestWebsocketOutboundAccountPosition(t *testing.T) {

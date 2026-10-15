@@ -4020,14 +4020,22 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 			instID, instType = "BTC-USDT-SWAP", "SWAP"
 		}
 		row := func(orderID, fee string) string {
-			return `{"accFillSz":"0.0015","avgPx":"60000","cTime":"1654084334977","fee":"` + fee + `","feeCcy":"USDT","fillSz":"0.0005","instId":"` + instID + `","instType":"` + instType + `","ordId":"` + orderID + `","ordType":"limit","px":"60000","rebate":"0.0012","side":"buy","state":"partially_filled","sz":"0.002","uTime":"1654084353264"}`
+			limitPrice := "60000"
+			if orderID == "3" {
+				limitPrice = "61000" // Order 3 filled below its limit, so its average and limit prices differ.
+			}
+			return `{"accFillSz":"0.0015","avgPx":"60000","cTime":"1654084334977","fee":"` + fee + `","feeCcy":"USDT","fillSz":"0.0005","instId":"` + instID + `","instType":"` + instType + `","ordId":"` + orderID + `","ordType":"limit","px":"` + limitPrice + `","rebate":"0.0012","side":"buy","state":"partially_filled","sz":"0.002","uTime":"1654084353264"}`
 		}
 		data := row("1", "-0.06") + "," + row("2", "0.02")
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/public/instruments"):
 			data = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","settleCcy":"USDT","ctVal":"0.01","state":"live"}`
+		case strings.HasSuffix(r.URL.Path, "/trade/order") && r.URL.Query().Get("ordId") == "3":
+			data = row("3", "-0.06")
 		case strings.HasSuffix(r.URL.Path, "/trade/order"):
 			data = row("1", "-0.06")
+		case strings.HasSuffix(r.URL.Path, "/trade/orders-pending"):
+			data += "," + row("3", "-0.06")
 		}
 		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[` + data + `]}`))
 		assert.NoError(t, err, "mock response should be written")
@@ -4039,17 +4047,21 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 	req := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{mainPair}}
 	active, err := ex.GetActiveOrders(t.Context(), req)
 	require.NoError(t, err, "GetActiveOrders must not error")
-	require.Len(t, active, 2, "GetActiveOrders must return both mocked orders")
+	require.Len(t, active, 3, "GetActiveOrders must return all three mocked orders")
 	assert.Equal(t, 0.06, active[0].Fee, "GetActiveOrders should report a charge as positive")
 	assert.Equal(t, -0.02, active[1].Fee, "GetActiveOrders should report a rebate as negative")
 	assert.Equal(t, 0.0015, active[0].ExecutedAmount, "GetActiveOrders should report the accumulated fill size")
 	assert.Equal(t, 0.0005, active[0].RemainingAmount, "GetActiveOrders should report the unfilled size")
 	assert.Equal(t, 60000.0, active[0].AverageExecutedPrice, "GetActiveOrders should report the average fill price")
+	assert.Equal(t, 60000.0, active[2].AverageExecutedPrice, "GetActiveOrders should report the average fill price, not the limit price")
 
 	info, err := ex.GetOrderInfo(t.Context(), "1", mainPair, asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.Equal(t, 0.0015, info.ExecutedAmount, "GetOrderInfo should report the accumulated fill size")
 	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price")
+	info, err = ex.GetOrderInfo(t.Context(), "3", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for an order filled below its limit")
+	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price, not the limit price")
 
 	history, err := ex.GetOrderHistory(t.Context(), req)
 	require.NoError(t, err, "GetOrderHistory must not error")
