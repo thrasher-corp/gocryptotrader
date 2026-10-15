@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -4959,7 +4958,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, 1, int(i.ContractMultiplier.Int64()), "expected 1 contract multiplier")
 	assert.Equal(t, "linear", i.ContractType, "expected linear contract type")
 	assert.Equal(t, 0.0001, i.ContractValue.Float64(), "expected 0.0001 contract value")
-	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
+	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency.String(), "expected BTC contract value currency")
 	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
 	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
 	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID.String(), "expected BTC-USDC-SWAP instrument ID")
@@ -4978,11 +4977,25 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, 1, int(i.MinimumOrderSize))
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
-	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
+	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency.String(), "expected USDC settlement currency")
 	assert.Equal(t, "live", i.State)
 	assert.Empty(t, i.StrikePrice, "expected empty strike price")
 	assert.Equal(t, 0.1, i.TickSize.Float64())
 	assert.Equal(t, "BTC-USD", i.Underlying, "expected BTC-USD underlying")
+}
+
+// TestInstrumentUpcomingChanges guards the upcChg shape OKX documents for the
+// public and account instrument endpoints: param, newValue and effTime.
+func TestInstrumentUpcomingChanges(t *testing.T) {
+	t.Parallel()
+	const upcomingChanges = `{"instId":"BTC-USDT","upcChg":[{"param":"tickSz","newValue":"0.0001","effTime":"1704876947000"}]}`
+	exp := []InstrumentUpcomingChange{{Parameter: "tickSz", NewValue: "0.0001", EffectiveTime: types.Time(time.UnixMilli(1704876947000))}}
+	var i Instrument
+	require.NoError(t, json.Unmarshal([]byte(upcomingChanges), &i), "Instrument must decode")
+	assert.Equal(t, exp, i.UpcomingChanges, "Instrument should decode each upcoming change")
+	var a AccountInstrument
+	require.NoError(t, json.Unmarshal([]byte(upcomingChanges), &a), "AccountInstrument must decode")
+	assert.Equal(t, exp, a.UpcomingChanges, "AccountInstrument should decode each upcoming change")
 }
 
 func TestGetLatestFundingRate(t *testing.T) {
@@ -7270,12 +7283,6 @@ func TestWsProcessPublicSpreadTradesHonoursSaveTradeData(t *testing.T) {
 	t.Parallel()
 	zeroSize := strings.Replace(wsProcessPublicSpreadTradesJSON, `"sz": "0.001"`, `"sz": "0"`, 1)
 	require.NotEqual(t, wsProcessPublicSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
-	require.NoError(t, database.DB.SetConfig(&database.Config{
-		Enabled: true, Driver: database.DBSQLite3, Host: "localhost", Database: "./tradebuffercheck",
-	}), "enabling the database config must not error")
-	t.Cleanup(func() {
-		require.NoError(t, database.DB.SetConfig(&database.Config{}), "restoring the database config must not error")
-	})
 	for _, tc := range []struct {
 		name       string
 		save       bool
@@ -7318,12 +7325,6 @@ func TestWsProcessSpreadTradesHonoursSaveTradeData(t *testing.T) {
 	t.Parallel()
 	zeroSize := strings.Replace(wsProcessSpreadTradesJSON, `"fillSz":"3"`, `"fillSz":"0"`, 1)
 	require.NotEqual(t, wsProcessSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
-	require.NoError(t, database.DB.SetConfig(&database.Config{
-		Enabled: true, Driver: database.DBSQLite3, Host: "localhost", Database: "./tradebuffercheck",
-	}), "enabling the database config must not error")
-	t.Cleanup(func() {
-		require.NoError(t, database.DB.SetConfig(&database.Config{}), "restoring the database config must not error")
-	})
 	for _, tc := range []struct {
 		name       string
 		save       bool

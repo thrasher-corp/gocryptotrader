@@ -2208,7 +2208,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, fmt.Errorf("%w, unexpected instrument ID %v for order ID %s", order.ErrOrderNotFound, pair, orderID)
 		}
 		spreadAmt := resp.Size.Float64()
-		spreadExec := resp.AccFillSize.Float64()
+		spreadExec := resp.AccumulatedFillSize.Float64()
 		spreadRemaining := float64(0)
 		if oStatus != order.Filled && spreadAmt > spreadExec {
 			spreadRemaining = spreadAmt - spreadExec
@@ -2485,7 +2485,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			spreadAmt := spreads[x].Size.Float64()
-			spreadExec := spreads[x].AccFillSize.Float64()
+			spreadExec := spreads[x].AccumulatedFillSize.Float64()
 			spreadRemaining := float64(0)
 			if oStatus != order.Filled && spreadAmt > spreadExec {
 				spreadRemaining = spreadAmt - spreadExec
@@ -2759,7 +2759,7 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 		return order.Detail{}, err
 	}
 	amount := so.Size.Float64()
-	executed := so.AccFillSize.Float64()
+	executed := so.AccumulatedFillSize.Float64()
 	remaining := float64(0)
 	if oStatus != order.Filled && amount > executed {
 		remaining = amount - executed
@@ -3576,6 +3576,13 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 	if err != nil {
 		return nil, err
 	}
+	positionSize := positionSummary.QuantityOfPosition.Decimal()
+	if positionSummary.PositionSide == positionSideShort {
+		// In long/short mode OKX reports both sides' sizes positive and
+		// carries the direction in posSide; a net mode short is already
+		// negative, so only a posSide short flips the sign.
+		positionSize = positionSize.Neg()
+	}
 	return &futures.PositionSummary{
 		Pair:            req.Pair,
 		Asset:           req.Asset,
@@ -3601,8 +3608,8 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
 		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.MustFromFloat(multiplier)),
-		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
+		CurrentSize:                  positionSize.Mul(decimal.MustFromFloat(multiplier)),
+		ContractSize:                 positionSize,
 		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
@@ -3672,15 +3679,17 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			End:            req.EndDate,
 		}
 		// Both history listings page at 100 rows, so follow the after order ID
-		// cursor until a short page ends the instrument's window.
+		// cursor until a short page ends the instrument's window. The listing
+		// is picked once: the archive leaves out cancelled orders without
+		// fills, so a crawl that passes the 7 day mark keeps its listing.
+		getHistory := e.Get3MonthOrderHistory
+		if time.Since(req.StartDate) <= time.Hour*24*7 {
+			getHistory = e.Get7DayOrderHistory
+		}
 		for after := ""; ; {
 			historyRequest.After = after
 			var page []OrderDetail
-			if time.Since(req.StartDate) <= time.Hour*24*7 {
-				page, err = e.Get7DayOrderHistory(ctx, historyRequest)
-			} else {
-				page, err = e.Get3MonthOrderHistory(ctx, historyRequest)
-			}
+			page, err = getHistory(ctx, historyRequest)
 			if err != nil {
 				return nil, err
 			}
@@ -3893,7 +3902,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			// A contract keeps its settlement terms in every state: a suspended
 			// contract still has orders, which GetFuturesPositionOrders costs in
 			// its settlement currency.
-			settleCurr = currency.NewCode(result[i].SettlementCurrency)
+			settleCurr = result[i].SettlementCurrency
 
 			contractSettlementType = futures.Linear
 			// OKX leaves baseCcy empty on derivatives, so ctType is the

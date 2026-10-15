@@ -14,6 +14,7 @@ import (
 func TestRateLimit_LimitStatic(t *testing.T) {
 	t.Parallel()
 	testTable := map[string]request.EndpointLimit{
+		"getMyLeadTraders":                  getMyLeadTradersEPL,
 		"placeOrder":                        placeOrderEPL,
 		"placeMultipleOrders":               placeMultipleOrdersEPL,
 		"cancelOrder":                       cancelOrderEPL,
@@ -111,6 +112,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"isolatedMarginTradingSettings":     isolatedMarginTradingSettingsEPL,
 		"getMaximumWithdrawals":             getMaximumWithdrawalsEPL,
 		"getAccountRiskState":               getAccountRiskStateEPL,
+		"getBorrowInterestAndLimit":         getBorrowInterestAndLimitEPL,
 		"manualBorrowOrRepay":               manualBorrowOrRepayEPL,
 		"positionBuilder":                   positionBuilderEPL,
 		"getGreeks":                         getGreeksEPL,

@@ -372,35 +372,60 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract
 type Instrument struct {
-	InstrumentType                  string        `json:"instType"`
-	InstrumentID                    currency.Pair `json:"instId"`
-	InstrumentIDCode                uint64        `json:"instIdCode"`
-	InstrumentFamily                string        `json:"instFamily"`
-	Underlying                      string        `json:"uly"`
-	Category                        string        `json:"category"`
-	BaseCurrency                    string        `json:"baseCcy"`
-	QuoteCurrency                   string        `json:"quoteCcy"`
-	SettlementCurrency              string        `json:"settleCcy"`
-	ContractValue                   types.Number  `json:"ctVal"`
-	ContractMultiplier              types.Number  `json:"ctMult"`
-	ContractValueCurrency           string        `json:"ctValCcy"`
-	OptionType                      string        `json:"optType"`
-	StrikePrice                     types.Number  `json:"stk"`
-	ListTime                        types.Time    `json:"listTime"`
-	ExpTime                         types.Time    `json:"expTime"`
-	MaxLeverage                     types.Number  `json:"lever"`
-	TickSize                        types.Number  `json:"tickSz"`
-	LotSize                         types.Number  `json:"lotSz"`
-	MinimumOrderSize                types.Number  `json:"minSz"`
-	ContractType                    string        `json:"ctType"`
-	Alias                           string        `json:"alias"`
-	State                           string        `json:"state"`
-	MaxQuantityOfSpotLimitOrder     types.Number  `json:"maxLmtSz"`
-	MaxQuantityOfMarketLimitOrder   types.Number  `json:"maxMktSz"`
-	MaxQuantityOfSpotTwapLimitOrder types.Number  `json:"maxTwapSz"`
-	MaxSpotIcebergSize              types.Number  `json:"maxIcebergSz"`
-	MaxTriggerSize                  types.Number  `json:"maxTriggerSz"`
-	MaxStopSize                     types.Number  `json:"maxStopSz"`
+	InstrumentType                  string                     `json:"instType"`
+	InstrumentID                    currency.Pair              `json:"instId"`
+	InstrumentFamily                string                     `json:"instFamily"`
+	Underlying                      string                     `json:"uly"`
+	Category                        string                     `json:"category"`
+	BaseCurrency                    currency.Code              `json:"baseCcy"`
+	QuoteCurrency                   currency.Code              `json:"quoteCcy"`
+	SettlementCurrency              currency.Code              `json:"settleCcy"`
+	ContractValue                   types.Number               `json:"ctVal"`
+	ContractMultiplier              types.Number               `json:"ctMult"`
+	ContractValueCurrency           currency.Code              `json:"ctValCcy"`
+	OptionType                      string                     `json:"optType"`
+	StrikePrice                     types.Number               `json:"stk"`
+	ListTime                        types.Time                 `json:"listTime"`
+	ExpTime                         types.Time                 `json:"expTime"`
+	MaxLeverage                     types.Number               `json:"lever"`
+	TickSize                        types.Number               `json:"tickSz"`
+	LotSize                         types.Number               `json:"lotSz"`
+	MinimumOrderSize                types.Number               `json:"minSz"`
+	ContractType                    string                     `json:"ctType"`
+	Alias                           string                     `json:"alias"`
+	State                           string                     `json:"state"`
+	MaxQuantityOfSpotLimitOrder     types.Number               `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   types.Number               `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder types.Number               `json:"maxTwapSz"`
+	MaxSpotIcebergSize              types.Number               `json:"maxIcebergSz"`
+	MaxTriggerSize                  types.Number               `json:"maxTriggerSz"`
+	MaxStopSize                     types.Number               `json:"maxStopSz"`
+	RuleType                        string                     `json:"ruleType"`
+	OpenType                        string                     `json:"openType"`
+	ContinuousTradingSwitchTime     types.Time                 `json:"contTdSwTime"`
+	PreMarketSwitchTime             types.Time                 `json:"preMktSwTime"`
+	TradingFeeGroupID               string                     `json:"groupId"`
+	MaximumLimitOrderAmountUSD      types.Number               `json:"maxLmtAmt"`
+	MaximumMarketOrderAmountUSD     types.Number               `json:"maxMktAmt"`
+	FutureSettlement                bool                       `json:"futureSettlement"`
+	TradableQuoteCurrencies         []currency.Code            `json:"tradeQuoteCcyList"`
+	InitialPriceLimitPercent        types.Number               `json:"initPxLmtPct"`
+	FloatingPriceLimitPercent       types.Number               `json:"floatPxLmtPct"`
+	MaximumPriceLimitPercent        types.Number               `json:"maxPxLmtPct"`
+	InstrumentIDCode                uint64                     `json:"instIdCode"`
+	InstrumentCategory              string                     `json:"instCategory"`
+	SeriesID                        string                     `json:"seriesId"`
+	RPIMinimumLevel                 types.Number               `json:"rpiMinLevel"`
+	RPIMinimumPriceBand             types.Number               `json:"rpiMinPxBand"`
+	UpcomingChanges                 []InstrumentUpcomingChange `json:"upcChg"`
+}
+
+// InstrumentUpcomingChange represents a documented parameter change scheduled
+// for an instrument.
+type InstrumentUpcomingChange struct {
+	Parameter     string     `json:"param"`
+	NewValue      string     `json:"newValue"`
+	EffectiveTime types.Time `json:"effTime"`
 }
 
 // DeliveryHistoryDetail holds instrument ID and delivery price information detail
@@ -3110,26 +3135,26 @@ type AmendSpreadOrderParam struct {
 
 // SpreadOrder holds spread order details
 type SpreadOrder struct {
-	TradeID           string       `json:"tradeId"`
-	OrderID           string       `json:"ordId"`
-	SpreadID          string       `json:"sprdId"`
-	ClientOrderID     string       `json:"clOrdId"`
-	Tag               string       `json:"tag"`
-	Price             types.Number `json:"px"`
-	Size              types.Number `json:"sz"`
-	OrderType         string       `json:"ordType"`
-	Side              string       `json:"side"`
-	FillSize          types.Number `json:"fillSz"`
-	FillPrice         types.Number `json:"fillPx"`
-	AccFillSize       types.Number `json:"accFillSz"`
-	PendingFillSize   types.Number `json:"pendingFillSz"`
-	PendingSettleSize types.Number `json:"pendingSettleSz"`
-	CanceledSize      types.Number `json:"canceledSz"`
-	State             string       `json:"state"`
-	AveragePrice      types.Number `json:"avgPx"`
-	CancelSource      string       `json:"cancelSource"`
-	UpdateTime        types.Time   `json:"uTime"`
-	CreationTime      types.Time   `json:"cTime"`
+	TradeID             string       `json:"tradeId"`
+	OrderID             string       `json:"ordId"`
+	SpreadID            string       `json:"sprdId"`
+	ClientOrderID       string       `json:"clOrdId"`
+	Tag                 string       `json:"tag"`
+	Price               types.Number `json:"px"`
+	Size                types.Number `json:"sz"`
+	OrderType           string       `json:"ordType"`
+	Side                string       `json:"side"`
+	FillSize            types.Number `json:"fillSz"`
+	FillPrice           types.Number `json:"fillPx"`
+	AccumulatedFillSize types.Number `json:"accFillSz"`
+	PendingFillSize     types.Number `json:"pendingFillSz"`
+	PendingSettleSize   types.Number `json:"pendingSettleSz"`
+	CanceledSize        types.Number `json:"canceledSz"`
+	State               string       `json:"state"`
+	AveragePrice        types.Number `json:"avgPx"`
+	CancelSource        string       `json:"cancelSource"`
+	UpdateTime          types.Time   `json:"uTime"`
+	CreationTime        types.Time   `json:"cTime"`
 }
 
 // SpreadTrade holds spread trade transaction instance
@@ -5218,13 +5243,6 @@ type AccountInstrument struct {
 	FloatingPriceLimitPercent   types.Number               `json:"floatPxLmtPct"`
 	MaximumPriceLimitPercent    types.Number               `json:"maxPxLmtPct"`
 	UpcomingChanges             []InstrumentUpcomingChange `json:"upcChg"`
-}
-
-// InstrumentUpcomingChange represents a documented parameter change scheduled
-// for an instrument.
-type InstrumentUpcomingChange struct {
-	Parameter string `json:"param"`
-	Value     string `json:"val"`
 }
 
 // BorrowOrRepay represents a borrow and repay operation response

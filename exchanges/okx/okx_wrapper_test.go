@@ -6009,6 +6009,34 @@ func TestGetFuturesPositionSummaryReportsShortPositions(t *testing.T) {
 	assert.Equal(t, decimal.MustFromFloat(-1), summary.ContractSize, "the contract size should keep the signed position")
 }
 
+// TestGetFuturesPositionSummaryReportsLongShortModeShorts guards the
+// long/short mode short: OKX reports both sides' sizes positive and carries
+// the direction in posSide, so a posSide short must still read negative.
+func TestGetFuturesPositionSummaryReportsLongShortModeShorts(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/public/instruments":
+			writeOKXData(t, w, []map[string]string{{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "uly": "BTC-USDT", "settleCcy": "USDT", "ctVal": "0.01", "state": "live"}})
+		case "/account/positions":
+			writeOKXData(t, w, []map[string]string{{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "pos": "1", "posSide": positionSideShort, "mgnMode": "cross", "ccy": "USDT"}})
+		case "/account/balance":
+			writeOKXData(t, w, []map[string]any{{"details": []map[string]string{{"ccy": "USDT", "eq": "100", "availEq": "100"}}}})
+		case "/account/config":
+			writeOKXData(t, w, []map[string]string{{"acctLv": "2", "posMode": positionModeLongShort}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	summary, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{
+		Asset: asset.PerpetualSwap, Pair: perpetualSwapPair,
+	})
+	require.NoError(t, err, "a long/short mode short must summarise rather than report no positions")
+	assert.Equal(t, decimal.MustFromFloat(-0.01), summary.CurrentSize, "a posSide short of one 0.01 contract should read as a negative size")
+	assert.Equal(t, decimal.MustFromFloat(-1), summary.ContractSize, "the contract size should carry the flipped short sign")
+}
+
 // TestGetFuturesPositionOrdersPaginates guards the per instrument crawl: the
 // history listings page at 100 rows, so the window's orders must be followed
 // across pages with the after order ID cursor.
@@ -6057,4 +6085,76 @@ func TestGetFuturesPositionOrdersPaginates(t *testing.T) {
 	require.Len(t, positions[0].Orders, 150, "GetFuturesPositionOrders must crawl every page of the instrument's window")
 	assert.Equal(t, "ORD-000", positions[0].Orders[0].OrderID, "the first page's orders should come first")
 	assert.Equal(t, "ORD-149", positions[0].Orders[149].OrderID, "the second page's orders should follow")
+}
+
+// TestGetFuturesPositionOrdersHistoryListing guards which history listing the
+// crawl reads: the 7 day listing for a window starting within 7 days, the 3
+// month archive otherwise, and one listing for the whole crawl, since the
+// archive leaves out cancelled orders without fills that the 7 day listing
+// keeps.
+func TestGetFuturesPositionOrdersHistoryListing(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-time.Minute).UnixMilli(), 10)
+	row := func(id string) map[string]string {
+		return map[string]string{
+			"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled",
+			"sz": "1", "accFillSz": "1", "avgPx": "60000", "px": "60000", "cTime": created, "uTime": created,
+		}
+	}
+	first := make([]map[string]string, 0, orderListPageSize)
+	for i := range orderListPageSize {
+		first = append(first, row(fmt.Sprintf("ORD-%03d", i)))
+	}
+	for _, tc := range []struct {
+		name    string
+		age     time.Duration
+		listing string
+	}{
+		{name: "window within 7 days", age: 2 * 24 * time.Hour, listing: "/trade/orders-history"},
+		{name: "window older than 7 days", age: 14 * 24 * time.Hour, listing: "/trade/orders-history-archive"},
+		// StartDate turns 7 days old while the first page is served, so
+		// either listing may be picked, but only one.
+		{name: "window turning 7 days old during the crawl", age: 7*24*time.Hour - 100*time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			listings := make(map[string]int)
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/public/instruments":
+					writeOKXData(t, w, []map[string]string{{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "uly": "BTC-USDT", "settleCcy": "USDT", "ctVal": "0.01", "state": "live"}})
+				case "/trade/orders-history", "/trade/orders-history-archive":
+					mu.Lock()
+					listings[r.URL.Path]++
+					mu.Unlock()
+					if r.URL.Query().Get("after") == "" {
+						// The first page outlasts the 100ms the last case's
+						// StartDate has left before it is 7 days old.
+						time.Sleep(200 * time.Millisecond)
+						writeOKXData(t, w, first)
+						return
+					}
+					writeOKXData(t, w, []map[string]string{row("ORD-100")})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			positions, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{
+				Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair},
+				StartDate: time.Now().Add(-tc.age), EndDate: time.Now(),
+			})
+			require.NoError(t, err, "GetFuturesPositionOrders must not error")
+			require.Len(t, positions, 1, "GetFuturesPositionOrders must return the requested pair")
+			assert.Len(t, positions[0].Orders, orderListPageSize+1, "GetFuturesPositionOrders should return both pages")
+			mu.Lock()
+			defer mu.Unlock()
+			if tc.listing != "" {
+				assert.Equal(t, map[string]int{tc.listing: 2}, listings, "both pages should come from the window's history listing")
+				return
+			}
+			assert.Len(t, listings, 1, "every page of the crawl should come from one history listing")
+		})
+	}
 }
