@@ -203,8 +203,8 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 }
 
 // TestGetOrderInfoAmountIsBaseQuantity pins the spot order amount mapping: origQty is the base
-// quantity and belongs in Amount, while cummulativeQuoteQty is a quote figure and belongs in
-// QuoteAmount. GetActiveOrders and GetOrderHistory already map the same payload this way.
+// quantity and belongs in Amount, while cummulativeQuoteQty is a filled quote figure
+// and belongs in ExecutedQuoteAmount rather than the requested QuoteAmount.
 func TestGetOrderInfoAmountIsBaseQuantity(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -213,7 +213,8 @@ func TestGetOrderInfoAmountIsBaseQuantity(t *testing.T) {
 	detail, err := e.GetOrderInfo(t.Context(), "1", spotTradablePair, asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.Equal(t, 0.5, detail.Amount, "Amount should carry origQty, the base quantity")
-	assert.Equal(t, 4000.0, detail.QuoteAmount, "QuoteAmount should carry cummulativeQuoteQty")
+	assert.Equal(t, 4000.0, detail.ExecutedQuoteAmount, "ExecutedQuoteAmount should carry cummulativeQuoteQty")
+	assert.Zero(t, detail.QuoteAmount, "QuoteAmount should remain unknown without the requested quote quantity")
 	assert.Zero(t, detail.ContractAmount, "a spot order has no contract amount")
 	assert.Equal(t, 0.2, detail.ExecutedAmount, "ExecutedAmount should carry executedQty")
 	assert.InDelta(t, 0.3, detail.RemainingAmount, 1e-9, "RemainingAmount should be origQty minus executedQty")
@@ -285,8 +286,7 @@ func TestGetOrderInfoPairAndTimestamps(t *testing.T) {
 		assert.Equal(t, currency.USDT, detail.Pair.Quote, "Pair quote should be USDT")
 		assert.Equal(t, int64(1736409765000), detail.Date.UnixMilli(), "Date should come from the order time")
 		assert.Equal(t, int64(1736409770000), detail.LastUpdated.UnixMilli(), "LastUpdated should come from updateTime")
-		assert.Equal(t, 10.0, detail.Cost, "Cost should carry the cumulative quote spent, not a zero")
-		assert.Equal(t, currency.USDT, detail.CostAsset, "CostAsset should be the quote currency")
+		assert.Equal(t, 10.0, detail.ExecutedQuoteAmount, "ExecutedQuoteAmount should carry the cumulative quote spent")
 	})
 
 	t.Run("updateTime absent falls back to time", func(t *testing.T) {
@@ -358,8 +358,7 @@ func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 	for i := range orders {
 		if orders[i].OrderID == "b1" {
 			found = true
-			assert.Equal(t, 20000.0, orders[i].Cost, "Cost should carry the cumulative quote spent from the REST order")
-			assert.Equal(t, currency.USDT, orders[i].CostAsset, "CostAsset should be the quote currency")
+			assert.Equal(t, 20000.0, orders[i].ExecutedQuoteAmount, "ExecutedQuoteAmount should carry the cumulative quote spent from the REST order")
 		}
 	}
 	assert.True(t, found, "the catalogued BTCUSDT order should be present in the listing")
@@ -692,6 +691,7 @@ func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.InDelta(t, 0.175137, detail.AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
 	assert.Equal(t, 0.183503, detail.Price, "Price should still carry the reported price field")
+	assert.Equal(t, 5.72522853, detail.ExecutedQuoteAmount, "ExecutedQuoteAmount should carry cummulativeQuoteQty, not the price field times executedQty")
 }
 
 // TestGetFeeByTypeWithoutCredentials estimates a trade fee offline when there are no credentials to read the
@@ -918,6 +918,8 @@ func TestGetActiveOrdersAverageExecutedPrice(t *testing.T) {
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 1, "the single order must be returned")
 	assert.InDelta(t, 0.175137, orders[0].AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
+	assert.Equal(t, 5.72522853, orders[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should carry cummulativeQuoteQty, not the price field times executedQty")
+	assert.Zero(t, orders[0].QuoteAmount, "QuoteAmount should remain unknown without the requested quote quantity")
 }
 
 // TestSubmitOrderReportsClientOrderID asserts SubmitOrder falls back to the request client id when the
@@ -2363,6 +2365,13 @@ func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
 			assert.Equal(t, tc.readBack, readBack.Load(), "the order should be read back only when acknowledged without a quantity")
 			assert.Equal(t, tc.status, resp.Status, "Status should be the order's outcome")
 			assert.Equal(t, tc.amount, resp.Amount, "Amount should be the order's quantity")
+			if tc.status == order.Filled {
+				assert.Equal(t, 32.69, resp.ExecutedAmount, "ExecutedAmount should be the reported filled base quantity")
+				assert.Equal(t, 5.72522853, resp.ExecutedQuoteAmount, "ExecutedQuoteAmount should be the reported filled quote quantity")
+			} else {
+				assert.Zero(t, resp.ExecutedAmount, "an acknowledgement without fill data should not establish an executed amount")
+				assert.Zero(t, resp.ExecutedQuoteAmount, "an acknowledgement without fill data should not establish an executed quote amount")
+			}
 		})
 	}
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

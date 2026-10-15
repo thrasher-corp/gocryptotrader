@@ -416,6 +416,45 @@ func TestGetOrderHistory(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error")
 }
 
+func TestGetOrderHistoryExecutionMappings(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, privateOrders, r.URL.Path, "request path should be the orders endpoint")
+		_, err := w.Write([]byte(`{"status":"0000","data":[{"order_id":"order-123","order_currency":"BTC","order_date":"1576661434072","payment_currency":"KRW","type":"bid","status":"completed","units":"7","units_remaining":"5","price":"60","fee":"0.1","total":"120"}]}`))
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{testPair},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, got, 1, "GetOrderHistory must return the fixture order")
+
+	orderTime := time.UnixMilli(1576661434072)
+	exp := order.Detail{
+		Price:           60,
+		Amount:          7,
+		ExecutedAmount:  2,
+		RemainingAmount: 5,
+		Exchange:        ex.Name,
+		OrderID:         "order-123",
+		Side:            order.Buy,
+		Date:            orderTime,
+		LastUpdated:     orderTime,
+		Pair:            currency.NewPairWithDelimiter("BTC", "KRW", "-"),
+	}
+	assert.Equal(t, exp, got[0], "GetOrderHistory should map all order fields")
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 

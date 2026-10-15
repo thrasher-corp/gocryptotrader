@@ -402,6 +402,9 @@ type TradeOrders struct {
 	Category       string       `json:"category"`
 }
 
+// FeeDetail contains cumulative fees keyed by currency.
+type FeeDetail map[string]types.Number
+
 // TradeOrder represents a trade order details.
 type TradeOrder struct {
 	OrderID                  string       `json:"orderId"`
@@ -422,6 +425,7 @@ type TradeOrder struct {
 	CumulativeExecQuantity   types.Number `json:"cumExecQty"`
 	CumulativeExecValue      types.Number `json:"cumExecValue"`
 	CumulativeExecFee        types.Number `json:"cumExecFee"`
+	CumulativeFeeDetail      FeeDetail    `json:"cumFeeDetail"`
 	TimeInForce              string       `json:"timeInForce"`
 	OrderType                string       `json:"orderType"`
 	StopOrderType            string       `json:"stopOrderType"`
