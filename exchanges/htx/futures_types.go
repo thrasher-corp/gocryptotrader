@@ -878,31 +878,31 @@ type FCancelOrder struct {
 
 // FOrderInfoData contains data fields from FOrderInfo.
 type FOrderInfoData struct {
-	ClientOrderID   int64   `json:"client_order_id"`
-	ContractCode    string  `json:"contract_code"`
-	ContractType    string  `json:"contract_type"`
-	CreatedAt       int64   `json:"created_at"`
-	CanceledAt      int64   `json:"canceled_at"`
-	Direction       string  `json:"direction"`
-	Fee             float64 `json:"fee"`
-	FeeAsset        string  `json:"fee_asset"`
-	LeverRate       int64   `json:"lever_rate"`
-	MarginFrozen    float64 `json:"margin_frozen"`
-	Offset          string  `json:"offset"`
-	OrderID         int64   `json:"order_id"`
-	OrderIDString   string  `json:"order_id_str"`
-	OrderPriceType  string  `json:"order_price_type"`
-	OrderSource     string  `json:"order_source"`
-	OrderType       int64   `json:"order_type"`
-	Price           float64 `json:"price"`
-	Profit          float64 `json:"profit"`
-	Status          int64   `json:"status"`
-	Symbol          string  `json:"symbol"`
-	TradeAvgPrice   float64 `json:"trade_avg_price"`
-	TradeTurnover   float64 `json:"trade_turnover"`
-	TradeVolume     float64 `json:"trade_volume"`
-	Volume          float64 `json:"volume"`
-	LiquidationType int64   `json:"liquidation_type"`
+	ClientOrderID   int64        `json:"client_order_id"`
+	ContractCode    string       `json:"contract_code"`
+	ContractType    string       `json:"contract_type"`
+	CreatedAt       int64        `json:"created_at"`
+	CanceledAt      int64        `json:"canceled_at"`
+	Direction       string       `json:"direction"`
+	Fee             float64      `json:"fee"`
+	FeeAsset        string       `json:"fee_asset"`
+	LeverRate       int64        `json:"lever_rate"`
+	MarginFrozen    float64      `json:"margin_frozen"`
+	Offset          string       `json:"offset"`
+	OrderID         int64        `json:"order_id"`
+	OrderIDString   string       `json:"order_id_str"`
+	OrderPriceType  string       `json:"order_price_type"`
+	OrderSource     string       `json:"order_source"`
+	OrderType       int64        `json:"order_type"`
+	Price           float64      `json:"price"`
+	Profit          float64      `json:"profit"`
+	Status          int64        `json:"status"`
+	Symbol          string       `json:"symbol"`
+	TradeAvgPrice   float64      `json:"trade_avg_price"`
+	TradeTurnover   float64      `json:"trade_turnover"`
+	TradeVolume     float64      `json:"trade_volume"`
+	Volume          float64      `json:"volume"`
+	LiquidationType types.Number `json:"liquidation_type"`
 }
 
 // FOrderDetailsDataTrades contains trades fields from FOrderDetailsData.

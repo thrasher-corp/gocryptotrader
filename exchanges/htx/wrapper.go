@@ -1306,7 +1306,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		var formattedType SpotNewOrderRequestParamsType
+		direction := "buy"
+		if s.Side.IsShort() {
+			direction = "sell"
+		}
 		params := SpotNewOrderRequestParams{
 			AccountID:     accountID,
 			ClientOrderID: s.ClientOrderID,
@@ -1314,19 +1317,29 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Source:        "api",
 			Symbol:        s.Pair,
 		}
-		switch {
-		case s.Side.IsLong() && s.Type == order.Market:
-			formattedType = SpotNewOrderRequestTypeBuyMarket
-		case s.Side.IsShort() && s.Type == order.Market:
-			formattedType = SpotNewOrderRequestTypeSellMarket
-		case s.Side.IsLong() && s.Type == order.Limit:
-			formattedType = SpotNewOrderRequestTypeBuyLimit
+		switch s.Type {
+		case order.Market:
+			if s.TimeInForce != order.UnknownTIF && s.TimeInForce != order.GoodTillCancel {
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
+			}
+			params.Type = SpotNewOrderRequestParamsType(direction + "-market")
+		case order.Limit:
 			params.Price = s.Price
-		case s.Side.IsShort() && s.Type == order.Limit:
-			formattedType = SpotNewOrderRequestTypeSellLimit
-			params.Price = s.Price
+			switch s.TimeInForce {
+			case order.UnknownTIF, order.GoodTillCancel:
+				params.Type = SpotNewOrderRequestParamsType(direction + "-limit")
+			case order.PostOnly, order.GoodTillCancel | order.PostOnly:
+				params.Type = SpotNewOrderRequestParamsType(direction + "-limit-maker")
+			case order.ImmediateOrCancel:
+				params.Type = SpotNewOrderRequestParamsType(direction + "-ioc")
+			case order.FillOrKill:
+				params.Type = SpotNewOrderRequestParamsType(direction + "-limit-fok")
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
+			}
+		default:
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
-		params.Type = formattedType
 		response, err := e.SpotNewOrder(ctx, &params)
 		if err != nil {
 			return nil, err
@@ -1353,19 +1366,30 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
 			oType = orderPriceTypeOptimal20
-			switch {
-			case s.TimeInForce.Is(order.ImmediateOrCancel):
+			switch s.TimeInForce {
+			case order.UnknownTIF, order.GoodTillCancel:
+			case order.ImmediateOrCancel:
 				oType = orderPriceTypeOptimal20IOC
-			case s.TimeInForce.Is(order.FillOrKill):
+			case order.FillOrKill:
 				oType = orderPriceTypeOptimal20FOK
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 			}
 		case order.Limit:
 			oType = orderPriceTypeLimit
-			if s.TimeInForce.Is(order.PostOnly) {
+			switch s.TimeInForce {
+			case order.UnknownTIF, order.GoodTillCancel:
+			case order.PostOnly, order.GoodTillCancel | order.PostOnly:
 				oType = orderPriceTypePostOnly
+			case order.ImmediateOrCancel:
+				oType = orderTimeInForceIOC
+			case order.FillOrKill:
+				oType = orderTimeInForceFOK
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 			}
 		default:
-			oType = orderPriceTypeOpponent
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1421,19 +1445,30 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
 			oType = orderPriceTypeOptimal20
-			switch {
-			case s.TimeInForce.Is(order.ImmediateOrCancel):
+			switch s.TimeInForce {
+			case order.UnknownTIF, order.GoodTillCancel:
+			case order.ImmediateOrCancel:
 				oType = orderPriceTypeOptimal20IOC
-			case s.TimeInForce.Is(order.FillOrKill):
+			case order.FillOrKill:
 				oType = orderPriceTypeOptimal20FOK
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 			}
 		case order.Limit:
 			oType = orderPriceTypeLimit
-			if s.TimeInForce.Is(order.PostOnly) {
+			switch s.TimeInForce {
+			case order.UnknownTIF, order.GoodTillCancel:
+			case order.PostOnly, order.GoodTillCancel | order.PostOnly:
 				oType = orderPriceTypePostOnly
+			case order.ImmediateOrCancel:
+				oType = orderTimeInForceIOC
+			case order.FillOrKill:
+				oType = orderTimeInForceFOK
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 			}
 		default:
-			oType = orderPriceTypeOpponent
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1479,7 +1514,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketNotAuthenticated
+		return nil, request.ErrAuthRequestFailed
 	}
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
@@ -1520,7 +1555,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		}
 	}
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketNotAuthenticated
+		return nil, request.ErrAuthRequestFailed
 	}
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
@@ -1577,7 +1612,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 		return order.ErrOrderIDNotSet
 	}
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return errWebsocketNotAuthenticated
+		return request.ErrAuthRequestFailed
 	}
 	formattedPair, err := e.FormatSymbol(ord.Pair, asset.USDTMarginedFutures)
 	if err != nil {
@@ -2247,6 +2282,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			ExecutedAmount:       data.TradeVolume,
 			RemainingAmount:      data.Volume - data.TradeVolume,
 			Cost:                 data.TradeTurnover,
+			CostAsset:            currency.USD,
 			AverageExecutedPrice: data.TradeAvgPrice,
 			Fee:                  -data.Fee,
 			FeeAsset:             currency.NewCode(data.FeeAsset),
@@ -2592,16 +2628,16 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					OrderID:         strconv.FormatInt(resp[x].ID, 10),
 					Price:           resp[x].Price.Float64(),
 					Amount:          resp[x].Amount.Float64(),
-					ExecutedAmount:  resp[x].FilledAmount.Float64(),
-					RemainingAmount: resp[x].Amount.Float64() - resp[x].FilledAmount.Float64(),
-					Cost:            resp[x].FilledCashAmount.Float64(),
+					ExecutedAmount:  firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+					RemainingAmount: resp[x].Amount.Float64() - firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+					Cost:            firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
 					CostAsset:       req.Pairs[i].Quote,
 					Pair:            req.Pairs[i],
 					Exchange:        e.Name,
 					Date:            resp[x].CreatedAt.Time(),
 					CloseTime:       resp[x].FinishedAt.Time(),
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
-					Fee:             resp[x].FilledFees.Float64(),
+					Fee:             firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
 				}
 				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
 				orderDetail.InferCostsAndTimes()

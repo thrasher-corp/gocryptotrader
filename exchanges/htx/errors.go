@@ -49,6 +49,5 @@ var (
 	errNoTransferChains              = errors.New("no chains returned from currencies API")
 	errUnhandledMockWebsocketMessage = errors.New("unhandled mock websocket message")
 	errAPIResponse                   = errors.New("HTX API response error")
-	errWebsocketNotAuthenticated     = errors.New("websocket is not authenticated")
 	errOrderCancellationFailed       = errors.New("order cancellation failed")
 )

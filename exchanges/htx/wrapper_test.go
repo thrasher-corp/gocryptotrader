@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -345,6 +346,24 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, fields string
+	}{
+		{name: "documented response example", fields: `"field-amount":"1","field-cash-amount":"100","field-fees":"0.1"`},
+		{name: "documented response table", fields: `"filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"`},
+	} {
+		t.Run("spot "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", `{"status":"ok","data":[{"id":1,"symbol":"btcusdt","amount":"2","price":"100","type":"buy-limit","state":"partial-canceled",`+tc.fields+`}]}`, nil)
+			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{btcusdtPair}})
+			require.NoError(t, err, "spot history must decode either documented field spelling")
+			require.Len(t, orders, 1, "spot history must return one order")
+			assert.Equal(t, 1.0, orders[0].ExecutedAmount, "executed amount should match")
+			assert.Equal(t, 1.0, orders[0].RemainingAmount, "remaining amount should exclude executions")
+			assert.Equal(t, 100.0, orders[0].Cost, "cost should match the executed quote amount")
+			assert.Equal(t, 0.1, orders[0].Fee, "fee should match")
+		})
+	}
 	t.Run("validation", func(t *testing.T) {
 		t.Parallel()
 		getOrdersRequest := order.MultiOrderRequest{
@@ -856,6 +875,19 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("coin margined fractional frozen margin", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_openorders", `{"status":"ok","data":{"orders":[{"symbol":"THETA","contract_code":"THETA-USD","volume":1,"price":0.6,"order_price_type":"post_only","direction":"buy","offset":"open","lever_rate":20,"order_id_str":"771043577949732864","created_at":1603872714279,"trade_volume":0,"trade_turnover":0,"fee":0,"trade_avg_price":null,"margin_frozen":0.833333333333333333,"status":3,"fee_asset":"THETA"}],"total_page":1,"current_page":1,"total_size":1}}`, nil)
+		orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.CoinMarginedFutures,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+			Pairs:     currency.Pairs{currency.NewPair(currency.THETA, currency.USD)},
+		})
+		require.NoError(t, err, "fractional frozen margin must not prevent decoding open orders")
+		require.Len(t, orders, 1, "one active order must be returned")
+		assert.Equal(t, "771043577949732864", orders[0].OrderID, "order ID should match")
+	})
 	t.Run("validation", func(t *testing.T) {
 		t.Parallel()
 
@@ -1030,6 +1062,77 @@ func TestGetAccountID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	for _, market := range []struct {
+		asset          asset.Item
+		pair           currency.Pair
+		endpoint       exchange.URL
+		path, response string
+	}{
+		{asset.Spot, btcusdtPair, exchange.RestSpot, "/v1/order/orders/place", `{"status":"ok","data":"1"}`},
+		{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
+		{asset.Futures, btccwPair, exchange.RestFutures, fOrder, `{"status":"ok","data":{"order_id_str":"1"}}`},
+	} {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			for _, tc := range []struct {
+				name                         string
+				orderType                    order.Type
+				timeInForce                  order.TimeInForce
+				spotSuffix, derivativeType   string
+				expectedErr, expectedSpotErr error
+			}{
+				{name: "limit default", orderType: order.Limit, spotSuffix: "-limit", derivativeType: "limit"},
+				{name: "limit GTC", orderType: order.Limit, timeInForce: order.GoodTillCancel, spotSuffix: "-limit", derivativeType: "limit"},
+				{name: "limit post only", orderType: order.Limit, timeInForce: order.PostOnly, spotSuffix: "-limit-maker", derivativeType: "post_only"},
+				{name: "limit GTC post only", orderType: order.Limit, timeInForce: order.GoodTillCancel | order.PostOnly, spotSuffix: "-limit-maker", derivativeType: "post_only"},
+				{name: "limit IOC", orderType: order.Limit, timeInForce: order.ImmediateOrCancel, spotSuffix: "-ioc", derivativeType: "ioc"},
+				{name: "limit FOK", orderType: order.Limit, timeInForce: order.FillOrKill, spotSuffix: "-limit-fok", derivativeType: "fok"},
+				{name: "market default", orderType: order.Market, spotSuffix: "-market", derivativeType: "optimal_20"},
+				{name: "market GTC", orderType: order.Market, timeInForce: order.GoodTillCancel, spotSuffix: "-market", derivativeType: "optimal_20"},
+				{name: "market IOC", orderType: order.Market, timeInForce: order.ImmediateOrCancel, derivativeType: "optimal_20_ioc", expectedSpotErr: order.ErrUnsupportedTimeInForce},
+				{name: "market FOK", orderType: order.Market, timeInForce: order.FillOrKill, derivativeType: "optimal_20_fok", expectedSpotErr: order.ErrUnsupportedTimeInForce},
+				{name: "market post only", orderType: order.Market, timeInForce: order.PostOnly, expectedErr: order.ErrUnsupportedTimeInForce},
+				{name: "limit timed expiry", orderType: order.Limit, timeInForce: order.GoodTillTime, expectedErr: order.ErrUnsupportedTimeInForce},
+				{name: "limit combined expiry", orderType: order.Limit, timeInForce: order.GoodTillCancel | order.GoodTillTime, expectedErr: order.ErrUnsupportedTimeInForce},
+				{name: "stop", orderType: order.Stop, expectedErr: order.ErrUnsupportedOrderType},
+				{name: "stop limit", orderType: order.StopLimit, expectedErr: order.ErrUnsupportedOrderType},
+				{name: "take profit", orderType: order.TakeProfit, expectedErr: order.ErrUnsupportedOrderType},
+				{name: "take profit market", orderType: order.TakeProfitMarket, expectedErr: order.ErrUnsupportedOrderType},
+				{name: "trailing stop", orderType: order.TrailingStop, expectedErr: order.ErrUnsupportedOrderType},
+				{name: "trailing stop limit", orderType: order.TrailingStopLimit, expectedErr: order.ErrUnsupportedOrderType},
+			} {
+				t.Run(fmt.Sprintf("instructions %s %s %s", market.asset, side, tc.name), func(t *testing.T) {
+					t.Parallel()
+					expectedErr := tc.expectedErr
+					if market.asset == asset.Spot && tc.expectedSpotErr != nil {
+						expectedErr = tc.expectedSpotErr
+					}
+					h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, market.response, func(r *http.Request) {
+						if expectedErr != nil {
+							assert.Fail(t, "unsupported order instructions should not reach HTX")
+						}
+						var payload map[string]any
+						require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "order request must decode")
+						if market.asset == asset.Spot {
+							assert.Equal(t, strings.ToLower(side.String())+tc.spotSuffix, payload["type"], "spot order instructions should be preserved")
+						} else {
+							assert.Equal(t, tc.derivativeType, payload["order_price_type"], "derivative order instructions should be preserved")
+						}
+					})
+					response, err := h.SubmitOrder(t.Context(), &order.Submit{
+						Exchange: h.Name, Pair: market.pair, AssetType: market.asset, Side: side,
+						Type: tc.orderType, TimeInForce: tc.timeInForce, Amount: 1, QuoteAmount: 5, Price: 5, Leverage: 5, ClientID: "1",
+					})
+					if expectedErr != nil {
+						require.ErrorIs(t, err, expectedErr, "unsupported order instructions must be rejected")
+						assert.Nil(t, response, "rejected orders should have no submission response")
+						return
+					}
+					require.NoError(t, err, "supported order instructions must be submitted")
+					assert.Equal(t, "1", response.OrderID, "submitted order ID should match")
+				})
+			}
+		}
+	}
 	t.Run("validation", func(t *testing.T) {
 		t.Parallel()
 
@@ -1565,6 +1668,48 @@ func TestFormatV5OrderDetail(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		asset     asset.Item
+		pair      currency.Pair
+		path      string
+		data      string
+		closeTime time.Time
+		cost      float64
+	}{
+		{
+			name: "delivery filled", asset: asset.Futures,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: fOrderInfo,
+			data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":1,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":6,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":0}`,
+			cost: 10,
+		},
+		{
+			name: "delivery partially cancelled", asset: asset.Futures,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: fOrderInfo,
+			data:      `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":2,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":5,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":1604367700000}`,
+			closeTime: time.UnixMilli(1604367700000), cost: 10,
+		},
+		{
+			name: "coin margined cancelled", asset: asset.CoinMarginedFutures,
+			pair: currency.NewPair(currency.THETA, currency.USD), path: "/swap-api/v1/swap_order_info",
+			data:      `{"symbol":"THETA","contract_code":"THETA-USD","volume":1,"price":0.6,"order_price_type":"post_only","direction":"buy","offset":"open","lever_rate":20,"order_id_str":"1","created_at":1603872714279,"trade_volume":0,"trade_turnover":0,"trade_avg_price":null,"margin_frozen":0.8333333333333334,"status":7,"fee_asset":"THETA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":1603872800000}`,
+			closeTime: time.UnixMilli(1603872800000),
+		},
+	} {
+		for _, liquidationType := range []string{`"0"`, `0`} {
+			t.Run(tc.name+" liquidation type "+liquidationType, func(t *testing.T) {
+				t.Parallel()
+				response := `{"status":"ok","data":[` + strings.ReplaceAll(tc.data, "LIQUIDATION_TYPE", liquidationType) + `]}`
+				h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, tc.path, response, nil)
+				detail, err := h.GetOrderInfo(t.Context(), "1", tc.pair, tc.asset)
+				require.NoError(t, err, "derivative order information must decode")
+				assert.Equal(t, "1", detail.OrderID, "order ID should match")
+				assert.Equal(t, tc.closeTime, detail.CloseTime, "close time should match the cancellation timestamp")
+				assert.Equal(t, tc.cost, detail.Cost, "cost should match the executed turnover")
+				assert.Equal(t, currency.USD, detail.CostAsset, "inverse contract turnover should be denominated in USD")
+			})
+		}
+	}
 
 	_, err := e.GetOrderInfo(t.Context(), "", btcusdtPair, asset.Spot)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo must require an order ID")
@@ -1826,7 +1971,7 @@ func TestFormatV5OrderRequest(t *testing.T) {
 			for _, mode := range []string{"single_side", "dual_side"} {
 				t.Run(fmt.Sprintf("%s reduce %t %s", side, reduce, mode), func(t *testing.T) {
 					t.Parallel()
-					request, err := h.formatV5OrderRequest(&order.Submit{Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: side, Type: order.Market, Amount: 1, ReduceOnly: reduce}, mode)
+					orderRequest, err := h.formatV5OrderRequest(&order.Submit{Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: side, Type: order.Market, Amount: 1, ReduceOnly: reduce}, mode)
 					require.NoError(t, err, "order formatting must succeed")
 					expected := "both"
 					if mode == "dual_side" {
@@ -1835,7 +1980,7 @@ func TestFormatV5OrderRequest(t *testing.T) {
 							expected = "short"
 						}
 					}
-					assert.Equal(t, expected, request.PositionSide, "position side should identify the opened or closed leg")
+					assert.Equal(t, expected, orderRequest.PositionSide, "position side should identify the opened or closed leg")
 				})
 			}
 		}
@@ -1974,7 +2119,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 		_, err := h.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1})
-		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketSubmitOrder must require websocket authentication")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WebsocketSubmitOrder must require websocket authentication")
 	})
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	setV5PositionModeEndpoint(t, h, "single_side")
@@ -2000,7 +2145,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 		_, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}})
-		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketSubmitOrders must require websocket authentication")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WebsocketSubmitOrders must require websocket authentication")
 	})
 	t.Run("mocked mixed batch results", func(t *testing.T) {
 		t.Parallel()
@@ -2062,7 +2207,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 		err := h.WebsocketCancelOrder(t.Context(), &order.Cancel{Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, OrderID: "1"})
-		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketCancelOrder must require websocket authentication")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WebsocketCancelOrder must require websocket authentication")
 	})
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	require.ErrorIs(t, h.WebsocketCancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "WebsocketCancelOrder must reject nil cancellations")

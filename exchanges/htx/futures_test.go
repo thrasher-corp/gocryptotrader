@@ -285,8 +285,31 @@ func TestFQueryTopPositionsRatio(t *testing.T) {
 
 func TestFLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	if _, err := e.FLiquidationOrders(t.Context(), currency.BTC, "filled", 0, 0, "", 0); err != nil {
-		t.Error(err)
+	_, err := e.FLiquidationOrders(t.Context(), currency.BTC, "filled", 0, 0, "", 0)
+	require.NoError(t, err, "FLiquidationOrders must not error")
+	for _, tc := range []struct {
+		name       string
+		start, end int64
+	}{
+		{name: "both timestamps", start: 1604367600000, end: 1604367700000},
+		{name: "start only", start: 1604367600000},
+		{name: "end only", end: 1604367700000},
+		{name: "no timestamps"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, fLiquidationOrders, emptySuccessResponse, func(r *http.Request) {
+				for key, timestamp := range map[string]int64{"start_time": tc.start, "end_time": tc.end} {
+					if timestamp == 0 {
+						assert.NotContains(t, r.URL.Query(), key, "unset timestamps should be omitted")
+					} else {
+						assert.Equal(t, strconv.FormatInt(timestamp, 10), r.URL.Query().Get(key), "timestamp should match its argument")
+					}
+				}
+			})
+			_, err := h.FLiquidationOrders(t.Context(), currency.BTC, "filled", tc.start, tc.end, "", 0)
+			require.NoError(t, err, "FLiquidationOrders must accept optional timestamps")
+		})
 	}
 }
 

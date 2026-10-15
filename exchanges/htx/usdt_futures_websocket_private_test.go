@@ -99,7 +99,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		var response *V5WsOrderResponse
 		err := h.sendV5TradeRequest(t.Context(), "place_order", &V5OrderRequest{ContractCode: "BTC-USDT"}, &response)
-		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "trade request must require authentication even when connected")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "trade request must require authentication even when connected")
 		assert.Nil(t, response, "unauthenticated trade request should return no response")
 	})
 	for _, tc := range []struct {
@@ -240,7 +240,7 @@ func TestWSPlaceV5Order(t *testing.T) {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSPlaceV5Order must reject unauthenticated requests")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSPlaceV5Order must reject unauthenticated requests")
 }
 
 func TestWSPlaceV5BatchOrders(t *testing.T) {
@@ -255,7 +255,7 @@ func TestWSPlaceV5BatchOrders(t *testing.T) {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT"}})
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSPlaceV5BatchOrders must reject unauthenticated requests")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSPlaceV5BatchOrders must reject unauthenticated requests")
 }
 
 func TestWSCancelV5Order(t *testing.T) {
@@ -269,7 +269,7 @@ func TestWSCancelV5Order(t *testing.T) {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelV5Order must reject unauthenticated requests")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSCancelV5Order must reject unauthenticated requests")
 }
 
 func TestWSCancelV5BatchOrders(t *testing.T) {
@@ -284,7 +284,7 @@ func TestWSCancelV5BatchOrders(t *testing.T) {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelV5BatchOrders must reject unauthenticated requests")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSCancelV5BatchOrders must reject unauthenticated requests")
 }
 
 func TestWSCancelAllV5Orders(t *testing.T) {
@@ -299,7 +299,7 @@ func TestWSCancelAllV5Orders(t *testing.T) {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WSCancelAllV5Orders must reject unauthenticated requests")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSCancelAllV5Orders must reject unauthenticated requests")
 }
 
 func TestSendV5WSOrderUpdate(t *testing.T) {

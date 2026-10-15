@@ -431,7 +431,7 @@ func (e *Exchange) FLiquidationOrders(ctx context.Context, symbol currency.Code,
 		params.Set("start_time", strconv.FormatInt(startTime, 10))
 	}
 	if endTime != 0 {
-		params.Set("end_time", strconv.FormatInt(startTime, 10))
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
 	}
 	if direction != "" {
 		params.Set("direct", direction)

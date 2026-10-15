@@ -228,6 +228,22 @@ func TestWSHandleChannelMsgs(t *testing.T) {
 
 func TestManageSubs(t *testing.T) {
 	t.Parallel()
+	t.Run("failed subscription removes registration", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		conn, err := h.Websocket.CreateTestConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "spot connection must be created")
+		require.NoError(t, h.Websocket.TrackTestConnection(exchange.WebsocketSpot, conn), "spot connection must be tracked")
+		sub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: "market.btcusdt.detail",
+			Pairs:            currency.Pairs{btcusdtPair},
+		}
+		require.ErrorContains(t, h.manageSubs(t.Context(), conn, wsSubOp, subscription.List{sub}), "websocket connection is disconnected", "subscription must fail on a disconnected socket")
+		assert.Empty(t, h.Websocket.GetSubscriptions(), "failed subscription should leave no registration")
+	})
 	for _, tc := range []struct {
 		name         string
 		channel      string
