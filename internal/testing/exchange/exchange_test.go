@@ -94,9 +94,16 @@ func TestMockHTTPInstance(t *testing.T) {
 }
 
 // TestMockWsInstance exercises MockWsInstance
-func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWsInstance must not be nil")
+func TestMockWsInstance(t *testing.T) { //nolint:tparallel // The parent verifies cleanup after its child finishes.
+	t.Parallel()
+	var b *binance.Exchange
+	t.Run("owned websocket lifecycle", func(t *testing.T) {
+		b = MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+		require.NotNil(t, b, "MockWsInstance must not be nil")
+		assert.True(t, b.Websocket.IsConnected(), "mock websocket should be connected")
+	})
+	assert.False(t, b.Websocket.IsEnabled(), "cleanup should disable reconnection")
+	assert.False(t, b.Websocket.IsConnected(), "cleanup should shut down owned connections")
 }
 
 func TestMockWsInstanceVerbose(t *testing.T) {

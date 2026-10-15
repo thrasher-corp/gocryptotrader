@@ -1,6 +1,8 @@
-package huobi
+package htx
 
 import (
+	"bytes"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -8,8 +10,16 @@ import (
 
 // Order price types referenced when mapping GoCryptoTrader order types onto the Huobi API
 const (
+	orderPriceTypeLightning    = "lightning"
+	orderPriceTypeLightningIOC = "lightning_ioc"
+	orderTimeInForceFOK        = "fok"
+	orderTimeInForceIOC        = "ioc"
+	marginModeCross            = "cross"
+	marginModeIsolated         = "isolated"
 	orderPriceTypeLimit        = "limit"
 	orderPriceTypeOpponent     = "opponent"
+	orderPriceTypeOptimal5     = "optimal_5"
+	orderPriceTypeOptimal10    = "optimal_10"
 	orderPriceTypeOptimal20    = "optimal_20"
 	orderPriceTypeOptimal20IOC = "optimal_20_ioc"
 	orderPriceTypeOptimal20FOK = "optimal_20_fok"
@@ -46,32 +56,129 @@ type CurrenciesChainData struct {
 	AssetType  uint8  `json:"assetType"`
 	InstStatus string `json:"instStatus"`
 	ChainData  []*struct {
-		Chain                     string  `json:"chain"`
-		DisplayName               string  `json:"displayName"`
-		BaseChain                 string  `json:"baseChain"`
-		BaseChainProtocol         string  `json:"baseChainProtocol"`
-		IsDynamic                 bool    `json:"isDynamic"`
-		NumberOfConfirmations     uint16  `json:"numOfConfirmations"`
-		NumberOfFastConfirmations uint16  `json:"numOfFastConfirmations"`
-		DepositStatus             string  `json:"depositStatus"`
-		MinimumDepositAmount      float64 `json:"minDepositAmt,string"`
-		WithdrawStatus            string  `json:"withdrawStatus"`
-		MinimumWithdrawalAmount   float64 `json:"minWithdrawAmt,string"`
-		WithdrawPrecision         int16   `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     float64 `json:"maxWithdrawAmt,string"`
-		WithdrawQuotaPerDay       float64 `json:"withdrawQuotaPerDay,string"`
-		WithdrawQuotaPerYear      float64 `json:"withdrawQuotaPerYear,string"`
-		WithdrawQuotaTotal        float64 `json:"withdrawQuotaTotal,string"`
-		WithdrawFeeType           string  `json:"withdrawFeeType"`
-		TransactFeeWithdraw       float64 `json:"transactFeeWithdraw,string"`
-		AddressWithTag            bool    `json:"addrWithTag"`
-		AddressDepositTag         bool    `json:"addrDepositTag"`
+		Chain                     string       `json:"chain"`
+		DisplayName               string       `json:"displayName"`
+		BaseChain                 string       `json:"baseChain"`
+		BaseChainProtocol         string       `json:"baseChainProtocol"`
+		IsDynamic                 bool         `json:"isDynamic"`
+		NumberOfConfirmations     uint16       `json:"numOfConfirmations"`
+		NumberOfFastConfirmations uint16       `json:"numOfFastConfirmations"`
+		DepositStatus             string       `json:"depositStatus"`
+		MinimumDepositAmount      types.Number `json:"minDepositAmt"`
+		WithdrawStatus            string       `json:"withdrawStatus"`
+		MinimumWithdrawalAmount   types.Number `json:"minWithdrawAmt"`
+		WithdrawPrecision         int16        `json:"withdrawPrecision"`
+		MaximumWithdrawAmount     types.Number `json:"maxWithdrawAmt"`
+		WithdrawQuotaPerDay       types.Number `json:"withdrawQuotaPerDay"`
+		WithdrawQuotaPerYear      types.Number `json:"withdrawQuotaPerYear"`
+		WithdrawQuotaTotal        types.Number `json:"withdrawQuotaTotal"`
+		WithdrawFeeType           string       `json:"withdrawFeeType"`
+		TransactFeeWithdraw       types.Number `json:"transactFeeWithdraw"`
+		AddressWithTag            bool         `json:"addrWithTag"`
+		AddressDepositTag         bool         `json:"addrDepositTag"`
 	} `json:"chains"`
+}
+
+// WsKlineData stores kline data for futures and swap websocket
+type WsKlineData struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		ID     int64   `json:"id"`
+		MRID   int64   `json:"mrid"`
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		Low    float64 `json:"low"`
+		High   float64 `json:"high"`
+		Amount float64 `json:"amount"`
+	} `json:"tick"`
+}
+
+// WsMarketDepth stores market depth data for futures and swap websocket
+type WsMarketDepth struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		MRID      int64        `json:"mrid"`
+		ID        int64        `json:"id"`
+		Bids      [][2]float64 `json:"bids"`
+		Asks      [][2]float64 `json:"asks"`
+		Timestamp types.Time   `json:"ts"`
+		Version   int64        `json:"version"`
+		Channel   string       `json:"ch"`
+	} `json:"tick"`
+}
+
+// WsIncrementalMarketDepth stores incremental market depth data for swap and futures websocket
+type WsIncrementalMarketDepth struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		MRID      int64        `json:"mrid"`
+		ID        int64        `json:"id"`
+		Bids      [][2]float64 `json:"bids"`
+		Asks      [][2]float64 `json:"asks"`
+		Timestamp types.Time   `json:"ts"`
+		Version   int64        `json:"version"`
+		Channel   string       `json:"ch"`
+		Event     string       `json:"event"`
+	} `json:"tick"`
+}
+
+// WsMarketDetail stores market detail data for futures and swap websocket
+type WsMarketDetail struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		ID     int64   `json:"id"`
+		MRID   int64   `json:"mrid"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		High   float64 `json:"high"`
+		Low    float64 `json:"low"`
+		Amount float64 `json:"amount"`
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+	} `json:"tick"`
+}
+
+// WsMarketBBOData stores BBO data for futures and swap websocket
+type WsMarketBBOData struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		Channel   string     `json:"ch"`
+		MRID      int64      `json:"mrid"`
+		ID        int64      `json:"id"`
+		Bid       [2]float64 `json:"bid"`
+		Ask       [2]float64 `json:"ask"`
+		Timestamp types.Time `json:"ts"`
+		Version   int64      `json:"version"`
+	} `json:"tick"`
+}
+
+// WsSubTradeDetail stores trade detail data for futures websocket
+type WsSubTradeDetail struct {
+	Channel   string     `json:"ch"`
+	Timestamp types.Time `json:"ts"`
+	Tick      struct {
+		ID        int64      `json:"id"`
+		Timestamp types.Time `json:"ts"`
+		Data      []struct {
+			Amount    float64    `json:"amount"`
+			Timestamp types.Time `json:"ts"`
+			ID        int64      `json:"id"`
+			Price     float64    `json:"price"`
+			Direction string     `json:"direction"`
+		} `json:"data"`
+	} `json:"tick"`
 }
 
 // --------------------------------Spot-----------------------------------------
 
-// Response stores the Huobi response information
+// Response stores the HTX response information
 type Response struct {
 	Status       string     `json:"status"`
 	Channel      string     `json:"ch"`
@@ -85,17 +192,17 @@ type MarginRatesData struct {
 	Data []struct {
 		Symbol     string `json:"symbol"`
 		Currencies []struct {
-			Currency       string  `json:"currency"`
-			InterestRate   float64 `json:"interest-rate,string"`
-			MinLoanAmount  float64 `json:"min-loan-amt,string"`
-			MaxLoanAmount  float64 `json:"max-loan-amt,string"`
-			LoanableAmount float64 `json:"loanable-amt,string"`
-			ActualRate     float64 `json:"actual-rate,string"`
+			Currency       string       `json:"currency"`
+			InterestRate   types.Number `json:"interest-rate"`
+			MinLoanAmount  types.Number `json:"min-loan-amt"`
+			MaxLoanAmount  types.Number `json:"max-loan-amt"`
+			LoanableAmount types.Number `json:"loanable-amt"`
+			ActualRate     types.Number `json:"actual-rate"`
 		} `json:"currencies"`
 	} `json:"data"`
 }
 
-// ResponseV2 stores the Huobi generic response info
+// ResponseV2 stores the HTX generic response info
 type ResponseV2 struct {
 	Code    int32  `json:"code"`
 	Message string `json:"message"`
@@ -153,8 +260,8 @@ type Tickers struct {
 type FuturesBatchTicker struct {
 	ID             float64      `json:"id"`
 	Timestamp      types.Time   `json:"ts"`
-	Ask            [2]float64   `json:"ask"`
-	Bid            [2]float64   `json:"bid"`
+	Ask            []float64    `json:"ask"`
+	Bid            []float64    `json:"bid"`
 	BusinessType   string       `json:"business_type"`
 	ContractCode   string       `json:"contract_code"`
 	Open           types.Number `json:"open"`
@@ -285,46 +392,48 @@ type AccountBalance struct {
 type AccountBalanceDetail struct {
 	Currency currency.Code `json:"currency"`
 	Type     string        `json:"type"`
-	Balance  float64       `json:"balance,string"`
+	Balance  types.Number  `json:"balance"`
 }
 
 // AggregatedBalance stores balances of all the sub-account
 type AggregatedBalance struct {
-	Currency string  `json:"currency"`
-	Balance  float64 `json:"balance,string"`
+	Currency string       `json:"currency"`
+	Balance  types.Number `json:"balance"`
 }
 
 // CancelOrderBatch stores the cancel order batch data
 type CancelOrderBatch struct {
 	Success []string `json:"success"`
 	Failed  []struct {
-		OrderID      string `json:"order-id"`
-		ErrorCode    string `json:"err-code"`
-		ErrorMessage string `json:"err-msg"`
+		OrderID       string `json:"order-id"`
+		ClientOrderID string `json:"client-order-id"`
+		ErrorCode     string `json:"err-code"`
+		ErrorMessage  string `json:"err-msg"`
 	} `json:"failed"`
 }
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID               int64      `json:"id"`
-	Symbol           string     `json:"symbol"`
-	AccountID        int64      `json:"account-id"`
-	Amount           float64    `json:"amount,string"`
-	Price            float64    `json:"price,string"`
-	CreatedAt        types.Time `json:"created-at"`
-	Type             string     `json:"type"`
-	FieldAmount      float64    `json:"field-amount,string"`
-	FieldCashAmount  float64    `json:"field-cash-amount,string"`
-	FilledAmount     float64    `json:"filled-amount,string"`
-	FilledCashAmount float64    `json:"filled-cash-amount,string"`
-	FilledFees       float64    `json:"filled-fees,string"`
-	FinishedAt       types.Time `json:"finished-at"`
-	UserID           int64      `json:"user-id"`
-	Source           string     `json:"source"`
-	State            string     `json:"state"`
-	CanceledAt       int64      `json:"canceled-at"`
-	Exchange         string     `json:"exchange"`
-	Batch            string     `json:"batch"`
+	ID               int64        `json:"id"`
+	Symbol           string       `json:"symbol"`
+	AccountID        int64        `json:"account-id"`
+	Amount           types.Number `json:"amount"`
+	Price            types.Number `json:"price"`
+	CreatedAt        types.Time   `json:"created-at"`
+	Type             string       `json:"type"`
+	FieldFees        types.Number `json:"field-fees"`
+	FieldAmount      types.Number `json:"field-amount"`
+	FieldCashAmount  types.Number `json:"field-cash-amount"`
+	FilledAmount     types.Number `json:"filled-amount"`
+	FilledCashAmount types.Number `json:"filled-cash-amount"`
+	FilledFees       types.Number `json:"filled-fees"`
+	FinishedAt       types.Time   `json:"finished-at"`
+	UserID           int64        `json:"user-id"`
+	Source           string       `json:"source"`
+	State            string       `json:"state"`
+	CanceledAt       int64        `json:"canceled-at"`
+	Exchange         string       `json:"exchange"`
+	Batch            string       `json:"batch"`
 }
 
 // OrderMatchInfo stores the order match info
@@ -373,12 +482,14 @@ type MarginAccountBalance struct {
 
 // SpotNewOrderRequestParams holds the params required to place an order
 type SpotNewOrderRequestParams struct {
-	AccountID uint64                        `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
-	Amount    float64                       `json:"amount"`            // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
-	Price     float64                       `json:"price"`             // Order price, market price does not use  this parameter
-	Source    string                        `json:"source"`            // Order source, api: API call, margin-api: loan asset transaction
-	Symbol    currency.Pair                 `json:"symbol"`            // The symbol to use; example btcusdt, bccbtc......
-	Type      SpotNewOrderRequestParamsType `json:"type"`              // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+	AccountID uint64 `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	// ClientOrderID lets callers reconcile an accepted order when the HTTP response is lost.
+	ClientOrderID string                        `json:"client-order-id,omitempty"`
+	Amount        float64                       `json:"amount"` // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
+	Price         float64                       `json:"price"`  // Order price, market price does not use  this parameter
+	Source        string                        `json:"source"` // Order source, api: API call, margin-api: loan asset transaction
+	Symbol        currency.Pair                 `json:"symbol"` // The symbol to use; example btcusdt, bccbtc......
+	Type          SpotNewOrderRequestParamsType `json:"type"`   // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
 
 // DepositAddress stores the users deposit address info
@@ -392,14 +503,14 @@ type DepositAddress struct {
 
 // ChainQuota stores the users currency chain quota
 type ChainQuota struct {
-	Chain                         string  `json:"chain"`
-	MaxWithdrawAmount             float64 `json:"maxWithdrawAmt,string"`
-	WithdrawQuotaPerDay           float64 `json:"withdrawQuotaPerDay,string"`
-	RemainingWithdrawQuotaPerDay  float64 `json:"remainWithdrawQuotaPerDay,string"`
-	WithdrawQuotaPerYear          float64 `json:"withdrawQuotaPerYear,string"`
-	RemainingWithdrawQuotaPerYear float64 `json:"remainWithdrawQuotaPerYear,string"`
-	WithdrawQuotaTotal            float64 `json:"withdrawQuotaTotal,string"`
-	RemainingWithdrawQuotaTotal   float64 `json:"remainWithdrawQuotaTotal,string"`
+	Chain                         string       `json:"chain"`
+	MaxWithdrawAmount             types.Number `json:"maxWithdrawAmt"`
+	WithdrawQuotaPerDay           types.Number `json:"withdrawQuotaPerDay"`
+	RemainingWithdrawQuotaPerDay  types.Number `json:"remainWithdrawQuotaPerDay"`
+	WithdrawQuotaPerYear          types.Number `json:"withdrawQuotaPerYear"`
+	RemainingWithdrawQuotaPerYear types.Number `json:"remainWithdrawQuotaPerYear"`
+	WithdrawQuotaTotal            types.Number `json:"withdrawQuotaTotal"`
+	RemainingWithdrawQuotaTotal   types.Number `json:"remainWithdrawQuotaTotal"`
 }
 
 // WithdrawQuota stores the users withdraw quotas
@@ -434,172 +545,6 @@ type KlinesRequestParams struct {
 	Size   uint64        // Size; [1-2000]
 }
 
-// wsSubReq is a request to subscribe to or unubscribe from a topic for public channels (private channels use generic wsReq)
-type wsSubReq struct {
-	ID    string `json:"id,omitempty"`
-	Sub   string `json:"sub,omitempty"`
-	Unsub string `json:"unsub,omitempty"`
-}
-
-// WsDepth defines market depth websocket response
-type WsDepth struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		Bids      [][]any    `json:"bids"`
-		Asks      [][]any    `json:"asks"`
-		Timestamp types.Time `json:"ts"`
-		Version   int64      `json:"version"`
-	} `json:"tick"`
-}
-
-// WsKline defines market kline websocket response
-type WsKline struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  int64   `json:"count"`
-	} `json:"tick"`
-}
-
-// WsTick stores websocket ticker data
-type WsTick struct {
-	Channel   string     `json:"ch"`
-	Rep       string     `json:"rep"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		Amount    float64    `json:"amount"`
-		Close     float64    `json:"close"`
-		Count     float64    `json:"count"`
-		High      float64    `json:"high"`
-		ID        float64    `json:"id"`
-		Low       float64    `json:"low"`
-		Open      float64    `json:"open"`
-		Timestamp types.Time `json:"ts"`
-		Volume    float64    `json:"vol"`
-	} `json:"tick"`
-}
-
-// WsTrade defines market trade websocket response
-type WsTrade struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID        int64      `json:"id"`
-		Timestamp types.Time `json:"ts"`
-		Data      []struct {
-			Amount    float64    `json:"amount"`
-			Timestamp types.Time `json:"ts"`
-			TradeID   float64    `json:"tradeId"`
-			Price     float64    `json:"price"`
-			Direction string     `json:"direction"`
-		} `json:"data"`
-	} `json:"tick"`
-}
-
-// wsReq contains authentication login fields
-type wsReq struct {
-	Action  string `json:"action"`
-	Channel string `json:"ch"`
-	Params  any    `json:"params"`
-}
-
-// wsAuthReq contains authentication login fields
-type wsAuthReq struct {
-	AuthType         string `json:"authType"`
-	AccessKey        string `json:"accessKey"`
-	SignatureMethod  string `json:"signatureMethod"`
-	SignatureVersion string `json:"signatureVersion"`
-	Timestamp        string `json:"timestamp"`
-	Signature        string `json:"signature"`
-}
-
-type wsAccountUpdateMsg struct {
-	Data WsAccountUpdate `json:"data"`
-}
-
-// WsAccountUpdate contains account updates to balances
-type WsAccountUpdate struct {
-	Currency    string     `json:"currency"`
-	AccountID   int64      `json:"accountId"`
-	Balance     float64    `json:"balance,string"`
-	Available   float64    `json:"available,string"`
-	ChangeType  string     `json:"changeType"`
-	AccountType string     `json:"accountType"`
-	ChangeTime  types.Time `json:"changeTime"`
-	SeqNum      int64      `json:"seqNum"`
-}
-
-type wsOrderUpdateMsg struct {
-	Data WsOrderUpdate `json:"data"`
-}
-
-// WsOrderUpdate contains updates to orders
-type WsOrderUpdate struct {
-	EventType       string     `json:"eventType"`
-	Symbol          string     `json:"symbol"`
-	AccountID       int64      `json:"accountId"`
-	OrderID         int64      `json:"orderId"`
-	TradeID         int64      `json:"tradeId"`
-	ClientOrderID   string     `json:"clientOrderId"`
-	Source          string     `json:"orderSource"`
-	Price           float64    `json:"orderPrice,string"`
-	Size            float64    `json:"orderSize,string"`
-	Value           float64    `json:"orderValue,string"`
-	OrderType       string     `json:"type"`
-	TradePrice      float64    `json:"tradePrice,string"`
-	TradeVolume     float64    `json:"tradeVolume,string"`
-	RemainingAmount float64    `json:"remainAmt,string"`
-	ExecutedAmount  float64    `json:"execAmt,string"`
-	IsTaker         bool       `json:"aggressor"`
-	Side            order.Side `json:"orderSide"`
-	OrderStatus     string     `json:"orderStatus"`
-	LastActTime     types.Time `json:"lastActTime"`
-	CreateTime      types.Time `json:"orderCreateTime"`
-	TradeTime       types.Time `json:"tradeTime"`
-	ErrCode         int64      `json:"errCode"`
-	ErrMessage      string     `json:"errMessage"`
-}
-
-type wsTradeUpdateMsg struct {
-	Data WsTradeUpdate `json:"data"`
-}
-
-// WsTradeUpdate contains trade updates to orders
-type WsTradeUpdate struct {
-	EventType       string     `json:"eventType"`
-	Symbol          string     `json:"symbol"`
-	OrderID         int64      `json:"orderId"`
-	TradePrice      float64    `json:"tradePrice,string"`
-	TradeVolume     float64    `json:"tradeVolume,string"`
-	Side            order.Side `json:"orderSide"`
-	OrderType       string     `json:"orderType"`
-	IsTaker         bool       `json:"aggressor"`
-	TradeID         int64      `json:"tradeId"`
-	TradeTime       types.Time `json:"tradeTime"`
-	TransactFee     float64    `json:"transactFee,string"`
-	FeeCurrency     string     `json:"feeCurrency"`
-	FeeDeduct       string     `json:"feeDeduct"`
-	FeeDeductType   string     `json:"feeDeductType"`
-	AccountID       int64      `json:"accountId"`
-	Source          string     `json:"orderSource"`
-	OrderPrice      float64    `json:"orderPrice,string"`
-	OrderSize       float64    `json:"orderSize,string"`
-	Value           float64    `json:"orderValue,string"`
-	ClientOrderID   string     `json:"clientOrderId"`
-	StopPrice       string     `json:"stopPrice"`
-	Operator        string     `json:"operator"`
-	OrderCreateTime types.Time `json:"orderCreateTime"`
-	OrderStatus     string     `json:"orderStatus"`
-}
-
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
 	Side        order.Side
@@ -612,7 +557,7 @@ type OrderVars struct {
 // Variables below are used to check api requests being sent out
 
 var (
-	validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+	validPeriods = []string{"1min", "5min", "15min", "30min", "60min", "4hour", "1day", "1mon"}
 
 	validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
 
@@ -639,9 +584,10 @@ var (
 	}
 
 	validOrderTypes = []string{
-		"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
-		"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
-		"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
+		orderPriceTypePostOnly,
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, orderPriceTypeOptimal5, orderPriceTypeOptimal10, orderPriceTypeOptimal20,
+		orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", orderPriceTypeLightningIOC, "optimal_5_ioc",
+		"optimal_10_ioc", orderPriceTypeOptimal20IOC, "opponent_fok", orderPriceTypeOptimal20FOK,
 	}
 
 	validTriggerType = map[string]string{
@@ -650,11 +596,11 @@ var (
 	}
 
 	validOrderPriceType = []string{
-		"limit", "optimal_5", "optimal_10", "optimal_20",
+		orderPriceTypeLimit, orderPriceTypeOptimal5, orderPriceTypeOptimal10, orderPriceTypeOptimal20,
 	}
 
 	validLightningOrderPriceType = []string{
-		"lightning", "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", orderPriceTypeLightningIOC,
 	}
 
 	validTradeType = map[string]int64{
@@ -695,10 +641,11 @@ var (
 	}
 
 	validFuturesOrderPriceTypes = []string{
-		"limit", "opponent", "lightning", "optimal_5", "optimal_10",
-		"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
-		"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
-		"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
+		orderPriceTypePostOnly,
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, orderPriceTypeOptimal5, orderPriceTypeOptimal10,
+		orderPriceTypeOptimal20, orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", orderPriceTypeLightningIOC,
+		"optimal_5_ioc", "optimal_10_ioc", orderPriceTypeOptimal20IOC, "opponent_fok",
+		"lightning_fok", "optimal_5_fok", "optimal_10_fok", orderPriceTypeOptimal20FOK,
 	}
 
 	validFuturesRecordTypes = map[string]string{
@@ -732,7 +679,7 @@ var (
 	}
 
 	validOPTypes = []string{
-		"lightning", "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", orderPriceTypeLightningIOC,
 	}
 
 	validFuturesReqType = map[string]int64{
@@ -741,16 +688,16 @@ var (
 	}
 
 	validFuturesOrderTypes = map[string]int64{
-		"limit":        1,
-		"opponent":     3,
-		"lightning":    4,
-		"triggerOrder": 5,
-		"postOnly":     6,
-		"optimal_5":    7,
-		"optimal_10":   8,
-		"optimal_20":   9,
-		"fok":          10,
-		"ioc":          11,
+		orderPriceTypeLimit:     1,
+		orderPriceTypeOpponent:  3,
+		orderPriceTypeLightning: 4,
+		"triggerOrder":          5,
+		"postOnly":              6,
+		orderPriceTypeOptimal5:  7,
+		orderPriceTypeOptimal10: 8,
+		orderPriceTypeOptimal20: 9,
+		orderTimeInForceFOK:     10,
+		orderTimeInForceIOC:     11,
 	}
 
 	validOrderStatus = map[order.Status]int64{
@@ -791,7 +738,14 @@ type WithdrawalData struct {
 	Fee             float64       `json:"fee"`
 	State           string        `json:"state"`
 	ErrorCode       string        `json:"error-code"`
-	ErrorMessage    string        `json:"error-message"`
+	ErrorMessage    string        `json:"error-msg"`
 	CreatedAt       types.Time    `json:"created-at"`
 	UpdatedAt       types.Time    `json:"updated-at"`
+}
+
+func isEmptyHTXData(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	return len(trimmed) == 0 ||
+		bytes.Equal(trimmed, []byte(`""`)) ||
+		bytes.Equal(trimmed, []byte("null"))
 }
