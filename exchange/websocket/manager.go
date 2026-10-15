@@ -543,19 +543,24 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	m.setState(connectingState)
 
-	m.Wg.Add(1)
-	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
 	if !m.useMultiConnectionManagement {
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
 		err := m.connector()
 		if err != nil {
-			m.setState(disconnectedState)
+			// The connector may have dialled and started readers before failing. Release them so the next attempt does
+			// not stack another socket and reader on top. Close errors are expected here for sockets closed by an
+			// earlier shutdown, so only teardown failures are reported.
+			if _, teardownErr := m.teardown(); teardownErr != nil {
+				err = common.AppendError(err, teardownErr)
+			}
 			return fmt.Errorf("%v Error connecting %w", m.exchangeName, err)
 		}
 		m.setState(connectedState)
+
+		m.Wg.Add(1)
+		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 			// This oversees all connections and does not need to be part of wait group management.
@@ -727,6 +732,9 @@ func (m *Manager) connect(ctx context.Context) error {
 	// handled by the appropriate data handler.
 	m.setState(connectedState)
 
+	m.Wg.Add(1)
+	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
+
 	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.
 		go m.monitorFrame(ctx, nil, m.monitorConnection)
@@ -894,13 +902,32 @@ func (m *Manager) shutdown() error {
 		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket", m.exchangeName)
 	}
 
+	nonFatalCloseConnectionErrors, err := m.teardown()
+	if err != nil {
+		return err
+	}
+
+	if m.verbose {
+		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", m.exchangeName)
+	}
+
+	if nonFatalCloseConnectionErrors != nil {
+		log.Warnf(log.WebsocketMgr, "%v websocket: shutdown error: %v", m.exchangeName, nonFatalCloseConnectionErrors)
+	}
+
+	return nil
+}
+
+// teardown closes every connection, waits for the routines tracked by Wg and renews ShutdownC, leaving the manager
+// disconnected and ready for a fresh connection attempt. It is shared by shutdown and a failed connect, which can leave
+// sockets and readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
+func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a
 	// "failed to send closeNotify alert (but connection was closed anyway)" error. Treating these errors as non-fatal
 	// prevents the shutdown process from being interrupted, which could otherwise trigger a continuous traffic monitor
 	// cycle and potentially block the initiation of a new connection.
-	var nonFatalCloseConnectionErrors error
-
+	//
 	// Shutdown managed connections
 	m.connectionManagerMu.Lock()
 	for _, ws := range m.connectionManager {
@@ -942,13 +969,9 @@ func (m *Manager) shutdown() error {
 		}
 		conn, ok := conn.(*connection)
 		if !ok {
-			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
+			return nonFatalCloseConnectionErrors, fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
 		}
 		conn.shutdown = m.ShutdownC
-	}
-
-	if m.verbose {
-		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", m.exchangeName)
 	}
 
 	// Drain residual error in the single buffered channel, this mitigates
@@ -956,11 +979,7 @@ func (m *Manager) shutdown() error {
 	// starts but there is an old error in the channel.
 	drain(m.ReadMessageErrors)
 
-	if nonFatalCloseConnectionErrors != nil {
-		log.Warnf(log.WebsocketMgr, "%v websocket: shutdown error: %v", m.exchangeName, nonFatalCloseConnectionErrors)
-	}
-
-	return nil
+	return nonFatalCloseConnectionErrors, nil
 }
 
 func (m *Manager) setState(s uint32) {

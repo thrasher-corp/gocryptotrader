@@ -1,0 +1,21 @@
+// spot@public.deals.v3.api.pb
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicDealsV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicDealsV3Api {
+  repeated PublicDealsV3ApiItem deals = 1;
+  string eventType = 2;
+}
+
+message PublicDealsV3ApiItem {
+  string price = 1;
+  string quantity = 2;
+  int32 tradeType = 3;
+  int64 time = 4;
+}
