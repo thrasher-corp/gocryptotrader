@@ -930,6 +930,17 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	if s.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
+	// Spread prices are differentials between legs and may be zero or negative;
+	// market orders have no price; OCO, Chase, TrailingStop, and Trigger orders
+	// use trigger/tracking prices, not s.Price; every other limit-style order
+	// requires a positive price.
+	switch s.Type {
+	case order.Market, order.OCO, order.Chase, order.TrailingStop, order.Trigger, order.ConditionalStop:
+	default:
+		if s.AssetType != asset.Spread && s.Price <= 0 {
+			return nil, limits.ErrPriceBelowMin
+		}
+	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
 		return nil, err
@@ -2025,6 +2036,9 @@ func (e *Exchange) pendingOrdersToCancel(ctx context.Context, c *order.Cancel) (
 	}
 	var myOrders []OrderDetail
 	for after := ""; ; {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		var page []OrderDetail
 		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
 			InstrumentType: instrumentType,
@@ -2416,6 +2430,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		// after cursor and the spread history crawls.
 		var spreads []SpreadOrder
 		for endID := req.FromOrderID; ; {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			var page []SpreadOrder
 			page, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", "", endID, 0)
 			if err != nil {
@@ -2503,6 +2520,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	// the first page, losing every order past the first hundred.
 allOrders:
 	for after := ""; ; {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		var orderList []OrderDetail
 		orderList, err = e.GetOrderList(ctx, &OrderListRequestParams{
 			OrderType:      orderType,
@@ -2656,6 +2676,9 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 	// crawled only when the requested window reaches into it.
 	if req.EndTime.IsZero() || req.EndTime.After(time.Now().Add(-kline.ThreeWeek.Duration())) {
 		for endID := req.FromOrderID; ; {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			var page []SpreadOrder
 			page, err := e.GetCompletedSpreadOrdersLast21Days(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
 			if err != nil {
@@ -2678,6 +2701,9 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 		// The 21 day listing cannot reach past its documented window, so the
 		// archive covers the remainder of the documented 3 month window.
 		for endID := req.FromOrderID; ; {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			var page []SpreadOrder
 			page, err := e.GetCompletedSpreadOrdersLast3Months(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
 			if err != nil {
@@ -2798,6 +2824,9 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 	crawl := func(fetch func(after string) ([]OrderDetail, error)) error {
 	allOrders:
 		for after := req.FromOrderID; ; {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			orderList, err := fetch(after)
 			if err != nil {
 				return err
@@ -3664,6 +3693,9 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			getHistory = e.Get7DayOrderHistory
 		}
 		for after := ""; ; {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			historyRequest.After = after
 			var page []OrderDetail
 			page, err = getHistory(ctx, historyRequest)
@@ -3933,16 +3965,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				return nil, err
 			}
 			resp[s] = futures.Contract{
-				Exchange:       e.Name,
-				Name:           results[s].SpreadID,
-				Asset:          asset.Spread,
-				StartDate:      results[s].ListTime.Time(),
-				EndDate:        results[s].ExpTime.Time(),
-				IsActive:       results[s].State == "live",
-				Status:         results[s].State,
-				Type:           futures.LongDated,
-				SettlementType: contractSettlementType,
-				MarginCurrency: currency.NewCode(results[s].QuoteCurrency),
+				Exchange:           e.Name,
+				Name:               results[s].SpreadID,
+				Asset:              asset.Spread,
+				StartDate:          results[s].ListTime.Time(),
+				EndDate:            results[s].ExpTime.Time(),
+				IsActive:           results[s].State == "live",
+				Status:             results[s].State,
+				Type:               futures.LongDated,
+				SettlementType:     contractSettlementType,
+				MarginCurrency:     currency.NewCode(results[s].QuoteCurrency),
+				SettlementCurrency: currency.NewCode(results[s].QuoteCurrency),
 			}
 		}
 		return resp, nil

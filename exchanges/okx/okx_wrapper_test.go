@@ -2437,7 +2437,12 @@ func stopMockWebsocket(t *testing.T, e *Exchange) {
 		if e.Websocket.IsEnabled() {
 			assert.NoError(t, e.Websocket.Disable(), "Disable should not error")
 		}
+		// Shutdown may return an error if the connection is already closed, but
+		// we must ensure the connection monitor goroutine is stopped regardless.
 		_ = e.Websocket.Shutdown()
+		// Give the connection monitor a moment to exit before the test cleanup
+		// closes the mock server, preventing a redial attempt.
+		time.Sleep(100 * time.Millisecond)
 	})
 }
 
