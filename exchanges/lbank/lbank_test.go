@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -198,6 +199,30 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestUSD2RMBRate(t *testing.T) {
 	t.Parallel()
+
+	// The mocked scenario pins the rate the caller receives: USD2RMBRate must return the value the
+	// endpoint sent rather than the zero value it read before the filling call ran.
+	t.Run("Mocked", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/v"+lbankAPIVersion2+"/"+lbankUSD2CNYRate, r.URL.Path, "the request path should be the USD to CNY rate endpoint")
+			// Trimmed from GET /v2/usdToCny.do
+			_, err := fmt.Fprint(w, `{"result":"true","data":"6.6951","error_code":0,"ts":1790073372701}`)
+			assert.NoError(t, err, "writing the rate response should not error")
+		}))
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		rate, err := ex.USD2RMBRate(t.Context())
+		require.NoError(t, err, "USD2RMBRate must not error")
+		assert.Equal(t, 6.6951, rate, "USD2RMBRate should return the rate the endpoint sent, not the pre-call zero value")
+	})
+
 	_, err := e.USD2RMBRate(t.Context())
 	assert.NoError(t, err, "USD2RMBRate should not error")
 }
@@ -334,10 +359,58 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetAllOpenOrderID(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.getAllOpenOrderID(t.Context())
-	assert.NoError(t, err, "getAllOpenOrderID should not error")
+	t.Run("Live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+		_, err := e.getAllOpenOrderID(t.Context())
+		assert.NoError(t, err, "getAllOpenOrderID should not error")
+	})
+
+	t.Run("Regression test: pagination", func(t *testing.T) {
+		t.Parallel()
+		ethPair := currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Delimiter: "_"})
+		btcSymbol, ethSymbol := testPair.String(), ethPair.String()
+		pages := []struct {
+			symbol, page, response string
+		}{
+			{btcSymbol, "1", `{"result":"true","error_code":0,"orders":[{"order_id":"1"},{"order_id":"2"}]}`},
+			{btcSymbol, "2", `{"result":"true","error_code":0,"orders":[{"order_id":"3"}]}`},
+			{btcSymbol, "3", `{"result":"true","error_code":0,"orders":[{"order_id":"5"},{"order_id":"6"}]}`},
+			{btcSymbol, "4", orderGuardNoOrders},
+			{ethSymbol, "1", `{"result":"true","error_code":0,"orders":[{"order_id":"4"}]}`},
+			{ethSymbol, "2", orderGuardNoOrders},
+		}
+		var calls atomic.Int64
+		ex := setupOrderGuard(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "the request body should parse as a form") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			i := calls.Add(1) - 1
+			if !assert.Less(t, i, int64(len(pages)), "the crawl should not make extra requests") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			want := pages[i]
+			assert.Equal(t, http.MethodPost, r.Method, "the request method should be POST")
+			assert.Equal(t, "/v"+lbankAPIVersion2+"/"+lbankOpeningOrders, r.URL.Path, "the request path should be the open orders endpoint")
+			assert.Equal(t, want.symbol, r.PostForm.Get("symbol"), "the pair should match the expected request")
+			assert.Equal(t, want.page, r.PostForm.Get("current_page"), "the page should match the expected request")
+			assert.Equal(t, "200", r.PostForm.Get("page_length"), "the page length should be 200")
+			_, err := fmt.Fprint(w, want.response)
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		pairs := currency.Pairs{testPair, ethPair}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error for available pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error for enabled pairs")
+
+		ids, err := ex.getAllOpenOrderID(t.Context())
+		require.NoError(t, err, "getAllOpenOrderID must not error")
+		assert.Equal(t, map[string][]string{btcSymbol: {"1", "2", "3", "5", "6"}, ethSymbol: {"4"}}, ids, "the crawl should retain every ID across changing page sizes and pairs")
+		assert.Equal(t, int64(len(pages)), calls.Load(), "the crawl should request every expected page once")
+	})
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -804,4 +877,133 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestUnwrapV2Response(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		payload  string
+		expected string
+		err      string
+		isErr    error
+	}{
+		{
+			name:     "string result true",
+			payload:  `{"result":"true","data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "boolean result true",
+			payload:  `{"result":true,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:    "string result false",
+			payload: `{"result":"false","msg":"Invalid parameter","error_code":10003}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "boolean result false",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "failed envelope carrying data is still a failure",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003,"data":[1,2,3]}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "failed envelope without error code",
+			payload: `{"result":false,"msg":"instrument not found"}`,
+			err:     "request failed: instrument not found (error_code 0)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:     "absent result is not a failure",
+			payload:  `{"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "null result is not a failure",
+			payload:  `{"result":null,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "envelope without data returns the payload",
+			payload:  `{"result":"true"}`,
+			expected: `{"result":"true"}`,
+		},
+		{
+			name:     "non envelope payload is unchanged",
+			payload:  `[{"symbol":"btc_usdt"}]`,
+			expected: `[{"symbol":"btc_usdt"}]`,
+		},
+		{
+			name:     "non json payload is unchanged",
+			payload:  `not json at all`,
+			expected: `not json at all`,
+		},
+		{
+			name:    "object with a reshaped field is an error",
+			payload: `{"result":true,"error_code":"10003"}`,
+			err:     "decoding response envelope:",
+		},
+		{
+			name:    "object with leading whitespace and a reshaped field is an error",
+			payload: " \n\t{\"result\":true,\"error_code\":{}}",
+			err:     "decoding response envelope:",
+		},
+		{
+			name:    "truncated object is an error",
+			payload: `{"result":true,oops}`,
+			err:     "decoding response envelope:",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := unwrapV2Response([]byte(tc.payload))
+			if tc.err != "" {
+				assert.ErrorContains(t, err, tc.err, "unwrapV2Response should report the expected error")
+				assert.NotContains(t, err.Error(), "lbank:", "unwrapV2Response should return a bare error; SendHTTPRequest adds the exchange name")
+				if tc.isErr == nil {
+					assert.NotErrorIs(t, err, errRequestFailed, "a malformed envelope should not be reported as a failed request")
+				} else {
+					assert.ErrorIs(t, err, tc.isErr, "unwrapV2Response should report a matchable envelope failure")
+				}
+				return
+			}
+			require.NoError(t, err, "unwrapV2Response must not error")
+			assert.Equal(t, tc.expected, string(payload), "unwrapV2Response should return the expected payload")
+		})
+	}
+}
+
+// TestSendHTTPRequestEnvelopeFailure covers the path where an LBank v2
+// envelope reports a failed request. Without the boolean-aware envelope
+// handling this error was never surfaced to the caller.
+func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
+	t.Parallel()
+
+	sm := http.NewServeMux()
+	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":false,"msg":"instrument not found","error_code":10076}`))
+	})
+	server := httptest.NewServer(sm)
+	defer server.Close()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	var result any
+	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
+	assert.ErrorIs(t, err, errRequestFailed, "a failed envelope should be reported as a failed request")
+	assert.ErrorContains(t, err, "(error_code 10076)", "a failed envelope should carry the exchange error code")
+	assert.ErrorContains(t, err, ex.Name+": request failed", "SendHTTPRequest should wrap the bare helper error with the exchange name")
 }
