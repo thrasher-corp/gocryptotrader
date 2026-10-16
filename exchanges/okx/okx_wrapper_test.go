@@ -3083,6 +3083,68 @@ func TestSubmitOrderContractSendsSideAndReduceOnly(t *testing.T) {
 	}
 }
 
+// TestSubmitOrderAlgoContractGuardsReduceOnlyByPositionMode verifies that algo
+// order placement suppresses reduceOnly for FUTURES/SWAP in long/short mode,
+// where OKX ignores the flag and the position side carries the close intent.
+func TestSubmitOrderAlgoContractGuardsReduceOnlyByPositionMode(t *testing.T) {
+	t.Parallel()
+	algoExtras := func(s *order.Submit) {
+		s.TriggerPrice = 100
+		s.Price = -1
+	}
+	for _, tc := range []struct {
+		name          string
+		posMode       string
+		assetType     asset.Item
+		expReduceOnly any // nil when the field must be absent
+	}{
+		{"net mode passes reduceOnly", positionModeNet, asset.PerpetualSwap, true},
+		{"long/short mode suppresses reduceOnly", positionModeLongShort, asset.PerpetualSwap, nil},
+		{"margin passes reduceOnly regardless of mode", positionModeLongShort, asset.Margin, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					writeOKXData(t, w, []map[string]string{{"posMode": tc.posMode}})
+					return
+				}
+				if r.URL.Path != "/trade/order-algo" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the algo order body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0"})
+			}))
+			sub := &order.Submit{
+				Exchange:    e.Name,
+				Pair:        mainPair,
+				AssetType:   tc.assetType,
+				Side:        order.Sell,
+				Type:        order.Trigger,
+				Amount:      1,
+				MarginType:  margin.Multi,
+				ReduceOnly:  true,
+			}
+			algoExtras(sub)
+			_, err := e.SubmitOrder(t.Context(), sub)
+			require.NoError(t, err, "SubmitOrder must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+			assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode guard")
+		})
+	}
+}
+
 // TestWebsocketSubmitOrderContractSendsSideAndReduceOnly guards the contract
 // fields on the websocket transport: the private order frames must carry
 // OKX's required side, the position side and the reduce-only flag.

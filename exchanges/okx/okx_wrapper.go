@@ -1108,10 +1108,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	// Algo orders carry posSide only for futures and perpetual swap, where the
-	// account's position mode decides it.
+	// account's position mode decides it. OKX only honours reduceOnly for
+	// MARGIN orders and FUTURES/SWAP orders in net mode; in long/short mode
+	// the position side expresses the close intent instead.
 	var positionSide string
+	reduceOnly := s.ReduceOnly
 	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
 		positionSide = positionSideForMode(s.Side, s.ReduceOnly, p.positionMode)
+		reduceOnly = s.ReduceOnly && p.positionMode == positionModeNet
 	}
 	var result *AlgoOrder
 	switch orderTypeStr {
@@ -1140,7 +1144,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			ReduceOnly:        s.ReduceOnly,
+			ReduceOnly:        reduceOnly,
 			TriggerPrice:      s.TriggerPrice,
 			OrderPrice:        s.Price,
 			TriggerPriceType:  priceTypeString(s.TriggerPriceType),
@@ -1155,7 +1159,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:             positionSide,
 			OrderType:                orderTypeStr,
 			Size:                     s.Amount,
-			ReduceOnly:               s.ReduceOnly,
+			ReduceOnly:               reduceOnly,
 			StopLossTriggerPrice:     s.TriggerPrice,
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
@@ -1175,7 +1179,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			ReduceOnly:        s.ReduceOnly,
+			ReduceOnly:        reduceOnly,
 			MaxChaseType:      chaseTypeString(s.TrackingMode),
 			MaxChaseValue:     s.TrackingValue,
 		})
@@ -1198,7 +1202,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:           positionSide,
 			OrderType:              orderTypeStr,
 			Size:                   s.Amount,
-			ReduceOnly:             s.ReduceOnly,
+			ReduceOnly:             reduceOnly,
 			CallbackRatio:          callbackRatio,
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
@@ -1222,7 +1226,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			ReduceOnly:        s.ReduceOnly,
+			ReduceOnly:        reduceOnly,
 			PriceVariance:     priceVar,
 			PriceSpread:       priceSpread,
 			SizeLimit:         s.Amount,
@@ -1246,7 +1250,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			ReduceOnly:        s.ReduceOnly,
+			ReduceOnly:        reduceOnly,
 
 			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
