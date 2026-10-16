@@ -179,6 +179,9 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	// Taken before dialling, as the backoff is for this attempt alone and a failed one must not leave it to a later
+	// connection
+	backoff := time.Duration(e.accountProbeInterval.Swap(0))
 	if err := e.connectWebsocket(ctx, e.Websocket.Conn); err != nil {
 		return err
 	}
@@ -196,7 +199,7 @@ func (e *Exchange) WsConnect() error {
 	if err := e.connectWebsocket(ctx, e.Websocket.AuthConn); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Warnf(log.WebsocketMgr, "%s account websocket connection failed, retrying: %s", e.Name, err)
-		interval := cmp.Or(e.Config.ConnectionMonitorDelay, config.DefaultConnectionMonitorDelay)
+		interval := max(cmp.Or(e.Config.ConnectionMonitorDelay, config.DefaultConnectionMonitorDelay), backoff)
 		go e.awaitAccountWebsocket(ctx, e.Websocket.AuthConn.GetURL(), e.Websocket.GetProxyAddress(), e.Websocket.ShutdownC, interval)
 		return nil
 	}
@@ -225,8 +228,9 @@ func (e *Exchange) connectWebsocket(ctx context.Context, connection websocket.Co
 // awaitAccountWebsocket probes the websocket endpoint after the account connection failed to dial, keeping the public
 // feeds up, and shuts the websocket down once a probe connects, so the connection monitor reconnects it with the account
 // feeds; it stops when the websocket shuts down. Probes start after the given interval, which doubles after each failed
-// probe up to a minute. The endpoint, proxy and shutdown channel are passed in, as reading them later would race with
-// the manager changing them
+// probe up to a minute. A probe that connects hands the doubled interval to the reconnection it causes, so an account
+// dial that fails again straight after backs off further rather than starting over. The endpoint, proxy and shutdown
+// channel are passed in, as reading them later would race with the manager changing them
 func (e *Exchange) awaitAccountWebsocket(ctx context.Context, endpoint, proxy string, shutdown <-chan struct{}, interval time.Duration) {
 	timer := time.NewTimer(interval)
 	defer timer.Stop()
@@ -249,9 +253,16 @@ func (e *Exchange) awaitAccountWebsocket(ctx context.Context, endpoint, proxy st
 			return
 		default:
 		}
-		// A shutdown or reconnection already under way also leaves the connection monitor to reconnect
-		if err := e.Websocket.Shutdown(); err != nil && e.Verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket shutdown for the account feeds: %s", e.Name, err)
+		// Handed over before shutting down, as the connection monitor can reconnect before Shutdown returns
+		backoff := int64(nextAccountWebsocketProbeInterval(interval))
+		e.accountProbeInterval.Store(backoff)
+		if err := e.Websocket.Shutdown(); err != nil {
+			// A shutdown or reconnection already under way also leaves the connection monitor to reconnect, though not
+			// because of this probe, so the backoff is withdrawn unless that reconnection has taken it already
+			e.accountProbeInterval.CompareAndSwap(backoff, 0)
+			if e.Verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket shutdown for the account feeds: %s", e.Name, err)
+			}
 		}
 		return
 	}

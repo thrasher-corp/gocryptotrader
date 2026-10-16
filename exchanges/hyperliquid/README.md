@@ -125,7 +125,8 @@ other's stored book, and two `userFills` variants would relay each fill twice.
 Account feeds use a connection of their own, opened when an account address is configured. When it cannot connect, the
 public feeds stay up and the endpoint is probed after a connection monitor cycle, then at intervals doubling up to a
 minute, or staying at the monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an
-address; once a probe connects, the websocket reconnects with the account feeds.
+address; once a probe connects, the websocket reconnects with the account feeds. Should the account connection fail
+again on that reconnection, probing resumes from the doubled interval rather than starting over.
 
 Hyperliquid closes the connection, dropping every feed on it, when a subscription fails validation, so coins, DEXs and
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it

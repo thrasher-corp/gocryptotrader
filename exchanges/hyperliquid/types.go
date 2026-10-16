@@ -49,6 +49,10 @@ type Exchange struct {
 	websocketWatermarks websocketWatermarks
 	websocketPostID     atomic.Uint64
 	lastNonce           atomic.Uint64
+	// accountProbeInterval hands the doubled interval of an account websocket probe that connected to the next connection
+	// attempt, the reconnection the probe causes, so an account connection that keeps failing straight after the public
+	// one backs off instead of reconnecting the websocket every monitor cycle; it is zero otherwise
+	accountProbeInterval atomic.Int64
 }
 
 // ZonelessTime is a UTC timestamp decoded from an ISO 8601 string without a zone offset
