@@ -90,6 +90,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	}
 
 	for i := range args {
 		if args[i].InstrumentID == "" {
@@ -118,7 +121,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
+	if arg.NewSize <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	if arg.InstrumentIDCode == 0 {
@@ -145,7 +148,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
+		if args[x].NewSize <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 		if args[x].InstrumentIDCode == 0 {

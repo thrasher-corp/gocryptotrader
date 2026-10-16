@@ -3883,7 +3883,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		Pair:      spreadPair,
 	}
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{spreadCancel})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
@@ -5571,10 +5571,8 @@ func TestGetLeverage(t *testing.T) {
 	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, order.UnknownSide)
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
-		// Without credentials the position mode fetch fails before any request
-		// is sent; with them this would read the live account.
 		_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "without credentials the fetch must fail before any request is sent, as with them it would read the live account")
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -5601,10 +5599,8 @@ func TestSetLeverage(t *testing.T) {
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, 5, order.UnknownSide)
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
-		// Without credentials the position mode fetch fails before any request
-		// is sent; with them this would change the live account's leverage.
 		err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "without credentials the fetch must fail before any request is sent, as with them it would change the live account's leverage")
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -7558,13 +7554,11 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
-	// The px of a spread order is the differential between its legs, so a
-	// negative price is valid, and a market order carries no price at all.
 	p.Price = -41.2
-	require.NoError(t, p.Validate())
+	require.NoError(t, p.Validate(), "a negative price must validate: the price of a spread order is the differential between its legs")
 	p.OrderType = order.Market.String()
 	p.Price = 0
-	require.NoError(t, p.Validate())
+	require.NoError(t, p.Validate(), "a market order must validate with no price at all")
 }
 
 // TestDeprecatedUlyReplacedByInstFamily pins the uly to instFamily migration

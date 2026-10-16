@@ -78,9 +78,7 @@ func newMockExchange(t *testing.T, h http.Handler) *Exchange {
 	t.Helper()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	// The mock answers at once, so the rate limiters every test in the package
-	// shares would only hold its requests back behind other tests.
-	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
+	require.NoError(t, e.DisableRateLimiter(), "the limiter must disable: the mock answers at once, so the rate limiters every test in the package shares would only hold its requests back behind other tests")
 	srv := httptest.NewTestServer(t, limitMockRequests(t, h))
 	b := e.GetBase()
 	b.SkipAuthCheck = true
@@ -1292,10 +1290,9 @@ func TestGetSpreadOrderHistoryFromOrderIDSeedsTheEndIDCursor(t *testing.T) {
 		Type:        order.AnyType,
 		Side:        order.AnySide,
 		FromOrderID: "SEED-1",
-		// A recent start time keeps the crawl inside the 21 day listing.
-		StartTime: time.Now().Add(-24 * time.Hour),
+		StartTime:   time.Now().Add(-24 * time.Hour),
 	})
-	require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds the spread crawl")
+	require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds the spread crawl, with a recent start time keeping it inside the 21 day listing")
 
 	mu.Lock()
 	cursors := make([]string, len(endIDCursors))
@@ -1353,10 +1350,9 @@ func TestGetSpreadOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 		AssetType: asset.Spread,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
-		// A recent start time keeps the crawl inside the 21 day listing.
 		StartTime: time.Now().Add(-24 * time.Hour),
 	})
-	require.NoError(t, err, "GetOrderHistory must stop when a full page holds no new spread order")
+	require.NoError(t, err, "GetOrderHistory must stop when a full page holds no new spread order, with a recent start time keeping the crawl inside the 21 day listing")
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, []string{"", "SPD-099"}, endIDCursors, "the crawl should stop when the endId cursor stops advancing")
@@ -1464,11 +1460,9 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		}))
 		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
-			// Ten days back sits inside the listing's 21 day window, so the
-			// listing alone must cover it and the archive must not be crawled.
 			StartTime: time.Now().Add(-10 * 24 * time.Hour),
 		})
-		require.NoError(t, err, "GetOrderHistory must not error when the 21 day listing covers the start time")
+		require.NoError(t, err, "GetOrderHistory must not error when the ten-day-old start time sits inside the 21 day listing")
 		mu.Lock()
 		crawls := archiveCrawls
 		mu.Unlock()
@@ -1496,12 +1490,10 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		}))
 		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
-			// A window entirely older than the 21 day listing can only be
-			// served by the archive.
 			StartTime: time.Now().Add(-40 * 24 * time.Hour),
 			EndTime:   time.Now().Add(-30 * 24 * time.Hour),
 		})
-		require.NoError(t, err, "GetOrderHistory must not error when only the archive covers the window")
+		require.NoError(t, err, "GetOrderHistory must not error when the window sits entirely older than the 21 day listing and only the archive covers it")
 		require.Len(t, resp, 1, "the archive must be the only source for a window older than the listing")
 		assert.Equal(t, "SPD-OLD", resp[0].OrderID)
 	})
@@ -1842,118 +1834,62 @@ func TestPendingOrderTypeFilter(t *testing.T) {
 // CancelBatchOrders: cancels report a usable status key, the missing-ID guard
 // rejects the batch, and no cancel is sent until the whole batch validates.
 // Subtests share the mock server's request counter, so they run sequentially.
+// TestCancelBatchOrdersSpreadGuards guards the batch cancel validation: a
+// spread order cannot batch — OKX takes each spread cancel as its own
+// request — so a spread entry fails the whole batch before any cancel is
+// sent, while a client-ID-only spot cancel passes the ordinary order guard.
 func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
-	const (
-		spreadOrdID = "2341161427393388544"
-		spotOrdID   = "2341161427393388545"
-	)
-
+	t.Parallel()
+	const spotOrdID = "2341161427393388545"
 	var mu sync.Mutex
-	var spreadCancels int
-	var batchFails bool
-
+	var requests int
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/sprd/cancel-order":
-			mu.Lock()
-			spreadCancels++
-			mu.Unlock()
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"sCode":"0","sMsg":"","ordId":"` + spreadOrdID + `","clOrdId":""}}`))
-		case "/trade/cancel-batch-orders":
-			mu.Lock()
-			fails := batchFails
-			mu.Unlock()
-			if fails {
-				http.Error(w, "batch failed", http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"` + spotOrdID + `","clOrdId":"spot-cl"}]}`))
-		default:
+		if r.URL.Path != "/trade/cancel-batch-orders" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
+			return
 		}
+		mu.Lock()
+		requests++
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"` + spotOrdID + `","clOrdId":"spot-cl"}]}`))
 	}))
-
-	setBatchFails := func(v bool) {
+	requestsSent := func() int {
 		mu.Lock()
 		defer mu.Unlock()
-		batchFails = v
-	}
-	resetSpreadCancels := func() {
-		mu.Lock()
-		defer mu.Unlock()
-		spreadCancels = 0
-	}
-	spreadCancelsSent := func() int {
-		mu.Lock()
-		defer mu.Unlock()
-		return spreadCancels
+		return requests
 	}
 
-	t.Run("client order ID status key", func(t *testing.T) {
-		resetSpreadCancels()
-		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
-			AssetType:     asset.Spread,
-			Pair:          spreadPair,
-			ClientOrderID: "spread-cl",
-		}})
-		require.NoError(t, err, "CancelBatchOrders must not error for a client-ID-only spread cancel")
-		assert.Equal(t, 1, spreadCancelsSent(), "the spread cancel should have been sent")
-		assert.Equal(t, map[string]string{spreadOrdID: order.Cancelled.String()}, resp.Status,
-			"a client-ID-only spread cancel should report the status under the order ID OKX returns")
-	})
+	_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
+		AssetType:     asset.Spread,
+		Pair:          spreadPair,
+		ClientOrderID: "spread-cl",
+	}})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel should be refused: spread orders cancel one request at a time")
+	assert.Zero(t, requestsSent(), "a refused batch should send no cancels")
 
-	t.Run("guard requires an ID", func(t *testing.T) {
-		resetSpreadCancels()
-		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
-			AssetType: asset.Spread,
-			Pair:      spreadPair,
-		}})
-		assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "a spread cancel without either ID should be rejected")
-		assert.Zero(t, spreadCancelsSent(), "a rejected batch should send no cancels")
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "spot-order"},
+		{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
 	})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread entry should fail the batch")
+	assert.Zero(t, requestsSent(), "no cancel should be sent before the whole batch validates")
 
-	t.Run("invalid entry cancels nothing", func(t *testing.T) {
-		resetSpreadCancels()
-		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
-			{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
-			{AssetType: asset.Spot, Pair: currency.Pair{}, OrderID: "spot-order"},
-		})
-		assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "an invalid entry should fail the batch")
-		assert.Zero(t, spreadCancelsSent(), "no cancel should be sent before the whole batch validates")
-	})
-
-	t.Run("client order ID alone passes the ordinary order guard", func(t *testing.T) {
-		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
-			AssetType:     asset.Spot,
-			Pair:          mainPair,
-			ClientOrderID: "spot-cl",
-		}})
-		require.NoError(t, err, "CancelBatchOrders must accept a client-ID-only spot cancel")
-		assert.Equal(t, map[string]string{spotOrdID: order.Cancelled.String()}, resp.Status,
-			"a client-ID-only spot cancel should report the status under the order ID OKX returns")
-	})
-
-	t.Run("ordinary batch failure keeps spread statuses", func(t *testing.T) {
-		resetSpreadCancels()
-		setBatchFails(true)
-		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
-			{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
-			{AssetType: asset.Spot, Pair: mainPair, OrderID: "spot-order"},
-		})
-		assert.Error(t, err, "the failed ordinary batch should be reported")
-		assert.Equal(t, 1, spreadCancelsSent(), "the spread cancel before the failed batch should have been sent")
-		assert.Equal(t, map[string]string{spreadOrdID: order.Cancelled.String()}, resp.Status,
-			"a failed ordinary batch should not discard the spread statuses already recorded")
-	})
+	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
+		AssetType:     asset.Spot,
+		Pair:          mainPair,
+		ClientOrderID: "spot-cl",
+	}})
+	require.NoError(t, err, "CancelBatchOrders must accept a client-ID-only spot cancel")
+	assert.Equal(t, map[string]string{spotOrdID: order.Cancelled.String()}, resp.Status,
+		"a client-ID-only spot cancel should report the status under the order ID OKX returns")
 }
 
-// TestCancelBatchOrdersSpreadReplies guards spread cancel replies that confirm
-// no order: each fails the batch, with a sentinel error when the reply names no
-// order, and keeps the status of the spread order cancelled before it.
-func TestCancelBatchOrdersSpreadReplies(t *testing.T) {
+// TestCancelOrderSpreadReplies guards spread cancel replies that confirm no
+// order on the single-order path: a reply that names no order is a sentinel
+// error, and a failed cancel reports OKX's status message.
+func TestCancelOrderSpreadReplies(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name  string
@@ -1961,42 +1897,30 @@ func TestCancelBatchOrdersSpreadReplies(t *testing.T) {
 		err   error
 	}{
 		{"no data", `{"code":"0","msg":"","data":null}`, common.ErrNoResponse},
-		{"no order ID", `{"code":"0","msg":"","data":[{"ordId":"","clOrdId":"S2","sCode":"0","sMsg":""}]}`, common.ErrInvalidResponse},
-		{"cancel failed", `{"code":"1","msg":"All operations failed","data":[{"ordId":"","clOrdId":"S2","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
+		{"no order ID", `{"code":"0","msg":"","data":[{"ordId":"","clOrdId":"S1","sCode":"0","sMsg":""}]}`, common.ErrInvalidResponse},
+		{"cancel failed", `{"code":"1","msg":"All operations failed","data":[{"ordId":"","clOrdId":"S1","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var mu sync.Mutex
-			var cancels int
 			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/sprd/cancel-order" {
 					t.Errorf("unexpected request path %s", r.URL.Path)
 					http.NotFound(w, r)
 					return
 				}
-				mu.Lock()
-				cancels++
-				first := cancels == 1
-				mu.Unlock()
 				w.Header().Set("Content-Type", "application/json")
-				if first {
-					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"SPRD-1","clOrdId":"S1","sCode":"0","sMsg":""}]}`))
-					return
-				}
 				_, _ = w.Write([]byte(tc.reply))
 			}))
-			resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
-				{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "S1"},
-				{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "S2"},
+			err := e.CancelOrder(t.Context(), &order.Cancel{
+				AssetType:     asset.Spread,
+				Pair:          spreadPair,
+				ClientOrderID: "S1",
 			})
 			if tc.err != nil {
-				require.ErrorIs(t, err, tc.err, "CancelBatchOrders must return the sentinel for a reply that names no order")
+				assert.ErrorIs(t, err, tc.err, "CancelOrder should return the sentinel for a reply that names no order")
 			} else {
-				require.Error(t, err, "CancelBatchOrders must return the failed cancel's error")
+				assert.ErrorContains(t, err, "Order does not exist", "CancelOrder should report the failed cancel's status message")
 			}
-			require.NotNil(t, resp, "CancelBatchOrders must return the statuses already recorded")
-			assert.Equal(t, map[string]string{"SPRD-1": order.Cancelled.String()}, resp.Status,
-				"the spread order cancelled before the failed reply should still be reported")
 		})
 	}
 }
@@ -2429,6 +2353,24 @@ func TestCancelResultsUsable(t *testing.T) {
 	assert.True(t, cancelResultsUsable(errPartialSuccess), "a partial success should report usable results")
 	assert.True(t, cancelResultsUsable(common.AppendError(errPartialSuccess, errors.New("order 3: does not exist"))), "a joined partial success should still report usable results")
 	assert.False(t, cancelResultsUsable(errors.New("batch one failed")), "any other error should report unusable results")
+}
+
+// TestBatchCancelEndpointsRefuseOversizedLists guards the documented
+// per-request maximum of the batch cancel endpoints: the caller supplies the
+// list, so more than 20 orders is refused before any request transmits, over
+// REST and the websocket alike.
+func TestBatchCancelEndpointsRefuseOversizedLists(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	args := make([]CancelOrderRequestParam, 21)
+	for i := range args {
+		args[i] = CancelOrderRequestParam{InstrumentID: "BTC-USDT", OrderID: strconv.Itoa(i)}
+	}
+	_, err := e.CancelMultipleOrders(t.Context(), args)
+	assert.ErrorIs(t, err, errExceedLimit, "CancelMultipleOrders should refuse more than 20 orders")
+	_, err = e.WSCancelMultipleOrders(t.Context(), args)
+	assert.ErrorIs(t, err, errExceedLimit, "WSCancelMultipleOrders should refuse more than 20 orders")
 }
 
 // TestOrderListsIncludeStartTime guards the StartTime bound of GetActiveOrders
@@ -3189,52 +3131,15 @@ func TestPlaceOrderRequestParamValidateRequiresSideForContracts(t *testing.T) {
 // TestCancelBatchOrdersAlgoChunksPerTen guards the algo cancel transport: the
 // documented cancel-algos endpoint accepts at most 10 algo orders per request,
 // so a larger batch is split, and every chunk's results reach the status map.
-func TestCancelBatchOrdersAlgoChunksPerTen(t *testing.T) {
-	t.Parallel()
-	var mu sync.Mutex
-	var chunkSizes []int
-	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/trade/cancel-algos" {
-			t.Errorf("unexpected request path %s", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		raw, readErr := io.ReadAll(r.Body)
-		assert.NoError(t, readErr, "reading the algo cancel body should not error")
-		var sent []map[string]string
-		if err := json.Unmarshal(raw, &sent); err != nil {
-			t.Errorf("the algo cancel body should decode: %v", err)
-			http.Error(w, "bad body", http.StatusBadRequest)
-			return
-		}
-		rows := make([]map[string]string, 0, len(sent))
-		for _, a := range sent {
-			rows = append(rows, map[string]string{"algoId": a["algoId"], "sCode": "0", "sMsg": ""})
-		}
-		mu.Lock()
-		chunkSizes = append(chunkSizes, len(rows))
-		mu.Unlock()
-		writeOKXData(t, w, rows)
-	}))
-	cancels := make([]order.Cancel, 0, 15)
-	for i := range 15 {
-		cancels = append(cancels, order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-" + strconv.Itoa(i), Type: order.Trigger})
-	}
-	resp, err := e.CancelBatchOrders(t.Context(), cancels)
-	require.NoError(t, err, "CancelBatchOrders must not error when every chunk succeeds")
-	mu.Lock()
-	defer mu.Unlock()
-	assert.Equal(t, []int{10, 5}, chunkSizes, "the algo cancels should be sent in requests of at most 10")
-	assert.Len(t, resp.Status, 15, "every cancelled algo order should appear in the status map")
-}
-
-// TestCancelBatchOrdersAlgoChunkContinuesAfterPartialSuccess guards the chunk
-// loop: a partially successful chunk reports its rows and still leaves the
-// chunks after it to cancel.
-func TestCancelBatchOrdersAlgoChunkContinuesAfterPartialSuccess(t *testing.T) {
+// TestCancelBatchOrdersAlgoLimit guards the algo cancel limit: the documented
+// cancel-algos request takes at most maxCancelAlgosPerRequest orders, and the
+// wrapper does not chunk for the caller, so a longer list is refused before
+// any request is sent while a list within the limit goes out as one request.
+func TestCancelBatchOrdersAlgoLimit(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var requests int
+	var lastSize int
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/cancel-algos" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
@@ -3255,42 +3160,24 @@ func TestCancelBatchOrdersAlgoChunkContinuesAfterPartialSuccess(t *testing.T) {
 		}
 		mu.Lock()
 		requests++
-		partial := requests == 1
+		lastSize = len(rows)
 		mu.Unlock()
-		if partial {
-			// OKX answers one row per requested algo order, and the chunk's
-			// second order failed.
-			rows[1]["sCode"] = "51000"
-			rows[1]["sMsg"] = "The algo order does not exist"
-			body, mErr := json.Marshal(map[string]any{"code": "2", "msg": "Bulk operation partially succeeded.", "data": rows})
-			if mErr != nil {
-				t.Errorf("marshalling the partial success reply should not error: %v", mErr)
-				http.Error(w, "bad reply", http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write(body)
-			return
-		}
 		writeOKXData(t, w, rows)
 	}))
-	cancels := make([]order.Cancel, 0, 12)
-	for i := range 12 {
+	cancels := make([]order.Cancel, 0, maxCancelAlgosPerRequest+1)
+	for i := range maxCancelAlgosPerRequest + 1 {
 		cancels = append(cancels, order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-" + strconv.Itoa(i), Type: order.Trigger})
 	}
-	resp, err := e.CancelBatchOrders(t.Context(), cancels)
-	require.ErrorIs(t, err, errPartialSuccess, "the partially successful chunk must report its error")
-	require.NotNil(t, resp, "CancelBatchOrders must return the results beside the error")
+	_, err := e.CancelBatchOrders(t.Context(), cancels)
+	assert.ErrorIs(t, err, errExceedLimit, "more than ten algo orders in one batch should be refused")
+
+	resp, err := e.CancelBatchOrders(t.Context(), cancels[:maxCancelAlgosPerRequest])
+	require.NoError(t, err, "CancelBatchOrders must accept ten algo orders")
+	assert.Len(t, resp.Status, maxCancelAlgosPerRequest, "every cancelled algo order should appear in the status map")
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Equal(t, 2, requests, "the second chunk should still be sent after a partial success")
-	for i := range 12 {
-		exp := order.Cancelled.String()
-		if i == 1 {
-			exp = "The algo order does not exist"
-		}
-		assert.Equalf(t, exp, resp.Status["ALGO-"+strconv.Itoa(i)], "the chunk results should record ALGO-%d's own outcome", i)
-	}
+	assert.Equal(t, 1, requests, "the algo cancels within the limit should be sent as one request")
+	assert.Equal(t, maxCancelAlgosPerRequest, lastSize, "the single algo request should carry the whole batch")
 }
 
 // TestGetOrderHistoryPaginatesWithAfterCursor guards the order history
@@ -5228,12 +5115,12 @@ func TestContractPositionModeRefetchesAfterAnotherKeySwitches(t *testing.T) {
 	assert.Equal(t, 2, fetches, "the second order should fetch its own key's mode again rather than keep the stale one")
 }
 
-// TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch guards the
+// TestContractPositionModeErrorsWhenAFetchOverlapsASwitch guards the
 // position mode against a first-use fetch through one API key that returns
 // after a switch confirmed through another key of the same account: the
-// fetched mode may predate the switch, so the waiting caller fetches again
-// rather than use or cache it.
-func TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch(t *testing.T) {
+// fetched mode may predate the switch, so it is neither used nor cached, and
+// the next order fetches again.
+func TestContractPositionModeErrorsWhenAFetchOverlapsASwitch(t *testing.T) {
 	t.Parallel()
 	getStarted := make(chan struct{})
 	startOnce := sync.OnceFunc(func() { close(getStarted) })
@@ -5291,17 +5178,16 @@ func TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch(t *testing.T) {
 	releaseOnce()
 	select {
 	case got := <-fetched:
-		require.NoError(t, got.err, "the in-flight lookup must not error")
-		assert.Equal(t, positionModeLongShort, got.mode, "the in-flight lookup should fetch again rather than use a mode that predates the switch")
+		require.ErrorIs(t, got.err, errPositionModeSwitchedDuringFetch, "the overlapped lookup must error rather than report a mode that predates the switch")
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "the in-flight lookup must return")
 	}
 	mode, err := e.contractPositionMode(ctxFor("KEY-1"))
-	require.NoError(t, err, "contractPositionMode must not error")
-	assert.Equal(t, positionModeLongShort, mode, "the refetched mode should be cached")
+	require.NoError(t, err, "contractPositionMode must not error once the switch settled")
+	assert.Equal(t, positionModeLongShort, mode, "the next lookup should fetch the switched mode")
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Equal(t, 2, fetches, "the overlapping fetch should be repeated once and its answer cached")
+	assert.Equal(t, 2, fetches, "the overlapped fetch should be neither cached nor reused, so the next lookup fetches again")
 }
 
 // TestGetOrderInfoReportsExecutionValues guards the order detail mapping:

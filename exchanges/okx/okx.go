@@ -136,6 +136,9 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	}
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -176,7 +179,7 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
+	if arg.NewSize <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	var resp *OrderData
@@ -205,7 +208,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
+		if args[x].NewSize <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
@@ -4110,9 +4113,9 @@ func (e *Exchange) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	// Market orders carry no px, and the px of a spread order is the
-	// differential between its legs, which can be negative: only a missing
-	// price on a price-bearing order type is an error.
+	// Market orders carry no price, and the price of a spread order is
+	// the differential between its legs, which can be negative: only a
+	// missing price on a price-bearing order type is an error.
 	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}

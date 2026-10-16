@@ -1026,8 +1026,8 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 		TargetCurrency: p.targetCurrency,
 		AssetType:      s.AssetType,
 	}
-	// px only applies to the limit-style order types, so a market order
-	// carries no price even when the submit set one.
+	// The price only applies to the limit-style order types, so a market
+	// order carries no price even when the submit set one.
 	switch oType {
 	case orderLimit, orderPostOnly, orderFOK, orderIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly:
 		orderRequest.Price = s.Price
@@ -1261,34 +1261,36 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // fetching and caching it on first use: net mode and long/short mode place
 // futures and perpetual swap orders differently. The cache is keyed by the
 // API key the request acts for, as a request can carry another account's
-// credentials in its context.
+// credentials in its context. A fetch that overlaps a confirmed switch errors
+// rather than report a mode that may predate it, so the next order fetches
+// again.
 func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
 	apiKey := e.positionModeKey(ctx)
-	for {
-		e.accountPositionModeMu.RLock()
-		mode := e.accountPositionModes[apiKey]
-		switches := e.accountPositionModeSwitches
-		e.accountPositionModeMu.RUnlock()
-		if mode != "" {
-			return mode, nil
-		}
-		accountConfig, err := e.GetAccountConfiguration(ctx)
-		if err != nil {
-			return "", fmt.Errorf("error fetching the account position mode: %w", err)
-		}
-		if accountConfig == nil {
-			return "", fmt.Errorf("error fetching the account position mode: %w", common.ErrNoResponse)
-		}
-		if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
-			return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
-		}
-		if settled, ok := e.cachePositionMode(apiKey, switches, accountConfig.PositionMode); ok {
-			return settled, nil
-		}
+	e.accountPositionModeMu.RLock()
+	mode := e.accountPositionModes[apiKey]
+	switches := e.accountPositionModeSwitches
+	e.accountPositionModeMu.RUnlock()
+	if mode != "" {
+		return mode, nil
+	}
+	accountConfig, err := e.GetAccountConfiguration(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error fetching the account position mode: %w", err)
+	}
+	if accountConfig == nil {
+		return "", fmt.Errorf("error fetching the account position mode: %w", common.ErrNoResponse)
+	}
+	if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
+		return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
+	}
+	settled, ok := e.cachePositionMode(apiKey, switches, accountConfig.PositionMode)
+	if !ok {
 		// A switch through another key, which may belong to the same account,
 		// landed while the fetch was in flight, so its answer may predate the
-		// switch: fetch again.
+		// switch.
+		return "", errPositionModeSwitchedDuringFetch
 	}
+	return settled, nil
 }
 
 // cachePositionMode caches a mode fetched for apiKey unless a switch landed
@@ -1313,10 +1315,6 @@ func (e *Exchange) cachePositionMode(apiKey string, switches uint64, fetched str
 // account's cached position mode. Without usable credentials the account
 // configuration request fails on its own, so an empty key is returned.
 func (e *Exchange) positionModeKey(ctx context.Context) string {
-	if ctx == nil {
-		// The request itself refuses a nil context.
-		return ""
-	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return ""
@@ -1396,7 +1394,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 		_, err = e.AmendOrder(ctx, &AmendOrderRequestParams{
 			InstrumentID:  instrumentID,
-			NewQuantity:   action.Amount,
+			NewSize:       action.Amount,
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 			NewPrice:      action.Price,
@@ -1479,8 +1477,17 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
 	if ord.AssetType == asset.Spread {
-		_, err := e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		return err
+		cancelled, err := e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		if err != nil {
+			return err
+		}
+		switch {
+		case cancelled == nil:
+			return fmt.Errorf("%w cancelling spread order ID %q client order ID %q", common.ErrNoResponse, ord.OrderID, ord.ClientOrderID)
+		case cancelled.OrderID == "":
+			return fmt.Errorf("%w: no order ID cancelling spread order ID %q client order ID %q", common.ErrInvalidResponse, ord.OrderID, ord.ClientOrderID)
+		}
+		return getStatusError(cancelled.StatusCode, cancelled.StatusMessage)
 	}
 	pairFormat, err := e.GetPairFormat(ord.AssetType, true)
 	if err != nil {
@@ -1519,11 +1526,19 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // maxCancelAlgosPerRequest is the documented maximum number of algo orders
-// POST /api/v5/trade/cancel-algos accepts per request.
+// POST /api/v5/trade/cancel-algos accepts per request. The caller supplies
+// the batch, so a longer algo list is rejected rather than chunked.
 const maxCancelAlgosPerRequest = 10
 
+// errSpreadBatchCancelUnsupported reports that spread orders cannot join a
+// batch cancel: OKX takes each spread cancel as its own request, so the batch
+// endpoint carries nothing to batch for them.
+var errSpreadBatchCancelUnsupported = fmt.Errorf("%w: spread orders cancel one request at a time", common.ErrFunctionNotSupported)
+
 // CancelBatchOrders cancels orders by their corresponding ID numbers via the
-// exchange REST API.
+// exchange REST API. Ordinary orders cancel in one request of at most 20 and
+// algo orders in one request of at most maxCancelAlgosPerRequest; spread
+// orders cannot batch, so they are rejected.
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) > 20 {
 		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
@@ -1532,9 +1547,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
 	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
-	cancelSpreadOrderParams := make([]order.Cancel, 0, len(o))
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
-	var err error
 	// The whole batch is validated before any cancel is sent, so an invalid
 	// entry cannot leave a partially executed batch behind.
 	for x := range o {
@@ -1542,25 +1555,20 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if !e.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-		var pairFormat currency.PairFormat
-		pairFormat, err = e.GetPairFormat(ord.AssetType, true)
+		if ord.AssetType == asset.Spread {
+			return nil, errSpreadBatchCancelUnsupported
+		}
+		pairFormat, err := e.GetPairFormat(ord.AssetType, true)
 		if err != nil {
 			return nil, err
 		}
 		if !ord.Pair.IsPopulated() {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
-		if ord.AssetType == asset.Spread {
-			if ord.OrderID == "" && ord.ClientOrderID == "" {
-				return nil, fmt.Errorf("%w, order ID required for spread order cancel", order.ErrOrderIDNotSet)
-			}
-			cancelSpreadOrderParams = append(cancelSpreadOrderParams, ord)
-			continue
-		}
 		switch ord.Type {
 		case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
-			if o[x].ClientOrderID == "" && o[x].OrderID == "" {
-				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
+			if ord.ClientOrderID == "" && ord.OrderID == "" {
+				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, ord.Type)
 			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
 				InstrumentID:  pairFormat.Format(ord.Pair),
@@ -1569,40 +1577,22 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			})
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
-			if o[x].OrderID == "" {
-				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
+			if ord.OrderID == "" {
+				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, ord.Type)
 			}
 			cancelAlgoOrderParams = append(cancelAlgoOrderParams, AlgoOrderCancelParams{
-				AlgoOrderID:  o[x].OrderID,
+				AlgoOrderID:  ord.OrderID,
 				InstrumentID: pairFormat.Format(ord.Pair),
 			})
 		default:
-			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
+			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, ord.Type)
 		}
+	}
+	if len(cancelAlgoOrderParams) > maxCancelAlgosPerRequest {
+		return nil, fmt.Errorf("%w, cannot cancel more than %d algo orders", errExceedLimit, maxCancelAlgosPerRequest)
 	}
 	// Cancels from here on execute, so a failure returns resp with the
 	// statuses already recorded rather than discarding them.
-	for x := range cancelSpreadOrderParams {
-		ord := cancelSpreadOrderParams[x]
-		// OKX accepts spread operations only on its business websocket, and
-		// WSCancelSpreadOrder sends on the private one, so spread cancels use REST.
-		var cancelled *SpreadOrderResponse
-		cancelled, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		switch {
-		case err != nil:
-			return resp, err
-		case cancelled == nil:
-			return resp, fmt.Errorf("%w cancelling spread order ID %q client order ID %q", common.ErrNoResponse, ord.OrderID, ord.ClientOrderID)
-		case cancelled.StatusCode != 0:
-			return resp, getStatusError(cancelled.StatusCode, cancelled.StatusMessage)
-		case cancelled.OrderID == "":
-			return resp, fmt.Errorf("%w: no order ID cancelling spread order ID %q client order ID %q", common.ErrInvalidResponse, ord.OrderID, ord.ClientOrderID)
-		}
-		// Status keys are exchange order IDs, as on the ordinary path below, so
-		// each cancel is keyed by the ordId OKX returns, even one sent by client
-		// order ID.
-		resp.Status[cancelled.OrderID] = order.Cancelled.String()
-	}
 	if len(cancelOrderParams) > 0 {
 		canceledOrders, err := e.CancelMultipleOrders(ctx, cancelOrderParams)
 		if cancelResultsUsable(err) {
@@ -1622,38 +1612,23 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
-		// cancel-advance-algos is no longer in OKX's documentation and the
-		// documented cancel-algos accepts at most maxCancelAlgosPerRequest
-		// orders per request, so the batch is sent in chunks. A partially
-		// successful chunk leaves the chunks after it to cancel, as
-		// cancelInBatches does for ordinary orders.
-		var batchErr error
-		for start := 0; start < len(cancelAlgoOrderParams); start += maxCancelAlgosPerRequest {
-			end := min(start+maxCancelAlgosPerRequest, len(cancelAlgoOrderParams))
-			algoResults, err := e.CancelAlgoOrder(ctx, cancelAlgoOrderParams[start:end])
-			if cancelResultsUsable(err) {
-				// OKX reports one result per requested algo order; failed
-				// cancels are reported with their status message instead of a
-				// false Cancelled.
-				for x := range algoResults {
-					if algoResults[x].AlgoID == "" {
-						continue
-					}
-					if algoResults[x].StatusCode == 0 {
-						resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
-					} else {
-						resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
-					}
+		algoResults, err := e.CancelAlgoOrder(ctx, cancelAlgoOrderParams)
+		if cancelResultsUsable(err) {
+			// OKX reports one result per requested algo order; failed cancels
+			// are reported with their status message instead of a false
+			// Cancelled.
+			for x := range algoResults {
+				if algoResults[x].AlgoID == "" {
+					continue
+				}
+				if algoResults[x].StatusCode == 0 {
+					resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+				} else {
+					resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
 				}
 			}
-			batchErr = common.AppendError(batchErr, err)
-			if err != nil && !cancelResultsUsable(err) {
-				// A failed chunk stops the chunks after it, as the ordinary
-				// batch branch above does.
-				return resp, batchErr
-			}
 		}
-		return resp, batchErr
+		return resp, err
 	}
 	return resp, nil
 }
@@ -1838,7 +1813,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		_, err = e.WSAmendOrder(ctx, &AmendOrderRequestParams{
 			InstrumentID:     instrumentID,
 			InstrumentIDCode: code,
-			NewQuantity:      action.Amount,
+			NewSize:          action.Amount,
 			OrderID:          action.OrderID,
 			ClientOrderID:    action.ClientOrderID,
 			NewPrice:         action.Price,
@@ -1956,10 +1931,7 @@ func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, o []order.Can
 			}
 		}
 	}
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, err
 }
 
 // WebsocketCancelAllOrders cancels all orders associated with a currency pair
@@ -2107,8 +2079,10 @@ ordersLoop:
 	return cancelAllOrdersRequestParams, nil
 }
 
-// cancelInBatches cancels orders 20 at a time with cancel, recording each
-// result; a failed batch does not stop the batches after it.
+// cancelInBatches cancels the orders a cancel-all selects 20 at a time — the
+// documented per-request maximum the batch cancel endpoints enforce, so the
+// caller of cancel supplies each batch within it — recording each result; a
+// failed batch does not stop the batches after it.
 func cancelInBatches(ctx context.Context, params []CancelOrderRequestParam, cancel func(context.Context, []CancelOrderRequestParam) ([]*OrderData, error)) (order.CancelAllResponse, error) {
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},

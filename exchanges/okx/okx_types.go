@@ -157,6 +157,7 @@ var (
 	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
 	errOrderbookSnapshotPending             = errors.New("orderbook snapshot pending")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
+	errPositionModeSwitchedDuringFetch      = errors.New("the account position mode switched while it was being fetched")
 	errLendingTermIsRequired                = errors.New("lending term is required")
 	errRateRequired                         = errors.New("lending rate is required")
 	errQuarterValueRequired                 = errors.New("quarter is required")
@@ -908,7 +909,7 @@ type AmendOrderRequestParams struct {
 	OrderID          string  `json:"ordId,omitempty"`
 	ClientOrderID    string  `json:"clOrdId,omitempty"`
 	ClientRequestID  string  `json:"reqId,omitempty"`
-	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewSize          float64 `json:"newSz,omitempty,string"`
 	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
@@ -3094,9 +3095,9 @@ func (arg *SpreadOrderParam) Validate() error {
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	// Market orders carry no px, and the px of a spread order is the
-	// differential between its legs, which can be negative: only a missing
-	// price on a price-bearing order type is an error.
+	// Market orders carry no price, and the price of a spread order is
+	// the differential between its legs, which can be negative: only a
+	// missing price on a price-bearing order type is an error.
 	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}

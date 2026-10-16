@@ -213,6 +213,10 @@ func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string,
 	case 1:
 		return oTypes[0], nil
 	default:
+		// The case is reachable: limit, post_only and ioc all read back as
+		// Limit, so a query without a time in force cannot narrow to one wire
+		// type. No filter is sent, leaving the request filter to narrow by
+		// type, which keeps every matching row.
 		return "", nil
 	}
 }
