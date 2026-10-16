@@ -448,7 +448,9 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 }
 
 // Connect initiates a websocket connection by using a package defined connection
-// function
+// function. Unless ctx has ended, a failed connection is retried by the manager's connection monitor, so callers
+// should not retry it themselves. The monitor reuses the ctx of the attempt that started it for every retry and
+// reconnection, so pass a ctx that stays live for as long as the websocket is wanted.
 func (m *Manager) Connect(ctx context.Context) error {
 	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
 		m.preConnect(ctx)
@@ -480,6 +482,16 @@ func (m *Manager) connect(ctx context.Context) error {
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
+
+		// Started once this attempt has finished, whatever its outcome, so that a failed initial connection is retried
+		// without the monitor acting on a connection that is still being set up.
+		defer func() {
+			if m.connectionMonitorRunning.CompareAndSwap(false, true) {
+				// This oversees all connections and does not need to be part of wait group management.
+				go m.monitorFrame(ctx, nil, m.monitorConnection)
+			}
+		}()
+
 		err := m.connector()
 		if err != nil {
 			// The connector may have dialled and started readers before failing. Release them so the next attempt does
@@ -494,11 +506,6 @@ func (m *Manager) connect(ctx context.Context) error {
 
 		m.Wg.Add(1)
 		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
-		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-			// This oversees all connections and does not need to be part of wait group management.
-			go m.monitorFrame(ctx, nil, m.monitorConnection)
-		}
 
 		subs, err := m.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -521,6 +528,16 @@ func (m *Manager) connect(ctx context.Context) error {
 		m.setState(disconnectedState)
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
+
+	// Started once this attempt has finished, so that a failed initial connection is retried without the monitor acting
+	// on connections that are still being set up, unless the attempt failed after its context ended: every retry would
+	// dial with that context.
+	defer func() {
+		if (m.IsConnected() || ctx.Err() == nil) && m.connectionMonitorRunning.CompareAndSwap(false, true) {
+			// This oversees all connections and does not need to be part of wait group management.
+			go m.monitorFrame(ctx, nil, m.monitorConnection)
+		}
+	}()
 
 	// multiConnectFatalError is a fatal error that will cause all connections to
 	// be shutdown and the websocket to be disconnected.
@@ -660,11 +677,6 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	m.Wg.Add(1)
 	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
-	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-		// This oversees all connections and does not need to be part of wait group management.
-		go m.monitorFrame(ctx, nil, m.monitorConnection)
-	}
 
 	return subscriptionError
 }
