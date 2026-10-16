@@ -3443,6 +3443,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 			State:            instrumentStateLive,
 			TickSize:         types.Number(0.1),
 			MinimumOrderSize: types.Number(1),
+			LotSize:          types.Number(0.01),
 		},
 		{
 			InstrumentID:     inactivePair,
@@ -3462,6 +3463,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
 	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
 	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+	assert.Equal(t, 0.01, loadedLimit.AmountStepIncrementSize, "AmountStepIncrementSize should be set from live instrument")
 
 	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
 	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
@@ -3473,6 +3475,15 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
 		common.ErrNoResponse, "empty instrument slice must return no response")
+
+	// One OKX contract is ctVal times ctMult: ctMult is 1 on swaps and futures
+	// but 0.01 on a BTC-USD option, so one option contract is 0.01 BTC.
+	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Options, []Instrument{
+		{InstrumentID: optionsPair, State: instrumentStateLive, ContractValue: types.Number(1), ContractMultiplier: types.Number(0.01)},
+	}), "loadInstrumentOrderExecutionLimits must load a live option")
+	optionLimit, err := exch.GetOrderExecutionLimits(asset.Options, optionsPair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for a live option")
+	assert.Equal(t, 0.01, optionLimit.MultiplierDecimal, "MultiplierDecimal should be the size of one option contract")
 }
 
 func TestTickerVolumes(t *testing.T) {
@@ -6893,6 +6904,18 @@ func TestOrderTypeStringReadsPostOnlyFromCombinedTIFs(t *testing.T) {
 		require.NoErrorf(t, err, "orderTypeString must not error for an MMP order with %s", tif)
 		assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
 	}
+}
+
+// TestWsInstrumentsPushCachesIDCodes guards the instruments channel handler:
+// a push's instrument ID codes reach the cache the websocket order operations
+// read, so an instrument listed after start-up can trade over the websocket.
+func TestWsInstrumentsPushCachesIDCodes(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"NEW-USDT","instIdCode":4242}]}`)
+	require.NoError(t, e.wsHandleData(t.Context(), nil, push), "an instruments push must not error")
+	assert.EqualValues(t, 4242, e.getInstrumentIDCode("NEW-USDT"), "the pushed instrument's ID code should be cached")
 }
 
 // TestSpreadOrderTypeString pins the ordType a spread order places: the

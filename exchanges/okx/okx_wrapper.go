@@ -387,7 +387,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
 			MinimumBaseAmount:       insts[i].MinimumOrderSize.Float64(),
 			AmountStepIncrementSize: insts[i].LotSize.Float64(),
-			MultiplierDecimal:       insts[i].ContractValue.Float64(),
+			MultiplierDecimal:       insts[i].ContractValue.Float64() * insts[i].ContractMultiplier.Float64(),
 		})
 	}
 	if len(l) == 0 {

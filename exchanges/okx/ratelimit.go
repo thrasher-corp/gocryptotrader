@@ -312,7 +312,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getTradeAccountRateLimitEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		orderPreCheckEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		placeAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1), // OKX counts orders, not requests: 20 orders per 2 seconds at up to 10 a request
+		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1), // OKX limits by order: 20 orders per 2 seconds
 		amendAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderDetailEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderListEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

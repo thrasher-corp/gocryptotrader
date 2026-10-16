@@ -270,8 +270,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 
 // TestBatchCancelLimitersTrackOrderBudgets pins the batch cancel limiters to
 // OKX's order budgets: OKX counts cancelled orders rather than requests, so
-// the request budgets are the documented order budgets divided by each
-// request's maximum order count.
+// the cancel-algo limiter budgets 20 requests per 2 seconds (one per order).
 func TestBatchCancelLimitersTrackOrderBudgets(t *testing.T) {
 	t.Parallel()
 	rl, err := request.New("RateLimit_BatchCancelBudgets", &http.Client{}, request.WithLimiter(rateLimits))
@@ -284,8 +283,8 @@ func TestBatchCancelLimitersTrackOrderBudgets(t *testing.T) {
 	assert.GreaterOrEqual(t, time.Since(start), 500*time.Millisecond, "eight cancel-batch-orders requests should span the 15 requests per 2 seconds the 300 order budget needs")
 	require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelAlgoOrderEPL), "the first cancel-algos request must not wait")
 	start = time.Now()
-	for range 2 {
+	for range 20 {
 		require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelAlgoOrderEPL), "cancel-algos requests must stay within the limiter")
 	}
-	assert.GreaterOrEqual(t, time.Since(start), 800*time.Millisecond, "two cancel-algos requests should span the one second spacing the 20 order budget needs")
+	assert.GreaterOrEqual(t, time.Since(start), 1800*time.Millisecond, "20 cancel-algos requests should span the 2 seconds the 20 order budget allows")
 }

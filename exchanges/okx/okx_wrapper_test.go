@@ -252,8 +252,8 @@ func TestCacheInstrumentsIndexesIDCodes(t *testing.T) {
 	assert.Len(t, fresh.instrumentsInfoMap[instTypeSpot], 2, "an instruments push should not replace the cached instrument list")
 
 	// A push omitting instIdCode decodes to zero and drops the cached code, so
-	// a relisted instrument's orders go over REST rather than with its replaced
-	// code.
+	// a relisted instrument's websocket orders fail rather than go out with its
+	// replaced code.
 	fresh.cacheInstrumentIDCodes([]Instrument{
 		{InstrumentID: mainPair},
 		{InstrumentID: solUSDT, InstrumentIDCode: 22222},
@@ -1830,10 +1830,6 @@ func TestPendingOrderTypeFilter(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should reject an order type OKX does not list")
 }
 
-// TestCancelBatchOrdersSpreadGuards covers the spread branch of
-// CancelBatchOrders: cancels report a usable status key, the missing-ID guard
-// rejects the batch, and no cancel is sent until the whole batch validates.
-// Subtests share the mock server's request counter, so they run sequentially.
 // TestCancelBatchOrdersSpreadGuards guards the batch cancel validation: a
 // spread order cannot batch — OKX takes each spread cancel as its own
 // request — so a spread entry fails the whole batch before any cancel is
@@ -1899,6 +1895,7 @@ func TestCancelOrderSpreadReplies(t *testing.T) {
 		{"no data", `{"code":"0","msg":"","data":null}`, common.ErrNoResponse},
 		{"no order ID", `{"code":"0","msg":"","data":[{"ordId":"","clOrdId":"S1","sCode":"0","sMsg":""}]}`, common.ErrInvalidResponse},
 		{"cancel failed", `{"code":"1","msg":"All operations failed","data":[{"ordId":"","clOrdId":"S1","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
+		{"failed status in a success reply", `{"code":"0","msg":"","data":[{"ordId":"SPRD-1","clOrdId":"S1","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2357,8 +2354,8 @@ func TestCancelResultsUsable(t *testing.T) {
 
 // TestBatchCancelEndpointsRefuseOversizedLists guards the documented
 // per-request maximum of the batch cancel endpoints: the caller supplies the
-// list, so more than 20 orders is refused before any request transmits, over
-// REST and the websocket alike.
+// list, so more than 20 orders, or 10 algo orders, is refused before any
+// request transmits, over REST and the websocket alike.
 func TestBatchCancelEndpointsRefuseOversizedLists(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -2371,6 +2368,12 @@ func TestBatchCancelEndpointsRefuseOversizedLists(t *testing.T) {
 	assert.ErrorIs(t, err, errExceedLimit, "CancelMultipleOrders should refuse more than 20 orders")
 	_, err = e.WSCancelMultipleOrders(t.Context(), args)
 	assert.ErrorIs(t, err, errExceedLimit, "WSCancelMultipleOrders should refuse more than 20 orders")
+	algoArgs := make([]AlgoOrderCancelParams, maxCancelAlgosPerRequest+1)
+	for i := range algoArgs {
+		algoArgs[i] = AlgoOrderCancelParams{InstrumentID: "BTC-USDT", AlgoOrderID: strconv.Itoa(i)}
+	}
+	_, err = e.CancelAlgoOrder(t.Context(), algoArgs)
+	assert.ErrorIs(t, err, errExceedLimit, "CancelAlgoOrder should refuse more than 10 algo orders")
 }
 
 // TestOrderListsIncludeStartTime guards the StartTime bound of GetActiveOrders
@@ -2904,15 +2907,20 @@ func TestOCOStopLossTriggerPrice(t *testing.T) {
 func TestSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		tif  order.TimeInForce
-		exp  string
+		name      string
+		assetType asset.Item
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
 	}{
-		{"plain limit", order.UnknownTIF, orderLimit},
-		{"post only", order.PostOnly, orderPostOnly},
-		{"good till cancel post only", order.GoodTillCancel | order.PostOnly, orderPostOnly},
-		{"fill or kill", order.FillOrKill, orderFOK},
-		{"immediate or cancel", order.ImmediateOrCancel, orderIOC},
+		{"plain limit", asset.Spot, order.Limit, order.UnknownTIF, orderLimit},
+		{"post only", asset.Spot, order.Limit, order.PostOnly, orderPostOnly},
+		{"good till cancel post only", asset.Spot, order.Limit, order.GoodTillCancel | order.PostOnly, orderPostOnly},
+		{"fill or kill", asset.Spot, order.Limit, order.FillOrKill, orderFOK},
+		{"immediate or cancel", asset.Spot, order.Limit, order.ImmediateOrCancel, orderIOC},
+		// OKX takes MMP orders for options only.
+		{"market maker protection", asset.Options, order.MarketMakerProtection, order.UnknownTIF, orderMarketMakerProtection},
+		{"market maker protection post only", asset.Options, order.MarketMakerProtection, order.PostOnly, orderMarketMakerProtectionAndPostOnly},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2934,9 +2942,9 @@ func TestSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 			_, err := e.SubmitOrder(t.Context(), &order.Submit{
 				Exchange:    e.Name,
 				Pair:        mainPair,
-				AssetType:   asset.Spot,
+				AssetType:   tc.assetType,
 				Side:        order.Buy,
-				Type:        order.Limit,
+				Type:        tc.orderType,
 				TimeInForce: tc.tif,
 				Amount:      1,
 				Price:       1,
@@ -2947,6 +2955,7 @@ func TestSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 			var sent map[string]any
 			require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
 			assert.Equal(t, tc.exp, sent["ordType"], "the submitted limit order should send the documented ordType")
+			assert.Equal(t, "1", sent["px"], "the submitted order should send its price")
 		})
 	}
 }
@@ -2957,15 +2966,20 @@ func TestSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 func TestWebsocketSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		tif  order.TimeInForce
-		exp  string
+		name      string
+		assetType asset.Item
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
 	}{
-		{"plain limit", order.UnknownTIF, orderLimit},
-		{"post only", order.PostOnly, orderPostOnly},
-		{"good till cancel post only", order.GoodTillCancel | order.PostOnly, orderPostOnly},
-		{"fill or kill", order.FillOrKill, orderFOK},
-		{"immediate or cancel", order.ImmediateOrCancel, orderIOC},
+		{"plain limit", asset.Spot, order.Limit, order.UnknownTIF, orderLimit},
+		{"post only", asset.Spot, order.Limit, order.PostOnly, orderPostOnly},
+		{"good till cancel post only", asset.Spot, order.Limit, order.GoodTillCancel | order.PostOnly, orderPostOnly},
+		{"fill or kill", asset.Spot, order.Limit, order.FillOrKill, orderFOK},
+		{"immediate or cancel", asset.Spot, order.Limit, order.ImmediateOrCancel, orderIOC},
+		// OKX takes MMP orders for options only.
+		{"market maker protection", asset.Options, order.MarketMakerProtection, order.UnknownTIF, orderMarketMakerProtection},
+		{"market maker protection post only", asset.Options, order.MarketMakerProtection, order.PostOnly, orderMarketMakerProtectionAndPostOnly},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2987,9 +3001,9 @@ func TestWebsocketSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 			_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{
 				Exchange:    e.Name,
 				Pair:        mainPair,
-				AssetType:   asset.Spot,
+				AssetType:   tc.assetType,
 				Side:        order.Buy,
-				Type:        order.Limit,
+				Type:        tc.orderType,
 				TimeInForce: tc.tif,
 				Amount:      1,
 				Price:       1,
@@ -3000,6 +3014,7 @@ func TestWebsocketSubmitOrderLimitTIFsRequestOrdTypes(t *testing.T) {
 			var sent []map[string]any
 			require.NoError(t, json.Unmarshal([]byte(args), &sent), "the websocket order frame must decode")
 			assert.Equal(t, tc.exp, sent[0]["ordType"], "the websocket limit order should send the documented ordType")
+			assert.Equal(t, "1", sent[0]["px"], "the websocket order should send its price")
 		})
 	}
 }
@@ -3133,9 +3148,6 @@ func TestPlaceOrderRequestParamValidateRequiresSideForContracts(t *testing.T) {
 	}
 }
 
-// TestCancelBatchOrdersAlgoChunksPerTen guards the algo cancel transport: the
-// documented cancel-algos endpoint accepts at most 10 algo orders per request,
-// so a larger batch is split, and every chunk's results reach the status map.
 // TestCancelBatchOrdersAlgoLimit guards the algo cancel limit: the documented
 // cancel-algos request takes at most maxCancelAlgosPerRequest orders, and the
 // wrapper does not chunk for the caller, so a longer list is refused before
@@ -4408,6 +4420,18 @@ func TestPlaceSpreadOrderPriceGuard(t *testing.T) {
 		Size:      1,
 	})
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "a price-bearing spread order without a price must be rejected")
+	_, err = e.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+		SpreadID:  spreadPair.String(),
+		Side:      "buy",
+		OrderType: "MARKET",
+		Size:      1,
+	})
+	require.NoError(t, err, "a market spread order given in upper case must place without a price")
+	mu.Lock()
+	sent = nil
+	require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+	mu.Unlock()
+	assert.Equal(t, orderMarket, sent["ordType"], "the spread order type should be sent in lower case")
 }
 
 // TestSubmitSpreadOrderReportsRowError guards the spread order error shape:
@@ -5222,6 +5246,26 @@ func TestGetOrderInfoReportsExecutionValues(t *testing.T) {
 	assert.Equal(t, "USDT", detail.CostAsset.String(), "the cost asset should be the pair quote")
 	assert.Equal(t, 0.01, detail.Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
 	assert.Equal(t, "USDT", detail.FeeAsset.String(), "the fee asset should come from the response")
+}
+
+// TestGetOrderInfoReportsLeverage guards the order detail mapping of lever,
+// the leverage OKX reports on margin, futures and perpetual swap orders.
+func TestGetOrderInfoReportsLeverage(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, map[string]string{
+			"instType": instTypeSwap, "instId": perpetualSwapPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy",
+			"state": "live", "sz": "100", "px": "60000", "lever": "10", "cTime": "1700000000000", "uTime": "1700000000000",
+		})
+	}))
+	detail, err := e.GetOrderInfo(t.Context(), "ORD-1", perpetualSwapPair, asset.PerpetualSwap)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 10.0, detail.Leverage, "GetOrderInfo should report the order's leverage")
 }
 
 // TestOrderCost guards the order cost mapping: OKX fills spot and margin

@@ -553,6 +553,9 @@ func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
+	if len(args) > maxCancelAlgosPerRequest {
+		return nil, fmt.Errorf("%w, cannot cancel more than %d algo orders", errExceedLimit, maxCancelAlgosPerRequest)
+	}
 	return e.cancelAlgoOrder(ctx, args, "trade/cancel-algos", cancelAlgoOrderEPL)
 }
 
