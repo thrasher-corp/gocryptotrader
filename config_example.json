@@ -1637,13 +1637,15 @@
     "urlEndpoints": {
      "RestFuturesURL": "https://www.deribit.com",
      "RestSpotSupplementaryURL": "https://test.deribit.com",
-     "RestSpotURL": "https://www.deribit.com"
+     "RestSpotURL": "https://www.deribit.com",
+     "WebsocketSpotURL": "wss://www.deribit.com/ws/api/v2"
     }
    },
    "features": {
     "supports": {
      "restAPI": true,
      "restCapabilities": {
+      "tickerBatching": true,
       "autoPairUpdates": true,
       "fundingRateFetching": false
      },
