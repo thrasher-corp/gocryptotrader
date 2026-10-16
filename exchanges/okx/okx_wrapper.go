@@ -383,9 +383,11 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 			continue
 		}
 		l = append(l, limits.MinMaxLevel{
-			Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
-			PriceStepIncrementSize: insts[i].TickSize.Float64(),
-			MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
+			Key:                     key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
+			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
+			MinimumBaseAmount:       insts[i].MinimumOrderSize.Float64(),
+			AmountStepIncrementSize: insts[i].LotSize.Float64(),
+			MultiplierDecimal:       insts[i].ContractValue.Float64(),
 		})
 	}
 	if len(l) == 0 {
@@ -2259,6 +2261,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		FeeAsset:             orderDetail.FeeCurrency,
 		Date:                 orderDetail.CreationTime.Time(),
 		LastUpdated:          orderDetail.UpdateTime.Time(),
+		Leverage:             orderDetail.Leverage.Float64(),
 		TimeInForce:          tif,
 	}, nil
 }
