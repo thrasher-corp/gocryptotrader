@@ -15,7 +15,19 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
+.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal bench bench_update bench_apply bench_pkg check_bench_pkgs check_bench_env check_bench_goflags
+
+# Edit benchmarks/packages.txt to change which packages are benchmarked.
+BENCH_PKGS = $(shell $(BENCH_ENV) go run ./cmd/benchcheck -list)
+
+# BENCH_ENV and BENCH_FLAGS must stay identical between bench and bench_update. BENCH_SAMPLES must be
+# odd, since budgets compare the median, and -cpu a single value above 1. -v reports the skips a
+# prune needs to see. go test's -timeout does not apply to benchmarks, so the workflow bounds the run.
+BENCH_SAMPLES = 7
+BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime 100ms -count $(BENCH_SAMPLES) -cpu 4 -p 1 -v
+# BENCH_ENV clears what changes a measurement without showing in go test's output, and what can make go
+# run exit zero without running benchcheck, such as GOFLAGS=-exec=/bin/true.
+BENCH_ENV = GOFLAGS= GOEXPERIMENT= GOGC= GOMEMLIMIT=
 
 all: check build
 
@@ -55,6 +67,57 @@ proto_check:
 	bash ./scripts/proto.sh --check
 
 check: lint misc_checks markdownlint workflow_lint proto_check test
+
+# $(shell) ignores the exit status of BENCH_PKGS's -list, and an empty BENCH_PKGS benchmarks the
+# current directory.
+check_bench_pkgs: check_bench_env
+	@$(BENCH_ENV) go run ./cmd/benchcheck -list > /dev/null
+
+# Refuses a Go release other than go.mod's major and minor version, which go test's output does not show.
+check_bench_env: check_bench_goflags
+	@want=go$$(awk '$$1 == "go" { split($$2, v, "."); print v[1] "." v[2]; exit }' go.mod); \
+		have=$$($(BENCH_ENV) go env GOVERSION); \
+		case "$$have" in "$$want" | "$$want".*) ;; \
+		*) echo "budgets are measured with $$want, as go.mod names, but go is $$have; select a $$want release with GOTOOLCHAIN before measuring" >&2; exit 1 ;; \
+		esac
+
+# BENCH_ENV cannot clear GOFLAGS or GOEXPERIMENT set with 'go env -w'.
+check_bench_goflags:
+	@if [ -n "$$($(BENCH_ENV) go env GOFLAGS GOEXPERIMENT | tr -d '\n')" ]; then \
+		echo "GOFLAGS or GOEXPERIMENT is set in $$(go env GOENV); remove it with 'go env -u GOFLAGS GOEXPERIMENT'" >&2; \
+		exit 1; \
+	fi
+
+# go test writes to a file, not a pipe, so its failure stops the target before benchcheck reads partial
+# output. The file is kept and named when anything fails, and BENCH_OUT keeps it at that path. Paths
+# are quoted, so a leading ~/ is expanded by hand.
+bench: check_bench_pkgs
+	out="$(or $(BENCH_OUT),.bench-output-$@-$$$$.txt)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
+		{ $(BENCH_ENV) go test $(BENCH_FLAGS) $(BENCH_PKGS) > "$$out" || \
+			{ cat "$$out"; echo "go test failed; its output is kept in $$out" >&2; exit 1; }; } && \
+		{ $(BENCH_ENV) go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) < "$$out" || \
+			{ echo "go test's output is kept in $$out" >&2; exit 1; }; }$(if $(BENCH_OUT),, && rm -f "$$out")
+
+# Measures one package with the gate's flags, for auditing it before listing it.
+# Usage: make bench_pkg PKG=./currency/
+bench_pkg: check_bench_env
+	@test -n "$(PKG)" || { echo "set PKG, e.g. make bench_pkg PKG=./currency/"; exit 1; }
+	$(BENCH_ENV) go test $(BENCH_FLAGS) $(PKG)
+
+bench_update: check_bench_pkgs
+	out="$(or $(BENCH_OUT),.bench-output-$@-$$$$.txt)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
+		{ $(BENCH_ENV) go test $(BENCH_FLAGS) $(BENCH_PKGS) > "$$out" || \
+			{ cat "$$out"; echo "go test failed; its output is kept in $$out" >&2; exit 1; }; } && \
+		{ $(BENCH_ENV) go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < "$$out" || \
+			{ echo "go test's output is kept in $$out" >&2; exit 1; }; }$(if $(BENCH_OUT),, && rm -f "$$out")
+
+# Folds output already measured, such as CI's bench-output artifact, into the baseline, which is how a
+# machine other than linux/amd64 updates it.
+# Usage: make bench_apply BENCH_OUT=path/to/bench-output.txt
+bench_apply: check_bench_goflags
+	@test -n "$(BENCH_OUT)" || { echo "set BENCH_OUT, e.g. make bench_apply BENCH_OUT=bench-output.txt"; exit 1; }
+	out="$(BENCH_OUT)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
+		$(BENCH_ENV) go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < "$$out"
 
 test:
 	go test $(RACE_FLAG) -count=1 -coverprofile=coverage.txt -covermode=atomic  ./...

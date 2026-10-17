@@ -1,0 +1,31 @@
+# Packages benchmarked by `make bench`, one per line relative to the module root. Every benchmark in
+# a listed package needs a baseline.json entry. A package whose benchmarks must not run is excluded,
+# with the reason after a #:
+#
+#   exchanges/example  excluded  # its TestMain fetches tradable pairs from the live API
+#
+# List a package once its benchmarks are hermetic and their allocation counts reproducible, checked
+# with a few runs of `make bench_pkg PKG=./<pkg>/`.
+
+common
+common/math
+common/timedmutex
+common/timeperiods
+config
+currency
+dispatch
+encoding/json
+exchange/order/limits
+exchange/websocket/orderbookmanager
+exchanges/alert
+exchanges/binance
+exchanges/currencystate
+exchanges/gateio
+exchanges/kucoin
+exchanges/okx
+exchanges/order
+exchanges/orderbook
+exchanges/request
+log
+types
+types/decimal
