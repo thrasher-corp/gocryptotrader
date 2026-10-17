@@ -10,6 +10,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// WebsocketTokenResponse holds the token and user ID for subscribing to private websocket channels
+// The token is only valid for ValidSeconds and cannot be reused after it expires
+type WebsocketTokenResponse struct {
+	Token        string `json:"token"`
+	ValidSeconds uint64 `json:"valid_sec"`
+	UserID       uint64 `json:"user_id"`
+}
+
 // WebsocketEventRequest holds a subscribe or unsubscribe request
 type WebsocketEventRequest struct {
 	Event string             `json:"event"`

@@ -435,3 +435,9 @@ type leverageSettingBody struct {
 	Market     string  `json:"market"`
 	Leverage   float64 `json:"leverage,omitempty"`
 }
+
+// Margin modes used by derivatives markets
+const (
+	MarginModeCross    = "CROSS"
+	MarginModeIsolated = "ISOLATED"
+)

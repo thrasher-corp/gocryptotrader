@@ -305,3 +305,17 @@ func unmarshalTransactionType(data json.RawMessage, t *TransactionType) error {
 	*t = TransactionType(v)
 	return nil
 }
+
+// retailInfoJSON is the JSON representation of RetailInfo
+type retailInfoJSON struct {
+	FirstName            string `json:"first_name"`
+	LastName             string `json:"last_name"`
+	DateOfBirth          string `json:"date_of_birth,omitempty"`
+	PlaceOfBirth         string `json:"place_of_birth,omitempty"`
+	IDType               string `json:"id_type,omitempty"`
+	IDNumber             string `json:"id_number,omitempty"`
+	StreetAndHouseNumber string `json:"street_and_house_number,omitempty"`
+	City                 string `json:"city,omitempty"`
+	PostalCode           string `json:"zip,omitempty"`
+	Country              string `json:"country,omitempty"`
+}
