@@ -6,6 +6,7 @@
 ### Current Features
 
 + REST Support
++ Websocket Support
 
 ### How to enable
 
@@ -40,13 +41,13 @@ for i := range bot.Exchanges {
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := k.UpdateTicker(...)
+tick, err := k.UpdateTicker(ctx, pair, asset.Spot)
 if err != nil {
     // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := k.UpdateOrderbook(...)
+ob, err := k.UpdateOrderbook(ctx, pair, asset.Spot)
 if err != nil {
     // Handle error
 }
@@ -54,8 +55,8 @@ if err != nil {
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
 // set and AuthenticatedAPISupport is set to true
 
-// Fetches current account information
-accountInfo, err := k.GetAccountInfo()
+// Fetches current account balances
+balances, err := k.UpdateAccountBalances(ctx, asset.Spot)
 if err != nil {
     // Handle error
 }
@@ -67,13 +68,13 @@ if err != nil {
 // Public calls
 
 // Fetches current ticker information
-ticker, err := k.GetTicker()
+tickers, err := k.GetTickerInformation(ctx, &kraken.TickerInformationRequest{Pairs: currency.Pairs{pair}})
 if err != nil {
     // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := k.GetOrderBook()
+books, err := k.GetOrderBook(ctx, &kraken.OrderBookRequest{Pair: pair})
 if err != nil {
     // Handle error
 }
@@ -81,14 +82,81 @@ if err != nil {
 // Private calls - make sure your APIKEY and APISECRET are set and
 // AuthenticatedAPISupport is set to true
 
-// GetUserInfo returns account info
-accountInfo, err := k.GetUserInfo(...)
+// Fetches each asset's balance, with the amount held by open orders
+balances, err := k.GetExtendedBalance(ctx, nil)
 if err != nil {
     // Handle error
 }
 
-// Submits an order to the exchange and returns its tradeID
-tradeID, err := k.Trade(...)
+// Submits an order to the exchange and returns its transaction ID
+order, err := k.AddOrder(ctx, &kraken.AddOrderRequest{
+    Pair: pair,
+    Order: kraken.OrderParameters{
+        OrderType: "limit",
+        Side:      "buy",
+        Volume:    0.001,
+        Price:     kraken.OrderPrice{Value: 50000},
+    },
+})
+if err != nil {
+    // Handle error
+}
+```
+
++ Derivatives (futures) calls are named after their section, such as GetFuturesTickers, SendFuturesOrder,
+GetFuturesAccounts and the Derivatives History API's GetFuturesOrderEvents.
+
+### How to do Websocket public/private calls
+
++ The spot websocket uses Kraken's websocket v2 API over three connections: market data subscriptions stream on the
+public connection; account subscriptions stream, and orders are placed, on the private connection; and level 3 order
+books stream on their own connection. The private and level 3 connections connect when their subscriptions are
+configured, authenticated websocket support is enabled and credentials are set.
+
++ The futures websocket streams the tickers, order books and trades of futures subscriptions, and, when
+authenticated websocket support is enabled and credentials are set, the account's open orders, fills and balances
+with the `myOrders`, `myTrades` and `myWallet` channels. Futures order books stream whole, so futures subscriptions
+take no `levels`.
+
++ Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
+the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
+balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports
+finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone. These
+reads are retried only while the websocket is connected, or still connecting.
+
++ The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
+under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that
+account; other margin accounts follow REST.
+
++ A level 3 order book lists each order rather than the total at each price. It is subscribed to with the `allOrders`
+channel at a depth of 10, 100 or 1000 price levels:
+
+```json
+{"enabled": true, "channel": "allOrders", "asset": "spot", "levels": 100}
+```
+
++ With the `orderbook` channel, the stored order book holds the total at each price. With the `allOrders` channel, it
+holds a level for each order, so a price appears once for each order resting at it, and the level 3 book's snapshots
+and updates are also sent to the data handler as `WebsocketLevel3Book`s with their order IDs. As a pair has one stored
+order book, it can be subscribed to at one depth of either the `orderbook` or the `allOrders` channel.
+
++ Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
+holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they
+are.
+
++ Orders can be managed over the private connection, which the wrapper's order functions use when it is connected:
+
+```go
+// Places an order over the private websocket connection
+resp, err := k.WebsocketAddOrder(ctx, &kraken.WebsocketAddOrderRequest{
+    Pair: pair,
+    Order: kraken.WebsocketOrder{
+        OrderType:  "limit",
+        Side:       "buy",
+        Quantity:   0.001,
+        LimitPrice: 50000,
+    },
+})
 if err != nil {
     // Handle error
 }
