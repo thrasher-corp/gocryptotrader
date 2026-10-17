@@ -281,7 +281,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		DefaultURL:                             websocketURL,
 		RunningURL:                             wsURL,
 		RunningURLAuth:                         wsURL,
-		Connector:                              e.WsConnect,
+		Connector:                              e.WebsocketConnect,
 		Subscriber:                             e.Subscribe,
 		Unsubscriber:                           e.Unsubscribe,
 		GenerateSubscriptions:                  e.generateSubscriptions,
@@ -2562,7 +2562,7 @@ func (e *Exchange) convertOrderFromMapping(source *FrontendOpenOrder, status str
 }
 
 // convertWsOrder converts an order update, whose feed omits the order type and time in force
-func (e *Exchange) convertWsOrder(update *WsOrder) (order.Detail, error) {
+func (e *Exchange) convertWsOrder(update *WebsocketOrder) (order.Detail, error) {
 	mapping, a, err := e.lookupPairMappingByCoin(update.Order.Coin)
 	if err != nil {
 		return order.Detail{}, err

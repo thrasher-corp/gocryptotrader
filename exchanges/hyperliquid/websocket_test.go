@@ -565,70 +565,70 @@ func websocketTestRestingOrder(t *testing.T) (placed OrderRequest, orderID uint6
 	return placeLiveRestingOrder(t)
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
-	require.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "WsConnect must reject a disabled websocket")
+	require.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect must reject a disabled websocket")
 
 	// The venue cannot be made to refuse a dial or to lack account feed support, so fixture connections stand in for it
 	ex, _, _ = newWebsocketConnectTestExchange(t, nil)
 	ex.SetEnabled(false)
-	require.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "WsConnect must reject a disabled exchange")
+	require.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect must reject a disabled exchange")
 
 	ex, public, _ := newWebsocketConnectTestExchange(t, nil)
 	public.dialErr = errWebsocketFixture
 	ex.accountProbeInterval.Store(int64(time.Second))
-	require.ErrorIs(t, ex.WsConnect(), errWebsocketFixture, "WsConnect must return the public dial error")
-	assert.Zero(t, ex.accountProbeInterval.Load(), "WsConnect should take the backoff a probe handed over even when its public dial fails")
+	require.ErrorIs(t, ex.WebsocketConnect(), errWebsocketFixture, "WebsocketConnect must return the public dial error")
+	assert.Zero(t, ex.accountProbeInterval.Load(), "WebsocketConnect should take the backoff a probe handed over even when its public dial fails")
 
 	ex, public, authenticated := newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
 	ex.API.AuthenticatedWebsocketSupport = false
-	require.NoError(t, ex.WsConnect(), "WsConnect must not error without account feed support")
+	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error without account feed support")
 	waitForWebsocketReaders(t, ex)
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WsConnect should start the public reader")
-	assert.Zero(t, authenticated.dialCalls.Load(), "WsConnect should not dial the account connection without account feed support")
+	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
+	assert.Zero(t, authenticated.dialCalls.Load(), "WebsocketConnect should not dial the account connection without account feed support")
 
 	ex, _, authenticated = newWebsocketConnectTestExchange(t, nil)
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, ex.WsConnect(), "WsConnect must not error without an account address")
+	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error without an account address")
 	waitForWebsocketReaders(t, ex)
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WsConnect should disable account feeds without an account address")
-	assert.Zero(t, authenticated.dialCalls.Load(), "WsConnect should not dial the account connection without an account address")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should disable account feeds without an account address")
+	assert.Zero(t, authenticated.dialCalls.Load(), "WebsocketConnect should not dial the account connection without an account address")
 
 	ex, public, authenticated = newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	authenticated.dialErr = errWebsocketFixture
-	require.NoError(t, ex.WsConnect(), "WsConnect must keep the public connection when the account connection fails")
+	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must keep the public connection when the account connection fails")
 	// Closing the shutdown channel, as the manager's Shutdown does, stops the probes of the fixture's endpoint
 	close(ex.Websocket.ShutdownC)
 	waitForWebsocketReaders(t, ex)
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WsConnect should disable account feeds when the account connection fails")
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WsConnect should start the public reader")
-	assert.Zero(t, authenticated.readCalls.Load(), "WsConnect should not read a failed account connection")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should disable account feeds when the account connection fails")
+	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
+	assert.Zero(t, authenticated.readCalls.Load(), "WebsocketConnect should not read a failed account connection")
 
 	// A probe of the account endpoint connecting shuts the websocket down, so the connection monitor reconnects both
 	// connections
 	retried, publicAttempts, accountAttempts := newAccountWebsocketTestExchange(t, refuseFirst(2), 10*time.Millisecond)
 	require.NoError(t, retried.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
 	// Probing every connection monitor delay, here 10ms, reconnects well within the 3s that the 2s default delay would need
-	require.Eventually(t, retried.Websocket.CanUseAuthenticatedEndpoints, 3*time.Second, 10*time.Millisecond, "WsConnect must connect the account connection once its endpoint accepts connections")
+	require.Eventually(t, retried.Websocket.CanUseAuthenticatedEndpoints, 3*time.Second, 10*time.Millisecond, "WebsocketConnect must connect the account connection once its endpoint accepts connections")
 	assert.Equal(t, int32(4), accountAttempts.Load(), "the account endpoint should receive the failed dial, a refused probe, an accepted probe and the redial")
 	assert.Equal(t, int32(2), publicAttempts.Load(), "the public endpoint should be redialled once, with the account endpoint")
-	assert.Zero(t, retried.accountProbeInterval.Load(), "WsConnect should take the backoff the connected probe handed to the reconnection")
+	assert.Zero(t, retried.accountProbeInterval.Load(), "WebsocketConnect should take the backoff the connected probe handed to the reconnection")
 
 	ex, public, authenticated = newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
-	require.NoError(t, ex.WsConnect(), "WsConnect must not error")
+	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error")
 	waitForWebsocketReaders(t, ex)
-	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WsConnect should enable account feeds")
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WsConnect should start the public reader")
-	assert.Equal(t, int32(1), authenticated.readCalls.Load(), "WsConnect should start the account reader")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should enable account feeds")
+	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
+	assert.Equal(t, int32(1), authenticated.readCalls.Load(), "WebsocketConnect should start the account reader")
 
 	venue, _ := newVenueWebsocketTestExchange(t)
-	assert.True(t, venue.Websocket.IsConnected(), "WsConnect should connect to the venue")
+	assert.True(t, venue.Websocket.IsConnected(), "WebsocketConnect should connect to the venue")
 	_, err := venue.getWatchAddress(t.Context())
-	assert.Equal(t, err == nil, venue.Websocket.CanUseAuthenticatedEndpoints(), "WsConnect should enable account feeds exactly when an account address is configured")
+	assert.Equal(t, err == nil, venue.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should enable account feeds exactly when an account address is configured")
 }
 
 func TestConnectWebsocket(t *testing.T) {
@@ -814,12 +814,12 @@ func TestProbeWebsocket(t *testing.T) {
 	assert.ErrorAs(t, probeWebsocket(t.Context(), endpoint, "http://[::1"), &invalid, "probeWebsocket should reject an invalid proxy")
 }
 
-func TestWsReadData(t *testing.T) {
+func TestWebsocketReadData(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	publicSub := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
-	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, publicSub, &websocketPendingKey{subscription: WsSubscription{Type: wsChannelAllMids}})
-	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WsSubscription{Type: wsChannelNotification, User: testAccountAddress}}
+	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, publicSub, &websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}})
+	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelNotification, User: testAccountAddress}}
 	authenticatedPending := addWebsocketPending(t, ex, wsMethodSubscribe, &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}, &authenticatedKey)
 	ex.expectTradeReplay("BTC")
 	record := ex.websocketWatermarks.orders.touch(1, time.Now())
@@ -854,7 +854,7 @@ func TestWsReadData(t *testing.T) {
 	assert.Equal(t, int32(3), connection.readCalls.Load(), "wsReadData should keep reading when the data handler is full")
 }
 
-func TestWsHandleData(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.NoError(t, ex.wsHandleData(t.Context(), []byte(websocketConnectionEstablished), false), "wsHandleData should ignore the connection greeting")
@@ -870,10 +870,10 @@ func TestWsHandleData(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleChannel(t *testing.T) {
+func TestWebsocketHandleChannel(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.NoError(t, ex.wsHandleChannel(t.Context(), &WsResponse{Channel: wsChannelPong}, []byte(`{"channel":"pong"}`), false), "wsHandleChannel should ignore a pong")
+	assert.NoError(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: wsChannelPong}, []byte(`{"channel":"pong"}`), false), "wsHandleChannel should ignore a pong")
 	for _, channel := range []string{
 		wsChannelSubscriptionResponse, wsChannelPost, wsChannelError, wsChannelAllMids, wsChannelNotification, wsChannelWebData3,
 		wsChannelTWAPStates, wsChannelClearinghouseState, wsChannelOpenOrders, wsChannelCandle, wsChannelOrderbook, wsChannelTrades,
@@ -883,12 +883,12 @@ func TestWsHandleChannel(t *testing.T) {
 		wsChannelAllDEXsAssetContexts, wsChannelOutcomeMetaUpdates, wsChannelFastAssetContexts,
 	} {
 		raw := []byte(`{"channel":"` + channel + `","data":"invalid!"}`)
-		assert.Errorf(t, ex.wsHandleChannel(t.Context(), &WsResponse{Channel: channel, Data: json.RawMessage(`"invalid!"`)}, raw, false), "wsHandleChannel should pass %s data to its handler", channel)
+		assert.Errorf(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: channel, Data: json.RawMessage(`"invalid!"`)}, raw, false), "wsHandleChannel should pass %s data to its handler", channel)
 	}
 	assertNoWebsocketData(t, ex)
 
 	unhandled := `{"channel":"futureChannel","data":{}}`
-	require.NoError(t, ex.wsHandleChannel(t.Context(), &WsResponse{Channel: "futureChannel", Data: json.RawMessage(`{}`)}, []byte(unhandled), false), "wsHandleChannel must not error for an unhandled channel")
+	require.NoError(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: "futureChannel", Data: json.RawMessage(`{}`)}, []byte(unhandled), false), "wsHandleChannel must not error for an unhandled channel")
 	exp := websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + unhandled}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleChannel should relay a warning for an unhandled channel")
 }
@@ -944,10 +944,10 @@ func testWebsocketEmptyClearinghouseState() ClearinghouseStateResponse {
 	return ClearinghouseStateResponse{AssetPositions: []AssetPosition{}, Time: milli(1791280776159)}
 }
 
-func TestWsRelay(t *testing.T) {
+func TestWebsocketRelay(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.Error(t, wsRelay[WsAllMids](t.Context(), ex, []byte(`"invalid"`)), "wsRelay should reject invalid data")
+	assert.Error(t, wsRelay[WebsocketAllMids](t.Context(), ex, []byte(`"invalid"`)), "wsRelay should reject invalid data")
 	for _, tc := range []struct {
 		name  string
 		frame string
@@ -956,23 +956,23 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "allMids",
 			frame: `{"channel":"allMids","data":{"mids":{"BTC":"85801.5","PURR/USDC":"0.14988","@107":"92.9315","#14880":"0.111485"}}}`,
-			exp:   &WsAllMids{Mids: map[string]types.Number{"BTC": 85801.5, "PURR/USDC": 0.14988, "@107": 92.9315, "#14880": 0.111485}},
+			exp:   &WebsocketAllMids{Mids: map[string]types.Number{"BTC": 85801.5, "PURR/USDC": 0.14988, "@107": 92.9315, "#14880": 0.111485}},
 		},
 		{
 			name:  "builder DEX allMids",
 			frame: `{"channel":"allMids","data":{"dex":"xyz","mids":{"xyz:XYZ100":"31169.5"}}}`,
-			exp:   &WsAllMids{DEX: "xyz", Mids: map[string]types.Number{"xyz:XYZ100": 31169.5}},
+			exp:   &WebsocketAllMids{DEX: "xyz", Mids: map[string]types.Number{"xyz:XYZ100": 31169.5}},
 		},
 		{
 			name:  "notification",
 			frame: `{"channel":"notification","data":{"notification":"Resting order filled: Bought 1017.6 ARB at $0.20138"}}`,
-			exp:   &WsNotification{Notification: "Resting order filled: Bought 1017.6 ARB at $0.20138"},
+			exp:   &WebsocketNotification{Notification: "Resting order filled: Bought 1017.6 ARB at $0.20138"},
 		},
 		{
 			name:  "webData3",
 			frame: `{"channel":"webData3","data":{"userState":{"agentAddress":"0x0000000000000000000000000000000000000008","agentValidUntil":1792311392771,"cumLedger":"-2686.97","serverTime":1791280777681,"isVault":false,"user":"0x0000000000000000000000000000000000000003","dexAbstractionEnabled":true,"abstraction":"unifiedAccount","optOutOfSpotDusting":true},"perpDexStates":[{"totalVaultEquity":"1250000.5","perpsAtOpenInterestCap":["CANTO","FTM"]},{"totalVaultEquity":"15.25","perpsAtOpenInterestCap":["xyz:XYZ100"],"leadingVaults":[{"address":"0x0000000000000000000000000000000000000009","name":"Hyperliquidity Provider (HLP)"}]}]}}`,
-			exp: &WsWebData3{
-				UserState: WsWebData3UserState{
+			exp: &WebsocketWebData3{
+				UserState: WebsocketWebData3UserState{
 					AgentAddress:          "0x0000000000000000000000000000000000000008",
 					AgentValidUntil:       milli(1792311392771),
 					CumulativeLedger:      -2686.97,
@@ -982,12 +982,12 @@ func TestWsRelay(t *testing.T) {
 					DEXAbstractionEnabled: true,
 					Abstraction:           AccountAbstractionUnifiedAccount,
 				},
-				PerpetualDEXStates: []WsPerpetualDEXState{
+				PerpetualDEXStates: []WebsocketPerpetualDEXState{
 					{TotalVaultEquity: 1250000.5, PerpetualsAtOpenInterestCap: []string{"CANTO", "FTM"}},
 					{
 						TotalVaultEquity:            15.25,
 						PerpetualsAtOpenInterestCap: []string{"xyz:XYZ100"},
-						LeadingVaults:               []WsLeadingVault{{Address: "0x0000000000000000000000000000000000000009", Name: "Hyperliquidity Provider (HLP)"}},
+						LeadingVaults:               []WebsocketLeadingVault{{Address: "0x0000000000000000000000000000000000000009", Name: "Hyperliquidity Provider (HLP)"}},
 					},
 				},
 			},
@@ -995,20 +995,20 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "vault webData3",
 			frame: `{"channel":"webData3","data":{"userState":{"agentAddress":null,"agentValidUntil":null,"cumLedger":"-1190433.52","serverTime":1791280775688,"isVault":true,"user":"0x0000000000000000000000000000000000000001"},"perpDexStates":[{"totalVaultEquity":"0.0","perpsAtOpenInterestCap":["CANTO","FTM"]},{"totalVaultEquity":"0.0"}]}}`,
-			exp: &WsWebData3{
-				UserState: WsWebData3UserState{
+			exp: &WebsocketWebData3{
+				UserState: WebsocketWebData3UserState{
 					CumulativeLedger: -1190433.52,
 					ServerTime:       milli(1791280775688),
 					IsVault:          true,
 					User:             "0x0000000000000000000000000000000000000001",
 				},
-				PerpetualDEXStates: []WsPerpetualDEXState{{PerpetualsAtOpenInterestCap: []string{"CANTO", "FTM"}}, {}},
+				PerpetualDEXStates: []WebsocketPerpetualDEXState{{PerpetualsAtOpenInterestCap: []string{"CANTO", "FTM"}}, {}},
 			},
 		},
 		{
 			name:  "twapStates",
 			frame: `{"channel":"twapStates","data":{"dex":"","user":"0x0000000000000000000000000000000000000006","states":[[2285948,{"coin":"@107","user":"0x0000000000000000000000000000000000000006","side":"A","sz":"1000.0","executedSz":"333.29","executedNtl":"31171.44245","minutes":4320,"reduceOnly":true,"randomize":true,"timestamp":1791192756084,"trigger":{"px":"90.0","above":true},"stopPx":"92.0"}]]}}`,
-			exp: &WsTWAPStates{
+			exp: &WebsocketTWAPStates{
 				User: "0x0000000000000000000000000000000000000006",
 				States: []TWAPStateEntry{{
 					TWAPID: 2285948,
@@ -1032,22 +1032,22 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "builder DEX twapStates",
 			frame: `{"channel":"twapStates","data":{"dex":"xyz","user":"0x0000000000000000000000000000000000000003","states":[]}}`,
-			exp:   &WsTWAPStates{DEX: "xyz", User: "0x0000000000000000000000000000000000000003", States: []TWAPStateEntry{}},
+			exp:   &WebsocketTWAPStates{DEX: "xyz", User: "0x0000000000000000000000000000000000000003", States: []TWAPStateEntry{}},
 		},
 		{
 			name:  "clearinghouseState",
 			frame: `{"channel":"clearinghouseState","data":{"dex":"","user":"0x0000000000000000000000000000000000000001","clearinghouseState":` + websocketClearinghouseStateJSON + `}}`,
-			exp:   &WsClearinghouseState{User: "0x0000000000000000000000000000000000000001", ClearinghouseState: testWebsocketClearinghouseState()},
+			exp:   &WebsocketClearinghouseState{User: "0x0000000000000000000000000000000000000001", ClearinghouseState: testWebsocketClearinghouseState()},
 		},
 		{
 			name:  "builder DEX clearinghouseState",
 			frame: `{"channel":"clearinghouseState","data":{"dex":"xyz","user":"0x0000000000000000000000000000000000000001","clearinghouseState":` + websocketEmptyClearinghouseStateJSON + `}}`,
-			exp:   &WsClearinghouseState{DEX: "xyz", User: "0x0000000000000000000000000000000000000001", ClearinghouseState: testWebsocketEmptyClearinghouseState()},
+			exp:   &WebsocketClearinghouseState{DEX: "xyz", User: "0x0000000000000000000000000000000000000001", ClearinghouseState: testWebsocketEmptyClearinghouseState()},
 		},
 		{
 			name:  "openOrders",
 			frame: `{"channel":"openOrders","data":{"dex":"xyz","user":"0x000000000000000000000000000000000000000a","orders":[{"coin":"xyz:XYZ100","side":"A","limitPx":"31175.0","sz":"0.0296","oid":566617880209,"timestamp":1791280999484,"triggerCondition":"N/A","isTrigger":false,"triggerPx":"0.0","children":[],"isPositionTpsl":false,"reduceOnly":false,"orderType":"Limit","origSz":"0.032","tif":"Alo","cloid":"0x000000000000000000065d291ba7c026"},{"coin":"xyz:XYZ100","side":"B","limitPx":"31180.0","sz":"0.0296","oid":566617880210,"timestamp":1791280999484,"triggerCondition":"Price above 31180","isTrigger":true,"triggerPx":"31180.0","children":[{"coin":"xyz:XYZ100","side":"B","limitPx":"30000.0","sz":"0.0296","oid":566617880211,"timestamp":1791280999484,"triggerCondition":"Price below 30000","isTrigger":true,"triggerPx":"30000.0","children":[],"isPositionTpsl":true,"reduceOnly":true,"orderType":"Stop Market","origSz":"0.032","tif":"FrontendMarket","cloid":"0x000000000000000000065d291ba7c028"}],"isPositionTpsl":true,"reduceOnly":true,"orderType":"Take Profit Market","origSz":"0.032","tif":"FrontendMarket","cloid":"0x000000000000000000065d291ba7c027"}]}}`,
-			exp: &WsOpenOrders{
+			exp: &WebsocketOpenOrders{
 				DEX:  "xyz",
 				User: "0x000000000000000000000000000000000000000a",
 				Orders: []FrontendOpenOrder{
@@ -1118,7 +1118,7 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "bbo",
 			frame: `{"channel":"bbo","data":{"coin":"BTC","time":1791278884013,"bbo":[{"px":"85811.0","sz":"9.48256","n":43},{"px":"85812.0","sz":"4.09277","n":1}]}}`,
-			exp: &WsBestBidOffer{
+			exp: &WebsocketBestBidOffer{
 				Coin:         "BTC",
 				Time:         milli(1791278884013),
 				BestBidOffer: [2]*L2Level{{Price: 85811, Size: 9.48256, NumberOfOrders: 43}, {Price: 85812, Size: 4.09277, NumberOfOrders: 1}},
@@ -1127,12 +1127,12 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "bbo without bids",
 			frame: `{"channel":"bbo","data":{"coin":"@107","time":1791279271233,"bbo":[null,{"px":"92.638","sz":"12.89","n":1}]}}`,
-			exp:   &WsBestBidOffer{Coin: "@107", Time: milli(1791279271233), BestBidOffer: [2]*L2Level{nil, {Price: 92.638, Size: 12.89, NumberOfOrders: 1}}},
+			exp:   &WebsocketBestBidOffer{Coin: "@107", Time: milli(1791279271233), BestBidOffer: [2]*L2Level{nil, {Price: 92.638, Size: 12.89, NumberOfOrders: 1}}},
 		},
 		{
 			name:  "spotState",
 			frame: `{"channel":"spotState","data":{"user":"0x0000000000000000000000000000000000000002","spotState":{"balances":[{"coin":"USDC","token":0,"total":"100508.11272667","hold":"49999.89","entryNtl":"1.0"},{"coin":"VAULT","token":106,"total":"0.95437326","hold":"0.5","entryNtl":"0.00095437"}],"tokenToAvailableAfterMaintenance":[[0,"100508.11272667"]]}}}`,
-			exp: &WsSpotState{
+			exp: &WebsocketSpotState{
 				User: "0x0000000000000000000000000000000000000002",
 				SpotState: SpotClearinghouseStateResponse{
 					Balances: []SpotBalance{
@@ -1146,7 +1146,7 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "allDexsClearinghouseState",
 			frame: `{"channel":"allDexsClearinghouseState","data":{"user":"0x0000000000000000000000000000000000000001","clearinghouseStates":[["",` + websocketClearinghouseStateJSON + `],["xyz",` + websocketEmptyClearinghouseStateJSON + `]]}}`,
-			exp: &WsAllDEXsClearinghouseState{
+			exp: &WebsocketAllDEXsClearinghouseState{
 				User: "0x0000000000000000000000000000000000000001",
 				ClearinghouseStates: []DEXClearinghouseState{
 					{ClearinghouseState: testWebsocketClearinghouseState()},
@@ -1157,7 +1157,7 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "allDexsAssetCtxs",
 			frame: `{"channel":"allDexsAssetCtxs","data":{"ctxs":[["",[{"funding":"0.0000125","openInterest":"39988.35486","prevDayPx":"85840.0","dayNtlVlm":"1821731901.6448168755","premium":"-0.0000932097","oraclePx":"85828.0","markPx":"85814.0","midPx":"85818.0","impactPxs":["85816.0","85820.0"],"dayBaseVlm":"21234.78753"}]],["xyz",[{"funding":"0.00000625","openInterest":"7177.89","prevDayPx":"30751.0","dayNtlVlm":"276887160.4848001003","premium":"0.0000855208","oraclePx":"31162.0","markPx":"31164.0","midPx":"31164.5","impactPxs":["31164.0","31165.33"],"dayBaseVlm":"8935.3045"}]]]}}`,
-			exp: &WsAllDEXsAssetContexts{Contexts: []DEXAssetContexts{
+			exp: &WebsocketAllDEXsAssetContexts{Contexts: []DEXAssetContexts{
 				{AssetContexts: []PerpetualAssetContext{{
 					Funding:           0.0000125,
 					OpenInterest:      39988.35486,
@@ -1187,7 +1187,7 @@ func TestWsRelay(t *testing.T) {
 		{
 			name:  "allDexsAssetCtxs without a book",
 			frame: `{"channel":"allDexsAssetCtxs","data":{"ctxs":[["",[{"funding":"0.0000125","openInterest":"39988.35486","prevDayPx":"85840.0","dayNtlVlm":"1821731901.6448168755","premium":null,"oraclePx":"85828.0","markPx":"85814.0","midPx":null,"impactPxs":null,"dayBaseVlm":"21234.78753"}]]]}}`,
-			exp: &WsAllDEXsAssetContexts{Contexts: []DEXAssetContexts{{AssetContexts: []PerpetualAssetContext{{
+			exp: &WebsocketAllDEXsAssetContexts{Contexts: []DEXAssetContexts{{AssetContexts: []PerpetualAssetContext{{
 				Funding:           0.0000125,
 				OpenInterest:      39988.35486,
 				PreviousDayPrice:  85840,
@@ -1215,8 +1215,8 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "fast l2Book",
 			data:   `{"coin":"SOL","time":1791279270407,"levels":[[{"px":"119.19","sz":"896.3","n":7},{"px":"119.18","sz":"157.98","n":5}],[{"px":"119.2","sz":"684.82","n":11},{"px":"119.21","sz":"862.57","n":17}]],"fast":true}`,
-			target: new(WsL2Book),
-			exp: &WsL2Book{
+			target: new(WebsocketL2Book),
+			exp: &WebsocketL2Book{
 				Coin: "SOL",
 				Time: milli(1791279270407),
 				Levels: [][]L2Level{
@@ -1229,8 +1229,8 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "aggregated l2Book",
 			data:   `{"coin":"BTC","time":1791279269350,"levels":[[{"px":"85874.0","sz":"17.86492","n":63}],[{"px":"85876.0","sz":"1.22481","n":6}]],"spread":"1.0"}`,
-			target: new(WsL2Book),
-			exp: &WsL2Book{
+			target: new(WebsocketL2Book),
+			exp: &WebsocketL2Book{
 				Coin:   "BTC",
 				Time:   milli(1791279269350),
 				Levels: [][]L2Level{{{Price: 85874, Size: 17.86492, NumberOfOrders: 63}}, {{Price: 85876, Size: 1.22481, NumberOfOrders: 6}}},
@@ -1240,8 +1240,8 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "perpetual activeAssetCtx",
 			data:   `{"coin":"BTC","ctx":{"funding":"0.0000125","openInterest":"39980.76392","prevDayPx":"85840.0","dayNtlVlm":"1821282705.4506571293","premium":"-0.0001864194","oraclePx":"85828.0","markPx":"85814.0","midPx":"85811.5","impactPxs":["85811.0","85812.0"],"dayBaseVlm":"21229.55909"}}`,
-			target: new(WsPerpetualAssetContext),
-			exp: &WsPerpetualAssetContext{Coin: "BTC", Context: PerpetualAssetContext{
+			target: new(WebsocketPerpetualAssetContext),
+			exp: &WebsocketPerpetualAssetContext{Coin: "BTC", Context: PerpetualAssetContext{
 				Funding:           0.0000125,
 				OpenInterest:      39980.76392,
 				PreviousDayPrice:  85840,
@@ -1257,8 +1257,8 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "spot activeAssetCtx",
 			data:   `{"coin":"@107","ctx":{"prevDayPx":"93.124","dayNtlVlm":"64552049.6973299459","markPx":"92.949","midPx":"92.945","circulatingSupply":"298462370.4079165459","coin":"@107","totalSupply":"998882916.6303099394","dayBaseVlm":"690824.1400000008"}}`,
-			target: new(WsSpotAssetContext),
-			exp: &WsSpotAssetContext{Coin: "@107", Context: SpotAssetContext{
+			target: new(WebsocketSpotAssetContext),
+			exp: &WebsocketSpotAssetContext{Coin: "@107", Context: SpotAssetContext{
 				PreviousDayPrice:  93.124,
 				DayNotionalVolume: 64552049.6973299459,
 				MarkPrice:         92.949,
@@ -1272,14 +1272,14 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "userFills",
 			data:   `{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000a","fills":[` + websocketFillJSON + `]}`,
-			target: new(WsUserFills),
-			exp:    &WsUserFills{IsSnapshot: true, User: "0x000000000000000000000000000000000000000a", Fills: []Fill{testWebsocketFill()}},
+			target: new(WebsocketUserFills),
+			exp:    &WebsocketUserFills{IsSnapshot: true, User: "0x000000000000000000000000000000000000000a", Fills: []Fill{testWebsocketFill()}},
 		},
 		{
 			name:   "userTwapSliceFills",
 			data:   `{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000006","twapSliceFills":[{"fill":` + websocketFillJSON + `,"twapId":2288616}]}`,
-			target: new(WsUserTWAPSliceFills),
-			exp: &WsUserTWAPSliceFills{
+			target: new(WebsocketUserTWAPSliceFills),
+			exp: &WebsocketUserTWAPSliceFills{
 				IsSnapshot:     true,
 				User:           "0x0000000000000000000000000000000000000006",
 				TWAPSliceFills: []TWAPSliceFill{{Fill: testWebsocketFill(), TWAPID: 2288616}},
@@ -1288,12 +1288,12 @@ func TestWebsocketMessageUnmarshal(t *testing.T) {
 		{
 			name:   "userEvents",
 			data:   `{"fills":[` + websocketFillJSON + `],"funding":{"time":1791280800037,"coin":"BTC","usdc":"-0.601087","szi":"0.55919","fundingRate":"0.0000125","nSamples":24},"liquidation":{"lid":123456,"liquidator":"0x0000000000000000000000000000000000000009","liquidated_user":"0x000000000000000000000000000000000000000b","liquidated_ntl_pos":"356.80015","liquidated_account_value":"2.956494"},"nonUserCancel":[{"coin":"PNUT","oid":566615769247}],"twapSliceFills":[{"fill":` + websocketFillJSON + `,"twapId":2288616}]}`,
-			target: new(WsUserEvent),
-			exp: &WsUserEvent{
+			target: new(WebsocketUserEvent),
+			exp: &WebsocketUserEvent{
 				Fills:          []Fill{testWebsocketFill()},
-				Funding:        &WsUserFunding{Time: milli(1791280800037), Coin: "BTC", USDC: -0.601087, SignedSize: 0.55919, FundingRate: 0.0000125, NumberOfSamples: 24},
-				Liquidation:    &WsLiquidation{LiquidationID: 123456, Liquidator: "0x0000000000000000000000000000000000000009", LiquidatedUser: "0x000000000000000000000000000000000000000b", LiquidatedNotionalPosition: 356.80015, LiquidatedAccountValue: 2.956494},
-				NonUserCancel:  []WsNonUserCancel{{Coin: "PNUT", OrderID: 566615769247}},
+				Funding:        &WebsocketUserFunding{Time: milli(1791280800037), Coin: "BTC", USDC: -0.601087, SignedSize: 0.55919, FundingRate: 0.0000125, NumberOfSamples: 24},
+				Liquidation:    &WebsocketLiquidation{LiquidationID: 123456, Liquidator: "0x0000000000000000000000000000000000000009", LiquidatedUser: "0x000000000000000000000000000000000000000b", LiquidatedNotionalPosition: 356.80015, LiquidatedAccountValue: 2.956494},
+				NonUserCancel:  []WebsocketNonUserCancel{{Coin: "PNUT", OrderID: 566615769247}},
 				TWAPSliceFills: []TWAPSliceFill{{Fill: testWebsocketFill(), TWAPID: 2288616}},
 			},
 		},
@@ -1417,7 +1417,7 @@ func receiveTicker(t *testing.T, ex *Exchange) *ticker.Price {
 	return price
 }
 
-func TestWsHandleCandle(t *testing.T) {
+func TestWebsocketHandleCandle(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleCandle(t.Context(), []byte(`"invalid"`)), "wsHandleCandle should reject invalid data")
@@ -1456,7 +1456,7 @@ func TestWsHandleCandle(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleOrderbook(t *testing.T) {
+func TestWebsocketHandleOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOrderbook(t.Context(), []byte(`"invalid"`)), "wsHandleOrderbook should reject invalid data")
@@ -1479,7 +1479,7 @@ func TestWsHandleOrderbook(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleTrades(t *testing.T) {
+func TestWebsocketHandleTrades(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleTrades([]byte(`"invalid"`)), "wsHandleTrades should reject invalid data")
@@ -1612,7 +1612,7 @@ func TestUnrelayedEntries(t *testing.T) {
 func TestClearWebsocketWatermark(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	ex.clearWebsocketWatermark(&WsSubscription{Type: wsChannelTrades, Coin: "BTC"})
+	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelTrades, Coin: "BTC"})
 	assert.Equal(t, websocketWatermarks{}, ex.websocketWatermarks, "clearWebsocketWatermark should ignore a feed without a watermark")
 	position := websocketPosition{time: time.UnixMilli(1791278878126), tradeID: 1}
 	fillsFeed := websocketFillsFeed{channel: wsChannelUserFills, user: testAccountAddress}
@@ -1621,19 +1621,19 @@ func TestClearWebsocketWatermark(t *testing.T) {
 		trades: map[string]websocketPosition{"BTC": position, "ETH": position},
 		fills:  map[websocketFillsFeed]websocketPosition{fillsFeed: position, sliceFillsFeed: position},
 	}
-	ex.clearWebsocketWatermark(&WsSubscription{Type: wsChannelTrades, Coin: "BTC"})
-	ex.clearWebsocketWatermark(&WsSubscription{Type: wsChannelUserFills, User: testAccountAddress})
-	ex.clearWebsocketWatermark(&WsSubscription{Type: wsChannelOrderbook, Coin: "ETH"})
+	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelTrades, Coin: "BTC"})
+	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelUserFills, User: testAccountAddress})
+	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelOrderbook, Coin: "ETH"})
 	exp := websocketWatermarks{
 		trades: map[string]websocketPosition{"ETH": position},
 		fills:  map[websocketFillsFeed]websocketPosition{sliceFillsFeed: position},
 	}
 	assert.Equal(t, exp, ex.websocketWatermarks, "clearWebsocketWatermark should forget only the unsubscribed feeds' watermarks")
-	ex.clearWebsocketWatermark(&WsSubscription{Type: wsChannelUserTWAPSliceFills, User: testAccountAddress})
+	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelUserTWAPSliceFills, User: testAccountAddress})
 	assert.Empty(t, ex.websocketWatermarks.fills, "clearWebsocketWatermark should forget a TWAP slice fills feed's watermark")
 }
 
-func TestWsHandleOrderUpdates(t *testing.T) {
+func TestWebsocketHandleOrderUpdates(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOrderUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleOrderUpdates should reject invalid data")
@@ -2571,7 +2571,7 @@ func TestWebsocketOrdersUnlink(t *testing.T) {
 	assert.Nil(t, orders.newest, "unlink should leave no newest record once the last is unlinked")
 }
 
-func TestWsHandleUserEvent(t *testing.T) {
+func TestWebsocketHandleUserEvent(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserEvent(t.Context(), []byte(`"invalid"`)), "wsHandleUserEvent should reject invalid data")
@@ -2584,19 +2584,19 @@ func TestWsHandleUserEvent(t *testing.T) {
 	assert.Equal(t, []fill.Data{testWebsocketSpotFillData(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay TWAP slice fills to the fills feed")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"funding":{"time":1791280800037,"coin":"BTC","usdc":"-0.601087","szi":"0.55919","fundingRate":"0.0000125","nSamples":null}}}`), true), "wsHandleData must not error for a funding payment")
-	assert.Equal(t, &WsUserFunding{Time: milli(1791280800037), Coin: "BTC", USDC: -0.601087, SignedSize: 0.55919, FundingRate: 0.0000125}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a funding payment")
+	assert.Equal(t, &WebsocketUserFunding{Time: milli(1791280800037), Coin: "BTC", USDC: -0.601087, SignedSize: 0.55919, FundingRate: 0.0000125}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a funding payment")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"liquidation":{"lid":123456,"liquidator":"0x0000000000000000000000000000000000000009","liquidated_user":"0x000000000000000000000000000000000000000b","liquidated_ntl_pos":"356.80015","liquidated_account_value":"2.956494"}}}`), true), "wsHandleData must not error for a liquidation")
-	assert.Equal(t, &WsLiquidation{LiquidationID: 123456, Liquidator: "0x0000000000000000000000000000000000000009", LiquidatedUser: "0x000000000000000000000000000000000000000b", LiquidatedNotionalPosition: 356.80015, LiquidatedAccountValue: 2.956494}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a liquidation")
+	assert.Equal(t, &WebsocketLiquidation{LiquidationID: 123456, Liquidator: "0x0000000000000000000000000000000000000009", LiquidatedUser: "0x000000000000000000000000000000000000000b", LiquidatedNotionalPosition: 356.80015, LiquidatedAccountValue: 2.956494}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a liquidation")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"nonUserCancel":[{"coin":"PNUT","oid":566615769247}]}}`), true), "wsHandleData must not error for cancels")
-	assert.Equal(t, []WsNonUserCancel{{Coin: "PNUT", OrderID: 566615769247}}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay the orders the exchange cancelled")
+	assert.Equal(t, []WebsocketNonUserCancel{{Coin: "PNUT", OrderID: 566615769247}}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay the orders the exchange cancelled")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{}}`), true), "wsHandleData must not error for an empty event")
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleUserFills(t *testing.T) {
+func TestWebsocketHandleUserFills(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserFills(t.Context(), []byte(`"invalid"`)), "wsHandleUserFills should reject invalid data")
@@ -2702,16 +2702,16 @@ func TestConvertFill(t *testing.T) {
 	assert.Equal(t, testWebsocketFillData(ex.Name), ex.convertFill(&source, perpetualPair, asset.PerpetualContract, order.Buy), "convertFill should identify a fill by its trade ID")
 }
 
-func TestWsHandleUserFundings(t *testing.T) {
+func TestWebsocketHandleUserFundings(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserFundings(t.Context(), []byte(`"invalid"`)), "wsHandleUserFundings should reject invalid data")
 	frame := `{"channel":"userFundings","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000003","fundings":[{"time":1791216000037,"coin":"ENA","usdc":"-2.38878","szi":"777946.0","fundingRate":"0.0000125","nSamples":1},{"time":1791219600012,"coin":"BTC","usdc":"0.238633","szi":"-0.2238","fundingRate":"0.0000125","nSamples":null}]}}`
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
-	exp := &WsUserFundings{
+	exp := &WebsocketUserFundings{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000003",
-		Fundings: []WsUserFunding{
+		Fundings: []WebsocketUserFunding{
 			{Time: milli(1791216000037), Coin: "ENA", USDC: -2.38878, SignedSize: 777946, FundingRate: 0.0000125, NumberOfSamples: 1},
 			{Time: milli(1791219600012), Coin: "BTC", USDC: 0.238633, SignedSize: -0.2238, FundingRate: 0.0000125},
 		},
@@ -2721,13 +2721,13 @@ func TestWsHandleUserFundings(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleUserNonFundingLedgerUpdates(t *testing.T) {
+func TestWebsocketHandleUserNonFundingLedgerUpdates(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserNonFundingLedgerUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleUserNonFundingLedgerUpdates should reject invalid data")
 	frame := `{"channel":"userNonFundingLedgerUpdates","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000001","nonFundingLedgerUpdates":[{"time":1748135719014,"hash":"0x2674629937983fbe452ec47df9c991d29c136ff7c79c3c1630d600d6707524d0","delta":{"type":"deposit","usdc":"200079.847397"}},{"time":1677618623525,"hash":"0x651383a8fda3daaf31cc0308597c0000f7f51388f97acf0df28797ee97ae278a","delta":{"type":"liquidation","liquidatedNtlPos":"356.80015","accountValue":"2.956494","leverageType":"Cross","liquidatedPositions":[{"coin":"ATOM","szi":"29.21"}]}}]}}`
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
-	exp := &WsUserNonFundingLedgerUpdates{
+	exp := &WebsocketUserNonFundingLedgerUpdates{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000001",
 		NonFundingLedgerUpdates: []UserLedgerUpdate{
@@ -2750,7 +2750,7 @@ func TestWsHandleUserNonFundingLedgerUpdates(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandlePerpetualTicker(t *testing.T) {
+func TestWebsocketHandlePerpetualTicker(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandlePerpetualTicker(t.Context(), []byte(`"invalid"`)), "wsHandlePerpetualTicker should reject invalid data")
@@ -2783,7 +2783,7 @@ func TestWsHandlePerpetualTicker(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleSpotTicker(t *testing.T) {
+func TestWebsocketHandleSpotTicker(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleSpotTicker(t.Context(), []byte(`"invalid"`)), "wsHandleSpotTicker should reject invalid data")
@@ -2814,7 +2814,7 @@ func TestWsHandleSpotTicker(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleUserTWAPSliceFills(t *testing.T) {
+func TestWebsocketHandleUserTWAPSliceFills(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserTWAPSliceFills(t.Context(), []byte(`"invalid"`)), "wsHandleUserTWAPSliceFills should reject invalid data")
@@ -2835,13 +2835,13 @@ func TestWsHandleUserTWAPSliceFills(t *testing.T) {
 	assert.Equal(t, []fill.Data{missed}, receiveWebsocketData(t, ex), "wsHandleUserTWAPSliceFills should relay only the snapshot's slice fills after the last relayed one to the fills feed")
 }
 
-func TestWsHandleUserTWAPHistory(t *testing.T) {
+func TestWebsocketHandleUserTWAPHistory(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserTWAPHistory(t.Context(), []byte(`"invalid"`)), "wsHandleUserTWAPHistory should reject invalid data")
 	frame := `{"channel":"userTwapHistory","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","history":[{"time":1769165674,"state":{"coin":"@107","user":"0x0000000000000000000000000000000000000007","side":"B","sz":"2000.0","executedSz":"2000.0","executedNtl":"41959.56859","minutes":30,"reduceOnly":true,"randomize":true,"timestamp":1769163872991,"trigger":{"px":"88.0","above":true},"stopPx":"85.5"},"status":{"status":"finished","description":"finished"},"twapId":1530771},{"time":1770013630,"state":{"coin":"@151","user":"0x0000000000000000000000000000000000000007","side":"B","sz":"86.0","executedSz":"49.0413","executedNtl":"107736.21719","minutes":60,"reduceOnly":false,"randomize":false,"timestamp":1770011558151,"trigger":null,"stopPx":null},"status":{"status":"error","description":"Insufficient spot balance"},"twapId":1560286}]}}`
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
-	exp := &WsUserTWAPHistory{
+	exp := &WebsocketUserTWAPHistory{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000007",
 		History: []TWAPHistoryEntry{
@@ -2886,13 +2886,13 @@ func TestWsHandleUserTWAPHistory(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleOutcomeMetaUpdates(t *testing.T) {
+func TestWebsocketHandleOutcomeMetaUpdates(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOutcomeMetaUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleOutcomeMetaUpdates should reject invalid data")
 	frame := `{"channel":"outcomeMetaUpdates","data":[{"outcomeCreated":{"outcome":9115,"name":"template:binaryPrice","description":"perp:HYPE|priceDescription:HYPE-USDC perp mark|seconds:60|threshold:93.058|time:20261006-1015","sideSpecs":[{"name":"template:Yes"},{"name":"template:No"}],"quoteToken":"USDC","venue":"out","deployerFeeScale":"1.0"}},{"outcomeSettled":9112},{"questionUpdated":{"question":400,"name":"template:sportsContestResult","description":"competition:English Premier League|contestType:Match|participantA:Coventry City|participantB:Newcastle United","fallbackOutcome":9068,"namedOutcomes":[9069,9070,9071],"settledNamedOutcomes":[9069]}},{"questionSettled":400}]}`
 	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
-	exp := []WsOutcomeMetaUpdate{
+	exp := []WebsocketOutcomeMetaUpdate{
 		{OutcomeCreated: &OutcomeSpecification{
 			Outcome:            9115,
 			Name:               "template:binaryPrice",
@@ -2918,18 +2918,18 @@ func TestWsHandleOutcomeMetaUpdates(t *testing.T) {
 	assertNoWebsocketData(t, ex)
 }
 
-func TestWsHandleFastAssetContexts(t *testing.T) {
+func TestWebsocketHandleFastAssetContexts(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	for _, tc := range []struct {
 		name string
 		data string
-		exp  map[string]WsFastAssetContext
+		exp  map[string]WebsocketFastAssetContext
 	}{
 		{
 			name: "snapshot",
 			data: `"q1ZyCnFWsqpWyk0syg6oULJSsjC1MDTRM1DSUcrNTIGLGOqZKtXqKDkYGpijqLY00rM0sURSDBYAq1U2NLGwMEBRbaBnaAgUNUVSDxcC6qiorLKKiIwyNEDVZWxoaGaO4iKgiLkByEW1AA=="`,
-			exp: map[string]WsFastAssetContext{
+			exp: map[string]WebsocketFastAssetContext{
 				"BTC":        {MarkPrice: 85814, MidPrice: 85811.5, MarkPriceSet: true, MidPriceSet: true},
 				"@107":       {MarkPrice: 92.949, MidPrice: 92.945, MarkPriceSet: true, MidPriceSet: true},
 				"#14880":     {MarkPrice: 0.111485, MidPrice: 0.111485, MarkPriceSet: true, MidPriceSet: true},
@@ -2939,7 +2939,7 @@ func TestWsHandleFastAssetContexts(t *testing.T) {
 		{
 			name: "update",
 			data: `"q1ZyCnFWsqpWys1MCahQslKyMLUwNNIzVarVUXIwNDAHSyUWZYPlLI30LMEyGZV5iVauIR4oskYmBgZ6lko6MKPySnNyamsB"`,
-			exp: map[string]WsFastAssetContext{
+			exp: map[string]WebsocketFastAssetContext{
 				"BTC":      {MidPrice: 85812.5, MidPriceSet: true},
 				"@107":     {MarkPrice: 92.95, MarkPriceSet: true},
 				"hyna:ETH": {MarkPrice: 2400.9, MarkPriceSet: true, MidPriceSet: true},
@@ -2948,7 +2948,7 @@ func TestWsHandleFastAssetContexts(t *testing.T) {
 		{
 			name: "maximum sized message",
 			data: `"` + deflateBase64(t, append([]byte(`{}`), bytes.Repeat([]byte(" "), maximumFastAssetContextsSize-2)...)) + `"`,
-			exp:  map[string]WsFastAssetContext{},
+			exp:  map[string]WebsocketFastAssetContext{},
 		},
 	} {
 		require.NoErrorf(t, ex.wsHandleFastAssetContexts(t.Context(), []byte(tc.data)), "wsHandleFastAssetContexts must decode the %s", tc.name)
@@ -3019,23 +3019,23 @@ func TestWebsocketPositionAfter(t *testing.T) {
 	}
 }
 
-func TestWsFastAssetContextUnmarshalJSON(t *testing.T) {
+func TestWebsocketFastAssetContextUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		data string
-		exp  WsFastAssetContext
+		exp  WebsocketFastAssetContext
 	}{
-		{data: `{"markPx":"85814.0","midPx":"85811.5"}`, exp: WsFastAssetContext{MarkPrice: 85814, MidPrice: 85811.5, MarkPriceSet: true, MidPriceSet: true}},
-		{data: `{"midPx":"85812.5"}`, exp: WsFastAssetContext{MidPrice: 85812.5, MidPriceSet: true}},
-		{data: `{"markPx":"2400.9","midPx":null}`, exp: WsFastAssetContext{MarkPrice: 2400.9, MarkPriceSet: true, MidPriceSet: true}},
+		{data: `{"markPx":"85814.0","midPx":"85811.5"}`, exp: WebsocketFastAssetContext{MarkPrice: 85814, MidPrice: 85811.5, MarkPriceSet: true, MidPriceSet: true}},
+		{data: `{"midPx":"85812.5"}`, exp: WebsocketFastAssetContext{MidPrice: 85812.5, MidPriceSet: true}},
+		{data: `{"markPx":"2400.9","midPx":null}`, exp: WebsocketFastAssetContext{MarkPrice: 2400.9, MarkPriceSet: true, MidPriceSet: true}},
 		{data: `{}`},
 	} {
-		var fastContext WsFastAssetContext
+		var fastContext WebsocketFastAssetContext
 		require.NoErrorf(t, json.Unmarshal([]byte(tc.data), &fastContext), "Unmarshal must not error for %s", tc.data)
 		assert.Equalf(t, tc.exp, fastContext, "Unmarshal should record which prices %s sets", tc.data)
 	}
 	for _, data := range []string{`[]`, `{"markPx":true}`, `{"midPx":{}}`} {
-		var fastContext WsFastAssetContext
+		var fastContext WebsocketFastAssetContext
 		assert.Errorf(t, json.Unmarshal([]byte(data), &fastContext), "Unmarshal should reject %s", data)
 	}
 }
@@ -3043,7 +3043,7 @@ func TestWsFastAssetContextUnmarshalJSON(t *testing.T) {
 // replyToPost returns a reply that answers a post request with the response, echoing the request's ID
 func replyToPost(response string) func([]byte) []string {
 	return func(request []byte) []string {
-		var post WsPostRequest
+		var post WebsocketPostRequest
 		if err := json.Unmarshal(request, &post); err != nil {
 			return nil
 		}
@@ -3051,14 +3051,14 @@ func replyToPost(response string) func([]byte) []string {
 	}
 }
 
-func TestWsPostInfo(t *testing.T) {
+func TestWebsocketPostInfo(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.WsPostInfo(t.Context(), nil, new(L2BookResponse)), common.ErrNilPointer, "WsPostInfo should require a payload")
-	assert.ErrorIs(t, e.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, nil), common.ErrNilPointer, "WsPostInfo should require a result")
+	assert.ErrorIs(t, e.WebsocketPostInfo(t.Context(), nil, new(L2BookResponse)), common.ErrNilPointer, "WebsocketPostInfo should require a payload")
+	assert.ErrorIs(t, e.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, nil), common.ErrNilPointer, "WebsocketPostInfo should require a result")
 
 	venue, requests := newVenueWebsocketTestExchange(t)
 	var book *L2BookResponse
-	require.NoError(t, venue.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH", NumberOfSignificantFigures: 5}, &book), "WsPostInfo must not error")
+	require.NoError(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH", NumberOfSignificantFigures: 5}, &book), "WebsocketPostInfo must not error")
 	if mockTests {
 		exp := &L2BookResponse{
 			Coin:   "ETH",
@@ -3066,103 +3066,103 @@ func TestWsPostInfo(t *testing.T) {
 			Levels: [][]L2Level{{{Price: 2702.5, Size: 138.1974, NumberOfOrders: 17}}, {{Price: 2702.6, Size: 84.4867, NumberOfOrders: 17}}},
 			Spread: 0.1,
 		}
-		assert.Equal(t, exp, book, "WsPostInfo should decode the info response")
-		assert.Equal(t, []string{`{"method":"post","id":1,"request":{"type":"info","payload":{"type":"l2Book","coin":"ETH","nSigFigs":5}}}`}, requests.received(), "WsPostInfo should post the info request")
+		assert.Equal(t, exp, book, "WebsocketPostInfo should decode the info response")
+		assert.Equal(t, []string{`{"method":"post","id":1,"request":{"type":"info","payload":{"type":"l2Book","coin":"ETH","nSigFigs":5}}}`}, requests.received(), "WebsocketPostInfo should post the info request")
 	} else {
-		require.NotNil(t, book, "WsPostInfo must return the ETH book")
-		require.Len(t, book.Levels, 2, "WsPostInfo must return both sides of the ETH book")
-		assert.NotEmpty(t, book.Levels[0], "WsPostInfo should return the ETH bids")
-		assert.NotEmpty(t, book.Levels[1], "WsPostInfo should return the ETH asks")
-		assert.Positive(t, book.Spread.Float64(), "WsPostInfo should return the aggregated book's spread")
+		require.NotNil(t, book, "WebsocketPostInfo must return the ETH book")
+		require.Len(t, book.Levels, 2, "WebsocketPostInfo must return both sides of the ETH book")
+		assert.NotEmpty(t, book.Levels[0], "WebsocketPostInfo should return the ETH bids")
+		assert.NotEmpty(t, book.Levels[1], "WebsocketPostInfo should return the ETH asks")
+		assert.Positive(t, book.Spread.Float64(), "WebsocketPostInfo should return the aggregated book's spread")
 	}
 	book = nil
-	require.NoError(t, venue.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book), "WsPostInfo must not error for an unknown coin")
-	assert.Nil(t, book, "WsPostInfo should leave the result unset for an unknown coin")
-	assert.ErrorIs(t, venue.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "BTC", NumberOfSignificantFigures: 7}, &book), errWebsocketPost, "WsPostInfo should return a rejected request's error")
+	require.NoError(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book), "WebsocketPostInfo must not error for an unknown coin")
+	assert.Nil(t, book, "WebsocketPostInfo should leave the result unset for an unknown coin")
+	assert.ErrorIs(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "BTC", NumberOfSignificantFigures: 7}, &book), errWebsocketPost, "WebsocketPostInfo should return a rejected request's error")
 
 	// The venue sends only well-formed info payloads, so a fixture connection supplies malformed ones
 	ex := newWebsocketTestExchange(t)
 	connection := websocketFixture(t, ex.Websocket.Conn)
 	connection.reply = replyToPost(`{"type":"info","payload":"invalid"}`)
-	assert.ErrorContains(t, ex.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WsPostInfo should reject an invalid info payload")
+	assert.ErrorContains(t, ex.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WebsocketPostInfo should reject an invalid info payload")
 	connection.reply = replyToPost(`{"type":"info","payload":{"type":"l2Book","data":"invalid"}}`)
-	assert.ErrorContains(t, ex.WsPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding l2Book info response", "WsPostInfo should reject a response that does not fit the result")
+	assert.ErrorContains(t, ex.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding l2Book info response", "WebsocketPostInfo should reject a response that does not fit the result")
 }
 
-func TestWsPlaceOrders(t *testing.T) {
+func TestWebsocketPlaceOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsPlaceOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WsPlaceOrders should reject a nil request")
-	_, err = e.WsPlaceOrders(t.Context(), &PlaceOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WsPlaceOrders should require an order")
-	_, err = e.WsPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 1}}})
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "WsPlaceOrders should reject an invalid order")
+	_, err := e.WebsocketPlaceOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOrders should reject a nil request")
+	_, err = e.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketPlaceOrders should require an order")
+	_, err = e.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 1}}})
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "WebsocketPlaceOrders should reject an invalid order")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed := websocketTestOrder(t)
-	statuses, err := ex.WsPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{placed}})
-	require.NoError(t, err, "WsPlaceOrders must not error")
-	require.Len(t, statuses, 1, "WsPlaceOrders must return the order's status")
+	statuses, err := ex.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{placed}})
+	require.NoError(t, err, "WebsocketPlaceOrders must not error")
+	require.Len(t, statuses, 1, "WebsocketPlaceOrders must return the order's status")
 	require.NotNil(t, statuses[0].Resting, "the order must rest")
-	assert.Equal(t, placed.ClientOrderID, statuses[0].Resting.ClientOrderID, "WsPlaceOrders should return the order's client order ID")
+	assert.Equal(t, placed.ClientOrderID, statuses[0].Resting.ClientOrderID, "WebsocketPlaceOrders should return the order's client order ID")
 	if mockTests {
-		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: testOrderID, ClientOrderID: testClientOrderID}}}, statuses, "WsPlaceOrders should return the fixture status")
+		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: testOrderID, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketPlaceOrders should return the fixture status")
 		assertWebsocketActionPost(t, venue.received(), `{"type":"order","orders":[{"a":0,"b":true,"p":"85000","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}],"grouping":"na"}`)
 	}
 }
 
-func TestWsCancelOrders(t *testing.T) {
+func TestWebsocketCancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOrders should reject a nil request")
-	_, err = e.WsCancelOrders(t.Context(), &CancelOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WsCancelOrders should require a cancel")
-	_, err = e.WsCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 1}}})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsCancelOrders should require an order ID")
+	_, err := e.WebsocketCancelOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOrders should reject a nil request")
+	_, err = e.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketCancelOrders should require a cancel")
+	_, err = e.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 1}}})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketCancelOrders should require an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed, orderID := websocketTestRestingOrder(t)
-	statuses, err := ex.WsCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: placed.Asset, OrderID: orderID}}})
-	require.NoError(t, err, "WsCancelOrders must not error")
-	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WsCancelOrders should cancel the order")
+	statuses, err := ex.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: placed.Asset, OrderID: orderID}}})
+	require.NoError(t, err, "WebsocketCancelOrders must not error")
+	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketCancelOrders should cancel the order")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"cancel","cancels":[{"a":0,"o":`+strconv.FormatUint(testOrderID, 10)+`}]}`)
 	}
 }
 
-func TestWsCancelOrdersByClientOrderID(t *testing.T) {
+func TestWebsocketCancelOrdersByClientOrderID(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOrdersByClientOrderID(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOrdersByClientOrderID should reject a nil request")
-	_, err = e.WsCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WsCancelOrdersByClientOrderID should require a cancel")
-	_, err = e.WsCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: "0x1"}}})
-	assert.ErrorIs(t, err, errClientOrderIDInvalid, "WsCancelOrdersByClientOrderID should reject an invalid client order ID")
+	_, err := e.WebsocketCancelOrdersByClientOrderID(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOrdersByClientOrderID should reject a nil request")
+	_, err = e.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketCancelOrdersByClientOrderID should require a cancel")
+	_, err = e.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: "0x1"}}})
+	assert.ErrorIs(t, err, errClientOrderIDInvalid, "WebsocketCancelOrdersByClientOrderID should reject an invalid client order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed, _ := websocketTestRestingOrder(t)
-	statuses, err := ex.WsCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: placed.Asset, ClientOrderID: placed.ClientOrderID}}})
-	require.NoError(t, err, "WsCancelOrdersByClientOrderID must not error")
-	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WsCancelOrdersByClientOrderID should cancel the order")
+	statuses, err := ex.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: placed.Asset, ClientOrderID: placed.ClientOrderID}}})
+	require.NoError(t, err, "WebsocketCancelOrdersByClientOrderID must not error")
+	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketCancelOrdersByClientOrderID should cancel the order")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"cancelByCloid","cancels":[{"asset":0,"cloid":"`+testClientOrderID+`"}]}`)
 	}
 }
 
-func TestWsModifySingleOrder(t *testing.T) {
+func TestWebsocketModifySingleOrder(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.WsModifySingleOrder(t.Context(), nil), common.ErrNilPointer, "WsModifySingleOrder should reject a nil request")
-	assert.ErrorIs(t, e.WsModifySingleOrder(t.Context(), &ModifyOrderRequest{}), order.ErrOrderIDNotSet, "WsModifySingleOrder should require an order identifier")
-	assert.ErrorIs(t, e.WsModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 1, Size: 1}}), errOrderTypeRequired, "WsModifySingleOrder should reject an invalid replacement")
+	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), nil), common.ErrNilPointer, "WebsocketModifySingleOrder should reject a nil request")
+	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{}), order.ErrOrderIDNotSet, "WebsocketModifySingleOrder should require an order identifier")
+	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 1, Size: 1}}), errOrderTypeRequired, "WebsocketModifySingleOrder should reject an invalid replacement")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3174,20 +3174,20 @@ func TestWsModifySingleOrder(t *testing.T) {
 	if !mockTests {
 		replacement.Price = math.Round(placed.Price * 0.99)
 	}
-	require.NoError(t, ex.WsModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: orderID, Order: replacement}), "WsModifySingleOrder must not error")
+	require.NoError(t, ex.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: orderID, Order: replacement}), "WebsocketModifySingleOrder must not error")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"modify","oid":`+strconv.FormatUint(testOrderID, 10)+`,"order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}}`)
 	}
 }
 
-func TestWsModifyOrders(t *testing.T) {
+func TestWebsocketModifyOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsModifyOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WsModifyOrders should reject a nil request")
-	_, err = e.WsModifyOrders(t.Context(), &ModifyOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WsModifyOrders should require a replacement")
-	_, err = e.WsModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, ClientOrderID: testClientOrderID}}})
-	assert.ErrorIs(t, err, errOrderIdentifiersConflict, "WsModifyOrders should reject both order identifiers")
+	_, err := e.WebsocketModifyOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketModifyOrders should reject a nil request")
+	_, err = e.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketModifyOrders should require a replacement")
+	_, err = e.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, ClientOrderID: testClientOrderID}}})
+	assert.ErrorIs(t, err, errOrderIdentifiersConflict, "WebsocketModifyOrders should reject both order identifiers")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3199,12 +3199,12 @@ func TestWsModifyOrders(t *testing.T) {
 	if !mockTests {
 		replacement.Price = math.Round(placed.Price * 0.98)
 	}
-	statuses, err := ex.WsModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: orderID, Order: replacement}}})
-	require.NoError(t, err, "WsModifyOrders must not error")
-	require.Len(t, statuses, 1, "WsModifyOrders must return the replacement's status")
+	statuses, err := ex.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: orderID, Order: replacement}}})
+	require.NoError(t, err, "WebsocketModifyOrders must not error")
+	require.Len(t, statuses, 1, "WebsocketModifyOrders must return the replacement's status")
 	require.NotNil(t, statuses[0].Resting, "the replacement must rest")
 	if mockTests {
-		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 566563303537, ClientOrderID: testClientOrderID}}}, statuses, "WsModifyOrders should return the fixture status")
+		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 566563303537, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketModifyOrders should return the fixture status")
 		assertWebsocketActionPost(t, venue.received(), `{"type":"batchModify","modifies":[{"oid":`+strconv.FormatUint(testOrderID, 10)+`,"order":{"a":0,"b":true,"p":"84000","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}}]}`)
 	}
 }
@@ -3303,7 +3303,7 @@ func TestSendWebsocketPost(t *testing.T) {
 	if mockTests {
 		assert.JSONEq(t, `{"type":"l2Book","data":{"coin":"BTC","time":1791279151499,"levels":[[{"px":"85895.0","sz":"0.00271","n":2}],[{"px":"85896.0","sz":"8.0337","n":32}]]}}`, string(payload), "sendWebsocketPost should return the response payload")
 	} else {
-		var info WsPostInfoPayload
+		var info WebsocketPostInfoPayload
 		require.NoError(t, json.Unmarshal(payload, &info), "the response payload must decode")
 		var book *L2BookResponse
 		require.NoError(t, json.Unmarshal(info.Data, &book), "the BTC book must decode")
@@ -3382,7 +3382,7 @@ func TestSendWebsocketPost(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "sendWebsocketPost should require a connection")
 }
 
-func TestWsHandlePostResponse(t *testing.T) {
+func TestWebsocketHandlePostResponse(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandlePostResponse([]byte(`"invalid"`)), "wsHandlePostResponse should reject invalid data")
@@ -3401,7 +3401,7 @@ func testOrderbookSubscription() (*subscription.Subscription, websocketPendingKe
 		Asset:            asset.PerpetualContract,
 		Pairs:            currency.Pairs{perpetualPair},
 		QualifiedChannel: "l2Book:perpetualcontract:BTC-USDC",
-	}, websocketPendingKey{subscription: WsSubscription{Type: wsChannelOrderbook, Coin: "BTC"}}
+	}, websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC"}}
 }
 
 // testTradesSubscription returns an unstored BTC trades subscription and its pending operation key
@@ -3411,10 +3411,10 @@ func testTradesSubscription() (*subscription.Subscription, websocketPendingKey) 
 		Asset:            asset.PerpetualContract,
 		Pairs:            currency.Pairs{perpetualPair},
 		QualifiedChannel: "trades:perpetualcontract:BTC-USDC",
-	}, websocketPendingKey{subscription: WsSubscription{Type: wsChannelTrades, Coin: "BTC"}}
+	}, websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelTrades, Coin: "BTC"}}
 }
 
-func TestWsHandleSubscriptionResponse(t *testing.T) {
+func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	for _, data := range []string{
@@ -3471,7 +3471,7 @@ func TestWsHandleSubscriptionResponse(t *testing.T) {
 					exp := *record
 					ex.websocketPendingMu.Unlock()
 					require.True(t, exp.covered, "applyWebsocketOrderRow must establish coverage")
-					payload := WsSubscription{Type: tc.feed, User: testAccountAddress, AggregateByTime: tc.aggregated}
+					payload := WebsocketSubscription{Type: tc.feed, User: testAccountAddress, AggregateByTime: tc.aggregated}
 					var pending *websocketPendingOperation
 					if pendingOperation {
 						sub := &subscription.Subscription{Channel: tc.feed, Authenticated: true, Params: map[string]any{"aggregateByTime": tc.aggregated}}
@@ -3480,7 +3480,7 @@ func TestWsHandleSubscriptionResponse(t *testing.T) {
 						}
 						pending = addWebsocketPending(t, ex, method, sub, &websocketPendingKey{authenticated: true, subscription: payload})
 					}
-					raw, err := json.Marshal(WsSubscriptionResponse{Method: method, Subscription: payload})
+					raw, err := json.Marshal(WebsocketSubscriptionResponse{Method: method, Subscription: payload})
 					require.NoError(t, err, "Marshal must encode the acknowledgement")
 					require.NoError(t, ex.wsHandleSubscriptionResponse(raw, true), "wsHandleSubscriptionResponse must accept the acknowledgement")
 					if pending != nil {
@@ -3529,7 +3529,7 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "completeWebsocketPending should remove the unsubscribed subscription")
 
 	conflict := newSubscribedWebsocketSubscription(t, ex, &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids})
-	conflictKey := websocketPendingKey{subscription: WsSubscription{Type: wsChannelAllMids}}
+	conflictKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
 	pending = &websocketPendingOperation{method: wsMethodSubscribe, connection: ex.Websocket.Conn, subscription: conflict, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &conflictKey, pending)
 	_, err = ex.completeWebsocketPending(false, wsMethodSubscribe, &conflictKey.subscription)
@@ -3539,7 +3539,7 @@ func TestCompleteWebsocketPending(t *testing.T) {
 
 	unstored := &subscription.Subscription{Channel: wsChannelOutcomeMetaUpdates, QualifiedChannel: wsChannelOutcomeMetaUpdates}
 	require.NoError(t, unstored.SetState(subscription.SubscribedState), "SetState must not error")
-	unstoredKey := websocketPendingKey{subscription: WsSubscription{Type: wsChannelOutcomeMetaUpdates}}
+	unstoredKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelOutcomeMetaUpdates}}
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, unstored, &unstoredKey)
 	_, err = ex.completeWebsocketPending(false, wsMethodUnsubscribe, &unstoredKey.subscription)
 	assert.ErrorIs(t, err, subscription.ErrNotFound, "completeWebsocketPending should return a store error")
@@ -3592,11 +3592,11 @@ func TestFailWebsocketPending(t *testing.T) {
 
 	publicSub, publicKey := testOrderbookSubscription()
 	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, publicSub, &publicKey)
-	invalidKey := websocketPendingKey{subscription: WsSubscription{Type: wsChannelAllMids}}
+	invalidKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
 	invalidPending := &websocketPendingOperation{method: "post", connection: ex.Websocket.Conn, subscription: &subscription.Subscription{}, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &invalidKey, invalidPending)
 	authenticatedSub := &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsChannelOrderUpdates}
-	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WsSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress}}
+	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress}}
 	authenticatedPending := addWebsocketPending(t, ex, wsMethodSubscribe, authenticatedSub, &authenticatedKey)
 
 	err := ex.failWebsocketPending(false, errWebsocketFixture)
@@ -3637,7 +3637,7 @@ func websocketErrorFrame(t *testing.T, message string) []byte {
 	return []byte(`{"channel":"error","data":` + string(encoded) + `}`)
 }
 
-func TestWsHandleError(t *testing.T) {
+func TestWebsocketHandleError(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	tradesSub, tradesKey := testTradesSubscription()
@@ -3666,7 +3666,7 @@ func TestWsHandleError(t *testing.T) {
 	bookSub, bookKey := testOrderbookSubscription()
 	bookPending := addWebsocketPending(t, ex, wsMethodSubscribe, bookSub, &bookKey)
 	assetDataSub := &subscription.Subscription{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, QualifiedChannel: "activeAssetData:perpetualcontract:BTC-USDC"}
-	assetDataKey := websocketPendingKey{authenticated: true, subscription: WsSubscription{Type: wsChannelActiveAssetData, Coin: "BTC", User: testAccountAddress}}
+	assetDataKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelActiveAssetData, Coin: "BTC", User: testAccountAddress}}
 	assetDataPending := addWebsocketPending(t, ex, wsMethodSubscribe, assetDataSub, &assetDataKey)
 	err := ex.wsHandleError([]byte(strconv.Quote(wsErrorInvalidSubscription+`{"type":"activeAssetData","user":"`+testAccountAddress+`","coin":"BTC"}`)), true)
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return an invalid subscription's error")
@@ -3675,7 +3675,7 @@ func TestWsHandleError(t *testing.T) {
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations an error does not answer")
 
 	candleSub := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Interval: kline.OneMin, QualifiedChannel: "candle:perpetualcontract:BTC-USDC:1m"}
-	candleKey := websocketPendingKey{subscription: WsSubscription{Type: wsChannelCandle, Coin: "BTC", Interval: "1m"}}
+	candleKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelCandle, Coin: "BTC", Interval: "1m"}}
 	candlePending := addWebsocketPending(t, ex, wsMethodSubscribe, candleSub, &candleKey)
 	err = ex.wsHandleError([]byte(strconv.Quote(wsErrorParseFailure+`{"method":"subscribe","subscription":{"type":"candle","coin":"BTC","interval":"1m"}}`)), false)
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a parse failure's error")
@@ -3686,11 +3686,11 @@ func TestWsHandleError(t *testing.T) {
 	require.NoError(t, err, "Set must not error")
 	postFailure := wsErrorParseFailure + `{"method":"post","id":4,"request":{"type":"info","payload":{"type":"bogusInfoType"}}}`
 	require.NoError(t, ex.wsHandleError([]byte(strconv.Quote(postFailure)), false), "wsHandleError must not error for a post the server could not parse")
-	var response WsPostResponse
+	var response WebsocketPostResponse
 	require.NoError(t, json.Unmarshal(receivePostResponse(t, responses), &response), "Unmarshal must not error")
 	encodedFailure, err := json.Marshal(postFailure)
 	require.NoError(t, err, "Marshal must not error")
-	assert.Equal(t, WsPostResponse{ID: 4, Response: WsPostResponseBody{Type: wsPostTypeError, Payload: encodedFailure}}, response, "wsHandleError should answer the post with the server's error")
+	assert.Equal(t, WebsocketPostResponse{ID: 4, Response: WebsocketPostResponseBody{Type: wsPostTypeError, Payload: encodedFailure}}, response, "wsHandleError should answer the post with the server's error")
 	err = ex.wsHandleError([]byte(strconv.Quote(postFailure)), false)
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a post parse failure without a request")
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations a post parse failure does not answer")
@@ -3722,7 +3722,7 @@ func TestDecodeWebsocketSubscription(t *testing.T) {
 	t.Parallel()
 	sub, err := decodeWebsocketSubscription(`{"type":"l2Book","coin":"BTC","nSigFigs":5,"mantissa":2,"fast":false}`)
 	require.NoError(t, err, "decodeWebsocketSubscription must not error")
-	assert.Equal(t, WsSubscription{Type: wsChannelOrderbook, Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 2}, sub, "decodeWebsocketSubscription should decode the canonical subscription")
+	assert.Equal(t, WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 2}, sub, "decodeWebsocketSubscription should decode the canonical subscription")
 	_, err = decodeWebsocketSubscription("invalid")
 	assert.Error(t, err, "decodeWebsocketSubscription should reject an invalid subscription")
 }
@@ -3759,7 +3759,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	stored := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
 	held := newWebsocketSubscriptionKey(stored)
-	held.feed = WsSubscription{Type: wsChannelAllMids}
+	held.feed = WebsocketSubscription{Type: wsChannelAllMids}
 	stored.SetKey(held)
 	ex.Features.Subscriptions = subscription.List{stored}
 	_, err = ex.generateSubscriptions()
@@ -3774,7 +3774,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	replacement, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not validate the configuration beside the held subscriptions it replaces")
 	require.Len(t, replacement, 1, "generateSubscriptions must expand the configured book")
-	assert.Equal(t, WsSubscription{Type: wsChannelOrderbook, Fast: true}, newWebsocketSubscriptionKey(replacement[0]).options, "generateSubscriptions should generate the configured variant")
+	assert.Equal(t, WebsocketSubscription{Type: wsChannelOrderbook, Fast: true}, newWebsocketSubscriptionKey(replacement[0]).options, "generateSubscriptions should generate the configured variant")
 	slow := testBookSubscription(20, nil)
 	slow.Enabled = true
 	ex.Features.Subscriptions = subscription.List{fast, slow}
@@ -3831,7 +3831,7 @@ func TestKeyWebsocketSubscriptions(t *testing.T) {
 	fresh := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
 	held := &subscription.Subscription{Channel: wsChannelAllMids}
 	heldKey := newWebsocketSubscriptionKey(held)
-	heldKey.feed = WsSubscription{Type: wsChannelAllMids}
+	heldKey.feed = WebsocketSubscription{Type: wsChannelAllMids}
 	held.SetKey(heldKey)
 	keyWebsocketSubscriptions(subscription.List{fresh, nil, held})
 	assert.Equal(t, newWebsocketSubscriptionKey(fresh), fresh.EnsureKeyed(), "keyWebsocketSubscriptions should key a subscription by the feed it selects")
@@ -4052,7 +4052,7 @@ func TestWebsocketSubscriptionKeyString(t *testing.T) {
 func TestNewWebsocketSubscriptionKey(t *testing.T) {
 	t.Parallel()
 	sub := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
-	exp := &websocketSubscriptionKey{Subscription: sub, options: WsSubscription{Type: wsChannelAllMids, DEX: "xyz"}, valid: true}
+	exp := &websocketSubscriptionKey{Subscription: sub, options: WebsocketSubscription{Type: wsChannelAllMids, DEX: "xyz"}, valid: true}
 	assert.Equal(t, exp, newWebsocketSubscriptionKey(sub), "newWebsocketSubscriptionKey should key a subscription by its feed's options")
 	invalid := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": 1}}
 	assert.False(t, newWebsocketSubscriptionKey(invalid).valid, "newWebsocketSubscriptionKey should mark a subscription with an invalid parameter as matching nothing")
@@ -4064,7 +4064,7 @@ func TestWebsocketFeedOptions(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		sub  *subscription.Subscription
-		exp  WsSubscription
+		exp  WebsocketSubscription
 		err  error
 	}{
 		{name: "nil", err: common.ErrNilPointer},
@@ -4074,13 +4074,13 @@ func TestWebsocketFeedOptions(t *testing.T) {
 		{name: "unsupported orderbook levels", sub: testBookSubscription(10, nil), err: subscription.ErrInvalidLevel},
 		{name: "invalid aggregateByTime", sub: &subscription.Subscription{Channel: wsChannelUserFills, Params: map[string]any{"aggregateByTime": "yes"}}, err: errWebsocketParameter},
 		{name: "invalid ignorePortfolioMargin", sub: &subscription.Subscription{Channel: wsChannelSpotState, Params: map[string]any{"ignorePortfolioMargin": 1}}, err: errWebsocketParameter},
-		{name: "ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}}, exp: WsSubscription{Type: wsChannelActiveAssetContext}},
-		{name: "candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: WsSubscription{Type: wsChannelCandle, Interval: "1M"}},
-		{name: "fast aggregated orderbook", sub: testBookSubscription(5, map[string]any{"nSigFigs": 5.0, "mantissa": 2}), exp: WsSubscription{Type: wsChannelOrderbook, NumberOfSignificantFigures: 5, Mantissa: 2, Fast: true}},
-		{name: "builder DEX allMids", sub: &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}, exp: WsSubscription{Type: wsChannelAllMids, DEX: "xyz"}},
-		{name: "aggregated userFills", sub: &subscription.Subscription{Channel: wsChannelUserFills, Params: map[string]any{"aggregateByTime": true, "dex": "xyz"}}, exp: WsSubscription{Type: wsChannelUserFills, AggregateByTime: true}},
-		{name: "spotState without portfolio margin", sub: &subscription.Subscription{Channel: wsChannelSpotState, Params: map[string]any{"ignorePortfolioMargin": true}}, exp: WsSubscription{Type: wsChannelSpotState, IgnorePortfolioMargin: true}},
-		{name: "trades with levels and an interval", sub: &subscription.Subscription{Channel: wsChannelTrades, Levels: 5, Interval: kline.OneMin}, exp: WsSubscription{Type: wsChannelTrades}},
+		{name: "ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}}, exp: WebsocketSubscription{Type: wsChannelActiveAssetContext}},
+		{name: "candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: WebsocketSubscription{Type: wsChannelCandle, Interval: "1M"}},
+		{name: "fast aggregated orderbook", sub: testBookSubscription(5, map[string]any{"nSigFigs": 5.0, "mantissa": 2}), exp: WebsocketSubscription{Type: wsChannelOrderbook, NumberOfSignificantFigures: 5, Mantissa: 2, Fast: true}},
+		{name: "builder DEX allMids", sub: &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}, exp: WebsocketSubscription{Type: wsChannelAllMids, DEX: "xyz"}},
+		{name: "aggregated userFills", sub: &subscription.Subscription{Channel: wsChannelUserFills, Params: map[string]any{"aggregateByTime": true, "dex": "xyz"}}, exp: WebsocketSubscription{Type: wsChannelUserFills, AggregateByTime: true}},
+		{name: "spotState without portfolio margin", sub: &subscription.Subscription{Channel: wsChannelSpotState, Params: map[string]any{"ignorePortfolioMargin": true}}, exp: WebsocketSubscription{Type: wsChannelSpotState, IgnorePortfolioMargin: true}},
+		{name: "trades with levels and an interval", sub: &subscription.Subscription{Channel: wsChannelTrades, Levels: 5, Interval: kline.OneMin}, exp: WebsocketSubscription{Type: wsChannelTrades}},
 	} {
 		options, err := websocketFeedOptions(tc.sub)
 		if tc.err != nil {
@@ -4348,7 +4348,7 @@ func TestManageWebsocketSubscription(t *testing.T) {
 		assert.ErrorIs(t, err, subscription.ErrDuplicate, "manageWebsocketSubscription should return AddSubscriptions errors")
 		assert.Equal(t, 2, key.lookups, "manageWebsocketSubscription should reach the second duplicate check")
 		assert.Empty(t, websocketFixture(t, ex.Websocket.Conn).sentRequests(), "manageWebsocketSubscription should send no failed registration")
-		assert.Nil(t, pendingWebsocketOperation(ex, &websocketPendingKey{subscription: WsSubscription{Type: wsChannelAllMids}}), "manageWebsocketSubscription should register no pending operation")
+		assert.Nil(t, pendingWebsocketOperation(ex, &websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}), "manageWebsocketSubscription should register no pending operation")
 	})
 
 	ex := newWebsocketTestExchange(t)
@@ -4435,7 +4435,7 @@ func TestManageWebsocketSubscription(t *testing.T) {
 	sent := connection.sentRequests()
 	assert.JSONEq(t, `{"method":"unsubscribe","subscription":{"type":"l2Book","coin":"ETH"}}`, sent[len(sent)-1], "manageWebsocketSubscription should unsubscribe the feed the market subscribed")
 
-	collisionKey := websocketPendingKey{subscription: WsSubscription{Type: wsChannelAllMids}}
+	collisionKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
 	collision := &websocketPendingOperation{method: wsMethodUnsubscribe, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &collisionKey, collision)
 	allMids := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
@@ -4477,7 +4477,7 @@ func TestAwaitWebsocketPending(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	connection := websocketFixture(t, ex.Websocket.Conn)
 	connection.reply = nil
-	subscribeRequest := &WsSubscriptionRequest{Method: wsMethodSubscribe, Subscription: WsSubscription{Type: wsChannelOrderbook, Coin: "BTC"}}
+	subscribeRequest := &WebsocketSubscriptionRequest{Method: wsMethodSubscribe, Subscription: WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC"}}
 
 	sub, key := testOrderbookSubscription()
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
@@ -4503,7 +4503,7 @@ func TestWebsocketSubscriptionPayload(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		sub  *subscription.Subscription
-		exp  WsSubscription
+		exp  WebsocketSubscription
 		err  error
 	}{
 		{name: "nil", err: common.ErrNilPointer},
@@ -4523,82 +4523,82 @@ func TestWebsocketSubscriptionPayload(t *testing.T) {
 		{
 			name: "perpetual ticker",
 			sub:  &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}},
-			exp:  WsSubscription{Type: wsChannelActiveAssetContext, Coin: "BTC"},
+			exp:  WebsocketSubscription{Type: wsChannelActiveAssetContext, Coin: "BTC"},
 		},
 		{
 			name: "spot ticker",
 			sub:  &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
-			exp:  WsSubscription{Type: wsChannelActiveAssetContext, Coin: "@107"},
+			exp:  WebsocketSubscription{Type: wsChannelActiveAssetContext, Coin: "@107"},
 		},
 		{
 			name: "builder DEX trades",
 			sub:  &subscription.Subscription{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{testBuilderPair}},
-			exp:  WsSubscription{Type: wsChannelTrades, Coin: "xyz:XYZ100"},
+			exp:  WebsocketSubscription{Type: wsChannelTrades, Coin: "xyz:XYZ100"},
 		},
 		{
 			name: "candles",
 			sub:  &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}, Interval: kline.OneMonth},
-			exp:  WsSubscription{Type: wsChannelCandle, Coin: "@107", Interval: "1M"},
+			exp:  WebsocketSubscription{Type: wsChannelCandle, Coin: "@107", Interval: "1M"},
 		},
 		{
 			name: "orderbook",
 			sub:  &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Levels: 20},
-			exp:  WsSubscription{Type: wsChannelOrderbook, Coin: "BTC"},
+			exp:  WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC"},
 		},
 		{
 			name: "fast aggregated orderbook",
 			sub:  &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Levels: 5, Params: map[string]any{"nSigFigs": 5.0, "mantissa": 2.0}},
-			exp:  WsSubscription{Type: wsChannelOrderbook, Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 2, Fast: true},
+			exp:  WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 2, Fast: true},
 		},
 		{
 			name: "best bid and offer",
 			sub:  &subscription.Subscription{Channel: wsChannelBestBidOffer, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
-			exp:  WsSubscription{Type: wsChannelBestBidOffer, Coin: "@107"},
+			exp:  WebsocketSubscription{Type: wsChannelBestBidOffer, Coin: "@107"},
 		},
 		{
 			name: "activeAssetData",
 			sub:  &subscription.Subscription{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{testBuilderPair}},
-			exp:  WsSubscription{Type: wsChannelActiveAssetData, Coin: "xyz:XYZ100", User: testAccountAddress},
+			exp:  WebsocketSubscription{Type: wsChannelActiveAssetData, Coin: "xyz:XYZ100", User: testAccountAddress},
 		},
 		{
 			name: "allMids",
 			sub:  &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": ""}},
-			exp:  WsSubscription{Type: wsChannelAllMids},
+			exp:  WebsocketSubscription{Type: wsChannelAllMids},
 		},
 		{
 			name: "builder DEX allMids",
 			sub:  &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}},
-			exp:  WsSubscription{Type: wsChannelAllMids, DEX: "xyz"},
+			exp:  WebsocketSubscription{Type: wsChannelAllMids, DEX: "xyz"},
 		},
 		{
 			name: "my orders",
 			sub:  &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true},
-			exp:  WsSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress},
+			exp:  WebsocketSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress},
 		},
 		{
 			name: "my trades",
 			sub:  &subscription.Subscription{Channel: subscription.MyTradesChannel, Authenticated: true},
-			exp:  WsSubscription{Type: wsSubscriptionUserEvents, User: testAccountAddress},
+			exp:  WebsocketSubscription{Type: wsSubscriptionUserEvents, User: testAccountAddress},
 		},
 		{
 			name: "builder DEX clearinghouseState",
 			sub:  &subscription.Subscription{Channel: wsChannelClearinghouseState, Authenticated: true, Params: map[string]any{"dex": "xyz"}},
-			exp:  WsSubscription{Type: wsChannelClearinghouseState, User: testAccountAddress, DEX: "xyz"},
+			exp:  WebsocketSubscription{Type: wsChannelClearinghouseState, User: testAccountAddress, DEX: "xyz"},
 		},
 		{
 			name: "userFills aggregated by time",
 			sub:  &subscription.Subscription{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}},
-			exp:  WsSubscription{Type: wsChannelUserFills, User: testAccountAddress, AggregateByTime: true},
+			exp:  WebsocketSubscription{Type: wsChannelUserFills, User: testAccountAddress, AggregateByTime: true},
 		},
 		{
 			name: "spotState without portfolio margin",
 			sub:  &subscription.Subscription{Channel: wsChannelSpotState, Authenticated: true, Params: map[string]any{"ignorePortfolioMargin": true}},
-			exp:  WsSubscription{Type: wsChannelSpotState, User: testAccountAddress, IgnorePortfolioMargin: true},
+			exp:  WebsocketSubscription{Type: wsChannelSpotState, User: testAccountAddress, IgnorePortfolioMargin: true},
 		},
 		{
 			name: "fastAssetCtxs",
 			sub:  &subscription.Subscription{Channel: wsChannelFastAssetContexts},
-			exp:  WsSubscription{Type: wsChannelFastAssetContexts},
+			exp:  WebsocketSubscription{Type: wsChannelFastAssetContexts},
 		},
 	} {
 		payload, err := ex.websocketSubscriptionPayload(t.Context(), tc.sub)
@@ -4621,12 +4621,12 @@ func TestWebsocketOrderbookOptions(t *testing.T) {
 	for _, tc := range []struct {
 		levels int
 		params map[string]any
-		exp    WsSubscription
+		exp    WebsocketSubscription
 		err    error
 	}{
-		{exp: WsSubscription{}},
-		{levels: 20, params: map[string]any{"nSigFigs": 4}, exp: WsSubscription{NumberOfSignificantFigures: 4}},
-		{levels: 5, params: map[string]any{"nSigFigs": uint64(5), "mantissa": 5}, exp: WsSubscription{NumberOfSignificantFigures: 5, Mantissa: 5, Fast: true}},
+		{exp: WebsocketSubscription{}},
+		{levels: 20, params: map[string]any{"nSigFigs": 4}, exp: WebsocketSubscription{NumberOfSignificantFigures: 4}},
+		{levels: 5, params: map[string]any{"nSigFigs": uint64(5), "mantissa": 5}, exp: WebsocketSubscription{NumberOfSignificantFigures: 5, Mantissa: 5, Fast: true}},
 		{levels: 10, err: subscription.ErrInvalidLevel},
 		{params: map[string]any{"nSigFigs": "5"}, err: errWebsocketParameter},
 		{params: map[string]any{"mantissa": -1}, err: errWebsocketParameter},
@@ -4634,7 +4634,7 @@ func TestWebsocketOrderbookOptions(t *testing.T) {
 		{params: map[string]any{"nSigFigs": 4, "mantissa": 2}, err: errInvalidMantissa},
 		{params: map[string]any{"nSigFigs": 5, "mantissa": 1}, err: errInvalidMantissa},
 	} {
-		var payload WsSubscription
+		var payload WebsocketSubscription
 		err := websocketOrderbookOptions(&subscription.Subscription{Levels: tc.levels, Params: tc.params}, &payload)
 		if tc.err != nil {
 			assert.ErrorIsf(t, err, tc.err, "websocketOrderbookOptions should reject %d levels with %v", tc.levels, tc.params)

@@ -13,15 +13,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WsSubscriptionRequest subscribes to or unsubscribes from one feed
-type WsSubscriptionRequest struct {
-	Method       string         `json:"method"`
-	Subscription WsSubscription `json:"subscription"`
+// WebsocketSubscriptionRequest subscribes to or unsubscribes from one feed
+type WebsocketSubscriptionRequest struct {
+	Method       string                `json:"method"`
+	Subscription WebsocketSubscription `json:"subscription"`
 }
 
-// WsSubscription identifies a feed; the server echoes it in a canonical form, with the user lower case and every
+// WebsocketSubscription identifies a feed; the server echoes it in a canonical form, with the user lower case and every
 // option present, and each option's zero value is its default, so the request and its echo decode to equal values
-type WsSubscription struct {
+type WebsocketSubscription struct {
 	Type     string `json:"type"`
 	Coin     string `json:"coin,omitempty"`
 	Interval string `json:"interval,omitempty"`
@@ -41,18 +41,18 @@ type WsSubscription struct {
 	IgnorePortfolioMargin bool `json:"ignorePortfolioMargin,omitempty"`
 }
 
-// WsSubscriptionResponse acknowledges a subscribe or unsubscribe request
-type WsSubscriptionResponse struct {
-	Method       string         `json:"method"`
-	Subscription WsSubscription `json:"subscription"`
+// WebsocketSubscriptionResponse acknowledges a subscribe or unsubscribe request
+type WebsocketSubscriptionResponse struct {
+	Method       string                `json:"method"`
+	Subscription WebsocketSubscription `json:"subscription"`
 }
 
-// WsQuotedRequest identifies the request a parse failure quotes: its method, a post's ID and a subscription request's
-// subscription
-type WsQuotedRequest struct {
-	Method       string         `json:"method"`
-	ID           uint64         `json:"id"`
-	Subscription WsSubscription `json:"subscription"`
+// WebsocketQuotedRequest identifies the request a parse failure quotes: its method, a post's ID and a subscription
+// request's subscription
+type WebsocketQuotedRequest struct {
+	Method       string                `json:"method"`
+	ID           uint64                `json:"id"`
+	Subscription WebsocketSubscription `json:"subscription"`
 }
 
 // websocketSubscriptionKey keys a subscription by the feed it selects: its Hyperliquid subscription type with the
@@ -63,10 +63,10 @@ type websocketSubscriptionKey struct {
 	*subscription.Subscription
 	// options holds the subscription type and its options as its payload sends them, without the market's coin and the
 	// account's address
-	options WsSubscription
+	options WebsocketSubscription
 	// valid is false for a subscription naming no supported type or holding an invalid parameter, which matches nothing
 	valid bool
-	feed  WsSubscription
+	feed  WebsocketSubscription
 }
 
 var _ subscription.MatchableKey = (*websocketSubscriptionKey)(nil)
@@ -137,7 +137,7 @@ type websocketTemplateExpander struct {
 // websocketPendingKey identifies a subscription operation awaiting its acknowledgement on one connection
 type websocketPendingKey struct {
 	authenticated bool
-	subscription  WsSubscription
+	subscription  WebsocketSubscription
 }
 
 // websocketPendingOperation is a subscription operation awaiting its acknowledgement
@@ -208,33 +208,33 @@ type websocketOrder struct {
 	final *order.Detail
 }
 
-// WsResponse is the outer frame of every server message
-type WsResponse struct {
+// WebsocketResponse is the outer frame of every server message
+type WebsocketResponse struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
 
-// WsAllMids contains the mid price of every coin on one perpetual DEX; DEX is empty for the default DEX, which also
-// includes spot and outcome coins
-type WsAllMids struct {
+// WebsocketAllMids contains the mid price of every coin on one perpetual DEX; DEX is empty for the default DEX, which
+// also includes spot and outcome coins
+type WebsocketAllMids struct {
 	DEX  string                  `json:"dex"`
 	Mids map[string]types.Number `json:"mids"`
 }
 
-// WsNotification contains a notification the frontend displays to a user, such as a fill message
-type WsNotification struct {
+// WebsocketNotification contains a notification the frontend displays to a user, such as a fill message
+type WebsocketNotification struct {
 	Notification string `json:"notification"`
 }
 
-// WsWebData3 contains the aggregate account information the frontend displays
-type WsWebData3 struct {
-	UserState WsWebData3UserState `json:"userState"`
+// WebsocketWebData3 contains the aggregate account information the frontend displays
+type WebsocketWebData3 struct {
+	UserState WebsocketWebData3UserState `json:"userState"`
 	// PerpetualDEXStates contains one state per perpetual DEX
-	PerpetualDEXStates []WsPerpetualDEXState `json:"perpDexStates"`
+	PerpetualDEXStates []WebsocketPerpetualDEXState `json:"perpDexStates"`
 }
 
-// WsWebData3UserState contains a user's API wallet, ledger and account mode; a vault has no account mode
-type WsWebData3UserState struct {
+// WebsocketWebData3UserState contains a user's API wallet, ledger and account mode; a vault has no account mode
+type WebsocketWebData3UserState struct {
 	AgentAddress          string             `json:"agentAddress"`
 	AgentValidUntil       types.Time         `json:"agentValidUntil"`
 	CumulativeLedger      types.Number       `json:"cumLedger"`
@@ -246,21 +246,21 @@ type WsWebData3UserState struct {
 	Abstraction           AccountAbstraction `json:"abstraction"`
 }
 
-// WsPerpetualDEXState contains one perpetual DEX's vault equity, capped markets and the vaults a user leads
-type WsPerpetualDEXState struct {
-	TotalVaultEquity            types.Number     `json:"totalVaultEquity"`
-	PerpetualsAtOpenInterestCap []string         `json:"perpsAtOpenInterestCap"`
-	LeadingVaults               []WsLeadingVault `json:"leadingVaults"`
+// WebsocketPerpetualDEXState contains one perpetual DEX's vault equity, capped markets and the vaults a user leads
+type WebsocketPerpetualDEXState struct {
+	TotalVaultEquity            types.Number            `json:"totalVaultEquity"`
+	PerpetualsAtOpenInterestCap []string                `json:"perpsAtOpenInterestCap"`
+	LeadingVaults               []WebsocketLeadingVault `json:"leadingVaults"`
 }
 
-// WsLeadingVault contains a vault a user leads
-type WsLeadingVault struct {
+// WebsocketLeadingVault contains a vault a user leads
+type WebsocketLeadingVault struct {
 	Address string `json:"address"`
 	Name    string `json:"name"`
 }
 
-// WsTWAPStates contains a user's active TWAP orders on one perpetual DEX
-type WsTWAPStates struct {
+// WebsocketTWAPStates contains a user's active TWAP orders on one perpetual DEX
+type WebsocketTWAPStates struct {
 	DEX    string           `json:"dex"`
 	User   string           `json:"user"`
 	States []TWAPStateEntry `json:"states"`
@@ -301,45 +301,45 @@ type TWAPTrigger struct {
 	Above bool         `json:"above"`
 }
 
-// WsClearinghouseState contains a user's perpetual margin state on one DEX; DEX is empty for the default DEX
-type WsClearinghouseState struct {
+// WebsocketClearinghouseState contains a user's perpetual margin state on one DEX; DEX is empty for the default DEX
+type WebsocketClearinghouseState struct {
 	DEX                string                     `json:"dex"`
 	User               string                     `json:"user"`
 	ClearinghouseState ClearinghouseStateResponse `json:"clearinghouseState"`
 }
 
-// WsOpenOrders contains a user's open orders on one perpetual DEX, newest first; for an account with very many open
-// orders it can be limited to 100, as frontendOpenOrders is
-type WsOpenOrders struct {
+// WebsocketOpenOrders contains a user's open orders on one perpetual DEX, newest first; for an account with very many
+// open orders it can be limited to 100, as frontendOpenOrders is
+type WebsocketOpenOrders struct {
 	DEX    string              `json:"dex"`
 	User   string              `json:"user"`
 	Orders []FrontendOpenOrder `json:"orders"`
 }
 
-// WsL2Book contains an L2 book snapshot from the l2Book feed; Fast is set on the 5 level fast book
-type WsL2Book struct {
+// WebsocketL2Book contains an L2 book snapshot from the l2Book feed; Fast is set on the 5 level fast book
+type WebsocketL2Book struct {
 	L2BookResponse
 	Fast bool `json:"fast"`
 }
 
-// WsOrder contains an order update from the orderUpdates feed, which omits the order type and time in force
-type WsOrder struct {
+// WebsocketOrder contains an order update from the orderUpdates feed, which omits the order type and time in force
+type WebsocketOrder struct {
 	Order           BasicOrder `json:"order"`
 	Status          string     `json:"status"`
 	StatusTimestamp types.Time `json:"statusTimestamp"`
 }
 
-// WsUserEvent contains one event from the userEvents feed, sent on the user channel; exactly one field is set
-type WsUserEvent struct {
-	Fills          []Fill            `json:"fills"`
-	Funding        *WsUserFunding    `json:"funding"`
-	Liquidation    *WsLiquidation    `json:"liquidation"`
-	NonUserCancel  []WsNonUserCancel `json:"nonUserCancel"`
-	TWAPSliceFills []TWAPSliceFill   `json:"twapSliceFills"`
+// WebsocketUserEvent contains one event from the userEvents feed, sent on the user channel; exactly one field is set
+type WebsocketUserEvent struct {
+	Fills          []Fill                   `json:"fills"`
+	Funding        *WebsocketUserFunding    `json:"funding"`
+	Liquidation    *WebsocketLiquidation    `json:"liquidation"`
+	NonUserCancel  []WebsocketNonUserCancel `json:"nonUserCancel"`
+	TWAPSliceFills []TWAPSliceFill          `json:"twapSliceFills"`
 }
 
-// WsUserFunding contains one funding payment; USDC is negative when the user paid funding
-type WsUserFunding struct {
+// WebsocketUserFunding contains one funding payment; USDC is negative when the user paid funding
+type WebsocketUserFunding struct {
 	Time        types.Time   `json:"time"`
 	Coin        string       `json:"coin"`
 	USDC        types.Number `json:"usdc"`
@@ -349,8 +349,8 @@ type WsUserFunding struct {
 	NumberOfSamples uint64 `json:"nSamples"`
 }
 
-// WsLiquidation contains a liquidation of a user's account
-type WsLiquidation struct {
+// WebsocketLiquidation contains a liquidation of a user's account
+type WebsocketLiquidation struct {
 	LiquidationID              uint64       `json:"lid"`
 	Liquidator                 string       `json:"liquidator"`
 	LiquidatedUser             string       `json:"liquidated_user"`
@@ -358,59 +358,59 @@ type WsLiquidation struct {
 	LiquidatedAccountValue     types.Number `json:"liquidated_account_value"`
 }
 
-// WsNonUserCancel identifies an order the exchange cancelled
-type WsNonUserCancel struct {
+// WebsocketNonUserCancel identifies an order the exchange cancelled
+type WebsocketNonUserCancel struct {
 	Coin    string `json:"coin"`
 	OrderID uint64 `json:"oid"`
 }
 
-// WsUserFills contains fills from the userFills feed; the first message is a snapshot of recent fills
-type WsUserFills struct {
+// WebsocketUserFills contains fills from the userFills feed; the first message is a snapshot of recent fills
+type WebsocketUserFills struct {
 	IsSnapshot bool   `json:"isSnapshot"`
 	User       string `json:"user"`
 	Fills      []Fill `json:"fills"`
 }
 
-// WsUserFundings contains funding payments from the userFundings feed; the first message is a snapshot of recent
+// WebsocketUserFundings contains funding payments from the userFundings feed; the first message is a snapshot of recent
 // payments
-type WsUserFundings struct {
-	IsSnapshot bool            `json:"isSnapshot"`
-	User       string          `json:"user"`
-	Fundings   []WsUserFunding `json:"fundings"`
+type WebsocketUserFundings struct {
+	IsSnapshot bool                   `json:"isSnapshot"`
+	User       string                 `json:"user"`
+	Fundings   []WebsocketUserFunding `json:"fundings"`
 }
 
-// WsUserNonFundingLedgerUpdates contains ledger updates other than funding payments; the first message is a snapshot of
-// recent updates
-type WsUserNonFundingLedgerUpdates struct {
+// WebsocketUserNonFundingLedgerUpdates contains ledger updates other than funding payments; the first message is a
+// snapshot of recent updates
+type WebsocketUserNonFundingLedgerUpdates struct {
 	IsSnapshot              bool               `json:"isSnapshot"`
 	User                    string             `json:"user"`
 	NonFundingLedgerUpdates []UserLedgerUpdate `json:"nonFundingLedgerUpdates"`
 }
 
-// WsPerpetualAssetContext contains a perpetual market's context from the activeAssetCtx feed
-type WsPerpetualAssetContext struct {
+// WebsocketPerpetualAssetContext contains a perpetual market's context from the activeAssetCtx feed
+type WebsocketPerpetualAssetContext struct {
 	Coin    string                `json:"coin"`
 	Context PerpetualAssetContext `json:"ctx"`
 }
 
-// WsSpotAssetContext contains a spot or outcome market's context from the activeAssetCtx feed, sent on the
+// WebsocketSpotAssetContext contains a spot or outcome market's context from the activeAssetCtx feed, sent on the
 // activeSpotAssetCtx channel
-type WsSpotAssetContext struct {
+type WebsocketSpotAssetContext struct {
 	Coin    string           `json:"coin"`
 	Context SpotAssetContext `json:"ctx"`
 }
 
-// WsUserTWAPSliceFills contains TWAP slice fills from the userTwapSliceFills feed; the first message is a snapshot of
-// recent slice fills
-type WsUserTWAPSliceFills struct {
+// WebsocketUserTWAPSliceFills contains TWAP slice fills from the userTwapSliceFills feed; the first message is a
+// snapshot of recent slice fills
+type WebsocketUserTWAPSliceFills struct {
 	IsSnapshot     bool            `json:"isSnapshot"`
 	User           string          `json:"user"`
 	TWAPSliceFills []TWAPSliceFill `json:"twapSliceFills"`
 }
 
-// WsUserTWAPHistory contains TWAP status changes from the userTwapHistory feed; the first message is a snapshot of
-// recent changes
-type WsUserTWAPHistory struct {
+// WebsocketUserTWAPHistory contains TWAP status changes from the userTwapHistory feed; the first message is a snapshot
+// of recent changes
+type WebsocketUserTWAPHistory struct {
 	IsSnapshot bool               `json:"isSnapshot"`
 	User       string             `json:"user"`
 	History    []TWAPHistoryEntry `json:"history"`
@@ -432,22 +432,22 @@ type TWAPStatus struct {
 	Description string `json:"description"`
 }
 
-// WsBestBidOffer contains a coin's best bid and ask; either is nil when its side of the book is empty
-type WsBestBidOffer struct {
+// WebsocketBestBidOffer contains a coin's best bid and ask; either is nil when its side of the book is empty
+type WebsocketBestBidOffer struct {
 	Coin string     `json:"coin"`
 	Time types.Time `json:"time"`
 	// BestBidOffer contains the bid then the ask
 	BestBidOffer [2]*L2Level `json:"bbo"`
 }
 
-// WsSpotState contains a user's spot balances
-type WsSpotState struct {
+// WebsocketSpotState contains a user's spot balances
+type WebsocketSpotState struct {
 	User      string                         `json:"user"`
 	SpotState SpotClearinghouseStateResponse `json:"spotState"`
 }
 
-// WsAllDEXsClearinghouseState contains a user's perpetual margin state on every DEX
-type WsAllDEXsClearinghouseState struct {
+// WebsocketAllDEXsClearinghouseState contains a user's perpetual margin state on every DEX
+type WebsocketAllDEXsClearinghouseState struct {
 	User                string                  `json:"user"`
 	ClearinghouseStates []DEXClearinghouseState `json:"clearinghouseStates"`
 }
@@ -463,8 +463,9 @@ func (d *DEXClearinghouseState) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &d.DEX, &d.ClearinghouseState)
 }
 
-// WsAllDEXsAssetContexts contains every perpetual DEX's asset contexts, each in its DEX's metadata universe order
-type WsAllDEXsAssetContexts struct {
+// WebsocketAllDEXsAssetContexts contains every perpetual DEX's asset contexts, each in its DEX's metadata universe
+// order
+type WebsocketAllDEXsAssetContexts struct {
 	Contexts []DEXAssetContexts `json:"ctxs"`
 }
 
@@ -479,17 +480,17 @@ func (d *DEXAssetContexts) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &d.DEX, &d.AssetContexts)
 }
 
-// WsOutcomeMetaUpdate contains one outcome or question change; exactly one field is set
-type WsOutcomeMetaUpdate struct {
+// WebsocketOutcomeMetaUpdate contains one outcome or question change; exactly one field is set
+type WebsocketOutcomeMetaUpdate struct {
 	OutcomeCreated  *OutcomeSpecification `json:"outcomeCreated"`
 	OutcomeSettled  *uint64               `json:"outcomeSettled"`
 	QuestionUpdated *OutcomeQuestion      `json:"questionUpdated"`
 	QuestionSettled *uint64               `json:"questionSettled"`
 }
 
-// WsFastAssetContext contains a coin's changed mark and mid prices from the fastAssetCtxs feed; a field that is not set
-// is unchanged, and MidPriceSet with a zero MidPrice means the book has no mid price
-type WsFastAssetContext struct {
+// WebsocketFastAssetContext contains a coin's changed mark and mid prices from the fastAssetCtxs feed; a field that is
+// not set is unchanged, and MidPriceSet with a zero MidPrice means the book has no mid price
+type WebsocketFastAssetContext struct {
 	MarkPrice    types.Number
 	MidPrice     types.Number
 	MarkPriceSet bool
@@ -497,7 +498,7 @@ type WsFastAssetContext struct {
 }
 
 // UnmarshalJSON records which prices are present, so updates can be merged into the previous snapshot
-func (w *WsFastAssetContext) UnmarshalJSON(data []byte) error {
+func (w *WebsocketFastAssetContext) UnmarshalJSON(data []byte) error {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
@@ -517,36 +518,36 @@ func (w *WsFastAssetContext) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// WsPostRequest sends an info request or a signed action over the websocket
-type WsPostRequest struct {
+// WebsocketPostRequest sends an info request or a signed action over the websocket
+type WebsocketPostRequest struct {
 	Method string `json:"method"`
 	// ID must be unique among the client's outstanding requests, as Hyperliquid does not check it
-	ID      uint64            `json:"id"`
-	Request WsPostRequestBody `json:"request"`
+	ID      uint64                   `json:"id"`
+	Request WebsocketPostRequestBody `json:"request"`
 }
 
-// WsPostRequestBody contains a post request's type, info or action, and its payload, an info request body or a signed
-// action request
-type WsPostRequestBody struct {
+// WebsocketPostRequestBody contains a post request's type, info or action, and its payload, an info request body or a
+// signed action request
+type WebsocketPostRequestBody struct {
 	Type    string `json:"type"`
 	Payload any    `json:"payload"`
 }
 
-// WsPostResponse contains a post request's ID and outcome
-type WsPostResponse struct {
-	ID       uint64             `json:"id"`
-	Response WsPostResponseBody `json:"response"`
+// WebsocketPostResponse contains a post request's ID and outcome
+type WebsocketPostResponse struct {
+	ID       uint64                    `json:"id"`
+	Response WebsocketPostResponseBody `json:"response"`
 }
 
-// WsPostResponseBody contains a post response's type, info, action or error, and its payload: a WsPostInfoPayload for
-// info, an exchange action response for action and an HTTP status for error
-type WsPostResponseBody struct {
+// WebsocketPostResponseBody contains a post response's type, info, action or error, and its payload: a
+// WebsocketPostInfoPayload for info, an exchange action response for action and an HTTP status for error
+type WebsocketPostResponseBody struct {
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
 }
 
-// WsPostInfoPayload contains an info request's type and its response, as the info endpoint returns it
-type WsPostInfoPayload struct {
+// WebsocketPostInfoPayload contains an info request's type and its response, as the info endpoint returns it
+type WebsocketPostInfoPayload struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }

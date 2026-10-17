@@ -173,8 +173,9 @@ var websocketStandardChannels = map[string]string{
 	subscription.MyTradesChannel:  wsSubscriptionUserEvents,
 }
 
-// WsConnect connects the public stream and, when an account address is configured, a stream for its account feeds
-func (e *Exchange) WsConnect() error {
+// WebsocketConnect connects the public stream and, when an account address is configured, a stream for its account
+// feeds
+func (e *Exchange) WebsocketConnect() error {
 	ctx := context.TODO()
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -325,7 +326,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, raw []byte, authenticated b
 	if string(raw) == websocketConnectionEstablished {
 		return nil
 	}
-	var envelope WsResponse
+	var envelope WebsocketResponse
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return fmt.Errorf("%s decoding websocket message: %w", e.Name, err)
 	}
@@ -336,7 +337,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, raw []byte, authenticated b
 }
 
 // wsHandleChannel passes a message to its channel's handler, relaying a message of an unknown channel as unhandled
-func (e *Exchange) wsHandleChannel(ctx context.Context, envelope *WsResponse, raw []byte, authenticated bool) error {
+func (e *Exchange) wsHandleChannel(ctx context.Context, envelope *WebsocketResponse, raw []byte, authenticated bool) error {
 	switch envelope.Channel {
 	case wsChannelSubscriptionResponse:
 		return e.wsHandleSubscriptionResponse(envelope.Data, authenticated)
@@ -347,17 +348,17 @@ func (e *Exchange) wsHandleChannel(ctx context.Context, envelope *WsResponse, ra
 	case wsChannelError:
 		return e.wsHandleError(envelope.Data, authenticated)
 	case wsChannelAllMids:
-		return wsRelay[WsAllMids](ctx, e, envelope.Data)
+		return wsRelay[WebsocketAllMids](ctx, e, envelope.Data)
 	case wsChannelNotification:
-		return wsRelay[WsNotification](ctx, e, envelope.Data)
+		return wsRelay[WebsocketNotification](ctx, e, envelope.Data)
 	case wsChannelWebData3:
-		return wsRelay[WsWebData3](ctx, e, envelope.Data)
+		return wsRelay[WebsocketWebData3](ctx, e, envelope.Data)
 	case wsChannelTWAPStates:
-		return wsRelay[WsTWAPStates](ctx, e, envelope.Data)
+		return wsRelay[WebsocketTWAPStates](ctx, e, envelope.Data)
 	case wsChannelClearinghouseState:
-		return wsRelay[WsClearinghouseState](ctx, e, envelope.Data)
+		return wsRelay[WebsocketClearinghouseState](ctx, e, envelope.Data)
 	case wsChannelOpenOrders:
-		return wsRelay[WsOpenOrders](ctx, e, envelope.Data)
+		return wsRelay[WebsocketOpenOrders](ctx, e, envelope.Data)
 	case wsChannelCandle:
 		return e.wsHandleCandle(ctx, envelope.Data)
 	case wsChannelOrderbook:
@@ -385,13 +386,13 @@ func (e *Exchange) wsHandleChannel(ctx context.Context, envelope *WsResponse, ra
 	case wsChannelUserTWAPHistory:
 		return e.wsHandleUserTWAPHistory(ctx, envelope.Data)
 	case wsChannelBestBidOffer:
-		return wsRelay[WsBestBidOffer](ctx, e, envelope.Data)
+		return wsRelay[WebsocketBestBidOffer](ctx, e, envelope.Data)
 	case wsChannelSpotState:
-		return wsRelay[WsSpotState](ctx, e, envelope.Data)
+		return wsRelay[WebsocketSpotState](ctx, e, envelope.Data)
 	case wsChannelAllDEXsClearinghouseState:
-		return wsRelay[WsAllDEXsClearinghouseState](ctx, e, envelope.Data)
+		return wsRelay[WebsocketAllDEXsClearinghouseState](ctx, e, envelope.Data)
 	case wsChannelAllDEXsAssetContexts:
-		return wsRelay[WsAllDEXsAssetContexts](ctx, e, envelope.Data)
+		return wsRelay[WebsocketAllDEXsAssetContexts](ctx, e, envelope.Data)
 	case wsChannelOutcomeMetaUpdates:
 		return e.wsHandleOutcomeMetaUpdates(ctx, envelope.Data)
 	case wsChannelFastAssetContexts:
@@ -414,7 +415,7 @@ func wsRelay[T any](ctx context.Context, e *Exchange, raw []byte) error {
 
 // wsHandleSubscriptionResponse completes the subscription operation an acknowledgement matches
 func (e *Exchange) wsHandleSubscriptionResponse(raw []byte, authenticated bool) error {
-	var response WsSubscriptionResponse
+	var response WebsocketSubscriptionResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return fmt.Errorf("%w: %w", errWebsocketSubscription, err)
 	}
@@ -443,7 +444,7 @@ func (e *Exchange) wsHandleSubscriptionResponse(raw []byte, authenticated bool) 
 
 // completeWebsocketPending applies the server's completion of a pending operation to the subscription store; it reports
 // whether an operation was pending, as a late or unknown completion is ignored
-func (e *Exchange) completeWebsocketPending(authenticated bool, method string, sub *WsSubscription) (bool, error) {
+func (e *Exchange) completeWebsocketPending(authenticated bool, method string, sub *WebsocketSubscription) (bool, error) {
 	key := websocketPendingKey{authenticated: authenticated, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
@@ -473,7 +474,7 @@ func (e *Exchange) completeWebsocketPending(authenticated bool, method string, s
 }
 
 // failWebsocketPendingOperation fails and rolls back one pending operation; it reports whether the operation was pending
-func (e *Exchange) failWebsocketPendingOperation(authenticated bool, method string, sub *WsSubscription, cause error) bool {
+func (e *Exchange) failWebsocketPendingOperation(authenticated bool, method string, sub *WebsocketSubscription, cause error) bool {
 	key := websocketPendingKey{authenticated: authenticated, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
@@ -575,11 +576,11 @@ func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
 		return e.failWebsocketPending(authenticated, cause)
 	}
 	if quoted, ok := strings.CutPrefix(message, wsErrorParseFailure); ok {
-		var quotedRequest WsQuotedRequest
+		var quotedRequest WebsocketQuotedRequest
 		if err := json.Unmarshal([]byte(quoted), &quotedRequest); err == nil {
 			switch quotedRequest.Method {
 			case wsMethodPost:
-				response, err := json.Marshal(&WsPostResponse{ID: quotedRequest.ID, Response: WsPostResponseBody{Type: wsPostTypeError, Payload: raw}})
+				response, err := json.Marshal(&WebsocketPostResponse{ID: quotedRequest.ID, Response: WebsocketPostResponseBody{Type: wsPostTypeError, Payload: raw}})
 				if err == nil && e.Websocket.Match.IncomingWithData(quotedRequest.ID, response) {
 					return nil
 				}
@@ -595,17 +596,17 @@ func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
 }
 
 // decodeWebsocketSubscription decodes the canonical subscription an error message quotes
-func decodeWebsocketSubscription(quoted string) (WsSubscription, error) {
-	var sub WsSubscription
+func decodeWebsocketSubscription(quoted string) (WebsocketSubscription, error) {
+	var sub WebsocketSubscription
 	if err := json.Unmarshal([]byte(quoted), &sub); err != nil {
-		return WsSubscription{}, err
+		return WebsocketSubscription{}, err
 	}
 	return sub, nil
 }
 
 // wsHandlePostResponse delivers a post response to the request awaiting its ID
 func (e *Exchange) wsHandlePostResponse(raw []byte) error {
-	var response WsPostResponse
+	var response WebsocketPostResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return err
 	}
@@ -636,7 +637,7 @@ func (e *Exchange) wsHandleCandle(ctx context.Context, raw []byte) error {
 
 // wsHandleOrderbook loads a book snapshot; the feed pushes full snapshots rather than incremental updates
 func (e *Exchange) wsHandleOrderbook(ctx context.Context, raw []byte) error {
-	var update WsL2Book
+	var update WebsocketL2Book
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -769,7 +770,7 @@ func unrelayedEntries[K comparable, T any](watermarks map[K]websocketPosition, k
 
 // clearWebsocketWatermark forgets the watermark of a feed that was unsubscribed, so subscribing it again relays no
 // history, as a first subscription does
-func (e *Exchange) clearWebsocketWatermark(feed *WsSubscription) {
+func (e *Exchange) clearWebsocketWatermark(feed *WebsocketSubscription) {
 	e.websocketPendingMu.Lock()
 	defer e.websocketPendingMu.Unlock()
 	switch feed.Type {
@@ -784,7 +785,7 @@ func (e *Exchange) clearWebsocketWatermark(feed *WsSubscription) {
 // order's executed size, and reports the rest; orderUpdates sends a row only when an order's status changes, so a partial
 // fill reaches the order stream from the fills feeds. Outcome orders are skipped, as no supported asset holds them
 func (e *Exchange) wsHandleOrderUpdates(ctx context.Context, raw []byte) error {
-	var updates []WsOrder
+	var updates []WebsocketOrder
 	if err := json.Unmarshal(raw, &updates); err != nil {
 		return err
 	}
@@ -1020,7 +1021,7 @@ func (o *websocketOrders) unlink(record *websocketOrder) {
 // wsHandleUserEvent relays a user event: fills and TWAP slice fills as trades of their orders and as fills, and the
 // other events as themselves
 func (e *Exchange) wsHandleUserEvent(ctx context.Context, raw []byte) error {
-	var event WsUserEvent
+	var event WebsocketUserEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return err
 	}
@@ -1043,7 +1044,7 @@ func (e *Exchange) wsHandleUserEvent(ctx context.Context, raw []byte) error {
 // wsHandleUserFills relays the fills that convert and reports the rest; of the snapshot sent on each subscription, it
 // relays only the fills a reconnect missed
 func (e *Exchange) wsHandleUserFills(ctx context.Context, raw []byte) error {
-	var update WsUserFills
+	var update WebsocketUserFills
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -1148,7 +1149,7 @@ func (e *Exchange) convertFill(source *Fill, p currency.Pair, a asset.Item, side
 
 // wsHandleUserFundings relays funding payments; Hyperliquid can send a message without payments, which is dropped
 func (e *Exchange) wsHandleUserFundings(ctx context.Context, raw []byte) error {
-	update := new(WsUserFundings)
+	update := new(WebsocketUserFundings)
 	if err := json.Unmarshal(raw, update); err != nil {
 		return err
 	}
@@ -1161,7 +1162,7 @@ func (e *Exchange) wsHandleUserFundings(ctx context.Context, raw []byte) error {
 // wsHandleUserNonFundingLedgerUpdates relays ledger updates; Hyperliquid sends a message without updates at each
 // funding payment, which is dropped
 func (e *Exchange) wsHandleUserNonFundingLedgerUpdates(ctx context.Context, raw []byte) error {
-	update := new(WsUserNonFundingLedgerUpdates)
+	update := new(WebsocketUserNonFundingLedgerUpdates)
 	if err := json.Unmarshal(raw, update); err != nil {
 		return err
 	}
@@ -1172,7 +1173,7 @@ func (e *Exchange) wsHandleUserNonFundingLedgerUpdates(ctx context.Context, raw 
 }
 
 func (e *Exchange) wsHandlePerpetualTicker(ctx context.Context, raw []byte) error {
-	var update WsPerpetualAssetContext
+	var update WebsocketPerpetualAssetContext
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -1191,7 +1192,7 @@ func (e *Exchange) wsHandlePerpetualTicker(ctx context.Context, raw []byte) erro
 }
 
 func (e *Exchange) wsHandleSpotTicker(ctx context.Context, raw []byte) error {
-	var update WsSpotAssetContext
+	var update WebsocketSpotAssetContext
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -1212,7 +1213,7 @@ func (e *Exchange) wsHandleSpotTicker(ctx context.Context, raw []byte) error {
 // wsHandleUserTWAPSliceFills relays TWAP slice fills as trades of their orders and as fills; of the snapshot sent on
 // each subscription, it relays only the slice fills a reconnect missed
 func (e *Exchange) wsHandleUserTWAPSliceFills(ctx context.Context, raw []byte) error {
-	var update WsUserTWAPSliceFills
+	var update WebsocketUserTWAPSliceFills
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -1225,7 +1226,7 @@ func (e *Exchange) wsHandleUserTWAPSliceFills(ctx context.Context, raw []byte) e
 
 // wsHandleUserTWAPHistory relays TWAP status changes, dropping a message without changes
 func (e *Exchange) wsHandleUserTWAPHistory(ctx context.Context, raw []byte) error {
-	update := new(WsUserTWAPHistory)
+	update := new(WebsocketUserTWAPHistory)
 	if err := json.Unmarshal(raw, update); err != nil {
 		return err
 	}
@@ -1237,7 +1238,7 @@ func (e *Exchange) wsHandleUserTWAPHistory(ctx context.Context, raw []byte) erro
 
 // wsHandleOutcomeMetaUpdates relays outcome and question changes, dropping a message without changes
 func (e *Exchange) wsHandleOutcomeMetaUpdates(ctx context.Context, raw []byte) error {
-	var updates []WsOutcomeMetaUpdate
+	var updates []WebsocketOutcomeMetaUpdate
 	if err := json.Unmarshal(raw, &updates); err != nil {
 		return err
 	}
@@ -1267,16 +1268,16 @@ func (e *Exchange) wsHandleFastAssetContexts(ctx context.Context, raw []byte) er
 	if len(decompressed) > maximumFastAssetContextsSize {
 		return fmt.Errorf("%w: fastAssetCtxs message exceeds %d bytes", errWebsocketServer, maximumFastAssetContextsSize)
 	}
-	var contexts map[string]WsFastAssetContext
+	var contexts map[string]WebsocketFastAssetContext
 	if err := json.Unmarshal(decompressed, &contexts); err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, contexts)
 }
 
-// WsPostInfo sends an info request body, such as an InfoRequest, over the public websocket connection and decodes the
-// info endpoint's response into result
-func (e *Exchange) WsPostInfo(ctx context.Context, payload, result any) error {
+// WebsocketPostInfo sends an info request body, such as an InfoRequest, over the public websocket connection and
+// decodes the info endpoint's response into result
+func (e *Exchange) WebsocketPostInfo(ctx context.Context, payload, result any) error {
 	if payload == nil || result == nil {
 		return common.ErrNilPointer
 	}
@@ -1284,7 +1285,7 @@ func (e *Exchange) WsPostInfo(ctx context.Context, payload, result any) error {
 	if err != nil {
 		return err
 	}
-	var info WsPostInfoPayload
+	var info WebsocketPostInfoPayload
 	if err := json.Unmarshal(response, &info); err != nil {
 		return fmt.Errorf("decoding info post payload: %w", err)
 	}
@@ -1294,29 +1295,30 @@ func (e *Exchange) WsPostInfo(ctx context.Context, payload, result any) error {
 	return nil
 }
 
-// WsPlaceOrders places a batch of orders as PlaceOrders does, posting the order action over the websocket
-func (e *Exchange) WsPlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
+// WebsocketPlaceOrders places a batch of orders as PlaceOrders does, posting the order action over the websocket
+func (e *Exchange) WebsocketPlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
 	return e.placeOrders(ctx, arg, true)
 }
 
-// WsCancelOrders cancels a batch of orders by order ID as CancelOrders does, posting the cancel action over the websocket
-func (e *Exchange) WsCancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
+// WebsocketCancelOrders cancels a batch of orders by order ID as CancelOrders does, posting the cancel action over the websocket
+func (e *Exchange) WebsocketCancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
 	return e.cancelOrders(ctx, arg, true)
 }
 
-// WsCancelOrdersByClientOrderID cancels a batch of orders by client order ID as CancelOrdersByClientOrderID does,
-// posting the cancel action over the websocket
-func (e *Exchange) WsCancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
+// WebsocketCancelOrdersByClientOrderID cancels a batch of orders by client order ID as CancelOrdersByClientOrderID
+// does, posting the cancel action over the websocket
+func (e *Exchange) WebsocketCancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
 	return e.cancelOrdersByClientOrderID(ctx, arg, true)
 }
 
-// WsModifySingleOrder replaces one order as ModifySingleOrder does, posting the modify action over the websocket
-func (e *Exchange) WsModifySingleOrder(ctx context.Context, arg *ModifyOrderRequest) error {
+// WebsocketModifySingleOrder replaces one order as ModifySingleOrder does, posting the modify action over the websocket
+func (e *Exchange) WebsocketModifySingleOrder(ctx context.Context, arg *ModifyOrderRequest) error {
 	return e.modifySingleOrder(ctx, arg, true)
 }
 
-// WsModifyOrders replaces a batch of orders as ModifyOrders does, posting the batch modify action over the websocket
-func (e *Exchange) WsModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
+// WebsocketModifyOrders replaces a batch of orders as ModifyOrders does, posting the batch modify action over the
+// websocket
+func (e *Exchange) WebsocketModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
 	return e.modifyOrders(ctx, arg, true)
 }
 
@@ -1341,15 +1343,15 @@ func (e *Exchange) sendWebsocketPost(ctx context.Context, requestType string, pa
 		return nil, websocket.ErrNotConnected
 	}
 	id := e.websocketPostID.Add(1)
-	raw, err := connection.SendMessageReturnResponse(ctx, request.Unset, id, &WsPostRequest{
+	raw, err := connection.SendMessageReturnResponse(ctx, request.Unset, id, &WebsocketPostRequest{
 		Method:  wsMethodPost,
 		ID:      id,
-		Request: WsPostRequestBody{Type: requestType, Payload: payload},
+		Request: WebsocketPostRequestBody{Type: requestType, Payload: payload},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("posting %s request: %w", requestType, err)
 	}
-	var response WsPostResponse
+	var response WebsocketPostResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return nil, fmt.Errorf("decoding post response: %w", err)
 	}
@@ -1518,7 +1520,7 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 	if sub == nil {
 		return common.ErrNilPointer
 	}
-	var payload WsSubscription
+	var payload WebsocketSubscription
 	switch method {
 	case wsMethodSubscribe:
 		var err error
@@ -1575,7 +1577,7 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 	e.websocketPending[key] = pending
 	e.websocketPendingMu.Unlock()
 
-	err := e.awaitWebsocketPending(ctx, connection, &key, pending, &WsSubscriptionRequest{Method: method, Subscription: payload})
+	err := e.awaitWebsocketPending(ctx, connection, &key, pending, &WebsocketSubscriptionRequest{Method: method, Subscription: payload})
 	if err == nil && method == wsMethodUnsubscribe {
 		e.clearWebsocketWatermark(&payload)
 	}
@@ -1583,7 +1585,7 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 }
 
 // awaitWebsocketPending sends a subscription request and waits for the server to settle its pending operation
-func (e *Exchange) awaitWebsocketPending(ctx context.Context, connection websocket.Connection, key *websocketPendingKey, pending *websocketPendingOperation, req *WsSubscriptionRequest) error {
+func (e *Exchange) awaitWebsocketPending(ctx context.Context, connection websocket.Connection, key *websocketPendingKey, pending *websocketPendingOperation, req *WebsocketSubscriptionRequest) error {
 	if err := connection.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return e.abortWebsocketPending(key, pending, fmt.Errorf("sending %s request: %w", req.Method, err))
 	}
@@ -1601,39 +1603,39 @@ func (e *Exchange) awaitWebsocketPending(ctx context.Context, connection websock
 
 // websocketSubscriptionPayload builds the feed a subscription refers to, validating every coin, DEX and option first,
 // because Hyperliquid closes the connection, dropping every feed on it, for a subscription it cannot validate
-func (e *Exchange) websocketSubscriptionPayload(ctx context.Context, sub *subscription.Subscription) (WsSubscription, error) {
+func (e *Exchange) websocketSubscriptionPayload(ctx context.Context, sub *subscription.Subscription) (WebsocketSubscription, error) {
 	payload, err := websocketFeedOptions(sub)
 	if err != nil {
-		return WsSubscription{}, err
+		return WebsocketSubscription{}, err
 	}
 	feed := websocketFeeds[payload.Type]
 	if sub.Authenticated != feed.user {
-		return WsSubscription{}, fmt.Errorf("%w: %s must set authenticated to %t", subscription.ErrNotSupported, payload.Type, feed.user)
+		return WebsocketSubscription{}, fmt.Errorf("%w: %s must set authenticated to %t", subscription.ErrNotSupported, payload.Type, feed.user)
 	}
 	if feed.user {
 		if payload.User, err = e.getWatchAddress(ctx); err != nil {
-			return WsSubscription{}, err
+			return WebsocketSubscription{}, err
 		}
 	}
 	switch {
 	case feed.coin:
 		if len(sub.Pairs) != 1 {
-			return WsSubscription{}, subscription.ErrNotSinglePair
+			return WebsocketSubscription{}, subscription.ErrNotSinglePair
 		}
 		if payload.Type == wsChannelActiveAssetData && sub.Asset != asset.PerpetualContract {
-			return WsSubscription{}, fmt.Errorf("%w: %s serves perpetual contracts only", asset.ErrNotSupported, payload.Type)
+			return WebsocketSubscription{}, fmt.Errorf("%w: %s serves perpetual contracts only", asset.ErrNotSupported, payload.Type)
 		}
 		mapping, err := e.getPairMapping(ctx, sub.Pairs[0], sub.Asset)
 		if err != nil {
-			return WsSubscription{}, err
+			return WebsocketSubscription{}, err
 		}
 		payload.Coin = mapping.coin
 	case sub.Asset != asset.Empty:
-		return WsSubscription{}, fmt.Errorf("%w: %s does not take an asset", subscription.ErrNotSupported, payload.Type)
+		return WebsocketSubscription{}, fmt.Errorf("%w: %s does not take an asset", subscription.ErrNotSupported, payload.Type)
 	}
 	if payload.DEX != "" {
 		if err := e.validateWebsocketDEX(ctx, payload.DEX); err != nil {
-			return WsSubscription{}, err
+			return WebsocketSubscription{}, err
 		}
 	}
 	return payload, nil
@@ -1642,15 +1644,15 @@ func (e *Exchange) websocketSubscriptionPayload(ctx context.Context, sub *subscr
 // websocketFeedOptions returns the Hyperliquid subscription type a subscription refers to and the options its interval,
 // levels and parameters select, as its payload sends them; it reads only what the type takes, as Hyperliquid would
 // ignore the rest, and leaves the coin and user, which the market and account supply
-func websocketFeedOptions(sub *subscription.Subscription) (WsSubscription, error) {
+func websocketFeedOptions(sub *subscription.Subscription) (WebsocketSubscription, error) {
 	name, err := websocketChannelName(sub)
 	if err != nil {
-		return WsSubscription{}, err
+		return WebsocketSubscription{}, err
 	}
-	options := WsSubscription{Type: name}
+	options := WebsocketSubscription{Type: name}
 	if websocketFeeds[name].dex {
 		if options.DEX, err = websocketDEXName(sub.Params); err != nil {
-			return WsSubscription{}, err
+			return WebsocketSubscription{}, err
 		}
 	}
 	switch name {
@@ -1664,14 +1666,14 @@ func websocketFeedOptions(sub *subscription.Subscription) (WsSubscription, error
 		options.IgnorePortfolioMargin, err = websocketBoolParameter(sub.Params, "ignorePortfolioMargin")
 	}
 	if err != nil {
-		return WsSubscription{}, err
+		return WebsocketSubscription{}, err
 	}
 	return options, nil
 }
 
 // websocketOrderbookOptions sets an l2Book's options: 5 levels select the fast book, and the nSigFigs and mantissa
 // parameters aggregate it
-func websocketOrderbookOptions(sub *subscription.Subscription, payload *WsSubscription) error {
+func websocketOrderbookOptions(sub *subscription.Subscription, payload *WebsocketSubscription) error {
 	switch sub.Levels {
 	case 0, 20:
 	case 5:

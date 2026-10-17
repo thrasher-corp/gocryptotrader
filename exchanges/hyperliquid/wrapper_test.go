@@ -4555,11 +4555,11 @@ func TestConvertOrderFromMapping(t *testing.T) {
 	}
 }
 
-func TestConvertWsOrder(t *testing.T) {
+func TestConvertWebsocketOrder(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	ex.Name = t.Name()
-	update := &WsOrder{Order: testOpenOrder().BasicOrder, Status: "canceled", StatusTimestamp: milli(1791275930650)}
+	update := &WebsocketOrder{Order: testOpenOrder().BasicOrder, Status: "canceled", StatusTimestamp: milli(1791275930650)}
 	_, err := ex.convertWsOrder(update)
 	require.ErrorIs(t, err, errPairMappingNotFound, "convertWsOrder must report an order without a cached market")
 	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
