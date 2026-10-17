@@ -239,7 +239,6 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return nil
 }
 

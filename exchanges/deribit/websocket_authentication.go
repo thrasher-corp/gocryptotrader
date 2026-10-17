@@ -11,7 +11,13 @@ import (
 // Authenticate requests an OAuth access token as Exchange.Authenticate does, over the websocket, which authenticates
 // the connection for private requests
 func (w WebsocketAPI) Authenticate(ctx context.Context, arg *AuthenticateRequest) (*AccessTokenResponse, error) {
-	return w.e.authenticate(ctx, arg, true)
+	resp, err := w.e.authenticate(ctx, arg, true)
+	if err != nil {
+		return nil, err
+	}
+	// The connection is authenticated now, whether or not it was when it connected, so its private methods are sent
+	w.e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return resp, nil
 }
 
 // ExchangeToken returns a token for another subject as Exchange.ExchangeToken does, over the websocket

@@ -37,6 +37,20 @@ func TestWebsocketAPIAuthenticate(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Authenticate should error without a websocket connection")
 }
 
+func TestWebsocketAPIAuthenticateConnection(t *testing.T) {
+	t.Parallel()
+	ex, venue := newUnauthenticatedWebsocketTestExchange(t)
+	_, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetSubaccounts must not be sent before the connection authenticates")
+	_, err = ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+	require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketAPI.Authenticate should mark the connection authenticated")
+	result, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
+	require.NoError(t, err, "WebsocketAPI.GetSubaccounts must not error once the connection authenticates")
+	assert.Equal(t, testSubaccounts(), result, "WebsocketAPI.GetSubaccounts should decode every field")
+	assert.Len(t, venue.received("private/get_subaccounts"), 1, "only the request made once the connection authenticated should be sent")
+}
+
 func TestWebsocketAPIExchangeToken(t *testing.T) {
 	t.Parallel()
 	if !mockTests {

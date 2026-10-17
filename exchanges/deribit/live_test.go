@@ -81,3 +81,11 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	require.NoError(t, err, "connecting to Deribit's websocket must not error")
 	return ex, nil
 }
+
+// newUnauthenticatedWebsocketTestExchange skips the test, as the live tests share one connection, which authenticates
+// when it connects with credentials set
+func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
+	t.Helper()
+	t.Skip("the live tests share one connection, which authenticates when it connects")
+	return nil, nil
+}

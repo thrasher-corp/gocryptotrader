@@ -76,12 +76,30 @@ func newTestExchange(tb testing.TB) *Exchange {
 // Deribit's websocket and authenticated, and the requests the mock receives
 func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	t.Helper()
+	ex, venue := connectWebsocketTestExchange(t, true)
+	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the mock websocket must authenticate the connection")
+	return ex, venue
+}
+
+// newUnauthenticatedWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected to
+// a new mock of Deribit's websocket without authenticating, and the requests the mock receives
+func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
+	t.Helper()
+	ex, venue := connectWebsocketTestExchange(t, false)
+	require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the connection must not be authenticated")
+	return ex, venue
+}
+
+// connectWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected to a new mock
+// of Deribit's websocket, authenticating when it connects if authenticated is set, and the requests the mock receives
+func connectWebsocketTestExchange(t *testing.T, authenticated bool) (*Exchange, *websocketVenue) {
+	t.Helper()
 	url, venue := startWebsocketVenue(t)
 	ex := newTestExchange(t)
 	require.NoError(t, ex.Websocket.SetWebsocketURL(url, false, true), "SetWebsocketURL must not error")
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetSubscriptionsNotRequired()
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the mock websocket")
 	t.Cleanup(func() {
 		// Disabling stops the connection monitor, which would otherwise redial the mock after the test, and which may then
@@ -91,7 +109,6 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})
-	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the mock websocket must authenticate the connection")
 	return ex, venue
 }
 
