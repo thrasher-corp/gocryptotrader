@@ -19,8 +19,25 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
++ REST Support for the Bitstamp v2 API, including every documented endpoint
++ Websocket Support for orderbooks, detail orderbooks, trades, funding rates, announcements and private order, trade, order trade, self trade, settlement, liquidation and token settlement channels
++ Private order events missed during a reconnection or a server restart are recovered from the REST API
++ The `diff_order_book` channel is not supported, as its documented reconciliation with a REST snapshot keeps levels of orders created and deleted between broadcasts, which leaves the book crossed
++ Spot and perpetual contract assets; perpetual contract pairs are quoted in `USD-PERP`, for example `BTC/USD-PERP`
++ Perpetual contract support for contract details, funding rates, open interest, leverage, positions and collateral
+
+### Authentication
+
++ Private endpoints use Bitstamp's v2 header authentication and only require an API key and secret
++ Sub account requests are sent when the credentials' sub account is set
++ Private websocket channels use a short lived token fetched from the REST API when subscribing
+
+### Testing
+
++ Tests run against recorded mock responses in `testdata/http.json` by default
++ Live tests are enabled with the `mock_test_off` build tag, for example `go test -tags=mock_test_off ./exchanges/bitstamp/...`
++ Authenticated live tests require credentials in `bitstamp_live_test.go`, and order placement tests also require `canManipulateRealOrders` to be enabled in `bitstamp_test.go`
++ Setting `useTestNet` in `bitstamp_test.go` runs the live REST tests against the Bitstamp sandbox, which requires sandbox credentials; the sandbox does not provide a websocket server
 
 ### How to enable
 
