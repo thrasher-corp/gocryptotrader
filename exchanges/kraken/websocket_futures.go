@@ -300,13 +300,13 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 	case wsFuturesFeedBalancesSnapshot, wsFuturesFeedBalances:
 		return e.wsFuturesProcessBalances(ctx, feed, respRaw)
 	case wsFuturesFeedOpenPositions:
-		var positions WsFuturesPositions
+		var positions WebsocketFuturesPositions
 		if err := json.Unmarshal(respRaw, &positions); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, &positions)
 	case wsFuturesFeedNotifications:
-		var notifications WsFuturesNotifications
+		var notifications WebsocketFuturesNotifications
 		if err := json.Unmarshal(respRaw, &notifications); err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func (e *Exchange) futuresPair(productID string) (currency.Pair, error) {
 
 // wsFuturesProcessTicker stores and relays a futures ticker
 func (e *Exchange) wsFuturesProcessTicker(ctx context.Context, respRaw []byte) error {
-	var t WsFuturesTicker
+	var t WebsocketFuturesTicker
 	if err := json.Unmarshal(respRaw, &t); err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (e *Exchange) wsFuturesProcessTicker(ctx context.Context, respRaw []byte) e
 
 // wsFuturesLoadBookSnapshot loads a futures order book, which updates follow from its sequence number
 func (e *Exchange) wsFuturesLoadBookSnapshot(ctx context.Context, respRaw []byte) error {
-	var snapshot WsFuturesBookSnapshot
+	var snapshot WebsocketFuturesBookSnapshot
 	if err := json.Unmarshal(respRaw, &snapshot); err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (e *Exchange) wsFuturesLoadBookSnapshot(ctx context.Context, respRaw []byte
 // wsFuturesUpdateBook applies an update to a futures order book. An update out of sequence, or one the book rejects,
 // leaves the book invalid until resubscribing brings a new snapshot, so updates until then are dropped
 func (e *Exchange) wsFuturesUpdateBook(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var u WsFuturesBookUpdate
+	var u WebsocketFuturesBookUpdate
 	if err := json.Unmarshal(respRaw, &u); err != nil {
 		return err
 	}
@@ -429,7 +429,7 @@ func (e *Exchange) wsFuturesUpdateBook(ctx context.Context, conn websocket.Conne
 }
 
 // futuresBookLevels converts futures order book levels
-func futuresBookLevels(levels []WsFuturesBookLevel) orderbook.Levels {
+func futuresBookLevels(levels []WebsocketFuturesBookLevel) orderbook.Levels {
 	l := make(orderbook.Levels, len(levels))
 	for i := range levels {
 		l[i] = orderbook.Level{Price: levels[i].Price, Amount: levels[i].Quantity}
@@ -443,19 +443,19 @@ func (e *Exchange) wsFuturesProcessTrades(feed string, respRaw []byte) error {
 	if !saveTradeData && !e.IsTradeFeedEnabled() {
 		return nil
 	}
-	var wsTrades []WsFuturesTrade
+	var wsTrades []WebsocketFuturesTrade
 	if feed == wsFuturesFeedTradeSnapshot {
-		var snapshot WsFuturesTradeSnapshot
+		var snapshot WebsocketFuturesTradeSnapshot
 		if err := json.Unmarshal(respRaw, &snapshot); err != nil {
 			return err
 		}
 		wsTrades = snapshot.Trades
 	} else {
-		var t WsFuturesTrade
+		var t WebsocketFuturesTrade
 		if err := json.Unmarshal(respRaw, &t); err != nil {
 			return err
 		}
-		wsTrades = []WsFuturesTrade{t}
+		wsTrades = []WebsocketFuturesTrade{t}
 	}
 	trades := make([]trade.Data, len(wsTrades))
 	for i := range wsTrades {
@@ -484,7 +484,7 @@ func (e *Exchange) wsFuturesProcessTrades(feed string, respRaw []byte) error {
 // wsFuturesProcessOpenOrders relays the account's open futures orders and the changes to them
 func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	if feed == wsFuturesFeedOpenOrdersSnapshot {
-		var snapshot WsFuturesOpenOrdersSnapshot
+		var snapshot WebsocketFuturesOpenOrdersSnapshot
 		if err := json.Unmarshal(respRaw, &snapshot); err != nil {
 			return err
 		}
@@ -502,7 +502,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 		}
 		return nil
 	}
-	var u WsFuturesOpenOrderUpdate
+	var u WebsocketFuturesOpenOrderUpdate
 	if err := json.Unmarshal(respRaw, &u); err != nil {
 		return err
 	}
@@ -531,7 +531,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 }
 
 // futuresWsOrderDetail converts an open futures order
-func (e *Exchange) futuresWsOrderDetail(o *WsFuturesOpenOrder, status order.Status) (*order.Detail, error) {
+func (e *Exchange) futuresWsOrderDetail(o *WebsocketFuturesOpenOrder, status order.Status) (*order.Detail, error) {
 	pair, err := e.futuresPair(o.Instrument)
 	if err != nil {
 		return nil, err
@@ -599,7 +599,7 @@ func futuresOrderUpdateStatus(reason string, isCancel bool, filled float64) orde
 // the fills feed is enabled. The order's executed quantity and totals are relayed with its trade where the feeds have
 // reported enough of the order to know them
 func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
-	var wsFills WsFuturesFills
+	var wsFills WebsocketFuturesFills
 	if err := json.Unmarshal(respRaw, &wsFills); err != nil {
 		return err
 	}
@@ -678,7 +678,7 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 // Kraken names a single-collateral margin account differently over REST, so one is stored only under the name of the
 // REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
 func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, respRaw []byte) error {
-	var b WsFuturesBalances
+	var b WebsocketFuturesBalances
 	if err := json.Unmarshal(respRaw, &b); err != nil {
 		return err
 	}
@@ -745,7 +745,7 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 // as fi_xbtusd for F-XBT:USD, when UpdateAccountBalances has stored a REST account of that name with the feed account's
 // currency for the same credentials. Kraken documents no general mapping between the names, so an account is matched
 // only where its feed name, pair and currency all agree with the REST account
-func (e *Exchange) futuresMarginAccountName(ctx context.Context, m *WsFuturesMarginAccount) (string, bool) {
+func (e *Exchange) futuresMarginAccountName(ctx context.Context, m *WebsocketFuturesMarginAccount) (string, bool) {
 	base, quote, ok := strings.Cut(m.Pair, "/")
 	if !ok || base == "" || quote == "" || m.Name != "F-"+base+":"+quote {
 		return "", false

@@ -6,8 +6,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// WsOrder holds an order's parameters on add_order and batch_add
-type WsOrder struct {
+// WebsocketOrder holds an order's parameters on add_order and batch_add
+type WebsocketOrder struct {
 	// OrderType is limit, market, iceberg, stop-loss, stop-loss-limit, take-profit, take-profit-limit, trailing-stop,
 	// trailing-stop-limit or settle-position
 	OrderType string
@@ -20,7 +20,7 @@ type WsOrder struct {
 	// trailing-stop-limit order the limit price is an offset from the trigger price
 	LimitPriceType string
 	// Triggers sets a stop-loss, take-profit or trailing-stop order's trigger
-	Triggers *WsOrderTriggers
+	Triggers *WebsocketOrderTriggers
 	// TimeInForce is gtc, the default, gtd, ioc or fok; fok is for limit orders only
 	TimeInForce string
 	// Margin funds the order on margin at the pair's maximum leverage
@@ -36,7 +36,7 @@ type WsOrder struct {
 	// UserReference tags a group of orders; Kraken does not enforce its uniqueness
 	UserReference int32
 	// Conditional creates a close order for each fill of the order
-	Conditional *WsConditionalOrder
+	Conditional *WebsocketConditionalOrder
 	// DisplayQuantity is an iceberg order's visible quantity, at least a fifteenth of Quantity
 	DisplayQuantity float64
 	// FeePreference is base or quote; quote is the default for buys and base for sells
@@ -49,8 +49,8 @@ type WsOrder struct {
 	SenderSubID string
 }
 
-// WsOrderTriggers sets a triggered order's trigger
-type WsOrderTriggers struct {
+// WebsocketOrderTriggers sets a triggered order's trigger
+type WebsocketOrderTriggers struct {
 	// Reference is the price tracked: index or last
 	Reference string `json:"reference,omitempty"`
 	// Price is the trigger price, or with PriceType pct or quote a relative offset, such as -2 for 2% below the
@@ -59,8 +59,9 @@ type WsOrderTriggers struct {
 	PriceType string  `json:"price_type,omitempty"`
 }
 
-// WsConditionalOrder sets the close order each fill of an order creates, with the fill's quantity and opposite side
-type WsConditionalOrder struct {
+// WebsocketConditionalOrder sets the close order each fill of an order creates, with the fill's quantity and opposite
+// side
+type WebsocketConditionalOrder struct {
 	OrderType string `json:"order_type"`
 	// LimitPrice is required on limit, stop-loss-limit and take-profit-limit close orders
 	LimitPrice     float64 `json:"limit_price,omitempty"`
@@ -70,10 +71,10 @@ type WsConditionalOrder struct {
 	TriggerPriceType string  `json:"trigger_price_type,omitempty"`
 }
 
-// WsAddOrderRequest holds the parameters of add_order
-type WsAddOrderRequest struct {
+// WebsocketAddOrderRequest holds the parameters of add_order
+type WebsocketAddOrderRequest struct {
 	Pair  currency.Pair
-	Order WsOrder
+	Order WebsocketOrder
 	// Deadline is when the engine stops trying to match the order, from 500 milliseconds to 60 seconds ahead; Kraken
 	// defaults to 5 seconds
 	Deadline time.Time
@@ -81,8 +82,8 @@ type WsAddOrderRequest struct {
 	Validate bool
 }
 
-// WsAddOrderResponse holds a placed order's identifiers
-type WsAddOrderResponse struct {
+// WebsocketAddOrderResponse holds a placed order's identifiers
+type WebsocketAddOrderResponse struct {
 	OrderID            string    `json:"order_id"`
 	ClientOrderID      string    `json:"cl_ord_id"`
 	OrderUserReference int32     `json:"order_userref"`
@@ -91,10 +92,10 @@ type WsAddOrderResponse struct {
 	TimeOut            time.Time `json:"-"`
 }
 
-// WsEditOrderRequest holds the parameters of edit_order. Kraken cannot edit triggered stop-loss or take-profit orders,
-// orders with close orders attached, or orders identified by client order ID, and rejects a quantity below the filled
-// quantity
-type WsEditOrderRequest struct {
+// WebsocketEditOrderRequest holds the parameters of edit_order. Kraken cannot edit triggered stop-loss or take-profit
+// orders, orders with close orders attached, or orders identified by client order ID, and rejects a quantity below the
+// filled quantity
+type WebsocketEditOrderRequest struct {
 	OrderID string
 	// Pair is the order's pair, which cannot be changed
 	Pair            currency.Pair
@@ -104,15 +105,15 @@ type WsEditOrderRequest struct {
 	FeePreference   string
 	PostOnly        bool
 	ReduceOnly      bool
-	Triggers        *WsOrderTriggers
+	Triggers        *WebsocketOrderTriggers
 	// UserReference is placed on the new order; it does not identify the edited order
 	UserReference int32
 	Validate      bool
 	Deadline      time.Time
 }
 
-// WsEditOrderResponse holds the new order replacing an edited one
-type WsEditOrderResponse struct {
+// WebsocketEditOrderResponse holds the new order replacing an edited one
+type WebsocketEditOrderResponse struct {
 	OrderID         string    `json:"order_id"`
 	OriginalOrderID string    `json:"original_order_id"`
 	Warnings        []string  `json:"warnings"`
@@ -120,8 +121,8 @@ type WsEditOrderResponse struct {
 	TimeOut         time.Time `json:"-"`
 }
 
-// WsAmendOrderRequest holds the parameters of amend_order. Either OrderID or ClientOrderID identifies the order
-type WsAmendOrderRequest struct {
+// WebsocketAmendOrderRequest holds the parameters of amend_order. Either OrderID or ClientOrderID identifies the order
+type WebsocketAmendOrderRequest struct {
 	OrderID       string
 	ClientOrderID string
 	// Pair is required for xStocks only
@@ -139,8 +140,8 @@ type WsAmendOrderRequest struct {
 	Deadline         time.Time
 }
 
-// WsAmendOrderResponse holds an amend transaction's identifier
-type WsAmendOrderResponse struct {
+// WebsocketAmendOrderResponse holds an amend transaction's identifier
+type WebsocketAmendOrderResponse struct {
 	AmendID       string    `json:"amend_id"`
 	OrderID       string    `json:"order_id"`
 	ClientOrderID string    `json:"cl_ord_id"`
@@ -149,15 +150,15 @@ type WsAmendOrderResponse struct {
 	TimeOut       time.Time `json:"-"`
 }
 
-// WsCancelOrdersRequest holds the parameters of cancel_order. Exactly one kind of identifier may be sent; to cancel by
-// user reference, use CancelExistingOrder or WsBatchCancelOrders
-type WsCancelOrdersRequest struct {
+// WebsocketCancelOrdersRequest holds the parameters of cancel_order. Exactly one kind of identifier may be sent; to
+// cancel by user reference, use CancelExistingOrder or WebsocketBatchCancelOrders
+type WebsocketCancelOrdersRequest struct {
 	OrderIDs       []string
 	ClientOrderIDs []string
 }
 
-// WsCancelOrderResponse holds the outcome of cancelling one order; Error is set when it failed
-type WsCancelOrderResponse struct {
+// WebsocketCancelOrderResponse holds the outcome of cancelling one order; Error is set when it failed
+type WebsocketCancelOrderResponse struct {
 	OrderID       string    `json:"order_id"`
 	ClientOrderID string    `json:"cl_ord_id"`
 	Warnings      []string  `json:"warnings"`
@@ -166,39 +167,39 @@ type WsCancelOrderResponse struct {
 	TimeOut       time.Time `json:"-"`
 }
 
-// WsCancelAllOrdersResponse holds the number of orders cancel_all cancelled
-type WsCancelAllOrdersResponse struct {
+// WebsocketCancelAllOrdersResponse holds the number of orders cancel_all cancelled
+type WebsocketCancelAllOrdersResponse struct {
 	Count    uint64    `json:"count"`
 	Warnings []string  `json:"warnings"`
 	TimeIn   time.Time `json:"-"`
 	TimeOut  time.Time `json:"-"`
 }
 
-// WsCancelAllOrdersAfterResponse holds the engine's time and when it will cancel every order
-type WsCancelAllOrdersAfterResponse struct {
+// WebsocketCancelAllOrdersAfterResponse holds the engine's time and when it will cancel every order
+type WebsocketCancelAllOrdersAfterResponse struct {
 	CurrentTime time.Time `json:"currentTime"`
 	TriggerTime time.Time `json:"triggerTime"`
 	TimeIn      time.Time `json:"-"`
 	TimeOut     time.Time `json:"-"`
 }
 
-// WsBatchAddOrdersRequest holds the parameters of batch_add
-type WsBatchAddOrdersRequest struct {
+// WebsocketBatchAddOrdersRequest holds the parameters of batch_add
+type WebsocketBatchAddOrdersRequest struct {
 	Pair     currency.Pair
-	Orders   []WsOrder
+	Orders   []WebsocketOrder
 	Deadline time.Time
 	Validate bool
 }
 
-// WsBatchCancelOrdersRequest holds the parameters of batch_cancel
-type WsBatchCancelOrdersRequest struct {
+// WebsocketBatchCancelOrdersRequest holds the parameters of batch_cancel
+type WebsocketBatchCancelOrdersRequest struct {
 	// Orders holds order IDs or user references
 	Orders         []string
 	ClientOrderIDs []string
 }
 
-// WsBatchCancelOrdersResponse holds the number of orders batch_cancel cancelled
-type WsBatchCancelOrdersResponse struct {
+// WebsocketBatchCancelOrdersResponse holds the number of orders batch_cancel cancelled
+type WebsocketBatchCancelOrdersResponse struct {
 	Count    uint64    `json:"count"`
 	Warnings []string  `json:"warnings"`
 	TimeIn   time.Time `json:"-"`
@@ -221,26 +222,26 @@ func (p *wsTokenParams) setToken(token string) {
 
 // wsOrderParams holds an order's parameters as add_order and batch_add take them
 type wsOrderParams struct {
-	OrderType           string              `json:"order_type"`
-	Side                string              `json:"side"`
-	OrderQuantity       float64             `json:"order_qty"`
-	LimitPrice          float64             `json:"limit_price,omitempty"`
-	LimitPriceType      string              `json:"limit_price_type,omitempty"`
-	Triggers            *WsOrderTriggers    `json:"triggers,omitempty"`
-	TimeInForce         string              `json:"time_in_force,omitempty"`
-	Margin              bool                `json:"margin,omitempty"`
-	PostOnly            bool                `json:"post_only,omitempty"`
-	ReduceOnly          bool                `json:"reduce_only,omitempty"`
-	EffectiveTime       string              `json:"effective_time,omitempty"`
-	ExpireTime          string              `json:"expire_time,omitempty"`
-	ClientOrderID       string              `json:"cl_ord_id,omitempty"`
-	OrderUserReference  int32               `json:"order_userref,omitempty"`
-	Conditional         *WsConditionalOrder `json:"conditional,omitempty"`
-	DisplayQuantity     float64             `json:"display_qty,omitempty"`
-	FeePreference       string              `json:"fee_preference,omitempty"`
-	SelfTradePrevention string              `json:"stp_type,omitempty"`
-	CashOrderQuantity   float64             `json:"cash_order_qty,omitempty"`
-	SenderSubID         string              `json:"sender_sub_id,omitempty"`
+	OrderType           string                     `json:"order_type"`
+	Side                string                     `json:"side"`
+	OrderQuantity       float64                    `json:"order_qty"`
+	LimitPrice          float64                    `json:"limit_price,omitempty"`
+	LimitPriceType      string                     `json:"limit_price_type,omitempty"`
+	Triggers            *WebsocketOrderTriggers    `json:"triggers,omitempty"`
+	TimeInForce         string                     `json:"time_in_force,omitempty"`
+	Margin              bool                       `json:"margin,omitempty"`
+	PostOnly            bool                       `json:"post_only,omitempty"`
+	ReduceOnly          bool                       `json:"reduce_only,omitempty"`
+	EffectiveTime       string                     `json:"effective_time,omitempty"`
+	ExpireTime          string                     `json:"expire_time,omitempty"`
+	ClientOrderID       string                     `json:"cl_ord_id,omitempty"`
+	OrderUserReference  int32                      `json:"order_userref,omitempty"`
+	Conditional         *WebsocketConditionalOrder `json:"conditional,omitempty"`
+	DisplayQuantity     float64                    `json:"display_qty,omitempty"`
+	FeePreference       string                     `json:"fee_preference,omitempty"`
+	SelfTradePrevention string                     `json:"stp_type,omitempty"`
+	CashOrderQuantity   float64                    `json:"cash_order_qty,omitempty"`
+	SenderSubID         string                     `json:"sender_sub_id,omitempty"`
 }
 
 // wsAddOrderParams holds the parameters of add_order
@@ -254,18 +255,18 @@ type wsAddOrderParams struct {
 
 // wsEditOrderParams holds the parameters of edit_order
 type wsEditOrderParams struct {
-	OrderID            string           `json:"order_id"`
-	Symbol             string           `json:"symbol"`
-	OrderQuantity      float64          `json:"order_qty,omitempty"`
-	LimitPrice         float64          `json:"limit_price,omitempty"`
-	DisplayQuantity    float64          `json:"display_qty,omitempty"`
-	FeePreference      string           `json:"fee_preference,omitempty"`
-	PostOnly           bool             `json:"post_only,omitempty"`
-	ReduceOnly         bool             `json:"reduce_only,omitempty"`
-	Triggers           *WsOrderTriggers `json:"triggers,omitempty"`
-	OrderUserReference int32            `json:"order_userref,omitempty"`
-	Validate           bool             `json:"validate,omitempty"`
-	Deadline           string           `json:"deadline,omitempty"`
+	OrderID            string                  `json:"order_id"`
+	Symbol             string                  `json:"symbol"`
+	OrderQuantity      float64                 `json:"order_qty,omitempty"`
+	LimitPrice         float64                 `json:"limit_price,omitempty"`
+	DisplayQuantity    float64                 `json:"display_qty,omitempty"`
+	FeePreference      string                  `json:"fee_preference,omitempty"`
+	PostOnly           bool                    `json:"post_only,omitempty"`
+	ReduceOnly         bool                    `json:"reduce_only,omitempty"`
+	Triggers           *WebsocketOrderTriggers `json:"triggers,omitempty"`
+	OrderUserReference int32                   `json:"order_userref,omitempty"`
+	Validate           bool                    `json:"validate,omitempty"`
+	Deadline           string                  `json:"deadline,omitempty"`
 	wsTokenParams
 }
 

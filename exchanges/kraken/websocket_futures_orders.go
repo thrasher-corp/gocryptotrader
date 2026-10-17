@@ -76,7 +76,7 @@ func (t *futuresOrderTracker) get(orderID string) futuresOrderState {
 
 // snapshot records the open orders an open_orders snapshot holds, and forgets the open orders it leaves out, which
 // left the open orders while the feed was not subscribed
-func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []WsFuturesOpenOrder) {
+func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []WebsocketFuturesOpenOrder) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.snapshotOn(conn)
@@ -127,7 +127,7 @@ func (t *futuresOrderTracker) unsubscribed(conn websocket.Connection, feed strin
 }
 
 // update records an open order an open_orders update reports, returning what the feeds have reported of it
-func (t *futuresOrderTracker) update(conn websocket.Connection, o *WsFuturesOpenOrder) futuresOrderState {
+func (t *futuresOrderTracker) update(conn websocket.Connection, o *WebsocketFuturesOpenOrder) futuresOrderState {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return *t.record(conn, o)
@@ -135,7 +135,7 @@ func (t *futuresOrderTracker) update(conn websocket.Connection, o *WsFuturesOpen
 
 // record records an open order's quantity and filled quantity. An order open_orders removed and reports open again, as
 // a stop is once it triggers, is open again
-func (t *futuresOrderTracker) record(conn websocket.Connection, o *WsFuturesOpenOrder) *futuresOrderState {
+func (t *futuresOrderTracker) record(conn websocket.Connection, o *WebsocketFuturesOpenOrder) *futuresOrderState {
 	s := t.state(o.OrderID, conn)
 	s.quantity, s.filled, s.inverse, s.open, s.reason = o.Quantity, o.Filled, inverseFuturesSymbol(o.Instrument), true, ""
 	s.updated = time.Now()
@@ -155,7 +155,7 @@ func (t *futuresOrderTracker) finish(conn websocket.Connection, orderID, reason 
 
 // fill counts a fill into its order's totals, once whatever feed reports it again, returning what the feeds have
 // reported of the order
-func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WsFuturesFill, live bool, feeAsset currency.Code) futuresOrderState {
+func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuturesFill, live bool, feeAsset currency.Code) futuresOrderState {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	defer t.prune()

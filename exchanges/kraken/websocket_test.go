@@ -258,8 +258,8 @@ func TestMockWebsocketSkipsKeepAlivePings(t *testing.T) {
 	require.NoError(t, err, "GetConnection must not error")
 	// A test slowed by load can outlive wsPingDelay, so its mock must not take the keep-alive ping for a request
 	require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(`{"method":"ping"}`)), "SendRawMessage must not error")
-	_, err = ex.WsCancelAllOrders(t.Context())
-	assert.NoError(t, err, "WsCancelAllOrders should not error after a keep-alive ping")
+	_, err = ex.WebsocketCancelAllOrders(t.Context())
+	assert.NoError(t, err, "WebsocketCancelAllOrders should not error after a keep-alive ping")
 }
 
 func TestConnectionSetups(t *testing.T) {
@@ -609,19 +609,19 @@ func TestChannelPayloads(t *testing.T) {
 		require.NoErrorf(t, err, "Parse must not error for %s", s)
 		return v
 	}
-	level := func(price, qty string) WsBookLevel {
+	level := func(price, qty string) WebsocketBookLevel {
 		p, err := types.NewPreciseNumberFromString(price)
 		require.NoErrorf(t, err, "NewPreciseNumberFromString must not error for %s", price)
 		q, err := types.NewPreciseNumberFromString(qty)
 		require.NoErrorf(t, err, "NewPreciseNumberFromString must not error for %s", qty)
-		return WsBookLevel{Price: p, Quantity: q}
+		return WebsocketBookLevel{Price: p, Quantity: q}
 	}
 	for _, tc := range []struct {
 		fixture string
 		exp     []any
 	}{
 		{"testdata/wsPublic.json", []any{
-			&[]WsStatus{{
+			&[]WebsocketStatus{{
 				System:       "online",
 				APIVersion:   "v2",
 				ConnectionID: 13834774380200032777,
@@ -651,7 +651,7 @@ func TestChannelPayloads(t *testing.T) {
 				}},
 			}},
 			nil,
-			&[]WsTicker{{
+			&[]WebsocketTicker{{
 				Symbol:                     "BTC/USD",
 				Bid:                        81776.6,
 				BidQuantity:                0.47200852,
@@ -667,11 +667,11 @@ func TestChannelPayloads(t *testing.T) {
 				Trades:                     197725,
 				Timestamp:                  ts("2026-10-09T00:34:21.060761Z"),
 			}},
-			&[]WsTrade{
+			&[]WebsocketTrade{
 				{Symbol: "BTC/USD", Side: "buy", Price: 81776.7, Quantity: 0.00005, OrderType: "limit", TradeID: 110763305, Timestamp: ts("2026-10-09T00:34:22.814908Z")},
 				{Symbol: "BTC/USD", Side: "buy", Price: 81776.7, Quantity: 0.00000879, OrderType: "limit", TradeID: 110763306, Timestamp: ts("2026-10-09T00:34:22.814908Z")},
 			},
-			&[]WsCandle{{
+			&[]WebsocketCandle{{
 				Symbol:                     "BTC/USD",
 				Open:                       81780.8,
 				High:                       81780.8,
@@ -683,14 +683,14 @@ func TestChannelPayloads(t *testing.T) {
 				IntervalBegin:              ts("2026-10-09T00:34:00Z"),
 				IntervalMinutes:            1,
 			}},
-			&[]WsBook{{
+			&[]WebsocketBook{{
 				Symbol: "BTC/USD",
-				Bids: []WsBookLevel{
+				Bids: []WebsocketBookLevel{
 					level("81776.6", "0.47200852"), level("81776.1", "0.11790609"), level("81776.0", "1.84423887"), level("81775.6", "3.05714315"),
 					level("81774.3", "3.05719335"), level("81773.2", "3.05723288"), level("81772.7", "0.00005100"), level("81768.7", "0.93754440"),
 					level("81768.6", "3.05745897"), level("81768.4", "0.06320000"),
 				},
-				Asks: []WsBookLevel{
+				Asks: []WebsocketBookLevel{
 					level("81776.7", "0.00050857"), level("81777.1", "0.00012500"), level("81780.7", "0.00005100"), level("81781.8", "0.02016285"),
 					level("81781.9", "0.05474923"), level("81782.0", "0.18341452"), level("81783.1", "0.00012500"), level("81783.5", "0.05000000"),
 					level("81783.7", "0.93145626"), level("81783.8", "3.05684048"),
@@ -698,14 +698,14 @@ func TestChannelPayloads(t *testing.T) {
 				Checksum:  2459006653,
 				Timestamp: ts("2026-10-09T00:34:21.169750Z"),
 			}},
-			&[]WsBook{{Symbol: "BTC/USD", Bids: []WsBookLevel{}, Asks: []WsBookLevel{level("81781.9", "0.00000000"), level("81784.8", "0.00005100")}, Checksum: 3437785338, Timestamp: ts("2026-10-09T00:34:21.904206Z")}},
-			&[]WsBook{{Symbol: "BTC/USD", Bids: []WsBookLevel{}, Asks: []WsBookLevel{level("81782.0", "0.00000000"), level("81784.9", "0.06320000")}, Checksum: 1758305755, Timestamp: ts("2026-10-09T00:34:21.910654Z")}},
-			&WsInstruments{
-				Assets: []WsInstrumentAsset{
+			&[]WebsocketBook{{Symbol: "BTC/USD", Bids: []WebsocketBookLevel{}, Asks: []WebsocketBookLevel{level("81781.9", "0.00000000"), level("81784.8", "0.00005100")}, Checksum: 3437785338, Timestamp: ts("2026-10-09T00:34:21.904206Z")}},
+			&[]WebsocketBook{{Symbol: "BTC/USD", Bids: []WebsocketBookLevel{}, Asks: []WebsocketBookLevel{level("81782.0", "0.00000000"), level("81784.9", "0.06320000")}, Checksum: 1758305755, Timestamp: ts("2026-10-09T00:34:21.910654Z")}},
+			&WebsocketInstruments{
+				Assets: []WebsocketInstrumentAsset{
 					{ID: "BTC", Status: "enabled", Precision: 10, PrecisionDisplay: 5, Borrowable: true, CollateralValue: 0.99, Class: "currency", MarginRate: 0.01},
 					{ID: "TSLAx", UnderlyingSymbol: "TSLA", Precision: 8, PrecisionDisplay: 8, CollateralValue: 0.8, MaximumCollateralUSDValue: 250000, Class: "tokenized_asset", Multiplier: 1},
 				},
-				Pairs: []WsInstrumentPair{{
+				Pairs: []WebsocketInstrumentPair{{
 					Symbol:                         "BTC/USD",
 					Base:                           "BTC",
 					Quote:                          "USD",
@@ -726,7 +726,7 @@ func TestChannelPayloads(t *testing.T) {
 			},
 		}},
 		{"testdata/wsPrivate.json", []any{
-			&[]WsExecution{{
+			&[]WebsocketExecution{{
 				OrderID:                  "OAIYAU-LGI3M-PFM5VW",
 				OrderUserReference:       100054,
 				ClientOrderID:            "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
@@ -748,7 +748,7 @@ func TestChannelPayloads(t *testing.T) {
 				DisplayQuantityRemaining: 80,
 				EffectiveTime:            ts("2026-10-09T01:00:00Z"),
 				ExpireTime:               ts("2026-10-10T01:00:00Z"),
-				Triggers: WsExecutionTriggers{
+				Triggers: WebsocketExecutionTriggers{
 					Reference:   "index",
 					Price:       0.21,
 					PriceType:   "static",
@@ -758,7 +758,7 @@ func TestChannelPayloads(t *testing.T) {
 					Status:      "triggered",
 					Timestamp:   ts("2026-10-09T01:05:00Z"),
 				},
-				Contingent: WsExecutionContingent{
+				Contingent: WebsocketExecutionContingent{
 					OrderType:        "take-profit-limit",
 					TriggerPrice:     5,
 					TriggerPriceType: "pct",
@@ -780,7 +780,7 @@ func TestChannelPayloads(t *testing.T) {
 				CumulativeQuantity:  20,
 				CumulativeCost:      4.202,
 				AveragePrice:        0.2101,
-				Fees:                []WsExecutionFee{{Asset: "USD", Quantity: 0.0067}},
+				Fees:                []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.0067}},
 				FeeUSDEquivalent:    0.0067,
 				PositionStatus:      "opened",
 				OrderReferenceID:    "OLUMT4-UTEGU-ZYM7E9",
@@ -794,7 +794,7 @@ func TestChannelPayloads(t *testing.T) {
 				TriggeredPrice:      0.2099,
 				CancelReason:        "User requested",
 			}},
-			&[]WsExecution{{
+			&[]WebsocketExecution{{
 				OrderID:               "OK4GJX-KSTLS-7DZZO5",
 				OrderUserReference:    3,
 				Symbol:                "BTC/USD",
@@ -809,8 +809,8 @@ func TestChannelPayloads(t *testing.T) {
 				FeeCurrencyPreference: "fciq",
 				Timestamp:             ts("2023-09-22T10:33:05.709950Z"),
 			}},
-			&[]WsExecution{{Timestamp: ts("2023-09-22T10:33:05.709982Z"), OrderStatus: "new", ExecutionType: "new", OrderUserReference: 3, OrderID: "OK4GJX-KSTLS-7DZZO5"}},
-			&[]WsExecution{{
+			&[]WebsocketExecution{{Timestamp: ts("2023-09-22T10:33:05.709982Z"), OrderStatus: "new", ExecutionType: "new", OrderUserReference: 3, OrderID: "OK4GJX-KSTLS-7DZZO5"}},
+			&[]WebsocketExecution{{
 				OrderID:            "OK4GJX-KSTLS-7DZZO5",
 				OrderUserReference: 3,
 				ExecutionID:        "TGBB7L-HT5LX-J3BZ4A",
@@ -829,14 +829,14 @@ func TestChannelPayloads(t *testing.T) {
 				CumulativeCost:     132.9995,
 				AveragePrice:       26599.9,
 				FeeUSDEquivalent:   0.3458,
-				Fees:               []WsExecutionFee{{Asset: "USD", Quantity: 0.3458}},
+				Fees:               []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.3458}},
 			}},
-			&[]WsBalance{
-				{Asset: "BTC", AssetClass: "currency", Balance: 1.2, Wallets: []WsWallet{{Type: "spot", ID: "main", Balance: 1.2}}},
-				{Asset: "MATIC", AssetClass: "currency", Balance: 500, Wallets: []WsWallet{{Type: "spot", ID: "main", Balance: 300}, {Type: "earn", ID: "flex", Balance: 200}}},
-				{Asset: "USD", AssetClass: "currency", Balance: 80595.4943, Wallets: []WsWallet{{Type: "spot", ID: "main", Balance: 80595.4943}}},
+			&[]WebsocketBalance{
+				{Asset: "BTC", AssetClass: "currency", Balance: 1.2, Wallets: []WebsocketWallet{{Type: "spot", ID: "main", Balance: 1.2}}},
+				{Asset: "MATIC", AssetClass: "currency", Balance: 500, Wallets: []WebsocketWallet{{Type: "spot", ID: "main", Balance: 300}, {Type: "earn", ID: "flex", Balance: 200}}},
+				{Asset: "USD", AssetClass: "currency", Balance: 80595.4943, Wallets: []WebsocketWallet{{Type: "spot", ID: "main", Balance: 80595.4943}}},
 			},
-			&[]WsLedgerEntry{{
+			&[]WebsocketLedgerEntry{{
 				LedgerID:    "ADKKFF-WEA5A-CNUBHG",
 				ReferenceID: "AGBWUJRU-LAREZ-W3UFAN",
 				Timestamp:   ts("2023-09-22T10:23:42.925034Z"),
@@ -849,7 +849,7 @@ func TestChannelPayloads(t *testing.T) {
 				Amount:      0.01,
 				Balance:     0.02,
 			}},
-			&[]WsLedgerEntry{{
+			&[]WebsocketLedgerEntry{{
 				LedgerID:    "LQZ4GN-2WD7E-OIQAB5",
 				ReferenceID: "RUSB7W6-ESIXUX-K6PVTM",
 				Timestamp:   ts("2023-09-22T10:41:00Z"),
@@ -895,7 +895,7 @@ func bookLevel(price float64, strPrice string, amount float64, strAmount string)
 	return orderbook.Level{Price: price, StrPrice: strPrice, Amount: amount, StrAmount: strAmount}
 }
 
-func TestWsHandleData(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -909,7 +909,7 @@ func TestWsHandleData(t *testing.T) {
 	got := relayed(ex)
 	require.Len(t, got, 8, "wsHandleData must relay every payload")
 
-	status, ok := got[0].(*WsStatus)
+	status, ok := got[0].(*WebsocketStatus)
 	require.True(t, ok, "the first payload must be the status")
 	assert.Equal(t, "online", status.System, "the status should be relayed")
 
@@ -978,14 +978,14 @@ func TestWsHandleData(t *testing.T) {
 	}, book.Asks, "the asks should have the updates applied")
 	assert.Equal(t, time.Date(2026, 10, 9, 0, 34, 21, 910654000, time.UTC), book.LastUpdated, "the book should be as of the last update")
 
-	instruments, ok := got[7].(*WsInstruments)
+	instruments, ok := got[7].(*WebsocketInstruments)
 	require.True(t, ok, "the last payload must be the instruments")
 	assert.Len(t, instruments.Pairs, 1, "the instruments should be relayed")
 }
 
-// TestWsBookSequence replays a recorded depth 10 order book snapshot and every update that followed it, each of which
-// must pass its checksum
-func TestWsBookSequence(t *testing.T) {
+// TestWebsocketBookSequence replays a recorded depth 10 order book snapshot and every update that followed it, each of
+// which must pass its checksum
+func TestWebsocketBookSequence(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1013,7 +1013,7 @@ func TestWsBookSequence(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 10, 9, 0, 34, 22, 115897000, time.UTC), book.LastUpdated, "the book should be as of the last update")
 }
 
-func TestWsHandleDataPrivate(t *testing.T) {
+func TestWebsocketHandleDataPrivate(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1141,23 +1141,23 @@ func TestWsHandleDataPrivate(t *testing.T) {
 		assert.Equalf(t, exp[i], got[i], "payload %d should be relayed", i)
 	}
 
-	balances, ok := got[6].([]WsBalance)
+	balances, ok := got[6].([]WebsocketBalance)
 	require.True(t, ok, "the balances snapshot must be relayed as its balances")
 	require.Len(t, balances, 3, "the balances snapshot must relay each asset's balance")
-	assert.Equal(t, WsBalance{
+	assert.Equal(t, WebsocketBalance{
 		Asset:      "MATIC",
 		AssetClass: "currency",
 		Balance:    500,
-		Wallets:    []WsWallet{{Type: "spot", ID: "main", Balance: 300}, {Type: "earn", ID: "flex", Balance: 200}},
+		Wallets:    []WebsocketWallet{{Type: "spot", ID: "main", Balance: 300}, {Type: "earn", ID: "flex", Balance: 200}},
 	}, balances[1], "the balances snapshot should be relayed as sent")
 
-	entries, ok := got[7].([]WsLedgerEntry)
+	entries, ok := got[7].([]WebsocketLedgerEntry)
 	require.True(t, ok, "a balances update must be relayed as its ledger entries")
 	assert.Equal(t, "ADKKFF-WEA5A-CNUBHG", entries[0].LedgerID, "the ledger entry should be relayed")
-	assert.IsType(t, []WsLedgerEntry{}, got[8], "the second balances update should be relayed")
+	assert.IsType(t, []WebsocketLedgerEntry{}, got[8], "the second balances update should be relayed")
 }
 
-func TestWsHandleDataErrors(t *testing.T) {
+func TestWebsocketHandleDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1203,7 +1203,7 @@ func TestWsHandleDataErrors(t *testing.T) {
 	}
 }
 
-func TestWsProcessTickerBatch(t *testing.T) {
+func TestWebsocketProcessTickerBatch(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1223,7 +1223,7 @@ func TestWsProcessTickerBatch(t *testing.T) {
 	assert.Error(t, ex.wsProcessTicker(t.Context(), &wsChannelMessage{Data: json.RawMessage(`"bad"`)}), "wsProcessTicker should reject data that is not a list")
 }
 
-func TestWsHandleDataUnhandled(t *testing.T) {
+func TestWebsocketHandleDataUnhandled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
@@ -1239,7 +1239,7 @@ func TestWsHandleDataUnhandled(t *testing.T) {
 	assert.Contains(t, warning.Message, "moon", "the warning should carry the message")
 }
 
-func TestWsHandleDataTradesDisabled(t *testing.T) {
+func TestWebsocketHandleDataTradesDisabled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = false
@@ -1248,7 +1248,7 @@ func TestWsHandleDataTradesDisabled(t *testing.T) {
 	assert.Empty(t, ex.Websocket.DataHandler.C, "trades should not be relayed when the trade feed is disabled")
 }
 
-func TestWsHandleDataFillsDisabled(t *testing.T) {
+func TestWebsocketHandleDataFillsDisabled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1260,7 +1260,7 @@ func TestWsHandleDataFillsDisabled(t *testing.T) {
 	assert.IsType(t, &order.Detail{}, got[0], "the order update should be relayed")
 }
 
-func TestWsBookChecksumMismatch(t *testing.T) {
+func TestWebsocketBookChecksumMismatch(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1380,7 +1380,7 @@ func TestBookChecksum(t *testing.T) {
 	t.Parallel()
 	// Kraken's documented example, whose numbers are strings
 	msg := `{"symbol":"BTC/USD","bids":[{"price":"45283.5","qty":"0.10000000"},{"price":"45283.4","qty":"1.54582015"},{"price":"45282.1","qty":"0.10000000"},{"price":"45281.0","qty":"0.10000000"},{"price":"45280.3","qty":"1.54592586"},{"price":"45279.0","qty":"0.07990000"},{"price":"45277.6","qty":"0.03310103"},{"price":"45277.5","qty":"0.30000000"},{"price":"45277.3","qty":"1.54602737"},{"price":"45276.6","qty":"0.15445238"}],"asks":[{"price":"45285.2","qty":"0.00100000"},{"price":"45286.4","qty":"1.54571953"},{"price":"45286.6","qty":"1.54571109"},{"price":"45289.6","qty":"1.54560911"},{"price":"45290.2","qty":"0.15890660"},{"price":"45291.8","qty":"1.54553491"},{"price":"45294.7","qty":"0.04454749"},{"price":"45296.1","qty":"0.35380000"},{"price":"45297.5","qty":"0.09945542"},{"price":"45299.5","qty":"0.18772827"}],"checksum":3310070434}`
-	var book WsBook
+	var book WebsocketBook
 	require.NoError(t, json.Unmarshal([]byte(msg), &book), "Unmarshal must not error")
 	b := &orderbook.Book{Bids: wsBookLevels(book.Bids), Asks: wsBookLevels(book.Asks)}
 	assert.Equal(t, uint32(3310070434), bookChecksum(b), "bookChecksum should match Kraken's documented example")
@@ -1516,13 +1516,13 @@ func TestPerPair(t *testing.T) {
 }
 
 // level3Order returns a level 3 order, or an update's event for one when event is set
-func level3Order(t *testing.T, event, orderID, price, qty string) WsLevel3Order {
+func level3Order(t *testing.T, event, orderID, price, qty string) WebsocketLevel3Order {
 	t.Helper()
 	p, err := types.NewPreciseNumberFromString(price)
 	require.NoErrorf(t, err, "NewPreciseNumberFromString must not error for %s", price)
 	q, err := types.NewPreciseNumberFromString(qty)
 	require.NoErrorf(t, err, "NewPreciseNumberFromString must not error for %s", qty)
-	return WsLevel3Order{Event: event, OrderID: orderID, LimitPrice: p, Quantity: q}
+	return WebsocketLevel3Order{Event: event, OrderID: orderID, LimitPrice: p, Quantity: q}
 }
 
 func TestLevel3Checksum(t *testing.T) {
@@ -1530,7 +1530,7 @@ func TestLevel3Checksum(t *testing.T) {
 	// Kraken's documented example, whose numbers are strings
 	lines := fixtureLines(t, "testdata/wsLevel3.json")
 	var snapshot struct {
-		Data []WsLevel3Book `json:"data"`
+		Data []WebsocketLevel3Book `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(lines[0], &snapshot), "Unmarshal must not error")
 	book := &level3Book{bids: snapshot.Data[0].Bids, asks: snapshot.Data[0].Asks}
@@ -1544,43 +1544,43 @@ func TestLevel3Checksum(t *testing.T) {
 
 func TestApplyLevel3Events(t *testing.T) {
 	t.Parallel()
-	bid := func(id, price, qty string) WsLevel3Order { return level3Order(t, "", id, price, qty) }
-	held := []WsLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")}
+	bid := func(id, price, qty string) WebsocketLevel3Order { return level3Order(t, "", id, price, qty) }
+	held := []WebsocketLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")}
 	better := func(price, other float64) bool { return price > other }
 	for _, tc := range []struct {
 		name   string
-		events []WsLevel3Order
-		exp    []WsLevel3Order
+		events []WebsocketLevel3Order
+		exp    []WebsocketLevel3Order
 	}{
 		{
 			name:   "add queues behind the orders at its price",
-			events: []WsLevel3Order{level3Order(t, "add", "OD", "100.0", "4.0")},
-			exp:    []WsLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OD", "100.0", "4.0"), bid("OC", "99.5", "3.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "add", "OD", "100.0", "4.0")},
+			exp:    []WebsocketLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OD", "100.0", "4.0"), bid("OC", "99.5", "3.0")},
 		},
 		{
 			name:   "add at a better price",
-			events: []WsLevel3Order{level3Order(t, "add", "OD", "100.5", "4.0")},
-			exp:    []WsLevel3Order{bid("OD", "100.5", "4.0"), bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "add", "OD", "100.5", "4.0")},
+			exp:    []WebsocketLevel3Order{bid("OD", "100.5", "4.0"), bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")},
 		},
 		{
 			name:   "add at the worst price",
-			events: []WsLevel3Order{level3Order(t, "add", "OD", "99.0", "4.0")},
-			exp:    []WsLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0"), bid("OD", "99.0", "4.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "add", "OD", "99.0", "4.0")},
+			exp:    []WebsocketLevel3Order{bid("OA", "100.0", "1.0"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0"), bid("OD", "99.0", "4.0")},
 		},
 		{
 			name:   "modify keeps the order's place",
-			events: []WsLevel3Order{level3Order(t, "modify", "OA", "100.0", "0.5")},
-			exp:    []WsLevel3Order{bid("OA", "100.0", "0.5"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "modify", "OA", "100.0", "0.5")},
+			exp:    []WebsocketLevel3Order{bid("OA", "100.0", "0.5"), bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0")},
 		},
 		{
 			name:   "modify to another price requeues the order",
-			events: []WsLevel3Order{level3Order(t, "modify", "OA", "99.5", "1.0")},
-			exp:    []WsLevel3Order{bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0"), bid("OA", "99.5", "1.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "modify", "OA", "99.5", "1.0")},
+			exp:    []WebsocketLevel3Order{bid("OB", "100.0", "2.0"), bid("OC", "99.5", "3.0"), bid("OA", "99.5", "1.0")},
 		},
 		{
 			name:   "delete",
-			events: []WsLevel3Order{level3Order(t, "delete", "OB", "100.0", "2.0")},
-			exp:    []WsLevel3Order{bid("OA", "100.0", "1.0"), bid("OC", "99.5", "3.0")},
+			events: []WebsocketLevel3Order{level3Order(t, "delete", "OB", "100.0", "2.0")},
+			exp:    []WebsocketLevel3Order{bid("OA", "100.0", "1.0"), bid("OC", "99.5", "3.0")},
 		},
 	} {
 		got, err := applyLevel3Events(slices.Clone(held), tc.events, better)
@@ -1589,31 +1589,31 @@ func TestApplyLevel3Events(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name  string
-		event WsLevel3Order
+		event WebsocketLevel3Order
 	}{
 		{"an order added twice", level3Order(t, "add", "OA", "100.0", "1.0")},
 		{"an unknown order modified", level3Order(t, "modify", "OZ", "100.0", "1.0")},
 		{"an unknown order deleted", level3Order(t, "delete", "OZ", "100.0", "1.0")},
 		{"an unknown event", level3Order(t, "moon", "OA", "100.0", "1.0")},
 	} {
-		_, err := applyLevel3Events(slices.Clone(held), []WsLevel3Order{tc.event}, better)
+		_, err := applyLevel3Events(slices.Clone(held), []WebsocketLevel3Order{tc.event}, better)
 		assert.ErrorIsf(t, err, errLevel3OutOfSync, "applyLevel3Events should reject %s", tc.name)
 	}
 }
 
 func TestTruncateLevel3(t *testing.T) {
 	t.Parallel()
-	ask := func(id, price string) WsLevel3Order { return level3Order(t, "", id, price, "1.0") }
-	asks := []WsLevel3Order{ask("OA", "100.0"), ask("OB", "100.0"), ask("OC", "100.5"), ask("OD", "101.0"), ask("OE", "101.0")}
+	ask := func(id, price string) WebsocketLevel3Order { return level3Order(t, "", id, price, "1.0") }
+	asks := []WebsocketLevel3Order{ask("OA", "100.0"), ask("OB", "100.0"), ask("OC", "100.5"), ask("OD", "101.0"), ask("OE", "101.0")}
 	assert.Equal(t, asks, truncateLevel3(slices.Clone(asks), 0), "truncateLevel3 should keep every order without a depth")
 	assert.Equal(t, asks, truncateLevel3(slices.Clone(asks), 3), "truncateLevel3 should keep every order within the depth")
 	assert.Equal(t, asks[:3], truncateLevel3(slices.Clone(asks), 2), "truncateLevel3 should keep the orders of the first price levels")
 	assert.Equal(t, asks[:2], truncateLevel3(slices.Clone(asks), 1), "truncateLevel3 should keep every order of a level")
 }
 
-// TestWsProcessLevel3 replays Kraken's documented level 3 order book example and updates whose checksums an
+// TestWebsocketProcessLevel3 replays Kraken's documented level 3 order book example and updates whose checksums an
 // independent implementation of Kraken's documented algorithm gave
-func TestWsProcessLevel3(t *testing.T) {
+func TestWebsocketProcessLevel3(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1629,7 +1629,7 @@ func TestWsProcessLevel3(t *testing.T) {
 	require.Len(t, got, 8, "wsProcessLevel3 must relay the order book and the level 3 message for each message")
 	for i := 0; i < len(got); i += 2 {
 		assert.IsTypef(t, &orderbook.Depth{}, got[i], "payload %d should be the order book", i)
-		l3, ok := got[i+1].(*WsLevel3Book)
+		l3, ok := got[i+1].(*WebsocketLevel3Book)
 		require.Truef(t, ok, "payload %d must be the level 3 message", i+1)
 		assert.Equalf(t, "BTC/USD", l3.Symbol, "payload %d should be the level 3 message", i+1)
 	}
@@ -1676,7 +1676,7 @@ func TestWsProcessLevel3(t *testing.T) {
 	assert.Equal(t, time.Date(2024, 1, 8, 12, 26, 47, 118034770, time.UTC), book.LastUpdated, "the book should be as of the last update")
 }
 
-func TestWsProcessLevel3Errors(t *testing.T) {
+func TestWebsocketProcessLevel3Errors(t *testing.T) {
 	t.Parallel()
 	snapshot := func(checksum string) []byte {
 		return []byte(`{"channel":"level3","type":"snapshot","data":[{"symbol":"BTC/USD","checksum":` + checksum + `,"bids":[{"order_id":"OTCFZG-YOE2Q-LQKNM3","limit_price":44939.4,"order_qty":0.88968699,"timestamp":"2024-01-08T12:26:39.526146327Z"}],"asks":[{"order_id":"OFVLAA-HRSSP-BK75KB","limit_price":44939.5,"order_qty":4.52308393,"timestamp":"2024-01-08T12:18:05.770906486Z"}],"timestamp":"2024-01-08T12:26:45.110524116Z"}]}`)
@@ -1692,7 +1692,7 @@ func TestWsProcessLevel3Errors(t *testing.T) {
 	_, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "a snapshot failing its checksum should not load the book")
 
-	book := &level3Book{bids: []WsLevel3Order{level3Order(t, "", "OTCFZG-YOE2Q-LQKNM3", "44939.4", "0.88968699")}, asks: []WsLevel3Order{level3Order(t, "", "OFVLAA-HRSSP-BK75KB", "44939.5", "4.52308393")}}
+	book := &level3Book{bids: []WebsocketLevel3Order{level3Order(t, "", "OTCFZG-YOE2Q-LQKNM3", "44939.4", "0.88968699")}, asks: []WebsocketLevel3Order{level3Order(t, "", "OFVLAA-HRSSP-BK75KB", "44939.5", "4.52308393")}}
 	require.NoError(t, ex.wsHandleData(t.Context(), nil, snapshot(strconv.FormatUint(uint64(book.checksum()), 10))), "wsHandleData must load a snapshot passing its checksum")
 	require.ErrorIs(t, ex.wsHandleData(t.Context(), nil, update("modify", "OTCFZG-YOE2Q-LQKNM3")), errChecksumMismatch, "an update failing its checksum must error")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
@@ -1787,7 +1787,7 @@ func TestGenerateLevel3Subscriptions(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	// Unseeded assets leave only the pairs whose display names differ untranslated, so connecting goes on without them
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
@@ -1936,29 +1936,29 @@ func TestClearBookDepths(t *testing.T) {
 	ex.level3BooksMu.Unlock()
 }
 
-func TestWsProcessStatus(t *testing.T) {
+func TestWebsocketProcessStatus(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	require.NoError(t, ex.wsProcessStatus(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[{"system":"online","api_version":"v2","connection_id":12893948,"version":"2.0.9"}]`)}), "wsProcessStatus must not error for an online engine")
-	assert.Equal(t, []any{&WsStatus{System: "online", APIVersion: "v2", ConnectionID: 12893948, Version: "2.0.9"}}, relayed(ex), "wsProcessStatus should relay the status")
+	assert.Equal(t, []any{&WebsocketStatus{System: "online", APIVersion: "v2", ConnectionID: 12893948, Version: "2.0.9"}}, relayed(ex), "wsProcessStatus should relay the status")
 	err := ex.wsProcessStatus(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[{"system":"maintenance"}]`)})
 	assert.ErrorIs(t, err, errSystemNotOnline, "wsProcessStatus should report an engine that is not online")
-	assert.Equal(t, []any{&WsStatus{System: "maintenance"}}, relayed(ex), "wsProcessStatus should relay a status that is not online")
+	assert.Equal(t, []any{&WebsocketStatus{System: "maintenance"}}, relayed(ex), "wsProcessStatus should relay a status that is not online")
 	assert.Error(t, ex.wsProcessStatus(t.Context(), &wsChannelMessage{Data: json.RawMessage(`"online"`)}), "wsProcessStatus should reject data that is not a list")
 }
 
 // bookMessage decodes a book fixture line, returning the message and its only order book
-func bookMessage(t *testing.T, line []byte) (*wsChannelMessage, *WsBook) {
+func bookMessage(t *testing.T, line []byte) (*wsChannelMessage, *WebsocketBook) {
 	t.Helper()
 	var msg wsChannelMessage
 	require.NoError(t, json.Unmarshal(line, &msg), "Unmarshal must not error for the message")
-	var books []WsBook
+	var books []WebsocketBook
 	require.NoError(t, json.Unmarshal(msg.Data, &books), "Unmarshal must not error for the order books")
 	require.Len(t, books, 1, "the message must hold one order book")
 	return &msg, &books[0]
 }
 
-func TestWsProcessBook(t *testing.T) {
+func TestWebsocketProcessBook(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1976,7 +1976,7 @@ func TestWsProcessBook(t *testing.T) {
 	assert.Len(t, book.Asks, 10, "wsProcessBook should keep the subscribed depth of asks")
 
 	update.Checksum++
-	data, err := json.Marshal([]WsBook{*update})
+	data, err := json.Marshal([]WebsocketBook{*update})
 	require.NoError(t, err, "Marshal must not error")
 	err = ex.wsProcessBook(t.Context(), nil, &wsChannelMessage{Type: "update", Data: data})
 	assert.ErrorIs(t, err, errChecksumMismatch, "wsProcessBook should reject an update failing its checksum")
@@ -1986,7 +1986,7 @@ func TestWsProcessBook(t *testing.T) {
 	assert.Error(t, ex.wsProcessBook(t.Context(), nil, &wsChannelMessage{Data: json.RawMessage(`"bad"`)}), "wsProcessBook should reject data that is not a list")
 }
 
-func TestWsLoadBookSnapshot(t *testing.T) {
+func TestWebsocketLoadBookSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
@@ -2003,7 +2003,7 @@ func TestWsLoadBookSnapshot(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "wsLoadBookSnapshot should invalidate a snapshot failing its checksum")
 }
 
-func TestWsLoadBookSnapshotChecksum(t *testing.T) {
+func TestWebsocketLoadBookSnapshotChecksum(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -2033,7 +2033,7 @@ func TestWsLoadBookSnapshotChecksum(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a snapshot failing its checksum should leave the stored book invalid")
 }
 
-func TestWsUpdateBook(t *testing.T) {
+func TestWebsocketUpdateBook(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
@@ -2052,7 +2052,7 @@ func TestWsUpdateBook(t *testing.T) {
 	assert.ErrorIs(t, ex.wsUpdateBook(t.Context(), wsTestPair, next), errChecksumMismatch, "wsUpdateBook should reject an update failing its checksum")
 }
 
-func TestWsBookDepthChange(t *testing.T) {
+func TestWebsocketBookDepthChange(t *testing.T) {
 	t.Parallel()
 	// side returns n levels of quantity 1 from price, each a step further from the best
 	side := func(price, step float64, n int) orderbook.Levels {
@@ -2138,7 +2138,7 @@ func TestWsBookDepthChange(t *testing.T) {
 	}
 }
 
-func TestWsLevel3BookRoundTrip(t *testing.T) {
+func TestWebsocketLevel3BookRoundTrip(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	// The pair's book moves from the level3 channel to the book channel and back, at a depth of 10 on each
@@ -2161,7 +2161,7 @@ func TestWsLevel3BookRoundTrip(t *testing.T) {
 	assert.NoError(t, book.Validate(), "the level 3 book should validate with the orders that share a price")
 }
 
-func TestWsLoadBookSnapshotWithoutTime(t *testing.T) {
+func TestWebsocketLoadBookSnapshotWithoutTime(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
@@ -2172,7 +2172,7 @@ func TestWsLoadBookSnapshotWithoutTime(t *testing.T) {
 
 	// The book is subscribed to again at another depth, and its snapshot passes its checksum but carries no time
 	ex.setBookDepth(wsTestPair, 25)
-	var second WsBook
+	var second WebsocketBook
 	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC/USD","bids":[{"price":100.0,"qty":1.0}],"asks":[{"price":101.0,"qty":1.0}]}`), &second), "Unmarshal must not error")
 	second.Checksum = bookChecksum(&orderbook.Book{Bids: wsBookLevels(second.Bids), Asks: wsBookLevels(second.Asks)})
 	require.ErrorIs(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, &second), orderbook.ErrLastUpdatedNotSet, "wsLoadBookSnapshot must refuse a snapshot without a time")
@@ -2181,19 +2181,19 @@ func TestWsLoadBookSnapshotWithoutTime(t *testing.T) {
 	assert.Equal(t, loaded, stored, "a refused snapshot should leave the previous book with its levels, options and time")
 }
 
-func TestWsLoadBookSnapshotConsistentReads(t *testing.T) {
+func TestWebsocketLoadBookSnapshotConsistentReads(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	// Each snapshot holds as many levels a side as its depth and is timed by its depth, so a book read holding one
 	// snapshot's levels with the other's depth or time is caught
-	snapshots := make(map[int]*WsBook, 2)
+	snapshots := make(map[int]*WebsocketBook, 2)
 	for _, depth := range []int{10, 25} {
 		bids, asks := make([]string, depth), make([]string, depth)
 		for i := range depth {
 			bids[i] = `{"price":` + strconv.Itoa(1000-i) + `.0,"qty":1.0}`
 			asks[i] = `{"price":` + strconv.Itoa(1001+i) + `.0,"qty":1.0}`
 		}
-		b := new(WsBook)
+		b := new(WebsocketBook)
 		require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC/USD","bids":[`+strings.Join(bids, ",")+`],"asks":[`+strings.Join(asks, ",")+`]}`), b), "Unmarshal must not error")
 		b.Timestamp = time.Unix(int64(depth), 0)
 		b.Checksum = bookChecksum(&orderbook.Book{Bids: wsBookLevels(b.Bids), Asks: wsBookLevels(b.Asks)})
@@ -2402,17 +2402,17 @@ func TestResubscribeOrderbookStaleConnectionSubscription(t *testing.T) {
 }
 
 // level3Message decodes a level 3 fixture line's only order book
-func level3Message(t *testing.T, line []byte) *WsLevel3Book {
+func level3Message(t *testing.T, line []byte) *WebsocketLevel3Book {
 	t.Helper()
 	var msg wsChannelMessage
 	require.NoError(t, json.Unmarshal(line, &msg), "Unmarshal must not error for the message")
-	var books []WsLevel3Book
+	var books []WebsocketLevel3Book
 	require.NoError(t, json.Unmarshal(msg.Data, &books), "Unmarshal must not error for the level 3 order books")
 	require.Len(t, books, 1, "the message must hold one level 3 order book")
 	return &books[0]
 }
 
-func TestWsLevel3Book(t *testing.T) {
+func TestWebsocketLevel3Book(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
@@ -2444,25 +2444,25 @@ func TestWsLevel3Book(t *testing.T) {
 func TestLevel3BookApply(t *testing.T) {
 	t.Parallel()
 	b := &level3Book{
-		bids: []WsLevel3Order{level3Order(t, "", "B1", "100", "1"), level3Order(t, "", "B2", "99", "1")},
-		asks: []WsLevel3Order{level3Order(t, "", "A1", "101", "1"), level3Order(t, "", "A2", "102", "1")},
+		bids: []WebsocketLevel3Order{level3Order(t, "", "B1", "100", "1"), level3Order(t, "", "B2", "99", "1")},
+		asks: []WebsocketLevel3Order{level3Order(t, "", "A1", "101", "1"), level3Order(t, "", "A2", "102", "1")},
 	}
-	update := &WsLevel3Book{
-		Bids: []WsLevel3Order{level3Order(t, "add", "B3", "100", "2")},
-		Asks: []WsLevel3Order{level3Order(t, "delete", "A1", "101", "1")},
+	update := &WebsocketLevel3Book{
+		Bids: []WebsocketLevel3Order{level3Order(t, "add", "B3", "100", "2")},
+		Asks: []WebsocketLevel3Order{level3Order(t, "delete", "A1", "101", "1")},
 	}
 	require.NoError(t, b.apply(update, 1), "apply must not error")
-	assert.Equal(t, []WsLevel3Order{level3Order(t, "", "B1", "100", "1"), level3Order(t, "", "B3", "100", "2")}, b.bids, "apply should add an order behind its price's and keep the bids' first level")
-	assert.Equal(t, []WsLevel3Order{level3Order(t, "", "A2", "102", "1")}, b.asks, "apply should delete an order")
-	assert.ErrorIs(t, b.apply(&WsLevel3Book{Bids: []WsLevel3Order{level3Order(t, "delete", "B9", "100", "1")}}, 1), errLevel3OutOfSync, "apply should reject a bid event for an order it does not hold")
-	assert.ErrorIs(t, b.apply(&WsLevel3Book{Asks: []WsLevel3Order{level3Order(t, "modify", "A9", "102", "1")}}, 1), errLevel3OutOfSync, "apply should reject an ask event for an order it does not hold")
+	assert.Equal(t, []WebsocketLevel3Order{level3Order(t, "", "B1", "100", "1"), level3Order(t, "", "B3", "100", "2")}, b.bids, "apply should add an order behind its price's and keep the bids' first level")
+	assert.Equal(t, []WebsocketLevel3Order{level3Order(t, "", "A2", "102", "1")}, b.asks, "apply should delete an order")
+	assert.ErrorIs(t, b.apply(&WebsocketLevel3Book{Bids: []WebsocketLevel3Order{level3Order(t, "delete", "B9", "100", "1")}}, 1), errLevel3OutOfSync, "apply should reject a bid event for an order it does not hold")
+	assert.ErrorIs(t, b.apply(&WebsocketLevel3Book{Asks: []WebsocketLevel3Order{level3Order(t, "modify", "A9", "102", "1")}}, 1), errLevel3OutOfSync, "apply should reject an ask event for an order it does not hold")
 }
 
 func TestInsertLevel3Order(t *testing.T) {
 	t.Parallel()
 	higher := func(price, other float64) bool { return price > other }
-	var orders []WsLevel3Order
-	for _, o := range []WsLevel3Order{
+	var orders []WebsocketLevel3Order
+	for _, o := range []WebsocketLevel3Order{
 		level3Order(t, "", "B1", "100", "1"),
 		level3Order(t, "", "B2", "99", "1"),
 		level3Order(t, "", "B3", "100", "2"),
@@ -2480,11 +2480,11 @@ func TestInsertLevel3Order(t *testing.T) {
 func TestLevel3Levels(t *testing.T) {
 	t.Parallel()
 	exp := orderbook.Levels{bookLevel(0.1, "0.10", 1.5, "1.50000000"), bookLevel(0.09, "0.09", 2, "2")}
-	assert.Equal(t, exp, level3Levels([]WsLevel3Order{level3Order(t, "", "B1", "0.10", "1.50000000"), level3Order(t, "", "B2", "0.09", "2")}), "level3Levels should convert each order to a level, keeping the digits sent")
+	assert.Equal(t, exp, level3Levels([]WebsocketLevel3Order{level3Order(t, "", "B1", "0.10", "1.50000000"), level3Order(t, "", "B2", "0.09", "2")}), "level3Levels should convert each order to a level, keeping the digits sent")
 	assert.Empty(t, level3Levels(nil), "level3Levels should return no levels without orders")
 }
 
-func TestWsProcessCandles(t *testing.T) {
+func TestWebsocketProcessCandles(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -2508,7 +2508,7 @@ func TestWsProcessCandles(t *testing.T) {
 	assert.Error(t, ex.wsProcessCandles(t.Context(), &wsChannelMessage{Data: json.RawMessage(`"bad"`)}), "wsProcessCandles should reject data that is not a list")
 }
 
-func TestWsProcessTrades(t *testing.T) {
+func TestWebsocketProcessTrades(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -2524,15 +2524,15 @@ func TestWsProcessTrades(t *testing.T) {
 	assert.Empty(t, relayed(ex), "wsProcessTrades should relay nothing with the trade feed and trade saving disabled")
 }
 
-func TestWsProcessInstruments(t *testing.T) {
+func TestWebsocketProcessInstruments(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	require.NoError(t, ex.wsProcessInstruments(t.Context(), &wsChannelMessage{Data: json.RawMessage(`{"assets":[],"pairs":[]}`)}), "wsProcessInstruments must not error")
-	assert.Equal(t, []any{&WsInstruments{Assets: []WsInstrumentAsset{}, Pairs: []WsInstrumentPair{}}}, relayed(ex), "wsProcessInstruments should relay the reference data")
+	assert.Equal(t, []any{&WebsocketInstruments{Assets: []WebsocketInstrumentAsset{}, Pairs: []WebsocketInstrumentPair{}}}, relayed(ex), "wsProcessInstruments should relay the reference data")
 	assert.Error(t, ex.wsProcessInstruments(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[]`)}), "wsProcessInstruments should reject data that is not an object")
 }
 
-func TestWsProcessExecutions(t *testing.T) {
+func TestWebsocketProcessExecutions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -2562,7 +2562,7 @@ func TestExecutionOrderDetail(t *testing.T) {
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
 	tradeTime := time.Date(2026, 10, 9, 1, 5, 0, 120000000, time.UTC)
-	execution := &WsExecution{
+	execution := &WebsocketExecution{
 		OrderID:            "OAIYAU-LGI3M-PFM5VW",
 		ClientOrderID:      "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
 		Symbol:             "DOGE/USD",
@@ -2577,14 +2577,14 @@ func TestExecutionOrderDetail(t *testing.T) {
 		AveragePrice:       0.2101,
 		CumulativeCost:     4.202,
 		LimitPrice:         0.2101,
-		Triggers:           WsExecutionTriggers{Price: 0.21},
+		Triggers:           WebsocketExecutionTriggers{Price: 0.21},
 		ExecutionType:      "trade",
 		ExecutionID:        "TFEYXB-5OO6U-H7NFC5",
 		LastPrice:          0.2101,
 		LastQuantity:       20,
 		LiquidityIndicator: "m",
 		Cost:               4.202,
-		Fees:               []WsExecutionFee{{Asset: "USD", Quantity: 0.0067}},
+		Fees:               []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.0067}},
 		Timestamp:          tradeTime,
 	}
 	d, err := ex.executionOrderDetail(execution)
@@ -2625,39 +2625,39 @@ func TestExecutionOrderDetail(t *testing.T) {
 	assert.Equal(t, exp, d, "executionOrderDetail should convert a trade with its fill")
 
 	for _, priceType := range []string{"pct", "quote"} {
-		d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", Triggers: WsExecutionTriggers{Reference: "last", Price: 5, PriceType: priceType, ActualPrice: 95000}})
+		d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", Triggers: WebsocketExecutionTriggers{Reference: "last", Price: 5, PriceType: priceType, ActualPrice: 95000}})
 		require.NoErrorf(t, err, "executionOrderDetail must not error for a %s trigger", priceType)
 		assert.Equalf(t, 95000.0, d.TriggerPrice, "executionOrderDetail should report the trigger price a %s trigger works out to", priceType)
 	}
 
-	d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "pending_new", OrderStatus: "pending_new", Timestamp: tradeTime})
+	d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "pending_new", OrderStatus: "pending_new", Timestamp: tradeTime})
 	require.NoError(t, err, "executionOrderDetail must not error for a pending order")
 	assert.Equal(t, tradeTime, d.Date, "executionOrderDetail should date a pending order by its event")
 	for _, tc := range []struct {
 		filled float64
 		exp    order.Status
 	}{{0, order.Cancelled}, {0.0001, order.PartiallyFilledCancelled}, {20, order.PartiallyFilledCancelled}} {
-		d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: tc.filled, Timestamp: tradeTime})
+		d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: tc.filled, Timestamp: tradeTime})
 		require.NoErrorf(t, err, "executionOrderDetail must not error for a cancellation after %v filled", tc.filled)
 		assert.Equalf(t, tc.exp, d.Status, "executionOrderDetail should report a cancellation after %v filled as %s", tc.filled, tc.exp)
 	}
 	for _, tc := range []struct {
 		name      string
-		execution *WsExecution
+		execution *WebsocketExecution
 		err       error
 	}{
-		{name: "symbol", execution: &WsExecution{Symbol: "BTC"}, err: errInvalidSymbol},
-		{name: "side", execution: &WsExecution{Side: "up"}, err: order.ErrSideIsInvalid},
-		{name: "order type", execution: &WsExecution{OrderType: "moon"}, err: errUnknownOrderType},
-		{name: "order status", execution: &WsExecution{OrderStatus: "moon"}, err: errUnknownOrderStatus},
-		{name: "time in force", execution: &WsExecution{TimeInForce: "GTX"}, err: order.ErrInvalidTimeInForce},
+		{name: "symbol", execution: &WebsocketExecution{Symbol: "BTC"}, err: errInvalidSymbol},
+		{name: "side", execution: &WebsocketExecution{Side: "up"}, err: order.ErrSideIsInvalid},
+		{name: "order type", execution: &WebsocketExecution{OrderType: "moon"}, err: errUnknownOrderType},
+		{name: "order status", execution: &WebsocketExecution{OrderStatus: "moon"}, err: errUnknownOrderStatus},
+		{name: "time in force", execution: &WebsocketExecution{TimeInForce: "GTX"}, err: order.ErrInvalidTimeInForce},
 	} {
 		_, err := ex.executionOrderDetail(tc.execution)
 		assert.ErrorIsf(t, err, tc.err, "executionOrderDetail should reject an execution by its %s", tc.name)
 	}
 }
 
-func TestWsProcessBalances(t *testing.T) {
+func TestWebsocketProcessBalances(t *testing.T) {
 	t.Parallel()
 	server := &spotBalancesServer{reply: `{"error":[],"result":{"ZUSD":{"balance":"100","hold_trade":"10","credit":"50","credit_used":"20"}}}`}
 	ex := newHTTPTestExchange(t, server.handle(t))
@@ -2668,7 +2668,7 @@ func TestWsProcessBalances(t *testing.T) {
 
 	snapshot := &wsChannelMessage{Type: wsTypeSnapshot, Data: json.RawMessage(`[{"asset":"USD","asset_class":"currency","balance":150,"wallets":[{"type":"spot","id":"main","balance":120},{"type":"earn","id":"flex","balance":30}]}]`)}
 	require.NoError(t, ex.wsProcessBalances(t.Context(), snapshot), "wsProcessBalances must not error for a snapshot")
-	expBalances := []WsBalance{{Asset: "USD", AssetClass: "currency", Balance: 150, Wallets: []WsWallet{{Type: "spot", ID: "main", Balance: 120}, {Type: "earn", ID: "flex", Balance: 30}}}}
+	expBalances := []WebsocketBalance{{Asset: "USD", AssetClass: "currency", Balance: 150, Wallets: []WebsocketWallet{{Type: "spot", ID: "main", Balance: 120}, {Type: "earn", ID: "flex", Balance: 30}}}}
 	assert.Equal(t, []any{expBalances}, relayed(ex), "wsProcessBalances should relay a snapshot's balances")
 	// The snapshot's spot wallet holds 120, but only Get Extended Balance reports the hold and the credit
 	assertStoredSpotBalances(t, ex, accounts.CurrencyBalances{
@@ -2678,7 +2678,7 @@ func TestWsProcessBalances(t *testing.T) {
 	server.setReply(`{"error":[],"result":{"ZUSD":{"balance":"60","hold_trade":"0"},"XXBT":{"balance":"0.005","hold_trade":"0"}}}`)
 	update := &wsChannelMessage{Type: "update", Data: json.RawMessage(`[{"ledger_id":"L4UESK-KG3EQ-UFO4T5","ref_id":"TJKLXX-PGMUI-4NTLXU","timestamp":"2023-09-22T10:33:05.709993Z","type":"trade","category":"trade","asset":"BTC","asset_class":"currency","wallet_type":"spot","wallet_id":"main","amount":-0.005,"fee":0,"balance":1.195}]`)}
 	require.NoError(t, ex.wsProcessBalances(t.Context(), update), "wsProcessBalances must not error for an update")
-	exp := []any{[]WsLedgerEntry{{
+	exp := []any{[]WebsocketLedgerEntry{{
 		LedgerID:    "L4UESK-KG3EQ-UFO4T5",
 		ReferenceID: "TJKLXX-PGMUI-4NTLXU",
 		Timestamp:   time.Date(2023, 9, 22, 10, 33, 5, 709993000, time.UTC),

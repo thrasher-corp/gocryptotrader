@@ -66,8 +66,8 @@ type wsChannelMessage struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsStatus is the trading engine status the status channel pushes on connection and on every change
-type WsStatus struct {
+// WebsocketStatus is the trading engine status the status channel pushes on connection and on every change
+type WebsocketStatus struct {
 	System              string             `json:"system"`
 	APIVersion          string             `json:"api_version"`
 	ConnectionID        uint64             `json:"connection_id"`
@@ -76,8 +76,8 @@ type WsStatus struct {
 	Emergency           []EmergencyEvent   `json:"emergency"`
 }
 
-// WsTicker is a pair's top of book and 24 hour statistics, pushed on every trade or best price change
-type WsTicker struct {
+// WebsocketTicker is a pair's top of book and 24 hour statistics, pushed on every trade or best price change
+type WebsocketTicker struct {
 	Symbol                     string  `json:"symbol"`
 	Bid                        float64 `json:"bid"`
 	BidQuantity                float64 `json:"bid_qty"`
@@ -95,37 +95,37 @@ type WsTicker struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsBook is a pair's level 2 order book snapshot or update
-type WsBook struct {
-	Symbol string        `json:"symbol"`
-	Bids   []WsBookLevel `json:"bids"`
-	Asks   []WsBookLevel `json:"asks"`
+// WebsocketBook is a pair's level 2 order book snapshot or update
+type WebsocketBook struct {
+	Symbol string               `json:"symbol"`
+	Bids   []WebsocketBookLevel `json:"bids"`
+	Asks   []WebsocketBookLevel `json:"asks"`
 	// Checksum is the CRC32 of the top 10 levels of each side after the update is applied
 	Checksum  uint32    `json:"checksum"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsBookLevel is an order book price level. Its numbers keep the digits Kraken sent, which the checksum covers; a
-// zero quantity removes the level
-type WsBookLevel struct {
+// WebsocketBookLevel is an order book price level. Its numbers keep the digits Kraken sent, which the checksum covers;
+// a zero quantity removes the level
+type WebsocketBookLevel struct {
 	Price    types.PreciseNumber `json:"price"`
 	Quantity types.PreciseNumber `json:"qty"`
 }
 
-// WsLevel3Book is a pair's level 3 order book snapshot, holding the orders of each side in the order they queue, or an
-// update, holding the events that change them
-type WsLevel3Book struct {
-	Symbol string          `json:"symbol"`
-	Bids   []WsLevel3Order `json:"bids"`
-	Asks   []WsLevel3Order `json:"asks"`
+// WebsocketLevel3Book is a pair's level 3 order book snapshot, holding the orders of each side in the order they queue,
+// or an update, holding the events that change them
+type WebsocketLevel3Book struct {
+	Symbol string                 `json:"symbol"`
+	Bids   []WebsocketLevel3Order `json:"bids"`
+	Asks   []WebsocketLevel3Order `json:"asks"`
 	// Checksum is the CRC32 of the orders of the top 10 price levels of each side after the update is applied
 	Checksum  uint32    `json:"checksum"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsLevel3Order is an order resting in a level 3 order book, or an update's event for one. Its numbers keep the digits
-// Kraken sent, which the checksum covers
-type WsLevel3Order struct {
+// WebsocketLevel3Order is an order resting in a level 3 order book, or an update's event for one. Its numbers keep the
+// digits Kraken sent, which the checksum covers
+type WebsocketLevel3Order struct {
 	// Event is add, modify or delete in an update; a modify event changes the quantity left after a fill
 	Event      string              `json:"event"`
 	OrderID    string              `json:"order_id"`
@@ -135,8 +135,8 @@ type WsLevel3Order struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsCandle is a candle the ohlc channel pushes on every trade
-type WsCandle struct {
+// WebsocketCandle is a candle the ohlc channel pushes on every trade
+type WebsocketCandle struct {
 	Symbol                     string    `json:"symbol"`
 	Open                       float64   `json:"open"`
 	High                       float64   `json:"high"`
@@ -150,8 +150,8 @@ type WsCandle struct {
 	IntervalMinutes uint64 `json:"interval"`
 }
 
-// WsTrade is a public trade
-type WsTrade struct {
+// WebsocketTrade is a public trade
+type WebsocketTrade struct {
 	Symbol string `json:"symbol"`
 	// Side is the taker's side
 	Side     string  `json:"side"`
@@ -163,14 +163,14 @@ type WsTrade struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsInstruments holds the reference data of every active asset and pair
-type WsInstruments struct {
-	Assets []WsInstrumentAsset `json:"assets"`
-	Pairs  []WsInstrumentPair  `json:"pairs"`
+// WebsocketInstruments holds the reference data of every active asset and pair
+type WebsocketInstruments struct {
+	Assets []WebsocketInstrumentAsset `json:"assets"`
+	Pairs  []WebsocketInstrumentPair  `json:"pairs"`
 }
 
-// WsInstrumentAsset is an asset's reference data
-type WsInstrumentAsset struct {
+// WebsocketInstrumentAsset is an asset's reference data
+type WebsocketInstrumentAsset struct {
 	ID               string  `json:"id"`
 	Status           string  `json:"status"`
 	Precision        uint64  `json:"precision"`
@@ -187,8 +187,8 @@ type WsInstrumentAsset struct {
 	MaximumCollateralUSDValue float64 `json:"max_collateral_usd_value"`
 }
 
-// WsInstrumentPair is a pair's reference data and trading rules
-type WsInstrumentPair struct {
+// WebsocketInstrumentPair is a pair's reference data and trading rules
+type WebsocketInstrumentPair struct {
 	Symbol            string  `json:"symbol"`
 	Base              string  `json:"base"`
 	Quote             string  `json:"quote"`
@@ -212,9 +212,9 @@ type WsInstrumentPair struct {
 	PositionLimitShort uint64  `json:"position_limit_short"`
 }
 
-// WsExecution is an execution report: an order's status change or, on a trade event, a fill. Which fields are set
-// depends on ExecutionType
-type WsExecution struct {
+// WebsocketExecution is an execution report: an order's status change or, on a trade event, a fill. Which fields are
+// set depends on ExecutionType
+type WebsocketExecution struct {
 	OrderID            string  `json:"order_id"`
 	OrderUserReference int32   `json:"order_userref"`
 	ClientOrderID      string  `json:"cl_ord_id"`
@@ -237,19 +237,19 @@ type WsExecution struct {
 	// FeeCurrencyPreference is fcib to prefer fees in the base currency or fciq in the quote currency
 	FeeCurrencyPreference string `json:"fee_ccy_pref"`
 	// DisplayQuantity and DisplayQuantityRemaining describe an iceberg order's visible quantity
-	DisplayQuantity          float64               `json:"display_qty"`
-	DisplayQuantityRemaining float64               `json:"display_qty_remain"`
-	EffectiveTime            time.Time             `json:"effective_time"`
-	ExpireTime               time.Time             `json:"expire_time"`
-	Triggers                 WsExecutionTriggers   `json:"triggers"`
-	Contingent               WsExecutionContingent `json:"contingent"`
-	ExecutionType            string                `json:"exec_type"`
-	OrderStatus              string                `json:"order_status"`
-	Amended                  bool                  `json:"amended"`
-	Liquidated               bool                  `json:"liquidated"`
-	Reason                   string                `json:"reason"`
-	ExecutionID              string                `json:"exec_id"`
-	TradeID                  uint64                `json:"trade_id"`
+	DisplayQuantity          float64                      `json:"display_qty"`
+	DisplayQuantityRemaining float64                      `json:"display_qty_remain"`
+	EffectiveTime            time.Time                    `json:"effective_time"`
+	ExpireTime               time.Time                    `json:"expire_time"`
+	Triggers                 WebsocketExecutionTriggers   `json:"triggers"`
+	Contingent               WebsocketExecutionContingent `json:"contingent"`
+	ExecutionType            string                       `json:"exec_type"`
+	OrderStatus              string                       `json:"order_status"`
+	Amended                  bool                         `json:"amended"`
+	Liquidated               bool                         `json:"liquidated"`
+	Reason                   string                       `json:"reason"`
+	ExecutionID              string                       `json:"exec_id"`
+	TradeID                  uint64                       `json:"trade_id"`
 	// LastQuantity and LastPrice are the quantity and average price of this trade event
 	LastQuantity float64 `json:"last_qty"`
 	LastPrice    float64 `json:"last_price"`
@@ -258,13 +258,13 @@ type WsExecution struct {
 	// Cost is the value of this trade event
 	Cost float64 `json:"cost"`
 	// MarginBorrow is set when a fill increased or reduced margin borrowing
-	MarginBorrow       bool             `json:"margin_borrow"`
-	CumulativeQuantity float64          `json:"cum_qty"`
-	CumulativeCost     float64          `json:"cum_cost"`
-	AveragePrice       float64          `json:"avg_price"`
-	Fees               []WsExecutionFee `json:"fees"`
-	FeeUSDEquivalent   float64          `json:"fee_usd_equiv"`
-	PositionStatus     string           `json:"position_status"`
+	MarginBorrow       bool                    `json:"margin_borrow"`
+	CumulativeQuantity float64                 `json:"cum_qty"`
+	CumulativeCost     float64                 `json:"cum_cost"`
+	AveragePrice       float64                 `json:"avg_price"`
+	Fees               []WebsocketExecutionFee `json:"fees"`
+	FeeUSDEquivalent   float64                 `json:"fee_usd_equiv"`
+	PositionStatus     string                  `json:"position_status"`
 	// OrderReferenceID is the transaction that created this order, such as the order whose fill created a close order
 	OrderReferenceID string `json:"ord_ref_id"`
 	// ExternalOrderID and ExternalExecutionID are a partner's identifiers
@@ -286,8 +286,8 @@ type WsExecution struct {
 	CancelReason string `json:"cancel_reason"`
 }
 
-// WsExecutionTriggers describes a triggered order's price trigger
-type WsExecutionTriggers struct {
+// WebsocketExecutionTriggers describes a triggered order's price trigger
+type WebsocketExecutionTriggers struct {
 	Reference string  `json:"reference"`
 	Price     float64 `json:"price"`
 	// PriceType is static, pct for a percentage or quote for an offset in the quote currency
@@ -302,8 +302,8 @@ type WsExecutionTriggers struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WsExecutionContingent describes the close orders each fill of an order creates
-type WsExecutionContingent struct {
+// WebsocketExecutionContingent describes the close orders each fill of an order creates
+type WebsocketExecutionContingent struct {
 	OrderType        string  `json:"order_type"`
 	TriggerPrice     float64 `json:"trigger_price"`
 	TriggerPriceType string  `json:"trigger_price_type"`
@@ -311,31 +311,31 @@ type WsExecutionContingent struct {
 	LimitPriceType   string  `json:"limit_price_type"`
 }
 
-// WsExecutionFee is a fee paid on a trade event
-type WsExecutionFee struct {
+// WebsocketExecutionFee is a fee paid on a trade event
+type WebsocketExecutionFee struct {
 	Asset    string  `json:"asset"`
 	Quantity float64 `json:"qty"`
 }
 
-// WsBalance is an asset's balance in a balances snapshot
-type WsBalance struct {
+// WebsocketBalance is an asset's balance in a balances snapshot
+type WebsocketBalance struct {
 	Asset      string `json:"asset"`
 	AssetClass string `json:"asset_class"`
 	// Balance is held across every wallet
-	Balance float64    `json:"balance"`
-	Wallets []WsWallet `json:"wallets"`
+	Balance float64           `json:"balance"`
+	Wallets []WebsocketWallet `json:"wallets"`
 }
 
-// WsWallet is an asset's balance in one wallet
-type WsWallet struct {
+// WebsocketWallet is an asset's balance in one wallet
+type WebsocketWallet struct {
 	// Type is spot or earn
 	Type    string  `json:"type"`
 	ID      string  `json:"id"`
 	Balance float64 `json:"balance"`
 }
 
-// WsLedgerEntry is a ledger transaction a balances update pushes
-type WsLedgerEntry struct {
+// WebsocketLedgerEntry is a ledger transaction a balances update pushes
+type WebsocketLedgerEntry struct {
 	LedgerID string `json:"ledger_id"`
 	// ReferenceID identifies what caused the entry, such as the trade of a trade entry
 	ReferenceID string    `json:"ref_id"`

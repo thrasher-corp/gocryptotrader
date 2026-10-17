@@ -20,9 +20,9 @@ var (
 	errInvalidTimeout                 = errors.New("invalid timeout")
 )
 
-// WsAddOrder calls add_order, placing an order on the private websocket connection. Its updates are streamed on the
-// executions channel
-func (e *Exchange) WsAddOrder(ctx context.Context, req *WsAddOrderRequest) (*WsAddOrderResponse, error) {
+// WebsocketAddOrder calls add_order, placing an order on the private websocket connection. Its updates are streamed on
+// the executions channel
+func (e *Exchange) WebsocketAddOrder(ctx context.Context, req *WebsocketAddOrderRequest) (*WebsocketAddOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -45,13 +45,13 @@ func (e *Exchange) WsAddOrder(ctx context.Context, req *WsAddOrderRequest) (*WsA
 	if err != nil {
 		return nil, err
 	}
-	result := &WsAddOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketAddOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsEditOrder calls edit_order, replacing a live order with a new order carrying the changed parameters and a new
-// order ID. WsAmendOrder changes an order in place, keeping its ID and, where possible, its queue priority
-func (e *Exchange) WsEditOrder(ctx context.Context, req *WsEditOrderRequest) (*WsEditOrderResponse, error) {
+// WebsocketEditOrder calls edit_order, replacing a live order with a new order carrying the changed parameters and a
+// new order ID. WebsocketAmendOrder changes an order in place, keeping its ID and, where possible, its queue priority
+func (e *Exchange) WebsocketEditOrder(ctx context.Context, req *WebsocketEditOrderRequest) (*WebsocketEditOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -81,14 +81,14 @@ func (e *Exchange) WsEditOrder(ctx context.Context, req *WsEditOrderRequest) (*W
 	if err != nil {
 		return nil, err
 	}
-	result := &WsEditOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketEditOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsAmendOrder calls amend_order, changing an order's quantity, display quantity, limit price or trigger price in place,
+// WebsocketAmendOrder calls amend_order, changing an order's quantity, display quantity, limit price or trigger price in place,
 // keeping its identifiers and, where possible, its queue priority. A quantity below the filled quantity cancels the
 // remainder
-func (e *Exchange) WsAmendOrder(ctx context.Context, req *WsAmendOrderRequest) (*WsAmendOrderResponse, error) {
+func (e *Exchange) WebsocketAmendOrder(ctx context.Context, req *WebsocketAmendOrderRequest) (*WebsocketAmendOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -119,16 +119,16 @@ func (e *Exchange) WsAmendOrder(ctx context.Context, req *WsAmendOrderRequest) (
 	if err != nil {
 		return nil, err
 	}
-	result := &WsAmendOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketAmendOrderResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsCancelOrders calls cancel_order, cancelling orders by order ID or by client order ID. Kraken replies for each order
-// on its own, so each result reports its order's outcome. It does not cancel by user reference, as a reference can tag
-// any number of orders and Kraken replies for each one it cancels, so the replies to wait for are unknown; instead,
-// CancelExistingOrder cancels by user reference over REST and reports the count, and WsBatchCancelOrders takes 2 to 50
-// user references
-func (e *Exchange) WsCancelOrders(ctx context.Context, req *WsCancelOrdersRequest) ([]WsCancelOrderResponse, error) {
+// WebsocketCancelOrders calls cancel_order, cancelling orders by order ID or by client order ID. Kraken replies for
+// each order on its own, so each result reports its order's outcome. It does not cancel by user reference, as a
+// reference can tag any number of orders and Kraken replies for each one it cancels, so the replies to wait for are
+// unknown; instead, CancelExistingOrder cancels by user reference over REST and reports the count, and
+// WebsocketBatchCancelOrders takes 2 to 50 user references
+func (e *Exchange) WebsocketCancelOrders(ctx context.Context, req *WebsocketCancelOrdersRequest) ([]WebsocketCancelOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (e *Exchange) WsCancelOrders(ctx context.Context, req *WsCancelOrdersReques
 	if err != nil {
 		return nil, err
 	}
-	results := make([]WsCancelOrderResponse, len(resps))
+	results := make([]WebsocketCancelOrderResponse, len(resps))
 	for i := range resps {
 		results[i].TimeIn, results[i].TimeOut = resps[i].TimeIn, resps[i].TimeOut
 		if !resps[i].Success {
@@ -164,20 +164,20 @@ func (e *Exchange) WsCancelOrders(ctx context.Context, req *WsCancelOrdersReques
 	return results, nil
 }
 
-// WsCancelAllOrders calls cancel_all, cancelling every open order, including untriggered ones
-func (e *Exchange) WsCancelAllOrders(ctx context.Context) (*WsCancelAllOrdersResponse, error) {
+// WebsocketCancelAllOrders calls cancel_all, cancelling every open order, including untriggered ones
+func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context) (*WebsocketCancelAllOrdersResponse, error) {
 	resp, err := e.wsPrivateRequest(ctx, "cancel_all", &wsTokenParams{})
 	if err != nil {
 		return nil, err
 	}
-	result := &WsCancelAllOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketCancelAllOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsCancelAllOrdersAfter calls cancel_all_orders_after, Kraken's dead man's switch: every order is cancelled unless
-// another request resets the timer within timeout, which is sent in whole seconds and must be under a day. A zero
-// timeout disables the switch. Kraken suggests a 60 second timeout reset every 15 to 30 seconds
-func (e *Exchange) WsCancelAllOrdersAfter(ctx context.Context, timeout time.Duration) (*WsCancelAllOrdersAfterResponse, error) {
+// WebsocketCancelAllOrdersAfter calls cancel_all_orders_after, Kraken's dead man's switch: every order is cancelled
+// unless another request resets the timer within timeout, which is sent in whole seconds and must be under a day. A
+// zero timeout disables the switch. Kraken suggests a 60 second timeout reset every 15 to 30 seconds
+func (e *Exchange) WebsocketCancelAllOrdersAfter(ctx context.Context, timeout time.Duration) (*WebsocketCancelAllOrdersAfterResponse, error) {
 	if timeout < 0 || (timeout > 0 && timeout < time.Second) || timeout >= 24*time.Hour {
 		return nil, fmt.Errorf("%w: %s must be 0 or from a second to under a day", errInvalidTimeout, timeout)
 	}
@@ -185,14 +185,14 @@ func (e *Exchange) WsCancelAllOrdersAfter(ctx context.Context, timeout time.Dura
 	if err != nil {
 		return nil, err
 	}
-	result := &WsCancelAllOrdersAfterResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketCancelAllOrdersAfterResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsBatchAddOrders calls batch_add, placing 2 to 15 orders on one pair. Kraken rejects the whole batch when an order
-// fails validation, while an order failing pre-match checks such as funding is rejected alone. The results are in the
-// orders' order
-func (e *Exchange) WsBatchAddOrders(ctx context.Context, req *WsBatchAddOrdersRequest) ([]WsAddOrderResponse, error) {
+// WebsocketBatchAddOrders calls batch_add, placing 2 to 15 orders on one pair. Kraken rejects the whole batch when an
+// order fails validation, while an order failing pre-match checks such as funding is rejected alone. The results are in
+// the orders' order
+func (e *Exchange) WebsocketBatchAddOrders(ctx context.Context, req *WebsocketBatchAddOrdersRequest) ([]WebsocketAddOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (e *Exchange) WsBatchAddOrders(ctx context.Context, req *WsBatchAddOrdersRe
 	if err != nil {
 		return nil, err
 	}
-	var results []WsAddOrderResponse
+	var results []WebsocketAddOrderResponse
 	if err := json.Unmarshal(resp.Result, &results); err != nil {
 		return nil, err
 	}
@@ -231,9 +231,9 @@ func (e *Exchange) WsBatchAddOrders(ctx context.Context, req *WsBatchAddOrdersRe
 	return results, nil
 }
 
-// WsBatchCancelOrders calls batch_cancel, cancelling 2 to 50 orders by order ID or user reference, and by client order
-// ID
-func (e *Exchange) WsBatchCancelOrders(ctx context.Context, req *WsBatchCancelOrdersRequest) (*WsBatchCancelOrdersResponse, error) {
+// WebsocketBatchCancelOrders calls batch_cancel, cancelling 2 to 50 orders by order ID or user reference, and by client
+// order ID
+func (e *Exchange) WebsocketBatchCancelOrders(ctx context.Context, req *WebsocketBatchCancelOrdersRequest) (*WebsocketBatchCancelOrdersResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -244,12 +244,12 @@ func (e *Exchange) WsBatchCancelOrders(ctx context.Context, req *WsBatchCancelOr
 	if err != nil {
 		return nil, err
 	}
-	result := &WsBatchCancelOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketBatchCancelOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 
 // params validates an order and returns its request parameters
-func (o *WsOrder) params() (*wsOrderParams, error) {
+func (o *WebsocketOrder) params() (*wsOrderParams, error) {
 	if o.OrderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}

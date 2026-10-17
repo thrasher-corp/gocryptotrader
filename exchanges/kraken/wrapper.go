@@ -961,7 +961,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 	// buy sized in the quote currency goes over REST
 	quoteSized := s.Type == order.Market && s.Side.IsLong() && s.QuoteAmount > 0
 	if !quoteSized && e.privateWebsocketAvailable() {
-		o := WsOrder{
+		o := WebsocketOrder{
 			OrderType:     orderType,
 			Side:          side,
 			Quantity:      s.Amount,
@@ -975,17 +975,17 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 		}
 		switch {
 		case s.Type == order.TrailingStop:
-			o.Triggers = &WsOrderTriggers{Reference: trigger, Price: s.TrackingValue, PriceType: "quote"}
+			o.Triggers = &WebsocketOrderTriggers{Reference: trigger, Price: s.TrackingValue, PriceType: "quote"}
 			if s.TrackingMode == order.Percentage {
 				o.Triggers.PriceType = "pct"
 			}
 		case s.Type.Is(order.Stop) || s.Type.Is(order.TakeProfit):
-			o.Triggers = &WsOrderTriggers{Reference: trigger, Price: s.TriggerPrice}
+			o.Triggers = &WebsocketOrderTriggers{Reference: trigger, Price: s.TriggerPrice}
 		}
 		if s.Type.Is(order.Limit) {
 			o.LimitPrice = s.Price
 		}
-		resp, err := e.WsAddOrder(ctx, &WsAddOrderRequest{Pair: s.Pair, Order: o})
+		resp, err := e.WebsocketAddOrder(ctx, &WebsocketAddOrderRequest{Pair: s.Pair, Order: o})
 		if err != nil {
 			return nil, err
 		}
@@ -1207,7 +1207,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	switch action.AssetType {
 	case asset.Spot:
 		if e.privateWebsocketAvailable() {
-			if _, err := e.WsAmendOrder(ctx, &WsAmendOrderRequest{
+			if _, err := e.WebsocketAmendOrder(ctx, &WebsocketAmendOrderRequest{
 				OrderID:       action.OrderID,
 				ClientOrderID: clientOrderIDWithoutOrderID(action.OrderID, action.ClientOrderID),
 				Quantity:      action.Amount,
@@ -1279,11 +1279,11 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if e.privateWebsocketAvailable() {
-			req := &WsCancelOrdersRequest{OrderIDs: []string{o.OrderID}}
+			req := &WebsocketCancelOrdersRequest{OrderIDs: []string{o.OrderID}}
 			if o.OrderID == "" {
-				req = &WsCancelOrdersRequest{ClientOrderIDs: []string{o.ClientOrderID}}
+				req = &WebsocketCancelOrdersRequest{ClientOrderIDs: []string{o.ClientOrderID}}
 			}
-			resp, err := e.WsCancelOrders(ctx, req)
+			resp, err := e.WebsocketCancelOrders(ctx, req)
 			if err != nil {
 				return err
 			}
@@ -1380,7 +1380,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status map[string]string) error {
 	if e.privateWebsocketAvailable() {
 		for chunk := range slices.Chunk(ids, 50) {
-			results, err := e.WsCancelOrders(ctx, &WsCancelOrdersRequest{OrderIDs: chunk})
+			results, err := e.WebsocketCancelOrders(ctx, &WebsocketCancelOrdersRequest{OrderIDs: chunk})
 			if err != nil {
 				return err
 			}

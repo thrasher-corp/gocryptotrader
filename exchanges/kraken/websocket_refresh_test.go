@@ -86,7 +86,7 @@ func useConnectedRefreshers(ex *Exchange) {
 	ex.spotBalances.active, ex.spotOrders.active = connected, connected
 }
 
-func TestWsRefresher(t *testing.T) {
+func TestWebsocketRefresher(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var calls [][]string
@@ -128,7 +128,7 @@ func TestWsRefresher(t *testing.T) {
 	}, 5*time.Second, time.Millisecond, "the refresher should stop once nothing is pending")
 }
 
-func TestWsRefresherAttempts(t *testing.T) {
+func TestWebsocketRefresherAttempts(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	attempts := make(map[string]int)
@@ -192,7 +192,7 @@ func TestWsRefresherAttempts(t *testing.T) {
 	assert.Equal(t, 1+wsRefreshAttempts, attemptsOf("c"), "a key asked for again while it is being refreshed should have its attempts afresh")
 }
 
-func TestWsRefresherSettledRetention(t *testing.T) {
+func TestWebsocketRefresherSettledRetention(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var calls [][]string
@@ -424,7 +424,7 @@ func TestWebsocketActive(t *testing.T) {
 	assert.False(t, connected.websocketActive(), "websocketActive should report a websocket shut down inactive")
 }
 
-func TestWsRefresherStopsOnDisconnect(t *testing.T) {
+func TestWebsocketRefresherStopsOnDisconnect(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	calls := 0
@@ -593,7 +593,7 @@ func TestFinishSpotOrderMissingFromREST(t *testing.T) {
 	seedTestAssetNames(ex)
 	ex.spotOrders.interval = time.Millisecond
 	useConnectedRefreshers(ex)
-	ex.finishSpotOrder(t.Context(), &WsExecution{OrderID: orderID, ExecutionType: "filled", OrderStatus: "filled", CumulativeQuantity: 10})
+	ex.finishSpotOrder(t.Context(), &WebsocketExecution{OrderID: orderID, ExecutionType: "filled", OrderStatus: "filled", CumulativeQuantity: 10})
 	var fee float64
 	assert.Eventually(t, func() bool {
 		for _, payload := range relayed(ex) {
@@ -633,7 +633,7 @@ func TestFinishSpotOrderRelayFull(t *testing.T) {
 	for relayErr == nil {
 		relayErr = ex.Websocket.DataHandler.Send(t.Context(), nil)
 	}
-	ex.finishSpotOrder(t.Context(), &WsExecution{OrderID: orderID, ExecutionType: "filled", OrderStatus: "filled", CumulativeQuantity: 10})
+	ex.finishSpotOrder(t.Context(), &WebsocketExecution{OrderID: orderID, ExecutionType: "filled", OrderStatus: "filled", CumulativeQuantity: 10})
 	select {
 	case <-secondRead:
 	case <-time.After(5 * time.Second):
@@ -700,17 +700,17 @@ func TestFinishSpotOrderWithoutFills(t *testing.T) {
 func TestSpotExecutionFinishedAfterFills(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		execution WsExecution
+		execution WebsocketExecution
 		exp       bool
 	}{
-		{WsExecution{ExecutionType: "filled"}, true},
-		{WsExecution{ExecutionType: "trade", OrderStatus: "filled"}, true},
-		{WsExecution{ExecutionType: "trade", OrderStatus: "partially_filled", CumulativeQuantity: 4}, false},
-		{WsExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: 4}, true},
-		{WsExecution{ExecutionType: "canceled", OrderStatus: "canceled"}, false},
-		{WsExecution{ExecutionType: "expired", CumulativeQuantity: 0.0001}, true},
-		{WsExecution{OrderStatus: "expired"}, false},
-		{WsExecution{ExecutionType: "new", OrderStatus: "new"}, false},
+		{WebsocketExecution{ExecutionType: "filled"}, true},
+		{WebsocketExecution{ExecutionType: "trade", OrderStatus: "filled"}, true},
+		{WebsocketExecution{ExecutionType: "trade", OrderStatus: "partially_filled", CumulativeQuantity: 4}, false},
+		{WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: 4}, true},
+		{WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled"}, false},
+		{WebsocketExecution{ExecutionType: "expired", CumulativeQuantity: 0.0001}, true},
+		{WebsocketExecution{OrderStatus: "expired"}, false},
+		{WebsocketExecution{ExecutionType: "new", OrderStatus: "new"}, false},
 	} {
 		assert.Equalf(t, tc.exp, spotExecutionFinishedAfterFills(&tc.execution), "spotExecutionFinishedAfterFills should report %t for %+v", tc.exp, tc.execution)
 	}

@@ -151,8 +151,8 @@ channel at a depth of 10, 100 or 1000 price levels:
 
 + With the `orderbook` channel, the stored order book holds the total at each price. With the `allOrders` channel, it
 holds a level for each order, so a price appears once for each order resting at it, and the level 3 book's snapshots
-and updates are also sent to the data handler as `WsLevel3Book`s with their order IDs. As a pair has one stored order
-book, it can be subscribed to at one depth of either the `orderbook` or the `allOrders` channel.
+and updates are also sent to the data handler as `WebsocketLevel3Book`s with their order IDs. As a pair has one stored
+order book, it can be subscribed to at one depth of either the `orderbook` or the `allOrders` channel.
 
 + Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
 holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they
@@ -162,9 +162,9 @@ are.
 
 ```go
 // Places an order over the private websocket connection
-resp, err := k.WsAddOrder(ctx, &kraken.WsAddOrderRequest{
+resp, err := k.WebsocketAddOrder(ctx, &kraken.WebsocketAddOrderRequest{
     Pair: pair,
-    Order: kraken.WsOrder{
+    Order: kraken.WebsocketOrder{
         OrderType:  "limit",
         Side:       "buy",
         Quantity:   0.001,

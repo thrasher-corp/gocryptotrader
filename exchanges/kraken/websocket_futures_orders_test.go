@@ -514,14 +514,14 @@ func TestFuturesOrderFillsAddUp(t *testing.T) {
 func TestFuturesOrderTracker(t *testing.T) {
 	t.Parallel()
 	var tracker futuresOrderTracker
-	open := func(orderID string) WsFuturesOpenOrder {
-		return WsFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: orderID}
+	open := func(orderID string) WebsocketFuturesOpenOrder {
+		return WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: orderID}
 	}
-	tracker.snapshot(nil, []WsFuturesOpenOrder{open("left"), open("finished"), open("stale")})
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("left"), open("finished"), open("stale")})
 	assert.Equal(t, 10.0, tracker.get("left").quantity, "a snapshot should record its orders")
 	tracker.finish(nil, "finished", "cancelled_by_user")
 	tracker.finish(nil, "stale", "cancelled_by_user")
-	tracker.fill(nil, &WsFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled only", FillID: "f-1", Quantity: 1, RemainingOrderQuantity: 1}, true, currency.USD)
+	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled only", FillID: "f-1", Quantity: 1, RemainingOrderQuantity: 1}, true, currency.USD)
 	tracker.mu.Lock()
 	tracker.orders["stale"].updated = time.Now().Add(-futuresOrderRetention - time.Second)
 	tracker.mu.Unlock()
@@ -539,7 +539,7 @@ func TestFuturesOrderTracker(t *testing.T) {
 	// A fill not reported as it happened can follow fills that went unseen
 	tracker.fillsSnapshot(nil)
 	fill := func(fillID string, live bool) futuresOrderState {
-		return tracker.fill(nil, &WsFuturesFill{Instrument: "PF_XBTUSD", OrderID: "repeated", FillID: fillID, Quantity: 1, RemainingOrderQuantity: 1}, live, currency.USD)
+		return tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "repeated", FillID: fillID, Quantity: 1, RemainingOrderQuantity: 1}, live, currency.USD)
 	}
 	require.True(t, fill("f-2", true).liveOnly, "a fill reported as it happened on a covered connection must be counted live")
 	assert.False(t, fill("f-3", false).liveOnly, "a fill not reported as it happened should end an order's live fills")
@@ -561,7 +561,7 @@ func setFuturesMarginCurrencies(ex *Exchange, currencies map[string]currency.Cod
 	ex.futuresMarginCurrencies = map[accounts.Credentials]map[string]currency.Code{*ex.GetDefaultCredentials(): currencies}
 }
 
-func TestWsFuturesProcessBalancesSnapshot(t *testing.T) {
+func TestWebsocketFuturesProcessBalancesSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	useTestCredentials(ex)
@@ -614,7 +614,7 @@ func TestWsFuturesProcessBalancesSnapshot(t *testing.T) {
 	assert.Empty(t, stored("cash"), "a snapshot carrying an empty cash wallet should empty it")
 }
 
-func TestWsFuturesProcessBalancesMarginAccount(t *testing.T) {
+func TestWebsocketFuturesProcessBalancesMarginAccount(t *testing.T) {
 	t.Parallel()
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
@@ -660,15 +660,15 @@ func TestFuturesMarginAccountName(t *testing.T) {
 	useTestCredentials(ex)
 	setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.XBT})
 	for _, tc := range []struct {
-		account WsFuturesMarginAccount
+		account WebsocketFuturesMarginAccount
 		exp     bool
 	}{
-		{WsFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"}, true},
-		{WsFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "xbt"}, true},
-		{WsFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "USD"}, false},
-		{WsFuturesMarginAccount{Name: "F-ETH:USD", Pair: "XBT/USD", Unit: "XBT"}, false},
-		{WsFuturesMarginAccount{Name: "F-ETH:USD", Pair: "ETH/USD", Unit: "ETH"}, false},
-		{WsFuturesMarginAccount{Name: "F-XBT", Pair: "XBTUSD", Unit: "XBT"}, false},
+		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"}, true},
+		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "xbt"}, true},
+		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "USD"}, false},
+		{WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "XBT/USD", Unit: "XBT"}, false},
+		{WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "ETH/USD", Unit: "ETH"}, false},
+		{WebsocketFuturesMarginAccount{Name: "F-XBT", Pair: "XBTUSD", Unit: "XBT"}, false},
 	} {
 		name, ok := ex.futuresMarginAccountName(t.Context(), &tc.account)
 		assert.Equalf(t, tc.exp, ok, "futuresMarginAccountName should match %+v only to a REST account of its pair and currency", tc.account)
@@ -677,6 +677,6 @@ func TestFuturesMarginAccountName(t *testing.T) {
 		}
 	}
 	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: testSecret})
-	_, ok := ex.futuresMarginAccountName(other, &WsFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"})
+	_, ok := ex.futuresMarginAccountName(other, &WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"})
 	assert.False(t, ok, "futuresMarginAccountName should not match an account another account's REST read recorded")
 }

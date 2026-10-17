@@ -371,7 +371,7 @@ func TestFuturesSubscribeChallenge(t *testing.T) {
 	}
 }
 
-func TestWsFuturesHandleData(t *testing.T) {
+func TestWebsocketFuturesHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -596,15 +596,15 @@ func TestWsFuturesHandleData(t *testing.T) {
 		{ID: "cash", AssetType: asset.Futures, Balances: cash},
 		{ID: "flex", AssetType: asset.Futures, Balances: flex},
 	}, futuresTestSubAccounts(t, got[15]), "the balances snapshot's wallets should be relayed")
-	assert.IsType(t, &WsFuturesBalances{}, got[16], "the balances snapshot should be relayed")
+	assert.IsType(t, &WebsocketFuturesBalances{}, got[16], "the balances snapshot should be relayed")
 	usd := accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 5000, Free: 5000}}
 	assert.Equal(t, accounts.SubAccounts{{ID: "cash", AssetType: asset.Futures, Balances: usd}}, futuresTestSubAccounts(t, got[17]), "the cash wallet update should be relayed")
-	assert.IsType(t, &WsFuturesBalances{}, got[18], "the cash wallet update should be relayed")
+	assert.IsType(t, &WebsocketFuturesBalances{}, got[18], "the cash wallet update should be relayed")
 	assert.Equal(t, accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: usd}}, futuresTestSubAccounts(t, got[19]), "the multi-collateral wallet update should be relayed")
-	assert.IsType(t, &WsFuturesBalances{}, got[20], "the multi-collateral wallet update should be relayed")
-	margin, ok := got[21].(*WsFuturesBalances)
+	assert.IsType(t, &WebsocketFuturesBalances{}, got[20], "the multi-collateral wallet update should be relayed")
+	margin, ok := got[21].(*WebsocketFuturesBalances)
 	require.True(t, ok, "a margin account update must be relayed as the message alone")
-	assert.Equal(t, map[string]WsFuturesMarginAccount{"F-XBT:USD": {
+	assert.Equal(t, map[string]WebsocketFuturesMarginAccount{"F-XBT:USD": {
 		Name:           "F-XBT:USD",
 		Pair:           "XBT/USD",
 		Unit:           "XBT",
@@ -627,12 +627,12 @@ func TestWsFuturesHandleData(t *testing.T) {
 		assert.Equalf(t, tc.exp, b, "the %s %s balance should be stored", tc.subAccount, tc.c)
 	}
 
-	positions, ok := got[22].(*WsFuturesPositions)
+	positions, ok := got[22].(*WebsocketFuturesPositions)
 	require.True(t, ok, "the open positions must be relayed")
 	assert.Len(t, positions.Positions, 3, "every open position should be relayed")
-	notifications, ok := got[23].(*WsFuturesNotifications)
+	notifications, ok := got[23].(*WebsocketFuturesNotifications)
 	require.True(t, ok, "the notifications must be relayed")
-	assert.Equal(t, []WsFuturesNotification{{ID: 5, Type: "market", Priority: "low", Note: "A note describing the notification.", EffectiveTime: types.Time(time.UnixMilli(1520288300000))}}, notifications.Notifications, "the notification should be relayed")
+	assert.Equal(t, []WebsocketFuturesNotification{{ID: 5, Type: "market", Priority: "low", Note: "A note describing the notification.", EffectiveTime: types.Time(time.UnixMilli(1520288300000))}}, notifications.Notifications, "the notification should be relayed")
 }
 
 // futuresTestSubAccounts asserts a payload is relayed sub-accounts whose balances are stamped, and clears the stamps so
@@ -651,7 +651,7 @@ func futuresTestSubAccounts(t *testing.T, payload any) accounts.SubAccounts {
 	return subAccts
 }
 
-func TestWsFuturesBookSequenceGap(t *testing.T) {
+func TestWebsocketFuturesBookSequenceGap(t *testing.T) {
 	t.Parallel()
 	server := new(mockFuturesServer)
 	ex, conn := newFuturesTestExchange(t, server)
@@ -686,7 +686,7 @@ func TestWsFuturesBookSequenceGap(t *testing.T) {
 	assert.NoError(t, err, "a new snapshot should restore the book")
 }
 
-func TestWsFuturesResubscribeBookChannelNames(t *testing.T) {
+func TestWebsocketFuturesResubscribeBookChannelNames(t *testing.T) {
 	t.Parallel()
 	snapshot := `{"feed":"book_snapshot","product_id":"PF_XBTUSD","timestamp":1791518718655,"seq":173877391,"tickSize":null,"bids":[{"price":82380.0,"qty":0.0003}],"asks":[{"price":82381.0,"qty":0.6051}]}`
 	gap := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877393,"price":81529.0,"qty":1.5296,"timestamp":1791518718725}`
@@ -729,7 +729,7 @@ func TestWsFuturesResubscribeBookChannelNames(t *testing.T) {
 	}
 }
 
-func TestWsFuturesUpdateBookResubscribe(t *testing.T) {
+func TestWebsocketFuturesUpdateBookResubscribe(t *testing.T) {
 	t.Parallel()
 	snapshot := `{"feed":"book_snapshot","product_id":"PF_XBTUSD","timestamp":1791518718655,"seq":173877391,"tickSize":null,"bids":[{"price":82380.0,"qty":0.0003}],"asks":[{"price":82381.0,"qty":0.6051}]}`
 	setup := func(t *testing.T) (*Exchange, websocket.Connection, *mockFuturesServer, *subscription.Subscription) {
@@ -788,7 +788,7 @@ func TestWsFuturesUpdateBookResubscribe(t *testing.T) {
 	})
 }
 
-func TestWsFuturesHandleDataErrors(t *testing.T) {
+func TestWebsocketFuturesHandleDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
@@ -830,7 +830,7 @@ func TestWsFuturesHandleDataErrors(t *testing.T) {
 	}
 }
 
-func TestWsFuturesHandleDataUnhandled(t *testing.T) {
+func TestWebsocketFuturesHandleDataUnhandled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
@@ -846,7 +846,7 @@ func TestWsFuturesHandleDataUnhandled(t *testing.T) {
 	assert.Contains(t, warning.Message, "account_log", "the warning should carry the message")
 }
 
-func TestWsFuturesHandleDataTradesDisabled(t *testing.T) {
+func TestWebsocketFuturesHandleDataTradesDisabled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = false
@@ -886,7 +886,7 @@ func TestFuturesOrderUpdateStatus(t *testing.T) {
 	}
 }
 
-func TestWsFuturesConnect(t *testing.T) {
+func TestWebsocketFuturesConnect(t *testing.T) {
 	t.Parallel()
 	var restRequests atomic.Int32
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
@@ -1115,7 +1115,7 @@ func TestFuturesPair(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresPair should reject a product without an available pair")
 }
 
-func TestWsFuturesProcessTicker(t *testing.T) {
+func TestWebsocketFuturesProcessTicker(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	msg := `{"time":1791518715420,"product_id":"PI_XBTUSD","feed":"ticker","bid":82370.5,"ask":82371.0,"bid_size":1200,"ask_size":3400,"volume":596069,"volumeQuote":596102,"index":82367.95,"last":82371.0,"change":-0.25,"openInterest":21450021,"markPrice":82370.2,"open":82590.0,"high":83200.0,"low":80310.0}`
@@ -1152,7 +1152,7 @@ func TestWsFuturesProcessTicker(t *testing.T) {
 	assert.Error(t, ex.wsFuturesProcessTicker(t.Context(), []byte(`{"feed":"ticker","product_id":7}`)), "wsFuturesProcessTicker should reject a ticker it cannot decode")
 }
 
-func TestWsFuturesLoadBookSnapshot(t *testing.T) {
+func TestWebsocketFuturesLoadBookSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	require.NoError(t, ex.wsFuturesLoadBookSnapshot(t.Context(), fixtureLines(t, "testdata/wsFutures.json")[3]), "wsFuturesLoadBookSnapshot must not error")
@@ -1166,7 +1166,7 @@ func TestWsFuturesLoadBookSnapshot(t *testing.T) {
 	assert.Error(t, ex.wsFuturesLoadBookSnapshot(t.Context(), []byte(`{"feed":"book_snapshot","bids":7}`)), "wsFuturesLoadBookSnapshot should reject a snapshot it cannot decode")
 }
 
-func TestWsFuturesUpdateBook(t *testing.T) {
+func TestWebsocketFuturesUpdateBook(t *testing.T) {
 	t.Parallel()
 	server := new(mockFuturesServer)
 	ex, conn := newFuturesTestExchange(t, server)
@@ -1212,12 +1212,12 @@ func TestWsFuturesUpdateBook(t *testing.T) {
 
 func TestFuturesBookLevels(t *testing.T) {
 	t.Parallel()
-	got := futuresBookLevels([]WsFuturesBookLevel{{Price: 82380, Quantity: 0.0003}, {Price: 82379, Quantity: 0.0012}})
+	got := futuresBookLevels([]WebsocketFuturesBookLevel{{Price: 82380, Quantity: 0.0003}, {Price: 82379, Quantity: 0.0012}})
 	assert.Equal(t, orderbook.Levels{{Price: 82380, Amount: 0.0003}, {Price: 82379, Amount: 0.0012}}, got, "futuresBookLevels should convert each level in order")
 	assert.Empty(t, futuresBookLevels(nil), "futuresBookLevels should return no levels without any")
 }
 
-func TestWsFuturesProcessTrades(t *testing.T) {
+func TestWebsocketFuturesProcessTrades(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true
@@ -1254,7 +1254,7 @@ func TestWsFuturesProcessTrades(t *testing.T) {
 	assert.NoError(t, ex.wsFuturesProcessTrades(wsFuturesFeedTrade, []byte(`{"feed":"trade","qty":"1"}`)), "wsFuturesProcessTrades should not decode trades with the trade feed and trade saving disabled")
 }
 
-func TestWsFuturesProcessOpenOrders(t *testing.T) {
+func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	placed, updated := time.UnixMilli(1612275024153), time.UnixMilli(1612275178153)
@@ -1313,11 +1313,11 @@ func TestWsFuturesProcessOpenOrders(t *testing.T) {
 	assert.Empty(t, relayed(ex), "wsFuturesProcessOpenOrders should relay no orders from a message it rejects")
 }
 
-func TestFuturesWsOrderDetail(t *testing.T) {
+func TestFuturesWebsocketOrderDetail(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	placed, updated := time.UnixMilli(1612275024153), time.UnixMilli(1612275178153)
-	stop := &WsFuturesOpenOrder{
+	stop := &WebsocketFuturesOpenOrder{
 		Instrument:     "PF_XBTUSD",
 		Time:           types.Time(placed),
 		LastUpdateTime: types.Time(updated),
@@ -1364,19 +1364,19 @@ func TestFuturesWsOrderDetail(t *testing.T) {
 		{"limit", 34900, order.Limit, order.UnknownTIF},
 		{"post", 34900, order.Limit, order.PostOnly},
 	} {
-		d, err := ex.futuresWsOrderDetail(&WsFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: tc.orderType, LimitPrice: tc.limitPrice}, order.Open)
+		d, err := ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: tc.orderType, LimitPrice: tc.limitPrice}, order.Open)
 		require.NoErrorf(t, err, "futuresWsOrderDetail must not error for a %s order", tc.orderType)
 		assert.Equalf(t, tc.expType, d.Type, "futuresWsOrderDetail should convert the type of a %s order with a limit price of %v", tc.orderType, tc.limitPrice)
 		assert.Equalf(t, tc.expTIF, d.TimeInForce, "futuresWsOrderDetail should convert the time in force of a %s order", tc.orderType)
 		assert.Equalf(t, order.Buy, d.Side, "futuresWsOrderDetail should convert a %s order in direction 0 to a buy", tc.orderType)
 	}
-	_, err = ex.futuresWsOrderDetail(&WsFuturesOpenOrder{Instrument: "PF_MOONUSD", Type: "limit"}, order.Open)
+	_, err = ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_MOONUSD", Type: "limit"}, order.Open)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresWsOrderDetail should reject an unknown instrument")
-	_, err = ex.futuresWsOrderDetail(&WsFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: "moon"}, order.Open)
+	_, err = ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: "moon"}, order.Open)
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresWsOrderDetail should reject an unknown order type")
 }
 
-func TestWsFuturesProcessFills(t *testing.T) {
+func TestWebsocketFuturesProcessFills(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
@@ -1440,7 +1440,7 @@ func TestWsFuturesProcessFills(t *testing.T) {
 	assert.Empty(t, relayed(ex), "wsFuturesProcessFills should relay nothing from a message it rejects")
 }
 
-func TestWsFuturesProcessBalances(t *testing.T) {
+func TestWebsocketFuturesProcessBalances(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	useTestCredentials(ex)
@@ -1458,7 +1458,7 @@ func TestWsFuturesProcessBalances(t *testing.T) {
 			currency.ETH: {Currency: currency.ETH, Total: 2, Free: 2},
 		}},
 	}, futuresTestSubAccounts(t, got[0]), "wsFuturesProcessBalances should relay the cash and multi-collateral wallets")
-	b, ok := got[1].(*WsFuturesBalances)
+	b, ok := got[1].(*WebsocketFuturesBalances)
 	require.True(t, ok, "wsFuturesProcessBalances must relay the message")
 	assert.Equal(t, uint64(84), b.Sequence, "wsFuturesProcessBalances should relay the message as sent")
 	stored, err := ex.Accounts.GetBalance("flex", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
@@ -1469,6 +1469,6 @@ func TestWsFuturesProcessBalances(t *testing.T) {
 	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, fixtureLines(t, "testdata/wsFutures.json")[16]), "wsFuturesProcessBalances must not error for a margin account update")
 	got = relayed(ex)
 	require.Len(t, got, 1, "wsFuturesProcessBalances must relay a margin account update as the message alone")
-	assert.IsType(t, &WsFuturesBalances{}, got[0], "wsFuturesProcessBalances should relay a margin account update as the message")
+	assert.IsType(t, &WebsocketFuturesBalances{}, got[0], "wsFuturesProcessBalances should relay a margin account update as the message")
 	assert.Error(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":7}`)), "wsFuturesProcessBalances should reject balances it cannot decode")
 }

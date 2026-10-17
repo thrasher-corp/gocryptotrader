@@ -35,8 +35,8 @@ type wsFuturesEvent struct {
 	Message    string   `json:"message"`
 }
 
-// WsFuturesTicker is a futures market's ticker, which the ticker feed sends in full every second
-type WsFuturesTicker struct {
+// WebsocketFuturesTicker is a futures market's ticker, which the ticker feed sends in full every second
+type WebsocketFuturesTicker struct {
 	Time      types.Time `json:"time"`
 	ProductID string     `json:"product_id"`
 	// FundingRate is the current absolute funding rate, and RelativeFundingRate the same as a fraction of the spot price
@@ -68,19 +68,19 @@ type WsFuturesTicker struct {
 	// Tag groups the market by expiry, such as perpetual, month or quarter
 	Tag string `json:"tag"`
 	// Pair is the market's currency pair, such as XBT:USD
-	Pair         string           `json:"pair"`
-	OpenInterest float64          `json:"openInterest"`
-	MarkPrice    float64          `json:"markPrice"`
-	MaturityTime types.Time       `json:"maturityTime"`
-	PostOnly     bool             `json:"post_only"`
-	Open24Hour   float64          `json:"open"`
-	High24Hour   float64          `json:"high"`
-	Low24Hour    float64          `json:"low"`
-	Greeks       *WsFuturesGreeks `json:"greeks"`
+	Pair         string                  `json:"pair"`
+	OpenInterest float64                 `json:"openInterest"`
+	MarkPrice    float64                 `json:"markPrice"`
+	MaturityTime types.Time              `json:"maturityTime"`
+	PostOnly     bool                    `json:"post_only"`
+	Open24Hour   float64                 `json:"open"`
+	High24Hour   float64                 `json:"high"`
+	Low24Hour    float64                 `json:"low"`
+	Greeks       *WebsocketFuturesGreeks `json:"greeks"`
 }
 
-// WsFuturesGreeks holds an option's implied volatility and Greeks
-type WsFuturesGreeks struct {
+// WebsocketFuturesGreeks holds an option's implied volatility and Greeks
+type WebsocketFuturesGreeks struct {
 	ImpliedVolatility float64 `json:"iv"`
 	Delta             float64 `json:"delta"`
 	Theta             float64 `json:"theta"`
@@ -89,24 +89,25 @@ type WsFuturesGreeks struct {
 	Rho               float64 `json:"rho"`
 }
 
-// WsFuturesBookSnapshot is a futures market's whole order book, which updates follow from the next sequence number
-type WsFuturesBookSnapshot struct {
-	Feed      string               `json:"feed"`
-	ProductID string               `json:"product_id"`
-	Timestamp types.Time           `json:"timestamp"`
-	Sequence  uint64               `json:"seq"`
-	Bids      []WsFuturesBookLevel `json:"bids"`
-	Asks      []WsFuturesBookLevel `json:"asks"`
+// WebsocketFuturesBookSnapshot is a futures market's whole order book, which updates follow from the next sequence
+// number
+type WebsocketFuturesBookSnapshot struct {
+	Feed      string                      `json:"feed"`
+	ProductID string                      `json:"product_id"`
+	Timestamp types.Time                  `json:"timestamp"`
+	Sequence  uint64                      `json:"seq"`
+	Bids      []WebsocketFuturesBookLevel `json:"bids"`
+	Asks      []WebsocketFuturesBookLevel `json:"asks"`
 }
 
-// WsFuturesBookLevel is a futures order book price level
-type WsFuturesBookLevel struct {
+// WebsocketFuturesBookLevel is a futures order book price level
+type WebsocketFuturesBookLevel struct {
 	Price    float64 `json:"price"`
 	Quantity float64 `json:"qty"`
 }
 
-// WsFuturesBookUpdate changes one futures order book price level; a zero quantity removes the level
-type WsFuturesBookUpdate struct {
+// WebsocketFuturesBookUpdate changes one futures order book price level; a zero quantity removes the level
+type WebsocketFuturesBookUpdate struct {
 	Feed      string `json:"feed"`
 	ProductID string `json:"product_id"`
 	// Side is buy for a bid or sell for an ask
@@ -117,15 +118,15 @@ type WsFuturesBookUpdate struct {
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// WsFuturesTradeSnapshot holds a futures market's recent trades, newest first
-type WsFuturesTradeSnapshot struct {
-	Feed      string           `json:"feed"`
-	ProductID string           `json:"product_id"`
-	Trades    []WsFuturesTrade `json:"trades"`
+// WebsocketFuturesTradeSnapshot holds a futures market's recent trades, newest first
+type WebsocketFuturesTradeSnapshot struct {
+	Feed      string                  `json:"feed"`
+	ProductID string                  `json:"product_id"`
+	Trades    []WebsocketFuturesTrade `json:"trades"`
 }
 
-// WsFuturesTrade is a futures trade
-type WsFuturesTrade struct {
+// WebsocketFuturesTrade is a futures trade
+type WebsocketFuturesTrade struct {
 	Feed      string `json:"feed"`
 	ProductID string `json:"product_id"`
 	UID       string `json:"uid"`
@@ -139,26 +140,26 @@ type WsFuturesTrade struct {
 	Price    float64    `json:"price"`
 }
 
-// WsFuturesOpenOrdersSnapshot holds the account's open futures orders
-type WsFuturesOpenOrdersSnapshot struct {
-	Feed    string               `json:"feed"`
-	Account string               `json:"account"`
-	Orders  []WsFuturesOpenOrder `json:"orders"`
+// WebsocketFuturesOpenOrdersSnapshot holds the account's open futures orders
+type WebsocketFuturesOpenOrdersSnapshot struct {
+	Feed    string                      `json:"feed"`
+	Account string                      `json:"account"`
+	Orders  []WebsocketFuturesOpenOrder `json:"orders"`
 }
 
-// WsFuturesOpenOrderUpdate reports a change to an open futures order. An order that is filled, cancelled or rejected
-// is removed, with IsCancel set, and Kraken sends only its ID when it is cancelled
-type WsFuturesOpenOrderUpdate struct {
-	Feed     string              `json:"feed"`
-	Order    *WsFuturesOpenOrder `json:"order"`
-	OrderID  string              `json:"order_id"`
-	IsCancel bool                `json:"is_cancel"`
+// WebsocketFuturesOpenOrderUpdate reports a change to an open futures order. An order that is filled, cancelled or
+// rejected is removed, with IsCancel set, and Kraken sends only its ID when it is cancelled
+type WebsocketFuturesOpenOrderUpdate struct {
+	Feed     string                     `json:"feed"`
+	Order    *WebsocketFuturesOpenOrder `json:"order"`
+	OrderID  string                     `json:"order_id"`
+	IsCancel bool                       `json:"is_cancel"`
 	// Reason is why the order changed, such as new_placed_order_by_user, partial_fill, full_fill or cancelled_by_user
 	Reason string `json:"reason"`
 }
 
-// WsFuturesOpenOrder is an open futures order
-type WsFuturesOpenOrder struct {
+// WebsocketFuturesOpenOrder is an open futures order
+type WebsocketFuturesOpenOrder struct {
 	Instrument     string     `json:"instrument"`
 	Time           types.Time `json:"time"`
 	LastUpdateTime types.Time `json:"last_update_time"`
@@ -174,26 +175,26 @@ type WsFuturesOpenOrder struct {
 	Direction  uint8 `json:"direction"`
 	ReduceOnly bool  `json:"reduce_only"`
 	// TriggerSignal is the price a triggered order follows: last, mark or spot
-	TriggerSignal       string                        `json:"triggerSignal"`
-	TrailingStopOptions *WsFuturesTrailingStopOptions `json:"trailing_stop_options"`
+	TriggerSignal       string                               `json:"triggerSignal"`
+	TrailingStopOptions *WebsocketFuturesTrailingStopOptions `json:"trailing_stop_options"`
 }
 
-// WsFuturesTrailingStopOptions holds the deviation a trailing stop's trigger price follows the trigger signal at
-type WsFuturesTrailingStopOptions struct {
+// WebsocketFuturesTrailingStopOptions holds the deviation a trailing stop's trigger price follows the trigger signal at
+type WebsocketFuturesTrailingStopOptions struct {
 	MaxDeviation float64 `json:"max_deviation"`
 	// Unit is percent or quote_currency
 	Unit string `json:"unit"`
 }
 
-// WsFuturesFills holds the account's futures fills: its recent fills on subscribing, then each new fill
-type WsFuturesFills struct {
-	Feed    string          `json:"feed"`
-	Account string          `json:"account"`
-	Fills   []WsFuturesFill `json:"fills"`
+// WebsocketFuturesFills holds the account's futures fills: its recent fills on subscribing, then each new fill
+type WebsocketFuturesFills struct {
+	Feed    string                 `json:"feed"`
+	Account string                 `json:"account"`
+	Fills   []WebsocketFuturesFill `json:"fills"`
 }
 
-// WsFuturesFill is a fill of the account's futures order
-type WsFuturesFill struct {
+// WebsocketFuturesFill is a fill of the account's futures order
+type WebsocketFuturesFill struct {
 	Instrument             string     `json:"instrument"`
 	Time                   types.Time `json:"time"`
 	Price                  float64    `json:"price"`
@@ -214,8 +215,9 @@ type WsFuturesFill struct {
 	OrderType      string `json:"order_type"`
 }
 
-// WsFuturesBalances holds the account's futures balances: all of them on subscribing, then the wallets that changed
-type WsFuturesBalances struct {
+// WebsocketFuturesBalances holds the account's futures balances: all of them on subscribing, then the wallets that
+// changed
+type WebsocketFuturesBalances struct {
 	Feed      string     `json:"feed"`
 	Account   string     `json:"account"`
 	Timestamp types.Time `json:"timestamp"`
@@ -223,12 +225,12 @@ type WsFuturesBalances struct {
 	// Holding is the cash wallet's balance of each currency
 	Holding map[string]float64 `json:"holding"`
 	// Futures holds the single-collateral margin accounts, keyed by name, such as F-XBT:USD
-	Futures     map[string]WsFuturesMarginAccount `json:"futures"`
-	FlexFutures *WsFuturesFlexAccount             `json:"flex_futures"`
+	Futures     map[string]WebsocketFuturesMarginAccount `json:"futures"`
+	FlexFutures *WebsocketFuturesFlexAccount             `json:"flex_futures"`
 }
 
-// WsFuturesMarginAccount is a single-collateral margin account
-type WsFuturesMarginAccount struct {
+// WebsocketFuturesMarginAccount is a single-collateral margin account
+type WebsocketFuturesMarginAccount struct {
 	Name string `json:"name"`
 	// Pair is the account's currency pair, such as XBT/USD, and Unit the currency it holds as margin
 	Pair              string  `json:"pair"`
@@ -242,29 +244,29 @@ type WsFuturesMarginAccount struct {
 	PNL               float64 `json:"pnl"`
 }
 
-// WsFuturesFlexAccount is the multi-collateral wallet
-type WsFuturesFlexAccount struct {
-	Currencies                 map[string]WsFuturesFlexCurrency       `json:"currencies"`
-	BalanceValue               float64                                `json:"balance_value"`
-	PortfolioValue             float64                                `json:"portfolio_value"`
-	CollateralValue            float64                                `json:"collateral_value"`
-	InitialMargin              float64                                `json:"initial_margin"`
-	InitialMarginWithoutOrders float64                                `json:"initial_margin_without_orders"`
-	MaintenanceMargin          float64                                `json:"maintenance_margin"`
-	PNL                        float64                                `json:"pnl"`
-	UnrealizedFunding          float64                                `json:"unrealized_funding"`
-	TotalUnrealized            float64                                `json:"total_unrealized"`
-	TotalUnrealizedAsMargin    float64                                `json:"total_unrealized_as_margin"`
-	MarginEquity               float64                                `json:"margin_equity"`
-	AvailableMargin            float64                                `json:"available_margin"`
-	TotalPositionSize          float64                                `json:"total_position_size"`
-	UnifiedBalances            bool                                   `json:"unified_balances"`
-	Isolated                   map[string]WsFuturesFlexIsolatedMargin `json:"isolated"`
-	Cross                      *WsFuturesFlexCrossMargin              `json:"cross"`
+// WebsocketFuturesFlexAccount is the multi-collateral wallet
+type WebsocketFuturesFlexAccount struct {
+	Currencies                 map[string]WebsocketFuturesFlexCurrency       `json:"currencies"`
+	BalanceValue               float64                                       `json:"balance_value"`
+	PortfolioValue             float64                                       `json:"portfolio_value"`
+	CollateralValue            float64                                       `json:"collateral_value"`
+	InitialMargin              float64                                       `json:"initial_margin"`
+	InitialMarginWithoutOrders float64                                       `json:"initial_margin_without_orders"`
+	MaintenanceMargin          float64                                       `json:"maintenance_margin"`
+	PNL                        float64                                       `json:"pnl"`
+	UnrealizedFunding          float64                                       `json:"unrealized_funding"`
+	TotalUnrealized            float64                                       `json:"total_unrealized"`
+	TotalUnrealizedAsMargin    float64                                       `json:"total_unrealized_as_margin"`
+	MarginEquity               float64                                       `json:"margin_equity"`
+	AvailableMargin            float64                                       `json:"available_margin"`
+	TotalPositionSize          float64                                       `json:"total_position_size"`
+	UnifiedBalances            bool                                          `json:"unified_balances"`
+	Isolated                   map[string]WebsocketFuturesFlexIsolatedMargin `json:"isolated"`
+	Cross                      *WebsocketFuturesFlexCrossMargin              `json:"cross"`
 }
 
-// WsFuturesFlexCurrency is a currency in the multi-collateral wallet
-type WsFuturesFlexCurrency struct {
+// WebsocketFuturesFlexCurrency is a currency in the multi-collateral wallet
+type WebsocketFuturesFlexCurrency struct {
 	Quantity        float64 `json:"quantity"`
 	Value           float64 `json:"value"`
 	CollateralValue float64 `json:"collateral_value"`
@@ -274,8 +276,8 @@ type WsFuturesFlexCurrency struct {
 	ConversionSpread float64 `json:"conversion_spread"`
 }
 
-// WsFuturesFlexIsolatedMargin is the margin of an isolated multi-collateral position
-type WsFuturesFlexIsolatedMargin struct {
+// WebsocketFuturesFlexIsolatedMargin is the margin of an isolated multi-collateral position
+type WebsocketFuturesFlexIsolatedMargin struct {
 	InitialMargin              float64 `json:"initial_margin"`
 	InitialMarginWithoutOrders float64 `json:"initial_margin_without_orders"`
 	MaintenanceMargin          float64 `json:"maintenance_margin"`
@@ -285,8 +287,8 @@ type WsFuturesFlexIsolatedMargin struct {
 	TotalUnrealizedAsMargin    float64 `json:"total_unrealized_as_margin"`
 }
 
-// WsFuturesFlexCrossMargin is the margin of the multi-collateral cross margin positions
-type WsFuturesFlexCrossMargin struct {
+// WebsocketFuturesFlexCrossMargin is the margin of the multi-collateral cross margin positions
+type WebsocketFuturesFlexCrossMargin struct {
 	BalanceValue               float64 `json:"balance_value"`
 	PortfolioValue             float64 `json:"portfolio_value"`
 	CollateralValue            float64 `json:"collateral_value"`
@@ -302,17 +304,17 @@ type WsFuturesFlexCrossMargin struct {
 	EffectiveLeverage          float64 `json:"effective_leverage"`
 }
 
-// WsFuturesPositions holds the account's open futures positions
-type WsFuturesPositions struct {
-	Feed      string              `json:"feed"`
-	Account   string              `json:"account"`
-	Sequence  uint64              `json:"seq"`
-	Timestamp types.Time          `json:"timestamp"`
-	Positions []WsFuturesPosition `json:"positions"`
+// WebsocketFuturesPositions holds the account's open futures positions
+type WebsocketFuturesPositions struct {
+	Feed      string                     `json:"feed"`
+	Account   string                     `json:"account"`
+	Sequence  uint64                     `json:"seq"`
+	Timestamp types.Time                 `json:"timestamp"`
+	Positions []WebsocketFuturesPosition `json:"positions"`
 }
 
-// WsFuturesPosition is an open futures position
-type WsFuturesPosition struct {
+// WebsocketFuturesPosition is an open futures position
+type WebsocketFuturesPosition struct {
 	Instrument string `json:"instrument"`
 	// Balance is the position's size, negative when short
 	Balance                 float64 `json:"balance"`
@@ -338,14 +340,14 @@ type WsFuturesPosition struct {
 	Rho               float64 `json:"rho"`
 }
 
-// WsFuturesNotifications holds notifications for the account, such as of maintenance
-type WsFuturesNotifications struct {
-	Feed          string                  `json:"feed"`
-	Notifications []WsFuturesNotification `json:"notifications"`
+// WebsocketFuturesNotifications holds notifications for the account, such as of maintenance
+type WebsocketFuturesNotifications struct {
+	Feed          string                         `json:"feed"`
+	Notifications []WebsocketFuturesNotification `json:"notifications"`
 }
 
-// WsFuturesNotification is a notification for the account
-type WsFuturesNotification struct {
+// WebsocketFuturesNotification is a notification for the account
+type WebsocketFuturesNotification struct {
 	ID uint64 `json:"id"`
 	// Type is market, general, new_feature, bug_fix, maintenance or settlement
 	Type string `json:"type"`

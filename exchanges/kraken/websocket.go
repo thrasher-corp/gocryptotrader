@@ -562,7 +562,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 
 // wsProcessStatus relays the trading engine status, returning an error when the engine is not online
 func (e *Exchange) wsProcessStatus(ctx context.Context, msg *wsChannelMessage) error {
-	var statuses []WsStatus
+	var statuses []WebsocketStatus
 	if err := json.Unmarshal(msg.Data, &statuses); err != nil {
 		return err
 	}
@@ -579,7 +579,7 @@ func (e *Exchange) wsProcessStatus(ctx context.Context, msg *wsChannelMessage) e
 
 // wsProcessTicker stores a message's tickers and relays those stored, reporting the others without holding them back
 func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) error {
-	var tickers []WsTicker
+	var tickers []WebsocketTicker
 	if err := json.Unmarshal(msg.Data, &tickers); err != nil {
 		return err
 	}
@@ -620,7 +620,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 // wsProcessBook loads order book snapshots and applies updates, checking each against its checksum. A book that fails
 // its checksum is resubscribed for a new snapshot
 func (e *Exchange) wsProcessBook(ctx context.Context, conn websocket.Connection, msg *wsChannelMessage) error {
-	var books []WsBook
+	var books []WebsocketBook
 	if err := json.Unmarshal(msg.Data, &books); err != nil {
 		return err
 	}
@@ -644,7 +644,7 @@ func (e *Exchange) wsProcessBook(ctx context.Context, conn websocket.Connection,
 	return nil
 }
 
-func (e *Exchange) wsLoadBookSnapshot(ctx context.Context, pair currency.Pair, book *WsBook) error {
+func (e *Exchange) wsLoadBookSnapshot(ctx context.Context, pair currency.Pair, book *WebsocketBook) error {
 	depth, _ := e.bookDepth(pair)
 	b := &orderbook.Book{
 		Exchange:               e.Name,
@@ -671,7 +671,7 @@ func (e *Exchange) wsLoadBookSnapshot(ctx context.Context, pair currency.Pair, b
 	return e.Websocket.Orderbook.LoadSnapshotWithOptions(ctx, b)
 }
 
-func (e *Exchange) wsUpdateBook(ctx context.Context, pair currency.Pair, book *WsBook) error {
+func (e *Exchange) wsUpdateBook(ctx context.Context, pair currency.Pair, book *WebsocketBook) error {
 	var mismatch bool
 	err := e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:             pair,
@@ -752,7 +752,7 @@ func (k bookSubscriptionKey) GetSubscription() *subscription.Subscription {
 // relays them with their order IDs, which the stored book cannot hold. A book that fails its checksum, or whose update
 // names an order it does not hold, is resubscribed for a new snapshot
 func (e *Exchange) wsProcessLevel3(ctx context.Context, conn websocket.Connection, msg *wsChannelMessage) error {
-	var books []WsLevel3Book
+	var books []WebsocketLevel3Book
 	if err := json.Unmarshal(msg.Data, &books); err != nil {
 		return err
 	}
@@ -776,7 +776,7 @@ func (e *Exchange) wsProcessLevel3(ctx context.Context, conn websocket.Connectio
 
 // wsLevel3Book applies a level 3 snapshot or update to a pair's book, then loads the whole book, as a book whose levels
 // are orders cannot be updated by price
-func (e *Exchange) wsLevel3Book(ctx context.Context, pair currency.Pair, snapshot bool, book *WsLevel3Book) error {
+func (e *Exchange) wsLevel3Book(ctx context.Context, pair currency.Pair, snapshot bool, book *WebsocketLevel3Book) error {
 	depth, _ := e.bookDepth(pair)
 	k := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}
 	e.level3BooksMu.Lock()
@@ -836,12 +836,12 @@ func (e *Exchange) wsLevel3Book(ctx context.Context, pair currency.Pair, snapsho
 
 // level3Book is a level 3 order book: the orders of each side in the order they queue, from the best price
 type level3Book struct {
-	bids, asks []WsLevel3Order
+	bids, asks []WebsocketLevel3Order
 }
 
 // apply applies an update's events to each side, then truncates each to depth price levels, as Kraken sends no event
 // for the orders of a level leaving the subscribed depth
-func (b *level3Book) apply(update *WsLevel3Book, depth int) error {
+func (b *level3Book) apply(update *WebsocketLevel3Book, depth int) error {
 	var err error
 	if b.bids, err = applyLevel3Events(b.bids, update.Bids, func(price, other float64) bool { return price > other }); err != nil {
 		return err
@@ -855,11 +855,11 @@ func (b *level3Book) apply(update *WsLevel3Book, depth int) error {
 
 // applyLevel3Events applies a side's events to its orders. An added order queues behind the orders at its price, and a
 // modified order keeps its place unless its price changes
-func applyLevel3Events(orders, events []WsLevel3Order, better func(price, other float64) bool) ([]WsLevel3Order, error) {
+func applyLevel3Events(orders, events []WebsocketLevel3Order, better func(price, other float64) bool) ([]WebsocketLevel3Order, error) {
 	for i := range events {
 		o := events[i]
 		o.Event = ""
-		j := slices.IndexFunc(orders, func(held WsLevel3Order) bool { return held.OrderID == o.OrderID })
+		j := slices.IndexFunc(orders, func(held WebsocketLevel3Order) bool { return held.OrderID == o.OrderID })
 		switch events[i].Event {
 		case "add":
 			if j != -1 {
@@ -888,9 +888,9 @@ func applyLevel3Events(orders, events []WsLevel3Order, better func(price, other 
 }
 
 // insertLevel3Order inserts an order behind the orders at its price and those at better prices
-func insertLevel3Order(orders []WsLevel3Order, o *WsLevel3Order, better func(price, other float64) bool) []WsLevel3Order {
+func insertLevel3Order(orders []WebsocketLevel3Order, o *WebsocketLevel3Order, better func(price, other float64) bool) []WebsocketLevel3Order {
 	price := o.LimitPrice.Float64()
-	i := slices.IndexFunc(orders, func(held WsLevel3Order) bool { return better(price, held.LimitPrice.Float64()) })
+	i := slices.IndexFunc(orders, func(held WebsocketLevel3Order) bool { return better(price, held.LimitPrice.Float64()) })
 	if i == -1 {
 		return append(orders, *o)
 	}
@@ -898,7 +898,7 @@ func insertLevel3Order(orders []WsLevel3Order, o *WsLevel3Order, better func(pri
 }
 
 // truncateLevel3 keeps the orders of a side's first depth price levels, keeping every order when depth is zero
-func truncateLevel3(orders []WsLevel3Order, depth int) []WsLevel3Order {
+func truncateLevel3(orders []WebsocketLevel3Order, depth int) []WebsocketLevel3Order {
 	if depth <= 0 {
 		return orders
 	}
@@ -918,7 +918,7 @@ func truncateLevel3(orders []WsLevel3Order, depth int) []WsLevel3Order {
 // levels from the highest, each order written as its price and quantity without their decimal points and leading zeros
 func (b *level3Book) checksum() uint32 {
 	var s strings.Builder
-	for _, orders := range [][]WsLevel3Order{truncateLevel3(b.asks, 10), truncateLevel3(b.bids, 10)} {
+	for _, orders := range [][]WebsocketLevel3Order{truncateLevel3(b.asks, 10), truncateLevel3(b.bids, 10)} {
 		for i := range orders {
 			s.WriteString(checksumDigits(orders[i].LimitPrice.String()))
 			s.WriteString(checksumDigits(orders[i].Quantity.String()))
@@ -928,7 +928,7 @@ func (b *level3Book) checksum() uint32 {
 }
 
 // level3Levels converts a side's orders to order book levels, one for each order, keeping the digits Kraken sent
-func level3Levels(orders []WsLevel3Order) orderbook.Levels {
+func level3Levels(orders []WebsocketLevel3Order) orderbook.Levels {
 	l := make(orderbook.Levels, len(orders))
 	for i := range orders {
 		l[i] = orderbook.Level{
@@ -942,7 +942,7 @@ func level3Levels(orders []WsLevel3Order) orderbook.Levels {
 }
 
 // wsBookLevels converts order book levels, keeping the digits Kraken sent for the checksum
-func wsBookLevels(levels []WsBookLevel) orderbook.Levels {
+func wsBookLevels(levels []WebsocketBookLevel) orderbook.Levels {
 	l := make(orderbook.Levels, len(levels))
 	for i := range levels {
 		l[i] = orderbook.Level{
@@ -977,7 +977,7 @@ func checksumDigits(n string) string {
 
 // wsProcessCandles relays candles, marking those whose interval had not ended when the message was sent as partial
 func (e *Exchange) wsProcessCandles(ctx context.Context, msg *wsChannelMessage) error {
-	var candles []WsCandle
+	var candles []WebsocketCandle
 	if err := json.Unmarshal(msg.Data, &candles); err != nil {
 		return err
 	}
@@ -1020,7 +1020,7 @@ func (e *Exchange) wsProcessTrades(_ context.Context, msg *wsChannelMessage) err
 	if !saveTradeData && !e.IsTradeFeedEnabled() {
 		return nil
 	}
-	var wsTrades []WsTrade
+	var wsTrades []WebsocketTrade
 	if err := json.Unmarshal(msg.Data, &wsTrades); err != nil {
 		return err
 	}
@@ -1050,7 +1050,7 @@ func (e *Exchange) wsProcessTrades(_ context.Context, msg *wsChannelMessage) err
 
 // wsProcessInstruments relays the instrument channel's reference data
 func (e *Exchange) wsProcessInstruments(ctx context.Context, msg *wsChannelMessage) error {
-	var instruments WsInstruments
+	var instruments WebsocketInstruments
 	if err := json.Unmarshal(msg.Data, &instruments); err != nil {
 		return err
 	}
@@ -1060,7 +1060,7 @@ func (e *Exchange) wsProcessInstruments(ctx context.Context, msg *wsChannelMessa
 // wsProcessExecutions relays order updates, with a trade event's fill as the order's trade, and the fills themselves
 // when the fills feed is enabled. An order that finishes after fills is then read over REST for its totals
 func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessage) error {
-	var executions []WsExecution
+	var executions []WebsocketExecution
 	if err := json.Unmarshal(msg.Data, &executions); err != nil {
 		return err
 	}
@@ -1104,7 +1104,7 @@ const spotOrderReadRetention = time.Minute
 // finishSpotOrder sends an order an execution report says finished after fills for a REST read of its totals.
 // Execution reports carry each fill's fee but not the order's, which the order store takes from an order's fee alone,
 // and the store stops polling an order once it has finished, so the order's fee is otherwise never stored
-func (e *Exchange) finishSpotOrder(ctx context.Context, x *WsExecution) {
+func (e *Exchange) finishSpotOrder(ctx context.Context, x *WebsocketExecution) {
 	if x.OrderID != "" && spotExecutionFinishedAfterFills(x) {
 		e.spotOrders.refresh(ctx, e.readFinishedSpotOrders, x.OrderID)
 	}
@@ -1112,7 +1112,7 @@ func (e *Exchange) finishSpotOrder(ctx context.Context, x *WsExecution) {
 
 // spotExecutionFinishedAfterFills reports whether an execution report says its order finished with some or all of it
 // filled
-func spotExecutionFinishedAfterFills(x *WsExecution) bool {
+func spotExecutionFinishedAfterFills(x *WebsocketExecution) bool {
 	switch {
 	case x.ExecutionType == "filled", x.OrderStatus == "filled":
 		return true
@@ -1157,7 +1157,7 @@ func (e *Exchange) readFinishedSpotOrders(ctx context.Context, orderIDs []string
 
 // executionOrderDetail converts an execution report to an order update. Kraken sends only the changed fields on most
 // events, so unset fields are left zero for the order store to keep what it holds
-func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
+func (e *Exchange) executionOrderDetail(x *WebsocketExecution) (*order.Detail, error) {
 	d := &order.Detail{
 		Exchange:             e.Name,
 		AssetType:            asset.Spot,
@@ -1261,13 +1261,13 @@ const spotBalancesRefreshKey = "spot balances"
 func (e *Exchange) wsProcessBalances(ctx context.Context, msg *wsChannelMessage) error {
 	var payload any
 	if msg.Type == wsTypeSnapshot {
-		var balances []WsBalance
+		var balances []WebsocketBalance
 		if err := json.Unmarshal(msg.Data, &balances); err != nil {
 			return err
 		}
 		payload = balances
 	} else {
-		var entries []WsLedgerEntry
+		var entries []WebsocketLedgerEntry
 		if err := json.Unmarshal(msg.Data, &entries); err != nil {
 			return err
 		}

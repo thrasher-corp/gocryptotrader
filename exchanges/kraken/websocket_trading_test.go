@@ -65,27 +65,27 @@ func wsTestTime(tb testing.TB, s string) time.Time {
 	return v
 }
 
-func TestWsAddOrder(t *testing.T) {
+func TestWebsocketAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsAddOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsAddOrder must reject a nil request")
-	valid := WsOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500}
+	_, err := e.WebsocketAddOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAddOrder must reject a nil request")
+	valid := WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500}
 	for _, tc := range []struct {
 		name string
-		req  *WsAddOrderRequest
+		req  *WebsocketAddOrderRequest
 		err  error
 	}{
-		{"pair", &WsAddOrderRequest{Order: valid}, currency.ErrCurrencyPairEmpty},
-		{"pair without a quote", &WsAddOrderRequest{Pair: partialTestPairs[0], Order: valid}, currency.ErrCurrencyPairEmpty},
-		{"pair without a base", &WsAddOrderRequest{Pair: partialTestPairs[1], Order: valid}, currency.ErrCurrencyPairEmpty},
-		{"order type", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{Side: "buy", Quantity: 1}}, order.ErrTypeIsInvalid},
-		{"side", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "market", Quantity: 1}}, order.ErrSideIsInvalid},
-		{"quantity", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "market", Side: "buy"}}, order.ErrAmountIsInvalid},
-		{"identifiers", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "market", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}}, errClientOrderIDWithUserReference},
-		{"expiry", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500, TimeInForce: "gtd"}}, order.ErrInvalidTimeInForce},
+		{"pair", &WebsocketAddOrderRequest{Order: valid}, currency.ErrCurrencyPairEmpty},
+		{"pair without a quote", &WebsocketAddOrderRequest{Pair: partialTestPairs[0], Order: valid}, currency.ErrCurrencyPairEmpty},
+		{"pair without a base", &WebsocketAddOrderRequest{Pair: partialTestPairs[1], Order: valid}, currency.ErrCurrencyPairEmpty},
+		{"order type", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{Side: "buy", Quantity: 1}}, order.ErrTypeIsInvalid},
+		{"side", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "market", Quantity: 1}}, order.ErrSideIsInvalid},
+		{"quantity", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "market", Side: "buy"}}, order.ErrAmountIsInvalid},
+		{"identifiers", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "market", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}}, errClientOrderIDWithUserReference},
+		{"expiry", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500, TimeInForce: "gtd"}}, order.ErrInvalidTimeInForce},
 	} {
-		_, err := e.WsAddOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "WsAddOrder should reject the %s", tc.name)
+		_, err := e.WebsocketAddOrder(t.Context(), tc.req)
+		assert.ErrorIsf(t, err, tc.err, "WebsocketAddOrder should reject the %s", tc.name)
 	}
 
 	ex := newWsTradingTestExchange(t,
@@ -93,15 +93,15 @@ func TestWsAddOrder(t *testing.T) {
 		`{"method":"add_order","result":{"order_id":"AA5JGQ-SBMRC-SCJ7J7","cl_ord_id":"2c6be801-1f53-4f79-a0bb-4ea1c95dfae9","warnings":["Order validated but not placed"]},"success":true,"time_in":"2023-09-21T14:15:07.197274Z","time_out":"2023-09-21T14:15:07.205301Z"}`,
 	)
 	sydney := time.FixedZone("AEST", 10*60*60)
-	result, err := ex.WsAddOrder(t.Context(), &WsAddOrderRequest{
+	result, err := ex.WebsocketAddOrder(t.Context(), &WebsocketAddOrderRequest{
 		Pair: spotTestPair,
-		Order: WsOrder{
+		Order: WebsocketOrder{
 			OrderType:           "stop-loss-limit",
 			Side:                "buy",
 			Quantity:            1.2,
 			LimitPrice:          28400,
 			LimitPriceType:      "static",
-			Triggers:            &WsOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"},
+			Triggers:            &WebsocketOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"},
 			TimeInForce:         "gtd",
 			Margin:              true,
 			PostOnly:            true,
@@ -109,7 +109,7 @@ func TestWsAddOrder(t *testing.T) {
 			EffectiveTime:       time.Date(2026, 10, 9, 20, 0, 0, 0, sydney),
 			ExpireTime:          time.Date(2026, 10, 10, 10, 0, 0, 0, time.UTC),
 			ClientOrderID:       "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
-			Conditional:         &WsConditionalOrder{OrderType: "take-profit-limit", LimitPrice: 30000, LimitPriceType: "static", TriggerPrice: 29900, TriggerPriceType: "static"},
+			Conditional:         &WebsocketConditionalOrder{OrderType: "take-profit-limit", LimitPrice: 30000, LimitPriceType: "static", TriggerPrice: 29900, TriggerPriceType: "static"},
 			DisplayQuantity:     0.5,
 			FeePreference:       "quote",
 			SelfTradePrevention: "cancel_newest",
@@ -119,42 +119,42 @@ func TestWsAddOrder(t *testing.T) {
 		Deadline: time.Date(2026, 10, 9, 19, 59, 59, 500000000, sydney),
 		Validate: true,
 	})
-	require.NoError(t, err, "WsAddOrder must not error")
-	assert.Equal(t, &WsAddOrderResponse{
+	require.NoError(t, err, "WebsocketAddOrder must not error")
+	assert.Equal(t, &WebsocketAddOrderResponse{
 		OrderID:       "AA5JGQ-SBMRC-SCJ7J7",
 		ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
 		Warnings:      []string{"Order validated but not placed"},
 		TimeIn:        wsTestTime(t, "2023-09-21T14:15:07.197274Z"),
 		TimeOut:       wsTestTime(t, "2023-09-21T14:15:07.205301Z"),
-	}, result, "WsAddOrder should decode every field")
+	}, result, "WebsocketAddOrder should decode every field")
 
 	ex = newWsTradingTestExchange(t,
 		`{"method":"add_order","params":{"order_type":"limit","side":"buy","limit_price":26500.4,"order_userref":100054,"order_qty":1.2,"symbol":"BTC/USD","token":"`+wsTradingTestToken+`"}}`,
 		`{"error":"EOrder:Insufficient funds","method":"add_order","success":false,"time_in":"2023-09-21T14:15:07.197274Z","time_out":"2023-09-21T14:15:07.205301Z"}`,
 	)
-	_, err = ex.WsAddOrder(t.Context(), &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "limit", Side: "buy", Quantity: 1.2, LimitPrice: 26500.4, UserReference: 100054}})
-	require.ErrorIs(t, err, errAPIResponse, "WsAddOrder must return a rejection as an API error")
+	_, err = ex.WebsocketAddOrder(t.Context(), &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1.2, LimitPrice: 26500.4, UserReference: 100054}})
+	require.ErrorIs(t, err, errAPIResponse, "WebsocketAddOrder must return a rejection as an API error")
 	assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
 }
 
-func TestWsEditOrder(t *testing.T) {
+func TestWebsocketEditOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsEditOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsEditOrder must reject a nil request")
-	_, err = e.WsEditOrder(t.Context(), &WsEditOrderRequest{Pair: spotTestPair})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsEditOrder must reject a missing order ID")
-	_, err = e.WsEditOrder(t.Context(), &WsEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsEditOrder must reject a missing pair")
+	_, err := e.WebsocketEditOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketEditOrder must reject a nil request")
+	_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{Pair: spotTestPair})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketEditOrder must reject a missing order ID")
+	_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject a missing pair")
 	for _, pair := range partialTestPairs {
-		_, err = e.WsEditOrder(t.Context(), &WsEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WsEditOrder must reject %q, which lacks a base or a quote", pair)
+		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject %q, which lacks a base or a quote", pair)
 	}
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"edit_order","params":{"order_id":"ORDERX-IDXXX-XXXXX1","symbol":"BTC/USD","order_qty":0.2123456789,"limit_price":26500.5,"display_qty":0.1,"fee_preference":"base","post_only":true,"reduce_only":true,"triggers":{"reference":"index","price":-2,"price_type":"pct"},"order_userref":7,"validate":true,"deadline":"2026-10-09T09:59:59Z","token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"edit_order","result":{"order_id":"ORDERX-IDXXX-XXXXX2","original_order_id":"ORDERX-IDXXX-XXXXX1","warnings":["Order validated but not placed"]},"success":true,"time_in":"2022-07-15T12:56:09.876488Z","time_out":"2022-07-15T12:56:09.923422Z"}`,
 	)
-	result, err := ex.WsEditOrder(t.Context(), &WsEditOrderRequest{
+	result, err := ex.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{
 		OrderID:         "ORDERX-IDXXX-XXXXX1",
 		Pair:            spotTestPair,
 		Quantity:        0.2123456789,
@@ -163,39 +163,39 @@ func TestWsEditOrder(t *testing.T) {
 		FeePreference:   "base",
 		PostOnly:        true,
 		ReduceOnly:      true,
-		Triggers:        &WsOrderTriggers{Reference: "index", Price: -2, PriceType: "pct"},
+		Triggers:        &WebsocketOrderTriggers{Reference: "index", Price: -2, PriceType: "pct"},
 		UserReference:   7,
 		Validate:        true,
 		Deadline:        time.Date(2026, 10, 9, 9, 59, 59, 0, time.UTC),
 	})
-	require.NoError(t, err, "WsEditOrder must not error")
-	assert.Equal(t, &WsEditOrderResponse{
+	require.NoError(t, err, "WebsocketEditOrder must not error")
+	assert.Equal(t, &WebsocketEditOrderResponse{
 		OrderID:         "ORDERX-IDXXX-XXXXX2",
 		OriginalOrderID: "ORDERX-IDXXX-XXXXX1",
 		Warnings:        []string{"Order validated but not placed"},
 		TimeIn:          wsTestTime(t, "2022-07-15T12:56:09.876488Z"),
 		TimeOut:         wsTestTime(t, "2022-07-15T12:56:09.923422Z"),
-	}, result, "WsEditOrder should decode every field")
+	}, result, "WebsocketEditOrder should decode every field")
 }
 
-func TestWsAmendOrder(t *testing.T) {
+func TestWebsocketAmendOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsAmendOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsAmendOrder must reject a nil request")
-	_, err = e.WsAmendOrder(t.Context(), &WsAmendOrderRequest{LimitPrice: 1})
-	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsAmendOrder must reject a request without an identifier")
-	_, err = e.WsAmendOrder(t.Context(), &WsAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", ClientOrderID: "a", LimitPrice: 1})
-	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsAmendOrder must reject a request with both identifiers")
+	_, err := e.WebsocketAmendOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAmendOrder must reject a nil request")
+	_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{LimitPrice: 1})
+	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketAmendOrder must reject a request without an identifier")
+	_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", ClientOrderID: "a", LimitPrice: 1})
+	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketAmendOrder must reject a request with both identifiers")
 	for _, pair := range partialTestPairs {
-		_, err = e.WsAmendOrder(t.Context(), &WsAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WsAmendOrder must reject %q, which lacks a base or a quote", pair)
+		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WebsocketAmendOrder must reject %q, which lacks a base or a quote", pair)
 	}
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"amend_order","params":{"order_id":"OAIYAU-LGI3M-PFM5VW","symbol":"BTC/USD","order_qty":1.2,"display_qty":0.2,"limit_price":61031.3,"limit_price_type":"static","post_only":true,"trigger_price":61000,"trigger_price_type":"static","deadline":"2024-07-21T09:53:59.05Z","token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"amend_order","result":{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW","cl_ord_id":"2c6be801-1f53-4f79-a0bb-4ea1c95dfae9","warnings":["Display quantity rounded"]},"success":true,"time_in":"2024-07-26T13:39:04.922699Z","time_out":"2024-07-26T13:39:04.924912Z"}`,
 	)
-	result, err := ex.WsAmendOrder(t.Context(), &WsAmendOrderRequest{
+	result, err := ex.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{
 		OrderID:          "OAIYAU-LGI3M-PFM5VW",
 		Pair:             spotTestPair,
 		Quantity:         1.2,
@@ -207,66 +207,66 @@ func TestWsAmendOrder(t *testing.T) {
 		TriggerPriceType: "static",
 		Deadline:         time.Date(2024, 7, 21, 9, 53, 59, 50000000, time.UTC),
 	})
-	require.NoError(t, err, "WsAmendOrder must not error")
-	assert.Equal(t, &WsAmendOrderResponse{
+	require.NoError(t, err, "WebsocketAmendOrder must not error")
+	assert.Equal(t, &WebsocketAmendOrderResponse{
 		AmendID:       "TTW6PD-RC36L-ZZSWNU",
 		OrderID:       "OAIYAU-LGI3M-PFM5VW",
 		ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
 		Warnings:      []string{"Display quantity rounded"},
 		TimeIn:        wsTestTime(t, "2024-07-26T13:39:04.922699Z"),
 		TimeOut:       wsTestTime(t, "2024-07-26T13:39:04.924912Z"),
-	}, result, "WsAmendOrder should decode every field")
+	}, result, "WebsocketAmendOrder should decode every field")
 
 	ex = newWsTradingTestExchange(t,
 		`{"method":"amend_order","params":{"cl_ord_id":"2c6be801-1f53-4f79-a0bb-4ea1c95dfae9","limit_price":490795,"order_qty":1.2,"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"amend_order","result":{"amend_id":"TTW6PD-RC36L-ZZSWNU","cl_ord_id":"2c6be801-1f53-4f79-a0bb-4ea1c95dfae9"},"success":true,"time_in":"2024-07-26T13:39:04.922699Z","time_out":"2024-07-26T13:39:04.924912Z"}`,
 	)
-	_, err = ex.WsAmendOrder(t.Context(), &WsAmendOrderRequest{ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9", LimitPrice: 490795, Quantity: 1.2})
-	assert.NoError(t, err, "WsAmendOrder should amend by client order ID")
+	_, err = ex.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9", LimitPrice: 490795, Quantity: 1.2})
+	assert.NoError(t, err, "WebsocketAmendOrder should amend by client order ID")
 }
 
-func TestWsCancelOrders(t *testing.T) {
+func TestWebsocketCancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOrders must reject a nil request")
-	_, err = e.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{})
-	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsCancelOrders must reject a request without identifiers")
-	_, err = e.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{OrderIDs: []string{"a"}, ClientOrderIDs: []string{"b"}})
-	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsCancelOrders must reject a request with two kinds of identifier")
+	_, err := e.WebsocketCancelOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOrders must reject a nil request")
+	_, err = e.WebsocketCancelOrders(t.Context(), &WebsocketCancelOrdersRequest{})
+	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketCancelOrders must reject a request without identifiers")
+	_, err = e.WebsocketCancelOrders(t.Context(), &WebsocketCancelOrdersRequest{OrderIDs: []string{"a"}, ClientOrderIDs: []string{"b"}})
+	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketCancelOrders must reject a request with two kinds of identifier")
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_order","params":{"order_id":["OM5CRX-N2HAL-GFGWE9","OLUMT4-UTEGU-ZYM7E9"],"token":"`+wsTradingTestToken+`"}}`,
 		`{"error":"EOrder:Unknown order","method":"cancel_order","success":false,"time_in":"2023-09-21T14:36:57.428972Z","time_out":"2023-09-21T14:36:57.437952Z"}`,
 		`{"method":"cancel_order","result":{"order_id":"OLUMT4-UTEGU-ZYM7E9","cl_ord_id":"6d1b345e-2821-40e2-ad83-4ecb18a06876","warnings":["Order already pending cancel"]},"success":true,"time_in":"2023-09-21T14:36:57.428972Z","time_out":"2023-09-21T14:36:57.437952Z"}`,
 	)
-	result, err := ex.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{OrderIDs: []string{"OM5CRX-N2HAL-GFGWE9", "OLUMT4-UTEGU-ZYM7E9"}})
-	require.NoError(t, err, "WsCancelOrders must not error")
-	require.Len(t, result, 2, "WsCancelOrders must return a result for each order")
+	result, err := ex.WebsocketCancelOrders(t.Context(), &WebsocketCancelOrdersRequest{OrderIDs: []string{"OM5CRX-N2HAL-GFGWE9", "OLUMT4-UTEGU-ZYM7E9"}})
+	require.NoError(t, err, "WebsocketCancelOrders must not error")
+	require.Len(t, result, 2, "WebsocketCancelOrders must return a result for each order")
 	assert.ErrorIs(t, result[0].Error, order.ErrOrderNotFound, "an order Kraken does not know should be reported as not found")
 	result[0].Error = nil
 	inTime, outTime := wsTestTime(t, "2023-09-21T14:36:57.428972Z"), wsTestTime(t, "2023-09-21T14:36:57.437952Z")
-	assert.Equal(t, []WsCancelOrderResponse{
+	assert.Equal(t, []WebsocketCancelOrderResponse{
 		{TimeIn: inTime, TimeOut: outTime},
 		{OrderID: "OLUMT4-UTEGU-ZYM7E9", ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876", Warnings: []string{"Order already pending cancel"}, TimeIn: inTime, TimeOut: outTime},
-	}, result, "WsCancelOrders should decode every field")
+	}, result, "WebsocketCancelOrders should decode every field")
 
 	for _, tc := range []struct {
 		name string
-		req  *WsCancelOrdersRequest
+		req  *WebsocketCancelOrdersRequest
 		exp  string
 	}{
-		{"client order IDs", &WsCancelOrdersRequest{ClientOrderIDs: []string{"6d1b345e-2821-40e2-ad83-4ecb18a06876"}}, `{"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"]`},
+		{"client order IDs", &WebsocketCancelOrdersRequest{ClientOrderIDs: []string{"6d1b345e-2821-40e2-ad83-4ecb18a06876"}}, `{"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"]`},
 	} {
 		ex := newWsTradingTestExchange(t,
 			`{"method":"cancel_order","params":`+tc.exp+`,"token":"`+wsTradingTestToken+`"}}`,
 			`{"method":"cancel_order","result":{"order_id":"OLUMT4-UTEGU-ZYM7E9"},"success":true}`,
 		)
-		_, err := ex.WsCancelOrders(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "WsCancelOrders should cancel by %s", tc.name)
+		_, err := ex.WebsocketCancelOrders(t.Context(), tc.req)
+		assert.NoErrorf(t, err, "WebsocketCancelOrders should cancel by %s", tc.name)
 	}
 }
 
-func TestWsCancelOrderParamsTakeNoUserReferences(t *testing.T) {
+func TestWebsocketCancelOrderParamsTakeNoUserReferences(t *testing.T) {
 	t.Parallel()
 	for field := range reflect.TypeFor[wsCancelOrderParams]().Fields() {
 		tag := field.Tag.Get("json")
@@ -274,120 +274,120 @@ func TestWsCancelOrderParamsTakeNoUserReferences(t *testing.T) {
 	}
 }
 
-func TestWsCancelAllOrders(t *testing.T) {
+func TestWebsocketCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_all","params":{"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"cancel_all","result":{"count":1,"warnings":["Untriggered orders cancelled"]},"success":true,"time_in":"2023-09-26T13:09:48.463201Z","time_out":"2023-09-26T13:09:48.471419Z"}`,
 	)
-	result, err := ex.WsCancelAllOrders(t.Context())
-	require.NoError(t, err, "WsCancelAllOrders must not error")
-	assert.Equal(t, &WsCancelAllOrdersResponse{
+	result, err := ex.WebsocketCancelAllOrders(t.Context())
+	require.NoError(t, err, "WebsocketCancelAllOrders must not error")
+	assert.Equal(t, &WebsocketCancelAllOrdersResponse{
 		Count:    1,
 		Warnings: []string{"Untriggered orders cancelled"},
 		TimeIn:   wsTestTime(t, "2023-09-26T13:09:48.463201Z"),
 		TimeOut:  wsTestTime(t, "2023-09-26T13:09:48.471419Z"),
-	}, result, "WsCancelAllOrders should decode every field")
+	}, result, "WebsocketCancelAllOrders should decode every field")
 }
 
-func TestWsCancelAllOrdersAfter(t *testing.T) {
+func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
 	t.Parallel()
 	for _, timeout := range []time.Duration{-time.Second, time.Millisecond, 24 * time.Hour} {
-		_, err := e.WsCancelAllOrdersAfter(t.Context(), timeout)
-		assert.ErrorIsf(t, err, errInvalidTimeout, "WsCancelAllOrdersAfter should reject a timeout of %s", timeout)
+		_, err := e.WebsocketCancelAllOrdersAfter(t.Context(), timeout)
+		assert.ErrorIsf(t, err, errInvalidTimeout, "WebsocketCancelAllOrdersAfter should reject a timeout of %s", timeout)
 	}
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_all_orders_after","params":{"timeout":100,"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"cancel_all_orders_after","result":{"currentTime":"2023-09-21T15:49:29Z","triggerTime":"2023-09-21T15:51:09Z"},"success":true,"time_in":"2023-09-21T15:49:28.627900Z","time_out":"2023-09-21T15:49:28.649057Z"}`,
 	)
-	result, err := ex.WsCancelAllOrdersAfter(t.Context(), 100*time.Second+time.Millisecond)
-	require.NoError(t, err, "WsCancelAllOrdersAfter must not error")
-	assert.Equal(t, &WsCancelAllOrdersAfterResponse{
+	result, err := ex.WebsocketCancelAllOrdersAfter(t.Context(), 100*time.Second+time.Millisecond)
+	require.NoError(t, err, "WebsocketCancelAllOrdersAfter must not error")
+	assert.Equal(t, &WebsocketCancelAllOrdersAfterResponse{
 		CurrentTime: wsTestTime(t, "2023-09-21T15:49:29Z"),
 		TriggerTime: wsTestTime(t, "2023-09-21T15:51:09Z"),
 		TimeIn:      wsTestTime(t, "2023-09-21T15:49:28.6279Z"),
 		TimeOut:     wsTestTime(t, "2023-09-21T15:49:28.649057Z"),
-	}, result, "WsCancelAllOrdersAfter should decode every field")
+	}, result, "WebsocketCancelAllOrdersAfter should decode every field")
 
 	ex = newWsTradingTestExchange(t,
 		`{"method":"cancel_all_orders_after","params":{"timeout":0,"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"cancel_all_orders_after","result":{"currentTime":"2023-09-21T15:49:29Z","triggerTime":"2023-09-21T15:49:29Z"},"success":true}`,
 	)
-	_, err = ex.WsCancelAllOrdersAfter(t.Context(), 0)
-	assert.NoError(t, err, "WsCancelAllOrdersAfter should send a zero timeout to disable the switch")
+	_, err = ex.WebsocketCancelAllOrdersAfter(t.Context(), 0)
+	assert.NoError(t, err, "WebsocketCancelAllOrdersAfter should send a zero timeout to disable the switch")
 }
 
-func TestWsBatchAddOrders(t *testing.T) {
+func TestWebsocketBatchAddOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsBatchAddOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsBatchAddOrders must reject a nil request")
-	valid := WsOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 1010.1}
+	_, err := e.WebsocketBatchAddOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchAddOrders must reject a nil request")
+	valid := WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 1010.1}
 	for _, n := range []int{1, 16} {
-		_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Pair: spotTestPair, Orders: slices.Repeat([]WsOrder{valid}, n)})
-		assert.ErrorIsf(t, err, errBatchSize, "WsBatchAddOrders should reject %d orders", n)
+		_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: spotTestPair, Orders: slices.Repeat([]WebsocketOrder{valid}, n)})
+		assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchAddOrders should reject %d orders", n)
 	}
-	_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Orders: []WsOrder{valid, valid}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsBatchAddOrders must reject a missing pair")
+	_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Orders: []WebsocketOrder{valid, valid}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketBatchAddOrders must reject a missing pair")
 	for _, pair := range partialTestPairs {
-		_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Pair: pair, Orders: []WsOrder{valid, valid}})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WsBatchAddOrders must reject %q, which lacks a base or a quote", pair)
+		_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: pair, Orders: []WebsocketOrder{valid, valid}})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketBatchAddOrders must reject %q, which lacks a base or a quote", pair)
 	}
-	_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Pair: spotTestPair, Orders: []WsOrder{valid, {OrderType: "limit", Side: "sell"}}})
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "WsBatchAddOrders must reject an invalid order")
+	_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: spotTestPair, Orders: []WebsocketOrder{valid, {OrderType: "limit", Side: "sell"}}})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "WebsocketBatchAddOrders must reject an invalid order")
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"batch_add","params":{"deadline":"2022-06-13T08:09:10.123456Z","orders":[{"limit_price":1010.1,"order_qty":0.123456789,"order_type":"limit","order_userref":1,"side":"buy"},{"limit_price":2020.2,"order_qty":0.987654321,"order_type":"limit","order_userref":2,"side":"sell","stp_type":"cancel_both"}],"symbol":"BTC/USD","token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"batch_add","result":[{"order_id":"ORDERX-IDXXX-XXXXX1","order_userref":1},{"order_id":"ORDERX-IDXXX-XXXXX2","order_userref":2,"cl_ord_id":"","warnings":["Self trade prevention applied"]}],"success":true,"time_in":"2022-06-13T08:09:10.123456Z","time_out":"2022-06-13T08:09:10.7890123Z"}`,
 	)
-	result, err := ex.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{
+	result, err := ex.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{
 		Pair: spotTestPair,
-		Orders: []WsOrder{
+		Orders: []WebsocketOrder{
 			{OrderType: "limit", Side: "buy", Quantity: 0.123456789, LimitPrice: 1010.1, UserReference: 1},
 			{OrderType: "limit", Side: "sell", Quantity: 0.987654321, LimitPrice: 2020.2, UserReference: 2, SelfTradePrevention: "cancel_both"},
 		},
 		Deadline: time.Date(2022, 6, 13, 8, 9, 10, 123456000, time.UTC),
 	})
-	require.NoError(t, err, "WsBatchAddOrders must not error")
+	require.NoError(t, err, "WebsocketBatchAddOrders must not error")
 	inTime, outTime := wsTestTime(t, "2022-06-13T08:09:10.123456Z"), wsTestTime(t, "2022-06-13T08:09:10.7890123Z")
-	assert.Equal(t, []WsAddOrderResponse{
+	assert.Equal(t, []WebsocketAddOrderResponse{
 		{OrderID: "ORDERX-IDXXX-XXXXX1", OrderUserReference: 1, TimeIn: inTime, TimeOut: outTime},
 		{OrderID: "ORDERX-IDXXX-XXXXX2", OrderUserReference: 2, Warnings: []string{"Self trade prevention applied"}, TimeIn: inTime, TimeOut: outTime},
-	}, result, "WsBatchAddOrders should decode every order's result")
+	}, result, "WebsocketBatchAddOrders should decode every order's result")
 }
 
-func TestWsBatchCancelOrders(t *testing.T) {
+func TestWebsocketBatchCancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsBatchCancelOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsBatchCancelOrders must reject a nil request")
+	_, err := e.WebsocketBatchCancelOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchCancelOrders must reject a nil request")
 	for _, n := range []int{1, 51} {
-		_, err = e.WsBatchCancelOrders(t.Context(), &WsBatchCancelOrdersRequest{Orders: slices.Repeat([]string{"1"}, n)})
-		assert.ErrorIsf(t, err, errBatchSize, "WsBatchCancelOrders should reject %d orders", n)
+		_, err = e.WebsocketBatchCancelOrders(t.Context(), &WebsocketBatchCancelOrdersRequest{Orders: slices.Repeat([]string{"1"}, n)})
+		assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchCancelOrders should reject %d orders", n)
 	}
 	ex := newWsTradingTestExchange(t,
 		`{"method":"batch_cancel","params":{"orders":["1","2","ORDERX-IDXXX-XXXXX3"],"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"],"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"batch_cancel","result":{"count":4,"warnings":["Order already pending cancel"]},"success":true,"time_in":"2022-06-13T08:09:10.123456Z","time_out":"2022-06-13T08:09:10.7890123Z"}`,
 	)
-	result, err := ex.WsBatchCancelOrders(t.Context(), &WsBatchCancelOrdersRequest{
+	result, err := ex.WebsocketBatchCancelOrders(t.Context(), &WebsocketBatchCancelOrdersRequest{
 		Orders:         []string{"1", "2", "ORDERX-IDXXX-XXXXX3"},
 		ClientOrderIDs: []string{"6d1b345e-2821-40e2-ad83-4ecb18a06876"},
 	})
-	require.NoError(t, err, "WsBatchCancelOrders must not error")
-	assert.Equal(t, &WsBatchCancelOrdersResponse{
+	require.NoError(t, err, "WebsocketBatchCancelOrders must not error")
+	assert.Equal(t, &WebsocketBatchCancelOrdersResponse{
 		Count:    4,
 		Warnings: []string{"Order already pending cancel"},
 		TimeIn:   wsTestTime(t, "2022-06-13T08:09:10.123456Z"),
 		TimeOut:  wsTestTime(t, "2022-06-13T08:09:10.7890123Z"),
-	}, result, "WsBatchCancelOrders should decode every field")
+	}, result, "WebsocketBatchCancelOrders should decode every field")
 }
 
-func TestWsPrivateRequestNotConnected(t *testing.T) {
+func TestWebsocketPrivateRequestNotConnected(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	_, err := ex.WsCancelAllOrders(t.Context())
+	_, err := ex.WebsocketCancelAllOrders(t.Context())
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "a private request should fail without a private connection")
 }
 
-func TestWsPrivateRequestTokenError(t *testing.T) {
+func TestWebsocketPrivateRequestTokenError(t *testing.T) {
 	t.Parallel()
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"error":["EAPI:Invalid key"]}`))
@@ -403,29 +403,29 @@ func TestWsPrivateRequestTokenError(t *testing.T) {
 	useTestWebsocket(t, ex, newMockWebsocketURL(t, mock), wsPrivateConnection)
 	ex.Websocket.SetSubscriptionsNotRequired()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	_, err := ex.WsCancelAllOrders(t.Context())
+	_, err := ex.WebsocketCancelAllOrders(t.Context())
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "a private request should fail when its token cannot be fetched")
 }
 
-func TestWsOrderParams(t *testing.T) {
+func TestWebsocketOrderParams(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name  string
-		order WsOrder
+		order WebsocketOrder
 		err   error
 	}{
-		{name: "order type", order: WsOrder{Side: "buy", Quantity: 1}, err: order.ErrTypeIsInvalid},
-		{name: "side", order: WsOrder{OrderType: "limit", Quantity: 1}, err: order.ErrSideIsInvalid},
-		{name: "quantity", order: WsOrder{OrderType: "limit", Side: "buy"}, err: order.ErrAmountIsInvalid},
-		{name: "client order ID beside a user reference", order: WsOrder{OrderType: "limit", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}, err: errClientOrderIDWithUserReference},
-		{name: "GTD without an expiry", order: WsOrder{OrderType: "limit", Side: "buy", Quantity: 1, TimeInForce: "gtd"}, err: order.ErrInvalidTimeInForce},
+		{name: "order type", order: WebsocketOrder{Side: "buy", Quantity: 1}, err: order.ErrTypeIsInvalid},
+		{name: "side", order: WebsocketOrder{OrderType: "limit", Quantity: 1}, err: order.ErrSideIsInvalid},
+		{name: "quantity", order: WebsocketOrder{OrderType: "limit", Side: "buy"}, err: order.ErrAmountIsInvalid},
+		{name: "client order ID beside a user reference", order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}, err: errClientOrderIDWithUserReference},
+		{name: "GTD without an expiry", order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, TimeInForce: "gtd"}, err: order.ErrInvalidTimeInForce},
 	} {
 		_, err := tc.order.params()
 		assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
 	}
 	aest := time.FixedZone("AEST", 10*60*60)
-	triggers := &WsOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"}
-	o := WsOrder{
+	triggers := &WebsocketOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"}
+	o := WebsocketOrder{
 		OrderType:           "stop-loss-limit",
 		Side:                "buy",
 		Quantity:            1.2,
@@ -470,7 +470,7 @@ func TestWsOrderParams(t *testing.T) {
 	assert.Equal(t, exp, params, "params should send every field set, with times in UTC")
 }
 
-func TestWsPrivateRequest(t *testing.T) {
+func TestWebsocketPrivateRequest(t *testing.T) {
 	t.Parallel()
 	cancelAll := `{"method":"cancel_all","params":{"token":"` + wsTradingTestToken + `"}}`
 	ex := newWsTradingTestExchange(t, cancelAll, `{"method":"cancel_all","result":{"count":1},"success":true,"time_in":"2023-09-26T13:09:48.463201Z","time_out":"2023-09-26T13:09:48.471419Z"}`)
@@ -487,7 +487,7 @@ func TestWsPrivateRequest(t *testing.T) {
 	assert.Equal(t, []string{"EGeneral:Internal error"}, apiErr.Errors, "wsPrivateRequest should return the error Kraken replies with")
 }
 
-func TestWsPrivateRequests(t *testing.T) {
+func TestWebsocketPrivateRequests(t *testing.T) {
 	t.Parallel()
 	_, err := newTestExchange(t).wsPrivateRequests(t.Context(), "cancel_all", &wsTokenParams{}, 1)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "wsPrivateRequests should reject a request without a private connection")
@@ -505,7 +505,7 @@ func TestWsPrivateRequests(t *testing.T) {
 	assert.Equal(t, "EGeneral:Internal error", resps[1].Error, "wsPrivateRequests should decode a failed reply without erroring")
 }
 
-func TestWsTokenParamsSetToken(t *testing.T) {
+func TestWebsocketTokenParamsSetToken(t *testing.T) {
 	t.Parallel()
 	p := &wsTokenParams{}
 	p.setToken(wsTradingTestToken)
