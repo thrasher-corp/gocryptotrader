@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,7 +98,41 @@ func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, e
 			return exchange, fmt.Errorf("error setting Bitstamp client ID requirement: %w", err)
 		}
 	}
-	return replaceSubscriptions(exchange, currentDefaults, previousDefaults)
+	if exchange, err = replaceSubscriptions(exchange, currentDefaults, previousDefaults); err != nil {
+		return exchange, err
+	}
+	return disableUnsupportedChannels(exchange)
+}
+
+// previousChannels are the only channels the previous version can subscribe to; it fails to generate any subscription
+// when an enabled entry names another channel
+var previousChannels = []string{"orderbook", "allTrades", "myOrders", "myTrades"}
+
+// disableUnsupportedChannels disables the subscriptions to channels the previous version does not support
+func disableUnsupportedChannels(exchange []byte) ([]byte, error) {
+	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
+	if err != nil || valueType != jsonparser.Array {
+		return exchange, nil //nolint:nilerr // replaceSubscriptions has already reported malformed subscriptions
+	}
+	var i int
+	var errs error
+	// Set returns a new document, so the entries are read from a copy of the original
+	if _, err := jsonparser.ArrayEach(bytes.Clone(raw), func(entry []byte, _ jsonparser.ValueType, _ int, _ error) {
+		defer func() { i++ }()
+		channel, _ := jsonparser.GetString(entry, "channel")
+		a, _ := jsonparser.GetString(entry, "asset")
+		// The previous version has no perpetual contracts, so it never expands a subscription for them
+		if enabled, err := jsonparser.GetBoolean(entry, "enabled"); err != nil || !enabled || slices.Contains(previousChannels, channel) || strings.EqualFold(a, "perpetualcontract") {
+			return
+		}
+		var setErr error
+		if exchange, setErr = jsonparser.Set(exchange, []byte("false"), "features", "subscriptions", "["+strconv.Itoa(i)+"]", "enabled"); setErr != nil {
+			errs = setErr
+		}
+	}); err != nil {
+		return exchange, err
+	}
+	return exchange, errs
 }
 
 // clientIDRequirementKeys returns each credentials validator key the config loader decodes as the client ID

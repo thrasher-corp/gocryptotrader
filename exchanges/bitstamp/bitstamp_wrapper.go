@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -53,8 +54,8 @@ var (
 	errTriggerPriceRequired    = errors.New("trigger price is required")
 	errTrackingValueRequired   = errors.New("trailing tracking value is required")
 	errLeverageSettingNotFound = errors.New("leverage setting not found")
-	errModifyUnsupported       = errors.New("orders can only be modified by amount and price")
 	errInvalidTransferID       = errors.New("transfer ID must be a number")
+	errZeroTransferID          = errors.New("transfer ID must not be zero")
 )
 
 // SetDefaults sets default for Bitstamp
@@ -91,7 +92,6 @@ func (e *Exchange) SetDefaults() {
 				CancelOrders:          true,
 				CancelOrder:           true,
 				SubmitOrder:           true,
-				ModifyOrder:           true,
 				DepositHistory:        true,
 				WithdrawalHistory:     true,
 				UserTradeHistory:      true,
@@ -792,6 +792,14 @@ func validateOrderSubmission(s *order.Submit) error {
 	if s.ReduceOnly && s.Type == order.Market && s.QuoteAmount > 0 {
 		return errReduceOnlyUnsupported
 	}
+	// Only market orders can be sized by a quote amount, as instant orders; every other order needs a base amount
+	if s.Amount <= 0 && s.QuoteAmount > 0 && s.Type != order.Market {
+		return fmt.Errorf("%w: %s orders require a base amount", order.ErrAmountIsInvalid, s.Type)
+	}
+	// Market, stop, take profit and trailing stop orders execute as market orders, which take no time in force flags
+	if !s.Type.Is(order.Limit) && s.TimeInForce != order.UnknownTIF && s.TimeInForce != order.GoodTillCancel && s.TimeInForce != order.ImmediateOrCancel {
+		return fmt.Errorf("%w %s for %s orders", order.ErrUnsupportedTimeInForce, s.TimeInForce, s.Type)
+	}
 	return nil
 }
 
@@ -925,84 +933,11 @@ func setLimitOrderTimeInForce(req *LimitOrderRequest, tif order.TimeInForce, end
 	return nil
 }
 
-// ModifyOrder modifies an existing order by atomically replacing it with a new order at the supplied amount and price
-// The amount is the order's new total, as the engine fills it with the order's amount when only the price changes, so
-// the replacement, which has a new order ID, is placed for the part not yet executed. The response holds the
-// replacement's own amount, so that modifying the replacement deducts only its own executions
-func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-	if _, err := marketTypeForAsset(action.AssetType); err != nil {
-		return nil, err
-	}
-	// The replace endpoint only takes a new amount, price and client order ID. A time in force is accepted without being
-	// sent, as the engine sets every modification's time in force to the order's own, unless it is one which no order
-	// could be submitted with
-	if action.TriggerPrice != 0 {
-		return nil, fmt.Errorf("%w: %w", common.ErrFunctionNotSupported, errModifyUnsupported)
-	}
-	if !action.TimeInForce.IsValid() {
-		return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, action.TimeInForce)
-	}
-	req := &ReplaceOrderRequest{
-		ClientOrderID: action.NewClientOrderID,
-		Price:         action.Price,
-	}
-	if action.OrderID != "" {
-		orderID, err := strconv.ParseUint(action.OrderID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%w %q: %w", order.ErrOrderIDNotSet, action.OrderID, err)
-		}
-		req.OrderID = orderID
-	} else {
-		req.OriginalClientOrderID = action.ClientOrderID
-	}
-	total, err := decimal.NewFromString(strconv.FormatFloat(action.Amount, 'f', -1, 64))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrAmountIsInvalid, err)
-	}
-	executed, err := e.orderExecutedAmount(ctx, req.OrderID, req.OriginalClientOrderID)
-	if err != nil {
-		return nil, err
-	}
-	// Amounts are subtracted as decimals, as float subtraction loses precision with large amounts, and rounded to the 8
-	// decimal places the API takes, as a float total can carry a residue, such as the 0.30000000000000004 GetOrderInfo
-	// reports for 0.1 executed and 0.2 remaining
-	remaining := total.Sub(executed).Round(8)
-	if !remaining.IsPositive() {
-		return nil, fmt.Errorf("%w: %s is not above the executed amount %s", order.ErrAmountIsInvalid, total, executed)
-	}
-	req.Amount = remaining.InexactFloat64()
-	replaced, err := e.ReplaceOrder(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	// No time in force is reported, as the replace endpoint takes none
-	return &order.ModifyResponse{
-		Exchange:      action.Exchange,
-		OrderID:       strconv.FormatUint(replaced.OrderID, 10),
-		ClientOrderID: action.NewClientOrderID,
-		Pair:          action.Pair,
-		Type:          action.Type,
-		Side:          action.Side,
-		AssetType:     action.AssetType,
-		Price:         action.Price,
-		Amount:        req.Amount,
-	}, nil
-}
-
-// orderExecutedAmount returns the amount of an order which has executed, from the transactions in its status
-func (e *Exchange) orderExecutedAmount(ctx context.Context, orderID uint64, clientOrderID string) (decimal.Decimal, error) {
-	status, err := e.GetOrderStatus(ctx, &OrderStatusRequest{OrderID: orderID, ClientOrderID: clientOrderID})
-	if err != nil {
-		return decimal.Zero, err
-	}
-	pair, _, err := marketPairAsset(status.Market)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	return executedAmount(status.Transactions, pair.Base)
+// ModifyOrder is not supported, as Bitstamp replaces a modified order with a new order under a new order ID, which the
+// order manager cannot follow, and takes the replacement's own amount, which executions in flight can push past the
+// order's new total
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // executedAmount returns the base currency amount executed by an order's transactions, summed as decimals so that it
@@ -1015,7 +950,7 @@ func executedAmount(transactions []OrderTransaction, base currency.Code) (decima
 		if !ok {
 			return decimal.Zero, fmt.Errorf("%w %d: no %s amount", errMalformedTransaction, transactions[i].TradeID, base)
 		}
-		value, err := decimal.NewFromString(strconv.FormatFloat(math.Abs(amount), 'f', -1, 64))
+		value, err := floatDecimal(math.Abs(amount))
 		if err != nil {
 			return decimal.Zero, fmt.Errorf("%w %d: %w", errMalformedTransaction, transactions[i].TradeID, err)
 		}
@@ -1129,7 +1064,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if err != nil {
 		return nil, err
 	}
-	remaining, err := decimal.NewFromString(strconv.FormatFloat(status.AmountRemaining.Float64(), 'f', -1, 64))
+	remaining, err := floatDecimal(status.AmountRemaining.Float64())
 	if err != nil {
 		return nil, fmt.Errorf("%w: amount remaining: %w", order.ErrAmountIsInvalid, err)
 	}
@@ -1158,6 +1093,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		CostAsset:       feeAsset,
 		Trades:          make([]order.TradeHistory, len(status.Transactions)),
 	}
+	var totals tradeTotals
 	for i := range status.Transactions {
 		tx := &status.Transactions[i]
 		amount := math.Abs(tx.Amounts[pair.Base.Upper()])
@@ -1171,20 +1107,18 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Timestamp: tx.DateTime,
 			FeeAsset:  feeAsset.String(),
 		}
-		// The conversion rounds the product before the sum, as arm64 would otherwise fuse them and round differently
-		d.Cost += float64(amount * tx.Price)
-		d.Fee += tx.Fee
+		if err := totals.add(amount, tx.Price, tx.Fee); err != nil {
+			return nil, fmt.Errorf("%w %d: %w", errMalformedTransaction, tx.TradeID, err)
+		}
 		if tx.DateTime.After(d.LastUpdated) {
 			d.LastUpdated = tx.DateTime
 		}
 	}
-	// The amounts are summed as decimals, as a float sum such as 100000000.1 and 10000000.1 carries a residue into the
-	// total, which ModifyOrder would then send
 	d.ExecutedAmount = executed.InexactFloat64()
 	d.Amount = executed.Add(remaining).InexactFloat64()
-	if d.ExecutedAmount > 0 {
-		d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
-	}
+	d.Cost = totals.cost.InexactFloat64()
+	d.Fee = totals.fee.InexactFloat64()
+	d.AverageExecutedPrice = totals.averagePrice()
 	d.Status = orderStatus(status.Status, d.ExecutedAmount > 0)
 	return d, nil
 }
@@ -1291,6 +1225,10 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 			transferID, err := strconv.ParseUint(tag, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("%w %q: %w", errInvalidTransferID, tag, err)
+			}
+			// CryptoWithdrawal leaves an unset transfer ID out, so a zero would send the withdrawal without the ID given
+			if transferID == 0 {
+				return nil, fmt.Errorf("%w %q", errZeroTransferID, tag)
 			}
 			req.TransferID = transferID
 		default:
@@ -1401,7 +1339,11 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if amount == 0 {
 			amount = o.RemainingAmount.Float64()
 		}
-		executed := amount - o.RemainingAmount.Float64()
+		executedDecimal, err := decimalDifference(amount, o.RemainingAmount.Float64())
+		if err != nil {
+			return nil, fmt.Errorf("%w for order %d: %w", order.ErrAmountIsInvalid, o.ID, err)
+		}
+		executed := executedDecimal.InexactFloat64()
 		status := order.Open
 		if executed > 0 {
 			status = order.PartiallyFilled
@@ -1538,7 +1480,7 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 			FeeAsset:  pair.Quote.String(),
 		})
 	}
-	return aggregatedOrders(aggregated), nil
+	return aggregatedOrders(aggregated)
 }
 
 // allUserTransactions returns every page of user transactions matching a request, oldest first
@@ -1611,11 +1553,15 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, pairs currency.P
 			if err != nil {
 				return nil, err
 			}
+			fee, err := decimalSum(t.Fee.Float64(), t.LiquidationFee.Float64())
+			if err != nil {
+				return nil, fmt.Errorf("%w %d: %w", errMalformedTransaction, t.TradeID, err)
+			}
 			execution := &order.TradeHistory{
 				TID:       strconv.FormatUint(t.TradeID, 10),
 				Price:     t.Price.Float64(),
 				Amount:    t.Amount.Float64(),
-				Fee:       t.Fee.Float64() + t.LiquidationFee.Float64(),
+				Fee:       fee.InexactFloat64(),
 				Exchange:  e.Name,
 				Side:      side,
 				Timestamp: t.DateTime.Time(),
@@ -1633,7 +1579,11 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, pairs currency.P
 			complementary.Fee = 0
 			addTrade(aggregatedOrder(aggregated, e.Name, t, selfTradeOrderID, pair, side), &complementary)
 		}
-		orders = append(orders, aggregatedOrders(aggregated)...)
+		pairOrders, err := aggregatedOrders(aggregated)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, pairOrders...)
 	}
 	return orders, nil
 }
@@ -1688,14 +1638,9 @@ func (e *Exchange) allDerivativesTrades(ctx context.Context, req *DerivativesTra
 	}
 }
 
-// addTrade adds an executed trade to an order
+// addTrade adds an executed trade to an order, whose totals aggregatedOrders sums from its trades
 func addTrade(d *order.Detail, t *order.TradeHistory) {
 	d.Trades = append(d.Trades, *t)
-	d.Amount += t.Amount
-	d.ExecutedAmount += t.Amount
-	// The conversion rounds the product before the sum, as arm64 would otherwise fuse them and round differently
-	d.Cost += float64(t.Amount * t.Price)
-	d.Fee += t.Fee
 	if t.Timestamp.Before(d.Date) {
 		d.Date = t.Timestamp
 	}
@@ -1706,12 +1651,22 @@ func addTrade(d *order.Detail, t *order.TradeHistory) {
 
 // aggregatedOrders returns orders aggregated from their trades sorted by order date, and by order ID when their dates
 // are equal, such as both orders of a self trade
-func aggregatedOrders(aggregated map[uint64]*order.Detail) []order.Detail {
+func aggregatedOrders(aggregated map[uint64]*order.Detail) ([]order.Detail, error) {
 	orders := make([]order.Detail, 0, len(aggregated))
 	for _, id := range slices.Sorted(maps.Keys(aggregated)) {
 		d := aggregated[id]
-		if d.ExecutedAmount > 0 {
-			d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
+		var totals tradeTotals
+		for i := range d.Trades {
+			if err := totals.add(d.Trades[i].Amount, d.Trades[i].Price, d.Trades[i].Fee); err != nil {
+				return nil, fmt.Errorf("%w %s: %w", errMalformedTransaction, d.Trades[i].TID, err)
+			}
+		}
+		d.Amount = totals.amount.InexactFloat64()
+		d.ExecutedAmount = d.Amount
+		d.Cost = totals.cost.InexactFloat64()
+		d.Fee = totals.fee.InexactFloat64()
+		if totals.amount.IsPositive() {
+			d.AverageExecutedPrice = totals.averagePrice()
 			d.Price = d.AverageExecutedPrice
 		}
 		orders = append(orders, *d)
@@ -1719,7 +1674,80 @@ func aggregatedOrders(aggregated map[uint64]*order.Detail) []order.Detail {
 	slices.SortStableFunc(orders, func(a, b order.Detail) int {
 		return a.Date.Compare(b.Date)
 	})
-	return orders
+	return orders, nil
+}
+
+// tradeTotals sums the amounts, costs and fees of trades as decimals and converts each total once, as float sums carry
+// a residue, such as 30.299999999999997 for 0.3 at 101, which reaches the order store
+type tradeTotals struct {
+	amount, cost, fee decimal.Decimal
+}
+
+// add adds a trade's amount, cost and fee to the totals
+func (t *tradeTotals) add(amount, price, fee float64) error {
+	a, err := floatDecimal(amount)
+	if err != nil {
+		return err
+	}
+	p, err := floatDecimal(price)
+	if err != nil {
+		return err
+	}
+	f, err := floatDecimal(fee)
+	if err != nil {
+		return err
+	}
+	t.amount, t.cost, t.fee = t.amount.Add(a), t.cost.Add(a.Mul(p)), t.fee.Add(f)
+	return nil
+}
+
+// averagePrice returns the trades' average price, or zero without an executed amount
+func (t *tradeTotals) averagePrice() float64 {
+	return exactQuotient(t.cost, t.amount)
+}
+
+// floatDecimal returns the shortest decimal which rounds to a float. For amounts, prices and fees of up to 15
+// significant digits, as the API's decimal strings are, that is the API's own value
+func floatDecimal(f float64) (decimal.Decimal, error) {
+	return decimal.NewFromString(strconv.FormatFloat(f, 'f', -1, 64))
+}
+
+// decimalDifference returns a minus b, subtracted as decimals so that it carries no float residue
+func decimalDifference(a, b float64) (decimal.Decimal, error) {
+	x, err := floatDecimal(a)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	y, err := floatDecimal(b)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return x.Sub(y), nil
+}
+
+// decimalSum returns a plus b, added as decimals so that it carries no float residue
+func decimalSum(a, b float64) (decimal.Decimal, error) {
+	x, err := floatDecimal(a)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	y, err := floatDecimal(b)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return x.Add(y), nil
+}
+
+// exactQuotient returns the float nearest to the quotient of two decimals, or zero for a zero divisor. Dividing their
+// floats rounds twice, and dividing them as decimals stops at 16 decimal places
+func exactQuotient(dividend, divisor decimal.Decimal) float64 {
+	x, okDividend := new(big.Rat).SetString(dividend.String())
+	y, okDivisor := new(big.Rat).SetString(divisor.String())
+	if !okDividend || !okDivisor || y.Sign() == 0 {
+		return 0
+	}
+	f, _ := x.Quo(x, y).Float64()
+	return f
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

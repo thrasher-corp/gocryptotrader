@@ -289,32 +289,55 @@ func TestCheckResponseError(t *testing.T) {
 	}
 }
 
+func TestUndecodableSuccessfulResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		status int
+		body   string
+		err    bool
+	}{
+		{status: http.StatusNoContent},
+		{status: http.StatusOK, body: `{"status":"ok"}`},
+		{status: http.StatusOK, body: `{"status":"error","reason":"Insufficient balance"}`, err: true},
+		{status: http.StatusOK, body: `<html><body>Request unsuccessful.</body></html>`, err: true},
+		{status: http.StatusOK, body: `{"status":"ok"`, err: true},
+		{status: http.StatusOK, err: true},
+	} {
+		err := newResponseTestExchange(t, tc.status, tc.body).TransferToMainAccount(t.Context(), &TransferRequest{Amount: 1, Currency: currency.BTC, SubAccount: 1})
+		if tc.err {
+			assert.Errorf(t, err, "TransferToMainAccount should error on a %d response with body %q", tc.status, tc.body)
+			continue
+		}
+		assert.NoErrorf(t, err, "TransferToMainAccount should not error on a %d response with body %q", tc.status, tc.body)
+	}
+}
+
 func TestProcessResponse(t *testing.T) {
 	t.Parallel()
 	errRequest := errors.New("request failed")
-	assert.ErrorIs(t, processResponse(nil, errRequest, false, nil, false), errRequest, "processResponse should return the error of a request without a response")
-	assert.ErrorIs(t, processResponse(nil, errRequest, true, new(any), false), errRequest, "processResponse should return the decoding error of an empty response when a result is expected")
-	assert.NoError(t, processResponse(nil, errRequest, true, nil, true), "processResponse should accept an empty successful response when no result is expected")
-	assert.NoError(t, processResponse(json.RawMessage(" null "), errRequest, true, nil, true), "processResponse should accept a null successful response when no result is expected")
+	assert.ErrorIs(t, processResponse(nil, errRequest, nil, false), errRequest, "processResponse should return the error of a request without a response")
+	assert.ErrorIs(t, processResponse(nil, errRequest, new(any), false), errRequest, "processResponse should return the decoding error of an empty response when a result is expected")
+	assert.ErrorIs(t, processResponse(nil, errRequest, nil, true), errRequest, "processResponse should return the decoding error of a successful response which cannot be decoded")
+	assert.NoError(t, processResponse(json.RawMessage(" null "), nil, nil, true), "processResponse should accept a null successful response when no result is expected")
 	badStatus := fmt.Errorf("%w: 500", request.ErrBadStatus)
-	assert.ErrorIs(t, processResponse(nil, badStatus, true, nil, true), request.ErrBadStatus, "processResponse should return the status error of an unsuccessful empty response")
-	assert.NoError(t, processResponse(nil, nil, true, new(any), true), "processResponse should not error on an empty body when a result is optional")
+	assert.ErrorIs(t, processResponse(nil, badStatus, nil, true), request.ErrBadStatus, "processResponse should return the status error of an unsuccessful empty response")
+	assert.NoError(t, processResponse(nil, nil, new(any), true), "processResponse should not error on an empty body when a result is optional")
 
 	var resp *AccountBalanceResponse
-	assert.ErrorIs(t, processResponse(json.RawMessage("null"), nil, true, &resp, true), errNoResponse, "processResponse should error on a null body when a response is expected")
-	assert.ErrorIs(t, processResponse(nil, nil, true, &resp, true), errNoResponse, "processResponse should error on an empty body when a response is expected")
+	assert.ErrorIs(t, processResponse(json.RawMessage("null"), nil, &resp, true), errNoResponse, "processResponse should error on a null body when a response is expected")
+	assert.ErrorIs(t, processResponse(nil, nil, &resp, true), errNoResponse, "processResponse should error on an empty body when a response is expected")
 	var list []AccountBalanceResponse
-	assert.NoError(t, processResponse(json.RawMessage("null"), nil, true, &list, true), "processResponse should accept a null list")
+	assert.NoError(t, processResponse(json.RawMessage("null"), nil, &list, true), "processResponse should accept a null list")
 	assert.Nil(t, list, "processResponse should leave a null list empty")
 
-	require.NoError(t, processResponse(json.RawMessage(`{"currency":"btc","total":"1.5"}`), nil, true, &resp, true), "processResponse must not error")
+	require.NoError(t, processResponse(json.RawMessage(`{"currency":"btc","total":"1.5"}`), nil, &resp, true), "processResponse must not error")
 	require.NotNil(t, resp, "response must be decoded")
 	assert.Equal(t, 1.5, resp.Total.Float64(), "Total should be decoded")
 
-	err := processResponse(json.RawMessage(`{"status":"error","reason":"nope"}`), nil, true, &resp, false)
+	err := processResponse(json.RawMessage(`{"status":"error","reason":"nope"}`), nil, &resp, false)
 	assert.ErrorIs(t, err, errAPIResponse, "processResponse should return an API error")
 	assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "processResponse should not flag an unauthenticated request")
-	err = processResponse(json.RawMessage(`{"status":"error","reason":"nope"}`), nil, true, nil, true)
+	err = processResponse(json.RawMessage(`{"status":"error","reason":"nope"}`), nil, nil, true)
 	assert.ErrorIs(t, err, errAPIResponse, "processResponse should return an API error when no result is expected")
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "processResponse should flag an authenticated request")
 }
@@ -1309,6 +1332,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 		{req: &LimitOrderRequest{}, err: currency.ErrCurrencyPairEmpty},
 		{req: &LimitOrderRequest{Pair: spotPair}, err: order.ErrSideIsInvalid},
 		{req: &LimitOrderRequest{Pair: spotPair, Side: order.Buy}, err: order.ErrPriceMustBeSetIfLimitOrder},
+		{req: &LimitOrderRequest{Pair: spotPair, Side: order.Buy, Price: 1, Amount: -1}, err: order.ErrAmountIsInvalid},
 		{req: &LimitOrderRequest{Pair: spotPair, Side: order.Buy, Price: 1, LimitPrice: -1}, err: errInvalidPrice},
 		{req: &LimitOrderRequest{Pair: spotPair, Side: order.Buy, Price: 1, GoodTillDate: true}, err: common.ErrDateUnset},
 		{req: &LimitOrderRequest{Pair: spotPair, Side: order.Buy, Price: 1, DailyOrder: true, ImmediateOrCancel: true}, err: errOrderFlagsConflict},
@@ -1357,6 +1381,9 @@ func TestPlaceInstantOrder(t *testing.T) {
 		{req: &InstantOrderRequest{}, err: currency.ErrCurrencyPairEmpty},
 		{req: &InstantOrderRequest{Pair: spotPair}, err: order.ErrSideIsInvalid},
 		{req: &InstantOrderRequest{Pair: spotPair, Side: order.Buy}, err: order.ErrAmountIsInvalid},
+		{req: &InstantOrderRequest{Pair: spotPair, Side: order.Buy, Amount: 1, Leverage: -1}, err: errInvalidLeverage},
+		{req: &InstantOrderRequest{Pair: spotPair, Side: order.Buy, Amount: 1, ReduceOnly: true}, err: errReduceOnlyUnsupported},
+		{req: &InstantOrderRequest{Pair: spotPair, Side: order.Sell, Amount: 1, AmountInCounter: true, ReduceOnly: true}, err: errReduceOnlyUnsupported},
 	} {
 		_, err := e.PlaceInstantOrder(t.Context(), tc.req)
 		assert.ErrorIs(t, err, tc.err, "PlaceInstantOrder should return the correct error")
@@ -1389,6 +1416,7 @@ func TestPlaceMarketOrder(t *testing.T) {
 		{req: nil, err: common.ErrNilPointer},
 		{req: &MarketOrderRequest{}, err: currency.ErrCurrencyPairEmpty},
 		{req: &MarketOrderRequest{Pair: spotPair}, err: order.ErrSideIsInvalid},
+		{req: &MarketOrderRequest{Pair: spotPair, Side: order.Buy, Amount: -1}, err: order.ErrAmountIsInvalid},
 	} {
 		_, err := e.PlaceMarketOrder(t.Context(), tc.req)
 		assert.ErrorIs(t, err, tc.err, "PlaceMarketOrder should return the correct error")
@@ -2854,7 +2882,8 @@ func TestShutdownDoesNotReconnect(t *testing.T) {
 	var upgrades atomic.Int64
 	h := func(w http.ResponseWriter, r *http.Request) {
 		if !gws.IsWebSocketUpgrade(r) {
-			http.NotFound(w, r) // REST order book seeding on connect
+			// Connecting makes no REST requests, so anything but the websocket upgrade is refused
+			http.NotFound(w, r)
 			return
 		}
 		upgrades.Add(1)

@@ -246,6 +246,9 @@ func TestRetailInfoJSON(t *testing.T) {
 	data, err = json.Marshal(&RetailInfo{FirstName: "Satoshi", LastName: "Nakamoto"})
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, `{"first_name":"Satoshi","last_name":"Nakamoto"}`, string(data), "Marshal should omit unset details")
+	data, err = json.Marshal(RetailInfo{FirstName: "Satoshi", LastName: "Nakamoto"})
+	require.NoError(t, err, "Marshal must not error for a value")
+	assert.JSONEq(t, `{"first_name":"Satoshi","last_name":"Nakamoto"}`, string(data), "Marshal should send the documented fields for a value")
 
 	var r RetailInfo
 	assert.ErrorIs(t, json.Unmarshal([]byte(`{"date_of_birth":"05/04/1975"}`), &r), errInvalidDateTime, "Unmarshal should error on a malformed date of birth")

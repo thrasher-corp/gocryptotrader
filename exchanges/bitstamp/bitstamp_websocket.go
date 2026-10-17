@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -70,15 +71,20 @@ const (
 // up on, so that a recovery which keeps failing does not hold back every later event
 const maxOrderEventRecoveryFailures = 3
 
+// maxKeptOrderEvents is the number of received order events kept for a market and order source while they cannot be
+// relayed
+const maxKeptOrderEvents = 1000
+
 var (
-	errParsingWSPair      = errors.New("unable to parse currency pair from channel")
-	errMalformedChannel   = errors.New("malformed channel name")
-	errWebsocketError     = errors.New("websocket error")
-	errOrderIDMissing     = errors.New("order event missing an order ID")
-	errOrderEventRecovery = errors.New("unable to recover missed order events")
-	errOrderEventsSkipped = errors.New("missed order events skipped")
-	errStaleOrderEvent    = errors.New("order event is not after the last one handled")
-	errOrderIDOverflow    = errors.New("order ID exceeds the maximum orderbook level ID")
+	errParsingWSPair       = errors.New("unable to parse currency pair from channel")
+	errMalformedChannel    = errors.New("malformed channel name")
+	errWebsocketError      = errors.New("websocket error")
+	errOrderIDMissing      = errors.New("order event missing an order ID")
+	errMalformedOrderEvent = errors.New("malformed order event")
+	errOrderEventRecovery  = errors.New("unable to recover missed order events")
+	errOrderEventsSkipped  = errors.New("missed order events skipped")
+	errStaleOrderEvent     = errors.New("order event is not after the last one handled")
+	errOrderIDOverflow     = errors.New("order ID exceeds the maximum orderbook level ID")
 
 	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
 )
@@ -166,7 +172,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 	switch event {
 	case "bts:heartbeat":
-		return nil
+		return e.retryKeptOrderEvents(ctx)
 	case "bts:subscription_succeeded", "bts:unsubscription_succeeded":
 		return e.handleWSSubscription(event, respRaw)
 	case "bts:error":
@@ -371,8 +377,8 @@ func (e *Exchange) handleWSFundingRate(ctx context.Context, data []byte, pair cu
 
 // handleWSAccountOrder processes an event for one of the account's orders
 // Each event names the event before it, so events missed by a reconnection or a server restart are recovered through
-// the REST API before the event is processed. Events are relayed in order, so an event whose recovery fails is held
-// back, and the next event recovers it along with the events missed before it
+// the REST API before the event is processed. Events are relayed in order, so an event whose recovery fails is kept,
+// and relayed once a later recovery reaches it, or before the current event when recovery gives up
 func (e *Exchange) handleWSAccountOrder(ctx context.Context, respRaw []byte, event string, data []byte, pair currency.Pair, a asset.Item) error {
 	var o OrderEventData
 	if err := json.Unmarshal(data, &o); err != nil {
@@ -385,38 +391,73 @@ func (e *Exchange) handleWSAccountOrder(ctx context.Context, respRaw []byte, eve
 	}
 	orderSource, _ := jsonparser.GetString(respRaw, "order_source")
 	key := pair.String() + "|" + a.String() + "|" + orderSource
+	cur := &keptOrderEvent{eventID: eventID, event: event, data: o, pair: pair, asset: a, orderSource: orderSource}
+	// A null preceding event follows a server restart, which may have dropped any number of events
+	return e.handleKeyedOrderEvent(ctx, key, cur, preEventType == jsonparser.Null, string(preEventID))
+}
+
+// handleKeyedOrderEvent handles an order event of a market and order source, recovering the events missed before it
+func (e *Exchange) handleKeyedOrderEvent(ctx context.Context, key string, cur *keptOrderEvent, restart bool, preEventID string) error {
 	e.orderEventMu.Lock()
 	checkpoint, ok := e.orderEventCheckpoints[key]
 	e.orderEventMu.Unlock()
 	var errs error
 	switch {
-	case ok && checkpoint.eventID == eventID:
+	case ok && checkpoint.eventID == cur.eventID:
 		// A repeated event has nothing to recover before it, and is only relayed again if it was refused
 		if !checkpoint.pending {
 			return nil
 		}
-	case ok && (checkpoint.pending || preEventType == jsonparser.Null || string(preEventID) != checkpoint.eventID):
-		// A null preceding event follows a server restart, which may have dropped any number of events
+	case ok && (checkpoint.pending || restart || preEventID != checkpoint.eventID):
 		failures := checkpoint.failures
-		checkpoint, errs = e.recoverOrderEvents(ctx, pair, a, orderSource, checkpoint, eventID)
+		checkpoint, errs = e.recoverOrderEvents(ctx, key, cur.pair, cur.asset, cur.orderSource, checkpoint, cur.eventID)
 		if errors.Is(errs, errOrderEventRecovery) {
 			// The API refuses a recovery range when the event is not after the checkpoint, so it is dropped rather than
 			// relayed over the newer order state
 			if errors.Is(errs, errInvalidEventIDRange) {
-				return fmt.Errorf("%w: %s for %s %s", errStaleOrderEvent, eventID, pair, a)
+				e.removeKeptOrderEvent(key, cur.eventID)
+				return fmt.Errorf("%w: %s for %s %s", errStaleOrderEvent, cur.eventID, cur.pair, cur.asset)
 			}
-			// The event is held back until the events missed before it are recovered, unless recovery keeps failing or
-			// the API key lacks permission for it, as every later event would be held back too
+			// The event is kept until the events missed before it are recovered, unless recovery keeps failing or the
+			// API key lacks permission for it, as every later event would be held back too
 			checkpoint.failures = failures + 1
 			if checkpoint.failures < maxOrderEventRecoveryFailures && !errors.Is(errs, errNoPermission) {
 				e.setOrderEventCheckpoint(key, checkpoint)
+				e.keepOrderEvent(key, cur)
 				return errs
 			}
-			errs = common.AppendError(errs, fmt.Errorf("%w for %s %s before event %s", errOrderEventsSkipped, pair, a, eventID))
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s %s before event %s", errOrderEventsSkipped, cur.pair, cur.asset, cur.eventID))
+			// The kept events were received, so they are relayed in event order before the current one, and giving up
+			// only skips the events never received
+			done, last, err := e.flushKeptOrderEvents(ctx, key, cur.eventID)
+			errs = common.AppendError(errs, err)
+			if last != nil {
+				checkpoint = *last
+			}
+			if errors.Is(err, errOrderEventRecovery) {
+				// The rest stay kept, and the next attempt gives up at once rather than recovering again
+				checkpoint.failures = maxOrderEventRecoveryFailures - 1
+				e.setOrderEventCheckpoint(key, checkpoint)
+				if !done {
+					e.keepOrderEvent(key, cur)
+				}
+				return errs
+			}
+			if done {
+				// The current event was kept before, and was relayed in its place among the kept events
+				e.setOrderEventCheckpoint(key, checkpoint)
+				return errs
+			}
 		}
 	}
-	err := e.processOrderEvent(ctx, event, &o, pair, a)
-	e.setOrderEventCheckpoint(key, orderEventCheckpoint{eventID: eventID, pending: isOrderEventRetryable(err)})
+	err := e.processOrderEvent(ctx, cur.event, &cur.data, cur.pair, cur.asset)
+	pending := isOrderEventRetryable(err)
+	e.setOrderEventCheckpoint(key, orderEventCheckpoint{eventID: cur.eventID, pending: pending})
+	if pending {
+		e.keepOrderEvent(key, cur)
+	} else {
+		e.removeKeptOrderEvent(key, cur.eventID)
+	}
 	return common.AppendError(errs, err)
 }
 
@@ -424,7 +465,7 @@ func (e *Exchange) handleWSAccountOrder(ctx context.Context, respRaw []byte, eve
 // the checkpoint of the last event handled
 // The API returns events from the since ID inclusive to the until ID exclusive, at most 1000 at a time. The error wraps
 // errOrderEventRecovery when recovery stopped before reaching the current event
-func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a asset.Item, orderSource string, checkpoint orderEventCheckpoint, untilID string) (orderEventCheckpoint, error) {
+func (e *Exchange) recoverOrderEvents(ctx context.Context, key string, pair currency.Pair, a asset.Item, orderSource string, checkpoint orderEventCheckpoint, untilID string) (orderEventCheckpoint, error) {
 	req := &OrderEventsRequest{Pair: pair, OrderSource: orderSource, SinceID: checkpoint.eventID, UntilID: untilID}
 	processed := map[string]bool{checkpoint.eventID: !checkpoint.pending}
 	var errs error
@@ -442,8 +483,17 @@ func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a
 			added = true
 			err := e.processOrderEvent(ctx, events[i].Event, &events[i].Data, pair, a)
 			if isOrderEventRetryable(err) {
+				// The refused event and the events fetched after it are kept, so that giving up relays them too
+				recovered := make([]keptOrderEvent, 0, len(events)-i)
+				for j := i; j < len(events); j++ {
+					if j == i || !processed[events[j].EventID] {
+						recovered = append(recovered, keptOrderEvent{eventID: events[j].EventID, event: events[j].Event, data: events[j].Data, pair: pair, asset: a, orderSource: orderSource})
+					}
+				}
+				e.keepRecoveredOrderEvents(key, recovered)
 				return orderEventCheckpoint{eventID: events[i].EventID, pending: true}, common.AppendError(errs, fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, pair, a, err))
 			}
+			e.removeKeptOrderEvent(key, events[i].EventID)
 			errs = common.AppendError(errs, err)
 			checkpoint = orderEventCheckpoint{eventID: events[i].EventID}
 		}
@@ -452,6 +502,109 @@ func (e *Exchange) recoverOrderEvents(ctx context.Context, pair currency.Pair, a
 		}
 		req.SinceID = events[len(events)-1].EventID
 	}
+}
+
+// flushKeptOrderEvents relays the kept events of a market and order source in event order. It returns whether the event
+// currentID was among them, the checkpoint of the last one relayed, and any errors, which wrap errOrderEventRecovery when
+// the data handler refused an event, which keeps it and the events after it
+func (e *Exchange) flushKeptOrderEvents(ctx context.Context, key, currentID string) (done bool, last *orderEventCheckpoint, errs error) {
+	for {
+		e.orderEventMu.Lock()
+		kept := e.orderEventsKept[key]
+		if len(kept) == 0 {
+			e.orderEventMu.Unlock()
+			return done, last, errs
+		}
+		k := kept[0]
+		e.orderEventMu.Unlock()
+		err := e.processOrderEvent(ctx, k.event, &k.data, k.pair, k.asset)
+		if isOrderEventRetryable(err) {
+			return done, last, common.AppendError(errs, fmt.Errorf("%w for %s %s: %w", errOrderEventRecovery, k.pair, k.asset, err))
+		}
+		errs = common.AppendError(errs, err)
+		e.removeKeptOrderEvent(key, k.eventID)
+		last = &orderEventCheckpoint{eventID: k.eventID}
+		if k.eventID == currentID {
+			done = true
+		}
+	}
+}
+
+// keepOrderEvent keeps a live event which has not been relayed, once per event ID, after the events already kept
+func (e *Exchange) keepOrderEvent(key string, k *keptOrderEvent) {
+	e.orderEventMu.Lock()
+	defer e.orderEventMu.Unlock()
+	kept := e.orderEventsKept[key]
+	if slices.ContainsFunc(kept, func(existing keptOrderEvent) bool { return existing.eventID == k.eventID }) {
+		return
+	}
+	e.setKeptOrderEvents(key, append(slices.Clone(kept), *k))
+}
+
+// keepRecoveredOrderEvents keeps recovered events which have not been relayed ahead of the events already kept, as the
+// recovery which fetched them ran up to those events
+func (e *Exchange) keepRecoveredOrderEvents(key string, recovered []keptOrderEvent) {
+	e.orderEventMu.Lock()
+	defer e.orderEventMu.Unlock()
+	combined := make([]keptOrderEvent, 0, len(recovered)+len(e.orderEventsKept[key]))
+	seen := make(map[string]bool, cap(combined))
+	for _, events := range [][]keptOrderEvent{recovered, e.orderEventsKept[key]} {
+		for i := range events {
+			if !seen[events[i].eventID] {
+				seen[events[i].eventID] = true
+				combined = append(combined, events[i])
+			}
+		}
+	}
+	e.setKeptOrderEvents(key, combined)
+}
+
+// setKeptOrderEvents stores the kept events of a market and order source, dropping the oldest beyond
+// maxKeptOrderEvents, so that a data handler which refuses every event does not make them grow without limit; a later
+// recovery still relays a dropped event, but giving up skips it
+// It must be called with orderEventMu held
+func (e *Exchange) setKeptOrderEvents(key string, kept []keptOrderEvent) {
+	if dropped := len(kept) - maxKeptOrderEvents; dropped > 0 {
+		log.Warnf(log.WebsocketMgr, "%s dropped %d kept order events for %s, which giving up on recovery will skip", e.Name, dropped, key)
+		kept = kept[dropped:]
+	}
+	if e.orderEventsKept == nil {
+		e.orderEventsKept = make(map[string][]keptOrderEvent)
+	}
+	e.orderEventsKept[key] = kept
+}
+
+// removeKeptOrderEvent removes a kept event once it has been relayed
+func (e *Exchange) removeKeptOrderEvent(key, eventID string) {
+	e.orderEventMu.Lock()
+	defer e.orderEventMu.Unlock()
+	kept := e.orderEventsKept[key]
+	if i := slices.IndexFunc(kept, func(k keptOrderEvent) bool { return k.eventID == eventID }); i >= 0 {
+		e.orderEventsKept[key] = slices.Delete(slices.Clone(kept), i, i+1)
+	}
+}
+
+// retryKeptOrderEvents retries the recovery of each market and order source with kept events, up to its last kept event,
+// so that kept events are relayed although no later event arrives. A failed retry counts towards giving up, as each
+// recovery holds up the read loop until it fails
+func (e *Exchange) retryKeptOrderEvents(ctx context.Context) error {
+	e.orderEventMu.Lock()
+	keys := make([]string, 0, len(e.orderEventsKept))
+	lasts := make(map[string]keptOrderEvent, len(e.orderEventsKept))
+	for key, kept := range e.orderEventsKept {
+		if len(kept) > 0 {
+			keys = append(keys, key)
+			lasts[key] = kept[len(kept)-1]
+		}
+	}
+	e.orderEventMu.Unlock()
+	slices.Sort(keys)
+	var errs error
+	for _, key := range keys {
+		last := lasts[key]
+		errs = common.AppendError(errs, e.handleKeyedOrderEvent(ctx, key, &last, false, ""))
+	}
+	return errs
 }
 
 // setOrderEventCheckpoint stores the last private order event handled for a market and order source
@@ -465,9 +618,10 @@ func (e *Exchange) setOrderEventCheckpoint(key string, checkpoint orderEventChec
 }
 
 // isOrderEventRetryable returns whether an order event which failed processing is retried by the next recovery
-// Only events the data handler refused are retried, since an event without an order ID is recovered without one too
+// Only events the data handler refused are retried, since an event without an order ID or with a malformed amount is
+// recovered the same way
 func isOrderEventRetryable(err error) bool {
-	return err != nil && !errors.Is(err, errOrderIDMissing)
+	return err != nil && !errors.Is(err, errOrderIDMissing) && !errors.Is(err, errMalformedOrderEvent)
 }
 
 // processOrderEvent relays an order event as order details; a replacement also reports the replaced order as cancelled,
@@ -480,7 +634,11 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	amount := o.AmountAtCreate.Float64()
 	remaining := o.RemainingAmount.Float64()
 	// AmountTraded only holds the amount executed by this event, so the total executed amount is derived instead
-	executed := amount - remaining
+	executedDecimal, err := decimalDifference(amount, remaining)
+	if err != nil {
+		return fmt.Errorf("%w: %s %+v: %w", errMalformedOrderEvent, event, o, err)
+	}
+	executed := executedDecimal.InexactFloat64()
 
 	var status order.Status
 	switch event {
@@ -544,11 +702,62 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 			LastUpdated: o.Microtimestamp.Time(),
 		})
 	}
-	if len(details) == 1 {
-		return e.Websocket.DataHandler.Send(ctx, &details[0])
+	if len(details) > 1 {
+		// Both orders are relayed in one payload, so a refused replacement is retried without repeating either of them
+		return e.Websocket.DataHandler.Send(ctx, details)
 	}
-	// Both orders are relayed in one payload, so a refused replacement is retried without repeating either of them
-	return e.Websocket.DataHandler.Send(ctx, details)
+	deleted := details[0]
+	if err := e.Websocket.DataHandler.Send(ctx, &details[0]); err != nil {
+		return err
+	}
+	if event == orderEventDeleted && executedDecimal.IsPositive() && deleted.OrderID != "" {
+		e.fetchOrderTotals(ctx, &deleted, executedDecimal)
+	}
+	return nil
+}
+
+// fetchOrderTotals relays a deleted order's detail again with the fee, cost and average price which its event does not
+// carry, and the status, executed amount and date the API reports for it, fetched off the read loop
+// The order store takes an order's fee from its own fee field, not its trades, and the order manager never polls an
+// order which is no longer active, so a filled order would otherwise keep a fee of zero. A read which shows the order
+// still open, or less executed than its event, is older than the event and is not relayed
+func (e *Exchange) fetchOrderTotals(ctx context.Context, deleted *order.Detail, executed decimal.Decimal) {
+	e.orderTotalFetches.Go(func() {
+		fetched, err := e.GetOrderInfo(ctx, deleted.OrderID, deleted.Pair, deleted.AssetType)
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+			return
+		}
+		fetchedExecuted, err := floatDecimal(fetched.ExecutedAmount)
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+			return
+		}
+		switch fetched.Status {
+		case order.Filled, order.Cancelled, order.PartiallyCancelled, order.Expired:
+		default:
+			log.Warnf(log.WebsocketMgr, "%s deleted order %s is still %s, so its totals are not relayed", e.Name, deleted.OrderID, fetched.Status)
+			return
+		}
+		if fetchedExecuted.LessThan(executed) {
+			log.Warnf(log.WebsocketMgr, "%s deleted order %s has executed %s, less than its event's %s, so its totals are not relayed", e.Name, deleted.OrderID, fetchedExecuted, executed)
+			return
+		}
+		// The event's last update is kept, and its trades left out, as the API's trade times are rounded to seconds
+		d := *deleted
+		d.Status = fetched.Status
+		d.ExecutedAmount = fetched.ExecutedAmount
+		d.Date = fetched.Date
+		d.Fee = fetched.Fee
+		d.FeeAsset = fetched.FeeAsset
+		d.Cost = fetched.Cost
+		d.CostAsset = fetched.CostAsset
+		d.AverageExecutedPrice = fetched.AverageExecutedPrice
+		d.Trades = nil
+		if err := e.Websocket.DataHandler.Send(ctx, &d); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s unable to relay the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+		}
+	})
 }
 
 // orderTypeFromSubtypeID returns the order type and time in force of a websocket order subtype
@@ -704,6 +913,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":      channelName,
 		"isAccountChannel": isAccountChannel,
+		// The pairs a subscription names are not formatted for requests, as the enabled pairs are
+		"marketSymbol": formatMarketSymbol,
 	}).Parse(subTplText)
 }
 
@@ -843,7 +1054,7 @@ const subTplText = `
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S }}
 			{{- range $p := $pairs -}}
-				{{- $name -}} _ {{- $p -}}
+				{{- $name -}} _ {{- marketSymbol $p -}}
 				{{ $.PairSeparator }}
 			{{- end -}}
 		{{- end }}

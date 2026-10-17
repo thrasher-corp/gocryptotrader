@@ -150,11 +150,9 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 	for name, entries := range map[string][]string{
 		"missing funding rate":    with(currentDefaults, 2, currentOrders),
 		"disabled funding rate":   with(currentDefaults, 2, strings.Replace(currentFunding, `"enabled":true`, `"enabled":false`, 1)),
-		"wildcard funding rate":   with(currentDefaults, 2, strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1)),
 		"spot orderbook":          with(currentDefaults, 0, strings.Replace(currentOrderbook, `"all"`, `"spot"`, 1)),
 		"funding rate pairs":      with(currentDefaults, 2, field(currentFunding, `"pairs":"BTC/USD-PERP"`)),
 		"custom current interval": with(currentDefaults, 0, strings.Replace(currentOrderbook, `"100ms"`, `"1s"`, 1)),
-		"extra current entry":     append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"announcements"}`),
 		"previous defaults":       previousDefaults,
 	} {
 		t.Run("downgrade/"+name, func(t *testing.T) {
@@ -163,6 +161,27 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 			got, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(input))
 			require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
 			assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
+		})
+	}
+}
+
+func TestDowngradeDisablesUnsupportedChannels(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct{ entries, exp []string }{
+		"wildcard funding rate": {
+			entries: with(currentDefaults, 2, strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1)),
+			exp:     with(currentDefaults, 2, strings.Replace(strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1), `"enabled":true`, `"enabled":false`, 1)),
+		},
+		"extra current entry": {
+			entries: append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"announcements"}`),
+			exp:     append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"announcements"}`),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the channels the previous version cannot subscribe to")
 		})
 	}
 }

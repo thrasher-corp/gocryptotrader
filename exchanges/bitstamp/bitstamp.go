@@ -59,7 +59,13 @@ type Exchange struct {
 	websocketUserID atomic.Uint64
 	// orderEventCheckpoints holds the last private order event handled for each market and order source
 	orderEventCheckpoints map[string]orderEventCheckpoint
-	orderEventMu          sync.Mutex
+	// orderEventsKept holds the received private order events which have not been relayed, in event order, for each
+	// market and order source
+	orderEventsKept map[string][]keptOrderEvent
+	orderEventMu    sync.Mutex
+	// orderTotalFetches tracks the fetches of deleted orders' totals, which run off the websocket's read loop and its
+	// wait group, so a reconnection does not wait for them
+	orderTotalFetches sync.WaitGroup
 }
 
 var (
@@ -1623,9 +1629,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	var interim json.RawMessage
-	var responseHeaders http.Header
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		responseHeaders = http.Header{}
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   common.EncodeURLValues(endpoint+path, params),
@@ -1634,10 +1638,9 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-			HeaderResponse:         &responseHeaders,
 		}, nil
 	}, request.UnauthenticatedRequest)
-	return processResponse(interim, err, len(responseHeaders) > 0, result, false)
+	return processResponse(interim, err, result, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an HTTP request signed with Bitstamp's v2 authentication scheme
@@ -1680,10 +1683,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	var interim json.RawMessage
-	var responseHeaders http.Header
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		// Headers are only filled when a response arrives, so each attempt starts with none
-		responseHeaders = http.Header{}
 		nonce := uuid.NewV4().String()
 		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		authHeader := "BITSTAMP " + creds.Key
@@ -1719,16 +1719,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-			HeaderResponse:         &responseHeaders,
 		}, nil
 	}, request.AuthenticatedRequest)
-	return processResponse(interim, err, len(responseHeaders) > 0, result, true)
+	return processResponse(interim, err, result, true)
 }
 
 // processResponse returns any error reported in a response body before decoding the body into result
-// responded reports whether a response was received, which distinguishes an empty successful body that cannot be
-// decoded from a request which failed
-func processResponse(data json.RawMessage, requestErr error, responded bool, result any, authenticated bool) error {
+// A successful response whose body cannot be decoded is an error, as only the 204 responses the API documents for calls
+// without a result carry no body, and those are not decoded
+func processResponse(data json.RawMessage, requestErr error, result any, authenticated bool) error {
 	if apiErr := checkResponseError(data, requestErr != nil); apiErr != nil {
 		if authenticated {
 			return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, apiErr)
@@ -1738,10 +1737,6 @@ func processResponse(data json.RawMessage, requestErr error, responded bool, res
 	data = bytes.TrimSpace(data)
 	empty := len(data) == 0 || bytes.Equal(data, []byte("null"))
 	if requestErr != nil {
-		// A successful response without a body fails to decode, which only matters when a result is expected
-		if result == nil && empty && responded && !errors.Is(requestErr, request.ErrBadStatus) {
-			return nil
-		}
 		return requestErr
 	}
 	if result == nil {

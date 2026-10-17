@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"context"
 	"fmt"
-	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -37,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -195,7 +195,6 @@ func TestSetDefaults(t *testing.T) {
 		CancelOrders:          true,
 		CancelOrder:           true,
 		SubmitOrder:           true,
-		ModifyOrder:           true,
 		DepositHistory:        true,
 		WithdrawalHistory:     true,
 		UserTradeHistory:      true,
@@ -263,7 +262,7 @@ func TestSetup(t *testing.T) {
 
 // previousVersionConfig writes the test config as config version 17 saved it, with Bitstamp's subscriptions replaced
 // and authentication set up with only a key and secret; v17 required a client ID, so configs saved before the v2 API
-// update keep that requirement and the default client ID placeholder
+// update keep that requirement and the default client ID placeholder, and hold no perpetual contract pairs
 func previousVersionConfig(t *testing.T, subscriptions string) string {
 	t.Helper()
 	root, err := testutils.RootPathFromCWD()
@@ -276,15 +275,20 @@ func previousVersionConfig(t *testing.T, subscriptions string) string {
 	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must not error for the exchanges")
 	i := slices.IndexFunc(exchanges, func(e map[string]json.RawMessage) bool { return string(e["name"]) == `"Bitstamp"` })
 	require.NotEqual(t, -1, i, "the test config must hold Bitstamp")
-	var api, features map[string]json.RawMessage
+	var api, features, currencyPairs, pairs map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(exchanges[i]["api"], &api), "Unmarshal must not error for the API settings")
 	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must not error for the features")
+	require.NoError(t, json.Unmarshal(exchanges[i]["currencyPairs"], &currencyPairs), "Unmarshal must not error for the currency pairs")
+	require.NoError(t, json.Unmarshal(currencyPairs["pairs"], &pairs), "Unmarshal must not error for the pairs")
+	delete(pairs, "perpetualcontract")
+	currencyPairs["pairs"], err = json.Marshal(pairs)
+	require.NoError(t, err, "Marshal must not error for the pairs")
 	api["authenticatedSupport"] = json.RawMessage(`true`)
 	api["authenticatedWebsocketApiSupport"] = json.RawMessage(`true`)
 	api["credentials"] = json.RawMessage(`{"key":"testkey","secret":"testsecret","clientID":"ClientID"}`)
 	api["credentialsValidator"] = json.RawMessage(`{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}`)
 	features["subscriptions"] = json.RawMessage(subscriptions)
-	for k, v := range map[string]any{"api": api, "features": features} {
+	for k, v := range map[string]any{"api": api, "features": features, "currencyPairs": currencyPairs} {
 		exchanges[i][k], err = json.Marshal(v)
 		require.NoErrorf(t, err, "Marshal must not error for %s", k)
 	}
@@ -311,21 +315,28 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 		return names
 	}
 	spot := []string{"btcusd", "btceur", "eurusd", "xrpusd", "xrpeur"}
+	customised := strings.Replace(previousDefaults, `{"enabled":true,"channel":"allTrades"`, `{"enabled":false,"channel":"allTrades"`, 1)
+	var customisedList subscription.List
+	require.NoError(t, json.Unmarshal([]byte(customised), &customisedList), "Unmarshal must not error for the customised subscriptions")
 	for _, tc := range []struct {
-		name          string
-		subscriptions string
-		exp           []string
+		name             string
+		subscriptions    string
+		expSubscriptions subscription.List
+		exp              []string
 	}{
 		{
-			name:          "previous defaults",
-			subscriptions: previousDefaults,
-			exp:           append(qualified(append(spot, "btcusd-perp"), "order_book", "live_trades", "my_orders", "my_trades"), "funding_rate_btcusd-perp"),
+			// The new defaults cover every enabled asset, which for a previous version config is only spot
+			name:             "previous defaults",
+			subscriptions:    previousDefaults,
+			expSubscriptions: defaultSubscriptions,
+			exp:              qualified(spot, "order_book", "live_trades", "my_orders", "my_trades"),
 		},
 		{
-			// A customised list is the user's choice, so it keeps covering only spot markets
-			name:          "customised",
-			subscriptions: strings.Replace(previousDefaults, `{"enabled":true,"channel":"allTrades"`, `{"enabled":false,"channel":"allTrades"`, 1),
-			exp:           qualified(spot, "order_book", "my_orders", "my_trades"),
+			// A customised list is the user's choice, so it is kept as it is
+			name:             "customised",
+			subscriptions:    customised,
+			expSubscriptions: customisedList,
+			exp:              qualified(spot, "order_book", "my_orders", "my_trades"),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -334,6 +345,11 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 			require.NoError(t, cfg.LoadConfig(previousVersionConfig(t, tc.subscriptions), true), "LoadConfig must upgrade a previous version config")
 			exchCfg, err := cfg.GetExchangeConfig("Bitstamp")
 			require.NoError(t, err, "GetExchangeConfig must not error")
+			expSubscriptions, err := json.Marshal(tc.expSubscriptions)
+			require.NoError(t, err, "Marshal must not error for the expected subscriptions")
+			subscriptions, err := json.Marshal(exchCfg.Features.Subscriptions)
+			require.NoError(t, err, "Marshal must not error for the upgraded subscriptions")
+			assert.JSONEq(t, string(expSubscriptions), string(subscriptions), "the upgraded config should hold the expected subscriptions")
 			// v2 authentication only needs a key and secret, so the previous client ID requirement must not disable it
 			assert.True(t, exchCfg.API.AuthenticatedSupport, "AuthenticatedSupport should remain enabled without a client ID")
 			assert.True(t, exchCfg.API.AuthenticatedWebsocketSupport, "AuthenticatedWebsocketSupport should remain enabled without a client ID")
@@ -1034,6 +1050,12 @@ func TestValidateOrderSubmission(t *testing.T) {
 		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5}},
 		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, QuoteAmount: 1, ReduceOnly: true}, err: errReduceOnlyUnsupported},
 		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, Amount: 1, ReduceOnly: true}},
+		{s: &order.Submit{AssetType: asset.Spot, Type: order.Limit, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
+		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
+		{s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill}, err: order.ErrUnsupportedTimeInForce},
+		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, Amount: 1, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5, Amount: 1, TimeInForce: order.GoodTillTime}, err: order.ErrUnsupportedTimeInForce},
+		{s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.ImmediateOrCancel}},
 	} {
 		assert.ErrorIsf(t, validateOrderSubmission(tc.s), tc.err, "validateOrderSubmission should return the correct error for a %s %s order", tc.s.AssetType, tc.s.Type)
 	}
@@ -1101,133 +1123,8 @@ func TestSetLimitOrderTimeInForce(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyOrder(t.Context(), nil)
-	assert.ErrorIs(t, err, order.ErrModifyOrderIsNil, "ModifyOrder should error on a nil request")
-	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: spotPair, AssetType: asset.Futures, OrderID: "1"})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "ModifyOrder should error on an unsupported asset")
-	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: spotPair, AssetType: asset.Spot, OrderID: "nope"})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "ModifyOrder should error on an invalid order ID")
-	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: spotPair, AssetType: asset.Spot, OrderID: "1", TriggerPrice: 1})
-	assert.ErrorIs(t, err, errModifyUnsupported, "ModifyOrder should error when modifying a trigger price")
-
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
-	resp, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotPair, AssetType: asset.Spot, OrderID: "1453282316578816", Amount: 0.02, Price: 2100.45})
-	if !mockTests {
-		assert.ErrorIs(t, err, errAPIResponse, "ModifyOrder should error for an unknown order")
-		return
-	}
-	require.NoError(t, err, "ModifyOrder must not error")
-	// The replacement order has a new order ID
-	exp := &order.ModifyResponse{Exchange: e.Name, OrderID: "1453282316578817", Pair: spotPair, AssetType: asset.Spot, Price: 2100.45, Amount: 0.02}
-	assert.Equal(t, exp, resp, "ModifyOrder should return the replacement order")
-
-	resp, err = e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotPair, AssetType: asset.Spot, ClientOrderID: "my-order-123", NewClientOrderID: "my-order-456", Amount: 0.02, Price: 2100.45})
-	require.NoError(t, err, "ModifyOrder must not error with a client order ID")
-	exp.ClientOrderID = "my-order-456"
-	assert.Equal(t, exp, resp, "ModifyOrder should return the replacement order's client order ID")
-}
-
-func TestModifyOrderAmount(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name           string
-		modify         order.Modify
-		statusBy       url.Values
-		executed       []string
-		refused        string
-		replacedBy     url.Values
-		expAmount      string
-		expErr         error
-		expErrContains string
-	}{
-		// The cases vary the time in force, which the engine sets to the stored order's own and ModifyOrder must accept
-		{name: "buy", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
-		{name: "sell", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel | order.PostOnly, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"-0.30000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
-		{name: "float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.PostOnly, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.7"},
-		{name: "total above its float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.ImmediateOrCancel, Amount: 0.30000000000000004}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.2"},
-		{name: "total below its float residue", modify: order.Modify{OrderID: "1", TimeInForce: order.FillOrKill, Amount: 0.19999999999999998}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.1"},
-		{name: "eight decimal places", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCancel, Amount: 0.22345678}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.12345678"},
-		{name: "large amounts", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillCrossing, Amount: 90000000000.3}, statusBy: url.Values{"id": {"1"}}, executed: []string{"90000000000.20000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.1"},
-		{name: "two executions", modify: order.Modify{OrderID: "1", TimeInForce: order.GoodTillDay, Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.10000000", "0.20000000"}, replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5"},
-		{name: "client order ID", modify: order.Modify{ClientOrderID: "my-order-1", TimeInForce: order.PostOnly | order.GoodTillTime, Amount: 0.8}, statusBy: url.Values{"client_order_id": {"my-order-1"}}, executed: []string{"0.30000000"}, replacedBy: url.Values{"orig_client_order_id": {"my-order-1"}}, expAmount: "0.5"},
-		{name: "executed", modify: order.Modify{OrderID: "1", Amount: 0.3}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, expErr: order.ErrAmountIsInvalid, expErrContains: "executed amount 0.3"},
-		{name: "below executed", modify: order.Modify{OrderID: "1", Amount: 0.2}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, expErr: order.ErrAmountIsInvalid, expErrContains: "executed amount 0.3"},
-		{name: "time in force combined with immediate or cancel", modify: order.Modify{OrderID: "1", TimeInForce: order.ImmediateOrCancel | order.PostOnly, Amount: 0.8}, expErr: order.ErrUnsupportedTimeInForce},
-		{name: "unknown time in force", modify: order.Modify{OrderID: "1", TimeInForce: order.TimeInForce(1 << 12), Amount: 0.8}, expErr: order.ErrUnsupportedTimeInForce},
-		{name: "not a number", modify: order.Modify{OrderID: "1", Amount: math.NaN()}, expErr: order.ErrAmountIsInvalid},
-		{name: "infinite", modify: order.Modify{OrderID: "1", Amount: math.Inf(1)}, expErr: order.ErrAmountIsInvalid},
-		{name: "status refused", modify: order.Modify{OrderID: "1", Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, refused: "/api/v2/order_status/", expErr: errAPIResponse},
-		{name: "replacement refused", modify: order.Modify{OrderID: "1", Amount: 0.8}, statusBy: url.Values{"id": {"1"}}, executed: []string{"0.30000000"}, refused: "/api/v2/replace_order/", replacedBy: url.Values{"id": {"1"}}, expAmount: "0.5", expErr: errAPIResponse},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var mu sync.Mutex
-			var replaced []url.Values
-			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-				var body string
-				switch r.URL.Path {
-				case "/api/v2/order_status/":
-					assert.Equal(t, tc.statusBy, r.PostForm, "the order status should be requested for the order")
-					transactions := make([]string, len(tc.executed))
-					for i, amount := range tc.executed {
-						transactions[i] = fmt.Sprintf(`{"tid":%d,"price":"84000","btc":%q,"usd":"25200","fee":"1","datetime":"2025-06-16 10:00:01","type":2}`, i+1, amount)
-					}
-					body = `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[` + strings.Join(transactions, ",") + `],"amount_remaining":"0.50000000"}`
-				case "/api/v2/replace_order/":
-					mu.Lock()
-					replaced = append(replaced, r.PostForm)
-					mu.Unlock()
-					body = `{"order_id":2,"order_type":"0","market":"BTC/USD","amount":"0.5","price":"85000","datetime":"2025-10-17T14:23:01.725000Z","orig_order_id":1}`
-				default:
-					assert.Failf(t, "unexpected request", "path %s should not be requested", r.URL.Path)
-				}
-				if r.URL.Path == tc.refused {
-					w.WriteHeader(http.StatusNotFound)
-					body = `{"status":"error","reason":"Order not found.","response_code":"404.002"}`
-				}
-				_, err := w.Write([]byte(body))
-				assert.NoError(t, err, "Write should not error")
-			})
-			tc.modify.Exchange, tc.modify.Pair, tc.modify.AssetType, tc.modify.Price = ex.Name, spotPair, asset.Spot, 85000
-			resp, err := ex.ModifyOrder(t.Context(), &tc.modify)
-			var expReplaced []url.Values
-			if tc.expAmount != "" {
-				exp := url.Values{"amount": {tc.expAmount}, "price": {"85000"}}
-				maps.Copy(exp, tc.replacedBy)
-				expReplaced = []url.Values{exp}
-			}
-			mu.Lock()
-			assert.Equal(t, expReplaced, replaced, "ModifyOrder should replace the order once with the amount not yet executed")
-			mu.Unlock()
-			if tc.expErr != nil {
-				assert.ErrorIs(t, err, tc.expErr, "ModifyOrder should return the expected error")
-				if tc.expErrContains != "" {
-					assert.ErrorContains(t, err, tc.expErrContains, "ModifyOrder should report the executed amount")
-				}
-				return
-			}
-			require.NoError(t, err, "ModifyOrder must not error")
-			amount, err := strconv.ParseFloat(tc.expAmount, 64)
-			require.NoError(t, err, "ParseFloat must not error")
-			exp := &order.ModifyResponse{Exchange: ex.Name, OrderID: "2", Pair: spotPair, AssetType: asset.Spot, Price: 85000, Amount: amount}
-			assert.Equal(t, exp, resp, "ModifyOrder should return the replacement order with its own amount and no time in force")
-		})
-	}
-}
-
-func TestOrderExecutedAmount(t *testing.T) {
-	t.Parallel()
-	_, err := newResponseTestExchange(t, http.StatusNotFound, `{"status":"error","reason":"Order not found.","response_code":"404.002"}`).orderExecutedAmount(t.Context(), 1, "")
-	assert.ErrorIs(t, err, errAPIResponse, "orderExecutedAmount should error when the order status cannot be fetched")
-	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTCUSD","transactions":[]}`).orderExecutedAmount(t.Context(), 1, "")
-	assert.ErrorContains(t, err, "BTCUSD", "orderExecutedAmount should error on a malformed market")
-	// The decoder skips a non-numeric currency field, so the transaction has no base amount
-	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Open","market":"BTC/USD","transactions":[{"tid":7,"price":"84000","btc":"oops","usd":"25200","fee":"1","datetime":"2025-06-16 10:00:01","type":2}]}`).orderExecutedAmount(t.Context(), 1, "")
-	assert.ErrorIs(t, err, errMalformedTransaction, "orderExecutedAmount should error on a transaction without a base amount")
-	executed, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"1","status":"Open","market":"BTC/USD","transactions":[{"tid":7,"price":"84000","btc":"-0.10000000","usd":"8400","fee":"1","datetime":"2025-06-16 10:00:01","type":2},{"tid":8,"price":"84000","btc":"-0.20000000","usd":"16800","fee":"1","datetime":"2025-06-16 10:00:02","type":2}]}`).orderExecutedAmount(t.Context(), 1, "")
-	require.NoError(t, err, "orderExecutedAmount must not error")
-	assert.Equal(t, "0.3", executed.String(), "orderExecutedAmount should sum the base amounts of the order's transactions")
+	_, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotPair, AssetType: asset.Spot, OrderID: "1", Amount: 1, Price: 1})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should not be supported")
 }
 
 func TestExecutedAmount(t *testing.T) {
@@ -1349,6 +1246,20 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error for a large order")
 	assert.Equal(t, "110000000.2", strconv.FormatFloat(large.Amount, 'f', -1, 64), "GetOrderInfo should sum the executed and remaining amounts without a float residue")
 	assert.Equal(t, "100000000.1", strconv.FormatFloat(large.ExecutedAmount, 'f', -1, 64), "GetOrderInfo should return the executed amount")
+	// Float sums of these transactions carry a residue into the cost, fee and average price
+	for name, tc := range map[string]struct {
+		transactions []string
+		exp          [4]float64
+	}{
+		"one transaction":   {transactions: []string{`{"tid":1,"price":"101","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}`}, exp: [4]float64{0.3, 30.3, 0.1, 101}},
+		"1000 transactions": {transactions: slices.Repeat([]string{`{"tid":1,"price":"100","btc":"0.001","usd":"-0.1","fee":"0.01","datetime":"2025-06-16 10:00:01","type":2}`}, 1000), exp: [4]float64{1, 100, 10, 100}},
+	} {
+		d, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[`+strings.Join(tc.transactions, ",")+`],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+		require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
+		assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.Cost, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should sum the executed amount, cost and fee exactly and average them with %s", name)
+	}
+	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[{"tid":7,"price":"NaN","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+	assert.ErrorIs(t, err, errMalformedTransaction, "GetOrderInfo should error on a transaction price which is not a number")
 
 	skipIfLiveWithoutCredentials(t)
 	d, err := e.GetOrderInfo(t.Context(), "1458532827766784", spotPair, asset.Spot)
@@ -1644,7 +1555,7 @@ func TestGetActiveOrders(t *testing.T) {
 				Date:            time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC),
 				Price:           100,
 				Amount:          0.5,
-				ExecutedAmount:  0.09999999999999998,
+				ExecutedAmount:  0.1,
 				RemainingAmount: 0.4,
 			}, o, "spot order should be correct")
 			continue
@@ -1762,6 +1673,23 @@ func TestDerivativesOrderHistory(t *testing.T) {
 	})
 	_, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "derivativesOrderHistory should error on an invalid side")
+	for liquidationFee, expErr := range map[string]error{"0.2": nil, "NaN": errMalformedTransaction} {
+		ex = newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write(fmt.Appendf(nil, `[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"buy","price":"100","amount":"1","fee":"0.1","liquidation_fee":%q,"fee_currency":"USD","market":"BTC/USD-PERP"}]`, liquidationFee))
+			assert.NoError(t, err, "Write should not error")
+		})
+		orders, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+		if expErr != nil {
+			assert.ErrorIs(t, err, expErr, "derivativesOrderHistory should error on a liquidation fee which is not a number")
+			continue
+		}
+		require.NoError(t, err, "derivativesOrderHistory must not error with a liquidation fee")
+		require.Len(t, orders, 1, "derivativesOrderHistory must return the trade's order")
+		require.Len(t, orders[0].Trades, 1, "the order must hold its trade")
+		// A float sum of 0.1 and 0.2 is 0.30000000000000004
+		assert.Equal(t, 0.3, orders[0].Trades[0].Fee, "the trade's fee should include its liquidation fee without a float residue")
+		assert.Equal(t, 0.3, orders[0].Fee, "the order's fee should include the liquidation fee without a float residue")
+	}
 
 	skipIfLiveWithoutCredentials(t)
 	orders, err := e.derivativesOrderHistory(recordedPagerContext(t), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
@@ -1847,27 +1775,50 @@ func TestAddTrade(t *testing.T) {
 	addTrade(d, &first)
 	addTrade(d, &second)
 	assert.Equal(t, &order.Detail{
-		Date:           time.Unix(100, 0),
-		LastUpdated:    time.Unix(300, 0),
-		Amount:         3,
-		ExecutedAmount: 3,
-		Cost:           310,
-		Fee:            0.75,
-		Trades:         []order.TradeHistory{first, second},
-	}, d, "addTrade should accumulate the trades")
+		Date:        time.Unix(100, 0),
+		LastUpdated: time.Unix(300, 0),
+		Trades:      []order.TradeHistory{first, second},
+	}, d, "addTrade should add the trades and widen the order's dates")
 }
 
 func TestAggregatedOrders(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, aggregatedOrders(nil), "aggregatedOrders should return no orders without orders")
-	orders := aggregatedOrders(map[uint64]*order.Detail{
-		1: {OrderID: "1", Date: time.Unix(200, 0), ExecutedAmount: 2, Cost: 210},
+	orders, err := aggregatedOrders(nil)
+	require.NoError(t, err, "aggregatedOrders must not error without orders")
+	assert.Empty(t, orders, "aggregatedOrders should return no orders without orders")
+	twoTrades := []order.TradeHistory{{TID: "1", Price: 100, Amount: 2, Fee: 0.5}, {TID: "2", Price: 110, Amount: 1, Fee: 0.25}}
+	orders, err = aggregatedOrders(map[uint64]*order.Detail{
+		1: {OrderID: "1", Date: time.Unix(200, 0), Trades: twoTrades},
 		2: {OrderID: "2", Date: time.Unix(100, 0)},
 	})
+	require.NoError(t, err, "aggregatedOrders must not error")
 	assert.Equal(t, []order.Detail{
 		{OrderID: "2", Date: time.Unix(100, 0)},
-		{OrderID: "1", Date: time.Unix(200, 0), ExecutedAmount: 2, Cost: 210, AverageExecutedPrice: 105, Price: 105},
-	}, orders, "aggregatedOrders should sort the orders by date and set their average price")
+		{OrderID: "1", Date: time.Unix(200, 0), Amount: 3, ExecutedAmount: 3, Cost: 310, Fee: 0.75, AverageExecutedPrice: 310.0 / 3, Price: 310.0 / 3, Trades: twoTrades},
+	}, orders, "aggregatedOrders should sort the orders by date and sum their trades")
+
+	// Float sums of these trades carry a residue into the totals and the average price
+	manyTrades := make([]order.TradeHistory, 1000)
+	for i := range manyTrades {
+		manyTrades[i] = order.TradeHistory{TID: strconv.Itoa(i), Price: 100, Amount: 0.001, Fee: 0.01}
+	}
+	for _, tc := range []struct {
+		name   string
+		trades []order.TradeHistory
+		exp    order.Detail
+	}{
+		{name: "1000 small trades", trades: manyTrades, exp: order.Detail{Amount: 1, ExecutedAmount: 1, Cost: 100, Fee: 10, AverageExecutedPrice: 100, Price: 100}},
+		{name: "a small amount", trades: []order.TradeHistory{{TID: "1", Price: 7, Amount: 0.00000003}}, exp: order.Detail{Amount: 0.00000003, ExecutedAmount: 0.00000003, Cost: 0.00000021, AverageExecutedPrice: 7, Price: 7}},
+		{name: "an inexact average", trades: []order.TradeHistory{{TID: "1", Price: 0.00000003, Amount: 0.2}, {TID: "2", Price: 101, Amount: 0.00000001}}, exp: order.Detail{Amount: 0.20000001, ExecutedAmount: 0.20000001, Cost: 0.000001016, AverageExecutedPrice: 5.079999746000013e-06, Price: 5.079999746000013e-06}},
+	} {
+		got, err := aggregatedOrders(map[uint64]*order.Detail{1: {Trades: tc.trades}})
+		require.NoErrorf(t, err, "aggregatedOrders must not error with %s", tc.name)
+		require.Lenf(t, got, 1, "aggregatedOrders must return one order with %s", tc.name)
+		got[0].Trades = nil
+		assert.Equalf(t, tc.exp, got[0], "aggregatedOrders should sum %s exactly", tc.name)
+	}
+	_, err = aggregatedOrders(map[uint64]*order.Detail{1: {Trades: []order.TradeHistory{{TID: "7", Price: 1, Amount: math.NaN()}}}})
+	assert.ErrorIs(t, err, errMalformedTransaction, "aggregatedOrders should error on a trade amount which is not a number")
 
 	sameDate := make(map[uint64]*order.Detail)
 	var expIDs []string
@@ -1875,7 +1826,8 @@ func TestAggregatedOrders(t *testing.T) {
 		sameDate[id] = &order.Detail{OrderID: strconv.FormatUint(id, 10), Date: time.Unix(100, 0)}
 		expIDs = append(expIDs, strconv.FormatUint(id, 10))
 	}
-	orders = aggregatedOrders(sameDate)
+	orders, err = aggregatedOrders(sameDate)
+	require.NoError(t, err, "aggregatedOrders must not error with equal dates")
 	orderIDs := make([]string, len(orders))
 	for i := range orders {
 		orderIDs[i] = orders[i].OrderID
@@ -2708,6 +2660,17 @@ func TestWithdrawCryptocurrencyFundsTags(t *testing.T) {
 		Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "memo"},
 	})
 	assert.ErrorIs(t, err, errInvalidTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID which is not a number")
+	for _, chain := range []string{"", "casper"} {
+		_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+			Exchange: ex.Name,
+			Type:     withdraw.Crypto,
+			Currency: currency.CSPR,
+			Amount:   1,
+			Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "0", Chain: chain},
+		})
+		assert.ErrorIsf(t, err, errZeroTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID of zero on the %q network", chain)
+	}
+	assert.Empty(t, requests, "WithdrawCryptocurrencyFunds should not send a withdrawal with an invalid Casper transfer ID")
 }
 
 func TestGetLeverageSettingNotFound(t *testing.T) {

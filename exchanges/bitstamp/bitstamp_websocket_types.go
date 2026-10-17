@@ -181,3 +181,13 @@ type orderEventCheckpoint struct {
 	pending  bool
 	failures uint8
 }
+
+// keptOrderEvent is a received private order event which has not been relayed
+type keptOrderEvent struct {
+	eventID     string
+	event       string
+	data        OrderEventData
+	pair        currency.Pair
+	asset       asset.Item
+	orderSource string
+}

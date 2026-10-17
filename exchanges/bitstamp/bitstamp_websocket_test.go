@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -26,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -80,6 +83,8 @@ func newFeedTestInstance(t *testing.T) *Exchange {
 
 // dataHandlerPayloads closes the data handler and returns everything sent to it
 func dataHandlerPayloads(ex *Exchange) []any {
+	// The totals of deleted orders are relayed off the read loop, so they must be waited for before the relay is closed
+	ex.orderTotalFetches.Wait()
 	ex.Websocket.DataHandler.Close()
 	var payloads []any
 	for p := range ex.Websocket.DataHandler.C {
@@ -446,7 +451,7 @@ func TestWebsocketOrderUpdate(t *testing.T) {
 	require.Len(t, payloads, 8, "the data handler must receive an update for each order event")
 
 	// The fixture was captured before order subtypes were published, so every order is decoded as a limit order
-	partialMarketBuy, partialMarketSell := 0.00038667-0.00000001, 0.00038679-0.00000001
+	partialMarketBuy, partialMarketSell := 0.00038666, 0.00038678
 	for i, exp := range []struct {
 		orderID, clientOrderID                    string
 		status                                    order.Status
@@ -655,6 +660,9 @@ func TestProcessOrderEvent(t *testing.T) {
 	assert.Len(t, replacement, 2, "the payload should hold the replacement and the order it replaced")
 }
 
+// orderEventsKey is the market and order source of the events orderEventFrame returns
+var orderEventsKey = wsSpotPair.String() + "|" + asset.Spot.String() + "|orderbook"
+
 // orderEventFrame returns a private orders channel event for an order, chained to the event before it
 func orderEventFrame(eventID, preEventID string, orderID uint64) []byte {
 	pre := "null"
@@ -669,11 +677,18 @@ func TestHandleWebsocketAccountOrderGapRecovery(t *testing.T) {
 	var mu sync.Mutex
 	var requests []url.Values
 	failRecovery := true
+	var totalsFetched []url.Values
 	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/account_order_data/", r.URL.Path, "path should be the account order data")
 		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
 		mu.Lock()
 		defer mu.Unlock()
+		if r.URL.Path == "/api/v2/order_status/" {
+			// The recovered deletion of an order which executed fetches its totals, which this test leaves unanswered
+			totalsFetched = append(totalsFetched, r.PostForm)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		assert.Equal(t, "/api/v2/account_order_data/", r.URL.Path, "path should be the account order data")
 		if failRecovery {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -725,6 +740,10 @@ func TestHandleWebsocketAccountOrderGapRecovery(t *testing.T) {
 
 	require.NoError(t, ex.wsHandleData(t.Context(), orderEventFrame("event-1004", "event-1003", 1004)), "a chained event must be processed")
 	assert.Equal(t, []string{"1004"}, relayedOrderIDs(t, ex), "an event chained to a recovered gap should be processed without recovery")
+	ex.orderTotalFetches.Wait()
+	mu.Lock()
+	assert.Equal(t, []url.Values{{"id": {"1002"}}}, totalsFetched, "the totals of the recovered order which executed should be fetched")
+	mu.Unlock()
 }
 
 // relayedOrderIDs returns the IDs of the orders relayed to the data handler since it was last read
@@ -940,7 +959,7 @@ func TestHandleWebsocketAccountOrderRecoveryGiveUp(t *testing.T) {
 		err := ex.wsHandleData(t.Context(), frame(6))
 		assert.ErrorIs(t, err, errOrderEventRecovery, "the third failed recovery should be reported")
 		assert.ErrorIs(t, err, errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
-		assert.Equal(t, []string{"6"}, relayedOrderIDs(t, ex), "the event should be relayed once the missed events are skipped")
+		assert.Equal(t, []string{"4", "5", "6"}, relayedOrderIDs(t, ex), "the events held back should be relayed before the event once the missed events are skipped")
 		require.NoError(t, ex.wsHandleData(t.Context(), frame(7)), "an event chained to the skipped events must be processed")
 		assert.Equal(t, []string{"7"}, relayedOrderIDs(t, ex), "an event chained to the skipped events should be relayed without recovery")
 		assert.Equal(t, []string{"event-1", "event-1", "event-1"}, sinceIDs(), "recovery should be retried from the last relayed event until the missed events are skipped")
@@ -1004,19 +1023,19 @@ func TestHandleWebsocketAccountOrderStaleEvent(t *testing.T) {
 func TestRecoverOrderEvents(t *testing.T) {
 	t.Parallel()
 	ex, sinceIDs := newOrderEventsTestExchange(t, nil, 3)
-	checkpoint, err := ex.recoverOrderEvents(t.Context(), wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-1"}, "event-5")
+	checkpoint, err := ex.recoverOrderEvents(t.Context(), orderEventsKey, wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-1"}, "event-5")
 	assert.ErrorIs(t, err, errOrderIDMissing, "recoverOrderEvents should report an event without an order ID")
 	assert.NotErrorIs(t, err, errOrderEventRecovery, "recoverOrderEvents should not stop at an event without an order ID")
 	assert.Equal(t, orderEventCheckpoint{eventID: "event-4"}, checkpoint, "recoverOrderEvents should return the last event handled")
 	assert.Equal(t, []string{"2", "4"}, relayedOrderIDs(t, ex), "recoverOrderEvents should relay the events after the checkpoint")
 
-	checkpoint, err = ex.recoverOrderEvents(t.Context(), wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-4", pending: true}, "event-6")
+	checkpoint, err = ex.recoverOrderEvents(t.Context(), orderEventsKey, wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-4", pending: true}, "event-6")
 	require.NoError(t, err, "recoverOrderEvents must not error")
 	assert.Equal(t, orderEventCheckpoint{eventID: "event-5"}, checkpoint, "recoverOrderEvents should return the last event handled")
 	assert.Equal(t, []string{"4", "5"}, relayedOrderIDs(t, ex), "recoverOrderEvents should relay a pending checkpoint's event")
 
 	ex.Websocket.DataHandler = stream.NewRelay(1)
-	checkpoint, err = ex.recoverOrderEvents(t.Context(), wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-5"}, "event-9")
+	checkpoint, err = ex.recoverOrderEvents(t.Context(), orderEventsKey, wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-5"}, "event-9")
 	assert.ErrorIs(t, err, errOrderEventRecovery, "recoverOrderEvents should error when the data handler refuses an event")
 	assert.Equal(t, orderEventCheckpoint{eventID: "event-7", pending: true}, checkpoint, "recoverOrderEvents should return the refused event as pending")
 	assert.Equal(t, []string{"6"}, relayedOrderIDs(t, ex), "recoverOrderEvents should stop at the refused event")
@@ -1025,7 +1044,7 @@ func TestRecoverOrderEvents(t *testing.T) {
 	ex = newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
-	checkpoint, err = ex.recoverOrderEvents(t.Context(), wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-1"}, "event-3")
+	checkpoint, err = ex.recoverOrderEvents(t.Context(), orderEventsKey, wsSpotPair, asset.Spot, "orderbook", orderEventCheckpoint{eventID: "event-1"}, "event-3")
 	assert.ErrorIs(t, err, errOrderEventRecovery, "recoverOrderEvents should error when the events cannot be fetched")
 	assert.Equal(t, orderEventCheckpoint{eventID: "event-1"}, checkpoint, "recoverOrderEvents should keep the checkpoint when the events cannot be fetched")
 }
@@ -1042,11 +1061,358 @@ func TestSetOrderEventCheckpoint(t *testing.T) {
 	}, ex.orderEventCheckpoints, "setOrderEventCheckpoint should store the last checkpoint of each key")
 }
 
+// heartbeatReply is the server's reply to the heartbeats the ping handler sends
+var heartbeatReply = []byte(`{"event":"bts:heartbeat","channel":"","data":{"status":"success"}}`)
+
+func TestHandleWebsocketAccountOrderKeptEvents(t *testing.T) {
+	t.Parallel()
+	frame := func(id uint64) []byte {
+		return orderEventFrame("event-"+strconv.FormatUint(id, 10), "event-"+strconv.FormatUint(id-1, 10), id)
+	}
+	t.Run("refused event", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return true })
+		ex.Websocket.DataHandler = fullDataHandler(t)
+		assert.Error(t, ex.wsHandleData(t.Context(), frame(1)), "a refused event should error")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		for _, id := range []uint64{2, 3} {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), frame(id)), errOrderEventRecovery, "the failed recovery before event %d should be reported", id)
+		}
+		assert.Empty(t, relayedOrderIDs(t, ex), "events should be held back while recovery fails")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(4)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"1", "2", "3", "4"}, relayedOrderIDs(t, ex), "the refused event and the events held back should be relayed before the event")
+	})
+	t.Run("refused recovered event", func(t *testing.T) {
+		t.Parallel()
+		var failing atomic.Bool
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		failing.Store(true)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(4)), errOrderEventRecovery, "a failed recovery should be reported")
+		failing.Store(false)
+		// The data handler takes one recovered event and refuses the next
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(5)), errOrderEventRecovery, "a refused recovered event should stop recovery")
+		assert.Equal(t, []string{"2"}, relayedOrderIDs(t, ex), "the recovered events before the refused event should be relayed")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		failing.Store(true)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(6)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"3", "4", "5", "6"}, relayedOrderIDs(t, ex), "the refused recovered event should be relayed ahead of the events held back behind it")
+	})
+	t.Run("events fetched after a refused event", func(t *testing.T) {
+		t.Parallel()
+		var failing atomic.Bool
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		// Event 4 is only ever fetched, after the refused event 3
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(5)), errOrderEventRecovery, "a refused recovered event should stop recovery")
+		assert.Equal(t, []string{"2"}, relayedOrderIDs(t, ex), "the recovered events before the refused event should be relayed")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		failing.Store(true)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(6)), errOrderEventRecovery, "a failed recovery should be reported")
+		assert.Empty(t, relayedOrderIDs(t, ex), "events should be held back while recovery fails")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(7)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"3", "4", "5", "6", "7"}, relayedOrderIDs(t, ex), "the refused event and the events fetched after it should be relayed before the events held back")
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(8)), "an event chained to the relayed events must be processed")
+		assert.Equal(t, []string{"8"}, relayedOrderIDs(t, ex), "an event chained to the relayed events should be relayed without recovery")
+	})
+	t.Run("live copy of a fetched event", func(t *testing.T) {
+		t.Parallel()
+		var failing atomic.Bool
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(5)), errOrderEventRecovery, "a refused recovered event should stop recovery")
+		assert.Equal(t, []string{"2"}, relayedOrderIDs(t, ex), "the recovered events before the refused event should be relayed")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		failing.Store(true)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), orderEventFrame("event-4", "event-3", 4)), errOrderEventRecovery, "a failed recovery should be reported")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(6)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"3", "4", "5", "6"}, relayedOrderIDs(t, ex), "an event received both fetched and live should be relayed once")
+	})
+	t.Run("refused while giving up", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return true })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		for _, id := range []uint64{4, 5} {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), frame(id)), errOrderEventRecovery, "the failed recovery before event %d should be reported", id)
+		}
+		// The data handler takes the first event held back and refuses the next
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		err := ex.wsHandleData(t.Context(), frame(6))
+		assert.ErrorIs(t, err, errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.ErrorIs(t, err, errOrderEventRecovery, "the refused event should be reported")
+		assert.Equal(t, []string{"4"}, relayedOrderIDs(t, ex), "the events held back should be relayed until the data handler refuses one")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(7)), errOrderEventsSkipped, "the next failed recovery should give up at once")
+		assert.Equal(t, []string{"5", "6", "7"}, relayedOrderIDs(t, ex), "the rest of the events held back should be relayed before the next event")
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(8)), "an event chained to the relayed events must be processed")
+		assert.Equal(t, []string{"8"}, relayedOrderIDs(t, ex), "an event chained to the relayed events should be relayed without recovery")
+	})
+	t.Run("repeated event refused while giving up", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return true })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		for _, id := range []uint64{4, 5} {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), frame(id)), errOrderEventRecovery, "the failed recovery before event %d should be reported", id)
+		}
+		// Event 4 arrives again as recovery gives up, and the data handler takes it but refuses event 5
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(4)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"4"}, relayedOrderIDs(t, ex), "the repeated event should be relayed among the events held back")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(6)), errOrderEventsSkipped, "the next failed recovery should give up at once")
+		assert.Equal(t, []string{"5", "6"}, relayedOrderIDs(t, ex), "the repeated event should not be relayed again")
+	})
+	t.Run("events recovered while kept", func(t *testing.T) {
+		t.Parallel()
+		var failing atomic.Bool
+		failing.Store(true)
+		ex, _ := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		for _, id := range []uint64{4, 5} {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), frame(id)), errOrderEventRecovery, "the failed recovery before event %d should be reported", id)
+		}
+		failing.Store(false)
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(6)), "an event after a recovered gap must be processed")
+		assert.Equal(t, []string{"1", "2", "3", "4", "5", "6"}, relayedOrderIDs(t, ex), "the missed events and the events held back should be recovered before the event")
+		failing.Store(true)
+		for _, id := range []uint64{9, 10} {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), frame(id)), errOrderEventRecovery, "the failed recovery before event %d should be reported", id)
+		}
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(11)), errOrderEventsSkipped, "the third failed recovery in a row should skip the missed events")
+		assert.Equal(t, []string{"9", "10", "11"}, relayedOrderIDs(t, ex), "the events a recovery relayed should not be relayed again when recovery gives up")
+	})
+	t.Run("stale event on a heartbeat", func(t *testing.T) {
+		t.Parallel()
+		var reply atomic.Int32
+		var requests atomic.Int32
+		ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			if reply.Load() == http.StatusBadRequest {
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte(`{"status":"error","reason":"Invalid event ID range: until_id must be greater than since_id.","response_code":"400.085"}`))
+				assert.NoError(t, err, "Write should not error")
+				return
+			}
+			w.WriteHeader(http.StatusInternalServerError)
+		})
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(3)), errOrderEventRecovery, "a failed recovery should be reported")
+		// The API now refuses the range, as it does for an event which is not after the checkpoint
+		reply.Store(http.StatusBadRequest)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), heartbeatReply), errStaleOrderEvent, "a heartbeat retry the API refuses the range of should drop the event")
+		require.NoError(t, ex.wsHandleData(t.Context(), heartbeatReply), "a heartbeat reply after the event was dropped must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "a dropped event should not be relayed")
+		assert.Equal(t, int32(2), requests.Load(), "a dropped event should not be retried")
+	})
+	t.Run("heartbeat retry", func(t *testing.T) {
+		t.Parallel()
+		var failing atomic.Bool
+		ex, sinceIDs := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		failing.Store(true)
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(3)), errOrderEventRecovery, "a failed recovery should be reported")
+		failing.Store(false)
+		require.NoError(t, ex.wsHandleData(t.Context(), heartbeatReply), "a heartbeat reply must retry the recovery")
+		assert.Equal(t, []string{"2", "3"}, relayedOrderIDs(t, ex), "a heartbeat reply should recover the missed events and relay the event held back")
+		require.NoError(t, ex.wsHandleData(t.Context(), heartbeatReply), "a heartbeat reply with nothing held back must be processed")
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(4)), "an event chained to the relayed events must be processed")
+		assert.Equal(t, []string{"4"}, relayedOrderIDs(t, ex), "an event chained to the relayed events should be relayed without recovery")
+		assert.Equal(t, []string{"event-1", "event-1"}, sinceIDs(), "the heartbeat reply should retry the recovery once from the last relayed event")
+	})
+	t.Run("failed heartbeat retries", func(t *testing.T) {
+		t.Parallel()
+		ex, sinceIDs := newOrderEventsTestExchange(t, func(string) bool { return true })
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), frame(3)), errOrderEventRecovery, "a failed recovery should be reported")
+		err := ex.wsHandleData(t.Context(), heartbeatReply)
+		assert.ErrorIs(t, err, errOrderEventRecovery, "a failed heartbeat retry should be reported")
+		assert.NotErrorIs(t, err, errOrderEventsSkipped, "the second failed recovery should not skip the missed events")
+		assert.Empty(t, relayedOrderIDs(t, ex), "the event should be held back while recovery fails")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), heartbeatReply), errOrderEventsSkipped, "a failed heartbeat retry should count towards giving up")
+		assert.Equal(t, []string{"3"}, relayedOrderIDs(t, ex), "the event held back should be relayed when recovery gives up")
+		require.NoError(t, ex.wsHandleData(t.Context(), heartbeatReply), "a heartbeat reply with nothing held back must be processed")
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(4)), "an event chained to the relayed event must be processed")
+		assert.Equal(t, []string{"4"}, relayedOrderIDs(t, ex), "an event chained to the relayed event should be relayed without recovery")
+		assert.Equal(t, []string{"event-1", "event-1", "event-1"}, sinceIDs(), "recovery should be retried once per heartbeat reply until it gives up")
+	})
+	t.Run("refused event on a heartbeat", func(t *testing.T) {
+		t.Parallel()
+		ex, sinceIDs := newOrderEventsTestExchange(t, nil)
+		require.NoError(t, ex.wsHandleData(t.Context(), frame(1)), "the first event must be processed")
+		assert.Equal(t, []string{"1"}, relayedOrderIDs(t, ex), "the first event should be relayed")
+		ex.Websocket.DataHandler = fullDataHandler(t)
+		assert.Error(t, ex.wsHandleData(t.Context(), frame(2)), "a refused event should error")
+		ex.Websocket.DataHandler = stream.NewRelay(100)
+		require.NoError(t, ex.wsHandleData(t.Context(), heartbeatReply), "a heartbeat reply must relay a refused event")
+		assert.Equal(t, []string{"2"}, relayedOrderIDs(t, ex), "a heartbeat reply should relay the refused event")
+		assert.Empty(t, sinceIDs(), "a refused event should be relayed from its kept copy")
+	})
+}
+
+func TestKeptOrderEvents(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestInstance(t)
+	keptIDs := func() []string {
+		ex.orderEventMu.Lock()
+		defer ex.orderEventMu.Unlock()
+		ids := make([]string, len(ex.orderEventsKept[orderEventsKey]))
+		for i := range ex.orderEventsKept[orderEventsKey] {
+			ids[i] = ex.orderEventsKept[orderEventsKey][i].eventID
+		}
+		return ids
+	}
+	ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-4"})
+	ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-5"})
+	ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-4"})
+	assert.Equal(t, []string{"event-4", "event-5"}, keptIDs(), "keepOrderEvent should keep live events once each, in the order they arrive")
+	ex.keepRecoveredOrderEvents(orderEventsKey, []keptOrderEvent{{eventID: "event-2"}, {eventID: "event-3"}, {eventID: "event-4"}})
+	assert.Equal(t, []string{"event-2", "event-3", "event-4", "event-5"}, keptIDs(), "keepRecoveredOrderEvents should keep recovered events ahead of the events kept, once each")
+	ex.removeKeptOrderEvent(orderEventsKey, "event-3")
+	ex.removeKeptOrderEvent(orderEventsKey, "event-9")
+	assert.Equal(t, []string{"event-2", "event-4", "event-5"}, keptIDs(), "removeKeptOrderEvent should remove only a kept event")
+	for i := range maxKeptOrderEvents {
+		ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-" + strconv.Itoa(10+i)})
+	}
+	ids := keptIDs()
+	require.Len(t, ids, maxKeptOrderEvents, "the kept events must be bounded")
+	assert.Equal(t, "event-10", ids[0], "the oldest kept events should be dropped beyond the bound")
+	assert.Equal(t, "event-"+strconv.Itoa(9+maxKeptOrderEvents), ids[len(ids)-1], "the newest event should be kept")
+}
+
+func TestProcessOrderEventAmounts(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestInstance(t)
+	require.NoError(t, ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 1, AmountAtCreate: 1, RemainingAmount: 0.7}, wsSpotPair, asset.Spot), "processOrderEvent must not error")
+	err := ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 2, AmountAtCreate: types.Number(math.NaN()), RemainingAmount: 0.7}, wsSpotPair, asset.Spot)
+	assert.ErrorIs(t, err, errMalformedOrderEvent, "processOrderEvent should error on an amount which is not a number")
+	assert.False(t, isOrderEventRetryable(err), "an event with a malformed amount should not be retried, as its recovered copy has the same amount")
+	payloads := dataHandlerPayloads(ex)
+	require.Len(t, payloads, 1, "the data handler must only receive the event with valid amounts")
+	d, ok := payloads[0].(*order.Detail)
+	require.True(t, ok, "the payload must be an order detail")
+	// A float subtraction leaves 0.30000000000000004
+	assert.Equal(t, 0.3, d.ExecutedAmount, "processOrderEvent should subtract the amounts without a float residue")
+}
+
+func TestFetchOrderTotals(t *testing.T) {
+	t.Parallel()
+	const deleted = `{"id":1001,"amount_str":%q,"amount_at_create":"1","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`
+	const status = `{"id":1001,"datetime":"2024-04-03 08:00:00","type":"0","status":%q,"market":"BTC/USD","transactions":[%s],"amount_remaining":%q}`
+	transaction := func(id int, amount, fee string) string {
+		return fmt.Sprintf(`{"tid":%d,"price":"100","btc":%q,"usd":"-1","fee":%q,"datetime":"2024-04-03 08:00:0%d","type":2}`, id, amount, fee, id)
+	}
+	deletedAt, created := time.UnixMicro(1712131206000000), time.Date(2024, 4, 3, 8, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name      string
+		event     string
+		data      string
+		reply     string
+		replyCode int
+		requests  int64
+		totals    *order.Detail
+	}{
+		{
+			name: "filled", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"),
+			reply:    fmt.Sprintf(status, "Finished", transaction(1, "0.4", "0.5")+","+transaction(2, "0.6", "0.7"), "0"),
+			requests: 1,
+			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 1, RemainingAmount: 0, Fee: 1.2, Cost: 100, AverageExecutedPrice: 100},
+		},
+		{
+			name: "partly cancelled", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.7"),
+			reply:    fmt.Sprintf(status, "Canceled", transaction(1, "0.3", "0.1"), "0.7"),
+			requests: 1,
+			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 0.3, RemainingAmount: 0.7, Fee: 0.1, Cost: 30, AverageExecutedPrice: 100},
+		},
+		{
+			name: "expired", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.5"),
+			reply:    fmt.Sprintf(status, "Expired", transaction(1, "0.5", "0.2"), "0.5"),
+			requests: 1,
+			totals:   &order.Detail{Status: order.Expired, ExecutedAmount: 0.5, RemainingAmount: 0.5, Fee: 0.2, Cost: 50, AverageExecutedPrice: 100},
+		},
+		{name: "still open", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
+		{name: "still open with the event's executions", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.6"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
+		{name: "less executed", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "0.4", "0.5"), "0"), requests: 1},
+		{name: "status refused", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), replyCode: http.StatusInternalServerError, requests: 1},
+		{name: "nothing executed", event: orderEventDeleted, data: fmt.Sprintf(deleted, "1")},
+		{name: "client order ID only", event: orderEventDeleted, data: `{"client_order_id":"my-order","amount_str":"0","amount_at_create":"1","price_str":"100","order_type":0,"microtimestamp":"1712131206000000"}`},
+		{name: "replaced", event: orderEventReplaced, data: `{"id":1002,"orig_order_id":1001,"amount_str":"0.5","amount_at_create":"0.5","price_str":"100","order_type":0,"microtimestamp":"1712131206000000"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int64
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, "/api/v2/order_status/", r.URL.Path, "path should be the order status")
+				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+				assert.Equal(t, url.Values{"id": {"1001"}}, r.PostForm, "the deleted order's status should be requested")
+				if tc.replyCode != 0 {
+					w.WriteHeader(tc.replyCode)
+					return
+				}
+				_, err := w.Write([]byte(tc.reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			ex.Websocket.DataHandler = stream.NewRelay(10)
+			var o OrderEventData
+			require.NoError(t, json.Unmarshal([]byte(tc.data), &o), "Unmarshal must not error")
+			require.NoError(t, ex.processOrderEvent(t.Context(), tc.event, &o, wsSpotPair, asset.Spot), "processOrderEvent must not error")
+			payloads := dataHandlerPayloads(ex)
+			assert.Equal(t, tc.requests, requests.Load(), "the totals should be fetched only for a deleted order which executed")
+			if tc.totals == nil {
+				assert.Len(t, payloads, 1, "the data handler should only receive the event")
+				return
+			}
+			require.Len(t, payloads, 2, "the data handler must receive the event and the order's totals")
+			event, ok := payloads[0].(*order.Detail)
+			require.True(t, ok, "the event must be relayed as an order detail")
+			exp := &order.Detail{
+				Exchange:        ex.Name,
+				OrderID:         "1001",
+				Type:            order.Limit,
+				TimeInForce:     order.GoodTillCancel,
+				Side:            order.Buy,
+				Status:          event.Status,
+				AssetType:       asset.Spot,
+				Pair:            wsSpotPair,
+				Date:            deletedAt,
+				LastUpdated:     deletedAt,
+				Price:           100,
+				Amount:          1,
+				RemainingAmount: tc.totals.RemainingAmount,
+				ExecutedAmount:  tc.totals.ExecutedAmount,
+			}
+			assert.Equal(t, exp, event, "the event should be relayed as it arrived")
+			exp.Status = tc.totals.Status
+			exp.ExecutedAmount = tc.totals.ExecutedAmount
+			exp.Date = created
+			exp.Fee = tc.totals.Fee
+			exp.FeeAsset = currency.USD
+			exp.Cost = tc.totals.Cost
+			exp.CostAsset = currency.USD
+			exp.AverageExecutedPrice = tc.totals.AverageExecutedPrice
+			assert.Equal(t, exp, payloads[1], "the totals should be relayed with the event's detail, last update and no trades")
+		})
+	}
+}
+
 func TestIsOrderEventRetryable(t *testing.T) {
 	t.Parallel()
 	assert.False(t, isOrderEventRetryable(nil), "a relayed event should not be retried")
 	missingOrderID := fmt.Errorf("%w: order_changed", errOrderIDMissing)
 	assert.False(t, isOrderEventRetryable(missingOrderID), "an event without an order ID should not be retried")
+	malformedAmount := fmt.Errorf("%w: order_changed", errMalformedOrderEvent)
+	assert.False(t, isOrderEventRetryable(malformedAmount), "an event with a malformed amount should not be retried")
 	assert.True(t, isOrderEventRetryable(fullDataHandler(t).Send(t.Context(), nil)), "an event the data handler refused should be retried")
 }
 
@@ -1213,6 +1579,29 @@ func TestHandleWebsocketSelfTrade(t *testing.T) {
 		Microtimestamp:        types.Time(time.UnixMicro(1712131205000000)),
 		SellersTradeAccountID: 7,
 	}}, dataHandlerPayloads(ex), "self trades should be sent to the data handler")
+}
+
+func TestShippedConfigsMatchDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	expected, err := json.Marshal(defaultSubscriptions)
+	require.NoError(t, err, "Marshal must not error for the default subscriptions")
+	for _, name := range []string{"config_example.json", filepath.Join("testdata", "configtest.json")} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile(filepath.Join(root, name))
+			require.NoError(t, err, "ReadFile must not error")
+			var cfg config.Config
+			require.NoError(t, json.Unmarshal(data, &cfg), "Unmarshal must not error for the shipped config")
+			exchCfg, err := cfg.GetExchangeConfig("Bitstamp")
+			require.NoError(t, err, "GetExchangeConfig must not error")
+			require.NotNil(t, exchCfg.Features, "Bitstamp features must be configured")
+			got, err := json.Marshal(exchCfg.Features.Subscriptions)
+			require.NoError(t, err, "Marshal must not error for the shipped subscriptions")
+			assert.JSONEq(t, string(expected), string(got), "shipped subscriptions should match defaultSubscriptions")
+		})
+	}
 }
 
 func TestNormaliseSubscriptions(t *testing.T) {
@@ -1400,11 +1789,34 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 			assetPairs: map[asset.Item]currency.Pairs{asset.Empty: nil},
 			exp:        "announcements#",
 		},
+		{
+			// The pairs a subscription names reach the template as they were configured
+			s: &subscription.Subscription{Channel: subscription.OrderbookChannel},
+			assetPairs: map[asset.Item]currency.Pairs{
+				asset.Spot:              {currency.NewPairWithDelimiter("BTC", "USD", "/")},
+				asset.PerpetualContract: {currency.NewPairWithDelimiter("BTC", "USD-PERP", "/")},
+			},
+			exp: "order_book_btcusd|#order_book_btcusd-perp|#",
+		},
 	} {
 		var buf bytes.Buffer
 		require.NoErrorf(t, tpl.Execute(&buf, map[string]any{"S": tc.s, "AssetPairs": tc.assetPairs, "PairSeparator": "|", "AssetSeparator": "#"}), "Execute must not error for %s", tc.s.Channel)
 		assert.Equalf(t, tc.exp, strings.Join(strings.Fields(buf.String()), ""), "the template should render a channel per pair and a record per asset for %s", tc.s.Channel)
 	}
+}
+
+func TestExpandNamedPairs(t *testing.T) {
+	t.Parallel()
+	subs, err := subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "/")}},
+		{Enabled: true, Asset: asset.PerpetualContract, Channel: channelFundingRate, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD-PERP", "/")}},
+	}.ExpandTemplates(newWebsocketTestInstance(t))
+	require.NoError(t, err, "ExpandTemplates must not error")
+	channels := make([]string, len(subs))
+	for i := range subs {
+		channels[i] = subs[i].QualifiedChannel
+	}
+	assert.Equal(t, []string{"order_book_btcusd", "funding_rate_btcusd-perp"}, channels, "subscriptions naming their pairs should subscribe to the pairs' market symbols")
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -1670,6 +2082,25 @@ func TestManageSubsWithCreds(t *testing.T) {
 			assert.Equal(t, subscription.UnsubscribedState, unmarked[0].State(), "an expanded subscription should be unsubscribed")
 		}
 	}
+}
+
+func TestUnsubscribeWithoutToken(t *testing.T) {
+	t.Parallel()
+	ex, m := newMockWsInstance(t, true)
+	subs, err := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true}}.ExpandTemplates(ex)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error")
+
+	// The token endpoint now refuses requests, so unsubscribing must use the user ID kept from subscribing
+	refused := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, err := w.Write([]byte(`{"status":"error","reason":"Invalid signature","code":"API0005"}`))
+		assert.NoError(t, err, "Write should not error")
+	}))
+	t.Cleanup(refused.Close)
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), refused.URL), "SetRunningURL must not error")
+	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not need a new token")
+	assert.Empty(t, m.subscribed(), "private channels should be unsubscribed with the user ID of the last token")
 }
 
 func TestIsPrivateSubscription(t *testing.T) {

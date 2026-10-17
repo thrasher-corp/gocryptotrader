@@ -61,7 +61,7 @@ func (d DateTime) Time() time.Time {
 }
 
 // MarshalJSON implements json.Marshaler
-func (r *RetailInfo) MarshalJSON() ([]byte, error) {
+func (r RetailInfo) MarshalJSON() ([]byte, error) { //nolint:gocritic // hugeParam: a value receiver lets RetailInfo values marshal with the documented fields on every JSON backend
 	info := retailInfoJSON{
 		FirstName:            r.FirstName,
 		LastName:             r.LastName,
