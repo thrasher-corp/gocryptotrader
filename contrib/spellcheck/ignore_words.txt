@@ -1,3 +1,4 @@
+alo
 strat
 datas
 prevend
@@ -5,3 +6,4 @@ flate
 zar
 insid
 totalin
+alltime

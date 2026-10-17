@@ -165,7 +165,7 @@ fi
 # 1. currency.NewPair(BTC, USD) usage
 # ---------------------------------------------------------------------------
 info "Check for currency.NewPair(BTC, USD) used instead of currency.NewBTCUSD"
-if ere_grep 'currency\.NewPair\(currency\.BTC, currency\.USDT?\)' '*.go' 1 '*'; then
+if ere_grep 'currency\.NewPair\(currency\.BTC, currency\.USD[TC]?\)' '*.go' 1 '*'; then
     fail "Replace currency.NewPair(BTC, USD*) with currency.NewBTCUSD*()"
 else
     pass "No currency.NewPair(BTC, USD*) misuse found"

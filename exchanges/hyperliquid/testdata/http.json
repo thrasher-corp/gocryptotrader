@@ -1,0 +1,5421 @@
+{
+ "routes": {
+  "/info": {
+   "POST": [
+    {
+     "data": [
+      null,
+      {
+       "name": "xyz",
+       "fullName": "XYZ",
+       "deployer": "0x0000000000000000000000000000000000000001",
+       "oracleUpdater": "0x0000000000000000000000000000000000000002",
+       "feeRecipient": "0x0000000000000000000000000000000000000003",
+       "assetToStreamingOiCap": [
+        [
+         "xyz:XYZ100",
+         "25000000.0"
+        ]
+       ],
+       "subDeployers": [
+        [
+         "setOracle",
+         [
+          "0x0000000000000000000000000000000000000004"
+         ]
+        ]
+       ],
+       "assetToFundingMultiplier": [
+        [
+         "xyz:XYZ100",
+         "0.5"
+        ]
+       ],
+       "assetToFundingInterestRate": [
+        [
+         "xyz:XYZ100",
+         "0.0000456621"
+        ]
+       ],
+       "assetToFundingClamp": [
+        [
+         "xyz:XYZ100",
+         "0.0003"
+        ]
+       ]
+      },
+      {
+       "name": "flx",
+       "fullName": "Felix Exchange",
+       "deployer": "0x0000000000000000000000000000000000000005",
+       "oracleUpdater": "0x0000000000000000000000000000000000000006",
+       "feeRecipient": "0x0000000000000000000000000000000000000007",
+       "assetToStreamingOiCap": [
+        [
+         "flx:TSLA",
+         "8000000.0"
+        ]
+       ],
+       "subDeployers": [
+        [
+         "registerAsset",
+         [
+          "0x0000000000000000000000000000000000000008",
+          "0x0000000000000000000000000000000000000009"
+         ]
+        ]
+       ],
+       "assetToFundingMultiplier": [
+        [
+         "flx:TSLA",
+         "1.0"
+        ]
+       ],
+       "assetToFundingInterestRate": [
+        [
+         "flx:TSLA",
+         "0.0"
+        ]
+       ],
+       "assetToFundingClamp": [
+        [
+         "flx:TSLA",
+         "0.0005"
+        ]
+       ]
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpDexs\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "universe": [
+       {
+        "szDecimals": 5,
+        "name": "BTC",
+        "maxLeverage": 40,
+        "marginTableId": 56
+       },
+       {
+        "szDecimals": 4,
+        "name": "ETH",
+        "maxLeverage": 25,
+        "marginTableId": 55
+       },
+       {
+        "szDecimals": 1,
+        "name": "MATIC",
+        "maxLeverage": 20,
+        "marginTableId": 20,
+        "isDelisted": true
+       },
+       {
+        "szDecimals": 0,
+        "name": "HPOS",
+        "maxLeverage": 3,
+        "marginTableId": 3,
+        "onlyIsolated": true,
+        "marginMode": "strictIsolated"
+       }
+      ],
+      "marginTables": [
+       [
+        50,
+        {
+         "description": "",
+         "marginTiers": [
+          {
+           "lowerBound": "0.0",
+           "maxLeverage": 50
+          }
+         ]
+        }
+       ],
+       [
+        51,
+        {
+         "description": "tiered 10x",
+         "marginTiers": [
+          {
+           "lowerBound": "0.0",
+           "maxLeverage": 10
+          },
+          {
+           "lowerBound": "3000000.0",
+           "maxLeverage": 5
+          }
+         ]
+        }
+       ]
+      ],
+      "collateralToken": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"meta\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "universe": [
+       {
+        "szDecimals": 4,
+        "name": "xyz:XYZ100",
+        "maxLeverage": 30,
+        "marginTableId": 30,
+        "growthMode": "enabled",
+        "lastGrowthModeChangeTime": "2025-11-23T17:21:40.390706535",
+        "lastFeeScaleChangeTime": "2025-11-23T17:37:10.033211662",
+        "deployerFeeScale": "1.0"
+       },
+       {
+        "szDecimals": 3,
+        "name": "xyz:TSLA",
+        "maxLeverage": 20,
+        "marginTableId": 20,
+        "onlyIsolated": true,
+        "marginMode": "noCross"
+       }
+      ],
+      "marginTables": [
+       [
+        30,
+        {
+         "description": "",
+         "marginTiers": [
+          {
+           "lowerBound": "0.0",
+           "maxLeverage": 30
+          }
+         ]
+        }
+       ]
+      ],
+      "collateralToken": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"meta\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "universe": [
+       {
+        "szDecimals": 2,
+        "name": "flx:TSLA",
+        "maxLeverage": 10,
+        "marginTableId": 10,
+        "growthMode": "enabled",
+        "lastFeeScaleChangeTime": "2025-11-24T21:19:25.980742012",
+        "deployerFeeScale": "1.0"
+       }
+      ],
+      "marginTables": [
+       [
+        10,
+        {
+         "description": "",
+         "marginTiers": [
+          {
+           "lowerBound": "0.0",
+           "maxLeverage": 10
+          }
+         ]
+        }
+       ]
+      ],
+      "collateralToken": 360
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"meta\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "universe": [
+        {
+         "szDecimals": 5,
+         "name": "BTC",
+         "maxLeverage": 40,
+         "marginTableId": 56
+        },
+        {
+         "szDecimals": 4,
+         "name": "ETH",
+         "maxLeverage": 25,
+         "marginTableId": 55
+        },
+        {
+         "szDecimals": 1,
+         "name": "MATIC",
+         "maxLeverage": 20,
+         "marginTableId": 20,
+         "isDelisted": true
+        },
+        {
+         "szDecimals": 0,
+         "name": "HPOS",
+         "maxLeverage": 3,
+         "marginTableId": 3,
+         "onlyIsolated": true,
+         "marginMode": "strictIsolated"
+        }
+       ],
+       "marginTables": [
+        [
+         50,
+         {
+          "description": "",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 50
+           }
+          ]
+         }
+        ],
+        [
+         51,
+         {
+          "description": "tiered 10x",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 10
+           },
+           {
+            "lowerBound": "3000000.0",
+            "maxLeverage": 5
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 0
+      },
+      [
+       {
+        "funding": "0.0000125",
+        "openInterest": "39310.43958",
+        "prevDayPx": "86248.0",
+        "dayNtlVlm": "1820651593.0427696705",
+        "premium": "-0.0002691175",
+        "oraclePx": "85836.1",
+        "markPx": "85810.5",
+        "midPx": "85812.5",
+        "impactPxs": [
+         "85812.0",
+         "85813.0"
+        ],
+        "dayBaseVlm": "21219.11844"
+       },
+       {
+        "funding": "0.0000125",
+        "openInterest": "1184127.1915999996",
+        "prevDayPx": "2722.0",
+        "dayNtlVlm": "700331577.8523004055",
+        "premium": "-0.0004310234",
+        "oraclePx": "2714.47",
+        "markPx": "2713.2",
+        "midPx": "2713.25",
+        "impactPxs": [
+         "2713.2",
+         "2713.3"
+        ],
+        "dayBaseVlm": "258520.2890000001"
+       },
+       {
+        "funding": "0.0",
+        "openInterest": "0.0",
+        "prevDayPx": "0.37",
+        "dayNtlVlm": "0.0",
+        "premium": null,
+        "oraclePx": "0.37",
+        "markPx": "0.37",
+        "midPx": null,
+        "impactPxs": null,
+        "dayBaseVlm": "0.0"
+       },
+       {
+        "funding": "0.0000125",
+        "openInterest": "1250.0",
+        "prevDayPx": "0.0451",
+        "dayNtlVlm": "1213.92",
+        "premium": "0.0003",
+        "oraclePx": "0.0452",
+        "markPx": "0.0452",
+        "midPx": "0.04515",
+        "impactPxs": [
+         "0.0451",
+         "0.0452"
+        ],
+        "dayBaseVlm": "26900.0"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"metaAndAssetCtxs\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "universe": [
+        {
+         "szDecimals": 4,
+         "name": "xyz:XYZ100",
+         "maxLeverage": 30,
+         "marginTableId": 30,
+         "growthMode": "enabled",
+         "lastGrowthModeChangeTime": "2025-11-23T17:21:40.390706535",
+         "lastFeeScaleChangeTime": "2025-11-23T17:37:10.033211662",
+         "deployerFeeScale": "1.0"
+        },
+        {
+         "szDecimals": 3,
+         "name": "xyz:TSLA",
+         "maxLeverage": 20,
+         "marginTableId": 20,
+         "onlyIsolated": true,
+         "marginMode": "noCross"
+        }
+       ],
+       "marginTables": [
+        [
+         30,
+         {
+          "description": "",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 30
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 0
+      },
+      [
+       {
+        "funding": "0.00000625",
+        "openInterest": "7148.95",
+        "prevDayPx": "30759.0",
+        "dayNtlVlm": "275526916.1308999658",
+        "premium": "0.0000645887",
+        "oraclePx": "31120.0",
+        "markPx": "31123.0",
+        "midPx": "31122.5",
+        "impactPxs": [
+         "31121.02",
+         "31123.0"
+        ],
+        "dayBaseVlm": "8893.0929"
+       },
+       {
+        "funding": "0.00000625",
+        "openInterest": "133465.102",
+        "prevDayPx": "371.26",
+        "dayNtlVlm": "32278667.335879989",
+        "premium": "0.0001536401",
+        "oraclePx": "380.76",
+        "markPx": "380.83",
+        "midPx": "380.815",
+        "impactPxs": [
+         "380.784",
+         "380.853"
+        ],
+        "dayBaseVlm": "86211.992"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"metaAndAssetCtxs\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "universe": [
+        {
+         "szDecimals": 2,
+         "name": "flx:TSLA",
+         "maxLeverage": 10,
+         "marginTableId": 10,
+         "growthMode": "enabled",
+         "lastFeeScaleChangeTime": "2025-11-24T21:19:25.980742012",
+         "deployerFeeScale": "1.0"
+        }
+       ],
+       "marginTables": [
+        [
+         10,
+         {
+          "description": "",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 10
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 360
+      },
+      [
+       {
+        "funding": "0.0000125",
+        "openInterest": "1520.5",
+        "prevDayPx": "395.5",
+        "dayNtlVlm": "605940.25",
+        "premium": "0.0001",
+        "oraclePx": "400.53",
+        "markPx": "395.5",
+        "midPx": "395.45",
+        "impactPxs": [
+         "395.4",
+         "395.5"
+        ],
+        "dayBaseVlm": "1530.6"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"metaAndAssetCtxs\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "universe": [
+       {
+        "tokens": [
+         1,
+         0
+        ],
+        "name": "PURR/USDC",
+        "index": 0,
+        "isCanonical": true
+       },
+       {
+        "tokens": [
+         150,
+         0
+        ],
+        "name": "@107",
+        "index": 107,
+        "isCanonical": false
+       },
+       {
+        "tokens": [
+         360,
+         0
+        ],
+        "name": "@230",
+        "index": 230,
+        "isCanonical": false
+       }
+      ],
+      "tokens": [
+       {
+        "name": "USDC",
+        "szDecimals": 8,
+        "weiDecimals": 8,
+        "index": 0,
+        "tokenId": "0x6d1e7cde53ba9467b783cb7c530ce054",
+        "isCanonical": true,
+        "evmContract": {
+         "address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+         "evm_extra_wei_decimals": -2
+        },
+        "fullName": null,
+        "deployerTradingFeeShare": "0.0"
+       },
+       {
+        "name": "PURR",
+        "szDecimals": 0,
+        "weiDecimals": 5,
+        "index": 1,
+        "tokenId": "0xc1fb593aeffbeb02f85e0308e9956a90",
+        "isCanonical": true,
+        "evmContract": {
+         "address": "0x9b498c3c8a0b8cd8ba1d9851d40d186f1872b44e",
+         "evm_extra_wei_decimals": 13
+        },
+        "fullName": null,
+        "deployerTradingFeeShare": "0.0"
+       },
+       {
+        "name": "HYPE",
+        "szDecimals": 2,
+        "weiDecimals": 8,
+        "index": 150,
+        "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec",
+        "isCanonical": false,
+        "evmContract": null,
+        "fullName": "Hyperliquid",
+        "deployerTradingFeeShare": "0.0"
+       },
+       {
+        "name": "RAT",
+        "szDecimals": 2,
+        "weiDecimals": 8,
+        "index": 253,
+        "tokenId": "0xd7f58d3c744fbc0100f7d86f3e283d11",
+        "isCanonical": false,
+        "evmContract": {
+         "address": "0xfdc42f844f3aa19f8fc0b2d67d3276cf1efdc4ca",
+         "evm_extra_wei_decimals": 10
+        },
+        "fullName": "Rat Race Combat",
+        "deployerTradingFeeShare": "1.0",
+        "deployerLabel": "rrc"
+       },
+       {
+        "name": "USDH",
+        "szDecimals": 2,
+        "weiDecimals": 8,
+        "index": 360,
+        "tokenId": "0x54e00a5988577cb0b0c9ab0cb6ef7f4b",
+        "isCanonical": false,
+        "evmContract": {
+         "address": "0x111111a1a0667d36bd57c0a9f569b98057111111",
+         "evm_extra_wei_decimals": -2
+        },
+        "fullName": "USDH",
+        "deployerTradingFeeShare": "1.0"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotMeta\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "universe": [
+        {
+         "tokens": [
+          1,
+          0
+         ],
+         "name": "PURR/USDC",
+         "index": 0,
+         "isCanonical": true
+        },
+        {
+         "tokens": [
+          150,
+          0
+         ],
+         "name": "@107",
+         "index": 107,
+         "isCanonical": false
+        },
+        {
+         "tokens": [
+          360,
+          0
+         ],
+         "name": "@230",
+         "index": 230,
+         "isCanonical": false
+        }
+       ],
+       "tokens": [
+        {
+         "name": "USDC",
+         "szDecimals": 8,
+         "weiDecimals": 8,
+         "index": 0,
+         "tokenId": "0x6d1e7cde53ba9467b783cb7c530ce054",
+         "isCanonical": true,
+         "evmContract": {
+          "address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "evm_extra_wei_decimals": -2
+         },
+         "fullName": null,
+         "deployerTradingFeeShare": "0.0"
+        },
+        {
+         "name": "PURR",
+         "szDecimals": 0,
+         "weiDecimals": 5,
+         "index": 1,
+         "tokenId": "0xc1fb593aeffbeb02f85e0308e9956a90",
+         "isCanonical": true,
+         "evmContract": {
+          "address": "0x9b498c3c8a0b8cd8ba1d9851d40d186f1872b44e",
+          "evm_extra_wei_decimals": 13
+         },
+         "fullName": null,
+         "deployerTradingFeeShare": "0.0"
+        },
+        {
+         "name": "HYPE",
+         "szDecimals": 2,
+         "weiDecimals": 8,
+         "index": 150,
+         "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec",
+         "isCanonical": false,
+         "evmContract": null,
+         "fullName": "Hyperliquid",
+         "deployerTradingFeeShare": "0.0"
+        },
+        {
+         "name": "RAT",
+         "szDecimals": 2,
+         "weiDecimals": 8,
+         "index": 253,
+         "tokenId": "0xd7f58d3c744fbc0100f7d86f3e283d11",
+         "isCanonical": false,
+         "evmContract": {
+          "address": "0xfdc42f844f3aa19f8fc0b2d67d3276cf1efdc4ca",
+          "evm_extra_wei_decimals": 10
+         },
+         "fullName": "Rat Race Combat",
+         "deployerTradingFeeShare": "1.0",
+         "deployerLabel": "rrc"
+        },
+        {
+         "name": "USDH",
+         "szDecimals": 2,
+         "weiDecimals": 8,
+         "index": 360,
+         "tokenId": "0x54e00a5988577cb0b0c9ab0cb6ef7f4b",
+         "isCanonical": false,
+         "evmContract": {
+          "address": "0x111111a1a0667d36bd57c0a9f569b98057111111",
+          "evm_extra_wei_decimals": -2
+         },
+         "fullName": "USDH",
+         "deployerTradingFeeShare": "1.0"
+        }
+       ]
+      },
+      [
+       {
+        "prevDayPx": "0.16577",
+        "dayNtlVlm": "2361343.4740200015",
+        "markPx": "0.15049",
+        "midPx": "0.150495",
+        "circulatingSupply": "594786002.8013399839",
+        "coin": "PURR/USDC",
+        "totalSupply": "594786014.1078599691",
+        "dayBaseVlm": "14727160.0"
+       },
+       {
+        "prevDayPx": "93.102",
+        "dayNtlVlm": "63321924.1126599833",
+        "markPx": "93.146",
+        "midPx": "93.1465",
+        "circulatingSupply": "298462929.368832469",
+        "coin": "@107",
+        "totalSupply": "998883571.7642624378",
+        "dayBaseVlm": "677650.0300000001"
+       },
+       {
+        "prevDayPx": "1.0001",
+        "dayNtlVlm": "1501.0",
+        "markPx": "1.0",
+        "midPx": null,
+        "circulatingSupply": "50000000.0",
+        "coin": "@230",
+        "totalSupply": "50000000.0",
+        "dayBaseVlm": "1501.0"
+       },
+       {
+        "prevDayPx": "0.48",
+        "dayNtlVlm": "1029.6",
+        "markPx": "0.52",
+        "midPx": "0.515",
+        "circulatingSupply": "1000.0",
+        "coin": "#10",
+        "totalSupply": "1000.0",
+        "dayBaseVlm": "2024.5"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotMetaAndAssetCtxs\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "BTC": "85812.5",
+      "ETH": "2713.25",
+      "HPOS": "0.04515",
+      "PURR/USDC": "0.150495",
+      "@107": "93.141",
+      "@230": "1.0",
+      "#10": "0.515"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"allMids\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "xyz:XYZ100": "31122.5",
+      "xyz:TSLA": "380.815"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"allMids\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "flx:TSLA": "395.45"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"allMids\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "coin": "BTC",
+      "time": 1791275808695,
+      "levels": [
+       [
+        {
+         "px": "85812.0",
+         "sz": "0.41043",
+         "n": 4
+        },
+        {
+         "px": "85811.0",
+         "sz": "1.62719",
+         "n": 7
+        }
+       ],
+       [
+        {
+         "px": "85813.0",
+         "sz": "4.71207",
+         "n": 19
+        },
+        {
+         "px": "85814.0",
+         "sz": "0.0035",
+         "n": 1
+        }
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"l2Book\",\"coin\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "coin": "BTC",
+      "time": 1791275810375,
+      "levels": [
+       [
+        {
+         "px": "85812.0",
+         "sz": "0.09813",
+         "n": 4
+        }
+       ],
+       [
+        {
+         "px": "85814.0",
+         "sz": "4.7155",
+         "n": 20
+        }
+       ]
+      ],
+      "spread": "1.0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"l2Book\",\"coin\":\"BTC\",\"nSigFigs\":5,\"mantissa\":2}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "coin": "@107",
+      "time": 1791275812441,
+      "levels": [
+       [
+        {
+         "px": "93.144",
+         "sz": "12.04",
+         "n": 2
+        }
+       ],
+       [
+        {
+         "px": "93.149",
+         "sz": "48.31",
+         "n": 3
+        }
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"l2Book\",\"coin\":\"@107\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "coin": "xyz:XYZ100",
+      "time": 1791275813002,
+      "levels": [
+       [
+        {
+         "px": "31122.0",
+         "sz": "0.215",
+         "n": 3
+        }
+       ],
+       [
+        {
+         "px": "31123.0",
+         "sz": "0.8411",
+         "n": 5
+        }
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"l2Book\",\"coin\":\"xyz:XYZ100\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "side": "A",
+       "px": "85812.0",
+       "sz": "0.00347",
+       "time": 1791275814004,
+       "hash": "0xe3c768699c49511ce5410445f45e660201be004f374c6fee879013bc5b4d2b07",
+       "tid": 284092582946010,
+       "users": [
+        "0x000000000000000000000000000000000000000a",
+        "0x000000000000000000000000000000000000000b"
+       ]
+      },
+      {
+       "coin": "BTC",
+       "side": "B",
+       "px": "85813.0",
+       "sz": "0.01757",
+       "time": 1791275814806,
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "tid": 744489298526402,
+       "users": [
+        "0x000000000000000000000000000000000000000c",
+        "0x000000000000000000000000000000000000000d"
+       ]
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"recentTrades\",\"coin\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "@107",
+       "side": "B",
+       "px": "93.149",
+       "sz": "1.86",
+       "time": 1791275950514,
+       "hash": "0x31d548837f8c7791334f0445f45eaa0201be00691a8f9663d59df3d63e80517b",
+       "tid": 1008926698556289,
+       "users": [
+        "0x000000000000000000000000000000000000000e",
+        "0x000000000000000000000000000000000000000f"
+       ]
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"recentTrades\",\"coin\":\"@107\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "t": 1791252000000,
+       "T": 1791255599999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85641.0",
+       "c": "85513.0",
+       "h": "85739.0",
+       "l": "85433.0",
+       "v": "526.02537",
+       "n": 7830
+      },
+      {
+       "t": 1791255600000,
+       "T": 1791259199999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85513.0",
+       "c": "85690.0",
+       "h": "85702.0",
+       "l": "85390.0",
+       "v": "611.8724",
+       "n": 8104
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"candleSnapshot\",\"req\":{\"coin\":\"BTC\",\"interval\":\"1h\",\"startTime\":1791252000000,\"endTime\":1791273600000}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "t": 1791252000000,
+       "T": 1791255599999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85641.0",
+       "c": "85513.0",
+       "h": "85739.0",
+       "l": "85433.0",
+       "v": "526.02537",
+       "n": 7830
+      },
+      {
+       "t": 1791255600000,
+       "T": 1791259199999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85513.0",
+       "c": "85690.0",
+       "h": "85702.0",
+       "l": "85390.0",
+       "v": "611.8724",
+       "n": 8104
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"candleSnapshot\",\"req\":{\"coin\":\"BTC\",\"interval\":\"1h\",\"startTime\":1791252000000,\"endTime\":1791273599999}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "t": 1791252000000,
+       "T": 1791255599999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85641.0",
+       "c": "85513.0",
+       "h": "85739.0",
+       "l": "85433.0",
+       "v": "526.02537",
+       "n": 7830
+      },
+      {
+       "t": 1791255600000,
+       "T": 1791259199999,
+       "s": "BTC",
+       "i": "1h",
+       "o": "85513.0",
+       "c": "85690.0",
+       "h": "85702.0",
+       "l": "85390.0",
+       "v": "611.8724",
+       "n": 8104
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"candleSnapshot\",\"req\":{\"coin\":\"BTC\",\"interval\":\"1h\",\"startTime\":1791252000000}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "fundingRate": "0.0000125",
+       "premium": "-0.000226673",
+       "time": 1791255600057
+      },
+      {
+       "coin": "BTC",
+       "fundingRate": "-0.0000032",
+       "premium": "-0.000525601",
+       "time": 1791259200041
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"fundingHistory\",\"coin\":\"BTC\",\"startTime\":1791252000000,\"endTime\":1791273600000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "role": "vault"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userRole\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "role": "agent",
+      "data": {
+       "user": "0x14791697260e4c9a71f18484c9f997b308e59325"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userRole\",\"user\":\"0xed2ff3513c0f08c3ff181b1732745e256c97ce13\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "role": "subAccount",
+      "data": {
+       "master": "0x14791697260e4c9a71f18484c9f997b308e59325"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userRole\",\"user\":\"0x1719884eb866cb12b2287399b15f7db5e7d775ea\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": "default",
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userAbstraction\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "name": "Hyperliquidity Provider (HLP)",
+      "vaultAddress": "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303",
+      "leader": "0x677d831aef5328190852e24f13c46cac05f984e7",
+      "description": "This community-owned vault provides liquidity to Hyperliquid through multiple market making strategies, performs liquidations, and accrues platform fees.",
+      "portfolio": [
+       [
+        "day",
+        {
+         "accountValueHistory": [
+          [
+           1791189344472,
+           "181448095.7272160053"
+          ]
+         ],
+         "pnlHistory": [
+          [
+           1791189344472,
+           "10342.6522"
+          ]
+         ],
+         "vlm": "152843.0"
+        }
+       ],
+       [
+        "allTime",
+        {
+         "accountValueHistory": [
+          [
+           1734650428028,
+           "155362400.0"
+          ]
+         ],
+         "pnlHistory": [
+          [
+           1734650428028,
+           "91224556.29"
+          ]
+         ],
+         "vlm": "60119255511.06"
+        }
+       ]
+      ],
+      "apr": 0.036051779465087176,
+      "followerState": {
+       "user": "0x0000000000000000000000000000000000000010",
+       "vaultEquity": "604894.1647215381",
+       "pnl": "80759.3609095381",
+       "allTimePnl": "156784.7214235381",
+       "daysFollowing": 655,
+       "vaultEntryTime": 1734650428028,
+       "lockupUntil": 1770680880422
+      },
+      "leaderFraction": 0.0019940895074468785,
+      "leaderCommission": 0.1,
+      "followers": [
+       {
+        "user": "0x0000000000000000000000000000000000000010",
+        "vaultEquity": "604894.1647215381",
+        "pnl": "80759.3609095381",
+        "allTimePnl": "156784.7214235381",
+        "daysFollowing": 655,
+        "vaultEntryTime": 1734650428028,
+        "lockupUntil": 1770680880422
+       }
+      ],
+      "maxDistributable": 41851855.944809,
+      "maxWithdrawable": 742557.680863,
+      "isClosed": true,
+      "relationship": {
+       "type": "parent",
+       "data": {
+        "childAddresses": [
+         "0x010461c14e146ac35fe42271bdc1134ee31c703a"
+        ]
+       }
+      },
+      "allowDeposits": true,
+      "alwaysCloseOnWithdraw": true
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"vaultDetails\",\"vaultAddress\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "name": "Hyperliquidity Provider (HLP)",
+      "vaultAddress": "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303",
+      "leader": "0x677d831aef5328190852e24f13c46cac05f984e7",
+      "description": "This community-owned vault provides liquidity to Hyperliquid through multiple market making strategies, performs liquidations, and accrues platform fees.",
+      "portfolio": [
+       [
+        "day",
+        {
+         "accountValueHistory": [
+          [
+           1791189344472,
+           "181448095.7272160053"
+          ]
+         ],
+         "pnlHistory": [
+          [
+           1791189344472,
+           "10342.6522"
+          ]
+         ],
+         "vlm": "152843.0"
+        }
+       ],
+       [
+        "allTime",
+        {
+         "accountValueHistory": [
+          [
+           1734650428028,
+           "155362400.0"
+          ]
+         ],
+         "pnlHistory": [
+          [
+           1734650428028,
+           "91224556.29"
+          ]
+         ],
+         "vlm": "60119255511.06"
+        }
+       ]
+      ],
+      "apr": 0.036051779465087176,
+      "followerState": {
+       "user": "0x0000000000000000000000000000000000000010",
+       "vaultEquity": "604894.1647215381",
+       "pnl": "80759.3609095381",
+       "allTimePnl": "156784.7214235381",
+       "daysFollowing": 655,
+       "vaultEntryTime": 1734650428028,
+       "lockupUntil": 1770680880422
+      },
+      "leaderFraction": 0.0019940895074468785,
+      "leaderCommission": 0.1,
+      "followers": [
+       {
+        "user": "0x0000000000000000000000000000000000000010",
+        "vaultEquity": "604894.1647215381",
+        "pnl": "80759.3609095381",
+        "allTimePnl": "156784.7214235381",
+        "daysFollowing": 655,
+        "vaultEntryTime": 1734650428028,
+        "lockupUntil": 1770680880422
+       }
+      ],
+      "maxDistributable": 41851855.944809,
+      "maxWithdrawable": 742557.680863,
+      "isClosed": true,
+      "relationship": {
+       "type": "parent",
+       "data": {
+        "childAddresses": [
+         "0x010461c14e146ac35fe42271bdc1134ee31c703a"
+        ]
+       }
+      },
+      "allowDeposits": true,
+      "alwaysCloseOnWithdraw": true
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"vaultDetails\",\"vaultAddress\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "dailyUserVlm": [
+       {
+        "date": "2026-10-05",
+        "userCross": "15201.6",
+        "userAdd": "9821.33",
+        "exchange": "6311325373.4300003052"
+       }
+      ],
+      "feeSchedule": {
+       "cross": "0.00045",
+       "add": "0.00015",
+       "spotCross": "0.0007",
+       "spotAdd": "0.0004",
+       "tiers": {
+        "vip": [
+         {
+          "ntlCutoff": "5000000.0",
+          "cross": "0.0004",
+          "add": "0.00012",
+          "spotCross": "0.0006",
+          "spotAdd": "0.0003"
+         }
+        ],
+        "mm": [
+         {
+          "makerFractionCutoff": "0.005",
+          "add": "-0.00001"
+         }
+        ]
+       },
+       "referralDiscount": "0.04",
+       "stakingDiscountTiers": [
+        {
+         "bpsOfMaxSupply": "0.0001",
+         "discount": "0.05"
+        }
+       ]
+      },
+      "userCrossRate": "0.000315",
+      "userAddRate": "0.000105",
+      "userSpotCrossRate": "0.00049",
+      "userSpotAddRate": "0.00028",
+      "activeReferralDiscount": "0.04",
+      "trial": null,
+      "feeTrialEscrow": "1.5",
+      "nextTrialAvailableTimestamp": 1791360000000,
+      "stakingLink": {
+       "type": "tradingUser",
+       "stakingUser": "0x0000000000000000000000000000000000000011"
+      },
+      "activeStakingDiscount": {
+       "bpsOfMaxSupply": "4.7577998927",
+       "discount": "0.3"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFees\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "user": "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303",
+      "coin": "BTC",
+      "leverage": {
+       "type": "isolated",
+       "value": 20,
+       "rawUsd": "-95.059824"
+      },
+      "maxTradeSzs": [
+       "9754.65405",
+       "9754.65405"
+      ],
+      "availableToTrade": [
+       "41851855.4974759966",
+       "41851855.4974759966"
+      ],
+      "markPx": "85809.0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"activeAssetData\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\",\"coin\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "balances": [
+       {
+        "coin": "USDC",
+        "token": 0,
+        "total": "14.625485",
+        "hold": "0.0",
+        "entryNtl": "0.0"
+       },
+       {
+        "coin": "HYPE",
+        "token": 150,
+        "total": "816.67225318",
+        "hold": "2.5",
+        "entryNtl": "19838.88581631"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotClearinghouseState\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "marginSummary": {
+       "accountValue": "13109.482328",
+       "totalNtlPos": "100.02765",
+       "totalRawUsd": "13009.454678",
+       "totalMarginUsed": "4.967826"
+      },
+      "crossMarginSummary": {
+       "accountValue": "13104.514502",
+       "totalNtlPos": "50.0",
+       "totalRawUsd": "13054.514502",
+       "totalMarginUsed": "2.5"
+      },
+      "crossMaintenanceMarginUsed": "1.25",
+      "withdrawable": "13104.514502",
+      "assetPositions": [
+       {
+        "type": "oneWay",
+        "position": {
+         "coin": "BTC",
+         "szi": "0.57588",
+         "leverage": {
+          "type": "isolated",
+          "value": 20,
+          "rawUsd": "-95.059824"
+         },
+         "entryPx": "85650.4",
+         "positionValue": "49492.27896",
+         "unrealizedPnl": "167.918393",
+         "returnOnEquity": "0.068087408",
+         "liquidationPx": "81234.5",
+         "marginUsed": "2474.613948",
+         "maxLeverage": 40,
+         "cumFunding": {
+          "allTime": "-612543.888709",
+          "sinceOpen": "453.922467",
+          "sinceChange": "12.5"
+         }
+        }
+       }
+      ],
+      "time": 1791275833327
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"clearinghouseState\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "85000.0",
+       "sz": "0.001",
+       "oid": 566563303535,
+       "timestamp": 1791275926947,
+       "triggerCondition": "N/A",
+       "isTrigger": false,
+       "triggerPx": "0.0",
+       "children": [
+        {
+         "coin": "BTC",
+         "side": "A",
+         "limitPx": "90000.0",
+         "sz": "0.001",
+         "oid": 566563303536,
+         "timestamp": 1791275926947,
+         "triggerCondition": "Price above 90000",
+         "isTrigger": true,
+         "triggerPx": "90000.0",
+         "children": [],
+         "isPositionTpsl": false,
+         "reduceOnly": true,
+         "orderType": "Take Profit Market",
+         "origSz": "0.001",
+         "tif": null,
+         "cloid": null
+        }
+       ],
+       "isPositionTpsl": false,
+       "reduceOnly": false,
+       "orderType": "Limit",
+       "origSz": "0.002",
+       "tif": "Gtc",
+       "cloid": "0x000000000000000000065d27f23d749f"
+      },
+      {
+       "coin": "BTC",
+       "side": "A",
+       "limitPx": "72000.0",
+       "sz": "0.0",
+       "oid": 566563303544,
+       "timestamp": 1791275926947,
+       "triggerCondition": "Price below 80000",
+       "isTrigger": true,
+       "triggerPx": "80000.0",
+       "children": [],
+       "isPositionTpsl": true,
+       "reduceOnly": true,
+       "orderType": "Stop Market",
+       "origSz": "0.0",
+       "tif": null,
+       "cloid": null
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"frontendOpenOrders\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [
+         {
+          "coin": "BTC",
+          "side": "A",
+          "limitPx": "90000.0",
+          "sz": "0.001",
+          "oid": 566563303536,
+          "timestamp": 1791275926947,
+          "triggerCondition": "Price above 90000",
+          "isTrigger": true,
+          "triggerPx": "90000.0",
+          "children": [],
+          "isPositionTpsl": false,
+          "reduceOnly": true,
+          "orderType": "Take Profit Market",
+          "origSz": "0.001",
+          "tif": null,
+          "cloid": null
+         }
+        ],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275930650
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"historicalOrders\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "order",
+      "order": {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [
+         {
+          "coin": "BTC",
+          "side": "A",
+          "limitPx": "90000.0",
+          "sz": "0.001",
+          "oid": 566563303536,
+          "timestamp": 1791275926947,
+          "triggerCondition": "Price above 90000",
+          "isTrigger": true,
+          "triggerPx": "90000.0",
+          "children": [],
+          "isPositionTpsl": false,
+          "reduceOnly": true,
+          "orderType": "Take Profit Market",
+          "origSz": "0.001",
+          "tif": null,
+          "cloid": null
+         }
+        ],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275930650
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"oid\":566563303535}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "order",
+      "order": {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [
+         {
+          "coin": "BTC",
+          "side": "A",
+          "limitPx": "90000.0",
+          "sz": "0.001",
+          "oid": 566563303536,
+          "timestamp": 1791275926947,
+          "triggerCondition": "Price above 90000",
+          "isTrigger": true,
+          "triggerPx": "90000.0",
+          "children": [],
+          "isPositionTpsl": false,
+          "reduceOnly": true,
+          "orderType": "Take Profit Market",
+          "origSz": "0.001",
+          "tif": null,
+          "cloid": null
+         }
+        ],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275930650
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"oid\":\"0x000000000000000000065d27f23d749f\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "unknownOid"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"oid\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791252100000,
+       "hash": "0x6e5030418dccaafb6fc90445f45dbe0201de002728cfc9cd1218db944cc084e6",
+       "delta": {
+        "type": "accountClassTransfer",
+        "usdc": "50099.8",
+        "toPerp": true
+       }
+      },
+      {
+       "time": 1791253000000,
+       "hash": "0x31d548837f8c7791334f0445f45eaa0201be00691a8f9663d59df3d63e80517b",
+       "delta": {
+        "type": "send",
+        "user": "0x0000000000000000000000000000000000000012",
+        "destination": "0x0000000000000000000000000000000000000013",
+        "sourceDex": "spot",
+        "destinationDex": "xyz",
+        "token": "USDC",
+        "amount": "99959.73",
+        "usdcValue": "99959.73",
+        "fee": "0.1",
+        "nativeTokenFee": "0.0001",
+        "nonce": 1761521253203,
+        "feeToken": "USDC"
+       }
+      },
+      {
+       "time": 1791254000000,
+       "hash": "0xa0237867410998a5a19d0445f45f610201c3004cdc0cb77743ec23ba000d7290",
+       "delta": {
+        "type": "vaultWithdraw",
+        "vault": "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303",
+        "user": "0x0000000000000000000000000000000000000012",
+        "requestedUsd": "72509.49",
+        "commission": "1.5",
+        "closingCost": "0.25",
+        "basis": "72590.327117",
+        "netWithdrawnUsd": "72507.74"
+       }
+      },
+      {
+       "time": 1791255000000,
+       "hash": "0xc660efebf2d06244c7da0445f45f6e0202e700d18dd381166a299b3eb1d43c2f",
+       "delta": {
+        "type": "liquidation",
+        "liquidatedNtlPos": "356.80015",
+        "accountValue": "2.956494",
+        "leverageType": "Cross",
+        "liquidatedPositions": [
+         {
+          "coin": "ATOM",
+          "szi": "29.21"
+         }
+        ]
+       }
+      },
+      {
+       "time": 1791256000000,
+       "hash": "0xfcd4d536f70782ba8be46a1337181a4588374ad928e5b89295866003abe9af45",
+       "delta": {
+        "type": "cStakingTransfer",
+        "token": "HYPE",
+        "amount": "1.0",
+        "isDeposit": true
+       }
+      },
+      {
+       "time": 1791257000000,
+       "hash": "0x1a7d1a8328117777839597254792990d8f4baa2765123f45494f0435788716bf",
+       "delta": {
+        "type": "borrowLend",
+        "token": "USDC",
+        "operation": "repay",
+        "amount": "250.5",
+        "interestAmount": "0.0821"
+       }
+      },
+      {
+       "time": 1791258000000,
+       "hash": "0xd11f5d7637eb7bc58484871adf443302d39841ab7a6696b4d324328b0c3b525f",
+       "delta": {
+        "type": "activateDexAbstraction",
+        "dex": "xyz",
+        "token": "USDC",
+        "amount": "1.0"
+       }
+      },
+      {
+       "time": 1791259000000,
+       "hash": "0x1d01c444ebadbd182e1f765c9031114ce6fe709f58bd421eb0ea757cbaf91059",
+       "delta": {
+        "type": "deployGasAuction",
+        "token": "HYPE",
+        "amount": "500.0"
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userNonFundingLedgerUpdates\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\",\"startTime\":1791252000000,\"endTime\":1791273600000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "role": "user"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userRole\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": "disabled",
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userAbstraction\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "balances": [
+       {
+        "coin": "USDC",
+        "token": 0,
+        "total": "1520.25",
+        "hold": "120.5",
+        "entryNtl": "0.0"
+       },
+       {
+        "coin": "HYPE",
+        "token": 150,
+        "total": "12.5",
+        "hold": "2.5",
+        "entryNtl": "450.75"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotClearinghouseState\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "marginSummary": {
+       "accountValue": "2500.5",
+       "totalNtlPos": "858.125",
+       "totalRawUsd": "3358.625",
+       "totalMarginUsed": "42.90625"
+      },
+      "crossMarginSummary": {
+       "accountValue": "2500.5",
+       "totalNtlPos": "858.125",
+       "totalRawUsd": "3358.625",
+       "totalMarginUsed": "42.90625"
+      },
+      "crossMaintenanceMarginUsed": "10.7265625",
+      "withdrawable": "2457.59375",
+      "assetPositions": [
+       {
+        "type": "oneWay",
+        "position": {
+         "coin": "BTC",
+         "szi": "-0.01",
+         "leverage": {
+          "type": "cross",
+          "value": 20
+         },
+         "entryPx": "86020.0",
+         "positionValue": "858.125",
+         "unrealizedPnl": "2.075",
+         "returnOnEquity": "0.0482443",
+         "liquidationPx": "167349.6",
+         "marginUsed": "42.90625",
+         "maxLeverage": 40,
+         "cumFunding": {
+          "allTime": "-0.512",
+          "sinceOpen": "-0.128",
+          "sinceChange": "-0.064"
+         }
+        }
+       }
+      ],
+      "time": 1791276000000
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"clearinghouseState\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "marginSummary": {
+       "accountValue": "300.0",
+       "totalNtlPos": "0.0",
+       "totalRawUsd": "300.0",
+       "totalMarginUsed": "0.0"
+      },
+      "crossMarginSummary": {
+       "accountValue": "300.0",
+       "totalNtlPos": "0.0",
+       "totalRawUsd": "300.0",
+       "totalMarginUsed": "0.0"
+      },
+      "crossMaintenanceMarginUsed": "0.0",
+      "withdrawable": "300.0",
+      "assetPositions": [],
+      "time": 1791276000000
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"clearinghouseState\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "marginSummary": {
+       "accountValue": "120.0",
+       "totalNtlPos": "39.55",
+       "totalRawUsd": "80.45",
+       "totalMarginUsed": "3.955"
+      },
+      "crossMarginSummary": {
+       "accountValue": "0.0",
+       "totalNtlPos": "0.0",
+       "totalRawUsd": "0.0",
+       "totalMarginUsed": "0.0"
+      },
+      "crossMaintenanceMarginUsed": "0.0",
+      "withdrawable": "116.045",
+      "assetPositions": [],
+      "time": 1791276000000
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"clearinghouseState\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "85000.0",
+       "sz": "0.001",
+       "oid": 566563303535,
+       "timestamp": 1791275926947,
+       "triggerCondition": "N/A",
+       "isTrigger": false,
+       "triggerPx": "0.0",
+       "children": [],
+       "isPositionTpsl": false,
+       "reduceOnly": false,
+       "orderType": "Limit",
+       "origSz": "0.002",
+       "tif": "Gtc",
+       "cloid": "0x000000000000000000065d27f23d749f"
+      },
+      {
+       "coin": "@107",
+       "side": "A",
+       "limitPx": "95.5",
+       "sz": "1.5",
+       "oid": 566563303538,
+       "timestamp": 1791275926947,
+       "triggerCondition": "N/A",
+       "isTrigger": false,
+       "triggerPx": "0.0",
+       "children": [],
+       "isPositionTpsl": false,
+       "reduceOnly": false,
+       "orderType": "Limit",
+       "origSz": "1.5",
+       "tif": "Alo",
+       "cloid": null
+      },
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "99000.0",
+       "sz": "0.0",
+       "oid": 566563303543,
+       "timestamp": 1791275926947,
+       "triggerCondition": "Price above 90000",
+       "isTrigger": true,
+       "triggerPx": "90000.0",
+       "children": [],
+       "isPositionTpsl": true,
+       "reduceOnly": true,
+       "orderType": "Stop Market",
+       "origSz": "0.0",
+       "tif": null,
+       "cloid": null
+      },
+      {
+       "coin": "#90700",
+       "side": "A",
+       "limitPx": "0.26401",
+       "sz": "130.0",
+       "oid": 566563303547,
+       "timestamp": 1791275926947,
+       "triggerCondition": "N/A",
+       "isTrigger": false,
+       "triggerPx": "0.0",
+       "children": [],
+       "isPositionTpsl": false,
+       "reduceOnly": false,
+       "orderType": "Limit",
+       "origSz": "130.0",
+       "tif": "Alo",
+       "cloid": "0x18cdb83dd7b0f21371830dceb5e29329"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"frontendOpenOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "xyz:XYZ100",
+       "side": "A",
+       "limitPx": "27000.0",
+       "sz": "0.05",
+       "oid": 566563303539,
+       "timestamp": 1791275926947,
+       "triggerCondition": "Price below 30000.0",
+       "isTrigger": true,
+       "triggerPx": "30000.0",
+       "children": [],
+       "isPositionTpsl": false,
+       "reduceOnly": true,
+       "orderType": "Stop Market",
+       "origSz": "0.05",
+       "tif": null,
+       "cloid": null
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"frontendOpenOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"frontendOpenOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "order": {
+        "coin": "@107",
+        "side": "B",
+        "limitPx": "90.0",
+        "sz": "2.0",
+        "oid": 566563303541,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "2.0",
+        "tif": "Gtc",
+        "cloid": null
+       },
+       "status": "canceled",
+       "statusTimestamp": 1791275931000
+      },
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "A",
+        "limitPx": "86500.0",
+        "sz": "0.0",
+        "oid": 566563303540,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.01",
+        "tif": "Ioc",
+        "cloid": null
+       },
+       "status": "filled",
+       "statusTimestamp": 1791275930650
+      },
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275926947
+      },
+      {
+       "order": {
+        "coin": "@107",
+        "side": "B",
+        "limitPx": "90.0",
+        "sz": "2.0",
+        "oid": 566563303541,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "2.0",
+        "tif": "Gtc",
+        "cloid": null
+       },
+       "status": "open",
+       "statusTimestamp": 1791275926947
+      },
+      {
+       "order": {
+        "coin": "#90700",
+        "side": "A",
+        "limitPx": "0.26401",
+        "sz": "130.0",
+        "oid": 566563303547,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "130.0",
+        "tif": "Alo",
+        "cloid": "0x18cdb83dd7b0f21371830dceb5e29329"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275926947
+      },
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "A",
+        "limitPx": "76500.0",
+        "sz": "0.0",
+        "oid": 566563303546,
+        "timestamp": 1791275920000,
+        "triggerCondition": "Triggered",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": true,
+        "orderType": "Stop Market",
+        "origSz": "0.01",
+        "tif": "Gtc",
+        "cloid": null
+       },
+       "status": "filled",
+       "statusTimestamp": 1791275920000
+      },
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "A",
+        "limitPx": "76500.0",
+        "sz": "0.01",
+        "oid": 566563303546,
+        "timestamp": 1791275900000,
+        "triggerCondition": "Price below 85000",
+        "isTrigger": true,
+        "triggerPx": "85000.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": true,
+        "orderType": "Stop Market",
+        "origSz": "0.01",
+        "tif": null,
+        "cloid": null
+       },
+       "status": "triggered",
+       "statusTimestamp": 1791275920000
+      },
+      {
+       "order": {
+        "coin": "MATIC",
+        "side": "A",
+        "limitPx": "0.38",
+        "sz": "0.0",
+        "oid": 566563303545,
+        "timestamp": 1791275910000,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "25.0",
+        "tif": "Ioc",
+        "cloid": null
+       },
+       "status": "filled",
+       "statusTimestamp": 1791275910000
+      },
+      {
+       "order": {
+        "coin": "BTC",
+        "side": "A",
+        "limitPx": "76500.0",
+        "sz": "0.01",
+        "oid": 566563303546,
+        "timestamp": 1791275900000,
+        "triggerCondition": "Price below 85000",
+        "isTrigger": true,
+        "triggerPx": "85000.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": true,
+        "orderType": "Stop Market",
+        "origSz": "0.01",
+        "tif": null,
+        "cloid": null
+       },
+       "status": "open",
+       "statusTimestamp": 1791275900000
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"historicalOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "order",
+      "order": {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275926947
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"oid\":566563303535}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "order",
+      "order": {
+       "order": {
+        "coin": "BTC",
+        "side": "B",
+        "limitPx": "85000.0",
+        "sz": "0.001",
+        "oid": 566563303535,
+        "timestamp": 1791275926947,
+        "triggerCondition": "N/A",
+        "isTrigger": false,
+        "triggerPx": "0.0",
+        "children": [],
+        "isPositionTpsl": false,
+        "reduceOnly": false,
+        "orderType": "Limit",
+        "origSz": "0.002",
+        "tif": "Gtc",
+        "cloid": "0x000000000000000000065d27f23d749f"
+       },
+       "status": "open",
+       "statusTimestamp": 1791275926947
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"oid\":\"0x000000000000000000065d27f23d749f\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "unknownOid"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"orderStatus\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"oid\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "user": "0x14791697260e4c9a71f18484c9f997b308e59325",
+      "coin": "BTC",
+      "leverage": {
+       "type": "cross",
+       "value": 20
+      },
+      "maxTradeSzs": [
+       "0.58142",
+       "0.55821"
+      ],
+      "availableToTrade": [
+       "49890.0",
+       "47900.0"
+      ],
+      "markPx": "85812.0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"activeAssetData\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"coin\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791200000000,
+       "hash": "0x1f6d2c9e3a8b4d5f60718293a4b5c6d7e8f9011223344556677889900aabbcc0",
+       "delta": {
+        "type": "deposit",
+        "usdc": "3000.0"
+       }
+      },
+      {
+       "time": 1791210000000,
+       "hash": "0x2a7e3d0f4b9c5e6071829304b5c6d7e8f90a1122334455667788990011aabbdd",
+       "delta": {
+        "type": "accountClassTransfer",
+        "usdc": "1500.0",
+        "toPerp": false
+       }
+      },
+      {
+       "time": 1791220000000,
+       "hash": "0x3b8f4e105cad6f718293a415c6d7e8f90a1b22334455667788990011aabbccee",
+       "delta": {
+        "type": "spotTransfer",
+        "token": "HYPE",
+        "amount": "2.5",
+        "usdcValue": "232.86",
+        "user": "0x14791697260e4c9a71f18484c9f997b308e59325",
+        "destination": "0x0000000000000000000000000000000000000014",
+        "fee": "0.0",
+        "nativeTokenFee": "0.0",
+        "nonce": null,
+        "feeToken": ""
+       }
+      },
+      {
+       "time": 1791230000000,
+       "hash": "0x4c90a5216dbe7082a3b4c526d7e8f90a1b2c33445566778899001122aabbccff",
+       "delta": {
+        "type": "withdraw",
+        "usdc": "100.0",
+        "nonce": 1791229999123456,
+        "fee": "1.0"
+       }
+      },
+      {
+       "time": 1791240000000,
+       "hash": "0x5da1b6327ecf8193b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b",
+       "delta": {
+        "type": "cStakingTransfer",
+        "token": "HYPE",
+        "amount": "1.0",
+        "isDeposit": true
+       }
+      },
+      {
+       "time": 1791250000000,
+       "hash": "0x6eb2c7438fd09204c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c",
+       "delta": {
+        "type": "cStakingTransfer",
+        "token": "HYPE",
+        "amount": "0.5",
+        "isDeposit": false
+       }
+      },
+      {
+       "time": 1791260000000,
+       "hash": "0x7fc3d8549ae1a315d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d",
+       "delta": {
+        "type": "borrowLend",
+        "token": "USDC",
+        "operation": "repay",
+        "amount": "50.0",
+        "interestAmount": "0.0125"
+       }
+      },
+      {
+       "time": 1791270000000,
+       "hash": "0x80d4e965abf2b426e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e",
+       "delta": {
+        "type": "activateDexAbstraction",
+        "dex": "xyz",
+        "token": "USDC",
+        "amount": "1.0"
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userNonFundingLedgerUpdates\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"startTime\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "PURR/USDC",
+       "side": "A",
+       "limitPx": "0.14922",
+       "sz": "131.0",
+       "oid": 566598803191,
+       "timestamp": 1791279137528,
+       "origSz": "1171.0",
+       "cloid": "0x00000000000000000b831bfccf6ef32d"
+      },
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "85700.0",
+       "sz": "0.05",
+       "oid": 566598803180,
+       "timestamp": 1791279137001,
+       "origSz": "0.05"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"openOrders\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "xyz:XYZ100",
+       "side": "B",
+       "limitPx": "31100.0",
+       "sz": "0.25",
+       "oid": 566598803100,
+       "timestamp": 1791279130000,
+       "origSz": "0.3",
+       "cloid": "0x00000000000000000b831bfccf6ef300"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"openOrders\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "85000.0",
+       "sz": "0.001",
+       "oid": 566563303535,
+       "timestamp": 1791275926947,
+       "origSz": "0.002",
+       "cloid": "0x000000000000000000065d27f23d749f"
+      },
+      {
+       "coin": "@107",
+       "side": "A",
+       "limitPx": "95.5",
+       "sz": "1.5",
+       "oid": 566563303538,
+       "timestamp": 1791275926947,
+       "origSz": "1.5"
+      },
+      {
+       "coin": "BTC",
+       "side": "B",
+       "limitPx": "99000.0",
+       "sz": "0.0",
+       "oid": 566563303543,
+       "timestamp": 1791275926947,
+       "origSz": "0.0"
+      },
+      {
+       "coin": "#90700",
+       "side": "A",
+       "limitPx": "0.26401",
+       "sz": "130.0",
+       "oid": 566563303547,
+       "timestamp": 1791275926947,
+       "origSz": "130.0",
+       "cloid": "0x18cdb83dd7b0f21371830dceb5e29329"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"openOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "xyz:XYZ100",
+       "side": "A",
+       "limitPx": "27000.0",
+       "sz": "0.05",
+       "oid": 566563303539,
+       "timestamp": 1791275926947,
+       "origSz": "0.05"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"openOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"openOrders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"dex\":\"flx\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "HYPE",
+       "px": "92.618",
+       "sz": "0.14",
+       "side": "B",
+       "time": 1791263098221,
+       "startPosition": "-126.54",
+       "dir": "Close Short",
+       "closedPnl": "0.263368",
+       "hash": "0x278d87a9293512d629070445f50a3502060d0101c43831a8cb5632fbe838ecc0",
+       "oid": 566598358854,
+       "crossed": true,
+       "fee": "0.018567",
+       "builderFee": "0.012966",
+       "tid": 803925706272831,
+       "cloid": "0x59a57a0cd0915cb026713c7c048e511d",
+       "liquidation": {
+        "liquidatedUser": "0x0000000000000000000000000000000000000015",
+        "markPx": "92.6",
+        "method": "backstop"
+       },
+       "feeToken": "USDC",
+       "twapId": 2288797
+      },
+      {
+       "coin": "BTC",
+       "px": "85791.2407407407",
+       "sz": "0.00054",
+       "side": "A",
+       "time": 1791263098100,
+       "startPosition": "0.12",
+       "dir": "Close Long",
+       "closedPnl": "-0.012",
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "oid": 566598358700,
+       "crossed": false,
+       "fee": "-0.000463",
+       "tid": 803925706272800,
+       "feeToken": "USDC",
+       "twapId": null
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFills\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "HYPE",
+       "px": "92.618",
+       "sz": "0.14",
+       "side": "B",
+       "time": 1791263098221,
+       "startPosition": "-126.54",
+       "dir": "Close Short",
+       "closedPnl": "0.263368",
+       "hash": "0x278d87a9293512d629070445f50a3502060d0101c43831a8cb5632fbe838ecc0",
+       "oid": 566598358854,
+       "crossed": true,
+       "fee": "0.018567",
+       "builderFee": "0.012966",
+       "tid": 803925706272831,
+       "cloid": "0x59a57a0cd0915cb026713c7c048e511d",
+       "liquidation": {
+        "liquidatedUser": "0x0000000000000000000000000000000000000015",
+        "markPx": "92.6",
+        "method": "backstop"
+       },
+       "feeToken": "USDC",
+       "twapId": 2288797
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFills\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"aggregateByTime\":true}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "px": "85791.2407407407",
+       "sz": "0.00054",
+       "side": "A",
+       "time": 1791263098100,
+       "startPosition": "0.12",
+       "dir": "Close Long",
+       "closedPnl": "-0.012",
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "oid": 566598358700,
+       "crossed": false,
+       "fee": "-0.000463",
+       "tid": 803925706272800,
+       "feeToken": "USDC",
+       "twapId": null
+      },
+      {
+       "coin": "HYPE",
+       "px": "92.618",
+       "sz": "0.14",
+       "side": "B",
+       "time": 1791263098221,
+       "startPosition": "-126.54",
+       "dir": "Close Short",
+       "closedPnl": "0.263368",
+       "hash": "0x278d87a9293512d629070445f50a3502060d0101c43831a8cb5632fbe838ecc0",
+       "oid": 566598358854,
+       "crossed": true,
+       "fee": "0.018567",
+       "builderFee": "0.012966",
+       "tid": 803925706272831,
+       "cloid": "0x59a57a0cd0915cb026713c7c048e511d",
+       "liquidation": {
+        "liquidatedUser": "0x0000000000000000000000000000000000000015",
+        "markPx": "92.6",
+        "method": "backstop"
+       },
+       "feeToken": "USDC",
+       "twapId": 2288797
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFillsByTime\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791252000000,\"endTime\":1791273600000,\"aggregateByTime\":true}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "px": "85791.2407407407",
+       "sz": "0.00054",
+       "side": "A",
+       "time": 1791263098100,
+       "startPosition": "0.12",
+       "dir": "Close Long",
+       "closedPnl": "-0.012",
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "oid": 566598358700,
+       "crossed": false,
+       "fee": "-0.000463",
+       "tid": 803925706272800,
+       "feeToken": "USDC",
+       "twapId": null
+      },
+      {
+       "coin": "HYPE",
+       "px": "92.618",
+       "sz": "0.14",
+       "side": "B",
+       "time": 1791263098221,
+       "startPosition": "-126.54",
+       "dir": "Close Short",
+       "closedPnl": "0.263368",
+       "hash": "0x278d87a9293512d629070445f50a3502060d0101c43831a8cb5632fbe838ecc0",
+       "oid": 566598358854,
+       "crossed": true,
+       "fee": "0.018567",
+       "builderFee": "0.012966",
+       "tid": 803925706272831,
+       "cloid": "0x59a57a0cd0915cb026713c7c048e511d",
+       "liquidation": {
+        "liquidatedUser": "0x0000000000000000000000000000000000000015",
+        "markPx": "92.6",
+        "method": "backstop"
+       },
+       "feeToken": "USDC",
+       "twapId": 2288797
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFillsByTime\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791252000000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "cumVlm": "193560424863.1700134277",
+      "nRequestsUsed": 59044382253,
+      "nRequestsCap": 193560434863,
+      "nRequestsSurplus": 5000
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userRateLimit\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": 1000,
+     "queryString": "",
+     "bodyParams": "{\"type\":\"maxBuilderFee\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"builder\":\"0x0000000000000000000000000000000000000016\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "fill": {
+        "coin": "NEAR",
+        "px": "5.2062",
+        "sz": "34.7",
+        "side": "B",
+        "time": 1791278901040,
+        "startPosition": "-269420.5",
+        "dir": "Close Short",
+        "closedPnl": "-27.370319",
+        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "oid": 566595262718,
+        "crossed": true,
+        "fee": "0.065035",
+        "tid": 86235454845785,
+        "feeToken": "USDC",
+        "twapId": null
+       },
+       "twapId": 2288797
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userTwapSliceFills\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "name": "pr2_12",
+       "subAccountUser": "0x0000000000000000000000000000000000000017",
+       "master": "0x14791697260e4c9a71f18484c9f997b308e59325",
+       "clearinghouseState": {
+        "marginSummary": {
+         "accountValue": "16754.533684",
+         "totalNtlPos": "46230.3741",
+         "totalRawUsd": "62984.907784",
+         "totalMarginUsed": "4623.03741"
+        },
+        "crossMarginSummary": {
+         "accountValue": "15554.033684",
+         "totalNtlPos": "40227.8741",
+         "totalRawUsd": "55781.907784",
+         "totalMarginUsed": "4022.78741"
+        },
+        "crossMaintenanceMarginUsed": "577.879676",
+        "withdrawable": "12131.496274",
+        "assetPositions": [
+         {
+          "type": "oneWay",
+          "position": {
+           "coin": "ETH",
+           "szi": "-2.25",
+           "leverage": {
+            "type": "isolated",
+            "value": 5,
+            "rawUsd": "7203.0"
+           },
+           "entryPx": "2667.5",
+           "positionValue": "6002.5",
+           "unrealizedPnl": "-0.625",
+           "returnOnEquity": "-0.0005206",
+           "liquidationPx": "3165.3090145624",
+           "marginUsed": "1200.5",
+           "maxLeverage": 25,
+           "cumFunding": {
+            "allTime": "-316.183281",
+            "sinceOpen": "-1.179902",
+            "sinceChange": "-0.577939"
+           }
+          }
+         }
+        ],
+        "time": 1791278778100
+       },
+       "spotState": {
+        "balances": [
+         {
+          "coin": "HYPE",
+          "token": 150,
+          "total": "367.68703816",
+          "hold": "120.0",
+          "entryNtl": "34398.42600243"
+         }
+        ]
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"subAccounts\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "vaultAddress": "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303",
+       "equity": "604897.465556",
+       "lockedUntilTimestamp": 1770680880422
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userVaultEquities\",\"user\":\"0x677d831aef5328190852e24f13c46cac05f984e7\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "month",
+       {
+        "accountValueHistory": [
+         [
+          1734565200011,
+          "50551.370822"
+         ]
+        ],
+        "pnlHistory": [
+         [
+          1734565200011,
+          "476.765822"
+         ]
+        ],
+        "vlm": "4396031.2199999997"
+       }
+      ],
+      [
+       "perpDay",
+       {
+        "accountValueHistory": [
+         [
+          1791193200017,
+          "52011.58"
+         ]
+        ],
+        "pnlHistory": [
+         [
+          1791193200017,
+          "-12.5"
+         ]
+        ],
+        "vlm": "1503.25"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"portfolio\",\"user\":\"0x677d831aef5328190852e24f13c46cac05f984e7\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "referredBy": {
+       "referrer": "0x0000000000000000000000000000000000000018",
+       "code": "SEABOND"
+      },
+      "cumVlm": "22552.31",
+      "unclaimedRewards": "403.80768",
+      "claimedRewards": "19055.21949223",
+      "builderRewards": "18949.2614927",
+      "referrerState": {
+       "stage": "ready",
+       "data": {
+        "code": "GCTTEST",
+        "nReferrals": 1,
+        "referralStates": [
+         {
+          "cumVlm": "2663707.7000000002",
+          "cumRewardedFeesSinceReferred": "3864.243222",
+          "cumFeesRewardedToReferrer": "115.73759",
+          "timeJoined": 1785734755702,
+          "user": "0x0000000000000000000000000000000000000019",
+          "tokenToState": [
+           [
+            0,
+            {
+             "cumVlm": "2663707.7000000002",
+             "cumRewardedFeesSinceReferred": "3864.243222",
+             "cumFeesRewardedToReferrer": "115.73759"
+            }
+           ],
+           [
+            360,
+            {
+             "cumVlm": "1520.5",
+             "cumRewardedFeesSinceReferred": "0.684225",
+             "cumFeesRewardedToReferrer": "0.0684225"
+            }
+           ]
+          ]
+         }
+        ]
+       }
+      },
+      "rewardHistory": [
+       {
+        "earned": "0.24564",
+        "vlm": "3541.88913",
+        "referralVlm": "12.5",
+        "time": 1686181525632
+       }
+      ],
+      "tokenToState": [
+       [
+        0,
+        {
+         "cumVlm": "22552.31",
+         "unclaimedRewards": "403.80768",
+         "claimedRewards": "19055.21949223",
+         "builderRewards": "18949.2614927"
+        }
+       ],
+       [
+        360,
+        {
+         "cumVlm": "1500.0",
+         "unclaimedRewards": "1.25",
+         "claimedRewards": "3.5",
+         "builderRewards": "0.75"
+        }
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"referral\",\"user\":\"0x677d831aef5328190852e24f13c46cac05f984e7\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "referredBy": null,
+      "cumVlm": "1.9",
+      "unclaimedRewards": "0.0",
+      "claimedRewards": "0.0",
+      "builderRewards": "0.0",
+      "referrerState": {
+       "stage": "needToTrade",
+       "data": {
+        "required": "9998.1"
+       }
+      },
+      "rewardHistory": [],
+      "tokenToState": [
+       [
+        0,
+        {
+         "cumVlm": "1.9",
+         "unclaimedRewards": "0.0",
+         "claimedRewards": "0.0",
+         "builderRewards": "0.0"
+        }
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"referral\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "validator": "0x000000000000000000000000000000000000001a",
+       "amount": "10740.27855992",
+       "lockedUntilTimestamp": 1746044474341
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"delegations\",\"user\":\"0x5ac99df645f3414876c816caa18b2d234024b487\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "delegated": "10740.27855992",
+      "undelegated": "44.29025178",
+      "totalPendingWithdrawal": "900.0",
+      "nPendingWithdrawals": 1
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"delegatorSummary\",\"user\":\"0x5ac99df645f3414876c816caa18b2d234024b487\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1787860095825,
+       "hash": "0x1dd5a477b2ec41601f4f04431c75e7020573005d4def6032c19e4fca71e01b4a",
+       "delta": {
+        "withdrawal": {
+         "amount": "900.0",
+         "phase": "initiated"
+        }
+       }
+      },
+      {
+       "time": 1787860085543,
+       "hash": "0xbe5a6f43f7e6fb41bfd404431c754f020b3b002992ea1a1362231a96b6ead52c",
+       "delta": {
+        "delegate": {
+         "validator": "0x000000000000000000000000000000000000001a",
+         "amount": "900.0",
+         "isUndelegate": true
+        }
+       }
+      },
+      {
+       "time": 1745955948735,
+       "hash": "0x2d6cb9002f3ec074bc0404227ee01401a90075a294f67195f3734cc428a99ddb",
+       "delta": {
+        "cDeposit": {
+         "amount": "10001.0"
+        }
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"delegatorHistory\",\"user\":\"0x5ac99df645f3414876c816caa18b2d234024b487\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791244800027,
+       "source": "delegation",
+       "totalAmount": "0.63878098"
+      },
+      {
+       "time": 1791244800027,
+       "source": "commission",
+       "totalAmount": "17.51099385"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"delegatorRewards\",\"user\":\"0x5ac99df645f3414876c816caa18b2d234024b487\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": true,
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userDexAbstraction\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "tokenToState": [
+       [
+        150,
+        {
+         "borrow": {
+          "basis": "12.5",
+          "value": "12.51"
+         },
+         "supply": {
+          "basis": "44.69295862",
+          "value": "44.69692314"
+         }
+        }
+       ]
+      ],
+      "health": "healthy",
+      "healthFactor": "2.5"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"borrowLendUserState\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "borrowYearlyRate": "0.05",
+      "supplyYearlyRate": "0.0346721009",
+      "balance": "124148247.9570675939",
+      "utilization": "0.7704911304",
+      "oraclePx": "1.0",
+      "ltv": "0.65",
+      "totalSupplied": "540929789.4645597935",
+      "totalBorrowed": "416781604.9600116611"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"borrowLendReserveState\",\"token\":0}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       150,
+       {
+        "borrowYearlyRate": "0.05",
+        "supplyYearlyRate": "0.0",
+        "balance": "13338366.2448045798",
+        "utilization": "0.0",
+        "oraclePx": "93.248",
+        "ltv": "0.65",
+        "totalSupplied": "13338366.2448045798",
+        "totalBorrowed": "0.0"
+       }
+      ],
+      [
+       268,
+       {
+        "borrowYearlyRate": "0.05",
+        "supplyYearlyRate": "0.0231915985",
+        "balance": "1340936.4669496501",
+        "utilization": "0.5153688564",
+        "oraclePx": "0.99965",
+        "ltv": "0.0",
+        "totalSupplied": "2766921.6155478801",
+        "totalBorrowed": "1425985.2287287901"
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"allBorrowLendReserveStates\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      "0x0000000000000000000000000000000000000016"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"approvedBuilders\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "192.0.2.10",
+       "198.51.100.20"
+      ],
+      [
+       {
+        "startTimeSeconds": 1791279360,
+        "durationSeconds": 180,
+        "startGas": "14.4468832",
+        "currentGas": null,
+        "endGas": "1.45386754"
+       },
+       {
+        "startTimeSeconds": 1791279360,
+        "durationSeconds": 180,
+        "startGas": "1.5771516",
+        "currentGas": "0.19290462",
+        "endGas": null
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"gossipPriorityAuctionStatus\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "specialStatuses": "synthetic",
+      "time": 1791592715097
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"exchangeStatus\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791348375,
+       "state": {
+        "coin": "xyz:SMSN",
+        "user": "0x010461c14e146ac35fe42271bdc1134ee31c703a",
+        "side": "B",
+        "sz": "271.24",
+        "executedSz": "135.62",
+        "executedNtl": "27358.31",
+        "minutes": 120,
+        "reduceOnly": true,
+        "randomize": true,
+        "timestamp": 1791348375494,
+        "trigger": {
+         "px": "201.5",
+         "above": true
+        },
+        "stopPx": "215.0"
+       },
+       "status": {
+        "status": "activated"
+       },
+       "twapId": 2292056
+      },
+      {
+       "time": 1784091798,
+       "state": {
+        "coin": "xyz:SKHY",
+        "user": "0x010461c14e146ac35fe42271bdc1134ee31c703a",
+        "side": "A",
+        "sz": "1400.0",
+        "executedSz": "0.0",
+        "executedNtl": "0.0",
+        "minutes": 1440,
+        "reduceOnly": false,
+        "randomize": false,
+        "timestamp": 1784091796275,
+        "trigger": null,
+        "stopPx": null
+       },
+       "status": {
+        "status": "error",
+        "description": "Insufficient margin to place order."
+       },
+       "twapId": 2031821
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"twapHistory\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "fill": {
+        "coin": "BTC",
+        "px": "85536.0",
+        "sz": "0.00347",
+        "side": "A",
+        "time": 1791263130059,
+        "startPosition": "7.57725",
+        "dir": "Close Long",
+        "closedPnl": "7.072207",
+        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "oid": 567180581716,
+        "crossed": true,
+        "fee": "0.106851",
+        "tid": 744181485982398,
+        "feeToken": "USDC",
+        "twapId": null
+       },
+       "twapId": 2288752
+      },
+      {
+       "fill": {
+        "coin": "BTC",
+        "px": "85536.0",
+        "sz": "0.00347",
+        "side": "A",
+        "time": 1791263136038,
+        "startPosition": "7.57378",
+        "dir": "Close Long",
+        "closedPnl": "7.072207",
+        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "oid": 567180647975,
+        "crossed": true,
+        "fee": "0.106851",
+        "tid": 347271508998491,
+        "feeToken": "USDC",
+        "twapId": null
+       },
+       "twapId": 2288753
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userTwapSliceFillsByTime\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791252000000,\"endTime\":1791273600000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "fill": {
+        "coin": "BTC",
+        "px": "85536.0",
+        "sz": "0.00347",
+        "side": "A",
+        "time": 1791263130059,
+        "startPosition": "7.57725",
+        "dir": "Close Long",
+        "closedPnl": "7.072207",
+        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "oid": 567180581716,
+        "crossed": true,
+        "fee": "0.106851",
+        "tid": 744181485982398,
+        "feeToken": "USDC",
+        "twapId": null
+       },
+       "twapId": 2288752
+      },
+      {
+       "fill": {
+        "coin": "BTC",
+        "px": "85536.0",
+        "sz": "0.00347",
+        "side": "A",
+        "time": 1791263136038,
+        "startPosition": "7.57378",
+        "dir": "Close Long",
+        "closedPnl": "7.072207",
+        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "oid": 567180647975,
+        "crossed": true,
+        "fee": "0.106851",
+        "tid": 347271508998491,
+        "feeToken": "USDC",
+        "twapId": null
+       },
+       "twapId": 2288753
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userTwapSliceFillsByTime\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791252000000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791255600066,
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "delta": {
+        "type": "funding",
+        "coin": "BTC",
+        "usdc": "-0.583273",
+        "szi": "0.54241",
+        "fundingRate": "0.0000125",
+        "nSamples": null
+       }
+      },
+      {
+       "time": 1791259200066,
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "delta": {
+        "type": "funding",
+        "coin": "xyz:XYZ100",
+        "usdc": "-0.044393",
+        "szi": "0.2284",
+        "fundingRate": "0.00000625",
+        "nSamples": null
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFunding\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791252000000,\"endTime\":1791273600000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1788739200000,
+       "hash": "0xa166e3fa63c25663024b03f2e0da011a00307e4017465df020210d3d432e7cb8",
+       "delta": {
+        "type": "funding",
+        "coin": "0G",
+        "usdc": "-0.081144",
+        "szi": "1395.2083333333",
+        "fundingRate": "0.0000125",
+        "nSamples": 24
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFunding\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1788660000000,\"endTime\":1788746400000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791255600066,
+       "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+       "delta": {
+        "type": "funding",
+        "coin": "BTC",
+        "usdc": "-0.583273",
+        "szi": "0.54241",
+        "fundingRate": "0.0000125",
+        "nSamples": null
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userFunding\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\",\"startTime\":1791255600066,\"endTime\":1791255600066}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "time": 1791252100000,
+       "hash": "0x6e5030418dccaafb6fc90445f45dbe0201de002728cfc9cd1218db944cc084e6",
+       "delta": {
+        "type": "accountClassTransfer",
+        "usdc": "50099.8",
+        "toPerp": true
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userNonFundingLedgerUpdates\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\",\"startTime\":1791252100000,\"endTime\":1791252100000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "coin": "BTC",
+       "fundingRate": "0.0000125",
+       "premium": "-0.000226673",
+       "time": 1791255600057
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"fundingHistory\",\"coin\":\"BTC\",\"startTime\":1791255600057,\"endTime\":1791255600057}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "BTC",
+       [
+        [
+         "BinPerp",
+         {
+          "fundingRate": "-0.00004049",
+          "nextFundingTime": 1791302400000,
+          "fundingIntervalHours": 8
+         }
+        ],
+        [
+         "HlPerp",
+         {
+          "fundingRate": "0.0000125",
+          "nextFundingTime": 1791277200000,
+          "fundingIntervalHours": 1
+         }
+        ],
+        [
+         "BybitPerp",
+         {
+          "fundingRate": "0.00005069",
+          "nextFundingTime": 1791302400000,
+          "fundingIntervalHours": 8
+         }
+        ]
+       ]
+      ],
+      [
+       "AI",
+       [
+        [
+         "BinPerp",
+         {
+          "fundingRate": "0.0",
+          "nextFundingTime": 1791288000000
+         }
+        ],
+        [
+         "HlPerp",
+         {
+          "fundingRate": "0.0",
+          "nextFundingTime": 1791277200000,
+          "fundingIntervalHours": 1
+         }
+        ],
+        [
+         "BybitPerp",
+         null
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"predictedFundings\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      "CANTO",
+      "FTM",
+      "JELLY",
+      "LOOM",
+      "RLB",
+      "VINE",
+      "ZEREBRO"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpsAtOpenInterestCap\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "startTimeSeconds": 1791180000,
+      "durationSeconds": 111600,
+      "startGas": "1098.12115292",
+      "currentGas": null,
+      "endGas": "571.8561851"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpDeployAuctionStatus\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "totalOiCap": "10000000000.0",
+      "oiSzCapPerPerp": "20000000000.0",
+      "maxTransferNtl": "3000000000.0",
+      "coinToOiCap": [
+       [
+        "xyz:AAOI",
+        "25000000.0"
+       ],
+       [
+        "xyz:AAPL",
+        "200000000.0"
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpDexLimits\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "totalNetDeposit": "3126723996.6663417816"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpDexStatus\",\"dex\":\"\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "totalNetDeposit": "1057417474.976467967"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpDexStatus\",\"dex\":\"xyz\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "universe": [
+        {
+         "szDecimals": 5,
+         "name": "BTC",
+         "maxLeverage": 40,
+         "marginTableId": 56
+        }
+       ],
+       "marginTables": [
+        [
+         51,
+         {
+          "description": "tiered 10x",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 10
+           },
+           {
+            "lowerBound": "3000000.0",
+            "maxLeverage": 5
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 0
+      },
+      {
+       "universe": [
+        {
+         "szDecimals": 3,
+         "name": "xyz:URANIUM",
+         "maxLeverage": 10,
+         "marginTableId": 10,
+         "onlyIsolated": true,
+         "isDelisted": true,
+         "marginMode": "strictIsolated",
+         "growthMode": "enabled",
+         "lastGrowthModeChangeTime": "2025-11-23T17:21:40.390706535",
+         "lastFeeScaleChangeTime": "2026-01-26T16:47:08.614356922",
+         "deployerFeeScale": "1.0"
+        }
+       ],
+       "marginTables": [
+        [
+         10,
+         {
+          "description": "",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 10
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 0
+      },
+      {
+       "universe": [
+        {
+         "szDecimals": 2,
+         "name": "flx:TSLA",
+         "maxLeverage": 10,
+         "marginTableId": 10,
+         "growthMode": "enabled",
+         "lastFeeScaleChangeTime": "2025-11-24T21:19:25.980742012",
+         "deployerFeeScale": "1.0"
+        }
+       ],
+       "marginTables": [
+        [
+         10,
+         {
+          "description": "",
+          "marginTiers": [
+           {
+            "lowerBound": "0.0",
+            "maxLeverage": 10
+           }
+          ]
+         }
+        ]
+       ],
+       "collateralToken": 360
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"allPerpMetas\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "category": "preipo",
+      "description": "A perpetual future contract tracking the implied valuation of OpenAI.",
+      "displayName": "OPENAI",
+      "keywords": [
+       "openai",
+       "oai"
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpAnnotation\",\"coin\":\"io:OAI\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "flx:BTC",
+       "crypto"
+      ],
+      [
+       "io:OAI",
+       "preipo"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpCategories\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "io:OAI",
+       {
+        "category": "preipo",
+        "displayName": "OPENAI",
+        "keywords": [
+         "openai",
+         "oai"
+        ]
+       }
+      ],
+      [
+       "mkts:USTECH",
+       {
+        "category": "indices",
+        "displayName": "QQQ",
+        "keywords": [
+         "USTECH",
+         "NQ"
+        ]
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"perpConciseAnnotations\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "dexToState": [
+       [
+        "ignp",
+        {
+         "isReduceOnly": true,
+         "isBackstopLiquidatorDepositAllowed": true
+        }
+       ],
+       [
+        "nimb",
+        null
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"userStarState\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "balances": [
+       {
+        "coin": "USDC",
+        "token": 0,
+        "total": "100508.11272667",
+        "hold": "49999.89",
+        "entryNtl": "1.0"
+       },
+       {
+        "coin": "USDH",
+        "token": 360,
+        "total": "0.0",
+        "hold": "0.0",
+        "entryNtl": "0.0"
+       }
+      ],
+      "tokenToAvailableAfterMaintenance": [
+       [
+        0,
+        "100508.11272667"
+       ],
+       [
+        360,
+        "0.0"
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotClearinghouseState\",\"user\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "balances": [
+       {
+        "coin": "USDC",
+        "token": 0,
+        "total": "1019.97983005",
+        "hold": "0.0",
+        "entryNtl": "0.0"
+       },
+       {
+        "coin": "PURR",
+        "token": 1,
+        "total": "6.52278",
+        "hold": "0.0",
+        "entryNtl": "1.43548571"
+       },
+       {
+        "coin": "HFUN",
+        "token": 2,
+        "total": "0.01074413",
+        "hold": "0.0",
+        "entryNtl": "1.17424847"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotClearinghouseState\",\"user\":\"0x0000000000000000000000000000000000000000\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "balances": [
+       {
+        "coin": "USDC",
+        "token": 0,
+        "total": "1784747.4809165401",
+        "hold": "-3204581.7878122497",
+        "entryNtl": "0.0",
+        "spotHold": "585798.4557817401"
+       },
+       {
+        "coin": "HYPE",
+        "token": 150,
+        "total": "68072.40171969",
+        "hold": "0.0",
+        "entryNtl": "0.0"
+       },
+       {
+        "coin": "USDT0",
+        "token": 268,
+        "total": "0.0",
+        "hold": "-659983.31632743",
+        "entryNtl": "0.0",
+        "spotHold": "0.0"
+       }
+      ],
+      "tokenToAvailableAfterMaintenance": [
+       [
+        0,
+        "6303976.4137682496"
+       ],
+       [
+        150,
+        "68072.40171969"
+       ],
+       [
+        268,
+        "769085.77021597"
+       ]
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotClearinghouseState\",\"user\":\"0x000000000000000000000000000000000000001d\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "states": [
+       {
+        "token": 354,
+        "spec": {
+         "name": "RED",
+         "szDecimals": 2,
+         "weiDecimals": 8
+        },
+        "fullName": "RedStone",
+        "deployerTradingFeeShare": "1.0",
+        "spots": [
+         717
+        ],
+        "maxSupply": "184467440737.0955200195",
+        "hyperliquidityGenesisBalance": "120000.0",
+        "totalGenesisBalanceWei": "18446744073709551615",
+        "userGenesisBalances": [
+         [
+          "0x2000000000000000000000000000000000000162",
+          "184467440737.0955200195"
+         ]
+        ],
+        "existingTokenGenesisBalances": [
+         [
+          1,
+          "300000.0"
+         ]
+        ],
+        "blacklistUsers": [
+         "0x0000000000000000000000000000000000000019"
+        ]
+       }
+      ],
+      "gasAuction": {
+       "startTimeSeconds": 1733929200,
+       "durationSeconds": 111600,
+       "startGas": "181305.90046",
+       "currentGas": "181300.0",
+       "endGas": "181291.247358"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotDeployState\",\"user\":\"0x010461c14e146ac35fe42271bdc1134ee31c703a\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "startTimeSeconds": 1791180000,
+      "durationSeconds": 111600,
+      "startGas": "500.0",
+      "currentGas": "500.0",
+      "endGas": null
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"spotPairDeployAuctionStatus\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "name": "HFUN",
+      "maxSupply": "1000000.0",
+      "totalSupply": "995724.63958273",
+      "circulatingSupply": "995724.58875657",
+      "szDecimals": 2,
+      "weiDecimals": 8,
+      "midPx": "12.583",
+      "markPx": "12.573",
+      "prevDayPx": "12.516",
+      "genesis": {
+       "userBalances": [
+        [
+         "0x0000000000000000000000000000000000000015",
+         "300000.0"
+        ],
+        [
+         "0xffffffffffffffffffffffffffffffffffffffff",
+         "400000.0"
+        ]
+       ],
+       "existingTokenBalances": [
+        [
+         1,
+         "300000.0"
+        ]
+       ],
+       "blacklistUsers": [
+        "0x000000000000000000000000000000000000001a"
+       ]
+      },
+      "deployer": "0x0000000000000000000000000000000000000015",
+      "deployGas": "500.0",
+      "deployTime": "2024-05-16T11:27:33.468",
+      "seededUsdc": "1500.0",
+      "nonCirculatingUserBalances": [
+       [
+        "0x0000000000000000000000000000000000000000",
+        "0.01074413"
+       ],
+       [
+        "0x000000000000000000000000000000000000dead",
+        "0.04008203"
+       ]
+      ],
+      "futureEmissions": "410984598.9547457695"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"tokenDetails\",\"tokenId\":\"0xbaf265ef389da684513d98d68edf4eae\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "name": "USDC",
+      "maxSupply": "1000000000000.0",
+      "totalSupply": "396751657.3657590151",
+      "circulatingSupply": "396751657.3657590151",
+      "szDecimals": 8,
+      "weiDecimals": 0,
+      "midPx": "1.0",
+      "markPx": "1.0",
+      "prevDayPx": "1.0",
+      "genesis": null,
+      "deployer": null,
+      "deployGas": null,
+      "deployTime": null,
+      "seededUsdc": "0.0",
+      "nonCirculatingUserBalances": [],
+      "futureEmissions": "0.0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"tokenDetails\",\"tokenId\":\"0x6d1e7cde53ba9467b783cb7c530ce054\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "outcomes": [
+       {
+        "outcome": 1472,
+        "name": "template fallback",
+        "description": "other",
+        "sideSpecs": [
+         {
+          "name": "Yes"
+         },
+         {
+          "name": "No"
+         }
+        ],
+        "quoteToken": "USDC",
+        "venue": "out",
+        "deployerFeeScale": "5.0"
+       },
+       {
+        "outcome": 9015,
+        "name": "Recurring",
+        "description": "class:priceBinary|underlying:BTC|expiry:20261007-0600|targetPrice:85501|period:1d",
+        "sideSpecs": [
+         {
+          "name": "Yes"
+         },
+         {
+          "name": "No"
+         }
+        ],
+        "quoteToken": "USDC"
+       }
+      ],
+      "questions": [
+       {
+        "question": 198,
+        "name": "template:sportsTournamentWinner",
+        "description": "competition:English Premier League|officialSource:English Premier League|resolutionDeadline:20270605-1200|season:2026/2027|sport:football/soccer",
+        "fallbackOutcome": 1472,
+        "namedOutcomes": [
+         1473,
+         1474,
+         1475,
+         1476,
+         1477,
+         1478
+        ],
+        "settledNamedOutcomes": [
+         1477
+        ]
+       }
+      ],
+      "deployers": [
+       {
+        "deployer": "0x0000000000000000000000000000000000000017",
+        "venue": "out",
+        "subDeployers": [
+         [
+          "settleOutcome",
+          [
+           "0x0000000000000000000000000000000000000018"
+          ]
+         ]
+        ]
+       }
+      ],
+      "feeScale": "1.0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"outcomeMeta\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "spec": {
+       "outcome": 9092,
+       "name": "template:binaryPrice",
+       "description": "perp:BTC|priceDescription:the Hyperliquid BTC perp trade|seconds:90|threshold:85558|time:20261006-0900",
+       "sideSpecs": [
+        {
+         "name": "template:Yes"
+        },
+        {
+         "name": "template:No"
+        }
+       ],
+       "quoteToken": "USDC",
+       "venue": "skew",
+       "deployerFeeScale": "1.0"
+      },
+      "settleFraction": "1.0",
+      "details": "template",
+      "question": {
+       "question": {
+        "settled": 390
+       },
+       "name": "Recurring",
+       "description": "class:priceBucket|underlying:BTC|expiry:20261006-0600|priceThresholds:84034,87464|period:1d"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"settledOutcome\",\"outcome\":9092}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "spec": {
+       "outcome": 0,
+       "name": "Recurring",
+       "description": "class:priceBinary|underlying:BTC|expiry:20260503-0600|targetPrice:78213|period:1d",
+       "sideSpecs": [
+        {
+         "name": "Yes"
+        },
+        {
+         "name": "No"
+        }
+       ],
+       "quoteToken": "USDH"
+      },
+      "settleFraction": "0.0",
+      "details": "price:78212.4"
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"settledOutcome\",\"outcome\":0}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "nDailyOutcomesRemaining": 851,
+      "nActiveOutcomesRemaining": 27
+     },
+     "queryString": "",
+     "bodyParams": "{\"type\":\"outcomeDeployerLimits\",\"venue\":\"out\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "id": "aiModelHeadToHead",
+       "role": {
+        "standaloneOutcome": {
+         "sideNames": [
+          "{shortNameA}",
+          "{shortNameB}"
+         ]
+        }
+       },
+       "name": "{shortNameA} v {shortNameB}: {leaderboard} on {dateTime}",
+       "description": "This market compares {modelA} ({shortNameA}) and {modelB} ({shortNameB}) on {dateTime} using {leaderboard} at {leaderboardUrl}. metadata=category:technology|subCategory:N/A|semanticRestriction:This market must compare two specific AI language models on a public performance leaderboard.",
+       "keywords": [
+        [
+         "benchmarkSettings",
+         "string"
+        ],
+        [
+         "comparisonDirection",
+         "string"
+        ],
+        [
+         "dateTime",
+         "dateTime"
+        ],
+        [
+         "leaderboard",
+         "string"
+        ],
+        [
+         "leaderboardUrl",
+         "string"
+        ],
+        [
+         "metric",
+         "string"
+        ],
+        [
+         "modelA",
+         "string"
+        ],
+        [
+         "modelB",
+         "string"
+        ],
+        [
+         "shortNameA",
+         "shortString"
+        ],
+        [
+         "shortNameB",
+         "shortString"
+        ],
+        [
+         "tiebreakers",
+         "string"
+        ]
+       ]
+      },
+      {
+       "id": "binaryPrice",
+       "role": {
+        "standaloneOutcome": {
+         "sideNames": [
+          "Yes",
+          "No"
+         ]
+        }
+       },
+       "name": "{perp} above {threshold} at {time}?",
+       "description": "The market resolves to Yes if the {perp} price is above {threshold} at {time}, and otherwise resolves to No. metadata=category:price|subCategory:N/A|semanticRestriction:This market must refer to the price of a Hyperliquid perp.",
+       "keywords": [
+        [
+         "perp",
+         "hlPerp"
+        ],
+        [
+         "priceDescription",
+         "string"
+        ],
+        [
+         "seconds",
+         "uInt"
+        ],
+        [
+         "threshold",
+         "uDecimal"
+        ],
+        [
+         "time",
+         "dateTime"
+        ]
+       ]
+      },
+      {
+       "id": "sportsTournamentParticipant",
+       "role": {
+        "questionOutcome": {
+         "parent": "sportsTournamentWinner"
+        }
+       },
+       "name": "{participant}",
+       "description": "This outcome resolves to Yes if {participant} is named the sole winner of the Tournament under the parent question's rules.",
+       "keywords": [
+        [
+         "participant",
+         "string"
+        ]
+       ]
+      },
+      {
+       "id": "sportsTournamentWinner",
+       "role": "question",
+       "name": "{season} {competition} winner",
+       "description": "This {sport} market has one named outcome per listed participant in the {season} {competition} (the \"Tournament\") plus the fallback. metadata=category:sports|subCategory:{sport}|semanticRestriction:This market must refer to the overall winner of a sports tournament.",
+       "keywords": [
+        [
+         "competition",
+         "string"
+        ],
+        [
+         "officialSource",
+         "string"
+        ],
+        [
+         "resolutionDeadline",
+         "dateTime"
+        ],
+        [
+         "season",
+         "string"
+        ],
+        [
+         "sport",
+         "string"
+        ]
+       ]
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"outcomeTemplates\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/exchange": {
+   "POST": [
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "resting": {
+           "oid": 566563303535,
+           "cloid": "0x000000000000000000065d27f23d749f"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"85000\",\"s\":\"0.001\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Gtc\"}},\"c\":\"0x000000000000000000065d27f23d749f\"}],\"grouping\":\"na\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "filled": {
+           "totalSz": "0.00013",
+           "avgPx": "85813.0",
+           "oid": 566563303542
+          }
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"86670\",\"s\":\"0.00013\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Ioc\"}}}],\"grouping\":\"na\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "cancel",
+       "data": {
+        "statuses": [
+         "success"
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cancel\",\"cancels\":[{\"a\":0,\"o\":566563303535}]},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "cancel",
+       "data": {
+        "statuses": [
+         "success",
+         "success"
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cancel\",\"cancels\":[{\"a\":0,\"o\":566563303535},{\"a\":0,\"o\":566563303543}]},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "cancel",
+       "data": {
+        "statuses": [
+         "success"
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cancelByCloid\",\"cancels\":[{\"asset\":0,\"cloid\":\"0x000000000000000000065d27f23d749f\"}]},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "resting": {
+           "oid": 566563303537,
+           "cloid": "0x000000000000000000065d27f23d749f"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"batchModify\",\"modifies\":[{\"oid\":566563303535,\"order\":{\"a\":0,\"b\":true,\"p\":\"84000\",\"s\":\"0.001\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Gtc\"}},\"c\":\"0x000000000000000000065d27f23d749f\"}}]},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"updateLeverage\",\"asset\":0,\"isCross\":true,\"leverage\":20},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"withdraw3\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"time\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"amount\":\"25\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"usdSend\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"time\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"amount\":\"25\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "resting": {
+           "oid": 566563303535,
+           "cloid": "0x000000000000000000065d27f23d749f"
+          }
+         },
+         "waitingForFill",
+         "waitingForFill"
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"85000\",\"s\":\"0.001\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Gtc\"}},\"c\":\"0x000000000000000000065d27f23d749f\"},{\"a\":0,\"b\":false,\"p\":\"81000\",\"s\":\"0.001\",\"r\":true,\"t\":{\"trigger\":{\"isMarket\":true,\"triggerPx\":\"90000\",\"tpsl\":\"tp\"}}},{\"a\":0,\"b\":false,\"p\":\"79000\",\"s\":\"0.001\",\"r\":true,\"t\":{\"trigger\":{\"isMarket\":false,\"triggerPx\":\"80000\",\"tpsl\":\"sl\"}}}],\"grouping\":\"normalTpsl\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "filled": {
+           "totalSz": "0.002",
+           "avgPx": "85813.5",
+           "oid": 566563303545,
+           "cloid": "0x000000000000000000065d27f23d74a0"
+          }
+         },
+         {
+          "error": "Order could not immediately match against any resting orders. asset=1"
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"order\",\"orders\":[{\"a\":0,\"b\":true,\"p\":\"86000\",\"s\":\"0.002\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Ioc\"}},\"c\":\"0x000000000000000000065d27f23d74a0\"},{\"a\":1,\"b\":false,\"p\":\"2700\",\"s\":\"0.05\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Ioc\"}}}],\"grouping\":{\"p\":1000}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "cancel",
+       "data": {
+        "statuses": [
+         "success",
+         {
+          "error": "Order was never placed, already canceled, or filled. asset=1"
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cancel\",\"cancels\":[{\"a\":0,\"o\":566563303535},{\"a\":1,\"o\":566563303543}],\"f\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "cancel",
+       "data": {
+        "statuses": [
+         "success"
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cancelByCloid\",\"cancels\":[{\"asset\":0,\"cloid\":\"0x000000000000000000065d27f23d749f\"}],\"f\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"scheduleCancel\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"modify\",\"oid\":566563303535,\"order\":{\"a\":0,\"b\":true,\"p\":\"84500\",\"s\":\"0.001\",\"r\":false,\"t\":{\"limit\":{\"tif\":\"Gtc\"}},\"c\":\"0x000000000000000000065d27f23d749f\"},\"a\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "order",
+       "data": {
+        "statuses": [
+         {
+          "resting": {
+           "oid": 566563303546
+          }
+         }
+        ]
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"batchModify\",\"modifies\":[{\"oid\":\"0x000000000000000000065d27f23d749f\",\"order\":{\"a\":0,\"b\":false,\"p\":\"79500\",\"s\":\"0.001\",\"r\":true,\"t\":{\"trigger\":{\"isMarket\":true,\"triggerPx\":\"80500\",\"tpsl\":\"sl\"}}}}],\"a\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"updateIsolatedMargin\",\"asset\":0,\"isBuy\":true,\"ntli\":2000000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"topUpIsolatedOnlyMargin\",\"asset\":3,\"leverage\":\"1.5\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"sendAsset\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"sourceDex\":\"\",\"destinationDex\":\"spot\",\"token\":\"USDC\",\"amount\":\"10\",\"fromSubAccount\":\"\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"agentSendAsset\",\"destination\":\"0x0000000000000000000000000000000000000014\",\"sourceDex\":\"spot\",\"destinationDex\":\"\",\"token\":\"USDC\",\"amount\":\"10\",\"fromSubAccount\":\"\",\"nonce\":4102444800000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"sendToEvmWithData\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"token\":\"USDC:0x6d1e7cde53ba9467b783cb7c530ce054\",\"amount\":\"5\",\"sourceDex\":\"spot\",\"destinationRecipient\":\"0x0000000000000000000000000000000000000014\",\"addressEncoding\":\"hex\",\"destinationChainId\":999,\"gasLimit\":200000,\"data\":\"0xdeadbeef\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"spotSend\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"time\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"token\":\"HYPE:0x0d01dc56dcaaca66ad901c959b4011ec\",\"amount\":\"2.5\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"usdClassTransfer\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"amount\":\"100\",\"toPerp\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cDeposit\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"wei\":100000000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"cWithdraw\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"wei\":50000000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"tokenDelegate\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"validator\":\"0x0000000000000000000000000000000000000016\",\"wei\":100000000,\"isUndelegate\":false},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"vaultTransfer\",\"vaultAddress\":\"0xdfc24b077bc1425ad1dea75bcb6f8158e10df303\",\"isDeposit\":true,\"usd\":5000000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"hip3LiquidatorTransfer\",\"dex\":\"xyz\",\"ntl\":1000000000,\"isDeposit\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"approveAgent\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"agentAddress\":\"0xed2ff3513c0f08c3ff181b1732745e256c97ce13\",\"agentName\":\"gct\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"approveBuilderFee\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"maxFeeRate\":\"0.01%\",\"builder\":\"0x0000000000000000000000000000000000000015\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "twapOrder",
+       "data": {
+        "status": {
+         "running": {
+          "twapId": 77738308
+         }
+        }
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"twapOrder\",\"twap\":{\"a\":0,\"b\":true,\"s\":\"0.01\",\"r\":false,\"m\":30,\"t\":true}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "twapCancel",
+       "data": {
+        "status": "success"
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"twapCancel\",\"a\":0,\"t\":77738308},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "trailingStop",
+       "data": {
+        "oid": 566563303544
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"trailingStop\",\"asset\":0,\"isBuy\":false,\"sz\":\"0.001\",\"reduceOnly\":true,\"retracement\":{\"pct\":\"1.5%\"},\"activationPx\":\"90000\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"reserveRequestWeight\",\"weight\":1000,\"destination\":\"0x0000000000000000000000000000000000000014\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"noop\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userDexAbstraction\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"enabled\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"agentEnableDexAbstraction\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userSetAbstraction\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"abstraction\":\"unifiedAccount\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"agentSetAbstraction\",\"abstraction\":\"p\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userOutcome\",\"splitOutcome\":{\"outcome\":9015,\"amount\":\"10\"}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userOutcome\",\"mergeOutcome\":{\"outcome\":9015,\"amount\":null}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userOutcome\",\"mergeQuestion\":{\"question\":198,\"amount\":\"5\"}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"userOutcome\",\"negateOutcome\":{\"question\":198,\"outcome\":1473,\"amount\":\"2\"}},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"claimRewards\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "status": "ok",
+      "response": {
+       "type": "default"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":{\"type\":\"gossipPriorityBid\",\"slotId\":1,\"ip\":\"203.0.113.7\",\"maxGas\":10000000},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

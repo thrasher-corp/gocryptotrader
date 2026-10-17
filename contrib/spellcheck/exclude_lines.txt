@@ -16,3 +16,5 @@
   behavior: default
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
+		assert.Equal(t, testPrivateKey[2:], hex.EncodeToString(key.Serialize()), "parsePrivateKey should round trip the key")
+	Utilisation      types.Number `json:"utilization"`
