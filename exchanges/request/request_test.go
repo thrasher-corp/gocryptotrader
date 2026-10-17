@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -23,7 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const unexpected = "unexpected values"
@@ -1028,6 +1033,147 @@ func TestDoRequestRawBodyResult(t *testing.T) {
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error for a non-JSON body taken as bytes")
 	assert.Equal(t, csvBody, string(body), "A *[]byte result should hold the body as sent")
+}
+
+// newRecordingFixture returns a service whose mock data file, in the sibling testdata directory mock.HTTPRecord falls
+// back to, holds contents. Empty contents leave the file out
+func newRecordingFixture(t *testing.T, contents string) (service, fixturePath string) {
+	t.Helper()
+	serviceDir, err := os.MkdirTemp("..", "request_test_http_recording_") //nolint:usetesting // mock.HTTPRecord requires a sibling fixture directory.
+	require.NoError(t, err, "os.MkdirTemp must create the recording service directory")
+	t.Cleanup(func() {
+		assert.NoError(t, os.RemoveAll(serviceDir), "os.RemoveAll should remove the recording service directory")
+	})
+	recordingDir := filepath.Join(serviceDir, "testdata")
+	require.NoError(t, os.Mkdir(recordingDir, 0o755), "os.Mkdir must create the recording testdata directory")
+	fixturePath = filepath.Join(recordingDir, "http.json")
+	if contents != "" {
+		require.NoError(t, os.WriteFile(fixturePath, []byte(contents), 0o600), "os.WriteFile must create the recording fixture")
+	}
+	return filepath.Base(serviceDir), fixturePath
+}
+
+// executeRecordedRequest sends a GET for /export with recording on through a requester named service, which is
+// answered with body
+func executeRecordedRequest(t *testing.T, service, body string, result any, verbose bool) error {
+	t.Helper()
+	r, err := New(service, &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    req,
+		}, nil
+	})})
+	require.NoError(t, err, "New must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, r.Shutdown(), "Shutdown should not error")
+	})
+	const path = "https://example.com/export?id=VSKC"
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
+	require.NoError(t, err, "http.NewRequestWithContext must not error")
+	retry, err := r.executeRequest(t.Context(), &Item{Method: http.MethodGet, Path: path, Result: result, HTTPRecording: true}, req, 1, verbose)
+	require.False(t, retry, "executeRequest must not retry")
+	return err
+}
+
+func TestExecuteRequestRecordsRawBodyResult(t *testing.T) {
+	const (
+		blankFixture = `{"routes":null}`
+		zipBody      = "PK\x03\x04report"
+		csvBody      = "date,uid,info\n2026-10-09T00:30:00Z,02d7e8f9-a0b1-486f-7081-92a3b4c5d6e7,conversion\n"
+	)
+	service, fixturePath := newRecordingFixture(t, "")
+	for _, tc := range []struct {
+		name     string
+		fixture  string // the mock data file's contents, or empty for no file
+		body     string
+		result   any
+		recorded string // the JSON the mock data must hold for the response, or empty when it must be left unchanged
+		err      error  // the recording failure the request must return
+		fails    bool   // the request must fail recording, with an error other than mock.ErrResponseBodyNotJSON
+	}{
+		{name: "zip archive as bytes", fixture: blankFixture, body: zipBody, result: new([]byte)},
+		{name: "csv as bytes", fixture: blankFixture, body: csvBody, result: new([]byte)},
+		{name: "json as bytes", fixture: blankFixture, body: `{"status":"queued"}`, result: new([]byte), recorded: `{"status":"queued"}`},
+		// The recorder reads the leading JSON value, so a body json.Valid rejects can still be recorded
+		{name: "json with a trailing empty string as bytes", fixture: blankFixture, body: `{"status":"queued"}""`, result: new([]byte), recorded: `{"status":"queued"}`},
+		{name: "json string as bytes", fixture: blankFixture, body: `"report"`, result: new([]byte), fails: true},
+		{name: "zip archive as bytes without a fixture", body: zipBody, result: new([]byte), err: fs.ErrNotExist},
+		{name: "zip archive as bytes with a bad fixture", fixture: `{"routes":`, body: zipBody, result: new([]byte), fails: true},
+		{name: "csv into a struct", fixture: blankFixture, body: csvBody, result: &struct {
+			Response bool `json:"response"`
+		}{}, err: mock.ErrResponseBodyNotJSON},
+		{name: "csv into a raw message", fixture: blankFixture, body: csvBody, result: new(json.RawMessage), err: mock.ErrResponseBodyNotJSON},
+	} {
+		// The cases share one fixture, in turn, as each directory made beside the package is one more that a concurrent
+		// walk of the repository, such as TestRootPathFromCWD's, can find gone
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.fixture == "" {
+				require.NoError(t, os.RemoveAll(fixturePath), "os.RemoveAll must remove the recording fixture")
+			} else {
+				require.NoError(t, os.WriteFile(fixturePath, []byte(tc.fixture), 0o600), "os.WriteFile must write the recording fixture")
+			}
+			err := executeRecordedRequest(t, service, tc.body, tc.result, false)
+			switch {
+			case tc.err != nil:
+				require.ErrorIs(t, err, tc.err, "executeRequest must return the recording failure")
+			case tc.fails:
+				require.ErrorContains(t, err, "mock recording failure", "executeRequest must return the recording failure")
+				assert.NotErrorIs(t, err, mock.ErrResponseBodyNotJSON, "executeRequest should return a recording failure other than a body that is not JSON")
+			default:
+				require.NoError(t, err, "executeRequest must not error")
+				body, ok := tc.result.(*[]byte)
+				require.True(t, ok, "result must be a *[]byte")
+				assert.Equal(t, tc.body, string(*body), "a *[]byte result should hold the body as sent")
+			}
+			if tc.fixture == "" {
+				return
+			}
+			fixture, err := os.ReadFile(fixturePath)
+			require.NoError(t, err, "os.ReadFile must read the recording fixture")
+			if tc.recorded == "" {
+				assert.Equal(t, tc.fixture, string(fixture), "the recording fixture should be left unchanged")
+				return
+			}
+			var m mock.VCRMock
+			require.NoError(t, json.Unmarshal(fixture, &m), "json.Unmarshal must decode the recording fixture")
+			responses := m.Routes["/export"][http.MethodGet]
+			require.Len(t, responses, 1, "the recording fixture must hold the response")
+			assert.JSONEq(t, tc.recorded, string(responses[0].Data), "the recording fixture should hold the response")
+		})
+	}
+}
+
+func TestExecuteRequestLogsUnrecordedRawBody(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide, and cleanup returns both to the package defaults
+	var mu sync.Mutex
+	var skipped []string
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	gctlog.SetCustomLogHook(func(_, _ string, a ...any) bool {
+		if line := fmt.Sprint(a...); strings.Contains(line, "mock recording skipped") {
+			mu.Lock()
+			skipped = append(skipped, line)
+			mu.Unlock()
+		}
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+
+	service, _ := newRecordingFixture(t, `{"routes":null}`)
+	require.NoError(t, executeRecordedRequest(t, service, "PK\x03\x04report", new([]byte), false), "executeRequest must not error")
+	mu.Lock()
+	assert.Empty(t, skipped, "a skipped recording should not be logged unless verbose")
+	mu.Unlock()
+
+	require.NoError(t, executeRecordedRequest(t, service, "PK\x03\x04report", new([]byte), true), "executeRequest must not error when verbose")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{service + " mock recording skipped GET /export: response body is not JSON"}, skipped, "a skipped recording should be logged when verbose")
 }
 
 func TestDoRequest_Retries(t *testing.T) {

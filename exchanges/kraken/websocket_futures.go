@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
@@ -173,6 +174,16 @@ func (e *Exchange) manageFuturesSubGroup(ctx context.Context, conn websocket.Con
 			return fmt.Errorf("%s %s: %w", event, group, err)
 		}
 	}
+	// An unsubscribed feed stops at a time its replies don't show, so it is taken as stopped unless Kraken refuses
+	// every product of the request
+	var refusals int
+	if event == wsFuturesEventUnsubscribe {
+		defer func() {
+			if refusals < len(answered) {
+				e.futuresOrders.unsubscribed(conn, req.Feed)
+			}
+		}()
+	}
 	resps, err := e.futuresRequest(ctx, conn, req, len(answered))
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", event, group, err)
@@ -200,6 +211,7 @@ func (e *Exchange) manageFuturesSubGroup(ctx context.Context, conn websocket.Con
 			outcomes[s] = nil
 		default:
 			outcomes[s] = fmt.Errorf("%s %s: %w: %s %s", event, s, errFuturesSubscriptionFailed, reply.Event, reply.Message)
+			refusals++
 		}
 	}
 
@@ -282,11 +294,11 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 	case wsFuturesFeedTradeSnapshot, wsFuturesFeedTrade:
 		return e.wsFuturesProcessTrades(feed, respRaw)
 	case wsFuturesFeedOpenOrdersSnapshot, wsFuturesFeedOpenOrders:
-		return e.wsFuturesProcessOpenOrders(ctx, feed, respRaw)
+		return e.wsFuturesProcessOpenOrders(ctx, conn, feed, respRaw)
 	case wsFuturesFeedFillsSnapshot, wsFuturesFeedFills:
-		return e.wsFuturesProcessFills(ctx, respRaw)
+		return e.wsFuturesProcessFills(ctx, conn, feed, respRaw)
 	case wsFuturesFeedBalancesSnapshot, wsFuturesFeedBalances:
-		return e.wsFuturesProcessBalances(ctx, respRaw)
+		return e.wsFuturesProcessBalances(ctx, feed, respRaw)
 	case wsFuturesFeedOpenPositions:
 		var positions WsFuturesPositions
 		if err := json.Unmarshal(respRaw, &positions); err != nil {
@@ -391,7 +403,7 @@ func (e *Exchange) wsFuturesUpdateBook(ctx context.Context, conn websocket.Conne
 	sequence := int64(u.Sequence) //nolint:gosec // Kraken's sequence numbers are far below the int64 limit
 	if sequence != last+1 {
 		err := fmt.Errorf("%s %w: expected %d, got %d", pair, errFuturesSequenceGap, last+1, sequence)
-		e.resubscribeOrderbook(conn, &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{pair}})
+		e.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: wsFuturesFeedBook, Asset: asset.Futures, Pairs: currency.Pairs{pair}})
 		return common.AppendError(err, e.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Futures))
 	}
 	update := &orderbook.Update{
@@ -409,7 +421,7 @@ func (e *Exchange) wsFuturesUpdateBook(ctx context.Context, conn websocket.Conne
 	if err := e.Websocket.Orderbook.Update(ctx, update); err != nil {
 		// An update is applied before the book is relayed, so a book that could not be relayed is still valid
 		if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-			e.resubscribeOrderbook(conn, &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{pair}})
+			e.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: wsFuturesFeedBook, Asset: asset.Futures, Pairs: currency.Pairs{pair}})
 		}
 		return err
 	}
@@ -470,17 +482,20 @@ func (e *Exchange) wsFuturesProcessTrades(feed string, respRaw []byte) error {
 }
 
 // wsFuturesProcessOpenOrders relays the account's open futures orders and the changes to them
-func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, feed string, respRaw []byte) error {
+func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	if feed == wsFuturesFeedOpenOrdersSnapshot {
 		var snapshot WsFuturesOpenOrdersSnapshot
 		if err := json.Unmarshal(respRaw, &snapshot); err != nil {
 			return err
 		}
+		e.futuresOrders.snapshot(conn, snapshot.Orders)
 		for i := range snapshot.Orders {
-			d, err := e.futuresWsOrderDetail(&snapshot.Orders[i], futuresOrderUpdateStatus("", false, snapshot.Orders[i].Filled))
+			state := e.futuresOrders.get(snapshot.Orders[i].OrderID)
+			d, err := e.futuresWsOrderDetail(&snapshot.Orders[i], futuresOrderUpdateStatus("", false, state.executed()))
 			if err != nil {
 				return err
 			}
+			state.addTo(d)
 			if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
 				return err
 			}
@@ -492,18 +507,26 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, feed string, 
 		return err
 	}
 	if u.Order == nil {
-		// Kraken names only the order when it is cancelled
-		return e.Websocket.DataHandler.Send(ctx, &order.Detail{
+		// Kraken names only the order when it leaves the open orders, so its quantities are the ones last reported
+		state := e.futuresOrders.finish(conn, u.OrderID, u.Reason)
+		d := &order.Detail{
 			Exchange:  e.Name,
 			AssetType: asset.Futures,
 			OrderID:   u.OrderID,
-			Status:    futuresOrderUpdateStatus(u.Reason, u.IsCancel, 0),
-		})
+			Status:    futuresOrderUpdateStatus(u.Reason, u.IsCancel, state.executed()),
+		}
+		state.addTo(d)
+		return e.Websocket.DataHandler.Send(ctx, d)
 	}
-	d, err := e.futuresWsOrderDetail(u.Order, futuresOrderUpdateStatus(u.Reason, u.IsCancel, u.Order.Filled))
+	state := e.futuresOrders.update(conn, u.Order)
+	if u.IsCancel {
+		state = e.futuresOrders.finish(conn, u.Order.OrderID, u.Reason)
+	}
+	d, err := e.futuresWsOrderDetail(u.Order, futuresOrderUpdateStatus(u.Reason, u.IsCancel, state.executed()))
 	if err != nil {
 		return err
 	}
+	state.addTo(d)
 	return e.Websocket.DataHandler.Send(ctx, d)
 }
 
@@ -573,11 +596,15 @@ func futuresOrderUpdateStatus(reason string, isCancel bool, filled float64) orde
 }
 
 // wsFuturesProcessFills relays the account's futures fills: each as its order's trade, with its fee, and as a fill when
-// the fills feed is enabled
-func (e *Exchange) wsFuturesProcessFills(ctx context.Context, respRaw []byte) error {
+// the fills feed is enabled. The order's executed quantity and totals are relayed with its trade where the feeds have
+// reported enough of the order to know them
+func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	var wsFills WsFuturesFills
 	if err := json.Unmarshal(respRaw, &wsFills); err != nil {
 		return err
+	}
+	if feed == wsFuturesFeedFillsSnapshot {
+		e.futuresOrders.fillsSnapshot(conn)
 	}
 	var fills []fill.Data
 	for i := range wsFills.Fills {
@@ -594,7 +621,8 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, respRaw []byte) er
 		if err != nil {
 			return err
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
+		feeAsset := e.assetCode(f.FeeCurrency)
+		d := &order.Detail{
 			Exchange:      e.Name,
 			AssetType:     asset.Futures,
 			OrderID:       f.OrderID,
@@ -608,14 +636,18 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, respRaw []byte) er
 				Price:     f.Price,
 				Amount:    f.Quantity,
 				Fee:       f.FeePaid,
-				FeeAsset:  e.assetCode(f.FeeCurrency).String(),
+				FeeAsset:  feeAsset.String(),
 				Exchange:  e.Name,
 				Type:      orderType,
 				Side:      side,
 				Timestamp: f.Time.Time(),
 				IsMaker:   f.FillType == "maker",
 			}},
-		}); err != nil {
+		}
+		state := e.futuresOrders.fill(conn, f, feed == wsFuturesFeedFills, feeAsset)
+		d.Status = state.fillStatus()
+		state.addTo(d)
+		if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
 			return err
 		}
 		if e.IsFillsFeedEnabled() {
@@ -640,43 +672,66 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, respRaw []byte) er
 	return e.Websocket.Fills.Update(fills...)
 }
 
-// wsFuturesProcessBalances stores the cash and multi-collateral wallet balances a balances message holds, and relays
-// them with the message, whose single-collateral margin accounts are relayed only, as Kraken names them differently
-// over REST
-func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, respRaw []byte) error {
+// wsFuturesProcessBalances stores the wallet balances a balances message holds, and relays them with the message. A
+// snapshot holds every balance of each wallet it carries, so the cash and multi-collateral wallets it carries are
+// stored whole, and a currency they no longer list is removed, while an update holds only the balances that changed.
+// Kraken names a single-collateral margin account differently over REST, so one is stored only under the name of the
+// REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
+func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, respRaw []byte) error {
 	var b WsFuturesBalances
 	if err := json.Unmarshal(respRaw, &b); err != nil {
 		return err
 	}
-	var subAccts accounts.SubAccounts
-	if len(b.Holding) != 0 {
+	snapshot := feed == wsFuturesFeedBalancesSnapshot
+	var wallets accounts.SubAccounts
+	// A snapshot carrying a wallet without balances carries an empty wallet, while one leaving the wallet out says
+	// nothing of it
+	if b.Holding != nil && (snapshot || len(b.Holding) != 0) {
 		cash := accounts.NewSubAccount(asset.Futures, "cash")
 		for code, amount := range b.Holding {
-			c := currency.NewCode(code).Upper()
-			balance, err := e.Accounts.UpdateBalance(ctx, cash.ID, asset.Futures, c, func(bal *accounts.Balance) {
-				bal.Total, bal.Hold, bal.Free = amount, 0, amount
-			})
-			if err != nil {
-				return err
-			}
-			cash.Balances.Set(c, balance)
+			cash.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: amount, Free: amount})
 		}
-		subAccts = append(subAccts, cash)
+		wallets = append(wallets, cash)
 	}
-	if b.FlexFutures != nil && len(b.FlexFutures.Currencies) != 0 {
+	if b.FlexFutures != nil && b.FlexFutures.Currencies != nil && (snapshot || len(b.FlexFutures.Currencies) != 0) {
 		flex := accounts.NewSubAccount(asset.Futures, "flex")
 		for code, fc := range b.FlexFutures.Currencies {
-			c := currency.NewCode(code).Upper()
-			balance, err := e.Accounts.UpdateBalance(ctx, flex.ID, asset.Futures, c, func(bal *accounts.Balance) {
-				free := min(max(fc.Available, 0), fc.Quantity)
-				bal.Total, bal.Hold, bal.Free = fc.Quantity, fc.Quantity-free, free
+			free := min(max(fc.Available, 0), fc.Quantity)
+			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: fc.Quantity, Hold: fc.Quantity - free, Free: free})
+		}
+		wallets = append(wallets, flex)
+	}
+	for _, m := range b.Futures {
+		account, ok := e.futuresMarginAccountName(ctx, &m)
+		if !ok {
+			continue
+		}
+		margin := accounts.NewSubAccount(asset.Futures, account)
+		free := min(max(m.Available, 0), m.Balance)
+		margin.Balances.Set(currency.NewCode(m.Unit).Upper(), accounts.Balance{Total: m.Balance, Hold: m.Balance - free, Free: free})
+		wallets = append(wallets, margin)
+	}
+	var subAccts accounts.SubAccounts
+	for _, w := range wallets {
+		if snapshot && (w.ID == "cash" || w.ID == "flex") {
+			if err := e.Accounts.Save(ctx, accounts.SubAccounts{w}, true); err != nil {
+				return err
+			}
+			subAccts = append(subAccts, w)
+			continue
+		}
+		// A margin account holds other currencies than the one the message reports, so it is stored a currency at a time
+		stored := accounts.NewSubAccount(asset.Futures, w.ID)
+		for c, reported := range w.Balances {
+			balance, err := e.Accounts.UpdateBalance(ctx, w.ID, asset.Futures, c, func(held *accounts.Balance) {
+				held.Total, held.Hold, held.Free = reported.Total, reported.Hold, reported.Free
 			})
 			if err != nil {
 				return err
 			}
-			flex.Balances.Set(c, balance)
+			stored.Balances.Set(c, balance)
 		}
-		subAccts = append(subAccts, flex)
+		subAccts = append(subAccts, stored)
 	}
 	if len(subAccts) != 0 {
 		if err := e.Websocket.DataHandler.Send(ctx, subAccts); err != nil {
@@ -684,4 +739,24 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, respRaw []byte)
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, &b)
+}
+
+// futuresMarginAccountName returns the REST name of a single-collateral margin account the balances feed reports, such
+// as fi_xbtusd for F-XBT:USD, when UpdateAccountBalances has stored a REST account of that name with the feed account's
+// currency for the same credentials. Kraken documents no general mapping between the names, so an account is matched
+// only where its feed name, pair and currency all agree with the REST account
+func (e *Exchange) futuresMarginAccountName(ctx context.Context, m *WsFuturesMarginAccount) (string, bool) {
+	base, quote, ok := strings.Cut(m.Pair, "/")
+	if !ok || base == "" || quote == "" || m.Name != "F-"+base+":"+quote {
+		return "", false
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return "", false
+	}
+	name := "fi_" + strings.ToLower(base+quote)
+	e.futuresMarginCurrenciesMu.Lock()
+	defer e.futuresMarginCurrenciesMu.Unlock()
+	c, ok := e.futuresMarginCurrencies[*creds][name]
+	return name, ok && c.Equal(currency.NewCode(m.Unit))
 }

@@ -148,6 +148,9 @@ func (e *Exchange) CancelAllFuturesOrders(ctx context.Context, req *FuturesCance
 	params := url.Values{}
 	var headers map[string]string
 	if req != nil {
+		if err := checkPairFilter(req.Symbol); err != nil {
+			return nil, err
+		}
 		if !req.Symbol.IsEmpty() {
 			symbol, err := e.FormatSymbol(req.Symbol, asset.Futures)
 			if err != nil {
@@ -313,7 +316,7 @@ func (e *Exchange) GetFuturesOrdersStatus(ctx context.Context, req *FuturesOrder
 // futuresValidateNewOrder checks the parameters Send order and a batch's send instructions require
 func futuresValidateNewOrder(symbol currency.Pair, side, orderType string, size, stopPrice, trailingStopMaximumDeviation float64, trailingStopDeviationUnit, clientOrderID string) error {
 	switch {
-	case symbol.IsEmpty():
+	case !symbol.IsPopulated():
 		return currency.ErrCurrencyPairEmpty
 	case side == "":
 		return order.ErrSideIsInvalid

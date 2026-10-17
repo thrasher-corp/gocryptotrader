@@ -27,7 +27,7 @@ func (e *Exchange) AddOrder(ctx context.Context, req *AddOrderRequest) (*AddOrde
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	body, closeOrder, err := req.Order.params()
@@ -99,6 +99,9 @@ func (e *Exchange) AmendOrder(ctx context.Context, req *AmendOrderRequest) (*Ame
 	if req.TriggerPrice != (OrderPrice{}) {
 		body["trigger_price"] = req.TriggerPrice.String()
 	}
+	if err := checkPairFilter(req.Pair); err != nil {
+		return nil, err
+	}
 	if !req.Pair.IsEmpty() {
 		symbol, err := e.FormatSymbol(req.Pair, asset.Spot)
 		if err != nil {
@@ -124,7 +127,7 @@ func (e *Exchange) EditOrder(ctx context.Context, req *EditOrderRequest) (*EditO
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if req.TransactionID == "" && req.OrderUserReference == 0 {
@@ -237,7 +240,7 @@ func (e *Exchange) AddOrderBatch(ctx context.Context, req *AddOrderBatchRequest)
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if len(req.Orders) < 2 || len(req.Orders) > 15 {

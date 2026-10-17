@@ -14,7 +14,7 @@ import (
 
 // GetPreTradeData calls Pre-Trade Data, returning the top 10 aggregated levels of a pair's order book
 func (e *Exchange) GetPreTradeData(ctx context.Context, pair currency.Pair) (*PreTradeDataResponse, error) {
-	if pair.IsEmpty() {
+	if !pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)
@@ -37,6 +37,9 @@ func (e *Exchange) GetPostTradeData(ctx context.Context, req *PostTradeDataReque
 		}
 		if !req.From.IsZero() && !req.To.IsZero() && req.From.After(req.To) {
 			return nil, common.ErrStartAfterEnd
+		}
+		if err := checkPairFilter(req.Pair); err != nil {
+			return nil, err
 		}
 		if !req.Pair.IsEmpty() {
 			symbol, err := e.FormatSymbol(req.Pair, asset.Spot)

@@ -512,6 +512,7 @@ func TestWsFuturesHandleData(t *testing.T) {
 			Pair:        futuresTestPair,
 			Side:        order.Buy,
 			Type:        order.Limit,
+			FeeAsset:    currency.XBT,
 			LastUpdated: makerTime,
 			Trades: []order.TradeHistory{{
 				TID:       "cad76f07-814e-4dc6-8478-7867407b6bff",
@@ -533,6 +534,7 @@ func TestWsFuturesHandleData(t *testing.T) {
 			Pair:        piETHUSD,
 			Side:        order.Buy,
 			Type:        order.Limit,
+			FeeAsset:    currency.ETH,
 			LastUpdated: takerTime,
 			Trades: []order.TradeHistory{{
 				TID:       "b1aa44b2-4f2a-4031-999c-ae1175c91580",
@@ -682,6 +684,49 @@ func TestWsFuturesBookSequenceGap(t *testing.T) {
 	require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(snapshot)), "wsFuturesHandleData must load the new snapshot")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "a new snapshot should restore the book")
+}
+
+func TestWsFuturesResubscribeBookChannelNames(t *testing.T) {
+	t.Parallel()
+	snapshot := `{"feed":"book_snapshot","product_id":"PF_XBTUSD","timestamp":1791518718655,"seq":173877391,"tickSize":null,"bids":[{"price":82380.0,"qty":0.0003}],"asks":[{"price":82381.0,"qty":0.6051}]}`
+	gap := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877393,"price":81529.0,"qty":1.5296,"timestamp":1791518718725}`
+	// The book cannot apply an update without a timestamp
+	rejected := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877392,"price":81529.0,"qty":1.5296}`
+	for _, tc := range []struct {
+		name    string
+		channel string
+		update  string
+		err     error
+	}{
+		{"orderbook sequence gap", subscription.OrderbookChannel, gap, errFuturesSequenceGap},
+		{"book sequence gap", wsFuturesFeedBook, gap, errFuturesSequenceGap},
+		{"orderbook rejected update", subscription.OrderbookChannel, rejected, orderbook.ErrLastUpdatedNotSet},
+		{"book rejected update", wsFuturesFeedBook, rejected, orderbook.ErrLastUpdatedNotSet},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := new(mockFuturesServer)
+			ex, conn := newFuturesTestExchange(t, server)
+			s := futuresSubscription(tc.channel, wsFuturesFeedBook, futuresTestPair)
+			require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{s}), "futuresSubscribe must not error")
+			server.takeRequests()
+			require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(snapshot)), "wsFuturesHandleData must load the snapshot")
+			require.ErrorIs(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(tc.update)), tc.err, "wsFuturesHandleData must reject the update")
+			exp := []string{
+				`{"event":"unsubscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
+				`{"event":"subscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
+			}
+			var got []string
+			require.Eventually(t, func() bool {
+				got = append(got, server.takeRequests()...)
+				return len(got) >= len(exp)
+			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
+			require.Eventually(t, func() bool {
+				return s.State() == subscription.SubscribedState && ex.Websocket.GetSubscription(s) == s
+			}, 5*time.Second, 10*time.Millisecond, "the subscription must be subscribed again")
+		})
+	}
 }
 
 func TestWsFuturesUpdateBookResubscribe(t *testing.T) {
@@ -1214,7 +1259,7 @@ func TestWsFuturesProcessOpenOrders(t *testing.T) {
 	ex := newTestExchange(t)
 	placed, updated := time.UnixMilli(1612275024153), time.UnixMilli(1612275178153)
 	snapshot := `{"feed":"open_orders_snapshot","account":"e258dba9-4dd4-4da5-bfef-75beb91c098e","orders":[{"instrument":"PF_XBTUSD","time":1612275024153,"last_update_time":1612275178153,"qty":10,"filled":4,"limit_price":34900,"stop_price":0,"type":"limit","order_id":"723ba95f-13b7-418b-8fcf-ab7ba6620555","cli_ord_id":"my-order","direction":0,"reduce_only":false}]}`
-	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), "wsFuturesProcessOpenOrders must not error for a snapshot")
+	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), "wsFuturesProcessOpenOrders must not error for a snapshot")
 	assert.Equal(t, []any{&order.Detail{
 		Exchange:        t.Name(),
 		AssetType:       asset.Futures,
@@ -1233,7 +1278,7 @@ func TestWsFuturesProcessOpenOrders(t *testing.T) {
 	}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a snapshot's orders, a partly filled one as such")
 
 	filled := `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","time":1612275024153,"last_update_time":1612275178153,"qty":10,"filled":10,"limit_price":34900,"stop_price":0,"type":"limit","order_id":"723ba95f-13b7-418b-8fcf-ab7ba6620555","cli_ord_id":"my-order","direction":0,"reduce_only":false},"is_cancel":true,"reason":"full_fill"}`
-	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), wsFuturesFeedOpenOrders, []byte(filled)), "wsFuturesProcessOpenOrders must not error for an update")
+	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(filled)), "wsFuturesProcessOpenOrders must not error for an update")
 	assert.Equal(t, []any{&order.Detail{
 		Exchange:       t.Name(),
 		AssetType:      asset.Futures,
@@ -1251,7 +1296,7 @@ func TestWsFuturesProcessOpenOrders(t *testing.T) {
 	}}, relayed(ex), "wsFuturesProcessOpenOrders should relay an order removed as filled")
 
 	cancelled := `{"feed":"open_orders","order_id":"660c6b23-8007-48c1-a7c9-4893f4572e8c","is_cancel":true,"reason":"cancelled_by_user"}`
-	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), wsFuturesFeedOpenOrders, []byte(cancelled)), "wsFuturesProcessOpenOrders must not error for a cancellation")
+	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(cancelled)), "wsFuturesProcessOpenOrders must not error for a cancellation")
 	assert.Equal(t, []any{&order.Detail{Exchange: t.Name(), AssetType: asset.Futures, OrderID: "660c6b23-8007-48c1-a7c9-4893f4572e8c", Status: order.Cancelled}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a cancelled order by its ID alone")
 
 	for _, tc := range []struct {
@@ -1261,10 +1306,10 @@ func TestWsFuturesProcessOpenOrders(t *testing.T) {
 		{"snapshot instrument", wsFuturesFeedOpenOrdersSnapshot, `{"feed":"open_orders_snapshot","orders":[{"instrument":"PF_MOONUSD","type":"limit"}]}`, currency.ErrPairNotFound},
 		{"update order type", wsFuturesFeedOpenOrders, `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","type":"moon"}}`, errUnknownOrderType},
 	} {
-		assert.ErrorIsf(t, ex.wsFuturesProcessOpenOrders(t.Context(), tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessOpenOrders should reject a %s it cannot convert", tc.name)
+		assert.ErrorIsf(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessOpenOrders should reject a %s it cannot convert", tc.name)
 	}
-	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), wsFuturesFeedOpenOrdersSnapshot, []byte(`{"feed":"open_orders_snapshot","orders":7}`)), "wsFuturesProcessOpenOrders should reject a snapshot it cannot decode")
-	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), wsFuturesFeedOpenOrders, []byte(`{"feed":"open_orders","order":7}`)), "wsFuturesProcessOpenOrders should reject an update it cannot decode")
+	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(`{"feed":"open_orders_snapshot","orders":7}`)), "wsFuturesProcessOpenOrders should reject a snapshot it cannot decode")
+	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(`{"feed":"open_orders","order":7}`)), "wsFuturesProcessOpenOrders should reject an update it cannot decode")
 	assert.Empty(t, relayed(ex), "wsFuturesProcessOpenOrders should relay no orders from a message it rejects")
 }
 
@@ -1338,6 +1383,7 @@ func TestWsFuturesProcessFills(t *testing.T) {
 	ex.Features.Enabled.FillsFeed = false
 	fillTime := time.UnixMilli(1600256966528)
 	msg := []byte(`{"feed":"fills","account":"DemoUser","fills":[{"instrument":"PF_XBTUSD","time":1600256966528,"price":10935.5,"seq":38,"buy":false,"qty":2500.0,"remaining_order_qty":0.0,"order_id":"3696d19b-3226-46bd-993d-a9a7aacc8fbc","cli_ord_id":"my-stop","fill_id":"c14ee7cb-ad6b-4f25-b0c0-7e0b4e7a4e3b","fill_type":"taker","fee_paid":0.000456,"fee_currency":"BTC","taker_order_type":"stop","order_type":"stop"}]}`)
+	// Without an open_orders snapshot, the fill could follow fills of the order it never saw, so it gives the trade
 	expDetail := &order.Detail{
 		Exchange:      t.Name(),
 		AssetType:     asset.Futures,
@@ -1346,6 +1392,7 @@ func TestWsFuturesProcessFills(t *testing.T) {
 		Pair:          futuresTestPair,
 		Side:          order.Sell,
 		Type:          order.Stop,
+		FeeAsset:      currency.XBT,
 		LastUpdated:   fillTime,
 		Trades: []order.TradeHistory{{
 			TID:       "c14ee7cb-ad6b-4f25-b0c0-7e0b4e7a4e3b",
@@ -1359,12 +1406,12 @@ func TestWsFuturesProcessFills(t *testing.T) {
 			Timestamp: fillTime,
 		}},
 	}
-	require.NoError(t, ex.wsFuturesProcessFills(t.Context(), msg), "wsFuturesProcessFills must not error with the fills feed disabled")
+	require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, msg), "wsFuturesProcessFills must not error with the fills feed disabled")
 	assert.Equal(t, []any{expDetail}, relayed(ex), "wsFuturesProcessFills should relay a fill as its order's trade alone with the fills feed disabled")
 
 	ex.Features.Enabled.FillsFeed = true
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
-	require.NoError(t, ex.wsFuturesProcessFills(t.Context(), msg), "wsFuturesProcessFills must not error with the fills feed enabled")
+	require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, msg), "wsFuturesProcessFills must not error with the fills feed enabled")
 	expFill := []fill.Data{{
 		ID:            "c14ee7cb-ad6b-4f25-b0c0-7e0b4e7a4e3b",
 		Timestamp:     fillTime,
@@ -1387,9 +1434,9 @@ func TestWsFuturesProcessFills(t *testing.T) {
 		{"instrument", `{"feed":"fills","fills":[{"instrument":"PF_MOONUSD","order_type":"lmt"}]}`, currency.ErrPairNotFound},
 		{"order type", `{"feed":"fills","fills":[{"instrument":"PF_XBTUSD","order_type":"moon"}]}`, errUnknownOrderType},
 	} {
-		assert.ErrorIsf(t, ex.wsFuturesProcessFills(t.Context(), []byte(tc.msg)), tc.err, "wsFuturesProcessFills should reject a fill by its %s", tc.name)
+		assert.ErrorIsf(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(tc.msg)), tc.err, "wsFuturesProcessFills should reject a fill by its %s", tc.name)
 	}
-	assert.Error(t, ex.wsFuturesProcessFills(t.Context(), []byte(`{"feed":"fills","fills":7}`)), "wsFuturesProcessFills should reject fills it cannot decode")
+	assert.Error(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(`{"feed":"fills","fills":7}`)), "wsFuturesProcessFills should reject fills it cannot decode")
 	assert.Empty(t, relayed(ex), "wsFuturesProcessFills should relay nothing from a message it rejects")
 }
 
@@ -1399,7 +1446,7 @@ func TestWsFuturesProcessBalances(t *testing.T) {
 	useTestCredentials(ex)
 	msg := `{"feed":"balances","account":"7a641082-55c7-4411-a85f-930ec2e09617","holding":{"usd":5000.0},"futures":{},` +
 		`"flex_futures":{"currencies":{"USD":{"quantity":5000.0,"available":4000.0},"XBT":{"quantity":0.5,"available":-0.1},"ETH":{"quantity":2.0,"available":2.5}}},"timestamp":1640995200000,"seq":84}`
-	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), []byte(msg)), "wsFuturesProcessBalances must not error")
+	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(msg)), "wsFuturesProcessBalances must not error")
 	got := relayed(ex)
 	require.Len(t, got, 2, "wsFuturesProcessBalances must relay the wallets and the message")
 	assert.Equal(t, accounts.SubAccounts{
@@ -1419,9 +1466,9 @@ func TestWsFuturesProcessBalances(t *testing.T) {
 	stored.UpdatedAt = time.Time{}
 	assert.Equal(t, accounts.Balance{Currency: currency.XBT, Total: 0.5, Hold: 0.5}, stored, "wsFuturesProcessBalances should store the wallets' balances")
 
-	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), fixtureLines(t, "testdata/wsFutures.json")[16]), "wsFuturesProcessBalances must not error for a margin account update")
+	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, fixtureLines(t, "testdata/wsFutures.json")[16]), "wsFuturesProcessBalances must not error for a margin account update")
 	got = relayed(ex)
 	require.Len(t, got, 1, "wsFuturesProcessBalances must relay a margin account update as the message alone")
 	assert.IsType(t, &WsFuturesBalances{}, got[0], "wsFuturesProcessBalances should relay a margin account update as the message")
-	assert.Error(t, ex.wsFuturesProcessBalances(t.Context(), []byte(`{"feed":"balances","holding":7}`)), "wsFuturesProcessBalances should reject balances it cannot decode")
+	assert.Error(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":7}`)), "wsFuturesProcessBalances should reject balances it cannot decode")
 }

@@ -174,6 +174,9 @@ func (e *Exchange) futuresHistoryAccountParams(pair currency.Pair, since, before
 	if err != nil {
 		return nil, err
 	}
+	if err := checkPairFilter(pair); err != nil {
+		return nil, err
+	}
 	if !pair.IsEmpty() {
 		symbol, err := e.FormatSymbol(pair, asset.Futures)
 		if err != nil {
@@ -190,7 +193,7 @@ func (e *Exchange) futuresHistoryMarketParams(req *FuturesHistoryMarketEventsReq
 	if err := common.NilGuard(req); err != nil {
 		return "", nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return "", nil, currency.ErrCurrencyPairEmpty
 	}
 	params, err := futuresHistoryPagingParams(req.Since, req.Before, req.Ascending, req.ContinuationToken, req.Count)

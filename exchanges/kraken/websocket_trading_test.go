@@ -2,8 +2,10 @@ package kraken
 
 import (
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +76,8 @@ func TestWsAddOrder(t *testing.T) {
 		err  error
 	}{
 		{"pair", &WsAddOrderRequest{Order: valid}, currency.ErrCurrencyPairEmpty},
+		{"pair without a quote", &WsAddOrderRequest{Pair: partialTestPairs[0], Order: valid}, currency.ErrCurrencyPairEmpty},
+		{"pair without a base", &WsAddOrderRequest{Pair: partialTestPairs[1], Order: valid}, currency.ErrCurrencyPairEmpty},
 		{"order type", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{Side: "buy", Quantity: 1}}, order.ErrTypeIsInvalid},
 		{"side", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "market", Quantity: 1}}, order.ErrSideIsInvalid},
 		{"quantity", &WsAddOrderRequest{Pair: spotTestPair, Order: WsOrder{OrderType: "market", Side: "buy"}}, order.ErrAmountIsInvalid},
@@ -141,6 +145,10 @@ func TestWsEditOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsEditOrder must reject a missing order ID")
 	_, err = e.WsEditOrder(t.Context(), &WsEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsEditOrder must reject a missing pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.WsEditOrder(t.Context(), &WsEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WsEditOrder must reject %q, which lacks a base or a quote", pair)
+	}
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"edit_order","params":{"order_id":"ORDERX-IDXXX-XXXXX1","symbol":"BTC/USD","order_qty":0.2123456789,"limit_price":26500.5,"display_qty":0.1,"fee_preference":"base","post_only":true,"reduce_only":true,"triggers":{"reference":"index","price":-2,"price_type":"pct"},"order_userref":7,"validate":true,"deadline":"2026-10-09T09:59:59Z","token":"`+wsTradingTestToken+`"}}`,
@@ -178,6 +186,10 @@ func TestWsAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsAmendOrder must reject a request without an identifier")
 	_, err = e.WsAmendOrder(t.Context(), &WsAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", ClientOrderID: "a", LimitPrice: 1})
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsAmendOrder must reject a request with both identifiers")
+	for _, pair := range partialTestPairs {
+		_, err = e.WsAmendOrder(t.Context(), &WsAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WsAmendOrder must reject %q, which lacks a base or a quote", pair)
+	}
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"amend_order","params":{"order_id":"OAIYAU-LGI3M-PFM5VW","symbol":"BTC/USD","order_qty":1.2,"display_qty":0.2,"limit_price":61031.3,"limit_price_type":"static","post_only":true,"trigger_price":61000,"trigger_price_type":"static","deadline":"2024-07-21T09:53:59.05Z","token":"`+wsTradingTestToken+`"}}`,
@@ -219,7 +231,7 @@ func TestWsCancelOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOrders must reject a nil request")
 	_, err = e.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{})
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsCancelOrders must reject a request without identifiers")
-	_, err = e.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{OrderIDs: []string{"a"}, UserReferences: []int32{1}})
+	_, err = e.WsCancelOrders(t.Context(), &WsCancelOrdersRequest{OrderIDs: []string{"a"}, ClientOrderIDs: []string{"b"}})
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WsCancelOrders must reject a request with two kinds of identifier")
 
 	ex := newWsTradingTestExchange(t,
@@ -244,7 +256,6 @@ func TestWsCancelOrders(t *testing.T) {
 		exp  string
 	}{
 		{"client order IDs", &WsCancelOrdersRequest{ClientOrderIDs: []string{"6d1b345e-2821-40e2-ad83-4ecb18a06876"}}, `{"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"]`},
-		{"user references", &WsCancelOrdersRequest{UserReferences: []int32{-7}}, `{"order_userref":[-7]`},
 	} {
 		ex := newWsTradingTestExchange(t,
 			`{"method":"cancel_order","params":`+tc.exp+`,"token":"`+wsTradingTestToken+`"}}`,
@@ -252,6 +263,14 @@ func TestWsCancelOrders(t *testing.T) {
 		)
 		_, err := ex.WsCancelOrders(t.Context(), tc.req)
 		assert.NoErrorf(t, err, "WsCancelOrders should cancel by %s", tc.name)
+	}
+}
+
+func TestWsCancelOrderParamsTakeNoUserReferences(t *testing.T) {
+	t.Parallel()
+	for field := range reflect.TypeFor[wsCancelOrderParams]().Fields() {
+		tag := field.Tag.Get("json")
+		assert.Falsef(t, strings.HasPrefix(tag, "order_userref"), "wsCancelOrderParams should not send %s, as a user reference's replies cannot be counted", tag)
 	}
 }
 
@@ -309,6 +328,10 @@ func TestWsBatchAddOrders(t *testing.T) {
 	}
 	_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Orders: []WsOrder{valid, valid}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsBatchAddOrders must reject a missing pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Pair: pair, Orders: []WsOrder{valid, valid}})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WsBatchAddOrders must reject %q, which lacks a base or a quote", pair)
+	}
 	_, err = e.WsBatchAddOrders(t.Context(), &WsBatchAddOrdersRequest{Pair: spotTestPair, Orders: []WsOrder{valid, {OrderType: "limit", Side: "sell"}}})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "WsBatchAddOrders must reject an invalid order")
 

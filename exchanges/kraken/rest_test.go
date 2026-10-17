@@ -38,6 +38,8 @@ var (
 
 	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
 	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", currency.UnderscoreDelimiter)
+	// partialTestPairs hold a base or a quote alone, which requests reject rather than send as malformed symbols
+	partialTestPairs = []currency.Pair{{Base: currency.XBT}, {Quote: currency.USD}}
 )
 
 // configureTestExchange serves an exchange from the recorded responses in testdata/http.json in mock tests, signing
@@ -106,6 +108,16 @@ func decodedTestSecret(t *testing.T) string {
 	secret, err := base64.StdEncoding.DecodeString(testSecret)
 	assert.NoError(t, err, "DecodeString should not error")
 	return string(secret)
+}
+
+func TestCheckPairFilter(t *testing.T) {
+	t.Parallel()
+	for _, pair := range []currency.Pair{currency.EMPTYPAIR, spotTestPair, futuresTestPair} {
+		assert.NoErrorf(t, checkPairFilter(pair), "checkPairFilter should accept %q", pair)
+	}
+	for _, pair := range partialTestPairs {
+		assert.ErrorIsf(t, checkPairFilter(pair), currency.ErrCurrencyCodeEmpty, "checkPairFilter should reject %q, which lacks a base or a quote", pair)
+	}
 }
 
 func TestSpotSignature(t *testing.T) {

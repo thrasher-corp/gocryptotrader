@@ -458,6 +458,10 @@ func TestCancelFuturesOrder(t *testing.T) {
 
 func TestCancelAllFuturesOrders(t *testing.T) {
 	t.Parallel()
+	for _, pair := range partialTestPairs {
+		_, err := e.CancelAllFuturesOrders(t.Context(), &FuturesCancelAllOrdersRequest{Symbol: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "CancelAllFuturesOrders must reject %q, which lacks a base or a quote", pair)
+	}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -1033,6 +1037,8 @@ func TestFuturesValidateNewOrder(t *testing.T) {
 		err           error
 	}{
 		{name: "empty symbol", err: currency.ErrCurrencyPairEmpty},
+		{name: "symbol without a quote", symbol: partialTestPairs[0], err: currency.ErrCurrencyPairEmpty},
+		{name: "symbol without a base", symbol: partialTestPairs[1], err: currency.ErrCurrencyPairEmpty},
 		{name: "empty side", symbol: futuresTestPair, err: order.ErrSideIsInvalid},
 		{name: "empty order type", symbol: futuresTestPair, side: "buy", err: order.ErrTypeIsInvalid},
 		{name: "zero size", symbol: futuresTestPair, side: "buy", orderType: "lmt", err: order.ErrAmountIsInvalid},

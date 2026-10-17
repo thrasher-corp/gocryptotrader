@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,6 +80,10 @@ func TestSetFuturesLeverageSetting(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetFuturesLeverageSetting must reject a nil request")
 	_, err = e.SetFuturesLeverageSetting(t.Context(), &FuturesLeverageSettingRequest{MaximumLeverage: 10})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetFuturesLeverageSetting must reject an empty symbol")
+	for _, maximumLeverage := range []float64{-0.01, math.NaN()} {
+		_, err = e.SetFuturesLeverageSetting(t.Context(), &FuturesLeverageSettingRequest{Symbol: futuresTestPair, MaximumLeverage: maximumLeverage})
+		require.ErrorIsf(t, err, errFuturesNegativeLimit, "SetFuturesLeverageSetting must reject a maximum leverage of %v", maximumLeverage)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

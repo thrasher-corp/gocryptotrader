@@ -132,6 +132,16 @@ authenticated websocket support is enabled and credentials are set, the account'
 with the `myOrders`, `myTrades` and `myWallet` channels. Futures order books stream whole, so futures subscriptions
 take no `levels`.
 
++ Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
+the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
+balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports
+finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone. These
+reads are retried only while the websocket is connected, or still connecting.
+
++ The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
+under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that
+account; other margin accounts follow REST.
+
 + A level 3 order book lists each order rather than the total at each price. It is subscribed to with the `allOrders`
 channel at a depth of 10, 100 or 1000 price levels:
 
@@ -139,9 +149,10 @@ channel at a depth of 10, 100 or 1000 price levels:
 {"enabled": true, "channel": "allOrders", "asset": "spot", "levels": 100}
 ```
 
-+ The stored order book holds the total at each price, and the level 3 book's orders are sent to the data handler as
-`WsLevel3Book`s. As a pair has one stored order book, it can be subscribed to at one depth of either the `orderbook`
-or the `allOrders` channel.
++ With the `orderbook` channel, the stored order book holds the total at each price. With the `allOrders` channel, it
+holds a level for each order, so a price appears once for each order resting at it, and the level 3 book's snapshots
+and updates are also sent to the data handler as `WsLevel3Book`s with their order IDs. As a pair has one stored order
+book, it can be subscribed to at one depth of either the `orderbook` or the `allOrders` channel.
 
 + Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
 holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they

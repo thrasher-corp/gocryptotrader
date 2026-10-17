@@ -123,7 +123,7 @@ func (e *Exchange) CreateFuturesRFQ(ctx context.Context, req *FuturesCreateRFQRe
 	creation := futuresRFQCreation{Legs: make([]futuresRFQCreationLeg, len(req.Legs))}
 	seen := make(map[string]bool, len(req.Legs))
 	for i := range req.Legs {
-		if req.Legs[i].Contract.IsEmpty() {
+		if !req.Legs[i].Contract.IsPopulated() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		if req.Legs[i].Size == 0 {
@@ -209,7 +209,7 @@ func (e *Exchange) futuresRFQRequest(ctx context.Context, method, path string, p
 func (e *Exchange) futuresRFQLegPrices(legs []FuturesRFQOfferLeg) (string, error) {
 	prices := make([]FuturesRFQLegPrice, len(legs))
 	for i := range legs {
-		if legs[i].Contract.IsEmpty() {
+		if !legs[i].Contract.IsPopulated() {
 			return "", currency.ErrCurrencyPairEmpty
 		}
 		symbol, err := e.FormatSymbol(legs[i].Contract, asset.Futures)

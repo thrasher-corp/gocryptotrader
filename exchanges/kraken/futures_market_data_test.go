@@ -345,6 +345,10 @@ func TestFuturesMarketSymbol(t *testing.T) {
 	t.Parallel()
 	_, err := e.futuresMarketSymbol(currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresMarketSymbol should reject an empty pair")
+	for _, pair := range []currency.Pair{currency.NewPairWithDelimiter("PF", "", currency.UnderscoreDelimiter), currency.NewPairWithDelimiter("", "XBTUSD", currency.UnderscoreDelimiter)} {
+		_, err := e.futuresMarketSymbol(pair)
+		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresMarketSymbol should reject %q, which lacks a base or a quote", pair)
+	}
 	for pair, exp := range map[currency.Pair]string{futuresTestPair: "PF_XBTUSD", piXBTUSDPair: "PI_XBTUSD"} {
 		symbol, err := e.futuresMarketSymbol(pair)
 		require.NoErrorf(t, err, "futuresMarketSymbol must not error for %s", pair)

@@ -26,7 +26,7 @@ func (e *Exchange) WsAddOrder(ctx context.Context, req *WsAddOrderRequest) (*WsA
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	orderParams, err := req.Order.params()
@@ -58,7 +58,7 @@ func (e *Exchange) WsEditOrder(ctx context.Context, req *WsEditOrderRequest) (*W
 	if req.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := &wsEditOrderParams{
@@ -106,6 +106,9 @@ func (e *Exchange) WsAmendOrder(ctx context.Context, req *WsAmendOrderRequest) (
 		TriggerPrice:     req.TriggerPrice,
 		TriggerPriceType: req.TriggerPriceType,
 	}
+	if err := checkPairFilter(req.Pair); err != nil {
+		return nil, err
+	}
 	if !req.Pair.IsEmpty() {
 		params.Symbol = e.displaySymbol(req.Pair)
 	}
@@ -120,26 +123,28 @@ func (e *Exchange) WsAmendOrder(ctx context.Context, req *WsAmendOrderRequest) (
 	return result, json.Unmarshal(resp.Result, result)
 }
 
-// WsCancelOrders calls cancel_order, cancelling orders by one kind of identifier. Kraken replies for each order on its
-// own, so each result reports its order's outcome
+// WsCancelOrders calls cancel_order, cancelling orders by order ID or by client order ID. Kraken replies for each order
+// on its own, so each result reports its order's outcome. It does not cancel by user reference, as a reference can tag
+// any number of orders and Kraken replies for each one it cancels, so the replies to wait for are unknown; instead,
+// CancelExistingOrder cancels by user reference over REST and reports the count, and WsBatchCancelOrders takes 2 to 50
+// user references
 func (e *Exchange) WsCancelOrders(ctx context.Context, req *WsCancelOrdersRequest) ([]WsCancelOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	var kinds, expected int
-	for _, n := range []int{len(req.OrderIDs), len(req.ClientOrderIDs), len(req.UserReferences)} {
+	for _, n := range []int{len(req.OrderIDs), len(req.ClientOrderIDs)} {
 		if n != 0 {
 			kinds++
 			expected = n
 		}
 	}
 	if kinds != 1 {
-		return nil, fmt.Errorf("%w: send order IDs, client order IDs or user references", errOrderIdentifierRequired)
+		return nil, fmt.Errorf("%w: send either order IDs or client order IDs", errOrderIdentifierRequired)
 	}
 	params := &wsCancelOrderParams{
-		OrderIDs:            req.OrderIDs,
-		ClientOrderIDs:      req.ClientOrderIDs,
-		OrderUserReferences: req.UserReferences,
+		OrderIDs:       req.OrderIDs,
+		ClientOrderIDs: req.ClientOrderIDs,
 	}
 	resps, err := e.wsPrivateRequests(ctx, "cancel_order", params, expected)
 	if err != nil {
@@ -194,7 +199,7 @@ func (e *Exchange) WsBatchAddOrders(ctx context.Context, req *WsBatchAddOrdersRe
 	if len(req.Orders) < 2 || len(req.Orders) > 15 {
 		return nil, fmt.Errorf("%w: %d orders, 2 to 15 are allowed", errBatchSize, len(req.Orders))
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := &wsBatchAddParams{

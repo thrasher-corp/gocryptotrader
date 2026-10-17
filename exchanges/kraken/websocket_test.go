@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -410,7 +411,7 @@ func TestValidateSubscriptions(t *testing.T) {
 	}
 	assert.ErrorIs(t, e.ValidateSubscriptions(subscription.List{level3(10, wsTestPair), level3(100, wsTestPair)}), subscription.ErrExclusiveSubscription, "ValidateSubscriptions should reject a pair's level 3 order book subscribed to at two depths")
 	assert.ErrorIs(t, e.ValidateSubscriptions(subscription.List{book(10, wsTestPair), level3(10, wsTestPair)}), subscription.ErrExclusiveSubscription, "ValidateSubscriptions should reject a pair's level 2 and level 3 order books, which share one book")
-	for _, interval := range []kline.Interval{0, kline.ThirtySecond, kline.ThreeMin, kline.TwoWeek} {
+	for _, interval := range []kline.Interval{0, kline.ThirtySecond, kline.OneMin + kline.Interval(time.Nanosecond), kline.Interval(90 * time.Second), kline.ThreeMin, kline.TwoWeek} {
 		assert.ErrorIsf(t, e.ValidateSubscriptions(subscription.List{ohlc(interval)}), kline.ErrUnsupportedInterval, "ValidateSubscriptions should reject an interval of %s", interval)
 	}
 }
@@ -1035,6 +1036,7 @@ func TestWsHandleDataPrivate(t *testing.T) {
 			OrderID:              "OAIYAU-LGI3M-PFM5VW",
 			ClientOrderID:        "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
 			Pair:                 wsTestDOGEPair,
+			FeeAsset:             currency.USD,
 			Side:                 order.Buy,
 			Type:                 order.StopLimit,
 			Status:               order.PartiallyFilled,
@@ -1079,6 +1081,7 @@ func TestWsHandleDataPrivate(t *testing.T) {
 			AssetType:   asset.Spot,
 			OrderID:     "OK4GJX-KSTLS-7DZZO5",
 			Pair:        wsTestPair,
+			FeeAsset:    currency.USD,
 			Side:        order.Sell,
 			Type:        order.Limit,
 			Status:      order.Pending,
@@ -1100,6 +1103,7 @@ func TestWsHandleDataPrivate(t *testing.T) {
 			AssetType:            asset.Spot,
 			OrderID:              "OK4GJX-KSTLS-7DZZO5",
 			Pair:                 wsTestPair,
+			FeeAsset:             currency.USD,
 			Side:                 order.Sell,
 			Type:                 order.Limit,
 			Status:               order.PartiallyFilled,
@@ -1137,54 +1141,20 @@ func TestWsHandleDataPrivate(t *testing.T) {
 		assert.Equalf(t, exp[i], got[i], "payload %d should be relayed", i)
 	}
 
-	subAccts, ok := got[6].(accounts.SubAccounts)
-	require.True(t, ok, "the balances snapshot must be relayed as sub-accounts")
-	require.Len(t, subAccts, 1, "the balances snapshot must be relayed as one sub-account")
-	for c, b := range subAccts[0].Balances {
-		assert.NotZerof(t, b.UpdatedAt, "the %s balance should be stamped", c)
-		b.UpdatedAt = time.Time{}
-		subAccts[0].Balances[c] = b
-	}
-	expBalances := accounts.CurrencyBalances{
-		currency.XBT:   {Currency: currency.XBT, Total: 1.2, Free: 1.2, AvailableWithoutBorrow: 1.2},
-		currency.MATIC: {Currency: currency.MATIC, Total: 300, Free: 300, AvailableWithoutBorrow: 300},
-		currency.USD:   {Currency: currency.USD, Total: 80595.4943, Free: 80595.4943, AvailableWithoutBorrow: 80595.4943},
-	}
-	assert.Equal(t, &accounts.SubAccount{AssetType: asset.Spot, Balances: expBalances}, subAccts[0], "the spot wallet balances should be relayed")
-	for c, exp := range expBalances {
-		b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, c)
-		require.NoErrorf(t, err, "GetBalance must not error for %s", c)
-		b.UpdatedAt = time.Time{}
-		assert.Equalf(t, exp, b, "the %s balance should be stored", c)
-	}
+	balances, ok := got[6].([]WsBalance)
+	require.True(t, ok, "the balances snapshot must be relayed as its balances")
+	require.Len(t, balances, 3, "the balances snapshot must relay each asset's balance")
+	assert.Equal(t, WsBalance{
+		Asset:      "MATIC",
+		AssetClass: "currency",
+		Balance:    500,
+		Wallets:    []WsWallet{{Type: "spot", ID: "main", Balance: 300}, {Type: "earn", ID: "flex", Balance: 200}},
+	}, balances[1], "the balances snapshot should be relayed as sent")
 
 	entries, ok := got[7].([]WsLedgerEntry)
 	require.True(t, ok, "a balances update must be relayed as its ledger entries")
 	assert.Equal(t, "ADKKFF-WEA5A-CNUBHG", entries[0].LedgerID, "the ledger entry should be relayed")
 	assert.IsType(t, []WsLedgerEntry{}, got[8], "the second balances update should be relayed")
-}
-
-func TestWsProcessBalancesKeepsHold(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	useTestCredentials(ex)
-	_, err := ex.Accounts.UpdateBalance(t.Context(), "", asset.Spot, currency.USD, func(b *accounts.Balance) {
-		b.Total, b.Hold, b.Free = 100, 40, 60
-	})
-	require.NoError(t, err, "UpdateBalance must not error")
-	msg := &wsChannelMessage{Type: wsTypeSnapshot, Data: json.RawMessage(`[{"asset":"USD","asset_class":"currency","balance":150,"wallets":[{"type":"spot","id":"main","balance":120},{"type":"earn","id":"flex","balance":30}]}]`)}
-	require.NoError(t, ex.wsProcessBalances(t.Context(), msg), "wsProcessBalances must not error")
-	b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
-	require.NoError(t, err, "GetBalance must not error")
-	assert.Equal(t, 120.0, b.Total, "the total should be the spot wallet's balance")
-	assert.Equal(t, 40.0, b.Hold, "the stored hold should be kept")
-	assert.Equal(t, 80.0, b.Free, "the free amount should be the total less the hold")
-
-	msg = &wsChannelMessage{Type: wsTypeSnapshot, Data: json.RawMessage(`[{"asset":"USD","asset_class":"currency","balance":30,"wallets":[{"type":"spot","id":"main","balance":30}]}]`)}
-	require.NoError(t, ex.wsProcessBalances(t.Context(), msg), "wsProcessBalances must not error")
-	b, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
-	require.NoError(t, err, "GetBalance must not error")
-	assert.Zero(t, b.Free, "the free amount should not be negative when the stored hold exceeds the total")
 }
 
 func TestWsHandleDataErrors(t *testing.T) {
@@ -1322,9 +1292,9 @@ func TestResubscribeBook(t *testing.T) {
 	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{s}), "subscribeForConnection must not error")
 	server.takeRequests()
 
-	ex.resubscribeSpotBook(conn, subscription.OrderbookChannel, wsTestDOGEPair)
-	ex.resubscribeSpotBook(conn, subscription.AllOrdersChannel, wsTestPair)
-	ex.resubscribeSpotBook(conn, subscription.OrderbookChannel, wsTestPair)
+	ex.resubscribeSpotBook(conn, wsChannelBook, wsTestDOGEPair)
+	ex.resubscribeSpotBook(conn, wsChannelLevel3, wsTestPair)
+	ex.resubscribeSpotBook(conn, wsChannelBook, wsTestPair)
 	exp := []string{
 		`{"method":"unsubscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
 		`{"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
@@ -1339,6 +1309,71 @@ func TestResubscribeBook(t *testing.T) {
 		stored := ex.Websocket.GetSubscription(s)
 		return stored != nil && stored.State() == subscription.SubscribedState
 	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+}
+
+func TestResubscribeBookChannelNames(t *testing.T) {
+	t.Parallel()
+	valid := bookChecksum(&orderbook.Book{
+		Bids: orderbook.Levels{bookLevel(100, "100.0", 1, "1.0")},
+		Asks: orderbook.Levels{bookLevel(101, "101.0", 1, "1.0")},
+	})
+	book := func(msgType string, checksum uint32) string {
+		return `{"channel":"book","type":"` + msgType + `","data":[{"symbol":"BTC/USD","bids":[{"price":100.0,"qty":1.0}],"asks":[{"price":101.0,"qty":1.0}],"checksum":` +
+			strconv.FormatUint(uint64(checksum), 10) + `,"timestamp":"2026-10-16T00:00:00Z"}]}`
+	}
+	level3Snapshot := `{"channel":"level3","type":"snapshot","data":[{"symbol":"BTC/USD","checksum":1,"bids":[],"asks":[],"timestamp":"2024-01-08T12:26:45.110524116Z"}]}`
+	level3Update := `{"channel":"level3","type":"update","data":[{"symbol":"BTC/USD","checksum":1,"bids":[{"event":"add","order_id":"OQ5WAX-SNVPL-R7VY2E","limit_price":44939.4,"order_qty":0.5,"timestamp":"2024-01-08T12:26:46Z"}],"asks":[],"timestamp":"2024-01-08T12:26:46Z"}]}`
+	bookParams := `"channel":"book","symbol":["BTC/USD"],"depth":10`
+	level3Params := `"channel":"level3","symbol":["BTC/USD"],"depth":10,"token":"` + wsTestToken + `"`
+	for _, tc := range []struct {
+		name     string
+		channel  string
+		filter   string
+		messages []string
+		err      error
+		params   string
+	}{
+		{"orderbook snapshot", subscription.OrderbookChannel, wsPublicConnection, []string{book(wsTypeSnapshot, 1)}, errChecksumMismatch, bookParams},
+		{"book snapshot", wsChannelBook, wsPublicConnection, []string{book(wsTypeSnapshot, 1)}, errChecksumMismatch, bookParams},
+		{"orderbook update", subscription.OrderbookChannel, wsPublicConnection, []string{book(wsTypeSnapshot, valid), book("update", 1)}, errChecksumMismatch, bookParams},
+		{"book update", wsChannelBook, wsPublicConnection, []string{book(wsTypeSnapshot, valid), book("update", 1)}, errChecksumMismatch, bookParams},
+		{"allOrders snapshot", subscription.AllOrdersChannel, wsLevel3Connection, []string{level3Snapshot}, errChecksumMismatch, level3Params},
+		{"level3 snapshot", wsChannelLevel3, wsLevel3Connection, []string{level3Snapshot}, errChecksumMismatch, level3Params},
+		{"allOrders update before a snapshot", subscription.AllOrdersChannel, wsLevel3Connection, []string{level3Update}, errLevel3OutOfSync, level3Params},
+		{"level3 update before a snapshot", wsChannelLevel3, wsLevel3Connection, []string{level3Update}, errLevel3OutOfSync, level3Params},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := new(mockSubscriptionServer)
+			ex := newHTTPTestExchange(t, serveWebsocketToken(t))
+			seedTestAssetNames(ex)
+			useTestCredentials(ex)
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: tc.channel, Levels: 10}}
+			useTestWebsocket(t, ex, newMockWebsocketURL(t, server.handle), tc.filter)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must subscribe without error")
+			subs := ex.Websocket.GetSubscriptions()
+			require.Len(t, subs, 1, "Connect must make one subscription")
+			server.takeRequests()
+			conn, err := ex.Websocket.GetConnection(tc.filter)
+			require.NoError(t, err, "GetConnection must not error")
+
+			last := len(tc.messages) - 1
+			for _, msg := range tc.messages[:last] {
+				require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(msg)), "wsHandleData must not error")
+			}
+			require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(tc.messages[last])), tc.err, "wsHandleData must reject the book")
+			exp := []string{`{"method":"unsubscribe","params":{` + tc.params + `}}`, `{"method":"subscribe","params":{` + tc.params + `}}`}
+			var got []string
+			require.Eventually(t, func() bool {
+				got = append(got, server.takeRequests()...)
+				return len(got) >= len(exp)
+			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
+			require.Eventually(t, func() bool {
+				return subs[0].State() == subscription.SubscribedState && ex.Websocket.GetSubscription(subs[0]) == subs[0]
+			}, 5*time.Second, 10*time.Millisecond, "the subscription must be subscribed again")
+		})
+	}
 }
 
 func TestBookChecksum(t *testing.T) {
@@ -1968,6 +2003,36 @@ func TestWsLoadBookSnapshot(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "wsLoadBookSnapshot should invalidate a snapshot failing its checksum")
 }
 
+func TestWsLoadBookSnapshotChecksum(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	seedTestAssetNames(ex)
+	snapshot := func(checksum uint32) []byte {
+		return []byte(`{"channel":"book","type":"snapshot","data":[{"symbol":"BTC/USD","bids":[{"price":100.0,"qty":1.0}],"asks":[{"price":101.0,"qty":1.0}],"checksum":` +
+			strconv.FormatUint(uint64(checksum), 10) + `,"timestamp":"2026-10-13T00:00:00Z"}]}`)
+	}
+	require.ErrorIs(t, ex.wsHandleData(t.Context(), nil, snapshot(1)), errChecksumMismatch, "wsHandleData must reject a snapshot failing its checksum")
+	assert.Empty(t, relayed(ex), "a snapshot failing its checksum should not be relayed")
+	_, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "a snapshot failing its checksum should not be stored")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), nil, snapshot(0)), errChecksumMismatch, "wsHandleData should reject a snapshot whose checksum of zero does not match")
+
+	valid := bookChecksum(&orderbook.Book{
+		Bids: orderbook.Levels{bookLevel(100, "100.0", 1, "1.0")},
+		Asks: orderbook.Levels{bookLevel(101, "101.0", 1, "1.0")},
+	})
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, snapshot(valid)), "wsHandleData must load a snapshot passing its checksum")
+	relayed(ex)
+	// A full relay must not stop a later snapshot's checksum from being checked
+	var relayErr error
+	for relayErr == nil {
+		relayErr = ex.Websocket.DataHandler.Send(t.Context(), nil)
+	}
+	require.ErrorIs(t, ex.wsHandleData(t.Context(), nil, snapshot(1)), errChecksumMismatch, "wsHandleData must reject a snapshot failing its checksum while the relay is full")
+	_, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a snapshot failing its checksum should leave the stored book invalid")
+}
+
 func TestWsUpdateBook(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -1987,6 +2052,193 @@ func TestWsUpdateBook(t *testing.T) {
 	assert.ErrorIs(t, ex.wsUpdateBook(t.Context(), wsTestPair, next), errChecksumMismatch, "wsUpdateBook should reject an update failing its checksum")
 }
 
+func TestWsBookDepthChange(t *testing.T) {
+	t.Parallel()
+	// side returns n levels of quantity 1 from price, each a step further from the best
+	side := func(price, step float64, n int) orderbook.Levels {
+		l := make(orderbook.Levels, n)
+		for i := range l {
+			p := price + step*float64(i)
+			l[i] = bookLevel(p, strconv.FormatFloat(p, 'f', 1, 64), 1, "1.0")
+		}
+		return l
+	}
+	levelsJSON := func(l orderbook.Levels) string {
+		s := make([]string, len(l))
+		for i := range l {
+			s[i] = `{"price":` + l[i].StrPrice + `,"qty":` + l[i].StrAmount + `}`
+		}
+		return "[" + strings.Join(s, ",") + "]"
+	}
+	// message returns a book message sending bids and asks, with the checksum of Kraken's book after it: bookBids and
+	// bookAsks
+	message := func(msgType string, bids, asks, bookBids, bookAsks orderbook.Levels) []byte {
+		checksum := strconv.FormatUint(uint64(bookChecksum(&orderbook.Book{Bids: bookBids, Asks: bookAsks})), 10)
+		return []byte(`{"channel":"book","type":"` + msgType + `","data":[{"symbol":"BTC/USD","bids":` + levelsJSON(bids) + `,"asks":` + levelsJSON(asks) +
+			`,"checksum":` + checksum + `,"timestamp":"2026-10-16T00:00:00Z"}]}`)
+	}
+	for _, tc := range []struct {
+		name          string
+		first, second int
+		// updates holds the bids each update sends, and bids the bids Kraken's book holds after each
+		updates, bids []orderbook.Levels
+	}{
+		{
+			name:  "deeper",
+			first: 10, second: 25,
+			updates: []orderbook.Levels{
+				{bookLevel(100, "100.0", 2, "2.0")},
+				// Removing the best bid brings the 11th into the top 10, and the 26th into the subscribed depth
+				{bookLevel(100, "100.0", 0, "0.0"), bookLevel(75, "75.0", 1, "1.0")},
+			},
+			bids: []orderbook.Levels{
+				append(orderbook.Levels{bookLevel(100, "100.0", 2, "2.0")}, side(99, -1, 24)...),
+				side(99, -1, 25),
+			},
+		},
+		{
+			name:  "shallower",
+			first: 25, second: 10,
+			updates: []orderbook.Levels{
+				// A new best bid pushes the 10th out of the subscribed depth, which Kraken sends no update for
+				{bookLevel(100.5, "100.5", 1, "1.0")},
+				// The level pushed out has since left Kraken's book unseen, so removing the best bid brings the next, 90.0,
+				// into the subscribed depth
+				{bookLevel(100.5, "100.5", 0, "0.0"), bookLevel(90, "90.0", 1, "1.0")},
+			},
+			bids: []orderbook.Levels{
+				append(orderbook.Levels{bookLevel(100.5, "100.5", 1, "1.0")}, side(100, -1, 9)...),
+				append(side(100, -1, 9), bookLevel(90, "90.0", 1, "1.0")),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, conn := newSubscriptionTestExchange(t, new(mockSubscriptionServer))
+			book := func(depth int) *subscription.Subscription {
+				return &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: depth, Pairs: currency.Pairs{wsTestPair}}
+			}
+			first := book(tc.first)
+			require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{first}), "subscribeForConnection must not error")
+			bids, asks := side(100, -1, tc.first), side(101, 1, tc.first)
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, message(wsTypeSnapshot, bids, asks, bids, asks)), "wsHandleData must load the first snapshot")
+			require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{first}), "unsubscribeForConnection must not error")
+
+			require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{book(tc.second)}), "subscribeForConnection must not error")
+			bids, asks = side(100, -1, tc.second), side(101, 1, tc.second)
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, message(wsTypeSnapshot, bids, asks, bids, asks)), "wsHandleData must load the second snapshot")
+			for i := range tc.updates {
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, message("update", tc.updates[i], nil, tc.bids[i], asks)), "wsHandleData must apply update %d at the depth subscribed with", i+1)
+			}
+			stored, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, tc.bids[len(tc.bids)-1], stored.Bids, "the bids should be those of Kraken's book at the depth subscribed with")
+			assert.Equal(t, asks, stored.Asks, "the asks should be those of Kraken's book at the depth subscribed with")
+		})
+	}
+}
+
+func TestWsLevel3BookRoundTrip(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	// The pair's book moves from the level3 channel to the book channel and back, at a depth of 10 on each
+	ex.setBookDepth(wsTestPair, 10)
+	level3 := level3Message(t, fixtureLines(t, "testdata/wsLevel3.json")[0])
+	_, level2 := bookMessage(t, fixtureLines(t, "testdata/wsBook.json")[0])
+	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, level3), "wsLevel3Book must load the level 3 snapshot")
+	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, level2), "wsLoadBookSnapshot must load the level 2 snapshot")
+	book, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, 10, book.MaxDepth, "the level 2 book should take its snapshot's depth")
+	assert.False(t, book.PriceDuplication, "the level 2 book should not allow duplicate prices")
+
+	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, level3), "wsLevel3Book must load the level 3 snapshot again")
+	book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Len(t, book.Bids, len(level3.Bids), "the level 3 book should hold each bid order as a level")
+	assert.Zero(t, book.MaxDepth, "the level 3 book should take its snapshot's depth")
+	assert.True(t, book.PriceDuplication, "the level 3 book should allow duplicate prices")
+	assert.NoError(t, book.Validate(), "the level 3 book should validate with the orders that share a price")
+}
+
+func TestWsLoadBookSnapshotWithoutTime(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	ex.setBookDepth(wsTestPair, 10)
+	_, first := bookMessage(t, fixtureLines(t, "testdata/wsBook.json")[0])
+	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, first), "wsLoadBookSnapshot must load the first snapshot")
+	loaded, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+
+	// The book is subscribed to again at another depth, and its snapshot passes its checksum but carries no time
+	ex.setBookDepth(wsTestPair, 25)
+	var second WsBook
+	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC/USD","bids":[{"price":100.0,"qty":1.0}],"asks":[{"price":101.0,"qty":1.0}]}`), &second), "Unmarshal must not error")
+	second.Checksum = bookChecksum(&orderbook.Book{Bids: wsBookLevels(second.Bids), Asks: wsBookLevels(second.Asks)})
+	require.ErrorIs(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, &second), orderbook.ErrLastUpdatedNotSet, "wsLoadBookSnapshot must refuse a snapshot without a time")
+	stored, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, loaded, stored, "a refused snapshot should leave the previous book with its levels, options and time")
+}
+
+func TestWsLoadBookSnapshotConsistentReads(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	// Each snapshot holds as many levels a side as its depth and is timed by its depth, so a book read holding one
+	// snapshot's levels with the other's depth or time is caught
+	snapshots := make(map[int]*WsBook, 2)
+	for _, depth := range []int{10, 25} {
+		bids, asks := make([]string, depth), make([]string, depth)
+		for i := range depth {
+			bids[i] = `{"price":` + strconv.Itoa(1000-i) + `.0,"qty":1.0}`
+			asks[i] = `{"price":` + strconv.Itoa(1001+i) + `.0,"qty":1.0}`
+		}
+		b := new(WsBook)
+		require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC/USD","bids":[`+strings.Join(bids, ",")+`],"asks":[`+strings.Join(asks, ",")+`]}`), b), "Unmarshal must not error")
+		b.Timestamp = time.Unix(int64(depth), 0)
+		b.Checksum = bookChecksum(&orderbook.Book{Bids: wsBookLevels(b.Bids), Asks: wsBookLevels(b.Asks)})
+		snapshots[depth] = b
+	}
+	ex.setBookDepth(wsTestPair, 10)
+	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, snapshots[10]), "wsLoadBookSnapshot must load the first snapshot")
+
+	var mixed atomic.Int64
+	done := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				b, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+				if !assert.NoError(t, err, "GetOrderbook should not error while snapshots load") {
+					return
+				}
+				if len(b.Bids) != b.MaxDepth || len(b.Asks) != b.MaxDepth || !b.LastUpdated.Equal(time.Unix(int64(b.MaxDepth), 0)) {
+					mixed.Add(1)
+				}
+			}
+		})
+	}
+	for i := range 1000 {
+		depth := 25
+		if i%2 != 0 {
+			depth = 10
+		}
+		ex.setBookDepth(wsTestPair, depth)
+		if !assert.NoErrorf(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, snapshots[depth]), "wsLoadBookSnapshot should load snapshot %d", i+1) {
+			break
+		}
+		relayed(ex)
+	}
+	close(done)
+	readers.Wait()
+	assert.Zero(t, mixed.Load(), "no book read should hold one snapshot's levels with the other's depth or time")
+}
+
 func TestResubscribeOrderbook(t *testing.T) {
 	t.Parallel()
 	server := new(mockSubscriptionServer)
@@ -1994,7 +2246,7 @@ func TestResubscribeOrderbook(t *testing.T) {
 	book := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}
 	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{book}), "subscribeForConnection must not error")
 	server.takeRequests()
-	ex.resubscribeOrderbook(conn, &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{wsTestPair}, Levels: 10})
+	ex.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: wsChannelBook, Asset: asset.Spot, Pairs: currency.Pairs{wsTestPair}, Levels: 10})
 	exp := []string{
 		`{"method":"unsubscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
 		`{"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
@@ -2010,11 +2262,143 @@ func TestResubscribeOrderbook(t *testing.T) {
 		return stored != nil && stored.State() == subscription.SubscribedState
 	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
 
-	ex.resubscribeOrderbook(conn, &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{wsTestDOGEPair}, Levels: 10})
+	ex.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: wsChannelBook, Asset: asset.Spot, Pairs: currency.Pairs{wsTestDOGEPair}, Levels: 10})
 	assert.Never(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) > len(exp)
 	}, 100*time.Millisecond, 5*time.Millisecond, "resubscribeOrderbook should not resubscribe a book without a subscription")
+}
+
+func TestBookSubscriptionKey(t *testing.T) {
+	t.Parallel()
+	k := bookSubscriptionKey{&subscription.Subscription{QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}}
+	for _, tc := range []struct {
+		name  string
+		sub   *subscription.Subscription
+		match bool
+	}{
+		{"the standard channel name", &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}, true},
+		{"Kraken's channel name", &subscription.Subscription{Channel: wsChannelBook, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}, true},
+		{"another channel", &subscription.Subscription{Channel: subscription.AllOrdersChannel, QualifiedChannel: wsChannelLevel3, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}, false},
+		{"another asset", &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Futures, Levels: 10, Pairs: currency.Pairs{wsTestPair}}, false},
+		{"another pair", &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestDOGEPair}}, false},
+		{"another depth", &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 25, Pairs: currency.Pairs{wsTestPair}}, false},
+		{"a key without a subscription", nil, false},
+	} {
+		assert.Equalf(t, tc.match, k.Match(subscription.ExactKey{Subscription: tc.sub}), "Match should return %t for %s", tc.match, tc.name)
+	}
+}
+
+// badChecksumBookSnapshot is a BTC/USD book snapshot failing its checksum
+const badChecksumBookSnapshot = `{"channel":"book","type":"snapshot","data":[{"symbol":"BTC/USD","bids":[{"price":100.0,"qty":1.0}],"asks":[{"price":101.0,"qty":1.0}],"checksum":1,"timestamp":"2026-10-16T00:00:00Z"}]}`
+
+func TestResubscribeOrderbookReceivingConnection(t *testing.T) {
+	t.Parallel()
+	// Two public connections each hold a subscription to the same book, one named by the standard channel and one by
+	// Kraken's
+	ex := newTestExchange(t)
+	seedTestAssetNames(ex)
+	useTestWebsocket(t, ex, "")
+	setups, err := ex.connectionSetups(ex.Config)
+	require.NoError(t, err, "connectionSetups must not error")
+	public := slices.IndexFunc(setups, func(s *websocket.ConnectionSetup) bool { return s.MessageFilter == wsPublicConnection })
+	require.NotEqual(t, -1, public, "connectionSetups must return the public connection")
+	servers := []*mockSubscriptionServer{new(mockSubscriptionServer), new(mockSubscriptionServer)}
+	subs := subscription.List{
+		{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}},
+		{Channel: wsChannelBook, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}},
+	}
+	filters := []string{"first", "second"}
+	for i := range subs {
+		s := *setups[public]
+		s.URL, s.MessageFilter = newMockWebsocketURL(t, servers[i].handle), filters[i]
+		s.GenerateSubscriptions = func() (subscription.List, error) { return subscription.List{subs[i]}, nil }
+		require.NoErrorf(t, ex.Websocket.SetupNewConnection(&s), "SetupNewConnection must not error for the %s connection", filters[i])
+	}
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must subscribe without error")
+	conn, err := ex.Websocket.GetConnection(filters[1])
+	require.NoError(t, err, "GetConnection must not error")
+	require.Same(t, subs[1], conn.Subscriptions().Get(subs[1]), "the second connection's store must hold its subscription")
+	for _, server := range servers {
+		server.takeRequests()
+	}
+
+	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(badChecksumBookSnapshot)), errChecksumMismatch, "wsHandleData must reject the book")
+	exp := []string{
+		`{"method":"unsubscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
+		`{"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
+	}
+	var got []string
+	require.Eventually(t, func() bool {
+		got = append(got, servers[1].takeRequests()...)
+		return len(got) >= len(exp)
+	}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed on the connection it failed on")
+	assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
+	require.Eventually(t, func() bool {
+		return subs[1].State() == subscription.SubscribedState && ex.Websocket.GetSubscription(subs[1]) == subs[1]
+	}, 5*time.Second, 10*time.Millisecond, "the second connection's subscription must be subscribed again")
+	assert.Empty(t, servers[0].takeRequests(), "the first connection should not be resubscribed")
+	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "the first connection's subscription should stay subscribed")
+}
+
+func TestResubscribeOrderbookStaleConnectionSubscription(t *testing.T) {
+	t.Parallel()
+	book := func() *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}
+	}
+	for _, tc := range []struct {
+		name string
+		// byEqual unsubscribes with a subscription equal to the one stored, which leaves the stored one's state
+		// subscribed
+		byEqual    bool
+		staleState subscription.State
+	}{
+		{"unsubscribed itself", false, subscription.UnsubscribedState},
+		{"unsubscribed by an equal subscription", true, subscription.SubscribedState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := new(mockSubscriptionServer)
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10}}
+			useTestWebsocket(t, ex, newMockWebsocketURL(t, server.handle), wsPublicConnection)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must subscribe without error")
+			conn, err := ex.Websocket.GetConnection(wsPublicConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			subs := ex.Websocket.GetSubscriptions()
+			require.Len(t, subs, 1, "Connect must make one subscription")
+			stale := subs[0]
+			// A library caller unsubscribes the book and subscribes to it again with a new subscription, which only the
+			// manager records
+			unsubscribe := stale
+			if tc.byEqual {
+				unsubscribe = book()
+			}
+			require.NoError(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, subscription.List{unsubscribe}), "UnsubscribeChannels must not error")
+			live := book()
+			require.NoError(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{live}), "SubscribeToChannels must not error")
+			require.Same(t, live, ex.Websocket.GetSubscription(live), "the manager must hold the new subscription")
+			require.Same(t, stale, conn.Subscriptions().Get(stale), "the connection's store must still hold the old subscription")
+			server.takeRequests()
+
+			require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(badChecksumBookSnapshot)), errChecksumMismatch, "wsHandleData must reject the book")
+			exp := []string{
+				`{"method":"unsubscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
+				`{"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}}`,
+			}
+			var got []string
+			require.Eventually(t, func() bool {
+				got = append(got, server.takeRequests()...)
+				return len(got) >= len(exp)
+			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
+			require.Eventually(t, func() bool {
+				return live.State() == subscription.SubscribedState && ex.Websocket.GetSubscription(live) == live
+			}, 5*time.Second, 10*time.Millisecond, "the manager's subscription must be subscribed again")
+			assert.Equal(t, tc.staleState, stale.State(), "the old subscription should not be resubscribed")
+		})
+	}
 }
 
 // level3Message decodes a level 3 fixture line's only order book
@@ -2211,6 +2595,7 @@ func TestExecutionOrderDetail(t *testing.T) {
 		OrderID:              "OAIYAU-LGI3M-PFM5VW",
 		ClientOrderID:        "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9",
 		Pair:                 wsTestDOGEPair,
+		FeeAsset:             currency.USD,
 		Side:                 order.Buy,
 		Type:                 order.StopLimit,
 		Status:               order.PartiallyFilled,
@@ -2239,9 +2624,23 @@ func TestExecutionOrderDetail(t *testing.T) {
 	}
 	assert.Equal(t, exp, d, "executionOrderDetail should convert a trade with its fill")
 
+	for _, priceType := range []string{"pct", "quote"} {
+		d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", Triggers: WsExecutionTriggers{Reference: "last", Price: 5, PriceType: priceType, ActualPrice: 95000}})
+		require.NoErrorf(t, err, "executionOrderDetail must not error for a %s trigger", priceType)
+		assert.Equalf(t, 95000.0, d.TriggerPrice, "executionOrderDetail should report the trigger price a %s trigger works out to", priceType)
+	}
+
 	d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "pending_new", OrderStatus: "pending_new", Timestamp: tradeTime})
 	require.NoError(t, err, "executionOrderDetail must not error for a pending order")
 	assert.Equal(t, tradeTime, d.Date, "executionOrderDetail should date a pending order by its event")
+	for _, tc := range []struct {
+		filled float64
+		exp    order.Status
+	}{{0, order.Cancelled}, {0.0001, order.PartiallyFilledCancelled}, {20, order.PartiallyFilledCancelled}} {
+		d, err = ex.executionOrderDetail(&WsExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: tc.filled, Timestamp: tradeTime})
+		require.NoErrorf(t, err, "executionOrderDetail must not error for a cancellation after %v filled", tc.filled)
+		assert.Equalf(t, tc.exp, d.Status, "executionOrderDetail should report a cancellation after %v filled as %s", tc.filled, tc.exp)
+	}
 	for _, tc := range []struct {
 		name      string
 		execution *WsExecution
@@ -2260,20 +2659,23 @@ func TestExecutionOrderDetail(t *testing.T) {
 
 func TestWsProcessBalances(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
+	server := &spotBalancesServer{reply: `{"error":[],"result":{"ZUSD":{"balance":"100","hold_trade":"10","credit":"50","credit_used":"20"}}}`}
+	ex := newHTTPTestExchange(t, server.handle(t))
 	seedTestAssetNames(ex)
-	useTestCredentials(ex)
-	snapshot := &wsChannelMessage{Type: wsTypeSnapshot, Data: json.RawMessage(`[{"asset":"BTC","asset_class":"currency","balance":1.5,"wallets":[{"type":"spot","id":"main","balance":1.2},{"type":"earn","id":"flex","balance":0.3}]}]`)}
-	require.NoError(t, ex.wsProcessBalances(t.Context(), snapshot), "wsProcessBalances must not error for a snapshot")
-	got := relayed(ex)
-	require.Len(t, got, 1, "wsProcessBalances must relay a snapshot's balances")
-	subAccts, ok := got[0].(accounts.SubAccounts)
-	require.True(t, ok, "wsProcessBalances must relay a snapshot as sub-accounts")
-	require.Len(t, subAccts, 1, "wsProcessBalances must relay one spot sub-account")
-	b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.XBT)
-	require.NoError(t, err, "GetBalance must not error for the asset's alternative name")
-	assert.InDelta(t, 1.2, b.Total, 0, "wsProcessBalances should store the spot wallets' balance alone")
+	ex.spotBalances.interval = time.Millisecond
+	useConnectedRefreshers(ex)
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.XDG: {Total: 7, Free: 7}}}}, true), "Save must not error")
 
+	snapshot := &wsChannelMessage{Type: wsTypeSnapshot, Data: json.RawMessage(`[{"asset":"USD","asset_class":"currency","balance":150,"wallets":[{"type":"spot","id":"main","balance":120},{"type":"earn","id":"flex","balance":30}]}]`)}
+	require.NoError(t, ex.wsProcessBalances(t.Context(), snapshot), "wsProcessBalances must not error for a snapshot")
+	expBalances := []WsBalance{{Asset: "USD", AssetClass: "currency", Balance: 150, Wallets: []WsWallet{{Type: "spot", ID: "main", Balance: 120}, {Type: "earn", ID: "flex", Balance: 30}}}}
+	assert.Equal(t, []any{expBalances}, relayed(ex), "wsProcessBalances should relay a snapshot's balances")
+	// The snapshot's spot wallet holds 120, but only Get Extended Balance reports the hold and the credit
+	assertStoredSpotBalances(t, ex, accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 100, Hold: 10, Free: 120, AvailableWithoutBorrow: 90, Borrowed: 20},
+	}, "a snapshot should refresh the stored balances whole, the unused credit counted as free and a currency no longer listed removed")
+
+	server.setReply(`{"error":[],"result":{"ZUSD":{"balance":"60","hold_trade":"0"},"XXBT":{"balance":"0.005","hold_trade":"0"}}}`)
 	update := &wsChannelMessage{Type: "update", Data: json.RawMessage(`[{"ledger_id":"L4UESK-KG3EQ-UFO4T5","ref_id":"TJKLXX-PGMUI-4NTLXU","timestamp":"2023-09-22T10:33:05.709993Z","type":"trade","category":"trade","asset":"BTC","asset_class":"currency","wallet_type":"spot","wallet_id":"main","amount":-0.005,"fee":0,"balance":1.195}]`)}
 	require.NoError(t, ex.wsProcessBalances(t.Context(), update), "wsProcessBalances must not error for an update")
 	exp := []any{[]WsLedgerEntry{{
@@ -2290,12 +2692,22 @@ func TestWsProcessBalances(t *testing.T) {
 		Balance:     1.195,
 	}}}
 	assert.Equal(t, exp, relayed(ex), "wsProcessBalances should relay an update's ledger entries")
-	b, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.XBT)
-	require.NoError(t, err, "GetBalance must not error")
-	assert.InDelta(t, 1.2, b.Total, 0, "wsProcessBalances should not change stored balances for an update")
+	assertStoredSpotBalances(t, ex, accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 60, Free: 60, AvailableWithoutBorrow: 60},
+		currency.XBT: {Currency: currency.XBT, Total: 0.005, Free: 0.005, AvailableWithoutBorrow: 0.005},
+	}, "an update should refresh the stored balances")
+
+	// The update's refresh reads the balances once more, so the refresher must be idle before the reads are counted
+	require.Eventually(t, func() bool {
+		ex.spotBalances.mu.Lock()
+		defer ex.spotBalances.mu.Unlock()
+		return !ex.spotBalances.running
+	}, 5*time.Second, time.Millisecond, "the refresher must finish the update's refresh")
+	reads := server.readCount()
 	for _, msg := range []*wsChannelMessage{{Type: wsTypeSnapshot, Data: json.RawMessage(`"bad"`)}, {Type: "update", Data: json.RawMessage(`"bad"`)}} {
 		assert.Errorf(t, ex.wsProcessBalances(t.Context(), msg), "wsProcessBalances should reject a %s that is not a list", msg.Type)
 	}
+	assert.Never(t, func() bool { return server.readCount() != reads }, 50*time.Millisecond, time.Millisecond, "a message wsProcessBalances rejects should start no refresh")
 }
 
 func TestIntervalFromMinutes(t *testing.T) {

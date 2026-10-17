@@ -8,7 +8,7 @@ import (
 var (
 	errFuturesSelfTradeStrategyEmpty = errors.New("self-trade strategy is empty")
 	errFuturesInvalidMaxLeverage     = errors.New("invalid off-book max leverage")
-	errFuturesNegativeLimit          = errors.New("limit cannot be negative")
+	errFuturesNegativeLimit          = errors.New("limit cannot be negative or NaN")
 )
 
 // FuturesSelfTradeStrategyResponse holds the account-wide self-trade matching strategy

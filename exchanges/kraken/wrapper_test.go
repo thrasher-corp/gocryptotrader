@@ -3171,6 +3171,34 @@ func TestModifyOrder(t *testing.T) {
 			},
 			exp: &order.ModifyResponse{ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9", Type: order.Limit, Side: order.Buy, Price: 490795, Amount: 1.2},
 		},
+		{
+			name:   "post only price change",
+			modify: &order.Modify{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.PostOnly, Price: 61031.3},
+			trip: ordersWsRoundTrip{
+				request: ordersWsRequest("amend_order", `"order_id":"OAIYAU-LGI3M-PFM5VW","limit_price":61031.3,"post_only":true`),
+				replies: []string{ordersWsReply("amend_order", `{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW"}`)},
+			},
+			exp: &order.ModifyResponse{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.PostOnly, Price: 61031.3},
+		},
+		{
+			name:   "post only good till cancelled price change",
+			modify: &order.Modify{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.GoodTillCancel | order.PostOnly, Price: 61031.3},
+			trip: ordersWsRoundTrip{
+				request: ordersWsRequest("amend_order", `"order_id":"OAIYAU-LGI3M-PFM5VW","limit_price":61031.3,"post_only":true`),
+				replies: []string{ordersWsReply("amend_order", `{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW"}`)},
+			},
+			exp: &order.ModifyResponse{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.GoodTillCancel | order.PostOnly, Price: 61031.3},
+		},
+		{
+			// Kraken takes post_only with a limit price change alone
+			name:   "post only quantity change",
+			modify: &order.Modify{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.PostOnly, Amount: 1.2},
+			trip: ordersWsRoundTrip{
+				request: ordersWsRequest("amend_order", `"order_id":"OAIYAU-LGI3M-PFM5VW","order_qty":1.2`),
+				replies: []string{ordersWsReply("amend_order", `{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW"}`)},
+			},
+			exp: &order.ModifyResponse{OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.Limit, Side: order.Buy, TimeInForce: order.PostOnly, Amount: 1.2},
+		},
 	} {
 		t.Run("spot "+tc.name+" over the private websocket", func(t *testing.T) {
 			t.Parallel()
@@ -3180,6 +3208,25 @@ func TestModifyOrder(t *testing.T) {
 			require.NoError(t, err, "ModifyOrder must not error")
 			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = ex.Name, spotTestPair, asset.Spot
 			assert.Equal(t, tc.exp, resp, "ModifyOrder should amend the order over the private websocket")
+		})
+	}
+
+	for _, tc := range []struct {
+		name   string
+		modify order.Modify
+		body   string
+	}{
+		{"post only price change", order.Modify{Price: 2655.5, TimeInForce: order.PostOnly}, `{"txid":"OHYO67-6LP66-HMQ437","limit_price":"2655.5","post_only":true}`},
+		{"post only good till cancelled price change", order.Modify{Price: 2655.5, TimeInForce: order.GoodTillCancel | order.PostOnly}, `{"txid":"OHYO67-6LP66-HMQ437","limit_price":"2655.5","post_only":true}`},
+		// Kraken takes post_only with a limit price change alone
+		{"post only quantity change", order.Modify{Amount: 8, TimeInForce: order.PostOnly}, `{"txid":"OHYO67-6LP66-HMQ437","order_qty":"8"}`},
+	} {
+		t.Run("spot "+tc.name+" over REST", func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersRequestCheckExchange(t, "/0/private/AmendOrder", tc.body, `{"error":[],"result":{"amend_id":"TTW6PD-RC36L-ZZSWNU"}}`)
+			tc.modify.Exchange, tc.modify.Pair, tc.modify.AssetType, tc.modify.OrderID = ex.Name, spotTestPair, asset.Spot, "OHYO67-6LP66-HMQ437"
+			_, err := ex.ModifyOrder(t.Context(), &tc.modify)
+			require.NoError(t, err, "ModifyOrder must not error")
 		})
 	}
 
@@ -3449,6 +3496,52 @@ func TestCancelBatchOrders(t *testing.T) {
 			"OZJW0T-MIQ3C-5NATAU": "API error response: EOrder:Unknown order",
 		}}
 		assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome")
+	})
+
+	t.Run("spot orders over the private websocket replied to in any order", func(t *testing.T) {
+		t.Parallel()
+		// Kraken's replies follow no set order, and only a cancellation's reply names its order
+		const a, b, c = "OM5CRX-N2HAL-GFGWE9", "OZJW0T-MIQ3C-5NATAU", "OAIYAU-LGI3M-PFM5VW"
+		unknown, internal := "API error response: EOrder:Unknown order", "API error response: EGeneral:Internal error"
+		for _, tc := range []struct {
+			name    string
+			ids     []string
+			replies []string
+			exp     map[string]string
+		}{
+			{
+				name:    "a rejection first",
+				ids:     []string{a, b},
+				replies: []string{ordersWsRejection("cancel_order", "EOrder:Unknown order"), ordersWsReply("cancel_order", `{"order_id":"`+a+`"}`)},
+				exp:     map[string]string{a: order.Cancelled.String(), b: unknown},
+			},
+			{
+				name: "rejections alone",
+				ids:  []string{a, b, c},
+				replies: []string{
+					ordersWsRejection("cancel_order", "EOrder:Unknown order"), ordersWsRejection("cancel_order", "EOrder:Unknown order"),
+					ordersWsRejection("cancel_order", "EGeneral:Internal error"),
+				},
+				exp: map[string]string{a: unknown + "; " + internal, b: unknown + "; " + internal, c: unknown + "; " + internal},
+			},
+			{
+				name:    "a success naming no order",
+				ids:     []string{a, b},
+				replies: []string{ordersWsReply("cancel_order", `{}`), ordersWsReply("cancel_order", `{"order_id":"`+a+`"}`)},
+				exp:     map[string]string{a: order.Cancelled.String(), b: order.ErrCancelFailed.Error() + ": no reply named the order"},
+			},
+		} {
+			ids, err := json.Marshal(tc.ids)
+			require.NoErrorf(t, err, "Marshal must not error for %s", tc.name)
+			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{request: ordersWsRequest("cancel_order", `"order_id":`+string(ids)), replies: tc.replies})
+			cancels := make([]order.Cancel, len(tc.ids))
+			for i, id := range tc.ids {
+				cancels[i] = order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: id}
+			}
+			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+			require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, resp.Status, "CancelBatchOrders should report each order's outcome for %s", tc.name)
+		}
 	})
 
 	t.Run("futures batch reporting some orders", func(t *testing.T) {
@@ -3760,29 +3853,42 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = ex.GetOrderInfo(t.Context(), "O6KIO9-Y73RV-6LFAIX", currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, errAPIResponse, "GetOrderInfo should return the error of the spot order's trades request")
 
-	ex = newOrdersFillsExchange(t, "", ordersFuturesFills)
+	ex = newOrdersFillsExchange(t, "", ordersFuturesFills, newHistoryListing([]string{}))
 	got, err := ex.GetOrderInfo(t.Context(), ordersFillsOrderID, currency.EMPTYPAIR, asset.Futures)
 	require.NoError(t, err, "GetOrderInfo must not error for a futures order known by its fills alone")
 	exp := &order.Detail{
-		Exchange:             ex.Name,
-		AssetType:            asset.Futures,
-		OrderID:              ordersFillsOrderID,
-		ClientOrderID:        "gct-fills-1",
-		Pair:                 futuresTestPair,
-		Side:                 order.Buy,
-		Status:               order.Filled,
-		Amount:               0.75,
-		ExecutedAmount:       0.75,
-		AverageExecutedPrice: 81449,
-		Cost:                 61086.75,
-		Date:                 time.Date(2026, 10, 9, 8, 40, 12, 118000000, time.UTC),
-		LastUpdated:          time.Date(2026, 10, 9, 8, 41, 7, 335000000, time.UTC),
-		Trades: []order.TradeHistory{
-			{TID: "5c0e9a1f-2b7d-4e36-8f41-9d2a6c3b8e70", Price: 81447, Amount: 0.25, Exchange: ex.Name, Side: order.Buy, Timestamp: time.Date(2026, 10, 9, 8, 41, 7, 335000000, time.UTC)},
-			{TID: "3e7b1c5d-9a2f-4d68-b0e4-7f1a3c9d5b26", Price: 81450, Amount: 0.5, Exchange: ex.Name, Side: order.Buy, Timestamp: time.Date(2026, 10, 9, 8, 40, 12, 118000000, time.UTC), IsMaker: true},
-		},
+		Exchange:      ex.Name,
+		AssetType:     asset.Futures,
+		OrderID:       ordersFillsOrderID,
+		ClientOrderID: "gct-fills-1",
+		Pair:          futuresTestPair,
+		Side:          order.Buy,
+		LastUpdated:   time.Date(2026, 10, 9, 8, 41, 7, 335000000, time.UTC),
+		Trades:        ordersFuturesFillTrades(ex.Name),
 	}
-	assert.Equal(t, exp, got, "GetOrderInfo should build a futures order no longer open or cached from its fills")
+	assert.Equal(t, exp, got, "GetOrderInfo should return a futures order no longer open or cached, whose order events do not show how it ended, as its trades alone")
+	// The order was of 2, partly filled; its fills alone must not finish it or shrink it to what they hold
+	placed := time.Date(2026, 10, 9, 8, 40, 0, 50000000, time.UTC)
+	stored := order.Detail{
+		Exchange:        ex.Name,
+		AssetType:       asset.Futures,
+		OrderID:         ordersFillsOrderID,
+		ClientOrderID:   "gct-fills-1",
+		Pair:            futuresTestPair,
+		Side:            order.Buy,
+		Type:            order.Limit,
+		Status:          order.PartiallyFilled,
+		Price:           81450,
+		Amount:          2,
+		ExecutedAmount:  0.5,
+		RemainingAmount: 1.5,
+		Date:            placed,
+		LastUpdated:     time.Date(2026, 10, 9, 8, 40, 12, 118000000, time.UTC),
+	}
+	expStored := stored
+	expStored.LastUpdated, expStored.Trades = exp.LastUpdated, exp.Trades
+	require.NoError(t, stored.UpdateOrderFromDetail(got), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, expStored, stored, "an order store merging the order should keep its size, status and amounts, adding its trades")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -4158,9 +4264,92 @@ const ordersFuturesFills = `{"fills":[` +
 	`","price":81450,"realized_pnl":0,"sequence_id":"51","side":"buy","size":0.5,"symbol":"PF_XBTUSD"}` +
 	`],"result":"success","serverTime":"2026-10-09T08:42:00.004Z"}`
 
+// ordersFuturesFillTrades returns the trades of ordersFillsOrderID that ordersFuturesFills holds, newest first
+func ordersFuturesFillTrades(exchangeName string) []order.TradeHistory {
+	return []order.TradeHistory{
+		{TID: "5c0e9a1f-2b7d-4e36-8f41-9d2a6c3b8e70", Price: 81447, Amount: 0.25, Exchange: exchangeName, Side: order.Buy, Timestamp: time.Date(2026, 10, 9, 8, 41, 7, 335000000, time.UTC)},
+		{TID: "3e7b1c5d-9a2f-4d68-b0e4-7f1a3c9d5b26", Price: 81450, Amount: 0.5, Exchange: exchangeName, Side: order.Buy, Timestamp: time.Date(2026, 10, 9, 8, 40, 12, 118000000, time.UTC), IsMaker: true},
+	}
+}
+
+// historyListing is a Derivatives history listing serving its pages by the continuation token requesting them, "" for
+// the first, which records each request's query. A token requested twice, or one it holds no page for, is refused with
+// a 400, so a pager that does not advance fails instead of looping
+type historyListing struct {
+	pages     map[string]string
+	mu        sync.Mutex
+	requested []url.Values
+}
+
+// newHistoryListing returns a listing whose pages hold these events, each page but the last continued to the next
+func newHistoryListing(pages ...[]string) *historyListing {
+	l := &historyListing{pages: make(map[string]string, len(pages))}
+	var token string
+	for i, elements := range pages {
+		var next string
+		if i < len(pages)-1 {
+			next = "page" + strconv.Itoa(i+2)
+		}
+		l.pages[token] = futuresHistoryPage(next, elements...)
+		token = next
+	}
+	return l
+}
+
+// serve answers a request with the page of its continuation token
+func (l *historyListing) serve(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	token := q.Get("continuation_token")
+	l.mu.Lock()
+	repeated := slices.ContainsFunc(l.requested, func(v url.Values) bool { return v.Get("continuation_token") == token })
+	l.requested = append(l.requested, q)
+	l.mu.Unlock()
+	page, ok := l.pages[token]
+	if repeated || !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"status":"bad_request","reason":"The continuation token was requested before or never given."}`))
+		return
+	}
+	_, _ = w.Write([]byte(page))
+}
+
+// queries returns the encoded queries of the requests made so far
+func (l *historyListing) queries() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	queries := make([]string, len(l.requested))
+	for i := range l.requested {
+		queries[i] = l.requested[i].Encode()
+	}
+	return queries
+}
+
+// futuresHistoryPage returns a page of a Derivatives account history listing holding elements, continued by next when
+// it is set
+func futuresHistoryPage(next string, elements ...string) string {
+	page := `{"accountUid":"` + futuresHistoryTestAccount + `","len":` + strconv.Itoa(len(elements)) + `,"serverTime":"2026-10-09T08:42:00.010Z","elements":[` + strings.Join(elements, ",") + `]`
+	if next != "" {
+		page += `,"continuationToken":"` + next + `"`
+	}
+	return page + `}`
+}
+
+// futuresHistoryElement returns an account history event of kind holding body, which happened at
+func futuresHistoryElement(uid string, at time.Time, kind, body string) string {
+	return `{"uid":"` + uid + `","timestamp":` + strconv.FormatInt(at.UnixMilli(), 10) + `,"event":{"` + kind + `":` + body + `}}`
+}
+
+// futuresHistoryOrderJSON returns a PF_XBTUSD order as order events report it
+func futuresHistoryOrderJSON(id, clientID, direction, orderType, quantity, filled string, placed, updated time.Time) string {
+	return `{"uid":"` + id + `","accountUid":"` + futuresHistoryTestAccount + `","tradeable":"PF_XBTUSD","direction":"` + direction + `","quantity":"` + quantity +
+		`","filled":"` + filled + `","timestamp":` + strconv.FormatInt(placed.UnixMilli(), 10) + `,"limitPrice":"81450","orderType":"` + orderType +
+		`","clientId":"` + clientID + `","reduceOnly":false,"lastUpdateTimestamp":` + strconv.FormatInt(updated.UnixMilli(), 10) + `}`
+}
+
 // newOrdersFillsExchange returns an exchange named after the test whose futures endpoints hold no open orders, no
-// cached status of ordersFillsOrderID and fills, and refuse the request to failingPath
-func newOrdersFillsExchange(t *testing.T, failingPath, fills string) *Exchange {
+// cached status of ordersFillsOrderID, fills and the order events orderEvents serves, and refuse the request to
+// failingPath
+func newOrdersFillsExchange(t *testing.T, failingPath, fills string, orderEvents *historyListing) *Exchange {
 	t.Helper()
 	return newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == failingPath {
@@ -4175,21 +4364,158 @@ func newOrdersFillsExchange(t *testing.T, failingPath, fills string) *Exchange {
 			_, _ = w.Write([]byte(`{"orders":[],"result":"success","serverTime":"2026-10-09T08:42:00.002Z"}`))
 		case "/derivatives/api/v3/fills":
 			_, _ = w.Write([]byte(fills))
+		case "/api/history/v3/orders":
+			orderEvents.serve(w, r)
 		default:
-			assert.Failf(t, "only the open orders, order status and fills endpoints should be called", "%s", r.URL.Path)
+			assert.Failf(t, "only the open orders, order status, fills and order events endpoints should be called", "%s", r.URL.Path)
 		}
 	})
 }
 
 func TestFuturesOrderInfo(t *testing.T) {
 	t.Parallel()
-	ex := newOrdersFillsExchange(t, "", strings.ReplaceAll(ordersFuturesFills, `"PF_XBTUSD"`, `"PF_ZORAUSD"`))
+	ex := newOrdersFillsExchange(t, "", strings.ReplaceAll(ordersFuturesFills, `"PF_XBTUSD"`, `"PF_ZORAUSD"`), newHistoryListing([]string{}))
 	_, err := ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresOrderInfo should reject fills on a contract no longer listed")
 	for _, path := range []string{"/derivatives/api/v3/openorders", "/derivatives/api/v3/orders/status", "/derivatives/api/v3/fills"} {
-		ex = newOrdersFillsExchange(t, path, ordersFuturesFills)
+		ex = newOrdersFillsExchange(t, path, ordersFuturesFills, newHistoryListing([]string{}))
 		_, err = ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
 		assert.ErrorIsf(t, err, errAPIResponse, "futuresOrderInfo should return the error of %s", path)
+	}
+	// The order events only add how the order ended, so its fills are returned when they cannot be read
+	ex = newOrdersFillsExchange(t, "/api/history/v3/orders", ordersFuturesFills, newHistoryListing([]string{}))
+	fillsOnly, err := ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
+	require.NoError(t, err, "futuresOrderInfo must not error when the order events cannot be read")
+	assert.Equal(t, order.UnknownStatus, fillsOnly.Status, "futuresOrderInfo should return no status when the order events cannot be read")
+	assert.Equal(t, ordersFuturesFillTrades(ex.Name), fillsOnly.Trades, "futuresOrderInfo should return the order's fills when the order events cannot be read")
+
+	// Order events are timed in milliseconds, which decode to local times, at the times of the order's fills
+	placed, firstFill, lastFill, cancelled := time.UnixMilli(1791535200050), time.UnixMilli(1791535212118), time.UnixMilli(1791535267335), time.UnixMilli(1791535290000)
+	afterFirstFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "2", "0.5", placed, firstFill)
+	afterLastFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "2", "0.75", placed, lastFill)
+	lastFillEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000001", lastFill, "OrderUpdated",
+		`{"oldOrder":`+afterFirstFill+`,"newOrder":`+afterLastFill+`,"reason":"partial_fill","reducedQuantity":"0"}`)
+	fullFillEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000002", lastFill, "OrderUpdated",
+		`{"oldOrder":`+strings.Replace(afterFirstFill, `"quantity":"2"`, `"quantity":"0.75"`, 1)+
+			`,"newOrder":`+strings.Replace(afterLastFill, `"quantity":"2"`, `"quantity":"0.75"`, 1)+`,"reason":"full_fill","reducedQuantity":"0"}`)
+	cancelEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000003", cancelled, "OrderCancelled", `{"order":`+afterLastFill+`,"reason":"cancelled_by_user"}`)
+	// Events of other orders on the market, including one closing and one Kraken sent with a type it could not name
+	otherOrder := futuresHistoryOrderJSON("d6e7f8a9-b0c1-4d2e-9f3a-4b5c6d7e8f90", "", "Sell", "Post", "0.5", "0.0004", placed, lastFill)
+	otherCancelEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000004", lastFill.Add(time.Second), "OrderCancelled", `{"order":`+otherOrder+`,"reason":"cancelled_by_user"}`)
+	undecodedEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000005", lastFill.Add(2*time.Second), "OrderPlaced",
+		`{"order":`+futuresHistoryOrderJSON("1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9", "", "Buy", "Moon", "1", "0", lastFill, lastFill)+`,"reason":"new_user_order","reducedQuantity":""}`)
+	// The order's final event cannot come before its last fill, a second before which the search starts
+	query := "count=1000&since=1791535266335&sort=asc&tradeable=PF_XBTUSD"
+	for _, tc := range []struct {
+		name    string
+		pages   [][]string
+		exp     func(exchangeName string) *order.Detail
+		queries []string
+	}{
+		{
+			name:  "cancelled after its last fill",
+			pages: [][]string{{lastFillEvent, otherCancelEvent, cancelEvent}},
+			exp: func(exchangeName string) *order.Detail {
+				return &order.Detail{
+					Exchange:        exchangeName,
+					AssetType:       asset.Futures,
+					OrderID:         ordersFillsOrderID,
+					ClientOrderID:   "gct-fills-1",
+					Pair:            futuresTestPair,
+					Side:            order.Buy,
+					Type:            order.Limit,
+					Status:          order.PartiallyFilledCancelled,
+					Price:           81450,
+					Amount:          2,
+					ExecutedAmount:  0.75,
+					RemainingAmount: 1.25,
+					Date:            placed,
+					LastUpdated:     cancelled,
+					Trades:          ordersFuturesFillTrades(exchangeName),
+				}
+			},
+			queries: []string{query},
+		},
+		{
+			name:  "filled by its last fill",
+			pages: [][]string{{fullFillEvent}},
+			exp: func(exchangeName string) *order.Detail {
+				return &order.Detail{
+					Exchange:       exchangeName,
+					AssetType:      asset.Futures,
+					OrderID:        ordersFillsOrderID,
+					ClientOrderID:  "gct-fills-1",
+					Pair:           futuresTestPair,
+					Side:           order.Buy,
+					Type:           order.Limit,
+					Status:         order.Filled,
+					Price:          81450,
+					Amount:         0.75,
+					ExecutedAmount: 0.75,
+					Date:           placed,
+					LastUpdated:    lastFill,
+					Trades:         ordersFuturesFillTrades(exchangeName),
+				}
+			},
+			queries: []string{query},
+		},
+		{
+			name:    "order events showing no end",
+			pages:   [][]string{{lastFillEvent, otherCancelEvent}},
+			queries: []string{query},
+		},
+		{
+			name:  "ending on the last page searched",
+			pages: [][]string{{lastFillEvent}, {otherCancelEvent}, {undecodedEvent, cancelEvent}},
+			exp: func(exchangeName string) *order.Detail {
+				return &order.Detail{
+					Exchange:        exchangeName,
+					AssetType:       asset.Futures,
+					OrderID:         ordersFillsOrderID,
+					ClientOrderID:   "gct-fills-1",
+					Pair:            futuresTestPair,
+					Side:            order.Buy,
+					Type:            order.Limit,
+					Status:          order.PartiallyFilledCancelled,
+					Price:           81450,
+					Amount:          2,
+					ExecutedAmount:  0.75,
+					RemainingAmount: 1.25,
+					Date:            placed,
+					LastUpdated:     cancelled,
+					Trades:          ordersFuturesFillTrades(exchangeName),
+				}
+			},
+			queries: []string{query, "continuation_token=page2&" + query, "continuation_token=page3&" + query},
+		},
+		{
+			name:    "ending past the pages searched",
+			pages:   [][]string{{lastFillEvent}, {otherCancelEvent}, {undecodedEvent}, {cancelEvent}},
+			queries: []string{query, "continuation_token=page2&" + query, "continuation_token=page3&" + query},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			events := newHistoryListing(tc.pages...)
+			ex := newOrdersFillsExchange(t, "", ordersFuturesFills, events)
+			got, err := ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
+			require.NoError(t, err, "futuresOrderInfo must not error")
+			assert.Equal(t, tc.queries, events.queries(), "futuresOrderInfo should search the order's market from its last fill, a bounded number of pages")
+			if tc.exp != nil {
+				assert.Equal(t, tc.exp(ex.Name), got, "futuresOrderInfo should return the order as its final event left it, with its trades")
+				return
+			}
+			assert.Equal(t, &order.Detail{
+				Exchange:      ex.Name,
+				AssetType:     asset.Futures,
+				OrderID:       ordersFillsOrderID,
+				ClientOrderID: "gct-fills-1",
+				Pair:          futuresTestPair,
+				Side:          order.Buy,
+				LastUpdated:   time.Date(2026, 10, 9, 8, 41, 7, 335000000, time.UTC),
+				Trades:        ordersFuturesFillTrades(ex.Name),
+			}, got, "futuresOrderInfo should return an order whose order events do not show how it ended as its trades alone")
+		})
 	}
 }
 
@@ -4736,6 +5062,301 @@ func TestFuturesOrderHistory(t *testing.T) {
 	})
 	_, err = ex.futuresOrderHistory(t.Context(), time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC))
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "futuresOrderHistory should return Get order events' error")
+
+	var mu sync.Mutex
+	var paths []string
+	ex = newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		assert.Equal(t, "before=1791507600000&since=1791504000000&sort=asc", r.URL.RawQuery, "futuresOrderHistory should list the window's events oldest first")
+		if r.URL.Path == "/api/history/v3/orders" {
+			_, _ = w.Write([]byte(futuresHistoryPage("")))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"status":"unauthorized","reason":"You are not authorized to access this endpoint."}`))
+	})
+	_, err = ex.futuresOrderHistory(t.Context(), time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC))
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "futuresOrderHistory should return Get trigger events' error")
+	mu.Lock()
+	assert.Equal(t, []string{"/api/history/v3/orders", "/api/history/v3/triggers"}, paths, "futuresOrderHistory should list the window's trigger events after its order events")
+	mu.Unlock()
+}
+
+// newFuturesHistoryExchange returns an exchange named after the test whose order and trigger events are the listings
+// orders and triggers
+func newFuturesHistoryExchange(t *testing.T, orders, triggers *historyListing) *Exchange {
+	t.Helper()
+	return newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/history/v3/orders":
+			orders.serve(w, r)
+		case "/api/history/v3/triggers":
+			triggers.serve(w, r)
+		default:
+			assert.Failf(t, "only the order and trigger events endpoints should be called", "%s", r.URL.Path)
+		}
+	})
+}
+
+// futuresHistoryTriggerJSON returns a reduce-only sell stop, triggered below 80500 by the mark price for a limit order
+// at 80000, as trigger events report it
+func futuresHistoryTriggerJSON(id, tradeable, clientID, quantity string, placed, updated time.Time) string {
+	return `{"uid":"` + id + `","accountId":4815162342,"accountUid":"` + futuresHistoryTestAccount + `","tradeable":"` + tradeable + `","direction":"Sell","quantity":"` + quantity +
+		`","timestamp":` + strconv.FormatInt(placed.UnixMilli(), 10) + `,"limitPrice":"80000","orderType":"Limit","clientId":"` + clientID +
+		`","reduceOnly":true,"lastUpdateTimestamp":` + strconv.FormatInt(updated.UnixMilli(), 10) +
+		`,"triggerOptions":{"triggerPrice":"80500","triggerSignal":"MarkPrice","triggerSide":"Below","trailingStopOptions":{"maxDeviation":"0","unit":"Percent"},` +
+		`"limitPriceOffset":{"priceOffset":"0","unit":"QuoteCurrency"}}}`
+}
+
+func TestGetOrderHistoryFuturesTriggerOrders(t *testing.T) {
+	t.Parallel()
+	start := time.UnixMilli(1791518400000)
+	at := start.Add
+	const (
+		limitID              = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+		cancelledStopID      = "1b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e"
+		triggeredStopID      = "2c3d4e5f-6a7b-4c8d-ae9f-1a2b3c4d5e6f"
+		lateActivationID     = "3d4e5f6a-7b8c-4d9e-bfa0-2b3c4d5e6f70"
+		bothListedID         = "4e5f6a7b-8c9d-4eaf-80b1-3c4d5e6f7081"
+		tiedID               = "5f6a7b8c-9dae-4fb0-91c2-4d5e6f708192"
+		delistedID           = "6a7b8c9d-aebf-40c1-a2d3-5e6f708192a3"
+		triggeredElsewhereID = "7b8c9dae-bfc0-41d2-b3e4-6f708192a3b4"
+		placedByTriggerID    = "8c9daebf-c0d1-42e3-c4f5-708192a3b4c5"
+		editedStopID         = "9daebfc0-d1e2-43f4-8506-8192a3b4c5d6"
+	)
+	event := func(kind string, when time.Time, body string) string {
+		return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
+	}
+	placedEvent := func(o string, when time.Time) string {
+		return event("OrderPlaced", when, `{"order":`+o+`,"reason":"new_user_order","reducedQuantity":""}`)
+	}
+	updatedEvent := func(old, o string, when time.Time) string {
+		return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"full_fill","reducedQuantity":"0"}`)
+	}
+	triggerEvent := func(kind, trigger string, when time.Time) string {
+		reason := "new_user_order"
+		if kind == "OrderTriggerCancelled" {
+			reason = "cancelled_by_user"
+		}
+		return event(kind, when, `{"order":`+trigger+`,"reason":"`+reason+`"}`)
+	}
+	limitPlaced := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0", at(time.Minute), at(time.Minute))
+	limitFilled := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0.25", at(time.Minute), at(2*time.Minute))
+	triggeredPlaced := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0", at(6*time.Minute), at(6*time.Minute))
+	triggeredFilled := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0.25", at(6*time.Minute), at(6*time.Minute))
+	latePlaced := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0", at(8*time.Minute), at(8*time.Minute))
+	lateFilled := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0.125", at(8*time.Minute), at(8*time.Minute+100*time.Millisecond))
+	tiedPlaced := futuresHistoryOrderJSON(tiedID, "gct-stop-5", "Sell", "Stop", "0.5", "0", at(11*time.Minute), at(11*time.Minute))
+	placedByTrigger := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0", at(15*time.Minute), at(15*time.Minute))
+	placedByTriggerFilled := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0.25", at(15*time.Minute), at(15*time.Minute))
+	orderPages := [][]string{
+		{
+			placedEvent(limitPlaced, at(time.Minute)),
+			event("OrderUpdated", at(2*time.Minute), `{"oldOrder":`+limitPlaced+`,"newOrder":`+limitFilled+`,"reason":"partial_fill","reducedQuantity":"0"}`),
+			placedEvent(triggeredPlaced, at(6*time.Minute)),
+			updatedEvent(triggeredPlaced, triggeredFilled, at(6*time.Minute)),
+		},
+		{
+			placedEvent(latePlaced, at(8*time.Minute)),
+			updatedEvent(latePlaced, lateFilled, at(8*time.Minute+100*time.Millisecond)),
+			placedEvent(futuresHistoryOrderJSON(bothListedID, "gct-stop-4", "Sell", "Stop", "0.5", "0", at(9*time.Minute), at(9*time.Minute)), at(9*time.Minute)),
+			placedEvent(tiedPlaced, at(11*time.Minute)),
+			event("OrderCancelled", at(12*time.Minute), `{"order":`+tiedPlaced+`,"reason":"cancelled_by_user"}`),
+			placedEvent(placedByTrigger, at(15*time.Minute)),
+			updatedEvent(placedByTrigger, placedByTriggerFilled, at(15*time.Minute)),
+		},
+	}
+	cancelledStop := futuresHistoryTriggerJSON(cancelledStopID, "PF_XBTUSD", "gct-stop-1", "0.5", at(3*time.Minute), at(3*time.Minute))
+	triggered := futuresHistoryTriggerJSON(triggeredStopID, "PF_XBTUSD", "gct-stop-2", "0.25", at(5*time.Minute), at(5*time.Minute))
+	late := futuresHistoryTriggerJSON(lateActivationID, "PF_XBTUSD", "gct-stop-3", "0.125", at(7*time.Minute), at(7*time.Minute))
+	bothListed := futuresHistoryTriggerJSON(bothListedID, "PF_XBTUSD", "gct-stop-4", "0.5", at(9*time.Minute), at(9*time.Minute))
+	tied := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(11*time.Minute))
+	tiedEdited := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(12*time.Minute))
+	triggeredElsewhere := futuresHistoryTriggerJSON(triggeredElsewhereID, "PF_XBTUSD", "gct-stop-6", "0.25", at(14*time.Minute), at(14*time.Minute))
+	edited := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.5", at(16*time.Minute), at(16*time.Minute))
+	resized := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.75", at(16*time.Minute), at(17*time.Minute))
+	triggerPages := [][]string{
+		{
+			triggerEvent("OrderTriggerPlaced", cancelledStop, at(3*time.Minute)),
+			triggerEvent("OrderTriggerCancelled", cancelledStop, at(4*time.Minute)),
+			triggerEvent("OrderTriggerPlaced", triggered, at(5*time.Minute)),
+		},
+		{
+			// The stop placed on the page before triggers, as do others, each placing an order
+			event("OrderTriggerActivated", at(6*time.Minute), `{"order":`+triggered+`}`),
+			triggerEvent("OrderTriggerPlaced", late, at(7*time.Minute)),
+			// Timed after the order this stop placed filled, which an activation must not override
+			event("OrderTriggerActivated", at(8*time.Minute+500*time.Millisecond), `{"order":`+late+`}`),
+			// Listed among order events as well, if Kraken lists a stop there before it triggers, where it was placed
+			// before it was cancelled
+			triggerEvent("OrderTriggerPlaced", bothListed, at(9*time.Minute)),
+			triggerEvent("OrderTriggerCancelled", bothListed, at(10*time.Minute)),
+			// Edited at the time the same order's order events cancel it
+			triggerEvent("OrderTriggerPlaced", tied, at(11*time.Minute)),
+			event("OrderTriggerUpdated", at(12*time.Minute), `{"oldOrderTrigger":`+tied+`,"newOrderTrigger":`+tiedEdited+`,"reason":"edited_by_user"}`),
+			triggerEvent("OrderTriggerPlaced", futuresHistoryTriggerJSON(delistedID, "PF_ZORAUSD", "gct-stop-8", "0.5", at(13*time.Minute), at(13*time.Minute)), at(13*time.Minute)),
+			// Triggered, placing an order under its own ID
+			triggerEvent("OrderTriggerPlaced", triggeredElsewhere, at(14*time.Minute)),
+			event("OrderTriggerActivated", at(15*time.Minute), `{"order":`+triggeredElsewhere+`}`),
+			// Resized, and still waiting to trigger when the window ends
+			triggerEvent("OrderTriggerPlaced", edited, at(16*time.Minute)),
+			event("OrderTriggerUpdated", at(17*time.Minute), `{"oldOrderTrigger":`+edited+`,"newOrderTrigger":`+resized+`,"reason":"edited_by_user"}`),
+		},
+	}
+	futuresOrder := func(exchangeName, id, clientID string, side order.Side, orderType order.Type, status order.Status, amount, executed float64, placed, updated time.Time) order.Detail {
+		return order.Detail{
+			Exchange:        exchangeName,
+			AssetType:       asset.Futures,
+			OrderID:         id,
+			ClientOrderID:   clientID,
+			Pair:            futuresTestPair,
+			Side:            side,
+			Type:            orderType,
+			Status:          status,
+			Price:           81450,
+			Amount:          amount,
+			ExecutedAmount:  executed,
+			RemainingAmount: amount - executed,
+			Date:            placed,
+			LastUpdated:     updated,
+		}
+	}
+	triggerOrder := func(exchangeName, id, clientID string, status order.Status, amount float64, placed, updated time.Time) order.Detail {
+		return order.Detail{
+			Exchange:        exchangeName,
+			AssetType:       asset.Futures,
+			OrderID:         id,
+			ClientOrderID:   clientID,
+			Pair:            futuresTestPair,
+			Side:            order.Sell,
+			Status:          status,
+			ReduceOnly:      true,
+			Price:           80000,
+			TriggerPrice:    80500,
+			Amount:          amount,
+			RemainingAmount: amount,
+			Date:            placed,
+			LastUpdated:     updated,
+		}
+	}
+	// The orders only order events list, as order events alone report them
+	orderEventsOnly := func(exchangeName string) []order.Detail {
+		return []order.Detail{
+			futuresOrder(exchangeName, limitID, "gct-limit-1", order.Buy, order.Limit, order.PartiallyFilled, 0.5, 0.25, at(time.Minute), at(2*time.Minute)),
+			futuresOrder(exchangeName, triggeredStopID, "gct-stop-2", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(6*time.Minute), at(6*time.Minute)),
+			futuresOrder(exchangeName, lateActivationID, "gct-stop-3", order.Sell, order.Stop, order.Filled, 0.125, 0.125, at(8*time.Minute), at(8*time.Minute+100*time.Millisecond)),
+			futuresOrder(exchangeName, tiedID, "gct-stop-5", order.Sell, order.Stop, order.Cancelled, 0.5, 0, at(11*time.Minute), at(12*time.Minute)),
+			futuresOrder(exchangeName, placedByTriggerID, "gct-stop-7", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(15*time.Minute), at(15*time.Minute)),
+		}
+	}
+	query, nextQuery := "before=1791522000000&since=1791518400000&sort=asc", "before=1791522000000&continuation_token=page2&since=1791518400000&sort=asc"
+	for _, tc := range []struct {
+		name     string
+		triggers [][]string
+		exp      func(exchangeName string) order.FilteredOrders
+	}{
+		{
+			name:     "trigger events",
+			triggers: triggerPages,
+			exp: func(exchangeName string) order.FilteredOrders {
+				o := orderEventsOnly(exchangeName)
+				return order.FilteredOrders{
+					o[0], o[1], o[2],
+					triggerOrder(exchangeName, bothListedID, "gct-stop-4", order.Cancelled, 0.5, at(9*time.Minute), at(10*time.Minute)),
+					o[3], o[4],
+					triggerOrder(exchangeName, cancelledStopID, "gct-stop-1", order.Cancelled, 0.5, at(3*time.Minute), at(4*time.Minute)),
+					triggerOrder(exchangeName, editedStopID, "gct-stop-9", order.Open, 0.75, at(16*time.Minute), at(17*time.Minute)),
+				}
+			},
+		},
+		{
+			name:     "no trigger events",
+			triggers: [][]string{{}},
+			exp: func(exchangeName string) order.FilteredOrders {
+				o := orderEventsOnly(exchangeName)
+				return order.FilteredOrders{
+					o[0], o[1], o[2],
+					futuresOrder(exchangeName, bothListedID, "gct-stop-4", order.Sell, order.Stop, order.Open, 0.5, 0, at(9*time.Minute), at(9*time.Minute)),
+					o[3], o[4],
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			orders, triggers := newHistoryListing(orderPages...), newHistoryListing(tc.triggers...)
+			ex := newFuturesHistoryExchange(t, orders, triggers)
+			got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			assert.Equal(t, tc.exp(ex.Name), got, "GetOrderHistory should merge each order's order and trigger events by order ID, the later event winning, leaving a stop that triggered to its order events")
+			assert.Equal(t, []string{query, nextQuery}, orders.queries(), "GetOrderHistory should list every page of the window's order events")
+			expTriggerQueries := []string{query}
+			if len(tc.triggers) > 1 {
+				expTriggerQueries = append(expTriggerQueries, nextQuery)
+			}
+			assert.Equal(t, expTriggerQueries, triggers.queries(), "GetOrderHistory should list every page of the window's trigger events")
+		})
+	}
+}
+
+func TestFuturesHistoryTriggerDetail(t *testing.T) {
+	t.Parallel()
+	placed, updated := time.UnixMilli(1791518580000), time.UnixMilli(1791518600000)
+	trigger := FuturesHistoryTrigger{
+		UID:            "1b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e",
+		AccountID:      4815162342,
+		AccountUID:     "4b2e9c1a-7f3d-4e8b-9a6c-2d1f5e8b7c30",
+		Tradeable:      "PF_XBTUSD",
+		Direction:      "Buy",
+		Quantity:       0.75,
+		Timestamp:      types.Time(placed),
+		LimitPrice:     83000,
+		OrderType:      "Limit",
+		ClientOrderID:  "gct-stop-1",
+		LastUpdateTime: types.Time(updated),
+		TriggerOptions: FuturesHistoryTriggerOptions{TriggerPrice: 82900, TriggerSignal: "LastPrice", TriggerSide: "Above"},
+	}
+	exp := &order.Detail{
+		Exchange:        e.Name,
+		AssetType:       asset.Futures,
+		OrderID:         "1b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e",
+		ClientOrderID:   "gct-stop-1",
+		Pair:            futuresTestPair,
+		Side:            order.Buy,
+		Status:          order.Cancelled,
+		Price:           83000,
+		TriggerPrice:    82900,
+		Amount:          0.75,
+		RemainingAmount: 0.75,
+		Date:            placed,
+		LastUpdated:     updated,
+	}
+	got, err := e.futuresHistoryTriggerDetail(&trigger, order.Cancelled)
+	require.NoError(t, err, "futuresHistoryTriggerDetail must not error")
+	assert.Equal(t, exp, got, "futuresHistoryTriggerDetail should convert a trigger order")
+
+	undecoded := trigger
+	undecoded.Direction = "Unknown"
+	got, err = e.futuresHistoryTriggerDetail(&undecoded, order.Cancelled)
+	require.NoError(t, err, "futuresHistoryTriggerDetail must not error for a direction Kraken could not decode")
+	exp.Side = order.UnknownSide
+	assert.Equal(t, exp, got, "futuresHistoryTriggerDetail should leave a direction Kraken could not decode unknown")
+
+	for _, tc := range []struct {
+		name   string
+		modify func(*FuturesHistoryTrigger)
+		err    error
+	}{
+		{"a trigger order on a contract no longer listed", func(o *FuturesHistoryTrigger) { o.Tradeable = "PF_ZORAUSD" }, currency.ErrPairNotFound},
+		{"a trigger order without a direction", func(o *FuturesHistoryTrigger) { o.Direction = "" }, order.ErrSideIsInvalid},
+	} {
+		o := trigger
+		tc.modify(&o)
+		_, err := e.futuresHistoryTriggerDetail(&o, order.Open)
+		assert.ErrorIsf(t, err, tc.err, "futuresHistoryTriggerDetail should reject %s", tc.name)
+	}
 }
 
 func TestFuturesHistoryOrderDetail(t *testing.T) {

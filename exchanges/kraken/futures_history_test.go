@@ -1102,6 +1102,10 @@ func TestFuturesHistoryAccountParams(t *testing.T) {
 	since, before := time.UnixMilli(1791504000123), time.UnixMilli(1791590400456)
 	_, err := e.futuresHistoryAccountParams(futuresTestPair, before, since, false, "", 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "futuresHistoryAccountParams should reject a range that ends before it starts")
+	for _, pair := range partialTestPairs {
+		_, err = e.futuresHistoryAccountParams(pair, time.Time{}, time.Time{}, false, "", 0)
+		assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "futuresHistoryAccountParams should reject %q, which lacks a base or a quote", pair)
+	}
 	params, err := e.futuresHistoryAccountParams(futuresTestPair, time.Time{}, time.Time{}, false, "", 0)
 	require.NoError(t, err, "futuresHistoryAccountParams must not error")
 	assert.Equal(t, url.Values{"tradeable": {"PF_XBTUSD"}}, params, "futuresHistoryAccountParams should filter by the pair's market")
@@ -1117,6 +1121,10 @@ func TestFuturesHistoryMarketParams(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer, "futuresHistoryMarketParams should reject a nil request")
 	_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresHistoryMarketParams should reject a request without a pair")
+	for _, pair := range partialTestPairs {
+		_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: pair})
+		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresHistoryMarketParams should reject %q, which lacks a base or a quote", pair)
+	}
 	_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: futuresTestPair, Since: before, Before: since})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "futuresHistoryMarketParams should reject a range that ends before it starts")
 	symbol, params, err := e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: futuresTestPair, Ascending: true, Count: 10})

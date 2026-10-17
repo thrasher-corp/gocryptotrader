@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -45,6 +47,27 @@ type Exchange struct {
 	futuresChallengeMu sync.Mutex
 	// futuresRequestMu sends futures websocket requests one at a time, as Kraken answers them without a request ID
 	futuresRequestMu sync.Mutex
+	// spotBalances refreshes the spot balances over REST when the balances channel reports a change, as its messages
+	// carry neither the amount on hold nor the credit Kraken counts as available
+	spotBalances wsRefresher
+	// spotBalancesLedgerUpdates counts the balances channel's ledger updates, and spotBalancesConfirmed holds the count
+	// the last successful spot balances refresh started after, so the first refresh after an update is confirmed by
+	// another
+	spotBalancesLedgerUpdates, spotBalancesConfirmed atomic.Uint64
+	// spotBalancesRequested holds, by credentials, when the spot balances last stored were requested, so a read
+	// requested before them is not stored over them
+	spotBalancesRequested   map[accounts.Credentials]time.Time
+	spotBalancesRequestedMu sync.Mutex
+	// spotOrders reads spot orders over REST once the executions channel reports them finished after fills, as its
+	// messages carry each fill's fee but not the order's
+	spotOrders wsRefresher
+	// futuresOrders holds what the futures feeds have reported of each order, as Kraken names only the order when it
+	// leaves the open orders, and reports its fills on a feed of their own
+	futuresOrders futuresOrderTracker
+	// futuresMarginCurrencies holds, by credentials, the currency of each single-collateral margin account
+	// UpdateAccountBalances last stored, by its REST name, which the balances feed's accounts are matched against
+	futuresMarginCurrencies   map[accounts.Credentials]map[string]currency.Code
+	futuresMarginCurrenciesMu sync.Mutex
 }
 
 const (
@@ -564,3 +587,12 @@ var errorToErrorMap = map[string]error{
 }
 
 var errAPIResponse = errors.New("API error response")
+
+// checkPairFilter rejects a pair holding a base or a quote alone, which a request filtering by pair would send as a
+// malformed symbol. An empty pair, which leaves the request unfiltered, passes
+func checkPairFilter(pair currency.Pair) error {
+	if pair.Base.IsEmpty() != pair.Quote.IsEmpty() {
+		return fmt.Errorf("%w: a currency pair needs a base and a quote", currency.ErrCurrencyCodeEmpty)
+	}
+	return nil
+}

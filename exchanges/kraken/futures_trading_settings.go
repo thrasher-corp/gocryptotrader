@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -39,7 +40,7 @@ func (e *Exchange) GetFuturesOffBookMaxLeverageCap(ctx context.Context) (*Future
 // to 100 with at most 2 decimal places, and 0 opts the account out of every exposure-increasing assignment and RFQ
 // fill without withdrawing its assignment preferences. Only master accounts may set it
 func (e *Exchange) SetFuturesOffBookMaxLeverageCap(ctx context.Context, maxLeverage float64) (*FuturesOffBookMaxLeverageResponse, error) {
-	if maxLeverage < 0 || maxLeverage > 100 {
+	if math.IsNaN(maxLeverage) || maxLeverage < 0 || maxLeverage > 100 {
 		return nil, fmt.Errorf("%w: %v is outside 0 to 100", errFuturesInvalidMaxLeverage, maxLeverage)
 	}
 	value := strconv.FormatFloat(maxLeverage, 'f', -1, 64)

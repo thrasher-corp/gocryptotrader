@@ -41,6 +41,10 @@ func TestAddOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "AddOrder must reject a nil request")
 	_, err = e.AddOrder(t.Context(), &AddOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "AddOrder must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.AddOrder(t.Context(), &AddOrderRequest{Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrder must reject %q, which lacks a base or a quote", pair)
+	}
 	valid := OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 25000}}
 	for _, tc := range []struct {
 		name   string
@@ -210,6 +214,10 @@ func TestAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidOrderPrice, "AmendOrder must reject a limit price offset by #")
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", TriggerPrice: OrderPrice{Value: 50, Offset: "#"}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "AmendOrder must reject a trigger price offset by #")
+	for _, pair := range partialTestPairs {
+		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "AmendOrder must reject %q, which lacks a base or a quote", pair)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -249,6 +257,10 @@ func TestEditOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrder must reject a nil request")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "EditOrder must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: pair, TransactionID: "OHYO67-6LP66-HMQ437"})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "EditOrder must reject %q, which lacks a base or a quote", pair)
+	}
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "EditOrder must reject a request without an order identifier")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", OrderUserReference: 1234})
@@ -432,6 +444,10 @@ func TestAddOrderBatch(t *testing.T) {
 	limitOrder := OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 25000}}
 	_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Orders: []OrderParameters{limitOrder, limitOrder}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "AddOrderBatch must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: pair, Orders: []OrderParameters{limitOrder, limitOrder}})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrderBatch must reject %q, which lacks a base or a quote", pair)
+	}
 	for _, orders := range [][]OrderParameters{{limitOrder}, make([]OrderParameters, 16)} {
 		_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: spotTestPair, Orders: orders})
 		require.ErrorIsf(t, err, errInvalidCount, "AddOrderBatch must reject %d orders", len(orders))

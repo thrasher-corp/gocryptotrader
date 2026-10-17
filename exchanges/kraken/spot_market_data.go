@@ -164,7 +164,7 @@ func (e *Exchange) GetLevel3OrderBook(ctx context.Context, req *Level3OrderBookR
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if req.FullBook && req.Depth != 0 {
@@ -193,7 +193,7 @@ func (e *Exchange) GetGroupedOrderBook(ctx context.Context, req *GroupedOrderBoo
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
+	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if req.Depth != 0 && !slices.Contains([]uint64{10, 25, 100, 250, 1000}, req.Depth) {
@@ -259,7 +259,7 @@ func (e *Exchange) GetRecentSpreads(ctx context.Context, req *RecentSpreadsReque
 
 // spotPairParams returns the parameters every single pair market data endpoint shares
 func (e *Exchange) spotPairParams(pair currency.Pair, assetClass string, displayNames bool) (url.Values, error) {
-	if pair.IsEmpty() {
+	if !pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)
@@ -282,7 +282,7 @@ func (e *Exchange) spotPairParams(pair currency.Pair, assetClass string, display
 func (e *Exchange) formatSpotPairs(pairs currency.Pairs) (string, error) {
 	symbols := make([]string, len(pairs))
 	for i := range pairs {
-		if pairs[i].IsEmpty() {
+		if !pairs[i].IsPopulated() {
 			return "", currency.ErrCurrencyPairEmpty
 		}
 		symbol, err := e.FormatSymbol(pairs[i], asset.Spot)

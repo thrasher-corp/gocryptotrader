@@ -2,6 +2,8 @@ package kraken
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -54,6 +56,9 @@ func (e *Exchange) SetFuturesLeverageSetting(ctx context.Context, req *FuturesLe
 	contract, err := e.futuresMarketSymbol(req.Symbol)
 	if err != nil {
 		return nil, err
+	}
+	if req.MaximumLeverage < 0 || math.IsNaN(req.MaximumLeverage) {
+		return nil, fmt.Errorf("%w: maximum leverage %v", errFuturesNegativeLimit, req.MaximumLeverage)
 	}
 	params := url.Values{}
 	params.Set("symbol", contract)

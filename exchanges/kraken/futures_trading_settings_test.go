@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -68,7 +69,7 @@ func TestGetFuturesOffBookMaxLeverageCap(t *testing.T) {
 
 func TestSetFuturesOffBookMaxLeverageCap(t *testing.T) {
 	t.Parallel()
-	for _, maxLeverage := range []float64{-0.01, 100.01, 5.125} {
+	for _, maxLeverage := range []float64{-0.01, 100.01, 5.125, math.NaN()} {
 		_, err := e.SetFuturesOffBookMaxLeverageCap(t.Context(), maxLeverage)
 		require.ErrorIsf(t, err, errFuturesInvalidMaxLeverage, "SetFuturesOffBookMaxLeverageCap must reject %v", maxLeverage)
 	}

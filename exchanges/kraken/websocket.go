@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -199,8 +198,8 @@ func (e *Exchange) ValidateSubscriptions(l subscription.List) error {
 				books[k] = book{s.QualifiedChannel, s.Levels}
 			}
 		case wsChannelOHLC:
-			if _, err := intervalFromMinutes(uint64(time.Duration(s.Interval).Minutes())); err != nil {
-				return fmt.Errorf("%s: %w", s, err)
+			if !slices.Contains(spotIntervals, s.Interval) {
+				return fmt.Errorf("%s: %w: %s", s, kline.ErrUnsupportedInterval, s.Interval)
 			}
 		}
 	}
@@ -636,7 +635,7 @@ func (e *Exchange) wsProcessBook(ctx context.Context, conn websocket.Connection,
 			err = e.wsUpdateBook(ctx, pair, &books[i])
 		}
 		if errors.Is(err, errChecksumMismatch) {
-			e.resubscribeSpotBook(conn, subscription.OrderbookChannel, pair)
+			e.resubscribeSpotBook(conn, wsChannelBook, pair)
 		}
 		if err != nil {
 			return err
@@ -658,13 +657,18 @@ func (e *Exchange) wsLoadBookSnapshot(ctx context.Context, pair currency.Pair, b
 		MaxDepth:               depth,
 		ChecksumStringRequired: true,
 	}
-	if err := e.Websocket.Orderbook.LoadSnapshot(ctx, b); err != nil {
+	// A snapshot is checked before it is loaded, so one failing its checksum is neither stored nor relayed
+	if checksum := bookChecksum(b); checksum != book.Checksum {
+		err := fmt.Errorf("%s %w: snapshot expected %d, got %d", pair, errChecksumMismatch, book.Checksum, checksum)
+		// A book that has not loaded yet has nothing to invalidate
+		if invalidErr := e.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot); !errors.Is(invalidErr, orderbook.ErrDepthNotFound) {
+			err = common.AppendError(err, invalidErr)
+		}
 		return err
 	}
-	if checksum := bookChecksum(b); checksum != book.Checksum {
-		return common.AppendError(fmt.Errorf("%s %w: snapshot expected %d, got %d", pair, errChecksumMismatch, book.Checksum, checksum), e.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot))
-	}
-	return nil
+	// The stored book takes each snapshot's options, as updates are truncated to its depth, and a pair can be subscribed
+	// to again at another depth or move from the level3 channel, whose book allows duplicate prices
+	return e.Websocket.Orderbook.LoadSnapshotWithOptions(ctx, b)
 }
 
 func (e *Exchange) wsUpdateBook(ctx context.Context, pair currency.Pair, book *WsBook) error {
@@ -688,20 +692,32 @@ func (e *Exchange) wsUpdateBook(ctx context.Context, pair currency.Pair, book *W
 	return err
 }
 
-// resubscribeSpotBook resubscribes a pair's spot order book, of the order book or all orders channel, at the depth it
-// is subscribed with
+// resubscribeSpotBook resubscribes a pair's spot order book, of the book or level3 channel, at the depth it is
+// subscribed with
 func (e *Exchange) resubscribeSpotBook(conn websocket.Connection, channel string, pair currency.Pair) {
 	depth, ok := e.bookDepth(pair)
 	if !ok {
 		return
 	}
-	e.resubscribeOrderbook(conn, &subscription.Subscription{Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{pair}, Levels: depth})
+	e.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: channel, Asset: asset.Spot, Pairs: currency.Pairs{pair}, Levels: depth})
 }
 
-// resubscribeOrderbook resubscribes the order book subscription matching s for a new snapshot. It resubscribes in the
+// resubscribeOrderbook resubscribes the order book subscription matching s for a new snapshot. It takes the receiving
+// connection's subscription, as another connection can hold one matching s, or else the manager's, as a subscription
+// reaches a connection's store only after its subscriber returns, and not on every path. It resubscribes in the
 // background, since the reply is read by the connection's reader, which is running this
 func (e *Exchange) resubscribeOrderbook(conn websocket.Connection, s *subscription.Subscription) {
-	sub := e.Websocket.GetSubscription(subscription.ExactKey{Subscription: s})
+	k := bookSubscriptionKey{s}
+	var sub *subscription.Subscription
+	if conn != nil {
+		sub = conn.Subscriptions().Get(k)
+	}
+	// A connection's store keeps a subscription the manager has dropped, such as one a library caller unsubscribed, and
+	// resubscribing it would replace the manager's subscription, so one found there is taken only while the manager
+	// holds it
+	if sub == nil || e.Websocket.GetSubscription(sub) != sub {
+		sub = e.Websocket.GetSubscription(k)
+	}
 	if sub == nil {
 		return
 	}
@@ -710,6 +726,26 @@ func (e *Exchange) resubscribeOrderbook(conn websocket.Connection, s *subscripti
 			log.Errorf(log.WebsocketMgr, "%s resubscribing to the %s %s order book: %s", e.Name, s.Pairs, s.Asset, err)
 		}
 	}()
+}
+
+// bookSubscriptionKey matches an order book subscription by the channel it subscribed to rather than the name it was
+// made with, as a subscription named by the standard channel, such as orderbook, subscribes to the same channel as one
+// named by Kraken's, such as book. It also matches the subscription's asset, pairs and depth
+type bookSubscriptionKey struct {
+	*subscription.Subscription
+}
+
+var _ subscription.MatchableKey = bookSubscriptionKey{}
+
+// Match implements subscription.MatchableKey
+func (k bookSubscriptionKey) Match(eachKey subscription.MatchableKey) bool {
+	s := eachKey.GetSubscription()
+	return s != nil && s.QualifiedChannel == k.QualifiedChannel && s.Asset == k.Asset && s.Pairs.Equal(k.Pairs) && s.Levels == k.Levels
+}
+
+// GetSubscription implements subscription.MatchableKey
+func (k bookSubscriptionKey) GetSubscription() *subscription.Subscription {
+	return k.Subscription
 }
 
 // wsProcessLevel3 loads level 3 order book snapshots and applies updates, checking each against its checksum, and
@@ -727,7 +763,7 @@ func (e *Exchange) wsProcessLevel3(ctx context.Context, conn websocket.Connectio
 		}
 		if err := e.wsLevel3Book(ctx, pair, msg.Type == wsTypeSnapshot, &books[i]); err != nil {
 			if errors.Is(err, errChecksumMismatch) || errors.Is(err, errLevel3OutOfSync) {
-				e.resubscribeSpotBook(conn, subscription.AllOrdersChannel, pair)
+				e.resubscribeSpotBook(conn, wsChannelLevel3, pair)
 			}
 			return err
 		}
@@ -783,7 +819,9 @@ func (e *Exchange) wsLevel3Book(ctx context.Context, pair currency.Pair, snapsho
 		// it was placed, not when it changed
 		lastUpdated = time.Now()
 	}
-	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
+	// The stored book takes each snapshot's options, as the book channel may have loaded it at a depth and without
+	// duplicate prices
+	return e.Websocket.Orderbook.LoadSnapshotWithOptions(ctx, &orderbook.Book{
 		Exchange:               e.Name,
 		Pair:                   pair,
 		Asset:                  asset.Spot,
@@ -1020,7 +1058,7 @@ func (e *Exchange) wsProcessInstruments(ctx context.Context, msg *wsChannelMessa
 }
 
 // wsProcessExecutions relays order updates, with a trade event's fill as the order's trade, and the fills themselves
-// when the fills feed is enabled
+// when the fills feed is enabled. An order that finishes after fills is then read over REST for its totals
 func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessage) error {
 	var executions []WsExecution
 	if err := json.Unmarshal(msg.Data, &executions); err != nil {
@@ -1035,6 +1073,7 @@ func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessag
 		if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
 			return err
 		}
+		e.finishSpotOrder(ctx, &executions[i])
 		if executions[i].ExecutionType == "trade" && e.IsFillsFeedEnabled() {
 			fills = append(fills, fill.Data{
 				ID:            executions[i].ExecutionID,
@@ -1057,6 +1096,65 @@ func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessag
 	return e.Websocket.Fills.Update(fills...)
 }
 
+// spotOrderReadRetention is how long a finished spot order read is remembered, so that an order the executions channel
+// reports finished more than once, such as by its last fill and by its filled event, is read once. An order whose
+// read is given up on is not remembered, so a later report of it finishing reads it again
+const spotOrderReadRetention = time.Minute
+
+// finishSpotOrder sends an order an execution report says finished after fills for a REST read of its totals.
+// Execution reports carry each fill's fee but not the order's, which the order store takes from an order's fee alone,
+// and the store stops polling an order once it has finished, so the order's fee is otherwise never stored
+func (e *Exchange) finishSpotOrder(ctx context.Context, x *WsExecution) {
+	if x.OrderID != "" && spotExecutionFinishedAfterFills(x) {
+		e.spotOrders.refresh(ctx, e.readFinishedSpotOrders, x.OrderID)
+	}
+}
+
+// spotExecutionFinishedAfterFills reports whether an execution report says its order finished with some or all of it
+// filled
+func spotExecutionFinishedAfterFills(x *WsExecution) bool {
+	switch {
+	case x.ExecutionType == "filled", x.OrderStatus == "filled":
+		return true
+	case x.ExecutionType == "canceled", x.ExecutionType == "expired", x.OrderStatus == "canceled", x.OrderStatus == "expired":
+		return x.CumulativeQuantity > 0
+	default:
+		return false
+	}
+}
+
+// readFinishedSpotOrders reads finished spot orders over REST and relays each with the totals Kraken reports for it,
+// asking for an order again while REST still reports it open or leaves it out, as REST can lag the websocket, or when
+// its read or relay fails
+func (e *Exchange) readFinishedSpotOrders(ctx context.Context, orderIDs []string) []string {
+	var unsettled []string
+	for chunk := range slices.Chunk(orderIDs, 50) {
+		orders, err := e.QueryOrdersInfo(ctx, &QueryOrdersRequest{OrderIDs: chunk})
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s reading finished spot orders %s failed: %v", e.Name, chunk, err)
+			unsettled = append(unsettled, chunk...)
+			continue
+		}
+		for _, id := range chunk {
+			info, ok := orders[id]
+			if !ok || info.Status != "closed" && info.Status != "canceled" && info.Status != "expired" {
+				unsettled = append(unsettled, id)
+				continue
+			}
+			d, err := e.spotOrderDetail(id, &info)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%s finished spot order %s: %v", e.Name, id, err)
+				continue
+			}
+			if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
+				log.Errorf(log.WebsocketMgr, "%s relaying finished spot order %s: %v", e.Name, id, err)
+				unsettled = append(unsettled, id)
+			}
+		}
+	}
+	return unsettled
+}
+
 // executionOrderDetail converts an execution report to an order update. Kraken sends only the changed fields on most
 // events, so unset fields are left zero for the order store to keep what it holds
 func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
@@ -1073,12 +1171,18 @@ func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
 		ReduceOnly:           x.ReduceOnly,
 		TriggerPrice:         x.Triggers.Price,
 	}
+	// A relative trigger's price is its offset from the reference price, so the trigger price is the one it works out to
+	if x.Triggers.PriceType == "pct" || x.Triggers.PriceType == "quote" {
+		d.TriggerPrice = x.Triggers.ActualPrice
+	}
 	if x.Symbol != "" {
 		pair, err := e.pairFromDisplaySymbol(x.Symbol)
 		if err != nil {
 			return nil, err
 		}
-		d.Pair = pair
+		// The order store keeps the fee currency an order is first stored with, and Kraken reports an order's fees in
+		// its quote currency, as REST does
+		d.Pair, d.FeeAsset = pair, pair.Quote
 	}
 	if x.Side != "" {
 		side, err := order.StringToOrderSide(x.Side)
@@ -1099,6 +1203,10 @@ func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
 		if err != nil {
 			return nil, err
 		}
+		// A cancellation after fills is partly filled, as REST reports it
+		if status == order.Cancelled && x.CumulativeQuantity > 0 {
+			status = order.PartiallyFilledCancelled
+		}
 		d.Status = status
 	}
 	if x.TimeInForce != "" {
@@ -1118,8 +1226,8 @@ func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
 		d.Date = x.Timestamp
 	}
 	if x.ExecutionType == "trade" {
-		// Fees are the trade event's, which Kraken charges in the quote currency, so they are the trade's rather than
-		// the order's
+		// A trade event's fees are its own rather than the order's total, which is read over REST once the order
+		// finishes
 		t := order.TradeHistory{
 			TID:       x.ExecutionID,
 			Price:     x.LastPrice,
@@ -1143,45 +1251,32 @@ func (e *Exchange) executionOrderDetail(x *WsExecution) (*order.Detail, error) {
 	return d, nil
 }
 
-// wsProcessBalances stores and relays a snapshot's spot wallet balances. Updates are ledger transactions whose balance
-// spans every wallet, so they are relayed without changing the stored spot balances
+// spotBalancesRefreshKey is the key of the spot balances refresh, which reads every spot balance at once
+const spotBalancesRefreshKey = "spot balances"
+
+// wsProcessBalances relays a balances snapshot's balances or an update's ledger entries, and refreshes the stored spot
+// balances over REST. Kraken's balances carry neither the amount on hold nor the credit it counts as available, and an
+// update's balance can span wallets other than spot, so the balances stored are Get Extended Balance's, stored whole so
+// that a currency it no longer lists is removed
 func (e *Exchange) wsProcessBalances(ctx context.Context, msg *wsChannelMessage) error {
-	if msg.Type != wsTypeSnapshot {
+	var payload any
+	if msg.Type == wsTypeSnapshot {
+		var balances []WsBalance
+		if err := json.Unmarshal(msg.Data, &balances); err != nil {
+			return err
+		}
+		payload = balances
+	} else {
 		var entries []WsLedgerEntry
 		if err := json.Unmarshal(msg.Data, &entries); err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, entries)
+		payload = entries
+		// REST can lag the ledger entry, so the refresh it starts reads the balances once more
+		e.spotBalancesLedgerUpdates.Add(1)
 	}
-	var balances []WsBalance
-	if err := json.Unmarshal(msg.Data, &balances); err != nil {
-		return err
-	}
-	subAcct := accounts.NewSubAccount(asset.Spot, "")
-	for i := range balances {
-		var spot float64
-		for _, w := range balances[i].Wallets {
-			if w.Type == "spot" {
-				spot += w.Balance
-			}
-		}
-		name := balances[i].Asset
-		if alt, ok := e.assetNames.alternativeName(name); ok {
-			name = alt
-		}
-		code := currency.NewCode(name)
-		balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, code, func(b *accounts.Balance) {
-			// Websocket balances carry no amount on hold, so the stored hold is kept and the free amount follows from it
-			b.Total = spot
-			b.Free = max(b.Total-b.Hold, 0)
-			b.AvailableWithoutBorrow = b.Free
-		})
-		if err != nil {
-			return err
-		}
-		subAcct.Balances.Set(code, balance)
-	}
-	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
+	e.spotBalances.refresh(ctx, e.refreshSpotBalances, spotBalancesRefreshKey)
+	return e.Websocket.DataHandler.Send(ctx, payload)
 }
 
 /*

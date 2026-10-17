@@ -152,6 +152,9 @@ func (e *Exchange) GetTradesHistory(ctx context.Context, req *TradesHistoryReque
 	if err := accountDataPageParams(body, req.WithCursor, req.Cursor, req.Offset); err != nil {
 		return nil, err
 	}
+	if err := checkPairFilter(req.Pair); err != nil {
+		return nil, err
+	}
 	if !req.Pair.IsEmpty() {
 		pair, err := e.FormatSymbol(req.Pair, asset.Spot)
 		if err != nil {

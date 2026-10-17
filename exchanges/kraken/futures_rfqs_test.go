@@ -314,6 +314,10 @@ func TestCreateFuturesRFQ(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQTooManyLegs, "CreateFuturesRFQ must reject more than 100 legs")
 	_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Size: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CreateFuturesRFQ must reject a leg without a contract")
+	for _, pair := range partialTestPairs {
+		_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: pair, Size: 1}}})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CreateFuturesRFQ must reject %q, which lacks a base or a quote", pair)
+	}
 	_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: futuresTestCall85000}}})
 	require.ErrorIs(t, err, errFuturesRFQLegSizeZero, "CreateFuturesRFQ must reject a leg without a size")
 	_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: futuresTestCall85000, Size: 1}, {Contract: futuresTestCall85000, Size: -1}}})
@@ -443,6 +447,10 @@ func TestFuturesRFQLegPrices(t *testing.T) {
 	t.Parallel()
 	_, err := e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: futuresTestPair, Price: 1}, {Price: 1}})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresRFQLegPrices should reject a leg without a contract")
+	for _, pair := range partialTestPairs {
+		_, err = e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: pair, Price: 1}})
+		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresRFQLegPrices should reject %q, which lacks a base or a quote", pair)
+	}
 	prices, err := e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: futuresTestPair, Price: 82000.5}, {Contract: piXBTUSDPair, Price: -10}})
 	require.NoError(t, err, "futuresRFQLegPrices must not error")
 	assert.JSONEq(t, `[{"tradeable":"PF_XBTUSD","price":82000.5},{"tradeable":"PI_XBTUSD","price":-10}]`, prices, "futuresRFQLegPrices should list each leg's market symbol and price")

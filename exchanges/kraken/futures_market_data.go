@@ -72,9 +72,10 @@ func (e *Exchange) GetFuturesTradeHistory(ctx context.Context, req *FuturesTrade
 	return resp, e.SendFuturesHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("/api/v3/history", params), &resp)
 }
 
-// futuresMarketSymbol returns a pair as the market symbol the Derivatives REST API takes, such as PF_XBTUSD
+// futuresMarketSymbol returns a pair as the market symbol the Derivatives REST API takes, such as PF_XBTUSD. A pair
+// missing its base or quote is rejected, as it would format as a malformed symbol such as PF_
 func (e *Exchange) futuresMarketSymbol(pair currency.Pair) (string, error) {
-	if pair.IsEmpty() {
+	if !pair.IsPopulated() {
 		return "", currency.ErrCurrencyPairEmpty
 	}
 	return e.FormatSymbol(pair, asset.Futures)

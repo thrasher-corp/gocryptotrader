@@ -149,11 +149,11 @@ type WsAmendOrderResponse struct {
 	TimeOut       time.Time `json:"-"`
 }
 
-// WsCancelOrdersRequest holds the parameters of cancel_order. Exactly one kind of identifier may be sent
+// WsCancelOrdersRequest holds the parameters of cancel_order. Exactly one kind of identifier may be sent; to cancel by
+// user reference, use CancelExistingOrder or WsBatchCancelOrders
 type WsCancelOrdersRequest struct {
 	OrderIDs       []string
 	ClientOrderIDs []string
-	UserReferences []int32
 }
 
 // WsCancelOrderResponse holds the outcome of cancelling one order; Error is set when it failed
@@ -287,9 +287,8 @@ type wsAmendOrderParams struct {
 
 // wsCancelOrderParams holds the parameters of cancel_order
 type wsCancelOrderParams struct {
-	OrderIDs            []string `json:"order_id,omitempty"`
-	ClientOrderIDs      []string `json:"cl_ord_id,omitempty"`
-	OrderUserReferences []int32  `json:"order_userref,omitempty"`
+	OrderIDs       []string `json:"order_id,omitempty"`
+	ClientOrderIDs []string `json:"cl_ord_id,omitempty"`
 	wsTokenParams
 }
 

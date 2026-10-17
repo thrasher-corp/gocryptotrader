@@ -48,6 +48,11 @@ var (
 // offlineTakerFee is the taker fee of Kraken Pro's lowest volume tier, the most a spot trade is charged
 const offlineTakerFee = 0.004
 
+// futuresOrderSearchPages caps the pages of order events read to find how a futures order known by its fills ended.
+// Order events cannot be filtered by order, and each page costs one of the 100 history tokens Kraken replenishes every
+// 10 minutes
+const futuresOrderSearchPages = 3
+
 // SetDefaults sets current default settings
 func (e *Exchange) SetDefaults() {
 	e.Name = "Kraken"
@@ -192,6 +197,15 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.spotBalances.active, e.spotOrders.active = e.websocketActive, e.websocketActive
+	e.spotOrders.settledRetention = spotOrderReadRetention
+}
+
+// websocketActive reports whether the websocket is connected, or connecting, as it is until every connection has
+// connected, which the REST refreshes its messages start keep to. Connecting is read first, so the websocket finishing
+// connecting between the two reads still reads as active
+func (e *Exchange) websocketActive() bool {
+	return e.Websocket.IsConnecting() || e.Websocket.IsConnected()
 }
 
 // Setup sets current exchange configuration
@@ -554,6 +568,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err := e.ensureAssetNames(ctx); err != nil {
 			return nil, err
 		}
+		requested := time.Now()
 		balances, err := e.GetExtendedBalance(ctx, nil)
 		if err != nil {
 			return nil, err
@@ -571,7 +586,12 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			})
 		}
 		subAccts = accounts.SubAccounts{subAcct}
+		return subAccts, e.saveSpotBalances(ctx, requested, subAccts)
 	case asset.Futures:
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
 		resp, err := e.GetFuturesAccounts(ctx)
 		if err != nil {
 			return nil, err
@@ -588,8 +608,10 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: c.Quantity, Hold: c.Quantity - free, Free: free})
 		}
 		subAccts = append(subAccts, cash, flex)
+		marginCurrencies := make(map[string]currency.Code, len(resp.Accounts.MarginAccounts))
 		for name := range resp.Accounts.MarginAccounts {
 			m := resp.Accounts.MarginAccounts[name]
+			marginCurrencies[name] = m.Currency
 			margin := accounts.NewSubAccount(a, name)
 			for code, amount := range m.Balances {
 				// Contract symbols, such as FI_XBTUSD_171215, key positions rather than balances
@@ -606,10 +628,55 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			}
 			subAccts = append(subAccts, margin)
 		}
+		e.futuresMarginCurrenciesMu.Lock()
+		if e.futuresMarginCurrencies == nil {
+			e.futuresMarginCurrencies = make(map[accounts.Credentials]map[string]currency.Code)
+		}
+		e.futuresMarginCurrencies[*creds] = marginCurrencies
+		e.futuresMarginCurrenciesMu.Unlock()
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+// saveSpotBalances stores the spot balances a read requested at requested returned, unless a read requested after it
+// has been stored: the balances channel's refreshes and the portfolio's polls read the balances concurrently, and a read
+// that started first can finish last, which would store older balances over newer ones
+func (e *Exchange) saveSpotBalances(ctx context.Context, requested time.Time, subAccts accounts.SubAccounts) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	e.spotBalancesRequestedMu.Lock()
+	defer e.spotBalancesRequestedMu.Unlock()
+	if requested.Before(e.spotBalancesRequested[*creds]) {
+		return nil
+	}
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return err
+	}
+	if e.spotBalancesRequested == nil {
+		e.spotBalancesRequested = make(map[accounts.Credentials]time.Time)
+	}
+	e.spotBalancesRequested[*creds] = requested
+	return nil
+}
+
+// refreshSpotBalances stores the spot balances Get Extended Balance returns, for a refresh the balances channel starts,
+// asking for the refresh again when the read fails, or once more after the first read started after a ledger update,
+// as a read soon after it can predate it
+func (e *Exchange) refreshSpotBalances(ctx context.Context, keys []string) []string {
+	updates := e.spotBalancesLedgerUpdates.Load()
+	if _, err := e.UpdateAccountBalances(ctx, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s spot balance refresh after a websocket balances message failed: %v", e.Name, err)
+		return keys
+	}
+	// A failed read, or one started before an update, confirms nothing of it
+	if e.spotBalancesConfirmed.Swap(updates) != updates {
+		return keys
+	}
+	return nil
 }
 
 // assetCode returns the currency code of an asset Kraken names by its internal or display name, such as XBT for XXBT.
@@ -1146,6 +1213,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 				Quantity:      action.Amount,
 				LimitPrice:    action.Price,
 				TriggerPrice:  action.TriggerPrice,
+				PostOnly:      action.Price != 0 && action.TimeInForce.Is(order.PostOnly),
 			}); err != nil {
 				return nil, err
 			}
@@ -1155,6 +1223,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			TransactionID: action.OrderID,
 			ClientOrderID: clientOrderIDWithoutOrderID(action.OrderID, action.ClientOrderID),
 			OrderQuantity: action.Amount,
+			PostOnly:      action.Price != 0 && action.TimeInForce.Is(order.PostOnly),
 		}
 		if action.Price != 0 {
 			req.LimitPrice = OrderPrice{Value: action.Price}
@@ -1315,10 +1384,26 @@ func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status ma
 			if err != nil {
 				return err
 			}
-			for i := range chunk {
-				status[chunk[i]] = order.Cancelled.String()
-				if i < len(results) && results[i].Error != nil {
-					status[chunk[i]] = results[i].Error.Error()
+			// Kraken's replies follow no set order and only a cancellation's names its order, so an order is cancelled
+			// only when a reply names it; the others take the failed replies' errors
+			cancelled := make(map[string]bool, len(results))
+			var failures []string
+			for i := range results {
+				switch {
+				case results[i].Error == nil:
+					cancelled[results[i].OrderID] = true
+				case !slices.Contains(failures, results[i].Error.Error()):
+					failures = append(failures, results[i].Error.Error())
+				}
+			}
+			for _, id := range chunk {
+				switch {
+				case cancelled[id]:
+					status[id] = order.Cancelled.String()
+				case len(failures) != 0:
+					status[id] = strings.Join(failures, "; ")
+				default:
+					status[id] = fmt.Errorf("%w: no reply named the order", order.ErrCancelFailed).Error()
 				}
 			}
 		}
@@ -1544,7 +1629,7 @@ func (e *Exchange) spotOrderTrades(ctx context.Context, info *OrderInfo, d *orde
 }
 
 // futuresOrderInfo returns a futures order, from the open orders, the orders closed within the last 5 seconds, or the
-// fills of an order closed before then
+// fills of an order closed before then, with how it ended when its order events show it
 func (e *Exchange) futuresOrderInfo(ctx context.Context, orderID string) (*order.Detail, error) {
 	open, err := e.GetFuturesOpenOrders(ctx)
 	if err != nil {
@@ -1590,13 +1675,11 @@ func (e *Exchange) futuresOrderInfo(ctx context.Context, orderID string) (*order
 				ClientOrderID: f.ClientOrderID,
 				Pair:          pair,
 				Side:          side,
-				Status:        order.Filled,
-				LastUpdated:   f.FillTime,
 			}
 		}
-		d.ExecutedAmount += f.Size
-		d.Cost += f.Size * f.Price
-		d.Date = f.FillTime
+		if f.FillTime.After(d.LastUpdated) {
+			d.LastUpdated = f.FillTime
+		}
 		d.Trades = append(d.Trades, order.TradeHistory{
 			TID:       f.FillID,
 			Price:     f.Price,
@@ -1610,10 +1693,55 @@ func (e *Exchange) futuresOrderInfo(ctx context.Context, orderID string) (*order
 	if d == nil {
 		return nil, fmt.Errorf("%w: %s", order.ErrOrderNotFound, orderID)
 	}
-	// Fills hold no order size, so the order's size is taken as what filled
-	d.Amount = d.ExecutedAmount
-	d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
-	return d, nil
+	final, err := e.futuresOrderFinalState(ctx, orderID, d.Pair, d.LastUpdated)
+	if err != nil {
+		// The search only adds how the order ended to what its fills give, so the fills are returned without it
+		log.Warnf(log.ExchangeSys, "%s futures order %s: searching its order events: %v", e.Name, orderID, err)
+	}
+	if final == nil {
+		// Fills give neither the order's size nor whether it filled or was cancelled, and the latest 100 may hold only
+		// some of its own, while an order store takes any positive size, amount or price over the one it holds. Its time
+		// is left unset too, so the futures position tracker refuses the order rather than track a position of no size
+		return d, nil
+	}
+	final.Trades = d.Trades
+	return final, nil
+}
+
+// futuresOrderFinalState returns a futures order as the order event that closed it left it, reading its market's order
+// events from its last fill, which that event cannot precede, for at most futuresOrderSearchPages pages. It returns nil
+// when none of those events closes the order, which leaves how it ended unknown
+func (e *Exchange) futuresOrderFinalState(ctx context.Context, orderID string, pair currency.Pair, lastFill time.Time) (*order.Detail, error) {
+	req := &FuturesHistoryOrderEventsRequest{
+		Pair: pair,
+		// Kraken does not document whether since is inclusive, or whether an event is timed as its fill is
+		Since:     lastFill.Add(-time.Second),
+		Ascending: true,
+		Count:     1000,
+	}
+	for range futuresOrderSearchPages {
+		events, err := e.GetFuturesOrderEvents(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		for i := range events.Elements {
+			if o, _ := futuresHistoryEventOrder(&events.Elements[i].Event); o == nil || o.UID != orderID {
+				continue
+			}
+			d, err := e.futuresHistoryEventDetail(&events.Elements[i])
+			if err != nil {
+				return nil, err
+			}
+			if d.Status.IsInactive() {
+				return d, nil
+			}
+		}
+		if events.ContinuationToken == "" || events.ContinuationToken == req.ContinuationToken {
+			break
+		}
+		req.ContinuationToken = events.ContinuationToken
+	}
+	return nil, nil
 }
 
 // futuresOpenOrderDetail converts an open futures order
@@ -1970,60 +2098,171 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// futuresOrderHistory returns the futures orders whose events fall within a window, each as its last event left it
+// futuresHistoryEntry is an order as its latest event within a window left it, with that event's time
+type futuresHistoryEntry struct {
+	detail    *order.Detail
+	eventTime time.Time
+}
+
+// futuresHistoryOrders holds the orders a window's events list by order ID, and their IDs in the order they first appear
+type futuresHistoryOrders struct {
+	ids  []string
+	byID map[string]futuresHistoryEntry
+}
+
+// futuresOrderHistory returns the futures orders whose order or trigger events fall within a window, each as its last
+// event left it. Kraken keeps a trigger order's events, such as a stop's, apart from order events and does not document
+// whether order events list a trigger order before it triggers, so both are read and merged by order ID, the later
+// event winning
 func (e *Exchange) futuresOrderHistory(ctx context.Context, start, end time.Time) ([]order.Detail, error) {
+	orders, err := e.futuresOrderEventsHistory(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	triggers, err := e.futuresTriggerEventsHistory(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range triggers.ids {
+		o, ok := orders.byID[id]
+		switch {
+		case !ok:
+			orders.ids = append(orders.ids, id)
+			orders.byID[id] = triggers.byID[id]
+		case triggers.byID[id].eventTime.After(o.eventTime):
+			orders.byID[id] = triggers.byID[id]
+		}
+	}
+	details := make([]order.Detail, len(orders.ids))
+	for i, id := range orders.ids {
+		details[i] = *orders.byID[id].detail
+	}
+	return details, nil
+}
+
+// futuresOrderEventsHistory returns the futures orders whose order events fall within a window, by order ID and in the
+// order they first appear, each as its last event left it
+func (e *Exchange) futuresOrderEventsHistory(ctx context.Context, start, end time.Time) (*futuresHistoryOrders, error) {
 	req := &FuturesHistoryOrderEventsRequest{Since: start, Before: end, Ascending: true}
-	byID := make(map[string]*order.Detail)
-	var ids []string
+	orders := &futuresHistoryOrders{byID: make(map[string]futuresHistoryEntry)}
 	for {
 		events, err := e.GetFuturesOrderEvents(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 		for i := range events.Elements {
-			ev := &events.Elements[i].Event
-			var o *FuturesHistoryOrder
-			var status order.Status
-			switch {
-			case ev.OrderPlaced != nil:
-				o, status = &ev.OrderPlaced.Order, order.Open
-			case ev.OrderUpdated != nil:
-				o, status = &ev.OrderUpdated.NewOrder, order.Open
-			case ev.OrderCancelled != nil:
-				o, status = &ev.OrderCancelled.Order, order.Cancelled
-			case ev.OrderRejected != nil:
-				o, status = &ev.OrderRejected.Order, order.Rejected
-			default:
-				continue
-			}
-			d, err := e.futuresHistoryOrderDetail(o, status)
+			d, err := e.futuresHistoryEventDetail(&events.Elements[i])
 			if err != nil {
 				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
 				return nil, err
 			}
-			if ev.OrderCancelled != nil {
-				// A cancelled order keeps its last update from before it was cancelled
-				d.LastUpdated = events.Elements[i].Timestamp.Time()
+			if d == nil {
+				continue
 			}
-			if _, ok := byID[d.OrderID]; !ok {
-				ids = append(ids, d.OrderID)
+			if _, ok := orders.byID[d.OrderID]; !ok {
+				orders.ids = append(orders.ids, d.OrderID)
 			} else if d.Date.IsZero() {
-				d.Date = byID[d.OrderID].Date
+				d.Date = orders.byID[d.OrderID].detail.Date
 			}
-			byID[d.OrderID] = d
+			orders.byID[d.OrderID] = futuresHistoryEntry{detail: d, eventTime: events.Elements[i].Timestamp.Time()}
 		}
 		if events.ContinuationToken == "" || events.ContinuationToken == req.ContinuationToken {
 			break
 		}
 		req.ContinuationToken = events.ContinuationToken
 	}
-	orders := make([]order.Detail, len(ids))
-	for i, id := range ids {
-		orders[i] = *byID[id]
-	}
 	return orders, nil
+}
+
+// futuresTriggerEventsHistory returns the futures trigger orders whose trigger events fall within a window and which
+// did not trigger within it, by order ID and in the order they first appear, each as its last event left it. A trigger
+// order that triggered is left to the order events, which hold the order it placed
+func (e *Exchange) futuresTriggerEventsHistory(ctx context.Context, start, end time.Time) (*futuresHistoryOrders, error) {
+	req := &FuturesHistoryTriggerEventsRequest{Since: start, Before: end, Ascending: true}
+	triggers := &futuresHistoryOrders{byID: make(map[string]futuresHistoryEntry)}
+	triggered := make(map[string]bool)
+	for {
+		events, err := e.GetFuturesTriggerEvents(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		for i := range events.Elements {
+			ev := &events.Elements[i].Event
+			var t *FuturesHistoryTrigger
+			var status order.Status
+			switch {
+			case ev.OrderTriggerPlaced != nil:
+				t, status = &ev.OrderTriggerPlaced.Order, order.Open
+			case ev.OrderTriggerUpdated != nil:
+				t, status = &ev.OrderTriggerUpdated.NewOrderTrigger, order.Open
+			case ev.OrderTriggerCancelled != nil:
+				t, status = &ev.OrderTriggerCancelled.Order, order.Cancelled
+			case ev.OrderTriggerActivated != nil:
+				triggered[ev.OrderTriggerActivated.Order.UID] = true
+				continue
+			default:
+				continue
+			}
+			d, err := e.futuresHistoryTriggerDetail(t, status)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return nil, err
+			}
+			if ev.OrderTriggerCancelled != nil {
+				// A cancelled trigger order keeps its last update from before it was cancelled
+				d.LastUpdated = events.Elements[i].Timestamp.Time()
+			}
+			if _, ok := triggers.byID[d.OrderID]; !ok {
+				triggers.ids = append(triggers.ids, d.OrderID)
+			}
+			triggers.byID[d.OrderID] = futuresHistoryEntry{detail: d, eventTime: events.Elements[i].Timestamp.Time()}
+		}
+		if events.ContinuationToken == "" || events.ContinuationToken == req.ContinuationToken {
+			break
+		}
+		req.ContinuationToken = events.ContinuationToken
+	}
+	triggers.ids = slices.DeleteFunc(triggers.ids, func(id string) bool { return triggered[id] })
+	return triggers, nil
+}
+
+// futuresHistoryEventOrder returns the order an order event carries and the status the event gives it, or nil for an
+// event that carries none
+func futuresHistoryEventOrder(ev *FuturesHistoryOrderEvent) (*FuturesHistoryOrder, order.Status) {
+	switch {
+	case ev.OrderPlaced != nil:
+		return &ev.OrderPlaced.Order, order.Open
+	case ev.OrderUpdated != nil:
+		return &ev.OrderUpdated.NewOrder, order.Open
+	case ev.OrderCancelled != nil:
+		return &ev.OrderCancelled.Order, order.Cancelled
+	case ev.OrderRejected != nil:
+		return &ev.OrderRejected.Order, order.Rejected
+	default:
+		return nil, order.UnknownStatus
+	}
+}
+
+// futuresHistoryEventDetail converts the order an order event carries as the event left it, or returns nil for an
+// event that carries none
+func (e *Exchange) futuresHistoryEventDetail(el *FuturesHistoryOrderElement) (*order.Detail, error) {
+	o, status := futuresHistoryEventOrder(&el.Event)
+	if o == nil {
+		return nil, nil
+	}
+	d, err := e.futuresHistoryOrderDetail(o, status)
+	if err != nil {
+		return nil, err
+	}
+	if el.Event.OrderCancelled != nil {
+		// A cancelled order keeps its last update from before it was cancelled
+		d.LastUpdated = el.Timestamp.Time()
+	}
+	return d, nil
 }
 
 // futuresHistoryOrderDetail converts an order as a history event reports it, with the status its event gives it
@@ -2067,6 +2306,38 @@ func (e *Exchange) futuresHistoryOrderDetail(o *FuturesHistoryOrder, status orde
 		RemainingAmount: quantity - filled,
 		Date:            o.Timestamp.Time(),
 		LastUpdated:     o.LastUpdateTime.Time(),
+	}, nil
+}
+
+// futuresHistoryTriggerDetail converts a trigger order that has not triggered, as a trigger event reports it, with the
+// status the event gives it. The trigger history does not document its order types or say whether a trigger order is a
+// stop, take profit or trailing stop, so its type is left unknown
+func (e *Exchange) futuresHistoryTriggerDetail(t *FuturesHistoryTrigger, status order.Status) (*order.Detail, error) {
+	pair, err := e.MatchSymbolWithAvailablePairs(t.Tradeable, asset.Futures, true)
+	if err != nil {
+		return nil, err
+	}
+	side, err := order.StringToOrderSide(t.Direction)
+	// Kraken sends Unknown for a direction it could not decode, which leaves the side unknown
+	if err != nil && t.Direction != "Unknown" {
+		return nil, err
+	}
+	quantity := t.Quantity.Float64()
+	return &order.Detail{
+		Exchange:        e.Name,
+		AssetType:       asset.Futures,
+		OrderID:         t.UID,
+		ClientOrderID:   t.ClientOrderID,
+		Pair:            pair,
+		Side:            side,
+		Status:          status,
+		ReduceOnly:      t.ReduceOnly,
+		Price:           t.LimitPrice.Float64(),
+		TriggerPrice:    t.TriggerOptions.TriggerPrice.Float64(),
+		Amount:          quantity,
+		RemainingAmount: quantity,
+		Date:            t.Timestamp.Time(),
+		LastUpdated:     t.LastUpdateTime.Time(),
 	}, nil
 }
 

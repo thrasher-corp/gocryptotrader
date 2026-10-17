@@ -539,6 +539,10 @@ func TestGetTradesHistory(t *testing.T) {
 	require.ErrorIs(t, err, errTimeAndIDBound, "GetTradesHistory must reject an end that is both a time and an ID")
 	_, err = e.GetTradesHistory(t.Context(), &TradesHistoryRequest{Cursor: "gqNrZXm-VHJhZGVzMg"})
 	require.ErrorIs(t, err, errCursorWithoutPaging, "GetTradesHistory must reject a cursor without cursor pagination")
+	for _, pair := range partialTestPairs {
+		_, err = e.GetTradesHistory(t.Context(), &TradesHistoryRequest{Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "GetTradesHistory must reject %q, which lacks a base or a quote", pair)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

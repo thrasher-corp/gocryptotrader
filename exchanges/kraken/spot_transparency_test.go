@@ -14,6 +14,10 @@ func TestGetPreTradeData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetPreTradeData(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPreTradeData must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.GetPreTradeData(t.Context(), pair)
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetPreTradeData must reject %q, which lacks a base or a quote", pair)
+	}
 
 	result, err := e.GetPreTradeData(t.Context(), currency.NewPair(currency.ETH, currency.XBT))
 	require.NoError(t, err, "GetPreTradeData must not error")
@@ -66,6 +70,10 @@ func TestGetPostTradeData(t *testing.T) {
 	to := from.Add(10 * time.Minute)
 	_, err = e.GetPostTradeData(t.Context(), &PostTradeDataRequest{From: to, To: from})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPostTradeData must reject a reversed window")
+	for _, pair := range partialTestPairs {
+		_, err = e.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "GetPostTradeData must reject %q, which lacks a base or a quote", pair)
+	}
 
 	result, err := e.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: currency.NewPair(currency.ETH, currency.XBT), From: from, To: to, Count: 1})
 	require.NoError(t, err, "GetPostTradeData must not error")

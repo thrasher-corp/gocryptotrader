@@ -292,6 +292,10 @@ func TestGetLevel3OrderBook(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLevel3OrderBook must reject a nil request")
 	_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLevel3OrderBook must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetLevel3OrderBook must reject %q, which lacks a base or a quote", pair)
+	}
 	_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: spotTestPair, Depth: 11})
 	require.ErrorIs(t, err, errInvalidDepth, "GetLevel3OrderBook must reject an undocumented depth")
 	_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: spotTestPair, Depth: 10, FullBook: true})
@@ -325,6 +329,10 @@ func TestGetGroupedOrderBook(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetGroupedOrderBook must reject a nil request")
 	_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetGroupedOrderBook must reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: pair})
+		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetGroupedOrderBook must reject %q, which lacks a base or a quote", pair)
+	}
 	_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: spotTestPair, Depth: 11})
 	require.ErrorIs(t, err, errInvalidDepth, "GetGroupedOrderBook must reject an undocumented depth")
 	_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: spotTestPair, Grouping: 2})
@@ -509,6 +517,10 @@ func TestSpotPairParams(t *testing.T) {
 	t.Parallel()
 	_, err := e.spotPairParams(currency.EMPTYPAIR, "", false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "spotPairParams should reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.spotPairParams(pair, "", false)
+		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "spotPairParams should reject %q, which lacks a base or a quote", pair)
+	}
 	params, err := e.spotPairParams(spotTestPair, "", false)
 	require.NoError(t, err, "spotPairParams must not error")
 	assert.Equal(t, url.Values{"pair": {"XBTUSD"}}, params, "spotPairParams should set the pair")
@@ -521,6 +533,10 @@ func TestFormatSpotPairs(t *testing.T) {
 	t.Parallel()
 	_, err := e.formatSpotPairs(currency.Pairs{spotTestPair, currency.EMPTYPAIR})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "formatSpotPairs should reject an empty pair")
+	for _, pair := range partialTestPairs {
+		_, err = e.formatSpotPairs(currency.Pairs{spotTestPair, pair})
+		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "formatSpotPairs should reject %q, which lacks a base or a quote", pair)
+	}
 	symbols, err := e.formatSpotPairs(currency.Pairs{spotTestPair, currency.NewPairWithDelimiter("ETH", "XBT", currency.UnderscoreDelimiter)})
 	require.NoError(t, err, "formatSpotPairs must not error")
 	assert.Equal(t, "XBTUSD,ETHXBT", symbols, "formatSpotPairs should join the pairs' alternative names")
