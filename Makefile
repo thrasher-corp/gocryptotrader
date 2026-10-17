@@ -35,7 +35,7 @@ misc_checks:
 assertion_checks:
 	go test ./cmd/assertioncheck -count=1
 	bash ./scripts/assertion_checks.sh
-	bash ./scripts/assertion_checks.sh -tags udecimal_on
+	bash ./scripts/assertion_checks.sh -tags udecimal_on ./...
 
 .PHONY: mutation_math
 mutation_math:

@@ -89,10 +89,11 @@ func newNTPSurvey(names []string) (*ntpSurvey, error) {
 		if err != nil {
 			return nil, err
 		}
-		key := net.JoinHostPort(host, port)
+		// Rooted names retain final dot for lookup to bypass Go's DNS search suffixes: https://github.com/golang/go/blob/8af21751f066eced273ca3ce49506b366847c623/src/net/dnsclient_unix.go#L534-L539
+		key := net.JoinHostPort(strings.TrimSuffix(host, "."), port)
 		if ip, err := netip.ParseAddr(host); err == nil {
 			// Different spellings of one server must not get several votes.
-			// Compare servers by IP alone, as chrony does, which stores no zone: https://github.com/mlichvar/chrony/blob/8df4f1263e206585e6c4e61352d042c2dd12916a/ntp_sources.c#L374-L379
+			// Compare IP literals without their zone, as chrony does, which stores none: https://github.com/mlichvar/chrony/blob/8df4f1263e206585e6c4e61352d042c2dd12916a/ntp_sources.c#L374-L379
 			key = net.JoinHostPort(ip.WithZone("").String(), port)
 		}
 		if !seen[key] {
@@ -140,10 +141,10 @@ func parseNTPSource(name string) (host, port string, err error) {
 	} else if strings.Contains(host, ":") {
 		return "", "", fmt.Errorf("%w %q: %w", errNTPSource, name, ipErr)
 	} else {
-		host = strings.TrimSuffix(strings.ToLower(host), ".")
+		host = strings.ToLower(host)
 	}
 	number, err := strconv.ParseUint(port, 10, 16)
-	if host == "" || err != nil || number == 0 {
+	if host == "" || host == "." || err != nil || number == 0 {
 		return "", "", fmt.Errorf("%w %q", errNTPSource, name)
 	}
 	return host, strconv.FormatUint(number, 10), nil

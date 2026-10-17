@@ -21,13 +21,52 @@ func TestNTPSourceNormalisation(t *testing.T) {
 	survey, err := newNTPSurvey([]string{" NTP.EXAMPLE.:00123 ", "ntp.example", "[::ffff:192.0.2.1]:123", "192.0.2.1", "[2001:db8::1]:124"})
 	require.NoError(t, err, "valid sources must parse")
 	require.Len(t, survey.sources, 3, "equivalent configured entries must collapse before fixing the denominator")
-	assert.Equal(t, "ntp.example", survey.sources[0].host, "DNS name should be normalised")
+	assert.Equal(t, "ntp.example.", survey.sources[0].host, "DNS name should keep its root marker")
 	assert.Equal(t, "123", survey.sources[0].port, "port should be canonical")
 	assert.Equal(t, "192.0.2.1", survey.sources[1].host, "mapped IPv4 should be normalised")
 	assert.Equal(t, "124", survey.sources[2].port, "explicit alternate port should be preserved")
-	for _, name := range []string{"", ":123", "host:0", "host:65536", "host:ntp", "[::1]:"} {
+	for _, name := range []string{"", ":123", ".", ".:123", "host:0", "host:65536", "host:ntp", "[::1]:"} {
 		_, err := newNTPSurvey([]string{name})
 		assert.ErrorIsf(t, err, errNTPSource, "%q should be rejected", name)
+	}
+}
+
+func TestNTPSurveyDNSNameResolution(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		sources []string
+		host    string
+		address string
+	}{
+		{"rooted", []string{"ntp.example."}, "ntp.example.", "192.0.2.1:123"},
+		{"mixed case", []string{"NTP.EXAMPLE."}, "ntp.example.", "192.0.2.1:123"},
+		{"explicit port", []string{"NTP.EXAMPLE.:00124"}, "ntp.example.", "192.0.2.1:124"},
+		{"rooted first", []string{" NTP.EXAMPLE.:00123 ", "ntp.example"}, "ntp.example.", "192.0.2.1:123"},
+		{"unrooted first", []string{" NTP.EXAMPLE:00123 ", "ntp.example."}, "ntp.example", "192.0.2.1:123"},
+		{"unrooted", []string{"ntp.example"}, "ntp.example", "192.0.2.1:123"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			survey, err := newNTPSurvey(tc.sources)
+			require.NoError(t, err, "DNS sources must parse")
+			var resolved, queried []string
+			survey.resolve = func(_ context.Context, network, host string) ([]netip.Addr, error) {
+				assert.Equal(t, "ip", network, "lookup should allow both address families")
+				resolved = append(resolved, host)
+				return []netip.Addr{netip.MustParseAddr("192.0.2.1")}, nil
+			}
+			survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+				queried = append(queried, address)
+				return &ntp.Response{RootDistance: time.Millisecond}, nil
+			}
+			result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+			assert.Equal(t, []string{tc.host}, resolved, "resolver should receive the first configured DNS spelling with its root marker preserved")
+			assert.Equal(t, []string{tc.address}, queried, "query should use the resolved address and configured port")
+			assert.Equal(t, 1, result.configured, "equivalent names should count as one configured source")
+			assert.Equal(t, 1, result.usable, "the resolved server should provide one usable measurement")
+			assert.Equal(t, ntpHealthy, result.state, "the resolved server should verify a correct clock")
+		})
 	}
 }
 
@@ -44,7 +83,7 @@ func TestNTPSourceZoneNormalisation(t *testing.T) {
 			require.NoError(t, err, "zone spellings must parse")
 			require.Len(t, survey.sources, 1, "zone spellings of one IP on one port must collapse")
 			assert.Equal(t, names[0]+":123", net.JoinHostPort(survey.sources[0].host, survey.sources[0].port), "the first configured spelling should be kept")
-			assert.Equal(t, "["+survey.sources[0].addresses[0].String()+"]", names[0], "the cached literal should keep its configured zone")
+			assert.Equal(t, names[0], "["+survey.sources[0].addresses[0].String()+"]", "the cached literal should keep its configured zone")
 		})
 	}
 }
@@ -92,6 +131,13 @@ func TestNTPSurveyScopedAddressesShareRate(t *testing.T) {
 	assert.Zero(t, second.usable, "RATE backoff should provide no votes")
 	assert.Equal(t, ntpRateLimited, second.failures, "both entries should share the RATE restriction")
 	assert.ErrorIs(t, second.diagnostics, errNTPSourceBackoff, "shared backoff should explain the missing queries")
+	queried = nil
+	survey.observe(t.Context(), 30*time.Minute, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Len(t, queried, 1, "the shared address should be queried once when its backoff ends")
+	queried = nil
+	third := survey.observe(t.Context(), time.Hour, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Empty(t, queried, "a second RATE should lengthen the backoff shared by both zone spellings")
+	assert.Equal(t, ntpRateLimited, third.failures, "both entries should still share the longer RATE restriction")
 }
 
 func TestNTPSurveyDuplicateAddresses(t *testing.T) {
