@@ -3051,14 +3051,14 @@ func replyToPost(response string) func([]byte) []string {
 	}
 }
 
-func TestWebsocketPostInfo(t *testing.T) {
+func TestWebsocketAPIPostInfo(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.WebsocketPostInfo(t.Context(), nil, new(L2BookResponse)), common.ErrNilPointer, "WebsocketPostInfo should require a payload")
-	assert.ErrorIs(t, e.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, nil), common.ErrNilPointer, "WebsocketPostInfo should require a result")
+	assert.ErrorIs(t, e.WebsocketAPI().PostInfo(t.Context(), nil, new(L2BookResponse)), common.ErrNilPointer, "WebsocketAPI.PostInfo should require a payload")
+	assert.ErrorIs(t, e.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, nil), common.ErrNilPointer, "WebsocketAPI.PostInfo should require a result")
 
 	venue, requests := newVenueWebsocketTestExchange(t)
 	var book *L2BookResponse
-	require.NoError(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH", NumberOfSignificantFigures: 5}, &book), "WebsocketPostInfo must not error")
+	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH", NumberOfSignificantFigures: 5}, &book), "WebsocketAPI.PostInfo must not error")
 	if mockTests {
 		exp := &L2BookResponse{
 			Coin:   "ETH",
@@ -3066,103 +3066,103 @@ func TestWebsocketPostInfo(t *testing.T) {
 			Levels: [][]L2Level{{{Price: 2702.5, Size: 138.1974, NumberOfOrders: 17}}, {{Price: 2702.6, Size: 84.4867, NumberOfOrders: 17}}},
 			Spread: 0.1,
 		}
-		assert.Equal(t, exp, book, "WebsocketPostInfo should decode the info response")
-		assert.Equal(t, []string{`{"method":"post","id":1,"request":{"type":"info","payload":{"type":"l2Book","coin":"ETH","nSigFigs":5}}}`}, requests.received(), "WebsocketPostInfo should post the info request")
+		assert.Equal(t, exp, book, "WebsocketAPI.PostInfo should decode the info response")
+		assert.Equal(t, []string{`{"method":"post","id":1,"request":{"type":"info","payload":{"type":"l2Book","coin":"ETH","nSigFigs":5}}}`}, requests.received(), "WebsocketAPI.PostInfo should post the info request")
 	} else {
-		require.NotNil(t, book, "WebsocketPostInfo must return the ETH book")
-		require.Len(t, book.Levels, 2, "WebsocketPostInfo must return both sides of the ETH book")
-		assert.NotEmpty(t, book.Levels[0], "WebsocketPostInfo should return the ETH bids")
-		assert.NotEmpty(t, book.Levels[1], "WebsocketPostInfo should return the ETH asks")
-		assert.Positive(t, book.Spread.Float64(), "WebsocketPostInfo should return the aggregated book's spread")
+		require.NotNil(t, book, "WebsocketAPI.PostInfo must return the ETH book")
+		require.Len(t, book.Levels, 2, "WebsocketAPI.PostInfo must return both sides of the ETH book")
+		assert.NotEmpty(t, book.Levels[0], "WebsocketAPI.PostInfo should return the ETH bids")
+		assert.NotEmpty(t, book.Levels[1], "WebsocketAPI.PostInfo should return the ETH asks")
+		assert.Positive(t, book.Spread.Float64(), "WebsocketAPI.PostInfo should return the aggregated book's spread")
 	}
 	book = nil
-	require.NoError(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book), "WebsocketPostInfo must not error for an unknown coin")
-	assert.Nil(t, book, "WebsocketPostInfo should leave the result unset for an unknown coin")
-	assert.ErrorIs(t, venue.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "BTC", NumberOfSignificantFigures: 7}, &book), errWebsocketPost, "WebsocketPostInfo should return a rejected request's error")
+	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book), "WebsocketAPI.PostInfo must not error for an unknown coin")
+	assert.Nil(t, book, "WebsocketAPI.PostInfo should leave the result unset for an unknown coin")
+	assert.ErrorIs(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "BTC", NumberOfSignificantFigures: 7}, &book), errWebsocketPost, "WebsocketAPI.PostInfo should return a rejected request's error")
 
 	// The venue sends only well-formed info payloads, so a fixture connection supplies malformed ones
 	ex := newWebsocketTestExchange(t)
 	connection := websocketFixture(t, ex.Websocket.Conn)
 	connection.reply = replyToPost(`{"type":"info","payload":"invalid"}`)
-	assert.ErrorContains(t, ex.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WebsocketPostInfo should reject an invalid info payload")
+	assert.ErrorContains(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WebsocketAPI.PostInfo should reject an invalid info payload")
 	connection.reply = replyToPost(`{"type":"info","payload":{"type":"l2Book","data":"invalid"}}`)
-	assert.ErrorContains(t, ex.WebsocketPostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding l2Book info response", "WebsocketPostInfo should reject a response that does not fit the result")
+	assert.ErrorContains(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding l2Book info response", "WebsocketAPI.PostInfo should reject a response that does not fit the result")
 }
 
-func TestWebsocketPlaceOrders(t *testing.T) {
+func TestWebsocketAPIPlaceOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketPlaceOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOrders should reject a nil request")
-	_, err = e.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WebsocketPlaceOrders should require an order")
-	_, err = e.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 1}}})
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "WebsocketPlaceOrders should reject an invalid order")
+	_, err := e.WebsocketAPI().PlaceOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.PlaceOrders should reject a nil request")
+	_, err = e.WebsocketAPI().PlaceOrders(t.Context(), &PlaceOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketAPI.PlaceOrders should require an order")
+	_, err = e.WebsocketAPI().PlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 1}}})
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "WebsocketAPI.PlaceOrders should reject an invalid order")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed := websocketTestOrder(t)
-	statuses, err := ex.WebsocketPlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{placed}})
-	require.NoError(t, err, "WebsocketPlaceOrders must not error")
-	require.Len(t, statuses, 1, "WebsocketPlaceOrders must return the order's status")
+	statuses, err := ex.WebsocketAPI().PlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{placed}})
+	require.NoError(t, err, "WebsocketAPI.PlaceOrders must not error")
+	require.Len(t, statuses, 1, "WebsocketAPI.PlaceOrders must return the order's status")
 	require.NotNil(t, statuses[0].Resting, "the order must rest")
-	assert.Equal(t, placed.ClientOrderID, statuses[0].Resting.ClientOrderID, "WebsocketPlaceOrders should return the order's client order ID")
+	assert.Equal(t, placed.ClientOrderID, statuses[0].Resting.ClientOrderID, "WebsocketAPI.PlaceOrders should return the order's client order ID")
 	if mockTests {
-		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: testOrderID, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketPlaceOrders should return the fixture status")
+		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: testOrderID, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketAPI.PlaceOrders should return the fixture status")
 		assertWebsocketActionPost(t, venue.received(), `{"type":"order","orders":[{"a":0,"b":true,"p":"85000","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}],"grouping":"na"}`)
 	}
 }
 
-func TestWebsocketCancelOrders(t *testing.T) {
+func TestWebsocketAPICancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketCancelOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOrders should reject a nil request")
-	_, err = e.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WebsocketCancelOrders should require a cancel")
-	_, err = e.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 1}}})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketCancelOrders should require an order ID")
+	_, err := e.WebsocketAPI().CancelOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.CancelOrders should reject a nil request")
+	_, err = e.WebsocketAPI().CancelOrders(t.Context(), &CancelOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketAPI.CancelOrders should require a cancel")
+	_, err = e.WebsocketAPI().CancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 1}}})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketAPI.CancelOrders should require an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed, orderID := websocketTestRestingOrder(t)
-	statuses, err := ex.WebsocketCancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: placed.Asset, OrderID: orderID}}})
-	require.NoError(t, err, "WebsocketCancelOrders must not error")
-	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketCancelOrders should cancel the order")
+	statuses, err := ex.WebsocketAPI().CancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: placed.Asset, OrderID: orderID}}})
+	require.NoError(t, err, "WebsocketAPI.CancelOrders must not error")
+	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketAPI.CancelOrders should cancel the order")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"cancel","cancels":[{"a":0,"o":`+strconv.FormatUint(testOrderID, 10)+`}]}`)
 	}
 }
 
-func TestWebsocketCancelOrdersByClientOrderID(t *testing.T) {
+func TestWebsocketAPICancelOrdersByClientOrderID(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketCancelOrdersByClientOrderID(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOrdersByClientOrderID should reject a nil request")
-	_, err = e.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WebsocketCancelOrdersByClientOrderID should require a cancel")
-	_, err = e.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: "0x1"}}})
-	assert.ErrorIs(t, err, errClientOrderIDInvalid, "WebsocketCancelOrdersByClientOrderID should reject an invalid client order ID")
+	_, err := e.WebsocketAPI().CancelOrdersByClientOrderID(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.CancelOrdersByClientOrderID should reject a nil request")
+	_, err = e.WebsocketAPI().CancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketAPI.CancelOrdersByClientOrderID should require a cancel")
+	_, err = e.WebsocketAPI().CancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: "0x1"}}})
+	assert.ErrorIs(t, err, errClientOrderIDInvalid, "WebsocketAPI.CancelOrdersByClientOrderID should reject an invalid client order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	ex, venue := newVenueWebsocketTestExchange(t)
 	placed, _ := websocketTestRestingOrder(t)
-	statuses, err := ex.WebsocketCancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: placed.Asset, ClientOrderID: placed.ClientOrderID}}})
-	require.NoError(t, err, "WebsocketCancelOrdersByClientOrderID must not error")
-	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketCancelOrdersByClientOrderID should cancel the order")
+	statuses, err := ex.WebsocketAPI().CancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: placed.Asset, ClientOrderID: placed.ClientOrderID}}})
+	require.NoError(t, err, "WebsocketAPI.CancelOrdersByClientOrderID must not error")
+	assert.Equal(t, []CancelActionStatus{{}}, statuses, "WebsocketAPI.CancelOrdersByClientOrderID should cancel the order")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"cancelByCloid","cancels":[{"asset":0,"cloid":"`+testClientOrderID+`"}]}`)
 	}
 }
 
-func TestWebsocketModifySingleOrder(t *testing.T) {
+func TestWebsocketAPIModifySingleOrder(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), nil), common.ErrNilPointer, "WebsocketModifySingleOrder should reject a nil request")
-	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{}), order.ErrOrderIDNotSet, "WebsocketModifySingleOrder should require an order identifier")
-	assert.ErrorIs(t, e.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 1, Size: 1}}), errOrderTypeRequired, "WebsocketModifySingleOrder should reject an invalid replacement")
+	assert.ErrorIs(t, e.WebsocketAPI().ModifySingleOrder(t.Context(), nil), common.ErrNilPointer, "WebsocketAPI.ModifySingleOrder should reject a nil request")
+	assert.ErrorIs(t, e.WebsocketAPI().ModifySingleOrder(t.Context(), &ModifyOrderRequest{}), order.ErrOrderIDNotSet, "WebsocketAPI.ModifySingleOrder should require an order identifier")
+	assert.ErrorIs(t, e.WebsocketAPI().ModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 1, Size: 1}}), errOrderTypeRequired, "WebsocketAPI.ModifySingleOrder should reject an invalid replacement")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3174,20 +3174,20 @@ func TestWebsocketModifySingleOrder(t *testing.T) {
 	if !mockTests {
 		replacement.Price = math.Round(placed.Price * 0.99)
 	}
-	require.NoError(t, ex.WebsocketModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: orderID, Order: replacement}), "WebsocketModifySingleOrder must not error")
+	require.NoError(t, ex.WebsocketAPI().ModifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: orderID, Order: replacement}), "WebsocketAPI.ModifySingleOrder must not error")
 	if mockTests {
 		assertWebsocketActionPost(t, venue.received(), `{"type":"modify","oid":`+strconv.FormatUint(testOrderID, 10)+`,"order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}}`)
 	}
 }
 
-func TestWebsocketModifyOrders(t *testing.T) {
+func TestWebsocketAPIModifyOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketModifyOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketModifyOrders should reject a nil request")
-	_, err = e.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{})
-	assert.ErrorIs(t, err, errNoActionItems, "WebsocketModifyOrders should require a replacement")
-	_, err = e.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, ClientOrderID: testClientOrderID}}})
-	assert.ErrorIs(t, err, errOrderIdentifiersConflict, "WebsocketModifyOrders should reject both order identifiers")
+	_, err := e.WebsocketAPI().ModifyOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.ModifyOrders should reject a nil request")
+	_, err = e.WebsocketAPI().ModifyOrders(t.Context(), &ModifyOrdersRequest{})
+	assert.ErrorIs(t, err, errNoActionItems, "WebsocketAPI.ModifyOrders should require a replacement")
+	_, err = e.WebsocketAPI().ModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, ClientOrderID: testClientOrderID}}})
+	assert.ErrorIs(t, err, errOrderIdentifiersConflict, "WebsocketAPI.ModifyOrders should reject both order identifiers")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3199,12 +3199,12 @@ func TestWebsocketModifyOrders(t *testing.T) {
 	if !mockTests {
 		replacement.Price = math.Round(placed.Price * 0.98)
 	}
-	statuses, err := ex.WebsocketModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: orderID, Order: replacement}}})
-	require.NoError(t, err, "WebsocketModifyOrders must not error")
-	require.Len(t, statuses, 1, "WebsocketModifyOrders must return the replacement's status")
+	statuses, err := ex.WebsocketAPI().ModifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: orderID, Order: replacement}}})
+	require.NoError(t, err, "WebsocketAPI.ModifyOrders must not error")
+	require.Len(t, statuses, 1, "WebsocketAPI.ModifyOrders must return the replacement's status")
 	require.NotNil(t, statuses[0].Resting, "the replacement must rest")
 	if mockTests {
-		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 566563303537, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketModifyOrders should return the fixture status")
+		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 566563303537, ClientOrderID: testClientOrderID}}}, statuses, "WebsocketAPI.ModifyOrders should return the fixture status")
 		assertWebsocketActionPost(t, venue.received(), `{"type":"batchModify","modifies":[{"oid":`+strconv.FormatUint(testOrderID, 10)+`,"order":{"a":0,"b":true,"p":"84000","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}},"c":"`+testClientOrderID+`"}}]}`)
 	}
 }

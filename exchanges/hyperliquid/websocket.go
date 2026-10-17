@@ -1275,13 +1275,24 @@ func (e *Exchange) wsHandleFastAssetContexts(ctx context.Context, raw []byte) er
 	return e.Websocket.DataHandler.Send(ctx, contexts)
 }
 
-// WebsocketPostInfo sends an info request body, such as an InfoRequest, over the public websocket connection and
-// decodes the info endpoint's response into result
-func (e *Exchange) WebsocketPostInfo(ctx context.Context, payload, result any) error {
+// WebsocketAPI posts Hyperliquid's info requests and signed actions over the websocket connection rather than REST; an
+// action with a REST form takes that form's name and arguments
+type WebsocketAPI struct {
+	e *Exchange
+}
+
+// WebsocketAPI returns the info requests and signed actions posted over the websocket connection
+func (e *Exchange) WebsocketAPI() WebsocketAPI {
+	return WebsocketAPI{e: e}
+}
+
+// PostInfo sends an info request body, such as an InfoRequest, over the public websocket connection and decodes the
+// info endpoint's response into result
+func (w WebsocketAPI) PostInfo(ctx context.Context, payload, result any) error {
 	if payload == nil || result == nil {
 		return common.ErrNilPointer
 	}
-	response, err := e.sendWebsocketPost(ctx, wsPostTypeInfo, payload)
+	response, err := w.e.sendWebsocketPost(ctx, wsPostTypeInfo, payload)
 	if err != nil {
 		return err
 	}
@@ -1295,31 +1306,32 @@ func (e *Exchange) WebsocketPostInfo(ctx context.Context, payload, result any) e
 	return nil
 }
 
-// WebsocketPlaceOrders places a batch of orders as PlaceOrders does, posting the order action over the websocket
-func (e *Exchange) WebsocketPlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
-	return e.placeOrders(ctx, arg, true)
+// PlaceOrders places a batch of orders as Exchange.PlaceOrders does, posting the order action over the websocket
+func (w WebsocketAPI) PlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
+	return w.e.placeOrders(ctx, arg, true)
 }
 
-// WebsocketCancelOrders cancels a batch of orders by order ID as CancelOrders does, posting the cancel action over the websocket
-func (e *Exchange) WebsocketCancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
-	return e.cancelOrders(ctx, arg, true)
-}
-
-// WebsocketCancelOrdersByClientOrderID cancels a batch of orders by client order ID as CancelOrdersByClientOrderID
-// does, posting the cancel action over the websocket
-func (e *Exchange) WebsocketCancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
-	return e.cancelOrdersByClientOrderID(ctx, arg, true)
-}
-
-// WebsocketModifySingleOrder replaces one order as ModifySingleOrder does, posting the modify action over the websocket
-func (e *Exchange) WebsocketModifySingleOrder(ctx context.Context, arg *ModifyOrderRequest) error {
-	return e.modifySingleOrder(ctx, arg, true)
-}
-
-// WebsocketModifyOrders replaces a batch of orders as ModifyOrders does, posting the batch modify action over the
+// CancelOrders cancels a batch of orders by order ID as Exchange.CancelOrders does, posting the cancel action over the
 // websocket
-func (e *Exchange) WebsocketModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
-	return e.modifyOrders(ctx, arg, true)
+func (w WebsocketAPI) CancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
+	return w.e.cancelOrders(ctx, arg, true)
+}
+
+// CancelOrdersByClientOrderID cancels a batch of orders by client order ID as Exchange.CancelOrdersByClientOrderID
+// does, posting the cancel action over the websocket
+func (w WebsocketAPI) CancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
+	return w.e.cancelOrdersByClientOrderID(ctx, arg, true)
+}
+
+// ModifySingleOrder replaces one order as Exchange.ModifySingleOrder does, posting the modify action over the websocket
+func (w WebsocketAPI) ModifySingleOrder(ctx context.Context, arg *ModifyOrderRequest) error {
+	return w.e.modifySingleOrder(ctx, arg, true)
+}
+
+// ModifyOrders replaces a batch of orders as Exchange.ModifyOrders does, posting the batch modify action over the
+// websocket
+func (w WebsocketAPI) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
+	return w.e.modifyOrders(ctx, arg, true)
 }
 
 // sendWebsocketAction posts a signed action over the public websocket connection and unwraps its status envelope

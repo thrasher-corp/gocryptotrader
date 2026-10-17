@@ -134,9 +134,9 @@ with `aggregateByTime` go only to the fills feed, as each combines an order's fi
 trade IDs. Orders are remembered for a day after their last row or fill, 10000 at most, and outcome (HIP-4) orders and
 fills are skipped.
 
-`WebsocketPostInfo` sends an info request, and `WebsocketPlaceOrders`, `WebsocketCancelOrders`,
-`WebsocketCancelOrdersByClientOrderID`, `WebsocketModifySingleOrder` and `WebsocketModifyOrders` send the same signed
-actions as their namesakes without the `Websocket` prefix, over the websocket instead of REST.
+`WebsocketAPI()` posts over the websocket instead of REST: its `PostInfo` sends an info request, and its `PlaceOrders`,
+`CancelOrders`, `CancelOrdersByClientOrderID`, `ModifySingleOrder` and `ModifyOrders` send the same signed actions as
+the exchange's methods of the same names.
 
 ### Withdrawals
 
@@ -214,7 +214,7 @@ Feeds are subscribed as the Websocket section describes. Orders, cancels and mod
 websocket:
 
 ```go
-statuses, err := hl.WebsocketPlaceOrders(ctx, &hyperliquid.PlaceOrdersRequest{
+statuses, err := hl.WebsocketAPI().PlaceOrders(ctx, &hyperliquid.PlaceOrdersRequest{
 	Orders: []hyperliquid.OrderRequest{
 		{
 			Asset: 0, // BTC perpetual on mainnet
