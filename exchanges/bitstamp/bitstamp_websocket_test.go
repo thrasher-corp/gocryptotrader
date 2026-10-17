@@ -142,23 +142,23 @@ func waitForReadLoop(t *testing.T, ex *Exchange) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	ex.SetEnabled(false)
-	assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "WsConnect should error when the exchange is disabled")
+	assert.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should error when the exchange is disabled")
 
 	ex = newWebsocketTestInstance(t)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(newWebsocketServer(t, `{"event":"bts:heartbeat","channel":"","data":{"status":"success"}}`, `{"channel":"live_trades_btcusd"}`)), "SetAllConnectionURLs must not error")
-	require.NoError(t, ex.WsConnect(), "WsConnect must not error")
-	assert.ErrorIs(t, receiveError(t, ex), common.ErrParsingWSField, "WsConnect should start reading messages")
+	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error")
+	assert.ErrorIs(t, receiveError(t, ex), common.ErrParsingWSField, "WebsocketConnect should start reading messages")
 
 	require.NoError(t, ex.Websocket.Conn.Shutdown(), "Shutdown must not error")
 	close(ex.Websocket.ShutdownC) // Stops the heartbeat
 	waitForReadLoop(t, ex)
 }
 
-func TestWsReadData(t *testing.T) {
+func TestWebsocketReadData(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(newWebsocketServer(t, `{"channel":"live_trades_btcusd"}`)), "SetAllConnectionURLs must not error")
@@ -171,7 +171,7 @@ func TestWsReadData(t *testing.T) {
 	waitForReadLoop(t, ex)
 }
 
-func TestWsHandleDataErrors(t *testing.T) {
+func TestWebsocketHandleDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	for _, tc := range []struct {
@@ -202,7 +202,7 @@ func TestWsHandleDataErrors(t *testing.T) {
 	}
 }
 
-func TestWsHandleDataIgnoredEvents(t *testing.T) {
+func TestWebsocketHandleDataIgnoredEvents(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	for _, msg := range []string{
@@ -213,7 +213,7 @@ func TestWsHandleDataIgnoredEvents(t *testing.T) {
 	assert.Empty(t, dataHandlerPayloads(ex), "heartbeats should not be sent to the data handler")
 }
 
-func TestWsHandleDataUnhandled(t *testing.T) {
+func TestWebsocketHandleDataUnhandled(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	for _, msg := range []string{
@@ -230,7 +230,7 @@ func TestWsHandleDataUnhandled(t *testing.T) {
 	}
 }
 
-func TestWsHandleDataRouting(t *testing.T) {
+func TestWebsocketHandleDataRouting(t *testing.T) {
 	t.Parallel()
 	ex := newFeedTestInstance(t)
 	for _, msg := range []string{
@@ -304,14 +304,14 @@ func TestWsHandleDataRouting(t *testing.T) {
 	assert.Equal(t, 0.4, d.RemainingAmount, "order trades should update the remaining amount")
 }
 
-func TestWsRequestReconnect(t *testing.T) {
+func TestWebsocketRequestReconnect(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	err := ex.wsHandleData(t.Context(), []byte(`{"event":"bts:request_reconnect","channel":"","data":null}`))
 	assert.NoError(t, err, "wsHandleData should not error on a reconnection request")
 }
 
-func TestHandleWSSubscription(t *testing.T) {
+func TestHandleWebsocketSubscription(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	for event, signature := range map[string]string{"bts:subscription_succeeded": "sub:live_trades_btcusd", "bts:unsubscription_succeeded": "unsub:live_trades_btcusd"} {
@@ -327,7 +327,7 @@ func TestHandleWSSubscription(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrParsingWSField, "handleWSSubscription should error without a channel")
 }
 
-func TestHandleWSError(t *testing.T) {
+func TestHandleWebsocketError(t *testing.T) {
 	t.Parallel()
 	err := handleWSError([]byte(`{"event":"bts:error","channel":"","data":{"code":4009,"message":"Connection is unauthorized."}}`))
 	assert.ErrorIs(t, err, errWebsocketError, "handleWSError should return a websocket error")
@@ -344,7 +344,7 @@ func TestHandleWSError(t *testing.T) {
 	assert.Error(t, err, "handleWSError should error on malformed data")
 }
 
-func TestHandleWSOrderbook(t *testing.T) {
+func TestHandleWebsocketOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSOrderbook(t.Context(), []byte(`{"bids":"wibble"}`), wsSpotPair, asset.Spot), "handleWSOrderbook should error on malformed data")
@@ -387,7 +387,7 @@ func TestHandleWSOrderbook(t *testing.T) {
 	}
 }
 
-func TestHandleWSTrade(t *testing.T) {
+func TestHandleWebsocketTrade(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"microtimestamp":"1580336751488517","amount":0.00598803,"buy_order_id":4621328909,"sell_order_id":4621329035,"amount_str":"0.00598803","price_str":"9334.73","timestamp":"1580336751","price":9334.73,"type":1,"id":104007706}`)
 	ex := newWebsocketTestInstance(t)
@@ -411,7 +411,7 @@ func TestHandleWSTrade(t *testing.T) {
 	}}}, dataHandlerPayloads(ex), "trades should be sent to the data handler")
 }
 
-func TestHandleWSFundingRate(t *testing.T) {
+func TestHandleWebsocketFundingRate(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSFundingRate(t.Context(), []byte(`{"funding_rate":[]}`), wsPerpetualPair, asset.PerpetualContract), "handleWSFundingRate should error on malformed data")
@@ -438,7 +438,7 @@ func TestHandleWSFundingRate(t *testing.T) {
 	}, dataHandlerPayloads(ex), "funding rates and updates should be sent to the data handler")
 }
 
-func TestWsOrderUpdate(t *testing.T) {
+func TestWebsocketOrderUpdate(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", ex.wsHandleData)
@@ -664,7 +664,7 @@ func orderEventFrame(eventID, preEventID string, orderID uint64) []byte {
 	return fmt.Appendf(nil, `{"event":"order_changed","channel":"private-my_orders_btcusd-123456","event_id":%q,"pre_event_id":%s,"order_source":"orderbook","data":{"id":%d,"amount_str":"0.5","amount_at_create":"1","price_str":"61200","order_type":0,"microtimestamp":"1712131200000000"}}`, eventID, pre, orderID)
 }
 
-func TestHandleWSAccountOrderGapRecovery(t *testing.T) {
+func TestHandleWebsocketAccountOrderGapRecovery(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var requests []url.Values
@@ -799,7 +799,7 @@ func newOrderEventsTestExchange(t *testing.T, fail func(sinceID string) bool, wi
 	}
 }
 
-func TestHandleWSAccountOrderRefusedEvents(t *testing.T) {
+func TestHandleWebsocketAccountOrderRefusedEvents(t *testing.T) {
 	t.Parallel()
 	t.Run("later event", func(t *testing.T) {
 		t.Parallel()
@@ -855,7 +855,7 @@ func TestHandleWSAccountOrderRefusedEvents(t *testing.T) {
 	})
 }
 
-func TestHandleWSAccountOrderWithoutOrderID(t *testing.T) {
+func TestHandleWebsocketAccountOrderWithoutOrderID(t *testing.T) {
 	t.Parallel()
 	ex, sinceIDs := newOrderEventsTestExchange(t, nil, 3)
 	assert.ErrorIs(t, ex.wsHandleData(t.Context(), orderEventFrame("event-1", "event-0", 0)), errOrderIDMissing, "an event without an order ID should error")
@@ -873,7 +873,7 @@ func TestHandleWSAccountOrderWithoutOrderID(t *testing.T) {
 	assert.Equal(t, []string{"event-2"}, sinceIDs(), "recovery should only be requested for the gap")
 }
 
-func TestHandleWSAccountOrderRepeatedEvent(t *testing.T) {
+func TestHandleWebsocketAccountOrderRepeatedEvent(t *testing.T) {
 	t.Parallel()
 	t.Run("relayed event", func(t *testing.T) {
 		t.Parallel()
@@ -899,7 +899,7 @@ func TestHandleWSAccountOrderRepeatedEvent(t *testing.T) {
 	})
 }
 
-func TestHandleWSAccountOrderRecoveryPageFailure(t *testing.T) {
+func TestHandleWebsocketAccountOrderRecoveryPageFailure(t *testing.T) {
 	t.Parallel()
 	var failed atomic.Bool
 	ex, sinceIDs := newOrderEventsTestExchange(t, func(sinceID string) bool {
@@ -921,7 +921,7 @@ func TestHandleWSAccountOrderRecoveryPageFailure(t *testing.T) {
 	assert.Equal(t, []string{"event-1", "event-1000", "event-1000"}, sinceIDs(), "recovery should resume from the last relayed event")
 }
 
-func TestHandleWSAccountOrderRecoveryGiveUp(t *testing.T) {
+func TestHandleWebsocketAccountOrderRecoveryGiveUp(t *testing.T) {
 	t.Parallel()
 	frame := func(id uint64) []byte {
 		return orderEventFrame("event-"+strconv.FormatUint(id, 10), "event-"+strconv.FormatUint(id-1, 10), id)
@@ -975,7 +975,7 @@ func TestHandleWSAccountOrderRecoveryGiveUp(t *testing.T) {
 	})
 }
 
-func TestHandleWSAccountOrderStaleEvent(t *testing.T) {
+func TestHandleWebsocketAccountOrderStaleEvent(t *testing.T) {
 	t.Parallel()
 	var failing atomic.Bool
 	ex, sinceIDs := newOrderEventsTestExchange(t, func(string) bool { return failing.Load() })
@@ -1050,7 +1050,7 @@ func TestIsOrderEventRetryable(t *testing.T) {
 	assert.True(t, isOrderEventRetryable(fullDataHandler(t).Send(t.Context(), nil)), "an event the data handler refused should be retried")
 }
 
-func TestHandleWSAccountOrderRestart(t *testing.T) {
+func TestHandleWebsocketAccountOrderRestart(t *testing.T) {
 	t.Parallel()
 	var recovered []url.Values
 	var mu sync.Mutex
@@ -1105,7 +1105,7 @@ func TestOrderTypeFromSubtypeID(t *testing.T) {
 	}
 }
 
-func TestHandleWSMyTrade(t *testing.T) {
+func TestHandleWebsocketMyTrade(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"id":296050733,"id_str":"296050733","trade_uti":"BSTP-20240403-296050733","order_id":1500000001,"client_order_id":"my-order-001","amount":0.1,"price":61200.00,"fee":"0.01","side":"buy","microtimestamp":"1712131200500000","trade_account_id":0,"position_id":null,"is_liquidation":null,"trade_type":"ORDERBOOK"}`)
 	expOrder := &order.Detail{
@@ -1166,7 +1166,7 @@ func TestHandleWSMyTrade(t *testing.T) {
 	}, dataHandlerPayloads(ex), "fills and order updates should be sent to the data handler, and executions without IDs only as fills")
 }
 
-func TestHandleWSDetailOrderbook(t *testing.T) {
+func TestHandleWebsocketDetailOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSDetailOrderbook(t.Context(), []byte(`{"bids":"wibble"}`), wsSpotPair, asset.Spot), "handleWSDetailOrderbook should error on malformed data")
@@ -1195,7 +1195,7 @@ func TestHandleWSDetailOrderbook(t *testing.T) {
 	assert.Equal(t, exp, ob, "handleWSDetailOrderbook should load the snapshot of orders")
 }
 
-func TestHandleWSSelfTrade(t *testing.T) {
+func TestHandleWebsocketSelfTrade(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSSelfTrade(t.Context(), []byte(`{"amount_str":[]}`), wsSpotPair, asset.Spot), "handleWSSelfTrade should error on malformed data")
@@ -1240,7 +1240,7 @@ func TestNormaliseSubscriptions(t *testing.T) {
 	assert.Equal(t, channelMySettlements, subs[0].QualifiedChannel, "the account channel should be subscribed")
 }
 
-func TestHandleWSSettlement(t *testing.T) {
+func TestHandleWebsocketSettlement(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSSettlement(t.Context(), "settlement", []byte(`{"as":[]}`)), "handleWSSettlement should error on malformed data")
@@ -1275,7 +1275,7 @@ func TestHandleWSSettlement(t *testing.T) {
 	}, dataHandlerPayloads(ex), "settlements should be sent to the data handler")
 }
 
-func TestHandleWSAnnouncement(t *testing.T) {
+func TestHandleWebsocketAnnouncement(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSAnnouncement(t.Context(), "published", []byte(`{"announcement_id":"wibble"}`)), "handleWSAnnouncement should error on malformed data")

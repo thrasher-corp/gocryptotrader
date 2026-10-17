@@ -205,7 +205,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ExchangeConfig:                         exch,
 		DefaultURL:                             bitstampWSURL,
 		RunningURL:                             wsURL,
-		Connector:                              e.WsConnect,
+		Connector:                              e.WebsocketConnect,
 		Subscriber:                             e.Subscribe,
 		Unsubscriber:                           e.Unsubscribe,
 		GenerateSubscriptions:                  e.generateSubscriptions,

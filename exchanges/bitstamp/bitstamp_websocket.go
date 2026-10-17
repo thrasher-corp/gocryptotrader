@@ -115,8 +115,8 @@ var privateChannels = []string{
 	channelMySettlements, channelMyLiquidations, channelMyTokenSettlements,
 }
 
-// WsConnect connects to a websocket feed
-func (e *Exchange) WsConnect() error {
+// WebsocketConnect connects to a websocket feed
+func (e *Exchange) WebsocketConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
