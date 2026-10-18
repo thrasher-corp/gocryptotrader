@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
@@ -210,6 +211,10 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
+	// Delivered topics no longer exist at HTX, so only their local registration needs removing.
+	if op == wsUnsubOp && s.Asset == asset.Futures && !s.Authenticated && len(s.Pairs) == 1 && isExpiredDeliveryContract(s.Pairs[0], time.Now()) {
+		return e.Websocket.RemoveSubscriptions(conn, s)
+	}
 	var req any
 	switch {
 	case s.Authenticated && s.Asset == asset.Spot:
@@ -404,6 +409,9 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 					}
 				}
 				for _, pair := range pairs {
+					if isExpiredDeliveryContract(pair, time.Now()) {
+						continue
+					}
 					delimiter := ""
 					if slices.Contains(validContractExpiryCodes, pair.Quote.Upper().String()) {
 						delimiter = "_"
@@ -426,6 +434,15 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 	}
 	expanded, err := subs.ExpandTemplates(e)
 	return expanded, common.AppendError(unsupported, err)
+}
+
+// isExpiredDeliveryContract recognises dated contracts after their 08:00 UTC delivery; aliases keep their moving venue semantics.
+func isExpiredDeliveryContract(pair currency.Pair, now time.Time) bool {
+	if len(pair.Quote.String()) != 6 {
+		return false
+	}
+	delivery, err := time.Parse("060102", pair.Quote.String())
+	return err == nil && !now.Before(delivery.Add(8*time.Hour))
 }
 
 // getWebsocketConnection resolves legacy subscription calls onto the asset-specific connection.

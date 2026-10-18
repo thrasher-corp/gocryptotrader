@@ -29,6 +29,14 @@ import (
 
 func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 	t.Parallel()
+	for _, item := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
+		t.Run(item.String()+" cost asset", func(t *testing.T) {
+			t.Parallel()
+			detail, err := e.formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{asset: item, contractCode: "ADA-USD", direction: "sell", orderPriceType: "post_only", status: 6, volume: 1, tradeVolume: 1, tradeTurnover: 10})
+			require.NoError(t, err, "order notification must convert")
+			assert.Equal(t, currency.USD, detail.CostAsset, "inverse contract turnover should be costed in USD")
+		})
+	}
 	t.Run("absent optional values", func(t *testing.T) {
 		t.Parallel()
 		detail, err := new(Exchange).formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{contractCode: "BTC-USD", direction: "buy", orderPriceType: "limit", status: 3})

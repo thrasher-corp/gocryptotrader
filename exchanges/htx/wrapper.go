@@ -1276,13 +1276,16 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
-	switch {
-	case s.TimeInForce.Is(order.PostOnly):
+	switch s.TimeInForce {
+	case order.UnknownTIF, order.GoodTillCancel:
+	case order.PostOnly, order.GoodTillCancel | order.PostOnly:
+		if s.Type != order.Limit {
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
+		}
 		req.Type = orderPriceTypePostOnly
-	case s.TimeInForce == order.UnknownTIF, s.TimeInForce.Is(order.GoodTillCancel):
-	case s.TimeInForce.Is(order.ImmediateOrCancel):
+	case order.ImmediateOrCancel:
 		req.TimeInForce = orderTimeInForceIOC
-	case s.TimeInForce.Is(order.FillOrKill):
+	case order.FillOrKill:
 		req.TimeInForce = orderTimeInForceFOK
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
@@ -1820,14 +1823,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 					continue
 				}
 				for i := range cancelledOrders.Data {
-					id := cancelledOrders.Data[i].OrderID
-					if id == "" {
-						id = cancelledOrders.Data[i].ClientOrderID
+					row := &cancelledOrders.Data[i]
+					status := htxStatusSuccess
+					if row.Code != 0 && row.Code != 200 {
+						status = row.Message
 					}
-					if cancelledOrders.Data[i].Code == 0 || cancelledOrders.Data[i].Code == 200 {
-						resp.Status[id] = htxStatusSuccess
-					} else {
-						resp.Status[id] = cancelledOrders.Data[i].Message
+					id := row.OrderID
+					if id == "" {
+						id = row.ClientOrderID
+					}
+					resp.Status[id] = status
+					// Retain the requested client identity without overwriting another order's status.
+					if _, recorded := resp.Status[row.ClientOrderID]; kind == 1 && !recorded && slices.Contains(batch, row.ClientOrderID) {
+						resp.Status[row.ClientOrderID] = status
 					}
 				}
 			}

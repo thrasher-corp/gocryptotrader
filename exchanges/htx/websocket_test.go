@@ -228,6 +228,69 @@ func TestWSHandleChannelMsgs(t *testing.T) {
 
 func TestManageSubs(t *testing.T) {
 	t.Parallel()
+	t.Run("expired delivery does not block later flush", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+			tb.Helper()
+			unsub, _ := jsonparser.GetString(message, "unsub")
+			assert.NotEqual(tb, "market.BTC200101.detail", unsub, "expired topics should be removed locally")
+			return wsFixture(tb, message, conn)
+		}))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			if err := h.Websocket.Disable(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "manager should disable cleanly")
+			}
+			if err := h.Websocket.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrNotConnected, "test sockets should shut down cleanly")
+			}
+		})
+		futurePair := currency.NewPair(currency.BTC, currency.NewCode(time.Now().UTC().AddDate(0, 0, 7).Format("060102")))
+		h.API.AuthenticatedWebsocketSupport = false
+		h.Features.Subscriptions = subscription.List{
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{futurePair}},
+			{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{btcusdtPair}},
+		}
+		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock websocket URLs must be set")
+		require.NoError(t, h.Websocket.Connect(t.Context()), "test connections must open")
+		conn, err := h.Websocket.GetConnection(exchange.WebsocketFutures)
+		require.NoError(t, err, "delivery connection must exist")
+		expired := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, QualifiedChannel: "market.BTC200101.detail", Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("200101"))}}
+		require.NoError(t, h.manageSubs(t.Context(), conn, wsSubOp, subscription.List{expired}), "subscription from before delivery must be seeded")
+		require.NoError(t, conn.Subscriptions().Add(expired), "connection ownership from before delivery must be seeded")
+		ethusdt := currency.NewPair(currency.ETH, currency.USDT)
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair, ethusdt}, asset.USDTMarginedFutures, false), "USDT pairs must be available")
+		require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair, ethusdt}, asset.USDTMarginedFutures, true), "USDT pairs must be enabled")
+		h.Features.Subscriptions = subscription.List{h.Features.Subscriptions[0], expired, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{ethusdt}}}
+		require.NoError(t, h.Websocket.FlushChannels(t.Context()), "expired delivery must not block later connection changes")
+		assert.Nil(t, h.Websocket.GetSubscription(expired.EnsureKeyed()), "expired subscription should no longer be registered")
+		usdtConn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMargined)
+		require.NoError(t, err, "USDT connection must remain usable")
+		assert.NotNil(t, usdtConn, "USDT connection should remain connected")
+		var later *subscription.Subscription
+		for _, sub := range h.Websocket.GetSubscriptions() {
+			if sub.Asset == asset.USDTMarginedFutures && len(sub.Pairs) == 1 && sub.Pairs[0].Equal(ethusdt) {
+				later = sub
+			}
+		}
+		require.NotNil(t, later, "later USDT subscription must be registered")
+		assert.Equal(t, subscription.SubscribedState, later.State(), "later USDT subscription should be active")
+	})
+	t.Run("expired delivery unregisters without sending", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+		conn, err := h.Websocket.CreateTestConnection(exchange.WebsocketFutures)
+		require.NoError(t, err, "delivery test connection must be created")
+		require.NoError(t, h.Websocket.TrackTestConnection(exchange.WebsocketFutures, conn), "delivery connection must be tracked")
+		sub := &subscription.Subscription{Asset: asset.Futures, Channel: subscription.TickerChannel, QualifiedChannel: "market.BTC200101.detail", Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("200101"))}}
+		require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "expired registration must be seeded")
+		require.NoError(t, sub.SetState(subscription.SubscribedState), "seeded subscription must be active")
+		require.NoError(t, h.manageSubs(t.Context(), conn, wsUnsubOp, subscription.List{sub}), "expired topic must be removed without using the disconnected socket")
+		assert.Empty(t, h.Websocket.GetSubscriptions(), "expired registration should be removed")
+	})
 	t.Run("failed subscription removes registration", func(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
@@ -594,6 +657,27 @@ func TestWSConnect(t *testing.T) {
 
 func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	t.Parallel()
+	for _, scoped := range []bool{false, true} {
+		t.Run(fmt.Sprintf("expired deliveries scoped=%t", scoped), func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+			futurePair := currency.NewPair(currency.BTC, currency.NewCode(time.Now().UTC().AddDate(0, 0, 7).Format("060102")))
+			pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("200101")), futurePair}
+			require.NoError(t, h.SetPairs(pairs, asset.Futures, false), "delivery pairs must be available")
+			require.NoError(t, h.SetPairs(pairs, asset.Futures, true), "delivery pairs must be enabled")
+			sub := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel}
+			if scoped {
+				sub.Pairs = pairs
+			}
+			h.Features.Subscriptions = subscription.List{sub}
+			subs, err := h.generateSubscriptionsForAsset(asset.Futures, false)
+			require.NoError(t, err, "delivery subscriptions must generate")
+			require.Len(t, subs, 1, "only the undelivered contract must be subscribed")
+			require.Len(t, subs[0].Pairs, 1, "one future pair must remain")
+			assert.True(t, subs[0].Pairs[0].Equal(futurePair), "future contract identity should remain intact")
+		})
+	}
 	t.Run("spot", func(t *testing.T) {
 		t.Parallel()
 
@@ -730,20 +814,21 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 			sub.Enabled = true
 		}
 	}
-	h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("250829")}
-	deliveryPairs := currency.Pairs{currency.NewPairWithDelimiter("BTC", "250829", "-")}
+	deliveryDate := time.Now().UTC().AddDate(0, 0, 7).Format("060102")
+	h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode(deliveryDate)}
+	deliveryPairs := currency.Pairs{currency.NewPairWithDelimiter("BTC", deliveryDate, "-")}
 	require.NoError(t, h.SetPairs(deliveryPairs, asset.Futures, false), "available delivery pairs must be set")
 	require.NoError(t, h.SetPairs(deliveryPairs, asset.Futures, true), "enabled delivery pairs must be set")
 	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
 	require.NoError(t, err, "delivery generateSubscriptionsForAsset must not error")
 	require.Len(t, subs, 4, "delivery subscriptions must include each public market channel")
 	for _, sub := range subs {
-		assert.Contains(t, sub.QualifiedChannel, "BTC250829", "dated delivery channel should use its immutable contract code")
+		assert.Contains(t, sub.QualifiedChannel, "BTC"+deliveryDate, "dated delivery channel should use its immutable contract code")
 		require.Len(t, sub.Pairs, 1, "delivery subscription must retain one canonical pair")
 		assert.True(t, sub.Pairs[0].Equal(deliveryPairs[0]), "delivery subscription should retain the configured canonical pair")
 	}
 	h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: deliveryPairs}}
-	multipleDeliveryPairs := currency.Pairs{deliveryPairs[0], currency.NewPairWithDelimiter("ETH", "250829", "-")}
+	multipleDeliveryPairs := currency.Pairs{deliveryPairs[0], currency.NewPairWithDelimiter("ETH", deliveryDate, "-")}
 	require.NoError(t, h.SetPairs(multipleDeliveryPairs, asset.Futures, false), "multiple delivery pairs must be available")
 	require.NoError(t, h.SetPairs(multipleDeliveryPairs, asset.Futures, true), "multiple delivery pairs must be enabled")
 	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
@@ -770,6 +855,30 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
 	require.NoError(t, err, "disabled delivery subscription generation must not error")
 	assert.Empty(t, subs, "disabled delivery futures should not generate subscriptions")
+}
+
+func TestIsExpiredDeliveryContract(t *testing.T) {
+	t.Parallel()
+	delivery := time.Date(2026, time.October, 16, 8, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name, quote string
+		now         time.Time
+		expired     bool
+	}{
+		{name: "before delivery", quote: "261016", now: delivery.Add(-time.Nanosecond)},
+		{name: "at delivery", quote: "261016", now: delivery, expired: true},
+		{name: "after delivery", quote: "261016", now: delivery.Add(time.Nanosecond), expired: true},
+		{name: "local timezone", quote: "261016", now: delivery.In(time.FixedZone("AEDT", 11*60*60)), expired: true},
+		{name: "alias", quote: "CW", now: delivery},
+		{name: "invalid date", quote: "261332", now: delivery},
+		{name: "non date", quote: "ABCDEF", now: delivery},
+		{name: "perpetual", quote: "USD", now: delivery},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expired, isExpiredDeliveryContract(currency.NewPair(currency.BTC, currency.NewCode(tc.quote)), tc.now), "expiry should follow the delivery instant")
+		})
+	}
 }
 
 func TestGetWebsocketConnection(t *testing.T) {

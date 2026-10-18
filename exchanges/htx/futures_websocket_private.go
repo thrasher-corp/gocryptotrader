@@ -320,6 +320,7 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 		ExecutedAmount:       data.tradeVolume,
 		RemainingAmount:      data.volume - data.tradeVolume,
 		Cost:                 data.tradeTurnover,
+		CostAsset:            currency.USD,
 		Fee:                  -data.fee,
 		FeeAsset:             currency.NewCode(data.feeAsset),
 		Leverage:             data.leverage,
