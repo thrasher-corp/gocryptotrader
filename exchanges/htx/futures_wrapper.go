@@ -334,7 +334,8 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		default:
 			return 0, order.ErrSideIsInvalid
 		}
-		leverage, err := e.GetV5Leverage(ctx, pair, marginMode, positionSide)
+		// Query every position side so one-way accounts can return their shared "both" setting.
+		leverage, err := e.GetV5Leverage(ctx, pair, marginMode, "")
 		if err != nil {
 			return 0, err
 		}
@@ -348,7 +349,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		for i := range leverage.Data {
 			if leverage.Data[i].ContractCode == contractCode &&
 				leverage.Data[i].MarginMode == marginMode &&
-				(positionSide == "" || leverage.Data[i].PositionSide == positionSide) {
+				(positionSide == "" || leverage.Data[i].PositionSide == "both" || leverage.Data[i].PositionSide == positionSide) {
 				return float64(leverage.Data[i].LeverageRate), nil
 			}
 		}

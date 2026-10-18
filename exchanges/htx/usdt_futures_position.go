@@ -130,12 +130,24 @@ func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.P
 	if crossMargin {
 		marginMode = marginModeCross
 	}
-	positionSide := "both"
+	var positionSide string
 	switch {
+	case side == order.UnknownSide:
 	case side.IsLong():
 		positionSide = "long"
 	case side.IsShort():
 		positionSide = "short"
+	default:
+		return order.ErrSideIsInvalid
+	}
+	positionMode, err := e.getV5PositionModeName(ctx)
+	if err != nil {
+		return err
+	}
+	if positionMode == "single_side" {
+		positionSide = "both"
+	} else if positionSide == "" && !crossMargin {
+		return order.ErrSideIsInvalid
 	}
 	_, err = e.SetV5Leverage(ctx, &V5SetLeverageRequest{
 		ContractCode: codeValue,

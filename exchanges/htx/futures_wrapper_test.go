@@ -207,16 +207,16 @@ func TestSetLeverage(t *testing.T) {
 		})
 	}
 
-	t.Run("USDT position side", func(t *testing.T) {
+	t.Run("USDT one-way position side", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, func(r *http.Request) {
 			var request V5SetLeverageRequest
 			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request), "leverage request should decode") {
 				return
 			}
-			assert.Equal(t, "short", request.PositionSide, "sell leverage should target the short position")
+			assert.Equal(t, "both", request.PositionSide, "one-way sell leverage should target both sides")
 		})
-		require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Isolated, 5, order.Sell), "SetLeverage must preserve the requested position side")
+		require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Isolated, 5, order.Sell), "SetLeverage must use the account position mode")
 	})
 }
 
@@ -370,6 +370,51 @@ func TestGetLeverage(t *testing.T) {
 			got, err := h.GetLeverage(t.Context(), tc.item, tc.pair, tc.marginType, order.UnknownSide)
 			require.NoError(t, err, "GetLeverage must not error")
 			assert.Equal(t, 5.0, got, "leverage should match")
+		})
+	}
+
+	const oneWay = `[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"both","lever_rate":5}]`
+	const hedge = `[{"contract_code":"ETH-USDT","margin_mode":"cross","position_side":"both","lever_rate":50},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"both","lever_rate":25},{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"short","lever_rate":10},{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"long","lever_rate":5}]`
+	for _, tc := range []struct {
+		name     string
+		isolated bool
+		side     order.Side
+		data     string
+		want     float64
+		wantErr  error
+	}{
+		{name: "one-way buy", side: order.Buy, data: oneWay, want: 5},
+		{name: "one-way sell", side: order.Sell, data: oneWay, want: 5},
+		{name: "one-way long", side: order.Long, data: oneWay, want: 5},
+		{name: "one-way short", side: order.Short, data: oneWay, want: 5},
+		{name: "one-way unspecified", side: order.UnknownSide, data: oneWay, want: 5},
+		{name: "one-way isolated buy", isolated: true, side: order.Buy, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"both","lever_rate":5}]`, want: 5},
+		{name: "one-way isolated sell", isolated: true, side: order.Sell, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"both","lever_rate":5}]`, want: 5},
+		{name: "hedge buy", side: order.Buy, data: hedge, want: 5},
+		{name: "hedge sell", side: order.Sell, data: hedge, want: 10},
+		{name: "hedge long", side: order.Long, data: hedge, want: 5},
+		{name: "hedge short", side: order.Short, data: hedge, want: 10},
+		{name: "missing requested side", side: order.Buy, data: `[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"short","lever_rate":10}]`, wantErr: futures.ErrPositionNotFound},
+		{name: "invalid side", side: order.AnySide, data: oneWay, wantErr: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			marginType, marginMode := margin.Multi, "cross"
+			if tc.isolated {
+				marginType, marginMode = margin.Isolated, "isolated"
+			}
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", `{"code":200,"data":`+tc.data+`}`, func(r *http.Request) {
+				assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "query should identify the contract")
+				assert.Equal(t, marginMode, r.URL.Query().Get("margin_mode"), "query should identify the margin mode")
+				assert.NotContains(t, r.URL.Query(), "position_side", "query should allow HTX to return the account's position sides")
+			})
+			got, err := h.GetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, marginType, tc.side)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "GetLeverage must return the expected selection error")
+				return
+			}
+			require.NoError(t, err, "GetLeverage must select the account's matching position")
+			assert.Equal(t, tc.want, got, "leverage should match the selected position")
 		})
 	}
 

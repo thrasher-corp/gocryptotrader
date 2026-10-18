@@ -1,8 +1,8 @@
 package htx
 
 import (
-	"io"
 	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 
@@ -11,8 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -83,31 +86,75 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
-	var calls atomic.Int64
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, func(r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if !assert.NoError(t, err, "request body should be readable") {
-			return
-		}
-		var request V5SetLeverageRequest
-		if !assert.NoError(t, json.Unmarshal(body, &request), "request body should decode") {
-			return
-		}
-		assert.Equal(t, types.Number(5), request.LeverageRate, "V5 leverage request should encode leverage as documented")
-		switch calls.Add(1) {
-		case 1:
-			assert.Equal(t, "isolated", request.MarginMode, "isolated leverage should use isolated margin mode")
-			assert.Equal(t, "long", request.PositionSide, "buy leverage should target the long position")
-			return
-		case 2:
-			assert.Equal(t, "cross", request.MarginMode, "cross leverage should use cross margin mode")
-			assert.Equal(t, "short", request.PositionSide, "sell leverage should target the short position")
-			return
-		default:
-			assert.Equal(t, "both", request.PositionSide, "unspecified leverage should target both positions")
-		}
-	})
-	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false, order.Buy), "isolated SwitchLinearSwapLeverage must not error")
-	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true, order.Sell), "cross SwitchLinearSwapLeverage must not error")
-	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false, order.UnknownSide), "unspecified SwitchLinearSwapLeverage must not error")
+	for _, tc := range []struct {
+		name         string
+		mode         string
+		crossMargin  bool
+		side         order.Side
+		wantSide     string
+		wantErr      error
+		modeResponse string
+	}{
+		{name: "one-way isolated buy", mode: "single_side", side: order.Buy, wantSide: "both"},
+		{name: "one-way isolated sell", mode: "single_side", side: order.Sell, wantSide: "both"},
+		{name: "one-way cross buy", mode: "single_side", crossMargin: true, side: order.Buy, wantSide: "both"},
+		{name: "one-way cross sell", mode: "single_side", crossMargin: true, side: order.Sell, wantSide: "both"},
+		{name: "one-way unspecified isolated side", mode: "single_side", wantSide: "both"},
+		{name: "one-way unspecified cross side", mode: "single_side", crossMargin: true, wantSide: "both"},
+		{name: "hedge isolated buy", mode: "dual_side", side: order.Buy, wantSide: "long"},
+		{name: "hedge isolated sell", mode: "dual_side", side: order.Sell, wantSide: "short"},
+		{name: "hedge cross buy", mode: "dual_side", crossMargin: true, side: order.Buy, wantSide: "long"},
+		{name: "hedge cross sell", mode: "dual_side", crossMargin: true, side: order.Sell, wantSide: "short"},
+		{name: "hedge long", mode: "dual_side", side: order.Long, wantSide: "long"},
+		{name: "hedge short", mode: "dual_side", side: order.Short, wantSide: "short"},
+		{name: "hedge unspecified cross side", mode: "dual_side", crossMargin: true},
+		{name: "hedge unspecified isolated side", mode: "dual_side", wantErr: order.ErrSideIsInvalid},
+		{name: "invalid side", mode: "single_side", side: order.AnySide, wantErr: order.ErrSideIsInvalid},
+		{name: "mode request failure", modeResponse: `{"code":400,"message":"mode unavailable"}`, wantErr: request.ErrAuthRequestFailed},
+		{name: "null mode response", modeResponse: `null`, wantErr: errEmptyResult},
+		{name: "unsupported mode", mode: "unsupported", wantErr: errInvalidPositionMode},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/v5/position/mode" {
+					assert.Equal(t, http.MethodGet, r.Method, "position mode should be queried")
+					response := tc.modeResponse
+					if response == "" {
+						response = `{"code":200,"data":{"position_mode":"` + tc.mode + `"}}`
+					}
+					_, _ = w.Write([]byte(response))
+					return
+				}
+				calls.Add(1)
+				assert.Equal(t, "/v5/position/lever", r.URL.Path, "setter endpoint should match")
+				assert.Equal(t, http.MethodPost, r.Method, "leverage should be set with POST")
+				var payload V5SetLeverageRequest
+				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "leverage request should decode") {
+					marginMode := "isolated"
+					if tc.crossMargin {
+						marginMode = "cross"
+					}
+					assert.Equal(t, V5SetLeverageRequest{ContractCode: "BTC-USDT", MarginMode: marginMode, PositionSide: tc.wantSide, LeverageRate: 5}, payload, "leverage request should target the account's position mode")
+				}
+				_, _ = w.Write([]byte(`{"code":200,"data":{}}`))
+			}))
+			t.Cleanup(server.Close)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be set")
+			err := h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, tc.crossMargin, tc.side)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "leverage change must return the expected error")
+				assert.Zero(t, calls.Load(), "failed validation or mode lookup should prevent a leverage change")
+				return
+			}
+			require.NoError(t, err, "leverage change must succeed")
+			assert.Equal(t, int32(1), calls.Load(), "exactly one leverage change should be sent")
+		})
+	}
 }
