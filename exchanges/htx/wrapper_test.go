@@ -1333,6 +1333,44 @@ func TestGetAccountID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		clientOrderID string
+		wantID        string
+		attempts      int32
+	}{
+		{name: "spot without client order ID", attempts: 1},
+		{name: "spot repeated RPC account ID", clientOrderID: "1", attempts: 2},
+		{name: "spot distinct client order ID", clientOrderID: "client-1", wantID: "client-1", attempts: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/place", `{"status":"ok","data":"1"}`, func(r *http.Request) {
+				calls.Add(1)
+				var payload map[string]any
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "spot order request should decode") {
+					return
+				}
+				assert.Equal(t, "1", payload["account-id"], "account ID should be retained")
+				if tc.wantID == "" {
+					assert.NotContains(t, payload, "client-order-id", "absent or mirrored client order IDs should be omitted")
+				} else {
+					assert.Equal(t, tc.wantID, payload["client-order-id"], "distinct client order IDs should be submitted")
+				}
+			})
+			submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 5, Amount: 1, ClientID: "1", ClientOrderID: tc.clientOrderID}
+			for range tc.attempts {
+				response, err := h.SubmitOrder(t.Context(), submission)
+				require.NoError(t, err, "spot order submission must succeed")
+				assert.Equal(t, "1", response.ClientID, "response should retain the account ID")
+				assert.Equal(t, tc.wantID, response.ClientOrderID, "response should reflect the submitted client order ID")
+				assert.Equal(t, tc.clientOrderID, submission.ClientOrderID, "submission should remain unchanged")
+			}
+			assert.Equal(t, tc.attempts, calls.Load(), "every submission should reach the endpoint")
+		})
+	}
 	t.Run("request bodies", func(t *testing.T) {
 		t.Parallel()
 		for _, market := range []struct {
