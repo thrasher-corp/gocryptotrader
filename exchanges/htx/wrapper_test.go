@@ -373,6 +373,27 @@ func TestGetOrderHistory(t *testing.T) {
 			}
 		})
 	}
+	for _, tc := range []struct {
+		requestType string
+		timeInForce order.TimeInForce
+	}{
+		{requestType: "buy-limit-maker", timeInForce: order.PostOnly},
+		{requestType: "buy-ioc", timeInForce: order.ImmediateOrCancel},
+		{requestType: "buy-limit-fok", timeInForce: order.FillOrKill},
+	} {
+		t.Run(tc.requestType, func(t *testing.T) {
+			t.Parallel()
+			response := fmt.Sprintf(`{"status":"ok","data":[{"id":1,"symbol":"btcusdt","amount":"2","price":"100","type":%q,"state":"filled"}]}`, tc.requestType)
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", response, nil)
+			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Pairs: currency.Pairs{btcusdtPair}})
+			require.NoError(t, err, "spot orders must decode")
+			require.Len(t, orders, 1, "special limit orders must survive side and type filtering")
+			assert.Equal(t, order.Buy, orders[0].Side, "order side should match")
+			assert.Equal(t, order.Limit, orders[0].Type, "order type should match")
+			assert.Equal(t, tc.timeInForce, orders[0].TimeInForce, "time in force should match")
+		})
+	}
+
 	t.Run("V5 pages", func(t *testing.T) {
 		t.Parallel()
 		const path, state = "/v5/trade/order/history", "filled"
@@ -994,6 +1015,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		requestType string
+		timeInForce order.TimeInForce
+	}{
+		{requestType: "buy-limit-maker", timeInForce: order.PostOnly},
+		{requestType: "buy-ioc", timeInForce: order.ImmediateOrCancel},
+		{requestType: "buy-limit-fok", timeInForce: order.FillOrKill},
+	} {
+		t.Run(tc.requestType, func(t *testing.T) {
+			t.Parallel()
+			response := fmt.Sprintf(`{"status":"ok","data":[{"id":1,"symbol":"btcusdt","amount":"2","price":"100","type":%q,"state":"submitted"}]}`, tc.requestType)
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/openOrders", response, nil)
+			orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Pairs: currency.Pairs{btcusdtPair}})
+			require.NoError(t, err, "spot orders must decode")
+			require.Len(t, orders, 1, "special limit orders must survive side and type filtering")
+			assert.Equal(t, order.Buy, orders[0].Side, "order side should match")
+			assert.Equal(t, order.Limit, orders[0].Type, "order type should match")
+			assert.Equal(t, tc.timeInForce, orders[0].TimeInForce, "time in force should match")
+		})
+	}
+
 	t.Run("V5 pages", func(t *testing.T) {
 		t.Parallel()
 		const path, state = "/v5/trade/order/opens", "new"
@@ -2671,6 +2713,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		expectedSide   order.Side
 		expectedType   order.Type
 		expectedStatus order.Status
+		expectedTIF    order.TimeInForce
 	}{
 		{
 			name:           "buy market",
@@ -2704,6 +2747,17 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 			expectedType:   order.Limit,
 			expectedStatus: order.Cancelled,
 		},
+		{name: "buy limit-maker", state: "submitted", requestType: "buy-limit-maker", expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.PostOnly},
+		{name: "buy ioc", state: "submitted", requestType: "buy-ioc", expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.ImmediateOrCancel},
+		{name: "buy limit-fok", state: "submitted", requestType: "buy-limit-fok", expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.FillOrKill},
+		{name: "buy stop-limit", state: "submitted", requestType: "buy-stop-limit", expectedSide: order.Buy, expectedType: order.StopLimit, expectedStatus: order.New, expectedTIF: order.UnknownTIF},
+		{name: "buy stop-limit-fok", state: "submitted", requestType: "buy-stop-limit-fok", expectedSide: order.Buy, expectedType: order.StopLimit, expectedStatus: order.New, expectedTIF: order.FillOrKill},
+		{name: "sell limit-maker", state: "submitted", requestType: "sell-limit-maker", expectedSide: order.Sell, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.PostOnly},
+		{name: "sell ioc", state: "submitted", requestType: "sell-ioc", expectedSide: order.Sell, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.ImmediateOrCancel},
+		{name: "sell limit-fok", state: "submitted", requestType: "sell-limit-fok", expectedSide: order.Sell, expectedType: order.Limit, expectedStatus: order.New, expectedTIF: order.FillOrKill},
+		{name: "sell stop-limit", state: "submitted", requestType: "sell-stop-limit", expectedSide: order.Sell, expectedType: order.StopLimit, expectedStatus: order.New, expectedTIF: order.UnknownTIF},
+		{name: "sell stop-limit-fok", state: "submitted", requestType: "sell-stop-limit-fok", expectedSide: order.Sell, expectedType: order.StopLimit, expectedStatus: order.New, expectedTIF: order.FillOrKill},
+		{name: "unknown", state: "invalid", requestType: "invalid", expectedSide: order.UnknownSide, expectedType: order.UnknownType, expectedStatus: order.UnknownStatus},
 	}
 
 	for _, tt := range testCases {
@@ -2714,6 +2768,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 			assert.Equal(t, tt.expectedSide, detail.Side, "side should match")
 			assert.Equal(t, tt.expectedType, detail.Type, "order type should match")
 			assert.Equal(t, tt.expectedStatus, detail.Status, "status should match")
+			assert.Equal(t, tt.expectedTIF, detail.TimeInForce, "time in force should match")
 		})
 	}
 }

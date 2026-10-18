@@ -76,8 +76,10 @@ func addUSDTMarginedPair(config map[string]any) {
 	if !ok {
 		return
 	}
-	if _, found := pairs["usdtmarginedfutures"]; found {
-		return
+	for key := range pairs {
+		if strings.EqualFold(key, "usdtmarginedfutures") {
+			return
+		}
 	}
 	pairs["usdtmarginedfutures"] = map[string]any{
 		"assetEnabled": true,

@@ -60,6 +60,14 @@ func TestAddUSDTMarginedPair(t *testing.T) {
 			assert.Equal(t, "BTC-USDT", pairConfig["available"], "available pair should match")
 		})
 	}
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		t.Run("preserve "+key, func(t *testing.T) {
+			t.Parallel()
+			pairs := map[string]any{key: "existing"}
+			addUSDTMarginedPair(map[string]any{"currencyPairs": map[string]any{"pairs": pairs}})
+			assert.Equal(t, map[string]any{key: "existing"}, pairs, "equivalent asset keys should preserve existing settings without adding defaults")
+		})
+	}
 }
 
 func TestAddDerivativeSubscriptions(t *testing.T) {

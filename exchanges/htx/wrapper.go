@@ -2905,19 +2905,19 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 		log.Errorf(log.ExchangeSys, "%s %v", orderDetail.Exchange, err)
 	}
 
-	switch SpotNewOrderRequestParamsType(requestType) {
-	case SpotNewOrderRequestTypeBuyMarket:
-		orderDetail.Side = order.Buy
-		orderDetail.Type = order.Market
-	case SpotNewOrderRequestTypeSellMarket:
-		orderDetail.Side = order.Sell
-		orderDetail.Type = order.Market
-	case SpotNewOrderRequestTypeBuyLimit:
-		orderDetail.Side = order.Buy
-		orderDetail.Type = order.Limit
-	case SpotNewOrderRequestTypeSellLimit:
-		orderDetail.Side = order.Sell
-		orderDetail.Type = order.Limit
+	if orderDetail.Side, err = stringToOrderSide(requestType); err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", orderDetail.Exchange, err)
+	}
+	if orderDetail.Type, err = stringToOrderType(requestType); err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", orderDetail.Exchange, err)
+	}
+	switch {
+	case strings.Contains(requestType, "maker"):
+		orderDetail.TimeInForce = order.PostOnly
+	case strings.HasSuffix(requestType, "-fok"):
+		orderDetail.TimeInForce = order.FillOrKill
+	case strings.HasSuffix(requestType, "-ioc"):
+		orderDetail.TimeInForce = order.ImmediateOrCancel
 	}
 }
 

@@ -1,13 +1,16 @@
 package v18_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 func TestExchanges(t *testing.T) {
@@ -37,6 +40,38 @@ func TestUpgradeExchange(t *testing.T) {
 			require.NoError(t, json.Unmarshal(out, &config), "upgraded exchange must decode")
 			assert.Equalf(t, tt.want, config.Name, "exchange name %s should migrate correctly", tt.in)
 		})
+	}
+
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		for _, enabled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("existing %s enabled %t", key, enabled), func(t *testing.T) {
+				t.Parallel()
+				input := fmt.Appendf(nil, `{"name":"Huobi","currencyPairs":{"pairs":{%q:{"assetEnabled":%t,"enabled":"ETH-USDT","available":"ETH-USDT"}}}}`, key, enabled)
+				out, err := new(v18.Version).UpgradeExchange(t.Context(), input)
+				require.NoError(t, err, "existing pair settings must migrate")
+				var raw struct {
+					CurrencyPairs struct {
+						Pairs map[string]json.RawMessage `json:"pairs"`
+					} `json:"currencyPairs"`
+				}
+				require.NoError(t, json.Unmarshal(out, &raw), "migrated pair keys must decode")
+				require.Len(t, raw.CurrencyPairs.Pairs, 1, "migration must not add a duplicate asset key")
+				assert.Contains(t, raw.CurrencyPairs.Pairs, key, "existing asset key spelling should be preserved")
+				var loaded struct {
+					CurrencyPairs currency.PairsManager `json:"currencyPairs"`
+				}
+				require.NoError(t, json.Unmarshal(out, &loaded), "runtime pair manager must decode migrated settings")
+				store := loaded.CurrencyPairs.Pairs[asset.USDTMarginedFutures]
+				require.NotNil(t, store, "runtime must recognise the existing asset key")
+				assert.Equal(t, enabled, store.AssetEnabled, "migration should preserve the user's asset selection")
+				expected := currency.Pairs{currency.NewPairWithDelimiter("ETH", "USDT", "-")}
+				assert.Equal(t, expected, store.Enabled, "migration should preserve enabled pairs")
+				assert.Equal(t, expected, store.Available, "migration should preserve available pairs")
+				second, err := new(v18.Version).UpgradeExchange(t.Context(), out)
+				require.NoError(t, err, "existing pair settings must support repeated migration")
+				assert.JSONEq(t, string(out), string(second), "repeated migration should preserve existing settings")
+			})
+		}
 	}
 
 	t.Run("preserve unrelated bytes", func(t *testing.T) {
