@@ -37,8 +37,9 @@ type FundingAccountTransaction struct {
 	ShowBusinessTypeEnglish string `json:"showBusiTypeEn"`
 	Description             string `json:"description"`
 	DescriptionEnglish      string `json:"descriptionEn"`
-	// CurrcCursor uniquely identifies the transaction, so it can be used to drop duplicates
-	CurrcCursor string `json:"currcCursor"`
+	// CurrencyCursor is Bybit's currcCursor, documented only as a unique ID for dropping duplicates; the docs never say
+	// what currc stands for, and the record's currency is the likeliest reading
+	CurrencyCursor string `json:"currcCursor"`
 }
 
 // DeliveryRecordRequest holds the Get Delivery Record filters; Category is required
@@ -195,18 +196,18 @@ type PortfolioMarginWallet struct {
 
 // PortfolioMarginAssetPNLRange holds the P&L ranges of one base coin's positions
 type PortfolioMarginAssetPNLRange struct {
-	BaseCoin                   currency.Code                              `json:"baseCoin"`
-	TotalPNLRanges             PortfolioMarginTotalPNLRanges              `json:"totalPnlRanges"`
-	PerpetualPositionPNLRanges []PortfolioMarginPerpetualPositionPNLRange `json:"perpPositionPnlRanges"`
-	OptionExpiryDatePNLRanges  []PortfolioMarginOptionExpiryDatePNLRange  `json:"optionExpiryDatePnlRanges"`
-	Contingency                PortfolioMarginContingency                 `json:"contingency"`
-	Asset                      PortfolioMarginAsset                       `json:"asset"`
-	MaxLossPriceMove           types.Number                               `json:"maxLossPriceMove"`
-	MaxLossIVShock             types.Number                               `json:"maxLossIvShock"`
-	TotalClosePositionFee      types.Number                               `json:"totalClosePzFee"`
-	SpotHedgeInfo              PortfolioMarginSpotHedgeInfo               `json:"spotHedgeInfo"`
-	// MaxLossIVShockList holds the IV shock of each price scale scenario
-	MaxLossIVShockList []types.Number `json:"maxLossIvShockList"`
+	BaseCoin                      currency.Code                              `json:"baseCoin"`
+	TotalPNLRanges                PortfolioMarginTotalPNLRanges              `json:"totalPnlRanges"`
+	PerpetualPositionPNLRanges    []PortfolioMarginPerpetualPositionPNLRange `json:"perpPositionPnlRanges"`
+	OptionExpiryDatePNLRanges     []PortfolioMarginOptionExpiryDatePNLRange  `json:"optionExpiryDatePnlRanges"`
+	Contingency                   PortfolioMarginContingency                 `json:"contingency"`
+	Asset                         PortfolioMarginAsset                       `json:"asset"`
+	MaxLossPriceMove              types.Number                               `json:"maxLossPriceMove"`
+	MaxLossImpliedVolatilityShock types.Number                               `json:"maxLossIvShock"`
+	TotalClosePositionFee         types.Number                               `json:"totalClosePzFee"`
+	SpotHedgeInfo                 PortfolioMarginSpotHedgeInfo               `json:"spotHedgeInfo"`
+	// MaxLossImpliedVolatilityShockList holds the IV shock of each price scale scenario
+	MaxLossImpliedVolatilityShockList []types.Number `json:"maxLossIvShockList"`
 }
 
 // PortfolioMarginTotalPNLRanges holds a base coin's P&L ranges per contract type

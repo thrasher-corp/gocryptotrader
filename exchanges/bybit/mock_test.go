@@ -6,13 +6,17 @@ package bybit
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -84,3 +88,23 @@ func testInstance(tb testing.TB) *Exchange {
 
 // ensureTradablePairs is a no-op for mock tests, which use the fixed pairs their fixtures record
 func ensureTradablePairs(testing.TB) {}
+
+// TestMockFixtureContentTypes checks that each recorded POST names the content type it is sent with, which
+// mock.HTTPRecord reads to match a re-recorded request by its body or by its query string
+func TestMockFixtureContentTypes(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile("testdata/http.json")
+	require.NoError(t, err, "ReadFile must not error")
+	var fixtures mock.VCRMock
+	require.NoError(t, json.Unmarshal(b, &fixtures), "Unmarshal must not error")
+	for path, methods := range fixtures.Routes {
+		for _, r := range methods[http.MethodPost] {
+			// Bybit Card requests carry their parameters in the query string and send no body or content type
+			if r.BodyParams == "" {
+				assert.Emptyf(t, r.Headers["Content-Type"], "POST %s without a body should record no content type", path)
+				continue
+			}
+			assert.Equalf(t, []string{"application/json"}, r.Headers["Content-Type"], "POST %s with body %s should record its content type", path, r.BodyParams)
+		}
+	}
+}

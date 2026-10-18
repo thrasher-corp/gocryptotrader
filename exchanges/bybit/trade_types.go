@@ -37,9 +37,9 @@ type PlaceOrderRequest struct {
 	OrderFilter      string
 	TriggerPrice     float64
 	TriggerBy        string
-	// OrderIV is the option implied volatility as a fraction, 0.1 for 10%; it takes priority over Price
-	OrderIV     float64
-	TimeInForce string
+	// OrderImpliedVolatility is the option implied volatility as a fraction, 0.1 for 10%; it takes priority over Price
+	OrderImpliedVolatility float64
+	TimeInForce            string
 	// PositionIndex is 0 in one-way mode, and 1 for the buy side or 2 for the sell side in hedge mode
 	PositionIndex  uint64
 	OrderLinkID    string
@@ -124,8 +124,8 @@ func (r *PlaceOrderRequest) Payload() (map[string]any, error) {
 	if r.TriggerBy != "" {
 		body["triggerBy"] = r.TriggerBy
 	}
-	if r.OrderIV != 0 {
-		body["orderIv"] = strconv.FormatFloat(r.OrderIV, 'f', -1, 64)
+	if r.OrderImpliedVolatility != 0 {
+		body["orderIv"] = strconv.FormatFloat(r.OrderImpliedVolatility, 'f', -1, 64)
 	}
 	if r.TimeInForce != "" {
 		body["timeInForce"] = r.TimeInForce
@@ -197,12 +197,12 @@ type AmendOrderRequest struct {
 	Symbol      string
 	OrderID     string
 	OrderLinkID string
-	// OrderIV is the option implied volatility as a fraction, 0.1 for 10%
-	OrderIV      float64
-	TriggerPrice float64
-	Quantity     float64
-	Price        float64
-	TPSLMode     string
+	// OrderImpliedVolatility is the option implied volatility as a fraction, 0.1 for 10%
+	OrderImpliedVolatility float64
+	TriggerPrice           float64
+	Quantity               float64
+	Price                  float64
+	TPSLMode               string
 	// TakeProfit and StopLoss are left unchanged when nil, and cancelled when they point to zero
 	TakeProfit   *float64
 	StopLoss     *float64
@@ -243,8 +243,8 @@ func (r *AmendOrderRequest) Payload() (map[string]any, error) {
 	if r.OrderLinkID != "" {
 		body["orderLinkId"] = r.OrderLinkID
 	}
-	if r.OrderIV != 0 {
-		body["orderIv"] = strconv.FormatFloat(r.OrderIV, 'f', -1, 64)
+	if r.OrderImpliedVolatility != 0 {
+		body["orderIv"] = strconv.FormatFloat(r.OrderImpliedVolatility, 'f', -1, 64)
 	}
 	if r.TriggerPrice != 0 {
 		body["triggerPrice"] = strconv.FormatFloat(r.TriggerPrice, 'f', -1, 64)
@@ -375,12 +375,12 @@ type OpenOrder struct {
 	CumulativeExecutedQuantity types.Number `json:"cumExecQty"`
 	CumulativeExecutedValue    types.Number `json:"cumExecValue"`
 	// CumulativeExecutedFee is deprecated for linear and spot orders, which report their fees in CumulativeFeeDetail
-	CumulativeExecutedFee types.Number `json:"cumExecFee"`
-	TimeInForce           string       `json:"timeInForce"`
-	OrderType             string       `json:"orderType"`
-	StopOrderType         string       `json:"stopOrderType"`
-	OrderIV               types.Number `json:"orderIv"`
-	MarketUnit            string       `json:"marketUnit"`
+	CumulativeExecutedFee  types.Number `json:"cumExecFee"`
+	TimeInForce            string       `json:"timeInForce"`
+	OrderType              string       `json:"orderType"`
+	StopOrderType          string       `json:"stopOrderType"`
+	OrderImpliedVolatility types.Number `json:"orderIv"`
+	MarketUnit             string       `json:"marketUnit"`
 	// TriggerPrice is the activation price when StopOrderType is TrailingStop
 	TriggerPrice     types.Number `json:"triggerPrice"`
 	TakeProfit       types.Number `json:"takeProfit"`
@@ -503,23 +503,23 @@ type Execution struct {
 	StopOrderType  string       `json:"stopOrderType"`
 	ExecutionFee   types.Number `json:"execFee"`
 	// ExecutionFeeV2 is the fee of the spot leg of a FutureSpread execution
-	ExecutionFeeV2    types.Number  `json:"execFeeV2"`
-	ExecutionID       string        `json:"execId"`
-	ExecutionPrice    types.Number  `json:"execPrice"`
-	ExecutionQuantity types.Number  `json:"execQty"`
-	ExecutionType     string        `json:"execType"`
-	ExecutionValue    types.Number  `json:"execValue"`
-	ExecutionTime     types.Time    `json:"execTime"`
-	FeeCurrency       currency.Code `json:"feeCurrency"`
-	IsMaker           bool          `json:"isMaker"`
-	FeeRate           types.Number  `json:"feeRate"`
-	TradeIV           types.Number  `json:"tradeIv"`
-	MarkIV            types.Number  `json:"markIv"`
-	MarkPrice         types.Number  `json:"markPrice"`
-	IndexPrice        types.Number  `json:"indexPrice"`
-	UnderlyingPrice   types.Number  `json:"underlyingPrice"`
-	BlockTradeID      string        `json:"blockTradeId"`
-	ClosedSize        types.Number  `json:"closedSize"`
+	ExecutionFeeV2         types.Number  `json:"execFeeV2"`
+	ExecutionID            string        `json:"execId"`
+	ExecutionPrice         types.Number  `json:"execPrice"`
+	ExecutionQuantity      types.Number  `json:"execQty"`
+	ExecutionType          string        `json:"execType"`
+	ExecutionValue         types.Number  `json:"execValue"`
+	ExecutionTime          types.Time    `json:"execTime"`
+	FeeCurrency            currency.Code `json:"feeCurrency"`
+	IsMaker                bool          `json:"isMaker"`
+	FeeRate                types.Number  `json:"feeRate"`
+	TradeImpliedVolatility types.Number  `json:"tradeIv"`
+	MarkImpliedVolatility  types.Number  `json:"markIv"`
+	MarkPrice              types.Number  `json:"markPrice"`
+	IndexPrice             types.Number  `json:"indexPrice"`
+	UnderlyingPrice        types.Number  `json:"underlyingPrice"`
+	BlockTradeID           string        `json:"blockTradeId"`
+	ClosedSize             types.Number  `json:"closedSize"`
 	// Sequence links fills with position updates; it is unique per symbol
 	Sequence uint64 `json:"seq"`
 	// ExtraFees lists, as a JSON string, the taxes charged to Indian users and on the Indonesian and EU sites; it is
@@ -528,7 +528,8 @@ type Execution struct {
 }
 
 // BatchPlaceOrderRequest holds the parameters of Batch Place Order: up to 20 linear or inverse, 10 spot or 5 option
-// orders of one category
+// orders of one category. Bybit counts each linear or inverse order against a budget of 10 a second, so the rate limit
+// refuses a batch of more
 type BatchPlaceOrderRequest struct {
 	Category string
 	Request  []BatchPlaceOrderItem
@@ -578,9 +579,9 @@ type BatchPlaceOrderItem struct {
 	OrderFilter      string
 	TriggerPrice     float64
 	TriggerBy        string
-	// OrderIV is the option implied volatility as a fraction, 0.1 for 10%; it takes priority over Price
-	OrderIV     float64
-	TimeInForce string
+	// OrderImpliedVolatility is the option implied volatility as a fraction, 0.1 for 10%; it takes priority over Price
+	OrderImpliedVolatility float64
+	TimeInForce            string
 	// PositionIndex is 0 in one-way mode, and 1 for the buy side or 2 for the sell side in hedge mode
 	PositionIndex  uint64
 	OrderLinkID    string
@@ -640,8 +641,8 @@ func (r *BatchPlaceOrderItem) Payload() (map[string]any, error) {
 	if r.TriggerBy != "" {
 		body["triggerBy"] = r.TriggerBy
 	}
-	if r.OrderIV != 0 {
-		body["orderIv"] = strconv.FormatFloat(r.OrderIV, 'f', -1, 64)
+	if r.OrderImpliedVolatility != 0 {
+		body["orderIv"] = strconv.FormatFloat(r.OrderImpliedVolatility, 'f', -1, 64)
 	}
 	if r.TimeInForce != "" {
 		body["timeInForce"] = r.TimeInForce
@@ -723,7 +724,8 @@ type BatchPlacedOrder struct {
 }
 
 // BatchAmendOrderRequest holds the parameters of Batch Amend Order: up to 20 linear or inverse, 10 spot or 5 option
-// orders of one category
+// orders of one category. Bybit counts each linear or inverse order against a budget of 10 a second, so the rate limit
+// refuses a batch of more
 type BatchAmendOrderRequest struct {
 	Category string
 	Request  []BatchAmendOrderItem
@@ -761,12 +763,12 @@ type BatchAmendOrderItem struct {
 	Symbol      string
 	OrderID     string
 	OrderLinkID string
-	// OrderIV is the option implied volatility as a fraction, 0.1 for 10%
-	OrderIV      float64
-	TriggerPrice float64
-	Quantity     float64
-	Price        float64
-	TPSLMode     string
+	// OrderImpliedVolatility is the option implied volatility as a fraction, 0.1 for 10%
+	OrderImpliedVolatility float64
+	TriggerPrice           float64
+	Quantity               float64
+	Price                  float64
+	TPSLMode               string
 	// TakeProfit and StopLoss are left unchanged when nil, and cancelled when they point to zero
 	TakeProfit   *float64
 	StopLoss     *float64
@@ -796,8 +798,8 @@ func (r *BatchAmendOrderItem) Payload() (map[string]any, error) {
 	if r.OrderLinkID != "" {
 		body["orderLinkId"] = r.OrderLinkID
 	}
-	if r.OrderIV != 0 {
-		body["orderIv"] = strconv.FormatFloat(r.OrderIV, 'f', -1, 64)
+	if r.OrderImpliedVolatility != 0 {
+		body["orderIv"] = strconv.FormatFloat(r.OrderImpliedVolatility, 'f', -1, 64)
 	}
 	if r.TriggerPrice != 0 {
 		body["triggerPrice"] = strconv.FormatFloat(r.TriggerPrice, 'f', -1, 64)
@@ -853,7 +855,8 @@ type BatchOrderResult struct {
 }
 
 // BatchCancelOrderRequest holds the parameters of Batch Cancel Order: up to 20 linear or inverse, 10 spot or 5 option
-// orders of one category
+// orders of one category. Bybit counts each linear or inverse order against a budget of 10 a second, so the rate limit
+// refuses a batch of more
 type BatchCancelOrderRequest struct {
 	Category string
 	Request  []BatchCancelOrderItem

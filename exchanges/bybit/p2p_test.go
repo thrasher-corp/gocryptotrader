@@ -62,7 +62,7 @@ func TestGetP2POnlineAds(t *testing.T) {
 				{
 					ID:               "1899658238346616832",
 					AccountID:        "100000004",
-					UserID:           "100000003",
+					UserID:           preciseNumber(t, "100000003"),
 					NickName:         "TestMaker",
 					TokenID:          currency.USDT,
 					TokenName:        "USDT",
@@ -81,9 +81,9 @@ func TestGetP2POnlineAds(t *testing.T) {
 					Payments: []string{
 						"14",
 					},
-					OrderNum:          12,
-					FinishNum:         11,
-					RecentOrderNum:    5,
+					OrderNumber:       12,
+					FinishNumber:      11,
+					RecentOrderNumber: 5,
 					RecentExecuteRate: 91.6,
 					Fee:               0.5,
 					IsOnline:          true,
@@ -171,7 +171,7 @@ func TestGetP2POnlineAds(t *testing.T) {
 				{
 					ID:           "1899659847717838848",
 					AccountID:    "100000004",
-					UserID:       "100000003",
+					UserID:       preciseNumber(t, "100000003"),
 					NickName:     "TestMaker",
 					TokenID:      currency.USDT,
 					CurrencyID:   currency.EUR,
@@ -479,9 +479,9 @@ func TestGetP2PMyAds(t *testing.T) {
 						"14",
 						"377",
 					},
-					OrderNum:          8,
-					FinishNum:         7,
-					RecentOrderNum:    3,
+					OrderNumber:       8,
+					FinishNumber:      7,
+					RecentOrderNumber: 3,
 					RecentExecuteRate: 87.5,
 					Fee:               0.2,
 					IsOnline:          true,
@@ -605,6 +605,7 @@ func TestGetP2PMyAds(t *testing.T) {
 					HiddenReason:  "Insufficient balance",
 				},
 			},
+			HiddenFlag: true,
 		}
 		assert.Equal(t, exp, result, "GetP2PMyAds should decode every field")
 		return
@@ -648,9 +649,9 @@ func TestGetP2PMyAdDetails(t *testing.T) {
 				"14",
 				"377",
 			},
-			OrderNum:          8,
-			FinishNum:         7,
-			RecentOrderNum:    3,
+			OrderNumber:       8,
+			FinishNumber:      7,
+			RecentOrderNumber: 3,
 			RecentExecuteRate: 87.5,
 			Fee:               0.2,
 			IsOnline:          true,
@@ -1007,7 +1008,7 @@ func TestGetP2POrderDetail(t *testing.T) {
 			},
 			Remark:              "test",
 			TransferLastSeconds: 201,
-			RecentOrderNum:      4,
+			RecentOrderNumber:   4,
 			RecentExecuteRate:   75,
 			AppealLastSeconds:   1800,
 			AppealContent:       "Payment not received",
@@ -1389,8 +1390,8 @@ func TestGetP2PAccountInformation(t *testing.T) {
 			RealName:             "TEST USER",
 			RecentTradeAmount:    12500.5,
 			TotalTradeAmount:     250000,
-			ExecuteNum:           118,
-			OrderNum:             120,
+			ExecuteNumber:        118,
+			OrderNumber:          120,
 			HasUnPostAd:          true,
 			RegisterTime:         types.Time(time.Unix(1681266699, 0)),
 			AuthStatus:           1,
@@ -1399,7 +1400,7 @@ func TestGetP2PAccountInformation(t *testing.T) {
 			GoodAppraiseRate:     99.1,
 			GoodAppraiseCount:    110,
 			BadAppraiseCount:     1,
-			AccountID:            "100000002",
+			AccountID:            preciseNumber(t, "100000002"),
 			PaymentCount:         2,
 			ContactCount:         1,
 			RealNameMask:         "TEST ***R",
@@ -1479,8 +1480,8 @@ func TestGetP2PCounterpartyUserInfo(t *testing.T) {
 			RealName:             "TEST USER",
 			RecentTradeAmount:    12500.5,
 			TotalTradeAmount:     250000,
-			ExecuteNum:           118,
-			OrderNum:             120,
+			ExecuteNumber:        118,
+			OrderNumber:          120,
 			HasUnPostAd:          true,
 			RegisterTime:         types.Time(time.Unix(1681266699, 0)),
 			AuthStatus:           1,
@@ -1489,7 +1490,7 @@ func TestGetP2PCounterpartyUserInfo(t *testing.T) {
 			GoodAppraiseRate:     99.1,
 			GoodAppraiseCount:    110,
 			BadAppraiseCount:     1,
-			AccountID:            "100000004",
+			AccountID:            preciseNumber(t, "100000004"),
 			PaymentCount:         2,
 			ContactCount:         1,
 			RealNameMask:         "TEST ***R",
@@ -1644,14 +1645,14 @@ func TestGetP2PChatSessionList(t *testing.T) {
 					SessionName: "TestMaker",
 					SessionID:   "aes_encrypted_session_id",
 					Type:        "SINGLE",
-					ID:          "128",
+					ID:          preciseNumber(t, "128"),
 					UnreadCount: 5,
 				},
 				{
 					SessionName: "AnotherMaker",
 					SessionID:   "aes_encrypted_session_id_2",
 					Type:        "SINGLE",
-					ID:          "96",
+					ID:          preciseNumber(t, "96"),
 				},
 			},
 		}
@@ -1814,14 +1815,14 @@ func TestGetP2PChatMessageList(t *testing.T) {
 		exp := &P2PChatMessageListResponse{
 			Messages: []P2PChatMessage{
 				{
-					ID:               "1920001234567890",
+					ID:               preciseNumber(t, "1920001234567890"),
 					SendUserNickName: "TestUser",
 					ContentType:      "str",
 					Message:          "{\"content\":\"Hello, I have paid.\",\"msgCode\":\"\",\"msgType\":\"\",\"fileName\":\"\",\"size\":\"\"}",
 					CreateDate:       types.Time(time.Unix(1741832094, 0)),
 				},
 				{
-					ID:               "1920001234567889",
+					ID:               preciseNumber(t, "1920001234567889"),
 					SendUserNickName: "TestMaker",
 					ContentType:      "pic",
 					Message:          "{\"content\":\"/fiat/p2p/oss/showObj/otc/9001/payment-proof.png\",\"msgCode\":\"\",\"msgType\":\"\",\"fileName\":\"payment-proof.png\",\"size\":\"102400\"}",
@@ -1838,7 +1839,7 @@ func TestGetP2PChatMessageList(t *testing.T) {
 func TestP2PChatMessageContent(t *testing.T) {
 	t.Parallel()
 	m := &P2PChatMessage{
-		ID:      "1920001234567889",
+		ID:      preciseNumber(t, "1920001234567889"),
 		Message: `{"content":"/fiat/p2p/oss/showObj/otc/9001/payment-proof.png","msgCode":"1","msgType":"2","fileName":"payment-proof.png","size":"102400"}`,
 	}
 	content, err := m.MessageContent()
@@ -1859,4 +1860,24 @@ func TestP2PChatMessageContent(t *testing.T) {
 	m.Message = "Hello"
 	_, err = m.MessageContent()
 	assert.Error(t, err, "MessageContent should reject a message that is not JSON")
+}
+
+func TestP2PFieldsDecodeEitherForm(t *testing.T) {
+	t.Parallel()
+	// The first form of each is the parameter table's, the second the recorded example's
+	requireDecodesEachForm(t, P2POnlineAd{UserID: preciseNumber(t, "100000003"), Side: 1, RecentOrderNumber: 5},
+		`{"userId":100000003,"side":"1","recentOrderNum":"5"}`, `{"userId":"100000003","side":1,"recentOrderNum":5}`)
+	requireDecodesEachForm(t, P2PUserInfoResponse{AccountID: preciseNumber(t, "100000002")}, `{"accountId":100000002}`, `{"accountId":"100000002"}`)
+	requireDecodesEachForm(t, P2PChatSession{ID: preciseNumber(t, "128")}, `{"id":128}`, `{"id":"128"}`)
+	requireDecodesEachForm(t, P2PChatMessage{ID: preciseNumber(t, "1920001234567890123")}, `{"id":1920001234567890123}`, `{"id":"1920001234567890123"}`)
+}
+
+// requireDecodesEachForm decodes every form into a T and compares each with exp
+func requireDecodesEachForm[T any](t *testing.T, exp T, forms ...string) {
+	t.Helper()
+	for _, data := range forms {
+		var got T
+		require.NoErrorf(t, json.Unmarshal([]byte(data), &got), "Unmarshal must decode %s", data)
+		assert.Equalf(t, exp, got, "Unmarshal should decode %s", data)
+	}
 }

@@ -21,13 +21,14 @@ var (
 	errTokenCodeRequired          = errors.New("token code required")
 	errQuoteDataRequired          = errors.New("quote data required")
 	errCorrectingCodeRequired     = errors.New("correcting code required")
+	errGasRequired                = errors.New("gas from the quote required")
 	errChainCodeRequired          = errors.New("chain code required")
 	errTokenAddressRequired       = errors.New("token address required")
 	errPageLimitRequired          = errors.New("page limit required")
 	errPageIndexRequired          = errors.New("page index required")
 	errPoolAddressRequired        = errors.New("pool address required")
 	errLPPositionIDRequired       = errors.New("LP position ID required")
-	errDercRatioInvalid           = errors.New("redeem ratio must be greater than zero")
+	errDercRatioInvalid           = errors.New("redeem ratio must be greater than zero and at most 1")
 	errRangeAndPriceBoundsBothSet = errors.New("range and price bounds are mutually exclusive")
 	errOutcomeTokenIDRequired     = errors.New("outcome token ID required")
 	errEventIDRequired            = errors.New("event ID required")
@@ -87,8 +88,9 @@ func (e *Exchange) ExecuteWeb3Redeem(ctx context.Context, r *Web3TradeRequest) (
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/alpha/trade/redeem", nil, body, &resp, defaultEPL)
 }
 
-// web3TradeBody builds the body Execute Purchase and Execute Redeem share. Gas, Slippage and QuoteMode are always sent:
-// the API requires them and zero is a valid value for each
+// web3TradeBody builds the body Execute Purchase and Execute Redeem share. Slippage and QuoteMode are always sent: the
+// API requires them and zero is a valid value for each. Gas is sent as the quote's own string, since Bybit requires it
+// unchanged
 func web3TradeBody(r *Web3TradeRequest) (map[string]any, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -108,13 +110,16 @@ func web3TradeBody(r *Web3TradeRequest) (map[string]any, error) {
 	if r.CorrectingCode == "" {
 		return nil, errCorrectingCodeRequired
 	}
+	if r.Gas == "" {
+		return nil, errGasRequired
+	}
 	body := make(map[string]any)
 	body["fromTokenCode"] = r.FromTokenCode
 	body["fromTokenAmount"] = strconv.FormatFloat(r.FromTokenAmount, 'f', -1, 64)
 	body["toTokenCode"] = r.ToTokenCode
 	body["slippage"] = strconv.FormatFloat(r.Slippage, 'f', -1, 64)
 	body["quoteData"] = r.QuoteData
-	body["gas"] = strconv.FormatFloat(r.Gas, 'f', -1, 64)
+	body["gas"] = r.Gas
 	body["quoteMode"] = r.QuoteMode
 	body["correctingCode"] = r.CorrectingCode
 	if r.Tenant != "" {
@@ -298,8 +303,8 @@ func (e *Exchange) ExecuteWeb3LPRedeem(ctx context.Context, r *Web3LPRedeemReque
 	if r.PoolAddress == "" {
 		return nil, errPoolAddressRequired
 	}
-	if r.DercRatio <= 0 {
-		return nil, errDercRatioInvalid
+	if r.DercRatio <= 0 || r.DercRatio > 1 {
+		return nil, fmt.Errorf("%w: %v", errDercRatioInvalid, r.DercRatio)
 	}
 	body := make(map[string]any)
 	body["positionId"] = r.PositionID
@@ -707,10 +712,10 @@ func (e *Exchange) GetPredictionSportsMatchList(ctx context.Context, r *Predicti
 	if r.EventType == 0 {
 		return nil, errEventTypeRequired
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	// The window bounds the matches' start times, which are in the future for upcoming matches, so only its order is
+	// checked
+	if !r.StartTime.IsZero() && !r.EndTime.IsZero() && r.StartTime.After(r.EndTime) {
+		return nil, common.ErrStartAfterEnd
 	}
 	body := make(map[string]any)
 	body["eventType"] = r.EventType

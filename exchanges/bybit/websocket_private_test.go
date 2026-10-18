@@ -87,9 +87,9 @@ func TestWsHandleAuthenticatedDataTopics(t *testing.T) {
 		fixture string
 		exp     []any // the frame each push should be relayed as, decoded from the push
 	}{
-		{fixture: "testdata/wsSpreadPrivate.json", exp: []any{new(SpreadOrderFrame), new(SpreadExecutionFrame)}},
-		{fixture: "testdata/wsRFQPrivate.json", exp: []any{new(RFQQuoteFrame), new(RFQQuoteFrame), new(RFQTradeFrame), new(RFQInquiryFrame)}},
-		{fixture: "testdata/wsEventPrivate.json", exp: []any{new(EventPositionFrame), new(EventExecutionFrame), new(EventExecutionFrame), new(EventOrderFrame), new(EventOrderFrame)}},
+		{fixture: "testdata/wsSpreadPrivate.json", exp: []any{new(WebsocketSpreadOrderResponse), new(WebsocketSpreadExecutionResponse)}},
+		{fixture: "testdata/wsRFQPrivate.json", exp: []any{new(WebsocketRFQQuoteResponse), new(WebsocketRFQQuoteResponse), new(WebsocketRFQTradeResponse), new(WebsocketRFQInquiryResponse)}},
+		{fixture: "testdata/wsEventPrivate.json", exp: []any{new(WebsocketEventPositionResponse), new(WebsocketEventExecutionResponse), new(WebsocketEventExecutionResponse), new(WebsocketEventOrderResponse), new(WebsocketEventOrderResponse)}},
 	} {
 		frames := fixtureFrames(t, tc.fixture)
 		require.Lenf(t, frames, len(tc.exp), "%s must hold one push per expected frame", tc.fixture)
@@ -117,44 +117,44 @@ func TestWebsocketPosition(t *testing.T) {
 			Topic:        "position",
 			CreationTime: types.Time(time.UnixMilli(1697682317044)),
 			Data: []WebsocketPosition{{
-				Category:                             "linear",
-				Symbol:                               "BTCUSDT",
-				Side:                                 "Buy",
-				Size:                                 preciseNumber(t, "0.15"),
-				PositionIndex:                        1,
-				PositionValue:                        preciseNumber(t, "12361.545"),
-				RiskID:                               1,
-				RiskLimitValue:                       preciseNumber(t, "2000000"),
-				EntryPrice:                           preciseNumber(t, "82410.3"),
-				MarkPrice:                            preciseNumber(t, "82559.7"),
-				Leverage:                             preciseNumber(t, "10"),
-				BreakEvenPrice:                       preciseNumber(t, "82455.6"),
-				AutoAddMargin:                        true,
-				PositionInitialMargin:                preciseNumber(t, "1243.0204"),
-				PositionMaintenanceMargin:            preciseNumber(t, "68.71"),
-				LiquidationPrice:                     preciseNumber(t, "74535.8"),
-				TakeProfit:                           preciseNumber(t, "90000"),
-				StopLoss:                             preciseNumber(t, "78000"),
-				TrailingStop:                         preciseNumber(t, "500"),
-				UnrealisedPNL:                        preciseNumber(t, "22.41"),
-				CurrentRealisedPNL:                   preciseNumber(t, "-6.79884975"),
-				SessionAveragePrice:                  preciseNumber(t, "82410.3"),
-				NetDeltaRatio:                        preciseNumber(t, "0.25"),
-				CumulativeRealisedPNL:                preciseNumber(t, "-25.06579337"),
-				PositionStatus:                       "Normal",
-				ADLRankIndicator:                     2,
-				IsReduceOnly:                         true,
-				CreatedTime:                          types.Time(time.UnixMilli(1694402496913)),
-				UpdatedTime:                          types.Time(time.UnixMilli(1697682317038)),
-				OpenTime:                             types.Time(time.UnixMilli(1697600017038)),
-				Sequence:                             8327597863,
-				MMRSystemUpdatedTime:                 types.Time(time.UnixMilli(1697682300000)),
-				LeverageSystemUpdatedTime:            types.Time(time.UnixMilli(1697682300000)),
-				PositionInitialMarginByMarkPrice:     preciseNumber(t, "1243.0204"),
-				PositionMaintenanceMarginByMarkPrice: preciseNumber(t, "68.71"),
-				TPSLMode:                             "Full",
-				BustPrice:                            preciseNumber(t, "74169.3"),
-				PositionBalance:                      preciseNumber(t, "1236.1545"),
+				Category:                               "linear",
+				Symbol:                                 "BTCUSDT",
+				Side:                                   "Buy",
+				Size:                                   preciseNumber(t, "0.15"),
+				PositionIndex:                          1,
+				PositionValue:                          preciseNumber(t, "12361.545"),
+				RiskID:                                 1,
+				RiskLimitValue:                         preciseNumber(t, "2000000"),
+				EntryPrice:                             preciseNumber(t, "82410.3"),
+				MarkPrice:                              preciseNumber(t, "82559.7"),
+				Leverage:                               preciseNumber(t, "10"),
+				BreakEvenPrice:                         preciseNumber(t, "82455.6"),
+				AutoAddMargin:                          true,
+				PositionInitialMargin:                  preciseNumber(t, "1243.0204"),
+				PositionMaintenanceMargin:              preciseNumber(t, "68.71"),
+				LiquidationPrice:                       preciseNumber(t, "74535.8"),
+				TakeProfit:                             preciseNumber(t, "90000"),
+				StopLoss:                               preciseNumber(t, "78000"),
+				TrailingStop:                           preciseNumber(t, "500"),
+				UnrealisedPNL:                          preciseNumber(t, "22.41"),
+				CurrentRealisedPNL:                     preciseNumber(t, "-6.79884975"),
+				SessionAveragePrice:                    preciseNumber(t, "82410.3"),
+				NetDeltaRatio:                          preciseNumber(t, "0.25"),
+				CumulativeRealisedPNL:                  preciseNumber(t, "-25.06579337"),
+				PositionStatus:                         "Normal",
+				ADLRankIndicator:                       2,
+				IsReduceOnly:                           true,
+				CreatedTime:                            types.Time(time.UnixMilli(1694402496913)),
+				UpdatedTime:                            types.Time(time.UnixMilli(1697682317038)),
+				OpenTime:                               types.Time(time.UnixMilli(1697600017038)),
+				Sequence:                               8327597863,
+				MaintenanceMarginRateSystemUpdatedTime: types.Time(time.UnixMilli(1697682300000)),
+				LeverageSystemUpdatedTime:              types.Time(time.UnixMilli(1697682300000)),
+				PositionInitialMarginByMarkPrice:       preciseNumber(t, "1243.0204"),
+				PositionMaintenanceMarginByMarkPrice:   preciseNumber(t, "68.71"),
+				TPSLMode:                               "Full",
+				BustPrice:                              preciseNumber(t, "74169.3"),
+				PositionBalance:                        preciseNumber(t, "1236.1545"),
 			}},
 		},
 		{
@@ -431,31 +431,31 @@ func TestWebsocketExecution(t *testing.T) {
 			CreationTime: types.Time(time.UnixMilli(1791535798095)),
 			Data: []WebsocketExecution{
 				{
-					Category:          "option",
-					Symbol:            "BTC-24SEP27-170000-P-USDT",
-					OrderID:           "5cf98598-39a7-459e-97bf-76ca765ee020",
-					OrderLinkID:       "option-sell-001",
-					Side:              "Sell",
-					OrderPrice:        84100,
-					OrderQuantity:     0.01,
-					OrderType:         "Limit",
-					ExecutionFee:      1.25,
-					ExecutionID:       "20350fa2-6942-57bc-8eb1-07705dd4bab3",
-					ExecutionPrice:    84130,
-					ExecutionQuantity: 0.01,
-					ExecutionPNL:      -1.25,
-					ExecutionType:     "Trade",
-					ExecutionValue:    841.3,
-					ExecutionTime:     types.Time(time.UnixMilli(1791535798090)),
-					FeeRate:           0.0003,
-					TradeIV:           0.4249,
-					MarkIV:            0.4254,
-					MarkPrice:         84134.38654221,
-					IndexPrice:        82611.83292604,
-					UnderlyingPrice:   87001.2,
-					BlockTradeID:      "block-7e2f",
-					Sequence:          77634219074,
-					FeeCurrency:       currency.USDT,
+					Category:               "option",
+					Symbol:                 "BTC-24SEP27-170000-P-USDT",
+					OrderID:                "5cf98598-39a7-459e-97bf-76ca765ee020",
+					OrderLinkID:            "option-sell-001",
+					Side:                   "Sell",
+					OrderPrice:             84100,
+					OrderQuantity:          0.01,
+					OrderType:              "Limit",
+					ExecutionFee:           1.25,
+					ExecutionID:            "20350fa2-6942-57bc-8eb1-07705dd4bab3",
+					ExecutionPrice:         84130,
+					ExecutionQuantity:      0.01,
+					ExecutionPNL:           -1.25,
+					ExecutionType:          "Trade",
+					ExecutionValue:         841.3,
+					ExecutionTime:          types.Time(time.UnixMilli(1791535798090)),
+					FeeRate:                0.0003,
+					TradeImpliedVolatility: 0.4249,
+					MarkImpliedVolatility:  0.4254,
+					MarkPrice:              84134.38654221,
+					IndexPrice:             82611.83292604,
+					UnderlyingPrice:        87001.2,
+					BlockTradeID:           "block-7e2f",
+					Sequence:               77634219074,
+					FeeCurrency:            currency.USDT,
 				},
 			},
 		},
@@ -867,7 +867,7 @@ func TestWebsocketOrder(t *testing.T) {
 		Exchange:             "TestWebsocketOrder",
 		OrderID:              "c1956690-b731-4191-97c0-94b00422231b",
 		ClientOrderID:        "linear-tp-001",
-		Type:                 order.Limit,
+		Type:                 order.TakeProfit,
 		Side:                 order.Sell,
 		Status:               order.PartiallyFilled,
 		AssetType:            asset.USDTMarginedFutures,
@@ -889,7 +889,7 @@ func TestWebsocketOrder(t *testing.T) {
 		Exchange:             "TestWebsocketOrder",
 		OrderID:              "2290000000123456789",
 		ClientOrderID:        "spot-buy-001",
-		Type:                 order.Market,
+		Type:                 order.OCO,
 		Side:                 order.Buy,
 		Status:               order.Filled,
 		AssetType:            asset.Spot,
@@ -958,7 +958,7 @@ func TestWsProcessOrder(t *testing.T) {
 		Exchange:             "TestWsProcessOrder",
 		OrderID:              "c1956690-b731-4191-97c0-94b00422231b",
 		ClientOrderID:        "linear-tp-001",
-		Type:                 order.Limit,
+		Type:                 order.TakeProfit,
 		Side:                 order.Sell,
 		Status:               order.PartiallyFilled,
 		AssetType:            asset.USDTMarginedFutures,
@@ -981,7 +981,7 @@ func TestWsProcessOrder(t *testing.T) {
 		Exchange:             "TestWsProcessOrder",
 		OrderID:              "2290000000123456789",
 		ClientOrderID:        "spot-buy-001",
-		Type:                 order.Market,
+		Type:                 order.OCO,
 		Side:                 order.Buy,
 		Status:               order.Filled,
 		AssetType:            asset.Spot,
@@ -1013,12 +1013,28 @@ func TestWsProcessOrder(t *testing.T) {
 	// Option orders report their fee in cumExecFee, in the settle coin; their cumFeeDetail is empty
 	option.SetFees(mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 1.25}))
 	assert.Equal(t, []any{[]order.Detail{linear}, []order.Detail{spot}, []order.Detail{option}}, relayed(ex), "wsProcessOrder should relay each order as an order detail")
+	// The cost is the executed value Bybit reports, which need not be the average price times the executed quantity
+	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[0], []byte(`"cumExecValue":"24780"`), []byte(`"cumExecValue":"24780.15"`), 1)), "wsProcessOrder must not error for an order whose value is not its average price times its quantity")
+	valued := linear
+	valued.Cost = 24780.15
+	assert.Equal(t, []any{[]order.Detail{valued}}, relayed(ex), "wsProcessOrder should take an order's cost from its executed value")
 
 	// A retail price improvement order rests on the book as a post only order
 	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[0], []byte(`"timeInForce":"GTC"`), []byte(`"timeInForce":"RPI"`), 1)), "wsProcessOrder must not error for an RPI order")
 	rpi := linear
 	rpi.TimeInForce = order.PostOnly
 	assert.Equal(t, []any{[]order.Detail{rpi}}, relayed(ex), "wsProcessOrder should relay an RPI order as post only")
+
+	// A conditional market order is pushed as the market order it becomes, with its condition in stopOrderType
+	stopMarket := bytes.Replace(bytes.Replace(frames[0], []byte(`"orderType":"Limit"`), []byte(`"orderType":"Market"`), 1), []byte(`"stopOrderType":"TakeProfit"`), []byte(`"stopOrderType":"Stop"`), 1)
+	require.NoError(t, ex.wsProcessOrder(t.Context(), stopMarket), "wsProcessOrder must not error for a conditional market order")
+	conditional := linear
+	conditional.Type = order.StopMarket
+	assert.Equal(t, []any{[]order.Detail{conditional}}, relayed(ex), "wsProcessOrder should relay a conditional market order as a stop market order")
+
+	// Bybit sizes a spot market buy by value unless told otherwise, and reports some such buys with an empty market unit
+	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[1], []byte(`"marketUnit":"quoteCoin"`), []byte(`"marketUnit":""`), 1)), "wsProcessOrder must not error for a spot market buy without a market unit")
+	assert.Equal(t, []any{[]order.Detail{spot}}, relayed(ex), "wsProcessOrder should read a spot market buy without a market unit as sized by value")
 
 	for _, tc := range []struct {
 		name  string
@@ -1173,7 +1189,7 @@ func fixtureWebsocketOrders() []WebsocketOrderResponse {
 					CumulativeExecutedFee:      1.25,
 					TimeInForce:                "IOC",
 					OrderType:                  "Limit",
-					OrderIV:                    0.4249,
+					OrderImpliedVolatility:     0.4249,
 					SlippageToleranceType:      "UNKNOWN",
 					LastPriceOnCreated:         84120,
 					PlaceType:                  "iv",
@@ -1229,7 +1245,7 @@ func TestWebsocketWallet(t *testing.T) {
 					TotalInitialMarginByMarkPrice:           1243.0204,
 					TotalMaintenanceMarginByMarkPrice:       68.71,
 					AccountLTV:                              0.017,
-					Coins: []WebsocketWalletCoin{
+					Coins: []WalletBalanceCoin{
 						{
 							Coin:                           currency.BTC,
 							Equity:                         0.00102964,
@@ -1281,12 +1297,13 @@ func TestWebsocketWallet(t *testing.T) {
 			sa.Balances[code] = balance
 		}
 	}
-	// The BTC wallet balance includes its spot borrowing
-	btcWallet, btcLocked, btcSpotBorrow := 0.00102964, 0.0002, 0.0001
+	// The BTC wallet balance includes its spot borrowing, and its orders and positions hold margin
+	btcWallet, btcLocked, btcOrderMargin, btcPositionMargin, btcSpotBorrow, btcBonus := 0.00102964, 0.0002, 0.00001, 0.00002, 0.0001, 0.0001
+	btcHold := btcLocked + btcOrderMargin + btcPositionMargin
 	exp := accounts.SubAccounts{{
 		AssetType: asset.Spot,
 		Balances: accounts.CurrencyBalances{
-			currency.BTC:  {Currency: currency.BTC, Total: btcWallet, Hold: btcLocked, Free: btcWallet - btcLocked, Borrowed: 0.0001, AvailableWithoutBorrow: btcWallet - btcSpotBorrow - btcLocked},
+			currency.BTC:  {Currency: currency.BTC, Total: btcWallet, Hold: btcHold, Free: btcWallet - btcHold, Borrowed: 0.0001, AvailableWithoutBorrow: btcWallet - btcSpotBorrow - btcHold - btcBonus},
 			currency.USDT: {Currency: currency.USDT, Total: 9648, Free: 9648, AvailableWithoutBorrow: 9648},
 		},
 	}}
@@ -1317,14 +1334,24 @@ func TestWsWalletReplacesRESTBalances(t *testing.T) {
 	balance, ok := subAccounts[0].Balances[currency.USDT]
 	require.True(t, ok, "wallet handler must emit the USDT balance")
 	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
+	assert.False(t, balance.UpdatedAt.After(time.Now()), "wallet update should be stamped with its arrival time")
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
 	require.NoError(t, err, "GetBalance must return the stored USDT balance")
 	assert.Equal(t, balance, stored, "wallet update should store the balance it emits")
 	balance.UpdatedAt = time.Time{}
-	exp := accounts.Balance{Currency: currency.USDT, Total: 100, Hold: 15, Free: 85, Borrowed: 20, AvailableWithoutBorrow: 65}
+	exp := accounts.Balance{Currency: currency.USDT, Total: 100, Hold: 40, Free: 60, Borrowed: 20, AvailableWithoutBorrow: 40}
 	assert.Equal(t, exp, balance, "wallet update should replace the REST snapshot with the push's balances, as REST computes them")
+
+	// A coin pushed with nothing left replaces the stored balance with nothing
+	emptied := []byte(`{"id":"wallet-update-2","topic":"wallet","creationTime":1787197421650,"data":[{"accountType":"UNIFIED","coin":[{"coin":"USDT","walletBalance":"0","locked":"0","spotBorrow":"0","borrowAmount":"0","totalOrderIM":"0","totalPositionIM":"0","bonus":"0"}]}]}`)
+	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), emptied), "wsProcessWalletPushData must process an emptied wallet")
+	<-ex.Websocket.DataHandler.C
+	stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "GetBalance must return the stored USDT balance")
+	stored.UpdatedAt = time.Time{}
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT}, stored, "an emptied wallet push should replace the stored balance")
 }
 
 func TestWebsocketGreeks(t *testing.T) {
@@ -1476,11 +1503,20 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 	}
 	assert.Equal(t, exp, subs, "generateAuthSubscriptions should leave dcp, fast execution, greeks and strategy to callers")
 
-	configured := &subscription.Subscription{Enabled: true, Channel: chanWallet, Authenticated: true}
-	ex.Config.Features.Subscriptions = subscription.List{configured}
-	_, err = ex.generateAuthSubscriptions()
+	// Setup disables a configured authenticated subscription, so generating, which can run while the configuration is
+	// saved, leaves the configuration as it is
+	ex.Config.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: chanWallet, Authenticated: true},
+		{Enabled: true, Channel: chanOrder, Authenticated: true},
+		{Enabled: true, Channel: chanPositions, Authenticated: true},
+		{Enabled: true, Channel: chanExecution, Authenticated: true},
+	}
+	subs, err = ex.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
-	assert.False(t, configured.Enabled, "a configured authenticated subscription should be disabled, since private topics are not configurable")
+	assert.Equal(t, exp, subs, "generateAuthSubscriptions should generate the private topics whatever the configuration holds")
+	for _, s := range ex.Config.Features.Subscriptions {
+		assert.Truef(t, s.Enabled, "generateAuthSubscriptions should leave the configured %s subscription enabled", s.Channel)
+	}
 }
 
 func TestQualifyByChannelName(t *testing.T) {
@@ -1489,9 +1525,10 @@ func TestQualifyByChannelName(t *testing.T) {
 		{Channel: subscription.MyOrdersChannel},
 		{Channel: "execution.fast.linear"},
 		{Channel: chanWallet, QualifiedChannel: "wallet"},
+		{Channel: subscription.MyOrdersChannel, QualifiedChannel: "order.spot"},
 	}
 	qualified := qualifyByChannelName(subs)
-	for i, exp := range []string{"order", "execution.fast.linear", "wallet"} {
-		assert.Equalf(t, exp, qualified[i].QualifiedChannel, "qualifyByChannelName should name topic %d by its channel", i)
+	for i, exp := range []string{"order", "execution.fast.linear", "wallet", "order.spot"} {
+		assert.Equalf(t, exp, qualified[i].QualifiedChannel, "qualifyByChannelName should keep topic %d if named and otherwise name it by its channel", i)
 	}
 }

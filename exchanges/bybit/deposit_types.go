@@ -177,16 +177,37 @@ type DepositOriginatorInfoResponse struct {
 	TravelRuleStatus uint64 `json:"travelRuleStatus"`
 }
 
-// AllowedDepositCoinInfoRequest holds the Get Allowed Deposit Coin Info filters; Coin and Chain go together
+// UnmarshalJSON decodes the status. The docs table names it travelRuleStatus but the docs' response sample sends
+// travel_rule_status, so either is read and the table's key wins when both are present. Presence decides, not a
+// non-zero value, because 0 means approved
+func (r *DepositOriginatorInfoResponse) UnmarshalJSON(data []byte) error {
+	type keys struct {
+		Documented *uint64 `json:"travelRuleStatus"`
+		Sampled    *uint64 `json:"travel_rule_status"`
+	}
+	var aux keys
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	switch {
+	case aux.Documented != nil:
+		r.TravelRuleStatus = *aux.Documented
+	case aux.Sampled != nil:
+		r.TravelRuleStatus = *aux.Sampled
+	}
+	return nil
+}
+
+// AllowedDepositCoinInfoRequest holds the Get Allowed Deposit Coin Info filters; Coin and Chain filter alone or together
 type AllowedDepositCoinInfoRequest struct {
 	Coin  currency.Code
 	Chain string
-	// Limit is at most 35
+	// Limit and Cursor are sent, but the route returns every matching row on each page and a cursor that never ends
 	Limit  uint64
 	Cursor string
 }
 
-// AllowedDepositCoinInfoResponse is a page of coins and chains that accept deposits
+// AllowedDepositCoinInfoResponse is a page of the coins and chains Bybit lists for deposits, open to them or not
 type AllowedDepositCoinInfoResponse struct {
 	ConfigList     []AllowedDepositCoin `json:"configList"`
 	NextPageCursor string               `json:"nextPageCursor"`
@@ -201,4 +222,7 @@ type AllowedDepositCoin struct {
 	// BlockConfirmNumber is the number of confirmations after which a deposit is credited
 	BlockConfirmNumber uint64       `json:"blockConfirmNumber"`
 	MinDepositAmount   types.Number `json:"minDepositAmount"`
+	// DepositSwitch is 1 when the chain accepts deposits and 0 when it is closed to them, since the route lists both, and
+	// empty where the host leaves it out, as testnet does
+	DepositSwitch string `json:"depositSwitch"`
 }

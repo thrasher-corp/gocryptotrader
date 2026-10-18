@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -139,6 +140,12 @@ func TestGetFuturesComboBotLimit(t *testing.T) {
 		_, err := e.GetFuturesComboBotLimit(t.Context(), &GetFuturesComboBotLimitRequest{CreateFuturesComboBotRequest: *r})
 		return err
 	})
+	// Get Bot Parameter Limit's page requires neither rebalancing trigger, so only Create Bot checks them
+	limited := restReplyTestInstance(t, map[string]string{"/v5/fcombobot/getlimit": `{"retCode":0,"retMsg":"OK","result":{"status_code":200,"check_code":"LIMIT_CHECK_CODE_SUCCESS_UNSPECIFIED"},"retExtInfo":{},"time":1760000000000}`})
+	untriggered := testFuturesComboBotRequest()
+	untriggered.AdjustPositionPercent, untriggered.AdjustPositionTimeInterval = 0, 0
+	_, err = limited.GetFuturesComboBotLimit(t.Context(), &GetFuturesComboBotLimitRequest{CreateFuturesComboBotRequest: *untriggered})
+	require.NoError(t, err, "GetFuturesComboBotLimit must accept a rebalancing mode without its trigger")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -204,6 +211,44 @@ func TestCreateFuturesComboBot(t *testing.T) {
 		_, err := e.CreateFuturesComboBot(t.Context(), r)
 		return err
 	})
+	for _, tc := range []struct {
+		mode   uint64
+		mutate func(*CreateFuturesComboBotRequest)
+		err    error
+	}{
+		{mode: 1, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
+		{mode: 2, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
+		{mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
+		{mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
+	} {
+		r := testFuturesComboBotRequest()
+		r.AdjustPositionMode = tc.mode
+		tc.mutate(r)
+		_, err = e.CreateFuturesComboBot(t.Context(), r)
+		require.ErrorIsf(t, err, tc.err, "CreateFuturesComboBot must reject adjust position mode %d without its trigger", tc.mode)
+	}
+	// Modes 4 to 6 rebalance by hand, on a settings change or on a transfer, and need neither trigger
+	created := restReplyTestInstance(t, map[string]string{"/v5/fcombobot/create": `{"retCode":0,"retMsg":"OK","result":{"status_code":200,"bot_id":"612323083000239723","debug_msg":"bot created"},"retExtInfo":{},"time":1760000000000}`})
+	for _, mode := range []uint64{4, 5, 6} {
+		r := testFuturesComboBotRequest()
+		r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = mode, 0, 0
+		_, err = created.CreateFuturesComboBot(t.Context(), r)
+		require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d without a trigger", mode)
+	}
+	// Time rebalancing needs no drift threshold, and percentage rebalancing no interval
+	for _, tc := range []struct {
+		mode     uint64
+		percent  float64
+		interval time.Duration
+	}{
+		{mode: 1, interval: time.Hour},
+		{mode: 2, percent: 0.05},
+	} {
+		r := testFuturesComboBotRequest()
+		r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = tc.mode, tc.percent, tc.interval
+		_, err = created.CreateFuturesComboBot(t.Context(), r)
+		require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d with only its own trigger", tc.mode)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -213,7 +258,7 @@ func TestCreateFuturesComboBot(t *testing.T) {
 	if mockTests {
 		exp := &CreateBotResponse{
 			StatusCode:   200,
-			BotID:        "612323083000239723",
+			BotID:        preciseNumber(t, "612323083000239723"),
 			DebugMessage: "bot created",
 		}
 		assert.Equal(t, exp, result, "CreateFuturesComboBot should decode every field")
@@ -285,8 +330,8 @@ func TestGetFuturesComboBotDetail(t *testing.T) {
 				TotalPNLPercent:       -0.0075,
 				ROI:                   -0.0075,
 				TotalAPR:              -0.1825,
-				RealizedPNL:           -3.7543,
-				UnrealizedPNL:         0.0012,
+				RealisedPNL:           -3.7543,
+				UnrealisedPNL:         0.0012,
 				TotalExecutionFee:     0.7061,
 				FundingFee:            -0.0213,
 				TotalPositionValue:    2481.2,
@@ -816,7 +861,7 @@ func TestCreateFuturesMartingaleBot(t *testing.T) {
 	if mockTests {
 		exp := &CreateBotResponse{
 			StatusCode:   200,
-			BotID:        "612335280740902531",
+			BotID:        preciseNumber(t, "612335280740902531"),
 			DebugMessage: "bot created",
 		}
 		assert.Equal(t, exp, result, "CreateFuturesMartingaleBot should decode every field")
@@ -894,8 +939,8 @@ func TestGetFuturesMartingaleBotDetail(t *testing.T) {
 				TotalMargin:                    1000,
 				PNL:                            1.41687,
 				PNLPercent:                     0.0014,
-				RealizedPNL:                    -0.02684394,
-				UnrealizedPNL:                  1.44372,
+				RealisedPNL:                    -0.02684394,
+				UnrealisedPNL:                  1.44372,
 				NetFundingFee:                  -0.0021,
 				TotalAPR:                       0.511,
 				CompletedRounds:                2,
@@ -1074,6 +1119,11 @@ func TestCreateSpotGridBot(t *testing.T) {
 		{name: "cell number", mutate: func(r *CreateSpotGridBotRequest) { r.CellNumber = 0 }, err: errGridCellNumberRequired},
 		{name: "min price", mutate: func(r *CreateSpotGridBotRequest) { r.MinPrice = 0 }, err: errGridMinPriceRequired},
 		{name: "max price", mutate: func(r *CreateSpotGridBotRequest) { r.MaxPrice = 0 }, err: errGridMaxPriceRequired},
+		// Leaving out the base investment too shows quote only mode, the default, needs none
+		{name: "quote investment in quote only mode", mutate: func(r *CreateSpotGridBotRequest) { r.InvestMode, r.BaseInvestment, r.QuoteInvestment = 0, 0, 0 }, err: errGridQuoteInvestmentRequired},
+		{name: "base investment in base only mode", mutate: func(r *CreateSpotGridBotRequest) { r.InvestMode, r.BaseInvestment = 1, 0 }, err: errGridBaseInvestmentRequired},
+		{name: "base investment in base and quote mode", mutate: func(r *CreateSpotGridBotRequest) { r.BaseInvestment = -1 }, err: errGridBaseInvestmentRequired},
+		{name: "quote investment in base and quote mode", mutate: func(r *CreateSpotGridBotRequest) { r.QuoteInvestment = 0 }, err: errGridQuoteInvestmentRequired},
 	} {
 		r := testSpotGridBotRequest()
 		tc.mutate(r)
@@ -1093,6 +1143,16 @@ func TestCreateSpotGridBot(t *testing.T) {
 			DebugMessage: "grid created",
 		}
 		assert.Equal(t, exp, result, "CreateSpotGridBot should decode every field")
+		result, err = e.CreateSpotGridBot(t.Context(), &CreateSpotGridBotRequest{
+			Symbol: "MNTUSDT", MaxPrice: 1.0968, MinPrice: 0.3656, CellNumber: 50, InvestMode: 1, BaseInvestment: 100,
+		})
+		require.NoError(t, err, "CreateSpotGridBot must not require a quote investment in base only mode")
+		exp = &CreateSpotGridBotResponse{
+			StatusCode:   200,
+			GridID:       "612340768081708829",
+			DebugMessage: "grid created",
+		}
+		assert.Equal(t, exp, result, "CreateSpotGridBot should create a base only grid")
 		banned := testSpotGridBotRequest()
 		banned.QuoteInvestment = 400
 		_, err = e.CreateSpotGridBot(t.Context(), banned)
@@ -1219,6 +1279,9 @@ func TestCreateDCABot(t *testing.T) {
 		err    error
 	}{
 		{name: "frequency", mutate: func(r *CreateDCABotRequest) { r.Frequency = time.Millisecond }, err: errDCAFrequencyRequired},
+		{name: "a frequency of at least 10 seconds", mutate: func(r *CreateDCABotRequest) { r.Frequency = 10*time.Second - time.Nanosecond }, err: errDCAFrequencyRequired},
+		// Reaching the quote coin check shows a frequency of exactly 10 seconds is accepted
+		{name: "quote coin at the minimum frequency", mutate: func(r *CreateDCABotRequest) { r.Frequency, r.QuoteCoin = 10*time.Second, currency.EMPTYCODE }, err: currency.ErrCurrencyCodeEmpty},
 		{name: "quote coin", mutate: func(r *CreateDCABotRequest) { r.QuoteCoin = currency.EMPTYCODE }, err: currency.ErrCurrencyCodeEmpty},
 		{name: "pairs", mutate: func(r *CreateDCABotRequest) { r.Pairs = nil }, err: errDCAPairsRequired},
 		{name: "a pair's base", mutate: func(r *CreateDCABotRequest) { r.Pairs[0].Base = currency.EMPTYCODE }, err: currency.ErrCurrencyCodeEmpty},
@@ -1243,7 +1306,7 @@ func TestCreateDCABot(t *testing.T) {
 	if mockTests {
 		exp := &CreateBotResponse{
 			StatusCode:   200,
-			BotID:        "612349292702654770",
+			BotID:        preciseNumber(t, "612349292702654770"),
 			DebugMessage: "bot created",
 		}
 		assert.Equal(t, exp, result, "CreateDCABot should decode every field")
@@ -1256,6 +1319,25 @@ func TestCreateDCABot(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result.BotID, "CreateDCABot should return a bot ID")
+}
+
+func TestCreateBotResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input string
+	}{
+		{name: "quoted bot ID", input: `{"status_code":200,"bot_id":"612349292702654770","debug_msg":"","ban_reason_text":""}`},
+		{name: "bare bot ID", input: `{"status_code":200,"bot_id":612349292702654770,"debug_msg":"","ban_reason_text":""}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result CreateBotResponse
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error")
+			exp := CreateBotResponse{StatusCode: 200, BotID: preciseNumber(t, "612349292702654770")}
+			assert.Equal(t, exp, result, "CreateBotResponse should keep every digit of the bot ID")
+			assert.Equal(t, "612349292702654770", result.BotID.String(), "BotID should give back the bot ID Bybit sent")
+		})
+	}
 }
 
 func TestCloseDCABot(t *testing.T) {

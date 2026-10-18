@@ -20,11 +20,9 @@ func TestGetVIPMarginData(t *testing.T) {
 		name     string
 		vipLevel string
 		coin     currency.Code
-		// mockOnly marks the unfiltered query, about 1.6 MB, which Bybit intermittently refuses with retCode 10006
-		mockOnly bool
 		exp      *VIPMarginDataResponse
 	}{
-		{name: "every VIP level", mockOnly: true, exp: &VIPMarginDataResponse{
+		{name: "every VIP level", exp: &VIPMarginDataResponse{
 			VIPCoinList: []VIPMarginLevel{
 				{
 					List: []VIPMarginCoin{
@@ -89,10 +87,12 @@ func TestGetVIPMarginData(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if tc.mockOnly && !mockTests {
-				t.Skip("Bybit intermittently refuses the unfiltered query with retCode 10006")
-			}
 			result, err := e.GetVIPMarginData(t.Context(), tc.vipLevel, tc.coin)
+			// A type assertion, unlike errors.As, matches only a bare refusal, so a decoding or HTTP error alongside one
+			// still fails
+			if apiErr, ok := err.(*APIError); ok && apiErr.Code == 10006 && !mockTests {
+				t.Skip("Bybit intermittently refuses Get VIP Margin Data with retCode 10006, filtered or not")
+			}
 			require.NoError(t, err, "GetVIPMarginData must not error")
 			if mockTests {
 				assert.Equal(t, tc.exp, result, "GetVIPMarginData should decode every field")

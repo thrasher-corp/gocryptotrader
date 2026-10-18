@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// EventOrderbookFrame is a snapshot or delta of an event contract's payout ratio orderbook
-type EventOrderbookFrame struct {
+// WebsocketEventOrderbookResponse is a snapshot or delta of an event contract's payout ratio orderbook
+type WebsocketEventOrderbookResponse struct {
 	Topic     string             `json:"topic"`
 	Type      string             `json:"type"`
 	Timestamp types.Time         `json:"ts"`
@@ -24,8 +24,8 @@ type EventOrderbookData struct {
 	Sequence uint64 `json:"seq"`
 }
 
-// EventPublicTradeFrame holds public trades of an event contract, oldest first
-type EventPublicTradeFrame struct {
+// WebsocketEventPublicTradeResponse holds public trades of an event contract, oldest first
+type WebsocketEventPublicTradeResponse struct {
 	Topic     string                `json:"topic"`
 	Type      string                `json:"type"`
 	Timestamp types.Time            `json:"ts"`
@@ -34,9 +34,8 @@ type EventPublicTradeFrame struct {
 
 // EventWebsocketTrade is a public trade of an event contract
 type EventWebsocketTrade struct {
-	// Timestamp is when the order filled
-	Timestamp types.Time `json:"T"`
-	Symbol    string     `json:"s"`
+	OrderFillTimestamp types.Time `json:"T"`
+	Symbol             string     `json:"s"`
 	// PayoutRatio is the trade price
 	PayoutRatio types.Number `json:"r"`
 	// Amount is the trade's order value
@@ -45,23 +44,23 @@ type EventWebsocketTrade struct {
 	Sequence uint64       `json:"seq"`
 }
 
-// EventPositionFrame holds changes to the caller's event contract positions
-type EventPositionFrame struct {
+// WebsocketEventPositionResponse holds changes to the caller's event contract positions
+type WebsocketEventPositionResponse struct {
 	ID           string          `json:"id"`
 	Topic        string          `json:"topic"`
 	CreationTime types.Time      `json:"creationTime"`
 	Data         []EventPosition `json:"data"`
 }
 
-// EventExecutionFrame holds executions of the caller's event contract orders
-type EventExecutionFrame struct {
+// WebsocketEventExecutionResponse holds executions of the caller's event contract orders
+type WebsocketEventExecutionResponse struct {
 	ID           string                 `json:"id"`
 	Topic        string                 `json:"topic"`
 	CreationTime types.Time             `json:"creationTime"`
 	Data         []EventExecutionUpdate `json:"data"`
 }
 
-// EventExecutionUpdate is an execution of an event contract order. Fields prefixed EC describe the event contract
+// EventExecutionUpdate is an execution of an event contract order
 type EventExecutionUpdate struct {
 	// Category is event
 	Category      string        `json:"category"`
@@ -83,28 +82,28 @@ type EventExecutionUpdate struct {
 	ExecutionFee     types.Number `json:"execFee"`
 	ExecutionFeeRate types.Number `json:"execFeeRate"`
 	OrderPrice       types.Number `json:"orderPrice"`
-	// ECContractType and ECDirection are numeric codes here, unlike the names the order stream sends
-	ECContractType uint64 `json:"ecContractType"`
-	ECDirection    uint64 `json:"ecDirection"`
-	// ECDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
-	ECDurationWindow types.Number `json:"ecDurationWindow"`
-	// ECTargetPrice is set for Target contracts only
-	ECTargetPrice types.Number `json:"ecTargetPrice"`
-	// ECLowerBound and ECUpperBound are set for Range contracts only
-	ECLowerBound       types.Number    `json:"ecLowerBound"`
-	ECUpperBound       types.Number    `json:"ecUpperBound"`
-	ECOrderValue       types.Number    `json:"ecOrderValue"`
-	ECIndexPrice       types.Number    `json:"ecIndexPrice"`
-	ECPayout           types.Number    `json:"ecPayout"`
-	EntryPrice         types.Number    `json:"entryPrice"`
-	SettlePrice        types.Number    `json:"settlePrice"`
-	GrossPayoutRatio   types.Number    `json:"grossPayoutRatio"`
-	SessionRealisedPNL types.Number    `json:"sessionRpl"`
-	TransactionTime    types.Time      `json:"transTime"`
-	SettleTime         types.Time      `json:"settleTimeMs"`
-	CrossSequence      types.Number    `json:"crossSeq"`
-	TimeInForce        string          `json:"timeInForce"`
-	ExtraFees          []EventExtraFee `json:"extraFees"`
+	// EventContractType and EventContractDirection are numeric codes here, unlike the names the order stream sends
+	EventContractType      uint64 `json:"ecContractType"`
+	EventContractDirection uint64 `json:"ecDirection"`
+	// EventContractDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
+	EventContractDurationWindow types.Number `json:"ecDurationWindow"`
+	// EventContractTargetPrice is set for Target contracts only
+	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
+	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only
+	EventContractLowerBound types.Number    `json:"ecLowerBound"`
+	EventContractUpperBound types.Number    `json:"ecUpperBound"`
+	EventContractOrderValue types.Number    `json:"ecOrderValue"`
+	EventContractIndexPrice types.Number    `json:"ecIndexPrice"`
+	EventContractPayout     types.Number    `json:"ecPayout"`
+	EntryPrice              types.Number    `json:"entryPrice"`
+	SettlePrice             types.Number    `json:"settlePrice"`
+	GrossPayoutRatio        types.Number    `json:"grossPayoutRatio"`
+	SessionRealisedPNL      types.Number    `json:"sessionRpl"`
+	TransactionTime         types.Time      `json:"transTime"`
+	SettleTime              types.Time      `json:"settleTimeMs"`
+	CrossSequence           types.Number    `json:"crossSeq"`
+	TimeInForce             string          `json:"timeInForce"`
+	ExtraFees               []EventExtraFee `json:"extraFees"`
 }
 
 // EventExtraFee is an extra fee charged on an event contract order or execution, such as a tax; the fields are those
@@ -117,39 +116,39 @@ type EventExtraFee struct {
 	Fee        types.Number  `json:"fee"`
 }
 
-// EventOrderFrame holds changes to the caller's event contract orders
-type EventOrderFrame struct {
+// WebsocketEventOrderResponse holds changes to the caller's event contract orders
+type WebsocketEventOrderResponse struct {
 	ID           string             `json:"id"`
 	Topic        string             `json:"topic"`
 	CreationTime types.Time         `json:"creationTime"`
 	Data         []EventOrderUpdate `json:"data"`
 }
 
-// EventOrderUpdate is the state of an event contract order. Fields prefixed EC describe the event contract
+// EventOrderUpdate is the state of an event contract order
 type EventOrderUpdate struct {
 	// Category is event
-	Category       string        `json:"category"`
-	OrderID        string        `json:"orderId"`
-	OrderLinkID    string        `json:"orderLinkId"`
-	Symbol         string        `json:"symbol"`
-	SymbolID       uint64        `json:"symbolId"`
-	Side           string        `json:"side"`
-	BaseCoin       currency.Code `json:"baseCoin"`
-	QuoteCoin      currency.Code `json:"quoteCoin"`
-	SettleCoin     currency.Code `json:"settleCoin"`
-	OrderStatus    string        `json:"orderStatus"`
-	ECContractType string        `json:"ecContractType"`
-	ECDirection    string        `json:"ecDirection"`
-	// ECDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
-	ECDurationWindow types.Number `json:"ecDurationWindow"`
-	// ECTargetPrice is set for Target contracts only
-	ECTargetPrice types.Number `json:"ecTargetPrice"`
-	// ECLowerBound and ECUpperBound are set for Range contracts only
-	ECLowerBound types.Number `json:"ecLowerBound"`
-	ECUpperBound types.Number `json:"ecUpperBound"`
-	ECOrderValue types.Number `json:"ecOrderValue"`
-	ECIndexPrice types.Number `json:"ecIndexPrice"`
-	ECSettleTime types.Time   `json:"ecSettleTime"`
+	Category               string        `json:"category"`
+	OrderID                string        `json:"orderId"`
+	OrderLinkID            string        `json:"orderLinkId"`
+	Symbol                 string        `json:"symbol"`
+	SymbolID               uint64        `json:"symbolId"`
+	Side                   string        `json:"side"`
+	BaseCoin               currency.Code `json:"baseCoin"`
+	QuoteCoin              currency.Code `json:"quoteCoin"`
+	SettleCoin             currency.Code `json:"settleCoin"`
+	OrderStatus            string        `json:"orderStatus"`
+	EventContractType      string        `json:"ecContractType"`
+	EventContractDirection string        `json:"ecDirection"`
+	// EventContractDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
+	EventContractDurationWindow types.Number `json:"ecDurationWindow"`
+	// EventContractTargetPrice is set for Target contracts only
+	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
+	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only
+	EventContractLowerBound types.Number `json:"ecLowerBound"`
+	EventContractUpperBound types.Number `json:"ecUpperBound"`
+	EventContractOrderValue types.Number `json:"ecOrderValue"`
+	EventContractIndexPrice types.Number `json:"ecIndexPrice"`
+	EventContractSettleTime types.Time   `json:"ecSettleTime"`
 	// PayoutRatio is the order's price
 	PayoutRatio             types.Number `json:"payoutRatio"`
 	OrderAveragePayoutRatio types.Number `json:"orderAvgPayoutRatio"`

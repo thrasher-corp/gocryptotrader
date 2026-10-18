@@ -15,7 +15,6 @@ import (
 var (
 	errDepositIDRequired     = errors.New("deposit ID required")
 	errQuestionnaireRequired = errors.New("questionnaire required")
-	errCoinChainPairRequired = errors.New("coin and chain must be passed together")
 )
 
 // SetDepositAccount sets the account deposits are transferred to automatically: UNIFIED, FUND, or EARN, which falls
@@ -205,19 +204,18 @@ func (e *Exchange) SubmitDepositOriginatorInfo(ctx context.Context, arg *Deposit
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/travel-rule/deposit/submit", nil, body, &resp, defaultEPL)
 }
 
-// GetAllowedDepositCoinInfo returns the coins and chains that accept deposits, with their minimum deposit and
-// confirmation count. Bybit removed its documentation page in March 2025 but the public route still answers; Coin and
-// Chain filter together or not at all (Get Allowed Deposit Coin Info)
+// GetAllowedDepositCoinInfo returns the coins and chains Bybit lists for deposits, with their minimum deposit and
+// confirmation count, and whether each chain accepts deposits now. Bybit removed its documentation page in March 2025
+// but the public route still answers, and filters by Coin, by Chain or by both (Get Allowed Deposit Coin Info)
 func (e *Exchange) GetAllowedDepositCoinInfo(ctx context.Context, arg *AllowedDepositCoinInfoRequest) (*AllowedDepositCoinInfoResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if arg.Coin.IsEmpty() != (arg.Chain == "") {
-		return nil, errCoinChainPairRequired
-	}
 	params := url.Values{}
 	if !arg.Coin.IsEmpty() {
 		params.Set("coin", arg.Coin.Upper().String())
+	}
+	if arg.Chain != "" {
 		params.Set("chain", arg.Chain)
 	}
 	if arg.Limit > 0 {

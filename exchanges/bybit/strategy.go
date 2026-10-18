@@ -25,6 +25,8 @@ var (
 	errStrategyPOVModeRequired           = errors.New("POV strategy mode required")
 	errStrategyParticipationRateRequired = errors.New("POV strategy participation rate required")
 	errStrategyPOVStopConditionRequired  = errors.New("POV strategy needs a duration, size, position value or one-time interval")
+	errStrategyReferenceWindowRequired   = errors.New("POV strategy reference window required for TradedVolume mode")
+	errStrategyDepthReferenceRequired    = errors.New("POV strategy depth reference required for liquidity modes")
 )
 
 // errStrategyOrderFailed is returned when Bybit accepts a strategy order request but reports that the strategy was not
@@ -73,6 +75,16 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 		oneTime := arg.Interval != nil && *arg.Interval < time.Second
 		if arg.Duration < time.Second && arg.Size <= 0 && arg.PositionValue <= 0 && !oneTime {
 			return nil, errStrategyPOVStopConditionRequired
+		}
+		switch arg.POVParameters.Mode {
+		case "TradedVolume":
+			if arg.POVParameters.ReferenceWindow < time.Second {
+				return nil, errStrategyReferenceWindowRequired
+			}
+		case "OppositeSideLiquidity", "SameSideLiquidity":
+			if arg.POVParameters.DepthReference == 0 {
+				return nil, errStrategyDepthReferenceRequired
+			}
 		}
 	}
 	body := make(map[string]any)

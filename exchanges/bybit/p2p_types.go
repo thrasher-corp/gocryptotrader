@@ -9,7 +9,7 @@ import (
 )
 
 // P2P responses carry many fields their parameter tables leave out; the documented response examples are recordings
-// of real responses, so every field they show is modelled with the JSON type it was recorded with. Fields whose
+// of real responses, so every field they show is modelled with the JSON type it was recorded with. Scalar fields whose
 // recorded and documented JSON types disagree accept either form
 
 // P2POnlineAdsRequest holds the parameters for Get Ads
@@ -34,13 +34,13 @@ type P2POnlineAd struct {
 	ID        string `json:"id"`
 	AccountID string `json:"accountId"`
 	// UserID is documented as an integer but recorded as a string
-	UserID     string        `json:"userId"`
-	NickName   string        `json:"nickName"`
-	TokenID    currency.Code `json:"tokenId"`
-	TokenName  string        `json:"tokenName"`
-	CurrencyID currency.Code `json:"currencyId"`
+	UserID     types.PreciseNumber `json:"userId"`
+	NickName   string              `json:"nickName"`
+	TokenID    currency.Code       `json:"tokenId"`
+	TokenName  string              `json:"tokenName"`
+	CurrencyID currency.Code       `json:"currencyId"`
 	// Side is 0 for a buy ad or 1 for a sell ad; documented as a string but recorded as a number, as in Get My Ads
-	Side uint64 `json:"side"`
+	Side types.Number `json:"side"`
 	// PriceType is 0 for a fixed price or 1 for a floating price
 	PriceType uint64       `json:"priceType"`
 	Price     types.Number `json:"price"`
@@ -57,11 +57,11 @@ type P2POnlineAd struct {
 	Status     uint64     `json:"status"`
 	CreateDate types.Time `json:"createDate"`
 	// Payments holds the ad's payment method type IDs
-	Payments  []string `json:"payments"`
-	OrderNum  uint64   `json:"orderNum"`
-	FinishNum uint64   `json:"finishNum"`
-	// RecentOrderNum is documented as a string but recorded as a number, as in every other P2P response
-	RecentOrderNum uint64 `json:"recentOrderNum"`
+	Payments     []string `json:"payments"`
+	OrderNumber  uint64   `json:"orderNum"`
+	FinishNumber uint64   `json:"finishNum"`
+	// RecentOrderNumber is documented as a string but recorded as a number, as in every other P2P response
+	RecentOrderNumber types.Number `json:"recentOrderNum"`
 	// RecentExecuteRate is documented as a string but recorded as a number
 	RecentExecuteRate    types.Number            `json:"recentExecuteRate"`
 	Fee                  types.Number            `json:"fee"`
@@ -256,11 +256,12 @@ type P2PMyAdsRequest struct {
 	CurrencyID currency.Code
 }
 
-// P2PMyAdsResponse is a page of the user's advertisements. The hiddenFlag field the recorded response shows is
-// deprecated, so it is not modelled
+// P2PMyAdsResponse is a page of the user's advertisements. The docs table leaves out hiddenFlag, which their response
+// example shows as a boolean
 type P2PMyAdsResponse struct {
-	Count uint64    `json:"count"`
-	Items []P2PMyAd `json:"items"`
+	Count      uint64    `json:"count"`
+	Items      []P2PMyAd `json:"items"`
+	HiddenFlag bool      `json:"hiddenFlag"`
 }
 
 // P2PMyAd is one of the user's advertisements
@@ -289,9 +290,9 @@ type P2PMyAd struct {
 	Status               uint64                  `json:"status"`
 	CreateDate           types.Time              `json:"createDate"`
 	Payments             []string                `json:"payments"`
-	OrderNum             uint64                  `json:"orderNum"`
-	FinishNum            uint64                  `json:"finishNum"`
-	RecentOrderNum       uint64                  `json:"recentOrderNum"`
+	OrderNumber          uint64                  `json:"orderNum"`
+	FinishNumber         uint64                  `json:"finishNum"`
+	RecentOrderNumber    uint64                  `json:"recentOrderNum"`
 	RecentExecuteRate    types.Number            `json:"recentExecuteRate"`
 	Fee                  types.Number            `json:"fee"`
 	IsOnline             bool                    `json:"isOnline"`
@@ -375,9 +376,9 @@ type P2PMyAdDetailsResponse struct {
 	Status               uint64                  `json:"status"`
 	CreateDate           types.Time              `json:"createDate"`
 	Payments             []string                `json:"payments"`
-	OrderNum             uint64                  `json:"orderNum"`
-	FinishNum            uint64                  `json:"finishNum"`
-	RecentOrderNum       uint64                  `json:"recentOrderNum"`
+	OrderNumber          uint64                  `json:"orderNum"`
+	FinishNumber         uint64                  `json:"finishNum"`
+	RecentOrderNumber    uint64                  `json:"recentOrderNum"`
 	RecentExecuteRate    types.Number            `json:"recentExecuteRate"`
 	Fee                  types.Number            `json:"fee"`
 	IsOnline             bool                    `json:"isOnline"`
@@ -504,7 +505,7 @@ type P2POrderDetailResponse struct {
 	Remark          string                `json:"remark"`
 	// TransferLastSeconds and AppealLastSeconds are the seconds left to pay and to appeal
 	TransferLastSeconds types.Number        `json:"transferLastSeconds"`
-	RecentOrderNum      uint64              `json:"recentOrderNum"`
+	RecentOrderNumber   uint64              `json:"recentOrderNum"`
 	RecentExecuteRate   types.Number        `json:"recentExecuteRate"`
 	AppealLastSeconds   types.Number        `json:"appealLastSeconds"`
 	AppealContent       string              `json:"appealContent"`
@@ -746,8 +747,8 @@ type P2PUserInfoResponse struct {
 	// RecentTradeAmount and TotalTradeAmount are in USDT
 	RecentTradeAmount types.Number  `json:"recentTradeAmount"`
 	TotalTradeAmount  types.Number  `json:"totalTradeAmount"`
-	ExecuteNum        uint64        `json:"executeNum"`
-	OrderNum          uint64        `json:"orderNum"`
+	ExecuteNumber     uint64        `json:"executeNum"`
+	OrderNumber       uint64        `json:"orderNum"`
 	HasUnPostAd       types.Boolean `json:"hasUnPostAd"`
 	RegisterTime      types.Time    `json:"registerTime"`
 	// AuthStatus is 1 for a verified advertiser or 2 otherwise
@@ -758,23 +759,23 @@ type P2PUserInfoResponse struct {
 	GoodAppraiseCount uint64       `json:"goodAppraiseCount"`
 	BadAppraiseCount  uint64       `json:"badAppraiseCount"`
 	// AccountID is documented as an integer but recorded as a string
-	AccountID                 string             `json:"accountId"`
-	PaymentCount              uint64             `json:"paymentCount"`
-	ContactCount              uint64             `json:"contactCount"`
-	RealNameMask              string             `json:"realNameMask"`
-	VIPLevel                  uint64             `json:"vipLevel"`
-	VIPProfit                 []string           `json:"vipProfit"`
-	UserTag                   []string           `json:"userTag"`
-	UserCancelCountLimit      uint64             `json:"userCancelCountLimit"`
-	PaymentRealNameUneditable bool               `json:"paymentRealNameUneditable"`
-	LostRoleAffected          bool               `json:"lostRoleAffected"`
-	UserCurrentPrivilege      []string           `json:"userCurPrivilege"`
-	UserType                  string             `json:"userType"`
-	UserID                    string             `json:"userId"`
-	RealNameEnglish           string             `json:"realNameEn"`
-	CanSubOnline              bool               `json:"canSubOnline"`
-	CurrentPrivilegeInfo      []P2PPrivilegeInfo `json:"curPrivilegeInfo"`
-	OpenAPISwitch             uint64             `json:"openApiSwitch"`
+	AccountID                 types.PreciseNumber `json:"accountId"`
+	PaymentCount              uint64              `json:"paymentCount"`
+	ContactCount              uint64              `json:"contactCount"`
+	RealNameMask              string              `json:"realNameMask"`
+	VIPLevel                  uint64              `json:"vipLevel"`
+	VIPProfit                 []string            `json:"vipProfit"`
+	UserTag                   []string            `json:"userTag"`
+	UserCancelCountLimit      uint64              `json:"userCancelCountLimit"`
+	PaymentRealNameUneditable bool                `json:"paymentRealNameUneditable"`
+	LostRoleAffected          bool                `json:"lostRoleAffected"`
+	UserCurrentPrivilege      []string            `json:"userCurPrivilege"`
+	UserType                  string              `json:"userType"`
+	UserID                    string              `json:"userId"`
+	RealNameEnglish           string              `json:"realNameEn"`
+	CanSubOnline              bool                `json:"canSubOnline"`
+	CurrentPrivilegeInfo      []P2PPrivilegeInfo  `json:"curPrivilegeInfo"`
+	OpenAPISwitch             uint64              `json:"openApiSwitch"`
 }
 
 // P2PPrivilegeInfo is a P2P privilege a user holds and its setting
@@ -843,8 +844,8 @@ type P2PChatSession struct {
 	SessionID   string `json:"sessionId"`
 	Type        string `json:"type"`
 	// ID is the cursor for the next page; documented as an integer but recorded as a string
-	ID          string       `json:"id"`
-	UnreadCount types.Number `json:"unreadCount"`
+	ID          types.PreciseNumber `json:"id"`
+	UnreadCount types.Number        `json:"unreadCount"`
 }
 
 // P2PChatSessionIDResponse holds the encrypted session ID of a chat with a counterparty
@@ -886,8 +887,8 @@ type P2PChatMessageListResponse struct {
 // P2PChatMessage is a P2P chat message
 type P2PChatMessage struct {
 	// ID is the cursor for the next page; documented as an integer but recorded as a string
-	ID               string `json:"id"`
-	SendUserNickName string `json:"sendUserNickName"`
+	ID               types.PreciseNumber `json:"id"`
+	SendUserNickName string              `json:"sendUserNickName"`
 	// ContentType is str, pic, pdf or video
 	ContentType string `json:"contentType"`
 	// Message is a JSON document; MessageContent decodes it

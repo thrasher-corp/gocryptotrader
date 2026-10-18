@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 var (
 	errUIDRequired     = errors.New("UID is required")
 	errOperateRequired = errors.New("operate is required")
+	errInvalidOperate  = errors.New("operate must be 0 to bind or 1 to unbind")
 )
 
 // GetInstitutionalLoanProductInfo returns institutional loan products, or the product given by productID (Get Product
@@ -116,6 +118,9 @@ func (e *Exchange) BindOrUnbindUID(ctx context.Context, uid, operate string) (*B
 	}
 	if operate == "" {
 		return nil, errOperateRequired
+	}
+	if operate != "0" && operate != "1" {
+		return nil, fmt.Errorf("%w: %q", errInvalidOperate, operate)
 	}
 	var resp *BindOrUnbindUIDResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/ins-loan/association-uid", nil, map[string]any{

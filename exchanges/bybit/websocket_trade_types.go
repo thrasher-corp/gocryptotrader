@@ -18,8 +18,8 @@ type WebsocketTradeRequest struct {
 // WebsocketTradeRequestHeader holds the headers of an order request
 type WebsocketTradeRequestHeader struct {
 	Timestamp string `json:"X-BAPI-TIMESTAMP"` // Unix milliseconds
-	// RecvWindow is in milliseconds, 5000 when empty
-	RecvWindow string `json:"X-BAPI-RECV-WINDOW,omitempty"`
+	// ReceiveWindow is in milliseconds, 5000 when empty
+	ReceiveWindow string `json:"X-BAPI-RECV-WINDOW,omitempty"`
 	// Referer identifies an API broker
 	Referer string `json:"Referer,omitempty"`
 }
@@ -27,14 +27,14 @@ type WebsocketTradeRequestHeader struct {
 // WebsocketTradeResponse is the reply to a request on the trade connection; T is the type of its data, which is the
 // REST endpoint's result for an order request and the server time for a pong
 type WebsocketTradeResponse[T any] struct {
-	RequestID     string                       `json:"reqId"`
-	ReturnCode    int64                        `json:"retCode"`
-	ReturnMessage string                       `json:"retMsg"`
-	Operation     string                       `json:"op"`
-	Data          T                            `json:"data"`
-	RetExtInfo    WebsocketTradeExtraInfo      `json:"retExtInfo"`
-	Header        WebsocketTradeResponseHeader `json:"header"`
-	ConnectionID  string                       `json:"connId"`
+	RequestID          string                       `json:"reqId"`
+	ReturnCode         int64                        `json:"retCode"`
+	ReturnMessage      string                       `json:"retMsg"`
+	Operation          string                       `json:"op"`
+	Data               T                            `json:"data"`
+	ReturnExtendedInfo WebsocketTradeExtraInfo      `json:"retExtInfo"`
+	Header             WebsocketTradeResponseHeader `json:"header"`
+	ConnectionID       string                       `json:"connId"`
 }
 
 // WebsocketTradeExtraInfo holds the outcome of each order of a batch request, in the order the request listed them;

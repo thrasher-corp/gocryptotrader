@@ -2,6 +2,8 @@ package bybit
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -113,10 +115,10 @@ type InstrumentInfo struct {
 	// Innovation is deprecated in favour of SymbolType
 	Innovation types.Boolean `json:"innovation"`
 	// XStockMultiplier relates an xStocks token to its stock: stock price = token price / multiplier
-	XStockMultiplier types.Number  `json:"xstockMultiplier"`
-	MarginTrading    string        `json:"marginTrading"`
-	STTag            types.Boolean `json:"stTag"`
-	LaunchTime       types.Time    `json:"launchTime"`
+	XStockMultiplier    types.Number  `json:"xstockMultiplier"`
+	MarginTrading       string        `json:"marginTrading"`
+	SpecialTreatmentTag types.Boolean `json:"stTag"`
+	LaunchTime          types.Time    `json:"launchTime"`
 	// DeliveryTime is the expiry of dated contracts and options, and the delisting time of perpetual contracts
 	DeliveryTime       types.Time     `json:"deliveryTime"`
 	DeliveryFeeRate    types.Number   `json:"deliveryFeeRate"`
@@ -191,12 +193,44 @@ type PreListingInfo struct {
 	SkipCallAuction     bool              `json:"skipCallAuction"`
 }
 
-// PreListingPhase holds a pre-market trading phase and its time window. Bybit sends 946684800000 (2000-01-01) as the
-// times of the phases a contract skips, which types.Time reads as a 13 digit timestamp missing its last digit
+// PreListingPhase holds a pre-market trading phase and its time window
 type PreListingPhase struct {
-	Phase     string     `json:"phase"`
-	StartTime types.Time `json:"startTime"`
-	EndTime   types.Time `json:"endTime"`
+	Phase     string              `json:"phase"`
+	StartTime PreListingPhaseTime `json:"startTime"`
+	EndTime   PreListingPhaseTime `json:"endTime"`
+}
+
+// preListingSkippedPhaseTime is the time Bybit sends, in Unix milliseconds, for the phases a pre-market contract
+// skips. It is 2000-01-01, which types.Time would read as a 13 digit timestamp missing a digit, in the year 2269
+const preListingSkippedPhaseTime = "946684800000"
+
+// PreListingPhaseTime is a pre-market phase's start or end time, which Bybit sends in Unix milliseconds. The times of
+// the phases a contract skips, and the end of continuous trading, which has none, decode as the zero time
+type PreListingPhaseTime time.Time
+
+// UnmarshalJSON decodes a quoted or bare Unix millisecond timestamp
+func (p *PreListingPhaseTime) UnmarshalJSON(data []byte) error {
+	switch value := strings.Trim(string(data), `"`); value {
+	case "", "0", "null", preListingSkippedPhaseTime:
+		*p = PreListingPhaseTime{}
+	default:
+		milliseconds, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("%w: %s: %w", types.ErrInvalidTimestampFormat, data, err)
+		}
+		*p = PreListingPhaseTime(time.UnixMilli(milliseconds))
+	}
+	return nil
+}
+
+// MarshalJSON encodes the time in RFC 3339 format, as types.Time does
+func (p PreListingPhaseTime) MarshalJSON() ([]byte, error) {
+	return time.Time(p).MarshalJSON()
+}
+
+// Time returns the phase time, the zero time when the phase has none
+func (p PreListingPhaseTime) Time() time.Time {
+	return time.Time(p)
 }
 
 // AuctionFeeInfo holds a pre-market contract's fee rates
@@ -218,19 +252,19 @@ type OrderbookResponse struct {
 	UpdateID uint64 `json:"u"`
 	// Sequence is the cross sequence, which orders data across orderbook depths
 	Sequence uint64 `json:"seq"`
-	// CrossTimestamp is when the matching engine produced the data; it correlates with the T of public trades
-	CrossTimestamp types.Time `json:"cts"`
+	// CreationTimestamp is when the matching engine produced the data; it correlates with the T of public trades
+	CreationTimestamp types.Time `json:"cts"`
 }
 
 // RPIOrderbookResponse holds an orderbook snapshot that separates retail price improvement (RPI) order sizes
 type RPIOrderbookResponse struct {
-	Symbol         string              `json:"s"`
-	Bids           []RPIOrderbookLevel `json:"b"`
-	Asks           []RPIOrderbookLevel `json:"a"`
-	Timestamp      types.Time          `json:"ts"`
-	UpdateID       uint64              `json:"u"`
-	Sequence       uint64              `json:"seq"`
-	CrossTimestamp types.Time          `json:"cts"`
+	Symbol            string              `json:"s"`
+	Bids              []RPIOrderbookLevel `json:"b"`
+	Asks              []RPIOrderbookLevel `json:"a"`
+	Timestamp         types.Time          `json:"ts"`
+	UpdateID          uint64              `json:"u"`
+	Sequence          uint64              `json:"seq"`
+	CreationTimestamp types.Time          `json:"cts"`
 }
 
 // RPIOrderbookLevel is a price level that splits its size between ordinary and Retail Price Improvement orders. Bybit
@@ -303,10 +337,10 @@ type Ticker struct {
 	DeliveryTime           types.Time   `json:"deliveryTime"`
 	Bid1Price              types.Number `json:"bid1Price"`
 	Bid1Size               types.Number `json:"bid1Size"`
-	Bid1IV                 types.Number `json:"bid1Iv"`
+	Bid1ImpliedVolatility  types.Number `json:"bid1Iv"`
 	Ask1Price              types.Number `json:"ask1Price"`
 	Ask1Size               types.Number `json:"ask1Size"`
-	Ask1IV                 types.Number `json:"ask1Iv"`
+	Ask1ImpliedVolatility  types.Number `json:"ask1Iv"`
 	// PreOpenPrice and PreQuantity estimate a pre-market contract's opening and are meaningless once it opens
 	PreOpenPrice           types.Number `json:"preOpenPrice"`
 	PreQuantity            types.Number `json:"preQty"`
@@ -314,7 +348,7 @@ type Ticker struct {
 	FundingIntervalHour    types.Number `json:"fundingIntervalHour"`
 	FundingCap             types.Number `json:"fundingCap"`
 	BasisRateYear          types.Number `json:"basisRateYear"`
-	MarkIV                 types.Number `json:"markIv"`
+	MarkImpliedVolatility  types.Number `json:"markIv"`
 	UnderlyingPrice        types.Number `json:"underlyingPrice"`
 	TotalVolume            types.Number `json:"totalVolume"`
 	TotalTurnover          types.Number `json:"totalTurnover"`
@@ -369,21 +403,22 @@ type PublicTradingHistoryResponse struct {
 	List     []PublicTrade `json:"list"`
 }
 
-// PublicTrade holds a public trade. MarkPrice, IndexPrice, MarkIV and IV apply to option only
+// PublicTrade holds a public trade. MarkPrice, IndexPrice, MarkImpliedVolatility and ImpliedVolatility apply to
+// option only
 type PublicTrade struct {
 	ExecutionID string       `json:"execId"`
 	Symbol      string       `json:"symbol"`
 	Price       types.Number `json:"price"`
 	Size        types.Number `json:"size"`
 	// Side is the taker's side
-	Side         string       `json:"side"`
-	Time         types.Time   `json:"time"`
-	IsBlockTrade bool         `json:"isBlockTrade"`
-	IsRPITrade   bool         `json:"isRPITrade"`
-	MarkPrice    types.Number `json:"mP"`
-	IndexPrice   types.Number `json:"iP"`
-	MarkIV       types.Number `json:"mIv"`
-	IV           types.Number `json:"iv"`
+	Side                  string       `json:"side"`
+	Time                  types.Time   `json:"time"`
+	IsBlockTrade          bool         `json:"isBlockTrade"`
+	IsRPITrade            bool         `json:"isRPITrade"`
+	MarkPrice             types.Number `json:"mP"`
+	IndexPrice            types.Number `json:"iP"`
+	MarkImpliedVolatility types.Number `json:"mIv"`
+	ImpliedVolatility     types.Number `json:"iv"`
 	// Sequence is the cross sequence
 	Sequence types.Number `json:"seq"`
 }
@@ -422,7 +457,7 @@ type OpenInterest struct {
 type HistoricalVolatilityRequest struct {
 	// Category is required
 	Category string
-	// BaseCoin defaults to BTC and QuoteCoin, USD or USDT, to USD
+	// BaseCoin defaults to BTC and QuoteCoin, USD or USDT, to USD, whose series ends on 26 December 2025
 	BaseCoin  currency.Code
 	QuoteCoin currency.Code
 	// Period is the averaging period in days, 7 by default
@@ -645,7 +680,7 @@ type OptionBaseCoin struct {
 	UnderlyingType uint64 `json:"underlyingType"`
 }
 
-// TickerCommon holds ticker fields; the websocket ticker stream decodes into it through TickerWebsocket
+// TickerCommon holds the fields of a Bybit ticker, of which tickerVolumes reads the two volume figures
 type TickerCommon struct {
 	Symbol                     string       `json:"symbol"`
 	TickDirection              string       `json:"tickDirection"`

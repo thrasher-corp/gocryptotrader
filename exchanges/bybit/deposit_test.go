@@ -1,6 +1,8 @@
 package bybit
 
 import (
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -430,14 +432,67 @@ func TestSubmitDepositOriginatorInfo(t *testing.T) {
 	assert.NotNil(t, result, "SubmitDepositOriginatorInfo should return the travel rule status")
 }
 
+func TestDepositOriginatorInfoResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		data string
+		exp  uint64
+	}{
+		{"documented key", `{"travelRuleStatus":2}`, 2},
+		{"sampled key", `{"travel_rule_status":2}`, 2},
+		{"documented zero before sampled key", `{"travelRuleStatus":0,"travel_rule_status":1}`, 0},
+		{"documented zero after sampled key", `{"travel_rule_status":1,"travelRuleStatus":0}`, 0},
+		{"null documented key", `{"travelRuleStatus":null,"travel_rule_status":2}`, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got DepositOriginatorInfoResponse
+			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+			assert.Equal(t, DepositOriginatorInfoResponse{TravelRuleStatus: tc.exp}, got, "UnmarshalJSON should decode the travel rule status")
+		})
+	}
+	got := DepositOriginatorInfoResponse{TravelRuleStatus: 3}
+	require.NoError(t, got.UnmarshalJSON([]byte(`{}`)), "UnmarshalJSON must not error without either key")
+	assert.Equal(t, DepositOriginatorInfoResponse{TravelRuleStatus: 3}, got, "UnmarshalJSON should keep the status without either key")
+	// An approval, 0, under the sampled key replaces a status decoded before
+	require.NoError(t, got.UnmarshalJSON([]byte(`{"travel_rule_status":0}`)), "UnmarshalJSON must not error for an approval under the sampled key")
+	assert.Equal(t, DepositOriginatorInfoResponse{}, got, "UnmarshalJSON should replace an earlier status with an approval under the sampled key")
+	assert.Error(t, got.UnmarshalJSON([]byte(`{"travel_rule_status":"pending"}`)), "UnmarshalJSON should reject a non-numeric sampled status")
+}
+
 func TestGetAllowedDepositCoinInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAllowedDepositCoinInfo(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllowedDepositCoinInfo must reject a nil request")
-	_, err = e.GetAllowedDepositCoinInfo(t.Context(), &AllowedDepositCoinInfoRequest{Coin: currency.ETH})
-	require.ErrorIs(t, err, errCoinChainPairRequired, "GetAllowedDepositCoinInfo must reject a coin without a chain")
-	_, err = e.GetAllowedDepositCoinInfo(t.Context(), &AllowedDepositCoinInfoRequest{Chain: "ETH"})
-	require.ErrorIs(t, err, errCoinChainPairRequired, "GetAllowedDepositCoinInfo must reject a chain without a coin")
+	// The route answers a coin or a chain alone: coin=USDT lists the coin's chains and chain=ETH the chain's coins
+	for _, tc := range []struct {
+		req   *AllowedDepositCoinInfoRequest
+		query string
+	}{
+		{&AllowedDepositCoinInfoRequest{Coin: currency.USDT}, "coin=USDT"},
+		{&AllowedDepositCoinInfoRequest{Chain: "ETH"}, "chain=ETH"},
+	} {
+		ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, tc.query, r.URL.RawQuery, "GetAllowedDepositCoinInfo should send a lone filter by itself")
+			_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"configList":[{"coin":"USDT","chain":"ETH","coinShowName":"USDT","chainType":"Ethereum (ERC20)","blockConfirmNumber":6,"minDepositAmount":"0.005"}],"nextPageCursor":"eyJwYWdlIjoyLCJsaW1pdCI6MTB9"},"retExtInfo":{},"time":1791971157539}`)
+			assert.NoError(t, err, "writing the reply should not error")
+		})
+		_, err = ex.GetAllowedDepositCoinInfo(t.Context(), tc.req)
+		require.NoErrorf(t, err, "GetAllowedDepositCoinInfo must accept the lone filter %s", tc.query)
+	}
+
+	// The route lists chains closed to deposits as well as open ones, such as USDT on Omni beside USDT on Ethereum
+	listing := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"configList":[{"coin":"USDT","chain":"ETH","coinShowName":"USDT","chainType":"Ethereum (ERC20)","blockConfirmNumber":6,"minDepositAmount":"0.005","depositSwitch":"1"},{"coin":"USDT","chain":"OMNI","coinShowName":"USDT","chainType":"OMNI","blockConfirmNumber":1,"minDepositAmount":"0.0001","depositSwitch":"0"}],"nextPageCursor":"eyJwYWdlIjoyLCJsaW1pdCI6MTB9"},"retExtInfo":{},"time":1792143293772}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	chains, err := listing.GetAllowedDepositCoinInfo(t.Context(), &AllowedDepositCoinInfoRequest{Coin: currency.USDT})
+	require.NoError(t, err, "GetAllowedDepositCoinInfo must not error")
+	assert.Equal(t, []AllowedDepositCoin{
+		{Coin: currency.USDT, Chain: "ETH", CoinShowName: "USDT", ChainType: "Ethereum (ERC20)", BlockConfirmNumber: 6, MinDepositAmount: 0.005, DepositSwitch: "1"},
+		{Coin: currency.USDT, Chain: "OMNI", CoinShowName: "USDT", ChainType: "OMNI", BlockConfirmNumber: 1, MinDepositAmount: 0.0001, DepositSwitch: "0"},
+	}, chains.ConfigList, "GetAllowedDepositCoinInfo should tell a chain open to deposits from one closed to them")
 
 	result, err := e.GetAllowedDepositCoinInfo(t.Context(), &AllowedDepositCoinInfoRequest{Coin: currency.ETH, Chain: "ETH"})
 	require.NoError(t, err, "GetAllowedDepositCoinInfo must not error")
@@ -456,6 +511,7 @@ func TestGetAllowedDepositCoinInfo(t *testing.T) {
 						ChainType:          "Ethereum (ERC20)",
 						BlockConfirmNumber: 6,
 						MinDepositAmount:   0.00005,
+						DepositSwitch:      "1",
 					},
 				},
 				NextPageCursor: "eyJwYWdlIjozLCJsaW1pdCI6MTB9",
@@ -477,6 +533,7 @@ func TestGetAllowedDepositCoinInfo(t *testing.T) {
 					ChainType:          "Ethereum (ERC20)",
 					BlockConfirmNumber: 6,
 					MinDepositAmount:   0.00005,
+					DepositSwitch:      "1",
 				},
 			},
 			NextPageCursor: "eyJwYWdlIjoyLCJsaW1pdCI6MTB9",

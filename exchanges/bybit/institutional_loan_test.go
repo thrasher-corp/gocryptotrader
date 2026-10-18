@@ -392,6 +392,10 @@ func TestBindOrUnbindUID(t *testing.T) {
 	require.ErrorIs(t, err, errUIDRequired, "BindOrUnbindUID must reject an empty UID")
 	_, err = e.BindOrUnbindUID(t.Context(), "100000002", "")
 	require.ErrorIs(t, err, errOperateRequired, "BindOrUnbindUID must reject an empty operation")
+	for _, operate := range []string{"2", "-1", "01", " 0", "0 ", "bind"} {
+		_, err = e.BindOrUnbindUID(t.Context(), "100000002", operate)
+		require.ErrorIsf(t, err, errInvalidOperate, "BindOrUnbindUID must reject operate %q", operate)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -404,6 +408,13 @@ func TestBindOrUnbindUID(t *testing.T) {
 			Operate: "0",
 		}
 		assert.Equal(t, exp, result, "BindOrUnbindUID should decode every field")
+		result, err = e.BindOrUnbindUID(t.Context(), "100000002", "1")
+		require.NoError(t, err, "BindOrUnbindUID must not error when unbinding")
+		exp = &BindOrUnbindUIDResponse{
+			UID:     "100000002",
+			Operate: "1",
+		}
+		assert.Equal(t, exp, result, "BindOrUnbindUID should decode an unbinding")
 		return
 	}
 	assert.Equal(t, "100000002", result.UID, "BindOrUnbindUID should return the bound UID")

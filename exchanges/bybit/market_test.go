@@ -1,7 +1,11 @@
 package bybit
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -287,6 +291,12 @@ func TestKlineParams(t *testing.T) {
 			exp:  url.Values{"symbol": {"BTCPERP"}, "interval": {"M"}, "start": {"1790812800000"}},
 		},
 		{
+			// Bybit answers a window that starts and ends at one time with the candle that starts then
+			name: "start equals end",
+			req:  &KlineRequest{Symbol: "BTCUSDT", Interval: kline.OneHour, Start: marketTestStart, End: marketTestStart},
+			exp:  url.Values{"symbol": {"BTCUSDT"}, "interval": {"60"}, "start": {"1790812800000"}, "end": {"1790812800000"}},
+		},
+		{
 			name: "every parameter",
 			req:  &KlineRequest{Category: cInverse, Symbol: "BTCUSD", Interval: kline.OneHour, Start: marketTestStart, End: marketTestEnd, Limit: 1000},
 			exp: url.Values{
@@ -379,15 +389,15 @@ func TestGetInstrumentInfo(t *testing.T) {
 					},
 				},
 				{
-					Symbol:           "FTTUSDT",
-					SymbolID:         67,
-					Status:           "Trading",
-					BaseCoin:         currency.NewCode("FTT"),
-					QuoteCoin:        currency.USDT,
-					Innovation:       true,
-					XStockMultiplier: 1,
-					MarginTrading:    "none",
-					STTag:            true,
+					Symbol:              "FTTUSDT",
+					SymbolID:            67,
+					Status:              "Trading",
+					BaseCoin:            currency.NewCode("FTT"),
+					QuoteCoin:           currency.USDT,
+					Innovation:          true,
+					XStockMultiplier:    1,
+					MarginTrading:       "none",
+					SpecialTreatmentTag: true,
 					PriceFilter: PriceFilter{
 						TickSize: 0.0001,
 					},
@@ -639,26 +649,12 @@ func TestGetInstrumentInfo(t *testing.T) {
 					IsPreListing: true,
 					PreListingInfo: &PreListingInfo{
 						CurrentAuctionPhase: "ContinuousTrading",
+						// Bybit sends 946684800000 as every time of a contract that skips the call auction
 						Phases: []PreListingPhase{
-							{
-								Phase:     "CallAuction",
-								StartTime: types.Time(time.UnixMilli(1783944000000)),
-								EndTime:   types.Time(time.UnixMilli(1783945200000)),
-							},
-							{
-								Phase:     "CallAuctionNoCancel",
-								StartTime: types.Time(time.UnixMilli(1783945200000)),
-								EndTime:   types.Time(time.UnixMilli(1783945500000)),
-							},
-							{
-								Phase:     "CrossMatching",
-								StartTime: types.Time(time.UnixMilli(1783945500000)),
-								EndTime:   types.Time(time.UnixMilli(1783945800000)),
-							},
-							{
-								Phase:     "ContinuousTrading",
-								StartTime: types.Time(time.UnixMilli(1783945800000)),
-							},
+							{Phase: "CallAuction"},
+							{Phase: "CallAuctionNoCancel"},
+							{Phase: "CrossMatching"},
+							{Phase: "ContinuousTrading"},
 						},
 						AuctionFeeInfo: AuctionFeeInfo{
 							AuctionFeeRate: 0.0001,
@@ -670,6 +666,81 @@ func TestGetInstrumentInfo(t *testing.T) {
 				},
 			},
 			NextPageCursor: "first%3DANTHROPICUSDT%26last%3DANTHROPICUSDT",
+		}},
+		{name: "linear pre-market with a call auction", req: &InstrumentInfoRequest{Category: cLinear, Status: "PreLaunch", Symbol: "BPUSDT"}, exp: &InstrumentsInfoResponse{
+			Category: "linear",
+			List: []InstrumentInfo{
+				{
+					Symbol:       "BPUSDT",
+					SymbolID:     2593,
+					ContractType: "LinearPerpetual",
+					Status:       "PreLaunch",
+					BaseCoin:     currency.NewCode("BP"),
+					QuoteCoin:    currency.USDT,
+					SettleCoin:   currency.USDT,
+					LaunchTime:   types.Time(time.UnixMilli(1773639914000)),
+					PriceScale:   5,
+					LeverageFilter: LeverageFilter{
+						MinLeverage:  1,
+						MaxLeverage:  5,
+						LeverageStep: 0.01,
+					},
+					PriceFilter: PriceFilter{
+						MinPrice: 0.00001,
+						MaxPrice: 199.99998,
+						TickSize: 0.00001,
+					},
+					LotSizeFilter: LotSizeFilter{
+						MaxOrderQuantity:         250000,
+						MinOrderQuantity:         1,
+						QuantityStep:             1,
+						PostOnlyMaxOrderQuantity: 250000,
+						MaxMktOrderQuantity:      50000,
+						MinNotionalValue:         5,
+					},
+					UnifiedMarginTrade: true,
+					FundingInterval:    240,
+					CopyTrading:        "none",
+					UpperFundingRate:   0.025,
+					LowerFundingRate:   -0.025,
+					DisplayName:        "BPUSDT",
+					FullName:           "Backpack",
+					Tags:               []string{"ST"},
+					RiskParameters: RiskParameters{
+						PriceLimitRatioX: 0.15,
+						PriceLimitRatioY: 0.3,
+					},
+					IsPreListing: true,
+					PreListingInfo: &PreListingInfo{
+						CurrentAuctionPhase: "ContinuousTrading",
+						Phases: []PreListingPhase{
+							{
+								Phase:     "CallAuction",
+								StartTime: PreListingPhaseTime(time.UnixMilli(1773655200000)),
+								EndTime:   PreListingPhaseTime(time.UnixMilli(1773656400000)),
+							},
+							{
+								Phase:     "CallAuctionNoCancel",
+								StartTime: PreListingPhaseTime(time.UnixMilli(1773656400000)),
+								EndTime:   PreListingPhaseTime(time.UnixMilli(1773656700000)),
+							},
+							{
+								Phase:     "CrossMatching",
+								StartTime: PreListingPhaseTime(time.UnixMilli(1773656700000)),
+								EndTime:   PreListingPhaseTime(time.UnixMilli(1773657000000)),
+							},
+							{
+								Phase:     "ContinuousTrading",
+								StartTime: PreListingPhaseTime(time.UnixMilli(1773657000000)),
+							},
+						},
+						AuctionFeeInfo: AuctionFeeInfo{
+							TakerFeeRate: 0.00055,
+							MakerFeeRate: 0.0002,
+						},
+					},
+				},
+			},
 		}},
 		{name: "linear symbol", req: &InstrumentInfoRequest{Category: cLinear, Symbol: "BTCUSDT"}, exp: &InstrumentsInfoResponse{
 			Category: "linear",
@@ -856,10 +927,10 @@ func TestGetOrderBook(t *testing.T) {
 					Price:  82557.8,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535211752)),
-			UpdateID:       58415899,
-			Sequence:       115179128763,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535211749)),
+			Timestamp:         types.Time(time.UnixMilli(1791535211752)),
+			UpdateID:          58415899,
+			Sequence:          115179128763,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535211749)),
 		}},
 		{category: cLinear, symbol: "BTCUSDT", exp: &OrderbookResponse{
 			Symbol: "BTCUSDT",
@@ -883,10 +954,10 @@ func TestGetOrderBook(t *testing.T) {
 					Price:  82526.1,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535211802)),
-			UpdateID:       33732693,
-			Sequence:       822945250628,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535211801)),
+			Timestamp:         types.Time(time.UnixMilli(1791535211802)),
+			UpdateID:          33732693,
+			Sequence:          822945250628,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535211801)),
 		}},
 		{category: cInverse, symbol: "BTCUSD", exp: &OrderbookResponse{
 			Symbol: "BTCUSD",
@@ -910,10 +981,10 @@ func TestGetOrderBook(t *testing.T) {
 					Price:  82462.4,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535212005)),
-			UpdateID:       33335330,
-			Sequence:       118955109837,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535212003)),
+			Timestamp:         types.Time(time.UnixMilli(1791535212005)),
+			UpdateID:          33335330,
+			Sequence:          118955109837,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535212003)),
 		}},
 		{category: cOption, symbol: optionsTradablePair.String(), exp: &OrderbookResponse{
 			Symbol: "BTC-26NOV24-92000-C",
@@ -933,10 +1004,10 @@ func TestGetOrderBook(t *testing.T) {
 					Price:  85565,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791534197254)),
-			UpdateID:       77632995738,
-			Sequence:       77632995738,
-			CrossTimestamp: types.Time(time.UnixMilli(1791534197254)),
+			Timestamp:         types.Time(time.UnixMilli(1791534197254)),
+			UpdateID:          77632995738,
+			Sequence:          77632995738,
+			CreationTimestamp: types.Time(time.UnixMilli(1791534197254)),
 		}},
 	} {
 		t.Run(tc.category, func(t *testing.T) {
@@ -997,10 +1068,10 @@ func TestGetRPIOrderBook(t *testing.T) {
 					NonRPISize: 0.000091,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535212315)),
-			UpdateID:       114976782,
-			Sequence:       115179128923,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535212311)),
+			Timestamp:         types.Time(time.UnixMilli(1791535212315)),
+			UpdateID:          114976782,
+			Sequence:          115179128923,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535212311)),
 		}},
 		{category: cLinear, exp: &RPIOrderbookResponse{
 			Symbol: "BTCUSDT",
@@ -1024,10 +1095,10 @@ func TestGetRPIOrderBook(t *testing.T) {
 					NonRPISize: 3.443,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535212529)),
-			UpdateID:       62720942,
-			Sequence:       822945252818,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535212528)),
+			Timestamp:         types.Time(time.UnixMilli(1791535212529)),
+			UpdateID:          62720942,
+			Sequence:          822945252818,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535212528)),
 		}},
 	} {
 		t.Run(tc.category, func(t *testing.T) {
@@ -1075,10 +1146,10 @@ func TestGetFullDepthOrderBook(t *testing.T) {
 					Price:  82449.5,
 				},
 			},
-			Timestamp:      types.Time(time.UnixMilli(1791535219718)),
-			UpdateID:       19477715,
-			Sequence:       118955113896,
-			CrossTimestamp: types.Time(time.UnixMilli(1791535219706)),
+			Timestamp:         types.Time(time.UnixMilli(1791535219718)),
+			UpdateID:          19477715,
+			Sequence:          118955113896,
+			CreationTimestamp: types.Time(time.UnixMilli(1791535219706)),
 		}
 		assert.Equal(t, exp, result, "GetFullDepthOrderBook should decode every field")
 		return
@@ -1092,6 +1163,8 @@ func TestGetTickers(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTickers must reject a nil request")
 	_, err = e.GetTickers(t.Context(), &TickersRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "GetTickers must reject an empty category")
+	_, err = e.GetTickers(t.Context(), &TickersRequest{Category: cOption})
+	require.ErrorIs(t, err, errBaseCoinOrSymbolRequired, "GetTickers must require a base coin or symbol for option")
 
 	ensureTradablePairs(t)
 	for _, tc := range []struct {
@@ -1252,11 +1325,11 @@ func TestGetTickers(t *testing.T) {
 					PredictedDeliveryPrice: 92150.25,
 					Bid1Price:              2155,
 					Bid1Size:               18.55,
-					Bid1IV:                 0.3756,
+					Bid1ImpliedVolatility:  0.3756,
 					Ask1Price:              4130,
 					Ask1Size:               18.55,
-					Ask1IV:                 0.4818,
-					MarkIV:                 0.4368,
+					Ask1ImpliedVolatility:  0.4818,
+					MarkImpliedVolatility:  0.4368,
 					UnderlyingPrice:        86945.1,
 					TotalVolume:            1,
 					TotalTurnover:          16975,
@@ -1272,47 +1345,47 @@ func TestGetTickers(t *testing.T) {
 			Category: "option",
 			List: []Ticker{
 				{
-					Symbol:          "BTC-26NOV24-120000-C",
-					IndexPrice:      82551.02154501,
-					MarkPrice:       4320.60000156,
-					Bid1Price:       3095,
-					Bid1Size:        18.55,
-					Bid1IV:          0.3444,
-					Ask1Price:       5535,
-					Ask1Size:        18.55,
-					Ask1IV:          0.4338,
-					MarkIV:          0.3911,
-					UnderlyingPrice: 86945.1,
-					Delta:           0.25786296,
-					Gamma:           0.0000097,
-					Vega:            274.97638796,
-					Theta:           -15.36367729,
+					Symbol:                "BTC-26NOV24-120000-C",
+					IndexPrice:            82551.02154501,
+					MarkPrice:             4320.60000156,
+					Bid1Price:             3095,
+					Bid1Size:              18.55,
+					Bid1ImpliedVolatility: 0.3444,
+					Ask1Price:             5535,
+					Ask1Size:              18.55,
+					Ask1ImpliedVolatility: 0.4338,
+					MarkImpliedVolatility: 0.3911,
+					UnderlyingPrice:       86945.1,
+					Delta:                 0.25786296,
+					Gamma:                 0.0000097,
+					Vega:                  274.97638796,
+					Theta:                 -15.36367729,
 				},
 				{
-					Symbol:          "BTC-26NOV24-60000-P",
-					LastPrice:       3070,
-					IndexPrice:      82551.02154501,
-					MarkPrice:       3246.59506332,
-					HighPrice24Hour: 3200,
-					LowPrice24Hour:  3070,
-					OpenInterest:    0.2,
-					Turnover24Hour:  16974.40642989,
-					Volume24Hour:    0.2,
-					Bid1Price:       2155,
-					Bid1Size:        18.55,
-					Bid1IV:          0.3756,
-					Ask1Price:       4130,
-					Ask1Size:        18.55,
-					Ask1IV:          0.4818,
-					MarkIV:          0.4368,
-					UnderlyingPrice: 86945.1,
-					TotalVolume:     1,
-					TotalTurnover:   16975,
-					Delta:           -0.13980126,
-					Gamma:           0.00000598,
-					Vega:            189.31094574,
-					Theta:           -11.81194295,
-					Change24Hour:    -0.040625,
+					Symbol:                "BTC-26NOV24-60000-P",
+					LastPrice:             3070,
+					IndexPrice:            82551.02154501,
+					MarkPrice:             3246.59506332,
+					HighPrice24Hour:       3200,
+					LowPrice24Hour:        3070,
+					OpenInterest:          0.2,
+					Turnover24Hour:        16974.40642989,
+					Volume24Hour:          0.2,
+					Bid1Price:             2155,
+					Bid1Size:              18.55,
+					Bid1ImpliedVolatility: 0.3756,
+					Ask1Price:             4130,
+					Ask1Size:              18.55,
+					Ask1ImpliedVolatility: 0.4818,
+					MarkImpliedVolatility: 0.4368,
+					UnderlyingPrice:       86945.1,
+					TotalVolume:           1,
+					TotalTurnover:         16975,
+					Delta:                 -0.13980126,
+					Gamma:                 0.00000598,
+					Vega:                  189.31094574,
+					Theta:                 -11.81194295,
+					Change24Hour:          -0.040625,
 				},
 			},
 		}},
@@ -1397,6 +1470,10 @@ func TestGetPublicTradingHistory(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPublicTradingHistory must reject a nil request")
 	_, err = e.GetPublicTradingHistory(t.Context(), &PublicTradingHistoryRequest{Symbol: "BTCUSDT"})
 	require.ErrorIs(t, err, errCategoryNotSet, "GetPublicTradingHistory must reject an empty category")
+	for _, category := range []string{cSpot, cLinear, cInverse} {
+		_, err = e.GetPublicTradingHistory(t.Context(), &PublicTradingHistoryRequest{Category: category})
+		require.ErrorIsf(t, err, errSymbolMissing, "GetPublicTradingHistory must require a symbol for %s", category)
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -1431,31 +1508,31 @@ func TestGetPublicTradingHistory(t *testing.T) {
 			Category: "option",
 			List: []PublicTrade{
 				{
-					ExecutionID: "7cac3c2d-5dde-5add-8aba-19882e17ce01",
-					Symbol:      "BTC-12OCT26-79000-P-USDT",
-					Price:       95,
-					Size:        0.05,
-					Side:        "Sell",
-					Time:        types.Time(time.UnixMilli(1791535216611)),
-					MarkPrice:   84.88789941,
-					IndexPrice:  82557.99319349,
-					MarkIV:      0.3439,
-					IV:          0.3533,
-					Sequence:    77633960561,
+					ExecutionID:           "7cac3c2d-5dde-5add-8aba-19882e17ce01",
+					Symbol:                "BTC-12OCT26-79000-P-USDT",
+					Price:                 95,
+					Size:                  0.05,
+					Side:                  "Sell",
+					Time:                  types.Time(time.UnixMilli(1791535216611)),
+					MarkPrice:             84.88789941,
+					IndexPrice:            82557.99319349,
+					MarkImpliedVolatility: 0.3439,
+					ImpliedVolatility:     0.3533,
+					Sequence:              77633960561,
 				},
 				{
-					ExecutionID:  "11870e72-8edb-5f1e-8b40-20681a618d86",
-					Symbol:       "BTC-10OCT26-78000-P-USDT",
-					Price:        10,
-					Size:         0.01,
-					Side:         "Sell",
-					Time:         types.Time(time.UnixMilli(1791535214665)),
-					IsBlockTrade: true,
-					MarkPrice:    7.88463464,
-					IndexPrice:   82557.97861947,
-					MarkIV:       0.4849,
-					IV:           0.5006,
-					Sequence:     77633958983,
+					ExecutionID:           "11870e72-8edb-5f1e-8b40-20681a618d86",
+					Symbol:                "BTC-10OCT26-78000-P-USDT",
+					Price:                 10,
+					Size:                  0.01,
+					Side:                  "Sell",
+					Time:                  types.Time(time.UnixMilli(1791535214665)),
+					IsBlockTrade:          true,
+					MarkPrice:             7.88463464,
+					IndexPrice:            82557.97861947,
+					MarkImpliedVolatility: 0.4849,
+					ImpliedVolatility:     0.5006,
+					Sequence:              77633958983,
 				},
 			},
 		}},
@@ -2074,6 +2151,56 @@ func TestRPIOrderbookLevelUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, l.UnmarshalJSON([]byte(`["116600.00","4.428"]`)), errInvalidRPIOrderbookLevel, "UnmarshalJSON should reject a level without an RPI size")
 }
 
+func TestPreListingPhaseTimeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input string
+		exp         time.Time
+	}{
+		{name: "quoted", input: `"1773655200000"`, exp: time.UnixMilli(1773655200000)},
+		{name: "bare", input: `1773655200000`, exp: time.UnixMilli(1773655200000)},
+		{name: "milliseconds", input: `"1773655200123"`, exp: time.UnixMilli(1773655200123)},
+		// 12 digits, which types.Time would take for a 13 digit time missing its last digit
+		{name: "12 digits", input: `"946684800001"`, exp: time.UnixMilli(946684800001)},
+		{name: "skipped phase", input: `"946684800000"`},
+		{name: "bare skipped phase", input: `946684800000`},
+		{name: "no end", input: `""`},
+		{name: "zero", input: `"0"`},
+		{name: "null", input: `null`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result PreListingPhaseTime
+			require.NoError(t, result.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error")
+			assert.Equal(t, PreListingPhaseTime(tc.exp), result, "UnmarshalJSON should decode the time as Unix milliseconds")
+		})
+	}
+	var result PreListingPhaseTime
+	assert.ErrorIs(t, result.UnmarshalJSON([]byte(`"2026-03-16"`)), types.ErrInvalidTimestampFormat, "UnmarshalJSON should reject a time that is not in Unix milliseconds")
+}
+
+func TestPreListingPhaseTimeMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		input time.Time
+		exp   string
+	}{
+		{input: time.UnixMilli(1773655200000).UTC(), exp: `"2026-03-16T10:00:00Z"`},
+		{exp: `"0001-01-01T00:00:00Z"`},
+	} {
+		data, err := PreListingPhaseTime(tc.input).MarshalJSON()
+		require.NoError(t, err, "MarshalJSON must not error")
+		assert.Equal(t, tc.exp, string(data), "MarshalJSON should encode the time in RFC 3339 format")
+	}
+}
+
+func TestPreListingPhaseTimeTime(t *testing.T) {
+	t.Parallel()
+	start := time.UnixMilli(1773655200000)
+	assert.Equal(t, start, PreListingPhaseTime(start).Time(), "Time should return the phase time")
+	assert.True(t, PreListingPhaseTime{}.Time().IsZero(), "Time should return the zero time for a phase without one")
+}
+
 func TestExpiryDate(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -2147,7 +2274,7 @@ func TestTransformSymbol(t *testing.T) {
 				ContractType: tests[i].contractType,
 				BaseCoin:     currency.NewCode(tests[i].baseCoin),
 			}
-			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "expected symbols to match")
+			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "transformSymbol should return the expected symbol")
 		})
 	}
 }
@@ -2198,6 +2325,131 @@ func TestTickerVolumes(t *testing.T) {
 			baseVolume, quoteVolume := tickerVolumes(&tc.tick, tc.asset)
 			assert.Equal(t, tc.wantBase, baseVolume, "tickerVolumes should return the base currency volume")
 			assert.Equal(t, tc.wantQuote, quoteVolume, "tickerVolumes should return the quote currency volume")
+		})
+	}
+}
+
+func TestCheckTimeWindow(t *testing.T) {
+	t.Parallel()
+	future := time.Now().Add(time.Hour)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		err        error
+	}{
+		{name: "ordered", start: marketTestStart, end: marketTestEnd},
+		{name: "one millisecond", start: marketTestStart, end: marketTestStart.Add(time.Millisecond)},
+		// Bybit answers a window that starts and ends at one time with the record at that time
+		{name: "start equals end", start: marketTestStart, end: marketTestStart},
+		{name: "start after end", start: marketTestEnd, end: marketTestStart, err: common.ErrStartAfterEnd},
+		{name: "no end", start: marketTestStart, err: common.ErrDateUnset},
+		{name: "start in the future", start: time.Now().Add(time.Hour), end: time.Now().Add(2 * time.Hour), err: common.ErrStartAfterTimeNow},
+		{name: "start equals end in the future", start: future, end: future, err: common.ErrStartAfterTimeNow},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIs(t, checkTimeWindow(tc.start, tc.end), tc.err, "checkTimeWindow should return the expected error")
+		})
+	}
+}
+
+// TestTimeWindowEqualBounds sends each windowed market request with its start equal to its end, which Bybit answers
+// with the record at that time
+func TestTimeWindowEqualBounds(t *testing.T) {
+	t.Parallel()
+	at := strconv.FormatInt(marketTestStart.UnixMilli(), 10)
+	candles := `{"category":"linear","symbol":"BTCUSDT","list":[["` + at + `","81556.2","81756.2","81496.1","81678.4","2395.716","195515205.6596"]]}`
+	priceCandles := `{"category":"linear","symbol":"BTCUSDT","list":[["` + at + `","81556.2","81756.2","81500","81678.4"]]}`
+	klines := &KlineRequest{Category: cLinear, Symbol: "BTCUSDT", Interval: kline.OneHour, Start: marketTestStart, End: marketTestStart}
+	for _, tc := range []struct {
+		name             string
+		startKey, endKey string
+		result           string
+		send             func(context.Context, *Exchange) (int, error)
+	}{
+		{name: "GetKlines", startKey: "start", endKey: "end", result: candles, send: func(ctx context.Context, ex *Exchange) (int, error) {
+			resp, err := ex.GetKlines(ctx, klines)
+			if err != nil {
+				return 0, err
+			}
+			return len(resp.List), nil
+		}},
+		{name: "GetMarkPriceKline", startKey: "start", endKey: "end", result: priceCandles, send: func(ctx context.Context, ex *Exchange) (int, error) {
+			resp, err := ex.GetMarkPriceKline(ctx, klines)
+			if err != nil {
+				return 0, err
+			}
+			return len(resp.List), nil
+		}},
+		{name: "GetIndexPriceKline", startKey: "start", endKey: "end", result: priceCandles, send: func(ctx context.Context, ex *Exchange) (int, error) {
+			resp, err := ex.GetIndexPriceKline(ctx, klines)
+			if err != nil {
+				return 0, err
+			}
+			return len(resp.List), nil
+		}},
+		{name: "GetPremiumIndexPriceKline", startKey: "start", endKey: "end", result: priceCandles, send: func(ctx context.Context, ex *Exchange) (int, error) {
+			resp, err := ex.GetPremiumIndexPriceKline(ctx, klines)
+			if err != nil {
+				return 0, err
+			}
+			return len(resp.List), nil
+		}},
+		{
+			name: "GetFundingRateHistory", startKey: "startTime", endKey: "endTime",
+			result: `{"category":"linear","list":[{"symbol":"BTCUSDT","fundingRate":"0.00005162","fundingRateTimestamp":"` + at + `"}]}`,
+			send: func(ctx context.Context, ex *Exchange) (int, error) {
+				resp, err := ex.GetFundingRateHistory(ctx, &FundingRateHistoryRequest{Category: cLinear, Symbol: "BTCUSDT", StartTime: marketTestStart, EndTime: marketTestStart})
+				if err != nil {
+					return 0, err
+				}
+				return len(resp.List), nil
+			},
+		},
+		{
+			name: "GetOpenInterestData", startKey: "startTime", endKey: "endTime",
+			result: `{"symbol":"BTCUSDT","category":"linear","list":[{"openInterest":"59338.112","singleOpenInterest":"29669.056","timestamp":"` + at + `"}],"nextPageCursor":""}`,
+			send: func(ctx context.Context, ex *Exchange) (int, error) {
+				resp, err := ex.GetOpenInterestData(ctx, &OpenInterestRequest{Category: cLinear, Symbol: "BTCUSDT", IntervalTime: "1h", StartTime: marketTestStart, EndTime: marketTestStart})
+				if err != nil {
+					return 0, err
+				}
+				return len(resp.List), nil
+			},
+		},
+		{
+			name: "GetLongShortRatio", startKey: "startTime", endKey: "endTime",
+			result: `{"list":[{"symbol":"BTCUSDT","buyRatio":"0.63","sellRatio":"0.37","timestamp":"` + at + `"}],"nextPageCursor":""}`,
+			send: func(ctx context.Context, ex *Exchange) (int, error) {
+				resp, err := ex.GetLongShortRatio(ctx, &LongShortRatioRequest{Category: cLinear, Symbol: "BTCUSDT", Period: "1h", StartTime: marketTestStart, EndTime: marketTestStart})
+				if err != nil {
+					return 0, err
+				}
+				return len(resp.List), nil
+			},
+		},
+		{
+			name: "GetHistoricalVolatility", startKey: "startTime", endKey: "endTime",
+			result: `[{"period":7,"value":"0.30540647","time":"` + at + `"}]`,
+			send: func(ctx context.Context, ex *Exchange) (int, error) {
+				resp, err := ex.GetHistoricalVolatility(ctx, &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, Period: 7, StartTime: marketTestStart, EndTime: marketTestStart})
+				return len(resp), err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var gotQuery url.Values
+			ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				gotQuery = r.URL.Query()
+				_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":`+tc.result+`,"retExtInfo":{},"time":1792139350424}`)
+				assert.NoError(t, err, "writing the response should not error")
+			})
+			records, err := tc.send(t.Context(), ex)
+			require.NoErrorf(t, err, "%s must send a window whose start equals its end", tc.name)
+			assert.Equalf(t, 1, records, "%s should return the record at that time", tc.name)
+			assert.Equalf(t, at, gotQuery.Get(tc.startKey), "%s should send the start", tc.name)
+			assert.Equalf(t, at, gotQuery.Get(tc.endKey), "%s should send the end", tc.name)
 		})
 	}
 }

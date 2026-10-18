@@ -21,6 +21,7 @@ var (
 	errUnsupportedAdvancedEarnCategory  = errors.New("unsupported Advanced Earn category")
 	errAdvancedEarnProductIDNotSet      = errors.New("product ID not set")
 	errAdvancedEarnOrderTypeNotSet      = errors.New("order type not set")
+	errAdvancedEarnExtraNotSet          = errors.New("required extra parameters not set")
 	errAdvancedEarnDirectionNotSet      = errors.New("order direction not set")
 	errAdvancedEarnPriceNotSet          = errors.New("price not set")
 	errAdvancedEarnAPYNotSet            = errors.New("APY not set")
@@ -61,6 +62,9 @@ func (e *Exchange) GetAdvancedEarnProductInfo(ctx context.Context, req *Advanced
 func (e *Exchange) GetAdvancedEarnProductQuote(ctx context.Context, category, productID string) (*AdvancedEarnProductQuoteResponse, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
+	}
+	if productID == "" && category != AdvancedEarnCategoryDiscountBuy {
+		return nil, errAdvancedEarnProductIDNotSet
 	}
 	params := url.Values{}
 	params.Set("category", category)
@@ -106,6 +110,25 @@ func (r *AdvancedEarnPlaceOrderRequest) Payload() (map[string]any, error) {
 		case r.AccountType == "":
 			return nil, errMissingAccountType
 		}
+	}
+	// SmartLeverage, unlike DoubleWin, also needs the account type to redeem
+	if r.Category == AdvancedEarnCategorySmartLeverage && r.AccountType == "" {
+		return nil, errMissingAccountType
+	}
+	stake, redeem := r.OrderType == AdvancedEarnOrderTypeStake, r.OrderType == AdvancedEarnOrderTypeRedeem
+	switch {
+	case r.Category == AdvancedEarnCategoryDualAssets && r.DualAssetsExtra == nil:
+		return nil, fmt.Errorf("%w: dualAssetsExtra", errAdvancedEarnExtraNotSet)
+	case r.Category == AdvancedEarnCategoryDiscountBuy && r.DiscountBuyExtra == nil:
+		return nil, fmt.Errorf("%w: discountBuyExtra", errAdvancedEarnExtraNotSet)
+	case r.Category == AdvancedEarnCategorySmartLeverage && stake && r.SmartLeverageStakeExtra == nil:
+		return nil, fmt.Errorf("%w: smartLeverageStakeExtra", errAdvancedEarnExtraNotSet)
+	case r.Category == AdvancedEarnCategorySmartLeverage && redeem && r.SmartLeverageRedeemExtra == nil:
+		return nil, fmt.Errorf("%w: smartLeverageRedeemExtra", errAdvancedEarnExtraNotSet)
+	case r.Category == AdvancedEarnCategoryDoubleWin && stake && r.DoubleWinStakeExtra == nil:
+		return nil, fmt.Errorf("%w: doubleWinStakeExtra", errAdvancedEarnExtraNotSet)
+	case r.Category == AdvancedEarnCategoryDoubleWin && redeem && r.DoubleWinRedeemExtra == nil:
+		return nil, fmt.Errorf("%w: doubleWinRedeemExtra", errAdvancedEarnExtraNotSet)
 	}
 	body := map[string]any{
 		"category":    r.Category,

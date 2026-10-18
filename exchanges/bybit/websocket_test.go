@@ -92,6 +92,18 @@ func (c *signatureConnection) SendMessageReturnResponse(ctx context.Context, epl
 	return c.FixtureConnection.SendMessageReturnResponse(ctx, epl, signature, req)
 }
 
+// pingConnection is a FixtureConnection that records the heartbeat each SetupPingHandler call asks for
+type pingConnection struct {
+	*FixtureConnection
+	limits   []request.EndpointLimit
+	handlers []websocket.PingHandler
+}
+
+func (c *pingConnection) SetupPingHandler(epl request.EndpointLimit, handler websocket.PingHandler) {
+	c.limits = append(c.limits, epl)
+	c.handlers = append(c.handlers, handler)
+}
+
 // replySequence returns a reply func answering each request with the next of replies in turn; an empty reply fails
 // the send with errFixtureSend
 func replySequence(replies ...string) func(any) ([]byte, error) {
@@ -194,8 +206,12 @@ func liveStreamFrames(tb testing.TB, streamURL string, wait time.Duration, perTo
 	require.NoError(tb, conn.WriteMessage(gws.TextMessage, req), "WriteMessage must not error")
 	counts := make(map[string]int, len(topics))
 	window := time.After(wait)
+	heartbeat := time.NewTicker(websocketPingInterval)
+	defer heartbeat.Stop()
 	for {
 		select {
+		case <-heartbeat.C:
+			require.NoError(tb, conn.WriteMessage(gws.TextMessage, []byte(`{"op":"ping"}`)), "WriteMessage must not error for a ping")
 		case p, ok := <-read:
 			require.True(tb, ok, "stream must stay open")
 			topic, _ := jsonparser.GetString(p, "topic")
@@ -216,13 +232,113 @@ func liveStreamFrames(tb testing.TB, streamURL string, wait time.Duration, perTo
 	}
 }
 
-func TestWsConnect(t *testing.T) {
+func TestStreamOrigin(t *testing.T) {
 	t.Parallel()
-	err := e.WsConnect(t.Context(), &FixtureConnection{dialError: nil})
-	require.NoError(t, err, "WsConnect must not error")
+	for _, tc := range []struct {
+		url string
+		exp string
+		err error
+	}{
+		{url: spotPublic, exp: mainnetStreamOrigin},
+		{url: "wss://stream-testnet.bybit.com/v5/public/spot", exp: "wss://stream-testnet.bybit.com"},
+		{url: "wss://stream.bybit.eu/v5/public/spot", exp: "wss://stream.bybit.eu"},
+		{url: "ws://127.0.0.1:8443/bybit/v5/public/spot?region=eu#spot", exp: "ws://127.0.0.1:8443"},
+		{url: "", err: errNoStreamOrigin},
+		{url: "/v5/public/spot", err: errNoStreamOrigin},
+		{url: "//stream.bybit.com/v5/public/spot", err: errNoStreamOrigin},
+		{url: "wss:///v5/public/spot", err: errNoStreamOrigin},
+		{url: "wss:stream.bybit.com/v5/public/spot", err: errNoStreamOrigin},
+		{url: "wss://stream.bybit.com:port/v5/public/spot", err: errNoStreamOrigin},
+		{url: "wss://stream bybit.com/v5/public/spot", err: errNoStreamOrigin},
+	} {
+		got, err := streamOrigin(tc.url)
+		if tc.err != nil {
+			assert.ErrorIsf(t, err, tc.err, "streamOrigin should reject %q", tc.url)
+			assert.ErrorContainsf(t, err, tc.url, "streamOrigin should name the URL %q it rejects", tc.url)
+			assert.Emptyf(t, got, "streamOrigin should return no origin for %q", tc.url)
+			continue
+		}
+		require.NoErrorf(t, err, "streamOrigin must not error for %q", tc.url)
+		assert.Equalf(t, tc.exp, got, "streamOrigin should return the scheme and host of %q", tc.url)
+	}
+}
+
+func TestAuxiliaryStreamURL(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		url string
+		exp string
+		// expStatus is the origin of the system status stream where it differs from the other streams'
+		expStatus string
+		err       error
+	}{
+		{url: spotPublic, exp: mainnetStreamOrigin},
+		{url: "wss://stream-testnet.bybit.com/v5/public/spot", exp: "wss://stream-testnet.bybit.com"},
+		{url: "ws://127.0.0.1:8443/v5/public/spot", exp: "ws://127.0.0.1:8443"},
+		{url: "wss://stream.bybit.tr/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.bybit.kz/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.bybit.ae/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.bybit.eu/v5/public/spot", exp: mainnetStreamOrigin, expStatus: "wss://stream.bybit.eu"},
+		{url: "wss://stream.bybitgeorgia.ge:443/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.bybit.id/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.manepa.jp/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://stream.spark-fintech.com/v5/public/spot", exp: mainnetStreamOrigin},
+		// The regional sites' testnet hosts lack most of the same streams, which Bybit's testnet serves
+		{url: "wss://stream-testnet.spark-fintech.com/v5/public/spot", exp: "wss://stream-testnet.bybit.com"},
+		{url: "wss://stream-testnet.bybit.kz/v5/public/spot", exp: "wss://stream-testnet.bybit.com"},
+		{url: "wss://stream-testnet.bybit.eu/v5/public/spot", exp: "wss://stream-testnet.bybit.com", expStatus: "wss://stream-testnet.bybit.eu"},
+		{url: "wss://STREAM-TESTNET.BYBIT.AE/v5/public/spot", exp: "wss://stream-testnet.bybit.com"},
+		// Hosts compare without regard to case, and a server Bybit does not name keeps its streams
+		{url: "wss://STREAM.BYBIT.TR/v5/public/spot", exp: mainnetStreamOrigin},
+		{url: "wss://STREAM.BYBIT.EU/v5/public/spot", exp: mainnetStreamOrigin, expStatus: "wss://STREAM.BYBIT.EU"},
+		{url: "ws://stream.localhost:8443/v5/public/spot", exp: "ws://stream.localhost:8443"},
+		{url: "wss://stream-testnet.bybits.org/v5/public/spot", exp: "wss://stream-testnet.bybits.org"},
+		{url: "/v5/public/spot", err: errNoStreamOrigin},
+	} {
+		for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
+			got, err := auxiliaryStreamURL(tc.url, path)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "auxiliaryStreamURL should reject %q", tc.url)
+				continue
+			}
+			require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", tc.url)
+			exp := tc.exp
+			if path == systemStatusPath && tc.expStatus != "" {
+				exp = tc.expStatus
+			}
+			assert.Equalf(t, exp+path, got, "auxiliaryStreamURL should place %s of %q on %s", path, tc.url, exp)
+		}
+	}
+	// Every regional site's testnet host sends them to Bybit's testnet, apart from the EU testnet's status stream
+	for _, host := range regionalStreamHosts {
+		testnet := "wss://" + strings.Replace(host, "stream.", "stream-testnet.", 1)
+		for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
+			got, err := auxiliaryStreamURL(testnet+"/v5/public/spot", path)
+			require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", testnet)
+			exp := testnetStreamOrigin + path
+			if host == euStreamHost && path == systemStatusPath {
+				exp = testnet + path
+			}
+			assert.Equalf(t, exp, got, "auxiliaryStreamURL should place %s of %q on %s", path, testnet, exp)
+		}
+	}
+}
+
+func TestWebsocketConnect(t *testing.T) {
+	t.Parallel()
+	err := e.WebsocketConnect(t.Context(), &FixtureConnection{dialError: nil})
+	require.NoError(t, err, "WebsocketConnect must not error")
 	exp := errors.New("dial error")
-	err = e.WsConnect(t.Context(), &FixtureConnection{dialError: exp})
-	require.ErrorIs(t, err, exp, "WsConnect must return the dial error")
+	err = e.WebsocketConnect(t.Context(), &FixtureConnection{dialError: exp})
+	require.ErrorIs(t, err, exp, "WebsocketConnect must return the dial error")
+
+	conn := &pingConnection{FixtureConnection: &FixtureConnection{}}
+	require.NoError(t, e.WebsocketConnect(t.Context(), conn), "WebsocketConnect must not error")
+	assert.Equal(t, []request.EndpointLimit{wsSubscriptionEPL}, conn.limits, "WebsocketConnect should start one heartbeat under the subscription limit")
+	assert.Equal(t, []websocket.PingHandler{{MessageType: gws.TextMessage, Message: []byte(`{"op":"ping"}`), Delay: 20 * time.Second}}, conn.handlers, "WebsocketConnect should send a text ping every 20 seconds, as Bybit recommends")
+	failing := &pingConnection{FixtureConnection: &FixtureConnection{dialError: exp}}
+	require.ErrorIs(t, e.WebsocketConnect(t.Context(), failing), exp, "WebsocketConnect must return the dial error")
+	assert.Empty(t, failing.handlers, "WebsocketConnect should start no heartbeat on a connection it could not dial")
 }
 
 func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
@@ -825,6 +941,7 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 	}{
 		{sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "tickers.BTCUSDT|tickers.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 200}, exp: "orderbook.200.BTCUSDT|orderbook.200.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "orderbook.50.BTCUSDT|orderbook.50.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: chanRPIOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "publicTrade.BTCUSDT|publicTrade.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneHour}, exp: "kline.60.BTCUSDT|kline.60.ETHUSDT|;"},

@@ -239,14 +239,18 @@ func (e *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, co
 }
 
 // SetMarginMode sets the account's margin mode: ISOLATED_MARGIN, REGULAR_MARGIN (cross margin) or PORTFOLIO_MARGIN
-// (Set Margin Mode)
+// (Set Margin Mode). When Bybit refuses the change, the response holds the reasons it gives and comes with the error
 func (e *Exchange) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
 	if marginMode == "" {
 		return nil, errInvalidMode
 	}
 	body := map[string]any{"setMarginMode": marginMode}
 	var resp *SetMarginModeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, body, &resp, setMarginModeEPL)
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, body, &resp, setMarginModeEPL); err != nil {
+		err = decodeErrorResult(err, &resp)
+		return resp, err
+	}
+	return resp, nil
 }
 
 // SetSpotHedging turns spot hedging in portfolio margin on or off (Set Spot Hedging)

@@ -1,6 +1,10 @@
 package bybit
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -57,7 +61,7 @@ func TestGetWeb3TradeQuote(t *testing.T) {
 			ToTokenAmountUSD:   99.5,
 			MinToTokenAmount:   12375000,
 			Slippage:           0.005,
-			Gas:                0.0003,
+			Gas:                "0.000300",
 			GasUSD:             0.3,
 			PlatformFee:        0.2,
 			PlatformFeeUSD:     0.2,
@@ -104,7 +108,7 @@ func TestExecuteWeb3Purchase(t *testing.T) {
 		ToTokenCode:     "DEX_123",
 		Slippage:        0.01,
 		QuoteData:       "eyJhbGciOiJIUzI1NiJ9",
-		Gas:             0.0003,
+		Gas:             "0.0003",
 		QuoteMode:       1,
 		CorrectingCode:  "a1b2c3d4e5f6",
 	})
@@ -133,7 +137,7 @@ func TestExecuteWeb3Redeem(t *testing.T) {
 		ToTokenCode:     "CEX_1",
 		Slippage:        0.01,
 		QuoteData:       "eyJhbGciOiJIUzI1NiJ9",
-		Gas:             0.0003,
+		Gas:             "0.0003",
 		CorrectingCode:  "f6e5d4c3b2a1",
 		Tenant:          "BYBIT",
 	})
@@ -168,6 +172,10 @@ func TestWeb3TradeBody(t *testing.T) {
 	_, err = web3TradeBody(r)
 	require.ErrorIs(t, err, errCorrectingCodeRequired, "web3TradeBody must require a correcting code")
 	r.CorrectingCode = "a1b2c3d4e5f6"
+	_, err = web3TradeBody(r)
+	require.ErrorIs(t, err, errGasRequired, "web3TradeBody must require the quote's gas")
+	// The trailing zeros would not survive a float64, so they show the quote's gas is passed on unchanged
+	r.Gas = "0.000300"
 
 	body, err := web3TradeBody(r)
 	require.NoError(t, err, "web3TradeBody must not error")
@@ -177,11 +185,11 @@ func TestWeb3TradeBody(t *testing.T) {
 		"toTokenCode":     "DEX_123",
 		"slippage":        "0",
 		"quoteData":       "eyJhbGciOiJIUzI1NiJ9",
-		"gas":             "0",
+		"gas":             "0.000300",
 		"quoteMode":       uint64(0),
 		"correctingCode":  "a1b2c3d4e5f6",
 	}
-	assert.Equal(t, exp, body, "web3TradeBody should send the required zero values and leave out an unset tenant")
+	assert.Equal(t, exp, body, "web3TradeBody should send the quote's gas unchanged and the required zero values, and leave out an unset tenant")
 }
 
 func TestGetWeb3PaymentTokenList(t *testing.T) {
@@ -705,6 +713,15 @@ func TestExecuteWeb3LPRedeem(t *testing.T) {
 	r.PoolAddress = web3PoolAddress
 	_, err = e.ExecuteWeb3LPRedeem(t.Context(), r)
 	require.ErrorIs(t, err, errDercRatioInvalid, "ExecuteWeb3LPRedeem must require a positive redeem ratio")
+	r.DercRatio = 1.01
+	_, err = e.ExecuteWeb3LPRedeem(t.Context(), r)
+	require.ErrorIs(t, err, errDercRatioInvalid, "ExecuteWeb3LPRedeem must reject a redeem ratio above 1")
+	// Redeeming the whole position is a ratio of 1
+	whole := *r
+	whole.DercRatio = 1
+	redeemed, err := restReplyTestInstance(t, map[string]string{"/v5/alpha/lp/redeem": `{"retCode":0,"retMsg":"OK","result":{"orderNo":"LP_REDEEM_1"},"retExtInfo":{},"time":1760000000000}`}).ExecuteWeb3LPRedeem(t.Context(), &whole)
+	require.NoError(t, err, "ExecuteWeb3LPRedeem must accept a redeem ratio of 1")
+	assert.Equal(t, &Web3OrderResponse{OrderNumber: "LP_REDEEM_1"}, redeemed, "ExecuteWeb3LPRedeem should return the redemption's order number")
 	r.DercRatio = 0.5
 	r.ReceiveTokenCode = "CEX_1"
 
@@ -1535,6 +1552,21 @@ func TestGetPredictionSportsMatchList(t *testing.T) {
 	r.StageCode = "Groups"
 	r.Limit = 20
 	r.PageIndex = 1
+
+	// Upcoming matches start in the future, so a window that starts after now is sent
+	var body string
+	upcoming := newTransportTestExchange(t, func(w http.ResponseWriter, req *http.Request) {
+		b, err := io.ReadAll(req.Body)
+		assert.NoError(t, err, "reading the request body should not error")
+		body = string(b)
+		_, err = fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"list":[],"total":0,"pageIndex":1,"pageSize":20},"retExtInfo":{},"time":1792143027943}`)
+		assert.NoError(t, err, "writing the response should not error")
+	})
+	start, end := time.Now().Add(24*time.Hour), time.Now().Add(8*24*time.Hour)
+	_, err = upcoming.GetPredictionSportsMatchList(t.Context(), &PredictionSportsMatchListRequest{EventType: 1, Status: 2, StartTime: start, EndTime: end})
+	require.NoError(t, err, "GetPredictionSportsMatchList must send a window of upcoming matches")
+	expBody := `{"endTime":` + strconv.FormatInt(end.UnixMilli(), 10) + `,"eventType":1,"startTime":` + strconv.FormatInt(start.UnixMilli(), 10) + `,"status":2}`
+	assert.Equal(t, expBody, body, "GetPredictionSportsMatchList should send both bounds of a window of upcoming matches")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

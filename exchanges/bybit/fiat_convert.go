@@ -100,6 +100,7 @@ func (e *Exchange) ConfirmFiatQuote(ctx context.Context, arg *FiatConfirmQuoteRe
 		body["webhookUrl"] = arg.WebhookURL
 	}
 	if arg.MerchantRequestID != "" {
+		// The English docs table capitalises this key, unlike its response, the Chinese docs and Get Convert Status
 		body["merchantRequestId"] = arg.MerchantRequestID
 	}
 	var resp *FiatConfirmQuoteResponse

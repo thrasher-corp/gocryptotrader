@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,11 +18,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -175,20 +180,32 @@ func relayedFrames(ex *Exchange) []any {
 	return got
 }
 
-func TestSpreadPublicConnectionSetup(t *testing.T) {
+// TestTopicConnectionSetups covers the connections whose subscriptions name a Bybit topic rather than an asset
+func TestTopicConnectionSetups(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
-	setup := ex.SpreadPublicConnectionSetup(&config.Exchange{WebsocketResponseCheckTimeout: time.Second, WebsocketResponseMaxLimit: 2 * time.Second})
-	assert.Equal(t, spreadPublicURL, setup.URL, "SpreadPublicConnectionSetup should use the spread public URL")
-	assert.Equal(t, time.Second, setup.ResponseCheckTimeout, "SpreadPublicConnectionSetup should use the configured response check timeout")
-	assert.Equal(t, 2*time.Second, setup.ResponseMaxLimit, "SpreadPublicConnectionSetup should use the configured response limit")
-	for name, fn := range map[string]any{"Connector": setup.Connector, "Subscriber": setup.Subscriber, "Unsubscriber": setup.Unsubscriber, "Handler": setup.Handler} {
-		assert.NotNilf(t, fn, "SpreadPublicConnectionSetup should set %s", name)
+	cfg := &config.Exchange{WebsocketResponseCheckTimeout: time.Second, WebsocketResponseMaxLimit: 2 * time.Second}
+	spreadURL, eventURL, rfqURL := testnetStreamOrigin+spreadPublicPath, testnetStreamOrigin+eventPublicPath, testnetStreamOrigin+rfqPublicPath
+	for name, tc := range map[string]struct {
+		setup     *websocket.ConnectionSetup
+		streamURL string
+	}{
+		"SpreadPublicConnectionSetup": {setup: ex.SpreadPublicConnectionSetup(cfg, spreadURL), streamURL: spreadURL},
+		"EventPublicConnectionSetup":  {setup: ex.EventPublicConnectionSetup(cfg, eventURL), streamURL: eventURL},
+		"RFQPublicConnectionSetup":    {setup: ex.RFQPublicConnectionSetup(cfg, rfqURL), streamURL: rfqURL},
+	} {
+		setup := tc.setup
+		assert.Equalf(t, tc.streamURL, setup.URL, "%s should connect to the URL given", name)
+		assert.Equalf(t, time.Second, setup.ResponseCheckTimeout, "%s should use the configured response check timeout", name)
+		assert.Equalf(t, 2*time.Second, setup.ResponseMaxLimit, "%s should use the configured response limit", name)
+		for field, fn := range map[string]any{"Connector": setup.Connector, "Subscriber": setup.Subscriber, "Unsubscriber": setup.Unsubscriber, "Handler": setup.Handler} {
+			assert.NotNilf(t, fn, "%s should set %s", name, field)
+		}
+		require.NotNilf(t, setup.GenerateSubscriptions, "%s must set GenerateSubscriptions", name)
+		subs, err := setup.GenerateSubscriptions()
+		require.NoErrorf(t, err, "%s GenerateSubscriptions must not error", name)
+		assert.Emptyf(t, subs, "%s GenerateSubscriptions should generate no subscriptions by default", name)
 	}
-	require.NotNil(t, setup.GenerateSubscriptions, "SpreadPublicConnectionSetup must set GenerateSubscriptions")
-	subs, err := setup.GenerateSubscriptions()
-	require.NoError(t, err, "GenerateSubscriptions must not error")
-	assert.Empty(t, subs, "GenerateSubscriptions should generate no subscriptions by default")
 }
 
 func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
@@ -216,9 +233,84 @@ func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
 		assert.IsTypef(t, topicKey{}, s.Key, "subscription %s should be keyed by its topic", s.QualifiedChannel)
 	}
 
-	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: ChannelSpreadTicker}}
-	_, err = ex.generateSpreadPublicSubscriptions()
-	require.ErrorIs(t, err, errSubscriptionSymbolMissing, "generateSpreadPublicSubscriptions must reject a subscription without a symbol")
+	unusable := subscription.List{
+		{Enabled: true, Channel: ChannelSpreadTicker},
+		{Enabled: true, Channel: ChannelSpreadOrderbook, Params: map[string]any{"symbol": ""}},
+		{Enabled: true, Channel: ChannelSpreadPublicTrade, Params: map[string]any{"symbol": 1}},
+	}
+	ex.Features.Subscriptions = append(subscription.List{{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol}}, unusable...)
+	subs, err = ex.generateSpreadPublicSubscriptions()
+	assert.NoError(t, err, "generateSpreadPublicSubscriptions should not error for subscriptions without a usable symbol")
+	assert.Equal(t, []string{"tickers." + spreadTestSymbol}, subs.QualifiedChannels(), "generateSpreadPublicSubscriptions should return only the subscriptions with a symbol")
+	for _, s := range unusable {
+		assert.Truef(t, s.Enabled, "generateSpreadPublicSubscriptions should leave %s with params %v as configured", s.Channel, s.Params)
+	}
+	// Generation only reads the configuration, so it can run while the configuration is saved
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for range 50 {
+			_, err := json.Marshal(ex.Features.Subscriptions)
+			assert.NoError(t, err, "Marshal should not error")
+		}
+	})
+	for range 50 {
+		_, err := ex.generateSpreadPublicSubscriptions()
+		assert.NoError(t, err, "generateSpreadPublicSubscriptions should not error while the configuration is saved")
+	}
+	wg.Wait()
+
+	// Setup disables a configured spread or event subscription without a symbol, and the websocket connects every
+	// other subscription
+	t.Run("connect", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		cfg, err := ex.GetStandardConfig()
+		require.NoError(t, err, "GetStandardConfig must not error")
+		noSymbol := &subscription.Subscription{Enabled: true, Channel: ChannelSpreadTicker}
+		emptySymbol := &subscription.Subscription{Enabled: true, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": ""}}
+		cfg.Features = &config.FeaturesConfig{
+			Enabled: config.FeaturesEnabledConfig{Websocket: true},
+			Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+				noSymbol,
+				{Enabled: true, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": spreadTestSymbol}},
+				emptySymbol,
+				{Enabled: true, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": eventTestTargetSymbol}},
+			},
+		}
+		require.NoError(t, ex.Setup(cfg), "Setup must not error")
+		assert.False(t, noSymbol.Enabled, "Setup should disable the spread subscription without a symbol in the configuration")
+		assert.False(t, emptySymbol.Enabled, "Setup should disable the event subscription with an empty symbol in the configuration")
+		ex.Name = t.Name()
+		spotPair := currency.NewPair(currency.ETH, currency.USDT)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotPair}, false), "StorePairs must not error for the available pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotPair}, true), "StorePairs must not error for the enabled pairs")
+		// Spot answers with the request ID, and the spread and event streams with the topics they applied
+		commandTopics := []string{"tickers." + spreadTestSymbol, "orderbook.25." + eventTestTargetSymbol}
+		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+			var req SubscriptionRequest
+			if err := json.Unmarshal(msg, &req); err != nil {
+				return err
+			}
+			if req.Operation != subscribeOperation && req.Operation != unsubscribeOperation {
+				return nil
+			}
+			if slices.ContainsFunc(req.Arguments, func(topic string) bool { return slices.Contains(commandTopics, topic) }) {
+				return c.WriteJSON(&CommandResponse{Success: true, ConnectionID: "dat42tru7geqm1secqg0-1k55h", Type: commandResponseType, Data: CommandResponseTopics{FailTopics: []string{}, SuccessTopics: req.Arguments}})
+			}
+			return c.WriteJSON(&SubscriptionResponse{Success: true, ConnectionID: "d9avrat34tmf5pih98i0-gsmne", RequestID: req.RequestID, Operation: req.Operation})
+		}))
+		server.Start()
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
+		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
+		t.Cleanup(func() { stopWebsocket(t, ex) })
+		assert.True(t, ex.Websocket.IsConnected(), "the websocket should be connected")
+		exp := []string{"orderbook.25." + eventTestTargetSymbol, "tickers." + spreadTestSymbol, "tickers.ETHUSDT"}
+		assert.Equal(t, exp, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Connect should subscribe every subscription with a symbol")
+		require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+		assert.Equal(t, exp, ex.Websocket.GetSubscriptions().QualifiedChannels(), "FlushChannels should keep the subscriptions")
+	})
 }
 
 func TestTopicKey(t *testing.T) {
@@ -255,6 +347,66 @@ func TestSubscriptionSymbol(t *testing.T) {
 		_, err = subscriptionSymbol(&subscription.Subscription{Channel: ChannelSpreadTicker, Params: params})
 		require.ErrorIsf(t, err, errSubscriptionSymbolMissing, "subscriptionSymbol must refuse params %v", params)
 		assert.ErrorContainsf(t, err, ChannelSpreadTicker, "subscriptionSymbol should name the channel missing a symbol for params %v", params)
+	}
+}
+
+func TestDisableUnusableSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := testInstance(t)
+	symbol := map[string]any{"symbol": spreadTestSymbol}
+	usable := subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel},
+		{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol},
+		{Enabled: true, Channel: ChannelEventPublicTrade, Params: map[string]any{"symbol": eventTestTargetSymbol}},
+	}
+	unusable := subscription.List{
+		{Enabled: true, Channel: ChannelSpreadTicker},
+		{Enabled: true, Channel: ChannelSpreadOrderbook, Params: map[string]any{"symbol": ""}},
+		{Enabled: true, Channel: ChannelSpreadPublicTrade, Params: map[string]any{"symbol": 1}},
+		{Enabled: true, Channel: ChannelEventOrderbook},
+		{Enabled: true, Channel: ChannelEventPublicTrade, Params: map[string]any{"symbol": ""}},
+		// The private connection generates its own subscriptions, so a configured authenticated one is never used
+		{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: asset.Spot, Authenticated: true},
+		{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol, Authenticated: true},
+	}
+	ex.Config.Features.Subscriptions = slices.Concat(usable, unusable)
+	ex.SetSubscriptionsFromConfig()
+	ex.disableUnusableSubscriptions()
+	for _, s := range unusable {
+		assert.Falsef(t, s.Enabled, "disableUnusableSubscriptions should disable %s with params %v", s.Channel, s.Params)
+	}
+	for _, s := range usable {
+		assert.Truef(t, s.Enabled, "disableUnusableSubscriptions should leave %s with params %v enabled", s.Channel, s.Params)
+	}
+	assert.Equal(t, usable, ex.Features.Subscriptions, "disableUnusableSubscriptions should leave only the usable subscriptions enabled")
+
+	// With nothing to disable, the enabled subscriptions are left as they are
+	ex.Features.Subscriptions = slices.Clone(usable[:1])
+	ex.disableUnusableSubscriptions()
+	assert.Equal(t, usable[:1], ex.Features.Subscriptions, "disableUnusableSubscriptions should not take the subscriptions from the configuration again when it disables none")
+
+	// An authenticated subscription is disabled whether or not the websocket can authenticate, and alone is reason to
+	// take the enabled subscriptions from the configuration again
+	for _, wsAuth := range []bool{false, true} {
+		authEx := testInstance(t)
+		authEx.API.AuthenticatedWebsocketSupport = wsAuth
+		public := &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot}
+		authenticated := &subscription.Subscription{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol, Authenticated: true}
+		authEx.Config.Features.Subscriptions = subscription.List{public, authenticated}
+		authEx.SetSubscriptionsFromConfig()
+		authEx.disableUnusableSubscriptions()
+		assert.Falsef(t, authenticated.Enabled, "disableUnusableSubscriptions should disable an authenticated subscription with websocket authentication %t", wsAuth)
+		assert.Equalf(t, subscription.List{public}, authEx.Features.Subscriptions, "disableUnusableSubscriptions should leave only the unauthenticated subscription enabled with websocket authentication %t", wsAuth)
+	}
+}
+
+func TestNeedsSymbol(t *testing.T) {
+	t.Parallel()
+	for _, channel := range []string{ChannelSpreadOrderbook, ChannelSpreadPublicTrade, ChannelSpreadTicker, ChannelEventOrderbook, ChannelEventPublicTrade} {
+		assert.Truef(t, needsSymbol(channel), "needsSymbol should report that %s needs a symbol", channel)
+	}
+	for _, channel := range []string{subscription.TickerChannel, ChannelSpreadOrder, ChannelSpreadExecution} {
+		assert.Falsef(t, needsSymbol(channel), "needsSymbol should report that %s needs no symbol", channel)
 	}
 }
 
@@ -377,6 +529,21 @@ func TestManageCommandSubscriptions(t *testing.T) {
 	unrouted := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`{"success":`) }}
 	require.Error(t, ex.manageCommandSubscriptions(t.Context(), unrouted, "subscribe", subs[:2]), "manageCommandSubscriptions must error for a reply that does not decode")
 	assert.Nil(t, ex.Websocket.GetSubscription(subs[0]), "manageCommandSubscriptions should not store a topic whose reply does not decode")
+	// Bybit lists a topic once in its reply however often a request names it, as two depths of one spread orderbook do
+	ethBook := func(levels int) *subscription.Subscription {
+		return topicSubscription(&subscription.Subscription{Enabled: true, Channel: ChannelSpreadOrderbook, Params: map[string]any{"symbol": "ETHUSDT_ETH/USDT"}, Levels: levels}, "orderbook.25.ETHUSDT_ETH/USDT")
+	}
+	once := &topicFixtureConnection{match: websocket.NewMatch(), handler: ex.wsHandleSpreadPublicData, reply: func(req *SubscriptionRequest) []byte {
+		b, err := json.Marshal(&CommandResponse{Success: true, ConnectionID: "dat42tru7geqm1secqg0-1k55h", Type: "COMMAND_RESP", Data: CommandResponseTopics{FailTopics: []string{}, SuccessTopics: slices.Compact(slices.Sorted(slices.Values(req.Arguments)))}})
+		require.NoError(t, err, "Marshal must not error")
+		return b
+	}}
+	repeated := subscription.List{ethBook(0), ethBook(25)}
+	err = ex.manageCommandSubscriptions(t.Context(), once, "subscribe", repeated)
+	require.ErrorIs(t, err, subscription.ErrDuplicate, "manageCommandSubscriptions must report the repeated subscription as a duplicate")
+	require.Len(t, once.sent, 1, "manageCommandSubscriptions must send one request")
+	assert.Equal(t, []string{"orderbook.25.ETHUSDT_ETH/USDT"}, once.sent[0].Arguments, "manageCommandSubscriptions should name a repeated topic once")
+	assert.NotNil(t, ex.Websocket.GetSubscription(repeated[0]), "manageCommandSubscriptions should store a topic its batch names twice")
 }
 
 func TestApplyTopicResults(t *testing.T) {
@@ -434,6 +601,7 @@ func TestHandleCommandFrame(t *testing.T) {
 func TestWsHandleSpreadPublicData(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
+	ex.Name = t.Name()
 	conn := &topicFixtureConnection{match: websocket.NewMatch()}
 	handle := func(ctx context.Context, b []byte) error { return ex.wsHandleSpreadPublicData(ctx, conn, b) }
 
@@ -441,7 +609,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 		topics := []string{"orderbook.25." + spreadTestSymbol, "tickers." + spreadTestSymbol, "publicTrade." + spreadTestSymbol}
 		replies, err := conn.match.Set(commandSignature(topics), 1)
 		require.NoError(t, err, "match.Set must not error")
-		for _, frame := range liveWindowFrames(t, spreadPublicURL, topics, 5*time.Second) {
+		for _, frame := range liveWindowFrames(t, mainnetStreamOrigin+spreadPublicPath, topics, 5*time.Second) {
 			require.NoErrorf(t, handle(t.Context(), frame), "wsHandleSpreadPublicData must handle %s", frame)
 		}
 		require.Len(t, replies, 1, "wsHandleSpreadPublicData must route the subscription reply")
@@ -452,14 +620,18 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 		require.NotEmpty(t, got, "wsHandleSpreadPublicData must relay the stream's frames")
 		for _, frame := range got {
 			switch f := frame.(type) {
-			case *SpreadOrderbookFrame:
+			case *WebsocketSpreadOrderbookResponse:
 				assert.Equal(t, spreadTestSymbol, f.Data.Symbol, "orderbook frames should be for the subscribed symbol")
-			case *SpreadTickerFrame:
+			case *WebsocketSpreadTickerResponse:
 				assert.Equal(t, spreadTestSymbol, f.Data.Symbol, "ticker frames should be for the subscribed symbol")
-			case *SpreadPublicTradeFrame:
+				pair, err := currency.NewPairFromString(f.Data.Symbol)
+				require.NoError(t, err, "NewPairFromString must not error")
+				_, err = ex.GetCachedTicker(pair, asset.Spread)
+				assert.NoError(t, err, "a relayed ticker frame's ticker should be stored")
+			case *WebsocketSpreadPublicTradeResponse:
 				assert.NotEmpty(t, f.Data, "trade frames should hold trades")
 			default:
-				assert.Failf(t, "unexpected relayed frame", "%T", frame)
+				assert.Failf(t, "unexpected relayed frame", "the spread stream should not relay %T", frame)
 			}
 		}
 		return
@@ -467,7 +639,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 
 	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPublic.json", handle)
 	exp := []any{
-		&SpreadOrderbookFrame{
+		&WebsocketSpreadOrderbookResponse{
 			Topic:     "orderbook.25.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534204555)),
@@ -485,7 +657,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791528922919)),
 		},
-		&SpreadOrderbookFrame{
+		&WebsocketSpreadOrderbookResponse{
 			Topic:     "orderbook.25.BTCUSDT_BTC/USDT",
 			Type:      "delta",
 			Timestamp: types.Time(time.UnixMilli(1791534289889)),
@@ -502,24 +674,24 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791534289875)),
 		},
-		&SpreadPublicTradeFrame{
+		&WebsocketSpreadPublicTradeResponse{
 			Topic:     "publicTrade.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791362633860)),
 			Data: []SpreadWebsocketTrade{
 				{
-					Timestamp:     types.Time(time.UnixMilli(1791362633856)),
-					Symbol:        "BTCUSDT_BTC/USDT",
-					Side:          "Sell",
-					Size:          0.119,
-					Price:         -43.5,
-					TickDirection: "MinusTick",
-					TradeID:       "b311eff0-b8a1-546c-992d-981b5c81f857",
-					Sequence:      3302117152,
+					OrderFillTimestamp: types.Time(time.UnixMilli(1791362633856)),
+					Symbol:             "BTCUSDT_BTC/USDT",
+					Side:               "Sell",
+					Size:               0.119,
+					Price:              -43.5,
+					TickDirection:      "MinusTick",
+					TradeID:            "b311eff0-b8a1-546c-992d-981b5c81f857",
+					Sequence:           3302117152,
 				},
 			},
 		},
-		&SpreadTickerFrame{
+		&WebsocketSpreadTickerResponse{
 			Topic:     "tickers.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534255189)),
@@ -538,6 +710,10 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, relayedFrames(ex), "wsHandleSpreadPublicData should relay every frame")
+	pair, err := currency.NewPairFromString(spreadTestSymbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	_, err = ex.GetCachedTicker(pair, asset.Spread)
+	assert.NoError(t, err, "wsHandleSpreadPublicData should store the ticker before relaying it")
 
 	assert.NoError(t, handle(t.Context(), []byte(`{"args":["1791534256294"],"op":"pong"}`)), "wsHandleSpreadPublicData should ignore a pong")
 	assert.ErrorIs(t, handle(t.Context(), []byte(`{"success":true,"conn_id":"x","data":{"failTopics":[],"successTopics":["tickers.X"]},"type":"COMMAND_RESP"}`)), websocket.ErrSignatureNotMatched, "wsHandleSpreadPublicData should reject a reply no request awaits")
@@ -547,14 +723,106 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 	assert.Error(t, handle(t.Context(), []byte(`{"data":[]}`)), "wsHandleSpreadPublicData should reject a frame that is neither data nor a reply")
 }
 
+func TestWsProcessSpreadTicker(t *testing.T) {
+	t.Parallel()
+	ex := testInstance(t)
+	ex.Name = t.Name()
+	frames := fixtureFrames(t, "testdata/wsSpreadPublic.json")
+	require.Len(t, frames, 4, "the spread fixture must hold two orderbook pushes, a trade push and a ticker push")
+	require.NoError(t, ex.wsProcessSpreadTicker(t.Context(), frames[3]), "wsProcessSpreadTicker must not error")
+	pair, err := currency.NewPairFromString(spreadTestSymbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	stored, err := ex.GetCachedTicker(pair, asset.Spread)
+	require.NoError(t, err, "GetCachedTicker must find the stored spread ticker")
+	expTicker := &ticker.Price{
+		Last:         -43.5,
+		High:         -43.3,
+		Low:          -43.5,
+		Bid:          -44.9,
+		BidSize:      7.268,
+		Ask:          -37.8,
+		AskSize:      7.266,
+		BaseVolume:   0.238,
+		Open24Hour:   -43.4,
+		Pair:         currency.NewPairWithDelimiter("BTCUSDT", "BTC/USDT", "_"),
+		ExchangeName: t.Name(),
+		AssetType:    asset.Spread,
+		LastUpdated:  time.UnixMilli(1791534255189),
+	}
+	assert.Equal(t, expTicker, stored, "wsProcessSpreadTicker should store the ticker under the spread asset")
+	assert.Equal(t, spreadTestSymbol, stored.Pair.String(), "the stored pair should round-trip to the spread symbol")
+	expFrame := []any{
+		&WebsocketSpreadTickerResponse{
+			Topic:     "tickers.BTCUSDT_BTC/USDT",
+			Type:      "snapshot",
+			Timestamp: types.Time(time.UnixMilli(1791534255189)),
+			Data: SpreadTicker{
+				Symbol:              "BTCUSDT_BTC/USDT",
+				BidPrice:            -44.9,
+				BidSize:             7.268,
+				AskPrice:            -37.8,
+				AskSize:             7.266,
+				LastPrice:           -43.5,
+				HighPrice24Hour:     -43.3,
+				LowPrice24Hour:      -43.5,
+				PreviousPrice24Hour: -43.4,
+				Volume24Hour:        0.238,
+			},
+		},
+	}
+	assert.Equal(t, expFrame, relayedFrames(ex), "wsProcessSpreadTicker should relay the stored ticker's frame")
+
+	// Live spread symbols join two legs with an underscore, and a leg can hold a dash or a slash
+	shapes := []string{"SOLUSDT_SOL/USDT", "BTCUSDT-25DEC26_BTC/USDT", "BTCUSDT-25DEC26_BTCUSDT", "BTCUSDT-26MAR27_BTCUSDT-25DEC26"}
+	for _, symbol := range shapes {
+		frame := `{"topic":"tickers.` + symbol + `","ts":1791534255189,"type":"snapshot","data":{"symbol":"` + symbol + `","lastPrice":"-1.5"}}`
+		require.NoErrorf(t, ex.wsProcessSpreadTicker(t.Context(), []byte(frame)), "wsProcessSpreadTicker must not error for %s", symbol)
+		p, err := currency.NewPairFromString(symbol)
+		require.NoErrorf(t, err, "NewPairFromString must not error for %s", symbol)
+		stored, err := ex.GetCachedTicker(p, asset.Spread)
+		require.NoErrorf(t, err, "GetCachedTicker must find the ticker of %s", symbol)
+		assert.Equalf(t, symbol, stored.Pair.String(), "the stored pair should round-trip to %s", symbol)
+	}
+	assert.Len(t, relayedFrames(ex), len(shapes), "wsProcessSpreadTicker should relay each stored ticker's frame")
+
+	for _, tc := range []struct {
+		name   string
+		frame  string
+		symbol string
+		err    error
+	}{
+		{name: "a frame that does not decode", frame: `{"topic":"tickers.ETHUSDT_ETH/USDT","data":"bad"}`, symbol: "ETHUSDT_ETH/USDT"},
+		{name: "a ticker without a symbol", frame: `{"topic":"tickers.","ts":1791534255189,"type":"snapshot","data":{"bidPrice":"-44.9"}}`, err: currency.ErrCreatingPair},
+		{name: "a symbol too short to pair", frame: `{"topic":"tickers.BT","ts":1791534255189,"type":"snapshot","data":{"symbol":"BT"}}`, err: currency.ErrCreatingPair},
+		{name: "a bid equal to the ask", frame: `{"topic":"tickers.ETHUSDT_ETH/USDT","ts":1791534255189,"type":"snapshot","data":{"symbol":"ETHUSDT_ETH/USDT","bidPrice":"-1.2","askPrice":"-1.2"}}`, symbol: "ETHUSDT_ETH/USDT", err: ticker.ErrBidEqualsAsk},
+	} {
+		err := ex.wsProcessSpreadTicker(t.Context(), []byte(tc.frame))
+		if tc.err != nil {
+			assert.ErrorIsf(t, err, tc.err, "wsProcessSpreadTicker should reject %s", tc.name)
+		} else {
+			assert.Errorf(t, err, "wsProcessSpreadTicker should reject %s", tc.name)
+		}
+		assert.Emptyf(t, relayedFrames(ex), "wsProcessSpreadTicker should not relay %s", tc.name)
+		if tc.symbol != "" {
+			p, err := currency.NewPairFromString(tc.symbol)
+			require.NoError(t, err, "NewPairFromString must not error")
+			_, err = ex.GetCachedTicker(p, asset.Spread)
+			assert.ErrorIsf(t, err, ticker.ErrTickerNotFound, "wsProcessSpreadTicker should not store %s", tc.name)
+		}
+	}
+
+	errBufferFull := fillDataHandler(t, ex)
+	require.ErrorIs(t, ex.wsProcessSpreadTicker(t.Context(), frames[3]), errBufferFull, "wsProcessSpreadTicker must return the data handler's error")
+}
+
 func TestRelayFrame(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	frames := fixtureFrames(t, "testdata/wsSpreadPublic.json")
 	require.Len(t, frames, 4, "the spread fixture must hold two orderbook pushes, a trade push and a ticker push")
-	require.NoError(t, ex.relayFrame(t.Context(), frames[3], new(SpreadTickerFrame)), "relayFrame must not error")
+	require.NoError(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerResponse)), "relayFrame must not error")
 	exp := []any{
-		&SpreadTickerFrame{
+		&WebsocketSpreadTickerResponse{
 			Topic:     "tickers.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534255189)),
@@ -574,11 +842,11 @@ func TestRelayFrame(t *testing.T) {
 	}
 	assert.Equal(t, exp, relayedFrames(ex), "relayFrame should relay the frame decoded into the type given")
 
-	require.Error(t, ex.relayFrame(t.Context(), []byte(`{"topic":"tickers.BTCUSDT_BTC/USDT","data":"bad"}`), new(SpreadTickerFrame)), "relayFrame must error for a frame that does not decode")
+	require.Error(t, ex.relayFrame(t.Context(), []byte(`{"topic":"tickers.BTCUSDT_BTC/USDT","data":"bad"}`), new(WebsocketSpreadTickerResponse)), "relayFrame must error for a frame that does not decode")
 	assert.Empty(t, relayedFrames(ex), "relayFrame should not relay a frame that does not decode")
 
 	errBufferFull := fillDataHandler(t, ex)
-	require.ErrorIs(t, ex.relayFrame(t.Context(), frames[3], new(SpreadTickerFrame)), errBufferFull, "relayFrame must return the data handler's error")
+	require.ErrorIs(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerResponse)), errBufferFull, "relayFrame must return the data handler's error")
 }
 
 func TestWsHandleSpreadPrivateData(t *testing.T) {
@@ -592,7 +860,7 @@ func TestWsHandleSpreadPrivateData(t *testing.T) {
 	ex := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPrivate.json", ex.wsHandleSpreadPrivateData)
 	exp := []any{
-		&SpreadOrderFrame{
+		&WebsocketSpreadOrderResponse{
 			ID:           "1448939_BTCUSDT_28732003549",
 			Topic:        "spread.order",
 			CreationTime: types.Time(time.UnixMilli(1791008160130)),
@@ -677,7 +945,7 @@ func TestWsHandleSpreadPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&SpreadExecutionFrame{
+		&WebsocketSpreadExecutionResponse{
 			ID:           "cvqes8141ilt347i9l20",
 			Topic:        "spread.execution",
 			CreationTime: types.Time(time.UnixMilli(1791008160126)),

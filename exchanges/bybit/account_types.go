@@ -236,9 +236,9 @@ type AccountInstrument struct {
 	Innovation types.Boolean `json:"innovation"`
 	// XStockMultiplier is for spot xstocks symbols: stock price = token price / multiplier
 	XStockMultiplier types.Number `json:"xstockMultiplier"`
-	// MarginTrading and STTag are for spot; STTag is whether the symbol has a special treatment label
-	MarginTrading string        `json:"marginTrading"`
-	STTag         types.Boolean `json:"stTag"`
+	// MarginTrading and SpecialTreatmentTag are for spot; SpecialTreatmentTag is whether the symbol has a special treatment label
+	MarginTrading       string        `json:"marginTrading"`
+	SpecialTreatmentTag types.Boolean `json:"stTag"`
 }
 
 // AccountInstrumentLeverageFilter holds a derivatives instrument's leverage limits
@@ -298,9 +298,9 @@ type AccountInstrumentPreListingInfo struct {
 
 // AccountInstrumentPreListingPhase holds the times of one pre-market trading phase
 type AccountInstrumentPreListingPhase struct {
-	Phase     string     `json:"phase"`
-	StartTime types.Time `json:"startTime"`
-	EndTime   types.Time `json:"endTime"`
+	Phase     string              `json:"phase"`
+	StartTime PreListingPhaseTime `json:"startTime"`
+	EndTime   PreListingPhaseTime `json:"endTime"`
 }
 
 // AccountInstrumentAuctionFeeInfo holds a pre-market contract's fee rates
@@ -528,16 +528,15 @@ type SMPGroupIDResponse struct {
 
 // TradeBehaviourConfigResponse holds the account's trade behaviour settings
 type TradeBehaviourConfigResponse struct {
-	// LPASpot true adjusts a spot limit order priced beyond the price limit to the nearest allowed price, false
-	// rejects it
-	LPASpot bool `json:"lpaSpot"`
-	// LPAPerpetual true rejects a futures limit order priced beyond the price limit, false adjusts it to the nearest
-	// allowed price
-	LPAPerpetual bool `json:"lpaPerp"`
-	DeltaEnable  bool `json:"deltaEnable"`
-	// SMSEF and FMSEF are whether spot and futures MNT fee deduction are enabled
-	SMSEF bool `json:"smsef"`
-	FMSEF bool `json:"fmsef"`
+	// LimitPriceActionSpot true adjusts a spot limit order priced beyond the price limit to the nearest allowed price,
+	// false rejects it
+	LimitPriceActionSpot bool `json:"lpaSpot"`
+	// LimitPriceActionPerpetual true rejects a futures limit order priced beyond the price limit, false adjusts it to
+	// the nearest allowed price
+	LimitPriceActionPerpetual     bool `json:"lpaPerp"`
+	DeltaEnable                   bool `json:"deltaEnable"`
+	SpotMNTFeeDeductionEnabled    bool `json:"smsef"`
+	FuturesMNTFeeDeductionEnabled bool `json:"fmsef"`
 	// SMPType is 0 no Self-Match Prevention, 1 cancel taker, 2 cancel maker or 3 cancel both
 	SMPType uint64 `json:"smpType"`
 }

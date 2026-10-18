@@ -99,7 +99,7 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 					TimeInForce:                "GTC",
 					OrderType:                  "Limit",
 					StopOrderType:              "UNKNOWN",
-					OrderIV:                    0.5124,
+					OrderImpliedVolatility:     0.5124,
 					TPTriggerBy:                "UNKNOWN",
 					SLTriggerBy:                "UNKNOWN",
 					TriggerBy:                  "UNKNOWN",
@@ -125,6 +125,11 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 			assert.Equal(t, tc.req.Category, result.Category, "GetPreUpgradeOrderHistory should return the requested category")
 		})
 	}
+}
+
+func TestPreUpgradeOrderSMPGroup(t *testing.T) {
+	t.Parallel()
+	requireDecodesEachForm(t, PreUpgradeOrder{SMPGroup: 7}, `{"smpGroup":7}`, `{"smpGroup":"7"}`)
 }
 
 func TestGetPreUpgradeTradeHistory(t *testing.T) {
@@ -176,28 +181,28 @@ func TestGetPreUpgradeTradeHistory(t *testing.T) {
 			Category: "option",
 			List: []PreUpgradeExecution{
 				{
-					Symbol:            "BTC-28APR23-30000-C",
-					OrderID:           "8f7b23e1-7a5d-4c3f-9b1e-2d6c4a8f0e11",
-					OrderLinkID:       "option-order-1",
-					Side:              "Buy",
-					OrderPrice:        1250,
-					OrderQuantity:     1.5,
-					LeavesQuantity:    0.5,
-					OrderType:         "Limit",
-					ExecutionFee:      0.4,
-					ExecutionID:       "c2f1a3b4-5d6e-4f70-8a9b-0c1d2e3f4a5b",
-					ExecutionPrice:    1240,
-					ExecutionQuantity: 1,
-					ExecutionType:     "BlockTrade",
-					ExecutionValue:    1240,
-					ExecutionTime:     types.Time(time.UnixMilli(1682413200000)),
-					FeeRate:           0.0003,
-					TradeIV:           0.5118,
-					MarkIV:            0.5096,
-					MarkPrice:         1236.42,
-					IndexPrice:        29331.05,
-					UnderlyingPrice:   29340.1,
-					BlockTradeID:      "b5f1c2d3-1111-4c2b-8f3a-9c0d1e2f3a4b",
+					Symbol:                 "BTC-28APR23-30000-C",
+					OrderID:                "8f7b23e1-7a5d-4c3f-9b1e-2d6c4a8f0e11",
+					OrderLinkID:            "option-order-1",
+					Side:                   "Buy",
+					OrderPrice:             1250,
+					OrderQuantity:          1.5,
+					LeavesQuantity:         0.5,
+					OrderType:              "Limit",
+					ExecutionFee:           0.4,
+					ExecutionID:            "c2f1a3b4-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+					ExecutionPrice:         1240,
+					ExecutionQuantity:      1,
+					ExecutionType:          "BlockTrade",
+					ExecutionValue:         1240,
+					ExecutionTime:          types.Time(time.UnixMilli(1682413200000)),
+					FeeRate:                0.0003,
+					TradeImpliedVolatility: 0.5118,
+					MarkImpliedVolatility:  0.5096,
+					MarkPrice:              1236.42,
+					IndexPrice:             29331.05,
+					UnderlyingPrice:        29340.1,
+					BlockTradeID:           "b5f1c2d3-1111-4c2b-8f3a-9c0d1e2f3a4b",
 				},
 			},
 		}},

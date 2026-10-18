@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-// advancedEarnPublic serves the Advanced Earn product quotes
-const advancedEarnPublic = "wss://stream.bybit.com/v5/public/fp"
+// advancedEarnPath is the path of the stream serving the Advanced Earn product quotes
+const advancedEarnPath = "/v5/public/fp"
 
 // Advanced Earn offer topics; configure a subscription with one of these channels to receive its offers
 const (
@@ -33,15 +33,15 @@ var (
 	errAdvancedEarnSubscriptionRejected = errors.New("subscription rejected by the Advanced Earn stream")
 )
 
-// AdvancedEarnConnectionSetup returns the setup of the public Advanced Earn offers connection. It subscribes only to
-// the Advanced Earn channels the exchange configuration enables, none by default, so the connection is not made
-// unless a user asks for offers
-func (e *Exchange) AdvancedEarnConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
+// AdvancedEarnConnectionSetup returns the setup of the public Advanced Earn offers connection to url. It subscribes
+// only to the Advanced Earn channels the exchange configuration enables, none by default, so the connection is not
+// made unless a user asks for offers
+func (e *Exchange) AdvancedEarnConnectionSetup(exch *config.Exchange, url string) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
-		URL:                   advancedEarnPublic,
+		URL:                   url,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
+		Connector:             e.WebsocketConnect,
 		GenerateSubscriptions: e.generateAdvancedEarnSubscriptions,
 		Subscriber:            e.AdvancedEarnSubscribe,
 		Unsubscriber:          e.AdvancedEarnUnsubscribe,
@@ -108,7 +108,7 @@ func (e *Exchange) sendAdvancedEarnSubscription(ctx context.Context, conn websoc
 	if err != nil {
 		return err
 	}
-	var reply AdvancedEarnWebsocketMessage
+	var reply WebsocketAdvancedEarnResponse
 	if err := json.Unmarshal(raw, &reply); err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (e *Exchange) sendAdvancedEarnSubscription(ctx context.Context, conn websoc
 // wsHandleAdvancedEarnData routes a frame of the Advanced Earn offers stream: replies to the requests awaiting them,
 // and each topic's offers to the data handler
 func (e *Exchange) wsHandleAdvancedEarnData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var msg AdvancedEarnWebsocketMessage
+	var msg WebsocketAdvancedEarnResponse
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}

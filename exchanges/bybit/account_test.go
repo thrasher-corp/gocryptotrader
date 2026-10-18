@@ -68,7 +68,7 @@ func TestGetWalletBalance(t *testing.T) {
 							TotalPositionMaintenanceMargin: 0.00005,
 							UnrealisedPNL:                  0.00002,
 							CumulativeRealisedPNL:          -0.00008,
-							Bonus:                          0.5,
+							Bonus:                          0.0005,
 							MarginCollateral:               true,
 							CollateralSwitch:               true,
 							CollateralRestriction:          "1",
@@ -439,12 +439,12 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							Phases: []AccountInstrumentPreListingPhase{
 								{
 									Phase:     "CallAuction",
-									StartTime: types.Time(time.Unix(1760000000, 0)),
-									EndTime:   types.Time(time.Unix(1760003600, 0)),
+									StartTime: PreListingPhaseTime(time.Unix(1760000000, 0)),
+									EndTime:   PreListingPhaseTime(time.Unix(1760003600, 0)),
 								},
 								{
 									Phase:     "ContinuousTrading",
-									StartTime: types.Time(time.Unix(1760003600, 0)),
+									StartTime: PreListingPhaseTime(time.Unix(1760003600, 0)),
 								},
 							},
 							AuctionFeeInfo: AccountInstrumentAuctionFeeInfo{
@@ -518,10 +518,10 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							PriceLimitRatioX: 0.02,
 							PriceLimitRatioY: 0.04,
 						},
-						Innovation:       true,
-						XStockMultiplier: 1.0185,
-						MarginTrading:    "none",
-						STTag:            true,
+						Innovation:          true,
+						XStockMultiplier:    1.0185,
+						MarginTrading:       "none",
+						SpecialTreatmentTag: true,
 					},
 				},
 			},
@@ -827,13 +827,15 @@ func TestSetMarginMode(t *testing.T) {
 	}
 	assert.Equal(t, exp, result, "SetMarginMode should decode every field")
 
-	// Bybit reports the failure reasons in result alongside a non-zero retCode, which the transport returns as an
-	// error
-	_, err = e.SetMarginMode(t.Context(), "PORTFOLIO_MARGIN")
+	result, err = e.SetMarginMode(t.Context(), "PORTFOLIO_MARGIN")
 	require.ErrorIs(t, err, errAPIResponse, "SetMarginMode must return the API error")
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "SetMarginMode must return an APIError")
 	assert.Equal(t, int64(3400045), apiErr.Code, "SetMarginMode should return the failure code")
+	exp = &SetMarginModeResponse{
+		Reasons: []SetMarginModeReason{{ReasonCode: "3400000", ReasonMessage: "Equity needs to be equal to or greater than 1000 USDC"}},
+	}
+	assert.Equal(t, exp, result, "SetMarginMode should return the failure reasons with the error")
 }
 
 func TestSetMarginModeResponseUnmarshal(t *testing.T) {
@@ -1035,16 +1037,20 @@ func TestGetTradeBehaviourConfig(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	// Each flag decodes from its own key, which a fixture with every flag set cannot show
+	var flags TradeBehaviourConfigResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"lpaSpot":true,"lpaPerp":false,"deltaEnable":false,"smsef":false,"fmsef":true,"smpType":1}`), &flags), "Unmarshal must not error")
+	assert.Equal(t, TradeBehaviourConfigResponse{LimitPriceActionSpot: true, FuturesMNTFeeDeductionEnabled: true, SMPType: 1}, flags, "TradeBehaviourConfigResponse should decode each flag from its own key")
 	result, err := e.GetTradeBehaviourConfig(t.Context())
 	require.NoError(t, err, "GetTradeBehaviourConfig must not error")
 	if mockTests {
 		exp := &TradeBehaviourConfigResponse{
-			LPASpot:      true,
-			LPAPerpetual: true,
-			DeltaEnable:  true,
-			SMSEF:        true,
-			FMSEF:        true,
-			SMPType:      2,
+			LimitPriceActionSpot:          true,
+			LimitPriceActionPerpetual:     true,
+			DeltaEnable:                   true,
+			SpotMNTFeeDeductionEnabled:    true,
+			FuturesMNTFeeDeductionEnabled: true,
+			SMPType:                       2,
 		}
 		assert.Equal(t, exp, result, "GetTradeBehaviourConfig should decode every field")
 		return

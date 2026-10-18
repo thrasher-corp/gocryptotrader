@@ -24,8 +24,8 @@ type WebsocketSystemStatus struct {
 	Product      []uint64 `json:"product"`
 	// UIDSuffix lists the UID tail numbers affected
 	UIDSuffix []uint64 `json:"uidSuffix"`
-	// MaintainType and Env are documented as strings but sent as bare numbers: maintenance 1 planned, 2 temporary,
+	// MaintainType and Environment are documented as strings but sent as bare numbers: maintenance 1 planned, 2 temporary,
 	// 3 incident; environment 1 production, 2 production demo
 	MaintainType types.Number `json:"maintainType"`
-	Env          types.Number `json:"env"`
+	Environment  types.Number `json:"env"`
 }

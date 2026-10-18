@@ -35,9 +35,10 @@ var advancedEarnChannels = []string{
 func TestAdvancedEarnConnectionSetup(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Exchange{WebsocketResponseCheckTimeout: 30 * time.Millisecond, WebsocketResponseMaxLimit: 7 * time.Second}
-	setup := e.AdvancedEarnConnectionSetup(cfg)
+	streamURL := "wss://stream-testnet.bybit.com" + advancedEarnPath
+	setup := e.AdvancedEarnConnectionSetup(cfg, streamURL)
 	require.NotNil(t, setup, "AdvancedEarnConnectionSetup must return a setup")
-	assert.Equal(t, "wss://stream.bybit.com/v5/public/fp", setup.URL, "AdvancedEarnConnectionSetup should use the fp stream")
+	assert.Equal(t, streamURL, setup.URL, "AdvancedEarnConnectionSetup should connect to the URL given")
 	assert.Equal(t, cfg.WebsocketResponseCheckTimeout, setup.ResponseCheckTimeout, "AdvancedEarnConnectionSetup should use the configured response check timeout")
 	assert.Equal(t, cfg.WebsocketResponseMaxLimit, setup.ResponseMaxLimit, "AdvancedEarnConnectionSetup should use the configured response limit")
 	assert.Equal(t, AdvancedEarnOffersConnection, setup.MessageFilter, "AdvancedEarnConnectionSetup should set its message filter")
@@ -145,7 +146,7 @@ func TestWsHandleAdvancedEarnData(t *testing.T) {
 
 func TestAdvancedEarnOffersStream(t *testing.T) {
 	t.Parallel()
-	url := advancedEarnPublic
+	url := mainnetStreamOrigin + advancedEarnPath
 	if mockTests {
 		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, advancedEarnMockStream))
 		server.Start()
@@ -286,8 +287,7 @@ func newAdvancedEarnStreamInstance(t *testing.T, url string, channels ...string)
 		Features:                     &ex.Features.Supports.WebsocketCapabilities,
 		UseMultiConnectionManagement: true,
 	}), "Websocket.Setup must not error")
-	setup := ex.AdvancedEarnConnectionSetup(ex.Config)
-	setup.URL = url
+	setup := ex.AdvancedEarnConnectionSetup(ex.Config, url)
 	require.NoError(t, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
 	ex.Features.Subscriptions = make(subscription.List, len(channels))
 	for i, c := range channels {
@@ -339,7 +339,7 @@ func advancedEarnRecordedPushes(tb testing.TB) map[string][]byte {
 	pushes := make(map[string][]byte)
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		var msg AdvancedEarnWebsocketMessage
+		var msg WebsocketAdvancedEarnResponse
 		require.NoError(tb, json.Unmarshal(s.Bytes(), &msg), "Unmarshal must not error")
 		pushes[msg.Topic] = slices.Clone(s.Bytes())
 	}

@@ -24,6 +24,7 @@ var (
 	errIndexNameRequired    = errors.New("index name is required")
 	errProductTypeRequired  = errors.New("product type is required")
 
+	errBaseCoinOrSymbolRequired = errors.New("base coin or symbol is required for option")
 	errInvalidRPIOrderbookLevel = errors.New("RPI orderbook level must hold a price, a size and an RPI size")
 	errOrderbookNotFound        = errors.New("orderbook not found")
 )
@@ -88,7 +89,7 @@ func klineParams(req *KlineRequest) (url.Values, error) {
 		return nil, err
 	}
 	if !req.Start.IsZero() && !req.End.IsZero() {
-		if err := common.StartEndTimeCheck(req.Start, req.End); err != nil {
+		if err := checkTimeWindow(req.Start, req.End); err != nil {
 			return nil, err
 		}
 	}
@@ -211,6 +212,10 @@ func (e *Exchange) GetTickers(ctx context.Context, req *TickersRequest) (*Ticker
 	if req.Category == "" {
 		return nil, errCategoryNotSet
 	}
+	// The docs mark neither as required, but Bybit answers an option request without both with 10001
+	if req.Category == cOption && req.Symbol == "" && req.BaseCoin.IsEmpty() {
+		return nil, errBaseCoinOrSymbolRequired
+	}
 	params := url.Values{}
 	params.Set("category", req.Category)
 	if req.Symbol != "" {
@@ -239,7 +244,7 @@ func (e *Exchange) GetFundingRateHistory(ctx context.Context, req *FundingRateHi
 	}
 	// Bybit rejects a start time without an end time but takes an end time alone
 	if !req.StartTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
+		if err := checkTimeWindow(req.StartTime, req.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -266,6 +271,9 @@ func (e *Exchange) GetPublicTradingHistory(ctx context.Context, req *PublicTradi
 	}
 	if req.Category == "" {
 		return nil, errCategoryNotSet
+	}
+	if req.Symbol == "" && (req.Category == cSpot || req.Category == cLinear || req.Category == cInverse) {
+		return nil, errSymbolMissing
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -300,7 +308,7 @@ func (e *Exchange) GetOpenInterestData(ctx context.Context, req *OpenInterestReq
 		return nil, errIntervalTimeRequired
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
+		if err := checkTimeWindow(req.StartTime, req.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -335,7 +343,7 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, req *HistoricalV
 	}
 	// Bybit takes both bounds of the window or neither
 	if !req.StartTime.IsZero() || !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
+		if err := checkTimeWindow(req.StartTime, req.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -449,7 +457,7 @@ func (e *Exchange) GetLongShortRatio(ctx context.Context, req *LongShortRatioReq
 		return nil, errPeriodRequired
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
+		if err := checkTimeWindow(req.StartTime, req.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -547,6 +555,19 @@ func intervalToString(interval kline.Interval) (string, error) {
 		return inter, nil
 	}
 	return "", kline.ErrUnsupportedInterval
+}
+
+// checkTimeWindow checks the bounds of a time window. Bybit serves a window whose start equals its end with the record
+// at that time, so equal bounds are let through unless they are in the future
+func checkTimeWindow(start, end time.Time) error {
+	err := common.StartEndTimeCheck(start, end)
+	if !errors.Is(err, common.ErrStartEqualsEnd) {
+		return err
+	}
+	if start.After(time.Now()) {
+		return common.ErrStartAfterTimeNow
+	}
+	return nil
 }
 
 // expiryDate formats an expiry date the way Bybit's symbols write it, such as 6NOV26 or 25DEC26: Bybit matches it

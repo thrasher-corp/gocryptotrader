@@ -21,8 +21,8 @@ type CommandResponseTopics struct {
 	SuccessTopics []string `json:"successTopics"`
 }
 
-// SpreadOrderbookFrame is a snapshot or delta of a spread combination's orderbook
-type SpreadOrderbookFrame struct {
+// WebsocketSpreadOrderbookResponse is a snapshot or delta of a spread combination's orderbook
+type WebsocketSpreadOrderbookResponse struct {
 	Topic     string              `json:"topic"`
 	Type      string              `json:"type"`
 	Timestamp types.Time          `json:"ts"`
@@ -41,8 +41,8 @@ type SpreadOrderbookData struct {
 	Sequence uint64 `json:"seq"`
 }
 
-// SpreadPublicTradeFrame holds public trades of a spread combination, oldest first
-type SpreadPublicTradeFrame struct {
+// WebsocketSpreadPublicTradeResponse holds public trades of a spread combination, oldest first
+type WebsocketSpreadPublicTradeResponse struct {
 	Topic     string                 `json:"topic"`
 	Type      string                 `json:"type"`
 	Timestamp types.Time             `json:"ts"`
@@ -51,9 +51,8 @@ type SpreadPublicTradeFrame struct {
 
 // SpreadWebsocketTrade is a public trade of a spread combination
 type SpreadWebsocketTrade struct {
-	// Timestamp is when the order filled
-	Timestamp types.Time `json:"T"`
-	Symbol    string     `json:"s"`
+	OrderFillTimestamp types.Time `json:"T"`
+	Symbol             string     `json:"s"`
 	// Side is the taker's side
 	Side          string       `json:"S"`
 	Size          types.Number `json:"v"`
@@ -63,16 +62,16 @@ type SpreadWebsocketTrade struct {
 	Sequence      uint64       `json:"seq"`
 }
 
-// SpreadTickerFrame holds a spread combination's ticker
-type SpreadTickerFrame struct {
+// WebsocketSpreadTickerResponse holds a spread combination's ticker
+type WebsocketSpreadTickerResponse struct {
 	Topic     string       `json:"topic"`
 	Type      string       `json:"type"`
 	Timestamp types.Time   `json:"ts"`
 	Data      SpreadTicker `json:"data"`
 }
 
-// SpreadOrderFrame holds changes to the caller's spread orders and their legs
-type SpreadOrderFrame struct {
+// WebsocketSpreadOrderResponse holds changes to the caller's spread orders and their legs
+type WebsocketSpreadOrderResponse struct {
 	ID           string              `json:"id"`
 	Topic        string              `json:"topic"`
 	CreationTime types.Time          `json:"creationTime"`
@@ -116,8 +115,8 @@ type SpreadOrderUpdate struct {
 	CumulativeFeeDetail map[currency.Code]types.Number `json:"cumFeeDetail"`
 }
 
-// SpreadExecutionFrame holds executions of the caller's spread orders and their legs
-type SpreadExecutionFrame struct {
+// WebsocketSpreadExecutionResponse holds executions of the caller's spread orders and their legs
+type WebsocketSpreadExecutionResponse struct {
 	ID           string                  `json:"id"`
 	Topic        string                  `json:"topic"`
 	CreationTime types.Time              `json:"creationTime"`

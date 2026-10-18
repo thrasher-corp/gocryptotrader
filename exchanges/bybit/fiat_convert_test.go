@@ -344,6 +344,77 @@ func TestFiatBalancesUnmarshalJSON(t *testing.T) {
 	assert.Error(t, got.UnmarshalJSON([]byte(`"GEL"`)), "UnmarshalJSON should reject a string")
 }
 
+func TestFiatQuoteResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	exp := FiatQuoteResponse{QuoteTransactionID: "QuoteTaxId123456", ExpiredTime: types.Time(time.UnixMilli(1764561045346))}
+	for _, tc := range []struct {
+		name string
+		data string
+	}{
+		{"documented keys", `{"quoteTxId":"QuoteTaxId123456","expiredTime":"1764561045346"}`},
+		{"sampled keys", `{"quoteTaxId":"QuoteTaxId123456","expireTime":"1764561045346"}`},
+		{"mixed keys", `{"quoteTxId":"QuoteTaxId123456","expireTime":"1764561045346"}`},
+		{"documented keys before sampled keys", `{"quoteTxId":"QuoteTaxId123456","expiredTime":"1764561045346","quoteTaxId":"QuoteTaxId654321","expireTime":"1764561099999"}`},
+		{"documented keys after sampled keys", `{"quoteTaxId":"QuoteTaxId654321","expireTime":"1764561099999","quoteTxId":"QuoteTaxId123456","expiredTime":"1764561045346"}`},
+		{"empty documented keys", `{"quoteTxId":"","expiredTime":"","quoteTaxId":"QuoteTaxId123456","expireTime":"1764561045346"}`},
+		{"null documented keys", `{"quoteTxId":null,"expiredTime":null,"quoteTaxId":"QuoteTaxId123456","expireTime":"1764561045346"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got FiatQuoteResponse
+			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+			assert.Equal(t, exp, got, "UnmarshalJSON should decode the quote ID and expiry")
+		})
+	}
+	var got FiatQuoteResponse
+	require.NoError(t, got.UnmarshalJSON([]byte(`{"exchangeRate":"0.3685"}`)), "UnmarshalJSON must not error without either key")
+	assert.Equal(t, FiatQuoteResponse{ExchangeRate: 0.3685}, got, "UnmarshalJSON should leave the quote ID and expiry empty without either key")
+	// A quote decoded into a used one takes the new quote's values, whichever keys they arrive under
+	reused := FiatQuoteResponse{QuoteTransactionID: "old", ExpiredTime: types.Time(time.UnixMilli(1764561000000))}
+	require.NoError(t, reused.UnmarshalJSON([]byte(`{"quoteTaxId":"QuoteTaxId123456","expireTime":"1764561045346"}`)), "UnmarshalJSON must not error for a used quote")
+	assert.Equal(t, exp, reused, "UnmarshalJSON should replace a used quote's ID and expiry with the sampled keys' values")
+	assert.Error(t, got.UnmarshalJSON([]byte(`{"quoteTaxId":5}`)), "UnmarshalJSON should reject a non-string sampled quote ID")
+}
+
+func TestFiatConvertStatusResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var got FiatConvertStatusResponse
+	require.NoError(t, got.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId123456"}`)), "UnmarshalJSON must not error")
+	assert.Equal(t, FiatConvertStatusResponse{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}, got, "UnmarshalJSON should read the sampled quote ID as FiatTrade does")
+	assert.Error(t, got.UnmarshalJSON([]byte(`{"quoteTaxId":5}`)), "UnmarshalJSON should reject a non-string sampled quote ID")
+}
+
+func TestFiatTradeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	exp := FiatTrade{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}
+	for _, tc := range []struct {
+		name string
+		data string
+	}{
+		{"documented key", `{"tradeNo":"TradeNo123456","quoteTxId":"QuoteTaxId123456"}`},
+		{"sampled key", `{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId123456"}`},
+		{"documented key before sampled key", `{"tradeNo":"TradeNo123456","quoteTxId":"QuoteTaxId123456","quoteTaxId":"QuoteTaxId654321"}`},
+		{"documented key after sampled key", `{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId654321","quoteTxId":"QuoteTaxId123456"}`},
+		{"empty documented key", `{"tradeNo":"TradeNo123456","quoteTxId":"","quoteTaxId":"QuoteTaxId123456"}`},
+		{"null documented key", `{"tradeNo":"TradeNo123456","quoteTxId":null,"quoteTaxId":"QuoteTaxId123456"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got FiatTrade
+			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+			assert.Equal(t, exp, got, "UnmarshalJSON should decode the quote ID")
+		})
+	}
+	var got FiatTrade
+	require.NoError(t, got.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456"}`)), "UnmarshalJSON must not error without either key")
+	assert.Equal(t, FiatTrade{TradeNumber: "TradeNo123456"}, got, "UnmarshalJSON should leave the quote ID empty without either key")
+	// A conversion decoded into a used one takes the new conversion's quote ID, whichever key it arrives under
+	reused := FiatTrade{QuoteTransactionID: "old"}
+	require.NoError(t, reused.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId123456"}`)), "UnmarshalJSON must not error for a used conversion")
+	assert.Equal(t, exp, reused, "UnmarshalJSON should replace a used conversion's quote ID with the sampled key's value")
+	assert.Error(t, got.UnmarshalJSON([]byte(`{"quoteTaxId":5}`)), "UnmarshalJSON should reject a non-string sampled quote ID")
+}
+
 func TestFiatTradeNotificationUnmarshal(t *testing.T) {
 	t.Parallel()
 	var got FiatTradeNotification

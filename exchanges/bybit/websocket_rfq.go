@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-const rfqPublicURL = "wss://stream.bybit.com/v5/public/rfq"
+const rfqPublicPath = "/v5/public/rfq"
 
 // RFQ trading websocket channels, named as Bybit's topics. The public channel is subscribed on the RFQ connection and
 // the private channels travel on the private connection
@@ -25,14 +25,14 @@ const (
 	ChannelRFQInquiries    = "rfq.open.rfqs"
 )
 
-// RFQPublicConnectionSetup returns the setup of the RFQ public connection. It generates a subscription only when the
-// public trade channel is configured, so it connects only when a user subscribes to it
-func (e *Exchange) RFQPublicConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
+// RFQPublicConnectionSetup returns the setup of the RFQ public connection to url. It generates a subscription only
+// when the public trade channel is configured, so it connects only when a user subscribes to it
+func (e *Exchange) RFQPublicConnectionSetup(exch *config.Exchange, url string) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
-		URL:                   rfqPublicURL,
+		URL:                   url,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
+		Connector:             e.WebsocketConnect,
 		GenerateSubscriptions: e.generateRFQPublicSubscriptions,
 		Subscriber:            e.rfqPublicSubscribe,
 		Unsubscriber:          e.rfqPublicUnsubscribe,
@@ -94,7 +94,7 @@ func (e *Exchange) wsHandleRFQPublicData(ctx context.Context, conn websocket.Con
 	topic, err := jsonparser.GetString(respRaw, "topic")
 	switch {
 	case err == nil && topic == ChannelRFQPublicTrades:
-		return e.relayFrame(ctx, respRaw, new(RFQPublicTradeFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQPublicTradeResponse))
 	case err == nil:
 		return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 	case !errors.Is(err, jsonparser.KeyPathNotFoundError):
@@ -121,11 +121,11 @@ func (e *Exchange) wsHandleRFQPrivateData(ctx context.Context, respRaw []byte) e
 	}
 	switch topic {
 	case ChannelRFQQuotes:
-		return e.relayFrame(ctx, respRaw, new(RFQQuoteFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQQuoteResponse))
 	case ChannelRFQTrades:
-		return e.relayFrame(ctx, respRaw, new(RFQTradeFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQTradeResponse))
 	case ChannelRFQInquiries:
-		return e.relayFrame(ctx, respRaw, new(RFQInquiryFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQInquiryResponse))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }

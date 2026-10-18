@@ -14,6 +14,8 @@ import (
 // SystemStatusConnection is the message filter of the system status connection
 const SystemStatusConnection = "SYSTEM_STATUS"
 
+const systemStatusPath = "/v5/public/misc/status"
+
 // SystemStatusConnectionSetup returns the setup of a connection to the system status stream at url, which pushes
 // platform maintenance and service incident notices (System Status). The connection subscribes only when the
 // configured subscriptions include the system.status channel, so it is not made otherwise
@@ -26,7 +28,7 @@ func (e *Exchange) SystemStatusConnectionSetup(url string) *websocket.Connection
 		URL:                   url,
 		ResponseCheckTimeout:  checkTimeout,
 		ResponseMaxLimit:      maxLimit,
-		Connector:             e.WsConnect,
+		Connector:             e.WebsocketConnect,
 		GenerateSubscriptions: e.generateSystemStatusSubscriptions,
 		Subscriber:            e.SystemStatusSubscribe,
 		Unsubscriber:          e.SystemStatusUnsubscribe,

@@ -33,8 +33,9 @@ type Web3TradeQuoteResponse struct {
 	MinToTokenAmount   types.Number `json:"minToTokenAmount"`
 	// Slippage is a decimal fraction: 0.005 is 0.5%
 	Slippage types.Number `json:"slippage"`
-	// Gas is the estimated gas fee in the chain's native token
-	Gas             types.Number              `json:"gas"`
+	// Gas is the estimated gas fee in the chain's native token. It stays the string Bybit sent, since Execute Purchase
+	// and Execute Redeem require it unchanged
+	Gas             string                    `json:"gas"`
 	GasUSD          types.Number              `json:"gasUsd"`
 	PlatformFee     types.Number              `json:"platformFee"`
 	PlatformFeeUSD  types.Number              `json:"platformFeeUsd"`
@@ -65,9 +66,10 @@ type Web3TradeRequest struct {
 	FromTokenAmount float64
 	ToTokenCode     string
 	// Slippage is the tolerated slippage as a decimal fraction: 0.01 is 1%
-	Slippage       float64
-	QuoteData      string
-	Gas            float64
+	Slippage  float64
+	QuoteData string
+	// Gas is the quote's Web3TradeQuoteResponse.Gas, unchanged
+	Gas            string
 	QuoteMode      uint64
 	CorrectingCode string
 	Tenant         string

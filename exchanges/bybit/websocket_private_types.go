@@ -64,11 +64,11 @@ type WebsocketPosition struct {
 	UpdatedTime           types.Time          `json:"updatedTime"`
 	OpenTime              types.Time          `json:"openTime"`
 	// Sequence is -1 for a symbol that was never traded
-	Sequence                             int64               `json:"seq"`
-	MMRSystemUpdatedTime                 types.Time          `json:"mmrSysUpdatedTime"`
-	LeverageSystemUpdatedTime            types.Time          `json:"leverageSysUpdatedTime"`
-	PositionInitialMarginByMarkPrice     types.PreciseNumber `json:"positionIMByMp"`
-	PositionMaintenanceMarginByMarkPrice types.PreciseNumber `json:"positionMMByMp"`
+	Sequence                               int64               `json:"seq"`
+	MaintenanceMarginRateSystemUpdatedTime types.Time          `json:"mmrSysUpdatedTime"`
+	LeverageSystemUpdatedTime              types.Time          `json:"leverageSysUpdatedTime"`
+	PositionInitialMarginByMarkPrice       types.PreciseNumber `json:"positionIMByMp"`
+	PositionMaintenanceMarginByMarkPrice   types.PreciseNumber `json:"positionMMByMp"`
 	// TPSLMode is deprecated and always Full
 	TPSLMode string `json:"tpslMode"`
 	// BustPrice is deprecated and always empty
@@ -109,19 +109,19 @@ type WebsocketExecution struct {
 	ExecutionPrice    types.Number `json:"execPrice"`
 	ExecutionQuantity types.Number `json:"execQty"`
 	// ExecutionPNL is the profit and loss of a closing execution, matching cashFlow in the transaction log
-	ExecutionPNL    types.Number `json:"execPnl"`
-	ExecutionType   string       `json:"execType"`
-	ExecutionValue  types.Number `json:"execValue"`
-	ExecutionTime   types.Time   `json:"execTime"`
-	IsMaker         bool         `json:"isMaker"`
-	FeeRate         types.Number `json:"feeRate"`
-	TradeIV         types.Number `json:"tradeIv"`         // Options only
-	MarkIV          types.Number `json:"markIv"`          // Options only
-	MarkPrice       types.Number `json:"markPrice"`       // Options only
-	IndexPrice      types.Number `json:"indexPrice"`      // Options only
-	UnderlyingPrice types.Number `json:"underlyingPrice"` // Options only
-	BlockTradeID    string       `json:"blockTradeId"`
-	ClosedSize      types.Number `json:"closedSize"`
+	ExecutionPNL           types.Number `json:"execPnl"`
+	ExecutionType          string       `json:"execType"`
+	ExecutionValue         types.Number `json:"execValue"`
+	ExecutionTime          types.Time   `json:"execTime"`
+	IsMaker                bool         `json:"isMaker"`
+	FeeRate                types.Number `json:"feeRate"`
+	TradeImpliedVolatility types.Number `json:"tradeIv"`         // Options only
+	MarkImpliedVolatility  types.Number `json:"markIv"`          // Options only
+	MarkPrice              types.Number `json:"markPrice"`       // Options only
+	IndexPrice             types.Number `json:"indexPrice"`      // Options only
+	UnderlyingPrice        types.Number `json:"underlyingPrice"` // Options only
+	BlockTradeID           string       `json:"blockTradeId"`
+	ClosedSize             types.Number `json:"closedSize"`
 	// ExtraFees holds tax fees charged to Indian, Indonesian site and EU site users
 	ExtraFees ExtraFees `json:"extraFees"`
 	Sequence  uint64    `json:"seq"`
@@ -207,15 +207,15 @@ type WebsocketOrder struct {
 	CumulativeExecutedFee types.Number `json:"cumExecFee"`
 	ClosedPNL             types.Number `json:"closedPnl"`
 	// FeeCurrency is deprecated; CumulativeFeeDetail names each fee's currency
-	FeeCurrency           currency.Code `json:"feeCurrency"`
-	TimeInForce           string        `json:"timeInForce"`
-	OrderType             string        `json:"orderType"`
-	StopOrderType         string        `json:"stopOrderType"`
-	OCOTriggerBy          string        `json:"ocoTriggerBy"`
-	OrderIV               types.Number  `json:"orderIv"`
-	MarketUnit            string        `json:"marketUnit"`
-	SlippageToleranceType string        `json:"slippageToleranceType"`
-	SlippageTolerance     types.Number  `json:"slippageTolerance"`
+	FeeCurrency            currency.Code `json:"feeCurrency"`
+	TimeInForce            string        `json:"timeInForce"`
+	OrderType              string        `json:"orderType"`
+	StopOrderType          string        `json:"stopOrderType"`
+	OCOTriggerBy           string        `json:"ocoTriggerBy"`
+	OrderImpliedVolatility types.Number  `json:"orderIv"`
+	MarketUnit             string        `json:"marketUnit"`
+	SlippageToleranceType  string        `json:"slippageToleranceType"`
+	SlippageTolerance      types.Number  `json:"slippageTolerance"`
 	// TriggerPrice is the activation price of a trailing stop order
 	TriggerPrice       types.Number `json:"triggerPrice"`
 	TakeProfit         types.Number `json:"takeProfit"`
@@ -270,42 +270,8 @@ type WebsocketWallet struct {
 	TotalInitialMarginByMarkPrice           types.Number `json:"totalInitialMarginByMp"`
 	TotalMaintenanceMarginByMarkPrice       types.Number `json:"totalMaintenanceMarginByMp"`
 	// AccountLTV is deprecated
-	AccountLTV types.Number          `json:"accountLTV"`
-	Coins      []WebsocketWalletCoin `json:"coin"`
-}
-
-// WebsocketWalletCoin is the balance of one coin in a unified trading account
-type WebsocketWalletCoin struct {
-	Coin   currency.Code `json:"coin"`
-	Equity types.Number  `json:"equity"`
-	// USDValue is 0 for a coin that cannot be collateral
-	USDValue      types.Number `json:"usdValue"`
-	WalletBalance types.Number `json:"walletBalance"`
-	// Locked is held by open spot orders
-	Locked              types.Number `json:"locked"`
-	SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
-	BorrowAmount        types.Number `json:"borrowAmount"`
-	AccruedInterest     types.Number `json:"accruedInterest"`
-	// The initial and maintenance margin totals are empty in portfolio margin mode
-	TotalOrderInitialMargin        types.Number `json:"totalOrderIM"`
-	TotalPositionInitialMargin     types.Number `json:"totalPositionIM"`
-	TotalPositionMaintenanceMargin types.Number `json:"totalPositionMM"`
-	UnrealisedPNL                  types.Number `json:"unrealisedPnl"`
-	CumulativeRealisedPNL          types.Number `json:"cumRealisedPnl"`
-	Bonus                          types.Number `json:"bonus"`
-	// CollateralSwitch is meaningless unless MarginCollateral is true
-	CollateralSwitch bool `json:"collateralSwitch"`
-	MarginCollateral bool `json:"marginCollateral"`
-	// CollateralRestriction is the platform collateral limit status: -1 unknown, 0 not restricted, 1 close to the limit,
-	// 2 restricted
-	CollateralRestriction string       `json:"colRes"`
-	SpotBorrow            types.Number `json:"spotBorrow"`
-	// Free is deprecated since there is no spot wallet any more
-	Free types.Number `json:"free"`
-	// AvailableToBorrow is deprecated and always empty
-	AvailableToBorrow types.Number `json:"availableToBorrow"`
-	// AvailableToWithdraw is deprecated for unified accounts and always empty
-	AvailableToWithdraw types.Number `json:"availableToWithdraw"`
+	AccountLTV types.Number        `json:"accountLTV"`
+	Coins      []WalletBalanceCoin `json:"coin"`
 }
 
 // WebsocketGreeksResponse is a push from the greeks topic (Greek)

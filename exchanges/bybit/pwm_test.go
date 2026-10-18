@@ -1,6 +1,9 @@
 package bybit
 
 import (
+	"fmt"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -52,6 +55,9 @@ func TestTransferPWMFunds(t *testing.T) {
 
 func TestGetPWMFundTransferRecords(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetPWMFundTransferRecords(t.Context(), "", 800001)
+	require.ErrorIs(t, err, errMissingTransferID, "GetPWMFundTransferRecords must reject an empty transfer ID")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -530,6 +536,37 @@ func TestRedeemPWMInvestmentPlan(t *testing.T) {
 	req.Shares = 3000
 	_, err = e.RedeemPWMInvestmentPlan(t.Context(), req)
 	require.ErrorIs(t, err, errOrderLinkIDMissing, "RedeemPWMInvestmentPlan must reject an empty order link ID")
+	unsent := newTransportTestExchange(t, func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "RedeemPWMInvestmentPlan should not send a redemption its product's rules refuse")
+	})
+	for _, tc := range []struct {
+		name string
+		req  *PWMRedeemRequest
+		err  error
+	}{
+		{name: "an equity fund without shares", req: &PWMRedeemRequest{PlanID: "10001", Category: "equityFund", ProductID: "2001", Amount: 3000, OrderLinkID: "pwm-redeem-003"}, err: order.ErrAmountIsInvalid},
+		{name: "a FundPool product without shares or an amount", req: &PWMRedeemRequest{PlanID: "10001", Category: "fundPool", ProductID: "430", PositionID: "77", OrderLinkID: "pwm-redeem-004"}, err: order.ErrAmountIsInvalid},
+		{name: "a FundPool product without a position ID", req: &PWMRedeemRequest{PlanID: "10001", Category: "fundPool", ProductID: "430", Amount: 5000, OrderLinkID: "pwm-redeem-005"}, err: errPositionIDRequired},
+		{name: "an On-chain Earn product without a position ID", req: &PWMRedeemRequest{PlanID: "10001", Category: "onchainEarn", ProductID: "25", Amount: 1, OrderLinkID: "pwm-redeem-006"}, err: errPositionIDRequired},
+	} {
+		_, err = unsent.RedeemPWMInvestmentPlan(t.Context(), tc.req)
+		require.ErrorIsf(t, err, tc.err, "RedeemPWMInvestmentPlan must reject %s", tc.name)
+	}
+	// Which categories besides equity funds count as fund products is not documented, so shares alone are sent for them
+	var sentBody string
+	sent := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the request body should not error")
+		sentBody = string(b)
+		_, err = fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"orderId":"1","planId":"10001","category":"fundPool","productId":"430","shares":"10","orderLinkId":"pwm-redeem-007"},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	_, err = sent.RedeemPWMInvestmentPlan(t.Context(), &PWMRedeemRequest{PlanID: "10001", Category: "fundPool", ProductID: "430", Shares: 10, PositionID: "77", OrderLinkID: "pwm-redeem-007"})
+	require.NoError(t, err, "RedeemPWMInvestmentPlan must send a FundPool redemption of shares")
+	assert.JSONEq(t, `{"planId":"10001","category":"fundPool","productId":"430","shares":"10","positionId":"77","orderLinkId":"pwm-redeem-007"}`, sentBody, "RedeemPWMInvestmentPlan should send the shares and position given")
+	_, err = sent.RedeemPWMInvestmentPlan(t.Context(), &PWMRedeemRequest{PlanID: "10001", Category: "equityFund", ProductID: "2001", Shares: 0.5, OrderLinkID: "pwm-redeem-008"})
+	require.NoError(t, err, "RedeemPWMInvestmentPlan must send an equity fund redemption of part of a share")
+	assert.JSONEq(t, `{"planId":"10001","category":"equityFund","productId":"2001","shares":"0.5","orderLinkId":"pwm-redeem-008"}`, sentBody, "RedeemPWMInvestmentPlan should send the fraction of a share given")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

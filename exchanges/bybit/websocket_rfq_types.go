@@ -2,16 +2,16 @@ package bybit
 
 import "github.com/thrasher-corp/gocryptotrader/types"
 
-// RFQPublicTradeFrame holds executed RFQs without party information; all legs of a block trade arrive together
-type RFQPublicTradeFrame struct {
+// WebsocketRFQPublicTradeResponse holds executed RFQs without party information; all legs of a block trade arrive together
+type WebsocketRFQPublicTradeResponse struct {
 	ID           string           `json:"id"`
 	Topic        string           `json:"topic"`
 	CreationTime types.Time       `json:"creationTime"`
 	Data         []RFQPublicTrade `json:"data"`
 }
 
-// RFQQuoteFrame holds changes to the quotes the caller sent or received
-type RFQQuoteFrame struct {
+// WebsocketRFQQuoteResponse holds changes to the quotes the caller sent or received
+type WebsocketRFQQuoteResponse struct {
 	ID           string           `json:"id"`
 	Topic        string           `json:"topic"`
 	CreationTime types.Time       `json:"creationTime"`
@@ -45,16 +45,16 @@ type RFQQuoteUpdateLeg struct {
 	Quantity types.Number `json:"qty"`
 }
 
-// RFQTradeFrame holds executions of RFQs the caller took part in; all legs of a block trade arrive together
-type RFQTradeFrame struct {
+// WebsocketRFQTradeResponse holds executions of RFQs the caller took part in; all legs of a block trade arrive together
+type WebsocketRFQTradeResponse struct {
 	ID           string     `json:"id"`
 	Topic        string     `json:"topic"`
 	CreationTime types.Time `json:"creationTime"`
 	Data         []RFQTrade `json:"data"`
 }
 
-// RFQInquiryFrame holds changes to the RFQs the caller sent or received
-type RFQInquiryFrame struct {
+// WebsocketRFQInquiryResponse holds changes to the RFQs the caller sent or received
+type WebsocketRFQInquiryResponse struct {
 	ID           string             `json:"id"`
 	Topic        string             `json:"topic"`
 	CreationTime types.Time         `json:"creationTime"`

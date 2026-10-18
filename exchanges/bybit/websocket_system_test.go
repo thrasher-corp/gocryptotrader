@@ -16,9 +16,10 @@ import (
 func TestSystemStatusConnectionSetup(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
-	setup := ex.SystemStatusConnectionSetup(websocketSystemStatus)
+	streamURL := "wss://stream-testnet.bybit.com" + systemStatusPath
+	setup := ex.SystemStatusConnectionSetup(streamURL)
 	require.NotNil(t, setup, "SystemStatusConnectionSetup must return a setup")
-	assert.Equal(t, websocketSystemStatus, setup.URL, "setup should connect to the system status stream")
+	assert.Equal(t, streamURL, setup.URL, "setup should connect to the URL given")
 	assert.Equal(t, SystemStatusConnection, setup.MessageFilter, "setup should be found by its message filter")
 	assert.Equal(t, ex.Config.WebsocketResponseCheckTimeout, setup.ResponseCheckTimeout, "setup should take the configured response check timeout")
 	assert.Equal(t, ex.Config.WebsocketResponseMaxLimit, setup.ResponseMaxLimit, "setup should take the configured response limit")
@@ -34,7 +35,7 @@ func TestSystemStatusConnectionSetup(t *testing.T) {
 	assert.Equal(t, []string{chanSystemStatus}, subs.QualifiedChannels(), "a configured system.status subscription should be generated")
 
 	unconfigured := new(Exchange)
-	setup = unconfigured.SystemStatusConnectionSetup(websocketSystemStatus)
+	setup = unconfigured.SystemStatusConnectionSetup(streamURL)
 	assert.Equal(t, exchange.DefaultWebsocketResponseCheckTimeout, setup.ResponseCheckTimeout, "setup should fall back to the default response check timeout")
 	assert.Equal(t, exchange.DefaultWebsocketResponseMaxLimit, setup.ResponseMaxLimit, "setup should fall back to the default response limit")
 }
@@ -83,7 +84,7 @@ func TestWebsocketSystemStatus(t *testing.T) {
 	ex := websocketTestInstance(t)
 	if !mockTests {
 		// Maintenance notices are pushed only around maintenance, so a quiet window proves only the subscription
-		frames, reply := liveStreamFrames(t, websocketSystemStatus, 5*time.Second, 1, chanSystemStatus)
+		frames, reply := liveStreamFrames(t, mainnetStreamOrigin+systemStatusPath, 5*time.Second, 1, chanSystemStatus)
 		var resp SubscriptionResponse
 		require.NoError(t, json.Unmarshal(reply, &resp), "subscription reply must decode")
 		require.True(t, resp.Success, "system.status must be accepted")
@@ -122,7 +123,7 @@ func TestWebsocketSystemStatus(t *testing.T) {
 						7,
 					},
 					MaintainType: 1,
-					Env:          1,
+					Environment:  1,
 				},
 			},
 		},

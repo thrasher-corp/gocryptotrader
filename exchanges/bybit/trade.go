@@ -230,17 +230,14 @@ func (e *Exchange) PlaceBatchOrder(ctx context.Context, r *BatchPlaceOrderReques
 	if err != nil {
 		return nil, err
 	}
-	epl, err := e.batchOrderLimit(ctx, createBatchOrderBudgets, r.Category, len(r.Request))
-	if err != nil {
-		return nil, err
-	}
+	ctx, epl := batchOrderLimit(ctx, createBatchOrderBudgets, r.Category, len(r.Request))
 	var resp BatchPlaceOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/create-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
 	}
-	if len(outcomes) != len(resp.List) {
-		return nil, fmt.Errorf("%w: %d orders, %d outcomes", errBatchOutcomeMismatch, len(resp.List), len(outcomes))
+	if err := checkBatchCounts(len(r.Request), len(resp.List), len(outcomes)); err != nil {
+		return nil, err
 	}
 	for i := range resp.List {
 		resp.List[i].Code = outcomes[i].Code
@@ -256,16 +253,13 @@ func (e *Exchange) BatchAmendOrder(ctx context.Context, r *BatchAmendOrderReques
 	if err != nil {
 		return nil, err
 	}
-	epl, err := e.batchOrderLimit(ctx, amendBatchOrderBudgets, r.Category, len(r.Request))
-	if err != nil {
-		return nil, err
-	}
+	ctx, epl := batchOrderLimit(ctx, amendBatchOrderBudgets, r.Category, len(r.Request))
 	var resp BatchOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/amend-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return applyBatchOrderOutcomes(&resp, outcomes)
+	return applyBatchOrderOutcomes(&resp, outcomes, len(r.Request))
 }
 
 // CancelBatchOrder cancels several orders of one category in a single request. Each order of the result carries
@@ -275,16 +269,13 @@ func (e *Exchange) CancelBatchOrder(ctx context.Context, r *BatchCancelOrderRequ
 	if err != nil {
 		return nil, err
 	}
-	epl, err := e.batchOrderLimit(ctx, cancelBatchOrderBudgets, r.Category, len(r.Request))
-	if err != nil {
-		return nil, err
-	}
+	ctx, epl := batchOrderLimit(ctx, cancelBatchOrderBudgets, r.Category, len(r.Request))
 	var resp BatchOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/cancel-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return applyBatchOrderOutcomes(&resp, outcomes)
+	return applyBatchOrderOutcomes(&resp, outcomes, len(r.Request))
 }
 
 // sendBatchOrderRequest sends a batch order request, decodes its result into result and returns Bybit's verdict on
@@ -301,22 +292,32 @@ func (e *Exchange) sendBatchOrderRequest(ctx context.Context, path string, body 
 		return nil, fmt.Errorf("decoding batch order result: %w", err)
 	}
 	var extInfo BatchOrderExtInfo
-	if err := json.Unmarshal(envelope.RetExtInfo, &extInfo); err != nil {
+	if err := json.Unmarshal(envelope.ReturnExtendedInfo, &extInfo); err != nil {
 		return nil, fmt.Errorf("decoding batch order outcomes: %w", err)
 	}
 	return extInfo.List, nil
 }
 
-// applyBatchOrderOutcomes sets each order's verdict on the result of a batch amend or cancel request
-func applyBatchOrderOutcomes(resp *BatchOrderResponse, outcomes []BatchOrderOutcome) (*BatchOrderResponse, error) {
-	if len(outcomes) != len(resp.List) {
-		return nil, fmt.Errorf("%w: %d orders, %d outcomes", errBatchOutcomeMismatch, len(resp.List), len(outcomes))
+// applyBatchOrderOutcomes sets each order's verdict on the result of a batch amend or cancel request of the given number
+// of orders
+func applyBatchOrderOutcomes(resp *BatchOrderResponse, outcomes []BatchOrderOutcome, orders int) (*BatchOrderResponse, error) {
+	if err := checkBatchCounts(orders, len(resp.List), len(outcomes)); err != nil {
+		return nil, err
 	}
 	for i := range resp.List {
 		resp.List[i].Code = outcomes[i].Code
 		resp.List[i].Message = outcomes[i].Message
 	}
 	return resp, nil
+}
+
+// checkBatchCounts returns an error unless a batch order reply holds one result and one outcome for each order sent, as
+// Bybit answers, in request order, since otherwise neither can be matched to its order
+func checkBatchCounts(orders, results, outcomes int) error {
+	if results != orders || outcomes != orders {
+		return fmt.Errorf("%w: %d orders, %d results, %d outcomes", errBatchOutcomeMismatch, orders, results, outcomes)
+	}
+	return nil
 }
 
 // GetBorrowQuota returns the most a spot order can trade, with and without spot margin borrowing

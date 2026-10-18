@@ -59,13 +59,15 @@ func (e *Exchange) TransferPWMFunds(ctx context.Context, req *PWMFundTransferReq
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/fund-transfer", nil, body, &resp, defaultEPL)
 }
 
-// GetPWMFundTransferRecords returns a fund transfer between custodian sub-accounts; it must be called with the fund
-// custodian sub-account's API key (Get Fund Transfer Records)
+// GetPWMFundTransferRecords returns the fund transfer between custodian sub-accounts with the given ID; it must be
+// called with the fund custodian sub-account's API key (Get Fund Transfer Records). The ID is required: without one
+// Bybit lists up to 20 transfers, in a reply the docs do not describe
 func (e *Exchange) GetPWMFundTransferRecords(ctx context.Context, transferID string, fromUserID uint64) (*PWMFundTransferRecordsResponse, error) {
-	params := url.Values{}
-	if transferID != "" {
-		params.Set("transferId", transferID)
+	if transferID == "" {
+		return nil, errMissingTransferID
 	}
+	params := url.Values{}
+	params.Set("transferId", transferID)
 	if fromUserID != 0 {
 		params.Set("fromUserId", strconv.FormatUint(fromUserID, 10))
 	}
@@ -260,8 +262,15 @@ func (e *Exchange) RedeemPWMInvestmentPlan(ctx context.Context, req *PWMRedeemRe
 	if req.ProductID == "" {
 		return nil, errProductIDRequired
 	}
-	if req.Shares <= 0 && req.Amount <= 0 {
+	// Equity funds redeem shares, and FundPool and On-chain Earn redemptions name their position. The docs do not say
+	// which other categories count as fund products, so any other redemption needs only shares or an amount
+	switch {
+	case req.Category == "equityFund" && req.Shares <= 0:
+		return nil, fmt.Errorf("%w: an equity fund redeems shares", order.ErrAmountIsInvalid)
+	case req.Shares <= 0 && req.Amount <= 0:
 		return nil, order.ErrAmountIsInvalid
+	case (req.Category == "fundPool" || req.Category == "onchainEarn") && req.PositionID == "":
+		return nil, errPositionIDRequired
 	}
 	if req.OrderLinkID == "" {
 		return nil, errOrderLinkIDMissing

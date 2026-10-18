@@ -121,8 +121,8 @@ func (e *Exchange) GetBrokerSubAccountDepositRecords(ctx context.Context, arg *G
 	if arg.ID != "" {
 		params.Set("id", arg.ID)
 	}
-	if arg.TxID != "" {
-		params.Set("txID", arg.TxID)
+	if arg.TransactionID != "" {
+		params.Set("txID", arg.TransactionID)
 	}
 	if arg.SubMemberID != "" {
 		params.Set("subMemberId", arg.SubMemberID)

@@ -8,7 +8,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"uuid"
@@ -121,15 +123,16 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				TimeInForce:  order.FillOrKill,
 			},
 			exp: &PlaceOrderRequest{
-				Category:     getCategoryName(asset.USDCMarginedFutures),
-				Symbol:       currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}).String(),
-				Side:         sideSell,
-				OrderType:    orderTypeToString(order.Limit),
-				Quantity:     1,
-				TimeInForce:  "FOK",
-				TriggerPrice: 150,
-				Price:        5000,
-				TriggerBy:    "LastPrice",
+				Category:         getCategoryName(asset.USDCMarginedFutures),
+				Symbol:           currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}).String(),
+				Side:             sideSell,
+				OrderType:        orderTypeToString(order.Limit),
+				Quantity:         1,
+				TimeInForce:      "FOK",
+				TriggerPrice:     150,
+				TriggerDirection: 2,
+				Price:            5000,
+				TriggerBy:        "LastPrice",
 			},
 		},
 		{
@@ -145,15 +148,16 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				TimeInForce:  order.PostOnly,
 			},
 			exp: &PlaceOrderRequest{
-				Category:     getCategoryName(asset.USDCMarginedFutures),
-				Symbol:       currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}).String(),
-				Side:         sideSell,
-				OrderType:    orderTypeToString(order.Limit),
-				Quantity:     1,
-				TimeInForce:  "PostOnly",
-				TriggerPrice: 150,
-				Price:        5000,
-				TriggerBy:    "LastPrice",
+				Category:         getCategoryName(asset.USDCMarginedFutures),
+				Symbol:           currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}).String(),
+				Side:             sideSell,
+				OrderType:        orderTypeToString(order.Limit),
+				Quantity:         1,
+				TimeInForce:      "PostOnly",
+				TriggerPrice:     150,
+				TriggerDirection: 2,
+				Price:            5000,
+				TriggerBy:        "LastPrice",
 			},
 		},
 		{
@@ -268,15 +272,140 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				TriggerPrice: 79500,
 			},
 			exp: &PlaceOrderRequest{
-				Category:     cLinear,
+				Category:         cLinear,
+				Symbol:           "BTCUSDT",
+				Side:             sideSell,
+				OrderType:        "Limit",
+				Quantity:         1,
+				Price:            79000,
+				TimeInForce:      "GTC",
+				TriggerPrice:     79500,
+				TriggerDirection: 2,
+				TriggerBy:        "LastPrice",
+			},
+		},
+		{
+			// A futures conditional order says which way the price must cross its trigger, whatever its side
+			submit: &order.Submit{
+				Exchange:      e.GetName(),
+				Pair:          currency.NewBTCUSDT(),
+				AssetType:     asset.USDTMarginedFutures,
+				Side:          order.Sell,
+				Type:          order.StopMarket,
+				Amount:        1,
+				TriggerPrice:  90000,
+				StopDirection: order.StopUp,
+			},
+			exp: &PlaceOrderRequest{
+				Category:         cLinear,
+				Symbol:           "BTCUSDT",
+				Side:             sideSell,
+				OrderType:        "Market",
+				Quantity:         1,
+				TimeInForce:      "GTC",
+				TriggerPrice:     90000,
+				TriggerDirection: 1,
+				TriggerBy:        "LastPrice",
+			},
+		},
+		{
+			submit: &order.Submit{
+				Exchange:     e.GetName(),
+				Pair:         currency.NewBTCUSDT(),
+				AssetType:    asset.USDTMarginedFutures,
+				Side:         order.Buy,
+				Type:         order.StopMarket,
+				Amount:       1,
+				TriggerPrice: 70000,
+			},
+			exp: &PlaceOrderRequest{
+				Category:         cLinear,
+				Symbol:           "BTCUSDT",
+				Side:             sideBuy,
+				OrderType:        "Market",
+				Quantity:         1,
+				TimeInForce:      "GTC",
+				TriggerPrice:     70000,
+				TriggerDirection: 2,
+				TriggerBy:        "LastPrice",
+			},
+		},
+		{
+			// A spot stop market buy is sized in the base currency, which Bybit takes only when the order says so
+			submit: &order.Submit{
+				Exchange:     e.GetName(),
+				Pair:         currency.NewBTCUSDT(),
+				AssetType:    asset.Spot,
+				Side:         order.Buy,
+				Type:         order.StopMarket,
+				Amount:       0.01,
+				TriggerPrice: 90000,
+			},
+			exp: &PlaceOrderRequest{
+				Category:     getCategoryName(asset.Spot),
 				Symbol:       "BTCUSDT",
-				Side:         sideSell,
-				OrderType:    "Limit",
-				Quantity:     1,
-				Price:        79000,
+				Side:         sideBuy,
+				OrderType:    "Market",
+				Quantity:     0.01,
+				MarketUnit:   "baseCoin",
 				TimeInForce:  "GTC",
-				TriggerPrice: 79500,
+				TriggerPrice: 90000,
 				TriggerBy:    "LastPrice",
+				OrderFilter:  "tpslOrder",
+			},
+		},
+		{
+			// A spot stop order is a stop market order, sized in the base currency too
+			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Stop, Amount: 0.01, TriggerPrice: 90000},
+			exp: &PlaceOrderRequest{
+				Category: getCategoryName(asset.Spot), Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Market", Quantity: 0.01, MarketUnit: "baseCoin",
+				TimeInForce: "GTC", TriggerPrice: 90000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
+			},
+		},
+		{
+			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.StopMarket, Amount: 0.01, TriggerPrice: 80000},
+			exp: &PlaceOrderRequest{
+				Category: getCategoryName(asset.Spot), Symbol: "BTCUSDT", Side: sideSell, OrderType: "Market", Quantity: 0.01, MarketUnit: "baseCoin",
+				TimeInForce: "GTC", TriggerPrice: 80000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
+			},
+		},
+		{
+			// Coin margined conditional orders say which way the price must cross their trigger, as other futures do
+			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewPair(currency.ADA, currency.USD), AssetType: asset.CoinMarginedFutures, Side: order.Sell, Type: order.StopMarket, Amount: 100, TriggerPrice: 0.6, StopDirection: order.StopUp},
+			exp: &PlaceOrderRequest{
+				Category: cInverse, Symbol: "ADAUSD", Side: sideSell, OrderType: "Market", Quantity: 100, TimeInForce: "GTC",
+				TriggerPrice: 0.6, TriggerDirection: 1, TriggerBy: "LastPrice",
+			},
+		},
+		{
+			// A short futures order sells, a reduce only one may only reduce the position, and only spot orders borrow
+			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Short, Type: order.Limit, Amount: 1, Price: 80000, ReduceOnly: true, AutoBorrow: true},
+			exp:    &PlaceOrderRequest{Category: cLinear, Symbol: "BTCUSDT", Side: sideSell, OrderType: "Limit", Quantity: 1, Price: 80000, TimeInForce: "GTC", ReduceOnly: true},
+		},
+		{
+			// A limit stop loss on its own needs partial mode as a limit take profit does
+			submit: &order.Submit{
+				Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 80000,
+				RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Price: 75000, OrderType: order.Limit, LimitPrice: 74990}},
+			},
+			exp: &PlaceOrderRequest{
+				Category: cLinear, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 1, Price: 80000, TimeInForce: "GTC",
+				StopLoss: 75000, SLTriggerBy: "LastPrice", SLOrderType: "Limit", SLLimitPrice: 74990, TPSLMode: "Partial",
+			},
+		},
+		{
+			// Spot limit orders take limit take profits and stop losses without a TP/SL mode, which only futures have
+			submit: &order.Submit{
+				Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Amount: 0.01, Price: 28000,
+				RiskManagementModes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 35000, OrderType: order.Limit, LimitPrice: 36000},
+					StopLoss:   order.RiskManagement{Price: 27000, OrderType: order.Limit, LimitPrice: 27500},
+				},
+			},
+			exp: &PlaceOrderRequest{
+				Category: cSpot, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 0.01, Price: 28000, TimeInForce: "GTC",
+				TakeProfit: 35000, TPTriggerBy: "LastPrice", TPOrderType: "Limit", TPLimitPrice: 36000,
+				StopLoss: 27000, SLTriggerBy: "LastPrice", SLOrderType: "Limit", SLLimitPrice: 27500,
 			},
 		},
 		{
@@ -332,6 +461,10 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 	require.NoError(t, err, "deriveSubmitOrderArguments must not error for an options order")
 	_, err = uuid.Parse(got.OrderLinkID)
 	assert.NoError(t, err, "deriveSubmitOrderArguments should generate a UUID client order ID for an options order")
+	// Bybit requires each options order's client order ID to be unique
+	again, err := e.deriveSubmitOrderArguments(&order.Submit{Exchange: e.GetName(), Pair: option, AssetType: asset.Options, Side: order.Buy, Type: order.Limit, Amount: 0.01, Price: 500})
+	require.NoError(t, err, "deriveSubmitOrderArguments must not error for an options order")
+	assert.NotEqual(t, got.OrderLinkID, again.OrderLinkID, "deriveSubmitOrderArguments should generate a new client order ID for each options order")
 	got, err = e.deriveSubmitOrderArguments(&order.Submit{Exchange: e.GetName(), Pair: option, AssetType: asset.Options, Side: order.Buy, Type: order.Limit, Amount: 0.01, Price: 500, ClientOrderID: "option-buy-001"})
 	require.NoError(t, err, "deriveSubmitOrderArguments must not error for an options order")
 	assert.Equal(t, "option-buy-001", got.OrderLinkID, "deriveSubmitOrderArguments should keep a given client order ID")
@@ -456,6 +589,26 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 				SLLimitPrice: 74990,
 			},
 		},
+		{
+			action: &order.Modify{
+				OrderID:             "69420",
+				Pair:                currency.NewBTCUSDT(),
+				AssetType:           asset.USDTMarginedFutures,
+				RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{LimitPrice: 89990}},
+			},
+			// A partial TP/SL order's limit prices are amended without their unchanged trigger prices or types, each on
+			// its own
+			exp: &AmendOrderRequest{Category: cLinear, Symbol: "BTCUSDT", OrderID: "69420", TPLimitPrice: 89990},
+		},
+		{
+			action: &order.Modify{
+				OrderID:             "69420",
+				Pair:                currency.NewBTCUSDT(),
+				AssetType:           asset.USDTMarginedFutures,
+				RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{LimitPrice: 74990}},
+			},
+			exp: &AmendOrderRequest{Category: cLinear, Symbol: "BTCUSDT", OrderID: "69420", SLLimitPrice: 74990},
+		},
 	} {
 		got, err := e.deriveAmendOrderArguments(tc.action)
 		if tc.err != nil {
@@ -518,6 +671,32 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 			err:    order.ErrPairIsEmpty,
 		},
 		{
+			// SubmitOrder places a spot stop order as a TP/SL order, which Bybit cancels only when told to look there
+			action: &order.Cancel{OrderID: "69420", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Type: order.StopLimit},
+			exp: &CancelOrderRequest{
+				Category:    cSpot,
+				Symbol:      "BTCUSDT",
+				OrderID:     "69420",
+				OrderFilter: "tpslOrder",
+			},
+		},
+		{
+			action: &order.Cancel{OrderID: "69420", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Type: order.StopMarket},
+			exp:    &CancelOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "69420", OrderFilter: "tpslOrder"},
+		},
+		{
+			action: &order.Cancel{OrderID: "69420", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Type: order.Stop},
+			exp:    &CancelOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "69420", OrderFilter: "tpslOrder"},
+		},
+		{
+			action: &order.Cancel{OrderID: "69420", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Type: order.StopMarket},
+			exp: &CancelOrderRequest{
+				Category: cLinear,
+				Symbol:   "BTCUSDT",
+				OrderID:  "69420",
+			},
+		},
+		{
 			// Bybit cancels by client order ID alone
 			action: &order.Cancel{ClientOrderID: "spot-buy-001", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot},
 			exp: &CancelOrderRequest{
@@ -534,6 +713,17 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 		}
 		require.NoError(t, err, "deriveCancelOrderArguments must not error")
 		assert.Equal(t, tc.exp, got, "deriveCancelOrderArguments should derive the expected request")
+	}
+}
+
+func TestSetDefaultsKlineIntervals(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	// The intervals Get Kline serves; the request builder makes any other interval from one of them
+	served := []kline.Interval{kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.TwoHour, kline.FourHour, kline.SixHour, kline.TwelveHour, kline.OneDay, kline.OneWeek, kline.OneMonth}
+	for _, interval := range kline.SupportedIntervals {
+		assert.Equalf(t, slices.Contains(served, interval), ex.Features.Enabled.Kline.Intervals.ExchangeSupported(interval), "SetDefaults should enable %s only if Bybit serves candles at it", interval)
 	}
 }
 
@@ -596,8 +786,12 @@ func TestSetup(t *testing.T) {
 		{name: "coin margined stream on the spot URL", configure: withURL(exchange.WebsocketCoinMargined, spotPublic), errText: "duplicate connection setup", registered: []string{spotPublic, optionPublic, linearPublic}},
 		{
 			// The spread connection is one of those that subscribe only to the channels a user configures
-			name: "coin margined stream on the spread URL", configure: withURL(exchange.WebsocketCoinMargined, spreadPublicURL), errText: "duplicate connection setup",
-			registered: []string{spotPublic, optionPublic, linearPublic, spreadPublicURL, websocketSystemStatus, advancedEarnPublic},
+			name: "coin margined stream on the spread URL", configure: withURL(exchange.WebsocketCoinMargined, mainnetStreamOrigin+spreadPublicPath), errText: "duplicate connection setup",
+			registered: []string{spotPublic, optionPublic, linearPublic, mainnetStreamOrigin + spreadPublicPath, mainnetStreamOrigin + systemStatusPath, mainnetStreamOrigin + advancedEarnPath},
+		},
+		{
+			// The streams without an endpoint of their own are placed on the spot stream's origin
+			name: "spot stream URL without a host", configure: withURL(exchange.WebsocketSpot, "/v5/public/spot"), err: errNoStreamOrigin, errText: exchange.WebsocketSpot.String(),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -630,20 +824,67 @@ func TestSetup(t *testing.T) {
 		require.NoError(t, ex.Setup(cfg), "Setup must not error")
 		registered, err := ex.Websocket.GetConfiguredWebsocketURLs()
 		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
-		exp := []string{spotPublic, optionPublic, linearPublic, inversePublic, websocketSystemStatus, advancedEarnPublic, spreadPublicURL, rfqPublicURL, eventPublicURL, websocketTrade, websocketPrivate}
+		exp := []string{
+			spotPublic, optionPublic, linearPublic, inversePublic, mainnetStreamOrigin + systemStatusPath, mainnetStreamOrigin + advancedEarnPath,
+			mainnetStreamOrigin + spreadPublicPath, mainnetStreamOrigin + rfqPublicPath, mainnetStreamOrigin + eventPublicPath, websocketTrade, websocketPrivate,
+		}
 		assert.ElementsMatch(t, exp, registered, "Setup should register a connection to every stream")
 		// USDT and USDC margined futures share the linear stream, so their connections are told apart by message filter
 		for filter, url := range map[any]string{
 			asset.USDTMarginedFutures:    linearPublic,
 			asset.USDCMarginedFutures:    linearPublic,
-			SystemStatusConnection:       websocketSystemStatus,
-			AdvancedEarnOffersConnection: advancedEarnPublic,
+			SystemStatusConnection:       mainnetStreamOrigin + systemStatusPath,
+			AdvancedEarnOffersConnection: mainnetStreamOrigin + advancedEarnPath,
 			OutboundTradeConnection:      websocketTrade,
 			InboundPrivateConnection:     websocketPrivate,
 		} {
 			conn, err := ex.Websocket.CreateTestConnection(filter)
 			require.NoErrorf(t, err, "CreateTestConnection must not error for %v", filter)
 			assert.Equalf(t, url, conn.GetURL(), "Setup should connect %v to its stream", filter)
+		}
+	})
+
+	// The streams without an endpoint of their own follow the configured spot stream to testnet or another host, but
+	// not to a regional host, which does not serve them
+	t.Run("spot stream origin", func(t *testing.T) {
+		t.Parallel()
+		for spotOrigin, origin := range map[string]string{
+			"wss://stream-testnet.bybit.com": "wss://stream-testnet.bybit.com",
+			"ws://127.0.0.1:8443":            "ws://127.0.0.1:8443",
+			"wss://stream.bybit.tr":          mainnetStreamOrigin,
+		} {
+			ex := new(Exchange)
+			ex.SetDefaults()
+			cfg, err := ex.GetStandardConfig()
+			require.NoError(t, err, "GetStandardConfig must not error")
+			cfg.API.Endpoints = map[string]string{exchange.WebsocketSpot.String(): spotOrigin + "/v5/public/spot"}
+			require.NoErrorf(t, ex.Setup(cfg), "Setup must not error for a spot stream on %s", spotOrigin)
+			registered, err := ex.Websocket.GetConfiguredWebsocketURLs()
+			require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+			exp := []string{
+				spotOrigin + "/v5/public/spot", optionPublic, linearPublic, inversePublic, origin + systemStatusPath, origin + advancedEarnPath,
+				origin + spreadPublicPath, origin + rfqPublicPath, origin + eventPublicPath, websocketTrade, websocketPrivate,
+			}
+			assert.ElementsMatchf(t, exp, registered, "Setup should register the streams without an endpoint of their own on %s for a spot stream on %s", origin, spotOrigin)
+		}
+	})
+
+	// Bybit's docs give EU accounts a system status stream of their own on the EU host, which serves none of the others
+	t.Run("EU system status stream", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		cfg, err := ex.GetStandardConfig()
+		require.NoError(t, err, "GetStandardConfig must not error")
+		cfg.API.Endpoints = map[string]string{exchange.WebsocketSpot.String(): "wss://stream.bybit.eu/v5/public/spot"}
+		require.NoError(t, ex.Setup(cfg), "Setup must not error")
+		for filter, url := range map[string]string{
+			SystemStatusConnection:       "wss://stream.bybit.eu" + systemStatusPath,
+			AdvancedEarnOffersConnection: mainnetStreamOrigin + advancedEarnPath,
+		} {
+			conn, err := ex.Websocket.CreateTestConnection(filter)
+			require.NoErrorf(t, err, "CreateTestConnection must not error for %s", filter)
+			assert.Equalf(t, url, conn.GetURL(), "Setup should connect %s to %s for a spot stream on the EU host", filter, url)
 		}
 	})
 
@@ -1296,13 +1537,18 @@ func TestUpdateAccountBalances(t *testing.T) {
 		subAccts, err := ex.UpdateAccountBalances(t.Context(), a)
 		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
 		require.Lenf(t, subAccts, 1, "UpdateAccountBalances must return the unified account for %s", a)
+		cached, err := ex.GetCachedCurrencyBalances(t.Context(), a)
+		require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+		assert.Equalf(t, subAccts[0].Balances, cached, "UpdateAccountBalances should store the balances it returns for %s", a)
 		if !mockTests {
 			continue
 		}
-		// BTC's wallet balance includes its spot borrowing, and USDC owes derivatives losses
-		btcWallet, btcLocked, btcSpotBorrow := 0.01792413, 0.002, 0.001
+		// BTC's wallet balance includes its spot borrowing, its orders and positions hold margin, and USDC owes
+		// derivatives losses
+		btcWallet, btcLocked, btcOrderMargin, btcPositionMargin, btcSpotBorrow, btcBonus := 0.01792413, 0.002, 0.0001, 0.00025, 0.001, 0.0005
+		btcHold := btcLocked + btcOrderMargin + btcPositionMargin
 		exp := accounts.CurrencyBalances{
-			currency.BTC:  {Currency: currency.BTC, Total: btcWallet, Hold: btcLocked, Free: btcWallet - btcLocked, Borrowed: 0.001, AvailableWithoutBorrow: btcWallet - btcSpotBorrow - btcLocked},
+			currency.BTC:  {Currency: currency.BTC, Total: btcWallet, Hold: btcHold, Free: btcWallet - btcHold, Borrowed: 0.001, AvailableWithoutBorrow: btcWallet - btcSpotBorrow - btcHold - btcBonus},
 			currency.USDT: {Currency: currency.USDT, Total: 0.80486234, Free: 0.80486234, AvailableWithoutBorrow: 0.80486234},
 			currency.USDC: {Currency: currency.USDC, Total: -12.5, Borrowed: 12.5},
 		}
@@ -1315,35 +1561,78 @@ func TestUpdateAccountBalances(t *testing.T) {
 	}
 }
 
+func TestUpdateAccountBalancesDropsUnreportedCoins(t *testing.T) {
+	t.Parallel()
+	// Without a coin filter Get Wallet Balance lists only the coins holding assets or liabilities, so a coin left out
+	// of a later reply has nothing left and must not keep its earlier balance
+	var mu sync.Mutex
+	var calls int
+	ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		calls++
+		first := calls == 1
+		mu.Unlock()
+		coins := `{"coin":"USDT","walletBalance":"100"}`
+		if first {
+			coins = `{"coin":"BTC","walletBalance":"0.5"},` + coins
+		}
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"list":[{"accountType":"UNIFIED","coin":[`+coins+`]}]},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	for range 2 {
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+	}
+	cached, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+	assert.NotContains(t, cached, currency.BTC, "UpdateAccountBalances should drop a coin Bybit no longer reports")
+	assert.Contains(t, cached, currency.USDT, "UpdateAccountBalances should keep the coins Bybit still reports")
+}
+
 func TestUnifiedBalance(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name                                            string
-		walletBalance, locked, borrowAmount, spotBorrow types.Number
-		exp                                             accounts.Balance
+		name string
+		coin WalletBalanceCoin
+		exp  accounts.Balance
 	}{
 		{
-			name: "no borrowing", walletBalance: 0.80486234,
+			name: "no borrowing", coin: WalletBalanceCoin{WalletBalance: 0.80486234},
 			exp: accounts.Balance{Total: 0.80486234, Free: 0.80486234, AvailableWithoutBorrow: 0.80486234},
 		},
 		{
-			// The wallet balance includes what spot margin trading borrowed, which cannot be withdrawn without borrowing
-			name: "spot borrowing", walletBalance: 2.5, locked: 0.5, borrowAmount: 1.25, spotBorrow: 1.25,
+			// The wallet balance includes what spot margin trading borrowed, which cannot be used without borrowing
+			name: "spot borrowing", coin: WalletBalanceCoin{WalletBalance: 2.5, Locked: 0.5, BorrowAmount: 1.25, SpotBorrow: 1.25},
 			exp: accounts.Balance{Total: 2.5, Hold: 0.5, Free: 2, Borrowed: 1.25, AvailableWithoutBorrow: 0.75},
 		},
 		{
-			// Spot borrowing beyond what is free leaves nothing to withdraw without borrowing
-			name: "more spot borrowing than is free", walletBalance: 1, locked: 0.25, borrowAmount: 1, spotBorrow: 1,
+			// Derivatives liabilities count as borrowed, but only spot borrowing sits in the wallet balance
+			name: "derivatives borrowing", coin: WalletBalanceCoin{WalletBalance: 10, BorrowAmount: 4, SpotBorrow: 1},
+			exp: accounts.Balance{Total: 10, Free: 10, Borrowed: 4, AvailableWithoutBorrow: 9},
+		},
+		{
+			// Spot borrowing beyond what is free leaves nothing to use without borrowing
+			name: "more spot borrowing than is free", coin: WalletBalanceCoin{WalletBalance: 1, Locked: 0.25, BorrowAmount: 1, SpotBorrow: 1},
 			exp: accounts.Balance{Total: 1, Hold: 0.25, Free: 0.75, Borrowed: 1},
 		},
 		{
+			// Derivatives orders and positions hold their initial margin as spot orders hold their locks, and the bonus
+			// cannot be used without borrowing
+			name: "derivatives margin and a bonus", coin: WalletBalanceCoin{WalletBalance: 1000, Locked: 50, TotalOrderInitialMargin: 100, TotalPositionInitialMargin: 600, Bonus: 25},
+			exp: accounts.Balance{Total: 1000, Hold: 750, Free: 250, AvailableWithoutBorrow: 225},
+		},
+		{
+			// In cross margin a coin's margin can exceed its wallet balance, which leaves nothing free
+			name: "more margin than the wallet holds", coin: WalletBalanceCoin{WalletBalance: 500, TotalPositionInitialMargin: 600},
+			exp: accounts.Balance{Total: 500, Hold: 600},
+		},
+		{
 			// A negative wallet balance is a derivatives loss the account owes, which leaves nothing free
-			name: "derivatives losses owed", walletBalance: -12.5, borrowAmount: 12.5,
+			name: "derivatives losses owed", coin: WalletBalanceCoin{WalletBalance: -12.5, BorrowAmount: 12.5},
 			exp: accounts.Balance{Total: -12.5, Borrowed: 12.5},
 		},
 	} {
-		got := unifiedBalance(tc.walletBalance, tc.locked, tc.borrowAmount, tc.spotBorrow)
-		assert.Equalf(t, tc.exp, got, "unifiedBalance should return the balance of a wallet with %s", tc.name)
+		assert.Equalf(t, tc.exp, unifiedBalance(&tc.coin), "unifiedBalance should return the balance of a wallet with %s", tc.name)
 	}
 }
 
@@ -1360,6 +1649,42 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	refused, err := restReplyTestInstance(t, nil).GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
 	require.ErrorIs(t, err, errAPIResponse, "GetWithdrawalsHistory must return Bybit's refusal")
 	assert.Nil(t, refused, "GetWithdrawalsHistory should return no withdrawals when Bybit refuses to list them")
+
+	// The history ends at a page without a cursor, a page repeating the cursor it was asked with, or a page without
+	// rows, whatever cursor the last two hold
+	for _, tc := range []struct {
+		name  string
+		pages map[string]string
+		exp   []string
+	}{
+		{
+			name: "a page repeating its cursor",
+			pages: map[string]string{
+				"":   `{"rows":[{"withdrawId":"1"}],"nextPageCursor":"c1"}`,
+				"c1": `{"rows":[{"withdrawId":"2"}],"nextPageCursor":"c1"}`,
+			},
+			exp: []string{"1", "2"},
+		},
+		{
+			name: "a page without rows",
+			pages: map[string]string{
+				"":   `{"rows":[{"withdrawId":"1"}],"nextPageCursor":"c1"}`,
+				"c1": `{"rows":[],"nextPageCursor":"c2"}`,
+			},
+			exp: []string{"1"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			history, err := newPagingTestExchange(t, tc.pages).GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
+			require.NoError(t, err, "GetWithdrawalsHistory must stop at the last page")
+			ids := make([]string, len(history))
+			for i := range history {
+				ids[i] = history[i].TransferID
+			}
+			assert.Equal(t, tc.exp, ids, "GetWithdrawalsHistory should return the withdrawals of each page up to the last")
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1634,6 +1959,40 @@ func TestSubmitOrder(t *testing.T) {
 	noOrderID := restReplyTestInstance(t, map[string]string{"/v5/order/create": `{"retCode":0,"retMsg":"OK","result":{"orderId":"","orderLinkId":"spot-test-10"},"retExtInfo":{},"time":1760000000000}`})
 	_, err = noOrderID.SubmitOrder(t.Context(), &order.Submit{Exchange: noOrderID.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, ClientOrderID: "spot-test-10"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "SubmitOrder must not report an order placed without Bybit's order ID")
+	// A spot limit order with a trigger price is placed as a TP/SL order, so it is stored as a stop limit order and its
+	// cancellation names the TP/SL filter
+	conditional := restReplyTestInstance(t, map[string]string{"/v5/order/create": `{"retCode":0,"retMsg":"OK","result":{"orderId":"1321003749386327599","orderLinkId":"spot-tpsl-01"},"retExtInfo":{},"time":1760000000000}`})
+	submitted, err := conditional.SubmitOrder(t.Context(), &order.Submit{Exchange: conditional.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Limit, Price: 89000, Amount: 0.01, TriggerPrice: 90000, ClientOrderID: "spot-tpsl-01"})
+	require.NoError(t, err, "SubmitOrder must not error for a limit order with a trigger price")
+	assert.Equal(t, order.StopLimit, submitted.Type, "SubmitOrder should report a limit order with a trigger price as a stop limit order")
+	stored, err := submitted.DeriveDetail(uuid.Nil())
+	require.NoError(t, err, "DeriveDetail must not error")
+	cancel, err := stored.DeriveCancel()
+	require.NoError(t, err, "DeriveCancel must not error")
+	cancelArg, err := conditional.deriveCancelOrderArguments(cancel)
+	require.NoError(t, err, "deriveCancelOrderArguments must not error")
+	assert.Equal(t, "tpslOrder", cancelArg.OrderFilter, "the cancellation of a stored spot conditional order should name the TP/SL filter")
+	// Bybit requires a client order ID on every options order, so SubmitOrder returns the one it generated and sent
+	var mu sync.Mutex
+	var sentLinkID string
+	generated := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			OrderLinkID string `json:"orderLinkId"`
+		}
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "decoding the order should not error")
+		mu.Lock()
+		sentLinkID = body.OrderLinkID
+		mu.Unlock()
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"orderId":"9f1a3b5c-7d9e-4f1a-8b3c-5d7e9f1a3b5d","orderLinkId":""},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, generated.DisableRateLimiter(), "DisableRateLimiter must not error")
+	placed, err := generated.SubmitOrder(t.Context(), &order.Submit{Exchange: generated.Name, Pair: currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-"), AssetType: asset.Options, Side: order.Sell, Type: order.Limit, Price: 500, Amount: 0.01})
+	require.NoError(t, err, "SubmitOrder must not error for an options order without a client order ID")
+	mu.Lock()
+	assert.NotEmpty(t, sentLinkID, "SubmitOrder should send a client order ID with an options order")
+	assert.Equal(t, sentLinkID, placed.ClientOrderID, "SubmitOrder should return the client order ID it sent")
+	mu.Unlock()
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1769,6 +2128,47 @@ func TestCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelOrder must require an order ID or client order ID")
 	err = e.CancelOrder(t.Context(), &order.Cancel{OrderID: "1321003749386327552", AssetType: asset.Spot})
 	require.ErrorIs(t, err, order.ErrPairIsEmpty, "CancelOrder must require a pair")
+	// A spot conditional order placed with Bybit's StopOrder filter reads back as a stop order, as a TP/SL order does, so
+	// a stop order Bybit cannot find among TP/SL orders is looked for among conditional orders
+	for _, tc := range []struct {
+		name    string
+		cancel  *order.Cancel
+		found   string
+		filters []string
+		err     error
+	}{
+		{name: "a TP/SL order", cancel: &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), OrderID: "1", Type: order.StopLimit}, found: "tpslOrder", filters: []string{"tpslOrder"}},
+		{name: "a conditional order", cancel: &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), OrderID: "1", Type: order.StopMarket}, found: "StopOrder", filters: []string{"tpslOrder", "StopOrder"}},
+		{name: "a stop order under neither filter", cancel: &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), OrderID: "1", Type: order.StopLimit}, filters: []string{"tpslOrder", "StopOrder"}, err: order.ErrOrderNotFound},
+		{name: "a plain spot order", cancel: &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), OrderID: "1", Type: order.Limit}, filters: []string{""}, err: order.ErrOrderNotFound},
+		{name: "a futures stop order", cancel: &order.Cancel{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1", Type: order.StopMarket}, filters: []string{""}, err: order.ErrOrderNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var filters []string
+			ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				var body struct {
+					OrderFilter string `json:"orderFilter"`
+				}
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "decoding the cancellation should not error")
+				mu.Lock()
+				filters = append(filters, body.OrderFilter)
+				mu.Unlock()
+				reply := `{"retCode":110001,"retMsg":"Order does not exist","result":{},"retExtInfo":{},"time":1760000000000}`
+				if tc.found != "" && body.OrderFilter == tc.found {
+					reply = `{"retCode":0,"retMsg":"OK","result":{"orderId":"1","orderLinkId":""},"retExtInfo":{},"time":1760000000000}`
+				}
+				_, err := fmt.Fprint(w, reply)
+				assert.NoError(t, err, "writing the reply should not error")
+			})
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			assert.ErrorIs(t, ex.CancelOrder(t.Context(), tc.cancel), tc.err, "CancelOrder should return the outcome of the cancellation Bybit found")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, tc.filters, filters, "CancelOrder should look for the order under each filter it can be placed with")
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1796,6 +2196,38 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
+func TestCancelWithStopOrderFallback(t *testing.T) {
+	t.Parallel()
+	notFound := &APIError{Code: 170213, Message: "Order does not exist."}
+	for _, tc := range []struct {
+		name    string
+		filter  string
+		replies map[string]error
+		filters []string
+		err     error
+	}{
+		{name: "a TP/SL order", filter: "tpslOrder", filters: []string{"tpslOrder"}},
+		{name: "a conditional order", filter: "tpslOrder", replies: map[string]error{"tpslOrder": notFound}, filters: []string{"tpslOrder", "StopOrder"}},
+		{name: "an order under neither filter", filter: "tpslOrder", replies: map[string]error{"tpslOrder": notFound, "StopOrder": notFound}, filters: []string{"tpslOrder", "StopOrder"}, err: order.ErrOrderNotFound},
+		{name: "a conditional order cancellation failing", filter: "tpslOrder", replies: map[string]error{"tpslOrder": notFound, "StopOrder": context.DeadlineExceeded}, filters: []string{"tpslOrder", "StopOrder"}, err: context.DeadlineExceeded},
+		{name: "a TP/SL order cancellation failing otherwise", filter: "tpslOrder", replies: map[string]error{"tpslOrder": context.DeadlineExceeded}, filters: []string{"tpslOrder"}, err: context.DeadlineExceeded},
+		{name: "an order not found without the TP/SL filter", replies: map[string]error{"": notFound}, filters: []string{""}, err: order.ErrOrderNotFound},
+		{name: "a conditional order not found", filter: "StopOrder", replies: map[string]error{"StopOrder": notFound}, filters: []string{"StopOrder"}, err: order.ErrOrderNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var filters []string
+			send := func(_ context.Context, r *CancelOrderRequest) (*OrderResponse, error) {
+				filters = append(filters, r.OrderFilter)
+				return &OrderResponse{}, tc.replies[r.OrderFilter]
+			}
+			err := cancelWithStopOrderFallback(t.Context(), &CancelOrderRequest{OrderFilter: tc.filter}, send)
+			assert.ErrorIs(t, err, tc.err, "cancelWithStopOrderFallback should return the last cancellation's outcome")
+			assert.Equal(t, tc.filters, filters, "cancelWithStopOrderFallback should resend only a TP/SL cancellation Bybit finds no order for")
+		})
+	}
+}
+
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(t.Context(), nil)
@@ -1820,6 +2252,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return Bybit's refusal")
 	require.NotNil(t, refused, "CancelBatchOrders must return the outcomes reported before Bybit refused")
 	assert.Empty(t, refused.Status, "CancelBatchOrders should report no outcome for orders Bybit refused to cancel")
+	// Bybit reports each order's outcome in request order, so a reply that leaves orders out cannot be matched to them
+	short := restReplyTestInstance(t, map[string]string{"/v5/order/cancel-batch": `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"option","symbol":"BTC-26NOV24-92000-C","orderId":"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01","orderLinkId":""}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"}]},"time":1760000000000}`})
+	_, err = short.CancelBatchOrders(t.Context(), []order.Cancel{
+		{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options},
+		{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c02", Pair: option, AssetType: asset.Options},
+	})
+	require.ErrorIs(t, err, errBatchOutcomeMismatch, "CancelBatchOrders must reject a reply that leaves out some of its orders")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1883,8 +2322,8 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestBatchOrderSize(t *testing.T) {
 	t.Parallel()
-	for category, exp := range map[string]int{cOption: 5, cSpot: 10, cLinear: 20, cInverse: 20} {
-		assert.Equalf(t, exp, batchOrderSize(category), "batchOrderSize should allow Bybit's batch size for %s", category)
+	for category, exp := range map[string]int{cOption: 5, cSpot: 10, cLinear: 10, cInverse: 10} {
+		assert.Equalf(t, exp, batchOrderSize(category), "batchOrderSize should allow as many %s orders as Bybit takes in a batch and counts in a second", category)
 	}
 }
 
@@ -1902,6 +2341,103 @@ func TestCancelAllOrders(t *testing.T) {
 	refused, err := restReplyTestInstance(t, nil).CancelAllOrders(t.Context(), &order.Cancel{Exchange: e.Name, AssetType: asset.USDTMarginedFutures})
 	require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return Bybit's refusal")
 	assert.Empty(t, refused.Status, "CancelAllOrders should report no order cancelled when Bybit refuses")
+	// Bybit cancels at most 500 futures orders a request, so a full futures reply is followed by another request while
+	// each brings new orders, up to a bound
+	page := func(request int) string {
+		orders := make([]string, cancelAllLimit)
+		for i := range orders {
+			orders[i] = fmt.Sprintf(`{"orderId":"o%d-%d","orderLinkId":""}`, request, i)
+		}
+		return `{"retCode":0,"retMsg":"OK","result":{"list":[` + strings.Join(orders, ",") + `],"success":"1"},"retExtInfo":{},"time":1760000000000}`
+	}
+	rest := `{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"r1","orderLinkId":""}],"success":"1"},"retExtInfo":{},"time":1760000000000}`
+	for _, tc := range []struct {
+		name     string
+		asset    asset.Item
+		pair     currency.Pair
+		reply    func(request int) string
+		requests int
+		statuses int
+		err      error
+	}{
+		{name: "full reply then the rest", asset: asset.USDTMarginedFutures, reply: func(request int) string {
+			if request == 0 {
+				return page(request)
+			}
+			return rest
+		}, requests: 2, statuses: cancelAllLimit + 1},
+		{name: "full replies without new orders", asset: asset.USDTMarginedFutures, reply: func(int) string { return page(0) }, requests: 2, statuses: cancelAllLimit, err: errCancelAllOrdersFailed},
+		{name: "full replies up to the bound", asset: asset.USDTMarginedFutures, reply: page, requests: cancelAllMaxRequests, statuses: cancelAllLimit * cancelAllMaxRequests, err: errCancelAllOrdersFailed},
+		{name: "inverse full reply then the rest", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), reply: func(request int) string {
+			if request == 0 {
+				return page(request)
+			}
+			return rest
+		}, requests: 2, statuses: cancelAllLimit + 1},
+		// Option replies are never capped, so a reply of 500 orders is all there were
+		{name: "options", asset: asset.Options, reply: page, requests: 1, statuses: cancelAllLimit},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var requests int
+			ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+				mu.Lock()
+				body := tc.reply(requests)
+				requests++
+				mu.Unlock()
+				_, err := fmt.Fprint(w, body)
+				assert.NoError(t, err, "writing the reply should not error")
+			})
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: tc.asset, Pair: tc.pair})
+			assert.ErrorIs(t, err, tc.err, "CancelAllOrders should return the expected error")
+			assert.Len(t, resp.Status, tc.statuses, "CancelAllOrders should report every order it cancelled")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, tc.requests, requests, "CancelAllOrders should repeat a full futures reply's request only while it brings new orders")
+		})
+	}
+	// Bybit cancels spot orders one kind at a time, so each kind is asked for and its orders reported
+	var kindsMu sync.Mutex
+	var kinds []string
+	spot := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			OrderFilter string `json:"orderFilter"`
+		}
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "decoding the cancellation should not error")
+		kindsMu.Lock()
+		kinds = append(kinds, body.OrderFilter)
+		kindsMu.Unlock()
+		var id string
+		switch body.OrderFilter {
+		case "Order":
+			id = "1321003749386327552"
+		case "tpslOrder":
+			id = "1321003749386327560"
+		case "StopOrder":
+			id = "1321003749386327570"
+		case "OcoOrder":
+			id = "1321003749386327591"
+		case "BidirectionalTpslOrder":
+			id = "1321003749386327595"
+		}
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"`+id+`","orderLinkId":""}],"success":"1"},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, spot.DisableRateLimiter(), "DisableRateLimiter must not error")
+	everyKind, err := spot.CancelAllOrders(t.Context(), &order.Cancel{Exchange: spot.Name, AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error for spot orders")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{
+		"1321003749386327552": "success",
+		"1321003749386327560": "success",
+		"1321003749386327570": "success",
+		"1321003749386327591": "success",
+		"1321003749386327595": "success",
+	}}, everyKind, "CancelAllOrders should report the cancelled orders of every kind")
+	kindsMu.Lock()
+	assert.ElementsMatch(t, []string{"Order", "tpslOrder", "StopOrder", "OcoOrder", "BidirectionalTpslOrder"}, kinds, "CancelAllOrders should cancel each kind of spot order once: orders, TP/SL, conditional, OCO and bidirectional TP/SL orders")
+	kindsMu.Unlock()
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2096,6 +2632,9 @@ func TestMatchSymbol(t *testing.T) {
 func TestOrderDetail(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
+	spotPairs, err := ex.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, append(spotPairs, currency.NewPairWithDelimiter("XRP", "USDT", "_")), false), "StorePairs must not error")
 	for _, tc := range []struct {
 		name  string
 		asset asset.Item
@@ -2119,6 +2658,25 @@ func TestOrderDetail(t *testing.T) {
 				ExecutedAmount: 0.04, RemainingAmount: 0.06, Cost: 624, CostAsset: currency.USDT, Date: time.UnixMilli(1684738540559), LastUpdated: time.UnixMilli(1684738540561),
 			},
 			fees: mustFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.00004}, order.FeeAmount{Currency: currency.MNT, Amount: 0.00242968}),
+		},
+		{
+			// Bybit sizes a spot market buy by value unless told otherwise, and reports some such buys, like this leg of a
+			// bidirectional TP/SL order, with an empty market unit
+			name:  "spot market buy without a market unit",
+			asset: asset.Spot,
+			order: OpenOrder{
+				OrderID: "2132879318752520961", OrderLinkID: "2132879318752520962", Symbol: "XRPUSDT", Quantity: 6.972626, Side: "Buy", OrderStatus: "Filled",
+				AveragePrice: 1.9408, CumulativeExecutedQuantity: 3.59, CumulativeExecutedValue: 6.967472, CumulativeExecutedFee: 0.00359, TimeInForce: "IOC",
+				OrderType: "Market", StopOrderType: "BidirectionalTpslOrder", TriggerPrice: 1.9407, CreatedTime: types.Time(time.UnixMilli(1768995028286)),
+				UpdatedTime: types.Time(time.UnixMilli(1769005101477)), CumulativeFeeDetail: map[currency.Code]types.Number{currency.XRP: 0.00359},
+			},
+			exp: order.Detail{
+				Exchange: ex.Name, OrderID: "2132879318752520961", ClientOrderID: "2132879318752520962", Pair: currency.NewPairWithDelimiter("XRP", "USDT", "_"),
+				AssetType: asset.Spot, Type: order.OCO, Side: order.Buy, Status: order.Filled, TimeInForce: order.ImmediateOrCancel, Amount: 3.59, QuoteAmount: 6.972626,
+				TriggerPrice: 1.9407, AverageExecutedPrice: 1.9408, ExecutedAmount: 3.59, Cost: 6.967472, CostAsset: currency.USDT,
+				Date: time.UnixMilli(1768995028286), LastUpdated: time.UnixMilli(1769005101477),
+			},
+			fees: mustFees(t, order.FeeAmount{Currency: currency.XRP, Amount: 0.00359}),
 		},
 		{
 			// Bybit documents UNKNOWN as an order type it only returns; such an order keeps no type rather than failing
@@ -2162,8 +2720,25 @@ func TestOrderDetail(t *testing.T) {
 			},
 			exp: order.Detail{
 				Exchange: ex.Name, OrderID: "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f30", ClientOrderID: "linear-tp-002", Pair: currency.NewPairWithDelimiter("BTC", "USDT-25DEC26", "_"),
-				AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 90000,
+				AssetType: asset.USDTMarginedFutures, Type: order.TakeProfit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 90000,
 				Amount: 0.01, TriggerPrice: 89900, RemainingAmount: 0.01, CostAsset: currency.USDT, SettlementCurrency: currency.USDT,
+				Date: time.UnixMilli(1791884000000), LastUpdated: time.UnixMilli(1791884000000),
+			},
+			fees: mustFees(t),
+		},
+		{
+			// A conditional market order is reported as the market order it becomes, with its condition in stopOrderType
+			name:  "USDT margined conditional market order",
+			asset: asset.USDTMarginedFutures,
+			order: OpenOrder{
+				OrderID: "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f31", OrderLinkID: "linear-stop-001", Symbol: "BTCUSDT", Quantity: 0.01, Side: "Buy",
+				OrderStatus: "Untriggered", LeavesQuantity: 0.01, TimeInForce: "IOC", OrderType: "Market", StopOrderType: "Stop", TriggerPrice: 95000,
+				CreatedTime: types.Time(time.UnixMilli(1791884000000)), UpdatedTime: types.Time(time.UnixMilli(1791884000000)), CumulativeFeeDetail: map[currency.Code]types.Number{},
+			},
+			exp: order.Detail{
+				Exchange: ex.Name, OrderID: "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f31", ClientOrderID: "linear-stop-001", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+				AssetType: asset.USDTMarginedFutures, Type: order.StopMarket, Side: order.Buy, Status: order.Pending, TimeInForce: order.ImmediateOrCancel,
+				Amount: 0.01, TriggerPrice: 95000, RemainingAmount: 0.01, CostAsset: currency.USDT, SettlementCurrency: currency.USDT,
 				Date: time.UnixMilli(1791884000000), LastUpdated: time.UnixMilli(1791884000000),
 			},
 			fees: mustFees(t),
@@ -2182,6 +2757,37 @@ func TestOrderDetail(t *testing.T) {
 				AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Buy, Status: order.Filled, TimeInForce: order.GoodTillCancel, Price: 26000, Amount: 0.02,
 				AverageExecutedPrice: 26000, ExecutedAmount: 0.02, Cost: 520, CostAsset: currency.USDT, SettlementCurrency: currency.USDT,
 				Date: time.UnixMilli(1693086704010), LastUpdated: time.UnixMilli(1693086704012),
+			},
+		},
+		{
+			// Bybit documents Block trade-Limit as an order type only unified account block trades return; they trade as limit
+			// orders
+			name:  "block trade limit order",
+			asset: asset.USDTMarginedFutures,
+			order: OpenOrder{
+				OrderID: "f2a1b3c4-5d6e-4f70-8192-a3b4c5d6e7f8", OrderLinkID: "linear-block-001", Symbol: "BTCUSDT", Price: 26000, Quantity: 0.02, Side: "Buy",
+				OrderStatus: "Filled", TimeInForce: "GTC", OrderType: "Block trade-Limit", CreatedTime: types.Time(time.UnixMilli(1693086704010)),
+				UpdatedTime: types.Time(time.UnixMilli(1693086704012)),
+			},
+			exp: order.Detail{
+				Exchange: ex.Name, OrderID: "f2a1b3c4-5d6e-4f70-8192-a3b4c5d6e7f8", ClientOrderID: "linear-block-001", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+				AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Buy, Status: order.Filled, TimeInForce: order.GoodTillCancel, Price: 26000,
+				Amount: 0.02, CostAsset: currency.USDT, SettlementCurrency: currency.USDT, Date: time.UnixMilli(1693086704010), LastUpdated: time.UnixMilli(1693086704012),
+			},
+		},
+		{
+			// A block trade's roll back has no GoCryptoTrader counterpart, so it keeps no type rather than failing
+			name:  "block trade roll back",
+			asset: asset.USDTMarginedFutures,
+			order: OpenOrder{
+				OrderID: "f2a1b3c4-5d6e-4f70-8192-a3b4c5d6e7f9", OrderLinkID: "linear-block-002", Symbol: "BTCUSDT", Price: 26000, Quantity: 0.02, Side: "Sell",
+				OrderStatus: "Filled", TimeInForce: "GTC", OrderType: "Block trade Roll Back", CreatedTime: types.Time(time.UnixMilli(1693086705010)),
+				UpdatedTime: types.Time(time.UnixMilli(1693086705012)),
+			},
+			exp: order.Detail{
+				Exchange: ex.Name, OrderID: "f2a1b3c4-5d6e-4f70-8192-a3b4c5d6e7f9", ClientOrderID: "linear-block-002", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+				AssetType: asset.USDTMarginedFutures, Type: order.UnknownType, Side: order.Sell, Status: order.Filled, TimeInForce: order.GoodTillCancel, Price: 26000,
+				Amount: 0.02, CostAsset: currency.USDT, SettlementCurrency: currency.USDT, Date: time.UnixMilli(1693086705010), LastUpdated: time.UnixMilli(1693086705012),
 			},
 		},
 		{
@@ -2242,6 +2848,14 @@ func TestOrderDetail(t *testing.T) {
 		exp.SetFees(tc.fees)
 		assert.Equalf(t, &exp, got, "orderDetail should convert a %s", tc.name)
 	}
+
+	// A spot market buy sized by value has bought nothing of its base amount until it fills, yet stays an open order
+	untriggered, err := ex.orderDetail(&OpenOrder{
+		OrderID: "2132879318752520963", Symbol: "BTCUSDT", Quantity: 100, Side: "Buy", OrderStatus: "Untriggered", TimeInForce: "IOC",
+		OrderType: "Market", StopOrderType: "tpslOrder", TriggerPrice: 90000, MarketUnit: "quoteCoin",
+	}, asset.Spot)
+	require.NoError(t, err, "orderDetail must not error for an untriggered spot market buy sized by value")
+	assert.True(t, untriggered.IsActive(), "orderDetail should leave an untriggered spot market buy sized by value active")
 
 	// An asset Bybit does not trade has no cost currency, even when its pairs are stored
 	require.NoError(t, ex.CurrencyPairs.Store(asset.Margin, &currency.PairStore{AssetEnabled: true, Available: currency.Pairs{currency.NewBTCUSDT()}}), "Store must not error")
@@ -2384,6 +2998,23 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	require.ErrorIs(t, err, errMissingChainInformation, "WithdrawCryptocurrencyFunds must require a chain")
 	req.Crypto.Chain = currency.LTC.String()
 
+	// A withdrawal to an address with a memo sends its tag, which Bybit needs to match the address book entry
+	var sent map[string]any
+	tagged := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&sent), "decoding the withdrawal should not error")
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"id":"10196"},"retExtInfo":{},"time":1672196571239}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	taggedReq := &withdraw.Request{Exchange: tagged.Name, Amount: 25, Currency: currency.XRP, Crypto: withdraw.CryptoRequest{Chain: currency.XRP.String(), Address: "XXXXXX", AddressTag: "100000123"}}
+	before := time.Now().Truncate(time.Millisecond)
+	_, err = tagged.WithdrawCryptocurrencyFunds(t.Context(), taggedReq)
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for an address with a tag")
+	assert.Equal(t, "100000123", sent["tag"], "WithdrawCryptocurrencyFunds should send the address's tag")
+	// It also sends the current time in milliseconds, which Bybit uses against withdrawal replays
+	sentAt, ok := sent["timestamp"].(float64)
+	require.True(t, ok, "WithdrawCryptocurrencyFunds must send a numeric timestamp")
+	assert.WithinRange(t, time.UnixMilli(int64(sentAt)), before, time.Now(), "WithdrawCryptocurrencyFunds should send the current time")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		_, err = e.WithdrawCryptocurrencyFunds(t.Context(), req)
@@ -2408,6 +3039,22 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "WithdrawFiatFundsToInternationalBank should not be supported")
 }
 
+// spotOrderPage returns a page of one open spot order with orderID, and the cursor of the next page
+func spotOrderPage(orderID, nextPageCursor string) string {
+	return `{"category":"spot","nextPageCursor":"` + nextPageCursor + `","list":[{"orderId":"` + orderID + `","orderLinkId":"","symbol":"BTCUSDT","price":"15600","qty":"0.1","side":"Buy","orderStatus":"New","leavesQty":"0.1","timeInForce":"GTC","orderType":"Limit","createdTime":"1684738540559","updatedTime":"1684738540559","cumFeeDetail":{}}]}`
+}
+
+// orderListingEnds holds listings that end at a page repeating the cursor it was asked with, or a page without orders,
+// whatever cursor the latter holds, and the IDs of the orders listed up to there
+var orderListingEnds = []struct {
+	name  string
+	pages map[string]string
+	exp   []string
+}{
+	{name: "a page repeating its cursor", pages: map[string]string{"": spotOrderPage("1", "c1"), "c1": spotOrderPage("2", "c1")}, exp: []string{"1", "2"}},
+	{name: "a page without orders", pages: map[string]string{"": spotOrderPage("1", "c1"), "c1": `{"category":"spot","nextPageCursor":"c2","list":[]}`}, exp: []string{"1"}},
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetActiveOrders(t.Context(), nil)
@@ -2424,6 +3071,18 @@ func TestGetActiveOrders(t *testing.T) {
 	unknownSide := restReplyTestInstance(t, map[string]string{"/v5/order/realtime": `{"retCode":0,"retMsg":"OK","result":{"category":"spot","nextPageCursor":"","list":[{"orderId":"1321003749386327599","orderLinkId":"spot-test-11","symbol":"BTCUSDT","price":"15600","qty":"0.1","side":"Hold","orderStatus":"New","leavesQty":"0.1","timeInForce":"GTC","orderType":"Limit","createdTime":"1684738540559","updatedTime":"1684738540559","cumFeeDetail":{}}]},"retExtInfo":{},"time":1760000000000}`})
 	_, err = unknownSide.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders must reject an order of a side it does not know")
+	for _, tc := range orderListingEnds {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newPagingTestExchange(t, tc.pages).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "GetActiveOrders must stop at the last page")
+			ids := make([]string, len(got))
+			for i := range got {
+				ids[i] = got[i].OrderID
+			}
+			assert.Equal(t, tc.exp, ids, "GetActiveOrders should return the orders of each page up to the last")
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2556,6 +3215,68 @@ func TestGetOrderHistory(t *testing.T) {
 	unknownTimeInForce := restReplyTestInstance(t, map[string]string{"/v5/order/history": `{"retCode":0,"retMsg":"OK","result":{"category":"spot","nextPageCursor":"","list":[{"orderId":"1321003749386327598","orderLinkId":"spot-test-12","symbol":"BTCUSDT","price":"27000","qty":"0.01","side":"Sell","orderStatus":"Cancelled","timeInForce":"Forever","orderType":"Limit","createdTime":"1693087700000","updatedTime":"1693091300000","cumFeeDetail":{}}]},"retExtInfo":{},"time":1760000000000}`})
 	_, err = unknownTimeInForce.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "GetOrderHistory must reject an order whose time in force it does not know")
+	for _, tc := range orderListingEnds {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newPagingTestExchange(t, tc.pages).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "GetOrderHistory must stop at the last page")
+			ids := make([]string, len(got))
+			for i := range got {
+				ids[i] = got[i].OrderID
+			}
+			assert.Equal(t, tc.exp, ids, "GetOrderHistory should return the orders of each page up to the last")
+		})
+	}
+	// Bybit returns only the week after a start time given alone, so the weeks up to now are requested one by one
+	var mu sync.Mutex
+	var queries []url.Values
+	startOnly := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.Query())
+		mu.Unlock()
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"category":"linear","nextPageCursor":"","list":[]},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, startOnly.DisableRateLimiter(), "DisableRateLimiter must not error")
+	requested := time.Now()
+	start := requested.Add(-20 * 24 * time.Hour)
+	_, err = startOnly.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType, StartTime: start})
+	require.NoError(t, err, "GetOrderHistory must not error for a start time alone")
+	mu.Lock()
+	require.Len(t, queries, 3, "GetOrderHistory must request each week from the start time to now")
+	assert.Equal(t, strconv.FormatInt(start.UnixMilli(), 10), queries[0].Get("startTime"), "GetOrderHistory should start at the start time")
+	lastEnd, err := strconv.ParseInt(queries[2].Get("endTime"), 10, 64)
+	require.NoError(t, err, "ParseInt must not error for the last week's end time")
+	assert.GreaterOrEqual(t, lastEnd, requested.UnixMilli(), "GetOrderHistory should fetch up to the time it was asked")
+	for i, q := range queries {
+		assert.NotEmptyf(t, q.Get("endTime"), "GetOrderHistory should bound week %d with an end time", i)
+		if i > 0 {
+			assert.Equalf(t, queries[i-1].Get("endTime"), q.Get("startTime"), "GetOrderHistory should start week %d where the one before it ended", i)
+		}
+	}
+	// A range of exactly two weeks is two requests, the second ending at the range's end
+	queries = nil
+	mu.Unlock()
+	end := start.Add(2 * orderHistoryWindow)
+	_, err = startOnly.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: end})
+	require.NoError(t, err, "GetOrderHistory must not error for a two week range")
+	mu.Lock()
+	require.Len(t, queries, 2, "GetOrderHistory must request a two week range a week at a time")
+	assert.Equal(t, strconv.FormatInt(end.UnixMilli(), 10), queries[1].Get("endTime"), "GetOrderHistory should end the last week at the range's end")
+	// A range that ends in the future is fetched up to now, so no week starts after now
+	queries = nil
+	mu.Unlock()
+	requested = time.Now()
+	start = requested.Add(time.Hour - orderHistoryWindow)
+	_, err = startOnly.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: requested.Add(2 * time.Hour)})
+	require.NoError(t, err, "GetOrderHistory must not error for a range ending in the future")
+	mu.Lock()
+	require.Len(t, queries, 1, "GetOrderHistory must request the week up to now alone")
+	lastEnd, err = strconv.ParseInt(queries[0].Get("endTime"), 10, 64)
+	require.NoError(t, err, "ParseInt must not error for the week's end time")
+	assert.GreaterOrEqual(t, lastEnd, requested.UnixMilli(), "GetOrderHistory should fetch the week up to the time it was asked")
+	assert.Less(t, lastEnd, requested.Add(time.Hour).UnixMilli(), "GetOrderHistory should end the week at the time it was asked")
+	mu.Unlock()
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2647,6 +3368,12 @@ func TestGetFeeByType(t *testing.T) {
 		assert.Positive(t, fee, "GetFeeByType should return the account's trading fee")
 		return
 	}
+	// Without credentials, an inverse trade's value is its number of contracts, each worth one unit of the quote currency
+	offlineInverse := testInstance(t)
+	offlineInverse.SkipAuthCheck = true
+	fee, err := offlineInverse.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: inverseTradablePair, Amount: 2, PurchasePrice: 30000})
+	require.NoError(t, err, "GetFeeByType must not error for an offline coin margined fee")
+	assert.Equal(t, 0.02, fee, "GetFeeByType should estimate an offline coin margined fee from the number of contracts")
 	// The account has no fee rate for SOL options
 	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: currency.NewPairWithDelimiter("SOL", "4MAR26-85-C-USDT", "-"), Amount: 1, PurchasePrice: 1})
 	require.ErrorIs(t, err, errFeeRateNotFound, "GetFeeByType must report a pair without a fee rate")
@@ -2661,13 +3388,90 @@ func TestGetFeeByType(t *testing.T) {
 		{name: "spot maker", pair: currency.NewBTCUSDT(), maker: true, exp: 0.0008 * 2 * 30000},
 		{name: "USDT margined futures", pair: usdtMarginedTradablePair, exp: 0.00055 * 2 * 30000},
 		{name: "USDC margined futures", pair: usdcMarginedTradablePair, exp: 0.00055 * 2 * 30000},
-		{name: "coin margined futures maker", pair: inverseTradablePair, maker: true, exp: 0.0002 * 2 * 30000},
-		// Option fee rates are per base coin
-		{name: "options", pair: optionsTradablePair, exp: 0.0003 * 2 * 30000},
+		// An inverse contract is worth one US dollar, so its fee is the rate times the contracts
+		{name: "coin margined futures maker", pair: inverseTradablePair, maker: true, exp: 0.0002 * 2},
+		{name: "coin margined futures", pair: inverseTradablePair, exp: 0.00055 * 2},
+		// Option fee rates are per base coin, and Bybit charges them on the underlying's index price
+		{name: "options", pair: optionsTradablePair, exp: 0.0003 * 82551.02154501 * 2},
+		{name: "options maker", pair: optionsTradablePair, maker: true, exp: 0.0002 * 82551.02154501 * 2},
 	} {
 		fee, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: tc.pair, IsMaker: tc.maker, Amount: 2, PurchasePrice: 30000})
 		require.NoErrorf(t, err, "GetFeeByType must not error for %s", tc.name)
 		assert.InDeltaf(t, tc.exp, fee, 1e-9, "GetFeeByType should apply the account's %s fee rate", tc.name)
+	}
+	// Bybit charges an option trade at most 7% of the option's price
+	capped, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 2, PurchasePrice: 30})
+	require.NoError(t, err, "GetFeeByType must not error for a cheap option")
+	assert.InDelta(t, 0.07*30*2, capped, 1e-9, "GetFeeByType should cap an option's fee at 7 percent of its price")
+	offlineOption, err := offlineInverse.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: optionsTradablePair, Amount: 2, PurchasePrice: 30})
+	require.NoError(t, err, "GetFeeByType must not error for an offline option fee")
+	assert.InDelta(t, 0.07*30*2, offlineOption, 1e-9, "GetFeeByType should estimate an offline option fee at Bybit's cap of 7 percent of its price")
+	// An option's fee needs its underlying's index price, from the option's ticker
+	optionFeeRate := `{"retCode":0,"retMsg":"OK","result":{"category":"option","list":[{"baseCoin":"BTC","takerFeeRate":"0.0003","makerFeeRate":"0.0002"}]},"retExtInfo":{},"time":1760000000000}`
+	for _, tc := range []struct {
+		name    string
+		tickers string
+		err     error
+	}{
+		{name: "a ticker Bybit refuses", tickers: `{"retCode":10001,"retMsg":"params error","result":{},"retExtInfo":{},"time":1760000000000}`, err: errAPIResponse},
+		{name: "no ticker", tickers: `{"retCode":0,"retMsg":"OK","result":{"category":"option","list":[]},"retExtInfo":{},"time":1760000000000}`, err: ticker.ErrTickerNotFound},
+	} {
+		noTicker := restReplyTestInstance(t, map[string]string{"/v5/account/fee-rate": optionFeeRate, "/v5/market/tickers": tc.tickers})
+		noTicker.SkipAuthCheck = false
+		require.NoErrorf(t, noTicker.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{optionsTradablePair}, false), "StorePairs must not error for %s", tc.name)
+		_, err = noTicker.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 1, PurchasePrice: 30})
+		assert.ErrorIsf(t, err, tc.err, "GetFeeByType should report %s", tc.name)
+	}
+	// Pro accounts' option fees are capped at a smaller share of the option's price, so the account's tier is read
+	optionTicker := `{"retCode":0,"retMsg":"OK","result":{"category":"option","list":[{"symbol":"BTC-26NOV24-92000-C","indexPrice":"82551.02154501"}]},"retExtInfo":{},"time":1760000000000}`
+	for _, tc := range []struct {
+		name, vipLevel string
+		price, exp     float64
+	}{
+		{name: "Pro 1", vipLevel: "PRO-1", price: 30, exp: 0.07 * 30 * 2},
+		{name: "Pro 4", vipLevel: "PRO-4", price: 30, exp: 0.06 * 30 * 2},
+		{name: "Pro 5", vipLevel: "PRO-5", price: 30, exp: 0.04 * 30 * 2},
+		// The fee rate on the index price is 4.13% of this price: over Pro 5's cap but under 7%
+		{name: "Pro 5", vipLevel: "PRO-5", price: 600, exp: 0.04 * 600 * 2},
+	} {
+		tiered := restReplyTestInstance(t, map[string]string{
+			"/v5/account/fee-rate": optionFeeRate,
+			"/v5/market/tickers":   optionTicker,
+			"/v5/user/query-api":   `{"retCode":0,"retMsg":"","result":{"vipLevel":"` + tc.vipLevel + `"},"retExtInfo":{},"time":1760000000000}`,
+		})
+		tiered.SkipAuthCheck = false
+		require.NoErrorf(t, tiered.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{optionsTradablePair}, false), "StorePairs must not error for %s", tc.name)
+		fee, err := tiered.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 2, PurchasePrice: tc.price})
+		require.NoErrorf(t, err, "GetFeeByType must not error for a %s account at a price of %v", tc.name, tc.price)
+		assert.InDeltaf(t, tc.exp, fee, 1e-9, "GetFeeByType should cap a %s account's option fee at its tier's share of the price %v", tc.name, tc.price)
+	}
+	noTier := restReplyTestInstance(t, map[string]string{
+		"/v5/account/fee-rate": optionFeeRate,
+		"/v5/market/tickers":   optionTicker,
+		"/v5/user/query-api":   `{"retCode":10003,"retMsg":"API key is invalid.","result":{},"retExtInfo":{},"time":1760000000000}`,
+	})
+	noTier.SkipAuthCheck = false
+	require.NoError(t, noTier.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{optionsTradablePair}, false), "StorePairs must not error")
+	_, err = noTier.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 1, PurchasePrice: 30})
+	assert.ErrorIs(t, err, errAPIResponse, "GetFeeByType should report an account tier Bybit refuses")
+	// A fee below every tier's cap does not depend on the tier, so a tier Bybit refuses does not stop its estimate
+	uncapped, err := noTier.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 2, PurchasePrice: 30000})
+	require.NoError(t, err, "GetFeeByType must not need the account's tier for a fee below every tier's cap")
+	assert.InDelta(t, 0.0003*82551.02154501*2, uncapped, 1e-9, "GetFeeByType should charge the fee rate on the index price below every tier's cap")
+	noOptionFormat := noRequestFormatTestInstance(t, asset.Options)
+	noOptionFormat.SkipAuthCheck = false
+	_, err = noOptionFormat.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: optionsTradablePair, Amount: 1, PurchasePrice: 30})
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetFeeByType should not request the ticker of an option whose symbol it cannot write")
+}
+
+func TestOptionFeeCap(t *testing.T) {
+	t.Parallel()
+	for vipLevel, exp := range map[string]float64{
+		"No VIP": 0.07, "VIP-1": 0.07, "VIP-5": 0.07, "VIP-Supreme": 0.07, "PRO-1": 0.07, "": 0.07,
+		"PRO-2": 0.06, "PRO-3": 0.06, "PRO-4": 0.06,
+		"PRO-5": 0.04, "PRO-6": 0.04,
+	} {
+		assert.Equalf(t, exp, optionFeeCap(vipLevel), "optionFeeCap should return Bybit's option fee cap for %q", vipLevel)
 	}
 }
 
@@ -3795,7 +4599,7 @@ func newOrderFixtures(tb testing.TB) *orderFixtures {
 		},
 		spotTPSL: order.Detail{
 			Exchange: e.Name, OrderID: "1321003749386327560", ClientOrderID: "spot-test-04", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), AssetType: asset.Spot,
-			Type: order.Limit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, Price: 16500, Amount: 0.05, TriggerPrice: 16400,
+			Type: order.StopLimit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, Price: 16500, Amount: 0.05, TriggerPrice: 16400,
 			RemainingAmount: 0.05, CostAsset: currency.USDT, Date: time.UnixMilli(1684738700000), LastUpdated: time.UnixMilli(1684738700000),
 		},
 		// A spot market buy sized by value holds its quote amount in qty, and the base amount it bought in cumExecQty
@@ -3812,7 +4616,7 @@ func newOrderFixtures(tb testing.TB) *orderFixtures {
 		},
 		linearTakeProfit: order.Detail{
 			Exchange: e.Name, OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", ClientOrderID: "test-000005", Pair: ladys, AssetType: asset.USDTMarginedFutures,
-			Type: order.Limit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 0.0005, Amount: 100000,
+			Type: order.TakeProfit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 0.0005, Amount: 100000,
 			TriggerPrice: 0.00049, RemainingAmount: 100000, CostAsset: currency.USDT, SettlementCurrency: currency.USDT,
 			Date: time.UnixMilli(1693086704500), LastUpdated: time.UnixMilli(1693086704500),
 		},
@@ -4059,4 +4863,86 @@ func assertOptionsInstrumentQueries(t *testing.T, queries []url.Values, caller s
 	}
 
 	assert.ElementsMatch(t, baseCoins, requestedBaseCoins, caller+" should query every option base coin exactly once")
+}
+
+func TestQuoteSized(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset      asset.Item
+		orderType  string
+		side       string
+		marketUnit string
+		exp        bool
+	}{
+		// A spot market buy is sized by value unless its unit is the base coin, and a sell by quantity unless it is the
+		// quote coin
+		{asset: asset.Spot, orderType: "Market", side: sideBuy, exp: true},
+		{asset: asset.Spot, orderType: "Market", side: sideBuy, marketUnit: "quoteCoin", exp: true},
+		{asset: asset.Spot, orderType: "Market", side: sideBuy, marketUnit: "baseCoin"},
+		{asset: asset.Spot, orderType: "Market", side: sideSell},
+		{asset: asset.Spot, orderType: "Market", side: sideSell, marketUnit: "quoteCoin", exp: true},
+		{asset: asset.Spot, orderType: "Market", side: sideSell, marketUnit: "baseCoin"},
+		// Limit orders and derivatives are sized by quantity, whatever market unit they report
+		{asset: asset.Spot, orderType: "Limit", side: sideBuy},
+		{asset: asset.Spot, orderType: "Limit", side: sideSell},
+		{asset: asset.Spot, orderType: "Limit", side: sideBuy, marketUnit: "quoteCoin"},
+		{asset: asset.USDTMarginedFutures, orderType: "Market", side: sideSell, marketUnit: "quoteCoin"},
+		{asset: asset.USDTMarginedFutures, orderType: "Market", side: sideBuy},
+		{asset: asset.USDCMarginedFutures, orderType: "Market", side: sideBuy},
+		{asset: asset.CoinMarginedFutures, orderType: "Market", side: sideBuy},
+		{asset: asset.Options, orderType: "Market", side: sideBuy},
+	} {
+		assert.Equalf(t, tc.exp, quoteSized(tc.asset, tc.orderType, tc.side, tc.marketUnit), "quoteSized should report whether a %s %s %s order with market unit %q is sized by value", tc.asset, tc.orderType, tc.side, tc.marketUnit)
+	}
+}
+
+func TestConditionalOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType     order.Type
+		stopOrderType string
+		exp           order.Type
+	}{
+		{orderType: order.Limit, exp: order.Limit},
+		{orderType: order.Market, stopOrderType: "UNKNOWN", exp: order.Market},
+		{orderType: order.Market, stopOrderType: "Stop", exp: order.StopMarket},
+		{orderType: order.Limit, stopOrderType: "Stop", exp: order.StopLimit},
+		{orderType: order.Limit, stopOrderType: "tpslOrder", exp: order.StopLimit},
+		{orderType: order.Market, stopOrderType: "tpslOrder", exp: order.StopMarket},
+		{orderType: order.UnknownType, stopOrderType: "Stop", exp: order.Stop},
+		{orderType: order.Market, stopOrderType: "StopLoss", exp: order.StopMarket},
+		{orderType: order.Limit, stopOrderType: "PartialStopLoss", exp: order.StopLimit},
+		{orderType: order.Market, stopOrderType: "TakeProfit", exp: order.TakeProfitMarket},
+		{orderType: order.Limit, stopOrderType: "PartialTakeProfit", exp: order.TakeProfit},
+		{orderType: order.Market, stopOrderType: "PartialTakeProfit", exp: order.TakeProfitMarket},
+		{orderType: order.Market, stopOrderType: "TrailingStop", exp: order.TrailingStop},
+		{orderType: order.Limit, stopOrderType: "OcoOrder", exp: order.OCO},
+		{orderType: order.Market, stopOrderType: "OcoOrder", exp: order.OCO},
+		{orderType: order.Market, stopOrderType: "BidirectionalTpslOrder", exp: order.OCO},
+		{orderType: order.Limit, stopOrderType: "BidirectionalTpslOrder", exp: order.OCO},
+		{orderType: order.Market, stopOrderType: "MmRateClose", exp: order.StopMarket},
+	} {
+		assert.Equalf(t, tc.exp, conditionalOrderType(tc.orderType, tc.stopOrderType), "conditionalOrderType should map a %s %q order", tc.orderType, tc.stopOrderType)
+	}
+}
+
+func TestSubmittedOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType    order.Type
+		triggerPrice float64
+		exp          order.Type
+	}{
+		{orderType: order.Limit, exp: order.Limit},
+		{orderType: order.Market, exp: order.Market},
+		// A limit or market order with a trigger price is placed as a conditional order
+		{orderType: order.Limit, triggerPrice: 90000, exp: order.StopLimit},
+		{orderType: order.Market, triggerPrice: 90000, exp: order.StopMarket},
+		{orderType: order.StopLimit, triggerPrice: 90000, exp: order.StopLimit},
+		{orderType: order.StopMarket, triggerPrice: 90000, exp: order.StopMarket},
+		{orderType: order.Stop, triggerPrice: 90000, exp: order.StopMarket},
+	} {
+		got := submittedOrderType(&order.Submit{Type: tc.orderType, TriggerPrice: tc.triggerPrice})
+		assert.Equalf(t, tc.exp, got, "submittedOrderType should return the type a %s order with trigger price %v reads back as", tc.orderType, tc.triggerPrice)
+	}
 }

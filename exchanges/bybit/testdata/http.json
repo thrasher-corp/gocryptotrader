@@ -14,7 +14,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -33,7 +37,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"amount\":\"0.01\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -115,7 +123,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"adjustType\":1,\"utaDemoApplyMoney\":[{\"amountStr\":\"109\",\"coin\":\"USDT\"},{\"amountStr\":\"1\",\"coin\":\"ETH\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -635,7 +647,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"baseCoin\":\"ETH\",\"window\":\"5000\",\"frozenPeriod\":\"100000\",\"qtyLimit\":\"50\",\"deltaLimit\":\"20\",\"vegaLimit\":\"400000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -648,7 +664,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"baseCoin\":\"ETH\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -696,7 +716,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"amount\":\"0.01\",\"repaymentType\":\"FLEXIBLE\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -826,7 +850,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"USDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -844,7 +872,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"amount\":\"0.01\",\"repaymentType\":\"ALL\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -860,7 +892,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"collateralSwitch\":\"ON\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -887,7 +923,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"request\":[{\"coin\":\"BTC\",\"collateralSwitch\":\"OFF\"},{\"coin\":\"ETH\",\"collateralSwitch\":\"ON\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -905,7 +945,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"deltaEnable\":\"1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -918,7 +962,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"setHedgingMode\":\"ON\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -934,7 +982,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"modifyEnable\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -952,7 +1004,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"setMarginMode\":\"REGULAR_MARGIN\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -971,7 +1027,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"setMarginMode\":\"PORTFOLIO_MARGIN\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1165,8 +1225,12 @@
       "time": 1672125124195
      },
      "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1220,7 +1284,7 @@
          "coin": [
           {
            "availableToBorrow": "3",
-           "bonus": "0.5",
+           "bonus": "0.0005",
            "accruedInterest": "0.00000127",
            "availableToWithdraw": "0.0085",
            "totalOrderIM": "0.0001",
@@ -1323,7 +1387,7 @@
          "coin": [
           {
            "availableToBorrow": "3",
-           "bonus": "0.5",
+           "bonus": "0.0005",
            "accruedInterest": "0.00000127",
            "availableToWithdraw": "0.0085",
            "totalOrderIM": "0.0001",
@@ -1659,7 +1723,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderType\":1,\"tokenCode\":\"CEX_1\",\"orderStatus\":[2,3],\"days\":7,\"limit\":20,\"pageIndex\":1,\"poolAddress\":\"0x1234567890abcdef\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1690,7 +1758,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"chainCode\":\"ETH\",\"tokenAddress\":\"0xdac17f958d2ee523a2206206994597c13d831ec7\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1723,7 +1795,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenCode\":[\"CEX_1\",\"CEX_2\"],\"chainCode\":\"ETH\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1752,7 +1828,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"poolAddress\":\"0x1234567890abcdef\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1786,7 +1866,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenSymbol\":\"ETH\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1827,7 +1911,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1845,7 +1933,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"positionId\":12345,\"poolAddress\":\"0x1234567890abcdef\",\"dercRatio\":\"0.5\",\"receiveTokenCode\":\"CEX_1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1864,7 +1956,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"positionId\":0,\"poolAddress\":\"0x1234567890abcdef\",\"payTokenAmount\":\"1000\",\"payTokenCode\":\"CEX_1\",\"rangeUpper\":\"2000\",\"rangeLower\":\"1800\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -1879,7 +1975,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"positionId\":12345,\"poolAddress\":\"0x1234567890abcdef\",\"payTokenAmount\":\"250\",\"payTokenCode\":\"CEX_2\",\"priceUpper\":\"2100.5\",\"priceLower\":\"1750.25\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1897,7 +1997,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_123\",\"amount\":\"100\",\"payTokenCode\":\"USDC\",\"orderType\":1,\"slippage\":\"0.05\",\"eventId\":\"event_123\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1959,7 +2063,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"eventId\":\"event_123\",\"slug\":\"will-argentina-win-world-cup-2026\",\"hasMoreMarkets\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -1999,7 +2107,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenIds\":[\"token_yes_123\"]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2026,7 +2138,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_123\",\"side\":1,\"eventId\":\"event_123\",\"amount\":\"100\",\"orderType\":1,\"payTokenCode\":\"USDC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2061,7 +2177,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"status\":2,\"tokenId\":\"token_yes_123\",\"eventId\":\"event_123\",\"side\":1,\"days\":7,\"limit\":20,\"pageIndex\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2111,7 +2231,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"eventType\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2145,7 +2269,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_456\",\"eventId\":\"event_456\",\"result\":1,\"days\":30,\"limit\":20,\"pageIndex\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2181,7 +2309,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_123\",\"eventId\":\"event_123\",\"limit\":20,\"pageIndex\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2218,7 +2350,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_123\",\"interval\":\"1H\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2236,7 +2372,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"token_yes_123\",\"size\":\"50\",\"orderType\":1,\"slippage\":\"0.05\",\"eventId\":\"event_123\",\"toTokenCode\":\"USDC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2281,7 +2421,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"eventId\":\"event_123\",\"sortBy\":\"volume\",\"marketType\":1,\"limit\":20,\"pageIndex\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2351,7 +2495,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"eventType\":1,\"groupName\":\"A\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2383,7 +2531,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"eventType\":1,\"status\":2,\"startTime\":1748995200000,\"endTime\":1751500800000,\"stageCode\":\"Groups\",\"limit\":20,\"pageIndex\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2452,7 +2604,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenIds\":[\"token_yes_123\",\"token_no_123\"]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2492,7 +2648,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"chainCode\":\"SOL\",\"tokenAddress\":\"EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -2528,7 +2688,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"chainCode\":\"SOL\",\"tokenAddress\":\"DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2609,7 +2773,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2653,7 +2821,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"chainCode\":\"ETH\",\"tokenAddress\":\"0x6982508145454ce325ddbe47a25d4ec3d2311933\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2714,7 +2886,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenTag\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2753,7 +2929,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenAddressInfo\":[{\"chainCode\":\"ETH\",\"tokenAddress\":\"0x6982508145454ce325ddbe47a25d4ec3d2311933\"},{\"chainCode\":\"SOL\",\"tokenAddress\":\"DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2842,7 +3022,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tradeType\":1,\"tokenCode\":\"DEX_123\",\"orderStatus\":[2,3],\"days\":7,\"limit\":20,\"pageIndex\":1,\"direction\":\"next\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2886,7 +3070,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"chainCode\":\"SOL\",\"tokenAddress\":\"Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2904,7 +3092,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fromTokenCode\":\"CEX_1\",\"fromTokenAmount\":\"100\",\"toTokenCode\":\"DEX_123\",\"slippage\":\"0.01\",\"quoteData\":\"eyJhbGciOiJIUzI1NiJ9\",\"gas\":\"0.0003\",\"quoteMode\":1,\"correctingCode\":\"a1b2c3d4e5f6\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2924,7 +3116,7 @@
        "toTokenAmountUsd": "99.50",
        "minToTokenAmount": "12375000",
        "slippage": "0.005",
-       "gas": "0.0003",
+       "gas": "0.000300",
        "gasUsd": "0.30",
        "platformFee": "0.20",
        "platformFeeUsd": "0.20",
@@ -2957,7 +3149,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tradeType\":1,\"fromTokenCode\":\"CEX_1\",\"fromTokenAmount\":\"100\",\"toTokenCode\":\"DEX_123\",\"quoteMode\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -2975,7 +3171,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fromTokenCode\":\"DEX_123\",\"fromTokenAmount\":\"10000000\",\"toTokenCode\":\"CEX_1\",\"slippage\":\"0.01\",\"quoteData\":\"eyJhbGciOiJIUzI1NiJ9\",\"gas\":\"0.0003\",\"quoteMode\":0,\"correctingCode\":\"f6e5d4c3b2a1\",\"tenant\":\"BYBIT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -3142,7 +3342,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"list\":[{\"uids\":\"100000002,100000003\",\"bizType\":\"SPOT\",\"rate\":600},{\"uids\":\"100000004\",\"bizType\":\"DERIVATIVES\",\"rate\":2000}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -3476,7 +3680,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"eb_convert_uta\",\"fromCoinList\":[\"XRP\",\"SOL\"],\"toCoin\":\"USDC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -3498,7 +3706,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"quoteId\":\"1010075157602517596339322880\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -3731,7 +3943,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -3848,7 +4064,8 @@
          "coinShowName": "ETH",
          "chainType": "Ethereum (ERC20)",
          "blockConfirmNumber": 6,
-         "minDepositAmount": "0.00005"
+         "minDepositAmount": "0.00005",
+         "depositSwitch": "1"
         }
        ],
        "nextPageCursor": "eyJwYWdlIjoyLCJsaW1pdCI6MTB9"
@@ -3872,7 +4089,8 @@
          "coinShowName": "ETH",
          "chainType": "Ethereum (ERC20)",
          "blockConfirmNumber": 6,
-         "minDepositAmount": "0.00005"
+         "minDepositAmount": "0.00005",
+         "depositSwitch": "1"
         }
        ],
        "nextPageCursor": "eyJwYWdlIjozLCJsaW1pdCI6MTB9"
@@ -4189,7 +4407,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"quoteTxId\":\"10175108571334212336947200\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -4506,7 +4728,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"eb_convert_uta\",\"fromCoin\":\"XRP\",\"fromCoinType\":\"crypto\",\"paramType\":\"opFrom\",\"paramValue\":\"broker-id-001\",\"requestAmount\":\"0.0088\",\"requestCoin\":\"XRP\",\"requestId\":\"test-00002\",\"toCoin\":\"USDT\",\"toCoinType\":\"crypto\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -4919,7 +5145,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"123.456\",\"coin\":\"BTC\",\"fromAccountType\":\"UNIFIED\",\"toAccountType\":\"FUND\",\"transferId\":\"42c0cfb0-6bca-c242-bc76-4e6df6cbcb16\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5218,7 +5448,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"123.456\",\"coin\":\"BTC\",\"fromAccountType\":\"FUND\",\"fromMemberId\":123,\"toAccountType\":\"UNIFIED\",\"toMemberId\":456,\"transferId\":\"be7a2462-1138-4e27-80b1-62653f24925e\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5229,14 +5463,18 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "travelRuleStatus": 2
+       "travel_rule_status": 2
       },
       "retExtInfo": {},
       "time": 1672197228408
      },
      "queryString": "",
      "bodyParams": "{\"depositId\":1234567890,\"questionnaire\":\"{\\\"firstName\\\":\\\"John\\\",\\\"lastName\\\":\\\"Smith\\\",\\\"legalType\\\":\\\"individual\\\",\\\"transactionPurpose\\\":\\\"Personal investment in long-term holdings\\\",\\\"vaspCode\\\":\\\"BINANCEUS_VASP\\\",\\\"walletType\\\":0}\",\"subAccountId\":100000002}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5254,7 +5492,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"id\":\"12314\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5272,7 +5514,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"address\":\"234234234\",\"amount\":\"0.1\",\"beneficiary\":{\"beneficiaryAddressBuilding\":\"Example Tower\",\"beneficiaryAddressCity\":\"Dubai\",\"beneficiaryAddressCountry\":\"ARE\",\"beneficiaryAddressPostalCode\":\"00000\",\"beneficiaryAddressState\":\"Dubai\",\"beneficiaryAddressStreet\":\"1 Example Street\",\"beneficiaryDateOfBirth\":\"1990-02-15\",\"beneficiaryLegalType\":\"company\",\"beneficiaryName\":\"Example Co., Ltd.\",\"beneficiaryPlaceOfBirth\":\"Dubai\",\"beneficiaryPoiExpiredDate\":\"2099-12-31\",\"beneficiaryPoiIssuingCountry\":\"KAZ\",\"beneficiaryPoiNumber\":\"BIN1234567890\",\"beneficiaryPoiType\":\"OTHER\",\"beneficiaryRepresentativeFirstName\":\"Min-jun\",\"beneficiaryRepresentativeLastName\":\"Kim\",\"beneficiaryTransactionPurpose\":\"Payment for consulting services rendered\",\"beneficiaryUnhostedWalletType\":\"1\",\"beneficiaryWalletType\":\"1\",\"vaspEntityId\":\"others\"},\"chain\":\"LTC\",\"coin\":\"LTC\",\"feeType\":1,\"forceChain\":1,\"questionnaire\":\"{\\\"firstName\\\":\\\"Ahmet\\\",\\\"isSelfWallet\\\":true,\\\"lastName\\\":\\\"Yilmaz\\\",\\\"legalType\\\":\\\"individual\\\",\\\"poiExpiredDate\\\":\\\"2030-06-15\\\",\\\"poiIssuingCountry\\\":\\\"TUR\\\",\\\"poiNumber\\\":\\\"12345678901\\\",\\\"poiType\\\":\\\"ID_CARD\\\",\\\"transactionPurpose\\\":\\\"Long-term holding for retirement savings purpose\\\",\\\"walletType\\\":1}\",\"requestId\":\"test00001\",\"tag\":\"memo1\",\"timestamp\":1672196561407,\"transactionPurpose\":\"Long-term holding for retirement savings purpose\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -5286,7 +5532,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"LTC\",\"chain\":\"LTC\",\"address\":\"XXXXXX\",\"amount\":\"0.1\",\"timestamp\":1760000000000,\"accountType\":\"FUND\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5756,7 +6006,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"list\":[{\"bizType\":\"SPOT\",\"rate\":600,\"uids\":\"100000002\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -5785,7 +6039,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"list\":[{\"bizType\":\"SPOT\",\"rate\":600,\"uids\":\"100000002\"},{\"bizType\":\"DERIVATIVES\",\"rate\":900,\"uids\":\"100000002,100000003\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -5797,7 +6055,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"list\":[{\"uids\":\"100000004\",\"bizType\":\"SPOT\",\"rate\":600}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5912,7 +6174,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountId\":\"100000002\",\"amount\":\"100\",\"awardId\":\"123456\",\"brokerId\":\"v-28478\",\"specCode\":\"award001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5937,7 +6203,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountId\":\"100000002\",\"awardId\":\"189528\",\"specCode\":\"demo000\",\"withUsedAmount\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -5961,7 +6231,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"id\":\"80209\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6137,8 +6411,8 @@
       "retExtInfo": {},
       "time": 1672211918471
      },
-     "queryString": "",
-     "bodyParams": "{\"pageNo\":1,\"pageSize\":10,\"itemType\":1,\"itemBizType\":1,\"orderBy\":3,\"asc\":true,\"source\":1}",
+     "queryString": "asc=true\u0026itemBizType=1\u0026itemType=1\u0026orderBy=3\u0026pageNo=1\u0026pageSize=10\u0026source=1",
+     "bodyParams": "",
      "headers": {}
     }
    ]
@@ -6166,8 +6440,8 @@
       "retExtInfo": {},
       "time": 1672211918471
      },
-     "queryString": "",
-     "bodyParams": "{\"bizTxnId\":\"TXN20230101001\"}",
+     "queryString": "bizTxnId=TXN20230101001",
+     "bodyParams": "",
      "headers": {}
     }
    ]
@@ -6191,7 +6465,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6255,8 +6533,8 @@
       "retExtInfo": {},
       "time": 1672211918471
      },
-     "queryString": "",
-     "bodyParams": "{\"type\":\"CASHBACK\",\"pageSize\":10,\"pageNo\":1,\"startTime\":1672156800000,\"endTime\":1672329600000,\"outOrderId\":\"ORD20230101001\",\"bizId\":\"BIZ20230101001\",\"bizTxnId\":\"TXN20230101001\",\"side\":\"1\"}",
+     "queryString": "bizId=BIZ20230101001\u0026bizTxnId=TXN20230101001\u0026endTime=1672329600000\u0026outOrderId=ORD20230101001\u0026pageNo=1\u0026pageSize=10\u0026side=1\u0026startTime=1672156800000\u0026type=CASHBACK",
+     "bodyParams": "",
      "headers": {}
     }
    ]
@@ -6279,7 +6557,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6365,8 +6647,8 @@
       "retExtInfo": {},
       "time": 1672211918471
      },
-     "queryString": "",
-     "bodyParams": "{\"statusCode\":\"1\",\"limit\":10,\"page\":1,\"pan4\":\"1234\",\"createBeginTime\":1672156800000,\"createEndTime\":1672329600000,\"merchName\":\"Amazon\",\"type\":\"SIDE_QUERY_FINANCIAL_ALL\",\"cardToken\":\"card-token-0001\"}",
+     "queryString": "cardToken=card-token-0001\u0026createBeginTime=1672156800000\u0026createEndTime=1672329600000\u0026limit=10\u0026merchName=Amazon\u0026page=1\u0026pan4=1234\u0026statusCode=1\u0026type=SIDE_QUERY_FINANCIAL_ALL",
+     "bodyParams": "",
      "headers": {}
     },
     {
@@ -6416,8 +6698,8 @@
       "retExtInfo": {},
       "time": 1672211918471
      },
-     "queryString": "",
-     "bodyParams": "{\"txnId\":\"TXN20230101001\",\"orderNo\":\"ORD20230101001\"}",
+     "queryString": "orderNo=ORD20230101001\u0026txnId=TXN20230101001",
+     "bodyParams": "",
      "headers": {}
     }
    ]
@@ -6436,7 +6718,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"0.08\",\"currency\":\"BTC\",\"direction\":\"1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6582,7 +6868,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"collateralList\":[{\"amount\":\"10000\",\"ccy\":\"USDT\"}],\"currency\":\"BTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6691,7 +6981,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"annualRate\":\"0.022\",\"collateralList\":[{\"amount\":\"0.1\",\"currency\":\"BTC\"}],\"orderAmount\":\"1.5\",\"orderCurrency\":\"ETH\",\"repayType\":\"1\",\"strategyType\":\"PARTIAL\",\"term\":\"30\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6742,7 +7036,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"13010\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6823,7 +7121,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"loanId\":\"571\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -6837,7 +7139,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"loanCurrency\":\"ETH\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6855,7 +7161,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"collateralList\":[{\"amount\":\"0.01\",\"currency\":\"BTC\"}],\"loanId\":\"2364\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6902,7 +7212,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"0.1\",\"collateralCoin\":\"BTC\",\"loanCurrency\":\"ETH\",\"loanId\":\"571\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -6960,7 +7274,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"annualRate\":\"0.01\",\"availableSource\":\"0\",\"orderAmount\":\"1020\",\"orderCurrency\":\"USDT\",\"term\":\"7\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7010,7 +7328,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"13564\",\"refundedAccount\":\"0\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7109,7 +7431,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"collateralList\":[{\"amount\":\"20000\",\"currency\":\"USDT\"}],\"loanAmount\":\"0.1\",\"loanCurrency\":\"BTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7180,7 +7506,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"0.005\",\"loanCurrency\":\"BTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7196,7 +7526,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"0.005\",\"collateralCoin\":\"USDT,ETH\",\"loanCurrency\":\"BTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7242,7 +7576,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"0.001\",\"direction\":\"1\",\"orderId\":\"1794267532472646144\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7466,7 +7804,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"100\",\"orderId\":\"1794267532472646144\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7519,7 +7861,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612349292702654770\",\"close_mode\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -7536,7 +7882,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612349292702654771\",\"close_mode\":3}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -7548,7 +7898,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612349292702654772\",\"close_mode\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -7560,7 +7914,7 @@
       "retMsg": "",
       "result": {
        "status_code": 200,
-       "bot_id": "612349292702654770",
+       "bot_id": 612349292702654770,
        "debug_msg": "bot created",
        "ban_reason_text": ""
       },
@@ -7569,7 +7923,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"parameters\":{\"frequency_in_second\":600,\"max_invest_amount\":\"2000\",\"pairs\":[{\"amount\":\"66\",\"base\":\"BTC\"},{\"amount\":\"88\",\"base\":\"ETH\"}],\"quote_coin\":\"USDT\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -7586,7 +7944,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"parameters\":{\"frequency_in_second\":3600,\"pairs\":[{\"amount\":\"10\",\"base\":\"BTC\"}],\"quote_coin\":\"USDT\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -7598,7 +7960,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"parameters\":{\"frequency_in_second\":3600,\"quote_coin\":\"USDT\",\"pairs\":[{\"base\":\"ETH\",\"amount\":\"10\"}]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -8066,7 +8432,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"DualAssets\",\"productId\":\"36320\",\"orderType\":\"Stake\",\"amount\":\"20\",\"accountType\":\"UNIFIED\",\"coin\":\"USDT\",\"orderLinkId\":\"54b3589b-da55-4b17-acdd-aa75912c9eb\",\"dualAssetsExtra\":{\"orderDirection\":\"BuyLow\",\"selectPrice\":\"2325\",\"apyE8\":857565000},\"interestCard\":{\"awardId\":1234567,\"specCode\":\"DUAL_ASSETS_APR_BOOST\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8081,7 +8451,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"SmartLeverage\",\"productId\":\"12999\",\"coin\":\"USDT\",\"orderType\":\"Stake\",\"amount\":\"100\",\"accountType\":\"FUND\",\"orderLinkId\":\"usdt-earn-007\",\"smartLeverageStakeExtra\":{\"initialPrice\":\"68403\",\"breakevenPrice\":\"68650\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8096,7 +8470,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"SmartLeverage\",\"productId\":\"12999\",\"orderType\":\"Redeem\",\"accountType\":\"FUND\",\"orderLinkId\":\"usdt-earn-008\",\"smartLeverageRedeemExtra\":{\"positionId\":\"1277\",\"estRedeemAmount\":\"77.8469\",\"isSlippageProtected\":true}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8111,7 +8489,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"DoubleWin\",\"productId\":\"14084\",\"coin\":\"USDT\",\"amount\":\"150\",\"orderType\":\"Stake\",\"accountType\":\"FUND\",\"orderLinkId\":\"usdt-earn-009\",\"doubleWinStakeExtra\":{\"initialPrice\":\"66445.69\",\"leverage\":\"9\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8126,7 +8508,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"DoubleWin\",\"productId\":\"14092\",\"coin\":\"USDT\",\"amount\":\"200\",\"orderType\":\"Stake\",\"accountType\":\"FUND\",\"orderLinkId\":\"usdt-earn-010\",\"doubleWinStakeExtra\":{\"initialPrice\":\"66333.94\",\"lowerPrice\":\"63000\",\"upperPrice\":\"70000\",\"leverage\":\"245.18\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8141,7 +8527,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"DoubleWin\",\"productId\":\"14084\",\"orderType\":\"Redeem\",\"accountType\":\"FUND\",\"orderLinkId\":\"usdt-earn-011\",\"doubleWinRedeemExtra\":{\"positionId\":\"2848\",\"estRedeemAmount\":\"148.21\",\"isSlippageProtected\":true}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -8156,7 +8546,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"DiscountBuy\",\"productId\":\"7037\",\"orderType\":\"Stake\",\"amount\":\"200\",\"coin\":\"USDT\",\"accountType\":\"FUND\",\"orderLinkId\":\"my-order-001\",\"discountBuyExtra\":{\"initialPrice\":\"74571.32\",\"purchasePrice\":\"74019\",\"knockoutPrice\":\"76050\",\"knockoutCouponE8\":\"1000000\",\"settleType\":\"Base\",\"instUid\":\"100307526\"}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -8915,7 +9309,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"amount\":\"201\",\"autoInvest\":true,\"category\":\"FundPool\",\"coin\":\"USDT\",\"orderLinkId\":\"usdt-fixdearn-001\",\"productId\":\"27\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -8979,7 +9377,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"FundPool\",\"positionId\":\"19454\",\"productId\":\"27\",\"status\":\"Enable\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9086,7 +9488,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"FundPool\",\"positionId\":\"19454\",\"productId\":\"27\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9160,7 +9566,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"isSelected\":true,\"purchaseImmediately\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9330,7 +9740,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"productId\":\"36\",\"orderLinkId\":\"lm-001\",\"quoteAmount\":\"200\",\"quoteAccountType\":\"FUND\",\"baseAmount\":\"0.5\",\"baseAccountType\":\"UNIFIED\",\"leverage\":\"2\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9349,7 +9763,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"productId\":\"5\",\"orderLinkId\":\"lm-add-m-01\",\"positionId\":\"1498\",\"amount\":\"1000\",\"quoteAccountType\":\"FUND\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9365,7 +9783,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"productId\":\"-1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9619,7 +10041,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"productId\":\"5\",\"orderLinkId\":\"lm-reinvest-01\",\"positionId\":\"1498\",\"leverage\":\"2\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9638,7 +10064,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"productId\":\"1001\",\"orderLinkId\":\"lm-remove-001-20260312\",\"positionId\":\"5001\",\"removeRate\":50,\"removeType\":\"Normal\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9779,7 +10209,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"amount\":\"0.35\",\"category\":\"FlexibleSaving\",\"coin\":\"BTC\",\"interestCard\":{\"awardId\":1001,\"specCode\":\"FS_APY_3PCT_30D\"},\"orderLinkId\":\"btc-earn-001\",\"orderType\":\"Stake\",\"productId\":\"430\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -9794,7 +10228,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"amount\":\"10\",\"category\":\"OnChain\",\"coin\":\"SOL\",\"orderLinkId\":\"sol-onchain-redeem-001\",\"orderType\":\"Redeem\",\"productId\":\"3\",\"redeemPositionId\":\"326\",\"toAccountType\":\"FUND\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -9883,7 +10321,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"autoReinvest\":1,\"category\":\"OnChain\",\"positionId\":326,\"productId\":8}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10217,7 +10659,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"fundIntroduction\":\"intro-btc-alpha\",\"fundName\":\"BTC Alpha Fund\",\"managementFeeRate\":\"2\",\"profitShareRate\":\"20\",\"reqLinkId\":\"create-fund-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10239,7 +10685,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountUid\":\"800001\",\"investmentDistribution\":[{\"amount\":\"100000\",\"productId\":\"12345\"}],\"planName\":\"Conservative Growth Plan\",\"planType\":\"stable\",\"reqLinkId\":\"create-plan-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10260,7 +10710,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fundId\":\"100001\",\"reqLinkId\":\"create-sub-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10379,7 +10833,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"planId\":\"10088\",\"reqLinkId\":\"manage-plan-001\",\"updateFunds\":[{\"amount\":\"100000\",\"fundId\":\"430\"},{\"amount\":\"270000\",\"fundId\":\"2005\"}],\"updateStatus\":\"Closed\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10406,7 +10864,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"action\":\"approve\",\"orderId\":\"500002\",\"reqLinkId\":\"manage-order-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -10429,7 +10891,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"action\":\"reject\",\"orderId\":\"500003\",\"reqLinkId\":\"manage-order-002\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10452,7 +10918,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fundId\":\"12323\",\"reqLinkId\":\"settle-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10473,7 +10943,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"orderLinkId\":\"pwm-custom-001\",\"products\":[{\"amount\":\"100000\",\"category\":\"equityFund\",\"fundName\":\"BTC_DeltaNeutral2\",\"productId\":\"\"},{\"amount\":\"50000\",\"category\":\"flexibleSavings\",\"fundName\":\"\",\"productId\":\"3\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10583,7 +11057,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"1\",\"coin\":\"BTC\",\"fromUserId\":800001,\"toUserId\":800002,\"transferId\":\"4fdf-re-4343-frewr\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10691,7 +11169,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderLinkId\":\"claim-order-001\",\"planId\":\"10001\",\"toAccountType\":\"FUND\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -10868,7 +11350,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"amount\":\"20000\",\"category\":\"equityFund\",\"orderLinkId\":\"pwm-invest-more-001\",\"planId\":\"10001\",\"productId\":\"2001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -11029,7 +11515,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"equityFund\",\"orderLinkId\":\"pwm-redeem-001\",\"planId\":\"10001\",\"productId\":\"2001\",\"shares\":\"3000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -11052,7 +11542,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"amount\":\"5000\",\"category\":\"fundPool\",\"orderLinkId\":\"pwm-redeem-002\",\"planId\":\"10001\",\"positionId\":\"122\",\"productId\":\"430\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -11072,7 +11566,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"orderLinkId\":\"pwm-subscribe-001\",\"planId\":\"10003\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -11219,7 +11717,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FUND\",\"coin\":\"USDC\",\"orderLinkId\":\"my-stake-001\",\"orderType\":\"Stake\",\"productId\":3,\"stakeAmount\":\"500\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -11234,7 +11736,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"UNIFIED\",\"coin\":\"USDC\",\"orderLinkId\":\"my-redeem-001\",\"orderType\":\"Redeem\",\"productId\":3,\"redeemShares\":\"97.560975\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -11533,7 +12039,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"accountType\":\"FlexibleSaving\",\"amount\":\"100\",\"coin\":\"BYUSDT\",\"orderLinkId\":\"my-order-001\",\"orderType\":\"Mint\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -11713,7 +12223,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderLinkId\":\"event-gct-001\",\"orderId\":\"746a6c87-a6dd-4008-8889-37e694046681\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -12393,7 +12907,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"ETHUSDT-6NOV26-2200-BELOW\",\"orderLinkId\":\"event-gct-001\",\"grossPayoutRatio\":\"3.4907\",\"amount\":\"500\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -12823,7 +13341,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537259\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -12838,7 +13360,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537260\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -12850,7 +13376,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537261\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -12871,7 +13401,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"adjust_position_mode\":3,\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"init_margin\":\"500\",\"leverage\":\"5\",\"sl_percent\":\"0.2\",\"symbol_settings\":[{\"side\":1,\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\"},{\"side\":2,\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.5\"}],\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -12888,7 +13422,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"adjust_position_mode\":3,\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"init_margin\":\"1000\",\"leverage\":\"5\",\"sl_percent\":\"0.2\",\"symbol_settings\":[{\"side\":1,\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\"},{\"side\":2,\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.5\"}],\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -12900,7 +13438,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"leverage\":\"5\",\"init_margin\":\"2000\",\"adjust_position_mode\":3,\"symbol_settings\":[{\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\",\"side\":1},{\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.5\",\"side\":2}],\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"sl_percent\":\"0.2\",\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -12983,7 +13525,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537259\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -12998,7 +13544,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537260\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13010,7 +13560,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612324421335537261\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13058,7 +13612,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"adjust_position_mode\":3,\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"init_margin\":\"500\",\"leverage\":\"5\",\"need_to_slippage\":true,\"sl_percent\":\"0.2\",\"symbol_settings\":[{\"side\":1,\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\"},{\"side\":2,\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.5\"}],\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13073,7 +13631,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"leverage\":\"5\",\"init_margin\":\"500\",\"adjust_position_mode\":3,\"symbol_settings\":[{\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\",\"side\":1},{\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.7\",\"side\":2}],\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"sl_percent\":\"0.2\",\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13085,7 +13647,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"leverage\":\"10\",\"init_margin\":\"500\",\"adjust_position_mode\":3,\"symbol_settings\":[{\"symbol\":\"BTCUSDT\",\"target_position_percent\":\"0.5\",\"side\":1},{\"symbol\":\"ETHUSDT\",\"target_position_percent\":\"0.5\",\"side\":2}],\"adjust_position_percent\":\"0.05\",\"adjust_position_time_interval\":3600,\"sl_percent\":\"0.2\",\"tp_percent\":\"0.5\",\"trailing_stop_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13105,7 +13671,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398322\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13120,7 +13690,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398323\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13132,7 +13706,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398324\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13154,7 +13732,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"cell_number\":88,\"entry_price\":\"370000\",\"grid_mode\":2,\"grid_type\":1,\"leverage\":\"6\",\"max_price\":\"800000\",\"min_price\":\"230000\",\"move_down_price\":\"220000\",\"move_up_price\":\"850000\",\"stop_loss_per\":\"0.1\",\"stop_loss_price\":\"200000\",\"symbol\":\"BTCUSDT\",\"take_profit_per\":\"0.28\",\"take_profit_price\":\"900000\",\"total_investment\":\"950\",\"tp_sl_type\":4,\"trailing_stop_per\":\"0.18\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13172,7 +13754,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"cell_number\":88,\"entry_price\":\"370000\",\"grid_mode\":2,\"grid_type\":1,\"leverage\":\"6\",\"max_price\":\"800000\",\"min_price\":\"230000\",\"move_down_price\":\"220000\",\"move_up_price\":\"850000\",\"stop_loss_per\":\"0.1\",\"stop_loss_price\":\"200000\",\"symbol\":\"BTCUSDT\",\"take_profit_per\":\"0.28\",\"take_profit_price\":\"900000\",\"total_investment\":\"1900\",\"tp_sl_type\":4,\"trailing_stop_per\":\"0.18\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13184,7 +13770,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT\",\"cell_number\":88,\"min_price\":\"230000\",\"max_price\":\"800000\",\"leverage\":\"6\",\"grid_type\":1,\"grid_mode\":2,\"total_investment\":\"2850\",\"take_profit_per\":\"0.28\",\"stop_loss_per\":\"0.1\",\"take_profit_price\":\"900000\",\"stop_loss_price\":\"200000\",\"tp_sl_type\":4,\"entry_price\":\"370000\",\"trailing_stop_per\":\"0.18\",\"move_up_price\":\"850000\",\"move_down_price\":\"220000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13279,7 +13869,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398322\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13294,7 +13888,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398323\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13306,7 +13904,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612330315406398324\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13385,7 +13987,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"cell_number\":88,\"entry_price\":\"370000\",\"grid_mode\":2,\"grid_type\":1,\"init_margin\":\"950\",\"leverage\":\"6\",\"max_price\":\"800000\",\"min_price\":\"230000\",\"move_down_price\":\"220000\",\"move_up_price\":\"850000\",\"stop_loss_per\":\"10\",\"stop_loss_price\":\"200000\",\"symbol\":\"BTCUSDT\",\"take_profit_per\":\"20\",\"take_profit_price\":\"900000\",\"tp_sl_type\":2,\"trailing_stop_per\":\"0.18\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13401,7 +14007,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"XYZUSDT\",\"cell_number\":88,\"min_price\":\"230000\",\"max_price\":\"800000\",\"leverage\":\"6\",\"grid_type\":1,\"grid_mode\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13413,7 +14023,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT\",\"cell_number\":88,\"min_price\":\"230000\",\"max_price\":\"800000\",\"leverage\":\"6\",\"grid_type\":1,\"grid_mode\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13431,7 +14045,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"startTime\":1756684800,\"endTime\":1788220800,\"items\":[{\"type\":\"TRADE\",\"number\":\"1\"},{\"type\":\"EARN\",\"number\":\"1\"},{\"type\":\"DEPOSIT\u0026WITHDRAWAL\",\"number\":\"1\"}],\"sourceInstitution\":\"INST_A\",\"exportFileType\":\"csv\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13600,7 +14218,7 @@
        {
         "tradeNo": "TradeNo123457",
         "status": "processing",
-        "quoteTxId": "QuoteTaxId123457",
+        "quoteTaxId": "QuoteTaxId123457",
         "exchangeRate": "2.7",
         "fromCoin": "USDT",
         "fromCoinType": "crypto",
@@ -13626,7 +14244,7 @@
       "retCode": 0,
       "retMsg": "success",
       "result": {
-       "quoteTxId": "QuoteTaxId123456",
+       "quoteTaxId": "QuoteTaxId123456",
        "exchangeRate": "0.3685",
        "fromCoin": "GEL",
        "fromCoinType": "fiat",
@@ -13634,12 +14252,16 @@
        "toCoinType": "crypto",
        "fromAmount": "100",
        "toAmount": "36.85",
-       "expiredTime": "1764561045346"
+       "expireTime": "1764561045346"
       }
      },
      "queryString": "",
      "bodyParams": "{\"fromCoin\":\"GEL\",\"fromCoinType\":\"fiat\",\"requestAmount\":\"100\",\"requestCoinType\":\"fiat\",\"toCoin\":\"USDT\",\"toCoinType\":\"crypto\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13695,7 +14317,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"merchantRequestId\":\"test-merchant-0001\",\"quoteTxId\":\"QuoteTaxId123456\",\"subUserId\":\"123456\",\"webhookUrl\":\"https://example.com/bybit/notify\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13731,7 +14357,7 @@
       "result": {
        "tradeNo": "TradeNo123456",
        "status": "success",
-       "quoteTxId": "QuoteTaxId123456",
+       "quoteTaxId": "QuoteTaxId123456",
        "exchangeRate": "0.3685",
        "fromCoin": "GEL",
        "fromCoinType": "fiat",
@@ -13764,7 +14390,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335280740902531\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13779,7 +14409,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335280740902532\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13791,7 +14425,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335280740902533\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13812,7 +14450,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"add_position_num\":5,\"add_position_percent\":\"1.8\",\"auto_cycle_toggle\":2,\"entry_price\":\"0.56\",\"init_margin\":\"650\",\"leverage\":\"5\",\"martingale_mode\":1,\"price_float_percent\":\"0.16\",\"round_tp_percent\":\"0.1\",\"sl_percent\":\"0.5\",\"symbol\":\"MNTUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13829,7 +14471,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"add_position_num\":5,\"add_position_percent\":\"1.8\",\"auto_cycle_toggle\":2,\"entry_price\":\"0.56\",\"init_margin\":\"1300\",\"leverage\":\"5\",\"martingale_mode\":1,\"price_float_percent\":\"0.16\",\"round_tp_percent\":\"0.1\",\"sl_percent\":\"0.5\",\"symbol\":\"MNTUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13841,7 +14487,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"martingale_mode\":1,\"leverage\":\"5\",\"price_float_percent\":\"0.16\",\"add_position_percent\":\"1.8\",\"add_position_num\":5,\"init_margin\":\"1950\",\"round_tp_percent\":\"0.1\",\"auto_cycle_toggle\":2,\"sl_percent\":\"0.5\",\"entry_price\":\"0.56\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13910,7 +14560,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335724699611830\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13925,7 +14579,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335724699611831\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -13937,7 +14595,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"bot_id\":\"612335724699611832\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -13989,7 +14651,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"add_position_num\":5,\"add_position_percent\":\"1.8\",\"entry_price\":\"0.7\",\"init_margin\":\"1000\",\"leverage\":\"5\",\"martingale_mode\":1,\"need_to_slippage\":true,\"price_float_percent\":\"0.16\",\"round_tp_percent\":\"0.1\",\"sl_percent\":\"0.5\",\"symbol\":\"MNTUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14004,7 +14670,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"martingale_mode\":3,\"leverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14016,7 +14686,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"martingale_mode\":1,\"leverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14035,7 +14709,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"close_mode\":3,\"grid_id\":\"612340768081708828\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14050,7 +14728,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"close_mode\":3,\"grid_id\":\"612340768081708829\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14062,7 +14744,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"grid_id\":\"612340768081708830\",\"close_mode\":3}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14083,7 +14769,32 @@
      },
      "queryString": "",
      "bodyParams": "{\"base_investment\":\"100\",\"cell_number\":50,\"enable_trailing\":true,\"entry_price\":\"0.5\",\"invest_mode\":2,\"limit_up_price\":\"1.5\",\"max_price\":\"1.0968\",\"min_price\":\"0.3656\",\"quote_investment\":\"200\",\"stop_loss_price\":\"0.3\",\"symbol\":\"MNTUSDT\",\"take_profit_price\":\"1.2\",\"ts_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "status_code": 200,
+       "debug_msg": "grid created",
+       "grid_id": "612340768081708829",
+       "ban_reason_text": ""
+      },
+      "retExtInfo": {},
+      "time": 1774513139730
+     },
+     "queryString": "",
+     "bodyParams": "{\"base_investment\":\"100\",\"cell_number\":50,\"invest_mode\":1,\"max_price\":\"1.0968\",\"min_price\":\"0.3656\",\"symbol\":\"MNTUSDT\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14100,7 +14811,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"base_investment\":\"100\",\"cell_number\":50,\"enable_trailing\":true,\"entry_price\":\"0.5\",\"invest_mode\":2,\"limit_up_price\":\"1.5\",\"max_price\":\"1.0968\",\"min_price\":\"0.3656\",\"quote_investment\":\"400\",\"stop_loss_price\":\"0.3\",\"symbol\":\"MNTUSDT\",\"take_profit_price\":\"1.2\",\"ts_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14112,7 +14827,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"cell_number\":50,\"min_price\":\"0.3656\",\"max_price\":\"1.0968\",\"invest_mode\":2,\"base_investment\":\"100\",\"quote_investment\":\"600\",\"entry_price\":\"0.5\",\"stop_loss_price\":\"0.3\",\"take_profit_price\":\"1.2\",\"ts_percent\":\"0.05\",\"enable_trailing\":true,\"limit_up_price\":\"1.5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14178,7 +14897,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"grid_id\":\"612340768081708828\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14193,7 +14916,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"grid_id\":\"612340768081708829\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14205,7 +14932,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"grid_id\":\"612340768081708830\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14270,7 +15001,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"base_investment\":\"300\",\"cell_number\":66,\"enable_trailing\":true,\"entry_price\":\"0.4\",\"invest_mode\":2,\"limit_up_price\":\"2\",\"max_price\":\"1.2\",\"min_price\":\"0.3\",\"quote_investment\":\"100\",\"stop_loss\":\"0.25\",\"symbol\":\"MNTUSDT\",\"take_profit\":\"1.5\",\"ts_percent\":\"0.05\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14285,7 +15020,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"cell_number\":66,\"min_price\":\"0.3\",\"max_price\":\"1.2\",\"invest_mode\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -14297,7 +15036,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"MNTUSDT\",\"cell_number\":66,\"min_price\":\"0.3\",\"max_price\":\"1.2\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14316,7 +15059,30 @@
      },
      "queryString": "",
      "bodyParams": "{\"operate\":\"0\",\"uid\":\"100000002\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "uid": "100000002",
+       "operate": "1"
+      },
+      "retExtInfo": {},
+      "time": 1699257746136
+     },
+     "queryString": "",
+     "bodyParams": "{\"operate\":\"1\",\"uid\":\"100000002\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -14688,7 +15454,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"quantity\":\"500000\",\"token\":\"USDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -16636,22 +17406,22 @@
           "phases": [
            {
             "phase": "CallAuction",
-            "startTime": "1783944000000",
-            "endTime": "1783945200000"
+            "startTime": "946684800000",
+            "endTime": "946684800000"
            },
            {
             "phase": "CallAuctionNoCancel",
-            "startTime": "1783945200000",
-            "endTime": "1783945500000"
+            "startTime": "946684800000",
+            "endTime": "946684800000"
            },
            {
             "phase": "CrossMatching",
-            "startTime": "1783945500000",
-            "endTime": "1783945800000"
+            "startTime": "946684800000",
+            "endTime": "946684800000"
            },
            {
             "phase": "ContinuousTrading",
-            "startTime": "1783945800000",
+            "startTime": "946684800000",
             "endTime": ""
            }
           ],
@@ -16682,6 +17452,104 @@
       "time": 1791535211538
      },
      "queryString": "category=linear\u0026limit=1\u0026status=PreLaunch",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "linear",
+       "list": [
+        {
+         "symbol": "BPUSDT",
+         "contractType": "LinearPerpetual",
+         "status": "PreLaunch",
+         "baseCoin": "BP",
+         "quoteCoin": "USDT",
+         "launchTime": "1773639914000",
+         "deliveryTime": "0",
+         "deliveryFeeRate": "",
+         "priceScale": "5",
+         "leverageFilter": {
+          "minLeverage": "1",
+          "maxLeverage": "5.00",
+          "leverageStep": "0.01"
+         },
+         "priceFilter": {
+          "minPrice": "0.00001",
+          "maxPrice": "199.99998",
+          "tickSize": "0.00001"
+         },
+         "lotSizeFilter": {
+          "maxOrderQty": "250000",
+          "minOrderQty": "1",
+          "qtyStep": "1",
+          "postOnlyMaxOrderQty": "250000",
+          "maxMktOrderQty": "50000",
+          "minNotionalValue": "5"
+         },
+         "unifiedMarginTrade": true,
+         "fundingInterval": 240,
+         "settleCoin": "USDT",
+         "copyTrading": "none",
+         "upperFundingRate": "0.025",
+         "lowerFundingRate": "-0.025",
+         "isPreListing": true,
+         "preListingInfo": {
+          "curAuctionPhase": "ContinuousTrading",
+          "phases": [
+           {
+            "phase": "CallAuction",
+            "startTime": "1773655200000",
+            "endTime": "1773656400000"
+           },
+           {
+            "phase": "CallAuctionNoCancel",
+            "startTime": "1773656400000",
+            "endTime": "1773656700000"
+           },
+           {
+            "phase": "CrossMatching",
+            "startTime": "1773656700000",
+            "endTime": "1773657000000"
+           },
+           {
+            "phase": "ContinuousTrading",
+            "startTime": "1773657000000",
+            "endTime": ""
+           }
+          ],
+          "auctionFeeInfo": {
+           "auctionFeeRate": "0",
+           "takerFeeRate": "0.00055",
+           "makerFeeRate": "0.0002"
+          },
+          "skipCallAuction": false
+         },
+         "riskParameters": {
+          "priceLimitRatioX": "0.15",
+          "priceLimitRatioY": "0.3"
+         },
+         "displayName": "BPUSDT",
+         "symbolType": "",
+         "forbidUplWithdrawal": false,
+         "symbolId": 2593,
+         "fullName": "Backpack",
+         "marketRegion": "",
+         "underlyingTicker": "",
+         "tags": [
+          "ST"
+         ]
+        }
+       ],
+       "nextPageCursor": ""
+      },
+      "retExtInfo": {},
+      "time": 1791956615687
+     },
+     "queryString": "category=linear\u0026status=PreLaunch\u0026symbol=BPUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -20241,7 +21109,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"ETHPERP\",\"orderLinkId\":\"linear-004\",\"triggerPrice\":\"1145\",\"qty\":\"0.15\",\"price\":\"1050\",\"takeProfit\":\"0\",\"stopLoss\":\"0\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20256,7 +21128,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"8d3a3cbd-14ac-4f3e-a72b-3a5b1a4d1f9a\",\"qty\":\"0.15\",\"price\":\"1234\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20271,7 +21147,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"orderLinkId\":\"linear-tp-001\",\"qty\":\"2\",\"price\":\"81000\",\"triggerPrice\":\"80500\",\"triggerBy\":\"IndexPrice\",\"takeProfit\":\"90000\",\"tpTriggerBy\":\"MarkPrice\",\"tpLimitPrice\":\"89990\",\"stopLoss\":\"75000\",\"slTriggerBy\":\"LastPrice\",\"slLimitPrice\":\"74990\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20283,7 +21163,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"orderId\":\"c1956690-b731-4191-97c0-94b00422231b\",\"price\":\"82000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -20325,7 +21209,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"request\":[{\"symbol\":\"ETH-30DEC22-500-C\",\"orderIv\":\"6.8\",\"orderId\":\"b551f227-7059-4fb5-a6a6-699c04dbd2f2\"},{\"symbol\":\"ETH-30DEC22-700-C\",\"price\":\"650\",\"orderId\":\"fa6a595f-1a57-483f-b9d3-30e9c8235a52\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20337,7 +21225,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"c0ffee00-0000-4000-8000-000000000001\",\"price\":\"61000\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20349,7 +21241,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"c0ffee00-0000-4000-8000-000000000002\",\"price\":\"61000\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20370,7 +21266,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"c0ffee00-0000-4000-8000-000000000003\",\"price\":\"61000\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20396,7 +21296,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"c0ffee00-0000-4000-8000-000000000004\",\"price\":\"61000\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -20415,7 +21319,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"c6f055d9-7f21-4079-913d-e6523a9cfffa\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20430,7 +21338,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderLinkId\":\"spot-test-02\",\"orderFilter\":\"tpslOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20445,7 +21357,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderId\":\"1321003749386327552\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20460,7 +21376,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderLinkId\":\"spot-test-01\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20475,7 +21395,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"10000LADYSUSDT\",\"orderId\":\"fd4300ae-7847-404e-b947-b46980a4d140\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20490,7 +21414,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"ETHPERP\",\"orderId\":\"9a3c6f8e-5d21-4b7a-8c3e-1f2d4a6b8c90\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20505,7 +21433,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"symbol\":\"ADAUSD\",\"orderId\":\"8e1a2b3c-4d5e-4f60-8172-93a4b5c6d7e8\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20520,7 +21452,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"8d3a3cbd-14ac-4f3e-a72b-3a5b1a4d1f9a\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20532,7 +21468,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"orderId\":\"c1956690-b731-4191-97c0-94b00422231b\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -20556,7 +21496,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20580,7 +21524,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"baseCoin\":\"BTC\",\"settleCoin\":\"USDT\",\"orderFilter\":\"StopOrder\",\"stopOrderType\":\"Stop\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20600,7 +21548,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"orderFilter\":\"tpslOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20624,7 +21576,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderFilter\":\"Order\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20644,7 +21600,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderFilter\":\"tpslOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20659,7 +21619,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderFilter\":\"StopOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20679,7 +21643,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderFilter\":\"OcoOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20694,7 +21662,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"orderFilter\":\"BidirectionalTpslOrder\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20714,7 +21686,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"10000LADYSUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20738,7 +21714,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"settleCoin\":\"USDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20758,7 +21738,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"settleCoin\":\"USDC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20778,7 +21762,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"symbol\":\"ADAUSD\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20798,7 +21786,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20813,7 +21805,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -20855,7 +21851,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"1666800494330512128\"},{\"symbol\":\"ATOMUSDT\",\"orderLinkId\":\"1666800494330512129\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20876,7 +21876,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"request\":[{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"b551f227-7059-4fb5-a6a6-699c04dbd2f2\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20914,7 +21918,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderId\":\"1321003749386327552\"},{\"symbol\":\"BTCUSDT\",\"orderLinkId\":\"spot-test-09\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -20942,7 +21950,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"10000LADYSUSDT\",\"orderId\":\"fd4300ae-7847-404e-b947-b46980a4d140\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21010,7 +22022,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"request\":[{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01\"},{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c02\"},{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c03\"},{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c04\"},{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c05\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21038,7 +22054,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"request\":[{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderId\":\"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c06\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21076,7 +22096,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"request\":[{\"symbol\":\"ADAUSD\",\"orderId\":\"8e1a2b3c-4d5e-4f60-8172-93a4b5c6d7e8\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21088,7 +22112,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"orderLinkId\":\"linear-btc-04\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -21107,7 +22135,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"0.1\",\"price\":\"15600\",\"timeInForce\":\"PostOnly\",\"orderLinkId\":\"spot-test-01\",\"orderFilter\":\"Order\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21122,7 +22154,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"1\",\"price\":\"25000\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"usdt-test-01\",\"takeProfit\":\"28000\",\"stopLoss\":\"20000\",\"tpslMode\":\"Partial\",\"tpOrderType\":\"Limit\",\"slOrderType\":\"Limit\",\"tpLimitPrice\":\"27500\",\"slLimitPrice\":\"20500\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21137,7 +22173,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"1\",\"price\":\"1\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"1234\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21152,7 +22192,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\",\"side\":\"Sell\",\"orderType\":\"Market\",\"qty\":\"1\",\"price\":\"1\",\"timeInForce\":\"IOC\",\"orderLinkId\":\"1234\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21167,7 +22211,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Market\",\"qty\":\"25\",\"timeInForce\":\"IOC\",\"orderLinkId\":\"spot-buy-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21182,7 +22230,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"0.01\",\"price\":\"80000\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"linear-tp-001\",\"takeProfit\":\"90000\",\"tpTriggerBy\":\"MarkPrice\",\"tpOrderType\":\"Limit\",\"tpLimitPrice\":\"89990\",\"stopLoss\":\"75000\",\"slTriggerBy\":\"IndexPrice\",\"slOrderType\":\"Market\",\"tpslMode\":\"Partial\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21194,7 +22246,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"side\":\"Sell\",\"orderType\":\"Limit\",\"qty\":\"10\",\"price\":\"90000\",\"timeInForce\":\"GTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -21238,7 +22294,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"option\",\"request\":[{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderType\":\"Limit\",\"side\":\"Buy\",\"qty\":\"1\",\"orderIv\":\"6\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"option-test-001\"},{\"symbol\":\"BTC-26NOV24-92000-C\",\"orderType\":\"Limit\",\"side\":\"Sell\",\"qty\":\"2\",\"price\":\"700\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"option-test-002\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21262,7 +22322,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"spot\",\"request\":[{\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"isLeverage\":1,\"qty\":\"0.05\",\"price\":\"30000\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"spot-btc-03\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21274,7 +22338,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"request\":[{\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"0.01\",\"price\":\"60000\",\"orderLinkId\":\"linear-btc-04\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -21287,7 +22355,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"timeWindow\":300}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -21296,7 +22368,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"timeWindow\":40,\"product\":\"DERIVATIVES\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -22337,7 +23413,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"0.01\",\"price\":\"28000\",\"timeInForce\":\"GTC\",\"orderLinkId\":\"test129\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23513,7 +24593,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"lastId\":0,\"limit\":10,\"sessionId\":\"aes_encrypted_session_id\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23526,7 +24610,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"message\":\"Hello, I have paid.\",\"contentType\":\"str\",\"sessionId\":\"aes_encrypted_session_id\",\"orderId\":\"1900004704665923584\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23545,7 +24633,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"userMaskId\":\"s00000000000000000000000000000001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23579,7 +24671,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"lastId\":0,\"size\":10,\"readStatus\":2,\"type\":\"SINGLE\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23596,7 +24692,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"itemId\":\"1899667660027793408\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23619,7 +24719,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"USDT\",\"currencyId\":\"EUR\",\"side\":\"0\",\"priceType\":\"0\",\"premium\":\"\",\"price\":\"0.92\",\"minAmount\":\"20\",\"maxAmount\":\"45000\",\"remark\":\"test\",\"tradingPreferenceSet\":{\"hasUnPostAd\":\"0\",\"isKyc\":\"1\",\"isEmail\":\"0\",\"isMobile\":\"0\",\"hasRegisterTime\":\"0\",\"registerTimeThreshold\":\"0\",\"orderFinishNumberDay30\":\"60\",\"completeRateDay30\":\"95\",\"nationalLimit\":\"\",\"hasOrderFinishNumberDay30\":\"1\",\"hasCompleteRateDay30\":\"1\",\"hasNationalLimit\":\"0\"},\"paymentIds\":[\"7110\"],\"quantity\":\"20000\",\"paymentPeriod\":\"15\",\"itemType\":\"ORIGIN\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -23807,7 +24911,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"itemId\":\"1898988222063644672\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24039,7 +25147,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"tokenId\":\"USDT\",\"currencyId\":\"EUR\",\"side\":\"1\",\"page\":\"1\",\"size\":\"10\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24225,7 +25337,8 @@
          "itemType": "ORIGIN",
          "hiddenReason": "Insufficient balance"
         }
-       ]
+       ],
+       "hiddenFlag": true
       },
       "ext_code": "",
       "ext_info": {},
@@ -24233,7 +25346,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"itemId\":\"1898988222063644672\",\"status\":\"2\",\"side\":\"1\",\"tokenId\":\"USDT\",\"page\":\"1\",\"size\":\"10\",\"currencyId\":\"EUR\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24255,7 +25372,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"id\":\"1898988222063644672\",\"priceType\":\"1\",\"premium\":\"101.5\",\"price\":\"\",\"minAmount\":\"25\",\"maxAmount\":\"5000\",\"remark\":\"\",\"tradingPreferenceSet\":{},\"paymentIds\":[\"7110\"],\"actionType\":\"MODIFY\",\"quantity\":\"1000\",\"paymentPeriod\":\"15\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24269,7 +25390,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"1900004704665923584\",\"examineResult\":\"REJECT\",\"rejectReason\":\"buyerRefuseOrderCancelReason_haveMadePayment\",\"rejectProofs\":\"https://example.com/proof1.jpg,https://example.com/proof2.jpg\",\"rejectRemark\":\"I have made the payment.\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24286,7 +25411,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"1900004704665923584\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24646,7 +25775,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"1900004704665923584\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24663,7 +25796,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"1900004704665923584\",\"paymentType\":\"14\",\"paymentId\":\"7110\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24756,7 +25893,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"page\":1,\"size\":10,\"status\":10}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24847,7 +25988,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"page\":1,\"size\":10,\"beginTime\":\"1741651200000\",\"endTime\":\"1741910400000\",\"tokenId\":\"USDT\",\"side\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -24934,7 +26079,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"originalUid\":\"100000003\",\"orderId\":\"1900004704665923584\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25059,7 +26208,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25146,7 +26299,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25186,7 +26343,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"symbol\":\"ETHUSD\",\"margin\":\"0.01\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25222,7 +26383,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"symbol\":\"ADAUSD\",\"margin\":\"-10\",\"positionIdx\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25318,7 +26483,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25831,7 +27000,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fromUid\":\"100307601\",\"toUid\":\"592324\",\"list\":[{\"category\":\"spot\",\"symbol\":\"BTCUSDT\",\"price\":\"100\",\"side\":\"Sell\",\"qty\":\"0.01\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25845,7 +27018,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"fromUid\":\"100307601\",\"toUid\":\"592324\",\"list\":[{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"price\":\"61800\",\"side\":\"Buy\",\"qty\":\"0.5\"},{\"category\":\"option\",\"symbol\":\"BTC-26NOV24-92000-C\",\"price\":\"3495\",\"side\":\"Sell\",\"qty\":\"0.3\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25861,7 +27038,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"autoAddMargin\":0,\"positionIdx\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25873,7 +27054,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"autoAddMargin\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25889,7 +27074,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"10000LADYSUSDT\",\"buyLeverage\":\"5\",\"sellLeverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25901,7 +27090,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"inverse\",\"symbol\":\"ADAUSD\",\"buyLeverage\":\"5\",\"sellLeverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25913,7 +27106,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"buyLeverage\":\"3\",\"sellLeverage\":\"3\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25925,7 +27122,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"ETHPERP\",\"buyLeverage\":\"5\",\"sellLeverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25937,7 +27138,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"10000LADYSUSDT\",\"buyLeverage\":\"10\",\"sellLeverage\":\"10\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25949,7 +27154,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTC-25DEC26\",\"buyLeverage\":\"5\",\"sellLeverage\":\"5\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -25965,7 +27174,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"mode\":3}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -25977,7 +27190,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"coin\":\"USDT\",\"mode\":0}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26025,7 +27242,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"XRPUSDT\",\"takeProfit\":\"0.6\",\"stopLoss\":\"0.2\",\"tpTriggerBy\":\"MarkPrice\",\"slTriggerBy\":\"IndexPrice\",\"tpslMode\":\"Partial\",\"tpOrderType\":\"Limit\",\"slOrderType\":\"Limit\",\"tpSize\":\"50\",\"slSize\":\"50\",\"tpLimitPrice\":\"0.57\",\"slLimitPrice\":\"0.21\",\"positionIdx\":0}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -26037,7 +27258,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"tpslMode\":\"Full\",\"positionIdx\":1,\"takeProfit\":\"0\",\"trailingStop\":\"500\",\"activePrice\":\"65000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26465,7 +27690,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"rfqId\":\"1791008100511241492396882271696580\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26496,7 +27725,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26525,7 +27758,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26545,7 +27782,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"quoteId\":\"1791008120130044334361923221559805\",\"rfqId\":\"1791008100511241492396882271696580\",\"quoteLinkId\":\"quote-gct-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26564,7 +27805,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"rfqId\":\"1791008100511241492396882271696580\",\"rfqLinkId\":\"rfq-gct-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26635,7 +27880,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"rfqId\":\"1791008100511241492396882271696580\",\"quoteLinkId\":\"quote-gct-001\",\"anonymous\":true,\"expireIn\":60,\"quoteBuyList\":[{\"category\":\"option\",\"symbol\":\"BTC-25DEC26-100000-C\",\"price\":\"1250.5\"},{\"category\":\"linear\",\"symbol\":\"BTCUSDT\"}],\"quoteSellList\":[{\"category\":\"option\",\"symbol\":\"BTC-25DEC26-100000-C\",\"price\":\"1260\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26657,7 +27906,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"counterparties\":[\"SPMAKERTEST\"],\"rfqLinkId\":\"rfq-gct-001\",\"anonymous\":true,\"strategyType\":\"custom\",\"list\":[{\"category\":\"option\",\"symbol\":\"BTC-25DEC26-100000-C\",\"side\":\"Buy\",\"qty\":\"10\"}],\"hedge\":[{\"category\":\"linear\",\"symbol\":\"BTCUSDT\",\"side\":\"Sell\",\"qty\":\"4.6\",\"price\":\"121500\"}]}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -26678,7 +27931,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"rfqId\":\"1791008100511241492396882271696580\",\"quoteId\":\"1791008120130044334361923221559805\",\"quoteSide\":\"Buy\",\"isHedge\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28012,7 +29269,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderCurrency\":\"BTC\",\"orderAmount\":\"0.01\",\"annualRate\":\"0.02\",\"term\":\"30\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28026,7 +29287,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderCurrency\":\"USDT\",\"orderAmount\":\"1000\",\"annualRate\":\"0.05\",\"term\":\"7\",\"repayType\":\"2\",\"strategyType\":\"FULL\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28253,7 +29518,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"loanId\":\"2092341042506646784\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28265,7 +29534,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"loanId\":\"2091991237922142464\",\"qty\":\"500\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28277,7 +29550,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"loanId\":\"2000000000000000000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28563,7 +29840,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"currency\":\"ETH\",\"autoRepayMode\":\"1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28586,7 +29867,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"autoRepayMode\":\"0\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28602,7 +29887,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"leverage\":\"4\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28614,7 +29903,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"leverage\":\"3\",\"currency\":\"BTC\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28652,7 +29945,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"spotMarginMode\":\"1\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28666,7 +29963,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"spotMarginMode\":\"0\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28861,7 +30162,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"status\":1,\"type\":0}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -28897,7 +30202,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"current\":1,\"endTime\":\"1705000000000\",\"pageSize\":10,\"stakeCoin\":\"USDT\",\"startTime\":\"1704067200000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -28969,7 +30278,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"current\":1,\"endTime\":\"1706745600000\",\"pageSize\":10,\"rewardCoin\":\"BTC\",\"stakeCoin\":\"USDT\",\"startTime\":\"1701388800000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -29413,7 +30726,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT_BTC/USDT\",\"orderId\":\"1b00b997-d825-465e-ad1d-80b0eb1955af\",\"orderLinkId\":\"spread-gct-001\",\"qty\":\"0.238\",\"price\":\"0\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -29432,7 +30749,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"orderId\":\"1b00b997-d825-465e-ad1d-80b0eb1955af\",\"orderLinkId\":\"spread-gct-001\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -29460,7 +30781,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT_BTC/USDT\",\"cancelAll\":true}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -29479,7 +30804,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT_BTC/USDT\",\"side\":\"Buy\",\"orderType\":\"Limit\",\"qty\":\"0.119\",\"price\":\"-44.9\",\"orderLinkId\":\"spread-gct-001\",\"timeInForce\":\"PostOnly\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -29684,7 +31013,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_USDT\",\"chasePercentE4\":100,\"duration\":1560,\"interval\":60,\"isRandom\":true,\"maxChasePrice\":\"83564.5\",\"positionIdx\":1,\"reduceOnly\":true,\"side\":\"Buy\",\"size\":\"0.05\",\"strategyType\":\"twap\",\"symbol\":\"BTCUSDT\",\"triggerPrice\":\"75000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -29699,7 +31032,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_SPOT\",\"chaseDistance\":\"0.5\",\"leverageType\":1,\"maxChasePrice\":\"70000\",\"positionValue\":\"5000\",\"side\":\"Sell\",\"strategyType\":\"chaseOrder\",\"symbol\":\"BTCUSDT\",\"triggerPrice\":\"75000\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -29714,7 +31051,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_USDT\",\"chaseDistance\":\"-1\",\"limitPrice\":\"134500\",\"maxChasePrice\":\"198000\",\"orderCount\":18,\"postOnly\":0,\"side\":\"Buy\",\"size\":\"0.36\",\"strategyType\":\"iceberg\",\"subPositionValue\":\"1500\",\"subSize\":\"0.02\",\"symbol\":\"BTCUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -29729,7 +31070,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_USDT\",\"duration\":3600,\"interval\":0,\"povParams\":{\"depthReference\":5,\"mode\":\"TradedVolume\",\"participationRate\":\"25.1\",\"referenceWindow\":\"300\"},\"side\":\"Buy\",\"size\":\"0.5\",\"strategyType\":\"pov\",\"symbol\":\"BTCUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -29744,7 +31089,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_USDT\",\"duration\":300,\"side\":\"Buy\",\"size\":\"0.0001\",\"strategyType\":\"twap\",\"symbol\":\"BTCUSDT\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -29756,7 +31105,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"category\":\"UTA_USDC\",\"symbol\":\"BTCPERP\",\"side\":\"Buy\",\"strategyType\":\"chaseOrder\",\"size\":\"0.01\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30030,7 +31383,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"strategyId\":\"119b6211-2611-461b-be5e-5ac557099e82\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30139,7 +31496,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"agree\":true,\"categoryV2\":2}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -30151,7 +31512,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"agree\":true,\"category\":3}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30169,7 +31534,11 @@
      },
      "queryString": "",
      "bodyParams": "{}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30210,7 +31579,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"subuid\":100000002,\"note\":\"gct test\",\"readOnly\":0,\"ips\":\"192.0.2.1,192.0.2.2\",\"permissions\":{\"Wallet\":[\"AccountTransfer\"],\"Spot\":[\"SpotTrade\"]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -30247,7 +31620,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"subuid\":100000002,\"note\":\"gct test\",\"readOnly\":1,\"ips\":\"192.0.2.1,192.0.2.2\",\"permissions\":{\"Wallet\":[\"AccountTransfer\"],\"Spot\":[\"SpotTrade\"]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30269,7 +31646,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"username\":\"gctsub01\",\"password\":\"Example1234\",\"memberType\":1,\"switch\":1,\"note\":\"test\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30285,7 +31666,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"subMemberId\":\"100000002\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30300,8 +31685,12 @@
       "time": 1676431577675
      },
      "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30317,7 +31706,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"apikey\":\"mock-sub-api-key\"}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30369,7 +31762,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"subuid\":100000002,\"frozen\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30764,7 +32161,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"readOnly\":1,\"permissions\":{\"ContractTrade\":[\"Order\",\"Position\"],\"Spot\":[\"SpotTrade\"],\"Wallet\":[\"AccountTransfer\",\"SubMemberTransfer\"],\"Options\":[\"OptionsTrade\"],\"Exchange\":[\"ExchangeHistory\"],\"Earn\":[\"Earn\"],\"Derivatives\":[\"DerivativesTrade\"],\"BlockTrade\":[]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },
@@ -30816,7 +32217,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"apikey\":\"mock-sub-api-key\",\"readOnly\":1,\"ips\":\"192.0.2.3\",\"permissions\":{\"ContractTrade\":[],\"Spot\":[\"SpotTrade\"],\"Wallet\":[\"AccountTransfer\"]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -30864,7 +32269,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"apikey\":\"mock-sub-api-key\",\"readOnly\":0,\"ips\":\"192.0.2.3\",\"permissions\":{\"ContractTrade\":[],\"Spot\":[\"SpotTrade\"],\"Wallet\":[\"AccountTransfer\"]}}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     },
     {
      "data": {
@@ -30912,7 +32321,11 @@
      },
      "queryString": "",
      "bodyParams": "{\"apikey\":\"mock-sub-api-key\",\"readOnly\":1}",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   }

@@ -9,7 +9,8 @@ import (
 
 // Bot results follow protobuf's JSON mapping: 64-bit integers such as bot IDs, timestamps and some counts arrive quoted,
 // and enums arrive as their names (BOT_MODE_MIX, FUTURE_GRID_STATUS_COMPLETED) rather than the numbers requests take.
-// Bot IDs stay strings because their 18 digits exceed float64 precision
+// Bot IDs have 18 digits, more than a float64 holds, so they stay strings, or a types.PreciseNumber where one can
+// arrive as a bare number (CreateBotResponse)
 
 // GetFuturesComboBotLimitRequest holds the futures combo bot settings to check against their accepted ranges before
 // creating the bot with them
@@ -76,7 +77,9 @@ type FuturesComboBotLimitResponse struct {
 type CreateBotResponse struct {
 	// StatusCode is 0 or 200 on success and 421 when the user is banned
 	StatusCode uint64 `json:"status_code"`
-	BotID      string `json:"bot_id"`
+	// BotID decodes from a quoted or a bare integer: the futures pages quote it, while Create DCA Bot types it as an
+	// integer. Its 18 digits need more precision than a float64 holds
+	BotID types.PreciseNumber `json:"bot_id"`
 	// BanReasonText is the localised ban reason, sent with status code 421
 	BanReasonText string `json:"ban_reason_text"`
 	DebugMessage  string `json:"debug_msg"`
@@ -115,8 +118,8 @@ type FuturesComboBotDetail struct {
 	TotalPNLPercent   types.Number `json:"total_pnl_per"`
 	ROI               types.Number `json:"roi"`
 	TotalAPR          types.Number `json:"total_apr"`
-	RealizedPNL       types.Number `json:"realized_pnl"`
-	UnrealizedPNL     types.Number `json:"unrealized_pnl"`
+	RealisedPNL       types.Number `json:"realized_pnl"`
+	UnrealisedPNL     types.Number `json:"unrealized_pnl"`
 	TotalExecutionFee types.Number `json:"total_exec_fee"`
 	// FundingFee is positive when received and negative when paid
 	FundingFee            types.Number                `json:"funding_fee"`
@@ -485,8 +488,8 @@ type FuturesMartingaleBotDetail struct {
 	TotalMargin   types.Number `json:"total_margin"`
 	PNL           types.Number `json:"pnl"`
 	PNLPercent    types.Number `json:"pnl_per"`
-	RealizedPNL   types.Number `json:"realized_pnl"`
-	UnrealizedPNL types.Number `json:"unrealized_pnl"`
+	RealisedPNL   types.Number `json:"realized_pnl"`
+	UnrealisedPNL types.Number `json:"unrealized_pnl"`
 	// NetFundingFee is positive when received and negative when paid
 	NetFundingFee              types.Number `json:"net_funding_fee"`
 	TotalAPR                   types.Number `json:"total_apr"`

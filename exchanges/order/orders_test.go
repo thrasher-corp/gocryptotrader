@@ -1385,6 +1385,13 @@ func TestIsActive(t *testing.T) {
 		1: {orders[1], true},
 		2: {orders[2], false},
 		3: {orders[3], false},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, true},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, true},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, false},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, false},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, false},
 	}
 	// specific tests
 	for num, tt := range amountTests {
@@ -1450,6 +1457,13 @@ func TestIsInactive(t *testing.T) {
 		1: {orders[1], false},
 		2: {orders[2], true},
 		3: {orders[3], true},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, false},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, true},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
 	}
 	// specific tests
 	for num, tt := range amountTests {

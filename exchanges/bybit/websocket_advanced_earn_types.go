@@ -12,9 +12,9 @@ type AdvancedEarnSubscriptionRequest struct {
 	Arguments []string `json:"args"`
 }
 
-// AdvancedEarnWebsocketMessage is a frame of the Advanced Earn offers stream: an offers push, or the reply to a
+// WebsocketAdvancedEarnResponse is a frame of the Advanced Earn offers stream: an offers push, or the reply to a
 // subscribe, unsubscribe or ping request
-type AdvancedEarnWebsocketMessage struct {
+type WebsocketAdvancedEarnResponse struct {
 	Topic         string          `json:"topic"`
 	Data          json.RawMessage `json:"data"`
 	Operation     string          `json:"op"`

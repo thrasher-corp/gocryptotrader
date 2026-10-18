@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -22,9 +23,16 @@ type rateLimitBudget struct {
 	requests int
 }
 
-// ipBudget is Bybit's HTTP IP limit. It counts every REST request whatever its endpoint, and exceeding it bans the IP
-// for ten minutes
-var ipBudget = rateLimitBudget{5 * time.Second, 600}
+// ipBudgets are the windows of Bybit's HTTP IP limit, which counts every REST request whatever its endpoint and bans
+// the IP for ten minutes when exceeded. They keep 5% under its 600 requests in any 5 seconds, as its docs advise
+// against running at the edge, and spread a burst over 100 ms windows of 12, so that delivery jitter cannot crowd one
+// window's requests into the next
+var ipBudgets = []rateLimitBudget{{5 * time.Second, 570}, {100 * time.Millisecond, 12}}
+
+// orderBudgetMargin lengthens each order entry budget's window beyond Bybit's rolling second, so that orders sent a
+// window apart still reach Bybit a second apart when the first is delayed more on its way than the second; it keeps 5%
+// in hand, as the IP limit does
+const orderBudgetMargin = 50 * time.Millisecond
 
 // Endpoint limits. They start after request.UnAuth, so a stray request.Unset, request.Auth or request.UnAuth finds no
 // Bybit limiter instead of silently using one. REST limits follow the order of the docs' rate limit table
@@ -809,37 +817,33 @@ var websocketOrderBudgets = map[string]orderEntryBudgets{
 var rateLimits = rateLimitDefinitions()
 
 // rateLimitDefinitions returns Bybit's endpoint limits. Every REST limit draws on the HTTP IP limit as well as its own
-// budget, and defaultEPL on the IP limit alone. Websocket limits leave the IP limit out, since it counts HTTP requests
+// budget, and defaultEPL on the IP limit alone. Websocket limits leave the IP limit out, since it counts HTTP requests.
+// The order entry budgets REST and websocket requests share admit their requests in any rolling second, as Bybit counts
+// them, so that a batch takes one for each order it counts at its send time, and a websocket order takes any moment
+// with room, even ahead of a REST order the IP limit holds back
 func rateLimitDefinitions() request.RateLimitDefinitions {
-	ip := request.NewRateLimit(ipBudget.interval, ipBudget.requests)
-	limiters := endpointLimiters()
-	definitions := make(request.RateLimitDefinitions, len(limiters)+2)
-	definitions[defaultEPL] = request.GetRateLimiterWithWeight(ip, 1)
-	for epl, limiter := range limiters {
-		if _, isREST := endpointBudgets[epl]; isREST {
-			definitions[epl] = request.GetRateLimiterWithShared(limiter, 1, ip)
-			continue
+	ip := make([]*request.WindowBudget, len(ipBudgets))
+	for i, budget := range ipBudgets {
+		ip[i] = request.NewWindowBudget(budget.interval, budget.requests)
+	}
+	definitions := make(request.RateLimitDefinitions, len(endpointBudgets)+3*len(websocketOrderBudgets)+2)
+	definitions[defaultEPL] = request.GetRateLimiterWithShared(rate.NewLimiter(rate.Inf, 1), 1, ip...)
+	for _, budgets := range websocketOrderBudgets {
+		for _, b := range []orderBudget{budgets.derivatives, budgets.option, budgets.spot} {
+			budget := endpointBudgets[b.rest]
+			orders := request.NewWindowBudget(budget.interval+orderBudgetMargin, budget.requests)
+			definitions[b.rest] = request.GetRateLimiterWithWindowBudget(orders, 1, ip...)
+			definitions[b.websocket] = request.GetRateLimiterWithWindowBudget(orders, 1)
 		}
-		definitions[epl] = request.GetRateLimiterWithWeight(limiter, 1)
+	}
+	for epl, budget := range endpointBudgets {
+		if _, isOrderEntry := definitions[epl]; !isOrderEntry {
+			definitions[epl] = request.GetRateLimiterWithShared(request.NewRateLimit(budget.interval, budget.requests), 1, ip...)
+		}
 	}
 	// A nil limiter leaves these messages to the connection's own limiter, and Bybit's connections have none
 	definitions[wsSubscriptionEPL] = request.RateLimitNotRequired
 	return definitions
-}
-
-// endpointLimiters returns the limiter of every endpoint limit with a budget: one for each REST limit, which the
-// websocket order entry limit drawing on the same budget shares
-func endpointLimiters() map[request.EndpointLimit]*rate.Limiter {
-	limiters := make(map[request.EndpointLimit]*rate.Limiter, len(endpointBudgets)+3*len(websocketOrderBudgets))
-	for epl, budget := range endpointBudgets {
-		limiters[epl] = request.NewRateLimit(budget.interval, budget.requests)
-	}
-	for _, budgets := range websocketOrderBudgets {
-		for _, budget := range []orderBudget{budgets.derivatives, budgets.option, budgets.spot} {
-			limiters[budget.websocket] = limiters[budget.rest]
-		}
-	}
-	return limiters
 }
 
 // getWSRateLimitEPLByCategory returns the endpoint limit of a websocket order entry operation in a category
@@ -856,18 +860,22 @@ func getWSRateLimitEPLByCategory(operation, category string) (request.EndpointLi
 	}
 }
 
-// batchOrderLimit returns the endpoint limit a batch order request is sent with, after taking one request from the
-// batch's budget for each order beyond the first, which the request itself takes: Bybit counts every order of a linear,
-// inverse or spot batch, but an options batch once. The orders draw on the budget through its websocket limit, which
-// leaves out the HTTP IP limit, since the batch is one HTTP request
-func (e *Exchange) batchOrderLimit(ctx context.Context, budgets orderEntryBudgets, category string, orders int) (request.EndpointLimit, error) {
-	budget := budgets.forCategory(category)
-	if category != cOption {
-		for range orders - 1 {
-			if err := e.Requester.InitiateRateLimit(ctx, budget.websocket); err != nil {
-				return 0, fmt.Errorf("rate limiting batch orders: %w", err)
-			}
-		}
+// batchOrderLimit returns the context and endpoint limit a REST batch order request is sent with
+func batchOrderLimit(ctx context.Context, budgets orderEntryBudgets, category string, orders int) (context.Context, request.EndpointLimit) {
+	return withBatchOrderWeight(ctx, category, orders), budgets.forCategory(category).rest
+}
+
+// withBatchOrderWeight returns ctx weighted as Bybit counts a batch order request against its budget: once for each
+// order of a linear, inverse or spot batch, and once for an options batch, whatever weight ctx carried. The weight is
+// booked when the batch is sent, so that its orders reach Bybit within the budget. A count of orders no weight holds
+// takes the largest weight, which no budget admits
+func withBatchOrderWeight(ctx context.Context, category string, orders int) context.Context {
+	if category == cOption {
+		return request.WithWeight(ctx, 1)
 	}
-	return budget.rest, nil
+	weight := request.Weight(math.MaxUint8)
+	if orders >= 0 && orders < math.MaxUint8 {
+		weight = request.Weight(orders)
+	}
+	return request.WithWeight(ctx, weight)
 }

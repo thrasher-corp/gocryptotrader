@@ -1,6 +1,8 @@
 package bybit
 
 import (
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -8,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -240,6 +243,24 @@ func TestWithdrawCurrency(t *testing.T) {
 	arg.Questionnaire = &TravelRuleQuestionnaire{WalletType: 1}
 	_, err = e.WithdrawCurrency(t.Context(), arg)
 	require.ErrorIs(t, err, errLegalTypeRequired, "WithdrawCurrency must reject a questionnaire without a legal type")
+
+	// The timestamp guards against replays, so it goes in milliseconds and is the current time unless one is given
+	var sent map[string]any
+	capture := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&sent), "decoding the withdrawal should not error")
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"id":"10196"},"retExtInfo":{},"time":1672196571239}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	before := time.Now().Truncate(time.Millisecond)
+	_, err = capture.WithdrawCurrency(t.Context(), &WithdrawalRequest{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 0.1, AccountType: "FUND"})
+	require.NoError(t, err, "WithdrawCurrency must not error")
+	sentAt, ok := sent["timestamp"].(float64)
+	require.True(t, ok, "WithdrawCurrency must send a numeric timestamp")
+	assert.WithinRange(t, time.UnixMilli(int64(sentAt)), before, time.Now(), "WithdrawCurrency should send the current time in milliseconds when none is given")
+	given := time.UnixMilli(1760000000123)
+	_, err = capture.WithdrawCurrency(t.Context(), &WithdrawalRequest{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 0.1, AccountType: "FUND", Timestamp: given})
+	require.NoError(t, err, "WithdrawCurrency must not error for a withdrawal with a timestamp")
+	assert.Equal(t, float64(given.UnixMilli()), sent["timestamp"], "WithdrawCurrency should send the timestamp it is given")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

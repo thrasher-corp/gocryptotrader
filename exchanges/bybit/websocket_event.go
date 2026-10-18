@@ -11,10 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// eventPublicURL is the event trading public stream; Bybit's docs omit it, and it was found by probing
-const eventPublicURL = "wss://stream.bybit.com/v5/public/event"
+// eventPublicPath is the path of the event trading public stream; Bybit's docs omit it, and it was found by probing
+const eventPublicPath = "/v5/public/event"
 
 // Event trading websocket channels. The public channels are subscribed on the event connection, and a subscription
 // names its event contract symbol in Params["symbol"]; an orderbook subscription takes its depth from Levels, 25 by
@@ -31,14 +32,14 @@ const (
 // carry
 const cEvent = "event"
 
-// EventPublicConnectionSetup returns the setup of the event trading public connection. It generates subscriptions
-// only for configured event channels, so it connects only when a user subscribes to one
-func (e *Exchange) EventPublicConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
+// EventPublicConnectionSetup returns the setup of the event trading public connection to url. It generates
+// subscriptions only for configured event channels, so it connects only when a user subscribes to one
+func (e *Exchange) EventPublicConnectionSetup(exch *config.Exchange, url string) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
-		URL:                   eventPublicURL,
+		URL:                   url,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
+		Connector:             e.WebsocketConnect,
 		GenerateSubscriptions: e.generateEventPublicSubscriptions,
 		Subscriber:            e.eventPublicSubscribe,
 		Unsubscriber:          e.eventPublicUnsubscribe,
@@ -46,7 +47,8 @@ func (e *Exchange) EventPublicConnectionSetup(exch *config.Exchange) *websocket.
 	}
 }
 
-// generateEventPublicSubscriptions returns the enabled subscriptions to event public channels, qualified by topic
+// generateEventPublicSubscriptions returns the enabled subscriptions to event public channels, qualified by topic. A
+// subscription without a usable symbol is left out with a warning, since Setup disables the configured ones
 func (e *Exchange) generateEventPublicSubscriptions() (subscription.List, error) {
 	var subs subscription.List
 	for _, s := range e.Features.Subscriptions.Enabled() {
@@ -61,7 +63,10 @@ func (e *Exchange) generateEventPublicSubscriptions() (subscription.List, error)
 		}
 		symbol, err := subscriptionSymbol(s)
 		if err != nil {
-			return nil, err
+			// Setup disables the configured subscriptions without a symbol, so this one was added since; it is left out
+			// rather than allowed to stop every connection
+			log.Warnf(log.WebsocketMgr, "%s skipped a subscription: %v", e.Name, err)
+			continue
 		}
 		subs = append(subs, topicSubscription(s, prefix+symbol))
 	}
@@ -91,9 +96,9 @@ func (e *Exchange) wsHandleEventPublicData(ctx context.Context, conn websocket.C
 	}
 	switch {
 	case strings.HasPrefix(topic, "orderbook."):
-		return e.relayFrame(ctx, respRaw, new(EventOrderbookFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderbookResponse))
 	case strings.HasPrefix(topic, "publicTrade."):
-		return e.relayFrame(ctx, respRaw, new(EventPublicTradeFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventPublicTradeResponse))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -108,11 +113,11 @@ func (e *Exchange) wsHandleEventPrivateData(ctx context.Context, respRaw []byte)
 	}
 	switch topic {
 	case ChannelEventPosition:
-		return e.relayFrame(ctx, respRaw, new(EventPositionFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventPositionResponse))
 	case ChannelEventExecution, chanExecution:
-		return e.relayFrame(ctx, respRaw, new(EventExecutionFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventExecutionResponse))
 	case ChannelEventOrder, chanOrder:
-		return e.relayFrame(ctx, respRaw, new(EventOrderFrame))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderResponse))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }

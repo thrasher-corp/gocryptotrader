@@ -60,7 +60,7 @@ type PreUpgradeOrder struct {
 	TimeInForce                string       `json:"timeInForce"`
 	OrderType                  string       `json:"orderType"`
 	StopOrderType              string       `json:"stopOrderType"`
-	OrderIV                    types.Number `json:"orderIv"`
+	OrderImpliedVolatility     types.Number `json:"orderIv"`
 	// TriggerPrice is the activation price of trailing stop orders
 	TriggerPrice types.Number `json:"triggerPrice"`
 	TakeProfit   types.Number `json:"takeProfit"`
@@ -74,12 +74,14 @@ type PreUpgradeOrder struct {
 	ReduceOnly         bool         `json:"reduceOnly"`
 	CloseOnTrigger     bool         `json:"closeOnTrigger"`
 	// PlaceType applies to option: iv or price
-	PlaceType   string     `json:"placeType"`
-	SMPType     string     `json:"smpType"`
-	SMPGroup    uint64     `json:"smpGroup"`
-	SMPOrderID  string     `json:"smpOrderId"`
-	CreatedTime types.Time `json:"createdTime"`
-	UpdatedTime types.Time `json:"updatedTime"`
+	PlaceType string `json:"placeType"`
+	SMPType   string `json:"smpType"`
+	// SMPGroup is documented as an integer here, but Bybit's other order endpoints changed it to a string in August
+	// 2026, so either is accepted
+	SMPGroup    types.Number `json:"smpGroup"`
+	SMPOrderID  string       `json:"smpOrderId"`
+	CreatedTime types.Time   `json:"createdTime"`
+	UpdatedTime types.Time   `json:"updatedTime"`
 }
 
 // PreUpgradeTradeHistoryRequest holds the parameters for GetPreUpgradeTradeHistory
@@ -117,23 +119,23 @@ type PreUpgradeExecution struct {
 	LeavesQuantity types.Number `json:"leavesQty"`
 	OrderType      string       `json:"orderType"`
 	// StopOrderType is empty unless the order was a stop order
-	StopOrderType     string       `json:"stopOrderType"`
-	ExecutionFee      types.Number `json:"execFee"`
-	ExecutionID       string       `json:"execId"`
-	ExecutionPrice    types.Number `json:"execPrice"`
-	ExecutionQuantity types.Number `json:"execQty"`
-	ExecutionType     string       `json:"execType"`
-	ExecutionValue    types.Number `json:"execValue"`
-	ExecutionTime     types.Time   `json:"execTime"`
-	IsMaker           bool         `json:"isMaker"`
-	FeeRate           types.Number `json:"feeRate"`
-	TradeIV           types.Number `json:"tradeIv"`
-	MarkIV            types.Number `json:"markIv"`
-	MarkPrice         types.Number `json:"markPrice"`
-	IndexPrice        types.Number `json:"indexPrice"`
-	UnderlyingPrice   types.Number `json:"underlyingPrice"`
-	BlockTradeID      string       `json:"blockTradeId"`
-	ClosedSize        types.Number `json:"closedSize"`
+	StopOrderType          string       `json:"stopOrderType"`
+	ExecutionFee           types.Number `json:"execFee"`
+	ExecutionID            string       `json:"execId"`
+	ExecutionPrice         types.Number `json:"execPrice"`
+	ExecutionQuantity      types.Number `json:"execQty"`
+	ExecutionType          string       `json:"execType"`
+	ExecutionValue         types.Number `json:"execValue"`
+	ExecutionTime          types.Time   `json:"execTime"`
+	IsMaker                bool         `json:"isMaker"`
+	FeeRate                types.Number `json:"feeRate"`
+	TradeImpliedVolatility types.Number `json:"tradeIv"`
+	MarkImpliedVolatility  types.Number `json:"markIv"`
+	MarkPrice              types.Number `json:"markPrice"`
+	IndexPrice             types.Number `json:"indexPrice"`
+	UnderlyingPrice        types.Number `json:"underlyingPrice"`
+	BlockTradeID           string       `json:"blockTradeId"`
+	ClosedSize             types.Number `json:"closedSize"`
 }
 
 // PreUpgradeClosedPNLRequest holds the parameters for GetPreUpgradeClosedPNL

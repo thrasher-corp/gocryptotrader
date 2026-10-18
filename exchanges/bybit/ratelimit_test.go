@@ -1,13 +1,21 @@
 package bybit
 
 import (
+	"cmp"
 	"context"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
+	"maps"
+	"math"
+	"math/rand/v2"
 	"net/http"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -15,13 +23,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 func TestEndpointBudgets(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, rateLimitBudget{5 * time.Second, 600}, ipBudget, "the HTTP IP limit should allow 600 requests in 5 seconds")
+	assert.Equal(t, []rateLimitBudget{{5 * time.Second, 570}, {100 * time.Millisecond, 12}}, ipBudgets, "the HTTP IP limit should allow 570 of Bybit's 600 requests in 5 seconds, and 12 in any 100ms")
 	rows := []struct {
 		epl      request.EndpointLimit
 		interval time.Duration
@@ -424,60 +435,196 @@ func TestEndpointLimitsComplete(t *testing.T) {
 	assert.Len(t, rateLimits, len(names), "rateLimits should define every endpoint limit")
 }
 
-func TestEndpointLimiters(t *testing.T) {
+func TestRateLimitDefinitionsOwnBudgets(t *testing.T) {
 	t.Parallel()
-	limiters := endpointLimiters()
-	owners := make(map[*rate.Limiter][]request.EndpointLimit, len(limiters))
-	for epl, limiter := range limiters {
-		owners[limiter] = append(owners[limiter], epl)
-	}
-	for epl, budget := range endpointBudgets {
-		limiter := limiters[epl]
-		require.NotNilf(t, limiter, "endpoint limit %d must have a limiter", epl)
-		assert.Equalf(t, request.NewRateLimit(budget.interval, budget.requests).Limit(), limiter.Limit(), "endpoint limit %d should allow its budget", epl)
-		assert.Equalf(t, 1, limiter.Burst(), "endpoint limit %d should not burst", epl)
-	}
-	twins := make(map[request.EndpointLimit]request.EndpointLimit, 3*len(websocketOrderBudgets))
+	definitions := rateLimitDefinitions()
+	twins := make(map[request.EndpointLimit]request.EndpointLimit, 6*len(websocketOrderBudgets))
 	for operation, budgets := range websocketOrderBudgets {
 		for category, budget := range map[string]orderBudget{"linear and inverse": budgets.derivatives, cOption: budgets.option, cSpot: budgets.spot} {
 			require.NotZerof(t, budget.websocket, "%s %s must have a websocket limit", operation, category)
-			assert.Samef(t, limiters[budget.rest], limiters[budget.websocket], "%s %s websocket orders should share the REST budget's limiter", operation, category)
-			twins[budget.rest] = budget.websocket
+			twins[budget.rest], twins[budget.websocket] = budget.websocket, budget.rest
 		}
 	}
-	for epl := range endpointBudgets {
-		exp := []request.EndpointLimit{epl}
+	assert.Len(t, twins, 36, "each of the six websocket order entry operations should share its three category budgets with REST")
+	for epl, budget := range endpointBudgets {
+		exp := request.NewRateLimit(budget.interval, budget.requests).Limit()
 		if twin, ok := twins[epl]; ok {
-			exp = append(exp, twin)
+			// Order entry budgets keep a margin beyond Bybit's rolling second
+			exp = request.NewRateLimit(budget.interval+orderBudgetMargin, budget.requests).Limit()
+			assert.Equalf(t, exp, definitions[twin].Limit(), "websocket endpoint limit %d should allow its REST budget", twin)
 		}
-		assert.ElementsMatchf(t, exp, owners[limiters[epl]], "endpoint limit %d should have a budget of its own, shared only with the websocket limit of the same order entry budget", epl)
+		assert.Equalf(t, exp, definitions[epl].Limit(), "endpoint limit %d should allow its budget", epl)
 	}
-	assert.Len(t, twins, 18, "each of the six websocket order entry operations should share its three category budgets")
-	assert.Len(t, limiters, len(endpointBudgets)+len(twins), "endpointLimiters should hold the limiter of every budget and websocket order entry limit")
+	for key, limiter := range definitions {
+		epl, ok := key.(request.EndpointLimit)
+		require.Truef(t, ok, "definition key %v must be an endpoint limit", key)
+		for otherKey, other := range definitions {
+			exp := key == otherKey || twins[epl] == otherKey
+			assert.Equalf(t, exp, limiter.SharesBudgetWith(other), "endpoint limit %d should share a budget of its own only with itself and its websocket or REST twin, not with %v", epl, otherKey)
+		}
+	}
+}
+
+// fillIPBudget sends on defaultEPL until both windows of the HTTP IP limit are full, the five second one over the 100ms
+// ones it takes to fill, and returns when the first of those requests was sent
+func fillIPBudget(t *testing.T, definitions request.RateLimitDefinitions) time.Time {
+	t.Helper()
+	start := time.Now()
+	for range ipBudgets[0].requests {
+		require.NoError(t, definitions[defaultEPL].RateLimit(t.Context()), "defaultEPL must take a request from the HTTP IP limit")
+	}
+	return start
+}
+
+// ipLimitedSends returns the most of the sends in any five seconds and in any 100ms, the windows of the HTTP IP limit
+func ipLimitedSends(sends []time.Duration) (fiveSeconds, hundredMilliseconds int) {
+	slices.Sort(sends)
+	busiest := func(window time.Duration) int {
+		var most int
+		for i, first := range sends {
+			end, _ := slices.BinarySearch(sends[i:], first+window)
+			most = max(most, end)
+		}
+		return most
+	}
+	return busiest(ipBudgets[0].interval), busiest(ipBudgets[1].interval)
 }
 
 func TestRateLimitDefinitionsIPBudget(t *testing.T) {
 	t.Parallel()
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		definitions := rateLimitDefinitions()
-		websocketLimits := websocketOrderLimits()
-		noDelay := request.WithDelayNotAllowed(t.Context())
-		// The bubble's clock stands still, so the IP limit stays drained while every endpoint limit is checked
-		require.NoError(t, definitions[defaultEPL].RateLimit(noDelay), "defaultEPL must take the HTTP IP limit's request")
-		for key, limiter := range definitions {
-			epl, ok := key.(request.EndpointLimit)
-			require.Truef(t, ok, "definition key %v must be an endpoint limit", key)
-			if epl == wsSubscriptionEPL || websocketLimits[epl] {
-				continue
+
+	for _, tc := range []struct {
+		name string
+		fill func(*testing.T, request.RateLimitDefinitions) time.Duration
+	}{
+		{"REST limits wait for the IP limit's 100ms window", func(t *testing.T, definitions request.RateLimitDefinitions) time.Duration {
+			t.Helper()
+			for range ipBudgets[1].requests {
+				require.NoError(t, definitions[defaultEPL].RateLimit(request.WithDelayNotAllowed(t.Context())), "defaultEPL must take a request from the HTTP IP limit at once")
 			}
-			assert.ErrorIsf(t, limiter.RateLimit(noDelay), request.ErrDelayNotAllowed, "REST endpoint limit %d should wait for the HTTP IP limit while its own budget is idle", epl)
+			return ipBudgets[1].interval
+		}},
+		{"REST limits wait for the IP limit's five second window", func(t *testing.T, definitions request.RateLimitDefinitions) time.Duration {
+			t.Helper()
+			return ipBudgets[0].interval - time.Since(fillIPBudget(t, definitions))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				definitions := rateLimitDefinitions()
+				websocketLimits := websocketOrderLimits()
+				noDelay := request.WithDelayNotAllowed(t.Context())
+				untilRoom := tc.fill(t, definitions)
+				require.Positive(t, untilRoom, "the IP limit must be full")
+				// The bubble's clock stands still, so the IP limit stays full while every endpoint limit is checked
+				for key, limiter := range definitions {
+					epl, ok := key.(request.EndpointLimit)
+					require.Truef(t, ok, "definition key %v must be an endpoint limit", key)
+					if epl == wsSubscriptionEPL || websocketLimits[epl] {
+						continue
+					}
+					assert.ErrorIsf(t, limiter.RateLimit(noDelay), request.ErrDelayNotAllowed, "REST endpoint limit %d should wait for the HTTP IP limit while its own budget is idle", epl)
+				}
+				// The refused REST checks reserved nothing, so the websocket limits find their shared budgets idle
+				for epl := range websocketLimits {
+					assert.NoErrorf(t, definitions[epl].RateLimit(noDelay), "websocket endpoint limit %d should not wait for the HTTP IP limit", epl)
+				}
+				time.Sleep(untilRoom)
+				assert.NoError(t, definitions[getOpenOrdersEPL].RateLimit(noDelay), "a REST request should go once the HTTP IP limit's window has passed")
+			})
+		})
+	}
+
+	t.Run("a rate limit barrier admits REST requests the IP limit has room for", func(t *testing.T) {
+		t.Parallel()
+		restLimits := slices.Sorted(maps.Keys(endpointBudgets))
+		for _, tc := range []struct {
+			name         string
+			participants uint
+			alreadySent  int
+			err          error
+		}{
+			{"2 from idle budgets", 2, 0, nil},
+			{"12 from idle budgets", 12, 0, nil},
+			{"13 from idle budgets", 13, 0, request.ErrDelayNotAllowed},
+			{"2 with room for 1", 2, ipBudgets[1].requests - 1, request.ErrDelayNotAllowed},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+					definitions := rateLimitDefinitions()
+					noDelay := request.WithDelayNotAllowed(t.Context())
+					for range tc.alreadySent {
+						require.NoError(t, definitions[defaultEPL].RateLimit(noDelay), "defaultEPL must take a request from the HTTP IP limit")
+					}
+					contexts, err := request.NewRateLimitBarrierContexts(t.Context(), tc.participants)
+					require.NoError(t, err, "barrier contexts must be created")
+					errs := make(chan error, tc.participants)
+					for i, ctx := range contexts {
+						go func() { errs <- definitions[restLimits[i]].RateLimit(ctx) }()
+					}
+					for range tc.participants {
+						assert.ErrorIs(t, <-errs, tc.err, "every participant of the barrier should share its outcome")
+					}
+					if tc.err == nil {
+						return
+					}
+					for range ipBudgets[1].requests - tc.alreadySent {
+						assert.NoError(t, definitions[defaultEPL].RateLimit(noDelay), "a refused barrier should book nothing in the HTTP IP limit")
+					}
+					assert.ErrorIs(t, definitions[defaultEPL].RateLimit(noDelay), request.ErrDelayNotAllowed, "the HTTP IP limit should then be full")
+				})
+			})
 		}
-		// The REST checks gave their reservations back, so the websocket limits find their shared budgets idle
-		for epl := range websocketLimits {
-			assert.NoErrorf(t, definitions[epl].RateLimit(noDelay), "websocket endpoint limit %d should not wait for the HTTP IP limit", epl)
-		}
-		time.Sleep(10 * time.Millisecond) // longer than the IP limit's 1/120 s spacing
-		assert.NoError(t, definitions[getOpenOrdersEPL].RateLimit(noDelay), "a REST request should go once the HTTP IP limit refills")
+	})
+
+	t.Run("no window holds more than the IP budget under a backlog", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			const group = 12
+			definitions := rateLimitDefinitions()
+			contexts, err := request.NewRateLimitBarrierContexts(t.Context(), group)
+			require.NoError(t, err, "barrier contexts must be created")
+			restLimits := slices.Sorted(maps.Keys(endpointBudgets))
+			start := time.Now()
+			var mu sync.Mutex
+			sends := make([]time.Duration, 0, group+1300)
+			record := func() {
+				mu.Lock()
+				sends = append(sends, time.Since(start))
+				mu.Unlock()
+			}
+			var barrier common.ErrorCollector
+			for i, ctx := range contexts {
+				barrier.Go(func() error {
+					if err := definitions[restLimits[i]].RateLimit(ctx); err != nil {
+						return err
+					}
+					record()
+					return nil
+				})
+			}
+			require.NoError(t, barrier.Collect(), "a barrier the IP limit has room for must be admitted")
+			var backlog common.ErrorCollector
+			for i := range 1300 {
+				epl := defaultEPL
+				if i%10 == 0 {
+					epl = getOpenOrdersEPL
+				}
+				backlog.Go(func() error {
+					if err := definitions[epl].RateLimit(t.Context()); err != nil {
+						return err
+					}
+					record()
+					return nil
+				})
+			}
+			require.NoError(t, backlog.Collect(), "a backlog of requests on the HTTP IP limit must not error")
+			fiveSeconds, hundredMilliseconds := ipLimitedSends(sends)
+			assert.Equal(t, ipBudgets[0].requests, fiveSeconds, "the busiest five seconds should fill the IP budget without exceeding it")
+			assert.Equal(t, ipBudgets[1].requests, hundredMilliseconds, "the busiest 100ms should fill the burst budget without exceeding it")
+		})
 	})
 }
 
@@ -488,11 +635,68 @@ func TestRateLimitDefinitionsWebsocketOrderBudgets(t *testing.T) {
 		noDelay := request.WithDelayNotAllowed(t.Context())
 		for operation, budgets := range websocketOrderBudgets {
 			for _, budget := range []orderBudget{budgets.derivatives, budgets.option, budgets.spot} {
-				require.NoErrorf(t, definitions[budget.websocket].RateLimit(noDelay), "%s websocket limit %d must take its budget's request", operation, budget.websocket)
-				assert.ErrorIsf(t, definitions[budget.rest].RateLimit(noDelay), request.ErrDelayNotAllowed, "%s REST limit %d should wait for the request its websocket limit took", operation, budget.rest)
+				// Bybit counts each second as it rolls, so the whole budget can go at once
+				for range endpointBudgets[budget.rest].requests {
+					require.NoErrorf(t, definitions[budget.websocket].RateLimit(noDelay), "%s websocket limit %d must take its whole budget at once", operation, budget.websocket)
+				}
+				assert.ErrorIsf(t, definitions[budget.websocket].RateLimit(noDelay), request.ErrDelayNotAllowed, "%s websocket limit %d should wait once its budget is full", operation, budget.websocket)
+				assert.ErrorIsf(t, definitions[budget.rest].RateLimit(noDelay), request.ErrDelayNotAllowed, "%s REST limit %d should wait for the requests its websocket limit took", operation, budget.rest)
+			}
+		}
+		// A second is not enough: the budgets keep a margin, so that orders sent a window apart reach Bybit a second apart
+		time.Sleep(time.Second)
+		for operation, budgets := range websocketOrderBudgets {
+			for _, budget := range []orderBudget{budgets.derivatives, budgets.option, budgets.spot} {
+				assert.ErrorIsf(t, definitions[budget.websocket].RateLimit(noDelay), request.ErrDelayNotAllowed, "%s websocket limit %d should still wait a second after its budget filled", operation, budget.websocket)
+			}
+		}
+		time.Sleep(orderBudgetMargin)
+		for operation, budgets := range websocketOrderBudgets {
+			for _, budget := range []orderBudget{budgets.derivatives, budgets.option, budgets.spot} {
+				for range endpointBudgets[budget.rest].requests {
+					assert.NoErrorf(t, definitions[budget.websocket].RateLimit(noDelay), "%s websocket limit %d should have its whole budget again once its window has passed", operation, budget.websocket)
+				}
 			}
 		}
 	})
+}
+
+func TestRateLimitDefinitionsWebsocketOrderAheadOfRESTOrder(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		fill func(*testing.T, request.RateLimitDefinitions) time.Duration
+	}{
+		{"the IP limit's 100ms window", func(t *testing.T, definitions request.RateLimitDefinitions) time.Duration {
+			t.Helper()
+			for range ipBudgets[1].requests {
+				require.NoError(t, definitions[defaultEPL].RateLimit(t.Context()), "defaultEPL must take a request from the HTTP IP limit")
+			}
+			return ipBudgets[1].interval
+		}},
+		{"the IP limit's five second window", func(t *testing.T, definitions request.RateLimitDefinitions) time.Duration {
+			t.Helper()
+			return ipBudgets[0].interval - time.Since(fillIPBudget(t, definitions))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				definitions := rateLimitDefinitions()
+				untilRoom := tc.fill(t, definitions)
+				start := time.Now()
+				restSent := make(chan time.Duration, 1)
+				go func() {
+					assert.NoError(t, definitions[createOrderEPL].RateLimit(t.Context()), "the REST order should go once the HTTP IP limit has room")
+					restSent <- time.Since(start)
+				}()
+				synctest.Wait()
+				time.Sleep(10 * time.Millisecond)
+				assert.NoError(t, definitions[wsCreateOrderEPL].RateLimit(request.WithDelayNotAllowed(t.Context())), "a websocket order should not wait for a REST order the HTTP IP limit holds back")
+				assert.Equal(t, untilRoom, <-restSent, "the REST order should go when the HTTP IP limit's window has passed")
+			})
+		})
+	}
 }
 
 func TestOrderEntryBudgets(t *testing.T) {
@@ -571,55 +775,247 @@ func TestGetWSRateLimitEPLByCategory(t *testing.T) {
 	}
 }
 
+// weightOf returns the weight a request sent with ctx takes from its endpoint's own budget: how much of an idle budget
+// of the largest weight it leaves no room for
+func weightOf(ctx context.Context) (int, error) {
+	budget := request.GetRateLimiterWithWindowBudget(request.NewWindowBudget(time.Hour, math.MaxUint8), 1)
+	noDelay := request.WithDelayNotAllowed(ctx)
+	if err := budget.RateLimit(noDelay); err != nil {
+		return 0, err
+	}
+	single := request.WithWeight(noDelay, 1)
+	weight := math.MaxUint8
+	for budget.RateLimit(single) == nil {
+		weight--
+	}
+	return weight, nil
+}
+
 func TestBatchOrderLimit(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		budgets  orderEntryBudgets
+		category string
+		orders   int
+		epl      request.EndpointLimit
+		weight   int
+	}{
+		{createBatchOrderBudgets, cSpot, 2, createSpotBatchOrderEPL, 2},
+		{createBatchOrderBudgets, cLinear, 10, createBatchOrderEPL, 10},
+		{amendBatchOrderBudgets, cInverse, 3, amendBatchOrderEPL, 3},
+		{amendBatchOrderBudgets, cOption, 5, amendOptionBatchOrderEPL, 1},
+		{cancelBatchOrderBudgets, cSpot, 1, cancelSpotBatchOrderEPL, 1},
+	} {
+		ctx, epl := batchOrderLimit(t.Context(), tc.budgets, tc.category, tc.orders)
+		assert.Equalf(t, tc.epl, epl, "a %s batch should be sent with its category's batch limit", tc.category)
+		weight, err := weightOf(ctx)
+		require.NoErrorf(t, err, "a %s batch of %d orders must fit an idle budget", tc.category, tc.orders)
+		assert.Equalf(t, tc.weight, weight, "a %s batch of %d orders should be booked as Bybit counts it", tc.category, tc.orders)
+	}
+}
+
+func TestWithBatchOrderWeight(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		category string
+		orders   int
+		exp      int
+	}{
+		{cLinear, 1, 1},
+		{cLinear, 10, 10},
+		{cInverse, 7, 7},
+		{cSpot, 10, 10},
+		{cOption, 5, 1},
+		{cOption, 11, 1},
+		{cLinear, math.MaxUint8 - 1, math.MaxUint8 - 1},
+		{cLinear, math.MaxUint8, math.MaxUint8},
+		{cLinear, math.MaxUint8 + 1, math.MaxUint8},
+		{cLinear, -1, math.MaxUint8},
+	} {
+		weight, err := weightOf(withBatchOrderWeight(t.Context(), tc.category, tc.orders))
+		require.NoErrorf(t, err, "a %s batch of %d orders must fit an idle budget of the largest weight", tc.category, tc.orders)
+		assert.Equalf(t, tc.exp, weight, "a %s batch of %d orders should weigh %d", tc.category, tc.orders, tc.exp)
+	}
+	_, err := weightOf(withBatchOrderWeight(t.Context(), cLinear, 0))
+	assert.ErrorContains(t, err, "equal-or-greater than 1", "a batch of no orders should be refused for its weight")
+	// A batch weighs what Bybit counts it as, whatever weight the caller's context carried
+	weight, err := weightOf(withBatchOrderWeight(request.WithWeight(t.Context(), 11), cOption, 2))
+	require.NoError(t, err, "an options batch must fit its budget whatever weight its context carried")
+	assert.Equal(t, 1, weight, "an options batch should weigh one whatever weight its context carried")
+}
+
+// batchSend is when a batch order request reached the transport and how many orders it carried
+type batchSend struct {
+	at     time.Duration
+	orders int
+}
+
+// batchRequestBody is the part of a batch order request's body a test transport reads
+type batchRequestBody struct {
+	Request []json.RawMessage `json:"request"`
+}
+
+// batchTransport answers every batch order request with an outcome for each of its orders, after recording when the
+// request was sent and how many orders it carried
+type batchTransport struct {
+	start time.Time
+	mu    sync.Mutex
+	sends []batchSend
+}
+
+// RoundTrip records a batch order request and answers it
+func (b *batchTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	var batch batchRequestBody
+	if err := json.Unmarshal(body, &batch); err != nil {
+		return nil, err
+	}
+	b.mu.Lock()
+	b.sends = append(b.sends, batchSend{time.Since(b.start), len(batch.Request)})
+	b.mu.Unlock()
+	orders := strings.TrimSuffix(strings.Repeat(`{"orderId":"1"},`, len(batch.Request)), ",")
+	outcomes := strings.TrimSuffix(strings.Repeat(`{"code":0,"msg":"OK"},`, len(batch.Request)), ",")
+	reply := `{"retCode":0,"retMsg":"OK","result":{"list":[` + orders + `]},"retExtInfo":{"list":[` + outcomes + `]},"time":1760000000000}`
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(reply)), Request: r}, nil
+}
+
+// recorded returns the batch order requests sent so far, in the order they were sent
+func (b *batchTransport) recorded() []batchSend {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.SortedFunc(slices.Values(b.sends), func(x, y batchSend) int { return cmp.Compare(x.at, y.at) })
+}
+
+// batchTransportExchange returns an exchange with Bybit's rate limits whose REST requests reach transport
+func batchTransportExchange(t *testing.T) (*Exchange, *batchTransport) {
+	t.Helper()
+	ex := withMockCredentials(websocketTestInstance(t))
+	ex.Name = t.Name()
+	transport := &batchTransport{start: time.Now()}
+	var err error
+	ex.Requester, err = request.New(t.Name(), &http.Client{Transport: transport}, request.WithLimiter(rateLimitDefinitions()))
+	require.NoError(t, err, "request.New must not error")
+	return ex, transport
+}
+
+// linearCancellations returns a batch cancellation of n linear orders
+func linearCancellations(n int) *BatchCancelOrderRequest {
+	r := &BatchCancelOrderRequest{Category: cLinear, Request: make([]BatchCancelOrderItem, n)}
+	for i := range r.Request {
+		r.Request[i] = BatchCancelOrderItem{Symbol: "BTCUSDT", OrderID: strconv.Itoa(i + 1)}
+	}
+	return r
+}
+
+func TestBatchOrderSendTimes(t *testing.T) {
+	// orderWindow is an order entry budget's window, Bybit's rolling second and the margin kept in hand
+	const orderWindow = time.Second + orderBudgetMargin
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		sizes      []int
+		concurrent bool
+		exp        []batchSend
+	}{
+		{"a batch after one of the whole budget waits a window", []int{10, 1}, false, []batchSend{{0, 10}, {orderWindow, 1}}},
+		{"concurrent batches of the whole budget go a window apart", []int{10, 10}, true, []batchSend{{0, 10}, {orderWindow, 10}}},
+		{"a batch fitting the room the second has left goes at once", []int{1, 1, 1, 1, 1, 1, 1, 3}, false, []batchSend{{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 3}}},
+		{"a batch larger than the room the second has left waits for room for all of it", []int{1, 1, 1, 1, 1, 1, 1, 1, 3}, false, []batchSend{{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {orderWindow, 3}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				ex, transport := batchTransportExchange(t)
+				var errs common.ErrorCollector
+				for _, orders := range tc.sizes {
+					if tc.concurrent {
+						errs.Go(func() error {
+							_, err := ex.CancelBatchOrder(t.Context(), linearCancellations(orders))
+							return err
+						})
+						continue
+					}
+					_, err := ex.CancelBatchOrder(t.Context(), linearCancellations(orders))
+					require.NoError(t, err, "CancelBatchOrder must not error")
+				}
+				require.NoError(t, errs.Collect(), "CancelBatchOrder must not error")
+				assert.Equal(t, tc.exp, transport.recorded(), "each batch should be sent once no second holding it holds more than the budget's 10 orders")
+			})
+		})
+	}
+
+	t.Run("a batch larger than its budget is refused before it is sent", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			ex, transport := batchTransportExchange(t)
+			_, err := ex.CancelBatchOrder(t.Context(), linearCancellations(11))
+			require.ErrorIs(t, err, request.ErrWeightExceedsBudget, "CancelBatchOrder must refuse a batch its budget never admits")
+			assert.Empty(t, transport.recorded(), "a refused batch should not be sent")
+			_, err = ex.CancelBatchOrder(request.WithDelayNotAllowed(t.Context()), linearCancellations(10))
+			assert.NoError(t, err, "a refused batch should book nothing")
+		})
+	})
+
+	t.Run("cancelling more orders than the budget admits sends batches it admits", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			ex, transport := batchTransportExchange(t)
+			cancels := make([]order.Cancel, 25)
+			for i := range cancels {
+				cancels[i] = order.Cancel{OrderID: strconv.Itoa(i + 1), Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}
+			}
+			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			assert.Len(t, resp.Status, 25, "CancelBatchOrders should report every order's outcome")
+			assert.Equal(t, []batchSend{{0, 10}, {orderWindow, 10}, {2 * orderWindow, 5}}, transport.recorded(), "CancelBatchOrders should send batches of the 10 orders a window the budget admits")
+		})
+	})
+}
+
+func TestBatchOrderBudgetsUnderLoad(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		ex := new(Exchange)
-		var err error
-		ex.Requester, err = request.New(t.Name(), &http.Client{}, request.WithLimiter(rateLimitDefinitions()))
-		require.NoError(t, err, "request.New must not error")
-		definitions := ex.Requester.GetRateLimiterDefinitions()
-		noDelay := request.WithDelayNotAllowed(t.Context())
-
-		// The websocket limits draw on the batch budgets without the HTTP IP limit, so they show what the orders took
+		definitions := rateLimitDefinitions()
+		random := rand.New(rand.NewPCG(5, 6)) //nolint:gosec // A fixed seed keeps the load reproducible
 		start := time.Now()
-		epl, err := ex.batchOrderLimit(t.Context(), createBatchOrderBudgets, cSpot, 2)
-		require.NoError(t, err, "batchOrderLimit must not error for a spot batch")
-		assert.Equal(t, createSpotBatchOrderEPL, epl, "a spot batch should be sent with the spot batch limit")
-		assert.Zero(t, time.Since(start), "a spot batch of two should not wait on an idle budget")
-		assert.ErrorIs(t, definitions[wsCreateSpotBatchOrderEPL].RateLimit(noDelay), request.ErrDelayNotAllowed, "a spot batch of two should take one request from its budget for its second order")
-		assert.NoError(t, definitions[defaultEPL].RateLimit(noDelay), "the orders should take nothing from the HTTP IP limit")
-
-		start = time.Now()
-		epl, err = ex.batchOrderLimit(t.Context(), createBatchOrderBudgets, cLinear, 3)
-		require.NoError(t, err, "batchOrderLimit must not error for a linear batch")
-		assert.Equal(t, createBatchOrderEPL, epl, "a linear batch should be sent with the linear and inverse batch limit")
-		assert.Equal(t, 100*time.Millisecond, time.Since(start), "a linear batch of three should take two requests from its budget of 10 a second before it is sent")
-		assert.ErrorIs(t, definitions[wsCreateBatchOrderEPL].RateLimit(noDelay), request.ErrDelayNotAllowed, "the batch request should wait for the budget its orders took")
-
-		start = time.Now()
-		epl, err = ex.batchOrderLimit(t.Context(), createBatchOrderBudgets, cOption, 5)
-		require.NoError(t, err, "batchOrderLimit must not error for an options batch")
-		assert.Equal(t, createOptionBatchOrderEPL, epl, "an options batch should be sent with the options batch limit")
-		assert.Zero(t, time.Since(start), "an options batch should not wait for its orders")
-		assert.NoError(t, definitions[wsCreateOptionBatchOrderEPL].RateLimit(noDelay), "an options batch should take nothing for its orders, which Bybit counts once")
-
-		epl, err = ex.batchOrderLimit(t.Context(), cancelBatchOrderBudgets, cSpot, 1)
-		require.NoError(t, err, "batchOrderLimit must not error for a batch of one order")
-		assert.Equal(t, cancelSpotBatchOrderEPL, epl, "a spot batch cancellation should be sent with the spot batch cancellation limit")
-		assert.NoError(t, definitions[wsCancelSpotBatchOrderEPL].RateLimit(noDelay), "a batch of one order should take nothing beyond its request")
-
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		_, err = ex.batchOrderLimit(ctx, amendBatchOrderBudgets, cSpot, 3)
-		assert.ErrorIs(t, err, context.Canceled, "batchOrderLimit should return the cancellation of a batch that has to wait")
-
-		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
-		start = time.Now()
-		epl, err = ex.batchOrderLimit(t.Context(), amendBatchOrderBudgets, cLinear, 20)
-		require.NoError(t, err, "batchOrderLimit must not error with the rate limiter disabled")
-		assert.Equal(t, amendBatchOrderEPL, epl, "a disabled rate limiter should still pick the batch limit")
-		assert.Zero(t, time.Since(start), "a disabled rate limiter should not hold up a batch")
+		var mu sync.Mutex
+		var orders, httpRequests []time.Duration
+		var errs common.ErrorCollector
+		for range 150 {
+			arrival, size, epl := time.Duration(random.IntN(5000))*time.Millisecond, 1+random.IntN(10), createBatchOrderEPL
+			if random.IntN(2) == 0 {
+				epl = wsCreateBatchOrderEPL
+			}
+			errs.Go(func() error {
+				time.Sleep(arrival)
+				if err := definitions[epl].RateLimit(withBatchOrderWeight(t.Context(), cLinear, size)); err != nil {
+					return err
+				}
+				sent := time.Since(start)
+				mu.Lock()
+				defer mu.Unlock()
+				for range size {
+					orders = append(orders, sent)
+				}
+				if epl == createBatchOrderEPL {
+					httpRequests = append(httpRequests, sent)
+				}
+				return nil
+			})
+		}
+		require.NoError(t, errs.Collect(), "every batch must be sent")
+		slices.Sort(orders)
+		var busiest int
+		for i, first := range orders {
+			end, _ := slices.BinarySearch(orders[i:], first+time.Second)
+			busiest = max(busiest, end)
+		}
+		assert.Equal(t, endpointBudgets[createBatchOrderEPL].requests, busiest, "the busiest second should fill the batch budget's orders without exceeding it, over REST and websocket together")
+		_, hundredMilliseconds := ipLimitedSends(httpRequests)
+		assert.LessOrEqual(t, hundredMilliseconds, ipBudgets[1].requests, "the HTTP IP limit should count each REST batch once")
 	})
 }
 

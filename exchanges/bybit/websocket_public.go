@@ -34,6 +34,18 @@ const (
 	defaultOptionOrderbookLevels = 25
 )
 
+// orderbookLevels returns the depth of an orderbook subscription to the asset's stream, or the asset's default when it
+// sets none
+func orderbookLevels(s *subscription.Subscription, a asset.Item) int {
+	switch {
+	case s.Levels != 0:
+		return s.Levels
+	case a == asset.Options:
+		return defaultOptionOrderbookLevels
+	}
+	return defaultOrderbookLevels
+}
+
 // wsHandleData handles a message from the public stream of assetType
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, assetType asset.Item, respRaw []byte) error {
 	topic, err := jsonparser.GetString(respRaw, "topic")
@@ -95,7 +107,7 @@ func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item,
 			Pair:         cp,
 			Exchange:     e.Name,
 			Asset:        assetType,
-			LastUpdated:  resp.CrossTimestamp.Time(),
+			LastUpdated:  resp.CreationTimestamp.Time(),
 			LastUpdateID: int64(resp.Data.UpdateID), //nolint:gosec // Update IDs stay far below the int64 limit
 			LastPushed:   resp.Timestamp.Time(),
 			Asks:         resp.Data.Asks.Levels(),
@@ -108,7 +120,7 @@ func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item,
 		Bids:       resp.Data.Bids.Levels(),
 		Asset:      assetType,
 		UpdateID:   int64(resp.Data.UpdateID), //nolint:gosec // Update IDs stay far below the int64 limit
-		UpdateTime: resp.CrossTimestamp.Time(),
+		UpdateTime: resp.CreationTimestamp.Time(),
 		LastPushed: resp.Timestamp.Time(),
 		AllowEmpty: true,
 	})
@@ -361,14 +373,7 @@ func (e *Exchange) publicTopic(s *subscription.Subscription, a asset.Item) (stri
 	}
 	switch name {
 	case chanOrderbook:
-		levels := s.Levels
-		if levels == 0 {
-			levels = defaultOrderbookLevels
-			if a == asset.Options {
-				levels = defaultOptionOrderbookLevels
-			}
-		}
-		return name + "." + strconv.Itoa(levels) + "." + symbol, nil
+		return name + "." + strconv.Itoa(orderbookLevels(s, a)) + "." + symbol, nil
 	case chanKline:
 		interval, err := intervalToString(s.Interval)
 		if err != nil {

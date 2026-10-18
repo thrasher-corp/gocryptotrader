@@ -125,7 +125,7 @@ func (e *Exchange) GetRWANAVChart(ctx context.Context, req *RWANAVChartRequest) 
 		return nil, errProductIDRequired
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
+		if err := checkTimeWindow(req.StartTime, req.EndTime); err != nil {
 			return nil, err
 		}
 	}

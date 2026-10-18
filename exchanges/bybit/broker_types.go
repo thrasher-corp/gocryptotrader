@@ -125,10 +125,10 @@ type ExchangeBrokerMarkupFeeRebateRate struct {
 type GetBrokerSubAccountDepositRecordsRequest struct {
 	// ID is the deposit's internal ID and takes precedence over the other filters
 	ID string
-	// TxID cannot find deposits made before 1 January 2024
-	TxID        string
-	SubMemberID string
-	Coin        currency.Code
+	// TransactionID cannot find deposits made before 1 January 2024
+	TransactionID string
+	SubMemberID   string
+	Coin          currency.Code
 	// StartTime and EndTime must be less than 30 days apart and default to the last 30 days; Bybit applies them to the
 	// second
 	StartTime time.Time
@@ -146,21 +146,21 @@ type BrokerSubAccountDepositRecordsResponse struct {
 
 // BrokerSubAccountDeposit holds a deposit to one of an exchange broker's subaccounts
 type BrokerSubAccountDeposit struct {
-	ID          string        `json:"id"`
-	SubMemberID string        `json:"subMemberId"`
-	Coin        currency.Code `json:"coin"`
-	Chain       string        `json:"chain"`
-	Amount      types.Number  `json:"amount"`
-	TxID        string        `json:"txID"`
+	ID            string        `json:"id"`
+	SubMemberID   string        `json:"subMemberId"`
+	Coin          currency.Code `json:"coin"`
+	Chain         string        `json:"chain"`
+	Amount        types.Number  `json:"amount"`
+	TransactionID string        `json:"txID"`
 	// Status is the deposit status, such as 3 success or 4 failed
-	Status        uint64       `json:"status"`
-	ToAddress     string       `json:"toAddress"`
-	Tag           string       `json:"tag"`
-	DepositFee    types.Number `json:"depositFee"`
-	SuccessAt     types.Time   `json:"successAt"`
-	Confirmations types.Number `json:"confirmations"`
-	TxIndex       types.Number `json:"txIndex"`
-	BlockHash     string       `json:"blockHash"`
+	Status           uint64       `json:"status"`
+	ToAddress        string       `json:"toAddress"`
+	Tag              string       `json:"tag"`
+	DepositFee       types.Number `json:"depositFee"`
+	SuccessAt        types.Time   `json:"successAt"`
+	Confirmations    types.Number `json:"confirmations"`
+	TransactionIndex types.Number `json:"txIndex"`
+	BlockHash        string       `json:"blockHash"`
 	// BatchReleaseLimit is the coin's deposit limit on the chain; -1 means no limit
 	BatchReleaseLimit types.Number `json:"batchReleaseLimit"`
 	// DepositType is 0 normal, 10 daily limit reached, 20 held for AML review or 50 blocked by a restriction

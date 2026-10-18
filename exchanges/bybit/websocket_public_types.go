@@ -15,9 +15,9 @@ type WebsocketOrderbookResponse struct {
 	Type      string     `json:"type"`
 	Timestamp types.Time `json:"ts"`
 	// ID is set on option pushes only
-	ID             string             `json:"id"`
-	Data           WebsocketOrderbook `json:"data"`
-	CrossTimestamp types.Time         `json:"cts"` // Matching engine time, comparable with T on public trades
+	ID                string             `json:"id"`
+	Data              WebsocketOrderbook `json:"data"`
+	CreationTimestamp types.Time         `json:"cts"` // Matching engine time, comparable with T on public trades
 }
 
 // WebsocketOrderbook is an orderbook snapshot or delta; a size of 0 in a delta removes the price level
@@ -32,11 +32,11 @@ type WebsocketOrderbook struct {
 
 // WebsocketRPIOrderbookResponse is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
 type WebsocketRPIOrderbookResponse struct {
-	Topic          string                `json:"topic"`
-	Type           string                `json:"type"`
-	Timestamp      types.Time            `json:"ts"`
-	Data           WebsocketRPIOrderbook `json:"data"`
-	CrossTimestamp types.Time            `json:"cts"` // Matching engine time, comparable with T on public trades
+	Topic             string                `json:"topic"`
+	Type              string                `json:"type"`
+	Timestamp         types.Time            `json:"ts"`
+	Data              WebsocketRPIOrderbook `json:"data"`
+	CreationTimestamp types.Time            `json:"cts"` // Matching engine time, comparable with T on public trades
 }
 
 // WebsocketRPIOrderbook is an orderbook snapshot or delta that includes Retail Price Improvement quotes
@@ -66,16 +66,16 @@ type WebsocketPublicTrade struct {
 	Side               string       `json:"S"` // Side of the taker
 	Size               types.Number `json:"v"`
 	Price              types.Number `json:"p"`
-	// PriceChangeDirection is set for perpetuals and futures only
-	PriceChangeDirection string       `json:"L"`
-	TradeID              string       `json:"i"`
-	BlockTrade           bool         `json:"BT"`
-	RPI                  bool         `json:"RPI"`
-	Sequence             uint64       `json:"seq"`
-	MarkPrice            types.Number `json:"mP"`  // Options only
-	IndexPrice           types.Number `json:"iP"`  // Options only
-	MarkIV               types.Number `json:"mIv"` // Options only
-	IV                   types.Number `json:"iv"`  // Options only
+	// TickDirection is set for perpetuals and futures only
+	TickDirection         string       `json:"L"`
+	TradeID               string       `json:"i"`
+	BlockTrade            bool         `json:"BT"`
+	RPI                   bool         `json:"RPI"`
+	Sequence              uint64       `json:"seq"`
+	MarkPrice             types.Number `json:"mP"`  // Options only
+	IndexPrice            types.Number `json:"iP"`  // Options only
+	MarkImpliedVolatility types.Number `json:"mIv"` // Options only
+	ImpliedVolatility     types.Number `json:"iv"`  // Options only
 }
 
 // WebsocketTickerResponse is a push from the tickers.{symbol} topic (Ticker). Linear and inverse tickers send a snapshot
@@ -92,20 +92,20 @@ type WebsocketTickerResponse struct {
 
 // WebsocketTicker holds the ticker fields of every category; each category sets its own subset
 type WebsocketTicker struct {
-	Symbol                   string       `json:"symbol"`
-	TickDirection            string       `json:"tickDirection"`
-	PriceChangePercent24Hour types.Number `json:"price24hPcnt"`
-	LastPrice                types.Number `json:"lastPrice"`
-	PreviousPrice24Hour      types.Number `json:"prevPrice24h"`
-	HighPrice24Hour          types.Number `json:"highPrice24h"`
-	LowPrice24Hour           types.Number `json:"lowPrice24h"`
-	PreviousPrice1Hour       types.Number `json:"prevPrice1h"`
-	MarkPrice                types.Number `json:"markPrice"`
-	IndexPrice               types.Number `json:"indexPrice"`
-	OpenInterest             types.Number `json:"openInterest"`      // Both sides
-	OpenInterestValue        types.Number `json:"openInterestValue"` // Both sides
-	SingleOpenInterest       types.Number `json:"singleOpenInterest"`
-	SingleOpenInterestValue  types.Number `json:"singleOpenInterestValue"`
+	Symbol                  string       `json:"symbol"`
+	TickDirection           string       `json:"tickDirection"`
+	Price24HourPercent      types.Number `json:"price24hPcnt"`
+	LastPrice               types.Number `json:"lastPrice"`
+	PreviousPrice24Hour     types.Number `json:"prevPrice24h"`
+	HighPrice24Hour         types.Number `json:"highPrice24h"`
+	LowPrice24Hour          types.Number `json:"lowPrice24h"`
+	PreviousPrice1Hour      types.Number `json:"prevPrice1h"`
+	MarkPrice               types.Number `json:"markPrice"`
+	IndexPrice              types.Number `json:"indexPrice"`
+	OpenInterest            types.Number `json:"openInterest"`      // Both sides
+	OpenInterestValue       types.Number `json:"openInterestValue"` // Both sides
+	SingleOpenInterest      types.Number `json:"singleOpenInterest"`
+	SingleOpenInterestValue types.Number `json:"singleOpenInterestValue"`
 	// Turnover24Hour and Volume24Hour are in the quote and base currency, except on inverse contracts, where they swap
 	Turnover24Hour  types.Number `json:"turnover24h"`
 	Volume24Hour    types.Number `json:"volume24h"`
@@ -121,29 +121,29 @@ type WebsocketTicker struct {
 	DeliveryFeeRate        types.Number `json:"deliveryFeeRate"`
 	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`
 	// Basis is not documented but sent for futures
-	Basis                  types.Number `json:"basis"`
-	PreOpenPrice           types.Number `json:"preOpenPrice"`
-	PreQuantity            types.Number `json:"preQty"`
-	CurrentPreListingPhase string       `json:"curPreListingPhase"`
-	FundingIntervalHour    types.Number `json:"fundingIntervalHour"`
-	FundingCap             types.Number `json:"fundingCap"`
-	BasisRateYear          types.Number `json:"basisRateYear"`
-	BidPrice               types.Number `json:"bidPrice"`
-	BidSize                types.Number `json:"bidSize"`
-	BidIV                  types.Number `json:"bidIv"`
-	AskPrice               types.Number `json:"askPrice"`
-	AskSize                types.Number `json:"askSize"`
-	AskIV                  types.Number `json:"askIv"`
-	MarkPriceIV            types.Number `json:"markPriceIv"`
-	UnderlyingPrice        types.Number `json:"underlyingPrice"`
-	TotalVolume            types.Number `json:"totalVolume"`
-	TotalTurnover          types.Number `json:"totalTurnover"`
-	Delta                  types.Number `json:"delta"`
-	Gamma                  types.Number `json:"gamma"`
-	Vega                   types.Number `json:"vega"`
-	Theta                  types.Number `json:"theta"`
-	Change24Hour           types.Number `json:"change24h"`
-	USDIndexPrice          types.Number `json:"usdIndexPrice"`
+	Basis                      types.Number `json:"basis"`
+	PreOpenPrice               types.Number `json:"preOpenPrice"`
+	PreQuantity                types.Number `json:"preQty"`
+	CurrentPreListingPhase     string       `json:"curPreListingPhase"`
+	FundingIntervalHour        types.Number `json:"fundingIntervalHour"`
+	FundingCap                 types.Number `json:"fundingCap"`
+	BasisRateYear              types.Number `json:"basisRateYear"`
+	BidPrice                   types.Number `json:"bidPrice"`
+	BidSize                    types.Number `json:"bidSize"`
+	BidImpliedVolatility       types.Number `json:"bidIv"`
+	AskPrice                   types.Number `json:"askPrice"`
+	AskSize                    types.Number `json:"askSize"`
+	AskImpliedVolatility       types.Number `json:"askIv"`
+	MarkPriceImpliedVolatility types.Number `json:"markPriceIv"`
+	UnderlyingPrice            types.Number `json:"underlyingPrice"`
+	TotalVolume                types.Number `json:"totalVolume"`
+	TotalTurnover              types.Number `json:"totalTurnover"`
+	Delta                      types.Number `json:"delta"`
+	Gamma                      types.Number `json:"gamma"`
+	Vega                       types.Number `json:"vega"`
+	Theta                      types.Number `json:"theta"`
+	Change24Hour               types.Number `json:"change24h"`
+	USDIndexPrice              types.Number `json:"usdIndexPrice"`
 }
 
 // WebsocketKlineResponse is a push from the kline.{interval}.{symbol} topic (Kline)

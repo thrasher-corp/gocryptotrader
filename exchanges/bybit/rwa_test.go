@@ -1,6 +1,9 @@
 package bybit
 
 import (
+	"fmt"
+	"net/http"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -272,6 +275,19 @@ func TestGetRWANAVChart(t *testing.T) {
 	require.ErrorIs(t, err, errProductIDRequired, "GetRWANAVChart must reject an empty product ID")
 	_, err = e.GetRWANAVChart(t.Context(), &RWANAVChartRequest{ProductID: 3, StartTime: time.Unix(1791331200, 0), EndTime: time.Unix(1791072000, 0)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetRWANAVChart must reject a start time after the end time")
+
+	// Bybit answers a window that starts and ends on one day with that day's NAV
+	var gotQuery url.Values
+	navEx := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"","result":{"productId":"3","list":[{"date":"2026-10-04","nav":"1.015201"}]},"retExtInfo":{},"time":1791100000000}`)
+		assert.NoError(t, err, "writing the response should not error")
+	})
+	day := time.Unix(1791072000, 0)
+	nav, err := navEx.GetRWANAVChart(t.Context(), &RWANAVChartRequest{ProductID: 3, StartTime: day, EndTime: day})
+	require.NoError(t, err, "GetRWANAVChart must send a window that starts and ends on one day")
+	assert.Equal(t, url.Values{"productId": {"3"}, "startTime": {"1791072000"}, "endTime": {"1791072000"}}, gotQuery, "GetRWANAVChart should send both bounds")
+	assert.Len(t, nav.List, 1, "GetRWANAVChart should return the day's NAV")
 
 	req := &RWANAVChartRequest{ProductID: 3, StartTime: time.Unix(1791072000, 0), EndTime: time.Unix(1791331200, 0)}
 	if !mockTests {

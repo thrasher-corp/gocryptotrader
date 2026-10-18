@@ -33,13 +33,13 @@ func TestGetCryptoLoanBorrowableCoins(t *testing.T) {
 					MinFixedBorrowingAmount:        0.25,
 					MinFlexibleBorrowingAmount:     0.016,
 					VIPLevel:                       "VIP5",
-					FlexibleAnnualizedInterestRate: 0.0194098569084,
-					AnnualizedInterestRate7Day:     0.027,
-					AnnualizedInterestRate14Day:    0.027,
-					AnnualizedInterestRate30Day:    0.027,
-					AnnualizedInterestRate60Day:    0.027,
-					AnnualizedInterestRate90Day:    0.04,
-					AnnualizedInterestRate180Day:   0.054,
+					FlexibleAnnualisedInterestRate: 0.0194098569084,
+					AnnualisedInterestRate7Day:     0.027,
+					AnnualisedInterestRate14Day:    0.027,
+					AnnualisedInterestRate30Day:    0.027,
+					AnnualisedInterestRate60Day:    0.027,
+					AnnualisedInterestRate90Day:    0.04,
+					AnnualisedInterestRate180Day:   0.054,
 				},
 			},
 		}
@@ -647,12 +647,32 @@ func TestRenewFixedLoanBorrowOrder(t *testing.T) {
 	require.NoError(t, err, "RenewFixedLoanBorrowOrder must not error")
 	if mockTests {
 		exp := &RenewFixedLoanBorrowOrderResponse{
-			OrderID: 49,
+			OrderID: preciseNumber(t, "49"),
 		}
 		assert.Equal(t, exp, result, "RenewFixedLoanBorrowOrder should decode every field")
 		return
 	}
 	assert.NotZero(t, result.OrderID, "RenewFixedLoanBorrowOrder should return an order ID")
+}
+
+func TestRenewFixedLoanBorrowOrderResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, exp string
+	}{
+		{name: "quoted order ID", input: `{"orderId":"49"}`, exp: "49"},
+		{name: "bare order ID", input: `{"orderId":49}`, exp: "49"},
+		// An ID beyond float64's precision keeps every digit
+		{name: "bare 18 digit order ID", input: `{"orderId":612349292702654771}`, exp: "612349292702654771"},
+		{name: "quoted 18 digit order ID", input: `{"orderId":"612349292702654771"}`, exp: "612349292702654771"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result RenewFixedLoanBorrowOrderResponse
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error")
+			assert.Equal(t, RenewFixedLoanBorrowOrderResponse{OrderID: preciseNumber(t, tc.exp)}, result, "RenewFixedLoanBorrowOrderResponse should decode the order ID")
+		})
+	}
 }
 
 func TestCreateFixedLoanSupplyOrder(t *testing.T) {
@@ -817,6 +837,15 @@ func TestFixedLoanSupplyContractUnmarshalJSON(t *testing.T) {
 	}
 	var got FixedLoanSupplyContract
 	assert.Error(t, json.Unmarshal([]byte(`{"interest":true}`), &got), "Unmarshal should reject a non-numeric interest")
+
+	var both FixedLoanSupplyContract
+	require.NoError(t, json.Unmarshal([]byte(`{"supplyId":"3","interestPaid":"0","interest":"0.13041095890410959"}`), &both), "Unmarshal must not error")
+	assert.Equal(t, FixedLoanSupplyContract{SupplyID: "3"}, both, "Unmarshal should take the documented interestPaid when both keys are sent")
+
+	var page FixedLoanSupplyContractInfoResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"list":[{"supplyId":"1","interestPaid":"1.5"}]}`), &page), "Unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"list":[{"supplyId":"2","interest":"0.13041095890410959"}]}`), &page), "Unmarshal must not error")
+	assert.Equal(t, []FixedLoanSupplyContract{{SupplyID: "2", InterestPaid: 0.13041095890410959}}, page.List, "Unmarshal should take the paid interest from the page decoded, not the one before")
 }
 
 func TestGetFixedLoanBorrowOrderInfo(t *testing.T) {

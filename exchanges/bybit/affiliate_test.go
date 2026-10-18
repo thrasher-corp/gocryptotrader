@@ -209,9 +209,9 @@ func TestGetAffiliateUserInfo(t *testing.T) {
 				currency.USDC:           2.81382591,
 				currency.USDT:           130.48078429,
 			},
-			PaySendAmount30Day: 1000,
-			PayFTT:             100,
-			CardFTT:            50,
+			PaySendAmount30Day:       1000,
+			PayFirstTimeTransaction:  100,
+			CardFirstTimeTransaction: 50,
 		}
 		assert.Equal(t, exp, result, "GetAffiliateUserInfo should decode every field")
 		return

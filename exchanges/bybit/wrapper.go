@@ -84,8 +84,20 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	if s.TriggerPrice != 0 {
 		arg.TriggerPrice = s.TriggerPrice
 		arg.TriggerBy = s.TriggerPriceType.String()
-		if s.AssetType == asset.Spot {
+		switch s.AssetType {
+		case asset.Spot:
 			arg.OrderFilter = "tpslOrder"
+			// Bybit sizes a spot market buy in the quote currency unless told otherwise, and a stop order's amount is in
+			// the base currency
+			if conditional && orderType == "Market" {
+				arg.MarketUnit = "baseCoin"
+			}
+		case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
+			// Bybit rejects a futures conditional order that does not say which way the price must cross its trigger
+			arg.TriggerDirection = 2
+			if s.StopDirection == order.StopUp {
+				arg.TriggerDirection = 1
+			}
 		}
 	}
 	if tp := &s.RiskManagementModes.TakeProfit; tp.Price != 0 {
@@ -151,14 +163,17 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	if err != nil {
 		return nil, err
 	}
-	// Trigger types are sent only with the price they apply to, since sending one alone would change it
+	// Trigger types are sent only with the price they apply to, since sending one alone would change it, while a TP/SL
+	// limit price can be amended without its trigger price
 	arg := &AmendOrderRequest{
-		Category:    getCategoryName(action.AssetType),
-		Symbol:      symbol,
-		OrderID:     action.OrderID,
-		OrderLinkID: action.ClientOrderID,
-		Quantity:    action.Amount,
-		Price:       action.Price,
+		Category:     getCategoryName(action.AssetType),
+		Symbol:       symbol,
+		OrderID:      action.OrderID,
+		OrderLinkID:  action.ClientOrderID,
+		Quantity:     action.Amount,
+		Price:        action.Price,
+		TPLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
+		SLLimitPrice: action.RiskManagementModes.StopLoss.LimitPrice,
 	}
 	if action.TriggerPrice != 0 {
 		arg.TriggerPrice = action.TriggerPrice
@@ -168,13 +183,11 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 		takeProfit := tp.Price
 		arg.TakeProfit = &takeProfit
 		arg.TPTriggerBy = tp.TriggerPriceType.String()
-		arg.TPLimitPrice = tp.LimitPrice
 	}
 	if sl := &action.RiskManagementModes.StopLoss; sl.Price != 0 {
 		stopLoss := sl.Price
 		arg.StopLoss = &stopLoss
 		arg.SLTriggerBy = sl.TriggerPriceType.String()
-		arg.SLLimitPrice = sl.LimitPrice
 	}
 	return arg, nil
 }
@@ -198,12 +211,17 @@ func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRe
 	if err != nil {
 		return nil, err
 	}
-	return &CancelOrderRequest{
+	arg := &CancelOrderRequest{
 		Category:    getCategoryName(ord.AssetType),
 		Symbol:      symbol,
 		OrderID:     ord.OrderID,
 		OrderLinkID: ord.ClientOrderID,
-	}, nil
+	}
+	// SubmitOrder places spot stop orders as TP/SL orders, which Bybit looks for only when the cancellation says so
+	if ord.AssetType == asset.Spot && ord.Type.Is(order.Stop) {
+		arg.OrderFilter = "tpslOrder"
+	}
+	return arg, nil
 }
 
 // orderHistoryWindow is the longest time range Get Order History serves in one request
@@ -400,6 +418,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
+	e.disableUnusableSubscriptions()
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
@@ -439,6 +458,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	// The streams below without an endpoint of their own follow the spot stream to testnet
+	auxiliaryURLs := make(map[string]string, 5)
+	for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
+		if auxiliaryURLs[path], err = auxiliaryStreamURL(wsSpotURL, path); err != nil {
+			return fmt.Errorf("%s: %w", exchange.WebsocketSpot, err)
+		}
+	}
 
 	// Every URL has resolved before any connection is registered, so a configuration error registers none
 	for _, setup := range []*websocket.ConnectionSetup{
@@ -447,7 +473,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			URL:                   wsSpotURL,
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-			Connector:             e.WsConnect,
+			Connector:             e.WebsocketConnect,
 			GenerateSubscriptions: e.generateSubscriptions,
 			Subscriber:            e.SpotSubscribe,
 			Unsubscriber:          e.SpotUnsubscribe,
@@ -460,7 +486,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			URL:                   wsOptionsURL,
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-			Connector:             e.WsConnect,
+			Connector:             e.WebsocketConnect,
 			GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 			Subscriber:            e.OptionsSubscribe,
 			Unsubscriber:          e.OptionsUnsubscribe,
@@ -473,7 +499,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			URL:                  wsUSDTLinearURL,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Connector:            e.WsConnect,
+			Connector:            e.WebsocketConnect,
 			GenerateSubscriptions: func() (subscription.List, error) {
 				return e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
 			},
@@ -493,7 +519,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			URL:                  wsUSDCLinearURL,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Connector:            e.WsConnect,
+			Connector:            e.WebsocketConnect,
 			GenerateSubscriptions: func() (subscription.List, error) {
 				return e.GenerateLinearDefaultSubscriptions(asset.USDCMarginedFutures)
 			},
@@ -513,7 +539,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			URL:                   wsInverseURL,
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-			Connector:             e.WsConnect,
+			Connector:             e.WebsocketConnect,
 			GenerateSubscriptions: e.GenerateInverseDefaultSubscriptions,
 			Subscriber:            e.InverseSubscribe,
 			Unsubscriber:          e.InverseUnsubscribe,
@@ -523,17 +549,17 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		// These connections subscribe only to the channels a user configures, none by default, so none of them is made
 		// unless asked for
-		e.SystemStatusConnectionSetup(websocketSystemStatus),
-		e.AdvancedEarnConnectionSetup(exch),
-		e.SpreadPublicConnectionSetup(exch),
-		e.RFQPublicConnectionSetup(exch),
-		e.EventPublicConnectionSetup(exch),
+		e.SystemStatusConnectionSetup(auxiliaryURLs[systemStatusPath]),
+		e.AdvancedEarnConnectionSetup(exch, auxiliaryURLs[advancedEarnPath]),
+		e.SpreadPublicConnectionSetup(exch, auxiliaryURLs[spreadPublicPath]),
+		e.RFQPublicConnectionSetup(exch, auxiliaryURLs[rfqPublicPath]),
+		e.EventPublicConnectionSetup(exch, auxiliaryURLs[eventPublicPath]),
 		// Trade - Dedicated trade connection for all outbound trading requests.
 		{
 			URL:                  wsTradeURL,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Connector:            e.WsConnect,
+			Connector:            e.WebsocketConnect,
 			Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 				return e.wsHandleTradeData(conn, resp)
 			},
@@ -547,7 +573,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 			Authenticated:         true,
-			Connector:             e.WsConnect,
+			Connector:             e.WebsocketConnect,
 			GenerateSubscriptions: e.generateAuthSubscriptions,
 			Subscriber:            e.authSubscribe,
 			Unsubscriber:          e.authUnsubscribe,
@@ -721,7 +747,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				continue
 			}
-			// Take the pair from the enabled list, which holds it in the configured format the ticker store keys by
+			// Take the pair from the enabled list, so the stored ticker reports it in the configured format
 			i := slices.IndexFunc(enabled, pair.Equal)
 			if i == -1 {
 				continue
@@ -883,23 +909,27 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	for i := range resp.List {
 		for j := range resp.List[i].Coin {
 			c := &resp.List[i].Coin[j]
-			subAccts[0].Balances.Set(c.Coin, unifiedBalance(c.WalletBalance, c.Locked, c.BorrowAmount, c.SpotBorrow))
+			subAccts[0].Balances.Set(c.Coin, unifiedBalance(c))
 		}
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // unifiedBalance returns a coin's balance in the unified trading account. Its wallet balance includes what spot margin
-// trading and manual borrowing borrowed, and is negative while derivatives losses are owed. Bybit no longer reports
-// what can be withdrawn without borrowing, so that is what the wallet holds beyond those loans and the funds open
-// orders lock
-func unifiedBalance(walletBalance, locked, borrowAmount, spotBorrow types.Number) accounts.Balance {
+// trading and manual borrowing borrowed, and is negative while derivatives losses are owed. Spot open orders lock part
+// of it and the initial margin of the coin's derivatives orders and positions holds more, as Bybit's isolated margin
+// available balance counts; in portfolio margin mode Bybit leaves those margins empty, so only the spot locks are held.
+// Bybit no longer reports what can be used without borrowing, so that is what the wallet holds beyond its loans, what
+// is held and the bonus, which cannot be withdrawn
+func unifiedBalance(c *WalletBalanceCoin) accounts.Balance {
+	walletBalance := c.WalletBalance.Float64()
+	hold := c.Locked.Float64() + c.TotalOrderInitialMargin.Float64() + c.TotalPositionInitialMargin.Float64()
 	return accounts.Balance{
-		Total:                  walletBalance.Float64(),
-		Hold:                   locked.Float64(),
-		Free:                   max(walletBalance.Float64()-locked.Float64(), 0),
-		Borrowed:               borrowAmount.Float64(),
-		AvailableWithoutBorrow: max(walletBalance.Float64()-spotBorrow.Float64()-locked.Float64(), 0),
+		Total:                  walletBalance,
+		Hold:                   hold,
+		Free:                   max(walletBalance-hold, 0),
+		Borrowed:               c.BorrowAmount.Float64(),
+		AvailableWithoutBorrow: max(walletBalance-c.SpotBorrow.Float64()-hold-c.Bonus.Float64(), 0),
 	}
 }
 
@@ -909,7 +939,7 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWithdrawalsHistory returns the account's on-chain withdrawals of a coin, a page at a time
+// GetWithdrawalsHistory returns the account's on-chain and off-chain withdrawals of a coin, a page at a time
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if getCategoryName(a) == "" {
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -1073,9 +1103,24 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	resp.Type = submittedOrderType(s)
 	resp.ClientOrderID = arg.OrderLinkID
 	resp.Status = order.New
 	return resp, nil
+}
+
+// submittedOrderType returns the type a submitted order reads back as. A limit or market order with a trigger price is
+// placed as a conditional order, which Bybit reports with its condition, so storing it as such keeps the stored order
+// in step with later updates and lets its cancellation carry the TP/SL filter a spot conditional order needs
+func submittedOrderType(s *order.Submit) order.Type {
+	switch {
+	case s.Type == order.Stop:
+		// A stop order is placed as a conditional market order, which Bybit reports as a stop market order
+		return order.StopMarket
+	case s.TriggerPrice != 0 && (s.Type == order.Limit || s.Type == order.Market):
+		return order.Stop | s.Type
+	}
+	return s.Type
 }
 
 // WebsocketSubmitOrder submits a new order over the websocket trade connection. It returns once Bybit accepts the order,
@@ -1091,7 +1136,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	ack, err := e.WSCreateOrder(ctx, arg)
+	ack, err := e.WebsocketCreateOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1099,6 +1144,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
+	resp.Type = submittedOrderType(s)
 	resp.ClientOrderID = arg.OrderLinkID
 	resp.Status = order.New
 	return resp, nil
@@ -1143,7 +1189,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err != nil {
 		return nil, err
 	}
-	ack, err := e.WSAmendOrder(ctx, arg)
+	ack, err := e.WebsocketAmendOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1160,8 +1206,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.CancelTradeOrder(ctx, arg)
-	return err
+	return cancelWithStopOrderFallback(ctx, arg, e.CancelTradeOrder)
 }
 
 // WebsocketCancelOrder cancels an order over the websocket trade connection. It returns once Bybit accepts the
@@ -1177,7 +1222,17 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	_, err = e.WSCancelOrder(ctx, arg)
+	return cancelWithStopOrderFallback(ctx, arg, e.WebsocketCancelTradeOrder)
+}
+
+// cancelWithStopOrderFallback sends a cancellation, and sends it again with the StopOrder filter when Bybit finds no
+// such TP/SL order, since a spot conditional order reads back as a stop order as a TP/SL order does
+func cancelWithStopOrderFallback(ctx context.Context, arg *CancelOrderRequest, send func(context.Context, *CancelOrderRequest) (*OrderResponse, error)) error {
+	_, err := send(ctx, arg)
+	if errors.Is(err, order.ErrOrderNotFound) && arg.OrderFilter == "tpslOrder" {
+		arg.OrderFilter = "StopOrder"
+		_, err = send(ctx, arg)
+	}
 	return err
 }
 
@@ -1229,9 +1284,6 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if err != nil {
 				return resp, err
 			}
-			if len(result.List) != end-start {
-				return resp, fmt.Errorf("%w: %d orders, %d outcomes", errBatchOutcomeMismatch, end-start, len(result.List))
-			}
 			// Bybit reports each order's outcome in request order; a rejected order may come back without its IDs
 			for i := range result.List {
 				status := "success"
@@ -1245,15 +1297,13 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	return resp, nil
 }
 
-// batchOrderSize returns how many orders a batch order request of a category may hold
+// batchOrderSize returns how many orders a batch order request of a category may hold: Bybit takes 5 options or 10 spot
+// orders in one, and 20 linear or inverse orders, but counts those against a budget of 10 a second and fails the rest
 func batchOrderSize(category string) int {
-	switch category {
-	case cOption:
+	if category == cOption {
 		return 5
-	case cSpot:
-		return 10
 	}
-	return 20
+	return 10
 }
 
 // spotOrderFilters are the kinds of spot order, which Cancel All Orders cancels one kind at a time
@@ -1291,19 +1341,41 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
 	for _, filter := range filters {
 		req.OrderFilter = filter
-		cancelled, err := e.CancelAllTradeOrders(ctx, req)
-		if err != nil {
-			return resp, err
-		}
-		if !cancelled.Success {
-			return resp, fmt.Errorf("%w: %s %s", errCancelAllOrdersFailed, category, req.OrderFilter)
-		}
-		for i := range cancelled.List {
-			resp.Status[cancelled.List[i].OrderID] = "success"
+		for attempt := 1; ; attempt++ {
+			cancelled, err := e.CancelAllTradeOrders(ctx, req)
+			if err != nil {
+				return resp, err
+			}
+			if !cancelled.Success {
+				return resp, fmt.Errorf("%w: %s %s", errCancelAllOrdersFailed, category, req.OrderFilter)
+			}
+			var newlyCancelled int
+			for i := range cancelled.List {
+				if _, ok := resp.Status[cancelled.List[i].OrderID]; !ok {
+					newlyCancelled++
+				}
+				resp.Status[cancelled.List[i].OrderID] = "success"
+			}
+			// Bybit cancels at most 500 futures orders a request, picked at random, so a full futures reply can leave
+			// orders open; spot and option replies are never capped
+			if len(cancelled.List) < cancelAllLimit || (category != cLinear && category != cInverse) {
+				break
+			}
+			if newlyCancelled == 0 || attempt == cancelAllMaxRequests {
+				return resp, fmt.Errorf("%w: %s %s orders may remain open after %d requests", errCancelAllOrdersFailed, category, req.OrderFilter, attempt)
+			}
 		}
 	}
 	return resp, nil
 }
+
+const (
+	// cancelAllLimit is the most linear or inverse orders Cancel All Orders cancels in one request
+	cancelAllLimit = 500
+	// cancelAllMaxRequests bounds the requests CancelAllOrders sends for one kind of order while Bybit keeps returning
+	// full replies
+	cancelAllMaxRequests = 20
+)
 
 // GetOrderInfo returns order information based on order ID. Open orders and the most recent 500 closed ones per
 // category come from Get Open & Closed Orders, and older orders from Get Order History
@@ -1379,12 +1451,18 @@ func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item) (*order.Detail, error
 		return nil, err
 	}
 	orderType := order.UnknownType
-	// Bybit documents UNKNOWN as an order type it only returns, mainly for funding, with no GoCryptoTrader counterpart
-	if o.OrderType != "UNKNOWN" {
+	switch o.OrderType {
+	case "UNKNOWN", "Block trade Roll Back":
+		// Bybit documents these as order types it only returns, for funding and for a block trade's roll back, with no
+		// GoCryptoTrader counterpart
+	case "Block trade-Limit":
+		orderType = order.Limit
+	default:
 		if orderType, err = order.StringToOrderType(o.OrderType); err != nil {
 			return nil, err
 		}
 	}
+	orderType = conditionalOrderType(orderType, o.StopOrderType)
 	side, err := order.StringToOrderSide(o.Side)
 	if err != nil {
 		return nil, err
@@ -1427,11 +1505,47 @@ func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item) (*order.Detail, error
 		d.SettlementCurrency = settle
 	}
 	// A spot market order sized by value holds a quote amount in qty, and the base amount it bought in cumExecQty
-	if o.MarketUnit == "quoteCoin" {
+	if quoteSized(a, o.OrderType, o.Side, o.MarketUnit) {
 		d.QuoteAmount, d.Amount = d.Amount, d.ExecutedAmount
 	}
 	d.SetFees(fees)
 	return d, nil
+}
+
+// quoteSized reports whether an order's qty is a quote amount, which only a spot market order's can be. Bybit sizes a
+// market buy by value unless its marketUnit is baseCoin, and reports an empty marketUnit for some buys sized that way,
+// such as the legs of a bidirectional TP/SL order
+func quoteSized(a asset.Item, orderType, side, marketUnit string) bool {
+	if a != asset.Spot || orderType != "Market" {
+		return false
+	}
+	switch marketUnit {
+	case "quoteCoin":
+		return true
+	case "baseCoin":
+		return false
+	}
+	return side == sideBuy
+}
+
+// conditionalOrderType returns the type of a conditional order, which Bybit reports as the type it takes once
+// triggered, with the condition in stopOrderType
+func conditionalOrderType(orderType order.Type, stopOrderType string) order.Type {
+	switch stopOrderType {
+	case "Stop", "StopLoss", "PartialStopLoss", "tpslOrder", "MmRateClose":
+		return order.Stop | orderType
+	case "TakeProfit", "PartialTakeProfit":
+		if orderType == order.Market {
+			return order.TakeProfitMarket
+		}
+		return order.TakeProfit
+	case "TrailingStop":
+		return order.TrailingStop
+	case "OcoOrder", "BidirectionalTpslOrder":
+		// Each record is one leg of a pair whose legs cancel each other when one triggers
+		return order.OCO
+	}
+	return orderType
 }
 
 // orderCostCurrency returns the currency an order's executed value and fees are counted in: the quote currency for
@@ -1585,8 +1699,9 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []OpenOrder, assetType asse
 }
 
 // GetOrderHistory returns an asset's closed orders, those of req.Pairs when it lists any. Bybit returns at most 7 days
-// of orders per request, so a longer time range is fetched a week at a time; without a time range Bybit returns the
-// last 7 days
+// of orders per request, so a longer time range is fetched a week at a time, and a start time alone, or a range that
+// ends in the future, is fetched up to now; an end time alone returns the 7 days before it, and no time range the last
+// 7 days
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1596,12 +1711,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
 	windows := [][2]time.Time{{req.StartTime, req.EndTime}}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
+	if !req.StartTime.IsZero() {
+		// No order is created after now, so a range ending later is fetched up to now
+		endTime := req.EndTime
+		if now := time.Now(); endTime.IsZero() || endTime.After(now) {
+			endTime = now
+		}
 		windows = windows[:0]
-		for start := req.StartTime; start.Before(req.EndTime); start = start.Add(orderHistoryWindow) {
+		for start := req.StartTime; start.Before(endTime); start = start.Add(orderHistoryWindow) {
 			end := start.Add(orderHistoryWindow)
-			if end.After(req.EndTime) {
-				end = req.EndTime
+			if end.After(endTime) {
+				end = endTime
 			}
 			windows = append(windows, [2]time.Time{start, end})
 		}
@@ -1649,7 +1769,19 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
-		return getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount), nil
+		price := feeBuilder.PurchasePrice
+		if a, err := e.feeAsset(feeBuilder.Pair); err == nil {
+			switch a {
+			case asset.CoinMarginedFutures:
+				// An inverse contract is worth one unit of the quote currency, so a trade's value is its number of
+				// contracts
+				price = 1
+			case asset.Options:
+				// Bybit charges an option trade up to 7% of the option's price, more than the usual worst case
+				return maxOptionFeeCap * price * feeBuilder.Amount, nil
+			}
+		}
+		return getOfflineTradeFee(price, feeBuilder.Amount), nil
 	case exchange.CryptocurrencyTradeFee:
 		a, err := e.feeAsset(feeBuilder.Pair)
 		if err != nil {
@@ -1672,9 +1804,58 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		if feeBuilder.IsMaker {
 			rate = rates.List[0].MakerFeeRate
 		}
+		switch a {
+		case asset.CoinMarginedFutures:
+			// An inverse contract is worth one unit of the quote currency, so the fee in the quote currency is the rate
+			// times the number of contracts
+			return rate.Float64() * feeBuilder.Amount, nil
+		case asset.Options:
+			// Bybit charges an option trade the fee rate on its underlying's index price, up to a share of the option's price
+			// that depends on the account's tier
+			symbol, err := e.orderSymbol(feeBuilder.Pair, a)
+			if err != nil {
+				return 0, err
+			}
+			tickers, err := e.GetTickers(ctx, &TickersRequest{Category: cOption, Symbol: symbol})
+			if err != nil {
+				return 0, err
+			}
+			if len(tickers.List) == 0 {
+				return 0, fmt.Errorf("%w for %s %s", ticker.ErrTickerNotFound, a, feeBuilder.Pair)
+			}
+			fee := rate.Float64() * tickers.List[0].IndexPrice.Float64()
+			// No tier caps the fee below 4% of the option's price, so the account's tier matters only above that
+			if fee > minOptionFeeCap*feeBuilder.PurchasePrice {
+				info, err := e.GetAPIKeyInformation(ctx)
+				if err != nil {
+					return 0, err
+				}
+				fee = min(fee, optionFeeCap(info.VIPLevel)*feeBuilder.PurchasePrice)
+			}
+			return fee * feeBuilder.Amount, nil
+		}
 		return rate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	}
 	return 0, fmt.Errorf("%w: fee type %v", common.ErrFunctionNotSupported, feeBuilder.FeeType)
+}
+
+// maxOptionFeeCap and minOptionFeeCap are the largest and smallest shares of an option's price that Bybit's account
+// tiers cap the fee of trading it at
+const (
+	maxOptionFeeCap = 0.07
+	minOptionFeeCap = 0.04
+)
+
+// optionFeeCap returns the most of an option's price Bybit charges an account of the VIP level as the fee of trading it:
+// 7%, but 6% for Pro 2 to 4 and 4% for Pro 5 and 6
+func optionFeeCap(vipLevel string) float64 {
+	switch vipLevel {
+	case "PRO-2", "PRO-3", "PRO-4":
+		return 0.06
+	case "PRO-5", "PRO-6":
+		return minOptionFeeCap
+	}
+	return maxOptionFeeCap
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

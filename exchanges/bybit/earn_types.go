@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -195,10 +196,30 @@ type EarnYieldHistoryRequest struct {
 }
 
 // EarnYieldHistoryResponse holds a page of Earn yield distributions. The docs' table names the list "list", but their
-// response example names it "yield", which is what is decoded
+// response example names it "yield", so either is decoded
 type EarnYieldHistoryResponse struct {
 	NextPageCursor string      `json:"nextPageCursor"`
 	Yield          []EarnYield `json:"yield"`
+}
+
+// UnmarshalJSON decodes the yields from yield, or from list when the response has no yield
+func (r *EarnYieldHistoryResponse) UnmarshalJSON(data []byte) error {
+	type alias EarnYieldHistoryResponse
+	aux := struct {
+		*alias
+		Yield []EarnYield `json:"yield"`
+		List  []EarnYield `json:"list"`
+	}{alias: (*alias)(r)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	switch {
+	case aux.Yield != nil:
+		r.Yield = aux.Yield
+	case aux.List != nil:
+		r.Yield = aux.List
+	}
+	return nil
 }
 
 // EarnYield is a Flexible Savings or On-Chain Earn yield distribution

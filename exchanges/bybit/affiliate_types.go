@@ -105,9 +105,9 @@ type AffiliateUserInfoResponse struct {
 	Commissions30Day   map[currency.Code]types.Number `json:"commissions30Day"`
 	Commissions365Day  map[currency.Code]types.Number `json:"commissions365Day"`
 	PaySendAmount30Day types.Number                   `json:"paySendAmount30Day"`
-	// PayFTT and CardFTT are the first transaction amounts of Bybit Pay and Bybit Card
-	PayFTT  types.Number `json:"payFtt"`
-	CardFTT types.Number `json:"cardFtt"`
+	// PayFirstTimeTransaction and CardFirstTimeTransaction hold the first Bybit Pay and Bybit Card transaction amounts
+	PayFirstTimeTransaction  types.Number `json:"payFtt"`
+	CardFirstTimeTransaction types.Number `json:"cardFtt"`
 }
 
 // AffiliateSubAffiliateListRequest holds the parameters of GetAffiliateSubAffiliateList; every field is optional

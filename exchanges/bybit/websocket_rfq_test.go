@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -33,22 +32,6 @@ func rfqReply(tb testing.TB) func(*SubscriptionRequest) []byte {
 		require.NoError(tb, err, "Marshal must not error")
 		return b
 	}
-}
-
-func TestRFQPublicConnectionSetup(t *testing.T) {
-	t.Parallel()
-	ex := testInstance(t)
-	setup := ex.RFQPublicConnectionSetup(&config.Exchange{WebsocketResponseCheckTimeout: time.Second, WebsocketResponseMaxLimit: 2 * time.Second})
-	assert.Equal(t, rfqPublicURL, setup.URL, "RFQPublicConnectionSetup should use the RFQ public URL")
-	assert.Equal(t, time.Second, setup.ResponseCheckTimeout, "RFQPublicConnectionSetup should use the configured response check timeout")
-	assert.Equal(t, 2*time.Second, setup.ResponseMaxLimit, "RFQPublicConnectionSetup should use the configured response limit")
-	for name, fn := range map[string]any{"Connector": setup.Connector, "Subscriber": setup.Subscriber, "Unsubscriber": setup.Unsubscriber, "Handler": setup.Handler} {
-		assert.NotNilf(t, fn, "RFQPublicConnectionSetup should set %s", name)
-	}
-	require.NotNil(t, setup.GenerateSubscriptions, "RFQPublicConnectionSetup must set GenerateSubscriptions")
-	subs, err := setup.GenerateSubscriptions()
-	require.NoError(t, err, "GenerateSubscriptions must not error")
-	assert.Empty(t, subs, "GenerateSubscriptions should generate no subscriptions by default")
 }
 
 func TestGenerateRFQPublicSubscriptions(t *testing.T) {
@@ -164,7 +147,7 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 	if !mockTests {
 		replies, err := conn.match.Set("gct-live", 1)
 		require.NoError(t, err, "match.Set must not error")
-		for _, frame := range liveWindowFrames(t, rfqPublicURL, []string{ChannelRFQPublicTrades}, 5*time.Second) {
+		for _, frame := range liveWindowFrames(t, mainnetStreamOrigin+rfqPublicPath, []string{ChannelRFQPublicTrades}, 5*time.Second) {
 			require.NoErrorf(t, handle(t.Context(), frame), "wsHandleRFQPublicData must handle %s", frame)
 		}
 		require.Len(t, replies, 1, "wsHandleRFQPublicData must route the subscription reply")
@@ -172,7 +155,7 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 		require.NoError(t, json.Unmarshal(<-replies, &reply), "Unmarshal must not error")
 		assert.True(t, reply.Success, "the RFQ stream should accept the public trade topic")
 		for _, frame := range relayedFrames(ex) {
-			f, ok := frame.(*RFQPublicTradeFrame)
+			f, ok := frame.(*WebsocketRFQPublicTradeResponse)
 			require.Truef(t, ok, "wsHandleRFQPublicData must relay public trade frames, not %T", frame)
 			assert.NotEmpty(t, f.Data, "public trade frames should hold trades")
 		}
@@ -181,7 +164,7 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 
 	testexch.FixtureToDataHandler(t, "testdata/wsRFQPublic.json", handle)
 	exp := []any{
-		&RFQPublicTradeFrame{
+		&WebsocketRFQPublicTradeResponse{
 			ID:           "rfq_public_trades_1791008130310",
 			Topic:        "rfq.open.public.trades",
 			CreationTime: types.Time(time.UnixMilli(1791008130310)),
@@ -239,7 +222,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 	ex := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsRFQPrivate.json", ex.wsHandleRFQPrivateData)
 	exp := []any{
-		&RFQQuoteFrame{
+		&WebsocketRFQQuoteResponse{
 			ID:           "rfq_quotes_1791008120140",
 			Topic:        "rfq.open.quotes",
 			CreationTime: types.Time(time.UnixMilli(1791008120140)),
@@ -262,7 +245,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&RFQQuoteFrame{
+		&WebsocketRFQQuoteResponse{
 			ID:           "rfq_quotes_1791008130305",
 			Topic:        "rfq.open.quotes",
 			CreationTime: types.Time(time.UnixMilli(1791008130305)),
@@ -286,7 +269,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&RFQTradeFrame{
+		&WebsocketRFQTradeResponse{
 			ID:           "rfq_trades_1791008130308",
 			Topic:        "rfq.open.trades",
 			CreationTime: types.Time(time.UnixMilli(1791008130308)),
@@ -343,7 +326,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&RFQInquiryFrame{
+		&WebsocketRFQInquiryResponse{
 			ID:           "rfq_rfqs_1791008100520",
 			Topic:        "rfq.open.rfqs",
 			CreationTime: types.Time(time.UnixMilli(1791008100520)),

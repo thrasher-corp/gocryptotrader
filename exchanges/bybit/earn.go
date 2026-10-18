@@ -21,6 +21,7 @@ var (
 	errSpecCodeRequired         = errors.New("spec code is required")
 	errAutoInvestStatusRequired = errors.New("auto-invest status is required")
 	errAPRRangeRequired         = errors.New("APR time range is required")
+	errOnChainProductIDRejected = errors.New("product ID is not supported for OnChain")
 )
 
 // GetEarnProductInfo returns Flexible Savings and On-Chain Earn products (Get Product Info)
@@ -102,6 +103,9 @@ func (e *Exchange) GetEarnOrderHistory(ctx context.Context, req *EarnOrderHistor
 	}
 	if req.Category == "" {
 		return nil, errCategoryNotSet
+	}
+	if req.Category == "OnChain" && req.OrderID == "" && req.OrderLinkID == "" {
+		return nil, errEitherOrderIDOROrderLinkIDRequired
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
 		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
@@ -188,6 +192,9 @@ func (e *Exchange) GetEarnYieldHistory(ctx context.Context, req *EarnYieldHistor
 	}
 	if req.Category == "" {
 		return nil, errCategoryNotSet
+	}
+	if req.Category == "OnChain" && req.ProductID != "" {
+		return nil, errOnChainProductIDRejected
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
 		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {

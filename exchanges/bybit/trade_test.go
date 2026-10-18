@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"net/http"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -93,10 +92,10 @@ func TestPlaceOrderRequestPayload(t *testing.T) {
 		Category: cLinear, Symbol: "BTCUSDT", IsLeverage: true, Side: "Buy", OrderType: "Limit", Quantity: 0.01,
 		MarketUnit: "baseCoin", RPITakerAccess: true, SlippageToleranceType: "Percent", SlippageTolerance: 0.5,
 		Price: 28000, TriggerDirection: 1, OrderFilter: "Order", TriggerPrice: 27500, TriggerBy: "MarkPrice",
-		OrderIV: 0.1, TimeInForce: "GTC", PositionIndex: 1, OrderLinkID: "usdt-test-03", TakeProfit: 35000,
-		StopLoss: 27000, TPTriggerBy: "LastPrice", SLTriggerBy: "IndexPrice", ReduceOnly: true, CloseOnTrigger: true,
-		SMPType: "CancelMaker", MMP: true, TPSLMode: "Partial", TPLimitPrice: 36000, SLLimitPrice: 26500,
-		TPOrderType: "Limit", SLOrderType: "Limit", BBOSideType: "Queue", BBOLevel: 2,
+		OrderImpliedVolatility: 0.1, TimeInForce: "GTC", PositionIndex: 1, OrderLinkID: "usdt-test-03",
+		TakeProfit: 35000, StopLoss: 27000, TPTriggerBy: "LastPrice", SLTriggerBy: "IndexPrice", ReduceOnly: true,
+		CloseOnTrigger: true, SMPType: "CancelMaker", MMP: true, TPSLMode: "Partial", TPLimitPrice: 36000,
+		SLLimitPrice: 26500, TPOrderType: "Limit", SLOrderType: "Limit", BBOSideType: "Queue", BBOLevel: 2,
 	}
 	exp := map[string]any{
 		"category": "linear", "symbol": "BTCUSDT", "isLeverage": 1, "side": "Buy", "orderType": "Limit", "qty": "0.01",
@@ -164,10 +163,10 @@ func TestAmendOrderRequestPayload(t *testing.T) {
 
 	takeProfit, stopLoss := 2600.5, 0.0
 	r := &AmendOrderRequest{
-		Category: cLinear, Symbol: "ETHUSDT", OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", OrderLinkID: "test-000005",
-		OrderIV: 0.3, TriggerPrice: 2500, Quantity: 0.2, Price: 2450, TPSLMode: "Partial", TakeProfit: &takeProfit,
-		StopLoss: &stopLoss, TPTriggerBy: "MarkPrice", SLTriggerBy: "IndexPrice", TriggerBy: "LastPrice",
-		TPLimitPrice: 2590, SLLimitPrice: 1450,
+		Category: cLinear, Symbol: "ETHUSDT", OrderID: "fd4300ae-7847-404e-b947-b46980a4d140",
+		OrderLinkID: "test-000005", OrderImpliedVolatility: 0.3, TriggerPrice: 2500, Quantity: 0.2, Price: 2450,
+		TPSLMode: "Partial", TakeProfit: &takeProfit, StopLoss: &stopLoss, TPTriggerBy: "MarkPrice",
+		SLTriggerBy: "IndexPrice", TriggerBy: "LastPrice", TPLimitPrice: 2590, SLLimitPrice: 1450,
 	}
 	exp := map[string]any{
 		"category": "linear", "symbol": "ETHUSDT", "orderId": "fd4300ae-7847-404e-b947-b46980a4d140",
@@ -476,7 +475,7 @@ func TestGetOpenOrders(t *testing.T) {
 						TimeInForce:                "GTC",
 						OrderType:                  "Limit",
 						StopOrderType:              "UNKNOWN",
-						OrderIV:                    0.48,
+						OrderImpliedVolatility:     0.48,
 						LastPriceOnCreated:         3480,
 						PlaceType:                  "iv",
 						SMPType:                    "None",
@@ -798,7 +797,7 @@ func TestGetTradeOrderHistory(t *testing.T) {
 						TimeInForce:                "GTC",
 						OrderType:                  "Limit",
 						StopOrderType:              "UNKNOWN",
-						OrderIV:                    0.48,
+						OrderImpliedVolatility:     0.48,
 						LastPriceOnCreated:         3480,
 						PlaceType:                  "iv",
 						SMPType:                    "None",
@@ -917,32 +916,32 @@ func TestGetExecution(t *testing.T) {
 				Category: "option",
 				List: []Execution{
 					{
-						Symbol:            "BTC-26NOV24-92000-C",
-						OrderID:           "8d3a3cbd-14ac-4f3e-a72b-3a5b1a4d1f9a",
-						OrderLinkID:       "option-test-001",
-						Side:              "Buy",
-						OrderPrice:        3500,
-						OrderQuantity:     0.5,
-						LeavesQuantity:    0.2,
-						CreateType:        "CreateByUser",
-						OrderType:         "Limit",
-						StopOrderType:     "UNKNOWN",
-						ExecutionFee:      0.6,
-						ExecutionID:       "7e3f2a01-3c55-58b2-9f8a-4bd2b6d90a17",
-						ExecutionPrice:    3500,
-						ExecutionQuantity: 0.3,
-						ExecutionType:     "BlockTrade",
-						ExecutionValue:    1050,
-						ExecutionTime:     types.Time(time.Unix(1731900003, 0)),
-						FeeCurrency:       currency.USDT,
-						FeeRate:           0.0003,
-						TradeIV:           0.4812,
-						MarkIV:            0.4798,
-						MarkPrice:         3495.2,
-						IndexPrice:        91840.55,
-						UnderlyingPrice:   91850.12,
-						BlockTradeID:      "1a82e5801af74b67b7ad71ba00a7391a",
-						Sequence:          4688002129,
+						Symbol:                 "BTC-26NOV24-92000-C",
+						OrderID:                "8d3a3cbd-14ac-4f3e-a72b-3a5b1a4d1f9a",
+						OrderLinkID:            "option-test-001",
+						Side:                   "Buy",
+						OrderPrice:             3500,
+						OrderQuantity:          0.5,
+						LeavesQuantity:         0.2,
+						CreateType:             "CreateByUser",
+						OrderType:              "Limit",
+						StopOrderType:          "UNKNOWN",
+						ExecutionFee:           0.6,
+						ExecutionID:            "7e3f2a01-3c55-58b2-9f8a-4bd2b6d90a17",
+						ExecutionPrice:         3500,
+						ExecutionQuantity:      0.3,
+						ExecutionType:          "BlockTrade",
+						ExecutionValue:         1050,
+						ExecutionTime:          types.Time(time.Unix(1731900003, 0)),
+						FeeCurrency:            currency.USDT,
+						FeeRate:                0.0003,
+						TradeImpliedVolatility: 0.4812,
+						MarkImpliedVolatility:  0.4798,
+						MarkPrice:              3495.2,
+						IndexPrice:             91840.55,
+						UnderlyingPrice:        91850.12,
+						BlockTradeID:           "1a82e5801af74b67b7ad71ba00a7391a",
+						Sequence:               4688002129,
 					},
 				},
 			},
@@ -964,15 +963,17 @@ func TestGetExecution(t *testing.T) {
 	}
 }
 
-// testRateLimitedInstance returns an exchange that throttles with rate limits of its own, so a test can make a request
-// wait on a budget no other test draws on
-func testRateLimitedInstance(tb testing.TB) *Exchange {
-	tb.Helper()
-	ex := new(Exchange)
-	var err error
-	ex.Requester, err = request.New(tb.Name(), &http.Client{}, request.WithLimiter(rateLimitDefinitions()))
-	require.NoError(tb, err, "request.New must not error")
-	return ex
+// waitingBatchInstance returns an exchange with rate limits of its own whose batch budget is already full, so that a
+// batch sent with it waits on a budget no other test draws on, and the transport the exchange would send it to. The
+// budget is filled through its websocket limit, which leaves the HTTP IP limit idle
+func waitingBatchInstance(t *testing.T, budget orderBudget) (*Exchange, *batchTransport) {
+	t.Helper()
+	ex, transport := batchTransportExchange(t)
+	noDelay := request.WithDelayNotAllowed(t.Context())
+	for range endpointBudgets[budget.rest].requests {
+		require.NoError(t, ex.Requester.GetRateLimiterDefinitions()[budget.websocket].RateLimit(noDelay), "other orders must take the whole budget")
+	}
+	return ex, transport
 }
 
 func TestPlaceBatchOrder(t *testing.T) {
@@ -982,17 +983,61 @@ func TestPlaceBatchOrder(t *testing.T) {
 	_, err = e.PlaceBatchOrder(t.Context(), &BatchPlaceOrderRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "PlaceBatchOrder must reject a request without a category")
 	synctest.Test(t, func(t *testing.T) {
-		// The bubble's clock stands still, so the third order has to wait for the budget the second took
+		ex, transport := waitingBatchInstance(t, createBatchOrderBudgets.spot)
 		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		result, err := testRateLimitedInstance(t).PlaceBatchOrder(ctx, &BatchPlaceOrderRequest{Category: cSpot, Request: []BatchPlaceOrderItem{
+		time.AfterFunc(500*time.Millisecond, cancel)
+		result, err := ex.PlaceBatchOrder(ctx, &BatchPlaceOrderRequest{Category: cSpot, Request: []BatchPlaceOrderItem{
 			{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.01, Price: 60000},
 			{Symbol: "ETHUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.1, Price: 2500},
 			{Symbol: "SOLUSDT", Side: "Buy", OrderType: "Limit", Quantity: 1, Price: 150},
 		}})
 		assert.ErrorIs(t, err, context.Canceled, "PlaceBatchOrder should give up a batch cancelled while its orders wait for their rate limit")
 		assert.Nil(t, result, "PlaceBatchOrder should return no result for a batch it did not send")
+		assert.Empty(t, transport.recorded(), "PlaceBatchOrder should not send a batch cancelled while it waits")
 	})
+	// Bybit reports one result and one outcome for each order, so a reply with more or fewer of either cannot be matched
+	// to the orders sent
+	for _, tc := range []struct {
+		name    string
+		reply   string
+		request []BatchPlaceOrderItem
+	}{
+		{
+			name:  "more outcomes than orders",
+			reply: `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"1666800494330512128","orderLinkId":"spot-btc-05","createAt":"1713434102752"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"},{"code":0,"msg":"OK"}]},"time":1713434102753}`,
+			request: []BatchPlaceOrderItem{
+				{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.05, Price: 30000, OrderLinkID: "spot-btc-05"},
+			},
+		},
+		{
+			name:  "fewer results and outcomes than orders",
+			reply: `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"1666800494330512128","orderLinkId":"spot-btc-06","createAt":"1713434102752"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"}]},"time":1713434102753}`,
+			request: []BatchPlaceOrderItem{
+				{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.05, Price: 30000, OrderLinkID: "spot-btc-06"},
+				{Symbol: "ATOMUSDT", Side: "Buy", OrderType: "Limit", Quantity: 1, Price: 4, OrderLinkID: "spot-atom-06"},
+			},
+		},
+		{
+			name:  "more results and outcomes than orders",
+			reply: `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"1666800494330512128","orderLinkId":"spot-btc-07","createAt":"1713434102752"},{"category":"spot","symbol":"ATOMUSDT","orderId":"1666800494330512129","orderLinkId":"spot-atom-07","createAt":"1713434102752"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"},{"code":0,"msg":"OK"}]},"time":1713434102753}`,
+			request: []BatchPlaceOrderItem{
+				{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.05, Price: 30000, OrderLinkID: "spot-btc-07"},
+			},
+		},
+		{
+			name:  "fewer results than orders",
+			reply: `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"1666800494330512128","orderLinkId":"spot-btc-08","createAt":"1713434102752"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"},{"code":0,"msg":"OK"}]},"time":1713434102753}`,
+			request: []BatchPlaceOrderItem{
+				{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.05, Price: 30000, OrderLinkID: "spot-btc-08"},
+				{Symbol: "ATOMUSDT", Side: "Buy", OrderType: "Limit", Quantity: 1, Price: 4, OrderLinkID: "spot-atom-08"},
+			},
+		},
+	} {
+		ex := restReplyTestInstance(t, map[string]string{"/v5/order/create-batch": tc.reply})
+		unmatched, err := ex.PlaceBatchOrder(t.Context(), &BatchPlaceOrderRequest{Category: cSpot, Request: tc.request})
+		require.ErrorIsf(t, err, errBatchOutcomeMismatch, "PlaceBatchOrder must reject a reply with %s", tc.name)
+		assert.Nilf(t, unmatched, "PlaceBatchOrder should return no result for a reply with %s", tc.name)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1009,7 +1054,7 @@ func TestPlaceBatchOrder(t *testing.T) {
 	}
 	ensureTradablePairs(t)
 	result, err := e.PlaceBatchOrder(t.Context(), &BatchPlaceOrderRequest{Category: cOption, Request: []BatchPlaceOrderItem{
-		{Symbol: optionsTradablePair.String(), OrderType: "Limit", Side: "Buy", Quantity: 1, OrderIV: 6, TimeInForce: "GTC", OrderLinkID: "option-test-001"},
+		{Symbol: optionsTradablePair.String(), OrderType: "Limit", Side: "Buy", Quantity: 1, OrderImpliedVolatility: 6, TimeInForce: "GTC", OrderLinkID: "option-test-001"},
 		{Symbol: optionsTradablePair.String(), OrderType: "Limit", Side: "Sell", Quantity: 2, Price: 700, TimeInForce: "GTC", OrderLinkID: "option-test-002"},
 	}})
 	require.NoError(t, err, "PlaceBatchOrder must not error")
@@ -1084,10 +1129,10 @@ func TestBatchPlaceOrderItemPayload(t *testing.T) {
 	item := &BatchPlaceOrderItem{
 		Symbol: "BTCUSDT", IsLeverage: true, Side: "Sell", OrderType: "Market", ReduceOnly: true, CloseOnTrigger: true,
 		MarketUnit: "baseCoin", Price: 28000, TriggerDirection: 2, OrderFilter: "StopOrder", TriggerPrice: 27900,
-		TriggerBy: "LastPrice", OrderIV: 0.25, TimeInForce: "IOC", PositionIndex: 2, OrderLinkID: "batch-close-01",
-		TakeProfit: 25000, StopLoss: 29000, TPTriggerBy: "MarkPrice", SLTriggerBy: "IndexPrice", SMPType: "CancelTaker",
-		MMP: true, TPSLMode: "Partial", TPLimitPrice: 25100, SLLimitPrice: 29100, TPOrderType: "Limit",
-		SLOrderType: "Limit",
+		TriggerBy: "LastPrice", OrderImpliedVolatility: 0.25, TimeInForce: "IOC", PositionIndex: 2,
+		OrderLinkID: "batch-close-01", TakeProfit: 25000, StopLoss: 29000, TPTriggerBy: "MarkPrice",
+		SLTriggerBy: "IndexPrice", SMPType: "CancelTaker", MMP: true, TPSLMode: "Partial", TPLimitPrice: 25100,
+		SLLimitPrice: 29100, TPOrderType: "Limit", SLOrderType: "Limit",
 	}
 	exp := map[string]any{
 		"symbol": "BTCUSDT", "isLeverage": 1, "side": "Sell", "orderType": "Market", "qty": "0", "reduceOnly": true,
@@ -1110,17 +1155,43 @@ func TestBatchAmendOrder(t *testing.T) {
 	_, err = e.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "BatchAmendOrder must reject a request without a category")
 	synctest.Test(t, func(t *testing.T) {
-		// The bubble's clock stands still, so the third order has to wait for the budget the second took
+		ex, transport := waitingBatchInstance(t, amendBatchOrderBudgets.derivatives)
 		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		result, err := testRateLimitedInstance(t).BatchAmendOrder(ctx, &BatchAmendOrderRequest{Category: cLinear, Request: []BatchAmendOrderItem{
+		time.AfterFunc(500*time.Millisecond, cancel)
+		result, err := ex.BatchAmendOrder(ctx, &BatchAmendOrderRequest{Category: cLinear, Request: []BatchAmendOrderItem{
 			{Symbol: "BTCUSDT", OrderID: "c0ffee00-0000-4000-8000-000000000011", Price: 61000},
 			{Symbol: "ETHUSDT", OrderID: "c0ffee00-0000-4000-8000-000000000012", Price: 2600},
 			{Symbol: "SOLUSDT", OrderID: "c0ffee00-0000-4000-8000-000000000013", Price: 160},
 		}})
 		assert.ErrorIs(t, err, context.Canceled, "BatchAmendOrder should give up a batch cancelled while its orders wait for their rate limit")
 		assert.Nil(t, result, "BatchAmendOrder should return no result for a batch it did not send")
+		assert.Empty(t, transport.recorded(), "BatchAmendOrder should not send a batch cancelled while it waits")
 	})
+	// Bybit reports one result and one outcome for each order, so a reply whose lists agree with each other but not with
+	// the orders sent cannot be matched to them
+	first := BatchAmendOrderItem{Symbol: "ETH-30DEC22-500-C", OrderImpliedVolatility: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"}
+	second := BatchAmendOrderItem{Symbol: "ETH-30DEC22-700-C", Price: 650, OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52"}
+	for _, tc := range []struct {
+		name    string
+		reply   string
+		request []BatchAmendOrderItem
+	}{
+		{
+			name:    "fewer",
+			reply:   `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"option","symbol":"ETH-30DEC22-500-C","orderId":"b551f227-7059-4fb5-a6a6-699c04dbd2f2","orderLinkId":"option-amend-001"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"}]},"time":1672222808060}`,
+			request: []BatchAmendOrderItem{first, second},
+		},
+		{
+			name:    "more",
+			reply:   `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"option","symbol":"ETH-30DEC22-500-C","orderId":"b551f227-7059-4fb5-a6a6-699c04dbd2f2","orderLinkId":"option-amend-001"},{"category":"option","symbol":"ETH-30DEC22-700-C","orderId":"fa6a595f-1a57-483f-b9d3-30e9c8235a52","orderLinkId":""}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"},{"code":0,"msg":"OK"}]},"time":1672222808060}`,
+			request: []BatchAmendOrderItem{first},
+		},
+	} {
+		ex := restReplyTestInstance(t, map[string]string{"/v5/order/amend-batch": tc.reply})
+		unmatched, err := ex.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{Category: cOption, Request: tc.request})
+		require.ErrorIsf(t, err, errBatchOutcomeMismatch, "BatchAmendOrder must reject a reply for %s orders than it sent", tc.name)
+		assert.Nilf(t, unmatched, "BatchAmendOrder should return no result for %s orders than it sent", tc.name)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1141,7 +1212,7 @@ func TestBatchAmendOrder(t *testing.T) {
 		require.Error(t, err, "BatchAmendOrder must reject a reply whose retExtInfo is not an object, since its outcomes are unknown")
 	}
 	result, err := e.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{Category: cOption, Request: []BatchAmendOrderItem{
-		{Symbol: "ETH-30DEC22-500-C", OrderIV: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"},
+		{Symbol: "ETH-30DEC22-500-C", OrderImpliedVolatility: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"},
 		{Symbol: "ETH-30DEC22-700-C", Price: 650, OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52"},
 	}})
 	require.NoError(t, err, "BatchAmendOrder must not error")
@@ -1182,7 +1253,7 @@ func TestBatchAmendOrderRequestPayload(t *testing.T) {
 	require.ErrorIs(t, err, errSymbolMissing, "Payload must validate each order")
 
 	r := &BatchAmendOrderRequest{Category: cOption, Request: []BatchAmendOrderItem{
-		{Symbol: "ETH-30DEC22-500-C", OrderIV: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"},
+		{Symbol: "ETH-30DEC22-500-C", OrderImpliedVolatility: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"},
 	}}
 	exp := map[string]any{"category": "option", "request": []map[string]any{
 		{"symbol": "ETH-30DEC22-500-C", "orderIv": "6.8", "orderId": "b551f227-7059-4fb5-a6a6-699c04dbd2f2"},
@@ -1203,10 +1274,10 @@ func TestBatchAmendOrderItemPayload(t *testing.T) {
 
 	takeProfit, stopLoss := 0.0, 1450.0
 	item := &BatchAmendOrderItem{
-		Symbol: "ETHUSDT", OrderID: "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f30", OrderLinkID: "test-000004", OrderIV: 0.4,
-		TriggerPrice: 1590, Quantity: 0.3, Price: 1595, TPSLMode: "Full", TakeProfit: &takeProfit, StopLoss: &stopLoss,
-		TPTriggerBy: "LastPrice", SLTriggerBy: "MarkPrice", TriggerBy: "IndexPrice", TPLimitPrice: 2440,
-		SLLimitPrice: 1440,
+		Symbol: "ETHUSDT", OrderID: "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f30", OrderLinkID: "test-000004",
+		OrderImpliedVolatility: 0.4, TriggerPrice: 1590, Quantity: 0.3, Price: 1595, TPSLMode: "Full",
+		TakeProfit: &takeProfit, StopLoss: &stopLoss, TPTriggerBy: "LastPrice", SLTriggerBy: "MarkPrice",
+		TriggerBy: "IndexPrice", TPLimitPrice: 2440, SLLimitPrice: 1440,
 	}
 	exp := map[string]any{
 		"symbol": "ETHUSDT", "orderId": "5bf6aa3e-0c07-4a1f-a3a3-1cb5e3bf8f30", "orderLinkId": "test-000004",
@@ -1226,16 +1297,17 @@ func TestCancelBatchOrder(t *testing.T) {
 	_, err = e.CancelBatchOrder(t.Context(), &BatchCancelOrderRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "CancelBatchOrder must reject a request without a category")
 	synctest.Test(t, func(t *testing.T) {
-		// The bubble's clock stands still, so the third order has to wait for the budget the second took
+		ex, transport := waitingBatchInstance(t, cancelBatchOrderBudgets.spot)
 		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		result, err := testRateLimitedInstance(t).CancelBatchOrder(ctx, &BatchCancelOrderRequest{Category: cSpot, Request: []BatchCancelOrderItem{
+		time.AfterFunc(500*time.Millisecond, cancel)
+		result, err := ex.CancelBatchOrder(ctx, &BatchCancelOrderRequest{Category: cSpot, Request: []BatchCancelOrderItem{
 			{Symbol: "BTCUSDT", OrderID: "1666800494330512128"},
 			{Symbol: "ETHUSDT", OrderID: "1666800494330512130"},
 			{Symbol: "SOLUSDT", OrderID: "1666800494330512131"},
 		}})
 		assert.ErrorIs(t, err, context.Canceled, "CancelBatchOrder should give up a batch cancelled while its orders wait for their rate limit")
 		assert.Nil(t, result, "CancelBatchOrder should return no result for a batch it did not send")
+		assert.Empty(t, transport.recorded(), "CancelBatchOrder should not send a batch cancelled while it waits")
 	})
 
 	if !mockTests {
@@ -1366,6 +1438,22 @@ func TestSendBatchOrderRequest(t *testing.T) {
 	}
 }
 
+func TestCheckBatchCounts(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, checkBatchCounts(2, 2, 2), "checkBatchCounts must accept a result and an outcome for each order")
+	for _, tc := range []struct{ results, outcomes int }{
+		{results: 1, outcomes: 1},
+		{results: 3, outcomes: 3},
+		{results: 1, outcomes: 2},
+		{results: 3, outcomes: 2},
+		{results: 2, outcomes: 1},
+		{results: 2, outcomes: 3},
+	} {
+		err := checkBatchCounts(2, tc.results, tc.outcomes)
+		assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "checkBatchCounts should reject %d results and %d outcomes for 2 orders", tc.results, tc.outcomes)
+	}
+}
+
 func TestApplyBatchOrderOutcomes(t *testing.T) {
 	t.Parallel()
 	orders := func() *BatchOrderResponse {
@@ -1376,19 +1464,34 @@ func TestApplyBatchOrderOutcomes(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name     string
+		resp     *BatchOrderResponse
 		outcomes []BatchOrderOutcome
 	}{
-		{name: "no outcomes"},
-		{name: "fewer outcomes than orders", outcomes: []BatchOrderOutcome{{Message: "OK"}}},
-		{name: "more outcomes than orders", outcomes: []BatchOrderOutcome{{Message: "OK"}, {Code: 170213, Message: "Order does not exist."}, {Message: "OK"}}},
+		{name: "no outcomes", resp: orders()},
+		{name: "fewer outcomes than orders", resp: orders(), outcomes: []BatchOrderOutcome{{Message: "OK"}}},
+		{name: "more outcomes than orders", resp: orders(), outcomes: []BatchOrderOutcome{{Message: "OK"}, {Code: 170213, Message: "Order does not exist."}, {Message: "OK"}}},
+		// Lists that agree with each other but not with the orders sent cannot be matched to them either
+		{name: "one result and outcome for two orders", resp: &BatchOrderResponse{List: orders().List[:1]}, outcomes: []BatchOrderOutcome{{Message: "OK"}}},
+		{
+			name:     "three results and outcomes for two orders",
+			resp:     &BatchOrderResponse{List: append(orders().List, BatchOrderResult{Category: "spot", Symbol: "ETHUSDT", OrderLinkID: "spot-eth-03"})},
+			outcomes: []BatchOrderOutcome{{Message: "OK"}, {Message: "OK"}, {Message: "OK"}},
+		},
+		// Nor can a result list that does not match the orders, whatever the outcomes
+		{name: "one result and two outcomes for two orders", resp: &BatchOrderResponse{List: orders().List[:1]}, outcomes: []BatchOrderOutcome{{Message: "OK"}, {Message: "OK"}}},
+		{
+			name:     "three results and two outcomes for two orders",
+			resp:     &BatchOrderResponse{List: append(orders().List, BatchOrderResult{Category: "spot", Symbol: "ETHUSDT", OrderLinkID: "spot-eth-03"})},
+			outcomes: []BatchOrderOutcome{{Message: "OK"}, {Message: "OK"}},
+		},
 	} {
-		result, err := applyBatchOrderOutcomes(orders(), tc.outcomes)
+		result, err := applyBatchOrderOutcomes(tc.resp, tc.outcomes, 2)
 		assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "applyBatchOrderOutcomes should reject %s", tc.name)
 		assert.Nilf(t, result, "applyBatchOrderOutcomes should return no result with %s", tc.name)
 	}
 
 	resp := orders()
-	result, err := applyBatchOrderOutcomes(resp, []BatchOrderOutcome{{Message: "OK"}, {Code: 170213, Message: "Order does not exist."}})
+	result, err := applyBatchOrderOutcomes(resp, []BatchOrderOutcome{{Message: "OK"}, {Code: 170213, Message: "Order does not exist."}}, 2)
 	require.NoError(t, err, "applyBatchOrderOutcomes must not error")
 	exp := &BatchOrderResponse{List: []BatchOrderResult{
 		{Category: "spot", Symbol: "BTCUSDT", OrderID: "1666800494330512128", OrderLinkID: "spot-btc-03", Message: "OK"},

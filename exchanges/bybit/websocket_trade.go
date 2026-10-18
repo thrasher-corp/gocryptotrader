@@ -64,9 +64,9 @@ func (e *Exchange) wsHandleTradeData(conn websocket.Connection, respRaw []byte) 
 	return fmt.Errorf("%w for trade: %s", errUnhandledStreamData, respRaw)
 }
 
-// WSCreateOrder places an order over the trade connection (Websocket Trade Guideline: Create Order). It returns once
+// WebsocketCreateOrder places an order over the trade connection (Websocket Trade Guideline: Create Order). It returns once
 // Bybit accepts the request; the order's status, fills and fees follow on the private order and execution streams
-func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*OrderResponse, error) {
+func (e *Exchange) WebsocketCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -81,9 +81,9 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*Or
 	return e.sendWebsocketOrderRequest(ctx, "order.create", payload, epl)
 }
 
-// WSAmendOrder amends an order over the trade connection (Websocket Trade Guideline: Amend Order). It returns once Bybit
+// WebsocketAmendOrder amends an order over the trade connection (Websocket Trade Guideline: Amend Order). It returns once Bybit
 // accepts the request; the amended order follows on the private order stream
-func (e *Exchange) WSAmendOrder(ctx context.Context, r *AmendOrderRequest) (*OrderResponse, error) {
+func (e *Exchange) WebsocketAmendOrder(ctx context.Context, r *AmendOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, r *AmendOrderRequest) (*Ord
 	return e.sendWebsocketOrderRequest(ctx, "order.amend", payload, epl)
 }
 
-// WSCancelOrder cancels an order over the trade connection (Websocket Trade Guideline: Cancel Order). It returns once
+// WebsocketCancelTradeOrder cancels an order over the trade connection (Websocket Trade Guideline: Cancel Order). It returns once
 // Bybit accepts the request; the cancelled order follows on the private order stream
-func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*OrderResponse, error) {
+func (e *Exchange) WebsocketCancelTradeOrder(ctx context.Context, r *CancelOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -115,10 +115,10 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*O
 	return e.sendWebsocketOrderRequest(ctx, "order.cancel", payload, epl)
 }
 
-// WSCreateBatchOrders places a batch of orders over the trade connection (Websocket Trade Guideline: Batch Create
+// WebsocketCreateBatchOrders places a batch of orders over the trade connection (Websocket Trade Guideline: Batch Create
 // Order). Each result reports the outcome of its order; a rejected order has a non-zero Code. The orders' updates
 // follow on the private order stream
-func (e *Exchange) WSCreateBatchOrders(ctx context.Context, r *BatchPlaceOrderRequest) ([]WebsocketBatchOrderResult, error) {
+func (e *Exchange) WebsocketCreateBatchOrders(ctx context.Context, r *BatchPlaceOrderRequest) ([]WebsocketBatchOrderResult, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -133,10 +133,10 @@ func (e *Exchange) WSCreateBatchOrders(ctx context.Context, r *BatchPlaceOrderRe
 	return e.sendWebsocketBatchOrderRequest(ctx, "order.create-batch", r.Category, len(r.Request), payload, epl)
 }
 
-// WSAmendBatchOrders amends a batch of orders over the trade connection (Websocket Trade Guideline: Batch Amend
+// WebsocketAmendBatchOrders amends a batch of orders over the trade connection (Websocket Trade Guideline: Batch Amend
 // Order). Each result reports the outcome of its order; a rejected order has a non-zero Code. The orders' updates
 // follow on the private order stream
-func (e *Exchange) WSAmendBatchOrders(ctx context.Context, r *BatchAmendOrderRequest) ([]WebsocketBatchOrderResult, error) {
+func (e *Exchange) WebsocketAmendBatchOrders(ctx context.Context, r *BatchAmendOrderRequest) ([]WebsocketBatchOrderResult, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -151,10 +151,10 @@ func (e *Exchange) WSAmendBatchOrders(ctx context.Context, r *BatchAmendOrderReq
 	return e.sendWebsocketBatchOrderRequest(ctx, "order.amend-batch", r.Category, len(r.Request), payload, epl)
 }
 
-// WSCancelBatchOrders cancels a batch of orders over the trade connection (Websocket Trade Guideline: Batch Cancel
+// WebsocketCancelBatchOrders cancels a batch of orders over the trade connection (Websocket Trade Guideline: Batch Cancel
 // Order). Each result reports the outcome of its order; a rejected order has a non-zero Code. The orders' updates
 // follow on the private order stream
-func (e *Exchange) WSCancelBatchOrders(ctx context.Context, r *BatchCancelOrderRequest) ([]WebsocketBatchOrderResult, error) {
+func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, r *BatchCancelOrderRequest) ([]WebsocketBatchOrderResult, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -203,15 +203,12 @@ func (e *Exchange) sendWebsocketBatchOrderRequest(ctx context.Context, op, categ
 	if err != nil {
 		return nil, err
 	}
-	if err := e.takeBatchOrders(ctx, epl, category, orders); err != nil {
-		return nil, err
-	}
-	resp, err := sendWebsocketTradeRequest[WebsocketBatchOrderAcknowledgements](ctx, e, outbound, op, args, epl)
+	resp, err := sendWebsocketTradeRequest[WebsocketBatchOrderAcknowledgements](withBatchOrderWeight(ctx, category, orders), e, outbound, op, args, epl)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Data.List) != len(resp.RetExtInfo.List) {
-		return nil, fmt.Errorf("%w: %d orders, %d outcomes", errBatchOutcomeMismatch, len(resp.Data.List), len(resp.RetExtInfo.List))
+	if err := checkBatchCounts(orders, len(resp.Data.List), len(resp.ReturnExtendedInfo.List)); err != nil {
+		return nil, err
 	}
 	results := make([]WebsocketBatchOrderResult, len(resp.Data.List))
 	for i := range resp.Data.List {
@@ -221,26 +218,11 @@ func (e *Exchange) sendWebsocketBatchOrderRequest(ctx context.Context, op, categ
 			OrderID:     resp.Data.List[i].OrderID,
 			OrderLinkID: resp.Data.List[i].OrderLinkID,
 			CreateAt:    resp.Data.List[i].CreateAt.Time(),
-			Code:        resp.RetExtInfo.List[i].Code,
-			Message:     resp.RetExtInfo.List[i].Message,
+			Code:        resp.ReturnExtendedInfo.List[i].Code,
+			Message:     resp.ReturnExtendedInfo.List[i].Message,
 		}
 	}
 	return results, nil
-}
-
-// takeBatchOrders takes one request from a websocket batch's budget for each order beyond the first, which the request
-// itself takes: Bybit counts every order of a linear, inverse or spot batch against the operation's budget, but an
-// options batch once
-func (e *Exchange) takeBatchOrders(ctx context.Context, epl request.EndpointLimit, category string, orders int) error {
-	if category == cOption {
-		return nil
-	}
-	for range orders - 1 {
-		if err := e.Requester.InitiateRateLimit(ctx, epl); err != nil {
-			return fmt.Errorf("rate limiting batch orders: %w", err)
-		}
-	}
-	return nil
 }
 
 // sendWebsocketTradeRequest sends a request on the trade connection and returns its reply, or the error it reports

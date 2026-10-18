@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // wsHandleAuthenticatedData handles a message from the private stream
@@ -262,6 +261,7 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		orderType = conditionalOrderType(orderType, o.StopOrderType)
 		tif, err := timeInForceFromString(o.TimeInForce)
 		if err != nil {
 			return err
@@ -300,7 +300,7 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
 			details[i].SettlementCurrency = settle
 		}
 		// A spot market order sized by value holds a quote amount in qty, and the base amount it bought in cumExecQty
-		if o.MarketUnit == "quoteCoin" {
+		if quoteSized(a, o.OrderType, o.Side, o.MarketUnit) {
 			details[i].QuoteAmount, details[i].Amount = details[i].Amount, details[i].ExecutedAmount
 		}
 		details[i].SetFees(fees)
@@ -328,7 +328,7 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, respRaw []byte) 
 	for x := range resp.Data {
 		for y := range resp.Data[x].Coins {
 			coin := &resp.Data[x].Coins[y]
-			update := unifiedBalance(coin.WalletBalance, coin.Locked, coin.BorrowAmount, coin.SpotBorrow)
+			update := unifiedBalance(coin)
 			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
 				balance.Total = update.Total
 				balance.Hold = update.Hold
@@ -346,17 +346,11 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, respRaw []byte) 
 }
 
 // generateAuthSubscriptions generates default subscription for the dedicated auth websocket connection. These are
-// agnostic to the asset type and pair as all account level data will be routed through this connection.
+// agnostic to the asset type and pair as all account level data will be routed through this connection. Setup disables
+// any authenticated subscription in the configuration, since these are not configurable
 func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
-	}
-
-	for _, configSub := range e.Config.Features.Subscriptions.Enabled() {
-		if configSub.Authenticated {
-			log.Warnf(log.WebsocketMgr, "%s has an authenticated subscription %q in config which is not supported. Please remove.", e.Name, configSub.Channel)
-			configSub.Enabled = false
-		}
 	}
 
 	// The dcp, fast execution, greeks and strategy topics are left for callers to subscribe to: a dcp subscription

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -56,12 +55,8 @@ func TestRequestDemoTradingFunds(t *testing.T) {
 	if !mockTests {
 		t.Skip("demo trading funds need demo account credentials and the demo trading host")
 	}
-	// The demo trading host has no default URL, so the mock serves it on the sandbox URL key
-	ex := testInstance(t)
-	mockURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
-	require.NoError(t, err, "GetURL must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSandbox.String(), mockURL), "SetRunningURL must not error")
-	err = ex.RequestDemoTradingFunds(t.Context(), &DemoTradingFundsRequest{
+	// The mock serves every URL key, the demo trading host's RestSandbox included
+	err = e.RequestDemoTradingFunds(t.Context(), &DemoTradingFundsRequest{
 		AdjustType: 1,
 		UTADemoApplyMoney: []DemoApplyMoney{
 			{Coin: currency.USDT, Amount: 109},

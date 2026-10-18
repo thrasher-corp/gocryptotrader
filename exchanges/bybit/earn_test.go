@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -224,6 +225,14 @@ func TestGetEarnOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, errCategoryNotSet, "GetEarnOrderHistory must reject an empty category")
 	_, err = e.GetEarnOrderHistory(t.Context(), &EarnOrderHistoryRequest{Category: "FlexibleSaving", StartTime: time.UnixMilli(1760000000000), EndTime: time.UnixMilli(1759395200000)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetEarnOrderHistory must reject a start time after the end time")
+	_, err = e.GetEarnOrderHistory(t.Context(), &EarnOrderHistoryRequest{Category: "OnChain", ProductID: "8"})
+	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired, "GetEarnOrderHistory must require an order ID or order link ID for OnChain")
+	// Either ID alone is enough for OnChain
+	onChain := restReplyTestInstance(t, map[string]string{"/v5/earn/order": `{"retCode":0,"retMsg":"OK","result":{"list":[],"nextPageCursor":""},"retExtInfo":{},"time":1760000000000}`})
+	for _, req := range []*EarnOrderHistoryRequest{{Category: "OnChain", OrderID: "1"}, {Category: "OnChain", OrderLinkID: "link-1"}} {
+		_, err = onChain.GetEarnOrderHistory(t.Context(), req)
+		assert.NoErrorf(t, err, "GetEarnOrderHistory should accept OnChain with order ID %q and link ID %q", req.OrderID, req.OrderLinkID)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -404,6 +413,8 @@ func TestGetEarnYieldHistory(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetEarnYieldHistory must reject a nil request")
 	_, err = e.GetEarnYieldHistory(t.Context(), &EarnYieldHistoryRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "GetEarnYieldHistory must reject an empty category")
+	_, err = e.GetEarnYieldHistory(t.Context(), &EarnYieldHistoryRequest{Category: "OnChain", ProductID: "8"})
+	require.ErrorIs(t, err, errOnChainProductIDRejected, "GetEarnYieldHistory must reject a product ID for OnChain")
 	_, err = e.GetEarnYieldHistory(t.Context(), &EarnYieldHistoryRequest{Category: "FlexibleSaving", StartTime: time.UnixMilli(1760000000000), EndTime: time.UnixMilli(1759395200000)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetEarnYieldHistory must reject a start time after the end time")
 
@@ -1423,4 +1434,46 @@ func TestGetAirdropDailyPNLRecords(t *testing.T) {
 	req.Cursor = result.NextCursor
 	_, err = e.GetAirdropDailyPNLRecords(t.Context(), req)
 	assert.NoError(t, err, "GetAirdropDailyPNLRecords should not error for the next page")
+}
+
+func TestEarnYieldHistoryResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	exp := EarnYieldHistoryResponse{
+		NextPageCursor: "eyJpZCI6MTAwMjA5N30=",
+		Yield: []EarnYield{
+			{
+				ProductID:              "428",
+				Coin:                   currency.USDT,
+				ID:                     "1002096",
+				Amount:                 0.0608,
+				YieldType:              "Normal",
+				DistributionMode:       "Manual",
+				EffectiveStakingAmount: 1000,
+				OrderID:                "05a7012d-c4d6-493a-8c6b-023a1038944a",
+				Status:                 "Success",
+				CreatedAt:              types.Time(time.UnixMilli(1759993805000)),
+			},
+		},
+	}
+	row := `{"productId":"428","coin":"USDT","id":"1002096","amount":"0.0608","yieldType":"Normal","distributionMode":"Manual","effectiveStakingAmount":"1000","orderId":"05a7012d-c4d6-493a-8c6b-023a1038944a","status":"Success","createdAt":"1759993805000"}`
+	// The docs' response example names the yields yield and their table list
+	for _, key := range []string{"yield", "list"} {
+		var result EarnYieldHistoryResponse
+		require.NoErrorf(t, json.Unmarshal([]byte(`{"`+key+`":[`+row+`],"nextPageCursor":"eyJpZCI6MTAwMjA5N30="}`), &result), "Unmarshal must not error for %s", key)
+		assert.Equalf(t, exp, result, "EarnYieldHistoryResponse should decode the yields from %s", key)
+	}
+	// An empty yield is still the response's yields, whatever list holds
+	var emptyYield EarnYieldHistoryResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"yield":[],"list":[`+row+`]}`), &emptyYield), "Unmarshal must not error for an empty yield")
+	assert.Empty(t, emptyYield.Yield, "EarnYieldHistoryResponse should take an empty yield over list")
+	// Yields under yield win over yields under list, and a response decoded into a used one replaces its yields
+	reused := EarnYieldHistoryResponse{Yield: []EarnYield{{ID: "old"}}}
+	require.NoError(t, json.Unmarshal([]byte(`{"yield":[`+row+`],"list":[{"id":"other"}],"nextPageCursor":"eyJpZCI6MTAwMjA5N30="}`), &reused), "Unmarshal must not error for both keys")
+	assert.Equal(t, exp, reused, "EarnYieldHistoryResponse should take the yields under yield when both keys are sent")
+	reused.Yield = []EarnYield{{ID: "old"}}
+	require.NoError(t, json.Unmarshal([]byte(`{"list":[`+row+`],"nextPageCursor":"eyJpZCI6MTAwMjA5N30="}`), &reused), "Unmarshal must not error for a used response")
+	assert.Equal(t, exp, reused, "EarnYieldHistoryResponse should replace a used response's yields with those under list")
+	require.NoError(t, json.Unmarshal([]byte(`{"nextPageCursor":""}`), &reused), "Unmarshal must not error without either key")
+	assert.Equal(t, exp.Yield, reused.Yield, "EarnYieldHistoryResponse should keep its yields when the response sends neither key")
+	assert.Error(t, json.Unmarshal([]byte(`{"list":"bad"}`), &reused), "Unmarshal should reject yields that are not a list")
 }

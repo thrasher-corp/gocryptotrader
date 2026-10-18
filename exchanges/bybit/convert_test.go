@@ -136,7 +136,14 @@ func TestRequestQuote(t *testing.T) {
 	arg.FromCoin = currency.XRP
 	_, err = e.RequestQuote(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "RequestQuote must reject an empty to coin")
+	arg.ToCoin = currency.XRP
+	_, err = e.RequestQuote(t.Context(), arg)
+	require.ErrorIs(t, err, errCurrencyCodesEqual, "RequestQuote must reject converting a coin to itself")
 	arg.ToCoin = currency.USDT
+	arg.RequestCoin = currency.WOO
+	_, err = e.RequestQuote(t.Context(), arg)
+	require.ErrorIs(t, err, errRequestCoinInvalid, "RequestQuote must reject a request coin other than the from coin")
+	arg.RequestCoin = currency.EMPTYCODE
 	_, err = e.RequestQuote(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "RequestQuote must reject a zero amount")
 
@@ -149,6 +156,8 @@ func TestRequestQuote(t *testing.T) {
 	arg.ParamType = "opFrom"
 	arg.ParamValue = "broker-id-001"
 	arg.RequestID = "test-00002"
+	// A request coin given explicitly as the from coin is accepted
+	arg.RequestCoin = arg.FromCoin
 	result, err := e.RequestQuote(t.Context(), arg)
 	require.NoError(t, err, "RequestQuote must not error")
 	if mockTests {

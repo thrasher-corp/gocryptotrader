@@ -21,6 +21,8 @@ var (
 	errGridIDRequired                = errors.New("grid ID required")
 	errBotInitialMarginRequired      = errors.New("bot initial margin required")
 	errAdjustPositionModeRequired    = errors.New("adjust position mode required")
+	errAdjustPositionPercentRequired = errors.New("adjust position percent required for percentage rebalancing")
+	errAdjustPositionTimeRequired    = errors.New("adjust position time interval required for time rebalancing")
 	errSymbolSettingsRequired        = errors.New("symbol settings required")
 	errTargetPositionPercentRequired = errors.New("target position percent required")
 	errGridCellNumberRequired        = errors.New("grid cell number required")
@@ -29,13 +31,15 @@ var (
 	errGridTypeRequired              = errors.New("grid type required")
 	errGridModeRequired              = errors.New("grid mode required")
 	errGridTotalInvestmentRequired   = errors.New("grid total investment required")
+	errGridBaseInvestmentRequired    = errors.New("grid base investment required for invest mode 1 or 2")
+	errGridQuoteInvestmentRequired   = errors.New("grid quote investment required for invest mode 0 or 2")
 	errMartingaleModeRequired        = errors.New("martingale mode required")
 	errPriceFloatPercentRequired     = errors.New("price float percent required")
 	errAddPositionPercentRequired    = errors.New("add position percent required")
 	errAddPositionNumberRequired     = errors.New("add position number required")
 	errRoundTPPercentRequired        = errors.New("round take-profit percent required")
 	errBotCloseModeRequired          = errors.New("bot close mode required")
-	errDCAFrequencyRequired          = errors.New("DCA frequency of at least a second required")
+	errDCAFrequencyRequired          = errors.New("DCA frequency of at least 10 seconds required")
 	errDCAPairsRequired              = errors.New("DCA pairs required")
 )
 
@@ -168,6 +172,13 @@ func (e *Exchange) CreateFuturesComboBot(ctx context.Context, arg *CreateFutures
 	body, err := futuresComboBotBody(arg)
 	if err != nil {
 		return nil, err
+	}
+	// Create Bot needs the trigger of each rebalancing mode it is given: 1 time, 2 percentage, 3 time or percentage
+	if (arg.AdjustPositionMode == 1 || arg.AdjustPositionMode == 3) && arg.AdjustPositionTimeInterval < time.Second {
+		return nil, errAdjustPositionTimeRequired
+	}
+	if (arg.AdjustPositionMode == 2 || arg.AdjustPositionMode == 3) && arg.AdjustPositionPercent <= 0 {
+		return nil, errAdjustPositionPercentRequired
 	}
 	var resp *CreateBotResponse
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/fcombobot/create", nil, body, &resp, createFuturesComboBotEPL); err != nil {
@@ -624,6 +635,12 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *CreateSpotGridBot
 	if arg.MaxPrice <= 0 {
 		return nil, errGridMaxPriceRequired
 	}
+	if (arg.InvestMode == 1 || arg.InvestMode == 2) && arg.BaseInvestment <= 0 {
+		return nil, errGridBaseInvestmentRequired
+	}
+	if (arg.InvestMode == 0 || arg.InvestMode == 2) && arg.QuoteInvestment <= 0 {
+		return nil, errGridQuoteInvestmentRequired
+	}
 	body := make(map[string]any)
 	body["symbol"] = arg.Symbol
 	body["cell_number"] = arg.CellNumber
@@ -712,8 +729,8 @@ func (e *Exchange) CreateDCABot(ctx context.Context, arg *CreateDCABotRequest) (
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if arg.Frequency < time.Second {
-		return nil, errDCAFrequencyRequired
+	if arg.Frequency < 10*time.Second {
+		return nil, fmt.Errorf("%w: %s", errDCAFrequencyRequired, arg.Frequency)
 	}
 	if arg.QuoteCoin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty

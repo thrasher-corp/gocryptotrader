@@ -25,13 +25,13 @@ type CryptoLoanBorrowableCoin struct {
 	MinFixedBorrowingAmount        types.Number  `json:"minFixedBorrowingAmount"`
 	MinFlexibleBorrowingAmount     types.Number  `json:"minFlexibleBorrowingAmount"`
 	VIPLevel                       string        `json:"vipLevel"`
-	FlexibleAnnualizedInterestRate types.Number  `json:"flexibleAnnualizedInterestRate"`
-	AnnualizedInterestRate7Day     types.Number  `json:"annualizedInterestRate7D"`
-	AnnualizedInterestRate14Day    types.Number  `json:"annualizedInterestRate14D"`
-	AnnualizedInterestRate30Day    types.Number  `json:"annualizedInterestRate30D"`
-	AnnualizedInterestRate60Day    types.Number  `json:"annualizedInterestRate60D"`
-	AnnualizedInterestRate90Day    types.Number  `json:"annualizedInterestRate90D"`
-	AnnualizedInterestRate180Day   types.Number  `json:"annualizedInterestRate180D"`
+	FlexibleAnnualisedInterestRate types.Number  `json:"flexibleAnnualizedInterestRate"`
+	AnnualisedInterestRate7Day     types.Number  `json:"annualizedInterestRate7D"`
+	AnnualisedInterestRate14Day    types.Number  `json:"annualizedInterestRate14D"`
+	AnnualisedInterestRate30Day    types.Number  `json:"annualizedInterestRate30D"`
+	AnnualisedInterestRate60Day    types.Number  `json:"annualizedInterestRate60D"`
+	AnnualisedInterestRate90Day    types.Number  `json:"annualizedInterestRate90D"`
+	AnnualisedInterestRate180Day   types.Number  `json:"annualizedInterestRate180D"`
 }
 
 // CryptoLoanCollateralCoinsResponse holds the crypto loan collateral ratio tiers and liquidation order of collateral
@@ -318,7 +318,9 @@ type CreateFixedLoanBorrowOrderRequest struct {
 
 // RenewFixedLoanBorrowOrderResponse holds the ID of a renewed fixed term borrow order
 type RenewFixedLoanBorrowOrderResponse struct {
-	OrderID uint64 `json:"orderId"`
+	// OrderID decodes from a quoted or a bare integer, since the Renew Borrow Order page types it as a string but
+	// sends a number in its example
+	OrderID types.PreciseNumber `json:"orderId"`
 }
 
 // CreateFixedLoanSupplyOrderRequest holds the parameters of CreateFixedLoanSupplyOrder
@@ -397,19 +399,24 @@ type FixedLoanSupplyContract struct {
 }
 
 // UnmarshalJSON decodes a fixed term supply contract. The docs table names the paid interest interestPaid but the
-// docs' response sample sends it as interest, so interest is read when interestPaid is absent
+// docs' response sample sends it as interest, so interest is read when interestPaid is absent. Presence decides, not a
+// non-zero value, because no interest may have been paid yet
 func (f *FixedLoanSupplyContract) UnmarshalJSON(data []byte) error {
 	type alias FixedLoanSupplyContract
-	type sampled struct {
+	type keys struct {
 		*alias
-		Interest types.Number `json:"interest"`
+		Documented *types.Number `json:"interestPaid"`
+		Sampled    *types.Number `json:"interest"`
 	}
-	aux := sampled{alias: (*alias)(f)}
+	aux := keys{alias: (*alias)(f)}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	if f.InterestPaid == 0 {
-		f.InterestPaid = aux.Interest
+	switch {
+	case aux.Documented != nil:
+		f.InterestPaid = *aux.Documented
+	case aux.Sampled != nil:
+		f.InterestPaid = *aux.Sampled
 	}
 	return nil
 }

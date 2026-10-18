@@ -292,7 +292,7 @@ type AdvancedEarnPlaceOrderRequest struct {
 	OrderType string
 	// Amount is required for Stake orders
 	Amount float64
-	// AccountType is FUND or UNIFIED, required for Stake orders
+	// AccountType is FUND or UNIFIED, required for Stake orders and SmartLeverage redemptions
 	AccountType string
 	// Coin is required for Stake orders
 	Coin        currency.Code

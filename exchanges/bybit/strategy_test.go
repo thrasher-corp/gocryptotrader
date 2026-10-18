@@ -42,6 +42,27 @@ func TestCreateStrategyOrder(t *testing.T) {
 	}
 	_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Interval: new(30 * time.Second), POVParameters: pov})
 	require.ErrorIs(t, err, errStrategyPOVStopConditionRequired, "CreateStrategyOrder must not take a repeating interval as a POV stop condition")
+	for _, tc := range []struct {
+		mode string
+		err  error
+	}{
+		{mode: "TradedVolume", err: errStrategyReferenceWindowRequired},
+		{mode: "OppositeSideLiquidity", err: errStrategyDepthReferenceRequired},
+		{mode: "SameSideLiquidity", err: errStrategyDepthReferenceRequired},
+	} {
+		_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: &StrategyPOVParametersRequest{Mode: tc.mode, ParticipationRate: 25.1}})
+		require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a %s POV order without its reference", tc.mode)
+	}
+	// The smallest reference each mode takes is enough
+	created := restReplyTestInstance(t, map[string]string{"/v5/strategy/create": `{"retCode":0,"retMsg":"OK","result":{"strategyId":"119b6211-2611-461b-be5e-5ac557099e82"},"retExtInfo":{},"time":1760000000000}`})
+	for _, p := range []*StrategyPOVParametersRequest{
+		{Mode: "TradedVolume", ParticipationRate: 25.1, ReferenceWindow: time.Minute},
+		{Mode: "OppositeSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
+		{Mode: "SameSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
+	} {
+		_, err = created.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: p})
+		require.NoErrorf(t, err, "CreateStrategyOrder must accept a %s POV order with its smallest reference", p.Mode)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -227,7 +248,7 @@ func TestGetStrategyList(t *testing.T) {
 					TerminateRemark:      "RunningStop",
 					TriggerCount:         26,
 					TradingCount:         24,
-					RealizedPNL:          1.25,
+					RealisedPNL:          1.25,
 					StrategyName:         "accumulate btc",
 					StrategyPrefer:       "quickExecution",
 					Duration:             1560,

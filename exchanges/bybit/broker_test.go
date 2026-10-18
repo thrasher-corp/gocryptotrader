@@ -216,7 +216,7 @@ func TestGetBrokerSubAccountDepositRecords(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetBrokerSubAccountDepositRecords(t.Context(), &GetBrokerSubAccountDepositRecordsRequest{ID: "160237231", TxID: "04bf3fbad2fc85b107a42cfdc5ff83110092b606ca754efa0f032f8b94b3262e"})
+	result, err := e.GetBrokerSubAccountDepositRecords(t.Context(), &GetBrokerSubAccountDepositRecordsRequest{ID: "160237231", TransactionID: "04bf3fbad2fc85b107a42cfdc5ff83110092b606ca754efa0f032f8b94b3262e"})
 	require.NoError(t, err, "GetBrokerSubAccountDepositRecords must not error")
 	if mockTests {
 		require.Len(t, result.Rows, 1, "GetBrokerSubAccountDepositRecords must return the deposit")
@@ -240,7 +240,7 @@ func TestGetBrokerSubAccountDepositRecords(t *testing.T) {
 					Coin:                currency.USDT,
 					Chain:               "ETH",
 					Amount:              250,
-					TxID:                "0x6a3c7f0d5b8e2a91c4d7f3b0e9a1c5d8f2b4e6a8c0d2f4b6e8a0c2d4f6b8e0a2",
+					TransactionID:       "0x6a3c7f0d5b8e2a91c4d7f3b0e9a1c5d8f2b4e6a8c0d2f4b6e8a0c2d4f6b8e0a2",
 					Status:              1,
 					ToAddress:           "0x9f2c3e4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e",
 					Tag:                 "memo-1",
@@ -258,13 +258,13 @@ func TestGetBrokerSubAccountDepositRecords(t *testing.T) {
 					Coin:                currency.USDT,
 					Chain:               "TRX",
 					Amount:              999.0496,
-					TxID:                "04bf3fbad2fc85b107a42cfdc5ff83110092b606ca754efa0f032f8b94b3262e",
+					TransactionID:       "04bf3fbad2fc85b107a42cfdc5ff83110092b606ca754efa0f032f8b94b3262e",
 					Status:              3,
 					ToAddress:           "TDGYpm5zPacnEqKV34TJPuhJhHom9hcXAy",
 					DepositFee:          1,
 					SuccessAt:           types.Time(time.Unix(1742728163, 0)),
 					Confirmations:       50,
-					TxIndex:             2,
+					TransactionIndex:    2,
 					BlockHash:           "000000000436ab4dabc8a4a87beb2262d2d87f6761a825494c4f1d5ae11b27e8",
 					BatchReleaseLimit:   -1,
 					DepositType:         "0",

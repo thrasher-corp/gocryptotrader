@@ -18,9 +18,9 @@ out of reported trades.
 | AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially cancelled | Desirable |
 | ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially cancelled | Mandatory |
 | RemainingAmount      | Amount - ExecutedAmount                                           |                                                         | Mandatory |
-| Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially cancelled | Mandatory |
-| CostAsset            | Deprecated, cost currency is always pair.Quote                    |                                                         | -         |
-| Fee                  | How much last trade was charged by the exchange                   | Reported event is a trade                               | Optional  |
+| Cost                 | How much is spent thus far (cumulative value, in CostAsset)       | Order is filled, partially filled or partially cancelled | Mandatory |
+| CostAsset            | Currency of Cost, pair.Quote or a derivative's settle coin        |                                                         | Optional  |
+| Fee                  | Fee charged; follows Fees once reported, see [Fees](#fees)        | Reported event is a trade, or Fees is reported          | Optional  |
 | FeeAsset             | Asset of the taken fee                                            |                                                         | Optional  |
 | Fees                 | Cumulative fees per currency, see [Fees](#fees)                   | Exchange reports the order's cumulative fees            | Desirable |
 | Exchange             | String name of concerned exchange                                 |                                                         | Mandatory |

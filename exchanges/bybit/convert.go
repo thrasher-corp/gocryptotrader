@@ -15,7 +15,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var errQuoteTransactionIDEmpty = errors.New("quote transaction ID required")
+var (
+	errQuoteTransactionIDEmpty = errors.New("quote transaction ID required")
+	errCurrencyCodesEqual      = errors.New("from and to coins cannot be the same")
+	errRequestCoinInvalid      = errors.New("request coin must be the from coin")
+)
 
 // GetConvertCoinList returns the coins an account can convert from, with their balances, or the coins it can convert
 // to; the API key needs the Exchange permission (Get Convert Coin List)
@@ -51,12 +55,17 @@ func (e *Exchange) RequestQuote(ctx context.Context, arg *RequestQuoteRequest) (
 	if arg.ToCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w: to coin", currency.ErrCurrencyCodeEmpty)
 	}
-	if arg.RequestAmount <= 0 {
-		return nil, order.ErrAmountIsInvalid
+	if arg.FromCoin.Equal(arg.ToCoin) {
+		return nil, fmt.Errorf("%w: %s", errCurrencyCodesEqual, arg.FromCoin)
 	}
 	requestCoin := arg.RequestCoin
 	if requestCoin.IsEmpty() {
 		requestCoin = arg.FromCoin
+	} else if !requestCoin.Equal(arg.FromCoin) {
+		return nil, fmt.Errorf("%w: %s, from coin %s", errRequestCoinInvalid, requestCoin, arg.FromCoin)
+	}
+	if arg.RequestAmount <= 0 {
+		return nil, order.ErrAmountIsInvalid
 	}
 	body := map[string]any{
 		"accountType":   arg.AccountType,

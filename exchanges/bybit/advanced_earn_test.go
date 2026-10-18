@@ -377,6 +377,10 @@ func TestGetAdvancedEarnProductQuote(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAdvancedEarnProductQuote(t.Context(), "", "155525")
 	require.ErrorIs(t, err, errCategoryNotSet, "GetAdvancedEarnProductQuote must require a category")
+	for _, category := range []string{AdvancedEarnCategoryDualAssets, AdvancedEarnCategorySmartLeverage, AdvancedEarnCategoryDoubleWin} {
+		_, err = e.GetAdvancedEarnProductQuote(t.Context(), category, "")
+		require.ErrorIsf(t, err, errAdvancedEarnProductIDNotSet, "GetAdvancedEarnProductQuote must require a %s product ID", category)
+	}
 
 	for _, tc := range []struct {
 		name      string
@@ -498,7 +502,12 @@ func TestGetAdvancedEarnProductQuote(t *testing.T) {
 				assert.Equal(t, tc.exp, result, "GetAdvancedEarnProductQuote should decode every field")
 				return
 			}
-			assert.True(t, len(result.DualAssets) != 0 || result.SmartLeverage != nil || result.DoubleWin != nil || len(result.DiscountBuy) != 0, "GetAdvancedEarnProductQuote should return a quote")
+			if tc.category == AdvancedEarnCategoryDiscountBuy {
+				// Bybit's DiscountBuy offers come and go between requests, so a listed product's quote can hold none
+				assert.NotNil(t, result.DiscountBuy, "GetAdvancedEarnProductQuote should return the DiscountBuy offers")
+				return
+			}
+			assert.True(t, len(result.DualAssets) != 0 || result.SmartLeverage != nil || result.DoubleWin != nil, "GetAdvancedEarnProductQuote should return a quote")
 		})
 	}
 }
@@ -521,11 +530,19 @@ func advancedEarnTestProductID(t *testing.T, category, mockProductID string) str
 		return products.SmartLeverage[0].ProductID
 	case AdvancedEarnCategoryDoubleWin:
 		for i := range products.DoubleWin {
-			if !products.DoubleWin[i].IsRFQProduct {
-				return products.DoubleWin[i].ProductID
+			if products.DoubleWin[i].IsRFQProduct {
+				continue
 			}
+			_, err := e.GetAdvancedEarnProductQuote(t.Context(), category, products.DoubleWin[i].ProductID)
+			// Bybit lists fixed range products whose quotes it refuses with 180007 Product not available. A type
+			// assertion, unlike errors.As, matches only that bare refusal, so any other error still fails
+			if apiErr, ok := err.(*APIError); ok && apiErr.Code == 180007 {
+				continue
+			}
+			require.NoErrorf(t, err, "GetAdvancedEarnProductQuote must not error for DoubleWin product %s", products.DoubleWin[i].ProductID)
+			return products.DoubleWin[i].ProductID
 		}
-		require.Fail(t, "GetAdvancedEarnProductInfo must return a fixed range DoubleWin product")
+		require.Fail(t, "GetAdvancedEarnProductInfo must return a quoted fixed range DoubleWin product")
 	case AdvancedEarnCategoryDiscountBuy:
 		require.NotEmpty(t, products.DiscountBuy, "GetAdvancedEarnProductInfo must return DiscountBuy products")
 		return products.DiscountBuy[0].ProductID
@@ -747,11 +764,57 @@ func TestAdvancedEarnPlaceOrderRequestPayload(t *testing.T) {
 	}
 	assert.Equal(t, exp, body, "Payload should build every parameter")
 
-	body, err = (&AdvancedEarnPlaceOrderRequest{
+	smartLeverageRedeem := &AdvancedEarnPlaceOrderRequest{
 		Category: AdvancedEarnCategorySmartLeverage, ProductID: "12999", OrderType: AdvancedEarnOrderTypeRedeem, OrderLinkID: "link-2",
+		SmartLeverageRedeemExtra: &AdvancedEarnRedeemExtra{PositionID: "1277", EstimatedRedeemAmount: 77.8469},
+	}
+	_, err = smartLeverageRedeem.Payload()
+	require.ErrorIs(t, err, errMissingAccountType, "Payload must require the account type of a SmartLeverage redemption")
+	_, err = (&AdvancedEarnPlaceOrderRequest{
+		Category: AdvancedEarnCategoryDoubleWin, ProductID: "14084", OrderType: AdvancedEarnOrderTypeRedeem, OrderLinkID: "link-3",
+		DoubleWinRedeemExtra: &AdvancedEarnRedeemExtra{PositionID: "2848", EstimatedRedeemAmount: 148.21},
 	}).Payload()
-	require.NoError(t, err, "Payload must not require a stake's amount, coin or account type for a redemption")
-	assert.Equal(t, map[string]any{"category": "SmartLeverage", "productId": "12999", "orderType": "Redeem", "orderLinkId": "link-2"}, body, "Payload should omit unset parameters")
+	require.NoError(t, err, "Payload must not require the account type of a DoubleWin redemption")
+	smartLeverageRedeem.AccountType = "FUND"
+	body, err = smartLeverageRedeem.Payload()
+	require.NoError(t, err, "Payload must not require a stake's amount, coin or extra parameters for a redemption")
+	exp = map[string]any{
+		"category":    "SmartLeverage",
+		"productId":   "12999",
+		"orderType":   "Redeem",
+		"orderLinkId": "link-2",
+		"accountType": "FUND",
+		"smartLeverageRedeemExtra": map[string]any{
+			"positionId":      "1277",
+			"estRedeemAmount": "77.8469",
+		},
+	}
+	assert.Equal(t, exp, body, "Payload should omit unset parameters")
+
+	for _, tc := range []struct {
+		category, orderType, extra string
+		unset                      func(*AdvancedEarnPlaceOrderRequest)
+	}{
+		{category: AdvancedEarnCategoryDualAssets, orderType: AdvancedEarnOrderTypeStake, extra: "dualAssetsExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.DualAssetsExtra = nil }},
+		{category: AdvancedEarnCategoryDiscountBuy, orderType: AdvancedEarnOrderTypeStake, extra: "discountBuyExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.DiscountBuyExtra = nil }},
+		{category: AdvancedEarnCategorySmartLeverage, orderType: AdvancedEarnOrderTypeStake, extra: "smartLeverageStakeExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.SmartLeverageStakeExtra = nil }},
+		{category: AdvancedEarnCategorySmartLeverage, orderType: AdvancedEarnOrderTypeRedeem, extra: "smartLeverageRedeemExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.SmartLeverageRedeemExtra = nil }},
+		{category: AdvancedEarnCategoryDoubleWin, orderType: AdvancedEarnOrderTypeStake, extra: "doubleWinStakeExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.DoubleWinStakeExtra = nil }},
+		{category: AdvancedEarnCategoryDoubleWin, orderType: AdvancedEarnOrderTypeRedeem, extra: "doubleWinRedeemExtra", unset: func(r *AdvancedEarnPlaceOrderRequest) { r.DoubleWinRedeemExtra = nil }},
+	} {
+		t.Run(tc.category+" "+tc.orderType+" without "+tc.extra, func(t *testing.T) {
+			t.Parallel()
+			r := newRequest()
+			r.Category, r.OrderType = tc.category, tc.orderType
+			_, err := r.Payload()
+			require.NoError(t, err, "Payload must accept a request with every extra set")
+			// Every other category's and order type's extra stays set, so none of them may stand in for this one
+			tc.unset(r)
+			_, err = r.Payload()
+			require.ErrorIs(t, err, errAdvancedEarnExtraNotSet, "Payload must require the extra parameters of the category and order type")
+			assert.ErrorContains(t, err, tc.extra, "Payload should name the missing extra parameters")
+		})
+	}
 
 	for _, tc := range []struct {
 		name   string

@@ -46,7 +46,7 @@ func TestGetFundingAccountTransactionHistory(t *testing.T) {
 						ShowBusinessTypeEnglish: "Deposit",
 						Description:             "fundingAccountRecordOnChainDeposit",
 						DescriptionEnglish:      "Deposit | On-chain Deposit",
-						CurrcCursor:             "NTg2MDQyODg4OA==",
+						CurrencyCursor:          "NTg2MDQyODg4OA==",
 					},
 				},
 			}
@@ -70,7 +70,7 @@ func TestGetFundingAccountTransactionHistory(t *testing.T) {
 					ShowBusinessTypeEnglish: "Earn",
 					Description:             "fundingAccountRecordFlexSavingInterestDistribution",
 					DescriptionEnglish:      "Easy Earn | Flexible Interest Distribution",
-					CurrcCursor:             "NTg2MDQzMTI0OA==",
+					CurrencyCursor:          "NTg2MDQzMTI0OA==",
 				},
 				{
 					MemberID:                "100000001",
@@ -83,7 +83,7 @@ func TestGetFundingAccountTransactionHistory(t *testing.T) {
 					ShowBusinessTypeEnglish: "Transfer",
 					Description:             "fundingAccountRecordTransferToUnified",
 					DescriptionEnglish:      "Transfer | To Unified Trading Account",
-					CurrcCursor:             "NTg2MDQyOTk5MQ==",
+					CurrencyCursor:          "NTg2MDQyOTk5MQ==",
 				},
 			},
 		}
@@ -533,9 +533,9 @@ func TestGetPortfolioMarginInfo(t *testing.T) {
 						AssetInitialMargin:     1274.8190514137673,
 						AssetMaintenanceMargin: 1062.3492095114727,
 					},
-					MaxLossPriceMove:      -0.1,
-					MaxLossIVShock:        -0.2,
-					TotalClosePositionFee: -0.35,
+					MaxLossPriceMove:              -0.1,
+					MaxLossImpliedVolatilityShock: -0.2,
+					TotalClosePositionFee:         -0.35,
 					SpotHedgeInfo: PortfolioMarginSpotHedgeInfo{
 						HedgeSpotSize: -0.00100006,
 						WalletBalance: -0.00000007,
@@ -555,7 +555,7 @@ func TestGetPortfolioMarginInfo(t *testing.T) {
 							},
 						},
 					},
-					MaxLossIVShockList: []types.Number{
+					MaxLossImpliedVolatilityShockList: []types.Number{
 						-0.2,
 						-0.1,
 					},

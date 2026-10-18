@@ -130,8 +130,8 @@ type Strategy struct {
 	TerminateRemark string       `json:"terminateRemark"`
 	TriggerCount    types.Number `json:"triggerCount"`
 	TradingCount    types.Number `json:"tradingCount"`
-	// RealizedPNL is set for futures only
-	RealizedPNL  types.Number `json:"realizedPnl"`
+	// RealisedPNL is set for futures only
+	RealisedPNL  types.Number `json:"realizedPnl"`
 	StrategyName string       `json:"strategyName"`
 	// StrategyPrefer is limit, priceSpeedBalance, fastestExecution or quickExecution
 	StrategyPrefer string `json:"strategyPrefer"`

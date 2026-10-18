@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"cmp"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -72,6 +73,30 @@ type FiatQuoteResponse struct {
 	ExpiredTime        types.Time    `json:"expiredTime"`
 }
 
+// UnmarshalJSON decodes a quote. The docs table names the quote ID and expiry quoteTxId and expiredTime but the docs'
+// response sample sends quoteTaxId and expireTime, so either is read and the table's key wins when both hold a value
+func (r *FiatQuoteResponse) UnmarshalJSON(data []byte) error {
+	type alias FiatQuoteResponse
+	type keys struct {
+		*alias
+		QuoteTransactionID string     `json:"quoteTxId"`
+		QuoteTaxID         string     `json:"quoteTaxId"`
+		ExpiredTime        types.Time `json:"expiredTime"`
+		ExpireTime         types.Time `json:"expireTime"`
+	}
+	aux := keys{alias: (*alias)(r)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if id := cmp.Or(aux.QuoteTransactionID, aux.QuoteTaxID); id != "" {
+		r.QuoteTransactionID = id
+	}
+	if expiry := cmp.Or(aux.ExpiredTime.Time(), aux.ExpireTime.Time()); !expiry.IsZero() {
+		r.ExpiredTime = types.Time(expiry)
+	}
+	return nil
+}
+
 // FiatConfirmQuoteRequest holds the fiat Confirm a Quote parameters; QuoteTransactionID and SubUserID are required
 type FiatConfirmQuoteRequest struct {
 	QuoteTransactionID string
@@ -92,6 +117,11 @@ type FiatConfirmQuoteResponse struct {
 // FiatConvertStatusResponse is one fiat conversion
 type FiatConvertStatusResponse FiatTrade
 
+// UnmarshalJSON decodes a conversion as FiatTrade does, since a defined type does not inherit its methods
+func (r *FiatConvertStatusResponse) UnmarshalJSON(data []byte) error {
+	return (*FiatTrade)(r).UnmarshalJSON(data)
+}
+
 // FiatTrade is one fiat conversion
 type FiatTrade struct {
 	TradeNumber string `json:"tradeNo"`
@@ -107,6 +137,25 @@ type FiatTrade struct {
 	ToAmount           types.Number  `json:"toAmount"`
 	CreatedAt          types.Time    `json:"createdAt"`
 	SubUserID          string        `json:"subUserId"`
+}
+
+// UnmarshalJSON decodes a conversion. The docs tables name the quote ID quoteTxId but the docs' response samples send
+// quoteTaxId, so either is read and the table's key wins when both hold a value
+func (t *FiatTrade) UnmarshalJSON(data []byte) error {
+	type alias FiatTrade
+	type keys struct {
+		*alias
+		QuoteTransactionID string `json:"quoteTxId"`
+		QuoteTaxID         string `json:"quoteTaxId"`
+	}
+	aux := keys{alias: (*alias)(t)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if id := cmp.Or(aux.QuoteTransactionID, aux.QuoteTaxID); id != "" {
+		t.QuoteTransactionID = id
+	}
+	return nil
 }
 
 // FiatConvertHistoryRequest holds the fiat Get Convert History filters

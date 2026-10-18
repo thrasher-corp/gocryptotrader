@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,17 +25,24 @@ import (
 )
 
 const (
-	// websocketPingInterval follows Bybit's recommendation; a connection with no pings and no data is closed after 10
-	// minutes
+	// websocketPingInterval follows Bybit's recommendation; without pings, the public streams close a connection that
+	// receives no data after a minute, and the option stream after about 30 seconds
 	websocketPingInterval = 20 * time.Second
 
-	spotPublic            = "wss://stream.bybit.com/v5/public/spot"
-	linearPublic          = "wss://stream.bybit.com/v5/public/linear"  // USDT and USDC perpetuals and futures
-	inversePublic         = "wss://stream.bybit.com/v5/public/inverse" // Inverse perpetuals and futures
-	optionPublic          = "wss://stream.bybit.com/v5/public/option"  // USDT and USDC options
-	websocketPrivate      = "wss://stream.bybit.com/v5/private"
-	websocketTrade        = "wss://stream.bybit.com/v5/trade"
-	websocketSystemStatus = "wss://stream.bybit.com/v5/public/misc/status"
+	spotPublic       = "wss://stream.bybit.com/v5/public/spot"
+	linearPublic     = "wss://stream.bybit.com/v5/public/linear"  // USDT and USDC perpetuals and futures
+	inversePublic    = "wss://stream.bybit.com/v5/public/inverse" // Inverse perpetuals and futures
+	optionPublic     = "wss://stream.bybit.com/v5/public/option"  // USDT and USDC options
+	websocketPrivate = "wss://stream.bybit.com/v5/private"
+	websocketTrade   = "wss://stream.bybit.com/v5/trade"
+
+	// mainnetStreamOrigin serves the system status, Advanced Earn, spread, RFQ and event streams the regional hosts lack,
+	// and testnetStreamOrigin those their testnet hosts lack
+	mainnetStreamOrigin = "wss://stream.bybit.com"
+	testnetStreamOrigin = "wss://stream-testnet.bybit.com"
+
+	// euStreamHost is the stream host of EU accounts, which Bybit's docs give a system status stream of their own
+	euStreamHost = "stream.bybit.eu"
 
 	// subscriptionBatchSize is the most topics spot accepts in one request; the other streams accept more, but share the
 	// limit so a rejected request costs at most ten topics a resend
@@ -69,7 +77,6 @@ const (
 	chanOrder         = "order"
 	chanWallet        = "wallet"
 	chanGreeks        = "greeks"
-	chanDCP           = "dcp"
 	chanStrategy      = "strategy"
 
 	chanSystemStatus = "system.status"
@@ -99,14 +106,56 @@ var (
 	errWebsocketAuthFailed        = errors.New("websocket authentication failed")
 	errContractGroupNotSupported  = errors.New("topic has no contract group for asset")
 	errOptionTradesNotOneBaseCoin = errors.New("option trade subscriptions must share one base coin")
+	errNoStreamOrigin             = errors.New("websocket URL has no scheme and host")
 )
 
 // commandResponseMu lets one option or system status request at a time wait for its reply, since the replies carry no
 // request ID to tell them apart
 var commandResponseMu sync.Mutex
 
-// WsConnect connects to a websocket stream and starts its heartbeat
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+// streamOrigin returns the scheme and host of a websocket URL
+func streamOrigin(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", errNoStreamOrigin, err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("%w: %q", errNoStreamOrigin, rawURL)
+	}
+	return u.Scheme + "://" + u.Host, nil
+}
+
+// regionalStreamHosts are the stream hosts of Bybit's regional sites: those its docs give accounts registered with them,
+// and the UAE site's, whose REST host api.bybit.ae the docs name. They serve the spot, futures and option streams, but
+// answer 404 for the public streams without a configurable endpoint, apart from the EU host's system status stream.
+// Their stream-testnet hosts answer most of those with 504 Gateway Timeout
+var regionalStreamHosts = []string{
+	"stream.bybit.ae", euStreamHost, "stream.bybit.id", "stream.bybit.kz", "stream.bybit.tr", "stream.bybitgeorgia.ge",
+	"stream.manepa.jp", "stream.spark-fintech.com",
+}
+
+// auxiliaryStreamURL returns the URL of the public stream at path, one without a configurable endpoint. It follows the
+// configured spot stream to testnet or another server, but stays on mainnet when that is one of Bybit's regional hosts,
+// and on testnet when it is one of their testnet hosts, apart from the EU hosts' system status stream
+func auxiliaryStreamURL(spotURL, path string) (string, error) {
+	origin, err := streamOrigin(spotURL)
+	if err != nil {
+		return "", err
+	}
+	if u, err := url.Parse(origin); err == nil {
+		host, fallback := strings.ToLower(u.Hostname()), mainnetStreamOrigin
+		if site, ok := strings.CutPrefix(host, "stream-testnet."); ok {
+			host, fallback = "stream."+site, testnetStreamOrigin
+		}
+		if slices.Contains(regionalStreamHosts, host) && (host != euStreamHost || path != systemStatusPath) {
+			return fallback + path, nil
+		}
+	}
+	return origin + path, nil
+}
+
+// WebsocketConnect connects to a websocket stream and starts its heartbeat
+func (e *Exchange) WebsocketConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
@@ -321,6 +370,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":      channelName,
 		"isSymbolChannel":  isSymbolChannel,
 		"intervalToString": intervalToString,
+		"orderbookLevels":  orderbookLevels,
 	}).Parse(subTplText)
 }
 
@@ -347,7 +397,7 @@ const subTplText = `
 		{{- if isSymbolChannel $name }}
 			{{- range $p := $pairs }}
 				{{- $name -}} .
-				{{- if eq $name "orderbook" -}} {{- $.S.Levels -}} . {{- end }}
+				{{- if eq $name "orderbook" -}} {{- orderbookLevels $.S $asset -}} . {{- end }}
 				{{- if eq $name "kline" -}} {{- intervalToString $.S.Interval -}} . {{- end }}
 				{{- $p }}
 				{{- $.PairSeparator }}
