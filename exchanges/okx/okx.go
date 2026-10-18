@@ -3921,7 +3921,7 @@ func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, un
 		params.Set("instType", instrumentType)
 	}
 	var resp []TraderWeeklyProfitAndLoss
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetLeadTraderStats retrieves key data related to lead trader performance
