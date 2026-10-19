@@ -4609,11 +4609,38 @@ func TestWsHandleData(t *testing.T) {
 			e.API.AuthenticatedWebsocketSupport = false
 		}
 		err := e.wsHandleData(t.Context(), nil, []byte(msg))
-		if name == "Balance Save Error" {
+		switch name {
+		case "Balance Save Error":
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
-		} else {
+		case "Failure":
+			require.ErrorIs(t, err, errWebsocketRequestRejected, "subscription rejection must reach the websocket manager")
+			assert.Contains(t, err.Error(), "60012", "rejection should preserve the exchange status code")
+		default:
 			require.NoErrorf(t, err, "%s must not error", name)
 		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		frame    string
+		rejected bool
+	}{
+		{"liquidation subscription rejected", `{"event":"error","code":"60012","msg":"Invalid request","arg":{"channel":"liquidation-orders","instType":"SWAP"}}`, true},
+		{"unknown error code", `{"event":"error","code":"future-code","msg":"Request rejected"}`, true},
+		{"error without a code", `{"event":"error","msg":"Request rejected"}`, true},
+		{"public subscription acknowledged", `{"event":"subscribe","arg":{"channel":"liquidation-orders","instType":"SWAP"}}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tracked := new(Exchange)
+			require.NoError(t, testexch.Setup(tracked), "setup must succeed")
+			err := tracked.wsHandleData(t.Context(), nil, []byte(tc.frame))
+			if tc.rejected {
+				require.ErrorIs(t, err, errWebsocketRequestRejected, "exchange rejection must be observable even without data")
+			} else {
+				require.NoError(t, err, "successful subscription acknowledgement must not error")
+			}
+		})
 	}
 }
 

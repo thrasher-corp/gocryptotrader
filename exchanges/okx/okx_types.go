@@ -79,6 +79,7 @@ const (
 )
 
 var (
+	errWebsocketRequestRejected             = errors.New("OKX websocket request rejected")
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
