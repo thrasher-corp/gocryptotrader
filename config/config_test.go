@@ -1668,6 +1668,15 @@ func TestReadConfigFromReader(t *testing.T) {
 
 	err = c.readConfig(strings.NewReader("{}"))
 	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
+	t.Run("OKX saved endpoint migration", func(t *testing.T) {
+		t.Parallel()
+		var cfg Config
+		require.NoError(t, cfg.readConfig(strings.NewReader(`{"version":17,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}]}`)), "saved configuration must load and migrate")
+		require.Len(t, cfg.Exchanges, 1, "OKX entry must survive loading")
+		assert.Equal(t, "wss://ws.okx.com/ws/v5/public", cfg.Exchanges[0].API.Endpoints["WebsocketSpotURL"], "public endpoint should migrate")
+		assert.Equal(t, "wss://ws.okx.com/ws/v5/private", cfg.Exchanges[0].API.Endpoints["WebsocketPrivateURL"], "private endpoint should migrate")
+		assert.Equal(t, "wss://ws.okx.com/ws/v5/business", cfg.Exchanges[0].API.Endpoints["WebsocketSpotSupplementaryURL"], "business endpoint should migrate")
+	})
 }
 
 func TestLoadConfig(t *testing.T) {
