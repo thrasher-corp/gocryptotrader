@@ -15,7 +15,7 @@ import (
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Huobi", "HTX"}, new(v18.Version).Exchanges(), "Exchanges should return migrated exchange names")
+	assert.Equal(t, []string{"*"}, new(v18.Version).Exchanges(), "Exchanges should allow case-insensitive name matching within the migration")
 }
 
 func TestUpgradeExchange(t *testing.T) {
@@ -26,8 +26,13 @@ func TestUpgradeExchange(t *testing.T) {
 		want string
 	}{
 		{name: "legacy", in: "Huobi", want: "HTX"},
+		{name: "lowercase legacy", in: "huobi", want: "HTX"},
+		{name: "uppercase legacy", in: "HUOBI", want: "HTX"},
+		{name: "mixed-case legacy", in: "hUoBi", want: "HTX"},
 		{name: "unrelated", in: "Kraken", want: "Kraken"},
 		{name: "current", in: "HTX", want: "HTX"},
+		{name: "lowercase current", in: "htx", want: "HTX"},
+		{name: "mixed-case current", in: "hTx", want: "HTX"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -41,6 +46,13 @@ func TestUpgradeExchange(t *testing.T) {
 			assert.Equalf(t, tt.want, config.Name, "exchange name %s should migrate correctly", tt.in)
 		})
 	}
+	t.Run("unrelated exchange bytes", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"name":"Kraken", "z":9007199254740993,"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"currencyPairs":{"pairs":{}}, "a":1e3}`)
+		out, err := new(v18.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "unrelated exchanges must pass through wildcard dispatch")
+		assert.Equal(t, input, out, "unrelated exchanges should remain byte-identical")
+	})
 
 	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
 		for _, enabled := range []bool{false, true} {
@@ -163,6 +175,8 @@ func TestDowngradeExchange(t *testing.T) {
 		want string
 	}{
 		{name: "current", in: "HTX", want: "Huobi"},
+		{name: "lowercase current", in: "htx", want: "Huobi"},
+		{name: "mixed-case current", in: "hTx", want: "Huobi"},
 		{name: "unrelated", in: "Kraken", want: "Kraken"},
 		{name: "legacy", in: "Huobi", want: "Huobi"},
 	} {
@@ -174,6 +188,13 @@ func TestDowngradeExchange(t *testing.T) {
 			assert.Equalf(t, `{"name":"`+tt.want+`"}`, string(out), "exchange name %s should migrate correctly", tt.in)
 		})
 	}
+	t.Run("unrelated exchange bytes", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"name":"Kraken", "api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://custom.example"}}, "a":1e3}`)
+		out, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "unrelated exchanges must pass through wildcard dispatch")
+		assert.Equal(t, input, out, "unrelated endpoint settings and bytes should remain unchanged")
+	})
 	t.Run("persisted endpoints", func(t *testing.T) {
 		t.Parallel()
 		input := []byte(`{"name":"HTX","api":{"urlEndpoints":{"WebsocketCoinMarginedPrivateURL":"wss://coin.example","WebsocketUSDTMarginedPrivateURL":"wss://usdt.example","RestSpotURL":"https://custom.example","WebsocketPrivateURL":"wss://spot.example"}}}`)
@@ -183,7 +204,7 @@ func TestDowngradeExchange(t *testing.T) {
 	})
 }
 
-func TestRegisteredUpgrade(t *testing.T) {
+func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name  string
@@ -210,5 +231,55 @@ func TestRegisteredUpgrade(t *testing.T) {
 			assert.Equal(t, "Kraken", config.Exchanges[1].Name, "Deploy should preserve unrelated exchanges")
 			assert.NotContains(t, string(out), `"gctscript"`, "Deploy should retain upstream's GCTScript removal")
 		})
+	}
+	for _, transition := range []struct {
+		name    string
+		from    uint16
+		to      uint16
+		names   []string
+		want    string
+		wantURL bool
+	}{
+		{name: "upgrade", from: 17, to: 18, names: []string{"Huobi", "huobi", "HUOBI", "hUoBi", "HTX", "htx", "hTx"}, want: "HTX", wantURL: true},
+		{name: "downgrade", from: 18, to: 17, names: []string{"HTX", "htx", "hTx"}, want: "Huobi"},
+	} {
+		for _, name := range transition.names {
+			t.Run(transition.name+" "+name, func(t *testing.T) {
+				t.Parallel()
+				const unrelated = `{"name":"Kraken","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://unrelated.example"}},"precision":9007199254740993}`
+				input := fmt.Appendf(nil, `{"version":%d,"exchanges":[{"name":%q,"currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://usdt.example","RestSpotURL":"https://custom.example"}}},%s]}`, transition.from, name, unrelated)
+				out, err := versions.Manager.Deploy(t.Context(), input, transition.to)
+				require.NoError(t, err, "registered migration must handle every accepted exchange name")
+				var cfg struct {
+					Version   uint16 `json:"version"`
+					Exchanges []struct {
+						Name          string `json:"name"`
+						CurrencyPairs struct {
+							Pairs map[string]json.RawMessage `json:"pairs"`
+						} `json:"currencyPairs"`
+						API struct {
+							URLEndpoints map[string]string `json:"urlEndpoints"`
+						} `json:"api"`
+					} `json:"exchanges"`
+				}
+				require.NoError(t, json.Unmarshal(out, &cfg), "migrated configuration must decode")
+				assert.Equal(t, transition.to, cfg.Version, "migration should advance to the requested version")
+				require.Len(t, cfg.Exchanges, 2, "migration must retain both exchanges")
+				assert.Equal(t, transition.want, cfg.Exchanges[0].Name, "migration should canonicalise the exchange name")
+				assert.Equal(t, "https://custom.example", cfg.Exchanges[0].API.URLEndpoints["RestSpotURL"], "existing spot endpoint should remain unchanged")
+				if transition.wantURL {
+					assert.Contains(t, cfg.Exchanges[0].API.URLEndpoints, "WebsocketUSDTMarginedPrivateURL", "upgrade should preserve the private endpoint")
+					assert.Contains(t, cfg.Exchanges[0].CurrencyPairs.Pairs, "usdtmarginedfutures", "upgrade should apply derivative defaults to every accepted name")
+				} else {
+					assert.NotContains(t, cfg.Exchanges[0].API.URLEndpoints, "WebsocketUSDTMarginedPrivateURL", "downgrade should remove the unsupported private endpoint")
+				}
+				var raw struct {
+					Exchanges []json.RawMessage `json:"exchanges"`
+				}
+				require.NoError(t, json.Unmarshal(out, &raw), "unrelated exchange must decode")
+				assert.JSONEq(t, unrelated, string(raw.Exchanges[1]), "wildcard dispatch should preserve unrelated exchange settings")
+				assert.Contains(t, string(raw.Exchanges[1]), "9007199254740993", "unrelated integer precision should be preserved")
+			})
+		}
 	}
 }

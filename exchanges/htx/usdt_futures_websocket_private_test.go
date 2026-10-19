@@ -2,6 +2,9 @@ package htx
 
 import (
 	"context"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,66 +28,69 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// newV5TradeWebsocketTestExchange configures the dedicated trade connection used by V5 websocket tests.
+// newV5TradeWebsocketTestExchange uses the production registration and authentication flow before testing trade requests.
 func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *Exchange {
 	t.Helper()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+	var authenticated atomic.Bool
+	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
 		tb.Helper()
 		operation, _ := jsonparser.GetString(message, "op")
-		channel, _ := jsonparser.GetString(message, "ch")
-		if operation == wsAuthChannel || channel == wsAuthChannel {
-			return wsFixture(tb, message, conn)
+		if operation == wsAuthChannel {
+			if err := wsFixture(tb, message, conn); err != nil {
+				return err
+			}
+			authenticated.Store(true)
+			return nil
 		}
+		assert.True(tb, authenticated.Load(), "trade requests should follow authentication")
 		return handler(tb, message, conn)
 	}))
-	setupV5TradeWebsocketTestConnection(t, h)
-	// The existing monitor may reconnect as soon as the manager is re-enabled.
-	if err := h.Websocket.Enable(t.Context()); err != nil {
-		require.ErrorContains(t, err, "already connected", "websocket connections must reconnect with the trade endpoint")
-	}
-	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
-	require.NoError(t, err, "trade connection must be available")
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "exchange defaults must load")
+	cfg := h.Config
+	cfg.API.AuthenticatedWebsocketSupport = true
+	cfg.API.AuthenticatedSupport = true
+	h.SetDefaults()
+	require.NoError(t, h.Setup(cfg), "authenticated websocket setup must succeed")
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	h.Features.Subscriptions = nil
+	require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")
+	t.Cleanup(func() {
+		if err := h.Websocket.Disable(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should not error")
+		}
+		if err := h.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error")
+		}
+	})
+	require.NoError(t, h.Websocket.Connect(t.Context()), "trade connection must authenticate and connect")
+	require.True(t, authenticated.Load(), "trade connection must authenticate before use")
 	return h
 }
 
-func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
-	t.Helper()
-	conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMargined)
-	require.NoError(t, err, "public USDT margined connection must be available")
-	mockURL := conn.GetURL()
-	require.NoError(t, h.Websocket.Disable(), "websocket must stop reconnecting before trade setup")
-	if err := h.Websocket.Shutdown(); err != nil {
-		require.ErrorIs(t, err, websocket.ErrNotConnected, "existing websocket connections must shut down before trade setup")
-	}
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      wsUSDTMarginedTradeURL,
-		RateLimit:                request.NewWeightedRateLimitByDuration(3 * time.Second / 24),
-		ResponseCheckTimeout:     h.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         h.WebsocketResponseMaxLimit,
-		Connector:                h.wsConnect,
-		Handler:                  h.wsHandleData,
-		Authenticate:             h.wsFuturesLogin,
-		MessageFilter:            exchange.WebsocketTrade,
-		SubscriptionsNotRequired: true,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return nil, nil
-		},
-	}), "trade connection setup must not error")
-	require.NoError(t, h.Websocket.SetAllConnectionURLs(mockURL), "mock websocket URLs must update")
-}
-
-func TestSetupV5TradeWebsocketTestConnection(t *testing.T) {
+func TestNewV5TradeWebsocketTestExchange(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
-	setupV5TradeWebsocketTestConnection(t, h)
-	assert.False(t, h.Websocket.IsEnabled(), "trade setup should disable the old monitor")
-	// Wait past the monitor's two-second tick to expose an unintended reconnect.
-	time.Sleep(2200 * time.Millisecond)
-	require.False(t, h.Websocket.IsConnected(), "manager must stay disconnected until trade setup is enabled")
-	require.NoError(t, h.Websocket.Enable(t.Context()), "manager must enable with the trade setup")
-	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
-	require.NoError(t, err, "trade connection must be available after enabling")
+	var requests atomic.Int32
+	h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+		tb.Helper()
+		requests.Add(1)
+		return wsFixture(tb, message, conn)
+	})
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.NoError(t, err, "production trade connection must be available")
+	subs := conn.Subscriptions().List()
+	require.Len(t, subs, 1, "production trade connection must own its logical subscription")
+	assert.Equal(t, "trade", subs[0].Channel, "logical subscription should identify the trade connection")
+	assert.Equal(t, asset.USDTMarginedFutures, subs[0].Asset, "trade connection should belong to the USDT-margined asset")
+	assert.True(t, subs[0].Authenticated, "logical subscription should require authentication")
+	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "trade connection should finish production registration")
+	assert.Zero(t, requests.Load(), "logical registration should send no subscription request to HTX")
+	resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
+	require.NoError(t, err, "authenticated trade connection must complete an order request")
+	require.NotNil(t, resp, "order acknowledgement must be returned")
+	assert.Equal(t, "1", resp.Data.OrderID, "order acknowledgement should decode")
+	assert.Equal(t, int32(1), requests.Load(), "order request should use the production trade connection")
 }
 
 func TestSendV5TradeRequest(t *testing.T) {

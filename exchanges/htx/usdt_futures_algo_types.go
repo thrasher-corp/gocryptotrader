@@ -24,7 +24,7 @@ type V5AlgoOrderRequest struct {
 	StopLossType        string        `json:"sl_type,omitempty"`
 	StopLossPriceType   string        `json:"sl_trigger_price_type,omitempty"`
 	Price               types.Number  `json:"price,omitempty"`
-	PriceMatch          string        `json:"price_match,omitempty"`
+	PriceType           string        `json:"price_type,omitempty"`
 	TriggerPrice        types.Number  `json:"trigger_price,omitempty"`
 	TriggerPriceType    string        `json:"trigger_price_type,omitempty"`
 	ActivationPrice     types.Number  `json:"active_price,omitempty"`

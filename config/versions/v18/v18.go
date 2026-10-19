@@ -14,17 +14,21 @@ import (
 // Version implements ExchangeVersion to migrate Huobi configurations to HTX.
 type Version struct{}
 
-// Exchanges returns the legacy and current exchange names handled by this migration.
-func (*Version) Exchanges() []string { return []string{"Huobi", "HTX"} }
+// Exchanges uses wildcard dispatch because exchange names are case-insensitive at runtime.
+func (*Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange changes the legacy Huobi exchange name to HTX and adds its derivative configuration.
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "Huobi" {
-		var setErr error
-		exchange, setErr = jsonparser.Set(exchange, []byte(`"HTX"`), "name")
-		if setErr != nil {
-			return exchange, setErr
-		}
+	name, err := jsonparser.GetString(exchange, "name")
+	if err != nil {
+		return exchange, err
+	}
+	if !strings.EqualFold(name, "Huobi") && !strings.EqualFold(name, "HTX") {
+		return exchange, nil
+	}
+	exchange, err = jsonparser.Set(exchange, []byte(`"HTX"`), "name")
+	if err != nil {
+		return exchange, err
 	}
 
 	var config map[string]any
@@ -33,11 +37,6 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 	if err := decoder.Decode(&config); err != nil {
 		return exchange, err
 	}
-	name, _ := config["name"].(string)
-	if !strings.EqualFold(name, "HTX") {
-		return exchange, nil
-	}
-
 	addUSDTMarginedPair(config)
 	addDerivativeSubscriptions(config)
 	// Patch only the changed subtrees, preserving unrelated key order and numeric text.
@@ -200,7 +199,7 @@ func addDerivativeSubscriptions(config map[string]any) {
 
 // DowngradeExchange changes the HTX exchange name back to Huobi.
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "HTX" {
+	if name, err := jsonparser.GetString(exchange, "name"); err == nil && strings.EqualFold(name, "HTX") {
 		// Setup persists new endpoint keys that version 17 cannot load.
 		for _, key := range []string{"WebsocketCoinMarginedPrivateURL", "WebsocketUSDTMarginedPrivateURL"} {
 			exchange = jsonparser.Delete(exchange, "api", "urlEndpoints", key)

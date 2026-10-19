@@ -215,11 +215,3 @@ func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Sub
 
 	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
-
-/*
-getErrResp looks for any of the following to determine an error:
-- An err-code (V1)
-- A code field that isn't 200 (V2)
-Error message is retreieved from the field err-message or message.
-Errors are returned in the format of <message> (<code>)
-*/

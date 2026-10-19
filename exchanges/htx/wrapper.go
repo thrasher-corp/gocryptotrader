@@ -1942,43 +1942,23 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			}
 		}
 	case asset.USDTMarginedFutures:
+		pairs := currency.Pairs{orderCancellation.Pair}
 		if orderCancellation.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
+			var err error
+			pairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			for i := range enabledPairs {
-				a, err := e.CancelAllV5Orders(ctx, enabledPairs[i], "", "")
-				if err != nil {
-					errs = common.AppendError(errs, err)
-					continue
-				}
-				if a == nil {
-					errs = common.AppendError(errs, errEmptyResult)
-					continue
-				}
-				for j := range a.Data {
-					id := a.Data[j].OrderID
-					if id == "" {
-						id = a.Data[j].ClientOrderID
-					}
-					if id == "" {
-						continue
-					}
-					if a.Data[j].Code == 0 || a.Data[j].Code == 200 {
-						cancelAllOrdersResponse.Status[id] = htxStatusSuccess
-					} else {
-						cancelAllOrdersResponse.Status[id] = a.Data[j].Message
-					}
-				}
-			}
-		} else {
-			a, err := e.CancelAllV5Orders(ctx, orderCancellation.Pair, "", "")
+		}
+		for i := range pairs {
+			a, err := e.CancelAllV5Orders(ctx, pairs[i], "", "")
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				errs = common.AppendError(errs, err)
+				continue
 			}
 			if a == nil {
-				return cancelAllOrdersResponse, errEmptyResult
+				errs = common.AppendError(errs, errEmptyResult)
+				continue
 			}
 			for j := range a.Data {
 				id := a.Data[j].OrderID

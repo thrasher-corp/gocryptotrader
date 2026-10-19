@@ -244,10 +244,17 @@ func (e *Exchange) sendV5WSExecutionUpdates(ctx context.Context, sub *subscripti
 			timestamp = execution.CreatedTime.Time()
 		}
 		fills = append(fills, fill.Data{
-			ID: execution.ID, Timestamp: timestamp, Exchange: e.Name, AssetType: sub.Asset,
-			CurrencyPair: pair, Side: orderSide, OrderID: execution.OrderID.String(),
-			ClientOrderID: execution.ClientOrderID, TradeID: execution.TradeID.String(),
-			Price: execution.TradePrice.Float64(), Amount: execution.TradeVolume.Float64(),
+			ID:            execution.ID,
+			Timestamp:     timestamp,
+			Exchange:      e.Name,
+			AssetType:     sub.Asset,
+			CurrencyPair:  pair,
+			Side:          orderSide,
+			OrderID:       execution.OrderID.String(),
+			ClientOrderID: execution.ClientOrderID,
+			TradeID:       execution.TradeID.String(),
+			Price:         execution.TradePrice.Float64(),
+			Amount:        execution.TradeVolume.Float64(),
 		})
 	}
 	if len(fills) == 0 {

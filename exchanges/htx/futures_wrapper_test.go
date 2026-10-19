@@ -177,7 +177,7 @@ func TestSetLeverage(t *testing.T) {
 				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "leverage payload should decode") {
 					assert.Equal(t, tc.expected, req.MarginMode, "leverage mode should agree with submission defaults")
 				}
-			})
+			}, httpTestResponse{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1})
 			require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, tc.mode, 5, order.UnknownSide), "leverage change must succeed")
 		})
 	}
@@ -215,7 +215,7 @@ func TestSetLeverage(t *testing.T) {
 				return
 			}
 			assert.Equal(t, "both", request.PositionSide, "one-way sell leverage should target both sides")
-		})
+		}, httpTestResponse{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1})
 		require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Isolated, 5, order.Sell), "SetLeverage must use the account position mode")
 	})
 }

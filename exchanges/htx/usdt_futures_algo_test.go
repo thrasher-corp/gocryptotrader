@@ -8,13 +8,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestPlaceV5AlgoOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1"}]}`, func(r *http.Request) {
+		var payload map[string]any
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "algo order request should decode") {
+			return
+		}
+		assert.Equal(t, "optimal_5", payload["price_type"], "trigger order should send the documented execution price type")
+		assert.NotContains(t, payload, "price_match", "trigger order should omit the response-only price-match field")
+	})
 	_, err := h.PlaceV5AlgoOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceV5AlgoOrder must reject nil request")
 	resp, err := h.PlaceV5AlgoOrder(t.Context(), &V5AlgoOrderRequest{
@@ -24,6 +32,7 @@ func TestPlaceV5AlgoOrder(t *testing.T) {
 		Side:         "buy",
 		MarginMode:   "cross",
 		Volume:       1,
+		PriceType:    "optimal_5",
 	})
 	require.NoError(t, err, "PlaceV5AlgoOrder must not error")
 	require.Len(t, resp.Data, 1, "one algo acknowledgement must decode")
