@@ -2239,6 +2239,13 @@ type MaximumLoanInstrument struct {
 
 // TradeFeeRate holds trade fee rate information for a given instrument type
 type TradeFeeRate struct {
+	// Presence flags distinguish omitted or empty rates from an explicit zero fee.
+	MakerPresent      bool            `json:"-"`
+	TakerPresent      bool            `json:"-"`
+	MakerUSDTPresent  bool            `json:"-"`
+	TakerUSDTPresent  bool            `json:"-"`
+	MakerUSDCPresent  bool            `json:"-"`
+	TakerUSDCPresent  bool            `json:"-"`
 	Category          string          `json:"category"`
 	DeliveryFeeRate   types.Number    `json:"delivery"`
 	Exercise          string          `json:"exercise"`
@@ -2259,6 +2266,9 @@ type TradeFeeRate struct {
 
 // TradeFeeGroup represents a trading fee group's maker and taker rates.
 type TradeFeeGroup struct {
+	// Presence flags distinguish omitted or empty rates from an explicit zero fee.
+	MakerPresent bool         `json:"-"`
+	TakerPresent bool         `json:"-"`
 	GroupID      string       `json:"groupId"`
 	MakerRate    types.Number `json:"maker"`
 	TakerRate    types.Number `json:"taker"`
@@ -5557,4 +5567,14 @@ type tsResp struct {
 
 type withdrawData struct {
 	WithdrawalID string `json:"wdId"`
+}
+
+// tradeFeePresence preserves absent and empty fields separately from numeric zero.
+type tradeFeePresence struct {
+	Maker     *json.RawMessage `json:"maker"`
+	Taker     *json.RawMessage `json:"taker"`
+	MakerUSDT *json.RawMessage `json:"makerU"`
+	TakerUSDT *json.RawMessage `json:"takerU"`
+	MakerUSDC *json.RawMessage `json:"makerUSDC"`
+	TakerUSDC *json.RawMessage `json:"takerUSDC"`
 }
