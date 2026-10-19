@@ -89,18 +89,18 @@ func TestAddFuturesAssignmentPreference(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AddFuturesAssignmentPreference must reject a contract without a quote")
 	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", Contract: currency.NewPairWithDelimiter("", "XBTUSD", currency.UnderscoreDelimiter)})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AddFuturesAssignmentPreference must reject a contract without a base")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", MaxSize: -1})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a negative max size")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", MaxSize: math.NaN()})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a NaN max size")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", MaxPosition: new(-1.0)})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a negative max position")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", MaxPosition: new(math.NaN())})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a NaN max position")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", CashAccountOpenPositionMaxNotional: new(-1.0)})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a negative cash account open position max notional")
-	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", CashAccountOpenPositionMaxNotional: new(math.NaN())})
-	require.ErrorIs(t, err, errFuturesNegativeLimit, "AddFuturesAssignmentPreference must reject a NaN cash account open position max notional")
+	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		for name, req := range map[string]*FuturesAddAssignmentPreferenceRequest{
+			"max size":     {ContractType: "flex", TimeFrame: "ALL", MaxSize: v},
+			"max position": {ContractType: "flex", TimeFrame: "ALL", MaxPosition: new(v)},
+			"cash account open position max notional": {ContractType: "flex", TimeFrame: "ALL", CashAccountOpenPositionMaxNotional: new(v)},
+		} {
+			_, err = e.AddFuturesAssignmentPreference(t.Context(), req)
+			require.ErrorIsf(t, err, errFuturesInvalidLimit, "AddFuturesAssignmentPreference must reject a %s of %v", name, v)
+		}
+	}
+	_, err = new(Exchange).AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", Contract: futuresTestPair})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "AddFuturesAssignmentPreference must return the error formatting the contract")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -41,6 +42,9 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, req *DepositAddresse
 	}
 	if req.Method == "" {
 		return nil, errDepositMethodRequired
+	}
+	if !isFiniteNonNegative(req.Amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
 	body := make(map[string]any)
 	body["asset"] = req.Asset.Upper().String()
@@ -132,8 +136,8 @@ func (e *Exchange) GetWithdrawalInformation(ctx context.Context, req *Withdrawal
 	if req.Key == "" {
 		return nil, errWithdrawalKeyRequired
 	}
-	if req.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	if !isFinitePositive(req.Amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
 	body := make(map[string]any)
 	body["asset"] = req.Asset.Upper().String()
@@ -155,8 +159,11 @@ func (e *Exchange) WithdrawFunds(ctx context.Context, req *WithdrawFundsRequest)
 	if req.Key == "" {
 		return nil, errWithdrawalKeyRequired
 	}
-	if req.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	if !isFinitePositive(req.Amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
+	}
+	if !isFiniteNonNegative(req.MaxFee) {
+		return nil, fmt.Errorf("%w: %v", errInvalidMaximumFee, req.MaxFee)
 	}
 	body := make(map[string]any)
 	body["asset"] = req.Asset.Upper().String()
@@ -215,8 +222,8 @@ func (e *Exchange) WalletTransfer(ctx context.Context, asset currency.Code, amou
 	if asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	if !isFinitePositive(amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, amount)
 	}
 	body := make(map[string]any)
 	body["asset"] = asset.Upper().String()

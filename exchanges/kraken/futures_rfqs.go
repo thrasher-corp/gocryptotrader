@@ -60,6 +60,9 @@ func (e *Exchange) PlaceFuturesRFQOffer(ctx context.Context, req *FuturesPlaceRF
 	if !perLeg && req.Bid == nil && req.Ask == nil {
 		return nil, errFuturesRFQPriceEmpty
 	}
+	if err := futuresRFQCheckPackagePrices(req.Bid, req.Ask); err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	if req.Bid != nil {
 		params.Set("bid", strconv.FormatFloat(*req.Bid, 'f', -1, 64))
@@ -174,6 +177,9 @@ func (e *Exchange) AcceptFuturesRFQOffer(ctx context.Context, req *FuturesAccept
 	if (req.Bid == nil) == (req.Ask == nil) {
 		return nil, errFuturesRFQAcceptSide
 	}
+	if err := futuresRFQCheckPackagePrices(req.Bid, req.Ask); err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	if req.Bid != nil {
 		params.Set("bidAccepted", strconv.FormatFloat(*req.Bid, 'f', -1, 64))
@@ -203,6 +209,17 @@ func (e *Exchange) futuresRFQRequest(ctx context.Context, method, path string, p
 		return nil
 	}
 	return json.Unmarshal(raw, result)
+}
+
+// futuresRFQCheckPackagePrices rejects a package bid or ask that is NaN or infinite. Either may be negative or 0, for a
+// package with short legs
+func futuresRFQCheckPackagePrices(bid, ask *float64) error {
+	for _, price := range []*float64{bid, ask} {
+		if price != nil && !isFinite(*price) {
+			return fmt.Errorf("%w: %v", errFuturesRFQInvalidPrice, *price)
+		}
+	}
+	return nil
 }
 
 // futuresRFQLegPrices returns per-leg offer prices as the JSON document Place new offer on an open RFQ takes

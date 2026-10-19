@@ -121,8 +121,9 @@ take no `levels`.
 + Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
 the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
 balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports
-finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone. These
-reads are retried only while the websocket is connected, or still connecting.
+finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone. Spot
+tickers carry no opening price of the day, so each takes it from REST's tickers, read once a UTC day when that day's
+first websocket ticker arrives. These reads are retried only while the websocket is connected, or still connecting.
 
 + The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
 under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that
@@ -140,11 +141,15 @@ holds a level for each order, so a price appears once for each order resting at 
 and updates are also sent to the data handler as `WebsocketLevel3Book`s with their order IDs. As a pair has one stored
 order book, it can be subscribed to at one depth of either the `orderbook` or the `allOrders` channel.
 
++ Websocket v2 streams one candle interval for each pair on a connection, so a pair's candles can be subscribed to at
+one interval: Kraken rejects a subscription to a second.
+
 + Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
 holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they
 are.
 
-+ Orders can be managed over the private connection, which the wrapper's order functions use when it is connected:
++ Orders can be managed over the private connection. The wrapper's spot order functions use it while it is connected
+and holds a subscription, and REST otherwise, such as when Kraken refuses the websocket token:
 
 ```go
 // Places an order over the private websocket connection

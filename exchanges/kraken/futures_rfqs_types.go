@@ -12,6 +12,7 @@ var (
 	errFuturesRFQUIDEmpty        = errors.New("RFQ UID is empty")
 	errFuturesRFQPriceEmpty      = errors.New("an RFQ offer needs a bid or an ask")
 	errFuturesRFQPricingConflict = errors.New("package and per-leg RFQ prices cannot both be set")
+	errFuturesRFQInvalidPrice    = errors.New("RFQ price is not a finite number")
 	errFuturesRFQLegsEmpty       = errors.New("an RFQ needs at least one leg")
 	errFuturesRFQTooManyLegs     = errors.New("an RFQ takes at most 100 legs")
 	errFuturesRFQDuplicateLeg    = errors.New("RFQ legs cannot repeat a contract")

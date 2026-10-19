@@ -166,8 +166,8 @@ type FundingWithdrawalRequest struct {
 	// FeeToken is a withdrawal fee token from CalculateFundingFees, pinning its quoted fee rate. Without one the current
 	// fee is charged
 	FeeToken string
-	// MaximumFee caps the current fee, in the withdrawal's asset, failing the withdrawal if the fee exceeds it. It cannot
-	// be set with FeeToken
+	// MaximumFee caps the current fee, in the withdrawal's asset, failing the withdrawal if the fee exceeds it; 0 sets no
+	// cap. It cannot be set with FeeToken
 	MaximumFee float64
 	// RebaseMultiplier is rebased or base, choosing the units of a tokenised asset's amount and fee
 	RebaseMultiplier string

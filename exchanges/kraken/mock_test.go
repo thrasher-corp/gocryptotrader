@@ -8,15 +8,13 @@ import (
 	"log"
 	"os"
 	"testing"
-
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = true
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
-	if err := testexch.Setup(e); err != nil {
+	if err := setupTestExchange(e); err != nil {
 		log.Fatalf("Kraken Setup error: %s", err)
 	}
 	if err := configureTestExchange(e); err != nil {

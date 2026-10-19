@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -54,20 +55,54 @@ type Exchange struct {
 	// the last successful spot balances refresh started after, so the first refresh after an update is confirmed by
 	// another
 	spotBalancesLedgerUpdates, spotBalancesConfirmed atomic.Uint64
-	// spotBalancesRequested holds, by credentials, when the spot balances last stored were requested, so a read
-	// requested before them is not stored over them
-	spotBalancesRequested   map[accounts.Credentials]time.Time
+	// balancesSequence numbers each balance read as it is requested and each balances feed message as it arrives, which
+	// orders them for the guards below; the clock cannot, as on Windows it advances only at each timer interrupt
+	balancesSequence atomic.Uint64
+	// spotBalancesRequested holds, by credentials, the number of the read whose spot balances were last stored, so a
+	// read requested before it is not stored over them
+	spotBalancesRequested   map[accounts.Credentials]uint64
 	spotBalancesRequestedMu sync.Mutex
 	// spotOrders reads spot orders over REST once the executions channel reports them finished after fills, as its
 	// messages carry each fill's fee but not the order's
 	spotOrders wsRefresher
+	// spotDayOpens reads the spot opening prices of the day over REST when a websocket ticker finds none read for its
+	// UTC day, as websocket tickers carry none
+	spotDayOpens wsRefresher
+	// dayOpens holds each spot pair's opening price of the UTC day, as the REST ticker read requested last reported it,
+	// at dayOpensRequested
+	dayOpens          map[key.PairAsset]float64
+	dayOpensRequested time.Time
+	// dayOpensAsked is the latest UTC day a ticker asked to have the opening prices of read, at dayOpensAskedAt
+	dayOpensAsked   string
+	dayOpensAskedAt time.Time
+	dayOpensMu      sync.Mutex
 	// futuresOrders holds what the futures feeds have reported of each order, as Kraken names only the order when it
 	// leaves the open orders, and reports its fills on a feed of their own
 	futuresOrders futuresOrderTracker
-	// futuresMarginCurrencies holds, by credentials, the currency of each single-collateral margin account
-	// UpdateAccountBalances last stored, by its REST name, which the balances feed's accounts are matched against
-	futuresMarginCurrencies   map[accounts.Credentials]map[string]currency.Code
+	// futuresMarginCurrencies holds, by credentials, the currency of each single-collateral margin account the latest
+	// requested futures REST read listed, by its REST name, which the balances feed's accounts are matched against
+	futuresMarginCurrencies   map[accounts.Credentials]futuresMarginRead
 	futuresMarginCurrenciesMu sync.Mutex
+	// futuresWalletsStored holds, by credentials and wallet name, the numbers of the reads and messages the stored futures
+	// balances came from, so neither a REST read nor a balances message is stored over balances stored after it was
+	// requested or arrived. futuresBalancesMu guards it and is held over each store of futures balances, so a check and
+	// its store are atomic. It is never held together with futuresMarginCurrenciesMu
+	futuresWalletsStored map[accounts.Credentials]map[string]*futuresWalletStores
+	futuresBalancesMu    sync.Mutex
+}
+
+// futuresMarginRead holds the currency of each single-collateral margin account a futures REST read listed, by its REST
+// name, and the read's balancesSequence number
+type futuresMarginRead struct {
+	requested  uint64
+	currencies map[string]currency.Code
+}
+
+// futuresWalletStores holds the balancesSequence numbers of the reads and messages a futures wallet's stored balances
+// came from: whole for the wallet's last store whole, and currencies for each currency's last store on its own
+type futuresWalletStores struct {
+	whole      uint64
+	currencies map[currency.Code]uint64
 }
 
 const (
@@ -595,4 +630,20 @@ func checkPairFilter(pair currency.Pair) error {
 		return fmt.Errorf("%w: a currency pair needs a base and a quote", currency.ErrCurrencyCodeEmpty)
 	}
 	return nil
+}
+
+// isFinite reports whether a number is neither NaN nor infinite, which Kraken cannot take
+func isFinite(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
+}
+
+// isFiniteNonNegative reports whether a limit, cap, deviation, volume or price is finite and not negative, as Kraken
+// requires
+func isFiniteNonNegative(v float64) bool {
+	return isFinite(v) && v >= 0
+}
+
+// isFinitePositive reports whether an amount, size or quantity is finite and above zero, as Kraken requires
+func isFinitePositive(v float64) bool {
+	return isFinite(v) && v > 0
 }

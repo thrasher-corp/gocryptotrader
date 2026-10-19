@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"net/http"
 	"net/url"
 	"path"
@@ -42,6 +43,14 @@ func TestSendFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesStopPriceRequired, "SendFuturesOrder must validate the order")
 	_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "sell", OrderType: "stp", Size: 0.001, StopPrice: 79000, LimitPriceOffsetValue: -0.5})
 	require.ErrorIs(t, err, errFuturesLimitPriceOffsetUnitRequired, "SendFuturesOrder must reject a limit price offset without its unit")
+	for _, offset := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "sell", OrderType: "stp", Size: 0.001, StopPrice: 79000, LimitPriceOffsetValue: offset, LimitPriceOffsetUnit: "QUOTE_CURRENCY"})
+		require.ErrorIsf(t, err, errInvalidOrderPrice, "SendFuturesOrder must reject a limit price offset of %v", offset)
+	}
+	_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "buy", OrderType: "lmt", Size: 0.001, LimitPrice: math.NaN()})
+	require.ErrorIs(t, err, errInvalidOrderPrice, "SendFuturesOrder must reject a NaN limit price")
+	_, err = new(Exchange).SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "buy", OrderType: "lmt", Size: 0.001, LimitPrice: 81500})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "SendFuturesOrder must return the error formatting the symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -254,6 +263,14 @@ func TestEditFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "EditFuturesOrder must reject a request without an order ID")
 	_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingTrailingOrderID, TrailingStopMaximumDeviation: 51, TrailingStopDeviationUnit: "PERCENT"})
 	require.ErrorIs(t, err, errFuturesInvalidTrailingStopDeviation, "EditFuturesOrder must reject a percentage deviation above 50")
+	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, Size: v})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditFuturesOrder must reject a size of %v", v)
+		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, LimitPrice: v})
+		require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a limit price of %v", v)
+		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingStopOrderID, StopPrice: v})
+		require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a stop price of %v", v)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1030,6 +1047,7 @@ func TestFuturesValidateNewOrder(t *testing.T) {
 		side          string
 		orderType     string
 		size          float64
+		limitPrice    float64
 		stopPrice     float64
 		deviation     float64
 		deviationUnit string
@@ -1042,19 +1060,34 @@ func TestFuturesValidateNewOrder(t *testing.T) {
 		{name: "empty side", symbol: futuresTestPair, err: order.ErrSideIsInvalid},
 		{name: "empty order type", symbol: futuresTestPair, side: "buy", err: order.ErrTypeIsInvalid},
 		{name: "zero size", symbol: futuresTestPair, side: "buy", orderType: "lmt", err: order.ErrAmountIsInvalid},
+		{name: "negative size", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: -1, err: order.ErrAmountIsInvalid},
+		{name: "NaN size", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: math.NaN(), err: order.ErrAmountIsInvalid},
+		{name: "infinite size", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: math.Inf(1), err: order.ErrAmountIsInvalid},
+		{name: "negative infinite size", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: math.Inf(-1), err: order.ErrAmountIsInvalid},
+		{name: "negative limit price", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, limitPrice: -1, err: errInvalidOrderPrice},
+		{name: "NaN limit price", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, limitPrice: math.NaN(), err: errInvalidOrderPrice},
+		{name: "infinite limit price", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, limitPrice: math.Inf(1), err: errInvalidOrderPrice},
+		{name: "negative infinite limit price", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, limitPrice: math.Inf(-1), err: errInvalidOrderPrice},
+		{name: "negative stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, stopPrice: -1, err: errInvalidOrderPrice},
+		{name: "NaN stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, stopPrice: math.NaN(), err: errInvalidOrderPrice},
+		{name: "infinite stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, stopPrice: math.Inf(1), err: errInvalidOrderPrice},
+		{name: "negative infinite stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, stopPrice: math.Inf(-1), err: errInvalidOrderPrice},
 		{name: "stop without a stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, err: errFuturesStopPriceRequired},
 		{name: "take profit without a stop price", symbol: futuresTestPair, side: "sell", orderType: "take_profit", size: 1, err: errFuturesStopPriceRequired},
 		{name: "trailing stop without a deviation", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviationUnit: "PERCENT", err: errFuturesTrailingStopDeviationRequired},
 		{name: "trailing stop without a deviation unit", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviation: 1, err: errFuturesTrailingStopDeviationRequired},
 		{name: "percentage deviation above 50", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviation: 50.5, deviationUnit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{name: "NaN percentage deviation", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviation: math.NaN(), deviationUnit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{name: "negative quote currency deviation", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviation: -100, deviationUnit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
 		{name: "client order ID above 100 characters", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, clientOrderID: strings.Repeat("a", 101), err: errFuturesClientOrderIDTooLong},
 		{name: "client order ID of 100 multibyte characters", symbol: futuresTestPair, side: "buy", orderType: "lmt", size: 1, clientOrderID: strings.Repeat("é", 100)},
 		{name: "stop with a stop price", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, stopPrice: 79000},
+		{name: "stop limit", symbol: futuresTestPair, side: "sell", orderType: "stp", size: 1, limitPrice: 78900, stopPrice: 79000},
 		{name: "trailing stop by quote currency beyond 50", symbol: futuresTestPair, side: "sell", orderType: "trailing_stop", size: 1, deviation: 300, deviationUnit: "QUOTE_CURRENCY"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := futuresValidateNewOrder(tc.symbol, tc.side, tc.orderType, tc.size, tc.stopPrice, tc.deviation, tc.deviationUnit, tc.clientOrderID)
+			err := futuresValidateNewOrder(tc.symbol, tc.side, tc.orderType, tc.size, tc.limitPrice, tc.stopPrice, tc.deviation, tc.deviationUnit, tc.clientOrderID)
 			assert.ErrorIs(t, err, tc.err, "futuresValidateNewOrder should return the expected error")
 		})
 	}
@@ -1072,11 +1105,66 @@ func TestFuturesValidateTrailingStopDeviation(t *testing.T) {
 		{deviation: 0.1, unit: "PERCENT"},
 		{deviation: 50, unit: "PERCENT"},
 		{deviation: 50.01, unit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: -1, unit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.NaN(), unit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.Inf(1), unit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.Inf(-1), unit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: 0, unit: "QUOTE_CURRENCY"},
 		{deviation: 0.05, unit: "QUOTE_CURRENCY"},
 		{deviation: 100, unit: "QUOTE_CURRENCY"},
+		{deviation: -100, unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.NaN(), unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.Inf(1), unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
+		{deviation: math.Inf(-1), unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
 	} {
 		err := futuresValidateTrailingStopDeviation(tc.deviation, tc.unit)
 		assert.ErrorIsf(t, err, tc.err, "futuresValidateTrailingStopDeviation should return the expected error for %v %s", tc.deviation, tc.unit)
+	}
+}
+
+func TestFuturesValidateEdit(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                        string
+		size, limitPrice, stopPrice float64
+		deviation                   float64
+		deviationUnit               string
+		err                         error
+	}{
+		{name: "nothing changed"},
+		{name: "every value changed", size: 2, limitPrice: 82100, stopPrice: 82000, deviation: 0.5, deviationUnit: "PERCENT"},
+		{name: "negative size", size: -1, err: order.ErrAmountIsInvalid},
+		{name: "NaN size", size: math.NaN(), err: order.ErrAmountIsInvalid},
+		{name: "infinite size", size: math.Inf(1), err: order.ErrAmountIsInvalid},
+		{name: "negative infinite size", size: math.Inf(-1), err: order.ErrAmountIsInvalid},
+		{name: "NaN limit price", limitPrice: math.NaN(), err: errInvalidOrderPrice},
+		{name: "negative stop price", stopPrice: -1, err: errInvalidOrderPrice},
+		{name: "deviation out of range", deviation: 51, deviationUnit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
+	} {
+		err := futuresValidateEdit(tc.size, tc.limitPrice, tc.stopPrice, tc.deviation, tc.deviationUnit)
+		assert.ErrorIsf(t, err, tc.err, "futuresValidateEdit should return the expected error for %s", tc.name)
+	}
+}
+
+func TestFuturesValidatePrices(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		limitPrice, stopPrice float64
+		err                   error
+	}{
+		{},
+		{limitPrice: 81500, stopPrice: 81600},
+		{limitPrice: -1, err: errInvalidOrderPrice},
+		{limitPrice: math.NaN(), err: errInvalidOrderPrice},
+		{limitPrice: math.Inf(1), err: errInvalidOrderPrice},
+		{limitPrice: math.Inf(-1), err: errInvalidOrderPrice},
+		{stopPrice: -1, err: errInvalidOrderPrice},
+		{stopPrice: math.NaN(), err: errInvalidOrderPrice},
+		{stopPrice: math.Inf(1), err: errInvalidOrderPrice},
+		{stopPrice: math.Inf(-1), err: errInvalidOrderPrice},
+	} {
+		err := futuresValidatePrices(tc.limitPrice, tc.stopPrice)
+		assert.ErrorIsf(t, err, tc.err, "futuresValidatePrices should return the expected error for limit price %v and stop price %v", tc.limitPrice, tc.stopPrice)
 	}
 }
 
@@ -1132,12 +1220,15 @@ func TestFuturesBatchInstruction(t *testing.T) {
 		{name: "send and cancel", instruction: &FuturesBatchInstruction{Send: send, Cancel: &FuturesBatchCancelInstruction{OrderID: "1"}}, err: errFuturesInvalidBatchInstruction},
 		{name: "send without a tag", instruction: &FuturesBatchInstruction{Send: &FuturesBatchSendInstruction{Symbol: futuresTestPair, Side: "buy", OrderType: "lmt", Size: 1}}, err: errFuturesOrderTagRequired},
 		{name: "send without a size", instruction: &FuturesBatchInstruction{Send: &FuturesBatchSendInstruction{OrderTag: "1", Symbol: futuresTestPair, Side: "buy", OrderType: "lmt"}}, err: order.ErrAmountIsInvalid},
+		{name: "send with a NaN limit price", instruction: &FuturesBatchInstruction{Send: &FuturesBatchSendInstruction{OrderTag: "1", Symbol: futuresTestPair, Side: "buy", OrderType: "lmt", Size: 1, LimitPrice: math.NaN()}}, err: errInvalidOrderPrice},
 		{
 			name:        "send",
 			instruction: &FuturesBatchInstruction{Send: send},
 			exp:         futuresBatchInstructionJSON{Order: "send", OrderTag: "1", OrderType: "lmt", Symbol: "PF_XBTUSD", Side: "buy", Size: 1, LimitPrice: 82000, ClientOrderID: "my-order", ReduceOnly: true},
 		},
 		{name: "edit without an order ID", instruction: &FuturesBatchInstruction{Edit: &FuturesBatchEditInstruction{Size: 2}}, err: order.ErrOrderIDNotSet},
+		{name: "edit with a negative size", instruction: &FuturesBatchInstruction{Edit: &FuturesBatchEditInstruction{OrderID: "1", Size: -2}}, err: order.ErrAmountIsInvalid},
+		{name: "edit with an infinite limit price", instruction: &FuturesBatchInstruction{Edit: &FuturesBatchEditInstruction{OrderID: "1", LimitPrice: math.Inf(1)}}, err: errInvalidOrderPrice},
 		{
 			name:        "edit with a deviation out of range",
 			instruction: &FuturesBatchInstruction{Edit: &FuturesBatchEditInstruction{OrderID: "1", TrailingStopMaximumDeviation: 60, TrailingStopDeviationUnit: "PERCENT"}},
@@ -1162,6 +1253,8 @@ func TestFuturesBatchInstruction(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "futuresBatchInstruction should convert the instruction")
 		})
 	}
+	_, err := new(Exchange).futuresBatchInstruction(&FuturesBatchInstruction{Send: send})
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "futuresBatchInstruction should return the error formatting a send's symbol")
 }
 
 func TestFuturesSetProcessBefore(t *testing.T) {

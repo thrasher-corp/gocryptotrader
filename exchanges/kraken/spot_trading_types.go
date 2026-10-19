@@ -237,10 +237,11 @@ type EditOrderResponse struct {
 	NewUserReference types.Number `json:"newuserref"`
 	OldUserReference types.Number `json:"olduserref"`
 	// OrdersCancelled is 1 once the original order is cancelled, and 0 otherwise
-	OrdersCancelled       uint64       `json:"orders_cancelled"`
-	OriginalTransactionID string       `json:"originaltxid"`
-	Status                string       `json:"status"`
-	Volume                types.Number `json:"volume"`
+	OrdersCancelled       uint64 `json:"orders_cancelled"`
+	OriginalTransactionID string `json:"originaltxid"`
+	// Status is Ok, or Err for an edit that failed, which EditOrder returns as an error carrying ErrorMessage
+	Status string       `json:"status"`
+	Volume types.Number `json:"volume"`
 	// Price and SecondaryPrice keep the offset and percent sign of a relative price
 	Price          OrderPrice `json:"price"`
 	SecondaryPrice OrderPrice `json:"price2"`

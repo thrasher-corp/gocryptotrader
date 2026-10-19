@@ -113,8 +113,9 @@ func (f *FuturesOrderbookLevel) UnmarshalJSON(data []byte) error {
 // FuturesTradeHistoryRequest holds the parameters of Get trade history
 type FuturesTradeHistoryRequest struct {
 	Pair currency.Pair
-	// LastTime returns the 100 trades before it, for paging back with the oldest trade's Time; the 100 most recent
-	// trades are returned when it is zero
+	// LastTime returns the 100 trades before it, leaving out any at that time, and the 100 most recent trades when it is
+	// zero. As trades share times, more than 100 at once when an order sweeps the book, paging back by time cannot be
+	// relied on to list every trade; GetFuturesPublicExecutionEvents' continuation tokens list them all
 	LastTime time.Time
 	// IncludeMTFData adds the transparency fields of an MTF market's trades. Kraken documents them as included by
 	// default, but omits them unless they are requested

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"net/http"
 	"net/url"
 	"testing"
@@ -51,8 +52,10 @@ func TestCalculateFundingFees(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CalculateFundingFees must reject a nil request")
 	_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{Amount: 5})
 	require.ErrorIs(t, err, errFundingMethodIDEmpty, "CalculateFundingFees must reject an empty method ID")
-	_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{MethodID: "d4ec4d52-b159-428e-ba64-f45455a978a1"})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "CalculateFundingFees must reject an empty amount")
+	for _, amount := range []float64{0, -5, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{MethodID: "d4ec4d52-b159-428e-ba64-f45455a978a1", Amount: amount})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "CalculateFundingFees must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -295,7 +298,14 @@ func TestCreateFundingWithdrawal(t *testing.T) {
 		{"an empty asset class", func(r *FundingWithdrawalRequest) { r.Asset.Class = "" }, errFundingAssetClassEmpty},
 		{"an empty asset name", func(r *FundingWithdrawalRequest) { r.Asset.Name = currency.EMPTYCODE }, currency.ErrCurrencyCodeEmpty},
 		{"an empty amount", func(r *FundingWithdrawalRequest) { r.Amount = 0 }, limits.ErrAmountBelowMin},
-		{"a negative maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = -1 }, limits.ErrAmountBelowMin},
+		{"a negative amount", func(r *FundingWithdrawalRequest) { r.Amount = -5 }, limits.ErrAmountBelowMin},
+		{"a NaN amount", func(r *FundingWithdrawalRequest) { r.Amount = math.NaN() }, limits.ErrAmountBelowMin},
+		{"an infinite amount", func(r *FundingWithdrawalRequest) { r.Amount = math.Inf(1) }, limits.ErrAmountBelowMin},
+		{"a negative infinite amount", func(r *FundingWithdrawalRequest) { r.Amount = math.Inf(-1) }, limits.ErrAmountBelowMin},
+		{"a negative maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = -1 }, errInvalidMaximumFee},
+		{"a NaN maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = math.NaN() }, errInvalidMaximumFee},
+		{"an infinite maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = math.Inf(1) }, errInvalidMaximumFee},
+		{"a negative infinite maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = math.Inf(-1) }, errInvalidMaximumFee},
 		{"a fee token with a maximum fee", func(r *FundingWithdrawalRequest) { r.FeeToken, r.MaximumFee = fundingTestFeeToken, 1 }, errFundingFeeConflict},
 	} {
 		invalid := valid

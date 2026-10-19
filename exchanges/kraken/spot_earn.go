@@ -108,8 +108,8 @@ func earnOperationBody(strategyID string, amount float64) (map[string]any, error
 	if strategyID == "" {
 		return nil, errEarnStrategyIDRequired
 	}
-	if amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	if !isFinitePositive(amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, amount)
 	}
 	body := make(map[string]any)
 	body["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)

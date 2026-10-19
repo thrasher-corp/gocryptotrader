@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"net/url"
 	"testing"
 	"time"
@@ -62,8 +63,10 @@ func TestFuturesWithdrawToSpotWallet(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "FuturesWithdrawToSpotWallet must reject a nil request")
 	_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Amount: 0.1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "FuturesWithdrawToSpotWallet must reject an empty currency")
-	_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Currency: currency.ETH, Amount: -0.1})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "FuturesWithdrawToSpotWallet must reject an amount that is not positive")
+	for _, amount := range []float64{0, -0.1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Currency: currency.ETH, Amount: amount})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "FuturesWithdrawToSpotWallet must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -111,6 +114,9 @@ func TestFuturesTransferParams(t *testing.T) {
 		{name: "no currency", from: "cash", to: "flex", amount: 1, err: currency.ErrCurrencyCodeEmpty},
 		{name: "no amount", from: "cash", to: "flex", code: currency.USD, err: limits.ErrAmountBelowMin},
 		{name: "negative amount", from: "cash", to: "flex", code: currency.USD, amount: -1, err: limits.ErrAmountBelowMin},
+		{name: "NaN amount", from: "cash", to: "flex", code: currency.USD, amount: math.NaN(), err: limits.ErrAmountBelowMin},
+		{name: "infinite amount", from: "cash", to: "flex", code: currency.USD, amount: math.Inf(1), err: limits.ErrAmountBelowMin},
+		{name: "negative infinite amount", from: "cash", to: "flex", code: currency.USD, amount: math.Inf(-1), err: limits.ErrAmountBelowMin},
 	} {
 		_, err := futuresTransferParams(tc.from, tc.to, tc.code, tc.amount)
 		assert.ErrorIsf(t, err, tc.err, "futuresTransferParams should reject a transfer with %s", tc.name)

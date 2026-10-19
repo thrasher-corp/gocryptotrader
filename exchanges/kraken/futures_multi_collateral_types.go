@@ -8,6 +8,11 @@ import (
 
 // FuturesPNLCurrencyPreferencesResponse holds the currency each multi-collateral contract pays realised profit in
 type FuturesPNLCurrencyPreferencesResponse struct {
+	// AccountWidePNLCurrency is the currency of every contract without a preference of its own, which is the
+	// platform's currency for an account that has never chosen one
+	AccountWidePNLCurrency currency.Code `json:"accountWidePnlCurrency"`
+	// Preferences holds the contracts that override AccountWidePNLCurrency, including those set to the platform's
+	// currency
 	Preferences []FuturesPNLCurrencyPreference `json:"preferences"`
 	ServerTime  time.Time                      `json:"serverTime"`
 }

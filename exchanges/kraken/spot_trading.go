@@ -72,8 +72,8 @@ func (e *Exchange) AmendOrder(ctx context.Context, req *AmendOrderRequest) (*Ame
 	if req.TransactionID != "" && req.ClientOrderID != "" {
 		return nil, fmt.Errorf("%w: transaction ID and client order ID", errMultipleOrderIdentifiers)
 	}
-	if req.OrderQuantity < 0 || req.DisplayQuantity < 0 {
-		return nil, fmt.Errorf("%w: quantities cannot be negative", order.ErrAmountIsInvalid)
+	if !isFiniteNonNegative(req.OrderQuantity) || !isFiniteNonNegative(req.DisplayQuantity) {
+		return nil, fmt.Errorf("%w: quantities must be finite and not negative", order.ErrAmountIsInvalid)
 	}
 	if err := checkOrderPrice(req.LimitPrice, "+-"); err != nil {
 		return nil, err
@@ -122,7 +122,8 @@ func (e *Exchange) AmendOrder(ctx context.Context, req *AmendOrderRequest) (*Ame
 // EditOrder calls Edit Order, which cancels an open order and places its replacement under a new transaction ID,
 // losing its queue priority and leaving its fills with the original order. It cannot edit triggered stop-loss and
 // take-profit orders, orders with a conditional close order or orders already filled beyond the new volume, which
-// AmendOrder avoids by changing an order in place
+// AmendOrder avoids by changing an order in place. An edit Kraken reports failed in the result's status, rather than
+// in its errors, is returned as an error carrying Kraken's message
 func (e *Exchange) EditOrder(ctx context.Context, req *EditOrderRequest) (*EditOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
@@ -136,8 +137,8 @@ func (e *Exchange) EditOrder(ctx context.Context, req *EditOrderRequest) (*EditO
 	if req.TransactionID != "" && req.OrderUserReference != 0 {
 		return nil, fmt.Errorf("%w: transaction ID and user reference", errMultipleOrderIdentifiers)
 	}
-	if req.Volume < 0 || req.DisplayVolume < 0 {
-		return nil, fmt.Errorf("%w: volumes cannot be negative", order.ErrAmountIsInvalid)
+	if !isFiniteNonNegative(req.Volume) || !isFiniteNonNegative(req.DisplayVolume) {
+		return nil, fmt.Errorf("%w: volumes must be finite and not negative", order.ErrAmountIsInvalid)
 	}
 	if err := checkOrderPrice(req.Price, "+-#"); err != nil {
 		return nil, err
@@ -186,7 +187,13 @@ func (e *Exchange) EditOrder(ctx context.Context, req *EditOrderRequest) (*EditO
 		body["validate"] = true
 	}
 	var resp *EditOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/EditOrder", nil, body, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, "/0/private/EditOrder", nil, body, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Status != "" && !strings.EqualFold(resp.Status, "ok") {
+		return nil, fmt.Errorf("%w: %s", errOrderEditFailed, resp.ErrorMessage)
+	}
+	return resp, nil
 }
 
 // CancelExistingOrder calls Cancel Order
@@ -335,8 +342,8 @@ func (o *OrderParameters) params() (body, closeOrder map[string]any, err error) 
 	if !slices.Contains(addOrderTypes, o.OrderType) {
 		return nil, nil, fmt.Errorf("%w: %q", order.ErrTypeIsInvalid, o.OrderType)
 	}
-	if o.Volume < 0 || o.DisplayVolume < 0 {
-		return nil, nil, fmt.Errorf("%w: volumes cannot be negative", order.ErrAmountIsInvalid)
+	if !isFiniteNonNegative(o.Volume) || !isFiniteNonNegative(o.DisplayVolume) {
+		return nil, nil, fmt.Errorf("%w: volumes must be finite and not negative", order.ErrAmountIsInvalid)
 	}
 	if o.Volume == 0 && o.Leverage == 0 && o.OrderType != "settle-position" {
 		return nil, nil, fmt.Errorf("%w: only margin and settle-position orders take a volume of 0", order.ErrAmountIsInvalid)
@@ -472,6 +479,9 @@ func checkOrderPrices(orderType string, price, secondaryPrice OrderPrice) error 
 
 // checkOrderPrice validates a price against the offsets its parameter takes
 func checkOrderPrice(p OrderPrice, offsets string) error {
+	if !isFinite(p.Value) {
+		return fmt.Errorf("%w: %v is not a finite number", errInvalidOrderPrice, p.Value)
+	}
 	if p.Value < 0 {
 		return fmt.Errorf("%w: %v is negative, where an offset gives a relative price's direction", errInvalidOrderPrice, p.Value)
 	}

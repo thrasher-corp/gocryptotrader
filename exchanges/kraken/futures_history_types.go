@@ -74,7 +74,8 @@ type FuturesHistoryExecution struct {
 	RegulatoryData *FuturesHistoryRegulatoryData `json:"regulatoryData"`
 }
 
-// FuturesHistoryOrder is one of the account's orders as its history records it
+// FuturesHistoryOrder is one of the account's orders as its history records it. Its Quantity is what remains of the
+// order to fill, which each fill lowers, and FilledQuantity what has filled of it
 type FuturesHistoryOrder struct {
 	UID         string `json:"uid"`
 	AccountUID  string `json:"accountUid"`
@@ -521,7 +522,8 @@ type FuturesHistoryPublicOrder struct {
 	UID       string `json:"uid"`
 	Tradeable string `json:"tradeable"`
 	// Direction is Buy or Sell
-	Direction      string       `json:"direction"`
+	Direction string `json:"direction"`
+	// Quantity is what remains of the order to fill, which each fill lowers
 	Quantity       types.Number `json:"quantity"`
 	Timestamp      types.Time   `json:"timestamp"`
 	LimitPrice     types.Number `json:"limitPrice"`

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -83,7 +84,7 @@ var spotLedgerWithdrawal = &wsChannelMessage{Type: "update", Data: json.RawMessa
 // useConnectedRefreshers has an exchange's REST refreshes carry on as they do while its websocket is connected
 func useConnectedRefreshers(ex *Exchange) {
 	connected := func() bool { return true }
-	ex.spotBalances.active, ex.spotOrders.active = connected, connected
+	ex.spotBalances.active, ex.spotOrders.active, ex.spotDayOpens.active = connected, connected, connected
 }
 
 func TestWebsocketRefresher(t *testing.T) {
@@ -109,7 +110,11 @@ func TestWebsocketRefresher(t *testing.T) {
 		return len(calls)
 	}
 	r.refresh(t.Context(), refresh, "a")
-	<-started
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the refresh must start")
+	}
 	// Keys asked for while a refresh runs wait for the next, which takes them together
 	for _, k := range []string{"b", "c", "b"} {
 		r.refresh(t.Context(), refresh, k)
@@ -220,7 +225,11 @@ func TestWebsocketRefresherSettledRetention(t *testing.T) {
 		return !r.running
 	}
 	r.refresh(t.Context(), refresh, "a")
-	<-started
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the refresh must start")
+	}
 	// Asked for again while it is being settled, the key has its answer once settled
 	r.refresh(t.Context(), refresh, "a")
 	close(release)
@@ -239,12 +248,13 @@ func TestWebsocketRefresherSettledRetention(t *testing.T) {
 func TestRefresherWiring(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	for name, r := range map[string]*wsRefresher{"spot balances": &ex.spotBalances, "spot orders": &ex.spotOrders} {
+	for name, r := range map[string]*wsRefresher{"spot balances": &ex.spotBalances, "spot orders": &ex.spotOrders, "spot day opens": &ex.spotDayOpens} {
 		require.NotNilf(t, r.active, "the %s refresher must follow the websocket's connection", name)
 		assert.Equalf(t, ex.websocketActive(), r.active(), "the %s refresher should report the websocket's connection", name)
 	}
 	assert.Equal(t, spotOrderReadRetention, ex.spotOrders.settledRetention, "the spot orders refresher should read a finished order once")
 	assert.Zero(t, ex.spotBalances.settledRetention, "the spot balances refresher should refresh whenever asked")
+	assert.Equal(t, dayOpensReadRetention, ex.spotDayOpens.settledRetention, "the spot day opens refresher should read a day's opening prices once")
 }
 
 func TestSaveSpotBalances(t *testing.T) {
@@ -255,17 +265,33 @@ func TestSaveSpotBalances(t *testing.T) {
 	balances := func(total float64) accounts.SubAccounts {
 		return accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USD: {Total: total, Free: total}}}}
 	}
-	later := time.Now()
-	require.NoError(t, ex.saveSpotBalances(t.Context(), later, balances(100)), "saveSpotBalances must not error")
+	require.NoError(t, ex.saveSpotBalances(t.Context(), 2, balances(100)), "saveSpotBalances must not error")
 	// A read requested before the stored one finished after it, so it is older and is not stored
-	require.NoError(t, ex.saveSpotBalances(t.Context(), later.Add(-time.Millisecond), balances(50)), "saveSpotBalances must not error for an older read")
+	require.NoError(t, ex.saveSpotBalances(t.Context(), 1, balances(50)), "saveSpotBalances must not error for an older read")
 	b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
 	require.NoError(t, err, "GetBalance must not error")
 	assert.Equal(t, 100.0, b.Total, "saveSpotBalances should not store a read requested before the stored one")
-	require.NoError(t, ex.saveSpotBalances(t.Context(), later.Add(time.Millisecond), balances(75)), "saveSpotBalances must not error for a newer read")
+	require.NoError(t, ex.saveSpotBalances(t.Context(), 3, balances(75)), "saveSpotBalances must not error for a newer read")
 	b, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
 	require.NoError(t, err, "GetBalance must not error")
 	assert.Equal(t, 75.0, b.Total, "saveSpotBalances should store a read requested after the stored one")
+
+	unsupported := accounts.SubAccounts{{AssetType: asset.Empty, Balances: accounts.CurrencyBalances{currency.USD: {Total: 25, Free: 25}}}}
+	assert.ErrorIs(t, ex.saveSpotBalances(t.Context(), 5, unsupported), asset.ErrNotSupported, "saveSpotBalances should return the error saving the read")
+	require.NoError(t, ex.saveSpotBalances(t.Context(), 4, balances(60)), "saveSpotBalances must not error for a read requested before one it could not save")
+	b, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
+	require.NoError(t, err, "GetBalance must not error")
+	assert.Equal(t, 60.0, b.Total, "saveSpotBalances should not count a read it could not save as stored")
+	require.NoError(t, ex.saveSpotBalances(t.Context(), 4, balances(65)), "saveSpotBalances must not error for a read numbered as the stored one")
+	b, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
+	require.NoError(t, err, "GetBalance must not error")
+	assert.Equal(t, 65.0, b.Total, "saveSpotBalances should store a read numbered as the stored one")
+
+	noCreds := newTestExchange(t)
+	noCreds.SkipAuthCheck = false
+	noCreds.API.AuthenticatedSupport = true
+	noCreds.SetCredentials(&accounts.Credentials{})
+	assert.ErrorIs(t, noCreds.saveSpotBalances(t.Context(), 1, balances(100)), exchange.ErrCredentialsAreEmpty, "saveSpotBalances should reject missing credentials")
 }
 
 func TestRefreshSpotBalancesRetries(t *testing.T) {
@@ -411,7 +437,12 @@ func TestWebsocketActive(t *testing.T) {
 	// The manager is connecting until its last connection connects, while the connections before it stream messages
 	assert.True(t, ex.websocketActive(), "websocketActive should report a websocket still connecting active")
 	releaseServer()
-	require.Error(t, <-connectErr, "Connect must error when the server refuses the connection")
+	select {
+	case err := <-connectErr:
+		require.Error(t, err, "Connect must error when the server refuses the connection")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "Connect must return once the server refuses the connection")
+	}
 	assert.False(t, ex.websocketActive(), "websocketActive should report a websocket that failed to connect inactive")
 
 	connected := newTestExchange(t)
@@ -470,6 +501,8 @@ type finishedSpotOrdersServer struct {
 	mu      sync.Mutex
 	replies []string
 	reads   [][]string
+	// hold, when set, holds every reply until it is closed, each read being recorded first
+	hold chan struct{}
 }
 
 func (s *finishedSpotOrdersServer) handle(t *testing.T) http.HandlerFunc {
@@ -490,6 +523,13 @@ func (s *finishedSpotOrdersServer) handle(t *testing.T) http.HandlerFunc {
 			reply, s.replies = s.replies[0], s.replies[1:]
 		}
 		s.mu.Unlock()
+		if s.hold != nil {
+			select {
+			case <-s.hold:
+			case <-r.Context().Done():
+				return
+			}
+		}
 		_, err := w.Write([]byte(reply))
 		assert.NoError(t, err, "Write should not error")
 	}
@@ -523,8 +563,12 @@ func TestFinishSpotOrder(t *testing.T) {
 		// REST can still report the order open after the websocket reported it filled
 		queryOrdersReply(t, "open", 6, 0.2),
 		queryOrdersReply(t, "closed", 10, 0.6916),
-	}}
+	}, hold: make(chan struct{})}
 	ex := newHTTPTestExchange(t, server.handle(t))
+	// The reads are held until the updates the executions relay are checked, as the read starts as soon as they are
+	// processed. Cleanups run last first, so a held read is let go before the server closes
+	release := sync.OnceFunc(func() { close(server.hold) })
+	t.Cleanup(release)
 	seedTestAssetNames(ex)
 	ex.spotOrders.interval = time.Millisecond
 	useConnectedRefreshers(ex)
@@ -548,6 +592,7 @@ func TestFinishSpotOrder(t *testing.T) {
 	require.NoError(t, ex.wsProcessExecutions(t.Context(), msg), "wsProcessExecutions must not error")
 	merge()
 	assert.Zero(t, stored.Fee, "an order's trade events should leave its fee to the read")
+	release()
 	assert.Eventually(t, func() bool { return len(server.readOrders()) == 2 }, 5*time.Second, time.Millisecond, "the order should be read again while REST reports it open")
 	assert.Eventually(t, func() bool {
 		merge()
@@ -674,6 +719,29 @@ func TestFinishSpotOrderReadOnce(t *testing.T) {
 	// The filled event can follow the last fill once the order has already been read
 	require.NoError(t, ex.wsProcessExecutions(t.Context(), finished("filled")), "wsProcessExecutions must not error")
 	assert.Never(t, func() bool { return len(server.readOrders()) > 1 }, 50*time.Millisecond, time.Millisecond, "an order reported finished again should not be read again")
+}
+
+func TestFinishedSpotOrdersReadTogether(t *testing.T) {
+	t.Parallel()
+	server := &finishedSpotOrdersServer{replies: []string{queryOrdersReply(t, "closed", 10, 0.6916)}, hold: make(chan struct{})}
+	ex := newHTTPTestExchange(t, server.handle(t))
+	// Cleanups run last first, so a held read is let go before the server closes
+	release := sync.OnceFunc(func() { close(server.hold) })
+	t.Cleanup(release)
+	seedTestAssetNames(ex)
+	ex.spotOrders.interval = time.Millisecond
+	useConnectedRefreshers(ex)
+	finished := func(id string) *WebsocketExecution {
+		return &WebsocketExecution{OrderID: id, ExecutionType: "filled", OrderStatus: "filled", CumulativeQuantity: 10}
+	}
+	ex.finishSpotOrder(t.Context(), finished(finishedSpotOrderID))
+	// Orders finishing while a read is held wait for the next read
+	require.Eventually(t, func() bool { return len(server.readOrders()) == 1 }, 5*time.Second, time.Millisecond, "the first order must be read")
+	ex.finishSpotOrder(t.Context(), finished("OZJW0T-MIQ3C-5NATAU"))
+	ex.finishSpotOrder(t.Context(), finished("OAIYAU-LGI3M-PFM5VW"))
+	release()
+	require.Eventually(t, func() bool { return len(server.readOrders()) >= 2 }, 5*time.Second, time.Millisecond, "the orders finished during a read must be read")
+	assert.Equal(t, []string{"OAIYAU-LGI3M-PFM5VW", "OZJW0T-MIQ3C-5NATAU"}, server.readOrders()[1], "the orders finished during a read should be read in one request, in order")
 }
 
 func TestFinishSpotOrderWithoutFills(t *testing.T) {

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"net/http"
 	"reflect"
 	"slices"
@@ -149,6 +150,14 @@ func TestWebsocketEditOrder(t *testing.T) {
 		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
 		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject %q, which lacks a base or a quote", pair)
 	}
+	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, Quantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a quantity of %v", quantity)
+		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, DisplayQuantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a display quantity of %v", quantity)
+	}
+	_, err = newTestExchange(t).WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair})
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketEditOrder must return the error sending the request")
 
 	ex := newWsTradingTestExchange(t,
 		`{"method":"edit_order","params":{"order_id":"ORDERX-IDXXX-XXXXX1","symbol":"BTC/USD","order_qty":0.2123456789,"limit_price":26500.5,"display_qty":0.1,"fee_preference":"base","post_only":true,"reduce_only":true,"triggers":{"reference":"index","price":-2,"price_type":"pct"},"order_userref":7,"validate":true,"deadline":"2026-10-09T09:59:59Z","token":"`+wsTradingTestToken+`"}}`,
@@ -189,6 +198,12 @@ func TestWebsocketAmendOrder(t *testing.T) {
 	for _, pair := range partialTestPairs {
 		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
 		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WebsocketAmendOrder must reject %q, which lacks a base or a quote", pair)
+	}
+	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", Quantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a quantity of %v", quantity)
+		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", DisplayQuantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a display quantity of %v", quantity)
 	}
 
 	ex := newWsTradingTestExchange(t,
@@ -422,6 +437,16 @@ func TestWebsocketOrderParams(t *testing.T) {
 	} {
 		_, err := tc.order.params()
 		assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
+	}
+	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		for name, o := range map[string]WebsocketOrder{
+			"quantity":            {OrderType: "limit", Side: "buy", Quantity: v},
+			"display quantity":    {OrderType: "iceberg", Side: "buy", Quantity: 1, DisplayQuantity: v},
+			"cash order quantity": {OrderType: "market", Side: "buy", Quantity: 1, CashOrderQuantity: v},
+		} {
+			_, err := o.params()
+			assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "params should reject a %s of %v", name, v)
+		}
 	}
 	aest := time.FixedZone("AEST", 10*60*60)
 	triggers := &WebsocketOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"}

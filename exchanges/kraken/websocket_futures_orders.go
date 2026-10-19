@@ -20,11 +20,11 @@ const futuresOrderRetention = 10 * time.Minute
 type futuresOrderTracker struct {
 	mu     sync.Mutex
 	orders map[string]*futuresOrderState
-	// conn is the connection of the latest open_orders or fills snapshot. ordersSnapshotSeen and fillsSnapshotSeen are
-	// set once each feed's snapshot arrives on it, and cleared when the feed is unsubscribed. An order the feeds first
-	// report on it while both are set, and open_orders never named, is taken as placed after both snapshots, as an
-	// order open when they were taken is one open_orders named; its fills then all follow while the fills feed stays
-	// subscribed. An order reported before them may have filled unseen, so it never is
+	// conn is the connection the feeds last reported on. ordersSnapshotSeen and fillsSnapshotSeen are set once each
+	// feed's snapshot arrives on it, and cleared when the feed is unsubscribed. An order the feeds first report on it
+	// while both are set, and open_orders never named, is taken as placed after both snapshots, as an order open when
+	// they were taken is one open_orders named; its fills then all follow while the fills feed stays subscribed. An order
+	// reported before them may have filled unseen, so it never is
 	conn                                  websocket.Connection
 	ordersSnapshotSeen, fillsSnapshotSeen bool
 	// fillsCoverage counts the fills snapshots. Each starts the fills feed's coverage anew, as it can follow fills that
@@ -35,7 +35,8 @@ type futuresOrderTracker struct {
 // futuresOrderState is what the futures feeds have reported of an order
 type futuresOrderState struct {
 	// quantity is the order's quantity and filled its filled quantity, as open_orders last reported them; zero for an
-	// order open_orders has not named
+	// order open_orders has not named. Once open_orders stops reporting an order whose quantity can still change, its
+	// quantity is zero too, until open_orders names it again
 	quantity, filled float64
 	// open is set while open_orders reports the order open, so a snapshot leaving it out shows it has left
 	open bool
@@ -50,9 +51,10 @@ type futuresOrderState struct {
 	feeAsset                          currency.Code
 	// mixedFees is set when the fills charged fees in more than one currency, which add up to no total
 	mixedFees bool
-	// liveOnly is set while the feeds first reported the order on a connection both feeds' snapshots covered, and every
-	// fill counted was reported as it happened on it within the same fills coverage, so no fill of the order came
-	// before or went unseen. A fills snapshot can hold only the latest of an order's fills
+	// liveOnly is set while the feeds first reported the order on a connection both feeds' snapshots covered, no
+	// open_orders snapshot has held it, and every fill counted was reported as it happened on it within the same fills
+	// coverage, so no fill of the order came before or went unseen. A fills snapshot can hold only the latest of an
+	// order's fills
 	liveOnly bool
 	// fillsCoverage is the tracker's fills coverage when the feeds first reported the order
 	fillsCoverage uint64
@@ -75,16 +77,17 @@ func (t *futuresOrderTracker) get(orderID string) futuresOrderState {
 }
 
 // snapshot records the open orders an open_orders snapshot holds, and forgets the open orders it leaves out, which
-// left the open orders while the feed was not subscribed
+// left the open orders while the feed was not subscribed. An order it holds can have filled before the fills feed's
+// snapshot, so its fills are never taken as all reported as they happened
 func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []WebsocketFuturesOpenOrder) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.snapshotOn(conn)
+	t.reportedOn(conn)
 	t.ordersSnapshotSeen = true
 	listed := make(map[string]bool, len(orders))
 	for i := range orders {
 		listed[orders[i].OrderID] = true
-		t.record(conn, &orders[i])
+		t.record(conn, &orders[i]).liveOnly = false
 	}
 	for id, s := range t.orders {
 		if s.open && !listed[id] {
@@ -98,15 +101,17 @@ func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []Webso
 func (t *futuresOrderTracker) fillsSnapshot(conn websocket.Connection) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.snapshotOn(conn)
+	t.reportedOn(conn)
 	t.fillsSnapshotSeen = true
 	t.fillsCoverage++
 }
 
-// snapshotOn records the connection of a snapshot, forgetting the snapshots of another connection
-func (t *futuresOrderTracker) snapshotOn(conn websocket.Connection) {
+// reportedOn records the connection a report came on. A report on another connection than the last is the first of a
+// new connection, which no snapshot has covered yet and on which open_orders has reported no order's changes
+func (t *futuresOrderTracker) reportedOn(conn websocket.Connection) {
 	if t.conn != conn {
 		t.conn, t.ordersSnapshotSeen, t.fillsSnapshotSeen = conn, false, false
+		t.forgetQuantities()
 	}
 }
 
@@ -121,8 +126,20 @@ func (t *futuresOrderTracker) unsubscribed(conn websocket.Connection, feed strin
 	switch feed {
 	case wsFuturesFeedOpenOrders:
 		t.ordersSnapshotSeen = false
+		t.forgetQuantities()
 	case wsFuturesFeedFills:
 		t.fillsSnapshotSeen = false
+	}
+}
+
+// forgetQuantities forgets the quantity open_orders last reported of each order whose quantity can still change, once
+// open_orders no longer reports its changes: an open order, or a stop removed as triggered, as the order the stop places
+// takes its ID. A finished order's quantity cannot change, so it is kept for the fills Kraken reports late
+func (t *futuresOrderTracker) forgetQuantities() {
+	for _, s := range t.orders {
+		if s.open || s.reason == "stop_order_triggered" {
+			s.quantity = 0
+		}
 	}
 }
 
@@ -171,7 +188,8 @@ func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuture
 			s.mixedFees = true
 		}
 		s.fillQuantity += f.Quantity
-		s.value += f.Quantity * f.Price
+		// The product is rounded on its own, so arm64 cannot fuse it into the sum and change the total
+		s.value += float64(f.Quantity * f.Price)
 		if f.Price > 0 {
 			s.inverseValue += f.Quantity / f.Price
 		}
@@ -182,8 +200,9 @@ func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuture
 	return *s
 }
 
-// state returns an order's record, making one, first reported on conn, when there is none
+// state returns the record of an order reported on conn, making one when there is none
 func (t *futuresOrderTracker) state(orderID string, conn websocket.Connection) *futuresOrderState {
+	t.reportedOn(conn)
 	if t.orders == nil {
 		t.orders = make(map[string]*futuresOrderState)
 	}
@@ -247,10 +266,10 @@ func (s *futuresOrderState) complete() bool {
 	return s.fillQuantity > 0 && sameQuantity(s.fillQuantity, s.executed())
 }
 
-// addTo adds to an order update what the feeds have reported of the order. An order open_orders has named gets its
-// quantity and executed quantity; an order it has not, such as a market order, which rests in no book, gets them only
-// once its fills, all reported as they happened, have filled it in full, as fills alone tell neither an order's
-// quantity nor whether earlier fills were missed. The average price, cost and fee are added once the fills counted
+// addTo adds to an order update what the feeds have reported of the order. An order whose quantity open_orders has
+// reported, and which the tracker has not forgotten since, gets its quantity and executed quantity; any other, such as a
+// market order, which rests in no book, gets them only once its fills, all reported as they happened, have filled it in
+// full, as fills alone tell neither an order's quantity nor whether earlier fills were missed. The average price, cost and fee are added once the fills counted
 // make up the executed quantity, as partial totals would replace fuller ones the order store holds. An inverse
 // contract's cost would be in its base currency, so it is left out
 func (s *futuresOrderState) addTo(d *order.Detail) {

@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -46,7 +48,7 @@ type PreTradePriceLevel struct {
 
 // PostTradeDataRequest holds the parameters of Post-Trade Data
 type PostTradeDataRequest struct {
-	// Pair filters the trades to a pair; the last trades of every pair are returned when it is empty
+	// Pair is the pair whose trades are returned, which Kraken requires
 	Pair currency.Pair
 	// From returns the trades after it, for polling with the previous response's LastTime
 	From time.Time
@@ -56,13 +58,39 @@ type PostTradeDataRequest struct {
 	Count uint64
 }
 
-// PostTradeDataResponse holds trades as published for regulatory transparency. Kraken documents them in ascending time
-// order, but sends the newest first
+// PostTradeDataResponse holds a pair's trades as published for regulatory transparency: newest first when the request
+// set neither From nor To, and oldest first otherwise, although Kraken documents them as oldest first throughout
 type PostTradeDataResponse struct {
-	// LastTime is the time of the latest trade returned, to poll with as PostTradeDataRequest's From
+	// LastTime is the time of the latest trade returned, to poll with as PostTradeDataRequest's From, and is zero when
+	// none is returned
 	LastTime time.Time       `json:"last_ts"`
 	Count    uint64          `json:"count"`
 	Trades   []PostTradeData `json:"trades"`
+}
+
+// UnmarshalJSON decodes post-trade data, whose last_ts Kraken sends empty when no trade is returned
+func (p *PostTradeDataResponse) UnmarshalJSON(data []byte) error {
+	type alias PostTradeDataResponse
+	resp := struct {
+		*alias
+		LastTime *string `json:"last_ts"`
+	}{alias: (*alias)(p)}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	switch {
+	case resp.LastTime == nil:
+		return nil
+	case *resp.LastTime == "":
+		p.LastTime = time.Time{}
+		return nil
+	}
+	lastTime, err := time.Parse(time.RFC3339Nano, *resp.LastTime)
+	if err != nil {
+		return fmt.Errorf("error parsing post-trade data last time: %w", err)
+	}
+	p.LastTime = lastTime
+	return nil
 }
 
 // PostTradeData is a trade as published for regulatory transparency

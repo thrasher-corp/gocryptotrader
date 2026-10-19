@@ -7035,6 +7035,7 @@
           "numNonContractUnits": 0.0
          }
         ],
+        "suspended": false,
         "symbol": "PF_ANTHROPICXUSD",
         "tags": [],
         "tickSize": 0.01,
@@ -7130,6 +7131,7 @@
           "maintenanceMargin": 0.25
          }
         ],
+        "suspended": false,
         "symbol": "PI_XBTUSD",
         "tags": [],
         "tickSize": 0.5,
@@ -7181,6 +7183,7 @@
           "numNonContractUnits": 0.0
          }
         ],
+        "suspended": false,
         "symbol": "PF_EURUSD",
         "tags": [],
         "tickSize": 1e-05,
@@ -7220,6 +7223,7 @@
         "quote": "USD",
         "rebateLevels": {},
         "strikePrice": 120000.0,
+        "suspended": false,
         "symbol": "OF_XBTUSD_261225_120000_C",
         "tags": [],
         "tickSize": 1,
@@ -7298,6 +7302,7 @@
           "maintenanceMargin": 0.25
          }
         ],
+        "suspended": true,
         "symbol": "FI_XBTUSD_260828",
         "tags": [],
         "tickSize": 0.5,
@@ -7710,10 +7715,31 @@
    ]
   },
   "/api/v3/pnlpreferences": {
+   "DELETE": [
+    {
+     "bodyParams": "",
+     "data": {
+      "result": "success",
+      "serverTime": "2026-10-09T08:41:30.220Z"
+     },
+     "headers": {},
+     "queryString": "symbol=PF_XBTUSD"
+    },
+    {
+     "bodyParams": "",
+     "data": {
+      "result": "success",
+      "serverTime": "2026-10-09T08:41:45.230Z"
+     },
+     "headers": {},
+     "queryString": ""
+    }
+   ],
    "GET": [
     {
      "bodyParams": "",
      "data": {
+      "accountWidePnlCurrency": "USD",
       "preferences": [
        {
         "pnlCurrency": "BTC",
@@ -7740,6 +7766,15 @@
      },
      "headers": {},
      "queryString": "pnlPreference=USDC&symbol=PF_XBTUSD"
+    },
+    {
+     "bodyParams": "",
+     "data": {
+      "result": "success",
+      "serverTime": "2026-10-09T08:41:15.210Z"
+     },
+     "headers": {},
+     "queryString": "pnlPreference=USD"
     }
    ]
   },
@@ -9106,6 +9141,7 @@
          "2.5": "0.005"
         },
         "restricted": true,
+        "suspended": false,
         "symbol": "PF_ANTHROPICXUSD",
         "tickSize": 0.01,
         "tradfi": false,
@@ -9139,6 +9175,7 @@
         "quote": "USD",
         "rebateLevels": {},
         "restricted": false,
+        "suspended": false,
         "symbol": "FI_XBTUSD_261225",
         "tickSize": 0.5,
         "tradfi": false,
@@ -9174,6 +9211,7 @@
         "rebateLevels": {},
         "restricted": false,
         "strikePrice": 84000.0,
+        "suspended": true,
         "symbol": "OF_XBTUSD_261002_84000_P",
         "tickSize": 5,
         "tradfi": false,
@@ -9204,6 +9242,7 @@
         "quote": "USD",
         "rebateLevels": {},
         "restricted": false,
+        "suspended": false,
         "symbol": "PF_EURUSD",
         "tickSize": 1e-05,
         "tradfi": true,
@@ -12628,7 +12667,7 @@
            "lastUpdateTimestamp": 1791504160000,
            "limitPrice": "81950",
            "orderType": "Limit",
-           "quantity": "1.5",
+           "quantity": "1.25",
            "reduceOnly": true,
            "timestamp": 1791504100000,
            "tradeable": "PF_XBTUSD",
@@ -12680,7 +12719,7 @@
            "lastUpdateTimestamp": 1791504160000,
            "limitPrice": "81950",
            "orderType": "Limit",
-           "quantity": "1.5",
+           "quantity": "1.25",
            "reduceOnly": true,
            "timestamp": 1791504100000,
            "tradeable": "PF_XBTUSD",
@@ -12786,7 +12825,7 @@
            "lastUpdateTimestamp": 1791508042517,
            "limitPrice": "81400",
            "orderType": "Limit",
-           "quantity": "0.5",
+           "quantity": "0.25",
            "reduceOnly": false,
            "timestamp": 1791508000000,
            "tradeable": "PF_XBTUSD",
@@ -12824,7 +12863,7 @@
            "lastUpdateTimestamp": 1791508042517,
            "limitPrice": "81400",
            "orderType": "Limit",
-           "quantity": "0.5",
+           "quantity": "0.25",
            "reduceOnly": false,
            "timestamp": 1791508000000,
            "tradeable": "PF_XBTUSD",

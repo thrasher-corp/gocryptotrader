@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1299,6 +1301,30 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(cancelled)), "wsFuturesProcessOpenOrders must not error for a cancellation")
 	assert.Equal(t, []any{&order.Detail{Exchange: t.Name(), AssetType: asset.Futures, OrderID: "660c6b23-8007-48c1-a7c9-4893f4572e8c", Status: order.Cancelled}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a cancelled order by its ID alone")
 
+	// Orders on a contract missing from the available pairs, such as an expired one, and of a type that cannot be decoded
+	// come ahead of an order on a listed contract
+	unrelayable := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + strings.Replace(futuresOpenOrder("unlisted", 5, 2), `"PF_XBTUSD"`, `"FF_XBTUSD_250926"`, 1) + `,` +
+		strings.Replace(futuresOpenOrder("undecoded", 5, 0), `"type":"limit"`, `"type":"moon"`, 1) + `,` + futuresOpenOrder("listed", 10, 4) + `]}`
+	err := ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(unrelayable))
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsFuturesProcessOpenOrders should return the error of an order on a contract missing from the available pairs")
+	assert.ErrorIs(t, err, errUnknownOrderType, "wsFuturesProcessOpenOrders should return the error of an order of a type it cannot decode")
+	assert.Equal(t, []any{&order.Detail{
+		Exchange:        t.Name(),
+		AssetType:       asset.Futures,
+		OrderID:         "listed",
+		Pair:            futuresTestPair,
+		Side:            order.Buy,
+		Type:            order.Limit,
+		Status:          order.PartiallyFilled,
+		Price:           20000,
+		Amount:          10,
+		ExecutedAmount:  4,
+		RemainingAmount: 6,
+		Date:            placed,
+		LastUpdated:     updated,
+	}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a snapshot's order after ones it cannot relay")
+	assert.Equal(t, 5.0, ex.futuresOrders.get("unlisted").quantity, "wsFuturesProcessOpenOrders should record an order it cannot relay")
+
 	for _, tc := range []struct {
 		name, feed, msg string
 		err             error
@@ -1311,6 +1337,17 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(`{"feed":"open_orders_snapshot","orders":7}`)), "wsFuturesProcessOpenOrders should reject a snapshot it cannot decode")
 	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(`{"feed":"open_orders","order":7}`)), "wsFuturesProcessOpenOrders should reject an update it cannot decode")
 	assert.Empty(t, relayed(ex), "wsFuturesProcessOpenOrders should relay no orders from a message it rejects")
+
+	t.Run("relay full", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "earlier payload"), "Send must not error")
+		snapshot := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("first", 10, 0) + `,` + futuresOpenOrder("second", 10, 0) + `]}`
+		var errs interface{ Unwrap() []error }
+		require.ErrorAs(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), &errs, "wsFuturesProcessOpenOrders must return the relay's errors")
+		assert.Len(t, errs.Unwrap(), 2, "wsFuturesProcessOpenOrders should try to relay each order of a snapshot")
+	})
 }
 
 func TestFuturesWebsocketOrderDetail(t *testing.T) {
@@ -1438,6 +1475,127 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 	}
 	assert.Error(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(`{"feed":"fills","fills":7}`)), "wsFuturesProcessFills should reject fills it cannot decode")
 	assert.Empty(t, relayed(ex), "wsFuturesProcessFills should relay nothing from a message it rejects")
+
+	t.Run("fills it cannot relay first", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		ex.Features.Enabled.FillsFeed = true
+		ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+		// A snapshot lists the oldest fills first, which can be on a contract missing from the available pairs, such as an
+		// expired one
+		snapshot := `{"feed":"fills_snapshot","account":"DemoUser","fills":[` + futuresFill("unlisted", "f-1", "FF_XBTUSD_250926", 2, 3, 20000, 0.25, "USD") + `,` +
+			strings.Replace(futuresFill("undecoded", "f-2", "PF_XBTUSD", 1, 0, 20000, 0.25, "USD"), `"order_type":"lmt"`, `"order_type":"moon"`, 1) + `,` +
+			futuresFill("listed", "f-3", "PF_XBTUSD", 4, 6, 20000, 0.5, "USD") + `]}`
+		err := ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFillsSnapshot, []byte(snapshot))
+		assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsFuturesProcessFills should return the error of a fill on a contract missing from the available pairs")
+		assert.ErrorIs(t, err, errUnknownOrderType, "wsFuturesProcessFills should return the error of a fill of an order type it cannot decode")
+		fillTime := time.UnixMilli(1600256966528)
+		exp := []any{
+			&order.Detail{
+				Exchange:    ex.Name,
+				AssetType:   asset.Futures,
+				OrderID:     "listed",
+				Pair:        futuresTestPair,
+				Side:        order.Buy,
+				Type:        order.Limit,
+				FeeAsset:    currency.USD,
+				LastUpdated: fillTime,
+				Trades:      []order.TradeHistory{{TID: "f-3", Price: 20000, Amount: 4, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+			},
+			[]fill.Data{{ID: "f-3", Timestamp: fillTime, Exchange: ex.Name, AssetType: asset.Futures, CurrencyPair: futuresTestPair, Side: order.Buy, OrderID: "listed", TradeID: "f-3", Price: 20000, Amount: 4}},
+		}
+		assert.Equal(t, exp, relayed(ex), "wsFuturesProcessFills should relay a fill after ones it cannot relay, as its order's trade and as a fill")
+		assert.Equal(t, 4.0, ex.futuresOrders.get("listed").fillQuantity, "wsFuturesProcessFills should count a fill after ones it cannot relay into its order's totals")
+		assert.Equal(t, 2.0, ex.futuresOrders.get("unlisted").fillQuantity, "wsFuturesProcessFills should count a fill it cannot relay into its order's totals")
+	})
+
+	t.Run("relay full", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "earlier payload"), "Send must not error")
+		ex.Features.Enabled.FillsFeed = true
+		ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+		msg := `{"feed":"fills","account":"DemoUser","fills":[` + futuresFill("first", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.25, "USD") + `,` +
+			futuresFill("second", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.25, "USD") + `]}`
+		var errs interface{ Unwrap() []error }
+		require.ErrorAs(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(msg)), &errs, "wsFuturesProcessFills must return the relay's errors")
+		assert.Len(t, errs.Unwrap(), 3, "wsFuturesProcessFills should try to relay each fill as its order's trade, and the fills to the fills feed")
+		assert.Equal(t, 6.0, ex.futuresOrders.get("second").fillQuantity, "wsFuturesProcessFills should count a fill after one it could not relay into its order's totals")
+	})
+
+	t.Run("contract listed after a fill", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		ex.Features.Enabled.FillsFeed = false
+		listedLater := currency.NewPairWithDelimiter("PF", "GCTUSD", currency.UnderscoreDelimiter)
+		snapshot := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + strings.Replace(futuresOpenOrder("o-1", 5, 0), `"PF_XBTUSD"`, `"PF_GCTUSD"`, 1) + `]}`
+		assert.ErrorIs(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), currency.ErrPairNotFound, "wsFuturesProcessOpenOrders should return the error of an order on a contract missing from the available pairs")
+		earlier := futuresFillMessage(wsFuturesFeedFills, "o-1", "f-1", "PF_GCTUSD", 2, 3, 100, 0.25, "USD")
+		assert.ErrorIs(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(earlier)), currency.ErrPairNotFound, "wsFuturesProcessFills should return the error of a fill on a contract missing from the available pairs")
+		assert.Empty(t, relayed(ex), "nothing should be relayed for a contract missing from the available pairs")
+		pairs, err := ex.CurrencyPairs.GetPairs(asset.Futures, false)
+		require.NoError(t, err, "GetPairs must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, append(pairs, listedLater), false), "StorePairs must not error")
+		later := futuresFillMessage(wsFuturesFeedFills, "o-1", "f-2", "PF_GCTUSD", 3, 0, 200, 0.5, "USD")
+		require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(later)), "wsFuturesProcessFills must not error once the contract is listed")
+		fillTime := time.UnixMilli(1600256966528)
+		exp := &order.Detail{
+			Exchange:             ex.Name,
+			AssetType:            asset.Futures,
+			OrderID:              "o-1",
+			Pair:                 listedLater,
+			Side:                 order.Buy,
+			Type:                 order.Limit,
+			Status:               order.Filled,
+			Amount:               5,
+			ExecutedAmount:       5,
+			Cost:                 800,
+			AverageExecutedPrice: 160,
+			Fee:                  0.75,
+			FeeAsset:             currency.USD,
+			LastUpdated:          fillTime,
+			Trades:               []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+		}
+		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order's totals with the fill it could not relay before its contract was listed")
+	})
+
+	t.Run("order type it cannot decode before a later fill", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		ex.Features.Enabled.FillsFeed = false
+		snapshot := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-1", 5, 0) + `]}`
+		require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), "wsFuturesProcessOpenOrders must not error")
+		relayed(ex)
+		earlier := strings.Replace(futuresFillMessage(wsFuturesFeedFills, "o-1", "f-1", "PF_XBTUSD", 2, 3, 100, 0.25, "USD"), `"order_type":"lmt"`, `"order_type":"moon"`, 1)
+		assert.ErrorIs(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(earlier)), errUnknownOrderType, "wsFuturesProcessFills should return the error of a fill of an order type it cannot decode")
+		assert.Empty(t, relayed(ex), "nothing should be relayed for a fill of an order type it cannot decode")
+		later := futuresFillMessage(wsFuturesFeedFills, "o-1", "f-2", "PF_XBTUSD", 3, 0, 200, 0.5, "USD")
+		require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(later)), "wsFuturesProcessFills must not error for a fill it can decode")
+		fillTime := time.UnixMilli(1600256966528)
+		exp := &order.Detail{
+			Exchange:             ex.Name,
+			AssetType:            asset.Futures,
+			OrderID:              "o-1",
+			Pair:                 futuresTestPair,
+			Side:                 order.Buy,
+			Type:                 order.Limit,
+			Status:               order.Filled,
+			Amount:               5,
+			ExecutedAmount:       5,
+			Cost:                 800,
+			AverageExecutedPrice: 160,
+			Fee:                  0.75,
+			FeeAsset:             currency.USD,
+			LastUpdated:          fillTime,
+			Trades:               []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+		}
+		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order's totals with the fill of an order type it could not decode")
+	})
 }
 
 func TestWebsocketFuturesProcessBalances(t *testing.T) {
@@ -1471,4 +1629,16 @@ func TestWebsocketFuturesProcessBalances(t *testing.T) {
 	require.Len(t, got, 1, "wsFuturesProcessBalances must relay a margin account update as the message alone")
 	assert.IsType(t, &WebsocketFuturesBalances{}, got[0], "wsFuturesProcessBalances should relay a margin account update as the message")
 	assert.Error(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":7}`)), "wsFuturesProcessBalances should reject balances it cannot decode")
+
+	noCreds := newTestExchange(t)
+	noCreds.SkipAuthCheck = false
+	noCreds.API.AuthenticatedSupport = true
+	noCreds.SetCredentials(&accounts.Credentials{})
+	assert.ErrorIs(t, noCreds.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":{"usd":1}}`)), exchange.ErrCredentialsAreEmpty, "wsFuturesProcessBalances should return the error storing the balances")
+	assert.Empty(t, relayed(noCreds), "wsFuturesProcessBalances should relay nothing of balances it could not store")
+
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+	err = ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":{"usd":2}}`))
+	assert.ErrorContains(t, err, "channel buffer is full: failed to relay <accounts.SubAccounts>", "wsFuturesProcessBalances should return the error relaying the wallets")
 }

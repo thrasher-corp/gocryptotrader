@@ -1,6 +1,8 @@
 package kraken
 
 import (
+	"math"
+	"net/http"
 	"testing"
 	"time"
 
@@ -66,6 +68,10 @@ func TestGetDepositAddresses(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetDepositAddresses must reject an empty asset")
 	_, err = e.GetDepositAddresses(t.Context(), &DepositAddressesRequest{Asset: currency.XBT})
 	require.ErrorIs(t, err, errDepositMethodRequired, "GetDepositAddresses must reject an empty method")
+	for _, amount := range []float64{-0.0005, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.GetDepositAddresses(t.Context(), &DepositAddressesRequest{Asset: currency.XBT, Method: "Bitcoin Lightning", Amount: amount})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetDepositAddresses must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -418,8 +424,10 @@ func TestGetWithdrawalInformation(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetWithdrawalInformation must reject an empty asset")
 	_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Amount: 0.725})
 	require.ErrorIs(t, err, errWithdrawalKeyRequired, "GetWithdrawalInformation must reject an empty key")
-	_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Key: "btc_testnet"})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "GetWithdrawalInformation must reject a zero amount")
+	for _, amount := range []float64{0, -0.725, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Key: "btc_testnet", Amount: amount})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetWithdrawalInformation must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -442,8 +450,27 @@ func TestWithdrawFunds(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "WithdrawFunds must reject an empty asset")
 	_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Amount: 0.725})
 	require.ErrorIs(t, err, errWithdrawalKeyRequired, "WithdrawFunds must reject an empty key")
-	_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709"})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WithdrawFunds must reject a zero amount")
+	for _, amount := range []float64{0, -0.725, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: amount})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WithdrawFunds must reject an amount of %v", amount)
+	}
+	for _, maxFee := range []float64{-0.0002, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: 0.725, MaxFee: maxFee})
+		require.ErrorIsf(t, err, errInvalidMaximumFee, "WithdrawFunds must reject a max fee of %v", maxFee)
+	}
+
+	t.Run("no max fee", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/0/private/Withdraw", r.URL.Path, "WithdrawFunds should call Withdraw Funds")
+			assert.JSONEq(t, `{"amount":"0.725","asset":"XBT","key":"btc_2709"}`, tradingRequestBody(t, r), "WithdrawFunds should send no max fee for a zero one")
+			_, err := w.Write([]byte(`{"error":[],"result":{"refid":"AGBSO6T-UFMTTQ-I7KGS6"}}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		result, err := ex.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: 0.725})
+		require.NoError(t, err, "WithdrawFunds must not error")
+		assert.Equal(t, &WithdrawFundsResponse{ReferenceID: "AGBSO6T-UFMTTQ-I7KGS6"}, result, "WithdrawFunds should decode the reference ID")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -601,8 +628,10 @@ func TestWalletTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := e.WalletTransfer(t.Context(), currency.EMPTYCODE, 2.54)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "WalletTransfer must reject an empty asset")
-	_, err = e.WalletTransfer(t.Context(), currency.XBT, 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WalletTransfer must reject a zero amount")
+	for _, amount := range []float64{0, -2.54, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.WalletTransfer(t.Context(), currency.XBT, amount)
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WalletTransfer must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

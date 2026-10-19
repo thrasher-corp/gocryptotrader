@@ -192,6 +192,12 @@ func TestPlaceFuturesRFQOffer(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQUIDEmpty, "PlaceFuturesRFQOffer must reject an empty RFQ UID")
 	_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID})
 	require.ErrorIs(t, err, errFuturesRFQPriceEmpty, "PlaceFuturesRFQOffer must reject an offer without a price")
+	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Bid: new(price)})
+		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject a bid of %v", price)
+		_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Ask: new(price)})
+		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject an ask of %v", price)
+	}
 	_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Ask: new(1408.25), BidSide: []FuturesRFQOfferLeg{{Contract: futuresTestCall85000, Price: 1395.5}}})
 	require.ErrorIs(t, err, errFuturesRFQPricingConflict, "PlaceFuturesRFQOffer must reject package and per-leg prices together")
 	_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, BidSide: []FuturesRFQOfferLeg{{Price: 1395.5}}})
@@ -393,6 +399,12 @@ func TestAcceptFuturesRFQOffer(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQAcceptSide, "AcceptFuturesRFQOffer must reject an acceptance without a price")
 	_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Bid: new(1395.5), Ask: new(1408.25)})
 	require.ErrorIs(t, err, errFuturesRFQAcceptSide, "AcceptFuturesRFQOffer must reject accepting both sides")
+	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Bid: new(price)})
+		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject a bid of %v", price)
+		_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Ask: new(price)})
+		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject an ask of %v", price)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -441,6 +453,18 @@ func TestFuturesRFQRequest(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "futuresRFQRequest must return the API error of an error status")
 	assert.Equal(t, []string{"code 95: Account is not permitted to perform the requested trading operation"}, apiErr.Errors, "APIError should hold the coded error")
 	assert.ErrorIs(t, err, request.ErrBadStatus, "futuresRFQRequest should keep the status error")
+}
+
+func TestFuturesRFQCheckPackagePrices(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, futuresRFQCheckPackagePrices(nil, nil), "futuresRFQCheckPackagePrices should accept no prices")
+	for _, price := range []float64{0, -1395.5, 1408.25} {
+		assert.NoErrorf(t, futuresRFQCheckPackagePrices(&price, &price), "futuresRFQCheckPackagePrices should accept a price of %v", price)
+	}
+	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		assert.ErrorIsf(t, futuresRFQCheckPackagePrices(&price, nil), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject a bid of %v", price)
+		assert.ErrorIsf(t, futuresRFQCheckPackagePrices(nil, &price), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject an ask of %v", price)
+	}
 }
 
 func TestFuturesRFQLegPrices(t *testing.T) {

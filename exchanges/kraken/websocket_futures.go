@@ -481,7 +481,8 @@ func (e *Exchange) wsFuturesProcessTrades(feed string, respRaw []byte) error {
 	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-// wsFuturesProcessOpenOrders relays the account's open futures orders and the changes to them
+// wsFuturesProcessOpenOrders relays the account's open futures orders and the changes to them. A snapshot's order that
+// cannot be relayed, such as one on a contract missing from the available pairs, does not hold back the others
 func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	if feed == wsFuturesFeedOpenOrdersSnapshot {
 		var snapshot WebsocketFuturesOpenOrdersSnapshot
@@ -489,18 +490,18 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 			return err
 		}
 		e.futuresOrders.snapshot(conn, snapshot.Orders)
+		var errs error
 		for i := range snapshot.Orders {
 			state := e.futuresOrders.get(snapshot.Orders[i].OrderID)
 			d, err := e.futuresWsOrderDetail(&snapshot.Orders[i], futuresOrderUpdateStatus("", false, state.executed()))
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
+				continue
 			}
 			state.addTo(d)
-			if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
-				return err
-			}
+			errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, d))
 		}
-		return nil
+		return errs
 	}
 	var u WebsocketFuturesOpenOrderUpdate
 	if err := json.Unmarshal(respRaw, &u); err != nil {
@@ -597,7 +598,9 @@ func futuresOrderUpdateStatus(reason string, isCancel bool, filled float64) orde
 
 // wsFuturesProcessFills relays the account's futures fills: each as its order's trade, with its fee, and as a fill when
 // the fills feed is enabled. The order's executed quantity and totals are relayed with its trade where the feeds have
-// reported enough of the order to know them
+// reported enough of the order to know them. A fill that cannot be relayed, such as one on a contract missing from the
+// available pairs, does not hold back the others, and still counts towards its order's totals, which its order's later
+// fills relay
 func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	var wsFills WebsocketFuturesFills
 	if err := json.Unmarshal(respRaw, &wsFills); err != nil {
@@ -606,12 +609,16 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 	if feed == wsFuturesFeedFillsSnapshot {
 		e.futuresOrders.fillsSnapshot(conn)
 	}
+	var errs error
 	var fills []fill.Data
 	for i := range wsFills.Fills {
 		f := &wsFills.Fills[i]
+		feeAsset := e.assetCode(f.FeeCurrency)
+		state := e.futuresOrders.fill(conn, f, feed == wsFuturesFeedFills, feeAsset)
 		pair, err := e.futuresPair(f.Instrument)
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
 		side := order.Sell
 		if f.Buy {
@@ -619,9 +626,9 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 		}
 		orderType, _, err := futuresOrderTypeFromString(f.OrderType)
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
-		feeAsset := e.assetCode(f.FeeCurrency)
 		d := &order.Detail{
 			Exchange:      e.Name,
 			AssetType:     asset.Futures,
@@ -644,12 +651,9 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 				IsMaker:   f.FillType == "maker",
 			}},
 		}
-		state := e.futuresOrders.fill(conn, f, feed == wsFuturesFeedFills, feeAsset)
 		d.Status = state.fillStatus()
 		state.addTo(d)
-		if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
-			return err
-		}
+		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, d))
 		if e.IsFillsFeedEnabled() {
 			fills = append(fills, fill.Data{
 				ID:            f.FillID,
@@ -666,18 +670,19 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 			})
 		}
 	}
-	if len(fills) == 0 {
-		return nil
+	if len(fills) != 0 {
+		errs = common.AppendError(errs, e.Websocket.Fills.Update(fills...))
 	}
-	return e.Websocket.Fills.Update(fills...)
+	return errs
 }
 
-// wsFuturesProcessBalances stores the wallet balances a balances message holds, and relays them with the message. A
-// snapshot holds every balance of each wallet it carries, so the cash and multi-collateral wallets it carries are
-// stored whole, and a currency they no longer list is removed, while an update holds only the balances that changed.
-// Kraken names a single-collateral margin account differently over REST, so one is stored only under the name of the
-// REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
+// wsFuturesProcessBalances stores the wallet balances a balances message holds, and relays those it stores with the
+// message. A snapshot holds every balance of each wallet it carries, so the cash and multi-collateral wallets it
+// carries are stored whole, and a currency they no longer list is removed, while an update holds only the balances that
+// changed. Kraken names a single-collateral margin account differently over REST, so one is stored only under the name
+// of the REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
 func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, respRaw []byte) error {
+	arrived := e.balancesSequence.Add(1)
 	var b WebsocketFuturesBalances
 	if err := json.Unmarshal(respRaw, &b); err != nil {
 		return err
@@ -711,27 +716,9 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 		margin.Balances.Set(currency.NewCode(m.Unit).Upper(), accounts.Balance{Total: m.Balance, Hold: m.Balance - free, Free: free})
 		wallets = append(wallets, margin)
 	}
-	var subAccts accounts.SubAccounts
-	for _, w := range wallets {
-		if snapshot && (w.ID == "cash" || w.ID == "flex") {
-			if err := e.Accounts.Save(ctx, accounts.SubAccounts{w}, true); err != nil {
-				return err
-			}
-			subAccts = append(subAccts, w)
-			continue
-		}
-		// A margin account holds other currencies than the one the message reports, so it is stored a currency at a time
-		stored := accounts.NewSubAccount(asset.Futures, w.ID)
-		for c, reported := range w.Balances {
-			balance, err := e.Accounts.UpdateBalance(ctx, w.ID, asset.Futures, c, func(held *accounts.Balance) {
-				held.Total, held.Hold, held.Free = reported.Total, reported.Hold, reported.Free
-			})
-			if err != nil {
-				return err
-			}
-			stored.Balances.Set(c, balance)
-		}
-		subAccts = append(subAccts, stored)
+	subAccts, err := e.saveFuturesFeedBalances(ctx, arrived, snapshot, wallets)
+	if err != nil {
+		return err
 	}
 	if len(subAccts) != 0 {
 		if err := e.Websocket.DataHandler.Send(ctx, subAccts); err != nil {
@@ -739,6 +726,60 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, &b)
+}
+
+// saveFuturesFeedBalances stores the wallets of a balances message numbered arrived in balancesSequence, except for
+// balances stored after it arrived, as a read requested since already reflects the message, and returns what it
+// stored. A snapshot's cash and multi-collateral wallets are stored whole, as a read's are; other wallets are stored a
+// currency at a time, as an update holds only the balances that changed and a margin account holds other currencies
+// than the one the message reports
+func (e *Exchange) saveFuturesFeedBalances(ctx context.Context, arrived uint64, snapshot bool, wallets accounts.SubAccounts) (accounts.SubAccounts, error) {
+	if len(wallets) == 0 {
+		return nil, nil
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.futuresBalancesMu.Lock()
+	defer e.futuresBalancesMu.Unlock()
+	var subAccts accounts.SubAccounts
+	for _, w := range wallets {
+		if snapshot && (w.ID == "cash" || w.ID == "flex") {
+			s, err := e.futuresWalletToStore(creds, arrived, w)
+			if err != nil {
+				return nil, err
+			}
+			if s == nil {
+				continue
+			}
+			if err := e.Accounts.Save(ctx, accounts.SubAccounts{s}, true); err != nil {
+				return nil, err
+			}
+			e.futuresWalletStored(creds, w.ID).recordWhole(arrived)
+			subAccts = append(subAccts, s)
+			continue
+		}
+		stored := e.futuresWalletStored(creds, w.ID)
+		saved := accounts.NewSubAccount(asset.Futures, w.ID)
+		for c, reported := range w.Balances {
+			if stored.currencyStoredAfter(c, arrived) {
+				continue
+			}
+			balance, err := e.Accounts.UpdateBalance(ctx, w.ID, asset.Futures, c, func(held *accounts.Balance) {
+				held.Total, held.Hold, held.Free = reported.Total, reported.Hold, reported.Free
+			})
+			if err != nil {
+				return nil, err
+			}
+			stored.recordCurrency(c, arrived)
+			saved.Balances.Set(c, balance)
+		}
+		if len(saved.Balances) != 0 {
+			subAccts = append(subAccts, saved)
+		}
+	}
+	return subAccts, nil
 }
 
 // futuresMarginAccountName returns the REST name of a single-collateral margin account the balances feed reports, such
@@ -757,6 +798,6 @@ func (e *Exchange) futuresMarginAccountName(ctx context.Context, m *WebsocketFut
 	name := "fi_" + strings.ToLower(base+quote)
 	e.futuresMarginCurrenciesMu.Lock()
 	defer e.futuresMarginCurrenciesMu.Unlock()
-	c, ok := e.futuresMarginCurrencies[*creds][name]
+	c, ok := e.futuresMarginCurrencies[*creds].currencies[name]
 	return name, ok && c.Equal(currency.NewCode(m.Unit))
 }

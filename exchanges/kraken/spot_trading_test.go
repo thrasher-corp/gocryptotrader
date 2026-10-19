@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"net/http"
 	"testing"
 	"time"
@@ -208,8 +209,12 @@ func TestAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "AmendOrder must reject a request without an order identifier")
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", ClientOrderID: "arb-20240509-00010"})
 	require.ErrorIs(t, err, errMultipleOrderIdentifiers, "AmendOrder must reject two order identifiers")
-	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", DisplayQuantity: -1})
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject a negative quantity")
+	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", OrderQuantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject an order quantity of %v", quantity)
+		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", DisplayQuantity: quantity})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject a display quantity of %v", quantity)
+	}
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", LimitPrice: OrderPrice{Value: 50, Offset: "#"}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "AmendOrder must reject a limit price offset by #")
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", TriggerPrice: OrderPrice{Value: 50, Offset: "#"}})
@@ -218,6 +223,8 @@ func TestAmendOrder(t *testing.T) {
 		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: pair})
 		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "AmendOrder must reject %q, which lacks a base or a quote", pair)
 	}
+	_, err = new(Exchange).AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: spotTestPair})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "AmendOrder must return the error formatting the pair")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -265,12 +272,44 @@ func TestEditOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "EditOrder must reject a request without an order identifier")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", OrderUserReference: 1234})
 	require.ErrorIs(t, err, errMultipleOrderIdentifiers, "EditOrder must reject two order identifiers")
-	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Volume: -1})
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a negative volume")
+	for _, volume := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Volume: volume})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a volume of %v", volume)
+		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", DisplayVolume: volume})
+		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a display volume of %v", volume)
+	}
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Price: OrderPrice{Value: -1}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "EditOrder must reject a negative price")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", SecondaryPrice: OrderPrice{Value: 1, Offset: "%"}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "EditOrder must reject an undocumented secondary price offset")
+	_, err = new(Exchange).EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437"})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "EditOrder must return the error formatting the pair")
+
+	for _, tc := range []struct {
+		name, reply, message string
+		exp                  *EditOrderResponse
+		err                  error
+	}{
+		{name: "Err status", reply: `{"error":[],"result":{"status":"Err","error_message":"EOrder:Insufficient funds","orders_cancelled":0}}`, message: "EOrder:Insufficient funds", err: errOrderEditFailed},
+		{name: "ok status", reply: `{"error":[],"result":{"status":"ok","txid":"OFVXHJ-KPQ3B-VS7ELA"}}`, exp: &EditOrderResponse{TransactionID: "OFVXHJ-KPQ3B-VS7ELA", Status: "ok"}},
+		{name: "Ok status", reply: `{"error":[],"result":{"status":"Ok","txid":"OFVXHJ-KPQ3B-VS7ELA"}}`, exp: &EditOrderResponse{TransactionID: "OFVXHJ-KPQ3B-VS7ELA", Status: "Ok"}},
+		{name: "no status", reply: `{"error":[],"result":{"txid":"OFVXHJ-KPQ3B-VS7ELA"}}`, exp: &EditOrderResponse{TransactionID: "OFVXHJ-KPQ3B-VS7ELA"}},
+		{name: "error reply", reply: `{"error":["EOrder:Unknown order"]}`, message: "EOrder:Unknown order", err: order.ErrOrderNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(tc.reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			result, err := ex.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Volume: 0.0003})
+			require.ErrorIs(t, err, tc.err, "EditOrder must return an error for an edit Kraken reports failed, and only then")
+			if tc.err != nil {
+				assert.ErrorContains(t, err, tc.message, "EditOrder should report Kraken's error message")
+			}
+			assert.Equal(t, tc.exp, result, "EditOrder should return the result of an edit that did not fail")
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -279,6 +318,7 @@ func TestEditOrder(t *testing.T) {
 		name string
 		req  *EditOrderRequest
 		exp  *EditOrderResponse
+		err  error
 	}{
 		{
 			name: "replacement by transaction ID",
@@ -316,25 +356,21 @@ func TestEditOrder(t *testing.T) {
 				Price:              OrderPrice{Value: 1.5, Offset: "+", Percent: true},
 				Validate:           true,
 			},
-			exp: &EditOrderResponse{
-				Description:           EditOrderDescription{Order: "buy 0.00020000 XXBTZUSD @ iceberg 19400.0"},
-				OldUserReference:      1234,
-				OriginalTransactionID: "OKTIUZ-6NBNQ-W3JOVA",
-				Status:                "err",
-				Volume:                0.0002,
-				Price:                 OrderPrice{Value: 19400},
-				ErrorMessage:          "EOrder:Insufficient funds",
-			},
+			err: errOrderEditFailed,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result, err := e.EditOrder(t.Context(), tc.req)
-			require.NoError(t, err, "EditOrder must not error")
 			if mockTests {
+				require.ErrorIs(t, err, tc.err, "EditOrder must return the recorded failed edit as an error, and only that one")
+				if tc.err != nil {
+					assert.ErrorContains(t, err, "EOrder:Insufficient funds", "EditOrder should report the recorded error message")
+				}
 				assert.Equal(t, tc.exp, result, "EditOrder should decode every field")
 				return
 			}
+			require.NoError(t, err, "EditOrder must not error")
 			assert.NotEmpty(t, result.Status, "EditOrder should return a status")
 		})
 	}
@@ -758,6 +794,10 @@ func TestCheckOrderPrice(t *testing.T) {
 		{name: "last price offset not taken", price: OrderPrice{Value: 5, Offset: "#"}, offsets: "+-", err: errInvalidOrderPrice},
 		{name: "offset of two characters", price: OrderPrice{Value: 5, Offset: "+-"}, offsets: "+-", err: errInvalidOrderPrice},
 		{name: "negative price", price: OrderPrice{Value: -5}, offsets: "+-", err: errInvalidOrderPrice},
+		{name: "NaN price", price: OrderPrice{Value: math.NaN()}, offsets: "+-", err: errInvalidOrderPrice},
+		{name: "infinite price", price: OrderPrice{Value: math.Inf(1)}, offsets: "+-", err: errInvalidOrderPrice},
+		{name: "negative infinite price", price: OrderPrice{Value: math.Inf(-1)}, offsets: "+-", err: errInvalidOrderPrice},
+		{name: "infinite offset", price: OrderPrice{Value: math.Inf(1), Offset: "+"}, offsets: "+-", err: errInvalidOrderPrice},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -778,6 +818,12 @@ func TestOrderParametersParams(t *testing.T) {
 		{name: "negative volume", change: func(o *OrderParameters) { o.Volume = -1 }, err: order.ErrAmountIsInvalid},
 		{name: "negative display volume", change: func(o *OrderParameters) { o.DisplayVolume = -1 }, err: order.ErrAmountIsInvalid},
 		{name: "zero volume", change: func(o *OrderParameters) { o.Volume = 0 }, err: order.ErrAmountIsInvalid},
+		{name: "NaN volume", change: func(o *OrderParameters) { o.Volume = math.NaN() }, err: order.ErrAmountIsInvalid},
+		{name: "infinite volume", change: func(o *OrderParameters) { o.Volume = math.Inf(1) }, err: order.ErrAmountIsInvalid},
+		{name: "negative infinite volume", change: func(o *OrderParameters) { o.Volume = math.Inf(-1) }, err: order.ErrAmountIsInvalid},
+		{name: "NaN display volume", change: func(o *OrderParameters) { o.DisplayVolume = math.NaN() }, err: order.ErrAmountIsInvalid},
+		{name: "infinite display volume", change: func(o *OrderParameters) { o.DisplayVolume = math.Inf(1) }, err: order.ErrAmountIsInvalid},
+		{name: "negative infinite display volume", change: func(o *OrderParameters) { o.DisplayVolume = math.Inf(-1) }, err: order.ErrAmountIsInvalid},
 		{name: "user reference and client order ID", change: func(o *OrderParameters) { o.UserReference, o.ClientOrderID = 1, "a" }, err: errMultipleOrderIdentifiers},
 		{name: "fee in base and quote currency", change: func(o *OrderParameters) { o.FeeInBase, o.FeeInQuote = true, true }, err: errConflictingOrderFlags},
 		{name: "time in force", change: func(o *OrderParameters) { o.TimeInForce = "DAY" }, err: order.ErrInvalidTimeInForce},

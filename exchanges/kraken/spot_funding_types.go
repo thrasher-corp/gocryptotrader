@@ -13,6 +13,7 @@ var (
 	errDepositMethodRequired         = errors.New("deposit method is required")
 	errWithdrawalKeyRequired         = errors.New("withdrawal key is required")
 	errWithdrawalReferenceIDRequired = errors.New("withdrawal reference ID is required")
+	errInvalidMaximumFee             = errors.New("invalid maximum fee")
 )
 
 // DepositMethodsRequest holds the parameters of Get Deposit Methods
@@ -66,7 +67,7 @@ type DepositAddressesRequest struct {
 	Method string
 	// New generates a new address
 	New bool
-	// Amount is the amount to be deposited, which only Bitcoin Lightning requires
+	// Amount is the amount to be deposited, which only Bitcoin Lightning requires; 0 leaves it out
 	Amount float64
 }
 
@@ -253,7 +254,7 @@ type WithdrawFundsRequest struct {
 	// Address, when set, must be the key's address, or the withdrawal fails with an invalid withdrawal address error
 	Address string
 	Amount  float64
-	// MaxFee fails the withdrawal with EFunding:Max fee exceeded when the fee charged would be higher
+	// MaxFee fails the withdrawal with EFunding:Max fee exceeded when the fee charged would be higher; 0 sets no cap
 	MaxFee float64
 	// RebaseMultiplier is rebased, the default, to show xStocks in terms of the underlying equity, or base to show them
 	// in SPV tokens

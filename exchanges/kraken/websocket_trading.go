@@ -61,6 +61,9 @@ func (e *Exchange) WebsocketEditOrder(ctx context.Context, req *WebsocketEditOrd
 	if !req.Pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	if !isFiniteNonNegative(req.Quantity) || !isFiniteNonNegative(req.DisplayQuantity) {
+		return nil, fmt.Errorf("%w: quantities must be finite and not negative", order.ErrAmountIsInvalid)
+	}
 	params := &wsEditOrderParams{
 		OrderID:            req.OrderID,
 		Symbol:             e.displaySymbol(req.Pair),
@@ -94,6 +97,9 @@ func (e *Exchange) WebsocketAmendOrder(ctx context.Context, req *WebsocketAmendO
 	}
 	if (req.OrderID == "") == (req.ClientOrderID == "") {
 		return nil, fmt.Errorf("%w: send either the order ID or the client order ID", errOrderIdentifierRequired)
+	}
+	if !isFiniteNonNegative(req.Quantity) || !isFiniteNonNegative(req.DisplayQuantity) {
+		return nil, fmt.Errorf("%w: quantities must be finite and not negative", order.ErrAmountIsInvalid)
 	}
 	params := &wsAmendOrderParams{
 		OrderID:          req.OrderID,
@@ -256,8 +262,11 @@ func (o *WebsocketOrder) params() (*wsOrderParams, error) {
 	if o.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if o.Quantity <= 0 {
-		return nil, order.ErrAmountIsInvalid
+	if !isFinitePositive(o.Quantity) {
+		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, o.Quantity)
+	}
+	if !isFiniteNonNegative(o.DisplayQuantity) || !isFiniteNonNegative(o.CashOrderQuantity) {
+		return nil, fmt.Errorf("%w: display and cash order quantities must be finite and not negative", order.ErrAmountIsInvalid)
 	}
 	if o.ClientOrderID != "" && o.UserReference != 0 {
 		return nil, errClientOrderIDWithUserReference

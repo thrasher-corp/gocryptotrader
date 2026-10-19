@@ -52,7 +52,7 @@ func (e *Exchange) FuturesWithdrawToSpotWallet(ctx context.Context, req *Futures
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.Amount <= 0 {
+	if !isFinitePositive(req.Amount) {
 		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
 	params := url.Values{}
@@ -73,7 +73,7 @@ func futuresTransferParams(fromWallet, toWallet string, ccy currency.Code, amoun
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if amount <= 0 {
+	if !isFinitePositive(amount) {
 		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, amount)
 	}
 	params := url.Values{}

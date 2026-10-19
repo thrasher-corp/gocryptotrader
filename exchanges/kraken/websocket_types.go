@@ -76,7 +76,8 @@ type WebsocketStatus struct {
 	Emergency           []EmergencyEvent   `json:"emergency"`
 }
 
-// WebsocketTicker is a pair's top of book and 24 hour statistics, pushed on every trade or best price change
+// WebsocketTicker is a pair's top of book and 24 hour statistics, pushed on every trade: subscriptions take Kraken's
+// default event trigger, trades, rather than bbo, which would push one on every best price change
 type WebsocketTicker struct {
 	Symbol                     string  `json:"symbol"`
 	Bid                        float64 `json:"bid"`

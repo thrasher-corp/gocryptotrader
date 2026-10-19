@@ -11,7 +11,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
@@ -23,7 +22,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	e = new(Exchange)
-	if err := testexch.Setup(e); err != nil {
+	if err := setupTestExchange(e); err != nil {
 		log.Fatalf("Kraken Setup error: %s", err)
 	}
 	if err := configureTestExchange(e); err != nil {

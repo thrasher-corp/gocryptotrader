@@ -174,8 +174,9 @@ type FuturesEditOrderResponse struct {
 type FuturesEditOrderStatus struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"cliOrdId"`
-	// Status is edited, or why the order was not edited, such as orderForEditNotFound, wouldNotReducePosition or, with
-	// 250 of the account's requests already held by maker protection, tooManyOrders
+	// Status is edited, or filled when the edit filled the order in full; iocWouldNotExecute when a cancel arriving while
+	// maker protection held the edit had it applied as immediate or cancel and the rest of the order removed; or why the
+	// edit was refused, such as orderForEditNotFound, wouldNotReducePosition or editAlreadyHeld
 	Status       string              `json:"status"`
 	ReceivedTime time.Time           `json:"receivedTime"`
 	OrderEvents  []FuturesOrderEvent `json:"orderEvents"`

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -114,6 +116,19 @@ func newErrorReplyTestExchange(t *testing.T) *Exchange {
 		_, err := w.Write([]byte(body))
 		assert.NoError(t, err, "Write should not error")
 	})
+}
+
+// boundedContext returns the test's context with a deadline in mock runs, so a pager that stops advancing over pages
+// served locally fails the test rather than spinning until go test's timeout. Live runs keep no deadline, as Kraken's
+// rate limit can make a long listing slow
+func boundedContext(t *testing.T) context.Context {
+	t.Helper()
+	if !mockTests {
+		return t.Context()
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+	return ctx
 }
 
 // newMarginTestExchange returns a test exchange that also stores margin pairs, an asset the wrapper does not support,
@@ -455,6 +470,9 @@ func TestUpdateTickers(t *testing.T) {
 				return
 			}
 			if tc.a == asset.Spot {
+				open, unread := ex.dayOpen(wsTestPair, dayOpensRead(ex))
+				assert.False(t, unread, "UpdateTickers should record the spot opening prices of the day")
+				assert.Equal(t, spot[wsTestPair].Open, open, "UpdateTickers should record each pair's opening price of the day")
 				// Spot tickers carry no time, so they are stamped when stored
 				for _, p := range result {
 					assert.WithinRangef(t, p.LastUpdated, started, time.Now(), "UpdateTickers should stamp the %s ticker when storing it", p.Pair)
@@ -488,6 +506,33 @@ func TestUpdateTickers(t *testing.T) {
 		}
 		stored := spotTickers(crossedEx.Name)
 		assert.Equal(t, []*ticker.Price{stored[wsTestPair], stored[wsTestDOGEPair]}, result, "UpdateTickers should store every ticker it does not reject")
+	})
+
+	t.Run("unreadable symbols", func(t *testing.T) {
+		t.Parallel()
+		spotTicker, _, _, err := jsonparser.Get(recordedResponse(t, "/0/public/Ticker", "assetVersion=1"), "result", "BTC/USD")
+		require.NoError(t, err, "Get must not error")
+		futuresTickers, err := jsonparser.Set(recordedResponse(t, "/api/v3/tickers", ""), []byte(`""`), "tickers", "[0]", "symbol")
+		require.NoError(t, err, "Set must not error")
+		unreadableEx := newRouteTestExchange(t, map[string][]byte{
+			"/0/public/Ticker":            []byte(`{"error":[],"result":{"XBTUSD":` + string(spotTicker) + `}}`),
+			"/derivatives/api/v3/tickers": futuresTickers,
+		})
+		seedTestAssetNames(unreadableEx)
+		assert.ErrorIs(t, unreadableEx.UpdateTickers(t.Context(), asset.Spot), errInvalidSymbol, "UpdateTickers should reject a spot ticker whose symbol names no pair")
+		assert.ErrorIs(t, unreadableEx.UpdateTickers(t.Context(), asset.Futures), currency.ErrSymbolStringEmpty, "UpdateTickers should return the error matching a futures ticker's symbol")
+	})
+
+	t.Run("requested before a UTC midnight and answered after", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ex, _ := newDelayedReplyTestExchange(t, 2*time.Second, dayOpensReply)
+			// The bubble's clock starts at a UTC midnight, so the read is requested a second before the next
+			time.Sleep(24*time.Hour - time.Second)
+			requested := time.Now()
+			require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error")
+			assertDayOpensReadAt(t, ex, requested)
+		})
 	})
 }
 
@@ -743,7 +788,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		require.NoError(t, err, "Set must not error")
 		page = jsonparser.Delete(page, "continuationToken")
 		ex := newRouteTestExchange(t, map[string][]byte{"/api" + path: page})
-		result, err := ex.GetHistoricTrades(t.Context(), futuresTestPair, asset.Futures, time.UnixMilli(1791504000000), time.UnixMilli(1791504001000))
+		result, err := ex.GetHistoricTrades(boundedContext(t), futuresTestPair, asset.Futures, time.UnixMilli(1791504000000), time.UnixMilli(1791504001000))
 		require.NoError(t, err, "GetHistoricTrades must not error")
 		exp := futuresTestExecutions(ex.Name)[:2]
 		exp[1].Side = order.UnknownSide
@@ -823,7 +868,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetHistoricTrades(t.Context(), tc.pair, tc.a, tc.start, tc.end)
+			result, err := e.GetHistoricTrades(boundedContext(t), tc.pair, tc.a, tc.start, tc.end)
 			require.NoError(t, err, "GetHistoricTrades must not error")
 			assert.Equal(t, tc.exp, result, "GetHistoricTrades should return every trade of the window once")
 		})
@@ -1324,10 +1369,12 @@ func TestPrivateWebsocketAvailable(t *testing.T) {
 	assert.False(t, ex.privateWebsocketAvailable(), "privateWebsocketAvailable should be false while the websocket is not connected")
 
 	private := newWsTradingTestExchange(t, "")
+	private.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	assert.False(t, private.privateWebsocketAvailable(), "privateWebsocketAvailable should be false while the private connection holds no subscription")
+	holdTestExecutionsSubscription(t, private)
+	assert.True(t, private.privateWebsocketAvailable(), "privateWebsocketAvailable should be true while the private connection holds a subscription")
 	private.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	assert.False(t, private.privateWebsocketAvailable(), "privateWebsocketAvailable should be false without authenticated websocket use")
-	private.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	assert.True(t, private.privateWebsocketAvailable(), "privateWebsocketAvailable should be true with the private connection connected")
 
 	// The private connection connects only with private subscriptions, so credentials alone leave it unconnected
 	public := newTestExchange(t)
@@ -1676,6 +1723,502 @@ func TestUpdateAccountBalances(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("futures without credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.SkipAuthCheck = false
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{})
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should not read the futures wallets without credentials")
+	})
+}
+
+func TestUpdateAccountBalancesKeepsNewerRead(t *testing.T) {
+	t.Parallel()
+	firstArrived, releaseFirst := make(chan struct{}), make(chan struct{})
+	var requests atomic.Int32
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, "/0/private/BalanceEx", r.URL.Path, "only the extended balances should be read") {
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		reply := `{"error":[],"result":{"ZUSD":{"balance":"50","hold_trade":"0"}}}`
+		if requests.Add(1) == 1 {
+			close(firstArrived)
+			<-releaseFirst
+			reply = `{"error":[],"result":{"ZUSD":{"balance":"100","hold_trade":"0"}}}`
+		}
+		_, err := w.Write([]byte(reply))
+		assert.NoError(t, err, "Write should not error")
+	})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseFirst) }) }
+	t.Cleanup(release)
+	seedTestAssetNames(ex)
+
+	olderDone := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		olderDone <- err
+	}()
+	awaitClosed(t, firstArrived, "the first read must reach the server")
+	newerDone := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		newerDone <- err
+	}()
+	require.NoError(t, awaitError(t, newerDone, "the newer read must finish while the older one is held"), "the newer UpdateAccountBalances must not error")
+	release()
+	require.NoError(t, awaitError(t, olderDone, "the older read must finish once released"), "the older UpdateAccountBalances must not error")
+	b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
+	require.NoError(t, err, "GetBalance must not error")
+	assert.Equal(t, 50.0, b.Total, "a read requested before the stored one should not be stored over it")
+}
+
+// newHeldFuturesAccountsTestExchange returns an exchange named after the test whose server answers its futures accounts
+// reads with replies in turn, holding the first read until release is called. arrived is closed when the first read
+// reaches the server
+func newHeldFuturesAccountsTestExchange(t *testing.T, replies ...string) (ex *Exchange, arrived <-chan struct{}, release func()) {
+	t.Helper()
+	first, held := make(chan struct{}), make(chan struct{})
+	var reads atomic.Int32
+	ex = newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		read := int(reads.Add(1))
+		if read == 1 {
+			close(first)
+			<-held
+		}
+		_, err := w.Write([]byte(replies[min(read, len(replies))-1]))
+		assert.NoError(t, err, "Write should not error")
+	})
+	var once sync.Once
+	release = func() { once.Do(func() { close(held) }) }
+	t.Cleanup(release)
+	return ex, first, release
+}
+
+// futuresWalletBalances returns the balances of futures sub-accounts by wallet, without the times they were stored, so
+// they compare with an expected value
+func futuresWalletBalances(subAccts accounts.SubAccounts) map[string]accounts.CurrencyBalances {
+	wallets := make(map[string]accounts.CurrencyBalances, len(subAccts))
+	for _, s := range subAccts {
+		balances := make(accounts.CurrencyBalances, len(s.Balances))
+		for c, b := range s.Balances {
+			b.UpdatedAt = time.Time{}
+			balances[c] = b
+		}
+		wallets[s.ID] = balances
+	}
+	return wallets
+}
+
+// storedFuturesWallets returns the futures balances stored for the default credentials by wallet, without the times
+// they were stored
+func storedFuturesWallets(t *testing.T, ex *Exchange) map[string]accounts.CurrencyBalances {
+	t.Helper()
+	subAccts, err := ex.Accounts.SubAccounts(ex.GetDefaultCredentials(), asset.Futures)
+	require.NoError(t, err, "SubAccounts must not error")
+	return futuresWalletBalances(subAccts)
+}
+
+// awaitClosed fails the test with msg unless ch is closed within five seconds
+func awaitClosed(t *testing.T, ch <-chan struct{}, msg string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, msg)
+	}
+}
+
+// awaitError returns the error sent on ch, failing the test with msg unless one is sent within five seconds
+func awaitError(t *testing.T, ch <-chan error, msg string) error {
+	t.Helper()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, msg)
+		return nil
+	}
+}
+
+func TestUpdateAccountBalancesKeepsNewerFuturesBalances(t *testing.T) {
+	t.Parallel()
+	const (
+		olderRead = `{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{"usd":"1000","eur":"20"}},` +
+			`"flex":{"type":"multiCollateralMarginAccount","currencies":{"USD":{"quantity":1000,"available":1000},"ETH":{"quantity":20,"available":20}}},` +
+			`"fi_xbtusd":{"type":"marginAccount","currency":"xbt","balances":{"xbt":"2","xrp":"20"},"auxiliary":{"af":2},` +
+			`"marginRequirements":{},"triggerEstimates":{}}},"serverTime":"2026-10-19T00:00:00.000Z"}`
+		newerRead = `{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{"usd":"500"}},` +
+			`"flex":{"type":"multiCollateralMarginAccount","currencies":{"USD":{"quantity":500,"available":500}}},` +
+			`"fi_xbtusd":{"type":"marginAccount","currency":"xbt","balances":{"xbt":"5","xrp":"50"},"auxiliary":{"af":5},` +
+			`"marginRequirements":{},"triggerEstimates":{}},"fi_ethusd":{"type":"marginAccount","currency":"eth","balances":{"eth":"3"},` +
+			`"auxiliary":{"af":3},"marginRequirements":{},"triggerEstimates":{}}},"serverTime":"2026-10-19T00:00:01.000Z"}`
+	)
+	read := map[string]accounts.CurrencyBalances{
+		"cash": {
+			currency.USD: {Currency: currency.USD, Total: 1000, Free: 1000},
+			currency.EUR: {Currency: currency.EUR, Total: 20, Free: 20},
+		},
+		"flex": {
+			currency.USD: {Currency: currency.USD, Total: 1000, Free: 1000},
+			currency.ETH: {Currency: currency.ETH, Total: 20, Free: 20},
+		},
+		"fi_xbtusd": {
+			currency.XBT: {Currency: currency.XBT, Total: 2, Free: 2},
+			currency.XRP: {Currency: currency.XRP, Total: 20, Free: 20},
+		},
+	}
+	readWith := func(wallet string, balances accounts.CurrencyBalances) map[string]accounts.CurrencyBalances {
+		exp := maps.Clone(read)
+		exp[wallet] = balances
+		return exp
+	}
+	readMarginCurrencies := map[string]currency.Code{"fi_xbtusd": currency.NewCode("xbt")}
+	feed := func(msg string, creds *accounts.Credentials) func(context.Context, *Exchange) error {
+		return func(ctx context.Context, ex *Exchange) error {
+			if creds != nil {
+				ctx = accounts.DeployCredentialsToContext(ctx, creds)
+			}
+			return ex.wsFuturesHandleData(ctx, nil, []byte(msg))
+		}
+	}
+	for _, tc := range []struct {
+		name                string
+		newer               func(context.Context, *Exchange) error
+		exp                 map[string]accounts.CurrencyBalances
+		expMarginCurrencies map[string]currency.Code
+	}{
+		{
+			name:  "cash update",
+			newer: feed(`{"feed":"balances","account":"DemoUser","holding":{"USD":500,"GBP":7},"timestamp":1640995200000,"seq":2}`, nil),
+			exp: readWith("cash", accounts.CurrencyBalances{
+				currency.USD: {Currency: currency.USD, Total: 500, Free: 500},
+				currency.EUR: read["cash"][currency.EUR],
+				currency.GBP: {Currency: currency.GBP, Total: 7, Free: 7},
+			}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "multi-collateral update",
+			newer: feed(`{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"USD":{"quantity":500,"available":250}}},`+
+				`"timestamp":1640995200000,"seq":2}`, nil),
+			exp: readWith("flex", accounts.CurrencyBalances{
+				currency.USD: {Currency: currency.USD, Total: 500, Hold: 250, Free: 250},
+				currency.ETH: read["flex"][currency.ETH],
+			}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "margin account update",
+			newer: feed(`{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT",`+
+				`"balance":0.75,"available":0.5}},"timestamp":1640995200000,"seq":2}`, nil),
+			exp: readWith("fi_xbtusd", accounts.CurrencyBalances{
+				currency.XBT: {Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5},
+				currency.XRP: read["fi_xbtusd"][currency.XRP],
+			}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name:                "cash snapshot",
+			newer:               feed(`{"feed":"balances_snapshot","account":"DemoUser","holding":{"USD":500},"timestamp":1640995200000,"seq":1}`, nil),
+			exp:                 readWith("cash", accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 500, Free: 500}}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name:                "empty cash snapshot",
+			newer:               feed(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"timestamp":1640995200000,"seq":1}`, nil),
+			exp:                 readWith("cash", accounts.CurrencyBalances{}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "empty multi-collateral snapshot",
+			newer: feed(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":{"currencies":{}},"timestamp":1640995200000,"seq":1}`,
+				nil),
+			exp:                 readWith("flex", accounts.CurrencyBalances{}),
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "update leaving every wallet out",
+			newer: feed(`{"feed":"balances","account":"DemoUser","holding":{},"futures":{},"flex_futures":{"currencies":{}},`+
+				`"timestamp":1640995200000,"seq":2}`, nil),
+			exp:                 read,
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "other credentials' update",
+			newer: feed(`{"feed":"balances","account":"DemoUser","holding":{"USD":500},"timestamp":1640995200000,"seq":2}`,
+				&accounts.Credentials{Key: "other-key", Secret: testSecret}),
+			exp:                 read,
+			expMarginCurrencies: readMarginCurrencies,
+		},
+		{
+			name: "newer read",
+			newer: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.UpdateAccountBalances(ctx, asset.Futures)
+				return err
+			},
+			exp: map[string]accounts.CurrencyBalances{
+				"cash": {currency.USD: {Currency: currency.USD, Total: 500, Free: 500}},
+				"flex": {currency.USD: {Currency: currency.USD, Total: 500, Free: 500}},
+				"fi_xbtusd": {
+					currency.XBT: {Currency: currency.XBT, Total: 5, Free: 5},
+					currency.XRP: {Currency: currency.XRP, Total: 50, Free: 50},
+				},
+				"fi_ethusd": {currency.ETH: {Currency: currency.ETH, Total: 3, Free: 3}},
+			},
+			expMarginCurrencies: map[string]currency.Code{"fi_xbtusd": currency.NewCode("xbt"), "fi_ethusd": currency.NewCode("eth")},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, arrived, release := newHeldFuturesAccountsTestExchange(t, olderRead, newerRead)
+			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
+				{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
+				{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.ETH: {Total: 1, Free: 1}}},
+				{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Total: 1, Free: 1}, currency.XRP: {Total: 1, Free: 1}}},
+			}, true), "Save must not error")
+			setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.XBT})
+			type result struct {
+				subAccts accounts.SubAccounts
+				err      error
+			}
+			older := make(chan result, 1)
+			go func() {
+				subAccts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+				older <- result{subAccts, err}
+			}()
+			awaitClosed(t, arrived, "the older read must reach the server")
+			newer := make(chan error, 1)
+			go func() { newer <- tc.newer(t.Context(), ex) }()
+			require.NoError(t, awaitError(t, newer, "the newer store must finish while the older read is held"), "the newer store must not error")
+			relayed(ex)
+			release()
+			var r result
+			select {
+			case r = <-older:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "the older read must finish once released")
+			}
+			require.NoError(t, r.err, "the older UpdateAccountBalances must not error")
+			assert.Equal(t, read, futuresWalletBalances(r.subAccts), "UpdateAccountBalances should return the balances it read")
+			assert.Equal(t, tc.exp, storedFuturesWallets(t, ex), "UpdateAccountBalances should not store balances over ones stored after it was requested")
+			ex.futuresMarginCurrenciesMu.Lock()
+			marginCurrencies := ex.futuresMarginCurrencies[*ex.GetDefaultCredentials()].currencies
+			ex.futuresMarginCurrenciesMu.Unlock()
+			assert.Equal(t, tc.expMarginCurrencies, marginCurrencies, "UpdateAccountBalances should not replace the margin accounts a newer read recorded")
+		})
+	}
+}
+
+func TestSaveFuturesBalances(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "saveFuturesBalances should make no request")
+	})
+	noCreds := newTestExchange(t)
+	noCreds.SkipAuthCheck = false
+	noCreds.API.AuthenticatedSupport = true
+	noCreds.SetCredentials(&accounts.Credentials{})
+	assert.ErrorIs(t, noCreds.saveFuturesBalances(t.Context(), 1, nil), exchange.ErrCredentialsAreEmpty, "saveFuturesBalances should reject missing credentials")
+
+	creds := ex.GetDefaultCredentials()
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
+		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}}},
+		{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Total: 1, Free: 1}, currency.XRP: {Total: 1, Free: 1}}},
+	}, true), "Save must not error")
+	requested := uint64(2)
+	before, after := requested-1, requested+1
+	ex.futuresBalancesMu.Lock()
+	ex.futuresWalletStored(creds, "flex").whole = after
+	// EUR is kept although the read does not list it, and GBP is left out, as none is stored
+	ex.futuresWalletStored(creds, "cash").currencies[currency.EUR] = after
+	ex.futuresWalletStored(creds, "cash").currencies[currency.GBP] = after
+	ex.futuresWalletStored(creds, "fi_xbtusd").currencies[currency.XBT] = after
+	ex.futuresWalletStored(creds, "fi_xbtusd").currencies[currency.XRP] = before
+	ex.futuresBalancesMu.Unlock()
+	read := accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{
+			currency.USD: {Currency: currency.USD, Total: 10, Free: 10},
+			currency.GBP: {Currency: currency.GBP, Total: 10, Free: 10},
+		}},
+		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 10, Free: 10}}},
+		{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{
+			currency.XBT: {Currency: currency.XBT, Total: 10, Free: 10},
+			currency.XRP: {Currency: currency.XRP, Total: 10, Free: 10},
+		}},
+		{ID: "fi_ethusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.ETH: {Currency: currency.ETH, Total: 10, Free: 10}}},
+	}
+	expRead := futuresWalletBalances(read)
+	require.NoError(t, ex.saveFuturesBalances(t.Context(), requested, read), "saveFuturesBalances must not error")
+	exp := map[string]accounts.CurrencyBalances{
+		"cash": {
+			currency.USD: {Currency: currency.USD, Total: 10, Free: 10},
+			currency.EUR: {Currency: currency.EUR, Total: 1, Free: 1},
+		},
+		"flex": {currency.USD: {Currency: currency.USD, Total: 1, Free: 1}},
+		"fi_xbtusd": {
+			currency.XBT: {Currency: currency.XBT, Total: 1, Free: 1},
+			currency.XRP: {Currency: currency.XRP, Total: 10, Free: 10},
+		},
+		"fi_ethusd": {currency.ETH: {Currency: currency.ETH, Total: 10, Free: 10}},
+	}
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "saveFuturesBalances should store the read's balances, except those stored after it was requested")
+	assert.Equal(t, expRead, futuresWalletBalances(read), "saveFuturesBalances should leave the read's balances as read")
+	expStored := map[string]*futuresWalletStores{
+		"cash":      {whole: requested, currencies: map[currency.Code]uint64{currency.EUR: after, currency.GBP: after}},
+		"flex":      {whole: after, currencies: map[currency.Code]uint64{}},
+		"fi_xbtusd": {whole: requested, currencies: map[currency.Code]uint64{currency.XBT: after, currency.XRP: before}},
+		"fi_ethusd": {whole: requested, currencies: map[currency.Code]uint64{}},
+	}
+	ex.futuresBalancesMu.Lock()
+	assert.Equal(t, expStored, ex.futuresWalletsStored[*creds], "saveFuturesBalances should record the read each wallet it stored came from")
+	ex.futuresBalancesMu.Unlock()
+
+	unsupported := accounts.SubAccounts{{ID: "unsupported", AssetType: asset.Empty, Balances: accounts.CurrencyBalances{currency.USD: {Total: 10, Free: 10}}}}
+	assert.ErrorIs(t, ex.saveFuturesBalances(t.Context(), requested, unsupported), asset.ErrNotSupported, "saveFuturesBalances should return the error saving the read")
+	ex.futuresBalancesMu.Lock()
+	ex.futuresWalletStored(creds, "unsupported").currencies[currency.USD] = after
+	ex.futuresBalancesMu.Unlock()
+	assert.ErrorIs(t, ex.saveFuturesBalances(t.Context(), requested, unsupported), asset.ErrNotSupported, "saveFuturesBalances should return the error reading a balance it keeps")
+	ex.futuresBalancesMu.Lock()
+	assert.Zero(t, ex.futuresWalletStored(creds, "unsupported").whole, "saveFuturesBalances should record nothing of a read it could not save")
+	ex.futuresBalancesMu.Unlock()
+}
+
+func TestFuturesWalletStored(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	creds, other := &accounts.Credentials{Key: "test-key"}, &accounts.Credentials{Key: "other-key"}
+	ex.futuresBalancesMu.Lock()
+	defer ex.futuresBalancesMu.Unlock()
+	cash := ex.futuresWalletStored(creds, "cash")
+	assert.Equal(t, &futuresWalletStores{currencies: map[currency.Code]uint64{}}, cash, "futuresWalletStored should add an empty record for a wallet without one")
+	cash.whole = 1
+	assert.Same(t, cash, ex.futuresWalletStored(creds, "cash"), "futuresWalletStored should return the wallet's record")
+	assert.NotSame(t, cash, ex.futuresWalletStored(creds, "flex"), "futuresWalletStored should keep each wallet's record apart")
+	assert.NotSame(t, cash, ex.futuresWalletStored(other, "cash"), "futuresWalletStored should keep each credentials' records apart")
+}
+
+func TestFuturesWalletToStore(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "futuresWalletToStore should make no request")
+	})
+	creds := ex.GetDefaultCredentials()
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
+	}, true), "Save must not error")
+	read := &accounts.SubAccount{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 10, Free: 10},
+		currency.EUR: {Currency: currency.EUR, Total: 10, Free: 10},
+		currency.GBP: {Currency: currency.GBP, Total: 10, Free: 10},
+	}}
+	expRead := futuresWalletBalances(accounts.SubAccounts{read})
+	ex.futuresBalancesMu.Lock()
+	defer ex.futuresBalancesMu.Unlock()
+	cash := ex.futuresWalletStored(creds, "cash")
+	cash.whole = 2
+	// GBP was stored on its own but is no longer stored, so a store before it leaves it out
+	cash.currencies = map[currency.Code]uint64{currency.USD: 4, currency.EUR: 3, currency.GBP: 4}
+	for _, tc := range []struct {
+		n   uint64
+		exp map[string]accounts.CurrencyBalances
+	}{
+		{n: 1},
+		{n: 2, exp: map[string]accounts.CurrencyBalances{"cash": {
+			currency.USD: {Currency: currency.USD, Total: 1, Free: 1},
+			currency.EUR: {Currency: currency.EUR, Total: 1, Free: 1},
+		}}},
+		{n: 3, exp: map[string]accounts.CurrencyBalances{"cash": {
+			currency.USD: {Currency: currency.USD, Total: 1, Free: 1},
+			currency.EUR: {Currency: currency.EUR, Total: 10, Free: 10},
+		}}},
+	} {
+		s, err := ex.futuresWalletToStore(creds, tc.n, read)
+		require.NoErrorf(t, err, "futuresWalletToStore must not error for a store numbered %d", tc.n)
+		if tc.exp == nil {
+			assert.Nilf(t, s, "futuresWalletToStore should leave a wallet stored whole after a store numbered %d as stored", tc.n)
+			continue
+		}
+		require.NotNilf(t, s, "futuresWalletToStore must return the wallet a store numbered %d stores", tc.n)
+		assert.Equalf(t, tc.exp, futuresWalletBalances(accounts.SubAccounts{s}), "futuresWalletToStore should keep only the balances stored after a store numbered %d", tc.n)
+	}
+	s, err := ex.futuresWalletToStore(creds, 4, read)
+	require.NoError(t, err, "futuresWalletToStore must not error")
+	assert.Same(t, read, s, "futuresWalletToStore should store a wallet nothing newer stored as read")
+	assert.Equal(t, expRead, futuresWalletBalances(accounts.SubAccounts{read}), "futuresWalletToStore should leave the read's balances as read")
+
+	ex.futuresWalletStored(creds, "unsupported").currencies[currency.USD] = 9
+	_, err = ex.futuresWalletToStore(creds, 1, &accounts.SubAccount{ID: "unsupported", AssetType: asset.Empty, Balances: accounts.CurrencyBalances{}})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "futuresWalletToStore should return the error reading a balance it keeps")
+}
+
+func TestFuturesWalletStoresRecordWhole(t *testing.T) {
+	t.Parallel()
+	s := &futuresWalletStores{currencies: map[currency.Code]uint64{}}
+	for _, tc := range []struct{ n, exp uint64 }{{n: 3, exp: 3}, {n: 1, exp: 3}, {n: 3, exp: 3}, {n: 5, exp: 5}} {
+		s.recordWhole(tc.n)
+		assert.Equalf(t, tc.exp, s.whole, "recordWhole should keep the highest number after recording %d", tc.n)
+	}
+}
+
+func TestFuturesWalletStoresRecordCurrency(t *testing.T) {
+	t.Parallel()
+	s := &futuresWalletStores{currencies: map[currency.Code]uint64{}}
+	for _, tc := range []struct{ n, exp uint64 }{{n: 3, exp: 3}, {n: 1, exp: 3}, {n: 3, exp: 3}, {n: 5, exp: 5}} {
+		s.recordCurrency(currency.USD, tc.n)
+		assert.Equalf(t, tc.exp, s.currencies[currency.USD], "recordCurrency should keep the highest number after recording %d", tc.n)
+	}
+	s.recordCurrency(currency.EUR, 2)
+	assert.Equal(t, map[currency.Code]uint64{currency.USD: 5, currency.EUR: 2}, s.currencies, "recordCurrency should record each currency apart")
+}
+
+func TestFuturesWalletStoresCurrencyStoredAfter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		whole, usd, eur, n uint64
+		exp                bool
+	}{
+		{whole: 3, n: 2, exp: true},
+		{whole: 3, n: 3},
+		{usd: 3, n: 2, exp: true},
+		{usd: 3, n: 3},
+		{whole: 1, usd: 2, n: 3},
+		{eur: 5, n: 2},
+	} {
+		s := &futuresWalletStores{whole: tc.whole, currencies: map[currency.Code]uint64{currency.USD: tc.usd, currency.EUR: tc.eur}}
+		assert.Equalf(t, tc.exp, s.currencyStoredAfter(currency.USD, tc.n), "currencyStoredAfter should report USD stored after %d for %+v", tc.n, tc)
+	}
+}
+
+func TestSaveFuturesMarginCurrencies(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	creds, other := &accounts.Credentials{Key: "test-key"}, &accounts.Credentials{Key: "other-key"}
+	xbt, eth := map[string]currency.Code{"fi_xbtusd": currency.XBT}, map[string]currency.Code{"fi_ethusd": currency.ETH}
+	ex.saveFuturesMarginCurrencies(creds, 2, xbt)
+	ex.saveFuturesMarginCurrencies(creds, 1, eth)
+	ex.saveFuturesMarginCurrencies(other, 1, eth)
+	exp := map[accounts.Credentials]futuresMarginRead{
+		*creds: {requested: 2, currencies: xbt},
+		*other: {requested: 1, currencies: eth},
+	}
+	assert.Equal(t, exp, ex.futuresMarginCurrencies, "saveFuturesMarginCurrencies should keep the margin accounts of a read requested later")
+	ex.saveFuturesMarginCurrencies(creds, 3, eth)
+	exp[*creds] = futuresMarginRead{requested: 3, currencies: eth}
+	assert.Equal(t, exp, ex.futuresMarginCurrencies, "saveFuturesMarginCurrencies should let a read requested later replace the margin accounts")
+	ex.saveFuturesMarginCurrencies(creds, 3, xbt)
+	exp[*creds] = futuresMarginRead{requested: 3, currencies: xbt}
+	assert.Equal(t, exp, ex.futuresMarginCurrencies, "saveFuturesMarginCurrencies should let a read numbered the same replace the margin accounts")
 }
 
 func TestAssetCode(t *testing.T) {
@@ -2242,6 +2785,16 @@ func TestWithdrawalFee(t *testing.T) {
 		_, err := e.withdrawalFee(t.Context(), currency.EMPTYCODE, 1)
 		assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "withdrawalFee should reject an empty currency")
 	})
+	t.Run("methods request refused", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/0/private/WithdrawMethods", r.URL.Path, "withdrawalFee should request the withdrawal methods")
+			_, err := w.Write([]byte(`{"error":["EGeneral:Permission denied"]}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.withdrawalFee(t.Context(), currency.XBT, 1)
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "withdrawalFee should return the withdrawal methods request's error")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2413,8 +2966,9 @@ func newOrdersWsTestExchange(t *testing.T, trips ...ordersWsRoundTrip) *Exchange
 }
 
 // useOrdersTestWebsocket connects an exchange's private connection to a mock expecting the round trips' requests in
-// turn, and allows authenticated websocket use, so the wrapper routes spot orders over it. A request beyond the round
-// trips fails the test without a reply, and every round trip must be made by the end of the test
+// turn, holding the executions subscription on it, and allows authenticated websocket use, so the wrapper routes spot
+// orders over it. A request beyond the round trips fails the test without a reply, and every round trip must be made by
+// the end of the test
 func useOrdersTestWebsocket(t *testing.T, ex *Exchange, trips ...ordersWsRoundTrip) {
 	t.Helper()
 	seedTestAssetNames(ex)
@@ -2458,12 +3012,23 @@ func useOrdersTestWebsocket(t *testing.T, ex *Exchange, trips ...ordersWsRoundTr
 			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 		}
 	})
+	holdTestExecutionsSubscription(t, ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	t.Cleanup(func() {
 		mu.Lock()
 		defer mu.Unlock()
 		assert.Empty(t, remaining, "every expected websocket request should be sent")
 	})
+}
+
+// holdTestExecutionsSubscription adds the executions subscription to the store of an exchange's connected private
+// connection, as the wrapper places spot orders over the connection only while it holds a subscription
+func holdTestExecutionsSubscription(t *testing.T, ex *Exchange) {
+	t.Helper()
+	conn, err := ex.Websocket.GetConnection(wsPrivateConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	executions := &subscription.Subscription{Channel: subscription.MyOrdersChannel, QualifiedChannel: wsChannelExecutions, Authenticated: true}
+	require.NoError(t, conn.Subscriptions().Add(executions), "Add must not error")
 }
 
 // ordersWsRequest returns a private request of method carrying params, the request's parameters without its token
@@ -4389,16 +4954,39 @@ func TestFuturesOrderInfo(t *testing.T) {
 	assert.Equal(t, order.UnknownStatus, fillsOnly.Status, "futuresOrderInfo should return no status when the order events cannot be read")
 	assert.Equal(t, ordersFuturesFillTrades(ex.Name), fillsOnly.Trades, "futuresOrderInfo should return the order's fills when the order events cannot be read")
 
-	// Order events are timed in milliseconds, which decode to local times, at the times of the order's fills
+	// Order events are timed in milliseconds, which decode to local times, at the times of the order's fills. They give
+	// an order's quantity as what remains of it: this order of 2 fills 0.5, then 0.25
 	placed, firstFill, lastFill, cancelled := time.UnixMilli(1791535200050), time.UnixMilli(1791535212118), time.UnixMilli(1791535267335), time.UnixMilli(1791535290000)
-	afterFirstFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "2", "0.5", placed, firstFill)
-	afterLastFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "2", "0.75", placed, lastFill)
+	afterFirstFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "1.5", "0.5", placed, firstFill)
+	afterLastFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "1.25", "0.75", placed, lastFill)
 	lastFillEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000001", lastFill, "OrderUpdated",
 		`{"oldOrder":`+afterFirstFill+`,"newOrder":`+afterLastFill+`,"reason":"partial_fill","reducedQuantity":"0"}`)
+	// An order of 0.75, which the same fills fill in full
 	fullFillEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000002", lastFill, "OrderUpdated",
-		`{"oldOrder":`+strings.Replace(afterFirstFill, `"quantity":"2"`, `"quantity":"0.75"`, 1)+
-			`,"newOrder":`+strings.Replace(afterLastFill, `"quantity":"2"`, `"quantity":"0.75"`, 1)+`,"reason":"full_fill","reducedQuantity":"0"}`)
+		`{"oldOrder":`+futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "0.25", "0.5", placed, firstFill)+
+			`,"newOrder":`+futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "0", "0.75", placed, lastFill)+`,"reason":"full_fill","reducedQuantity":"0"}`)
 	cancelEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000003", cancelled, "OrderCancelled", `{"order":`+afterLastFill+`,"reason":"cancelled_by_user"}`)
+	// An order of 2 whose last fill is 0.75 has less of it left open than its fills hold
+	largerFills := strings.Replace(ordersFuturesFills, `"size":0.25`, `"size":0.75`, 1)
+	largerTrades := func(exchangeName string) []order.TradeHistory {
+		trades := ordersFuturesFillTrades(exchangeName)
+		trades[0].Amount = 0.75
+		return trades
+	}
+	afterLargerFill := futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "Limit", "0.75", "1.25", placed, lastFill)
+	largerFillEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000006", lastFill, "OrderUpdated",
+		`{"oldOrder":`+afterFirstFill+`,"newOrder":`+afterLargerFill+`,"reason":"partial_fill","reducedQuantity":"0"}`)
+	largerCancelEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000007", cancelled, "OrderCancelled", `{"order":`+afterLargerFill+`,"reason":"cancelled_by_user"}`)
+	// An immediate or cancel order of 2 fills 0.5 and 0.75 as it is placed, and its unfilled 0.75 is rejected
+	iocFills := strings.Replace(largerFills, "2026-10-09T08:40:12.118Z", "2026-10-09T08:41:07.335Z", 1)
+	iocTrades := func(exchangeName string) []order.TradeHistory {
+		trades := largerTrades(exchangeName)
+		trades[1].Timestamp = trades[0].Timestamp
+		return trades
+	}
+	iocRejectedEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000008", lastFill, "OrderRejected",
+		`{"order":`+futuresHistoryOrderJSON(ordersFillsOrderID, "gct-fills-1", "Buy", "IoC", "0.75", "1.25", lastFill, lastFill)+
+			`,"orderError":"ioc_would_enter_book","reason":"new_user_order"}`)
 	// Events of other orders on the market, including one closing and one Kraken sent with a type it could not name
 	otherOrder := futuresHistoryOrderJSON("d6e7f8a9-b0c1-4d2e-9f3a-4b5c6d7e8f90", "", "Sell", "Post", "0.5", "0.0004", placed, lastFill)
 	otherCancelEvent := futuresHistoryElement("e1a2b3c4-0001-4000-8000-000000000004", lastFill.Add(time.Second), "OrderCancelled", `{"order":`+otherOrder+`,"reason":"cancelled_by_user"}`)
@@ -4408,12 +4996,14 @@ func TestFuturesOrderInfo(t *testing.T) {
 	query := "count=1000&since=1791535266335&sort=asc&tradeable=PF_XBTUSD"
 	for _, tc := range []struct {
 		name    string
+		fills   string
 		pages   [][]string
 		exp     func(exchangeName string) *order.Detail
 		queries []string
 	}{
 		{
 			name:  "cancelled after its last fill",
+			fills: ordersFuturesFills,
 			pages: [][]string{{lastFillEvent, otherCancelEvent, cancelEvent}},
 			exp: func(exchangeName string) *order.Detail {
 				return &order.Detail{
@@ -4437,7 +5027,59 @@ func TestFuturesOrderInfo(t *testing.T) {
 			queries: []string{query},
 		},
 		{
+			name:  "cancelled with less of it open than its fills hold, on a later page",
+			fills: largerFills,
+			pages: [][]string{{largerFillEvent, otherCancelEvent}, {largerCancelEvent}},
+			exp: func(exchangeName string) *order.Detail {
+				return &order.Detail{
+					Exchange:        exchangeName,
+					AssetType:       asset.Futures,
+					OrderID:         ordersFillsOrderID,
+					ClientOrderID:   "gct-fills-1",
+					Pair:            futuresTestPair,
+					Side:            order.Buy,
+					Type:            order.Limit,
+					Status:          order.PartiallyFilledCancelled,
+					Price:           81450,
+					Amount:          2,
+					ExecutedAmount:  1.25,
+					RemainingAmount: 0.75,
+					Date:            placed,
+					LastUpdated:     cancelled,
+					Trades:          largerTrades(exchangeName),
+				}
+			},
+			queries: []string{query, "continuation_token=page2&" + query},
+		},
+		{
+			name:  "immediate or cancel order rejected after its fills",
+			fills: iocFills,
+			pages: [][]string{{iocRejectedEvent}},
+			exp: func(exchangeName string) *order.Detail {
+				return &order.Detail{
+					Exchange:        exchangeName,
+					AssetType:       asset.Futures,
+					OrderID:         ordersFillsOrderID,
+					ClientOrderID:   "gct-fills-1",
+					Pair:            futuresTestPair,
+					Side:            order.Buy,
+					Type:            order.Limit,
+					TimeInForce:     order.ImmediateOrCancel,
+					Status:          order.PartiallyFilledCancelled,
+					Price:           81450,
+					Amount:          2,
+					ExecutedAmount:  1.25,
+					RemainingAmount: 0.75,
+					Date:            lastFill,
+					LastUpdated:     lastFill,
+					Trades:          iocTrades(exchangeName),
+				}
+			},
+			queries: []string{query},
+		},
+		{
 			name:  "filled by its last fill",
+			fills: ordersFuturesFills,
 			pages: [][]string{{fullFillEvent}},
 			exp: func(exchangeName string) *order.Detail {
 				return &order.Detail{
@@ -4461,11 +5103,13 @@ func TestFuturesOrderInfo(t *testing.T) {
 		},
 		{
 			name:    "order events showing no end",
+			fills:   ordersFuturesFills,
 			pages:   [][]string{{lastFillEvent, otherCancelEvent}},
 			queries: []string{query},
 		},
 		{
 			name:  "ending on the last page searched",
+			fills: ordersFuturesFills,
 			pages: [][]string{{lastFillEvent}, {otherCancelEvent}, {undecodedEvent, cancelEvent}},
 			exp: func(exchangeName string) *order.Detail {
 				return &order.Detail{
@@ -4490,6 +5134,7 @@ func TestFuturesOrderInfo(t *testing.T) {
 		},
 		{
 			name:    "ending past the pages searched",
+			fills:   ordersFuturesFills,
 			pages:   [][]string{{lastFillEvent}, {otherCancelEvent}, {undecodedEvent}, {cancelEvent}},
 			queries: []string{query, "continuation_token=page2&" + query, "continuation_token=page3&" + query},
 		},
@@ -4497,7 +5142,7 @@ func TestFuturesOrderInfo(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			events := newHistoryListing(tc.pages...)
-			ex := newOrdersFillsExchange(t, "", ordersFuturesFills, events)
+			ex := newOrdersFillsExchange(t, "", tc.fills, events)
 			got, err := ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
 			require.NoError(t, err, "futuresOrderInfo must not error")
 			assert.Equal(t, tc.queries, events.queries(), "futuresOrderInfo should search the order's market from its last fill, a bounded number of pages")
@@ -5039,7 +5684,7 @@ func TestGetOrderHistory(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := e.GetOrderHistory(t.Context(), tc.req)
+			got, err := e.GetOrderHistory(boundedContext(t), tc.req)
 			require.NoError(t, err, "GetOrderHistory must not error")
 			if tc.req.AssetType == asset.Spot {
 				// Get Closed Orders keys orders by ID, so they come in no particular order
@@ -5077,7 +5722,7 @@ func TestFuturesOrderHistory(t *testing.T) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"status":"unauthorized","reason":"You are not authorized to access this endpoint."}`))
 	})
-	_, err = ex.futuresOrderHistory(t.Context(), time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC))
+	_, err = ex.futuresOrderHistory(boundedContext(t), time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC))
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "futuresOrderHistory should return Get trigger events' error")
 	mu.Lock()
 	assert.Equal(t, []string{"/api/history/v3/orders", "/api/history/v3/triggers"}, paths, "futuresOrderHistory should list the window's trigger events after its order events")
@@ -5142,15 +5787,16 @@ func TestGetOrderHistoryFuturesTriggerOrders(t *testing.T) {
 		}
 		return event(kind, when, `{"order":`+trigger+`,"reason":"`+reason+`"}`)
 	}
+	// Order events give an order's quantity as what remains of it to fill
 	limitPlaced := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0", at(time.Minute), at(time.Minute))
-	limitFilled := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0.25", at(time.Minute), at(2*time.Minute))
+	limitFilled := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.25", "0.25", at(time.Minute), at(2*time.Minute))
 	triggeredPlaced := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0", at(6*time.Minute), at(6*time.Minute))
-	triggeredFilled := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0.25", at(6*time.Minute), at(6*time.Minute))
+	triggeredFilled := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0", "0.25", at(6*time.Minute), at(6*time.Minute))
 	latePlaced := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0", at(8*time.Minute), at(8*time.Minute))
-	lateFilled := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0.125", at(8*time.Minute), at(8*time.Minute+100*time.Millisecond))
+	lateFilled := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0", "0.125", at(8*time.Minute), at(8*time.Minute+100*time.Millisecond))
 	tiedPlaced := futuresHistoryOrderJSON(tiedID, "gct-stop-5", "Sell", "Stop", "0.5", "0", at(11*time.Minute), at(11*time.Minute))
 	placedByTrigger := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0", at(15*time.Minute), at(15*time.Minute))
-	placedByTriggerFilled := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0.25", at(15*time.Minute), at(15*time.Minute))
+	placedByTriggerFilled := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0", "0.25", at(15*time.Minute), at(15*time.Minute))
 	orderPages := [][]string{
 		{
 			placedEvent(limitPlaced, at(time.Minute)),
@@ -5301,6 +5947,102 @@ func TestGetOrderHistoryFuturesTriggerOrders(t *testing.T) {
 	}
 }
 
+func TestGetOrderHistoryFuturesFilledOrders(t *testing.T) {
+	t.Parallel()
+	start := time.UnixMilli(1791522000000)
+	at := start.Add
+	const (
+		cancelledID = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a"
+		iocID       = "2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b"
+		filledID    = "3f4a5b6c-7d8e-4f9a-0b1c-2d3e4f5a6b7c"
+	)
+	event := func(kind string, when time.Time, body string) string {
+		return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
+	}
+	updatedEvent := func(old, o, reason string, when time.Time) string {
+		return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"`+reason+`","reducedQuantity":"0"}`)
+	}
+	// Order events give an order's quantity as what remains of it to fill. An order of 2 fills 0.5, then 0.75, and is
+	// cancelled with 0.75 open
+	cancelledPlaced := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "2", "0", at(time.Minute), at(time.Minute))
+	cancelledFirstFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "1.5", "0.5", at(time.Minute), at(2*time.Minute))
+	cancelledLastFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "0.75", "1.25", at(time.Minute), at(3*time.Minute))
+	// An immediate or cancel order of 2 fills 1.25 as it is placed, and its unfilled 0.75 is rejected
+	ioc := futuresHistoryOrderJSON(iocID, "gct-ioc-1", "Sell", "IoC", "0.75", "1.25", at(5*time.Minute), at(5*time.Minute))
+	// An order of 2 fills 0.5, then 1.5
+	filledPlaced := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "2", "0", at(6*time.Minute), at(6*time.Minute))
+	filledFirstFill := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "1.5", "0.5", at(6*time.Minute), at(7*time.Minute))
+	filledInFull := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "0", "2", at(6*time.Minute), at(8*time.Minute))
+	orders := newHistoryListing(
+		[]string{
+			event("OrderPlaced", at(time.Minute), `{"order":`+cancelledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
+			updatedEvent(cancelledPlaced, cancelledFirstFill, "partial_fill", at(2*time.Minute)),
+			updatedEvent(cancelledFirstFill, cancelledLastFill, "partial_fill", at(3*time.Minute)),
+		},
+		[]string{
+			event("OrderCancelled", at(4*time.Minute), `{"order":`+cancelledLastFill+`,"reason":"cancelled_by_user"}`),
+			event("OrderRejected", at(5*time.Minute), `{"order":`+ioc+`,"orderError":"ioc_would_enter_book","reason":"new_user_order"}`),
+			event("OrderPlaced", at(6*time.Minute), `{"order":`+filledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
+			updatedEvent(filledPlaced, filledFirstFill, "partial_fill", at(7*time.Minute)),
+			updatedEvent(filledFirstFill, filledInFull, "full_fill", at(8*time.Minute)),
+		},
+	)
+	ex := newFuturesHistoryExchange(t, orders, newHistoryListing([]string{}))
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	exp := order.FilteredOrders{
+		{
+			Exchange:        ex.Name,
+			AssetType:       asset.Futures,
+			OrderID:         cancelledID,
+			ClientOrderID:   "gct-partial-1",
+			Pair:            futuresTestPair,
+			Side:            order.Buy,
+			Type:            order.Limit,
+			Status:          order.PartiallyFilledCancelled,
+			Price:           81450,
+			Amount:          2,
+			ExecutedAmount:  1.25,
+			RemainingAmount: 0.75,
+			Date:            at(time.Minute),
+			LastUpdated:     at(4 * time.Minute),
+		},
+		{
+			Exchange:        ex.Name,
+			AssetType:       asset.Futures,
+			OrderID:         iocID,
+			ClientOrderID:   "gct-ioc-1",
+			Pair:            futuresTestPair,
+			Side:            order.Sell,
+			Type:            order.Limit,
+			TimeInForce:     order.ImmediateOrCancel,
+			Status:          order.PartiallyFilledCancelled,
+			Price:           81450,
+			Amount:          2,
+			ExecutedAmount:  1.25,
+			RemainingAmount: 0.75,
+			Date:            at(5 * time.Minute),
+			LastUpdated:     at(5 * time.Minute),
+		},
+		{
+			Exchange:       ex.Name,
+			AssetType:      asset.Futures,
+			OrderID:        filledID,
+			ClientOrderID:  "gct-filled-1",
+			Pair:           futuresTestPair,
+			Side:           order.Buy,
+			Type:           order.Limit,
+			Status:         order.Filled,
+			Price:          81450,
+			Amount:         2,
+			ExecutedAmount: 2,
+			Date:           at(6 * time.Minute),
+			LastUpdated:    at(8 * time.Minute),
+		},
+	}
+	assert.Equal(t, exp, got, "GetOrderHistory should size each order by what remained of it and what filled, as its last event left it")
+}
+
 func TestFuturesHistoryTriggerDetail(t *testing.T) {
 	t.Parallel()
 	placed, updated := time.UnixMilli(1791518580000), time.UnixMilli(1791518600000)
@@ -5375,22 +6117,29 @@ func TestFuturesHistoryOrderDetail(t *testing.T) {
 		ReduceOnly:     true,
 		LastUpdateTime: types.Time(updated),
 	}
+	// Order events give an order's quantity as what remains of it to fill, so its size is that and what filled
 	for _, tc := range []struct {
-		status            order.Status
-		filled, remaining float64
-		exp               order.Status
+		status                    order.Status
+		filled, remaining, amount float64
+		exp                       order.Status
 	}{
-		{order.Open, 0, 1.5, order.Open},
-		{order.Open, 0.25, 1.25, order.PartiallyFilled},
-		{order.Open, 1.5, 0, order.Filled},
-		{order.Cancelled, 0, 1.5, order.Cancelled},
-		{order.Cancelled, 0.25, 1.25, order.PartiallyFilledCancelled},
-		{order.Rejected, 0, 1.5, order.Rejected},
+		{order.Open, 0, 1.5, 1.5, order.Open},
+		{order.Open, 0.25, 1.25, 1.5, order.PartiallyFilled},
+		{order.Open, 1.25, 0.25, 1.5, order.PartiallyFilled},
+		{order.Open, 1.5, 0, 1.5, order.Filled},
+		{order.Cancelled, 0, 1.5, 1.5, order.Cancelled},
+		{order.Cancelled, 0.25, 1.25, 1.5, order.PartiallyFilledCancelled},
+		{order.Cancelled, 1.25, 0.25, 1.5, order.PartiallyFilledCancelled},
+		{order.Rejected, 0, 1.5, 1.5, order.Rejected},
+		// An immediate or cancel order's unfilled remainder is rejected after its fills
+		{order.Rejected, 0.25, 1.25, 1.5, order.PartiallyFilledCancelled},
+		// 0.7 and 0.1 add up to 0.7999999999999999 in floating point
+		{order.Open, 0.7, 0.1, 0.8, order.PartiallyFilled},
 	} {
 		o := history
-		o.FilledQuantity = types.Number(tc.filled)
+		o.Quantity, o.FilledQuantity = types.Number(tc.remaining), types.Number(tc.filled)
 		got, err := e.futuresHistoryOrderDetail(&o, tc.status)
-		require.NoErrorf(t, err, "futuresHistoryOrderDetail must not error for a %s event with %v filled", tc.status, tc.filled)
+		require.NoErrorf(t, err, "futuresHistoryOrderDetail must not error for a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
 		exp := &order.Detail{
 			Exchange:        e.Name,
 			AssetType:       asset.Futures,
@@ -5403,13 +6152,13 @@ func TestFuturesHistoryOrderDetail(t *testing.T) {
 			Status:          tc.exp,
 			ReduceOnly:      true,
 			Price:           81950,
-			Amount:          1.5,
+			Amount:          tc.amount,
 			ExecutedAmount:  tc.filled,
 			RemainingAmount: tc.remaining,
 			Date:            placed,
 			LastUpdated:     updated,
 		}
-		assert.Equalf(t, exp, got, "futuresHistoryOrderDetail should convert a %s event with %v filled", tc.status, tc.filled)
+		assert.Equalf(t, exp, got, "futuresHistoryOrderDetail should convert a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
 	}
 	for _, tc := range []struct {
 		name   string
@@ -5466,6 +6215,99 @@ func TestSubmitOrderQuoteSizedMarketBuy(t *testing.T) {
 		OrderID:     "ODV663-X7J9B-IUFH4O",
 	}
 	assert.Equal(t, exp, resp, "SubmitOrder should place a quote-sized market buy over REST while the private websocket is connected")
+}
+
+func TestSubmitOrderWebsocketToken(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		// tokenReply is Get Websockets Token's reply to the token request the executions subscription makes at connect
+		tokenReply string
+		connectErr error
+		paths      []string
+		requests   []string
+		orderID    string
+	}{
+		{
+			name:       "refused",
+			tokenReply: `{"error":["EGeneral:Permission denied"]}`,
+			connectErr: request.ErrAuthRequestFailed,
+			paths:      []string{"/0/private/GetWebSocketsToken", "/0/private/AddOrder"},
+			orderID:    "OT83XF-1Y4TH-OTWZWB",
+		},
+		{
+			name:       "granted",
+			tokenReply: `{"error":[],"result":{"token":"` + wsTestToken + `","expires":900}}`,
+			paths:      []string{"/0/private/GetWebSocketsToken"},
+			requests: []string{
+				`{"method":"subscribe","params":{"channel":"executions","snap_orders":true,"snap_trades":false,"token":"` + wsTestToken + `"}}`,
+				`{"method":"add_order","params":{"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD","token":"` + wsTestToken + `"}}`,
+			},
+			orderID: "OPS23M-VS41G-DDE5Z2",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var paths, requests []string
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				mu.Unlock()
+				reply := tc.tokenReply
+				if r.URL.Path == "/0/private/AddOrder" {
+					assert.JSONEq(t, `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`, tradingRequestBody(t, r), "Add Order should be sent the order")
+					reply = `{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0"},"txid":["OT83XF-1Y4TH-OTWZWB"]}}`
+				}
+				_, err := w.Write([]byte(reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			seedTestAssetNames(ex)
+			useTestCredentials(ex)
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
+			useTestWebsocket(t, ex, newMockWebsocketURL(t, func(_ testing.TB, msg []byte, w *gws.Conn) error {
+				reqID, err := jsonparser.GetInt(msg, "req_id")
+				if err != nil {
+					return err
+				}
+				method, err := jsonparser.GetString(msg, "method")
+				if err != nil {
+					return err
+				}
+				mu.Lock()
+				requests = append(requests, string(jsonparser.Delete(slices.Clone(msg), "req_id")))
+				mu.Unlock()
+				reply := ordersWsReply(method, `{"channel":"executions","maxratecount":125,"snap_orders":true,"snap_trades":false}`)
+				if method == "add_order" {
+					reply = ordersWsReply(method, `{"order_id":"OPS23M-VS41G-DDE5Z2"}`)
+				}
+				b, err := jsonparser.Set([]byte(reply), []byte(strconv.FormatInt(reqID, 10)), "req_id")
+				if err != nil {
+					return err
+				}
+				return w.WriteMessage(gws.TextMessage, b)
+			}), wsPrivateConnection)
+			err := ex.Websocket.Connect(t.Context())
+			if tc.connectErr != nil {
+				require.ErrorIs(t, err, tc.connectErr, "Connect must return the token's refusal")
+			} else {
+				require.NoError(t, err, "Connect must not error")
+			}
+			_, err = ex.Websocket.GetConnection(wsPrivateConnection)
+			require.NoError(t, err, "the private connection must stay connected")
+
+			submitted := time.Now()
+			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5})
+			require.NoError(t, err, "SubmitOrder must not error")
+			ordersClearSubmitTimes(t, resp, submitted)
+			exp := &order.SubmitResponse{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: spotTestPair, AssetType: asset.Spot, Price: 80000, Amount: 0.5, Status: order.New, OrderID: tc.orderID}
+			assert.Equal(t, exp, resp, "SubmitOrder should place the order")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, tc.paths, paths, "SubmitOrder should place the order over REST only while the private connection holds no subscription")
+			assertRequests(t, tc.requests, requests)
+		})
+	}
 }
 
 func TestSubmitOrderUntriggeredOrders(t *testing.T) {
@@ -5756,38 +6598,72 @@ func TestSubmitOrderFuturesUnsupportedTimeInForce(t *testing.T) {
 
 func TestModifyOrderFuturesSize(t *testing.T) {
 	t.Parallel()
-	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/editorder",
-		"limitPrice=81520&orderId=4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b&qtyMode=ABSOLUTE&size=0.0006",
-		`{"editStatus":{"cliOrdId":"gct-limit-1","orderEvents":[{"new":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,`+
-			`"lastUpdateTimestamp":"2026-10-09T08:19:58.730Z","limitPrice":81520,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0006,"reduceOnly":true,`+
-			`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"old":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,`+
-			`"lastUpdateTimestamp":"2026-10-09T08:15:30.413Z","limitPrice":81500,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0004,"reduceOnly":true,`+
-			`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"reducedQuantity":null,"type":"EDIT"}],`+
-			`"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","receivedTime":"2026-10-09T08:19:58.729Z","status":"edited"},"result":"success","serverTime":"2026-10-09T08:19:58.735Z"}`)
-	resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
-		Exchange:      ex.Name,
-		OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
-		ClientOrderID: "gct-limit-1",
-		Type:          order.Limit,
-		Side:          order.Buy,
-		AssetType:     asset.Futures,
-		Pair:          futuresTestPair,
-		Price:         81520,
-		Amount:        0.0006,
-	})
-	require.NoError(t, err, "ModifyOrder must not error")
-	exp := &order.ModifyResponse{
-		Exchange:      ex.Name,
-		OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
-		ClientOrderID: "gct-limit-1",
-		Pair:          futuresTestPair,
-		Type:          order.Limit,
-		Side:          order.Buy,
-		AssetType:     asset.Futures,
-		Price:         81520,
-		Amount:        0.0006,
+	reply := `{"editStatus":{"cliOrdId":"gct-limit-1","orderEvents":[{"new":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
+		`"lastUpdateTimestamp":"2026-10-09T08:19:58.730Z","limitPrice":81520,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0006,"reduceOnly":true,` +
+		`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"old":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
+		`"lastUpdateTimestamp":"2026-10-09T08:15:30.413Z","limitPrice":81500,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0004,"reduceOnly":true,` +
+		`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"reducedQuantity":null,"type":"EDIT"}],` +
+		`"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","receivedTime":"2026-10-09T08:19:58.729Z","status":"edited"},"result":"success","serverTime":"2026-10-09T08:19:58.735Z"}`
+	for _, tc := range []struct {
+		status      string
+		err, notErr error
+	}{
+		{status: "edited"},
+		// The edit filled the order in full
+		{status: "filled"},
+		// A cancel arriving while Kraken held the edit for maker protection had it applied as immediate or cancel
+		{status: "iocWouldNotExecute", err: errOrderEditImmediateOrCancel, notErr: errOrderEditFailed},
+		// Kraken documents every other status as an edit it did not apply
+		{status: "invalidSize", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "invalidPrice", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "insufficientAvailableFunds", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "selfFill", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "tooManySmallOrders", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "outsidePriceCollar", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "postWouldExecute", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "wouldNotReducePosition", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "orderForEditNotFound", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "orderForEditNotAStop", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		{status: "editAlreadyHeld", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/editorder",
+				"limitPrice=81520&orderId=4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b&qtyMode=ABSOLUTE&size=0.0006",
+				strings.Replace(reply, `"status":"edited"`, `"status":"`+tc.status+`"`, 1))
+			resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+				Exchange:      ex.Name,
+				OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
+				ClientOrderID: "gct-limit-1",
+				Type:          order.Limit,
+				Side:          order.Buy,
+				AssetType:     asset.Futures,
+				Pair:          futuresTestPair,
+				Price:         81520,
+				Amount:        0.0006,
+			})
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "ModifyOrder must report what Kraken's status says of the edit")
+				assert.NotErrorIs(t, err, tc.notErr, "ModifyOrder should not report the edit as another status would")
+				assert.ErrorContains(t, err, tc.status, "the error should carry Kraken's status")
+				assert.Nil(t, resp, "ModifyOrder should return no modification with its error")
+				return
+			}
+			require.NoError(t, err, "ModifyOrder must not error")
+			exp := &order.ModifyResponse{
+				Exchange:      ex.Name,
+				OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
+				ClientOrderID: "gct-limit-1",
+				Pair:          futuresTestPair,
+				Type:          order.Limit,
+				Side:          order.Buy,
+				AssetType:     asset.Futures,
+				Price:         81520,
+				Amount:        0.0006,
+			}
+			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does")
+		})
 	}
-	assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does")
 }
 
 func TestCancelBatchOrdersPartialSpotBatch(t *testing.T) {
@@ -5925,7 +6801,7 @@ func TestGetOrderHistoryFuturesCancelledOrders(t *testing.T) {
 	if !mockTests {
 		t.Skip("the cancelled orders are recorded responses")
 	}
-	got, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+	got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
 		Type:      order.AnyType,
@@ -5975,7 +6851,7 @@ func TestGetOrderHistoryFuturesUndecodedValues(t *testing.T) {
 	if !mockTests {
 		t.Skip("the undecoded orders are recorded responses")
 	}
-	got, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+	got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
 		Type:      order.AnyType,

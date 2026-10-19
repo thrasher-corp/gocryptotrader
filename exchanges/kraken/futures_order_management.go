@@ -26,8 +26,12 @@ func (e *Exchange) SendFuturesOrder(ctx context.Context, req *FuturesSendOrderRe
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if err := futuresValidateNewOrder(req.Symbol, req.Side, req.OrderType, req.Size, req.StopPrice, req.TrailingStopMaximumDeviation, req.TrailingStopDeviationUnit, req.ClientOrderID); err != nil {
+	if err := futuresValidateNewOrder(req.Symbol, req.Side, req.OrderType, req.Size, req.LimitPrice, req.StopPrice, req.TrailingStopMaximumDeviation, req.TrailingStopDeviationUnit, req.ClientOrderID); err != nil {
 		return nil, err
+	}
+	// An offset may be negative, so only one that is not finite is refused
+	if !isFinite(req.LimitPriceOffsetValue) {
+		return nil, fmt.Errorf("%w: limit price offset %v", errInvalidOrderPrice, req.LimitPriceOffsetValue)
 	}
 	if req.LimitPriceOffsetValue != 0 && req.LimitPriceOffsetUnit == "" {
 		return nil, errFuturesLimitPriceOffsetUnitRequired
@@ -85,7 +89,7 @@ func (e *Exchange) EditFuturesOrder(ctx context.Context, req *FuturesEditOrderRe
 	if req.OrderID == "" && req.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if err := futuresValidateTrailingStopDeviation(req.TrailingStopMaximumDeviation, req.TrailingStopDeviationUnit); err != nil {
+	if err := futuresValidateEdit(req.Size, req.LimitPrice, req.StopPrice, req.TrailingStopMaximumDeviation, req.TrailingStopDeviationUnit); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
@@ -234,7 +238,7 @@ func (e *Exchange) futuresBatchInstruction(instruction *FuturesBatchInstruction)
 		if send.OrderTag == "" {
 			return futuresBatchInstructionJSON{}, errFuturesOrderTagRequired
 		}
-		if err := futuresValidateNewOrder(send.Symbol, send.Side, send.OrderType, send.Size, send.StopPrice, send.TrailingStopMaximumDeviation, send.TrailingStopDeviationUnit, send.ClientOrderID); err != nil {
+		if err := futuresValidateNewOrder(send.Symbol, send.Side, send.OrderType, send.Size, send.LimitPrice, send.StopPrice, send.TrailingStopMaximumDeviation, send.TrailingStopDeviationUnit, send.ClientOrderID); err != nil {
 			return futuresBatchInstructionJSON{}, err
 		}
 		symbol, err := e.FormatSymbol(send.Symbol, asset.Futures)
@@ -261,7 +265,7 @@ func (e *Exchange) futuresBatchInstruction(instruction *FuturesBatchInstruction)
 		if edit.OrderID == "" && edit.ClientOrderID == "" {
 			return futuresBatchInstructionJSON{}, order.ErrOrderIDNotSet
 		}
-		if err := futuresValidateTrailingStopDeviation(edit.TrailingStopMaximumDeviation, edit.TrailingStopDeviationUnit); err != nil {
+		if err := futuresValidateEdit(edit.Size, edit.LimitPrice, edit.StopPrice, edit.TrailingStopMaximumDeviation, edit.TrailingStopDeviationUnit); err != nil {
 			return futuresBatchInstructionJSON{}, err
 		}
 		return futuresBatchInstructionJSON{
@@ -314,7 +318,7 @@ func (e *Exchange) GetFuturesOrdersStatus(ctx context.Context, req *FuturesOrder
 }
 
 // futuresValidateNewOrder checks the parameters Send order and a batch's send instructions require
-func futuresValidateNewOrder(symbol currency.Pair, side, orderType string, size, stopPrice, trailingStopMaximumDeviation float64, trailingStopDeviationUnit, clientOrderID string) error {
+func futuresValidateNewOrder(symbol currency.Pair, side, orderType string, size, limitPrice, stopPrice, trailingStopMaximumDeviation float64, trailingStopDeviationUnit, clientOrderID string) error {
 	switch {
 	case !symbol.IsPopulated():
 		return currency.ErrCurrencyPairEmpty
@@ -322,7 +326,7 @@ func futuresValidateNewOrder(symbol currency.Pair, side, orderType string, size,
 		return order.ErrSideIsInvalid
 	case orderType == "":
 		return order.ErrTypeIsInvalid
-	case size <= 0:
+	case !isFinitePositive(size):
 		return fmt.Errorf("%w: size %v", order.ErrAmountIsInvalid, size)
 	case stopPrice == 0 && (orderType == "stp" || orderType == "take_profit"):
 		return fmt.Errorf("%w for a %s order", errFuturesStopPriceRequired, orderType)
@@ -331,13 +335,44 @@ func futuresValidateNewOrder(symbol currency.Pair, side, orderType string, size,
 	case utf8.RuneCountInString(clientOrderID) > 100:
 		return fmt.Errorf("%w: %d characters exceed 100", errFuturesClientOrderIDTooLong, utf8.RuneCountInString(clientOrderID))
 	}
+	if err := futuresValidatePrices(limitPrice, stopPrice); err != nil {
+		return err
+	}
 	return futuresValidateTrailingStopDeviation(trailingStopMaximumDeviation, trailingStopDeviationUnit)
 }
 
-// futuresValidateTrailingStopDeviation checks a trailing stop's maximum deviation, which as a percentage must be from
-// 0.1 to 50. Kraken's specification bounds every deviation so, but its own example trails by 100 in quote currency
+// futuresValidateEdit checks the size, prices and trailing stop deviation Edit order and a batch's edit instructions
+// change, each of which 0 leaves unchanged
+func futuresValidateEdit(size, limitPrice, stopPrice, trailingStopMaximumDeviation float64, trailingStopDeviationUnit string) error {
+	if !isFiniteNonNegative(size) {
+		return fmt.Errorf("%w: size %v", order.ErrAmountIsInvalid, size)
+	}
+	if err := futuresValidatePrices(limitPrice, stopPrice); err != nil {
+		return err
+	}
+	return futuresValidateTrailingStopDeviation(trailingStopMaximumDeviation, trailingStopDeviationUnit)
+}
+
+// futuresValidatePrices checks an order's limit and stop prices, which 0 leaves unset and which must otherwise be
+// finite and positive
+func futuresValidatePrices(limitPrice, stopPrice float64) error {
+	if !isFiniteNonNegative(limitPrice) {
+		return fmt.Errorf("%w: limit price %v", errInvalidOrderPrice, limitPrice)
+	}
+	if !isFiniteNonNegative(stopPrice) {
+		return fmt.Errorf("%w: stop price %v", errInvalidOrderPrice, stopPrice)
+	}
+	return nil
+}
+
+// futuresValidateTrailingStopDeviation checks a trailing stop's maximum deviation, which 0 leaves unset, which must
+// otherwise be finite and positive, and which as a percentage must be from 0.1 to 50. Kraken's specification bounds
+// every deviation so, but its own example trails by 100 in quote currency
 func futuresValidateTrailingStopDeviation(maximumDeviation float64, unit string) error {
-	if maximumDeviation != 0 && unit == "PERCENT" && (maximumDeviation < 0.1 || maximumDeviation > 50) {
+	switch {
+	case !isFiniteNonNegative(maximumDeviation):
+		return fmt.Errorf("%w: %v", errFuturesInvalidTrailingStopDeviation, maximumDeviation)
+	case maximumDeviation != 0 && unit == "PERCENT" && (maximumDeviation < 0.1 || maximumDeviation > 50):
 		return fmt.Errorf("%w: %v percent is outside 0.1 to 50", errFuturesInvalidTrailingStopDeviation, maximumDeviation)
 	}
 	return nil

@@ -23,8 +23,8 @@ func (e *Exchange) CalculateFundingFees(ctx context.Context, req *FundingFeesReq
 	if req.MethodID == "" {
 		return nil, errFundingMethodIDEmpty
 	}
-	if req.Amount <= 0 {
-		return nil, fmt.Errorf("%w: amount must be positive", limits.ErrAmountBelowMin)
+	if !isFinitePositive(req.Amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
 	params := fundingParams(req.AccountID)
 	params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
@@ -103,11 +103,11 @@ func (e *Exchange) CreateFundingWithdrawal(ctx context.Context, req *FundingWith
 	if err := req.Asset.validate(true); err != nil {
 		return nil, err
 	}
-	if req.Amount <= 0 {
-		return nil, fmt.Errorf("%w: amount must be positive", limits.ErrAmountBelowMin)
+	if !isFinitePositive(req.Amount) {
+		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
-	if req.MaximumFee < 0 {
-		return nil, fmt.Errorf("%w: maximum fee cannot be negative", limits.ErrAmountBelowMin)
+	if !isFiniteNonNegative(req.MaximumFee) {
+		return nil, fmt.Errorf("%w: %v", errInvalidMaximumFee, req.MaximumFee)
 	}
 	if req.FeeToken != "" && req.MaximumFee != 0 {
 		return nil, errFundingFeeConflict

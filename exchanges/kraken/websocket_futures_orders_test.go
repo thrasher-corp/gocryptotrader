@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"context"
 	"net/http"
 	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,9 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // futuresTestConn stands in for a futures connection, which the order tracker tells apart by identity
@@ -61,10 +65,15 @@ func mergeOrderUpdates(t *testing.T, stored *order.Detail, details []*order.Deta
 
 // futuresFillMessage returns a fills feed message holding one fill of a buy order
 func futuresFillMessage(feed, orderID, fillID, instrument string, quantity, remaining, price, fee float64, feeCurrency string) string {
+	return `{"feed":"` + feed + `","account":"DemoUser","fills":[` + futuresFill(orderID, fillID, instrument, quantity, remaining, price, fee, feeCurrency) + `]}`
+}
+
+// futuresFill returns a fill of a buy order, as the fills feed reports it
+func futuresFill(orderID, fillID, instrument string, quantity, remaining, price, fee float64, feeCurrency string) string {
 	f := func(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
-	return `{"feed":"` + feed + `","account":"DemoUser","fills":[{"instrument":"` + instrument + `","time":1600256966528,"price":` + f(price) +
-		`,"seq":1,"buy":true,"qty":` + f(quantity) + `,"remaining_order_qty":` + f(remaining) + `,"order_id":"` + orderID + `","fill_id":"` + fillID +
-		`","fill_type":"taker","fee_paid":` + f(fee) + `,"fee_currency":"` + feeCurrency + `","order_type":"lmt"}]}`
+	return `{"instrument":"` + instrument + `","time":1600256966528,"price":` + f(price) + `,"seq":1,"buy":true,"qty":` + f(quantity) +
+		`,"remaining_order_qty":` + f(remaining) + `,"order_id":"` + orderID + `","fill_id":"` + fillID + `","fill_type":"taker","fee_paid":` + f(fee) +
+		`,"fee_currency":"` + feeCurrency + `","order_type":"lmt"}`
 }
 
 // futuresOpenOrder returns an open order of PF_XBTUSD at 20000, as the open_orders feed reports it
@@ -543,6 +552,246 @@ func TestFuturesOrderTracker(t *testing.T) {
 	}
 	require.True(t, fill("f-2", true).liveOnly, "a fill reported as it happened on a covered connection must be counted live")
 	assert.False(t, fill("f-3", false).liveOnly, "a fill not reported as it happened should end an order's live fills")
+
+	// An order an open_orders snapshot holds can have filled before the fills feed's snapshot
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("listed")})
+	assert.False(t, tracker.get("listed").liveOnly, "a snapshot should not take an order it holds as having all its fills reported as they happened")
+}
+
+// futuresTrackerCoverage is what an order tracker holds of the connection the feeds last reported on, and the quantity
+// it holds of o-1, the order coveredFuturesOrderTracker records
+type futuresTrackerCoverage struct {
+	conn                                  websocket.Connection
+	ordersSnapshotSeen, fillsSnapshotSeen bool
+	quantity                              float64
+}
+
+// trackerCoverage returns what a tracker holds of the connection the feeds last reported on, and of o-1's quantity. The
+// caller holds the tracker's lock
+func trackerCoverage(tracker *futuresOrderTracker) futuresTrackerCoverage {
+	c := futuresTrackerCoverage{conn: tracker.conn, ordersSnapshotSeen: tracker.ordersSnapshotSeen, fillsSnapshotSeen: tracker.fillsSnapshotSeen}
+	if s, ok := tracker.orders["o-1"]; ok {
+		c.quantity = s.quantity
+	}
+	return c
+}
+
+// coveredFuturesOrderTracker returns a tracker both feeds' snapshots covered on conn, the open_orders snapshot holding
+// o-1, an open order of 10
+func coveredFuturesOrderTracker(conn websocket.Connection) *futuresOrderTracker {
+	tracker := new(futuresOrderTracker)
+	tracker.snapshot(conn, []WebsocketFuturesOpenOrder{{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: "o-1"}})
+	tracker.fillsSnapshot(conn)
+	return tracker
+}
+
+func TestFuturesOrderTrackerReportedOn(t *testing.T) {
+	t.Parallel()
+	first, second := &futuresTestConn{name: "first"}, &futuresTestConn{name: "second"}
+	tracker := coveredFuturesOrderTracker(first)
+	tracker.mu.Lock()
+	tracker.reportedOn(first)
+	same := trackerCoverage(tracker)
+	tracker.reportedOn(second)
+	other := trackerCoverage(tracker)
+	tracker.mu.Unlock()
+	assert.Equal(t, futuresTrackerCoverage{first, true, true, 10}, same, "a report on the connection the feeds last reported on should keep its coverage and the open orders' quantities")
+	assert.Equal(t, futuresTrackerCoverage{second, false, false, 0}, other, "a report on another connection should start its coverage, forgetting the open orders' quantities")
+}
+
+func TestFuturesOrderTrackerUnsubscribed(t *testing.T) {
+	t.Parallel()
+	first, second := &futuresTestConn{name: "first"}, &futuresTestConn{name: "second"}
+	for _, tc := range []struct {
+		name string
+		conn websocket.Connection
+		feed string
+		exp  futuresTrackerCoverage
+	}{
+		{name: "open_orders", conn: first, feed: wsFuturesFeedOpenOrders, exp: futuresTrackerCoverage{conn: first, fillsSnapshotSeen: true}},
+		{name: "fills", conn: first, feed: wsFuturesFeedFills, exp: futuresTrackerCoverage{conn: first, ordersSnapshotSeen: true, quantity: 10}},
+		{name: "balances", conn: first, feed: wsFuturesFeedBalances, exp: futuresTrackerCoverage{conn: first, ordersSnapshotSeen: true, fillsSnapshotSeen: true, quantity: 10}},
+		{name: "open_orders on another connection", conn: second, feed: wsFuturesFeedOpenOrders, exp: futuresTrackerCoverage{conn: first, ordersSnapshotSeen: true, fillsSnapshotSeen: true, quantity: 10}},
+	} {
+		tracker := coveredFuturesOrderTracker(first)
+		tracker.unsubscribed(tc.conn, tc.feed)
+		tracker.mu.Lock()
+		got := trackerCoverage(tracker)
+		tracker.mu.Unlock()
+		assert.Equalf(t, tc.exp, got, "unsubscribing %s should leave the feeds' coverage and the open orders' quantities as expected", tc.name)
+	}
+}
+
+func TestFuturesOrderTrackerForgetQuantities(t *testing.T) {
+	t.Parallel()
+	var tracker futuresOrderTracker
+	open := func(orderID string) WebsocketFuturesOpenOrder {
+		return WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, Filled: 4, OrderID: orderID}
+	}
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("open"), open("triggered"), open("filled"), open("cancelled")})
+	tracker.finish(nil, "triggered", "stop_order_triggered")
+	tracker.finish(nil, "filled", "full_fill")
+	tracker.finish(nil, "cancelled", "cancelled_by_user")
+	tracker.mu.Lock()
+	tracker.forgetQuantities()
+	got := make(map[string][2]float64, len(tracker.orders))
+	for id, s := range tracker.orders {
+		got[id] = [2]float64{s.quantity, s.filled}
+	}
+	tracker.mu.Unlock()
+	// The order a stop places when it triggers takes its ID, so its quantity can still change; a finished order's cannot
+	exp := map[string][2]float64{"open": {0, 4}, "triggered": {0, 4}, "filled": {10, 4}, "cancelled": {10, 4}}
+	assert.Equal(t, exp, got, "forgetQuantities should forget the quantity of each order whose quantity can still change, keeping what filled")
+}
+
+func TestFuturesOrderTrackerState(t *testing.T) {
+	t.Parallel()
+	first, second := &futuresTestConn{name: "first"}, &futuresTestConn{name: "second"}
+	tracker := coveredFuturesOrderTracker(first)
+	tracker.mu.Lock()
+	defer tracker.mu.Unlock()
+	made := tracker.state("o-2", first)
+	assert.Same(t, made, tracker.state("o-2", first), "state should return the record it made of an order")
+	got := *made
+	got.updated = time.Time{}
+	assert.Equal(t, futuresOrderState{fillIDs: map[string]struct{}{}, liveOnly: true, fillsCoverage: 1}, got, "state should make the record of an order first reported on a covered connection as reported live")
+	got = *tracker.state("o-3", second)
+	got.updated = time.Time{}
+	assert.Equal(t, futuresOrderState{fillIDs: map[string]struct{}{}, fillsCoverage: 1}, got, "state should make the record of an order first reported on a new connection as not reported live")
+	assert.Equal(t, futuresTrackerCoverage{second, false, false, 0}, trackerCoverage(tracker), "a report on a new connection should start its coverage, forgetting the open orders' quantities")
+}
+
+func TestFuturesOrderQuantityCoverage(t *testing.T) {
+	t.Parallel()
+	snapshot := func(quantity, filled float64) string {
+		return `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-30", quantity, filled) + `]}`
+	}
+	lastFill := func(feed string, quantity float64) string {
+		return futuresFillMessage(feed, "o-30", "f-last", "PF_XBTUSD", quantity, 0, 20000, 0.25, "USD")
+	}
+	initial := []string{snapshot(10, 0), futuresEmptyFillsSnapshot}
+	// report is what the feeds report on the subscribed connection, or on a new connection after it
+	type report struct {
+		onNew bool
+		msgs  []string
+		// unsubscribe has open_orders unsubscribed on the subscribed connection after the messages
+		unsubscribe bool
+	}
+	for _, tc := range []struct {
+		name    string
+		reports []report
+		// filled is the order's last fill, the last message, which leaves nothing of the order remaining
+		filled float64
+		status order.Status
+		// amount is the order's quantity and executed quantity the last fill relays, zero when it relays its trade alone
+		amount float64
+	}{
+		// The order was amended from 10 to 5 and filled while the connection was down
+		{
+			name:    "fills snapshot first on a new connection",
+			reports: []report{{msgs: initial}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFillsSnapshot, 5)}}},
+			filled:  5,
+		},
+		{
+			name:    "fill before the snapshots on a new connection",
+			reports: []report{{msgs: initial}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFills, 5)}}},
+			filled:  5,
+		},
+		{
+			name:    "open_orders snapshot first on a new connection",
+			reports: []report{{msgs: initial}, {onNew: true, msgs: []string{futuresEmptySnapshot, lastFill(wsFuturesFeedFillsSnapshot, 5)}}},
+			filled:  5,
+		},
+		// The order was amended from 10 to 5, of which 2 filled, while the connection was down
+		{
+			name:    "listed again by an open_orders snapshot after the fills snapshot on a new connection",
+			reports: []report{{msgs: initial}, {onNew: true, msgs: []string{futuresEmptyFillsSnapshot, snapshot(5, 2), lastFill(wsFuturesFeedFills, 3)}}},
+			filled:  3,
+			status:  order.Filled,
+			amount:  5,
+		},
+		// The order was amended from 10 to 5 and filled while open_orders was unsubscribed
+		{
+			name:    "open_orders unsubscribed",
+			reports: []report{{msgs: initial, unsubscribe: true}, {msgs: []string{lastFill(wsFuturesFeedFills, 5)}}},
+			filled:  5,
+		},
+		// 4 of the order filled before the fills snapshot, which need not hold that fill
+		{
+			name:    "listed by an open_orders snapshot after the fills snapshot, then open_orders unsubscribed",
+			reports: []report{{msgs: []string{futuresEmptyFillsSnapshot, snapshot(10, 4)}, unsubscribe: true}, {msgs: []string{lastFill(wsFuturesFeedFills, 6)}}},
+			filled:  6,
+		},
+		// The stop triggered, and the order it placed under its ID was amended from 10 to 5 and filled while the
+		// connection was down
+		{
+			name:    "stop removed as triggered",
+			reports: []report{{msgs: append(slices.Clone(initial), futuresRemovalMessage("o-30", "stop_order_triggered"))}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFillsSnapshot, 5)}}},
+			filled:  5,
+			status:  order.Closed,
+		},
+		// A finished order's quantity cannot change, so the fills Kraken reports late count against it
+		{
+			name:    "filled",
+			reports: []report{{msgs: append(slices.Clone(initial), futuresRemovalMessage("o-30", "full_fill"))}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFillsSnapshot, 6)}}},
+			filled:  6,
+			status:  order.Filled,
+			amount:  10,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, conn := newFuturesTestExchange(t, new(mockFuturesServer))
+			seedTestAssetNames(ex)
+			orders := futuresSubscription(subscription.MyOrdersChannel, wsFuturesFeedOpenOrders)
+			require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{orders, futuresSubscription(subscription.MyTradesChannel, wsFuturesFeedFills)}), "futuresSubscribe must not error")
+			newConn := &futuresTestConn{name: "new"}
+			var details []*order.Detail
+			for _, r := range tc.reports {
+				on := conn
+				if r.onNew {
+					on = newConn
+				}
+				details = futuresOrderUpdatesOn(t, ex, on, r.msgs...)
+				if r.unsubscribe {
+					require.NoError(t, ex.futuresUnsubscribe(t.Context(), conn, subscription.List{orders}), "futuresUnsubscribe must not error")
+				}
+			}
+			require.NotEmpty(t, details, "the last fill must relay an order update")
+			fillTime := time.UnixMilli(1600256966528)
+			exp := &order.Detail{
+				Exchange:       ex.Name,
+				AssetType:      asset.Futures,
+				OrderID:        "o-30",
+				Pair:           futuresTestPair,
+				Side:           order.Buy,
+				Type:           order.Limit,
+				Status:         tc.status,
+				Amount:         tc.amount,
+				ExecutedAmount: tc.amount,
+				FeeAsset:       currency.USD,
+				LastUpdated:    fillTime,
+				Trades:         []order.TradeHistory{{TID: "f-last", Price: 20000, Amount: tc.filled, Fee: 0.25, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+			}
+			assert.Equal(t, exp, details[len(details)-1], "the last fill should relay the order's quantity only while open_orders reports the order's changes, or once it has finished")
+		})
+	}
+}
+
+func TestFuturesOrderRestingPastRetention(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	seedTestAssetNames(ex)
+	futuresOrderUpdates(t, ex, `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("resting", 10, 0)+`]}`)
+	ex.futuresOrders.mu.Lock()
+	ex.futuresOrders.orders["resting"].updated = time.Now().Add(-futuresOrderRetention - time.Second)
+	ex.futuresOrders.mu.Unlock()
+	// Another order's removal prunes the orders the feeds have not reported for futuresOrderRetention
+	futuresOrderUpdates(t, ex, futuresRemovalMessage("other", "cancelled_by_user"))
+	got := futuresOrderUpdates(t, ex, futuresRemovalMessage("resting", "full_fill"))
+	require.Len(t, got, 1, "the removal must relay one order update")
+	exp := &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "resting", Status: order.Filled, Amount: 10, ExecutedAmount: 10}
+	assert.Equal(t, exp, got[0], "an order resting past futuresOrderRetention should keep the quantity open_orders reported, and be relayed filled in full")
 }
 
 func TestSameQuantity(t *testing.T) {
@@ -558,7 +807,7 @@ func TestSameQuantity(t *testing.T) {
 func setFuturesMarginCurrencies(ex *Exchange, currencies map[string]currency.Code) {
 	ex.futuresMarginCurrenciesMu.Lock()
 	defer ex.futuresMarginCurrenciesMu.Unlock()
-	ex.futuresMarginCurrencies = map[accounts.Credentials]map[string]currency.Code{*ex.GetDefaultCredentials(): currencies}
+	ex.futuresMarginCurrencies = map[accounts.Credentials]futuresMarginRead{*ex.GetDefaultCredentials(): {currencies: currencies}}
 }
 
 func TestWebsocketFuturesProcessBalancesSnapshot(t *testing.T) {
@@ -654,6 +903,120 @@ func TestWebsocketFuturesProcessBalancesMarginAccount(t *testing.T) {
 	assert.Equal(t, 9.0, b.Total, "the margin account's other currencies should be kept")
 }
 
+func TestWebsocketFuturesMarginAccountFreeClamped(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		_, err := w.Write([]byte(`{"result":"success","accounts":{"fi_xbtusd":{"type":"marginAccount","currency":"xbt","balances":{"xbt":"1"},` +
+			`"auxiliary":{"af":0.5},"marginRequirements":{},"triggerEstimates":{}},"cash":{"type":"cashAccount","balances":{"usd":"100"}},` +
+			`"flex":{"type":"multiCollateralMarginAccount","currencies":{}}},"serverTime":"2026-10-16T00:00:00.000Z"}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	for _, tc := range []struct {
+		available float64
+		exp       accounts.Balance
+	}{
+		{available: 1.2, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Free: 0.75}},
+		{available: -0.1, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Hold: 0.75}},
+	} {
+		update := `{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.75,"available":` +
+			strconv.FormatFloat(tc.available, 'f', -1, 64) + `}},"timestamp":1640995200000,"seq":2}`
+		require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for available %v", tc.available)
+		relayed(ex)
+		b, err := ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
+		require.NoError(t, err, "GetBalance must not error")
+		b.UpdatedAt = time.Time{}
+		assert.Equalf(t, tc.exp, b, "the free balance stored for available %v should stay within the balance", tc.available)
+	}
+}
+
+// pausedCredentialsContext holds the first credentials lookup made with it until resume is called, closing reached as
+// it starts, so a test can hold a balances message after it is numbered and before it is stored
+type pausedCredentialsContext struct {
+	context.Context       //nolint:containedctx // pausedCredentialsContext implements context.Context
+	reached, resumed      chan struct{}
+	pauseOnce, resumeOnce sync.Once
+}
+
+// newPausedCredentialsContext returns a pausedCredentialsContext of the test's context, resumed when the test ends
+func newPausedCredentialsContext(t *testing.T) *pausedCredentialsContext {
+	t.Helper()
+	ctx := &pausedCredentialsContext{Context: t.Context(), reached: make(chan struct{}), resumed: make(chan struct{})}
+	t.Cleanup(ctx.resume)
+	return ctx
+}
+
+// resume releases the held credentials lookup
+func (c *pausedCredentialsContext) resume() {
+	c.resumeOnce.Do(func() { close(c.resumed) })
+}
+
+// Value holds the first credentials lookup until resume is called
+func (c *pausedCredentialsContext) Value(key any) any {
+	if key == accounts.ContextCredentialsFlag {
+		c.pauseOnce.Do(func() {
+			close(c.reached)
+			<-c.resumed
+		})
+	}
+	return c.Context.Value(key)
+}
+
+func TestWebsocketFuturesProcessBalancesKeepsNewerRead(t *testing.T) {
+	t.Parallel()
+	const (
+		olderRead = `{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{"usd":"1000"}},` +
+			`"flex":{"type":"multiCollateralMarginAccount","currencies":{}}},"serverTime":"2026-10-19T00:00:00.000Z"}`
+		newerRead = `{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{"usd":"500"}},` +
+			`"flex":{"type":"multiCollateralMarginAccount","currencies":{}}},"serverTime":"2026-10-19T00:00:01.000Z"}`
+	)
+	for _, feed := range []string{wsFuturesFeedBalancesSnapshot, wsFuturesFeedBalances} {
+		t.Run(feed, func(t *testing.T) {
+			t.Parallel()
+			ex, readArrived, releaseRead := newHeldFuturesAccountsTestExchange(t, olderRead, newerRead)
+			ctx := newPausedCredentialsContext(t)
+			msg := `{"feed":"` + feed + `","account":"DemoUser","holding":{"USD":200},"timestamp":1640995200000,"seq":1}`
+			stored := make(chan error, 1)
+			go func() { stored <- ex.wsFuturesProcessBalances(ctx, feed, []byte(msg)) }()
+			awaitClosed(t, ctx.reached, "the message must be numbered and held before its store")
+			older := make(chan error, 1)
+			go func() {
+				_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+				older <- err
+			}()
+			awaitClosed(t, readArrived, "the older read must reach the server")
+			newer := make(chan error, 1)
+			go func() {
+				_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+				newer <- err
+			}()
+			require.NoError(t, awaitError(t, newer, "the newer read must finish while the older one is held"), "the newer UpdateAccountBalances must not error")
+			ctx.resume()
+			require.NoError(t, awaitError(t, stored, "the message must be processed once resumed"), "wsFuturesProcessBalances must not error")
+			expRelayed := []any{&WebsocketFuturesBalances{
+				Feed:      feed,
+				Account:   "DemoUser",
+				Timestamp: types.Time(time.UnixMilli(1640995200000)),
+				Sequence:  1,
+				Holding:   map[string]float64{"USD": 200},
+			}}
+			assert.Equal(t, expRelayed, relayed(ex), "wsFuturesProcessBalances should relay the message alone when it stores nothing")
+			releaseRead()
+			require.NoError(t, awaitError(t, older, "the older read must finish once released"), "the older UpdateAccountBalances must not error")
+			exp := map[string]accounts.CurrencyBalances{
+				"cash": {currency.USD: {Currency: currency.USD, Total: 500, Free: 500}},
+				"flex": {},
+			}
+			assert.Equal(t, exp, storedFuturesWallets(t, ex), "a message and a read requested before a newer read should not be stored over it")
+		})
+	}
+}
+
 func TestFuturesMarginAccountName(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -679,4 +1042,118 @@ func TestFuturesMarginAccountName(t *testing.T) {
 	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: testSecret})
 	_, ok := ex.futuresMarginAccountName(other, &WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"})
 	assert.False(t, ok, "futuresMarginAccountName should not match an account another account's REST read recorded")
+
+	noCreds := newTestExchange(t)
+	noCreds.SkipAuthCheck = false
+	noCreds.API.AuthenticatedSupport = true
+	noCreds.SetCredentials(&accounts.Credentials{})
+	_, ok = noCreds.futuresMarginAccountName(t.Context(), &WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"})
+	assert.False(t, ok, "futuresMarginAccountName should match no account without credentials")
+}
+
+func TestSaveFuturesFeedBalances(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "saveFuturesFeedBalances should make no request")
+	})
+	noCreds := newTestExchange(t)
+	noCreds.SkipAuthCheck = false
+	noCreds.API.AuthenticatedSupport = true
+	noCreds.SetCredentials(&accounts.Credentials{})
+	subAccts, err := noCreds.saveFuturesFeedBalances(t.Context(), 1, true, nil)
+	require.NoError(t, err, "saveFuturesFeedBalances must not error without wallets to store")
+	assert.Nil(t, subAccts, "saveFuturesFeedBalances should store nothing without wallets")
+	cash := func(balances accounts.CurrencyBalances) accounts.SubAccounts {
+		return accounts.SubAccounts{{ID: "cash", AssetType: asset.Futures, Balances: balances}}
+	}
+	_, err = noCreds.saveFuturesFeedBalances(t.Context(), 2, true, cash(accounts.CurrencyBalances{}))
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should reject missing credentials")
+
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
+		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}}},
+		{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Total: 1, Free: 1}, currency.XRP: {Total: 1, Free: 1}}},
+	}, true), "Save must not error")
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 10, true, accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 5, Free: 5}}},
+		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{}},
+		{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5}}},
+	})
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for a snapshot")
+	expReturned := map[string]accounts.CurrencyBalances{
+		"cash":      {currency.USD: {Currency: currency.USD, Total: 5, Free: 5}},
+		"flex":      {},
+		"fi_xbtusd": {currency.XBT: {Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5}},
+	}
+	assert.Equal(t, expReturned, futuresWalletBalances(subAccts), "saveFuturesFeedBalances should return the wallets as stored")
+	exp := map[string]accounts.CurrencyBalances{
+		"cash": {currency.USD: {Currency: currency.USD, Total: 5, Free: 5}},
+		"flex": {},
+		"fi_xbtusd": {
+			currency.XBT: {Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5},
+			currency.XRP: {Currency: currency.XRP, Total: 1, Free: 1},
+		},
+	}
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "a snapshot's cash and multi-collateral wallets should be stored whole, and a margin account a currency at a time")
+
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 11, false, cash(accounts.CurrencyBalances{currency.EUR: {Currency: currency.EUR, Total: 2, Free: 2}}))
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for an update")
+	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {currency.EUR: {Currency: currency.EUR, Total: 2, Free: 2}}}, futuresWalletBalances(subAccts), "saveFuturesFeedBalances should return the balances an update stored")
+	exp["cash"][currency.EUR] = accounts.Balance{Currency: currency.EUR, Total: 2, Free: 2}
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "an update should store a wallet a currency at a time")
+
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 9, false, cash(accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 7, Free: 7}}))
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for an update that arrived before its wallet was stored whole")
+	assert.Nil(t, subAccts, "saveFuturesFeedBalances should store nothing of an update that arrived before its wallet was stored whole")
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 9, true, accounts.SubAccounts{
+		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 8, Free: 8}}},
+		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 8, Free: 8}}},
+	})
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for a snapshot that arrived before its wallets were stored whole")
+	assert.Nil(t, subAccts, "saveFuturesFeedBalances should store nothing of a snapshot that arrived before its wallets were stored whole")
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "saveFuturesFeedBalances should leave balances stored after a message arrived as stored")
+
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 10, false, cash(accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 6, Free: 6},
+		currency.EUR: {Currency: currency.EUR, Total: 9, Free: 9},
+		currency.GBP: {Currency: currency.GBP, Total: 3, Free: 3},
+	}))
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for an update")
+	exp["cash"] = accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 6, Free: 6},
+		currency.EUR: {Currency: currency.EUR, Total: 2, Free: 2},
+		currency.GBP: {Currency: currency.GBP, Total: 3, Free: 3},
+	}
+	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {currency.USD: exp["cash"][currency.USD], currency.GBP: exp["cash"][currency.GBP]}}, futuresWalletBalances(subAccts),
+		"saveFuturesFeedBalances should store an update's currencies except one stored on its own after it arrived")
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "saveFuturesFeedBalances should keep a currency stored on its own after an update arrived")
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 11, false, cash(accounts.CurrencyBalances{currency.EUR: {Currency: currency.EUR, Total: 4, Free: 4}}))
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for an update numbered as its currency's last store")
+	exp["cash"][currency.EUR] = accounts.Balance{Currency: currency.EUR, Total: 4, Free: 4}
+	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {currency.EUR: exp["cash"][currency.EUR]}}, futuresWalletBalances(subAccts), "saveFuturesFeedBalances should store an update numbered as its currency's last store")
+
+	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 10, true, cash(accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 9, Free: 9}}))
+	require.NoError(t, err, "saveFuturesFeedBalances must not error for a snapshot numbered as its wallet's last store")
+	exp["cash"] = accounts.CurrencyBalances{
+		currency.USD: {Currency: currency.USD, Total: 9, Free: 9},
+		currency.EUR: {Currency: currency.EUR, Total: 4, Free: 4},
+	}
+	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": exp["cash"]}, futuresWalletBalances(subAccts), "saveFuturesFeedBalances should return a snapshot's wallet as stored")
+	assert.Equal(t, exp, storedFuturesWallets(t, ex), "a snapshot should store its wallet whole, keeping a currency stored on its own after it arrived")
+
+	unsupported := accounts.SubAccounts{{ID: "cash", AssetType: asset.Empty, Balances: accounts.CurrencyBalances{}}}
+	_, err = ex.saveFuturesFeedBalances(t.Context(), 10, true, unsupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "saveFuturesFeedBalances should return the error reading a balance a snapshot keeps")
+	_, err = ex.saveFuturesFeedBalances(t.Context(), 12, true, unsupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "saveFuturesFeedBalances should return the error storing a wallet whole")
+	_, err = ex.saveFuturesFeedBalances(t.Context(), 12, false, cash(accounts.CurrencyBalances{currency.EMPTYCODE: {Total: 1, Free: 1}}))
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "saveFuturesFeedBalances should return the error storing a balance")
+	expStored := map[string]*futuresWalletStores{
+		"cash":      {whole: 10, currencies: map[currency.Code]uint64{currency.USD: 10, currency.EUR: 11, currency.GBP: 10}},
+		"flex":      {whole: 10, currencies: map[currency.Code]uint64{}},
+		"fi_xbtusd": {currencies: map[currency.Code]uint64{currency.XBT: 10}},
+	}
+	ex.futuresBalancesMu.Lock()
+	assert.Equal(t, expStored, ex.futuresWalletsStored[*ex.GetDefaultCredentials()], "saveFuturesFeedBalances should record the message each store came from, and nothing it did not store")
+	ex.futuresBalancesMu.Unlock()
 }

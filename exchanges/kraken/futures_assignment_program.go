@@ -3,7 +3,6 @@ package kraken
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -42,14 +41,14 @@ func (e *Exchange) AddFuturesAssignmentPreference(ctx context.Context, req *Futu
 	if req.Pair.Base.IsEmpty() != req.Pair.Quote.IsEmpty() {
 		return nil, fmt.Errorf("%w: a currency pair needs a base and a quote", currency.ErrCurrencyCodeEmpty)
 	}
-	if req.MaxSize < 0 || math.IsNaN(req.MaxSize) {
-		return nil, fmt.Errorf("%w: max size %v", errFuturesNegativeLimit, req.MaxSize)
+	if !isFiniteNonNegative(req.MaxSize) {
+		return nil, fmt.Errorf("%w: max size %v", errFuturesInvalidLimit, req.MaxSize)
 	}
-	if req.MaxPosition != nil && (*req.MaxPosition < 0 || math.IsNaN(*req.MaxPosition)) {
-		return nil, fmt.Errorf("%w: max position %v", errFuturesNegativeLimit, *req.MaxPosition)
+	if req.MaxPosition != nil && !isFiniteNonNegative(*req.MaxPosition) {
+		return nil, fmt.Errorf("%w: max position %v", errFuturesInvalidLimit, *req.MaxPosition)
 	}
-	if req.CashAccountOpenPositionMaxNotional != nil && (*req.CashAccountOpenPositionMaxNotional < 0 || math.IsNaN(*req.CashAccountOpenPositionMaxNotional)) {
-		return nil, fmt.Errorf("%w: cash account open position max notional %v", errFuturesNegativeLimit, *req.CashAccountOpenPositionMaxNotional)
+	if req.CashAccountOpenPositionMaxNotional != nil && !isFiniteNonNegative(*req.CashAccountOpenPositionMaxNotional) {
+		return nil, fmt.Errorf("%w: cash account open position max notional %v", errFuturesInvalidLimit, *req.CashAccountOpenPositionMaxNotional)
 	}
 	params := url.Values{}
 	params.Set("contractType", req.ContractType)

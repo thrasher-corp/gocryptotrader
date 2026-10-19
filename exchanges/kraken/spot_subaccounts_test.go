@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,8 +33,10 @@ func TestAccountTransfer(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "AccountTransfer must reject a nil request")
 	_, err = e.AccountTransfer(t.Context(), &SubaccountTransferRequest{Amount: 2.54, FromAccountID: "ABCD 1234 EFGH 5678", ToAccountID: "IJKL 0987 MNOP 6543"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AccountTransfer must reject an empty asset")
-	_, err = e.AccountTransfer(t.Context(), &SubaccountTransferRequest{Asset: currency.XBT, FromAccountID: "ABCD 1234 EFGH 5678", ToAccountID: "IJKL 0987 MNOP 6543"})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "AccountTransfer must reject a zero amount")
+	for _, amount := range []float64{0, -2.54, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.AccountTransfer(t.Context(), &SubaccountTransferRequest{Asset: currency.XBT, Amount: amount, FromAccountID: "ABCD 1234 EFGH 5678", ToAccountID: "IJKL 0987 MNOP 6543"})
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "AccountTransfer must reject an amount of %v", amount)
+	}
 	_, err = e.AccountTransfer(t.Context(), &SubaccountTransferRequest{Asset: currency.XBT, Amount: 2.54, ToAccountID: "IJKL 0987 MNOP 6543"})
 	require.ErrorIs(t, err, errSubaccountAccountIDRequired, "AccountTransfer must reject an empty source account")
 	_, err = e.AccountTransfer(t.Context(), &SubaccountTransferRequest{Asset: currency.XBT, Amount: 2.54, FromAccountID: "ABCD 1234 EFGH 5678"})

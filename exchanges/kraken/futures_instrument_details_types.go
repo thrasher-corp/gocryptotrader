@@ -59,6 +59,9 @@ type FuturesInstrument struct {
 	MinRelativeFundingRate float64   `json:"minRelativeFundingRate"`
 	OpeningDate            time.Time `json:"openingDate"`
 	PostOnly               bool      `json:"postOnly"`
+	// Suspended is true when the market is not accepting orders, as it is suspended, pending settlement or inactive; a
+	// post-only market is not suspended
+	Suspended bool `json:"suspended"`
 	// FeeScheduleUID has not identified the schedule fees are charged by since 22 June 2026; GetTradeVolume returns
 	// the fee rates charged
 	FeeScheduleUID string `json:"feeScheduleUid"`
@@ -164,6 +167,9 @@ type FuturesTradingInstrument struct {
 	// orders can react; it is 0 for a market without maker protection
 	MakerProtectionMilliseconds uint64 `json:"makerProtectionMillis"`
 	PostOnly                    bool   `json:"postOnly"`
+	// Suspended is true when the market is not accepting orders, as it is suspended, pending settlement or inactive; a
+	// post-only market is not suspended
+	Suspended bool `json:"suspended"`
 	// FeeScheduleUID has not identified the schedule fees are charged by since 22 June 2026; GetTradeVolume returns
 	// the fee rates charged
 	FeeScheduleUID string `json:"feeScheduleUid"`

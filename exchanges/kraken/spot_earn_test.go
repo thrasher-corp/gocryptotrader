@@ -262,8 +262,10 @@ func TestAllocateEarnFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.AllocateEarnFunds(t.Context(), "", 4.3)
 	require.ErrorIs(t, err, errEarnStrategyIDRequired, "AllocateEarnFunds must reject an empty strategy ID")
-	_, err = e.AllocateEarnFunds(t.Context(), "ESRFUO3-Q62XD-WIOIL7", 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "AllocateEarnFunds must reject a zero amount")
+	for _, amount := range []float64{0, -4.3, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.AllocateEarnFunds(t.Context(), "ESRFUO3-Q62XD-WIOIL7", amount)
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "AllocateEarnFunds must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -277,8 +279,10 @@ func TestDeallocateEarnFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.DeallocateEarnFunds(t.Context(), "", 1.25)
 	require.ErrorIs(t, err, errEarnStrategyIDRequired, "DeallocateEarnFunds must reject an empty strategy ID")
-	_, err = e.DeallocateEarnFunds(t.Context(), "ESRFUO3-Q62XD-WIOIL7", 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "DeallocateEarnFunds must reject a zero amount")
+	for _, amount := range []float64{0, -1.25, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = e.DeallocateEarnFunds(t.Context(), "ESRFUO3-Q62XD-WIOIL7", amount)
+		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "DeallocateEarnFunds must reject an amount of %v", amount)
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -326,8 +330,10 @@ func TestEarnOperationBody(t *testing.T) {
 	t.Parallel()
 	_, err := earnOperationBody("", 1)
 	assert.ErrorIs(t, err, errEarnStrategyIDRequired, "earnOperationBody should reject an empty strategy ID")
-	_, err = earnOperationBody("ESRFUO3-Q62XD-WIOIL7", 0)
-	assert.ErrorIs(t, err, limits.ErrAmountBelowMin, "earnOperationBody should reject a zero amount")
+	for _, amount := range []float64{0, -0.5, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err = earnOperationBody("ESRFUO3-Q62XD-WIOIL7", amount)
+		assert.ErrorIsf(t, err, limits.ErrAmountBelowMin, "earnOperationBody should reject an amount of %v", amount)
+	}
 	body, err := earnOperationBody("ESRFUO3-Q62XD-WIOIL7", 0.5)
 	require.NoError(t, err, "earnOperationBody must not error")
 	assert.Equal(t, map[string]any{"amount": "0.5", "strategy_id": "ESRFUO3-Q62XD-WIOIL7"}, body, "earnOperationBody should send the amount and strategy ID")

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -325,18 +327,24 @@ func groupSubscriptions(subs subscription.List) []subscription.List {
 }
 
 // manageSubGroup sends one subscribe or unsubscribe request for subscriptions that differ only by pair, and records
-// each subscription the replies acknowledge
+// each subscription whose every symbol the replies acknowledge
 func (e *Exchange) manageSubGroup(ctx context.Context, conn websocket.Connection, method string, group subscription.List) error {
 	params := &wsSubscriptionParams{Channel: group[0].QualifiedChannel}
 	bySymbol := make(map[string]*subscription.Subscription, len(group))
+	symbols := make(map[*subscription.Subscription][]string, len(group))
 	for _, s := range group {
 		for _, p := range s.Pairs {
 			symbol := e.displaySymbol(p)
 			params.Symbols = append(params.Symbols, symbol)
 			bySymbol[symbol] = s
+			symbols[s] = append(symbols[s], symbol)
 		}
 	}
 	s := group[0]
+	if len(params.Symbols) == 0 {
+		// A request without symbols is for one subscription, which its reply answers naming none
+		bySymbol[""], symbols[s] = s, []string{""}
+	}
 	switch params.Channel {
 	case wsChannelBook, wsChannelLevel3:
 		params.Depth = wsBookDepths[s.Levels]
@@ -383,10 +391,7 @@ func (e *Exchange) manageSubGroup(ctx context.Context, conn websocket.Connection
 		return e.failSubGroup(method, group, err)
 	}
 
-	pending := make(map[*subscription.Subscription]error, len(group))
-	for _, sub := range group {
-		pending[sub] = fmt.Errorf("%w: %s", errSubscriptionResponseMissing, sub)
-	}
+	replies := subscriptionReplies{accepted: make(map[string]bool, len(bySymbol)), rejected: make(map[string][]string)}
 	for _, raw := range resps {
 		var resp wsResponse
 		if err := json.Unmarshal(raw, &resp); err != nil {
@@ -398,19 +403,18 @@ func (e *Exchange) manageSubGroup(ctx context.Context, conn websocket.Connection
 				return e.failSubGroup(method, group, err)
 			}
 		}
-		symbol := result.Symbol
-		if symbol == "" {
-			symbol = resp.Symbol
-		}
-		sub := s
-		if len(bySymbol) != 0 {
-			var ok bool
-			if sub, ok = bySymbol[symbol]; !ok {
+		symbol := cmp.Or(result.Symbol, resp.Symbol)
+		sub, requested := bySymbol[symbol]
+		if !requested {
+			// Kraken names no symbol in some rejections, such as of a second candle interval for a symbol
+			if symbol != "" || resp.Success {
 				return common.AppendError(fmt.Errorf("%w: %s", errUnexpectedSubscriptionReply, raw), e.failSubGroup(method, group, nil))
 			}
+			replies.unnamed = appendReasons(replies.unnamed, resp.Error)
+			continue
 		}
 		if !resp.Success {
-			pending[sub] = fmt.Errorf("%s %s: %w", method, sub, &APIError{Errors: []string{resp.Error}})
+			replies.rejected[symbol] = appendReasons(replies.rejected[symbol], resp.Error)
 			continue
 		}
 		// Kraken warns of deprecated fields it still sends, such as the ohlc channel's timestamp, on every subscription
@@ -419,13 +423,13 @@ func (e *Exchange) manageSubGroup(ctx context.Context, conn websocket.Connection
 				log.Debugf(log.WebsocketMgr, "%s %s %s: %s", e.Name, method, sub, warning)
 			}
 		}
-		pending[sub] = nil
+		replies.accepted[symbol] = true
 	}
 
 	var errs error
 	for _, sub := range group {
-		if err := pending[sub]; err != nil {
-			errs = common.AppendError(errs, e.failSubGroup(method, subscription.List{sub}, err))
+		if err := replies.err(symbols[sub]); err != nil {
+			errs = common.AppendError(errs, e.failSubGroup(method, subscription.List{sub}, fmt.Errorf("%s %s: %w", method, sub, err)))
 			continue
 		}
 		if method == wsMethodSubscribe {
@@ -436,6 +440,54 @@ func (e *Exchange) manageSubGroup(ctx context.Context, conn websocket.Connection
 		errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, sub))
 	}
 	return errs
+}
+
+// subscriptionReplies holds a subscribe or unsubscribe request's replies by the symbol each names
+type subscriptionReplies struct {
+	accepted map[string]bool
+	// rejected holds the reasons Kraken rejected each symbol with
+	rejected map[string][]string
+	// unnamed holds the reasons of the rejections naming no symbol, which fail the symbols no reply names
+	unnamed []string
+}
+
+// err returns the error a subscription holding symbols fails with: the reasons Kraken rejected any of them with and,
+// for a symbol no reply names, those of the rejections naming no symbol, or else errSubscriptionResponseMissing. A
+// subscription whose every symbol Kraken accepted has none
+func (r *subscriptionReplies) err(symbols []string) error {
+	var reasons []string
+	missing := false
+	for _, symbol := range symbols {
+		switch {
+		case len(r.rejected[symbol]) != 0:
+			reasons = appendReasons(reasons, r.rejected[symbol]...)
+		case !r.accepted[symbol]:
+			missing = true
+		}
+	}
+	if missing && len(r.unnamed) != 0 {
+		reasons, missing = appendReasons(reasons, r.unnamed...), false
+	}
+	switch {
+	case len(reasons) != 0 && missing:
+		return fmt.Errorf("%w, %w", &APIError{Errors: reasons}, errSubscriptionResponseMissing)
+	case len(reasons) != 0:
+		return &APIError{Errors: reasons}
+	case missing:
+		return errSubscriptionResponseMissing
+	default:
+		return nil
+	}
+}
+
+// appendReasons appends the reasons that reasons does not hold already
+func appendReasons(reasons []string, add ...string) []string {
+	for _, reason := range add {
+		if !slices.Contains(reasons, reason) {
+			reasons = append(reasons, reason)
+		}
+	}
+	return reasons
 }
 
 // failSubGroup returns err for subscriptions a request failed for, forgetting the order book depths a failed
@@ -577,7 +629,9 @@ func (e *Exchange) wsProcessStatus(ctx context.Context, msg *wsChannelMessage) e
 	return nil
 }
 
-// wsProcessTicker stores a message's tickers and relays those stored, reporting the others without holding them back
+// wsProcessTicker stores a message's tickers and relays those stored, reporting the others without holding them back.
+// Each takes the opening price of its UTC day from the opens REST reported, which a ticker on a day not read yet asks
+// to be read
 func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) error {
 	var tickers []WebsocketTicker
 	if err := json.Unmarshal(msg.Data, &tickers); err != nil {
@@ -590,6 +644,12 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
+		}
+		// Kraken stamps each ticker, so the message's time stands in only for a ticker without one
+		updated := cmp.Or(tickers[i].Timestamp, msg.Timestamp, time.Now())
+		open, unread := e.dayOpen(pair, updated)
+		if day := updated.UTC().Format(time.DateOnly); unread && e.askDayOpens(day) {
+			e.spotDayOpens.refresh(ctx, e.readDayOpens, day)
 		}
 		prices = append(prices, ticker.Price{
 			ExchangeName:               e.Name,
@@ -605,8 +665,11 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 			AskSize:                    tickers[i].AskQuantity,
 			BaseVolume:                 tickers[i].Volume,
 			VolumeWeightedAveragePrice: tickers[i].VolumeWeightedAveragePrice,
-			PercentChange24Hour:        tickers[i].ChangePercentage,
-			LastUpdated:                tickers[i].Timestamp,
+			Open:                       open,
+			// Change is the price's change over 24 hours, so the price it changed from is the 24 hour open
+			Open24Hour:          decimal.MustFromFloat(tickers[i].Last).Sub(decimal.MustFromFloat(tickers[i].Change)).InexactFloat64(),
+			PercentChange24Hour: tickers[i].ChangePercentage,
+			LastUpdated:         updated,
 		})
 	}
 	processed, err := ticker.ProcessBatch(prices)
@@ -615,6 +678,85 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 		return errs
 	}
 	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))
+}
+
+// dayOpensReadRetention is how long a UTC day whose opening prices were read is passed over when a ticker asks for them
+// again, so the tickers asking while a read runs cost no other
+const dayOpensReadRetention = 24 * time.Hour
+
+// dayOpen returns a spot pair's opening price on the UTC day of at, as the REST ticker read recorded last reported it,
+// and whether that read was requested before that day, so a later read is needed. A pair the read reported no open
+// for, or a time before the read's day, has none
+func (e *Exchange) dayOpen(pair currency.Pair, at time.Time) (open float64, unread bool) {
+	day := at.Truncate(24 * time.Hour)
+	e.dayOpensMu.Lock()
+	defer e.dayOpensMu.Unlock()
+	read := e.dayOpensRequested.Truncate(24 * time.Hour)
+	switch {
+	case read.Before(day):
+		return 0, true
+	case read.After(day):
+		return 0, false
+	}
+	return e.dayOpens[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}], false
+}
+
+// dayOpensAskCooldown is how long a UTC day asked to have its opening prices read is not asked again while they stay
+// unread. Every ticker on the day would ask, renewing the read's attempts, so a read that keeps failing, or that cannot
+// settle the day while the local clock lags Kraken's across a UTC midnight, would repeat for as long as trades stream
+const dayOpensAskCooldown = time.Hour
+
+// askDayOpens reports whether a ticker on a UTC day whose opening prices are unread asks for them to be read, recording
+// the ask: a day later than the one asked last is asked at once, and the day asked last, or one before it, again only
+// once dayOpensAskCooldown has passed, as a read settles every day up to its own
+func (e *Exchange) askDayOpens(day string) bool {
+	now := time.Now()
+	e.dayOpensMu.Lock()
+	defer e.dayOpensMu.Unlock()
+	if day <= e.dayOpensAsked && now.Sub(e.dayOpensAskedAt) < dayOpensAskCooldown {
+		return false
+	}
+	e.dayOpensAsked, e.dayOpensAskedAt = day, now
+	return true
+}
+
+// recordDayOpens records the opening prices of the day a REST ticker read requested at requested reported, unless a
+// read requested after it was recorded first. A symbol that names no pair is passed over
+func (e *Exchange) recordDayOpens(requested time.Time, tickers map[string]TickerInformation) {
+	opens := make(map[key.PairAsset]float64, len(tickers))
+	for symbol := range tickers {
+		pair, err := e.pairFromDisplaySymbol(symbol)
+		if err != nil {
+			continue
+		}
+		opens[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}] = tickers[symbol].OpeningPrice.Float64()
+	}
+	e.dayOpensMu.Lock()
+	defer e.dayOpensMu.Unlock()
+	if requested.Before(e.dayOpensRequested) {
+		return
+	}
+	e.dayOpens, e.dayOpensRequested = opens, requested
+}
+
+// readDayOpens reads every spot pair's opening price of the day over REST, which websocket tickers carry none of. Its
+// keys are the UTC days tickers found no opens read for, each settled by a read requested on or after it
+func (e *Exchange) readDayOpens(ctx context.Context, days []string) []string {
+	requested := time.Now()
+	tickers, err := e.GetTickerInformation(ctx, &TickerInformationRequest{DisplayNames: true})
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s reading the spot opening prices of the day failed: %v", e.Name, err)
+		return days
+	}
+	e.recordDayOpens(requested, tickers)
+	read := requested.UTC().Format(time.DateOnly)
+	var unsettled []string
+	for _, day := range days {
+		if day > read {
+			unsettled = append(unsettled, day)
+		}
+	}
+	return unsettled
 }
 
 // wsProcessBook loads order book snapshots and applies updates, checking each against its checksum. A book that fails
@@ -991,12 +1133,13 @@ func (e *Exchange) wsProcessCandles(ctx context.Context, msg *wsChannelMessage) 
 			return err
 		}
 		candle := kline.Candle{
-			Time:   candles[i].IntervalBegin,
-			Open:   candles[i].Open,
-			High:   candles[i].High,
-			Low:    candles[i].Low,
-			Close:  candles[i].Close,
-			Volume: candles[i].Volume,
+			Time:        candles[i].IntervalBegin,
+			Open:        candles[i].Open,
+			High:        candles[i].High,
+			Low:         candles[i].Low,
+			Close:       candles[i].Close,
+			Volume:      candles[i].Volume,
+			QuoteVolume: decimal.MustFromFloat(candles[i].Volume).Mul(decimal.MustFromFloat(candles[i].VolumeWeightedAveragePrice)).InexactFloat64(),
 		}
 		if candles[i].IntervalBegin.Add(interval.Duration()).After(msg.Timestamp) {
 			candle.ValidationIssues = kline.PartialCandle
@@ -1058,21 +1201,23 @@ func (e *Exchange) wsProcessInstruments(ctx context.Context, msg *wsChannelMessa
 }
 
 // wsProcessExecutions relays order updates, with a trade event's fill as the order's trade, and the fills themselves
-// when the fills feed is enabled. An order that finishes after fills is then read over REST for its totals
+// when the fills feed is enabled. An order that finishes after fills is then read over REST for its totals. An update
+// that cannot be converted or relayed does not hold back the others, and is reported once the message is processed
 func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessage) error {
 	var executions []WebsocketExecution
 	if err := json.Unmarshal(msg.Data, &executions); err != nil {
 		return err
 	}
+	var errs error
 	var fills []fill.Data
 	for i := range executions {
 		d, err := e.executionOrderDetail(&executions[i])
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
-			return err
-		}
+		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, d))
+		// A finished order is read even when its update was not relayed, as the read relays it again
 		e.finishSpotOrder(ctx, &executions[i])
 		if executions[i].ExecutionType == "trade" && e.IsFillsFeedEnabled() {
 			fills = append(fills, fill.Data{
@@ -1090,10 +1235,7 @@ func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessag
 			})
 		}
 	}
-	if len(fills) == 0 {
-		return nil
-	}
-	return e.Websocket.Fills.Update(fills...)
+	return common.AppendError(errs, e.Websocket.Fills.Update(fills...))
 }
 
 // spotOrderReadRetention is how long a finished spot order read is remembered, so that an order the executions channel

@@ -4,23 +4,30 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -41,6 +48,44 @@ var (
 	// partialTestPairs hold a base or a quote alone, which requests reject rather than send as malformed symbols
 	partialTestPairs = []currency.Pair{{Base: currency.XBT}, {Quote: currency.USD}}
 )
+
+// testExchangeConfig returns the test configuration's Kraken settings encoded as JSON, loading the configuration once,
+// so each test exchange decodes a copy of its own rather than keeping the whole configuration reachable
+var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
+	root, err := testutils.RootPathFromCWD()
+	if err != nil {
+		return nil, err
+	}
+	cfg := new(config.Config)
+	if err := cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
+		return nil, err
+	}
+	exch, err := cfg.GetExchangeConfig("Kraken")
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(exch)
+})
+
+// setupTestExchange sets an exchange up as testexch.Setup does, with a test websocket and accounts of its own, from its
+// own copy of the test configuration's Kraken settings
+func setupTestExchange(ex *Exchange) error {
+	data, err := testExchangeConfig()
+	if err != nil {
+		return err
+	}
+	exch := new(config.Exchange)
+	if err := json.Unmarshal(data, exch); err != nil {
+		return err
+	}
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	if err := ex.Setup(exch); err != nil {
+		return err
+	}
+	ex.Accounts = accounts.MustNewAccounts(ex)
+	return nil
+}
 
 // configureTestExchange serves an exchange from the recorded responses in testdata/http.json in mock tests, signing
 // with placeholder credentials so authenticated endpoints run against their recorded responses too. Live tests use
@@ -70,10 +115,61 @@ func configureTestExchange(ex *Exchange) error {
 func newTestExchange(tb testing.TB) *Exchange {
 	tb.Helper()
 	ex := new(Exchange)
-	require.NoError(tb, testexch.Setup(ex), "Setup must not error")
+	require.NoError(tb, setupTestExchange(ex), "setupTestExchange must not error")
 	ex.Name = tb.Name()
 	require.NoError(tb, configureTestExchange(ex), "configureTestExchange must not error")
 	return ex
+}
+
+func TestSetupTestExchange(t *testing.T) {
+	t.Parallel()
+	exp := new(Exchange)
+	require.NoError(t, testexch.Setup(exp), "testexch.Setup must not error")
+	got := new(Exchange)
+	require.NoError(t, setupTestExchange(got), "setupTestExchange must not error")
+	expConfig, err := json.Marshal(exp.Config)
+	require.NoError(t, err, "Marshal must not error")
+	gotConfig, err := json.Marshal(got.Config)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, string(expConfig), string(gotConfig), "setupTestExchange should set up the configuration testexch.Setup does")
+	expPairs, err := json.Marshal(&exp.CurrencyPairs)
+	require.NoError(t, err, "Marshal must not error")
+	gotPairs, err := json.Marshal(&got.CurrencyPairs)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, string(expPairs), string(gotPairs), "setupTestExchange should store the pairs testexch.Setup does")
+	assert.Equal(t, exp.Features, got.Features, "setupTestExchange should set up the features testexch.Setup does")
+	assert.Equal(t, exp.API.Endpoints.GetURLMap(), got.API.Endpoints.GetURLMap(), "setupTestExchange should set up the endpoints testexch.Setup does")
+	assert.True(t, got.Websocket.IsInitialised(), "setupTestExchange should set up the websocket")
+	assert.NotNil(t, got.Accounts, "setupTestExchange should give the exchange accounts")
+
+	other := new(Exchange)
+	require.NoError(t, setupTestExchange(other), "setupTestExchange must not error")
+	// Change everything the configuration holds by pointer or in a map or slice, which another exchange must not share
+	got.Config.API.Endpoints[exchange.RestSpot.String()] = "https://kraken.invalid"
+	require.NotEmpty(t, got.Config.Features.Subscriptions, "configuration must hold subscriptions")
+	for _, s := range got.Config.Features.Subscriptions {
+		s.Channel = "changed"
+	}
+	got.Config.Features.Subscriptions = nil
+	require.NotNil(t, got.Config.API.CredentialsValidator, "configuration must hold a credentials validator")
+	got.Config.API.CredentialsValidator.RequiresKey = false
+	require.NotEmpty(t, got.Config.BankAccounts, "configuration must hold bank accounts")
+	got.Config.BankAccounts[0].BankName = "changed"
+	require.NotEmpty(t, got.Config.BaseCurrencies, "configuration must hold base currencies")
+	got.Config.BaseCurrencies[0] = currency.BTC
+	for a, ps := range got.Config.CurrencyPairs.Pairs {
+		require.NotEmptyf(t, ps.Enabled, "configuration must hold enabled %s pairs", a)
+		require.NotEmptyf(t, ps.Available, "configuration must hold available %s pairs", a)
+		require.NotNilf(t, ps.RequestFormat, "configuration must hold a %s request format", a)
+		require.NotNilf(t, ps.ConfigFormat, "configuration must hold a %s config format", a)
+		ps.Enabled[0], ps.Available[0] = currency.NewBTCUSDT(), currency.NewBTCUSDT()
+		ps.RequestFormat.Delimiter, ps.ConfigFormat.Delimiter = "/", "/"
+	}
+	require.NoError(t, got.Config.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair}, false), "StorePairs must not error")
+	otherConfig, err := json.Marshal(other.Config)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, string(expConfig), string(otherConfig), "setupTestExchange should give each exchange a configuration of its own")
+	assert.Equal(t, exp.Features, other.Features, "setupTestExchange should give each exchange subscriptions of its own")
 }
 
 // testSecret is the private key of Kraken's documented signature example
@@ -87,7 +183,7 @@ func newHTTPTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	server := httptest.NewTestServer(t, handler)
 	client := server.Client()
 	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
 	ex.Name = t.Name()
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: testSecret})
@@ -117,6 +213,36 @@ func TestCheckPairFilter(t *testing.T) {
 	}
 	for _, pair := range partialTestPairs {
 		assert.ErrorIsf(t, checkPairFilter(pair), currency.ErrCurrencyCodeEmpty, "checkPairFilter should reject %q, which lacks a base or a quote", pair)
+	}
+}
+
+func TestIsFinite(t *testing.T) {
+	t.Parallel()
+	for _, v := range []float64{0, math.Copysign(0, -1), math.SmallestNonzeroFloat64, 1, math.MaxFloat64, -1, -math.MaxFloat64} {
+		assert.Truef(t, isFinite(v), "isFinite should accept %v", v)
+	}
+	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		assert.Falsef(t, isFinite(v), "isFinite should reject %v", v)
+	}
+}
+
+func TestIsFiniteNonNegative(t *testing.T) {
+	t.Parallel()
+	for _, v := range []float64{0, math.Copysign(0, -1), math.SmallestNonzeroFloat64, 1, math.MaxFloat64} {
+		assert.Truef(t, isFiniteNonNegative(v), "isFiniteNonNegative should accept %v", v)
+	}
+	for _, v := range []float64{-math.SmallestNonzeroFloat64, -1, -math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		assert.Falsef(t, isFiniteNonNegative(v), "isFiniteNonNegative should reject %v", v)
+	}
+}
+
+func TestIsFinitePositive(t *testing.T) {
+	t.Parallel()
+	for _, v := range []float64{math.SmallestNonzeroFloat64, 1, math.MaxFloat64} {
+		assert.Truef(t, isFinitePositive(v), "isFinitePositive should accept %v", v)
+	}
+	for _, v := range []float64{0, math.Copysign(0, -1), -math.SmallestNonzeroFloat64, -1, -math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		assert.Falsef(t, isFinitePositive(v), "isFinitePositive should reject %v", v)
 	}
 }
 

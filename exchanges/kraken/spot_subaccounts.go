@@ -33,7 +33,7 @@ func (e *Exchange) AccountTransfer(ctx context.Context, req *SubaccountTransferR
 	if req.Asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.Amount <= 0 {
+	if !isFinitePositive(req.Amount) {
 		return nil, fmt.Errorf("%w: %v", limits.ErrAmountBelowMin, req.Amount)
 	}
 	if req.FromAccountID == "" || req.ToAccountID == "" {

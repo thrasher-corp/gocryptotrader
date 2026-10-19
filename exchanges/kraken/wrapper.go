@@ -36,13 +36,14 @@ import (
 )
 
 var (
-	errUnknownOrderType     = errors.New("unknown order type")
-	errUnknownOrderStatus   = errors.New("unknown order status")
-	errOrderEditFailed      = errors.New("order edit failed")
-	errNoDepositMethods     = errors.New("no deposit methods")
-	errDepositMethodUnknown = errors.New("deposit method not offered")
-	errNoWithdrawalMethods  = errors.New("no withdrawal methods")
-	errTradeFeeMissing      = errors.New("trade fee missing")
+	errUnknownOrderType           = errors.New("unknown order type")
+	errUnknownOrderStatus         = errors.New("unknown order status")
+	errOrderEditFailed            = errors.New("order edit failed")
+	errOrderEditImmediateOrCancel = errors.New("order edit applied as immediate or cancel and its unfilled part removed")
+	errNoDepositMethods           = errors.New("no deposit methods")
+	errDepositMethodUnknown       = errors.New("deposit method not offered")
+	errNoWithdrawalMethods        = errors.New("no withdrawal methods")
+	errTradeFeeMissing            = errors.New("trade fee missing")
 )
 
 // offlineTakerFee is the taker fee of Kraken Pro's lowest volume tier, the most a spot trade is charged
@@ -197,8 +198,9 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.spotBalances.active, e.spotOrders.active = e.websocketActive, e.websocketActive
+	e.spotBalances.active, e.spotOrders.active, e.spotDayOpens.active = e.websocketActive, e.websocketActive, e.websocketActive
 	e.spotOrders.settledRetention = spotOrderReadRetention
+	e.spotDayOpens.settledRetention = dayOpensReadRetention
 }
 
 // websocketActive reports whether the websocket is connected, or connecting, as it is until every connection has
@@ -393,10 +395,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err := e.ensureAssetNames(ctx); err != nil {
 			return err
 		}
+		requested := time.Now()
 		tickers, err := e.GetTickerInformation(ctx, &TickerInformationRequest{DisplayNames: true})
 		if err != nil {
 			return err
 		}
+		e.recordDayOpens(requested, tickers)
 		prices = make([]ticker.Price, 0, len(tickers))
 		for symbol := range tickers {
 			t := tickers[symbol]
@@ -568,7 +572,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err := e.ensureAssetNames(ctx); err != nil {
 			return nil, err
 		}
-		requested := time.Now()
+		requested := e.balancesSequence.Add(1)
 		balances, err := e.GetExtendedBalance(ctx, nil)
 		if err != nil {
 			return nil, err
@@ -592,6 +596,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
+		requested := e.balancesSequence.Add(1)
 		resp, err := e.GetFuturesAccounts(ctx)
 		if err != nil {
 			return nil, err
@@ -628,39 +633,143 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			}
 			subAccts = append(subAccts, margin)
 		}
-		e.futuresMarginCurrenciesMu.Lock()
-		if e.futuresMarginCurrencies == nil {
-			e.futuresMarginCurrencies = make(map[accounts.Credentials]map[string]currency.Code)
-		}
-		e.futuresMarginCurrencies[*creds] = marginCurrencies
-		e.futuresMarginCurrenciesMu.Unlock()
+		e.saveFuturesMarginCurrencies(creds, requested, marginCurrencies)
+		return subAccts, e.saveFuturesBalances(ctx, requested, subAccts)
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-// saveSpotBalances stores the spot balances a read requested at requested returned, unless a read requested after it
-// has been stored: the balances channel's refreshes and the portfolio's polls read the balances concurrently, and a read
-// that started first can finish last, which would store older balances over newer ones
-func (e *Exchange) saveSpotBalances(ctx context.Context, requested time.Time, subAccts accounts.SubAccounts) error {
+// saveSpotBalances stores the spot balances a read numbered requested in balancesSequence returned, unless a read
+// requested after it has been stored: the balances channel's refreshes and the portfolio's polls read the balances
+// concurrently, and a read that started first can finish last, which would store older balances over newer ones
+func (e *Exchange) saveSpotBalances(ctx context.Context, requested uint64, subAccts accounts.SubAccounts) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 	e.spotBalancesRequestedMu.Lock()
 	defer e.spotBalancesRequestedMu.Unlock()
-	if requested.Before(e.spotBalancesRequested[*creds]) {
+	if requested < e.spotBalancesRequested[*creds] {
 		return nil
 	}
 	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 		return err
 	}
 	if e.spotBalancesRequested == nil {
-		e.spotBalancesRequested = make(map[accounts.Credentials]time.Time)
+		e.spotBalancesRequested = make(map[accounts.Credentials]uint64)
 	}
 	e.spotBalancesRequested[*creds] = requested
 	return nil
+}
+
+// saveFuturesBalances stores the futures wallets a read numbered requested in balancesSequence returned, except for
+// balances stored after it was requested: the balances feed stores them as they change and other reads run
+// concurrently, so a read that started first can finish last
+func (e *Exchange) saveFuturesBalances(ctx context.Context, requested uint64, subAccts accounts.SubAccounts) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	e.futuresBalancesMu.Lock()
+	defer e.futuresBalancesMu.Unlock()
+	save := make(accounts.SubAccounts, 0, len(subAccts))
+	for _, read := range subAccts {
+		s, err := e.futuresWalletToStore(creds, requested, read)
+		if err != nil {
+			return err
+		}
+		if s != nil {
+			save = append(save, s)
+		}
+	}
+	if err := e.Accounts.Save(ctx, save, true); err != nil {
+		return err
+	}
+	for _, s := range save {
+		e.futuresWalletStored(creds, s.ID).recordWhole(requested)
+	}
+	return nil
+}
+
+// futuresWalletToStore returns the wallet that a read or a balances snapshot numbered n in balancesSequence stores
+// whole, or nil when a store numbered after it has stored the wallet whole. A currency stored on its own after it
+// keeps its stored balance, or stays out when none is stored. Such balances are saved from a copy, leaving w as read.
+// futuresBalancesMu must be held
+func (e *Exchange) futuresWalletToStore(creds *accounts.Credentials, n uint64, w *accounts.SubAccount) (*accounts.SubAccount, error) {
+	stored := e.futuresWalletStored(creds, w.ID)
+	if stored.whole > n {
+		return nil, nil
+	}
+	s := w
+	for c, at := range stored.currencies {
+		if at <= n {
+			continue
+		}
+		if s == w {
+			s = accounts.NewSubAccount(w.AssetType, w.ID)
+			maps.Copy(s.Balances, w.Balances)
+		}
+		delete(s.Balances, c)
+		b, err := e.Accounts.GetBalance(w.ID, creds, w.AssetType, c)
+		switch {
+		case err == nil:
+			s.Balances.Set(c, b)
+		case !errors.Is(err, accounts.ErrNoBalances):
+			return nil, err
+		}
+	}
+	return s, nil
+}
+
+// recordWhole records a store of the whole wallet numbered n, keeping the highest number recorded
+func (s *futuresWalletStores) recordWhole(n uint64) {
+	s.whole = max(s.whole, n)
+}
+
+// recordCurrency records a store of currency c on its own numbered n, keeping the highest number recorded
+func (s *futuresWalletStores) recordCurrency(c currency.Code, n uint64) {
+	s.currencies[c] = max(s.currencies[c], n)
+}
+
+// currencyStoredAfter reports whether a store numbered after n has stored currency c, with the whole wallet or on its
+// own
+func (s *futuresWalletStores) currencyStoredAfter(c currency.Code, n uint64) bool {
+	return s.whole > n || s.currencies[c] > n
+}
+
+// futuresWalletStored returns the numbers of the reads and messages a futures wallet's stored balances came from,
+// adding an empty record for a wallet without one. futuresBalancesMu must be held
+func (e *Exchange) futuresWalletStored(creds *accounts.Credentials, wallet string) *futuresWalletStores {
+	if e.futuresWalletsStored == nil {
+		e.futuresWalletsStored = make(map[accounts.Credentials]map[string]*futuresWalletStores)
+	}
+	wallets, ok := e.futuresWalletsStored[*creds]
+	if !ok {
+		wallets = make(map[string]*futuresWalletStores)
+		e.futuresWalletsStored[*creds] = wallets
+	}
+	stored, ok := wallets[wallet]
+	if !ok {
+		stored = &futuresWalletStores{currencies: make(map[currency.Code]uint64)}
+		wallets[wallet] = stored
+	}
+	return stored
+}
+
+// saveFuturesMarginCurrencies records the currency of each single-collateral margin account a futures read numbered
+// requested in balancesSequence listed, unless a read requested after it has recorded them, as each read replaces them
+// whole
+func (e *Exchange) saveFuturesMarginCurrencies(creds *accounts.Credentials, requested uint64, currencies map[string]currency.Code) {
+	e.futuresMarginCurrenciesMu.Lock()
+	defer e.futuresMarginCurrenciesMu.Unlock()
+	if requested < e.futuresMarginCurrencies[*creds].requested {
+		return
+	}
+	if e.futuresMarginCurrencies == nil {
+		e.futuresMarginCurrencies = make(map[accounts.Credentials]futuresMarginRead)
+	}
+	e.futuresMarginCurrencies[*creds] = futuresMarginRead{requested: requested, currencies: currencies}
 }
 
 // refreshSpotBalances stores the spot balances Get Extended Balance returns, for a refresh the balances channel starts,
@@ -912,13 +1021,14 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 }
 
 // privateWebsocketAvailable reports whether spot orders can be placed over the private websocket connection, which
-// connects only with private subscriptions
+// connects only with private subscriptions and is used only while it holds one, as a connection whose private
+// subscriptions Kraken refused, such as when it refuses the websocket token, cannot trade either
 func (e *Exchange) privateWebsocketAvailable() bool {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return false
 	}
-	_, err := e.Websocket.GetConnection(wsPrivateConnection)
-	return err == nil
+	conn, err := e.Websocket.GetConnection(wsPrivateConnection)
+	return err == nil && conn.Subscriptions().Len() != 0
 }
 
 // SubmitOrder submits a new order
@@ -1251,7 +1361,14 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if err != nil {
 			return nil, err
 		}
-		if resp.EditStatus.Status != "edited" {
+		switch resp.EditStatus.Status {
+		case "edited", "filled":
+			// Kraken reports an edit that filled the order in full as filled rather than edited
+		case "iocWouldNotExecute":
+			// A cancel arriving while Kraken held the edit for its maker protection window has it applied as immediate
+			// or cancel, so the edit took effect
+			return nil, fmt.Errorf("%w: %s", errOrderEditImmediateOrCancel, resp.EditStatus.Status)
+		default:
 			return nil, fmt.Errorf("%w: %s", errOrderEditFailed, resp.EditStatus.Status)
 		}
 	default:
@@ -1992,7 +2109,8 @@ func (e *Exchange) withdrawalFee(ctx context.Context, c currency.Code, amount fl
 	if len(methods) == 0 {
 		return 0, fmt.Errorf("%w for %s", errNoWithdrawalMethods, c)
 	}
-	return methods[0].Fee.Fee.Float64() + methods[0].Fee.FeePercentage.Float64()/100*amount, nil
+	// The percentage's share is rounded on its own, so arm64 cannot fuse it into the sum and change the fee
+	return methods[0].Fee.Fee.Float64() + float64(methods[0].Fee.FeePercentage.Float64()/100*amount), nil
 }
 
 // depositFee returns the fee of an asset's first deposit method
@@ -2004,7 +2122,8 @@ func (e *Exchange) depositFee(ctx context.Context, c currency.Code, amount float
 	if len(methods) == 0 {
 		return 0, fmt.Errorf("%w for %s", errNoDepositMethods, c)
 	}
-	return methods[0].Fee.Float64() + methods[0].FeePercentage.Float64()/100*amount, nil
+	// The percentage's share is rounded on its own, so arm64 cannot fuse it into the sum and change the fee
+	return methods[0].Fee.Float64() + float64(methods[0].FeePercentage.Float64()/100*amount), nil
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -2280,13 +2399,16 @@ func (e *Exchange) futuresHistoryOrderDetail(o *FuturesHistoryOrder, status orde
 	if err != nil {
 		return nil, err
 	}
-	quantity, filled := o.Quantity.Float64(), o.FilledQuantity.Float64()
+	// Kraken's order events give an order's quantity as what remains of it to fill, which each fill lowers until the
+	// order fills in full at 0, so its size is that and what filled
+	remaining, filled := o.Quantity.Float64(), o.FilledQuantity.Float64()
 	switch {
-	case status == order.Open && filled > 0 && filled >= quantity:
+	case status == order.Open && filled > 0 && remaining == 0:
 		status = order.Filled
 	case status == order.Open && filled > 0:
 		status = order.PartiallyFilled
-	case status == order.Cancelled && filled > 0:
+	case (status == order.Cancelled || status == order.Rejected) && filled > 0:
+		// An immediate or cancel order's unfilled remainder is rejected after its fills
 		status = order.PartiallyFilledCancelled
 	}
 	return &order.Detail{
@@ -2301,9 +2423,9 @@ func (e *Exchange) futuresHistoryOrderDetail(o *FuturesHistoryOrder, status orde
 		Status:          status,
 		ReduceOnly:      o.ReduceOnly,
 		Price:           o.LimitPrice.Float64(),
-		Amount:          quantity,
+		Amount:          o.Quantity.Decimal().Add(o.FilledQuantity.Decimal()).InexactFloat64(),
 		ExecutedAmount:  filled,
-		RemainingAmount: quantity - filled,
+		RemainingAmount: remaining,
 		Date:            o.Timestamp.Time(),
 		LastUpdated:     o.LastUpdateTime.Time(),
 	}, nil
