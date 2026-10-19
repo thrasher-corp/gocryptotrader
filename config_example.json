@@ -100,9 +100,7 @@
  },
  "ntpclient": {
   "enabled": 0,
-  "pool": [
-   "pool.ntp.org:123"
-  ],
+  "pool": [],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
  },

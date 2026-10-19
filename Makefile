@@ -2,6 +2,7 @@ LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
 GOLANGCI_LINT_VERSION := $(strip $(shell cat .golangci-lint-version))
 LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GREMLINSPKG = github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
 GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GOFUMPTBIN = $(GOPATH)/bin/gofumpt
@@ -29,6 +30,17 @@ lint_docker:
 
 misc_checks:
 	bash ./scripts/misc_checks.sh
+
+.PHONY: assertion_checks
+assertion_checks:
+	go test ./cmd/assertioncheck -count=1
+	bash ./scripts/assertion_checks.sh
+	bash ./scripts/assertion_checks.sh -tags udecimal_on ./...
+
+.PHONY: mutation_math
+mutation_math:
+	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --timeout-coefficient 20
+	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --timeout-coefficient 20 --tags udecimal_on
 
 markdownlint:
 	@if ! command -v npx >/dev/null 2>&1; then \
