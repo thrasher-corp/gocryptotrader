@@ -2866,56 +2866,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			var (
-				underlying             currency.Pair
-				settleCurr             currency.Code
-				contractSettlementType futures.ContractSettlementType
-			)
-
-			if result[i].State == "live" {
-				underlying, err = currency.NewPairFromString(result[i].Underlying)
-				if err != nil {
-					return nil, err
-				}
-
-				settleCurr = result[i].SettlementCurrency
-
-				contractSettlementType = futures.Linear
-				if result[i].SettlementCurrency.Equal(result[i].BaseCurrency) {
-					contractSettlementType = futures.Inverse
-				}
-			}
-
-			var ct futures.ContractType
-			if item == asset.PerpetualSwap {
-				ct = futures.Perpetual
-			} else {
-				switch result[i].Alias {
-				case "this_week", "next_week":
-					ct = futures.Weekly
-				case "quarter", "next_quarter":
-					ct = futures.Quarterly
-				}
-			}
-
-			resp[i] = futures.Contract{
-				Exchange:       e.Name,
-				Name:           result[i].InstrumentID,
-				Underlying:     underlying,
-				Asset:          item,
-				StartDate:      result[i].ListTime.Time(),
-				EndDate:        result[i].ExpTime.Time(),
-				IsActive:       result[i].State == "live",
-				Status:         result[i].State,
-				Type:           ct,
-				SettlementType: contractSettlementType,
-				MarginCurrency: settleCurr,
-				Multiplier:     result[i].ContractValue.Float64(),
-				MaxLeverage:    result[i].MaxLeverage.Float64(),
-			}
-
-			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrency = settleCurr
+			resp[i], err = e.FuturesContractFromInstrument(&result[i], item)
+			if err != nil {
+				return nil, err
 			}
 		}
 		return resp, nil

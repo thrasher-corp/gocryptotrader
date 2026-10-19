@@ -5645,16 +5645,37 @@ func TestSetLeverage(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesContractDetails(contextGenerate(), asset.Spot)
-	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
-	_, err = e.GetFuturesContractDetails(contextGenerate(), asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetFuturesContractDetails(contextGenerate(), asset.Spot)
+		require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+		_, err = e.GetFuturesContractDetails(contextGenerate(), asset.USDTMarginedFutures)
+		require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Spread} {
-		result, err := e.GetFuturesContractDetails(contextGenerate(), a)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-	}
+		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Spread} {
+			result, err := e.GetFuturesContractDetails(contextGenerate(), a)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+		}
+	})
+	t.Run("shared conversion", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/public/instruments", r.URL.Path, "wrapper should request instruments")
+			_, err := fmt.Fprint(w, `{"code":"0","data":[{"instId":"BTC-USD-SWAP","instType":"SWAP","ctType":"inverse","settleCcy":"BTC","state":"suspend","ctVal":"100"}]}`)
+			assert.NoError(t, err, "response should write")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+		got, err := ex.GetFuturesContractDetails(t.Context(), asset.PerpetualSwap)
+		require.NoError(t, err, "wrapper must convert suspended instruments")
+		require.Len(t, got, 1, "one contract must load")
+		assert.Equal(t, futures.Inverse, got[0].SettlementType, "wrapper should use native inverse classification")
+		assert.Equal(t, currency.BTC, got[0].SettlementCurrency, "wrapper should preserve inactive settlement terms")
+		assert.False(t, got[0].IsActive, "suspended instrument should remain inactive")
+	})
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
