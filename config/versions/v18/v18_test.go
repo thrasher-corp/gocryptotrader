@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/buger/jsonparser"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
