@@ -54,18 +54,75 @@ var (
 type wsAPIConnection struct {
 	mu   sync.RWMutex
 	conn websocket.Connection
+	// requests counts the requests sent on conn that have not returned, and retired stops conn taking more once a
+	// serverShutdown event warns that its server, or the stream server, is about to disconnect. The server still answers
+	// what it has, so the connection is closed once those requests return, or responseLimit has passed, rather than
+	// failing orders it has placed
+	requests      *sync.WaitGroup
+	retired       bool
+	responseLimit time.Duration
 }
 
-func (w *wsAPIConnection) set(conn websocket.Connection) {
+// set keeps conn for requests, which wait up to responseLimit for their responses
+func (w *wsAPIConnection) set(conn websocket.Connection, responseLimit time.Duration) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.conn = conn
+	w.conn, w.requests, w.retired, w.responseLimit = conn, new(sync.WaitGroup), false, responseLimit
 }
 
+// get returns the connection kept for requests, or nil once it has been retired
 func (w *wsAPIConnection) get() websocket.Connection {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	if w.retired {
+		return nil
+	}
 	return w.conn
+}
+
+// kept returns the connection kept for requests, retired or not
+func (w *wsAPIConnection) kept() websocket.Connection {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.conn
+}
+
+// acquire returns the connection kept for requests, counting a request in flight on it until release is called, or a
+// nil connection once it has been retired
+func (w *wsAPIConnection) acquire() (conn websocket.Connection, release func()) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.conn == nil || w.retired {
+		return nil, nil
+	}
+	w.requests.Add(1)
+	return w.conn, w.requests.Done
+}
+
+// retire stops conn taking requests, when it is the connection kept for them, and returns a function that waits for the
+// requests in flight on it to return, or for their response limit. A second notice for the same connection waits for
+// the same requests
+func (w *wsAPIConnection) retire(conn websocket.Connection) (wait func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if conn == nil || w.conn != conn {
+		return func() {}
+	}
+	w.retired = true
+	requests, limit := w.requests, w.responseLimit
+	return func() {
+		returned := make(chan struct{})
+		go func() {
+			requests.Wait()
+			close(returned)
+		}()
+		timer := time.NewTimer(limit)
+		defer timer.Stop()
+		select {
+		case <-returned:
+		case <-timer.C:
+		}
+	}
 }
 
 // userDataStreams maps the WebSocket API connection's User Data Stream subscriptions to the asset of the account they
@@ -75,7 +132,10 @@ type userDataStreams struct {
 	// pending maps the request IDs of subscription requests in flight to the asset of their account, so the response
 	// handler records each subscription before any of its events can be processed. A sent request stays pending until
 	// its response or the next connection, since Binance subscribes whatever became of the caller
-	pending       map[string]asset.Item
+	pending map[string]asset.Item
+	// awaiting holds the pending requests whose senders still wait for their responses. A request that timed out or was
+	// cancelled stays pending, for a late response to be recorded, but no longer holds back a retry
+	awaiting      map[string]asset.Item
 	subscriptions map[uint64]asset.Item
 }
 
@@ -85,8 +145,16 @@ func (u *userDataStreams) expect(requestID string, a asset.Item) {
 	defer u.mu.Unlock()
 	if u.pending == nil {
 		u.pending = make(map[string]asset.Item)
+		u.awaiting = make(map[string]asset.Item)
 	}
-	u.pending[requestID] = a
+	u.pending[requestID], u.awaiting[requestID] = a, a
+}
+
+// returned records that a subscription request's sender stopped waiting for its response
+func (u *userDataStreams) returned(requestID string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	delete(u.awaiting, requestID)
 }
 
 // recordResponse records the subscription a successful response to a pending subscription request created
@@ -98,6 +166,7 @@ func (u *userDataStreams) recordResponse(requestID string, respRaw []byte) {
 		return
 	}
 	delete(u.pending, requestID)
+	delete(u.awaiting, requestID)
 	id, err := parseSubscriptionID(respRaw, "result", "subscriptionId")
 	if err != nil {
 		return
@@ -125,6 +194,26 @@ func (u *userDataStreams) asset(subscriptionID uint64) (asset.Item, bool) {
 	return a, ok
 }
 
+// has reports whether an account's stream is subscribed, or has a subscription request whose sender awaits its
+// response. A request whose sender gave up is not counted, so that a retry subscribes the account instead: should the
+// given up request's response arrive after a retry found the account without a subscription, the account has two
+// subscriptions until the connection ends, and its events arrive twice
+func (u *userDataStreams) has(a asset.Item) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	for _, subscribed := range u.subscriptions {
+		if subscribed == a {
+			return true
+		}
+	}
+	for _, requested := range u.awaiting {
+		if requested == a {
+			return true
+		}
+	}
+	return false
+}
+
 // remove removes an ended subscription
 func (u *userDataStreams) remove(subscriptionID uint64) {
 	u.mu.Lock()
@@ -137,6 +226,7 @@ func (u *userDataStreams) reset() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	clear(u.pending)
+	clear(u.awaiting)
 	clear(u.subscriptions)
 }
 
@@ -258,19 +348,23 @@ func (e *Exchange) spotWebsocketAPIConnectionSetup(exch *config.Exchange) *webso
 		Handler:                  e.wsHandleSpotAPIData,
 		MessageFilter:            spotWebsocketAPI,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         max(exch.WebsocketResponseMaxLimit, wsAPIResponseMaxLimit),
+		ResponseMaxLimit:         wsAPIResponseLimit(exch),
 		SubscriptionsNotRequired: true,
 		Optional:                 true,
 	}
 }
 
+// wsAPIResponseLimit returns how long the WebSocket API connection waits for a response
+func wsAPIResponseLimit(exch *config.Exchange) time.Duration {
+	return max(exch.WebsocketResponseMaxLimit, wsAPIResponseMaxLimit)
+}
+
 // WsConnectAPI connects to the spot WebSocket API and keeps the connection for the requests sent on it
 func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) error {
 	e.userData.reset()
-	e.wsAPI.set(nil)
-	// The WebSocket API handshake often takes longer than the default HTTP timeout
+	e.wsAPI.set(nil, 0)
 	dialer := gws.Dialer{
-		HandshakeTimeout: e.Config.HTTPTimeout * 2,
+		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
 	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
@@ -281,25 +375,47 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	e.wsAPI.set(conn)
+	e.wsAPI.set(conn, wsAPIResponseLimit(e.Config))
 	return nil
 }
 
 // WsAuthenticateAPI subscribes the WebSocket API connection to the User Data Streams of the enabled spot and margin
-// accounts. Failures are reported instead of returned: an authentication error would take every connection down,
-// while this connection still serves requests without user data
+// accounts. Failures are reported instead of returned, and tried again in the background: an authentication error
+// would take every connection down, while this connection still serves requests without user data
 func (e *Exchange) WsAuthenticateAPI(ctx context.Context, conn websocket.Connection) error {
-	if e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		if _, err := e.subscribeUserDataStream(ctx, conn); err != nil {
-			e.reportUserDataStreamError(ctx, asset.Spot, err)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		if e.CurrencyPairs.IsAssetEnabled(a) != nil {
+			continue
 		}
-	}
-	if e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		if err := e.subscribeMarginUserDataStream(ctx, conn); err != nil {
-			e.reportUserDataStreamError(ctx, asset.Margin, err)
+		if err := e.subscribeAccountUserDataStream(ctx, conn, a); err != nil {
+			e.reportUserDataStreamError(ctx, a, err)
+			e.retryAccountUserDataStream(ctx, conn, a, false)
 		}
 	}
 	return nil
+}
+
+// subscribeAccountUserDataStream subscribes the connection to the spot or margin account's User Data Stream
+func (e *Exchange) subscribeAccountUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item) error {
+	if a == asset.Margin {
+		return e.subscribeMarginUserDataStream(ctx, conn)
+	}
+	_, err := e.subscribeUserDataStream(ctx, conn)
+	return err
+}
+
+// retryAccountUserDataStream subscribes the WebSocket API connection to the spot or margin account's User Data Stream
+// in the background, and again after each failure, while the connection is kept for requests and the account is enabled
+// with usable credentials, and until a subscription, or a request for one awaiting its response, is recorded
+func (e *Exchange) retryAccountUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item, immediately bool) {
+	e.retryUserDataSubscription(ctx, conn, a, immediately, func(ctx context.Context) (bool, error) {
+		enabled := e.CurrencyPairs.IsAssetEnabled(a) == nil
+		if e.wsAPI.get() != conn || !enabled || !e.AreCredentialsValid(ctx) || e.userData.has(a) {
+			return true, nil
+		}
+		err := e.subscribeAccountUserDataStream(ctx, conn, a)
+		return err == nil, err
+	})
 }
 
 func (e *Exchange) reportUserDataStreamError(ctx context.Context, a asset.Item, err error) {
@@ -309,10 +425,14 @@ func (e *Exchange) reportUserDataStreamError(ctx context.Context, a asset.Item, 
 	}
 }
 
-// IsAPIStreamConnected reports whether the WebSocket API connection is established
+// IsAPIStreamConnected reports whether the WebSocket API connection is established and taking requests
 func (e *Exchange) IsAPIStreamConnected() bool {
-	_, err := e.getWsAPIConnection()
-	return err == nil
+	_, release, err := e.acquireWsAPIConnection()
+	if err != nil {
+		return false
+	}
+	release()
+	return true
 }
 
 // wsHandleSpotAPIData routes WebSocket API responses to their requests, and User Data Stream and connection events to
@@ -332,7 +452,12 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 	}
 	if eventType == "serverShutdown" {
 		// The WebSocket API connection is optional, so the connection monitor replaces it alone, leaving the streams up
-		return e.handleServerShutdown(event, conn.Shutdown)
+		return e.handleServerShutdown(event, conn, func() error {
+			if !isConnected(conn) {
+				return nil
+			}
+			return conn.Shutdown()
+		})
 	}
 	subscriptionID, err := parseSubscriptionID(respRaw, "subscriptionId")
 	if err != nil {
@@ -368,53 +493,97 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 		}
 		e.userData.remove(subscriptionID)
 		log.Warnf(log.WebsocketMgr, "%s %s user data stream ended at %s, resubscribing", e.Name, a, resp.EventTime.Time())
-		// A subscription request waits for its response, which this reader has to deliver
-		go e.resubscribeUserDataStream(ctx, conn, a)
+		// A subscription request waits for its response, which this reader has to deliver, so it is made in the
+		// background, and made again should it fail
+		e.retryAccountUserDataStream(ctx, conn, a, true)
 		return nil
 	default:
 		return fmt.Errorf("%w: %s", errUnhandledMessage, respRaw)
 	}
 }
 
-// resubscribeUserDataStream renews an ended User Data Stream subscription; a listen token subscription ends when its
-// token expires
-func (e *Exchange) resubscribeUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item) {
-	var err error
-	if a == asset.Margin {
-		err = e.subscribeMarginUserDataStream(ctx, conn)
-	} else {
-		_, err = e.subscribeUserDataStream(ctx, conn)
-	}
-	if err != nil {
-		e.reportUserDataStreamError(ctx, a, err)
-	}
-}
-
-// processAccountPosition stores the balances of an outboundAccountPosition event and relays them
+// processAccountPosition stores the balances of a spot outboundAccountPosition event and relays them, and relays a
+// margin event as it is. A margin event carries no borrowing, so after a borrow its free balance would count the loan
+// as the account's own, and REST's margin snapshot gives no time to order the two by, so margin balances come from REST
+// alone. A spot event is ordered against REST snapshots by account update time: one predating the stored snapshot is
+// left out, as the snapshot holds its balances and maybe later ones
 func (e *Exchange) processAccountPosition(ctx context.Context, a asset.Item, event []byte) error {
 	var resp WsAccountPosition
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
+	if a != asset.Spot {
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	}
+	updated := resp.LastAccountUpdateTime.Time()
 	subAccount := accounts.NewSubAccount(a, "")
-	for i := range resp.Balances {
-		free := resp.Balances[i].Free.Float64()
-		locked := resp.Balances[i].Locked.Float64()
-		balance, err := e.Accounts.UpdateBalance(ctx, "", a, resp.Balances[i].Asset, func(b *accounts.Balance) {
-			b.Total = free + locked
-			b.Free = free
-			b.Hold = locked
-			if a == asset.Margin {
-				// The event does not carry borrowing, so the stored borrowed amount stands until the next REST update
-				b.AvailableWithoutBorrow = free - b.Borrowed
-			}
-		})
-		if err != nil {
-			return err
+	if err := e.withBalanceStore(func() error {
+		if updated.Before(e.balanceSnapshotTime(a)) {
+			return nil
 		}
-		subAccount.Balances.Set(resp.Balances[i].Asset, balance)
+		codes := make([]currency.Code, len(resp.Balances))
+		for i := range resp.Balances {
+			codes[i] = resp.Balances[i].Asset
+		}
+		e.recordBalanceEvent(a, updated, codes...)
+		for i := range resp.Balances {
+			free := resp.Balances[i].Free.Float64()
+			locked := resp.Balances[i].Locked.Float64()
+			balance, err := e.Accounts.UpdateBalance(ctx, "", a, resp.Balances[i].Asset, func(b *accounts.Balance) {
+				b.Total = free + locked
+				b.Free = free
+				b.Hold = locked
+			})
+			if err != nil {
+				return err
+			}
+			subAccount.Balances.Set(resp.Balances[i].Asset, balance)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if len(subAccount.Balances) == 0 {
+		return nil
 	}
 	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount})
+}
+
+// keepStreamedSpotBalances puts the stored balance in place of each currency of a spot REST poll's snapshot that the
+// user data stream reported at or after asOf, the account update time the snapshot shows: the snapshot predates that
+// event, or shares its millisecond and may predate it, while the stream's later events in that millisecond carry the
+// latest balance. A currency the snapshot leaves out keeps its stored balance in the same case rather than being
+// removed. The user data stream is the configured account's, so it reports whether the snapshot is that account's and
+// carries a time to order it by, leaving any other as it is. The caller holds the balance store lock until the snapshot
+// is stored
+func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *accounts.SubAccount, asOf time.Time) bool {
+	if asOf.IsZero() {
+		return false
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return false
+	}
+	if streamed := e.GetDefaultCredentials(); streamed == nil || *creds != *streamed {
+		return false
+	}
+	reported := make(map[*currency.Item]currency.Code, len(subAccount.Balances))
+	for c := range subAccount.Balances {
+		reported[c.Item] = c
+	}
+	for item, eventTime := range e.balanceEventTimes(asset.Spot) {
+		if eventTime.Before(asOf) {
+			continue
+		}
+		c, ok := reported[item]
+		if !ok {
+			c = item.Currency()
+		}
+		if stored, err := e.Accounts.GetBalance("", creds, asset.Spot, c); err == nil {
+			subAccount.Balances.Set(c, stored)
+		}
+	}
+	return true
 }
 
 // processExecutionReport relays an executionReport event as an order update
@@ -476,7 +645,7 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 		Date:                 resp.OrderCreationTime.Time(),
 		LastUpdated:          resp.TransactionTime.Time(),
 		Pair:                 pair,
-		TimeInForce:          tif,
+		TimeInForce:          spotTimeInForce(oType, tif),
 	}
 	if resp.CurrentExecutionType == "TRADE" {
 		// The commission is the trade's alone, so it is reported with the trade rather than as the order's fee
@@ -522,42 +691,52 @@ func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []
 	return e.Websocket.DataHandler.Send(ctx, &detail)
 }
 
-// getWsAPIConnection returns the WebSocket API connection while the websocket is connected. The connection kept is the
-// one last connected; connecting the WebSocket API again, as the websocket reconnects or as the connection monitor
-// replaces it alone, keeps the new one
-func (e *Exchange) getWsAPIConnection() (websocket.Connection, error) {
+// acquireWsAPIConnection returns the WebSocket API connection while the websocket is connected, counting a request in
+// flight on it until release is called, so that a serverShutdown event closes the connection only once the request
+// returns. The connection kept is the one last connected; connecting the WebSocket API again, as the websocket
+// reconnects or as the connection monitor replaces it alone, keeps the new one
+func (e *Exchange) acquireWsAPIConnection() (conn websocket.Connection, release func(), err error) {
 	if !e.Websocket.IsConnected() {
-		return nil, websocket.ErrNotConnected
+		return nil, nil, websocket.ErrNotConnected
 	}
-	conn := e.wsAPI.get()
+	conn, release = e.wsAPI.acquire()
 	if conn == nil {
-		return nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
+		return nil, nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
 	}
 	// The websocket counts as connected until its shutdown has closed every connection, and a connection whose reads
 	// failed or that was closed stays down until a new one replaces it, so orders go over REST rather than to a closed
 	// connection
-	if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
-		return nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
+	if !isConnected(conn) {
+		release()
+		return nil, nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, spotWebsocketAPI)
 	}
-	return conn, nil
+	return conn, release, nil
+}
+
+// isConnected reports whether a connection is up, taking one that cannot tell as up
+func isConnected(conn websocket.Connection) bool {
+	c, ok := conn.(interface{ IsConnected() bool })
+	return !ok || c.IsConnected()
 }
 
 // SendWsAPIRequest sends a WebSocket API request and decodes its result into result, which may be nil
 func (e *Exchange) SendWsAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
-	conn, err := e.getWsAPIConnection()
+	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return err
 	}
+	defer release()
 	return e.sendWsAPIRequest(ctx, conn, epl, &WsAPIRequest{ID: e.MessageID(), Method: method, Params: params}, result)
 }
 
 // SendSignedWsAPIRequest signs a WebSocket API request with the API key and secret, sends it and decodes its result
 // into result, which may be nil
 func (e *Exchange) SendSignedWsAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
-	conn, err := e.getWsAPIConnection()
+	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return err
 	}
+	defer release()
 	if params == nil {
 		params = make(map[string]any)
 	}
@@ -638,6 +817,7 @@ func (e *Exchange) sendUserDataStreamSubscription(ctx context.Context, conn webs
 	}
 	req := &WsAPIRequest{ID: e.MessageID(), Method: method, Params: params}
 	e.userData.expect(req.ID, a)
+	defer e.userData.returned(req.ID)
 	return e.sendWsAPIRequest(ctx, conn, epl, req, result)
 }
 
@@ -836,9 +1016,9 @@ func (e *Exchange) GetWsMostRecentTrades(ctx context.Context, symbol currency.Pa
 	return resp, e.SendWsAPIRequest(ctx, getRecentTradesListRate, "trades.recent", params, &resp)
 }
 
-// GetWsOptimizedCandlestick returns klines of a symbol modified for the presentation of candlestick charts (UI
+// GetWsOptimisedCandlestick returns klines of a symbol modified for the presentation of candlestick charts (UI
 // Klines)
-func (e *Exchange) GetWsOptimizedCandlestick(ctx context.Context, arg *WsKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetWsOptimisedCandlestick(ctx context.Context, arg *WsKlinesRequest) ([]CandleStick, error) {
 	return e.getWsKlines(ctx, "uiKlines", arg)
 }
 
@@ -1316,8 +1496,14 @@ func (e *Exchange) WsCurrentOpenOCOOrders(ctx context.Context) ([]OCOOrderRespon
 // WsCurrentOpenOrders returns the account's open orders of a symbol, or of every symbol when symbol is empty (Current
 // open orders)
 func (e *Exchange) WsCurrentOpenOrders(ctx context.Context, symbol currency.Pair) ([]TradeOrderResponse, error) {
+	return e.wsCurrentOpenOrders(ctx, symbol, spotOpenOrdersAllRate)
+}
+
+// wsCurrentOpenOrders lists open orders over the WebSocket API, drawing on allSymbols for a listing of every symbol's,
+// so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) wsCurrentOpenOrders(ctx context.Context, symbol currency.Pair, allSymbols request.EndpointLimit) ([]TradeOrderResponse, error) {
 	params := wsParams{}
-	epl := spotOpenOrdersAllRate
+	epl := allSymbols
 	if !symbol.IsEmpty() {
 		if err := e.setSymbol(params, symbol); err != nil {
 			return nil, err
@@ -1359,10 +1545,11 @@ func (e *Exchange) WsQueryOrder(ctx context.Context, symbol currency.Pair, order
 // WsSubscribeUserDataStream subscribes the WebSocket API connection to the spot account's User Data Stream (Subscribe
 // to User Data Stream through signature subscription). It needs no session logon, so it works with every API key type
 func (e *Exchange) WsSubscribeUserDataStream(ctx context.Context) (*WsUserDataStreamSubscriptionResponse, error) {
-	conn, err := e.getWsAPIConnection()
+	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return nil, err
 	}
+	defer release()
 	return e.subscribeUserDataStream(ctx, conn)
 }
 
@@ -1379,10 +1566,11 @@ func (e *Exchange) subscribeUserDataStream(ctx context.Context, conn websocket.C
 // Stream a listen token from CreateMarginListenToken gives access to (userDataStream.subscribe.listenToken). The
 // subscription ends when the token expires unless it is renewed with a new token
 func (e *Exchange) WsSubscribeUserDataStreamWithListenToken(ctx context.Context, listenToken string) (*WsListenTokenSubscriptionResponse, error) {
-	conn, err := e.getWsAPIConnection()
+	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return nil, err
 	}
+	defer release()
 	return e.subscribeListenToken(ctx, conn, listenToken)
 }
 

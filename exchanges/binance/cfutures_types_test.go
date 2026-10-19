@@ -219,7 +219,7 @@ func TestFuturesAccountTradeListUnmarshal(t *testing.T) {
 		Side:            "SELL",
 		Price:           8800,
 		Quantity:        1,
-		RealizedPNL:     -0.04274782,
+		RealisedPNL:     -0.04274782,
 		MarginAsset:     currency.BTC,
 		BaseQuantity:    0.01136364,
 		QuoteQuantity:   100,

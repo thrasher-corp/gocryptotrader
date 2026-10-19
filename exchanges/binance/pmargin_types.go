@@ -20,9 +20,9 @@ type AccountBalance struct {
 	CrossMarginInterest types.Number `json:"crossMarginInterest"`
 	CrossMarginLocked   types.Number `json:"crossMarginLocked"`
 	UMWalletBalance     types.Number `json:"umWalletBalance"`
-	UMUnrealizedPNL     types.Number `json:"umUnrealizedPNL"`
+	UMUnrealisedPNL     types.Number `json:"umUnrealizedPNL"`
 	CMWalletBalance     types.Number `json:"cmWalletBalance"`
-	CMUnrealizedPNL     types.Number `json:"cmUnrealizedPNL"`
+	CMUnrealisedPNL     types.Number `json:"cmUnrealizedPNL"`
 	UpdateTime          types.Time   `json:"updateTime"`
 	NegativeBalance     types.Number `json:"negativeBalance"`
 }
@@ -129,7 +129,7 @@ type CMNotionalBracket struct {
 type PMAccountDetailAsset struct {
 	Asset                  currency.Code `json:"asset"`
 	CrossWalletBalance     types.Number  `json:"crossWalletBalance"`
-	CrossUnrealizedPNL     types.Number  `json:"crossUnPnl"`
+	CrossUnrealisedPNL     types.Number  `json:"crossUnPnl"`
 	MaintenanceMargin      types.Number  `json:"maintMargin"`
 	InitialMargin          types.Number  `json:"initialMargin"`
 	PositionInitialMargin  types.Number  `json:"positionInitialMargin"`
@@ -143,7 +143,7 @@ type CMAccountDetailPosition struct {
 	PositionAmount         types.Number `json:"positionAmt"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
-	UnrealizedProfit       types.Number `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number `json:"unrealizedProfit"`
 	PositionInitialMargin  types.Number `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
@@ -217,7 +217,7 @@ type UMAccountDetailPosition struct {
 	Symbol                 string       `json:"symbol"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
-	UnrealizedProfit       types.Number `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number `json:"unrealizedProfit"`
 	PositionInitialMargin  types.Number `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
@@ -274,7 +274,7 @@ type CMPositionInformation struct {
 	PositionAmount   types.Number `json:"positionAmt"`
 	EntryPrice       types.Number `json:"entryPrice"`
 	MarkPrice        types.Number `json:"markPrice"`
-	UnrealizedProfit types.Number `json:"unRealizedProfit"`
+	UnrealisedProfit types.Number `json:"unRealizedProfit"`
 	LiquidationPrice types.Number `json:"liquidationPrice"`
 	Leverage         types.Number `json:"leverage"`
 	PositionSide     string       `json:"positionSide"`
@@ -360,7 +360,7 @@ type UMPositionInformation struct {
 	PositionAmount   types.Number `json:"positionAmt"`
 	Notional         types.Number `json:"notional"`
 	Symbol           string       `json:"symbol"`
-	UnrealizedProfit types.Number `json:"unRealizedProfit"`
+	UnrealisedProfit types.Number `json:"unRealizedProfit"`
 	LiquidationPrice types.Number `json:"liquidationPrice"`
 	PositionSide     string       `json:"positionSide"`
 	UpdateTime       types.Time   `json:"updateTime"`
@@ -534,26 +534,26 @@ type CMOrderResponse struct {
 // PMCancelledMarginOrder holds an order or OCO order list cancelled by the cancel all margin open orders endpoint;
 // order lists carry the list fields, Orders and OrderReports, and plain orders carry an OrderListID of -1
 type PMCancelledMarginOrder struct {
-	Symbol                   string                         `json:"symbol"`
-	OriginalClientOrderID    string                         `json:"origClientOrderId"`
-	OrderID                  uint64                         `json:"orderId"`
-	OrderListID              int64                          `json:"orderListId"`
-	ClientOrderID            string                         `json:"clientOrderId"`
-	Price                    types.Number                   `json:"price"`
-	OriginalQuantity         types.Number                   `json:"origQty"`
-	ExecutedQuantity         types.Number                   `json:"executedQty"`
-	CummulativeQuoteQuantity types.Number                   `json:"cummulativeQuoteQty"`
-	Status                   string                         `json:"status"`
-	TimeInForce              string                         `json:"timeInForce"`
-	Type                     string                         `json:"type"`
-	Side                     string                         `json:"side"`
-	ContingencyType          string                         `json:"contingencyType"`
-	ListStatusType           string                         `json:"listStatusType"`
-	ListOrderStatus          string                         `json:"listOrderStatus"`
-	ListClientOrderID        string                         `json:"listClientOrderId"`
-	TransactionTime          types.Time                     `json:"transactionTime"`
-	Orders                   []PMMarginOCOOrderLeg          `json:"orders"`
-	OrderReports             []PMCancelledMarginOrderReport `json:"orderReports"`
+	Symbol                  string                         `json:"symbol"`
+	OriginalClientOrderID   string                         `json:"origClientOrderId"`
+	OrderID                 uint64                         `json:"orderId"`
+	OrderListID             int64                          `json:"orderListId"`
+	ClientOrderID           string                         `json:"clientOrderId"`
+	Price                   types.Number                   `json:"price"`
+	OriginalQuantity        types.Number                   `json:"origQty"`
+	ExecutedQuantity        types.Number                   `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number                   `json:"cummulativeQuoteQty"`
+	Status                  string                         `json:"status"`
+	TimeInForce             string                         `json:"timeInForce"`
+	Type                    string                         `json:"type"`
+	Side                    string                         `json:"side"`
+	ContingencyType         string                         `json:"contingencyType"`
+	ListStatusType          string                         `json:"listStatusType"`
+	ListOrderStatus         string                         `json:"listOrderStatus"`
+	ListClientOrderID       string                         `json:"listClientOrderId"`
+	TransactionTime         types.Time                     `json:"transactionTime"`
+	Orders                  []PMMarginOCOOrderLeg          `json:"orders"`
+	OrderReports            []PMCancelledMarginOrderReport `json:"orderReports"`
 }
 
 // PMCancelledMarginOrderReport holds a cancelled OCO order leg returned by the cancel all margin open orders endpoint
@@ -599,43 +599,43 @@ type PMCancelMarginOCOOrderResponse struct {
 
 // PMCancelMarginOCOOrderReport holds a cancelled margin OCO order leg
 type PMCancelMarginOCOOrderReport struct {
-	Symbol                   string       `json:"symbol"`
-	OriginalClientOrderID    string       `json:"origClientOrderId"`
-	OrderID                  uint64       `json:"orderId"`
-	OrderListID              int64        `json:"orderListId"`
-	ClientOrderID            string       `json:"clientOrderId"`
-	Price                    types.Number `json:"price"`
-	OriginalQuantity         types.Number `json:"origQty"`
-	ExecutedQuantity         types.Number `json:"executedQty"`
-	CummulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                   string       `json:"status"`
-	TimeInForce              string       `json:"timeInForce"`
-	Type                     string       `json:"type"`
-	Side                     string       `json:"side"`
-	StopPrice                types.Number `json:"stopPrice"`
+	Symbol                  string       `json:"symbol"`
+	OriginalClientOrderID   string       `json:"origClientOrderId"`
+	OrderID                 uint64       `json:"orderId"`
+	OrderListID             int64        `json:"orderListId"`
+	ClientOrderID           string       `json:"clientOrderId"`
+	Price                   types.Number `json:"price"`
+	OriginalQuantity        types.Number `json:"origQty"`
+	ExecutedQuantity        types.Number `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
+	Status                  string       `json:"status"`
+	TimeInForce             string       `json:"timeInForce"`
+	Type                    string       `json:"type"`
+	Side                    string       `json:"side"`
+	StopPrice               types.Number `json:"stopPrice"`
 }
 
 // PMMarginOrderResponse holds a margin order returned by the margin order query endpoints
 type PMMarginOrderResponse struct {
 	ClientOrderID string `json:"clientOrderId"`
-	// CummulativeQuoteQuantity is negative for some historical orders whose data is unavailable
-	CummulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	ExecutedQuantity         types.Number `json:"executedQty"`
-	IcebergQuantity          types.Number `json:"icebergQty"`
-	IsWorking                bool         `json:"isWorking"`
-	OrderID                  uint64       `json:"orderId"`
-	OriginalQuantity         types.Number `json:"origQty"`
-	Price                    types.Number `json:"price"`
-	Side                     string       `json:"side"`
-	Status                   string       `json:"status"`
-	StopPrice                types.Number `json:"stopPrice"`
-	Symbol                   string       `json:"symbol"`
-	Time                     types.Time   `json:"time"`
-	TimeInForce              string       `json:"timeInForce"`
-	Type                     string       `json:"type"`
-	UpdateTime               types.Time   `json:"updateTime"`
-	AccountID                uint64       `json:"accountId"`
-	SelfTradePreventionMode  string       `json:"selfTradePreventionMode"`
+	// CumulativeQuoteQuantity is negative for some historical orders whose data is unavailable
+	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
+	ExecutedQuantity        types.Number `json:"executedQty"`
+	IcebergQuantity         types.Number `json:"icebergQty"`
+	IsWorking               bool         `json:"isWorking"`
+	OrderID                 uint64       `json:"orderId"`
+	OriginalQuantity        types.Number `json:"origQty"`
+	Price                   types.Number `json:"price"`
+	Side                    string       `json:"side"`
+	Status                  string       `json:"status"`
+	StopPrice               types.Number `json:"stopPrice"`
+	Symbol                  string       `json:"symbol"`
+	Time                    types.Time   `json:"time"`
+	TimeInForce             string       `json:"timeInForce"`
+	Type                    string       `json:"type"`
+	UpdateTime              types.Time   `json:"updateTime"`
+	AccountID               uint64       `json:"accountId"`
+	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 	// PreventedMatchID and PreventedQuantity are null unless self-trade prevention expired the order
 	PreventedMatchID  types.Number `json:"preventedMatchId"`
 	PreventedQuantity types.Number `json:"preventedQuantity"`
@@ -667,18 +667,18 @@ type PMMarginOrderRequest struct {
 
 // PMNewMarginOrderResponse holds a new margin order
 type PMNewMarginOrderResponse struct {
-	Symbol                   string       `json:"symbol"`
-	OrderID                  uint64       `json:"orderId"`
-	ClientOrderID            string       `json:"clientOrderId"`
-	TransactTime             types.Time   `json:"transactTime"`
-	Price                    types.Number `json:"price"`
-	OriginalQuantity         types.Number `json:"origQty"`
-	ExecutedQuantity         types.Number `json:"executedQty"`
-	CummulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                   string       `json:"status"`
-	TimeInForce              string       `json:"timeInForce"`
-	Type                     string       `json:"type"`
-	Side                     string       `json:"side"`
+	Symbol                  string       `json:"symbol"`
+	OrderID                 uint64       `json:"orderId"`
+	ClientOrderID           string       `json:"clientOrderId"`
+	TransactTime            types.Time   `json:"transactTime"`
+	Price                   types.Number `json:"price"`
+	OriginalQuantity        types.Number `json:"origQty"`
+	ExecutedQuantity        types.Number `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
+	Status                  string       `json:"status"`
+	TimeInForce             string       `json:"timeInForce"`
+	Type                    string       `json:"type"`
+	Side                    string       `json:"side"`
 	// MarginBuyBorrowAmount and MarginBuyBorrowAsset are only returned when the order borrowed
 	MarginBuyBorrowAmount types.Number        `json:"marginBuyBorrowAmount"`
 	MarginBuyBorrowAsset  currency.Code       `json:"marginBuyBorrowAsset"`
@@ -705,18 +705,18 @@ type PMCancelMarginOrderRequest struct {
 
 // PMCancelMarginOrderResponse holds a cancelled margin order
 type PMCancelMarginOrderResponse struct {
-	Symbol                   string       `json:"symbol"`
-	OrderID                  uint64       `json:"orderId"`
-	OriginalClientOrderID    string       `json:"origClientOrderId"`
-	ClientOrderID            string       `json:"clientOrderId"`
-	Price                    types.Number `json:"price"`
-	OriginalQuantity         types.Number `json:"origQty"`
-	ExecutedQuantity         types.Number `json:"executedQty"`
-	CummulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                   string       `json:"status"`
-	TimeInForce              string       `json:"timeInForce"`
-	Type                     string       `json:"type"`
-	Side                     string       `json:"side"`
+	Symbol                  string       `json:"symbol"`
+	OrderID                 uint64       `json:"orderId"`
+	OriginalClientOrderID   string       `json:"origClientOrderId"`
+	ClientOrderID           string       `json:"clientOrderId"`
+	Price                   types.Number `json:"price"`
+	OriginalQuantity        types.Number `json:"origQty"`
+	ExecutedQuantity        types.Number `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
+	Status                  string       `json:"status"`
+	TimeInForce             string       `json:"timeInForce"`
+	Type                    string       `json:"type"`
+	Side                    string       `json:"side"`
 }
 
 // UMOrderDetailResponse holds a UM order returned by the order query endpoints
@@ -808,7 +808,7 @@ type CMAccountTrade struct {
 	Side            string        `json:"side"`
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
-	RealizedPNL     types.Number  `json:"realizedPnl"`
+	RealisedPNL     types.Number  `json:"realizedPnl"`
 	MarginAsset     currency.Code `json:"marginAsset"`
 	BaseQuantity    types.Number  `json:"baseQty"`
 	Commission      types.Number  `json:"commission"`
@@ -866,20 +866,20 @@ type PMNewMarginOCOOrderResponse struct {
 
 // PMNewMarginOCOOrderReport holds an order of a new margin OCO order list
 type PMNewMarginOCOOrderReport struct {
-	Symbol                   string       `json:"symbol"`
-	OrderID                  uint64       `json:"orderId"`
-	OrderListID              int64        `json:"orderListId"`
-	ClientOrderID            string       `json:"clientOrderId"`
-	TransactTime             types.Time   `json:"transactTime"`
-	Price                    types.Number `json:"price"`
-	OriginalQuantity         types.Number `json:"origQty"`
-	ExecutedQuantity         types.Number `json:"executedQty"`
-	CummulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                   string       `json:"status"`
-	TimeInForce              string       `json:"timeInForce"`
-	Type                     string       `json:"type"`
-	Side                     string       `json:"side"`
-	StopPrice                types.Number `json:"stopPrice"`
+	Symbol                  string       `json:"symbol"`
+	OrderID                 uint64       `json:"orderId"`
+	OrderListID             int64        `json:"orderListId"`
+	ClientOrderID           string       `json:"clientOrderId"`
+	TransactTime            types.Time   `json:"transactTime"`
+	Price                   types.Number `json:"price"`
+	OriginalQuantity        types.Number `json:"origQty"`
+	ExecutedQuantity        types.Number `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
+	Status                  string       `json:"status"`
+	TimeInForce             string       `json:"timeInForce"`
+	Type                    string       `json:"type"`
+	Side                    string       `json:"side"`
+	StopPrice               types.Number `json:"stopPrice"`
 }
 
 // PMMarginTradeListRequest holds the parameters for a margin account trade list query
@@ -1072,7 +1072,7 @@ type UMAccountTrade struct {
 	Side            string        `json:"side"`
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
-	RealizedPNL     types.Number  `json:"realizedPnl"`
+	RealisedPNL     types.Number  `json:"realizedPnl"`
 	QuoteQuantity   types.Number  `json:"quoteQty"`
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`

@@ -25,7 +25,7 @@ type FuturesAccountInformationResponse struct {
 type FuturesAccountAsset struct {
 	Asset                  currency.Code `json:"asset"`
 	WalletBalance          types.Number  `json:"walletBalance"`
-	UnrealizedProfit       types.Number  `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number  `json:"unrealizedProfit"`
 	MarginBalance          types.Number  `json:"marginBalance"`
 	MaintenanceMargin      types.Number  `json:"maintMargin"`
 	InitialMargin          types.Number  `json:"initialMargin"`
@@ -44,7 +44,7 @@ type FuturesAccountInformationPosition struct {
 	PositionAmount         types.Number `json:"positionAmt"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
-	UnrealizedProfit       types.Number `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number `json:"unrealizedProfit"`
 	PositionInitialMargin  types.Number `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
@@ -129,8 +129,8 @@ type FuturesBasisData struct {
 	ContractType string       `json:"contractType"`
 	BasisRate    types.Number `json:"basisRate"`
 	FuturesPrice types.Number `json:"futuresPrice"`
-	// AnnualizedBasisRate is empty for perpetual contracts
-	AnnualizedBasisRate types.Number `json:"annualizedBasisRate"`
+	// AnnualisedBasisRate is empty for perpetual contracts
+	AnnualisedBasisRate types.Number `json:"annualizedBasisRate"`
 	Basis               types.Number `json:"basis"`
 	Pair                string       `json:"pair"`
 	Timestamp           types.Time   `json:"timestamp"`
@@ -490,7 +490,7 @@ type FuturesAccountTradeList struct {
 	Side        string        `json:"side"`
 	Price       types.Number  `json:"price"`
 	Quantity    types.Number  `json:"qty"`
-	RealizedPNL types.Number  `json:"realizedPnl"`
+	RealisedPNL types.Number  `json:"realizedPnl"`
 	MarginAsset currency.Code `json:"marginAsset"`
 	// BaseQuantity is set for coin margined symbols and QuoteQuantity for USDⓈ-M symbols, which this endpoint also
 	// returns since the two futures types were integrated
@@ -752,7 +752,7 @@ type FuturesPositionInformation struct {
 	EntryPrice       types.Number `json:"entryPrice"`
 	BreakEvenPrice   types.Number `json:"breakEvenPrice"`
 	MarkPrice        types.Number `json:"markPrice"`
-	UnrealizedProfit types.Number `json:"unRealizedProfit"`
+	UnrealisedProfit types.Number `json:"unRealizedProfit"`
 	LiquidationPrice types.Number `json:"liquidationPrice"`
 	Leverage         types.Number `json:"leverage"`
 	MaxQuantity      types.Number `json:"maxQty"`

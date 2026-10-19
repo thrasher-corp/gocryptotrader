@@ -233,8 +233,8 @@ type WsAggregatedTradesRequest struct {
 type WsSessionStatusResponse struct {
 	// APIKey is empty when the session is not authenticated
 	APIKey string `json:"apiKey"`
-	// AuthorizedSince is zero when the session is not authenticated
-	AuthorizedSince  types.Time `json:"authorizedSince"`
+	// AuthorisedSince is zero when the session is not authenticated
+	AuthorisedSince  types.Time `json:"authorizedSince"`
 	ConnectedSince   types.Time `json:"connectedSince"`
 	ReturnRateLimits bool       `json:"returnRateLimits"`
 	ServerTime       types.Time `json:"serverTime"`
@@ -257,7 +257,7 @@ type WsOrderReport struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`
@@ -473,7 +473,7 @@ type WsOrderResponse struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`
@@ -572,7 +572,7 @@ type WsSOROrderResponse struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`

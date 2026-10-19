@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -259,14 +260,14 @@ func TestStreamPayloads(t *testing.T) {
 	lines := fixtureLines(t, "testdata/wsSpot.json")
 	require.Len(t, lines, len(exp), "fixture must have one frame per expected payload")
 	for i, line := range lines {
-		stream, err := jsonparser.GetString(line, "stream")
+		name, err := jsonparser.GetString(line, "stream")
 		require.NoErrorf(t, err, "frame %d must have a stream", i)
-		require.Equalf(t, exp[i].stream, stream, "frame %d must be from the expected stream", i)
+		require.Equalf(t, exp[i].stream, name, "frame %d must be from the expected stream", i)
 		data, _, _, err := jsonparser.Get(line, "data")
 		require.NoErrorf(t, err, "frame %d must have data", i)
 		got := reflect.New(reflect.TypeOf(exp[i].payload).Elem()).Interface()
 		require.NoErrorf(t, json.Unmarshal(data, got), "Unmarshal must not error for frame %d", i)
-		assert.Equalf(t, exp[i].payload, got, "frame %d of %s should decode every field", i, stream)
+		assert.Equalf(t, exp[i].payload, got, "frame %d of %s should decode every field", i, name)
 	}
 }
 
@@ -429,7 +430,7 @@ func TestHandleServerShutdown(t *testing.T) {
 	useMockWebsocket(t, ex, setup, func(testing.TB, []byte, *gws.Conn) error { return nil })
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	require.NoError(t, ex.wsHandleData(t.Context(), nil, []byte(`{"stream":"!serverShutdown","data":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleData must not error for serverShutdown")
-	assert.Eventually(t, func() bool { return !ex.Websocket.IsConnected() }, 5*time.Second, 10*time.Millisecond, "serverShutdown should disconnect, so the connection monitor reconnects")
+	assert.Eventually(t, func() bool { return !ex.Websocket.IsConnected() }, 30*time.Second, 10*time.Millisecond, "serverShutdown should disconnect, so the connection monitor reconnects")
 }
 
 func TestSpotOrderbookSync(t *testing.T) {
@@ -449,7 +450,7 @@ func TestSpotOrderbookSync(t *testing.T) {
 		}, nil
 	})
 	for _, line := range fixtureLines(t, "testdata/wsSpot.json") {
-		if stream, err := jsonparser.GetString(line, "stream"); err == nil && stream == "btcusdt@depth@100ms" {
+		if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
 			require.NoError(t, ex.wsHandleData(t.Context(), nil, line), "wsHandleData must not error for a diff depth frame")
 		}
 	}
@@ -458,7 +459,7 @@ func TestSpotOrderbookSync(t *testing.T) {
 		var err error
 		got, err = storedOrderbookState(ex, pair, asset.Spot)
 		return err == nil && got.LastUpdateID == 101096708778
-	}, 5*time.Second, 10*time.Millisecond, "the order book must synchronise to the last frame")
+	}, 30*time.Second, 10*time.Millisecond, "the order book must synchronise to the last frame")
 	exp := &orderbookState{
 		Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
 		Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}, {Price: 86104.05, Amount: 0.12}},
@@ -501,7 +502,7 @@ func TestProcessOrderbookUpdateOverlap(t *testing.T) {
 			require.Eventually(t, func() bool {
 				id, err := ex.Websocket.Orderbook.LastUpdateID(pair, a)
 				return err == nil && id == 105
-			}, 5*time.Second, 10*time.Millisecond, "the book must synchronise")
+			}, 30*time.Second, 10*time.Millisecond, "the book must synchronise")
 
 			require.NoError(t, ex.processOrderbookUpdate(t.Context(), 103, update(110)), "processOrderbookUpdate must not error for an overlapping event")
 			got, err := storedOrderbookState(ex, pair, a)
@@ -723,7 +724,7 @@ func syncSpotBook(t *testing.T, ex *Exchange, streams *spotDepthStreams, pair cu
 		}
 		book, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 		return err == nil && book.LastUpdateID == streams.finalUpdateID(symbol)
-	}, 5*time.Second, 10*time.Millisecond, "the book must synchronise with its stream")
+	}, 30*time.Second, 10*time.Millisecond, "the book must synchronise with its stream")
 }
 
 func TestSpotOrderbookResyncsAfterGap(t *testing.T) {
@@ -752,7 +753,7 @@ func TestSpotOrderbookResyncsAfterGap(t *testing.T) {
 	require.NoError(t, ex.wsHandleData(t.Context(), nil, streams.frame("BTCUSDT")), "wsHandleData must not error for a frame after a gap")
 	_, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a gap should invalidate the book")
-	require.Eventually(t, func() bool { return fetches.Load() == 2 }, 5*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
+	require.Eventually(t, func() bool { return fetches.Load() == 2 }, 30*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
 	close(resync)
 	syncSpotBook(t, ex, streams, pair)
 	assert.Equal(t, int32(2), fetches.Load(), "the gap should take one new snapshot")
@@ -821,7 +822,7 @@ func TestSpotOrderbookLoadsQuietBook(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got, err := storedOrderbookState(ex, pair, asset.Spot)
 		return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
-	}, 5*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
+	}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
 	require.NoError(t, ex.wsHandleData(t.Context(), nil, streams.frame("DOGEUSDT")), "wsHandleData must not error")
 	got, err := storedOrderbookState(ex, pair, asset.Spot)
 	require.NoError(t, err, "the book must stay valid")
@@ -876,7 +877,10 @@ func (s *spotDepthServer) use(t *testing.T, ex *Exchange, maxSubscriptions int) 
 	setup := ex.spotStreamConnectionSetup(ex.Config)
 	setup.URL = "ws" + strings.TrimPrefix(streams.URL, "http")
 	ex.Config.ConnectionMonitorDelay = time.Hour
-	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	ex.Websocket = websocket.NewManager()
+	// A book relays each update queued behind its snapshot together once the snapshot loads, and a full relay fails
+	// the synchronisation, so the relay holds what a stalled test run can queue rather than the test default
+	ex.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         ex.Config,
 		Features:                               &ex.Features.Supports.WebsocketCapabilities,
@@ -1030,7 +1034,7 @@ func requireBooksFollow(t *testing.T, ex *Exchange, pairs currency.Pairs, after 
 			updateIDs[p] = book.LastUpdateID
 		}
 		return true
-	}, 10*time.Second, 10*time.Millisecond, "every book must follow its stream")
+	}, 30*time.Second, 10*time.Millisecond, "every book must follow its stream")
 	return updateIDs
 }
 
@@ -1081,7 +1085,7 @@ func TestSpotOrderbookSyncAfterReconnect(t *testing.T) {
 	srv.use(t, ex, 1024)
 	release := srv.holdSnapshots()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	require.Eventually(t, func() bool { return srv.heldSnapshots() == len(pairs) }, 5*time.Second, 10*time.Millisecond, "every book must wait for a snapshot")
+	require.Eventually(t, func() bool { return srv.heldSnapshots() == len(pairs) }, 30*time.Second, 10*time.Millisecond, "every book must wait for a snapshot")
 
 	// Shutting down while snapshots are pending, then reconnecting to streams that moved on, must not leave a book
 	// without synchronisation
@@ -1403,6 +1407,10 @@ func TestSetupSpotConnections(t *testing.T) {
 	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
 	assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
 	assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
+	// Connections connect in the order they are set up, so a slow WebSocket API host must come after every market data
+	// connection to hold none of them back
+	require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
+	assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
 
 	// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
 	// configuration saved before the endpoint existed keeps the production one

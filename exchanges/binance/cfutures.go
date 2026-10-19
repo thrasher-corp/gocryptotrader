@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -628,7 +629,8 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, req *CFuturesAllOrde
 }
 
 // AutoCancelAllOpenOrders sets the coin margined futures Auto-Cancel All Open Orders countdown of a symbol, after
-// which its open orders are cancelled unless the countdown is renewed; a zero countdown cancels the timer
+// which its open orders are cancelled unless the countdown is renewed; a zero countdown cancels the timer. Renewals
+// draw on a rate limit share of their own, which USDⓈ-M renewals share, while it can take them at once
 func (e *Exchange) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.Pair, countdown time.Duration) (*CFuturesAutoCancelAllOpenOrdersResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -641,7 +643,9 @@ func (e *Exchange) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.
 	params.Set("symbol", s)
 	params.Set("countdownTime", strconv.FormatInt(countdown.Milliseconds(), 10))
 	var resp *CFuturesAutoCancelAllOpenOrdersResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/countdownCancelAll", params, cFuturesCountdownCancelRate, &resp)
+	return resp, e.sendOnShare(ctx, cFuturesCountdownCancelRate, cFuturesHeartbeatOverflowRate, func(ctx context.Context, f request.EndpointLimit) error {
+		return e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/countdownCancelAll", params, f, &resp)
+	})
 }
 
 // FuturesCancelAllOpenOrders cancels all coin margined futures open orders of a symbol through Cancel All Open Orders
@@ -837,8 +841,9 @@ func (e *Exchange) futuresModifyOrderParams(req *CFuturesModifyOrderRequest) (ur
 	return params, nil
 }
 
-// FuturesNewOrder places a coin margined futures order through New Order. Binance is moving stop, take profit and
-// trailing stop orders to its algo order service, after which they are rejected with -4120
+// FuturesNewOrder places a coin margined futures order through New Order. Since the CM-UM integration, stop, take
+// profit and trailing stop orders are placed with FuturesNewAlgoOrder, and New Order rejects them with -4120 once
+// Binance's announced cut-over takes effect
 func (e *Exchange) FuturesNewOrder(ctx context.Context, req *FuturesNewOrderRequest) (*FuturesOrderResponse, error) {
 	params, err := e.futuresOrderParams(req)
 	if err != nil {
@@ -929,6 +934,120 @@ func (e *Exchange) FuturesCancelOrder(ctx context.Context, symbol currency.Pair,
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/order", params, cFuturesCancelRate, &resp)
 }
 
+// FuturesQueryAlgoOrder returns a coin margined futures algo (conditional) order's state from Query Algo Order, by its
+// algo ID or, when algoID is 0, its client algo ID. Binance gives COIN-M the USDⓈ-M algo order endpoints, taking the
+// same parameters and replying alike, so the USDⓈ-M algo order types serve both
+func (e *Exchange) FuturesQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
+	return e.futuresQueryAlgoOrder(ctx, algoID, clientAlgoID, cFuturesDefaultRate)
+}
+
+// futuresQueryAlgoOrder queries a coin margined futures algo order drawing on f, so that the lookup a cancellation
+// makes can draw on the cancel pool as the cancellation does, rather than queue behind order book snapshots on the IP
+// pool
+func (e *Exchange) futuresQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string, f request.EndpointLimit) (*UAlgoOrderResponse, error) {
+	params, err := algoOrderIDParams(algoID, clientAlgoID)
+	if err != nil {
+		return nil, err
+	}
+	var resp *UAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/algoOrder", params, f, &resp)
+}
+
+// FuturesNewAlgoOrder places a coin margined futures algo (conditional) order with New Algo Order, which is how stop,
+// take profit and trailing stop orders are placed since the CM-UM integration moved them off New Order. The quantity
+// is in contracts
+func (e *Exchange) FuturesNewAlgoOrder(ctx context.Context, arg *UNewAlgoOrderRequest) (*UNewAlgoOrderResponse, error) {
+	params, err := e.newAlgoOrderParams(arg, asset.CoinMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	var resp *UNewAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/algoOrder", params, cFuturesOrdersDefaultRate, &resp)
+}
+
+// FuturesCancelAlgoOrder cancels an active coin margined futures algo (conditional) order with Cancel Algo Order, by
+// its algo ID or, when algoID is 0, its client algo ID
+func (e *Exchange) FuturesCancelAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*UCancelAlgoOrderResponse, error) {
+	params, err := algoOrderIDParams(algoID, clientAlgoID)
+	if err != nil {
+		return nil, err
+	}
+	var resp *UCancelAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/algoOrder", params, cFuturesCancelRate, &resp)
+}
+
+// FuturesCancelAllAlgoOpenOrders cancels a coin margined futures symbol's open algo (conditional) orders with Cancel
+// All Algo Open Orders
+func (e *Exchange) FuturesCancelAllAlgoOpenOrders(ctx context.Context, symbol currency.Pair) error {
+	if symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	s, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params := url.Values{}
+	params.Set("symbol", s)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/algoOpenOrders", params, cFuturesCancelRate, nil)
+}
+
+// FuturesCurrentAllAlgoOpenOrders returns open coin margined futures algo (conditional) orders from Current All Algo
+// Open Orders; each argument is an optional filter, and an empty symbol returns every symbol's orders
+func (e *Exchange) FuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]UAlgoOrder, error) {
+	return e.futuresCurrentAllAlgoOpenOrders(ctx, algoType, symbol, algoID, cFuturesOpenAlgoOrdersAllRate)
+}
+
+// futuresCurrentAllAlgoOpenOrders lists open coin margined futures algo orders, drawing on allSymbols for a listing of
+// every symbol's, so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]UAlgoOrder, error) {
+	params := url.Values{}
+	rateLimit := allSymbols
+	if algoType != "" {
+		params.Set("algoType", algoType)
+	}
+	if !symbol.IsEmpty() {
+		s, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("symbol", s)
+		rateLimit = cFuturesDefaultRate
+	}
+	if algoID > 0 {
+		params.Set("algoId", strconv.FormatUint(algoID, 10))
+	}
+	var resp []UAlgoOrder
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openAlgoOrders", params, rateLimit, &resp)
+}
+
+// FuturesQueryAllAlgoOrders returns a coin margined futures symbol's active, cancelled, triggered and finished algo
+// (conditional) orders from Query All Algo Orders. A time window may span at most seven days
+func (e *Exchange) FuturesQueryAllAlgoOrders(ctx context.Context, arg *UAllAlgoOrdersRequest) ([]UAlgoOrder, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	if err := setTimeRangeParams(params, arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
+	}
+	s, err := e.FormatSymbol(arg.Symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", s)
+	if arg.AlgoID > 0 {
+		params.Set("algoId", strconv.FormatUint(arg.AlgoID, 10))
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
+	}
+	var resp []UAlgoOrder
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/allAlgoOrders", params, cFuturesAllAlgoOrdersRate, &resp)
+}
+
 // FuturesChangeInitialLeverage sets the initial leverage of a coin margined futures symbol through Change Initial
 // Leverage
 func (e *Exchange) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage uint64) (*CFuturesChangeLeverageResponse, error) {
@@ -972,8 +1091,14 @@ func (e *Exchange) FuturesChangeMarginType(ctx context.Context, symbol currency.
 // GetFuturesAllOpenOrders returns the coin margined futures Current All Open Orders of a symbol, of every symbol of a
 // pair, or of every symbol when both are empty
 func (e *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair currency.Code) ([]FuturesOrderDetailResponse, error) {
+	return e.getFuturesAllOpenOrders(ctx, symbol, pair, cFuturesGetAllOpenOrdersRate)
+}
+
+// getFuturesAllOpenOrders lists coin margined futures open orders, drawing on allSymbols for a listing of every
+// symbol's, so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) getFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair currency.Code, allSymbols request.EndpointLimit) ([]FuturesOrderDetailResponse, error) {
 	params := url.Values{}
-	rateLimit := cFuturesGetAllOpenOrdersRate
+	rateLimit := allSymbols
 	if !symbol.IsEmpty() {
 		rateLimit = cFuturesDefaultRate
 		s, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)

@@ -134,7 +134,7 @@ func TestGetVIPLoanInterestRateHistory(t *testing.T) {
 			Rows: []VIPLoanInterestRate{
 				{
 					Coin:                   currency.BTC,
-					AnnualizedInterestRate: 0.0647,
+					AnnualisedInterestRate: 0.0647,
 					Time:                   types.Time(time.Unix(1744156800, 0)),
 				},
 			},

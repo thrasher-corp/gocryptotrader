@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ func TestGetFuturesAccountInfo(t *testing.T) {
 				{
 					Asset:                  currency.BTC,
 					WalletBalance:          0.00241969,
-					UnrealizedProfit:       -0.00000081,
+					UnrealisedProfit:       -0.00000081,
 					MarginBalance:          0.00241888,
 					MaintenanceMargin:      0.00001102,
 					InitialMargin:          0.00004533,
@@ -50,7 +51,7 @@ func TestGetFuturesAccountInfo(t *testing.T) {
 					PositionAmount:         3,
 					InitialMargin:          0.0000441,
 					MaintenanceMargin:      0.00001102,
-					UnrealizedProfit:       -0.00000081,
+					UnrealisedProfit:       -0.00000081,
 					PositionInitialMargin:  0.0000441,
 					OpenOrderInitialMargin: 0.00000123,
 					Leverage:               8,
@@ -209,7 +210,7 @@ func TestGetFuturesBasisData(t *testing.T) {
 				ContractType:        "CURRENT_QUARTER",
 				BasisRate:           0.0112,
 				FuturesPrice:        86872.4,
-				AnnualizedBasisRate: 0.0511,
+				AnnualisedBasisRate: 0.0511,
 				Basis:               958.44262547,
 				Pair:                "BTCUSD",
 				Timestamp:           types.Time(time.Unix(1791278100, 0)),
@@ -219,7 +220,7 @@ func TestGetFuturesBasisData(t *testing.T) {
 				ContractType:        "CURRENT_QUARTER",
 				BasisRate:           0.0111,
 				FuturesPrice:        86942.1,
-				AnnualizedBasisRate: 0.0507,
+				AnnualisedBasisRate: 0.0507,
 				Basis:               953.25230642,
 				Pair:                "BTCUSD",
 				Timestamp:           types.Time(time.Unix(1791278400, 0)),
@@ -1394,7 +1395,7 @@ func TestFuturesTradeHistory(t *testing.T) {
 				Side:            "SELL",
 				Price:           86118.7,
 				Quantity:        180,
-				RealizedPNL:     0.00001574,
+				RealisedPNL:     0.00001574,
 				MarginAsset:     currency.BTC,
 				BaseQuantity:    0.20901383,
 				Commission:      0.0001045,
@@ -1429,7 +1430,7 @@ func TestFuturesTradeHistory(t *testing.T) {
 				Side:            "BUY",
 				Price:           78950.1,
 				Quantity:        0.002,
-				RealizedPNL:     1.20532,
+				RealisedPNL:     1.20532,
 				MarginAsset:     currency.USDT,
 				QuoteQuantity:   157.9002,
 				Commission:      0.06316008,
@@ -2056,6 +2057,62 @@ func TestFuturesChangeMarginType(t *testing.T) {
 	assert.NotNil(t, result, "FuturesChangeMarginType should return the status")
 }
 
+func TestFuturesAlgoOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.FuturesNewAlgoOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "FuturesNewAlgoOrder must reject a nil request")
+	_, err = e.FuturesNewAlgoOrder(t.Context(), &UNewAlgoOrderRequest{AlgoType: "CONDITIONAL"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "FuturesNewAlgoOrder must reject an empty symbol")
+	_, err = e.FuturesQueryAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "FuturesQueryAlgoOrder must require an algo ID or a client algo ID")
+	_, err = e.FuturesCancelAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "FuturesCancelAlgoOrder must require an algo ID or a client algo ID")
+	err = e.FuturesCancelAllAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "FuturesCancelAllAlgoOpenOrders must reject an empty symbol")
+	_, err = e.FuturesQueryAllAlgoOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "FuturesQueryAllAlgoOrders must reject a nil request")
+	_, err = e.FuturesQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "FuturesQueryAllAlgoOrders must reject an empty symbol")
+
+	// Binance gives COIN-M the USDⓈ-M algo order endpoints, so the requests and replies match USDⓈ-M's on the COIN-M host
+	const algoOrder = `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSD_PERP","side":"SELL","positionSide":"BOTH","timeInForce":"GTE_GTC","quantity":"1","algoStatus":"NEW","triggerPrice":"70000","price":"0","icebergQuantity":"null","selfTradePreventionMode":"EXPIRE_MAKER","workingType":"MARK_PRICE","priceMatch":"NONE","closePosition":false,"priceProtect":false,"reduceOnly":true,"createTime":1744120800000,"updateTime":1744120800000,"triggerTime":0,"goodTillDate":0}`
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodPost, "/dapi/v1/algoOrder", map[string]string{"algoType": "CONDITIONAL", "symbol": "BTCUSD_PERP", "side": "SELL", "type": "STOP_MARKET", "quantity": "1", "triggerPrice": "70000", "workingType": "MARK_PRICE", "reduceOnly": "true", "clientAlgoId": "gct-cm-stop"}, algoOrder},
+		{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001", "clientAlgoId": ""}, algoOrder},
+		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "algoType": "CONDITIONAL"}, "[" + algoOrder + "]"},
+		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": ""}, "[" + algoOrder + "]"},
+		{http.MethodGet, "/dapi/v1/allAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "startTime": "1744103854944", "endTime": "1744190254944", "limit": "100"}, "[" + algoOrder + "]"},
+		{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-cm-stop", "algoId": ""}, `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","code":"200","msg":"success"}`},
+		{http.MethodDelete, "/dapi/v1/algoOpenOrders", map[string]string{"symbol": "BTCUSD_PERP"}, `{"code":200,"msg":"The operation of cancel all open order is done."}`},
+	})
+	base := UAlgoOrderBase{
+		AlgoID: 3100001, ClientAlgoID: "gct-cm-stop", AlgoType: "CONDITIONAL", OrderType: "STOP_MARKET", Symbol: "BTCUSD_PERP", Side: "SELL",
+		PositionSide: "BOTH", TimeInForce: "GTE_GTC", Quantity: 1, AlgoStatus: "NEW", TriggerPrice: 70000, IcebergQuantity: "null",
+		SelfTradePreventionMode: "EXPIRE_MAKER", WorkingType: "MARK_PRICE", PriceMatch: "NONE", ReduceOnly: true,
+		CreateTime: types.Time(time.UnixMilli(1744120800000)), UpdateTime: types.Time(time.UnixMilli(1744120800000)),
+	}
+	placed, err := ex.FuturesNewAlgoOrder(t.Context(), &UNewAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: pair, Side: "SELL", OrderType: "STOP_MARKET", Quantity: 1, TriggerPrice: 70000, WorkingType: "MARK_PRICE", ReduceOnly: true, ClientAlgoID: "gct-cm-stop"})
+	require.NoError(t, err, "FuturesNewAlgoOrder must not error")
+	assert.Equal(t, &UNewAlgoOrderResponse{UAlgoOrderBase: base}, placed, "FuturesNewAlgoOrder should decode the placed algo order")
+	queried, err := ex.FuturesQueryAlgoOrder(t.Context(), 3100001, "gct-cm-stop")
+	require.NoError(t, err, "FuturesQueryAlgoOrder must not error")
+	assert.Equal(t, &UAlgoOrderResponse{UAlgoOrderBase: base}, queried, "FuturesQueryAlgoOrder should decode the algo order")
+	open, err := ex.FuturesCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", pair, 0)
+	require.NoError(t, err, "FuturesCurrentAllAlgoOpenOrders must not error")
+	assert.Equal(t, []UAlgoOrder{{UAlgoOrderBase: base}}, open, "FuturesCurrentAllAlgoOpenOrders should decode the open algo orders")
+	_, err = ex.FuturesCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
+	require.NoError(t, err, "FuturesCurrentAllAlgoOpenOrders must list every symbol's open algo orders")
+	history, err := ex.FuturesQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{Symbol: pair, StartTime: time.UnixMilli(1744103854944), EndTime: time.UnixMilli(1744190254944), Limit: 100})
+	require.NoError(t, err, "FuturesQueryAllAlgoOrders must not error")
+	assert.Equal(t, []UAlgoOrder{{UAlgoOrderBase: base}}, history, "FuturesQueryAllAlgoOrders should decode the algo orders")
+	cancelled, err := ex.FuturesCancelAlgoOrder(t.Context(), 0, "gct-cm-stop")
+	require.NoError(t, err, "FuturesCancelAlgoOrder must not error")
+	assert.Equal(t, &UCancelAlgoOrderResponse{AlgoID: 3100001, ClientAlgoID: "gct-cm-stop", Code: 200, Message: "success"}, cancelled, "FuturesCancelAlgoOrder should decode the cancellation")
+	require.NoError(t, ex.FuturesCancelAllAlgoOpenOrders(t.Context(), pair), "FuturesCancelAllAlgoOpenOrders must not error")
+	assert.Equal(t, 7, sent(), "the COIN-M algo order endpoints should send every expected request")
+}
+
 func TestGetFuturesAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -2269,7 +2326,7 @@ func TestFuturesPositionsInfo(t *testing.T) {
 				EntryPrice:       85642.5,
 				BreakEvenPrice:   85676.8,
 				MarkPrice:        86068.2,
-				UnrealizedProfit: -0.00000081,
+				UnrealisedProfit: -0.00000081,
 				LiquidationPrice: 74502.8,
 				Leverage:         8,
 				MaxQuantity:      500,

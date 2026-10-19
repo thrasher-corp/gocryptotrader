@@ -352,7 +352,7 @@ type FuturesMarginCallPosition struct {
 	MarginType                string       `json:"mt"`
 	IsolatedWallet            types.Number `json:"iw"`
 	MarkPrice                 types.Number `json:"mp"`
-	UnrealizedPNL             types.Number `json:"up"`
+	UnrealisedPNL             types.Number `json:"up"`
 	MaintenanceMarginRequired types.Number `json:"mm"`
 }
 
@@ -387,8 +387,8 @@ type FuturesAccountUpdatePosition struct {
 	PositionAmount      types.Number `json:"pa"`
 	EntryPrice          types.Number `json:"ep"`
 	BreakevenPrice      types.Number `json:"bep"`
-	AccumulatedRealized types.Number `json:"cr"` // before fees
-	UnrealizedPNL       types.Number `json:"up"`
+	AccumulatedRealised types.Number `json:"cr"` // before fees
+	UnrealisedPNL       types.Number `json:"up"`
 	MarginType          string       `json:"mt"`
 	IsolatedWallet      types.Number `json:"iw"`
 	PositionSide        string       `json:"ps"`
@@ -440,7 +440,7 @@ type FuturesOrderTradeUpdateOrder struct {
 	IsPriceProtected               bool          `json:"pP"`
 	IgnoreSI                       int64         `json:"si"` // USDⓈ-M only, documented as ignore
 	IgnoreSS                       int64         `json:"ss"` // USDⓈ-M only, documented as ignore
-	RealizedProfit                 types.Number  `json:"rp"`
+	RealisedProfit                 types.Number  `json:"rp"`
 	SelfTradePreventionMode        string        `json:"V"`
 	PriceMatchMode                 string        `json:"pm"`
 	GoodTillDate                   types.Time    `json:"gtd"` // USDⓈ-M only
@@ -532,7 +532,7 @@ type FuturesGridUpdateData struct {
 	StrategyType          string       `json:"st"`
 	StrategyStatus        string       `json:"ss"`
 	Symbol                string       `json:"s"`
-	RealizedPNL           types.Number `json:"r"`
+	RealisedPNL           types.Number `json:"r"`
 	UnmatchedAveragePrice types.Number `json:"up"`
 	UnmatchedQuantity     types.Number `json:"uq"`
 	UnmatchedFee          types.Number `json:"uf"`
@@ -747,7 +747,7 @@ type OptionsAccountUpdate struct {
 	AdjustedEquity    types.Number `json:"aeq"`
 	WalletBalance     types.Number `json:"b"`
 	PositionValue     types.Number `json:"m"`
-	UnrealizedPNL     types.Number `json:"u"`
+	UnrealisedPNL     types.Number `json:"u"`
 	InitialMargin     types.Number `json:"i"`
 	MaintenanceMargin types.Number `json:"M"`
 }
@@ -810,7 +810,7 @@ type OptionsOrderTradeUpdateOrder struct {
 	IsMaker                        bool          `json:"m"`
 	IsReduceOnly                   bool          `json:"R"`
 	OriginalOrderType              string        `json:"ot"`
-	RealizedProfit                 types.Number  `json:"rp"`
+	RealisedProfit                 types.Number  `json:"rp"`
 	SelfTradePreventionMode        string        `json:"V"`
 }
 

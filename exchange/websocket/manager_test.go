@@ -949,7 +949,17 @@ func TestOptionalConnection(t *testing.T) {
 
 		require.NoError(t, held.Shutdown(), "Shutdown must not error")
 		retryNow(m, optional)
-		m.connectOptional(t.Context())
+		returned := make(chan struct{})
+		go func() {
+			m.connectOptional(t.Context())
+			close(returned)
+		}()
+		select {
+		case <-returned:
+		case <-time.After(5 * time.Second):
+			unblock()
+			require.FailNow(t, "connectOptional must not block on the released connection's reader")
+		}
 		assert.Zero(t, connections(m, optional), "a replacement should wait for the released connection's reader")
 
 		unblock()
@@ -1046,6 +1056,42 @@ func TestOptionalConnection(t *testing.T) {
 		}, 5*time.Second, 10*time.Millisecond, "the connection monitor should replace the lost optional connection")
 		assert.Same(t, required, firstConnection(m, m.connectionManager[0]), "the required connection should not be reconnected")
 	})
+}
+
+func TestOptionalConnectionFirstDialBounded(t *testing.T) {
+	t.Parallel()
+	// A host that accepts an optional connection and stalls its handshake must not hold the connections set up after it
+	// back for a whole handshake timeout, so the first dial is bounded as the connection monitor's retries are
+	m := NewManager()
+	setup := newDefaultSetup()
+	setup.UseMultiConnectionManagement = true
+	setup.ExchangeConfig.ConnectionMonitorDelay = time.Hour
+	require.NoError(t, m.Setup(setup), "Setup must not error")
+	errStalled := errors.New("handshake stalled")
+	var deadline time.Time
+	var bounded bool
+	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+		URL: "wss://optional.invalid", MessageFilter: "optional", Optional: true, SubscriptionsNotRequired: true,
+		Handler: func(context.Context, Connection, []byte) error { return nil },
+		Connector: func(ctx context.Context, _ Connection) error {
+			deadline, bounded = ctx.Deadline()
+			return errStalled
+		},
+	}), "SetupNewConnection must not error")
+	t.Cleanup(func() {
+		if m.IsEnabled() {
+			assert.NoError(t, m.Disable(), "Disable should not error")
+		}
+		if err := m.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		}
+	})
+	called := time.Now()
+	err := m.Connect(t.Context())
+	returned := time.Now()
+	assert.ErrorIs(t, err, errStalled, "Connect should report the optional connection's failure")
+	require.True(t, bounded, "the optional connection's first dial must have a deadline")
+	assert.WithinRange(t, deadline, called.Add(optionalConnectionDialTimeout), returned.Add(optionalConnectionDialTimeout), "the first dial should be bounded as the retries are")
 }
 
 func TestCreateConnectAndSubscribe(t *testing.T) {

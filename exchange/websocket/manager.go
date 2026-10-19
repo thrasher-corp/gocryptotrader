@@ -68,8 +68,9 @@ var (
 	errOptionalConnectionUnsupported        = errors.New("optional connections need multi-connection management")
 )
 
-// An optional connection that is not up is dialled again this long after its last attempt, each dial bounded so that
-// the websocket's lock, held as connecting the websocket holds it, is not held for a whole handshake timeout
+// An optional connection that is not up is dialled again this long after its last attempt. Each of its dials, the first
+// included, is bounded, so that neither the websocket's lock nor the connections set up after it wait for a whole
+// handshake timeout
 const (
 	optionalConnectionRetryDelay  = 30 * time.Second
 	optionalConnectionDialTimeout = 10 * time.Second
@@ -644,7 +645,17 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 
 		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
-			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
+			var err error
+			if ws.setup.Optional {
+				// An optional connection's dial is bounded here as when it is tried again, so it cannot hold the
+				// connections after it back for a whole handshake timeout
+				dialCtx, cancel := context.WithTimeout(ctx, optionalConnectionDialTimeout)
+				_, err = m.createConnection(dialCtx, ctx, ws)
+				cancel()
+			} else {
+				err = m.createConnectAndSubscribe(ctx, ws, nil)
+			}
+			if err != nil {
 				if ws.setup.Optional {
 					optionalError = common.AppendError(optionalError, m.dropOptionalConnection(ws, fmt.Errorf("cannot connect to optional [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err)))
 					continue

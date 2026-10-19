@@ -34,6 +34,7 @@ var (
 	errTransferTypeRequired        = errors.New("transfer type is required")
 	errNameRequired                = errors.New("name is required")
 	errPositionIDRequired          = errors.New("position ID is required")
+	errPositionDirectionRequired   = errors.New("position direction is required")
 	errRedemptionAccountRequired   = errors.New("redemption account not specified")
 	errOptionTypeRequired          = errors.New("optionType is required")
 	errPageSizeRequired            = errors.New("page size is required")
@@ -438,7 +439,7 @@ type CancelOrderResponse struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`
@@ -497,7 +498,7 @@ type NewOrderResponse struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`
@@ -569,7 +570,7 @@ type OrderResponse struct {
 	OriginalQuantity           types.Number      `json:"origQty"`
 	ExecutedQuantity           types.Number      `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number      `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number      `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number      `json:"cummulativeQuoteQty"`
 	Status                     string            `json:"status"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`
 	Type                       string            `json:"type"`
@@ -717,7 +718,7 @@ type SOROrderResponse struct {
 	OriginalQuantity           types.Number `json:"origQty"`
 	ExecutedQuantity           types.Number `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number `json:"cummulativeQuoteQty"`
+	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
 	TimeInForce                string       `json:"timeInForce"`
 	Type                       string       `json:"type"`
@@ -786,7 +787,7 @@ type TradeOrderResponse struct {
 	OriginalQuantity           types.Number      `json:"origQty"`
 	ExecutedQuantity           types.Number      `json:"executedQty"`
 	OriginalQuoteOrderQuantity types.Number      `json:"origQuoteOrderQty"`
-	CummulativeQuoteQuantity   types.Number      `json:"cummulativeQuoteQty"` // Negative when unavailable for some historical orders
+	CumulativeQuoteQuantity    types.Number      `json:"cummulativeQuoteQty"` // Negative when unavailable for some historical orders
 	Status                     string            `json:"status"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`
 	Type                       string            `json:"type"`

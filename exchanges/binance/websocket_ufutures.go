@@ -310,12 +310,41 @@ func (e *Exchange) SubscribeUserData(ctx context.Context, conn websocket.Connect
 	for _, s := range subs {
 		if err := e.subscribeUserData(ctx, conn, s); err != nil {
 			errs = common.AppendError(errs, err)
+			if !errors.Is(err, asset.ErrNotSupported) {
+				e.retryUserDataSubscription(ctx, conn, s.Asset, false, func(attemptCtx context.Context) (bool, error) {
+					return e.resubscribeUserData(attemptCtx, ctx, conn, s)
+				})
+			}
 		}
 	}
 	return errs
 }
 
+// resubscribeUserData subscribes a private connection to the user data stream a subscription failed to, while the
+// stream is still wanted and no other subscription has been made to it, reporting whether it is done trying. The
+// attempt is made under ctx, which ends with the retry, and the listen key is kept alive under keepAliveCtx, as when
+// the connection first subscribed
+func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn websocket.Connection, failed *subscription.Subscription) (done bool, err error) {
+	if e.Websocket.GetSubscription(failed) != nil {
+		return true, nil
+	}
+	if wanted, err := e.generateUserDataSubscriptions(failed.Asset); err != nil || len(wanted) == 0 {
+		return true, err
+	}
+	s := failed.Clone()
+	if err := e.subscribeUserDataKeptAlive(ctx, keepAliveCtx, conn, s); err != nil {
+		return false, err
+	}
+	// Connecting records the subscriptions it makes against the connection, which tells a flush the connection is in use
+	return true, conn.Subscriptions().Add(s)
+}
+
 func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
+	return e.subscribeUserDataKeptAlive(ctx, ctx, conn, s)
+}
+
+// subscribeUserDataKeptAlive subscribes under ctx and keeps the listen key alive under keepAliveCtx
+func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 		return err
 	}
@@ -329,7 +358,7 @@ func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connect
 	if err := s.SetState(subscription.SubscribedState); err != nil {
 		return err
 	}
-	e.keepUserDataStreamAlive(ctx, conn, s)
+	e.keepUserDataStreamAlive(keepAliveCtx, conn, s)
 	return nil
 }
 
@@ -407,8 +436,9 @@ func (e *Exchange) keepaliveUserDataStream(ctx context.Context, a asset.Item) er
 // its last keepalive, until the websocket shuts down or the stream is unsubscribed
 func (e *Exchange) keepUserDataStreamAlive(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) {
 	shutdown := e.Websocket.ShutdownC
+	interval := cmp.Or(e.userDataRetry.keepalive, userDataKeepaliveInterval)
 	e.Websocket.Wg.Go(func() {
-		t := time.NewTicker(userDataKeepaliveInterval)
+		t := time.NewTicker(interval)
 		defer t.Stop()
 		for {
 			select {
@@ -451,6 +481,100 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 		log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, err)
 	}
+}
+
+// A failed user data stream subscription is tried again after userDataRetryDelay, then after twice the last wait each
+// time, up to userDataRetryMaxDelay
+const (
+	userDataRetryDelay    = 5 * time.Second
+	userDataRetryMaxDelay = 5 * time.Minute
+)
+
+// userDataRetries tracks, by asset, the connection a user data stream subscription is being tried again on, so that an
+// asset has one retry at a time and a retry on a replaced connection cannot end its successor's
+type userDataRetries struct {
+	mu      sync.Mutex
+	running map[asset.Item]websocket.Connection
+	// delay is the first wait before a retry, userDataRetryDelay when zero
+	delay time.Duration
+	// keepalive is the interval between the keepalives of a subscribed stream's listen key, userDataKeepaliveInterval
+	// when zero
+	keepalive time.Duration
+}
+
+// retryUserDataSubscription subscribes asset a's user data stream on conn in the background, at once or after the first
+// retry delay, and again after a longer wait each time subscribe fails, until subscribe reports it is done, the
+// connection goes down, or the websocket shuts down. Nothing else asks again while the connection stays up, which can
+// be until Binance's daily disconnection, leaving the account's balances and orders to polls alone. It must be called
+// while the websocket's wait group counts a running routine, such as a connection's reader
+func (e *Exchange) retryUserDataSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, immediately bool, subscribe func(context.Context) (done bool, err error)) {
+	r := &e.userDataRetry
+	r.mu.Lock()
+	if r.running[a] == conn {
+		r.mu.Unlock()
+		return
+	}
+	if r.running == nil {
+		r.running = make(map[asset.Item]websocket.Connection)
+	}
+	r.running[a] = conn
+	delay := cmp.Or(r.delay, userDataRetryDelay)
+	r.mu.Unlock()
+	var wait time.Duration
+	if !immediately {
+		wait = delay
+	}
+	shutdown := e.Websocket.ShutdownC
+	e.Websocket.Wg.Go(func() {
+		defer func() {
+			r.mu.Lock()
+			if r.running[a] == conn {
+				delete(r.running, a)
+			}
+			r.mu.Unlock()
+		}()
+		// An attempt under way when the websocket shuts down is cancelled rather than holding the shutdown up
+		retryCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-shutdown:
+				cancel()
+			case <-retryCtx.Done():
+			}
+		}()
+		timer := time.NewTimer(wait)
+		defer timer.Stop()
+		for {
+			select {
+			case <-retryCtx.Done():
+				return
+			case <-timer.C:
+			}
+			if !isConnected(conn) {
+				return
+			}
+			done, err := subscribe(retryCtx)
+			if err != nil {
+				e.reportUserDataStreamError(retryCtx, a, err)
+			}
+			if done {
+				return
+			}
+			wait = nextUserDataRetryWait(wait, delay)
+			timer.Reset(wait)
+		}
+	})
+}
+
+// nextUserDataRetryWait returns the wait before the next attempt at a user data stream subscription after a failed one
+// that followed a wait of wait: the first retry delay after an immediate attempt, and twice the last wait after that,
+// up to userDataRetryMaxDelay
+func nextUserDataRetryWait(wait, delay time.Duration) time.Duration {
+	if wait == 0 {
+		return delay
+	}
+	return min(wait*2, userDataRetryMaxDelay)
 }
 
 // fetchDerivativesOrderbook returns a USDⓈ-M, COIN-M or options REST order book as deep as the asset's snapshots, which
@@ -1108,8 +1232,8 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 		position := futuresPosition(e.Name, a, pair, p.PositionSide, p.PositionAmount.Decimal(), resp.TransactionTime.Time())
 		position.OpeningPrice = p.EntryPrice.Decimal()
 		position.PositionMargin = p.IsolatedWallet.Decimal()
-		position.RealisedPNL = p.AccumulatedRealized.Decimal()
-		position.UnrealisedPNL = p.UnrealizedPNL.Decimal()
+		position.RealisedPNL = p.AccumulatedRealised.Decimal()
+		position.UnrealisedPNL = p.UnrealisedPNL.Decimal()
 		positions = append(positions, position)
 	}
 	if len(positions) == 0 {
@@ -1137,6 +1261,9 @@ type balanceRefresher struct {
 	// eventTimes holds, by asset and currency, the transaction time of the latest stream event to report the
 	// currency's balance, which a REST snapshot must not predate
 	eventTimes map[asset.Item]map[*currency.Item]time.Time
+	// snapshotTimes holds, by asset, the account update time of the latest REST snapshot stored for the configured
+	// account where Binance gives one for the whole account, which a stream event must not predate
+	snapshotTimes map[asset.Item]time.Time
 	// interval is the time between refreshes of an asset, balanceRefreshInterval when zero
 	interval time.Duration
 	// storeMu keeps a balance event from being stored while a REST snapshot is accepted, by a refresh or a poll, so a
@@ -1185,6 +1312,29 @@ func (e *Exchange) recordBalanceEvent(a asset.Item, transactionTime time.Time, c
 	}
 }
 
+// recordBalanceSnapshot records the account update time of a REST snapshot of an asset's balances stored for the
+// configured account
+func (e *Exchange) recordBalanceSnapshot(a asset.Item, asOf time.Time) {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.snapshotTimes == nil {
+		r.snapshotTimes = make(map[asset.Item]time.Time)
+	}
+	if asOf.After(r.snapshotTimes[a]) {
+		r.snapshotTimes[a] = asOf
+	}
+}
+
+// balanceSnapshotTime returns the account update time of the latest REST snapshot of an asset's balances stored for the
+// configured account
+func (e *Exchange) balanceSnapshotTime(a asset.Item) time.Time {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.snapshotTimes[a]
+}
+
 // balanceEventTimes returns the transaction time of the latest user data stream event to report each of an asset's
 // currencies
 func (e *Exchange) balanceEventTimes(a asset.Item) map[*currency.Item]time.Time {
@@ -1195,13 +1345,13 @@ func (e *Exchange) balanceEventTimes(a asset.Item) map[*currency.Item]time.Time 
 }
 
 // refreshBalances refreshes an asset's available balances over REST once a user data stream balance event has stored
-// its balances, or has the refresh running for it go once more. Refreshes run while the websocket is connected, as the
-// events that start them arrive
+// its balances, or has the refresh running for it go once more. Refreshes run while the websocket is connected, or
+// connecting, as a private connection streams while the manager dials the connections after it
 func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item) {
 	r := &e.balanceRefresh
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if !e.Websocket.IsConnected() {
+	if !e.Websocket.IsConnected() && !e.Websocket.IsConnecting() {
 		return
 	}
 	if r.running[a] {
@@ -1219,15 +1369,16 @@ func (e *Exchange) refreshBalances(ctx context.Context, a asset.Item) {
 }
 
 // runBalanceRefresh refreshes an asset's available balances, then once more after each interval in which they changed
-// again, or in which REST still lagged the stream, at most balanceRefreshAttempts times for one event, while the
-// websocket is connected; a refresh already under way when it disconnects finishes its request
+// again, or in which REST still lagged the stream or the refresh failed, at most balanceRefreshAttempts times for one
+// event, while the websocket is connected or connecting; a refresh already under way when it disconnects finishes its
+// request
 func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval time.Duration) {
 	r := &e.balanceRefresh
 	for attempts := 1; ; attempts++ {
 		// Checked under the lock events take to ask for another refresh, so one made after a reconnection starts its own
 		// rather than being cleared here
 		r.mu.Lock()
-		if !e.Websocket.IsConnected() {
+		if !e.Websocket.IsConnected() && !e.Websocket.IsConnecting() {
 			r.running[a], r.pending[a] = false, false
 			r.mu.Unlock()
 			return
@@ -1244,7 +1395,7 @@ func (e *Exchange) runBalanceRefresh(ctx context.Context, a asset.Item, interval
 			// Another event changed the balances, so its refresh has attempts of its own
 			attempts = 0
 		} else {
-			again = lagging && attempts < balanceRefreshAttempts
+			again = (lagging || err != nil) && attempts < balanceRefreshAttempts
 		}
 		r.pending[a] = false
 		r.running[a] = again
@@ -1278,16 +1429,18 @@ func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) (
 				lagging = true
 				continue
 			}
-			_, err := e.Accounts.UpdateBalance(ctx, "", a, c, func(stored *accounts.Balance) {
+			// A balance kept is left as it was, as storing it would stamp it as current
+			_, err := e.Accounts.UpdateBalanceIf(ctx, "", a, c, func(stored *accounts.Balance) bool {
 				if stored.UpdatedAt.After(requested) {
-					return
+					return false
 				}
 				if stored.UpdatedAt.IsZero() || stored.Total == fetched.Total {
 					stored.Total, stored.Hold, stored.Free = fetched.Total, fetched.Hold, fetched.Free
-					return
+					return true
 				}
 				// Asking again cannot reconcile a currency the stream does not report
 				lagging = lagging || streamed
+				return false
 			})
 			errs = common.AppendError(errs, err)
 		}
@@ -1494,7 +1647,7 @@ func derivativesOrderType(orderType string) (order.Type, error) {
 	switch orderType {
 	case "LIMIT":
 		return order.Limit, nil
-	case "MARKET":
+	case marketOrderType:
 		return order.Market, nil
 	case "STOP":
 		return order.StopLimit, nil
@@ -1534,11 +1687,12 @@ func derivativesOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-// derivativesTimeInForce converts a time in force. RPI orders are post only, and GTE_GTC, the time in force of close
-// position orders, keeps an order until it is cancelled or the position it closes is gone
+// derivativesTimeInForce converts a time in force. GTX, Binance's post only time in force, and RPI orders are post
+// only, as SubmitOrder reports a post only order, and GTE_GTC, the time in force of close position orders, keeps an
+// order until it is cancelled or the position it closes is gone
 func derivativesTimeInForce(timeInForce string) (order.TimeInForce, error) {
 	switch timeInForce {
-	case "RPI":
+	case "GTX", "RPI":
 		return order.PostOnly, nil
 	case "GTE_GTC":
 		return order.GoodTillCancel, nil

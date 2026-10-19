@@ -166,6 +166,21 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	rateLimitReservationMu.Lock()
 	r.m.Lock()
 	tn := time.Now()
+	// Cancelling reservations granted at once gives back only part of their tokens, so a request that cannot go at once
+	// is refused before it reserves anything when it may not wait, or cannot wait long enough
+	if delay := r.delayLocked(tn); delay > 0 {
+		var err error
+		if hasDelayNotAllowed(ctx) {
+			err = ErrDelayNotAllowed
+		} else if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(delay)) {
+			err = fmt.Errorf("rate limit delay of %s will exceed deadline: %w", delay, context.DeadlineExceeded)
+		}
+		if err != nil {
+			r.m.Unlock()
+			rateLimitReservationMu.Unlock()
+			return err
+		}
+	}
 	reserved, finalDelay := r.reserveLocked(tn)
 
 	if finalDelay == 0 {
@@ -196,6 +211,39 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	case <-time.After(finalDelay):
 		return nil
 	}
+}
+
+// Delay returns how long a request on the limiter would wait were it reserved now, behind every reservation made before
+// it, without reserving anything
+func (r *RateLimiterWithWeight) Delay() time.Duration {
+	if r == nil {
+		return 0
+	}
+	rateLimitReservationMu.Lock()
+	defer rateLimitReservationMu.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
+	return r.delayLocked(time.Now())
+}
+
+// delayLocked returns how long a request reserved at would wait: none while the limiter holds its weight, and otherwise
+// the time the limiter takes to refill what it lacks. The caller must hold rateLimitReservationMu and r.m
+func (r *RateLimiterWithWeight) delayLocked(at time.Time) time.Duration {
+	limit := r.limiter.Limit()
+	if limit == rate.Inf {
+		return 0
+	}
+	missing := float64(r.weight) - r.limiter.TokensAt(at)
+	if missing <= 0 {
+		return 0
+	}
+	if limit <= 0 {
+		return rate.InfDuration
+	}
+	if d := missing / float64(limit) * float64(time.Second); d < float64(rate.InfDuration) {
+		return time.Duration(d)
+	}
+	return rate.InfDuration
 }
 
 func (r *RateLimiterWithWeight) reserveLocked(at time.Time) ([]*rate.Reservation, time.Duration) {

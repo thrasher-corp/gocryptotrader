@@ -127,7 +127,7 @@ func TestUAccountTradeHistoryUnmarshal(t *testing.T) {
 		Quantity:        0.0625,
 		BaseQuantity:    0.03125,
 		QuoteQuantity:   15.640625,
-		RealizedPNL:     -0.9375,
+		RealisedPNL:     -0.9375,
 		Side:            "SELL",
 		MarginAsset:     currency.USDT,
 		PositionSide:    "SHORT",
@@ -243,7 +243,7 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
 		Asset:              currency.USDT,
 		Balance:            125.5,
 		CrossWalletBalance: 120.25,
-		CrossUnrealizedPNL: -0.5,
+		CrossUnrealisedPNL: -0.5,
 		AvailableBalance:   115.75,
 		MaxWithdrawAmount:  110.25,
 	}

@@ -73,7 +73,7 @@ type VIPLoanInterestRateHistoryResponse struct {
 // VIPLoanInterestRate holds a VIP loan coin's annualised flexible interest rate at a point in time
 type VIPLoanInterestRate struct {
 	Coin                   currency.Code `json:"coin"`
-	AnnualizedInterestRate types.Number  `json:"annualizedInterestRate"`
+	AnnualisedInterestRate types.Number  `json:"annualizedInterestRate"`
 	Time                   types.Time    `json:"time"`
 }
 

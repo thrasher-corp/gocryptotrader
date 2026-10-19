@@ -1116,13 +1116,17 @@ func (s *store) fillSubmitted(det *order.Detail) *order.Detail {
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	for _, o := range s.Orders[strings.ToLower(det.Exchange)] {
-		if o.OrderID != det.OrderID {
+	orders := s.Orders[strings.ToLower(det.Exchange)]
+	for i, stored := range orders {
+		if stored.OrderID != det.OrderID {
 			continue
 		}
-		if o.AssetType != det.AssetType || !o.Pair.Equal(det.Pair) {
-			return o.CopyToPointer()
+		if stored.AssetType != det.AssetType || !stored.Pair.Equal(det.Pair) {
+			return stored.CopyToPointer()
 		}
+		// The stored order can be the one a websocket handler added and still reads, so the submitted values go into a
+		// copy that takes its place
+		o := stored.CopyToPointer()
 		if o.Side == order.UnknownSide {
 			o.Side = det.Side
 		}
@@ -1153,6 +1157,7 @@ func (s *store) fillSubmitted(det *order.Detail) *order.Detail {
 		if o.ClientID == "" {
 			o.ClientID = det.ClientID
 		}
+		orders[i] = o
 		return o.CopyToPointer()
 	}
 	return nil

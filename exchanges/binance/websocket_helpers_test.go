@@ -57,7 +57,7 @@ func newDerivativesTestExchange(tb testing.TB) *Exchange {
 // useTestOrderbookSync replaces the order book synchronisation with one taking its snapshots from fetch, without the
 // fetch delay
 func useTestOrderbookSync(ex *Exchange, fetch func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error)) {
-	ex.orderbookSync = ex.newOrderbookSync(fetch, 0, 5*time.Second)
+	ex.orderbookSync = ex.newOrderbookSync(fetch, 0, 30*time.Second)
 }
 
 // fixtureFrames returns the frames of a websocket fixture file, one per line

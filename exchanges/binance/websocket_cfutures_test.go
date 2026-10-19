@@ -155,7 +155,7 @@ func TestWsHandleCFuturesUserData(t *testing.T) {
 			EventType: "MARGIN_CALL", EventTime: fixtureTime(1587727187525), AccountAlias: "SfsR", CrossWalletBalance: 3.16812045,
 			Positions: []FuturesMarginCallPosition{{
 				Symbol: "BTCUSD_PERP", PositionSide: "LONG", PositionAmount: 132, MarginType: "CROSSED", IsolatedWallet: 0.1, MarkPrice: 86187.17127,
-				UnrealizedPNL: -0.0001166074, MaintenanceMarginRequired: 0.0001614445,
+				UnrealisedPNL: -0.0001166074, MaintenanceMarginRequired: 0.0001614445,
 			}},
 		},
 		accounts.SubAccounts{{AssetType: asset.CoinMarginedFutures, Balances: accounts.CurrencyBalances{
@@ -168,7 +168,7 @@ func TestWsHandleCFuturesUserData(t *testing.T) {
 			LatestDirection: order.Long, LastUpdated: time.UnixMilli(1564745798938),
 		}},
 		&order.Detail{
-			TimeInForce: order.GoodTillCrossing, ReduceOnly: true, Price: 86000.1, Amount: 2, TriggerPrice: 86100.1, AverageExecutedPrice: 86000.1,
+			TimeInForce: order.PostOnly, ReduceOnly: true, Price: 86000.1, Amount: 2, TriggerPrice: 86100.1, AverageExecutedPrice: 86000.1,
 			ExecutedAmount: 2, FeeAsset: currency.BTC, Exchange: ex.Name, OrderID: "8888888", ClientOrderID: "TEST", Type: order.Limit,
 			Side: order.Buy, Status: order.Filled, AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1591274595442),
 			LastUpdated: time.UnixMilli(1591274595442), Pair: testCFuturesPair,
@@ -188,7 +188,7 @@ func TestWsHandleCFuturesUserData(t *testing.T) {
 		&FuturesGridUpdate{
 			EventType: "GRID_UPDATE", TransactionTime: fixtureTime(1669262908216), EventTime: fixtureTime(1669262908218),
 			GridUpdate: FuturesGridUpdateData{
-				StrategyID: 176057040, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSD_PERP", RealizedPNL: -0.00000716,
+				StrategyID: 176057040, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSD_PERP", RealisedPNL: -0.00000716,
 				UnmatchedAveragePrice: 86720, UnmatchedQuantity: -1, UnmatchedFee: -0.00000716, MatchedPNL: 0.00000001, UpdateTime: fixtureTime(1669262908197),
 			},
 		},

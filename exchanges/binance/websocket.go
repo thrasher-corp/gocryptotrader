@@ -154,7 +154,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return fmt.Errorf("%w: %s", errUnhandledMessage, respRaw)
 	}
 	if stream == serverShutdownStream {
-		return e.handleServerShutdown(data, e.Websocket.Shutdown)
+		// Shutting the websocket down closes the WebSocket API connection too. A websocket shut down meanwhile has closed
+		// this connection, and is left alone in case it has connected again
+		return e.handleServerShutdown(data, e.wsAPI.kept(), func() error {
+			if !isConnected(conn) {
+				return nil
+			}
+			return e.Websocket.Shutdown()
+		})
 	}
 	symbol, channel, _ := strings.Cut(stream, "@")
 	switch {
@@ -176,16 +183,20 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // handleServerShutdown runs closeConnection when a serverShutdown event warns that the server is about to close the
-// connection, for the connection monitor to connect again
-func (e *Exchange) handleServerShutdown(event []byte, closeConnection func() error) error {
+// connection, for the connection monitor to connect again. The server still answers the requests it has, so apiConn,
+// the WebSocket API connection the closing takes down, takes no more from the event on, and closeConnection runs once
+// those in flight on it have returned or their response limit has passed
+func (e *Exchange) handleServerShutdown(event []byte, apiConn websocket.Connection, closeConnection func() error) error {
 	var resp WsServerShutdown
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
 	log.Warnf(log.WebsocketMgr, "%s server shutting down at %s, reconnecting", e.Name, resp.EventTime.Time())
+	wait := e.wsAPI.retire(apiConn)
 	// Closing waits for a write in progress and shutting the websocket down for this connection's reader, so neither can
 	// run on the reader
 	go func() {
+		wait()
 		if err := closeConnection(); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s unable to close the connection for reconnection: %s", e.Name, err)
 		}

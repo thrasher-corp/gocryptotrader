@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -77,8 +78,86 @@ func (e *Exchange) GetAssetsMode(ctx context.Context) (bool, error) {
 
 // GetCurrentPositionMode returns whether the account is in Hedge Mode, from Get Current Position Mode
 func (e *Exchange) GetCurrentPositionMode(ctx context.Context) (*UPositionModeResponse, error) {
+	return e.getCurrentPositionMode(ctx, uFuturesPositionModeRate)
+}
+
+// getCurrentPositionMode fetches the position mode drawing on f, so that the lookup a Long or Short order makes can
+// draw on the cancel pool rather than queue behind order book snapshots on the IP pool
+func (e *Exchange) getCurrentPositionMode(ctx context.Context, f request.EndpointLimit) (*UPositionModeResponse, error) {
 	var resp *UPositionModeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionSide/dual", nil, uFuturesPositionModeRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionSide/dual", nil, f, &resp)
+}
+
+// positionModeCache holds the position mode of each account Long and Short futures orders were placed for, keyed by
+// API key since context credentials can switch the account per call; USDⓈ-M and COIN-M have shared one mode since
+// the CM-UM integration. A lookup keeps the mode it fetched only when the account's mode was not forgotten while it was
+// in flight, so a lookup overlapping a change of mode cannot keep the mode the change replaced
+type positionModeCache struct {
+	mu          sync.Mutex
+	hedgeMode   map[string]bool
+	generations map[string]uint64
+}
+
+// get returns the account's cached mode, whether it has one, and the generation a lookup started now keeps its mode at
+func (c *positionModeCache) get(key string) (hedgeMode, ok bool, generation uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	hedgeMode, ok = c.hedgeMode[key]
+	return hedgeMode, ok, c.generations[key]
+}
+
+// set keeps the mode a lookup started at generation fetched, unless the account's mode was forgotten since
+func (c *positionModeCache) set(key string, generation uint64, hedgeMode bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.generations[key] != generation {
+		return
+	}
+	if c.hedgeMode == nil {
+		c.hedgeMode = make(map[string]bool)
+	}
+	c.hedgeMode[key] = hedgeMode
+}
+
+// forget drops the account's cached mode and the mode of any lookup in flight
+func (c *positionModeCache) forget(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.hedgeMode, key)
+	if c.generations == nil {
+		c.generations = make(map[string]uint64)
+	}
+	c.generations[key]++
+}
+
+// positionMode returns whether the account of ctx's credentials is in Hedge Mode, from the cache or else from Get
+// Current Position Mode on the cancel pool when it can take the lookup at once, so a Long or Short order does not wait
+// behind order book snapshots
+func (e *Exchange) positionMode(ctx context.Context) (bool, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return false, err
+	}
+	hedgeMode, ok, generation := e.positionModes.get(creds.Key)
+	if ok {
+		return hedgeMode, nil
+	}
+	var resp *UPositionModeResponse
+	if err := e.sendOnShare(ctx, uFuturesPositionModeLookupRate, uFuturesPositionModeRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+		resp, err = e.getCurrentPositionMode(ctx, f)
+		return err
+	}); err != nil {
+		return false, err
+	}
+	e.positionModes.set(creds.Key, generation, resp.DualSidePosition)
+	return resp.DualSidePosition, nil
+}
+
+// forgetPositionMode drops the cached position mode of ctx's account, so the next Long or Short order looks it up
+func (e *Exchange) forgetPositionMode(ctx context.Context) {
+	if creds, err := e.GetCredentials(ctx); err == nil {
+		e.positionModes.forget(creds.Key)
+	}
 }
 
 // UFuturesOrderHistoryDownloadID requests an order history file for a window of up to a year, from Get Download Id
@@ -703,6 +782,9 @@ func (e *Exchange) SetAssetsMode(ctx context.Context, multiAssetsMargin bool) er
 func (e *Exchange) ChangePositionMode(ctx context.Context, dualSidePosition bool) error {
 	params := url.Values{}
 	params.Set("dualSidePosition", strconv.FormatBool(dualSidePosition))
+	// A lookup made while the change is in flight may read either mode, so the account's mode is looked up again after it
+	e.forgetPositionMode(ctx)
+	defer e.forgetPositionMode(ctx)
 	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/positionSide/dual", params, uFuturesDefaultRate, nil)
 }
 
@@ -769,7 +851,8 @@ func (e *Exchange) UAllAccountOrders(ctx context.Context, arg *UAllOrdersRequest
 }
 
 // UAutoCancelAllOpenOrders cancels a symbol's open orders once the countdown elapses, with Auto-Cancel All Open
-// Orders. Calling it again replaces the countdown, so it serves as a heartbeat, and a zero countdown stops it
+// Orders. Calling it again replaces the countdown, so it serves as a heartbeat, and a zero countdown stops it.
+// Heartbeats draw on a rate limit share of their own, which COIN-M heartbeats share, while it can take them at once
 func (e *Exchange) UAutoCancelAllOpenOrders(ctx context.Context, symbol currency.Pair, countdownTime time.Duration) (*UAutoCancelAllOpenOrdersResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -782,7 +865,9 @@ func (e *Exchange) UAutoCancelAllOpenOrders(ctx context.Context, symbol currency
 	params.Set("symbol", symbolValue)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime.Milliseconds(), 10))
 	var resp *UAutoCancelAllOpenOrdersResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/countdownCancelAll", params, uFuturesCountdownCancelRate, &resp)
+	return resp, e.sendOnShare(ctx, uFuturesCountdownCancelRate, uFuturesHeartbeatOverflowRate, func(ctx context.Context, f request.EndpointLimit) error {
+		return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/countdownCancelAll", params, f, &resp)
+	})
 }
 
 // UQueryAlgoOrder returns an algo (conditional) order's state from Query Algo Order, by its algo ID or, when algoID
@@ -794,7 +879,7 @@ func (e *Exchange) UQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlg
 // uQueryAlgoOrder queries an algo order drawing on f, so that the lookup a cancellation makes can draw on the cancel
 // pool as the cancellation does, rather than queue behind order book snapshots on the IP pool
 func (e *Exchange) uQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string, f request.EndpointLimit) (*UAlgoOrderResponse, error) {
-	params, err := uAlgoOrderIDParams(algoID, clientAlgoID)
+	params, err := algoOrderIDParams(algoID, clientAlgoID)
 	if err != nil {
 		return nil, err
 	}
@@ -805,6 +890,17 @@ func (e *Exchange) uQueryAlgoOrder(ctx context.Context, algoID uint64, clientAlg
 // UNewAlgoOrder places an algo (conditional) order, which is how stop, take profit and trailing stop orders are
 // placed since Binance moved them off New Order, with New Algo Order
 func (e *Exchange) UNewAlgoOrder(ctx context.Context, arg *UNewAlgoOrderRequest) (*UNewAlgoOrderResponse, error) {
+	params, err := e.newAlgoOrderParams(arg, asset.USDTMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	var resp *UNewAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/algoOrder", params, uFuturesOrdersDefaultRate, &resp)
+}
+
+// newAlgoOrderParams builds the parameters of a New Algo Order for asset a, which Binance takes alike on the USDⓈ-M and
+// COIN-M hosts
+func (e *Exchange) newAlgoOrderParams(arg *UNewAlgoOrderRequest, a asset.Item) (url.Values, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -826,7 +922,7 @@ func (e *Exchange) UNewAlgoOrder(ctx context.Context, arg *UNewAlgoOrderRequest)
 	if arg.ClosePosition && (arg.Quantity != 0 || arg.ReduceOnly) {
 		return nil, errClosePositionWithQuantity
 	}
-	symbol, err := e.FormatSymbol(arg.Symbol, asset.USDTMarginedFutures)
+	symbol, err := e.FormatSymbol(arg.Symbol, a)
 	if err != nil {
 		return nil, err
 	}
@@ -883,14 +979,13 @@ func (e *Exchange) UNewAlgoOrder(ctx context.Context, arg *UNewAlgoOrderRequest)
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
 	}
-	var resp *UNewAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/algoOrder", params, uFuturesOrdersDefaultRate, &resp)
+	return params, nil
 }
 
 // UCancelAlgoOrder cancels an active algo (conditional) order with Cancel Algo Order, by its algo ID or, when algoID
 // is 0, its client algo ID
 func (e *Exchange) UCancelAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*UCancelAlgoOrderResponse, error) {
-	params, err := uAlgoOrderIDParams(algoID, clientAlgoID)
+	params, err := algoOrderIDParams(algoID, clientAlgoID)
 	if err != nil {
 		return nil, err
 	}
@@ -898,8 +993,8 @@ func (e *Exchange) UCancelAlgoOrder(ctx context.Context, algoID uint64, clientAl
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/algoOrder", params, uFuturesCancelRate, &resp)
 }
 
-// uAlgoOrderIDParams returns the parameters identifying one algo order, which Binance requires by either ID
-func uAlgoOrderIDParams(algoID uint64, clientAlgoID string) (url.Values, error) {
+// algoOrderIDParams returns the parameters identifying one algo order, which Binance requires by either ID
+func algoOrderIDParams(algoID uint64, clientAlgoID string) (url.Values, error) {
 	params := url.Values{}
 	switch {
 	case algoID > 0:
@@ -1251,8 +1346,14 @@ func (e *Exchange) UChangeInitialMarginType(ctx context.Context, symbol currency
 // UCurrentAllAlgoOpenOrders returns open algo (conditional) orders from Current All Algo Open Orders; each argument is
 // an optional filter, and an empty symbol returns every symbol's orders
 func (e *Exchange) UCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]UAlgoOrder, error) {
+	return e.uCurrentAllAlgoOpenOrders(ctx, algoType, symbol, algoID, uFuturesOpenAlgoOrdersAllRate)
+}
+
+// uCurrentAllAlgoOpenOrders lists open algo orders, drawing on allSymbols for a listing of every symbol's, so the
+// listing a cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) uCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]UAlgoOrder, error) {
 	params := url.Values{}
-	rateLimit := uFuturesOpenAlgoOrdersAllRate
+	rateLimit := allSymbols
 	if algoType != "" {
 		params.Set("algoType", algoType)
 	}
@@ -1274,8 +1375,14 @@ func (e *Exchange) UCurrentAllAlgoOpenOrders(ctx context.Context, algoType strin
 // UAllAccountOpenOrders returns the open orders of one symbol or, with an empty symbol, every symbol, from Current All
 // Open Orders
 func (e *Exchange) UAllAccountOpenOrders(ctx context.Context, symbol currency.Pair) ([]UOrderResponse, error) {
+	return e.uAllAccountOpenOrders(ctx, symbol, uFuturesGetAllOpenOrdersRate)
+}
+
+// uAllAccountOpenOrders lists open orders, drawing on allSymbols for a listing of every symbol's, so the listing a
+// cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) uAllAccountOpenOrders(ctx context.Context, symbol currency.Pair, allSymbols request.EndpointLimit) ([]UOrderResponse, error) {
 	params := url.Values{}
-	rateLimit := uFuturesGetAllOpenOrdersRate
+	rateLimit := allSymbols
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {

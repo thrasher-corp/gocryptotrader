@@ -275,27 +275,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(spotStreams); err != nil {
 		return err
 	}
-	// A WebSocket API connection kept from an earlier setup must not serve requests once this one connects
-	e.wsAPI.set(nil)
-	// The WebSocket API serves order requests, the spot and margin User Data Streams and market data requests. It is
-	// an optional connection, so an outage of it leaves the market data streams up, with orders going over REST, while
-	// the connection monitor tries it again. Spot orders go over it while it is connected and authenticated websocket use
-	// is on, and over REST otherwise. It is registered only when spot or margin is enabled here, and with authenticated
-	// websocket use it subscribes, each time it connects, the User Data Streams of the accounts then enabled, so an
-	// account enabled later gets its stream when the connection next connects, or after a restart when neither was
-	// enabled here, with its balances coming from polls until then
-	if e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		apiSetup := e.spotWebsocketAPIConnectionSetup(exch)
-		// Spot orders go to a configured WebsocketTrade endpoint, such as a testnet's, as REST requests go to the
-		// configured REST endpoints
-		if apiSetup.URL, err = e.API.Endpoints.GetURL(exchange.WebsocketTrade); err != nil {
-			return err
-		}
-		if err := e.Websocket.SetupNewConnection(apiSetup); err != nil {
-			return err
-		}
-	}
-
 	// Derivatives stream connections: USDⓈ-M /public, /market and /private, COIN-M market and user data, and options
 	// /public, /market and /private. A generator returns nothing for a disabled asset, or for a private connection
 	// when authenticated websocket use is unavailable, so the manager skips that connection instead of failing all
@@ -330,6 +309,28 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return err
 		}
 	}
+	// The WebSocket API connects after the market data connections, so a slow WebSocket API host does not hold them
+	// back. A WebSocket API connection kept from an earlier setup must not serve requests once this one connects
+	e.wsAPI.set(nil, 0)
+	// The WebSocket API serves order requests, the spot and margin User Data Streams and market data requests. It is
+	// an optional connection, so an outage of it leaves the market data streams up, with orders going over REST, while
+	// the connection monitor tries it again. Spot orders go over it while it is connected and authenticated websocket use
+	// is on, and over REST otherwise. It is registered only when spot or margin is enabled here, and with authenticated
+	// websocket use it subscribes, each time it connects, the User Data Streams of the accounts then enabled, so an
+	// account enabled later gets its stream when the connection next connects, or after a restart when neither was
+	// enabled here, with polls standing in for its stream until then
+	if e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+		apiSetup := e.spotWebsocketAPIConnectionSetup(exch)
+		// Spot orders go to a configured WebsocketTrade endpoint, such as a testnet's, as REST requests go to the
+		// configured REST endpoints
+		if apiSetup.URL, err = e.API.Endpoints.GetURL(exchange.WebsocketTrade); err != nil {
+			return err
+		}
+		if err := e.Websocket.SetupNewConnection(apiSetup); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -710,7 +711,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 // UpdateAccountBalances retrieves currency balances. For the configured account, a currency the snapshot reports as last
 // updated before the latest user data stream event to report it keeps its stored balance, as does one the snapshot
 // leaves out while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
-// where Binance gives one
+// where Binance gives one. Spot snapshots show the account's update time, which spot events are ordered against too
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	subAccount, updated, asOf, err := e.accountBalances(ctx, assetType)
 	if err != nil {
@@ -718,15 +719,25 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	}
 	subAccts := accounts.SubAccounts{subAccount}
 	err = e.withBalanceStore(func() error {
-		e.keepStreamedBalances(ctx, assetType, subAccount, updated, asOf)
-		return e.Accounts.Save(ctx, subAccts, true)
+		if assetType != asset.Spot {
+			e.keepStreamedBalances(ctx, assetType, subAccount, updated, asOf)
+			return e.Accounts.Save(ctx, subAccts, true)
+		}
+		ordered := e.keepStreamedSpotBalances(ctx, subAccount, asOf)
+		if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+			return err
+		}
+		if ordered {
+			e.recordBalanceSnapshot(assetType, asOf)
+		}
+		return nil
 	})
 	return subAccts, err
 }
 
 // accountBalances fetches an asset's balances over REST, with the time Binance last updated each currency's balance
 // where it reports one, and the snapshot's own time where it gives one: USDⓈ-M and COIN-M report the update time by
-// currency, while options give the snapshot's time, which stands for every currency
+// currency, while spot gives the account's update time and options the snapshot's time, which stand for every currency
 func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time, err error) {
 	subAccount = accounts.NewSubAccount(assetType, "")
 	updated = make(map[*currency.Item]time.Time)
@@ -744,6 +755,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (s
 		if err != nil {
 			return nil, nil, time.Time{}, err
 		}
+		asOf = resp.UpdateTime.Time()
 		for i := range resp.Balances {
 			free := resp.Balances[i].Free.InexactFloat64()
 			locked := resp.Balances[i].Locked.InexactFloat64()
@@ -752,6 +764,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (s
 				Hold:  locked,
 				Free:  free,
 			})
+			updated[resp.Balances[i].Asset.Item] = asOf
 		}
 	case asset.Margin:
 		resp, err := e.GetCrossMarginAccountDetail(ctx)
@@ -1158,9 +1171,13 @@ func averagePrice(cumulativeQuote, executed types.Number) float64 {
 // Order type values that Binance's spot and derivatives products share
 const (
 	limitOrderType        = "LIMIT"
+	marketOrderType       = "MARKET"
 	takeProfitOrderType   = "TAKE_PROFIT"
 	trailingStopOrderType = "TRAILING_STOP_MARKET"
 )
+
+// limitMakerOrderType is the post only order type of Binance's spot and margin products
+const limitMakerOrderType = "LIMIT_MAKER"
 
 // orderSideString returns the side Binance takes for an order's direction
 func orderSideString(side order.Side) (string, error) {
@@ -1180,13 +1197,13 @@ func spotOrderTypeString(t order.Type, tif order.TimeInForce) (string, error) {
 	switch t {
 	case order.Limit:
 		if tif.Is(order.PostOnly) {
-			return "LIMIT_MAKER", nil
+			return limitMakerOrderType, nil
 		}
 		return limitOrderType, nil
 	case order.LimitMaker:
-		return "LIMIT_MAKER", nil
+		return limitMakerOrderType, nil
 	case order.Market:
-		return "MARKET", nil
+		return marketOrderType, nil
 	case order.StopMarket:
 		return "STOP_LOSS", nil
 	case order.StopLimit:
@@ -1206,7 +1223,7 @@ func stringToSpotOrderType(orderType string) (order.Type, error) {
 	switch orderType {
 	case limitOrderType:
 		return order.Limit, nil
-	case "MARKET":
+	case marketOrderType:
 		return order.Market, nil
 	case "STOP_LOSS":
 		return order.StopMarket, nil
@@ -1216,7 +1233,7 @@ func stringToSpotOrderType(orderType string) (order.Type, error) {
 		return order.TakeProfitMarket, nil
 	case "TAKE_PROFIT_LIMIT":
 		return order.TakeProfitLimit, nil
-	case "LIMIT_MAKER":
+	case limitMakerOrderType:
 		return order.LimitMaker, nil
 	default:
 		return order.UnknownType, fmt.Errorf("%w: %q", order.ErrUnrecognisedOrderType, orderType)
@@ -1230,7 +1247,7 @@ func futuresOrderTypeString(t order.Type) (string, error) {
 	case order.Limit:
 		return limitOrderType, nil
 	case order.Market:
-		return "MARKET", nil
+		return marketOrderType, nil
 	case order.StopLimit:
 		return "STOP", nil
 	case order.StopMarket:
@@ -1275,8 +1292,8 @@ func submittedOrderType(s *order.Submit) order.Type {
 	return t
 }
 
-// isConditionalOrderType reports whether t is a stop, take profit or trailing stop type, which USDⓈ-M places as algo
-// orders since Binance moved them off New Order
+// isConditionalOrderType reports whether t is a stop, take profit or trailing stop type, which USDⓈ-M and COIN-M place
+// as algo orders since Binance moved them off New Order
 func isConditionalOrderType(t order.Type) bool {
 	switch t {
 	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitLimit, order.TakeProfitMarket, order.TrailingStop:
@@ -1309,8 +1326,8 @@ func timeInForceString(a asset.Item, tif order.TimeInForce) (string, error) {
 	return "", fmt.Errorf("%w: %s on %s", order.ErrUnsupportedTimeInForce, tif, a)
 }
 
-// workingTypeString returns the price a USDⓈ-M conditional order triggers on: the contract price, Binance's default,
-// or the mark price
+// workingTypeString returns the price a USDⓈ-M or COIN-M conditional order triggers on: the contract price, Binance's
+// default, or the mark price
 func workingTypeString(t order.PriceType) (string, error) {
 	switch t {
 	case order.LastPrice:
@@ -1322,8 +1339,9 @@ func workingTypeString(t order.PriceType) (string, error) {
 	}
 }
 
-// algoOrderStatus converts a USDⓈ-M algo order's status. A TRIGGERING order is being sent to the matching engine and
-// a TRIGGERED one rests there as an order of its own, which carries the fills; FINISHED means that order is done
+// algoOrderStatus converts a USDⓈ-M or COIN-M algo order's status. A TRIGGERING order is being sent to the matching
+// engine and a TRIGGERED one rests there as an order of its own, which carries the fills; FINISHED means that order is
+// done
 func algoOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
@@ -1377,6 +1395,9 @@ func newSpotOrderValues(s *order.Submit) (*spotOrderValues, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := checkUntimedSpotTimeInForce(orderType, s.TimeInForce); err != nil {
+		return nil, err
+	}
 	v := &spotOrderValues{side: side, orderType: orderType}
 	switch orderType {
 	case limitOrderType, "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT":
@@ -1384,7 +1405,7 @@ func newSpotOrderValues(s *order.Submit) (*spotOrderValues, error) {
 			return nil, err
 		}
 		fallthrough
-	case "LIMIT_MAKER":
+	case limitMakerOrderType:
 		if s.Price <= 0 {
 			return nil, order.ErrPriceMustBeSetIfLimitOrder
 		}
@@ -1397,7 +1418,7 @@ func newSpotOrderValues(s *order.Submit) (*spotOrderValues, error) {
 		}
 		v.stopPrice = s.TriggerPrice
 	}
-	if orderType == "MARKET" && s.Amount == 0 {
+	if orderType == marketOrderType && s.Amount == 0 {
 		v.quoteOrderQuantity = s.QuoteAmount
 	} else {
 		v.quantity = s.Amount
@@ -1406,6 +1427,28 @@ func newSpotOrderValues(s *order.Submit) (*spotOrderValues, error) {
 		return nil, fmt.Errorf("%w: %s orders take a base amount", order.ErrAmountIsInvalid, orderType)
 	}
 	return v, nil
+}
+
+// checkUntimedSpotTimeInForce refuses a time in force that a spot or margin order of a type Binance takes without one
+// would not keep, as it goes unsent: a LIMIT_MAKER order rests until it is cancelled, and only as a maker, a STOP_LOSS
+// or TAKE_PROFIT order waits until it is cancelled or triggers a market order, and a MARKET order expires what it
+// cannot fill at once, as an IOC order does. A MARKET order also takes GTC, as Binance reports market orders with it
+// and their order details carry it
+func checkUntimedSpotTimeInForce(orderType string, tif order.TimeInForce) error {
+	accepted := order.GoodTillCancel
+	switch orderType {
+	case limitMakerOrderType:
+		accepted |= order.PostOnly
+	case marketOrderType:
+		accepted |= order.ImmediateOrCancel
+	case "STOP_LOSS", takeProfitOrderType:
+	default:
+		return nil
+	}
+	if tif&^accepted != 0 {
+		return fmt.Errorf("%w: %s on %s orders", order.ErrUnsupportedTimeInForce, tif, orderType)
+	}
+	return nil
 }
 
 // spotOCOLegs holds the side and the two orders of an OCO order list
@@ -1431,7 +1474,7 @@ func newSpotOCOLegs(s *order.Submit) (*spotOCOLegs, error) {
 	}
 	legs := &spotOCOLegs{
 		side:       side,
-		limitMaker: OCOOrderListLeg{Type: "LIMIT_MAKER", Price: s.Price},
+		limitMaker: OCOOrderListLeg{Type: limitMakerOrderType, Price: s.Price},
 		stopLoss:   OCOOrderListLeg{Type: "STOP_LOSS", StopPrice: s.TriggerPrice},
 	}
 	if limitPrice := s.RiskManagementModes.StopLoss.LimitPrice; limitPrice > 0 {
@@ -1441,6 +1484,9 @@ func newSpotOCOLegs(s *order.Submit) (*spotOCOLegs, error) {
 		if legs.stopLoss.TimeInForce, err = timeInForceString(asset.Spot, s.TimeInForce&^order.PostOnly); err != nil {
 			return nil, err
 		}
+	} else if s.TimeInForce&^(order.GoodTillCancel|order.PostOnly) != 0 {
+		// Neither the limit maker order nor the stop loss order takes a time in force, so the list's would go unsent
+		return nil, fmt.Errorf("%w: %s on OCO order lists without a stop limit order", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 	}
 	return legs, nil
 }
@@ -1461,7 +1507,7 @@ func marginSideEffect(s *order.Submit) string {
 }
 
 // futuresPositionSide returns the position side and reduce only flag a futures order is sent with. Buy and Sell
-// orders trade the one-way position. Long and Short orders follow the account's position mode, fetched for them: in
+// orders trade the one-way position. Long and Short orders follow the account's position mode, cached for them: in
 // Hedge Mode they trade the position of their direction, or with ReduceOnly the other one, which Binance takes as the
 // position side since it rejects reduceOnly in Hedge Mode. COIN-M has the USDⓈ-M position mode, which Binance has kept
 // both products on since 2026-04-14
@@ -1469,11 +1515,11 @@ func (e *Exchange) futuresPositionSide(ctx context.Context, s *order.Submit) (po
 	if s.Side != order.Long && s.Side != order.Short {
 		return "", s.ReduceOnly, nil
 	}
-	mode, err := e.GetCurrentPositionMode(ctx)
+	hedgeMode, err := e.positionMode(ctx)
 	if err != nil {
 		return "", false, err
 	}
-	if !mode.DualSidePosition {
+	if !hedgeMode {
 		return "", s.ReduceOnly, nil
 	}
 	if (s.Side == order.Long) != s.ReduceOnly {
@@ -1483,7 +1529,7 @@ func (e *Exchange) futuresPositionSide(ctx context.Context, s *order.Submit) (po
 }
 
 // SubmitOrder submits a new order. Stop and take profit orders trigger at TriggerPrice, and a bare Stop or TakeProfit
-// is placed as the limit type when Price is set and the market type otherwise; USDⓈ-M places them, and
+// is placed as the limit type when Price is set and the market type otherwise; USDⓈ-M and COIN-M place them, and
 // trailing stops, as algo orders identified by their algo ID, a trailing stop with its percentage tracking value as
 // the callback rate. Futures Buy and Sell orders trade the one-way position, while Long and Short orders follow the
 // account's position mode: in Hedge Mode they trade the position of their direction, or with ReduceOnly the other
@@ -1502,6 +1548,39 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		resolved.Type = t
 		s = &resolved
 	}
+	resp, err := e.submitOrder(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	if placesPostOnly(s) {
+		// Reads of a post only order that Binance flags as such report it as post only, whichever post only time in force
+		// it was asked for
+		resp.TimeInForce = order.PostOnly
+	}
+	return resp, nil
+}
+
+// placesPostOnly reports whether a submission resolved to the type it is placed as goes out as a post only order: a
+// LIMIT_MAKER order on spot and margin, a limit priced order with the GTX time in force on USDⓈ-M and COIN-M, and a
+// limit order with the postOnly flag on options
+func placesPostOnly(s *order.Submit) bool {
+	switch s.AssetType {
+	case asset.Spot, asset.Margin:
+		return s.Type == order.LimitMaker
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+		switch s.Type {
+		case order.Limit, order.StopLimit, order.TakeProfitLimit:
+			tif, err := timeInForceString(s.AssetType, s.TimeInForce)
+			return err == nil && tif == "GTX"
+		}
+	case asset.Options:
+		return s.Type == order.Limit && (s.TimeInForce.Is(order.PostOnly) || s.TimeInForce.Is(order.GoodTillCrossing))
+	}
+	return false
+}
+
+// submitOrder places a submission resolved to the type it is placed as through its asset's route
+func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	switch s.AssetType {
 	case asset.Spot:
 		if s.Type == order.OCO {
@@ -1574,14 +1653,14 @@ func (e *Exchange) submitSpotOrderWebsocket(ctx context.Context, s *order.Submit
 		fills[i] = OrderFill(placed.Fills[i])
 	}
 	return e.spotSubmitResponse(s, &NewOrderResponse{
-		OrderID:                  placed.OrderID,
-		ClientOrderID:            placed.ClientOrderID,
-		TransactTime:             placed.TransactTime,
-		OriginalQuantity:         placed.OriginalQuantity,
-		ExecutedQuantity:         placed.ExecutedQuantity,
-		CummulativeQuoteQuantity: placed.CummulativeQuoteQuantity,
-		Status:                   placed.Status,
-		Fills:                    fills,
+		OrderID:                 placed.OrderID,
+		ClientOrderID:           placed.ClientOrderID,
+		TransactTime:            placed.TransactTime,
+		OriginalQuantity:        placed.OriginalQuantity,
+		ExecutedQuantity:        placed.ExecutedQuantity,
+		CumulativeQuoteQuantity: placed.CumulativeQuoteQuantity,
+		Status:                  placed.Status,
+		Fills:                   fills,
 	})
 }
 
@@ -1613,14 +1692,14 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit) (*ord
 		fills[i] = OrderFill(placed.Fills[i])
 	}
 	resp, err := e.spotSubmitResponse(s, &NewOrderResponse{
-		OrderID:                  placed.OrderID,
-		ClientOrderID:            placed.ClientOrderID,
-		TransactTime:             placed.TransactTime,
-		OriginalQuantity:         placed.OriginalQuantity,
-		ExecutedQuantity:         placed.ExecutedQuantity,
-		CummulativeQuoteQuantity: placed.CummulativeQuoteQuantity,
-		Status:                   placed.Status,
-		Fills:                    fills,
+		OrderID:                 placed.OrderID,
+		ClientOrderID:           placed.ClientOrderID,
+		TransactTime:            placed.TransactTime,
+		OriginalQuantity:        placed.OriginalQuantity,
+		ExecutedQuantity:        placed.ExecutedQuantity,
+		CumulativeQuoteQuantity: placed.CumulativeQuoteQuantity,
+		Status:                  placed.Status,
+		Fills:                   fills,
 	})
 	if err != nil {
 		return nil, err
@@ -1641,10 +1720,16 @@ func (e *Exchange) spotSubmitResponse(s *order.Submit, placed *NewOrderResponse)
 	if resp.Status, err = stringToOrderStatus(placed.Status); err != nil {
 		e.logOrderIssue(s.AssetType, resp.OrderID, err)
 	}
+	if resp.Amount > 0 && placed.ExecutedQuantity > 0 && placed.ExecutedQuantity < placed.OriginalQuantity && resp.Status.IsInactive() {
+		// A submit response carries no executed amount, so an order Binance finished after executing part of it is
+		// reported New for the order manager to settle from a later query. A quote sized market order keeps Binance's
+		// status, since the order manager cannot treat an order without an amount as active
+		resp.Status = order.New
+	}
 	resp.RemainingAmount = remainingAmount(placed.OriginalQuantity, placed.ExecutedQuantity)
 	if placed.ExecutedQuantity > 0 {
-		resp.Cost = placed.CummulativeQuoteQuantity.Float64()
-		resp.AverageExecutedPrice = averagePrice(placed.CummulativeQuoteQuantity, placed.ExecutedQuantity)
+		resp.Cost = placed.CumulativeQuoteQuantity.Float64()
+		resp.AverageExecutedPrice = averagePrice(placed.CumulativeQuoteQuantity, placed.ExecutedQuantity)
 	}
 	if len(placed.Fills) == 0 {
 		return resp, nil
@@ -1791,39 +1876,69 @@ func (e *Exchange) newFuturesOrderValues(ctx context.Context, s *order.Submit) (
 	return v, nil
 }
 
-// submitUSDTMarginedOrder places a USDⓈ-M order. Stop, take profit and trailing stop orders go through the algo order
-// endpoints, since New Order rejects them
-func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+// submitFuturesOrder works out a USDⓈ-M or COIN-M order's values and places the order with place. A Long or Short order
+// follows the account's cached position mode, which a change made elsewhere leaves stale, so a rejected Long or Short
+// order has the mode looked up again for the next order, and one rejected for its position mode is placed once more
+func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit, place func(*futuresOrderValues) (*order.SubmitResponse, error)) (*order.SubmitResponse, error) {
 	v, err := e.newFuturesOrderValues(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	if isConditionalOrderType(s.Type) {
-		return e.submitUSDTMarginedAlgoOrder(ctx, s, v)
+	resp, err := place(v)
+	if err == nil || (s.Side != order.Long && s.Side != order.Short) {
+		return resp, err
 	}
-	placed, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
-		Symbol:           s.Pair,
-		Side:             v.side,
-		PositionSide:     v.positionSide,
-		OrderType:        v.orderType,
-		TimeInForce:      v.timeInForce,
-		ReduceOnly:       v.reduceOnly,
-		Quantity:         s.Amount,
-		Price:            v.price,
-		NewClientOrderID: s.ClientOrderID,
-		NewOrderRespType: "RESULT",
-		GoodTillDate:     v.goodTillDate,
-	})
-	if err != nil {
+	e.forgetPositionMode(ctx)
+	if !isPositionModeRejection(err) {
 		return nil, err
 	}
-	return e.futuresSubmitResponse(s, placed.OrderID, placed.ClientOrderID, placed.Status, placed.UpdateTime.Time(), placed.OriginalQuantity, placed.ExecutedQuantity)
+	if v, err = e.newFuturesOrderValues(ctx, s); err != nil {
+		return nil, err
+	}
+	return place(v)
 }
 
-// submitUSDTMarginedAlgoOrder places a USDⓈ-M stop, take profit or trailing stop order as an algo order. A trailing
-// stop's callback rate is its percentage tracking value, and its activation price, the last price when unset, is
-// TriggerPrice
-func (e *Exchange) submitUSDTMarginedAlgoOrder(ctx context.Context, s *order.Submit, v *futuresOrderValues) (*order.SubmitResponse, error) {
+// isPositionModeRejection reports whether Binance rejected a futures order, placing nothing, for parameters the
+// account's position mode does not take: a position side, or the reduce only flag Hedge Mode refuses
+func isPositionModeRejection(err error) bool {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	return apiErr.Code == -4061 || apiErr.Code == -1106 && strings.Contains(strings.ToLower(apiErr.Message), "reduceonly")
+}
+
+// submitUSDTMarginedOrder places a USDⓈ-M order. Stop, take profit and trailing stop orders go through the algo order
+// endpoints, since New Order rejects them
+func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	return e.submitFuturesOrder(ctx, s, func(v *futuresOrderValues) (*order.SubmitResponse, error) {
+		if isConditionalOrderType(s.Type) {
+			return e.submitFuturesAlgoOrder(ctx, s, v)
+		}
+		placed, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
+			Symbol:           s.Pair,
+			Side:             v.side,
+			PositionSide:     v.positionSide,
+			OrderType:        v.orderType,
+			TimeInForce:      v.timeInForce,
+			ReduceOnly:       v.reduceOnly,
+			Quantity:         s.Amount,
+			Price:            v.price,
+			NewClientOrderID: s.ClientOrderID,
+			NewOrderRespType: "RESULT",
+			GoodTillDate:     v.goodTillDate,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return e.futuresSubmitResponse(s, placed.OrderID, placed.ClientOrderID, placed.Status, placed.UpdateTime.Time(), placed.OriginalQuantity, placed.ExecutedQuantity)
+	})
+}
+
+// submitFuturesAlgoOrder places a USDⓈ-M or COIN-M stop, take profit or trailing stop order as an algo order. A
+// trailing stop's callback rate is its percentage tracking value, and its activation price, the last price when unset,
+// is TriggerPrice
+func (e *Exchange) submitFuturesAlgoOrder(ctx context.Context, s *order.Submit, v *futuresOrderValues) (*order.SubmitResponse, error) {
 	req := &UNewAlgoOrderRequest{
 		AlgoType:         "CONDITIONAL",
 		Symbol:           s.Pair,
@@ -1854,7 +1969,12 @@ func (e *Exchange) submitUSDTMarginedAlgoOrder(ctx context.Context, s *order.Sub
 	if req.WorkingType, err = workingTypeString(s.TriggerPriceType); err != nil {
 		return nil, err
 	}
-	placed, err := e.UNewAlgoOrder(ctx, req)
+	var placed *UNewAlgoOrderResponse
+	if s.AssetType == asset.CoinMarginedFutures {
+		placed, err = e.FuturesNewAlgoOrder(ctx, req)
+	} else {
+		placed, err = e.UNewAlgoOrder(ctx, req)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1871,32 +1991,31 @@ func (e *Exchange) submitUSDTMarginedAlgoOrder(ctx context.Context, s *order.Sub
 	return resp, nil
 }
 
-// submitCoinMarginedOrder places a COIN-M limit or market order. Binance is moving COIN-M stop, take profit and
-// trailing stop orders to algo order endpoints it has only announced, after which New Order rejects them
+// submitCoinMarginedOrder places a COIN-M order. Stop, take profit and trailing stop orders go through the algo order
+// endpoints, as on USDⓈ-M: the CM-UM integration moved them there, and New Order rejects them once Binance's announced
+// cut-over takes effect
 func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if s.Type != order.Limit && s.Type != order.Market {
-		return nil, fmt.Errorf("%w: %s on %s", order.ErrUnsupportedOrderType, s.Type, s.AssetType)
-	}
-	v, err := e.newFuturesOrderValues(ctx, s)
-	if err != nil {
-		return nil, err
-	}
-	placed, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
-		Symbol:           s.Pair,
-		Side:             v.side,
-		PositionSide:     v.positionSide,
-		OrderType:        v.orderType,
-		TimeInForce:      v.timeInForce,
-		Quantity:         s.Amount,
-		Price:            v.price,
-		ReduceOnly:       v.reduceOnly,
-		NewClientOrderID: s.ClientOrderID,
-		NewOrderRespType: "RESULT",
+	return e.submitFuturesOrder(ctx, s, func(v *futuresOrderValues) (*order.SubmitResponse, error) {
+		if isConditionalOrderType(s.Type) {
+			return e.submitFuturesAlgoOrder(ctx, s, v)
+		}
+		placed, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+			Symbol:           s.Pair,
+			Side:             v.side,
+			PositionSide:     v.positionSide,
+			OrderType:        v.orderType,
+			TimeInForce:      v.timeInForce,
+			Quantity:         s.Amount,
+			Price:            v.price,
+			ReduceOnly:       v.reduceOnly,
+			NewClientOrderID: s.ClientOrderID,
+			NewOrderRespType: "RESULT",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return e.futuresSubmitResponse(s, placed.OrderID, placed.ClientOrderID, placed.Status, placed.UpdateTime.Time(), placed.OriginalQuantity, placed.ExecutedQuantity)
 	})
-	if err != nil {
-		return nil, err
-	}
-	return e.futuresSubmitResponse(s, placed.OrderID, placed.ClientOrderID, placed.Status, placed.UpdateTime.Time(), placed.OriginalQuantity, placed.ExecutedQuantity)
 }
 
 // futuresSubmitResponse completes a USDⓈ-M or COIN-M submit response with what Binance reports about the placed
@@ -2034,11 +2153,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
-// CancelOrder cancels an order by its order ID or client order ID. OCO order lists are cancelled by their order list
-// ID or list client order ID, and USDⓈ-M stop, take profit and trailing stop orders by their algo ID or client algo ID.
-// A request without a type, as the RPC server and order manager send, whose ID no order has is tried as an order list's
-// on spot and margin and as an algo order's on USDⓈ-M, the IDs SubmitOrder returns for them, and a margin request
-// without a margin type is tried in the isolated margin account after the cross margin account
+// CancelOrder cancels an order by its order ID or client order ID. OCO order lists are cancelled by their order list ID
+// or list client order ID, and USDⓈ-M and COIN-M stop, take profit and trailing stop orders by their algo ID or client
+// algo ID. A request without a type, as the RPC server and order manager send, whose ID no order has is tried as an
+// order list's on spot and margin and as an algo order's on USDⓈ-M and COIN-M, the IDs SubmitOrder returns for them,
+// and a margin request without a margin type is tried in the isolated margin account after the cross margin account
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.PairAssetRequired()); err != nil {
 		return err
@@ -2055,14 +2174,18 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		err = e.cancelSpotOrder(ctx, o, orderID)
 	case asset.Margin:
 		err = e.cancelMarginOrder(ctx, o, orderID)
-	case asset.USDTMarginedFutures:
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		if isConditionalOrderType(o.Type) {
-			_, err = e.UCancelAlgoOrder(ctx, orderID, o.ClientOrderID)
+			_, err = e.cancelFuturesAlgoOrder(ctx, o.AssetType, orderID, o.ClientOrderID)
 			break
 		}
-		_, err = e.UCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+		if o.AssetType == asset.CoinMarginedFutures {
+			_, err = e.FuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+		} else {
+			_, err = e.UCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+		}
 		if isUntypedCancel(o.Type) && isUnknownOrder(err) {
-			algo, algoErr := e.cancelPairAlgoOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+			algo, algoErr := e.cancelPairAlgoOrder(ctx, o.AssetType, o.Pair, orderID, o.ClientOrderID)
 			switch {
 			case algoErr != nil:
 				err = common.AppendError(err, algoErr)
@@ -2070,8 +2193,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				err = nil
 			}
 		}
-	case asset.CoinMarginedFutures:
-		_, err = e.FuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 	case asset.Options:
 		_, err = e.CancelOptionsOrder(ctx, o.Pair, o.ClientOrderID, orderID)
 	default:
@@ -2175,35 +2296,50 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 	return cancelFirstFound(attempts...)
 }
 
-// cancelPairAlgoOrder cancels the USDⓈ-M algo order with the ID or client ID an untyped cancellation names, when it is
-// the pair's, and returns it when it is: SubmitOrder identifies a conditional order by its algo ID, which Binance
-// numbers apart from order IDs. The algo cancellation takes no symbol, so the algo order is looked up first, on the
-// cancel pool as the cancellation is
-func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, pair currency.Pair, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
-	algo, err := e.uQueryAlgoOrder(ctx, algoID, clientAlgoID, uFuturesCancelRate)
+// cancelFuturesAlgoOrder cancels a USDⓈ-M or COIN-M algo (conditional) order by its algo ID or, when algoID is 0, its
+// client algo ID
+func (e *Exchange) cancelFuturesAlgoOrder(ctx context.Context, a asset.Item, algoID uint64, clientAlgoID string) (*UCancelAlgoOrderResponse, error) {
+	if a == asset.CoinMarginedFutures {
+		return e.FuturesCancelAlgoOrder(ctx, algoID, clientAlgoID)
+	}
+	return e.UCancelAlgoOrder(ctx, algoID, clientAlgoID)
+}
+
+// cancelPairAlgoOrder cancels the USDⓈ-M or COIN-M algo order with the ID or client ID an untyped cancellation names,
+// when it is the pair's, and returns it when it is: SubmitOrder identifies a conditional order by its algo ID, which
+// Binance numbers apart from order IDs. The algo cancellation takes no symbol, so the algo order is looked up first, on
+// the cancel pool as the cancellation is
+func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, a asset.Item, pair currency.Pair, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
+	var algo *UAlgoOrderResponse
+	var err error
+	if a == asset.CoinMarginedFutures {
+		algo, err = e.futuresQueryAlgoOrder(ctx, algoID, clientAlgoID, cFuturesCancelRate)
+	} else {
+		algo, err = e.uQueryAlgoOrder(ctx, algoID, clientAlgoID, uFuturesCancelRate)
+	}
 	if isUnknownOrder(err) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error fetching algo order: %w", err)
 	}
-	symbol, err := e.FormatSymbol(pair, asset.USDTMarginedFutures)
+	symbol, err := e.FormatSymbol(pair, a)
 	if err != nil {
 		return nil, err
 	}
 	if algo == nil || algo.Symbol != symbol {
 		return nil, nil
 	}
-	if _, err := e.UCancelAlgoOrder(ctx, algo.AlgoID, ""); err != nil {
+	if _, err := e.cancelFuturesAlgoOrder(ctx, a, algo.AlgoID, ""); err != nil {
 		return algo, fmt.Errorf("error cancelling algo order: %w", err)
 	}
 	return algo, nil
 }
 
 // CancelBatchOrders cancels USDⓈ-M, COIN-M or options orders of one pair. Orders are cancelled ten at a time by order
-// ID or by client order ID, and USDⓈ-M algo orders one by one; each order's status is its cancelled status or why its
-// cancellation failed, keyed by the ID it was requested with. An untyped USDⓈ-M ID no order has is cancelled as an
-// algo order's when the pair has one. Errors of whole requests are returned with the response
+// ID or by client order ID, and USDⓈ-M and COIN-M algo orders one by one; each order's status is its cancelled status
+// or why its cancellation failed, keyed by the ID it was requested with. An untyped USDⓈ-M or COIN-M ID no order has is
+// cancelled as an algo order's when the pair has one. Errors of whole requests are returned with the response
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
@@ -2221,6 +2357,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	var clientOrderIDs []string
 	// byOrderID and byClientOrderID hold the entries cancelled by each kind of ID, in request order
 	var byOrderID, byClientOrderID, algoOrders, untyped []*order.Cancel
+	hasAlgoOrders := a != asset.Options
 	for i := range o {
 		if o[i].AssetType != a || !o[i].Pair.Equal(pair) {
 			return nil, errBatchCancelRequiresSamePair
@@ -2229,7 +2366,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, order.ErrOrderIDNotSet
 		}
 		switch {
-		case a == asset.USDTMarginedFutures && isConditionalOrderType(o[i].Type):
+		case hasAlgoOrders && isConditionalOrderType(o[i].Type):
 			algoOrders = append(algoOrders, &o[i])
 			continue
 		case o[i].OrderID != "":
@@ -2243,11 +2380,14 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
 			byClientOrderID = append(byClientOrderID, &o[i])
 		}
-		if a == asset.USDTMarginedFutures && isUntypedCancel(o[i].Type) {
+		if hasAlgoOrders && isUntypedCancel(o[i].Type) {
 			untyped = append(untyped, &o[i])
 		}
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
+	// The keys of each kind of ID whose cancellation succeeded keep that status, as Binance rejects another entry
+	// naming the same order as unknown once the order is cancelled
+	succeededOrderKeys, succeededClientOrderKeys, succeededAlgoKeys := make(map[string]bool), make(map[string]bool), make(map[string]bool)
 	// Each entry keeps its own rejection, as entries can share an ID's text. The IDs of an order one entry cancelled
 	// name that order, so another entry with either of them, which Binance rejects as unknown once the order is
 	// cancelled, is not an algo order's
@@ -2269,7 +2409,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			keys[i] = strconv.FormatUint(ids[i], 10)
 		}
 		outcomes, err := e.cancelOrderBatch(ctx, a, pair, ids, nil)
-		errs = common.AppendError(errs, recordBatchStatuses(resp, keys, outcomes, err))
+		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededOrderKeys, keys, outcomes, err))
 		for i := range min(len(ids), len(outcomes)) {
 			rejections[byOrderID[start+i]] = outcomes[i].err
 			if outcomes[i].err == nil {
@@ -2281,7 +2421,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	for start := 0; start < len(clientOrderIDs); start += batchCancelLimit {
 		ids := clientOrderIDs[start:min(start+batchCancelLimit, len(clientOrderIDs))]
 		outcomes, err := e.cancelOrderBatch(ctx, a, pair, nil, ids)
-		errs = common.AppendError(errs, recordBatchStatuses(resp, ids, outcomes, err))
+		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededClientOrderKeys, ids, outcomes, err))
 		for i := range min(len(ids), len(outcomes)) {
 			rejections[byClientOrderID[start+i]] = outcomes[i].err
 			if outcomes[i].err == nil {
@@ -2309,7 +2449,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		algoID, err := parseOrderID(algo.OrderID)
 		var cancelled *UCancelAlgoOrderResponse
 		if err == nil {
-			cancelled, err = e.UCancelAlgoOrder(ctx, algoID, algo.ClientOrderID)
+			cancelled, err = e.cancelFuturesAlgoOrder(ctx, a, algoID, algo.ClientOrderID)
 		}
 		if err == nil {
 			if algoID != 0 {
@@ -2321,9 +2461,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				markAlgoCancelled(cancelled.AlgoID, cancelled.ClientAlgoID)
 			}
 		}
-		errs = common.AppendError(errs, recordBatchStatuses(resp, []string{statusKey}, []batchCancelOutcome{{status: "CANCELED"}}, err))
+		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededAlgoKeys, []string{statusKey}, []batchCancelOutcome{{status: "CANCELED"}}, err))
 	}
-	// An untyped USDⓈ-M ID no order has may be the algo ID SubmitOrder returned for a conditional order
+	// An untyped USDⓈ-M or COIN-M ID no order has may be the algo ID SubmitOrder returned for a conditional order
 	for _, u := range untyped {
 		statusKey, cancelledByAnother := u.ClientOrderID, cancelledClientOrderIDs[u.ClientOrderID] || cancelledClientAlgoIDs[u.ClientOrderID]
 		algoID, err := parseOrderID(u.OrderID)
@@ -2338,7 +2478,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			continue
 		}
 		status := resp.Status[statusKey]
-		algo, err := e.cancelPairAlgoOrder(ctx, pair, algoID, u.ClientOrderID)
+		algo, err := e.cancelPairAlgoOrder(ctx, a, pair, algoID, u.ClientOrderID)
 		switch {
 		case err != nil:
 			resp.Status[statusKey] = status + "; " + err.Error()
@@ -2391,7 +2531,7 @@ func (e *Exchange) cancelOrderBatch(ctx context.Context, a asset.Item, pair curr
 		}
 		outcomes := make([]batchCancelOutcome, len(cancelled))
 		for i := range cancelled {
-			outcomes[i] = batchCancelOutcome{status: cancelled[i].Status}
+			outcomes[i] = newBatchCancelOutcome(cancelled[i].Status, cancelled[i].OrderID, cancelled[i].ClientOrderID, cancelled[i].Code, cancelled[i].Message)
 		}
 		return outcomes, nil
 	}
@@ -2407,17 +2547,24 @@ func newBatchCancelOutcome(status string, orderID uint64, clientOrderID string, 
 }
 
 // recordBatchStatuses records the outcome of a cancellation request for each order it covered, and returns the
-// request's error, if any, naming the orders it covered
-func recordBatchStatuses(resp *order.CancelBatchResponse, keys []string, outcomes []batchCancelOutcome, err error) error {
+// request's error, if any, naming the orders it covered. A key in succeeded keeps the success already recorded for it,
+// and a key whose cancellation succeeds is added
+func recordBatchStatuses(resp *order.CancelBatchResponse, succeeded map[string]bool, keys []string, outcomes []batchCancelOutcome, err error) error {
 	if err != nil {
 		for _, key := range keys {
-			resp.Status[key] = err.Error()
+			if !succeeded[key] {
+				resp.Status[key] = err.Error()
+			}
 		}
 		return fmt.Errorf("error cancelling orders %v: %w", keys, err)
 	}
 	for i, key := range keys {
+		if succeeded[key] {
+			continue
+		}
 		if i < len(outcomes) {
 			resp.Status[key] = outcomes[i].status
+			succeeded[key] = outcomes[i].err == nil
 		} else {
 			resp.Status[key] = errBatchCancelResultMissing.Error()
 		}
@@ -2425,8 +2572,10 @@ func recordBatchStatuses(resp *order.CancelBatchResponse, keys []string, outcome
 	return nil
 }
 
-// CancelAllOrders cancels every open order of a pair, USDⓈ-M algo orders included, or of every symbol with open
-// orders when the pair is empty. The spot and margin replies report each cancelled order's status, while the futures
+// CancelAllOrders cancels every open order of a pair, USDⓈ-M and COIN-M algo orders included, or of every symbol with
+// open orders when the pair is empty. Where the host has a cancel pool, the listing draws on it when it can take the
+// listing at once, so the cancellation does not wait behind market data, and otherwise on whichever of it and the IP
+// pool admits the listing sooner. The spot and margin replies report each cancelled order's status, while the futures
 // and options endpoints only confirm that a symbol's orders were cancelled; errors of individual symbols are returned
 // together after every symbol has been tried
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
@@ -2481,15 +2630,18 @@ func (e *Exchange) cancelAllSpotOrders(ctx context.Context, pair currency.Pair, 
 	pairs := currency.Pairs{pair}
 	if pair.IsEmpty() {
 		var open []TradeOrderResponse
-		var err error
-		if e.canUseWebsocketAPIForOrders() {
-			open, err = e.WsCurrentOpenOrders(ctx, currency.EMPTYPAIR)
-		} else {
-			open, err = e.OpenOrders(ctx, currency.EMPTYPAIR)
-		}
-		if err != nil {
+		useWebsocket := e.canUseWebsocketAPIForOrders()
+		if err := e.sendOnShare(ctx, spotCancelAllListingRate, spotOpenOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			if useWebsocket {
+				open, err = e.wsCurrentOpenOrders(ctx, currency.EMPTYPAIR, f)
+			} else {
+				open, err = e.openOrders(ctx, currency.EMPTYPAIR, f)
+			}
+			return err
+		}); err != nil {
 			return err
 		}
+		var err error
 		var symbols []string
 		for i := range open {
 			symbols = appendSymbol(symbols, open[i].Symbol)
@@ -2586,14 +2738,21 @@ func cancelAllPairError(p currency.Pair, err error) error {
 func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currency.Pair) error {
 	orderPairs, algoPairs := currency.Pairs{pair}, currency.Pairs{pair}
 	if pair.IsEmpty() {
-		open, err := e.UAllAccountOpenOrders(ctx, currency.EMPTYPAIR)
-		if err != nil {
+		var open []UOrderResponse
+		if err := e.sendOnShare(ctx, uFuturesCancelAllListingRate, uFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			open, err = e.uAllAccountOpenOrders(ctx, currency.EMPTYPAIR, f)
+			return err
+		}); err != nil {
 			return err
 		}
-		openAlgo, err := e.UCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0)
-		if err != nil {
+		var openAlgo []UAlgoOrder
+		if err := e.sendOnShare(ctx, uFuturesCancelAllListingRate, uFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			openAlgo, err = e.uCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
+			return err
+		}); err != nil {
 			return err
 		}
+		var err error
 		var symbols, algoSymbols []string
 		for i := range open {
 			symbols = appendSymbol(symbols, open[i].Symbol)
@@ -2622,26 +2781,49 @@ func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currenc
 	return errs
 }
 
-// cancelAllCoinMarginedOrders cancels the open orders of pair, or of every symbol with open orders
+// cancelAllCoinMarginedOrders cancels the open orders and open algo orders of pair, or of every symbol with orders of
+// either kind open
 func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currency.Pair) error {
-	pairs := currency.Pairs{pair}
+	orderPairs, algoPairs := currency.Pairs{pair}, currency.Pairs{pair}
 	if pair.IsEmpty() {
-		open, err := e.GetFuturesAllOpenOrders(ctx, currency.EMPTYPAIR, currency.EMPTYCODE)
-		if err != nil {
+		var open []FuturesOrderDetailResponse
+		if err := e.sendOnShare(ctx, cFuturesCancelAllListingRate, cFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			open, err = e.getFuturesAllOpenOrders(ctx, currency.EMPTYPAIR, currency.EMPTYCODE, f)
+			return err
+		}); err != nil {
 			return err
 		}
-		var symbols []string
+		var openAlgo []UAlgoOrder
+		if err := e.sendOnShare(ctx, cFuturesCancelAllListingRate, cFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			openAlgo, err = e.futuresCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
+			return err
+		}); err != nil {
+			return err
+		}
+		var err error
+		var symbols, algoSymbols []string
 		for i := range open {
 			symbols = appendSymbol(symbols, open[i].Symbol)
 		}
-		if pairs, err = e.symbolPairs(symbols, asset.CoinMarginedFutures); err != nil {
+		for i := range openAlgo {
+			algoSymbols = appendSymbol(algoSymbols, openAlgo[i].Symbol)
+		}
+		if orderPairs, err = e.symbolPairs(symbols, asset.CoinMarginedFutures); err != nil {
+			return err
+		}
+		if algoPairs, err = e.symbolPairs(algoSymbols, asset.CoinMarginedFutures); err != nil {
 			return err
 		}
 	}
 	var errs error
-	for _, p := range pairs {
+	for _, p := range orderPairs {
 		if _, err := e.FuturesCancelAllOpenOrders(ctx, p); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
+		}
+	}
+	for _, p := range algoPairs {
+		if err := e.FuturesCancelAllAlgoOpenOrders(ctx, p); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s algo orders: %w", p, err))
 		}
 	}
 	return errs
@@ -2651,10 +2833,14 @@ func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currenc
 func (e *Exchange) cancelAllOptionsOrders(ctx context.Context, pair currency.Pair) error {
 	pairs := currency.Pairs{pair}
 	if pair.IsEmpty() {
-		open, err := e.GetCurrentOpenOptionsOrders(ctx, &OptionsOpenOrdersRequest{})
-		if err != nil {
+		var open []OptionsOpenOrder
+		if err := e.sendOnShare(ctx, optionsCancelAllListingRate, optionsAllQueryOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			open, err = e.getCurrentOpenOptionsOrders(ctx, &OptionsOpenOrdersRequest{}, f)
+			return err
+		}); err != nil {
 			return err
 		}
+		var err error
 		var symbols []string
 		for i := range open {
 			symbols = appendSymbol(symbols, open[i].Symbol)
@@ -2672,8 +2858,8 @@ func (e *Exchange) cancelAllOptionsOrders(ctx context.Context, pair currency.Pai
 	return errs
 }
 
-// GetOrderInfo returns an order's details. An ID no USDⓈ-M order has is looked up as an algo ID, and a margin order
-// the cross margin account does not have in the isolated margin account, since the request carries neither
+// GetOrderInfo returns an order's details. An ID no USDⓈ-M or COIN-M order has is looked up as an algo ID, and a margin
+// order the cross margin account does not have in the isolated margin account, since the request carries neither
 // distinction
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
@@ -2723,30 +2909,20 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		case orderErr == nil:
 			d, err = e.uOrderDetail(o, pair)
 		case errors.Is(orderErr, order.ErrOrderNotFound):
-			// SubmitOrder identifies a conditional order by its algo ID, which Binance numbers apart from order IDs
-			algo, algoErr := e.UQueryAlgoOrder(ctx, id, "")
-			if algoErr != nil {
-				return nil, common.AppendError(fmt.Errorf("error fetching order: %w", orderErr), fmt.Errorf("error fetching algo order: %w", algoErr))
-			}
-			var symbol string
-			if symbol, err = e.FormatSymbol(pair, a); err != nil {
-				return nil, err
-			}
-			if algo.Symbol != symbol {
-				return nil, orderErr
-			}
-			d, err = e.uAlgoOrderDetail(&algo.UAlgoOrderBase, algo.ActualPrice.Float64(), pair)
-			// The query alone reports the quantity the triggered order filled
-			d.ExecutedAmount = algo.ActualQuantity.Float64()
+			return e.algoOrderInfo(ctx, a, id, pair, orderErr)
 		default:
 			return nil, orderErr
 		}
 	case asset.CoinMarginedFutures:
-		var o *FuturesOrderDetailResponse
-		if o, err = e.FuturesGetOrderData(ctx, pair, id, ""); err != nil {
-			return nil, err
+		o, orderErr := e.FuturesGetOrderData(ctx, pair, id, "")
+		switch {
+		case orderErr == nil:
+			d, err = e.cOrderDetail(o, pair)
+		case errors.Is(orderErr, order.ErrOrderNotFound):
+			return e.algoOrderInfo(ctx, a, id, pair, orderErr)
+		default:
+			return nil, orderErr
 		}
-		d, err = e.cOrderDetail(o, pair)
 	case asset.Options:
 		var o *OptionsOrderStatusResponse
 		if o, err = e.GetSingleEOptionsOrder(ctx, pair, "", id); err != nil {
@@ -2759,6 +2935,36 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, fmt.Errorf("error converting %s order %s: %w", a, orderID, err)
 	}
+	return &d, nil
+}
+
+// algoOrderInfo returns pair's USDⓈ-M or COIN-M algo order algoID, as SubmitOrder identifies a conditional order by its
+// algo ID, which Binance numbers apart from order IDs. orderErr is the error looking the ID up as an order gave, which
+// stands when pair has no such algo order
+func (e *Exchange) algoOrderInfo(ctx context.Context, a asset.Item, algoID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
+	var algo *UAlgoOrderResponse
+	var err error
+	if a == asset.CoinMarginedFutures {
+		algo, err = e.FuturesQueryAlgoOrder(ctx, algoID, "")
+	} else {
+		algo, err = e.UQueryAlgoOrder(ctx, algoID, "")
+	}
+	if err != nil {
+		return nil, common.AppendError(fmt.Errorf("error fetching order: %w", orderErr), fmt.Errorf("error fetching algo order: %w", err))
+	}
+	symbol, err := e.FormatSymbol(pair, a)
+	if err != nil {
+		return nil, err
+	}
+	if algo.Symbol != symbol {
+		return nil, orderErr
+	}
+	d, err := e.algoOrderDetail(a, &algo.UAlgoOrderBase, algo.ActualPrice.Float64(), pair)
+	if err != nil {
+		return nil, fmt.Errorf("error converting %s order %d: %w", a, algoID, err)
+	}
+	// The query alone reports the quantity the triggered order filled
+	d.ExecutedAmount = algo.ActualQuantity.Float64()
 	return &d, nil
 }
 
@@ -2924,12 +3130,21 @@ func setFilledCost(d *order.Detail, cumulativeQuote, executed types.Number) {
 	d.AverageExecutedPrice = averagePrice(cumulativeQuote, executed)
 }
 
+// spotTimeInForce returns the time in force of a spot or margin order of type t. Binance reports a LIMIT_MAKER order,
+// its post only type, as good till cancel, which reads as post only, as SubmitOrder reports it
+func spotTimeInForce(t order.Type, tif order.TimeInForce) order.TimeInForce {
+	if t == order.LimitMaker {
+		return order.PostOnly
+	}
+	return tif
+}
+
 // spotOrderDetail converts a spot order as the order queries return it. Values that cannot be converted are left
 // unset and returned as the error
 func (e *Exchange) spotOrderDetail(o *TradeOrderResponse, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.Spot, o.Side, o.Status, o.Type, "")
 	d := order.Detail{
-		TimeInForce:    o.TimeInForce,
+		TimeInForce:    spotTimeInForce(vars.OrderType, o.TimeInForce),
 		Price:          o.Price.Float64(),
 		Amount:         o.OriginalQuantity.Float64(),
 		TriggerPrice:   o.StopPrice.Float64(),
@@ -2947,7 +3162,7 @@ func (e *Exchange) spotOrderDetail(o *TradeOrderResponse, pair currency.Pair) (o
 		Pair:           pair,
 	}
 	d.RemainingAmount = remainingAmount(o.OriginalQuantity, o.ExecutedQuantity)
-	setFilledCost(&d, o.CummulativeQuoteQuantity, o.ExecutedQuantity)
+	setFilledCost(&d, o.CumulativeQuoteQuantity, o.ExecutedQuantity)
 	return d, err
 }
 
@@ -2955,7 +3170,7 @@ func (e *Exchange) spotOrderDetail(o *TradeOrderResponse, pair currency.Pair) (o
 func (e *Exchange) marginOrderDetail(o *MarginTradeOrderResponse, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.Margin, o.Side, o.Status, o.Type, o.TimeInForce)
 	d := order.Detail{
-		TimeInForce:    vars.TimeInForce,
+		TimeInForce:    spotTimeInForce(vars.OrderType, vars.TimeInForce),
 		Price:          o.Price.Float64(),
 		Amount:         o.OriginalQuantity.Float64(),
 		TriggerPrice:   o.StopPrice.Float64(),
@@ -2973,7 +3188,7 @@ func (e *Exchange) marginOrderDetail(o *MarginTradeOrderResponse, pair currency.
 		MarginType:     marginAccountType(o.IsIsolated),
 	}
 	d.RemainingAmount = remainingAmount(o.OriginalQuantity, o.ExecutedQuantity)
-	setFilledCost(&d, o.CummulativeQuoteQuantity, o.ExecutedQuantity)
+	setFilledCost(&d, o.CumulativeQuoteQuantity, o.ExecutedQuantity)
 	return d, err
 }
 
@@ -3032,10 +3247,10 @@ func (e *Exchange) uOrderDetail(o *UOrderResponse, pair currency.Pair) (order.De
 	return d, err
 }
 
-// uAlgoOrderDetail converts a USDⓈ-M algo order, identified by its algo ID; actualPrice is the average price of the
-// order it triggered. Values that cannot be converted are left unset and returned as the error
-func (e *Exchange) uAlgoOrderDetail(o *UAlgoOrderBase, actualPrice float64, pair currency.Pair) (order.Detail, error) {
-	vars, err := compatibleOrderVars(asset.USDTMarginedFutures, o.Side, "", o.OrderType, o.TimeInForce)
+// algoOrderDetail converts a USDⓈ-M or COIN-M algo order, identified by its algo ID; actualPrice is the average price
+// of the order it triggered. Values that cannot be converted are left unset and returned as the error
+func (e *Exchange) algoOrderDetail(a asset.Item, o *UAlgoOrderBase, actualPrice float64, pair currency.Pair) (order.Detail, error) {
+	vars, err := compatibleOrderVars(a, o.Side, "", o.OrderType, o.TimeInForce)
 	status, statusErr := algoOrderStatus(o.AlgoStatus)
 	d := order.Detail{
 		TimeInForce:          vars.TimeInForce,
@@ -3050,7 +3265,7 @@ func (e *Exchange) uAlgoOrderDetail(o *UAlgoOrderBase, actualPrice float64, pair
 		Type:                 vars.OrderType,
 		Side:                 vars.Side,
 		Status:               status,
-		AssetType:            asset.USDTMarginedFutures,
+		AssetType:            a,
 		Date:                 o.CreateTime.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
 		Pair:                 pair,
@@ -3091,8 +3306,9 @@ func (e *Exchange) cOrderDetail(o *FuturesOrderDetailResponse, pair currency.Pai
 	return d, err
 }
 
-// optionsOrderDetail converts an options order; the queries that report postOnly flag post only orders. Values that
-// cannot be converted are left unset and returned as the error
+// optionsOrderDetail converts an options order. The queries that report postOnly flag post only orders, which read as
+// post only, as SubmitOrder reports them, rather than as the GTC Binance reports beside the flag. Values that cannot be
+// converted are left unset and returned as the error
 func (e *Exchange) optionsOrderDetail(o *OptionsOrder, createTime time.Time, postOnly bool, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.Options, o.Side, o.Status, o.Type, o.TimeInForce)
 	d := order.Detail{
@@ -3116,7 +3332,7 @@ func (e *Exchange) optionsOrderDetail(o *OptionsOrder, createTime time.Time, pos
 		Pair:                 pair,
 	}
 	if postOnly {
-		d.TimeInForce |= order.PostOnly
+		d.TimeInForce = order.PostOnly
 	}
 	d.RemainingAmount = remainingAmount(o.Quantity, o.ExecutedQuantity)
 	return d, err
@@ -3206,9 +3422,9 @@ func (e *Exchange) cryptocurrencyWithdrawalFee(ctx context.Context, c currency.C
 	return 0, fmt.Errorf("%w: %s", currency.ErrCurrencyNotFound, c)
 }
 
-// GetActiveOrders returns the open orders of the requested pairs, or of every symbol when none are requested. OCO
-// order lists are listed as orders identified by their order list ID when the OCO type is requested, while their
-// orders are listed among the open orders otherwise. USDⓈ-M algo orders are listed unless only limit or market orders
+// GetActiveOrders returns the open orders of the requested pairs, or of every symbol when none are requested. OCO order
+// lists are listed as orders identified by their order list ID when the OCO type is requested, while their orders are
+// listed among the open orders otherwise. USDⓈ-M and COIN-M algo orders are listed unless only limit or market orders
 // are requested, and a margin listing is of the isolated account, which needs pairs, when the isolated margin type is
 // requested
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
@@ -3384,7 +3600,7 @@ func (e *Exchange) uActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			for i := range openAlgo {
 				o := &openAlgo[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.uAlgoOrderDetail(&o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -3392,7 +3608,8 @@ func (e *Exchange) uActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	return orders, nil
 }
 
-// cActiveOrders returns open COIN-M orders
+// cActiveOrders returns open COIN-M orders and algo orders. Orders are listed whatever type is requested, as COIN-M
+// conditional orders placed before Binance's move to algo orders rest among them
 func (e *Exchange) cActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range openOrdersPairs(asset.CoinMarginedFutures, req.Pairs) {
@@ -3405,6 +3622,18 @@ func (e *Exchange) cActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
 				return e.cOrderDetail(o, pair)
 			})
+		}
+		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
+			openAlgo, err := e.FuturesCurrentAllAlgoOpenOrders(ctx, "", p, 0)
+			if err != nil {
+				return nil, err
+			}
+			for i := range openAlgo {
+				o := &openAlgo[i]
+				orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
+					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+				})
+			}
 		}
 	}
 	return orders, nil
@@ -3421,7 +3650,7 @@ func (e *Exchange) optionsActiveOrders(ctx context.Context, req *order.MultiOrde
 		for i := range open {
 			o := &open[i]
 			orders = e.appendListedOrder(orders, asset.Options, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-				return e.optionsOrderDetail(&o.OptionsOrder, o.CreateTime.Time(), false, pair)
+				return e.optionsOrderDetail(&o.OptionsOrder, o.CreateTime.Time(), o.PostOnly, pair)
 			})
 		}
 	}
@@ -3432,7 +3661,8 @@ func (e *Exchange) optionsActiveOrders(ctx context.Context, req *order.MultiOrde
 // orders from FromOrderID on, filtered to the request's time window, or within the request's time window, which
 // Binance limits per asset (24 hours on spot and margin, 7 days on USDⓈ-M and COIN-M) and defaults when it is unset.
 // OCO order lists are listed when the OCO type is requested, in one page for every symbol on spot and cross margin,
-// whose order list queries take no symbol, and USDⓈ-M algo orders unless only limit or market orders are requested
+// whose order list queries take no symbol, and USDⓈ-M and COIN-M algo orders unless only limit or market orders are
+// requested
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -3667,7 +3897,7 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			for i := range algoHistory {
 				o := &algoHistory[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.uAlgoOrderDetail(&o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -3675,7 +3905,10 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	return orders, nil
 }
 
-// cOrderHistory returns COIN-M orders up to 100 a request
+// cOrderHistory returns COIN-M orders and algo orders up to 100 a request each; FromOrderID applies to orders alone,
+// since algo orders are numbered apart. Orders are listed whatever type is requested, as COIN-M conditional orders
+// placed before Binance's move to algo orders are among them. Binance documents no page size for COIN-M algo orders, so
+// they are paged as COIN-M orders are, since a page shorter than requested ends a span
 func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range req.Pairs {
@@ -3690,6 +3923,20 @@ func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
 				return e.cOrderDetail(&o.FuturesOrderDetailResponse, pair)
 			})
+		}
+		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
+			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]UAlgoOrder, error) {
+				return e.FuturesQueryAllAlgoOrders(ctx, &UAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 100})
+			}, func(o *UAlgoOrder) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrder) uint64 { return o.AlgoID })
+			if err != nil {
+				return nil, err
+			}
+			for i := range algoHistory {
+				o := &algoHistory[i]
+				orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
+					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+				})
+			}
 		}
 	}
 	return orders, nil
@@ -3708,7 +3955,7 @@ func (e *Exchange) optionsOrderHistory(ctx context.Context, req *order.MultiOrde
 		for i := range history {
 			o := &history[i]
 			orders = e.appendListedOrder(orders, asset.Options, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-				return e.optionsOrderDetail(&o.OptionsOrder, o.CreateTime.Time(), false, pair)
+				return e.optionsOrderDetail(&o.OptionsOrder, o.CreateTime.Time(), o.PostOnly, pair)
 			})
 		}
 	}
@@ -4755,8 +5002,31 @@ func positionSideFor(direction order.Side) string {
 	}
 }
 
+// summaryPositionSide returns the side of the symbol's position a summary is of, from the amount of each position the
+// account reports for the symbol by side. A direction selects Hedge Mode's long or short position, and without one the
+// summary is of the one-way position. Hedge Mode has no one-way position, so without a direction its one open side is
+// taken, and a direction is required while both sides are open
+func summaryPositionSide(direction order.Side, symbol string, sides map[string]types.Number) (string, error) {
+	positionSide := positionSideFor(direction)
+	if positionSide != "BOTH" {
+		return positionSide, nil
+	}
+	long, short := sides["LONG"] != 0, sides["SHORT"] != 0
+	switch {
+	case long && short:
+		return "", fmt.Errorf("%w: %s has both a long and a short position open", errPositionDirectionRequired, symbol)
+	case long:
+		return "LONG", nil
+	case short:
+		return "SHORT", nil
+	default:
+		return positionSide, nil
+	}
+}
+
 // GetFuturesPositionSummary returns a USDⓈ-M or COIN-M position's summary. In Hedge Mode the request's Direction
-// selects the long or the short position; without one the summary is of the one-way position. A COIN-M position's
+// selects the long or the short position. Without one, as the RPC server sends, the summary is of the one-way
+// position, or in Hedge Mode of its one open side; with both sides open a Direction is required. A COIN-M position's
 // collateral is its margin asset: the underlying pair's base when the request has one, and the symbol's margin asset
 // from exchange information otherwise
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
@@ -4787,8 +5057,17 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	positionSide := positionSideFor(req.Direction)
 	account, err := e.UAccountInformationV2(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sides := make(map[string]types.Number, 2)
+	for i := range account.Positions {
+		if account.Positions[i].Symbol == symbol {
+			sides[account.Positions[i].PositionSide] = account.Positions[i].PositionAmount
+		}
+	}
+	positionSide, err := summaryPositionSide(req.Direction, symbol, sides)
 	if err != nil {
 		return nil, err
 	}
@@ -4832,7 +5111,7 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 		CurrentSize:                  position.PositionAmount.Decimal(),
 		ContractSettlementType:       futures.Linear,
 		AverageOpenPrice:             position.EntryPrice.Decimal(),
-		UnrealisedPNL:                position.UnrealizedProfit.Decimal(),
+		UnrealisedPNL:                position.UnrealisedProfit.Decimal(),
 	}
 	if accountPosition.Isolated {
 		summary.IsolatedMargin = position.IsolatedWallet.Decimal()
@@ -4867,7 +5146,6 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	positionSide := positionSideFor(req.Direction)
 	marginAsset := req.UnderlyingPair.Base
 	if marginAsset.IsEmpty() {
 		var info *CFuturesExchangeInfoResponse
@@ -4885,6 +5163,16 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 		}
 	}
 	account, err := e.GetFuturesAccountInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sides := make(map[string]types.Number, 2)
+	for i := range account.Positions {
+		if account.Positions[i].Symbol == symbol {
+			sides[account.Positions[i].PositionSide] = account.Positions[i].PositionAmount
+		}
+	}
+	positionSide, err := summaryPositionSide(req.Direction, symbol, sides)
 	if err != nil {
 		return nil, err
 	}
@@ -4939,7 +5227,7 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 		CurrentSize:                  position.PositionAmount.Decimal(),
 		ContractSettlementType:       futures.Inverse,
 		AverageOpenPrice:             position.EntryPrice.Decimal(),
-		UnrealisedPNL:                position.UnrealizedProfit.Decimal(),
+		UnrealisedPNL:                position.UnrealisedProfit.Decimal(),
 		FreeCollateral:               accountAsset.AvailableBalance.Decimal(),
 		TotalCollateral:              accountAsset.WalletBalance.Decimal(),
 	}
@@ -4966,8 +5254,8 @@ const futuresOrdersWindow = 7*24*time.Hour - time.Millisecond
 
 // futuresOrdersInWindow collects every order from start to end through fetch, which returns at most limit orders. A
 // window longer than the endpoints take is split first, and a full reply, which may leave orders out, has its window
-// halved until each part's orders fit. Windows are whole milliseconds, as Binance's times are, so the parts of a
-// window cover it without gaps
+// halved until each part's orders fit or the part is a single millisecond, which can't be split. Windows are whole
+// milliseconds, as Binance's times are, so the parts of a window cover it without gaps
 func futuresOrdersInWindow[T any](start, end time.Time, limit int, fetch func(start, end time.Time) ([]T, error)) ([]T, error) {
 	start, end = start.Truncate(time.Millisecond), end.Truncate(time.Millisecond)
 	if end.Sub(start) > futuresOrdersWindow {
@@ -4985,7 +5273,7 @@ func futuresOrdersInWindow[T any](start, end time.Time, limit int, fetch func(st
 	if err != nil {
 		return nil, err
 	}
-	if len(orders) < limit || end.Sub(start) < 2*time.Millisecond {
+	if len(orders) < limit || !end.After(start) {
 		return orders, nil
 	}
 	middle := start.Add(end.Sub(start) / 2).Truncate(time.Millisecond)

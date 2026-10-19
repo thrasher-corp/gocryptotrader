@@ -4258,6 +4258,62 @@
     }
    ]
   },
+  "/dapi/v1/algoOpenOrders": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 200,
+      "msg": "The operation of cancel all open order is done."
+     },
+     "queryString": "recvWindow=5000\u0026signature=x\u0026symbol=BTCUSD_PERP\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/dapi/v1/allAlgoOrders": {
+   "GET": [
+    {
+     "data": [
+      {
+       "algoId": 3100002,
+       "clientAlgoId": "gct-cm-take-profit",
+       "algoType": "CONDITIONAL",
+       "orderType": "TAKE_PROFIT_MARKET",
+       "symbol": "BTCUSD_PERP",
+       "side": "SELL",
+       "positionSide": "BOTH",
+       "timeInForce": "GTE_GTC",
+       "quantity": "1",
+       "algoStatus": "FINISHED",
+       "triggerPrice": "90000.0",
+       "price": "0.0",
+       "icebergQuantity": "null",
+       "selfTradePreventionMode": "EXPIRE_MAKER",
+       "workingType": "CONTRACT_PRICE",
+       "priceMatch": "NONE",
+       "closePosition": false,
+       "priceProtect": false,
+       "reduceOnly": true,
+       "createTime": 1744120900000,
+       "updateTime": 1744121000000,
+       "triggerTime": 1744121000000,
+       "goodTillDate": 0,
+       "actualOrderId": "1573346964",
+       "actualPrice": "90010.0",
+       "tpTriggerPrice": "0",
+       "tpPrice": "0",
+       "slTriggerPrice": "0",
+       "slPrice": "0",
+       "tpOrderType": ""
+      }
+     ],
+     "queryString": "limit=100\u0026recvWindow=5000\u0026signature=x\u0026symbol=BTCUSD_PERP\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/dapi/v1/allOpenOrders": {
    "DELETE": [
     {
@@ -5500,6 +5556,88 @@
       ]
      ],
      "queryString": "endTime=1744190254944\u0026interval=1h\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/dapi/v1/openAlgoOrders": {
+   "GET": [
+    {
+     "data": [
+      {
+       "algoId": 3100001,
+       "clientAlgoId": "gct-cm-stop",
+       "algoType": "CONDITIONAL",
+       "orderType": "STOP_MARKET",
+       "symbol": "BTCUSD_PERP",
+       "side": "SELL",
+       "positionSide": "BOTH",
+       "timeInForce": "GTE_GTC",
+       "quantity": "1",
+       "algoStatus": "NEW",
+       "triggerPrice": "70000.0",
+       "price": "0.0",
+       "icebergQuantity": "null",
+       "selfTradePreventionMode": "EXPIRE_MAKER",
+       "workingType": "MARK_PRICE",
+       "priceMatch": "NONE",
+       "closePosition": false,
+       "priceProtect": false,
+       "reduceOnly": true,
+       "createTime": 1744120800000,
+       "updateTime": 1744120800000,
+       "triggerTime": 0,
+       "goodTillDate": 0,
+       "actualOrderId": "",
+       "actualPrice": "0.0",
+       "tpTriggerPrice": "0",
+       "tpPrice": "0",
+       "slTriggerPrice": "0",
+       "slPrice": "0",
+       "tpOrderType": ""
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=x\u0026symbol=BTCUSD_PERP\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "algoId": 3100001,
+       "clientAlgoId": "gct-cm-stop",
+       "algoType": "CONDITIONAL",
+       "orderType": "STOP_MARKET",
+       "symbol": "BTCUSD_PERP",
+       "side": "SELL",
+       "positionSide": "BOTH",
+       "timeInForce": "GTE_GTC",
+       "quantity": "1",
+       "algoStatus": "NEW",
+       "triggerPrice": "70000.0",
+       "price": "0.0",
+       "icebergQuantity": "null",
+       "selfTradePreventionMode": "EXPIRE_MAKER",
+       "workingType": "MARK_PRICE",
+       "priceMatch": "NONE",
+       "closePosition": false,
+       "priceProtect": false,
+       "reduceOnly": true,
+       "createTime": 1744120800000,
+       "updateTime": 1744120800000,
+       "triggerTime": 0,
+       "goodTillDate": 0,
+       "actualOrderId": "",
+       "actualPrice": "0.0",
+       "tpTriggerPrice": "0",
+       "tpPrice": "0",
+       "slTriggerPrice": "0",
+       "slPrice": "0",
+       "tpOrderType": ""
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
     }

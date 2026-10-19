@@ -177,7 +177,7 @@ func TestWsHandleOptionsUserData(t *testing.T) {
 	exp := []any{
 		&OptionsAccountUpdate{
 			EventType: "ACCOUNT_UPDATE", EventTime: fixtureTime(1762914568643), TransactionTime: fixtureTime(1762914568619), Equity: 10000371.61462086,
-			AdjustedEquity: 10000475.51032086, WalletBalance: 10000475.51032086, PositionValue: -103.8957, UnrealizedPNL: 16.1043,
+			AdjustedEquity: 10000475.51032086, WalletBalance: 10000475.51032086, PositionValue: -103.8957, UnrealisedPNL: 16.1043,
 			InitialMargin: 32354.38562539, MaintenanceMargin: 6089.28766956,
 		},
 		accounts.SubAccounts{{AssetType: asset.Options, Balances: accounts.CurrencyBalances{
@@ -338,7 +338,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 					OriginalPrice: 3660, AveragePrice: 3660, ExecutionType: "TRADE", OrderStatus: "PARTIALLY_FILLED", OrderID: 4611869636869226548,
 					OrderLastFilledQuantity: 0.1, OrderFilledAccumulatedQuantity: 0.1, LastFilledPrice: 3660, CommissionAsset: currency.USDT, Commission: -0.0732,
 					OrderTradeTime: fixtureTime(1762917544206), TradeID: 467, BidsQuantity: 0.1, AskQuantity: 0.3, IsMaker: true, IsReduceOnly: true,
-					OriginalOrderType: "LIMIT", RealizedProfit: 1.5, SelfTradePreventionMode: "EXPIRE_BOTH",
+					OriginalOrderType: "LIMIT", RealisedProfit: 1.5, SelfTradePreventionMode: "EXPIRE_BOTH",
 				},
 			},
 		},

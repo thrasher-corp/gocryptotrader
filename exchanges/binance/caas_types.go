@@ -196,14 +196,14 @@ type BrokerFuturesAsset struct {
 	TotalInitialMargin          types.Number  `json:"totalInitialMargin"`
 	TotalMaintenanceMargin      types.Number  `json:"totalMaintenanceMargin"`
 	TotalWalletBalance          types.Number  `json:"totalWalletBalance"`
-	TotalUnrealizedProfit       types.Number  `json:"totalUnrealizedProfit"`
+	TotalUnrealisedProfit       types.Number  `json:"totalUnrealizedProfit"`
 	TotalMarginBalance          types.Number  `json:"totalMarginBalance"`
 	TotalPositionInitialMargin  types.Number  `json:"totalPositionInitialMargin"`
 	TotalOpenOrderInitialMargin types.Number  `json:"totalOpenOrderInitialMargin"`
 	FuturesEnable               bool          `json:"futuresEnable"`
 	Asset                       currency.Code `json:"asset"`
 	TotalWalletBalanceOfUSDT    types.Number  `json:"totalWalletBalanceOfUsdt"`
-	TotalUnrealizedProfitOfUSDT types.Number  `json:"totalUnrealizedProfitOfUsdt"`
+	TotalUnrealisedProfitOfUSDT types.Number  `json:"totalUnrealizedProfitOfUsdt"`
 	TotalMarginBalanceOfUSDT    types.Number  `json:"totalMarginBalanceOfUsdt"`
 }
 

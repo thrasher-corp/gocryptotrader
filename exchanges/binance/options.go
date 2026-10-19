@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -258,7 +259,8 @@ func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Contex
 }
 
 // SendOptionsAutoCancelAllOpenOrdersHeartbeat sends an options Auto-Cancel All Open Orders (Kill-Switch) Heartbeat,
-// which restarts the countdown of each underlying; the response lists the underlyings whose countdown restarted
+// which restarts the countdown of each underlying; the response lists the underlyings whose countdown restarted.
+// Heartbeats and countdown settings draw on a rate limit share of their own while it can take them at once
 func (e *Exchange) SendOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Context, underlyings []string) (*OptionsAutoCancelAllOpenOrdersHeartbeatResponse, error) {
 	if len(underlyings) == 0 {
 		return nil, errUnderlyingIsRequired
@@ -266,7 +268,9 @@ func (e *Exchange) SendOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Conte
 	params := url.Values{}
 	params.Set("underlyings", strings.Join(underlyings, ","))
 	var resp *OptionsAutoCancelAllOpenOrdersHeartbeatResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsAutoCancelAllOpenOrdersHeartbeatRate, &resp)
+	return resp, e.sendOnShare(ctx, optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsHeartbeatOverflowRate, func(ctx context.Context, f request.EndpointLimit) error {
+		return e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, f, &resp)
+	})
 }
 
 // GetAutoCancelAllOpenOrdersConfig returns the options Auto-Cancel All Open Orders (Kill-Switch) Config of an
@@ -283,7 +287,8 @@ func (e *Exchange) GetAutoCancelAllOpenOrdersConfig(ctx context.Context, underly
 // SetOptionsAutoCancelAllOpenOrders sets the options Auto-Cancel All Open Orders (Kill-Switch) Config of an
 // underlying. Once the countdown elapses without a heartbeat, its open orders are cancelled and new orders are
 // rejected until a heartbeat arrives or the countdown is turned off. A zero countdown turns it off; otherwise Binance
-// requires at least five seconds
+// requires at least five seconds. It draws on the heartbeats' rate limit share while it can take it at once, so
+// turning the countdown off is not held up by market data
 func (e *Exchange) SetOptionsAutoCancelAllOpenOrders(ctx context.Context, underlying string, countdown time.Duration) (*OptionsAutoCancelAllOpenOrdersConfigResponse, error) {
 	if underlying == "" {
 		return nil, errUnderlyingIsRequired
@@ -292,7 +297,9 @@ func (e *Exchange) SetOptionsAutoCancelAllOpenOrders(ctx context.Context, underl
 	params.Set("underlying", underlying)
 	params.Set("countdownTime", strconv.FormatInt(countdown.Milliseconds(), 10))
 	var resp *OptionsAutoCancelAllOpenOrdersConfigResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, &resp)
+	return resp, e.sendOnShare(ctx, optionsAutoCancelAllOpenOrdersConfigRate, optionsDefaultRate, func(ctx context.Context, f request.EndpointLimit) error {
+		return e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, f, &resp)
+	})
 }
 
 // GetOptionsMarketMakerProtection returns the options Market Maker Protection Config of an underlying
@@ -592,6 +599,12 @@ func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol curr
 
 // GetCurrentOpenOptionsOrders returns the Current Open Option Orders of a symbol, or of every symbol when it is empty
 func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest) ([]OptionsOpenOrder, error) {
+	return e.getCurrentOpenOptionsOrders(ctx, req, optionsAllQueryOpenOrdersRate)
+}
+
+// getCurrentOpenOptionsOrders lists open options orders, drawing on allSymbols for a listing of every symbol's, so the
+// listing a cancellation of every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) getCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest, allSymbols request.EndpointLimit) ([]OptionsOpenOrder, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -601,7 +614,7 @@ func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, req *Options
 		}
 	}
 	params := url.Values{}
-	rateLimit := optionsAllQueryOpenOrdersRate
+	rateLimit := allSymbols
 	if !req.Symbol.IsEmpty() {
 		rateLimit = optionsDefaultRate
 		symbol, err := e.FormatSymbol(req.Symbol, asset.Options)

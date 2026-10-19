@@ -28,12 +28,16 @@ import (
 type Exchange struct {
 	exchange.Base
 	userData userDataStreams
+	// positionModes caches each account's futures position mode, which Long and Short orders follow
+	positionModes positionModeCache
 	// orderbookSync synchronises every asset's websocket diff depth with REST snapshots
 	orderbookSync *orderbookmanager.UpdateManager
 	// balanceRefresh refreshes the derivatives balances user data stream balance events change
 	balanceRefresh balanceRefresher
 	// wsAPI is the WebSocket API connection requests are sent on
 	wsAPI wsAPIConnection
+	// userDataRetry tries failed user data stream subscriptions again
+	userDataRetry userDataRetries
 }
 
 const (
@@ -982,17 +986,24 @@ func (e *Exchange) GetAccount(ctx context.Context, omitZeroBalances bool) (*Acco
 
 // OpenOrders returns the current open orders on a symbol, or on every symbol for an empty pair, which weighs far more
 func (e *Exchange) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOrderResponse, error) {
+	return e.openOrders(ctx, pair, spotOpenOrdersAllRate)
+}
+
+// openOrders lists open orders, drawing on allSymbols for a listing of every symbol's, so the listing a cancellation of
+// every symbol's orders makes can draw on the cancel pool
+func (e *Exchange) openOrders(ctx context.Context, pair currency.Pair, allSymbols request.EndpointLimit) ([]TradeOrderResponse, error) {
 	params := url.Values{}
-	var symbol string
+	rateLimit := allSymbols
 	if !pair.IsEmpty() {
-		var err error
-		if symbol, err = e.FormatSymbol(pair, asset.Spot); err != nil {
+		symbol, err := e.FormatSymbol(pair, asset.Spot)
+		if err != nil {
 			return nil, err
 		}
 		params.Set("symbol", symbol)
+		rateLimit = spotOpenOrdersSpecificRate
 	}
 	var resp []TradeOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/openOrders", params, spotOpenOrdersLimit(symbol), &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/openOrders", params, rateLimit, &resp)
 }
 
 // QueryOrder checks an order's status by orderID or origClientOrderID

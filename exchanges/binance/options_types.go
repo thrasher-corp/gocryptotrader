@@ -50,7 +50,7 @@ type OptionsMarginAccountAsset struct {
 	Available         types.Number  `json:"available"`
 	InitialMargin     types.Number  `json:"initialMargin"`
 	MaintenanceMargin types.Number  `json:"maintMargin"`
-	UnrealizedPNL     types.Number  `json:"unrealizedPNL"`
+	UnrealisedPNL     types.Number  `json:"unrealizedPNL"`
 	AdjustedEquity    types.Number  `json:"adjustedEquity"`
 }
 
@@ -329,7 +329,7 @@ type OptionsAccountTradeItem struct {
 	Quantity types.Number `json:"quantity"`
 	// Fee is negative when it was deducted
 	Fee            types.Number  `json:"fee"`
-	RealizedProfit types.Number  `json:"realizedProfit"`
+	RealisedProfit types.Number  `json:"realizedProfit"`
 	Side           string        `json:"side"`
 	Type           string        `json:"type"`
 	Liquidity      string        `json:"liquidity"`
@@ -389,13 +389,16 @@ type OptionsOrderResponse struct {
 	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 }
 
-// OptionsCancelledOrder holds an entry of an options batch cancellation
+// OptionsCancelledOrder holds an entry of an options batch cancellation. Binance's options docs show no rejected entry,
+// so Code and Message read one the way the USDⓈ-M and COIN-M batch cancellations report it, in place of the order
 type OptionsCancelledOrder struct {
 	OptionsOrder
 	Fee                     types.Number `json:"fee"`
 	CreateTime              types.Time   `json:"createTime"`
 	Source                  string       `json:"source"`
 	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	Code                    int64        `json:"code"`
+	Message                 string       `json:"msg"`
 }
 
 // OptionsOrderStatusResponse holds an options order as Query Single Order returns it
@@ -422,7 +425,7 @@ type OptionPosition struct {
 	// Quantity is positive for long positions and negative for short positions
 	Quantity      types.Number  `json:"quantity"`
 	MarkValue     types.Number  `json:"markValue"`
-	UnrealizedPNL types.Number  `json:"unrealizedPNL"`
+	UnrealisedPNL types.Number  `json:"unrealizedPNL"`
 	MarkPrice     types.Number  `json:"markPrice"`
 	StrikePrice   types.Number  `json:"strikePrice"`
 	ExpiryDate    types.Time    `json:"expiryDate"`
@@ -447,6 +450,7 @@ type OptionsOpenOrdersRequest struct {
 // OptionsOpenOrder holds a current open options order
 type OptionsOpenOrder struct {
 	OptionsOrder
+	PostOnly                bool       `json:"postOnly"`
 	CreateTime              types.Time `json:"createTime"`
 	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
@@ -463,6 +467,7 @@ type OptionsOrderHistoryRequest struct {
 // OptionsOrderHistoryItem holds a finished options order
 type OptionsOrderHistoryItem struct {
 	OptionsOrder
+	PostOnly   bool       `json:"postOnly"`
 	CreateTime types.Time `json:"createTime"`
 }
 

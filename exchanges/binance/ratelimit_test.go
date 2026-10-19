@@ -31,17 +31,20 @@ func TestPoolBudgets(t *testing.T) {
 		{spotOrderPool, 10 * time.Second, 100, false},
 		{sapiIPPool, time.Minute, 12000, true},
 		{sapiUIDPool, time.Minute, 180000, true},
-		{derivativesIPPool, time.Minute, 2100, false},
-		{derivativesCancelPool, time.Minute, 300, false},
+		{derivativesIPPool, time.Minute, 1800, false},
+		{derivativesCancelPool, time.Minute, 450, false},
+		{derivativesHeartbeatPool, time.Minute, 150, false},
 		{derivativesOrderPool, time.Minute, 1200, false},
 		{futuresDataPool, 5 * time.Minute, 1000, false},
 		{uFuturesFundingPool, 5 * time.Minute, 500, false},
-		{optionsIPPool, time.Minute, 340, false},
-		{optionsCancelPool, time.Minute, 60, false},
+		{optionsIPPool, time.Minute, 240, false},
+		{optionsCancelPool, time.Minute, 100, false},
+		{optionsHeartbeatPool, time.Minute, 60, false},
 		{optionsOrderPool, time.Minute, 100, false},
 		{portfolioMarginIPPool, time.Minute, 6000, false},
 		{portfolioMarginOrderPool, time.Minute, 1200, false},
 		{marginMaxLeveragePool, time.Minute, 1, false},
+		{withdrawalHistoryPool, time.Second, 10, false},
 		{subAccountFuturesTransferPool, time.Minute, 2000, false},
 		{pmProBNBTransferPool, 10 * time.Minute, 2, false},
 		{autoInvestPlanCreationPool, 3 * time.Second, 1, false},
@@ -68,19 +71,32 @@ func TestPoolBudgets(t *testing.T) {
 	}
 	assert.Equal(t, len(rows), len(poolBudgets), "poolBudgets should hold exactly the documented pools")
 
-	// A host's IP and cancel pools share its documented IP limit, the cancel pools' bursts included
+	// A host's IP, cancel and heartbeat pools share its documented IP limit, their bursts included
 	for _, tc := range []struct {
-		ip, cancel rateLimitPool
-		limit      int
+		pools []rateLimitPool
+		limit int
 	}{
-		{spotIPPool, spotCancelPool, 6000},
-		{derivativesIPPool, derivativesCancelPool, 2400},
-		{optionsIPPool, optionsCancelPool, 400},
+		{[]rateLimitPool{spotIPPool, spotCancelPool}, 6000},
+		{[]rateLimitPool{derivativesIPPool, derivativesCancelPool, derivativesHeartbeatPool}, 2400},
+		{[]rateLimitPool{optionsIPPool, optionsCancelPool, optionsHeartbeatPool}, 400},
 	} {
-		assert.Equalf(t, tc.limit, poolBudgets[tc.ip].limit+poolBudgets[tc.cancel].limit, "pools %d and %d should share their host's IP limit", tc.ip, tc.cancel)
-		assert.Lessf(t, poolBursts[tc.cancel], poolBudgets[tc.cancel].limit, "pool %d should refill part of its budget", tc.cancel)
+		var shared int
+		for _, pool := range tc.pools {
+			shared += poolBudgets[pool].limit
+		}
+		assert.Equalf(t, tc.limit, shared, "pools %v should share their host's IP limit", tc.pools)
 	}
-	assert.Equal(t, map[rateLimitPool]int{spotCancelPool: 100, derivativesCancelPool: 50, optionsCancelPool: 10}, poolBursts, "only the cancel pools should burst")
+	exp := map[rateLimitPool]int{
+		spotCancelPool:           100,
+		derivativesCancelPool:    200,
+		derivativesHeartbeatPool: 50,
+		optionsCancelPool:        50,
+		optionsHeartbeatPool:     20,
+	}
+	assert.Equal(t, exp, poolBursts, "only the cancel and heartbeat pools should burst")
+	for pool, burst := range poolBursts {
+		assert.Lessf(t, burst, poolBudgets[pool].limit, "pool %d should refill part of its budget", pool)
+	}
 
 	used := make(map[rateLimitPool]bool, len(poolBudgets))
 	for _, cost := range endpointCosts {
@@ -133,6 +149,7 @@ func TestEndpointCosts(t *testing.T) {
 		{spotAccountInformationRate, spotIPPool, 20, "GET /api/v3/account, WS account.status"},
 		{spotOpenOrdersSpecificRate, spotIPPool, 6, "GET /api/v3/openOrders, one symbol"},
 		{spotOpenOrdersAllRate, spotIPPool, 80, "GET /api/v3/openOrders, all symbols"},
+		{spotCancelAllListingRate, spotCancelPool, 80, "GET /api/v3/openOrders and WS openOrders.status, all symbols, listed to cancel every symbol's orders"},
 		{spotOrderQueryRate, spotIPPool, 4, "GET /api/v3/order, WS order.status"},
 		{getOCOListRate, spotIPPool, 4, "GET /api/v3/orderList, WS orderList.status"},
 		{getAllocationsRate, spotIPPool, 20, "GET /api/v3/myAllocations, WS myAllocations"},
@@ -196,7 +213,7 @@ func TestEndpointCosts(t *testing.T) {
 		{getDepositAddressListInNetworkRate, sapiIPPool, 10, "GET /sapi/v1/capital/deposit/address/list"},
 		{withdrawAddressListRate, sapiIPPool, 10, "GET /sapi/v1/capital/withdraw/address/list"},
 		{fundWithdrawalRate, sapiUIDPool, 900, "POST /sapi/v1/capital/withdraw/apply"},
-		{withdrawalHistoryRate, sapiUIDPool, 18000, "GET /sapi/v1/capital/withdraw/history"},
+		{withdrawalHistoryRate, withdrawalHistoryPool, 1, "GET /sapi/v1/capital/withdraw/history: 10 requests a second"},
 		{symbolDelistScheduleForSpotRate, sapiIPPool, 100, "GET /sapi/v1/spot/delist-schedule"},
 		{depositQuestionnaireRate, sapiUIDPool, 600, "PUT /sapi/v1/localentity/deposit/provide-info"},
 		// Sub-account
@@ -336,10 +353,12 @@ func TestEndpointCosts(t *testing.T) {
 		// USDⓈ-M futures /fapi
 		{uFuturesDefaultRate, derivativesIPPool, 1, "weight-1 /fapi endpoints, and the single-symbol forms of those weighted by symbol"},
 		{uFuturesCancelRate, derivativesCancelPool, 1, "DELETE /fapi/v1/order, /fapi/v1/batchOrders, /fapi/v1/allOpenOrders, /fapi/v1/algoOrder and /fapi/v1/algoOpenOrders"},
+		{uFuturesCancelAllListingRate, derivativesCancelPool, 40, "GET /fapi/v1/openOrders and /fapi/v1/openAlgoOrders, all symbols, listed to cancel every symbol's orders"},
 		{uFuturesAccountInformationRate, derivativesIPPool, 5, "GET /fapi/v3/balance, GET /fapi/v2/account, GET /fapi/v3/account"},
 		{uFuturesTradingStatusAllRate, derivativesIPPool, 10, "GET /fapi/v1/apiTradingStatus without symbol"},
 		{uFuturesMultiAssetMarginRate, derivativesIPPool, 30, "GET /fapi/v1/multiAssetsMargin"},
 		{uFuturesPositionModeRate, derivativesIPPool, 30, "GET /fapi/v1/positionSide/dual"},
+		{uFuturesPositionModeLookupRate, derivativesCancelPool, 30, "GET /fapi/v1/positionSide/dual for a Long or Short order"},
 		{uFuturesDownloadIDRate, derivativesIPPool, 1000, "GET /fapi/v1/order/asyn, /trade/asyn and /income/asyn"},
 		{uFuturesDownloadLinkRate, derivativesIPPool, 10, "GET /fapi/v1/order/asyn/id, /trade/asyn/id and /income/asyn/id"},
 		{uFuturesIncomeHistoryRate, derivativesIPPool, 30, "GET /fapi/v1/income"},
@@ -367,7 +386,8 @@ func TestEndpointCosts(t *testing.T) {
 		{uFuturesTicker24HourAllRate, derivativesIPPool, 40, "GET /fapi/v1/ticker/24hr, all symbols"},
 		{uFuturesAccountTradeListRate, derivativesIPPool, 5, "GET /fapi/v1/userTrades"},
 		{uFuturesGetAllOrdersRate, derivativesIPPool, 5, "GET /fapi/v1/allOrders"},
-		{uFuturesCountdownCancelRate, derivativesIPPool, 10, "POST /fapi/v1/countdownCancelAll"},
+		{uFuturesCountdownCancelRate, derivativesHeartbeatPool, 10, "POST /fapi/v1/countdownCancelAll"},
+		{uFuturesHeartbeatOverflowRate, derivativesIPPool, 10, "POST /fapi/v1/countdownCancelAll beyond the heartbeat pool"},
 		{uFuturesOrdersDefaultRate, derivativesOrderPool, 1, "POST and PUT /fapi/v1/order, POST /fapi/v1/algoOrder: 1 order"},
 		{uFuturesBatchOrdersRate, derivativesOrderPool, 5, "POST and PUT /fapi/v1/batchOrders: 5 on the 10 second order window"},
 		{uFuturesOpenAlgoOrdersAllRate, derivativesIPPool, 40, "GET /fapi/v1/openAlgoOrders, all symbols"},
@@ -382,7 +402,8 @@ func TestEndpointCosts(t *testing.T) {
 		{futuresDataRate, futuresDataPool, 1, "GET /futures/data/* on both hosts: 1000 requests per 5 minutes"},
 		// COIN-M futures /dapi
 		{cFuturesDefaultRate, derivativesIPPool, 1, "weight-1 /dapi endpoints, and the single-symbol forms of those weighted by symbol"},
-		{cFuturesCancelRate, derivativesCancelPool, 1, "DELETE /dapi/v1/order, /dapi/v1/batchOrders and /dapi/v1/allOpenOrders"},
+		{cFuturesCancelRate, derivativesCancelPool, 1, "DELETE /dapi/v1/order, /dapi/v1/batchOrders, /dapi/v1/allOpenOrders, /dapi/v1/algoOrder and /dapi/v1/algoOpenOrders"},
+		{cFuturesCancelAllListingRate, derivativesCancelPool, 40, "GET /dapi/v1/openOrders and /dapi/v1/openAlgoOrders, all symbols, listed to cancel every symbol's orders"},
 		{cFuturesAccountInformationRate, derivativesIPPool, 5, "GET /dapi/v1/account"},
 		{cFuturesIncomeHistoryRate, derivativesIPPool, 20, "GET /dapi/v1/income"},
 		{cFuturesAggregateTradesRate, derivativesIPPool, 20, "GET /dapi/v1/aggTrades"},
@@ -403,16 +424,20 @@ func TestEndpointCosts(t *testing.T) {
 		{cFuturesTicker24HourAllRate, derivativesIPPool, 40, "GET /dapi/v1/ticker/24hr, all symbols"},
 		{cFuturesAccountTradeListRate, derivativesIPPool, 5, "GET /dapi/v1/userTrades"},
 		{cFuturesAllOrdersRate, derivativesIPPool, 5, "GET /dapi/v1/allOrders"},
-		{cFuturesCountdownCancelRate, derivativesIPPool, 10, "POST /dapi/v1/countdownCancelAll"},
+		{cFuturesCountdownCancelRate, derivativesHeartbeatPool, 10, "POST /dapi/v1/countdownCancelAll"},
+		{cFuturesHeartbeatOverflowRate, derivativesIPPool, 10, "POST /dapi/v1/countdownCancelAll beyond the heartbeat pool"},
 		{cFuturesBatchOrdersRate, derivativesOrderPool, 5, "POST /dapi/v1/batchOrders: up to 5 orders"},
-		{cFuturesOrdersDefaultRate, derivativesOrderPool, 1, "POST /dapi/v1/order: 1 order"},
+		{cFuturesOrdersDefaultRate, derivativesOrderPool, 1, "POST /dapi/v1/order and /dapi/v1/algoOrder: 1 order"},
 		{cFuturesGetAllOpenOrdersRate, derivativesIPPool, 40, "GET /dapi/v1/openOrders, all symbols"},
+		{cFuturesOpenAlgoOrdersAllRate, derivativesIPPool, 40, "GET /dapi/v1/openAlgoOrders, all symbols"},
+		{cFuturesAllAlgoOrdersRate, derivativesIPPool, 5, "GET /dapi/v1/allAlgoOrders"},
 		{cFuturesADLQuantileRate, derivativesIPPool, 5, "GET /dapi/v1/adlQuantile"},
 		{cFuturesSymbolForceOrdersRate, derivativesIPPool, 20, "GET /dapi/v1/forceOrders, one symbol"},
 		{cFuturesAllForceOrdersRate, derivativesIPPool, 50, "GET /dapi/v1/forceOrders, all symbols"},
 		// Options /eapi
 		{optionsDefaultRate, optionsIPPool, 1, "weight-1 /eapi endpoints; GET /eapi/v1/openInterest is documented at 0"},
 		{optionsCancelRate, optionsCancelPool, 1, "DELETE /eapi/v1/order and /eapi/v1/allOpenOrders"},
+		{optionsCancelAllListingRate, optionsCancelPool, 40, "GET /eapi/v1/openOrders, all symbols, listed to cancel every symbol's orders"},
 		{optionsMarginAccountInfoRate, optionsIPPool, 3, "GET /eapi/v1/marginAccount"},
 		{optionsDownloadIDForOptionTransactionHistoryRate, optionsIPPool, 5, "GET /eapi/v1/income/asyn, no longer documented"},
 		{optionsGetTransHistoryDownloadLinkByIDRate, optionsIPPool, 5, "GET /eapi/v1/income/asyn/id, no longer documented"},
@@ -424,7 +449,9 @@ func TestEndpointCosts(t *testing.T) {
 		{optionsOrderbook1000Rate, optionsIPPool, 20, "GET /eapi/v1/depth limit 1000"},
 		{optionsRecentTradesRate, optionsIPPool, 5, "GET /eapi/v1/trades"},
 		{optionsAllTickerPriceStatisticsRate, optionsIPPool, 40, "GET /eapi/v1/ticker, all symbols"},
-		{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsIPPool, 10, "POST /eapi/v1/countdownCancelAllHeartBeat"},
+		{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsHeartbeatPool, 10, "POST /eapi/v1/countdownCancelAllHeartBeat"},
+		{optionsHeartbeatOverflowRate, optionsIPPool, 10, "POST /eapi/v1/countdownCancelAllHeartBeat beyond the heartbeat pool"},
+		{optionsAutoCancelAllOpenOrdersConfigRate, optionsHeartbeatPool, 1, "POST /eapi/v1/countdownCancelAll"},
 		{optionsAccountTradeListRate, optionsIPPool, 5, "GET /eapi/v1/userTrades"},
 		{optionsCancelAllByUnderlyingRate, optionsCancelPool, 5, "DELETE /eapi/v1/allOpenOrdersByUnderlying"},
 		{optionsBatchOrderRate, optionsOrderPool, 5, "POST /eapi/v1/batchOrders: weight 5"},
@@ -633,9 +660,9 @@ func TestCancelsDoNotQueueBehindMarketData(t *testing.T) {
 		cancels              []request.EndpointLimit
 		burst                int
 	}{
-		{spotOrderbookDepth1000Rate, spotExchangeInfoRate, 10, []request.EndpointLimit{spotCancelRate}, 100},
-		{uFuturesOrderbook1000Rate, cFuturesOrderbook1000Rate, 10, []request.EndpointLimit{uFuturesCancelRate, cFuturesCancelRate}, 50},
-		{optionsOrderbook1000Rate, optionsDefaultRate, 10, []request.EndpointLimit{optionsCancelRate, optionsCancelBatchOrdersRate, optionsCancelAllByUnderlyingRate}, 10},
+		{spotOrderbookDepth1000Rate, spotExchangeInfoRate, 10, []request.EndpointLimit{spotCancelRate, spotCancelAllListingRate}, 100},
+		{uFuturesOrderbook1000Rate, cFuturesOrderbook1000Rate, 10, []request.EndpointLimit{uFuturesCancelRate, cFuturesCancelRate, uFuturesCancelAllListingRate, cFuturesCancelAllListingRate, uFuturesPositionModeLookupRate}, 200},
+		{optionsOrderbook1000Rate, optionsDefaultRate, 10, []request.EndpointLimit{optionsCancelRate, optionsCancelBatchOrdersRate, optionsCancelAllByUnderlyingRate, optionsCancelAllListingRate}, 50},
 	} {
 		for range tc.snapshots * int(endpointCosts[tc.snapshot].weight) {
 			limiters[tc.snapshot].ReserveN(now, 1)
@@ -649,6 +676,59 @@ func TestCancelsDoNotQueueBehindMarketData(t *testing.T) {
 			assert.Zerof(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind market data", tc.cancels[0])
 		}
 		assert.Positivef(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should be spread out beyond its burst", tc.cancels[0])
+	}
+}
+
+func TestHeartbeatsDoNotQueueBehindMarketData(t *testing.T) {
+	t.Parallel()
+	// A countdown heartbeat reaching Binance after its countdown has run out has every order it covers cancelled, so
+	// heartbeats and countdown settings draw on a share of their own instead of queueing behind order book snapshots,
+	// and leave the cancel pools to cancellations
+	limiters := endpointLimiters(endpointCosts)
+	now := time.Now()
+	for _, tc := range []struct {
+		snapshot   request.EndpointLimit
+		heartbeats []request.EndpointLimit
+		cancel     request.EndpointLimit
+		burst      int
+	}{
+		{uFuturesOrderbook1000Rate, []request.EndpointLimit{uFuturesCountdownCancelRate, cFuturesCountdownCancelRate}, uFuturesCancelRate, 50},
+		{optionsOrderbook1000Rate, []request.EndpointLimit{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsAutoCancelAllOpenOrdersConfigRate}, optionsCancelRate, 20},
+	} {
+		for range 10 * int(endpointCosts[tc.snapshot].weight) {
+			limiters[tc.snapshot].ReserveN(now, 1)
+		}
+		for _, epl := range tc.heartbeats[1:] {
+			assert.Samef(t, limiters[tc.heartbeats[0]], limiters[epl], "heartbeat limit %d should share its host's heartbeat pool", epl)
+		}
+		assert.NotSamef(t, limiters[tc.cancel], limiters[tc.heartbeats[0]], "heartbeat limit %d should not draw on the cancel pool", tc.heartbeats[0])
+		// A round of heartbeats goes out at once, after which heartbeats are spread out while cancellations still go out
+		for range tc.burst {
+			assert.Zerof(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should not queue behind market data", tc.heartbeats[0])
+		}
+		assert.Positivef(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should be spread out beyond its burst", tc.heartbeats[0])
+		assert.Zerof(t, limiters[tc.cancel].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind heartbeats", tc.cancel)
+	}
+}
+
+// requestDelay reserves an endpoint's weight at now, one unit at a time as the request package does, and returns how
+// long the request waits
+func requestDelay(limiters map[request.EndpointLimit]*rate.Limiter, epl request.EndpointLimit, now time.Time) time.Duration {
+	var delay time.Duration
+	for range endpointCosts[epl].weight {
+		delay = limiters[epl].ReserveN(now, 1).DelayFrom(now)
+	}
+	return delay
+}
+
+func TestWithdrawalHistoryLimit(t *testing.T) {
+	t.Parallel()
+	// Binance counts withdrawal history's weight against a UID budget of its own for each second, ten requests' worth,
+	// so a lone request goes out at once
+	limiters := endpointLimiters(endpointCosts)
+	now := time.Now()
+	for i := range 10 {
+		assert.InDeltaf(t, (time.Duration(i) * 100 * time.Millisecond).Seconds(), requestDelay(limiters, withdrawalHistoryRate, now).Seconds(), 1e-6, "withdrawal history request %d should go out at ten a second", i)
 	}
 }
 
@@ -669,8 +749,6 @@ func TestEndpointLimitHelpers(t *testing.T) {
 		{"spot depth 1000", spotOrderbookLimit(1000), spotIPPool, 50},
 		{"spot depth 1001", spotOrderbookLimit(1001), spotIPPool, 250},
 		{"spot depth 5000", spotOrderbookLimit(5000), spotIPPool, 250},
-		{"spot open orders of a symbol", spotOpenOrdersLimit("BTCUSDT"), spotIPPool, 6},
-		{"spot open orders of every symbol", spotOpenOrdersLimit(""), spotIPPool, 80},
 		{"spot ticker for 1 symbol", spotTickerSymbolsLimit(1), spotIPPool, 4},
 		{"spot ticker for 5 symbols", spotTickerSymbolsLimit(5), spotIPPool, 20},
 		{"spot ticker for 50 symbols", spotTickerSymbolsLimit(50), spotIPPool, 200},
@@ -795,6 +873,8 @@ func TestCancelEndpointLimits(t *testing.T) {
 		"/dapi/v1/order":                     "cFuturesCancelRate",
 		"/dapi/v1/batchOrders":               "cFuturesCancelRate",
 		"/dapi/v1/allOpenOrders":             "cFuturesCancelRate",
+		"/dapi/v1/algoOrder":                 "cFuturesCancelRate",
+		"/dapi/v1/algoOpenOrders":            "cFuturesCancelRate",
 		"/eapi/v1/order":                     "optionsCancelRate",
 		"/eapi/v1/batchOrders":               "optionsCancelBatchOrdersRate",
 		"/eapi/v1/allOpenOrders":             "optionsCancelRate",

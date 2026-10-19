@@ -35,12 +35,12 @@ type UAccountInformationV2Response struct {
 	TotalInitialMargin          types.Number `json:"totalInitialMargin"`
 	TotalMaintenanceMargin      types.Number `json:"totalMaintMargin"`
 	TotalWalletBalance          types.Number `json:"totalWalletBalance"`
-	TotalUnrealizedProfit       types.Number `json:"totalUnrealizedProfit"`
+	TotalUnrealisedProfit       types.Number `json:"totalUnrealizedProfit"`
 	TotalMarginBalance          types.Number `json:"totalMarginBalance"`
 	TotalPositionInitialMargin  types.Number `json:"totalPositionInitialMargin"`
 	TotalOpenOrderInitialMargin types.Number `json:"totalOpenOrderInitialMargin"`
 	TotalCrossWalletBalance     types.Number `json:"totalCrossWalletBalance"`
-	TotalCrossUnrealizedPNL     types.Number `json:"totalCrossUnPnl"`
+	TotalCrossUnrealisedPNL     types.Number `json:"totalCrossUnPnl"`
 	AvailableBalance            types.Number `json:"availableBalance"`
 	MaxWithdrawAmount           types.Number `json:"maxWithdrawAmount"`
 	Assets                      []UAsset     `json:"assets"`
@@ -51,14 +51,14 @@ type UAccountInformationV2Response struct {
 type UAsset struct {
 	Asset                  currency.Code `json:"asset"`
 	WalletBalance          types.Number  `json:"walletBalance"`
-	UnrealizedProfit       types.Number  `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number  `json:"unrealizedProfit"`
 	MarginBalance          types.Number  `json:"marginBalance"`
 	MaintenanceMargin      types.Number  `json:"maintMargin"`
 	InitialMargin          types.Number  `json:"initialMargin"`
 	PositionInitialMargin  types.Number  `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number  `json:"openOrderInitialMargin"`
 	CrossWalletBalance     types.Number  `json:"crossWalletBalance"`
-	CrossUnrealizedPNL     types.Number  `json:"crossUnPnl"`
+	CrossUnrealisedPNL     types.Number  `json:"crossUnPnl"`
 	AvailableBalance       types.Number  `json:"availableBalance"`
 	MaxWithdrawAmount      types.Number  `json:"maxWithdrawAmount"`
 	MarginAvailable        bool          `json:"marginAvailable"`
@@ -70,7 +70,7 @@ type UPosition struct {
 	Symbol                 string       `json:"symbol"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
-	UnrealizedProfit       types.Number `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number `json:"unrealizedProfit"`
 	PositionInitialMargin  types.Number `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
@@ -90,12 +90,12 @@ type UAccountInformationV3Response struct {
 	TotalInitialMargin          types.Number  `json:"totalInitialMargin"`
 	TotalMaintenanceMargin      types.Number  `json:"totalMaintMargin"`
 	TotalWalletBalance          types.Number  `json:"totalWalletBalance"`
-	TotalUnrealizedProfit       types.Number  `json:"totalUnrealizedProfit"`
+	TotalUnrealisedProfit       types.Number  `json:"totalUnrealizedProfit"`
 	TotalMarginBalance          types.Number  `json:"totalMarginBalance"`
 	TotalPositionInitialMargin  types.Number  `json:"totalPositionInitialMargin"`
 	TotalOpenOrderInitialMargin types.Number  `json:"totalOpenOrderInitialMargin"`
 	TotalCrossWalletBalance     types.Number  `json:"totalCrossWalletBalance"`
-	TotalCrossUnrealizedPNL     types.Number  `json:"totalCrossUnPnl"`
+	TotalCrossUnrealisedPNL     types.Number  `json:"totalCrossUnPnl"`
 	AvailableBalance            types.Number  `json:"availableBalance"`
 	MaxWithdrawAmount           types.Number  `json:"maxWithdrawAmount"`
 	Assets                      []UAssetV3    `json:"assets"`
@@ -106,14 +106,14 @@ type UAccountInformationV3Response struct {
 type UAssetV3 struct {
 	Asset                  currency.Code `json:"asset"`
 	WalletBalance          types.Number  `json:"walletBalance"`
-	UnrealizedProfit       types.Number  `json:"unrealizedProfit"`
+	UnrealisedProfit       types.Number  `json:"unrealizedProfit"`
 	MarginBalance          types.Number  `json:"marginBalance"`
 	MaintenanceMargin      types.Number  `json:"maintMargin"`
 	InitialMargin          types.Number  `json:"initialMargin"`
 	PositionInitialMargin  types.Number  `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number  `json:"openOrderInitialMargin"`
 	CrossWalletBalance     types.Number  `json:"crossWalletBalance"`
-	CrossUnrealizedPNL     types.Number  `json:"crossUnPnl"`
+	CrossUnrealisedPNL     types.Number  `json:"crossUnPnl"`
 	AvailableBalance       types.Number  `json:"availableBalance"`
 	MaxWithdrawAmount      types.Number  `json:"maxWithdrawAmount"`
 	UpdateTime             types.Time    `json:"updateTime"`
@@ -124,7 +124,7 @@ type UPositionV3 struct {
 	Symbol            string       `json:"symbol"`
 	PositionSide      string       `json:"positionSide"`
 	PositionAmount    types.Number `json:"positionAmt"`
-	UnrealizedProfit  types.Number `json:"unrealizedProfit"`
+	UnrealisedProfit  types.Number `json:"unrealizedProfit"`
 	IsolatedMargin    types.Number `json:"isolatedMargin"`
 	Notional          types.Number `json:"notional"`
 	IsolatedWallet    types.Number `json:"isolatedWallet"`
@@ -139,7 +139,7 @@ type UAccountBalance struct {
 	Asset              currency.Code `json:"asset"`
 	Balance            types.Number  `json:"balance"`
 	CrossWalletBalance types.Number  `json:"crossWalletBalance"`
-	CrossUnrealizedPNL types.Number  `json:"crossUnPnl"`
+	CrossUnrealisedPNL types.Number  `json:"crossUnPnl"`
 	AvailableBalance   types.Number  `json:"availableBalance"`
 	MaxWithdrawAmount  types.Number  `json:"maxWithdrawAmount"`
 	MarginAvailable    bool          `json:"marginAvailable"`
@@ -262,7 +262,7 @@ type BasisInfo struct {
 	ContractType        string       `json:"contractType"`
 	BasisRate           types.Number `json:"basisRate"`
 	FuturesPrice        types.Number `json:"futuresPrice"`
-	AnnualizedBasisRate types.Number `json:"annualizedBasisRate"` // empty for perpetual contracts
+	AnnualisedBasisRate types.Number `json:"annualizedBasisRate"` // empty for perpetual contracts
 	Basis               types.Number `json:"basis"`
 	Pair                string       `json:"pair"`
 	Timestamp           types.Time   `json:"timestamp"`
@@ -642,7 +642,7 @@ type UAccountTradeHistory struct {
 	QuoteQuantity types.Number  `json:"quoteQty"`
 	BaseQuantity  types.Number  `json:"baseQty"`
 	MarginAsset   currency.Code `json:"marginAsset"`
-	RealizedPNL   types.Number  `json:"realizedPnl"`
+	RealisedPNL   types.Number  `json:"realizedPnl"`
 	Side          string        `json:"side"`
 	PositionSide  string        `json:"positionSide"`
 	Symbol        string        `json:"symbol"`
@@ -964,7 +964,7 @@ type UPositionInformationV2 struct {
 	EntryPrice       types.Number  `json:"entryPrice"`
 	BreakEvenPrice   types.Number  `json:"breakEvenPrice"`
 	MarkPrice        types.Number  `json:"markPrice"`
-	UnrealizedProfit types.Number  `json:"unRealizedProfit"`
+	UnrealisedProfit types.Number  `json:"unRealizedProfit"`
 	LiquidationPrice types.Number  `json:"liquidationPrice"`
 	Leverage         types.Number  `json:"leverage"`
 	MaxNotionalValue types.Number  `json:"maxNotionalValue"`
@@ -986,7 +986,7 @@ type UPositionInformationV3 struct {
 	EntryPrice             types.Number  `json:"entryPrice"`
 	BreakEvenPrice         types.Number  `json:"breakEvenPrice"`
 	MarkPrice              types.Number  `json:"markPrice"`
-	UnrealizedProfit       types.Number  `json:"unRealizedProfit"`
+	UnrealisedProfit       types.Number  `json:"unRealizedProfit"`
 	LiquidationPrice       types.Number  `json:"liquidationPrice"`
 	IsolatedMargin         types.Number  `json:"isolatedMargin"`
 	Notional               types.Number  `json:"notional"`

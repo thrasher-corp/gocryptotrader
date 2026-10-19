@@ -922,6 +922,10 @@ func TestSubmitOrderStreamedWithoutSubmittedValues(t *testing.T) {
 			assert.Equal(t, tc.exp, stored, "the stored order should take only the submitted values the stream left unset")
 			assert.Equal(t, tc.exp, resp.Detail, "processSubmittedOrder should return the stored order")
 			assert.Len(t, m.orderStore.getActiveOrders(nil), tc.active, "the order should be active only while it is open")
+			resp.Detail.Price = 99
+			after, err := m.orderStore.getByExchangeAndID(testExchange, "1930")
+			require.NoError(t, err, "reading the stored order after changing the response must not error")
+			assert.Equal(t, tc.exp, after, "changing the returned copy should leave the stored order unchanged")
 		})
 	}
 }
@@ -977,6 +981,31 @@ func TestFillSubmittedConcurrently(t *testing.T) {
 		}
 	})
 	close(start)
+	wg.Wait()
+}
+
+// TestProcessSubmittedOrderStreamedFirst ensures that a submission filling in an order a websocket update stored first
+// leaves the order the websocket handler added alone, as the handler reads it after storing it
+func TestProcessSubmittedOrderStreamedFirst(t *testing.T) {
+	m := OrdersSetup(t)
+	wr, err := setupWebsocketRoutineManager(m.orderStore.exchangeManager, m, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	require.NoError(t, err, "setupWebsocketRoutineManager must not error")
+	wr.state.Store(readyState)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		streamed := &order.Detail{Exchange: testExchange, OrderID: "1930", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: btcusdPair}
+		assert.NoError(t, wr.websocketDataHandler(testExchange, streamed), "websocketDataHandler should not error")
+	})
+	wg.Go(func() {
+		// The submission returns once the stream has stored the order, whether or not the handler has finished with it
+		if !assert.Eventually(t, func() bool {
+			return m.orderStore.exists(&order.Detail{Exchange: testExchange, OrderID: "1930"})
+		}, 5*time.Second, time.Millisecond, "the websocket handler should store the order") {
+			return
+		}
+		_, err := m.processSubmittedOrder(&order.SubmitResponse{Exchange: testExchange, OrderID: "1930", Type: order.OCO, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair, Price: 3, Amount: 2, Status: order.Active})
+		assert.NoError(t, err, "processSubmittedOrder should not error")
+	})
 	wg.Wait()
 }
 

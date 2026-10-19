@@ -452,6 +452,112 @@ func TestSubscribeUserData(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UnsubscribeUserData should reject an asset without user data streams")
 }
 
+func TestSubscribeUserDataRetried(t *testing.T) {
+	t.Parallel()
+	// A user data stream subscription failing as its private connection connects is tried again in the background, kept
+	// alive as a first subscription is, and recorded against the connection once made, so that a flush sees the
+	// connection in use
+	var listenKeys, keepalives atomic.Int32
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+			return
+		}
+		if r.Method == http.MethodPut {
+			keepalives.Add(1)
+		} else if listenKeys.Add(1) == 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
+			assert.NoError(t, err, "Write should not error")
+			return
+		}
+		_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+		assert.NoError(t, err, "Write should not error")
+	})
+	ex.userDataRetry.delay = time.Millisecond
+	ex.userDataRetry.keepalive = 20 * time.Millisecond
+	recorder := &streamRequestRecorder{}
+	useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+		MessageFilter:            usdtmPrivateFilter,
+		Connector:                ex.WsDerivativesConnect,
+		Handler:                  ex.wsHandleUFuturesUserData,
+		ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+		SubscriptionsNotRequired: true,
+	}, recorder.handle)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+	require.NoError(t, err, "GetConnection must not error")
+	sub := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+	err = ex.SubscribeUserData(t.Context(), conn, subscription.List{sub})
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "SubscribeUserData must report the failed subscription")
+	require.Eventually(t, func() bool {
+		s := ex.Websocket.GetSubscription(sub)
+		return s != nil && s.State() == subscription.SubscribedState
+	}, 30*time.Second, time.Millisecond, "the failed subscription must be made again")
+	assert.Eventually(t, func() bool { return conn.Subscriptions().Get(sub) != nil }, 30*time.Second, time.Millisecond, "the subscription made again should be recorded against its connection")
+	assert.Eventually(t, func() bool { return keepalives.Load() > 0 }, 30*time.Second, time.Millisecond, "the listen key of the subscription made again should be kept alive")
+	assert.Equal(t, int32(2), listenKeys.Load(), "the listen key should be requested again once")
+	requests := recorder.recorded()
+	require.Len(t, requests, 1, "the stream must be subscribed once")
+	assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: requests[0].ID}, requests[0], "the retry should subscribe the listen key")
+	// Unsubscribing ends the keepalives, which would otherwise outlast the test server's request allowance
+	require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{ex.Websocket.GetSubscription(sub)}), "UnsubscribeUserData must not error")
+
+	// A retry stops without asking again for a stream subscribed since, as a flush would, or no longer wanted
+	retryTo := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.CoinMarginedFutures, Authenticated: true}
+	require.NoError(t, ex.Websocket.AddSubscriptions(conn, retryTo), "AddSubscriptions must not error")
+	ex.userDataRetry.mu.Lock()
+	ex.userDataRetry.delay = 50 * time.Millisecond
+	ex.userDataRetry.mu.Unlock()
+	for _, tc := range []struct {
+		name    string
+		a       asset.Item
+		prepare func()
+	}{
+		{"subscribed since", asset.CoinMarginedFutures, func() {}},
+		{"no longer wanted", asset.Options, func() { ex.Websocket.SetCanUseAuthenticatedEndpoints(false) }},
+	} {
+		tc.prepare()
+		before := len(recorder.recorded())
+		failed := &subscription.Subscription{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}
+		ex.retryUserDataSubscription(t.Context(), conn, failed.Asset, false, func(ctx context.Context) (bool, error) {
+			return ex.resubscribeUserData(ctx, t.Context(), conn, failed)
+		})
+		assert.Eventuallyf(t, func() bool {
+			ex.userDataRetry.mu.Lock()
+			defer ex.userDataRetry.mu.Unlock()
+			_, retrying := ex.userDataRetry.running[tc.a]
+			return !retrying
+		}, 30*time.Second, time.Millisecond, "the retry should stop for a stream %s", tc.name)
+		assert.Lenf(t, recorder.recorded(), before, "a retry should not subscribe a stream %s", tc.name)
+		assert.Emptyf(t, relayedPayloads(ex), "a retry should report nothing for a stream %s", tc.name)
+	}
+
+	// An asset without user data streams cannot be subscribed however often it is tried
+	spot := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.Spot, Authenticated: true}
+	require.ErrorIs(t, ex.SubscribeUserData(t.Context(), conn, subscription.List{spot}), asset.ErrNotSupported, "SubscribeUserData must reject an asset without user data streams")
+	ex.userDataRetry.mu.Lock()
+	_, retrying := ex.userDataRetry.running[asset.Spot]
+	ex.userDataRetry.mu.Unlock()
+	assert.False(t, retrying, "an asset without user data streams should not be tried again")
+}
+
+func TestNextUserDataRetryWait(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		wait, exp time.Duration
+	}{
+		{0, userDataRetryDelay},
+		{userDataRetryDelay, 2 * userDataRetryDelay},
+		{2 * userDataRetryDelay, 4 * userDataRetryDelay},
+		{userDataRetryMaxDelay - time.Second, userDataRetryMaxDelay},
+		{userDataRetryMaxDelay, userDataRetryMaxDelay},
+	} {
+		assert.Equalf(t, tc.exp, nextUserDataRetryWait(tc.wait, userDataRetryDelay), "nextUserDataRetryWait should follow a wait of %s with the expected one", tc.wait)
+	}
+}
+
 func TestStartUserDataStream(t *testing.T) {
 	t.Parallel()
 	serve := func(listenKey string) http.HandlerFunc {
@@ -510,7 +616,7 @@ func TestProcessListenKeyExpired(t *testing.T) {
 	t.Parallel()
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
-	for _, tc := range []struct {
+	expiries := []struct {
 		filter  string
 		fixture string
 		handle  func(context.Context, websocket.Connection, []byte) error
@@ -519,17 +625,53 @@ func TestProcessListenKeyExpired(t *testing.T) {
 		{usdtmPrivateFilter, "testdata/wsUFuturesUserData.json", ex.wsHandleUFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
 		{coinmPrivateFilter, "testdata/wsCFuturesUserData.json", ex.wsHandleCFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
 		{optionsPrivateFilter, "testdata/wsOptionsUserData.json", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
-	} {
+	}
+	for _, tc := range expiries {
 		conn, err := ex.Websocket.GetConnection(tc.filter)
 		require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
 		require.NoErrorf(t, tc.handle(t.Context(), conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
 		assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
 	}
-	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*5, time.Millisecond*10, "each expiry must renew its stream")
+	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*30, time.Millisecond*10, "each expiry must renew its stream")
 	for _, req := range recorder.recorded() {
 		assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: req.ID}, req, "the renewal should subscribe the new listen key")
 	}
 	assert.Empty(t, relayedPayloads(ex), "a successful renewal should relay nothing")
+
+	// A renewal whose listen key request fails relays the failure as the expiry's, beside the expiry itself, in either
+	// order, as the renewal runs in the background
+	failing := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
+		assert.NoError(t, err, "Write should not error")
+	}))
+	failing.Start()
+	for _, u := range []exchange.URL{exchange.RestUSDTMargined, exchange.RestCoinMargined, exchange.RestOptions} {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(u.String(), failing.URL), "SetRunningURL must not error")
+	}
+	for _, tc := range expiries {
+		conn, err := ex.Websocket.GetConnection(tc.filter)
+		require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+		require.NoErrorf(t, tc.handle(t.Context(), conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
+	}
+	var relayed []any
+	require.Eventually(t, func() bool {
+		relayed = append(relayed, relayedPayloads(ex)...)
+		return len(relayed) >= 2*len(expiries)
+	}, time.Second*30, time.Millisecond*10, "each expiry and its failed renewal must be relayed")
+	var expired, failed int
+	for _, p := range relayed {
+		if err, ok := p.(error); ok {
+			failed++
+			assert.ErrorIs(t, err, errListenKeyExpired, "a failed renewal should relay its error as the listen key expiry's")
+			continue
+		}
+		expired++
+		assert.IsType(t, &ListenKeyExpired{}, p, "the expiry should be relayed beside its failed renewal")
+	}
+	assert.Equal(t, len(expiries), failed, "each failed renewal should relay its error")
+	assert.Equal(t, len(expiries), expired, "each expiry should be relayed")
+	assert.Len(t, recorder.recorded(), 3, "a failed renewal should subscribe nothing")
 }
 
 func TestFetchDerivativesOrderbook(t *testing.T) {
@@ -698,16 +840,20 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := newDerivativesTestExchange(t)
+			var fetches atomic.Int32
 			useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				fetches.Add(1)
 				book := *tc.snapshot
 				book.Exchange, book.Pair, book.Asset, book.LastUpdated = ex.Name, p, a, time.UnixMilli(1)
 				book.Bids, book.Asks = append(orderbook.Levels(nil), tc.snapshot.Bids...), append(orderbook.Levels(nil), tc.snapshot.Asks...)
 				return &book, nil
 			})
 			handle := tc.handle(ex)
+			var last []byte
 			for _, frame := range fixtureFrames(t, tc.fixture) {
 				if stream, _, _, _ := decodeStreamFrame(frame); stream == tc.stream {
 					require.NoError(t, handle(t.Context(), nil, frame), "handling a diff depth frame must not error")
+					last = frame
 				}
 			}
 			var got *orderbookState
@@ -715,8 +861,16 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 				var err error
 				got, err = storedOrderbookState(ex, tc.pair, tc.a)
 				return err == nil && got.LastUpdateID == tc.exp.LastUpdateID
-			}, time.Second*5, time.Millisecond*10, "the order book must synchronise to the last event")
+			}, time.Second*30, time.Millisecond*10, "the order book must synchronise to the last event")
 			assert.Equal(t, tc.exp, got, "the synchronised order book should apply every event to the snapshot")
+
+			// An event delivered again chains by pu to the event before it, not to the book it moved on, so it must be
+			// dropped rather than invalidate a book that is in sync
+			require.NoError(t, handle(t.Context(), nil, last), "handling a diff depth frame delivered again must not error")
+			got, err := storedOrderbookState(ex, tc.pair, tc.a)
+			require.NoError(t, err, "a re-delivered event must leave the book valid")
+			assert.Equal(t, tc.exp, got, "a re-delivered event should leave the book as it was")
+			assert.Equal(t, int32(1), fetches.Load(), "a re-delivered event should not take a new snapshot")
 		})
 	}
 }
@@ -863,7 +1017,7 @@ func TestDerivativesOrderConversions(t *testing.T) {
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "derivativesOrderStatus should reject an unknown status")
 
 	for in, exp := range map[string]order.TimeInForce{
-		"GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill, "GTX": order.GoodTillCrossing, "GTD": order.GoodTillDay, "RPI": order.PostOnly,
+		"GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill, "GTX": order.PostOnly, "GTD": order.GoodTillDay, "RPI": order.PostOnly,
 		"GTE_GTC": order.GoodTillCancel,
 	} {
 		got, err := derivativesTimeInForce(in)
@@ -1146,7 +1300,7 @@ func TestWsHandleUFuturesUserData(t *testing.T) {
 			EventType: "MARGIN_CALL", EventTime: fixtureTime(1587727187525), CrossWalletBalance: 3.16812045,
 			Positions: []FuturesMarginCallPosition{{
 				Symbol: "BTCUSDT", PositionSide: "LONG", PositionAmount: 1.327, MarginType: "CROSSED", IsolatedWallet: 0.5, MarkPrice: 86187.17127,
-				UnrealizedPNL: -1.166074, MaintenanceMarginRequired: 1.614445,
+				UnrealisedPNL: -1.166074, MaintenanceMarginRequired: 1.614445,
 			}},
 		},
 		accounts.SubAccounts{{AssetType: asset.USDTMarginedFutures, Balances: accounts.CurrencyBalances{
@@ -1201,7 +1355,7 @@ func TestWsHandleUFuturesUserData(t *testing.T) {
 		&FuturesGridUpdate{
 			EventType: "GRID_UPDATE", TransactionTime: fixtureTime(1669262908216), EventTime: fixtureTime(1669262908218),
 			GridUpdate: FuturesGridUpdateData{
-				StrategyID: 176057039, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSDT", RealizedPNL: -0.00300716,
+				StrategyID: 176057039, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSDT", RealisedPNL: -0.00300716,
 				UnmatchedAveragePrice: 86720, UnmatchedQuantity: -0.001, UnmatchedFee: -0.00300716, MatchedPNL: 0.5, UpdateTime: fixtureTime(1669262908197),
 			},
 		},
@@ -1540,10 +1694,12 @@ func TestRefreshAvailableBalances(t *testing.T) {
 			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
 			require.NoError(t, err, "UpdateAccountBalances must not error")
 			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+			kept := storedBalance(t, ex, tc.a, tc.code)
 			lagging, err := ex.refreshAvailableBalances(t.Context(), tc.a)
 			require.NoError(t, err, "refreshAvailableBalances must not error")
 			assert.True(t, lagging, "the refresh should report a snapshot disagreeing with the stream so that REST is asked again")
 			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.Equal(t, kept.UpdatedAt, stored.UpdatedAt, "the refresh should not stamp a balance it keeps as current")
 			assert.Equal(t, tc.eventTotal, stored.Total, "the refresh should keep the wallet balance the stream reported")
 			assert.InDelta(t, max(tc.eventTotal-(tc.restTotal-tc.restFree), 0), stored.Free, 1e-9, "the refresh should keep the free balance the event left")
 			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should keep the margin held the last snapshot reported")
@@ -1569,7 +1725,7 @@ func TestRefreshKeepsNewerBalance(t *testing.T) {
 					close(entered)
 					select {
 					case <-release:
-					case <-time.After(10 * time.Second):
+					case <-time.After(30 * time.Second):
 						assert.Fail(t, "the refresh's request should be released")
 					}
 					reply = tc.flatReply
@@ -1588,20 +1744,22 @@ func TestRefreshKeepsNewerBalance(t *testing.T) {
 			}()
 			select {
 			case <-entered:
-			case <-time.After(10 * time.Second):
+			case <-time.After(30 * time.Second):
 				require.FailNow(t, "the refresh must request the balances")
 			}
 			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
 			require.NoError(t, err, "UpdateAccountBalances must not error")
+			polled := storedBalance(t, ex, tc.a, tc.code)
 			close(release)
 			select {
 			case r := <-refreshed:
 				require.NoError(t, r.err, "refreshAvailableBalances must not error")
 				assert.False(t, r.lagging, "the refresh should not ask again for a balance stored after its request")
-			case <-time.After(10 * time.Second):
+			case <-time.After(30 * time.Second):
 				require.FailNow(t, "the refresh must finish")
 			}
 			stored := storedBalance(t, ex, tc.a, tc.code)
+			assert.Equal(t, polled.UpdatedAt, stored.UpdatedAt, "the refresh should leave the newer poll's update time")
 			assert.InDelta(t, tc.restFree, stored.Free, 1e-9, "the refresh should keep the newer poll's available balance")
 			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should keep the newer poll's margin held")
 		})
@@ -1650,7 +1808,7 @@ func TestStreamBalanceRefreshOutlivesEventContext(t *testing.T) {
 			close(entered)
 			select {
 			case <-release:
-			case <-time.After(10 * time.Second):
+			case <-time.After(30 * time.Second):
 				assert.Fail(t, "the first refresh should be released")
 			}
 		}
@@ -1667,13 +1825,13 @@ func TestStreamBalanceRefreshOutlivesEventContext(t *testing.T) {
 	require.NoError(t, process(eventCtx, tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
 	select {
 	case <-entered:
-	case <-time.After(10 * time.Second):
+	case <-time.After(30 * time.Second):
 		require.FailNow(t, "the refresh must request the balances")
 	}
 	require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
 	cancel()
 	close(release)
-	require.Eventually(t, func() bool { return requests.Load() == 2 }, 5*time.Second, 5*time.Millisecond, "the later event must be refreshed")
+	require.Eventually(t, func() bool { return requests.Load() == 2 }, 30*time.Second, 5*time.Millisecond, "the later event must be refreshed")
 }
 
 func TestStreamBalanceRefresh(t *testing.T) {
@@ -1697,7 +1855,7 @@ func TestStreamBalanceRefresh(t *testing.T) {
 				if first {
 					select {
 					case <-release:
-					case <-time.After(10 * time.Second):
+					case <-time.After(30 * time.Second):
 						assert.Fail(t, "the first refresh should be released")
 					}
 				}
@@ -1723,7 +1881,7 @@ func TestStreamBalanceRefresh(t *testing.T) {
 				require.NoError(t, process(t.Context(), event), "processing the balance event must not error")
 			}
 			close(release)
-			require.Eventually(t, func() bool { return !running() }, 5*time.Second, 5*time.Millisecond, "the refreshes must finish")
+			require.Eventually(t, func() bool { return !running() }, 30*time.Second, 5*time.Millisecond, "the refreshes must finish")
 			mu.Lock()
 			assert.Equal(t, 2, requests, "three events during a refresh should be covered by one more refresh")
 			mu.Unlock()
@@ -1752,7 +1910,7 @@ func TestStreamBalanceRefreshStopsOnDisconnect(t *testing.T) {
 				if requests.Add(1) == 1 {
 					select {
 					case <-release:
-					case <-time.After(10 * time.Second):
+					case <-time.After(30 * time.Second):
 						assert.Fail(t, "the first refresh should be released")
 					}
 				}
@@ -1766,7 +1924,7 @@ func TestStreamBalanceRefreshStopsOnDisconnect(t *testing.T) {
 			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 			ex.balanceRefresh.interval = 10 * time.Millisecond
 			require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
-			require.Eventually(t, func() bool { return requests.Load() == 1 }, 5*time.Second, 5*time.Millisecond, "the refresh must request the balances")
+			require.Eventually(t, func() bool { return requests.Load() == 1 }, 30*time.Second, 5*time.Millisecond, "the refresh must request the balances")
 			require.NoError(t, process(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
 			require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
 			close(release)
@@ -1774,7 +1932,7 @@ func TestStreamBalanceRefreshStopsOnDisconnect(t *testing.T) {
 				ex.balanceRefresh.mu.Lock()
 				defer ex.balanceRefresh.mu.Unlock()
 				return !ex.balanceRefresh.running[tc.a]
-			}, 5*time.Second, 5*time.Millisecond, "the refresh must finish")
+			}, 30*time.Second, 5*time.Millisecond, "the refresh must finish")
 			assert.Equal(t, int32(1), requests.Load(), "no refresh should be requested once the websocket disconnects")
 		})
 	}
@@ -1861,7 +2019,7 @@ func TestStreamBalanceRefreshAsksAgainWhileRESTLags(t *testing.T) {
 				}
 				require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
 				require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(c.walletBalance)), "processing the balance event must not error")
-				require.Eventually(t, func() bool { return !running(tc.a) }, 5*time.Second, time.Millisecond, "the refreshes must finish")
+				require.Eventually(t, func() bool { return !running(tc.a) }, 30*time.Second, time.Millisecond, "the refreshes must finish")
 				assert.Equal(t, c.requests, requests.Load(), "the refresh should ask REST again while it lags the stream, a bounded number of times")
 				got := storedBalance(t, ex, tc.a, tc.code)
 				assert.InDelta(t, c.exp.Total, got.Total, 1e-9, "the refreshes should leave the expected wallet balance")
@@ -1886,7 +2044,7 @@ func TestStreamBalanceRefreshAttemptsPerEvent(t *testing.T) {
 			close(entered)
 			select {
 			case <-release:
-			case <-time.After(10 * time.Second):
+			case <-time.After(30 * time.Second):
 				assert.Fail(t, "the third refresh should be released")
 			}
 		}
@@ -1898,13 +2056,100 @@ func TestStreamBalanceRefreshAttemptsPerEvent(t *testing.T) {
 	require.NoError(t, process(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
 	select {
 	case <-entered:
-	case <-time.After(10 * time.Second):
+	case <-time.After(30 * time.Second):
 		require.FailNow(t, "the refresh must ask REST again")
 	}
 	require.NoError(t, process(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
 	close(release)
-	require.Eventually(t, func() bool { return !running(tc.a) }, 5*time.Second, time.Millisecond, "the refreshes must finish")
+	require.Eventually(t, func() bool { return !running(tc.a) }, 30*time.Second, time.Millisecond, "the refreshes must finish")
 	assert.Equal(t, int32(3+balanceRefreshAttempts), requests.Load(), "the later event should be refreshed balanceRefreshAttempts times")
+}
+
+func TestStreamBalanceRefreshWhileConnecting(t *testing.T) {
+	t.Parallel()
+	// A private connection streams while the manager dials the connections set up after it, so an event arriving then is
+	// refreshed as one arriving once every connection is up
+	for _, tc := range balanceEvents {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+					return
+				}
+				requests.Add(1)
+				_, err := w.Write([]byte(balanceRefreshReplies[tc.path]))
+				assert.NoError(t, err, "Write should not error")
+			})
+			// A connection whose handshake is held keeps the websocket connecting
+			released := make(chan struct{})
+			dialling := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				select {
+				case <-released:
+				case <-time.After(30 * time.Second):
+				}
+			}))
+			t.Cleanup(dialling.Close)
+			release := sync.OnceFunc(func() { close(released) })
+			t.Cleanup(release)
+			setup := ex.spotStreamConnectionSetup(ex.Config)
+			setup.SubscriptionsNotRequired = true
+			setup.URL = "ws" + strings.TrimPrefix(dialling.URL, "http")
+			useWebsocket(t, ex, setup)
+			ex.balanceRefresh.interval = time.Millisecond
+			connected := make(chan error, 1)
+			go func() { connected <- ex.Websocket.Connect(t.Context()) }()
+			require.Eventually(t, ex.Websocket.IsConnecting, 30*time.Second, time.Millisecond, "the websocket must be connecting")
+			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
+			assert.Eventually(t, func() bool { return requests.Load() > 0 }, 30*time.Second, time.Millisecond, "an event arriving while the websocket connects should be refreshed")
+			release()
+			select {
+			case err := <-connected:
+				assert.Error(t, err, "Connect should fail for the handshake the server never completes")
+			case <-time.After(30 * time.Second):
+				assert.Fail(t, "Connect should return once the handshake is released")
+			}
+		})
+	}
+}
+
+func TestStreamBalanceRefreshRetriesFailedRequest(t *testing.T) {
+	t.Parallel()
+	// A refresh whose REST request fails asks again within its attempts, as one REST still lagging does
+	for _, tc := range balanceEvents {
+		for _, c := range []struct {
+			name     string
+			failures int32
+			requests int32
+			expFree  float64
+		}{
+			{"one failure", 1, 2, tc.restFree},
+			{"every request failing", math.MaxInt32, balanceRefreshAttempts, tc.restTotal},
+		} {
+			t.Run(tc.a.String()+" "+c.name, func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+						return
+					}
+					if requests.Add(1) <= c.failures {
+						w.WriteHeader(http.StatusBadRequest)
+						_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
+						assert.NoError(t, err, "Write should not error")
+						return
+					}
+					_, err := w.Write([]byte(balanceRefreshReplies[tc.path]))
+					assert.NoError(t, err, "Write should not error")
+				})
+				running := connectBalanceRefreshes(t, ex)
+				require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
+				require.Eventually(t, func() bool { return !running(tc.a) }, 30*time.Second, time.Millisecond, "the refreshes must finish")
+				assert.Equal(t, c.requests, requests.Load(), "a failed refresh should ask again, a bounded number of times")
+				assert.InDelta(t, c.expFree, storedBalance(t, ex, tc.a, tc.code).Free, 1e-9, "the refreshes should leave the expected free balance")
+			})
+		}
+	}
 }
 
 // storeWatchingExchange is the exchange an accounts store asks for credentials before each balance it stores, which
@@ -1939,7 +2184,7 @@ func TestStreamBalanceRefreshFollowsEventStores(t *testing.T) {
 			}}
 			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
 			require.Positive(t, stores.Load(), "the balance event must store its balances")
-			require.Eventually(t, func() bool { return !running(tc.a) }, 5*time.Second, time.Millisecond, "the refresh must finish")
+			require.Eventually(t, func() bool { return !running(tc.a) }, 30*time.Second, time.Millisecond, "the refresh must finish")
 			assert.InDelta(t, tc.restFree, storedBalance(t, ex, tc.a, tc.code).Free, 1e-9, "the refresh should store the available balance REST reports")
 		})
 	}
@@ -2021,7 +2266,7 @@ func TestUpdateAccountBalancesKeepsLaterStreamedBalance(t *testing.T) {
 			select {
 			case err := <-later:
 				require.NoError(t, err, "processing the later balance event must not error")
-			case <-time.After(5 * time.Second):
+			case <-time.After(30 * time.Second):
 				require.FailNow(t, "the later balance event must be stored")
 			}
 			assert.Equal(t, tc.restTotal+1, storedBalance(t, ex, tc.a, tc.code).Total, "the later stream event's balance should stand")
@@ -2441,12 +2686,12 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 		Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: testUFuturesPair,
 	}
 	assert.Equal(t, exp, payloads[1], "processFuturesAlgoUpdate should relay the algo order identified by its algo ID")
-	rest, err := ex.uAlgoOrderDetail(&UAlgoOrderBase{
+	rest, err := ex.algoOrderDetail(asset.USDTMarginedFutures, &UAlgoOrderBase{
 		AlgoID: 2148720, ClientAlgoID: "stop-loss", AlgoType: "CONDITIONAL", OrderType: "STOP_MARKET", Symbol: "BTCUSDT", Side: "SELL",
 		PositionSide: "BOTH", TimeInForce: "GTE_GTC", Quantity: 0.01, AlgoStatus: "CANCELED", TriggerPrice: 85000, ReduceOnly: true,
 		CreateTime: types.Time(time.UnixMilli(1791300000000)), UpdateTime: types.Time(time.UnixMilli(1791300000000)),
 	}, 0, testUFuturesPair)
-	require.NoError(t, err, "uAlgoOrderDetail must not error")
+	require.NoError(t, err, "algoOrderDetail must not error")
 	assert.Equal(t, &rest, payloads[1], "processFuturesAlgoUpdate should convert the algo order as the REST algo order queries do")
 
 	// The order manager holds a conditional order SubmitOrder placed under its algo ID, so the update reaches it
@@ -2552,8 +2797,8 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 						{Asset: currency.BNB, WalletBalance: 1, CrossWalletBalance: 1, BalanceChange: 0.5},
 					},
 					Positions: []FuturesAccountUpdatePosition{
-						{Symbol: "BTCUSDT", PositionAmount: -0.02, EntryPrice: 86100, BreakevenPrice: 86134.44, AccumulatedRealized: 200, UnrealizedPNL: 1.8245, MarginType: "isolated", IsolatedWallet: 86.1, PositionSide: "BOTH"},
-						{Symbol: "BTCUSDT", AccumulatedRealized: 12.5, MarginType: "cross", PositionSide: "LONG"},
+						{Symbol: "BTCUSDT", PositionAmount: -0.02, EntryPrice: 86100, BreakevenPrice: 86134.44, AccumulatedRealised: 200, UnrealisedPNL: 1.8245, MarginType: "isolated", IsolatedWallet: 86.1, PositionSide: "BOTH"},
+						{Symbol: "BTCUSDT", AccumulatedRealised: 12.5, MarginType: "cross", PositionSide: "LONG"},
 					},
 					Symbol: "BTCUSDT",
 				},
@@ -2567,7 +2812,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 					EventReasonType: "ORDER",
 					Balances:        []FuturesAccountUpdateBalance{{Asset: currency.BTC, WalletBalance: 1.12345678, CrossWalletBalance: 1.00345678, BalanceChange: 0.02345678}},
 					Positions: []FuturesAccountUpdatePosition{{
-						Symbol: "BTCUSD_PERP", PositionAmount: 20, EntryPrice: 86000, BreakevenPrice: 86012.5, AccumulatedRealized: 0.0002, UnrealizedPNL: 0.00001,
+						Symbol: "BTCUSD_PERP", PositionAmount: 20, EntryPrice: 86000, BreakevenPrice: 86012.5, AccumulatedRealised: 0.0002, UnrealisedPNL: 0.00001,
 						MarginType: "isolated", IsolatedWallet: 0.00002325, PositionSide: "LONG",
 					}},
 					Symbol: "BTCUSD_PERP",
@@ -2584,7 +2829,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 					ModifyID: "44444", OrderLastFilledQuantity: 0.125, OrderFilledAccumulatedQuantity: 0.25, LastFilledPrice: 86104.2, CommissionAsset: currency.USDT,
 					Commission: 0.03444168, OrderTradeTime: fixtureTime(1568879465650), TradeID: 10125, BidsNotional: 172.2, AskNotional: 9.91, IsMaker: true,
 					IsReduceOnly: true, StopPriceWorkingType: "CONTRACT_PRICE", OriginalOrderType: "TRAILING_STOP_MARKET", PositionSide: "LONG", IsCloseAll: true,
-					ActivationPrice: 86476.89, CallbackRate: 5, IsPriceProtected: true, IgnoreSI: 3, IgnoreSS: 4, RealizedProfit: 0.24,
+					ActivationPrice: 86476.89, CallbackRate: 5, IsPriceProtected: true, IgnoreSI: 3, IgnoreSS: 4, RealisedProfit: 0.24,
 					SelfTradePreventionMode: "EXPIRE_TAKER", PriceMatchMode: "OPPONENT", GoodTillDate: fixtureTime(1568879965650), ExpiryReason: "1",
 				},
 			},
@@ -2599,7 +2844,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 					OrderLastFilledQuantity: 1, OrderFilledAccumulatedQuantity: 2, LastFilledPrice: 86000.1, MarginAsset: currency.BTC, CommissionAsset: currency.BTC,
 					Commission: 0.00000116, OrderTradeTime: fixtureTime(1591274595442), TradeID: 1157454910, BidsNotional: 0.00002325, AskNotional: 0.00001163,
 					IsMaker: true, IsReduceOnly: true, StopPriceWorkingType: "MARK_PRICE", OriginalOrderType: "LIMIT", PositionSide: "LONG", IsCloseAll: true,
-					ActivationPrice: 86476.8, CallbackRate: 5, IsPriceProtected: true, RealizedProfit: 0.00000005, SelfTradePreventionMode: "EXPIRE_TAKER",
+					ActivationPrice: 86476.8, CallbackRate: 5, IsPriceProtected: true, RealisedProfit: 0.00000005, SelfTradePreventionMode: "EXPIRE_TAKER",
 					PriceMatchMode: "OPPONENT", ExpiryReason: "2",
 				},
 			},

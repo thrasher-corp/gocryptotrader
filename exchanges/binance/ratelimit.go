@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"context"
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -11,10 +13,13 @@ import (
 // count against one budget the way Binance counts them, unless Binance budgets the pool's endpoints separately
 type rateLimitPool uint8
 
-// Rate limit pools: the shared budgets of each host, then dedicated budgets for endpoints whose own documented limit
-// is stricter than their weight on a shared pool. A host's cancel pool is the share of its IP budget kept for order
-// cancellations: a limiter queues requests in turn, so a cancellation drawing on the shared pool waits behind every
-// market data request reserved before it, such as an order book synchronisation's snapshots
+// Rate limit pools: the shared budgets of each host, then dedicated budgets for endpoints Binance limits apart from
+// their weight on a shared pool. A limiter queues requests in turn, so a request drawing on a host's IP pool waits
+// behind every market data request reserved before it, such as an order book synchronisation's snapshots. A host's
+// cancel pool is the share of its IP budget kept for order management that must not wait on market data:
+// cancellations, the listing a cancellation of every symbol's orders starts with, and the position mode lookup of a
+// Long or Short futures order. A heartbeat pool is the share kept for the countdown cancel-all heartbeats and settings,
+// as a heartbeat arriving after its countdown has run out has Binance cancel every order it covers
 const (
 	spotIPPool rateLimitPool = iota
 	spotCancelPool
@@ -23,16 +28,19 @@ const (
 	sapiUIDPool
 	derivativesIPPool
 	derivativesCancelPool
+	derivativesHeartbeatPool
 	derivativesOrderPool
 	futuresDataPool
 	uFuturesFundingPool
 	optionsIPPool
 	optionsCancelPool
+	optionsHeartbeatPool
 	optionsOrderPool
 	portfolioMarginIPPool
 	portfolioMarginOrderPool
 
 	marginMaxLeveragePool
+	withdrawalHistoryPool
 	subAccountFuturesTransferPool
 	pmProBNBTransferPool
 	autoInvestPlanCreationPool
@@ -63,7 +71,10 @@ type rateLimitBudget struct {
 // poolBudgets holds the budget of every pool, from each host's exchangeInfo rateLimits and the documentation. The
 // limiter spreads a budget evenly with a burst of one, so where a host has two windows the stricter sustained rate
 // applies, and daily or monthly quotas are left to Binance: spread evenly they would hold a second call for hours. A
-// host's IP and cancel pools together hold its IP limit, and the cancellations' share is about the host's order rate
+// host's IP, cancel and heartbeat pools together hold its IP limit. The cancellations' share is about the host's order
+// rate. The heartbeats' share keeps up with a heartbeat every 30 seconds, the cadence Binance's documentation gives,
+// for each of five USDⓈ-M or COIN-M symbols, and with an options heartbeat, which covers every underlying, every 15
+// seconds; heartbeats sent faster than it refills queue on the IP pool as other requests do
 var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	spotIPPool:     {time.Minute, 5400},     // REQUEST_WEIGHT per IP, 6000 less the cancellations' share
 	spotCancelPool: {time.Minute, 600},      // WebSocket API requests count against REQUEST_WEIGHT too
@@ -75,18 +86,23 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	sapiUIDPool: {time.Minute, 180000},
 	// USDⓈ-M and COIN-M share their budgets since the 2026-06-30 CM-UM integration. Orders are also limited to 300 per
 	// 10 seconds, a looser sustained rate
-	derivativesIPPool:        {time.Minute, 2100}, // 2400 less the cancellations' share
-	derivativesCancelPool:    {time.Minute, 300},
+	derivativesIPPool:        {time.Minute, 1800}, // 2400 less the cancellations' and heartbeats' shares
+	derivativesCancelPool:    {time.Minute, 450},
+	derivativesHeartbeatPool: {time.Minute, 150},
 	derivativesOrderPool:     {time.Minute, 1200},
 	futuresDataPool:          {5 * time.Minute, 1000}, // per IP, for the /futures/data endpoints of both hosts
 	uFuturesFundingPool:      {5 * time.Minute, 500},  // per IP, shared by /fapi/v1/fundingRate and /fapi/v1/fundingInfo
-	optionsIPPool:            {time.Minute, 340},      // 400 less the cancellations' share
-	optionsCancelPool:        {time.Minute, 60},
+	optionsIPPool:            {time.Minute, 240},      // 400 less the cancellations' and heartbeats' shares
+	optionsCancelPool:        {time.Minute, 100},
+	optionsHeartbeatPool:     {time.Minute, 60},
 	optionsOrderPool:         {time.Minute, 100}, // 30 per 10 seconds also applies, a looser sustained rate
 	portfolioMarginIPPool:    {time.Minute, 6000},
 	portfolioMarginOrderPool: {time.Minute, 1200},
 
 	marginMaxLeveragePool: {time.Minute, 1}, // POST /sapi/v1/margin/max-leverage
+	// GET /sapi/v1/capital/withdraw/history: its weight of 18000 counts against a UID budget of 180000 a second of its
+	// own, which Binance documents as 10 requests a second
+	withdrawalHistoryPool: {time.Second, 10},
 	// POST /sapi/v1/sub-account/futures/internalTransfer, per master account
 	subAccountFuturesTransferPool: {time.Minute, 2000},
 	pmProBNBTransferPool:          {10 * time.Minute, 2}, // POST /sapi/v1/portfolio/bnb-transfer
@@ -106,13 +122,16 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	pmBNBTransferPool:         {10 * time.Minute, 10}, // POST /papi/v1/bnb-transfer
 }
 
-// poolBursts holds the weight of the pools whose requests may go out at once, as a cancellation of every order does,
-// which the rest of the pool's budget refills over its interval, so no interval exceeds the budget. Every other pool
-// spreads its budget evenly
+// poolBursts holds the weight of the pools whose requests may go out at once, which the rest of the pool's budget
+// refills over its interval, so no interval exceeds the budget. A cancel pool's burst takes a cancellation of every
+// symbol's orders, its listings included, on each of the host's assets, and a heartbeat pool's a round of heartbeats.
+// Every other pool spreads its budget evenly
 var poolBursts = map[rateLimitPool]int{
-	spotCancelPool:        100,
-	derivativesCancelPool: 50,
-	optionsCancelPool:     10,
+	spotCancelPool:           100,
+	derivativesCancelPool:    200,
+	derivativesHeartbeatPool: 50,
+	optionsCancelPool:        50,
+	optionsHeartbeatPool:     20,
 }
 
 // newPoolLimiter returns a limiter holding a pool to its budget
@@ -164,6 +183,7 @@ const (
 	spotAccountInformationRate
 	spotOpenOrdersSpecificRate
 	spotOpenOrdersAllRate
+	spotCancelAllListingRate
 	spotOrderQueryRate
 	getOCOListRate
 	getAllocationsRate
@@ -382,10 +402,12 @@ const (
 	// USDⓈ-M futures /fapi
 	uFuturesDefaultRate
 	uFuturesCancelRate
+	uFuturesCancelAllListingRate
 	uFuturesAccountInformationRate
 	uFuturesTradingStatusAllRate
 	uFuturesMultiAssetMarginRate
 	uFuturesPositionModeRate
+	uFuturesPositionModeLookupRate
 	uFuturesDownloadIDRate
 	uFuturesDownloadLinkRate
 	uFuturesIncomeHistoryRate
@@ -414,6 +436,7 @@ const (
 	uFuturesAccountTradeListRate
 	uFuturesGetAllOrdersRate
 	uFuturesCountdownCancelRate
+	uFuturesHeartbeatOverflowRate
 	uFuturesOrdersDefaultRate
 	uFuturesBatchOrdersRate
 	uFuturesOpenAlgoOrdersAllRate
@@ -431,6 +454,7 @@ const (
 	// COIN-M futures /dapi
 	cFuturesDefaultRate
 	cFuturesCancelRate
+	cFuturesCancelAllListingRate
 	cFuturesAccountInformationRate
 	cFuturesIncomeHistoryRate
 	cFuturesAggregateTradesRate
@@ -452,9 +476,12 @@ const (
 	cFuturesAccountTradeListRate
 	cFuturesAllOrdersRate
 	cFuturesCountdownCancelRate
+	cFuturesHeartbeatOverflowRate
 	cFuturesBatchOrdersRate
 	cFuturesOrdersDefaultRate
 	cFuturesGetAllOpenOrdersRate
+	cFuturesOpenAlgoOrdersAllRate
+	cFuturesAllAlgoOrdersRate
 	cFuturesADLQuantileRate
 	cFuturesSymbolForceOrdersRate
 	cFuturesAllForceOrdersRate
@@ -462,6 +489,7 @@ const (
 	// Options /eapi
 	optionsDefaultRate
 	optionsCancelRate
+	optionsCancelAllListingRate
 	optionsMarginAccountInfoRate
 	optionsDownloadIDForOptionTransactionHistoryRate
 	optionsGetTransHistoryDownloadLinkByIDRate
@@ -474,6 +502,8 @@ const (
 	optionsRecentTradesRate
 	optionsAllTickerPriceStatisticsRate
 	optionsAutoCancelAllOpenOrdersHeartbeatRate
+	optionsHeartbeatOverflowRate
+	optionsAutoCancelAllOpenOrdersConfigRate
 	optionsAccountTradeListRate
 	optionsCancelAllByUnderlyingRate
 	optionsBatchOrderRate
@@ -590,6 +620,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	spotAccountInformationRate:     {spotIPPool, 20},
 	spotOpenOrdersSpecificRate:     {spotIPPool, 6},
 	spotOpenOrdersAllRate:          {spotIPPool, 80},
+	spotCancelAllListingRate:       {spotCancelPool, 80},
 	spotOrderQueryRate:             {spotIPPool, 4},
 	getOCOListRate:                 {spotIPPool, 4},
 	getAllocationsRate:             {spotIPPool, 20},
@@ -656,7 +687,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	getDepositAddressListInNetworkRate:     {sapiIPPool, 10},
 	withdrawAddressListRate:                {sapiIPPool, 10},
 	fundWithdrawalRate:                     {sapiUIDPool, 900},
-	withdrawalHistoryRate:                  {sapiUIDPool, 18000},
+	withdrawalHistoryRate:                  {withdrawalHistoryPool, 1},
 	symbolDelistScheduleForSpotRate:        {sapiIPPool, 100},
 	depositQuestionnaireRate:               {sapiUIDPool, 600},
 
@@ -808,10 +839,12 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	// USDⓈ-M futures /fapi
 	uFuturesDefaultRate:            {derivativesIPPool, 1},
 	uFuturesCancelRate:             {derivativesCancelPool, 1},
+	uFuturesCancelAllListingRate:   {derivativesCancelPool, 40},
 	uFuturesAccountInformationRate: {derivativesIPPool, 5},
 	uFuturesTradingStatusAllRate:   {derivativesIPPool, 10},
 	uFuturesMultiAssetMarginRate:   {derivativesIPPool, 30},
 	uFuturesPositionModeRate:       {derivativesIPPool, 30},
+	uFuturesPositionModeLookupRate: {derivativesCancelPool, 30},
 	uFuturesDownloadIDRate:         {derivativesIPPool, 1000},
 	uFuturesDownloadLinkRate:       {derivativesIPPool, 10},
 	uFuturesIncomeHistoryRate:      {derivativesIPPool, 30},
@@ -839,7 +872,8 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	uFuturesTicker24HourAllRate:    {derivativesIPPool, 40},
 	uFuturesAccountTradeListRate:   {derivativesIPPool, 5},
 	uFuturesGetAllOrdersRate:       {derivativesIPPool, 5},
-	uFuturesCountdownCancelRate:    {derivativesIPPool, 10},
+	uFuturesCountdownCancelRate:    {derivativesHeartbeatPool, 10},
+	uFuturesHeartbeatOverflowRate:  {derivativesIPPool, 10},
 	uFuturesOrdersDefaultRate:      {derivativesOrderPool, 1},
 	uFuturesBatchOrdersRate:        {derivativesOrderPool, 5},
 	uFuturesOpenAlgoOrdersAllRate:  {derivativesIPPool, 40},
@@ -857,6 +891,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	// COIN-M futures /dapi
 	cFuturesDefaultRate:            {derivativesIPPool, 1},
 	cFuturesCancelRate:             {derivativesCancelPool, 1},
+	cFuturesCancelAllListingRate:   {derivativesCancelPool, 40},
 	cFuturesAccountInformationRate: {derivativesIPPool, 5},
 	cFuturesIncomeHistoryRate:      {derivativesIPPool, 20},
 	cFuturesAggregateTradesRate:    {derivativesIPPool, 20},
@@ -877,10 +912,13 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	cFuturesTicker24HourAllRate:    {derivativesIPPool, 40},
 	cFuturesAccountTradeListRate:   {derivativesIPPool, 5},
 	cFuturesAllOrdersRate:          {derivativesIPPool, 5},
-	cFuturesCountdownCancelRate:    {derivativesIPPool, 10},
+	cFuturesCountdownCancelRate:    {derivativesHeartbeatPool, 10},
+	cFuturesHeartbeatOverflowRate:  {derivativesIPPool, 10},
 	cFuturesBatchOrdersRate:        {derivativesOrderPool, 5},
 	cFuturesOrdersDefaultRate:      {derivativesOrderPool, 1},
 	cFuturesGetAllOpenOrdersRate:   {derivativesIPPool, 40},
+	cFuturesOpenAlgoOrdersAllRate:  {derivativesIPPool, 40},
+	cFuturesAllAlgoOrdersRate:      {derivativesIPPool, 5},
 	cFuturesADLQuantileRate:        {derivativesIPPool, 5},
 	cFuturesSymbolForceOrdersRate:  {derivativesIPPool, 20},
 	cFuturesAllForceOrdersRate:     {derivativesIPPool, 50},
@@ -888,6 +926,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	// Options /eapi
 	optionsDefaultRate:                               {optionsIPPool, 1},
 	optionsCancelRate:                                {optionsCancelPool, 1},
+	optionsCancelAllListingRate:                      {optionsCancelPool, 40},
 	optionsMarginAccountInfoRate:                     {optionsIPPool, 3},
 	optionsDownloadIDForOptionTransactionHistoryRate: {optionsIPPool, 5},
 	optionsGetTransHistoryDownloadLinkByIDRate:       {optionsIPPool, 5},
@@ -899,7 +938,9 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	optionsOrderbook1000Rate:                         {optionsIPPool, 20},
 	optionsRecentTradesRate:                          {optionsIPPool, 5},
 	optionsAllTickerPriceStatisticsRate:              {optionsIPPool, 40},
-	optionsAutoCancelAllOpenOrdersHeartbeatRate:      {optionsIPPool, 10},
+	optionsAutoCancelAllOpenOrdersHeartbeatRate:      {optionsHeartbeatPool, 10},
+	optionsHeartbeatOverflowRate:                     {optionsIPPool, 10},
+	optionsAutoCancelAllOpenOrdersConfigRate:         {optionsHeartbeatPool, 1},
 	optionsAccountTradeListRate:                      {optionsIPPool, 5},
 	optionsCancelAllByUnderlyingRate:                 {optionsCancelPool, 5},
 	optionsBatchOrderRate:                            {optionsOrderPool, 5},
@@ -999,6 +1040,21 @@ func endpointLimiters(costs map[request.EndpointLimit]endpointCost) map[request.
 	return limiters
 }
 
+// sendOnShare sends a request drawing on share when the share can take it at once, and otherwise on whichever of share
+// and overflow, the host's IP pool, admits it sooner, so a share keeps the request clear of queued market data without
+// holding it longer than the IP pool would. A request the request package retries after it went out on the share can
+// be sent again on overflow, so it suits requests Binance applies alike when repeated
+func (e *Exchange) sendOnShare(ctx context.Context, share, overflow request.EndpointLimit, send func(context.Context, request.EndpointLimit) error) error {
+	if err := send(request.WithDelayNotAllowed(ctx), share); !errors.Is(err, request.ErrDelayNotAllowed) {
+		return err
+	}
+	definitions := e.Requester.GetRateLimiterDefinitions()
+	if definitions[share].Delay() <= definitions[overflow].Delay() {
+		return send(ctx, share)
+	}
+	return send(ctx, overflow)
+}
+
 // spotOrderbookLimit returns the limit of an order book request for its depth; 0 requests the default of 100
 func spotOrderbookLimit(depth uint64) request.EndpointLimit {
 	switch {
@@ -1011,14 +1067,6 @@ func spotOrderbookLimit(depth uint64) request.EndpointLimit {
 	default:
 		return spotOrderbookDepth5000Rate
 	}
-}
-
-// spotOpenOrdersLimit returns the limit of an open orders query, which costs far more without a symbol
-func spotOpenOrdersLimit(symbol string) request.EndpointLimit {
-	if symbol == "" {
-		return spotOpenOrdersAllRate
-	}
-	return spotOpenOrdersSpecificRate
 }
 
 // spotTickerSymbolsLimit returns the limit of a rolling window or trading day ticker request, which costs 4 for each
