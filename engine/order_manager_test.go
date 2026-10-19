@@ -1470,6 +1470,40 @@ func TestUpdateExisting(t *testing.T) {
 	}
 }
 
+// TestStoreFuturesOrdersKeepExchangeName pins that futures orders stay matched by their exchange's name once they are
+// tracked as positions, as the order manager polls the active orders it matches by that name
+func TestStoreFuturesOrdersKeepExchangeName(t *testing.T) {
+	t.Parallel()
+	m := OrdersSetup(t)
+	newOrder := func(id string) *order.Detail {
+		return &order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Futures,
+			Pair:      currency.NewBTCUSDT(),
+			OrderID:   id,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Status:    order.Open,
+			Amount:    1,
+			Price:     1,
+			Date:      time.Now(),
+		}
+	}
+	require.NoError(t, m.orderStore.add(newOrder("added")), "add must not error")
+	_, err := m.orderStore.upsert(newOrder("upserted"))
+	require.NoError(t, err, "upsert must not error")
+	require.NoError(t, m.orderStore.updateExisting(newOrder("added")), "updateExisting must not error")
+	require.NoError(t, m.orderStore.modifyExisting("upserted", &order.ModifyResponse{Exchange: testExchange, OrderID: "upserted", Amount: 2}), "modifyExisting must not error")
+
+	active := m.orderStore.getActiveOrders(&order.Filter{Exchange: testExchange})
+	ids := make([]string, len(active))
+	for i := range active {
+		ids[i] = active[i].OrderID
+		assert.Equal(t, testExchange, active[i].Exchange, "a tracked futures order should keep its exchange's name")
+	}
+	assert.ElementsMatch(t, []string{"added", "upserted"}, ids, "the active futures orders should be matched by their exchange's name")
+}
+
 func TestOrderManagerExists(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
