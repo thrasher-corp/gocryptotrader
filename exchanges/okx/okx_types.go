@@ -442,6 +442,8 @@ type OpenInterest struct {
 
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
+	// RealisedRatePresent distinguishes a settled zero from absent or empty evidence.
+	RealisedRatePresent          bool         `json:"-"`
 	InstrumentType               string       `json:"instType"`
 	InstrumentID                 string       `json:"instId"`
 	FormulaType                  string       `json:"formulaType"`
@@ -5577,4 +5579,9 @@ type tradeFeePresence struct {
 	TakerUSDT *json.RawMessage `json:"takerU"`
 	MakerUSDC *json.RawMessage `json:"makerUSDC"`
 	TakerUSDC *json.RawMessage `json:"takerUSDC"`
+}
+
+// fundingRatePresence distinguishes unknown settlement rates from numeric zero.
+type fundingRatePresence struct {
+	RealisedRate *json.RawMessage `json:"realizedRate"`
 }

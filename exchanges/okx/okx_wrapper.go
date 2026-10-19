@@ -2247,24 +2247,15 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if err != nil {
 		return nil, err
 	}
-	var fri time.Duration
-	if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
-		// can infer funding rate interval from the only funding rate frequency defined
-		for k := range e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
-			fri = k.Duration()
-		}
+	if fr == nil {
+		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
 	}
-	pairRate.LatestRate = fundingrate.Rate{
-		// okx funding rate is settlement time, not when it started
-		Time: fr.FundingTime.Time().Add(-fri),
-		Rate: fr.FundingRate.Decimal(),
-	}
+	// ts is the observation time; fundingTime is the imminent settlement.
+	// nextFundingTime refers to the following period, not this indicative rate.
+	pairRate.LatestRate = fundingrate.Rate{Time: fr.Timestamp.Time(), Rate: fr.FundingRate.Decimal()}
+	pairRate.TimeOfNextRate = fr.FundingTime.Time()
 	if r.IncludePredictedRate {
-		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-fri),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{Time: fr.FundingTime.Time(), Rate: fr.FundingRate.Decimal()}
 	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
@@ -2273,6 +2264,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.PerpetualSwap {
+		return nil, futures.ErrNotPerpetualFuture
 	}
 	if r.EndDate.IsZero() {
 		// An unset end reads as open-ended, spanning up to now; a before-only
@@ -2327,13 +2321,19 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			if _, dup := seen[ft]; dup {
 				continue
 			}
+			if frh[i].FundingTime.Time().Before(r.StartDate) || frh[i].FundingTime.Time().After(r.EndDate) {
+				continue
+			}
+			if !frh[i].RealisedRatePresent {
+				return nil, fmt.Errorf("%w: realised funding rate missing", common.ErrNoResponse)
+			}
 			seen[ft] = struct{}{}
 			if r.IncludePayments {
 				mti[ft] = len(pairRate.FundingRates)
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 				Time: frh[i].FundingTime.Time(),
-				Rate: frh[i].FundingRate.Decimal(),
+				Rate: frh[i].RealisedRate.Decimal(),
 			})
 		}
 		if len(frh) < requestLimit {
@@ -2357,14 +2357,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
 	}
 	pairRate.LatestRate = fundingrate.Rate{
-		Time: fr.FundingTime.Time(),
+		Time: fr.Timestamp.Time(),
 		Rate: fr.FundingRate.Decimal(),
 	}
-	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	pairRate.TimeOfNextRate = fr.FundingTime.Time()
 	if r.IncludePredictedRate {
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
-			Rate: fr.NextFundingRate.Decimal(),
+			Time: fr.FundingTime.Time(),
+			Rate: fr.FundingRate.Decimal(),
 		}
 	}
 	if r.IncludePayments {

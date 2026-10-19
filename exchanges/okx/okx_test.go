@@ -4963,49 +4963,125 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, "BTC-USD", i.Underlying, "expected BTC-USD underlying")
 }
 
-func TestGetLatestFundingRate(t *testing.T) {
+func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		IncludePredictedRate: true,
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		result, err := e.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
+			Asset:                asset.PerpetualSwap,
+			Pair:                 perpetualSwapPair,
+			IncludePredictedRate: true,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	for _, predicted := range []bool{false, true} {
+		t.Run("observation "+strconv.FormatBool(predicted), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			at := time.Now().UTC().Truncate(time.Millisecond)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/public/funding-rate", r.URL.Path, "request should use the public endpoint")
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":"BTC-USDT-SWAP","fundingRate":"0.0003","nextFundingRate":"0.9","ts":"%d","fundingTime":"%d","nextFundingTime":"%d"}]}`, at.UnixMilli(), at.Add(time.Hour).UnixMilli(), at.Add(9*time.Hour).UnixMilli())
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			got, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, IncludePredictedRate: predicted})
+			require.NoError(t, err, "funding observation must load")
+			require.Len(t, got, 1, "one market must be returned")
+			assert.Equal(t, at, got[0].LatestRate.Time.UTC(), "latest rate should use observation time")
+			assert.Equal(t, "0.0003", got[0].LatestRate.Rate.String(), "latest rate should retain the indicative value")
+			assert.Equal(t, at.Add(time.Hour), got[0].TimeOfNextRate.UTC(), "next rate should refer to imminent settlement")
+			if predicted {
+				assert.Equal(t, at.Add(time.Hour), got[0].PredictedUpcomingRate.Time.UTC(), "prediction should target imminent settlement")
+				assert.Equal(t, "0.0003", got[0].PredictedUpcomingRate.Rate.String(), "prediction should use the current estimate")
+			} else {
+				assert.True(t, got[0].PredictedUpcomingRate.Time.IsZero(), "excluded prediction should remain unset")
+			}
+		})
+	}
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
-	// The live pager has no loop guard of its own, so bound the whole run to
-	// keep a paging slip from re-requesting one page until go test's timeout.
-	ctx, cancel := context.WithTimeout(contextGenerate(), 30*time.Second)
-	t.Cleanup(cancel)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		// The live pager has no loop guard of its own, so bound the whole run to
+		// keep a paging slip from re-requesting one page until go test's timeout.
+		ctx, cancel := context.WithTimeout(contextGenerate(), 30*time.Second)
+		t.Cleanup(cancel)
 
-	r := &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		PaymentCurrency:      currency.USDT,
-		StartDate:            time.Now().Add(-time.Hour * 24 * 2),
-		EndDate:              time.Now(),
-		IncludePredictedRate: true,
+		r := &fundingrate.HistoricalRatesRequest{
+			Asset:                asset.PerpetualSwap,
+			Pair:                 perpetualSwapPair,
+			PaymentCurrency:      currency.USDT,
+			StartDate:            time.Now().Add(-time.Hour * 24 * 2),
+			EndDate:              time.Now(),
+			IncludePredictedRate: true,
+		}
+
+		r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
+		_, err := e.GetHistoricalFundingRates(ctx, r)
+		require.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits)
+
+		if sharedtestvalues.AreAPICredentialsSet(e) {
+			r.IncludePayments = true
+		}
+		r.StartDate = time.Now().Add(-time.Hour * 24 * 12)
+		result, err := e.GetHistoricalFundingRates(ctx, r)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		r.RespectHistoryLimits = true
+		result, err = e.GetHistoricalFundingRates(ctx, r)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	for _, tc := range []struct {
+		name, realised, want string
+		missing              bool
+	}{
+		{"positive", `,"realizedRate":"0.0002"`, "0.0002", false},
+		{"negative", `,"realizedRate":"-0.0002"`, "-0.0002", false},
+		{"zero", `,"realizedRate":"0"`, "0", false},
+		{"missing", "", "", true},
+		{"empty", `,"realizedRate":""`, "", true},
+		{"null", `,"realizedRate":null`, "", true},
+	} {
+		t.Run("settlement "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			at := time.Now().UTC().Truncate(time.Millisecond)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/public/funding-rate-history":
+					_, err := fmt.Fprintf(w, `{"code":"0","data":[{"fundingRate":"0.9","fundingTime":"%d"%s}]}`, at.Add(-time.Hour).UnixMilli(), tc.realised)
+					assert.NoError(t, err, "history should write")
+				case "/public/funding-rate":
+					_, err := fmt.Fprintf(w, `{"code":"0","data":[{"fundingRate":"0.0003","nextFundingRate":"0.9","ts":"%d","fundingTime":"%d","nextFundingTime":"%d"}]}`, at.UnixMilli(), at.Add(time.Hour).UnixMilli(), at.Add(9*time.Hour).UnixMilli())
+					assert.NoError(t, err, "current funding should write")
+				default:
+					assert.Fail(t, "unexpected endpoint", "request should use funding endpoints")
+				}
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePredictedRate: true})
+			if tc.missing {
+				require.ErrorIs(t, err, common.ErrNoResponse, "unknown settlement must fail closed")
+				return
+			}
+			require.NoError(t, err, "settlement must load")
+			require.Len(t, got.FundingRates, 1, "one settled rate must load")
+			assert.Equal(t, tc.want, got.FundingRates[0].Rate.String(), "history should use the realised value")
+			assert.Equal(t, at, got.LatestRate.Time.UTC(), "latest rate should use observation time")
+			assert.Equal(t, at.Add(time.Hour), got.TimeOfNextRate.UTC(), "next rate should target imminent settlement")
+			assert.Equal(t, "0.0003", got.PredictedUpcomingRate.Rate.String(), "prediction should use the current estimate")
+		})
 	}
-
-	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
-	_, err := e.GetHistoricalFundingRates(ctx, r)
-	require.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits)
-
-	if sharedtestvalues.AreAPICredentialsSet(e) {
-		r.IncludePayments = true
-	}
-	r.StartDate = time.Now().Add(-time.Hour * 24 * 12)
-	result, err := e.GetHistoricalFundingRates(ctx, r)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	r.RespectHistoryLimits = true
-	result, err = e.GetHistoricalFundingRates(ctx, r)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 // TestGetHistoricalFundingRatesPaymentsPagination pins the IncludePayments
@@ -5052,9 +5128,9 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: rate pagination did not stop after a short page"}`))
 				return
 			}
-			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
+			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
 		case "/public/funding-rate":
-			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
+			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
 		case "/account/bills":
 			mu.Lock()
 			billsCalls++
@@ -5185,17 +5261,17 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 				if len(rows) == 100 {
 					break
 				}
-				rows = append(rows, fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}`, ms))
+				rows = append(rows, fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d"}`, ms))
 			}
 			if calls > 1 && after != 0 && len(rows) > 0 {
 				// A boundary-inclusive server repeats the previous page's last
 				// record; the wrapper must not duplicate the rate.
 				keep := min(99, len(rows))
-				rows = append([]string{fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}`, after)}, rows[:keep]...)
+				rows = append([]string{fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d"}`, after)}, rows[:keep]...)
 			}
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` + strings.Join(rows, ",") + `]}`))
 		case "/public/funding-rate":
-			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, end.Add(7*time.Hour).UnixMilli(), end.Add(15*time.Hour).UnixMilli())
+			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, end.Add(7*time.Hour).UnixMilli(), end.Add(15*time.Hour).UnixMilli())
 		case "/account/bills-archive":
 			mu.Lock()
 			billsCalls++
@@ -5325,12 +5401,12 @@ func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
 						return
 					}
 					if r.URL.Query().Get("after") == "" {
-						_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0002","fundingTime":"%d"}]}`, truncatedTime.UnixMilli())
+						_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0002","realizedRate":"0.0002","fundingTime":"%d"}]}`, truncatedTime.UnixMilli())
 						return
 					}
-					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
+					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
 				case "/public/funding-rate":
-					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
+					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","realizedRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
 				case "/account/bills":
 					mu.Lock()
 					billsCalls++
