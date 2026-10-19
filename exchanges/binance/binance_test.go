@@ -2124,7 +2124,11 @@ func BenchmarkWsHandleData(b *testing.B) {
 			for b.Loop() {
 				require.NoError(b, e.wsHandleData(ctx, tc.line), "wsHandleData must not error")
 				if tc.depth {
-					<-depth.buffer
+					select {
+					case <-depth.buffer:
+					default:
+						b.Fatal("wsHandleData must stage the depth update")
+					}
 					depth.lastUpdateID = 156
 				}
 				// Relay.Send has queued the payload by the time it returns, so a non-blocking

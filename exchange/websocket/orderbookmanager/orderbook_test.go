@@ -94,7 +94,9 @@ func BenchmarkUpdatePerformance(b *testing.B) {
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, obl.Update(b.Context(), update), "Update must not error")
-		<-obl.dataHandler.C
+		if !relayed(obl.dataHandler, 1) {
+			b.Fatal("Update must relay the book")
+		}
 	}
 }
 

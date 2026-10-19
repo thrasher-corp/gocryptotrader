@@ -106,8 +106,25 @@ func BenchmarkWait(b *testing.B) {
 	n := Notice{}
 	kick := make(chan struct{})
 	close(kick)
+	// go test's -timeout does not cover benchmarks, so a reply that never comes must fail the run
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	for b.Loop() {
-		if !<-n.Wait(kick) {
+		reply := n.Wait(kick)
+		deadline.Reset(time.Minute)
+		var kicked bool
+		select {
+		case kicked = <-reply:
+		case <-deadline.C:
+			// The reply can be ready too once the timer fires, and select picks between them at random
+			select {
+			case kicked = <-reply:
+			default:
+				b.Fatal("Wait must reply to a kick")
+			}
+		}
+		deadline.Stop()
+		if !kicked {
 			b.Fatal("Wait must report the kick rather than an alert")
 		}
 	}

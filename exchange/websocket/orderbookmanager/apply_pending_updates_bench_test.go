@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
@@ -31,14 +33,18 @@ func BenchmarkLoadSnapshotExistingDepth(b *testing.B) {
 	if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 		b.Fatal(err)
 	}
-	<-relay.C
+	if !relayed(relay, 1) {
+		b.Fatal("LoadSnapshot must relay the book")
+	}
 
 	b.ReportAllocs()
 	for b.Loop() {
 		if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 			b.Fatal(err)
 		}
-		<-relay.C
+		if !relayed(relay, 1) {
+			b.Fatal("LoadSnapshot must relay the book")
+		}
 	}
 }
 
@@ -109,8 +115,8 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 			if lastUpdateID != expectedLastUpdateID {
 				b.Fatalf("LastUpdateID = %d, want %d", lastUpdateID, expectedLastUpdateID)
 			}
-			for range updateCount + 1 {
-				<-relay.C
+			if !relayed(relay, updateCount+1) {
+				b.Fatal("every snapshot and update must be relayed")
 			}
 
 			b.ReportAllocs()
@@ -122,10 +128,45 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 				if err := manager.applyPendingUpdates(&cache); err != nil {
 					b.Fatal(err)
 				}
-				for range updateCount + 1 {
-					<-relay.C
+				if !relayed(relay, updateCount+1) {
+					b.Fatal("every snapshot and update must be relayed")
 				}
 			}
 		})
 	}
+}
+
+// relayed receives n payloads from relay, reporting false if any is missing, as a closed and drained relay
+// has none. Relay.Send queues its payload before returning or else fails, so a payload missing after the
+// calls succeeded was never sent, and failing then keeps a regression from hanging the benchmark, since go
+// test's -timeout does not cover benchmarks.
+func relayed(relay *stream.Relay, n uint) bool {
+	for range n {
+		select {
+		case _, ok := <-relay.C:
+			if !ok {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func TestRelayed(t *testing.T) {
+	t.Parallel()
+	relay := stream.NewRelay(2)
+	for range 2 {
+		require.NoError(t, relay.Send(t.Context(), struct{}{}), "Send must not error")
+	}
+	assert.True(t, relayed(relay, 2), "relayed should receive every queued payload")
+	assert.Empty(t, relay.C, "relayed should consume the payloads it receives")
+	assert.False(t, relayed(relay, 1), "relayed should report a payload that was never sent")
+
+	require.NoError(t, relay.Send(t.Context(), struct{}{}), "Send must not error")
+	assert.False(t, relayed(relay, 2), "relayed should report a payload missing after one that was sent")
+
+	relay.Close()
+	assert.False(t, relayed(relay, 1), "relayed should not count a closed relay as a payload")
 }

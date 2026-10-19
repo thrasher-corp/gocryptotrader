@@ -1215,9 +1215,33 @@ func TestBenchmarkLoggerWorkloads(t *testing.T) {
 // benchmarkWriter signals each write without copying it, so a benchmark can wait on the worker
 type benchmarkWriter chan struct{}
 
+// Write never blocks the worker: a write while a signal is still pending adds nothing, so an extra write
+// cannot strand the worker, and the drain barrier behind it, once the benchmark stops collecting
 func (w benchmarkWriter) Write(p []byte) (int, error) {
-	w <- struct{}{}
+	select {
+	case w <- struct{}{}:
+	default:
+	}
 	return len(p), nil
+}
+
+// wait reports whether the worker wrote within a minute, so a benchmark fails rather than hangs when an
+// event is lost, since go test's -timeout does not cover benchmarks. Reusing the timer keeps the wait
+// free of allocations.
+func (w benchmarkWriter) wait(deadline *time.Timer) bool {
+	deadline.Reset(time.Minute)
+	select {
+	case <-w:
+	case <-deadline.C:
+		// The write can be ready too once the timer fires, and select picks between them at random
+		select {
+		case <-w:
+		default:
+			return false
+		}
+	}
+	deadline.Stop()
+	return true
 }
 
 func TestBenchmarkWriter(t *testing.T) {
@@ -1231,16 +1255,51 @@ func TestBenchmarkWriter(t *testing.T) {
 	default:
 		assert.Fail(t, "Write should signal that the message was written")
 	}
+
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
+	_, err = w.Write([]byte("message"))
+	require.NoError(t, err, "Write must not error")
+	assert.True(t, w.wait(deadline), "wait should receive the signal Write sent")
+	assert.Empty(t, w, "wait should consume the signal Write sent")
+
+	// A blocked worker would strand the drain barrier, so Write must return with a signal pending
+	written := make(chan struct{})
+	go func() {
+		for range 2 {
+			n, err := w.Write([]byte("message"))
+			assert.NoError(t, err, "Write should not error")
+			assert.Equal(t, len("message"), n, "Write should report the whole message as written")
+		}
+		close(written)
+	}()
+	deadline.Reset(time.Minute)
+	select {
+	case <-written:
+	case <-deadline.C:
+		// The writes can have returned too once the timer fires, and select picks between them at random
+		select {
+		case <-written:
+		default:
+			require.FailNow(t, "Write must not block while a signal is pending")
+		}
+	}
+	deadline.Stop()
+	assert.Len(t, w, 1, "a write while a signal is pending should add nothing")
 }
 
 // BenchmarkNewLogEvent waits for each event to be written, so the jobs channel never fills and warns
 // into the benchmark output
 func BenchmarkNewLogEvent(b *testing.B) {
 	w := make(benchmarkWriter, 1)
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 	for b.Loop() {
 		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, "", "", true, false, false, nil)
-		<-w
+		if !w.wait(deadline) {
+			b.Fatal("the worker must write each staged event")
+		}
 	}
 }
 
@@ -1306,36 +1365,48 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 // hook observes the event and the internal logger still handles it.
 func BenchmarkCustomLogHookFallthrough(b *testing.B) {
 	w := make(benchmarkWriter, 1)
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
 		return false
 	}, w)
 	b.Cleanup(cleanup)
 	for b.Loop() {
 		Infof(sl, "formatted %s %d", "message", 1)
-		<-w
+		if !w.wait(deadline) {
+			b.Fatal("the worker must write each staged event")
+		}
 	}
 }
 
 func BenchmarkInfof(b *testing.B) {
 	w := make(benchmarkWriter, 1)
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
 	// Starts at 256: the runtime boxes 0 to 255 without allocating, which left allocs/op varying with b.N
 	n := 256
 	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
-		<-w
+		if !w.wait(deadline) {
+			b.Fatal("the worker must write each staged event")
+		}
 		n++
 	}
 }
 
 func BenchmarkInfoln(b *testing.B) {
 	w := make(benchmarkWriter, 1)
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
 	for b.Loop() {
 		Infoln(sl, "Hello this is an infoln benchmark")
-		<-w
+		if !w.wait(deadline) {
+			b.Fatal("the worker must write each staged event")
+		}
 	}
 }
 

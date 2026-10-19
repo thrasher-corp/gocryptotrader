@@ -95,7 +95,7 @@ finds every package whose test files declare a benchmark, applying `go test`'s o
 profile's build constraints, and fails while any of them is neither listed nor excluded, or while
 the list names a package that declares none.
 
-A skip cannot hide a benchmark either. `BENCH_FLAGS` runs go test with `-v`, without which a
+A skip cannot hide a benchmark either, unless printed text disguises its record, as described below. `BENCH_FLAGS` runs go test with `-v`, without which a
 benchmark that calls `b.Skip` before measuring anything prints nothing at all. One that skips after
 go test's first round prints a result of zero iterations instead, in either mode, and `benchcheck`
 reads that as a skip too. Each skip is a `skipped` finding, whether or not the benchmark has a
@@ -104,6 +104,13 @@ exists, so the cure is to stop it skipping rather than to delete its budgets. Te
 without a newline just before go test's skip record runs into it, so `benchcheck` reads a record
 that ends a line as well as one that starts it, and reads a benchmark that `-v` announced and that
 then reported nothing at all, in a package that ran to its `ok` line, as a skip too.
+
+Printed text can still disguise a skip record. `benchcheck` does not read a record run into text
+laid out like `b.Log` output, indented by eight spaces or by four before a `file.go:12:` prefix,
+since a benchmark can log exactly that text itself and plain output cannot tell the two apart. A
+benchmark that has measured a subbenchmark and then skips after printing such text therefore shows
+no `skipped` finding: a subbenchmark the skip left unmeasured is still reported `missing` if it has
+a budget, and not reported at all if it has none.
 
 ## Updating the baseline
 
