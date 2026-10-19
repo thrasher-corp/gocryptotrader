@@ -1,0 +1,430 @@
+package coinbase
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"sync"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+const (
+	// orderSizeLookupBatchSize is the most orders one lookup of the sizes the user channel leaves out names
+	orderSizeLookupBatchSize = 50
+	// orderSizeLifetime is how long an order's recorded size is kept once the record holds orderSizesPruneThreshold
+	// orders, as an order whose close the user channel never reported would otherwise stay; an order still live after
+	// it is looked up again
+	orderSizeLifetime        = 30 * 24 * time.Hour
+	orderSizesPruneThreshold = 1000
+)
+
+var (
+	errUnknownProductType = errors.New("unknown product type")
+	errUnknownTimeInForce = errors.New("unknown time in force")
+)
+
+// wsHandleUser relays the user channel's orders, and its futures positions where the account has them enabled; open
+// orders arrive in snapshots of up to 50, then each change in an update. A live order whose size is not yet known is
+// looked up, and relayed again with its size
+func (e *Exchange) wsHandleUser(ctx context.Context, envelope *websocketEnvelope) error {
+	var events []WebsocketUserEvent
+	if err := json.Unmarshal(envelope.Events, &events); err != nil {
+		return err
+	}
+	var errs error
+	var unsized []order.Detail
+	// The orders are relayed in order with a lookup's, so a lookup's report cannot follow a newer one
+	e.orderSizes.relayMu.Lock()
+	defer e.orderSizes.relayMu.Unlock()
+	for i := range events {
+		details := make([]order.Detail, 0, len(events[i].Orders))
+		for j := range events[i].Orders {
+			detail, err := e.websocketOrderDetail(&events[i].Orders[j], envelope)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			e.orderSizes.observe(detail)
+			if detail.Amount == 0 && detail.QuoteAmount == 0 && isLiveOrderStatus(detail.Status) {
+				unsized = append(unsized, *detail)
+			}
+			details = append(details, *detail)
+		}
+		if len(details) != 0 {
+			errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, details))
+		}
+		positions := &events[i].Positions
+		if len(positions.PerpetualFuturesPositions) != 0 || len(positions.ExpiringFuturesPositions) != 0 {
+			errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, positions))
+		}
+	}
+	e.wsLookUpOrderSizes(ctx, unsized)
+	return errs
+}
+
+// wsLookUpOrderSizes lists live orders the user channel reported without their sizes, in the background so the reader
+// goes on, and relays the channel's latest report of each with its size, which is recorded for the order's later
+// updates. The lookup takes only the size from the list, whose state can be older than the channel's; an order the
+// channel reports closed meanwhile is not relayed again, and an order already being looked up is left to that lookup
+func (e *Exchange) wsLookUpOrderSizes(ctx context.Context, unsized []order.Detail) {
+	claimed := e.orderSizes.claim(unsized)
+	if len(claimed) == 0 {
+		return
+	}
+	go func() {
+		defer e.orderSizes.release(claimed)
+		for batch := range slices.Chunk(claimed, orderSizeLookupBatchSize) {
+			orders, err := e.listOrders(ctx, &ListOrdersRequest{OrderIDs: batch})
+			if err != nil {
+				if ctx.Err() == nil {
+					_ = e.Websocket.DataHandler.Send(ctx, fmt.Errorf("%s websocket could not look up the sizes of orders %q: %w", e.Name, batch, err))
+				}
+				return
+			}
+			e.relayLookedUpOrders(ctx, orders)
+		}
+	}()
+}
+
+// relayLookedUpOrders relays the channel's latest reports of orders looked up with their sizes, holding the user
+// channel's relays meanwhile, so that a report the channel relays next follows them
+func (e *Exchange) relayLookedUpOrders(ctx context.Context, orders []Order) {
+	e.orderSizes.relayMu.Lock()
+	defer e.orderSizes.relayMu.Unlock()
+	details := make([]order.Detail, 0, len(orders))
+	for i := range orders {
+		values := orderConfigurationValues(orders[i].OrderConfiguration)
+		if d, ok := e.orderSizes.complete(orders[i].OrderID, values.baseSize, values.quoteSize); ok {
+			details = append(details, d)
+		}
+	}
+	if len(details) != 0 {
+		_ = e.Websocket.DataHandler.Send(ctx, details)
+	}
+}
+
+// isLiveOrderStatus reports whether an order with a status can still trade
+func isLiveOrderStatus(s order.Status) bool {
+	return s != order.UnknownStatus && !s.IsInactive()
+}
+
+// isClosedOrderStatus reports whether an order with a status has closed; an unknown status is neither live nor closed
+func isClosedOrderStatus(s order.Status) bool {
+	return s != order.UnknownStatus && s.IsInactive()
+}
+
+// advancedTradeOrderSizes holds the sizes of the account's live Advanced Trade orders by order ID, each in the currency
+// it was placed in, and the orders being looked up
+type advancedTradeOrderSizes struct {
+	m       sync.Mutex
+	sizes   map[string]advancedTradeOrderSize
+	pending map[string]*orderSizeLookup
+	// relayMu orders the user channel's relays of orders and a lookup's
+	relayMu sync.Mutex
+}
+
+// orderSizeLookup is a lookup of an order's size, when it began, and the user channel's latest report of the order
+type orderSizeLookup struct {
+	started time.Time
+	latest  order.Detail
+}
+
+// advancedTradeOrderSize is an order's size, in its base or quote currency, and when it was recorded
+type advancedTradeOrderSize struct {
+	base, quote float64
+	recorded    time.Time
+}
+
+// set records an order's size
+func (s *advancedTradeOrderSizes) set(orderID string, base, quote float64) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.sizes == nil {
+		s.sizes = make(map[string]advancedTradeOrderSize)
+	}
+	now := time.Now()
+	if len(s.sizes) >= orderSizesPruneThreshold {
+		for id, size := range s.sizes {
+			if now.Sub(size.recorded) > orderSizeLifetime {
+				delete(s.sizes, id)
+			}
+		}
+	}
+	s.sizes[orderID] = advancedTradeOrderSize{base: base, quote: quote, recorded: now}
+}
+
+// setListed records an order's size as an order list begun at a time reported it, unless a size was recorded since,
+// such as by an edit, which is newer than the list's
+func (s *advancedTradeOrderSizes) setListed(orderID string, base, quote float64, listed time.Time) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if size, ok := s.sizes[orderID]; ok && size.recorded.After(listed) {
+		return
+	}
+	if s.sizes == nil {
+		s.sizes = make(map[string]advancedTradeOrderSize)
+	}
+	s.sizes[orderID] = advancedTradeOrderSize{base: base, quote: quote, recorded: listed}
+}
+
+// get returns an order's recorded size
+func (s *advancedTradeOrderSizes) get(orderID string) (advancedTradeOrderSize, bool) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	size, ok := s.sizes[orderID]
+	return size, ok
+}
+
+// remove forgets a closed order's size
+func (s *advancedTradeOrderSizes) remove(orderID string) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	delete(s.sizes, orderID)
+}
+
+// claim begins looking up the orders reported neither recorded nor being looked up, and returns their IDs
+func (s *advancedTradeOrderSizes) claim(reported []order.Detail) []string {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.pending == nil {
+		s.pending = make(map[string]*orderSizeLookup)
+	}
+	var claimed []string
+	now := time.Now()
+	for i := range reported {
+		id := reported[i].OrderID
+		_, recorded := s.sizes[id]
+		_, pending := s.pending[id]
+		if !recorded && !pending {
+			s.pending[id] = &orderSizeLookup{started: now, latest: reported[i]}
+			claimed = append(claimed, id)
+		}
+	}
+	return claimed
+}
+
+// observe keeps the user channel's latest report of an order being looked up
+func (s *advancedTradeOrderSizes) observe(d *order.Detail) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if lookup, ok := s.pending[d.OrderID]; ok {
+		lookup.latest = *d
+	}
+}
+
+// complete ends an order's lookup with the size listed, returning the user channel's latest report of the order with
+// its size, unless the channel reported it closed meanwhile; a size recorded since the lookup began, by an edit, is
+// newer than the one listed
+func (s *advancedTradeOrderSizes) complete(orderID string, base, quote float64) (order.Detail, bool) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	lookup, ok := s.pending[orderID]
+	if !ok || isClosedOrderStatus(lookup.latest.Status) {
+		return order.Detail{}, false
+	}
+	delete(s.pending, orderID)
+	if size, ok := s.sizes[orderID]; ok && size.recorded.After(lookup.started) {
+		base, quote = size.base, size.quote
+	} else {
+		if s.sizes == nil {
+			s.sizes = make(map[string]advancedTradeOrderSize)
+		}
+		s.sizes[orderID] = advancedTradeOrderSize{base: base, quote: quote, recorded: time.Now()}
+	}
+	d := lookup.latest
+	d.Amount, d.QuoteAmount = base, quote
+	if base > 0 {
+		d.RemainingAmount = max(base-d.ExecutedAmount, 0)
+	}
+	return d, true
+}
+
+// release ends the lookup of orders
+func (s *advancedTradeOrderSizes) release(orderIDs []string) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, id := range orderIDs {
+		delete(s.pending, id)
+	}
+}
+
+// websocketOrderDetail returns a user channel order as an order detail. The channel reports an order's remaining
+// quantity in the currency it was sized in, base or quote, without saying which, and not its size, so the detail takes
+// its size from the order's recorded size, when there is one, and reports the base amount executed. A closed order's
+// close time is when it ended, or else when the channel reported it closed; a live order's end time is when it expires
+func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *websocketEnvelope) (*order.Detail, error) {
+	a, err := productTypeAsset(o.ProductType)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	pair, err := e.productPair(o.ProductID, a)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	side, err := order.StringToOrderSide(o.OrderSide)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	orderType, err := standardOrderType(o.OrderType)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	status, err := standardOrderStatus(o.Status, o.CumulativeQuantity.Float64())
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	tif, err := standardTimeInForce(o.TimeInForce, o.PostOnly.Bool())
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
+	}
+	var amount, remaining, quoteAmount float64
+	if size, ok := e.orderSizes.get(o.OrderID); ok {
+		amount, quoteAmount = size.base, size.quote
+		if amount > 0 {
+			remaining = o.LeavesQuantity.Float64()
+		}
+	}
+	var closeTime time.Time
+	if isClosedOrderStatus(status) {
+		e.orderSizes.remove(o.OrderID)
+		closeTime = envelope.Timestamp
+		if !o.EndTime.IsZero() && !o.EndTime.After(closeTime) {
+			closeTime = o.EndTime
+		}
+	}
+	return &order.Detail{
+		Exchange:             e.Name,
+		OrderID:              o.OrderID,
+		ClientOrderID:        o.ClientOrderID,
+		AccountID:            o.RetailPortfolioID,
+		Pair:                 pair,
+		AssetType:            a,
+		Side:                 side,
+		Type:                 orderType,
+		Status:               status,
+		TimeInForce:          tif,
+		Price:                o.LimitPrice.Float64(),
+		TriggerPrice:         o.StopPrice.Float64(),
+		Amount:               amount,
+		QuoteAmount:          quoteAmount,
+		RemainingAmount:      remaining,
+		AverageExecutedPrice: o.AveragePrice.Float64(),
+		ExecutedAmount:       o.CumulativeQuantity.Float64(),
+		Cost:                 o.FilledValue.Float64(),
+		Fee:                  o.TotalFees.Float64(),
+		Date:                 o.CreationTime,
+		CloseTime:            closeTime,
+		LastUpdated:          envelope.Timestamp,
+	}, nil
+}
+
+// productTypeAsset returns the asset an Advanced Trade product type trades as
+func productTypeAsset(productType string) (asset.Item, error) {
+	switch productType {
+	case ProductTypeSpot:
+		return asset.Spot, nil
+	case ProductTypeFuture:
+		return asset.Futures, nil
+	default:
+		return asset.Empty, fmt.Errorf("%w: %q", errUnknownProductType, productType)
+	}
+}
+
+// standardOrderType returns an Advanced Trade order type as an order type: an attached take profit/stop loss order is a
+// one cancels the other order, and a roll's steps and a scaled order have no order type of their own
+func standardOrderType(orderType string) (order.Type, error) {
+	switch orderType {
+	case OrderTypeLimit:
+		return order.Limit, nil
+	case OrderTypeMarket:
+		return order.Market, nil
+	case OrderTypeStopLimit:
+		return order.StopLimit, nil
+	case OrderTypeStop:
+		return order.Stop, nil
+	case OrderTypeBracket:
+		return order.Bracket, nil
+	case OrderTypeTWAP:
+		return order.TWAP, nil
+	case OrderTypeLiquidation:
+		return order.Liquidation, nil
+	case OrderTypeTakeProfitStopLoss:
+		return order.OCO, nil
+	case "", OrderTypeUnknown, OrderTypeRollOpen, OrderTypeRollClose, OrderTypeScaled:
+		return order.UnknownType, nil
+	default:
+		return order.UnknownType, fmt.Errorf("%w: %q", order.ErrUnrecognisedOrderType, orderType)
+	}
+}
+
+// standardOrderStatus returns an Advanced Trade order status as an order status; an open or cancelled order that has
+// started filling is partially filled, and an order whose edit is queued stays open
+func standardOrderStatus(status string, executed float64) (order.Status, error) {
+	switch status {
+	case OrderStatusPending, OrderStatusQueued:
+		return order.Pending, nil
+	case OrderStatusOpen, OrderStatusEditQueued:
+		if executed > 0 {
+			return order.PartiallyFilled, nil
+		}
+		return order.Open, nil
+	case OrderStatusFilled:
+		return order.Filled, nil
+	case OrderStatusCancelQueued:
+		return order.PendingCancel, nil
+	case OrderStatusCancelled:
+		if executed > 0 {
+			return order.PartiallyFilledCancelled, nil
+		}
+		return order.Cancelled, nil
+	case OrderStatusExpired:
+		return order.Expired, nil
+	case OrderStatusFailed:
+		return order.Rejected, nil
+	case OrderStatusUnknown:
+		return order.UnknownStatus, nil
+	default:
+		return order.UnknownStatus, fmt.Errorf("%w: %q", order.ErrUnsupportedStatusType, status)
+	}
+}
+
+// standardTimeInForce returns an Advanced Trade time in force as a time in force, with post only where it is set
+func standardTimeInForce(timeInForce string, postOnly bool) (order.TimeInForce, error) {
+	var tif order.TimeInForce
+	switch timeInForce {
+	case TimeInForceGoodUntilCancelled:
+		tif = order.GoodTillCancel
+	case TimeInForceGoodUntilDateTime:
+		tif = order.GoodTillTime
+	case TimeInForceImmediateOrCancel:
+		tif = order.ImmediateOrCancel
+	case TimeInForceFillOrKill:
+		tif = order.FillOrKill
+	case "", TimeInForceUnknown:
+	default:
+		return order.UnknownTIF, fmt.Errorf("%w: %q", errUnknownTimeInForce, timeInForce)
+	}
+	if postOnly {
+		tif |= order.PostOnly
+	}
+	return tif, nil
+}
+
+// wsHandleFuturesBalanceSummary relays the account's US derivatives balances
+func (e *Exchange) wsHandleFuturesBalanceSummary(ctx context.Context, envelope *websocketEnvelope) error {
+	var events []WebsocketFuturesBalanceSummaryEvent
+	if err := json.Unmarshal(envelope.Events, &events); err != nil {
+		return err
+	}
+	var errs error
+	for i := range events {
+		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, &events[i].FCMBalanceSummary))
+	}
+	return errs
+}
