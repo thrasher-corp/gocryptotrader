@@ -33,7 +33,11 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 		if kind != jsonparser.String {
 			continue
 		}
-		if string(value) != "wss://ws.okx.com:8443/ws/v5/"+endpoint.channel {
+		decoded, err := jsonparser.ParseString(value)
+		if err != nil {
+			return nil, fmt.Errorf("decoding OKX endpoint %s: %w", endpoint.key, err)
+		}
+		if decoded != "wss://ws.okx.com:8443/ws/v5/"+endpoint.channel {
 			continue
 		}
 		exchange, err = jsonparser.Set(exchange, []byte(strconv.Quote("wss://ws.okx.com/ws/v5/"+endpoint.channel)), "api", "urlEndpoints", endpoint.key)

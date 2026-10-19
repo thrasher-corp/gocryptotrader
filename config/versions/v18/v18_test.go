@@ -3,6 +3,8 @@ package v18_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
@@ -18,6 +20,7 @@ func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ name, input, expected string }{
 		{"defaults", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`},
+		{"escaped default", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`},
 		{"missing", `{}`, `{}`},
 		{"null", `{"api":{"urlEndpoints":null}}`, `{"api":{"urlEndpoints":null}}`},
 		{"custom", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`},
@@ -33,7 +36,7 @@ func TestUpgradeExchange(t *testing.T) {
 	t.Run("invalid endpoint value", func(t *testing.T) {
 		t.Parallel()
 		_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`))
-		require.Error(t, err, "invalid JSON must fail")
+		require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "invalid JSON must fail with its parser error")
 	})
 }
 
