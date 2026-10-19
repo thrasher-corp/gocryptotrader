@@ -26,7 +26,8 @@ import (
 //
 // `tuple:"1,inline"` on a named struct field decodes that struct's fields from position 1 on, for records Bitfinex
 // prefixes with their symbol or key. Positions no field takes are skipped, decoding stops once the last field is set,
-// and a null element leaves its field unset.
+// and a null element leaves its field as it is, but for a pointer, slice, map or interface, which it sets to nil,
+// json.RawMessage included, so a struct decoded into again keeps none of what it held.
 //
 // Each type's tags are compiled once into a decoder per field, which writes the element straight into the field at its
 // offset. Websocket frames decode in a single pass with no reflection, and the same way whichever JSON implementation
@@ -51,6 +52,8 @@ type tupleField struct {
 	typ      reflect.Type
 	offset   uintptr
 	decode   elementDecoder
+	// nilable is whether null sets the field to nil: a pointer, slice, map or interface
+	nilable bool
 }
 
 // tuplePlan holds a struct type's tagged fields in position order
@@ -132,6 +135,10 @@ func buildTuplePlan(t reflect.Type, building map[reflect.Type]*tuplePlan) (*tupl
 			return nil, err
 		}
 		p.fields[i].decode = decode
+		switch p.fields[i].typ.Kind() {
+		case reflect.Pointer, reflect.Slice, reflect.Map, reflect.Interface:
+			p.fields[i].nilable = true
+		}
 	}
 	return p, nil
 }
@@ -395,6 +402,16 @@ func skipSpace(data []byte, i int) int {
 	return i
 }
 
+// leadingElement returns an array's first element, read directly, as an index lookup walks every element of the array
+func leadingElement(data []byte) ([]byte, jsonparser.ValueType, error) {
+	i := skipSpace(data, 0)
+	if i == len(data) || data[i] != '[' {
+		return nil, jsonparser.NotExist, errTupleNotArray
+	}
+	value, dataType, _, err := jsonparser.Get(data[i+1:])
+	return value, dataType, err
+}
+
 // eachElement calls fn with each element of an array, stopping at the first error
 func eachElement(data []byte, fn func(n int, raw []byte, dataType jsonparser.ValueType) error) error {
 	i := skipSpace(data, 0)
@@ -456,10 +473,14 @@ func (p *tuplePlan) decode(data []byte, base unsafe.Pointer) error {
 		}
 		if f := &p.fields[next]; f.position == position {
 			next++
-			if dataType != jsonparser.Null {
+			switch {
+			case dataType != jsonparser.Null:
 				if err := f.decode(base, value, data[i:i+end], dataType); err != nil {
 					return fmt.Errorf("%s at position %d: %w", f.name, f.position, err)
 				}
+			case f.nilable:
+				// A struct decoded into again keeps nothing from before where a pointer, slice or map is null
+				reflect.NewAt(f.typ, unsafe.Add(base, f.offset)).Elem().SetZero()
 			}
 		}
 		if i, err = nextElement(data, i+end); err != nil {

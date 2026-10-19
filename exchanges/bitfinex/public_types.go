@@ -96,10 +96,19 @@ type TickersResponse struct {
 	Funding []FundingTickerEntry
 }
 
-// UnmarshalJSON decodes a list of tickers, telling trading pairs from funding currencies by their symbols' prefixes
+// UnmarshalJSON decodes a list of tickers, telling trading pairs from funding currencies by their symbols' prefixes. It
+// replaces any tickers decoded before, as the json package replaces a slice
 func (t *TickersResponse) UnmarshalJSON(data []byte) error {
+	t.Trading, t.Funding = nil, nil
 	return eachElement(data, func(n int, raw []byte, _ jsonparser.ValueType) error {
-		symbol, err := jsonparser.GetString(raw, "[0]")
+		value, dataType, err := leadingElement(raw)
+		if err == nil && dataType != jsonparser.String {
+			err = fmt.Errorf("want a string, got %s", dataType)
+		}
+		if err != nil {
+			return fmt.Errorf("%w: ticker %d has no symbol: %w", errTupleElementType, n, err)
+		}
+		symbol, err := jsonparser.ParseString(value)
 		if err != nil {
 			return fmt.Errorf("%w: ticker %d has no symbol: %w", errTupleElementType, n, err)
 		}

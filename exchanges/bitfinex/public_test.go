@@ -163,8 +163,21 @@ func TestTickersResponseUnmarshalJSON(t *testing.T) {
 	var resp TickersResponse
 	require.NoError(t, resp.UnmarshalJSON([]byte(`[]`)), "UnmarshalJSON must not error for no tickers")
 	assert.Empty(t, resp, "UnmarshalJSON should decode no tickers from an empty list")
+
+	// Decoding into a response again replaces its tickers, as the json package replaces a slice
+	const tickers = `[["tBTCUSD",82402,1.65,82423,2.78,1100,0.0135,82424,540.7,82641,79821],["fUSD",0.0003,0.00017,120,18938194,0.00012,2,40993,-0.000075,-0.375,0.000125,95383739,0.0002,0.000001]]`
+	for range 2 {
+		require.NoError(t, json.Unmarshal([]byte(tickers), &resp), "Unmarshal must not error for tickers")
+		assert.Len(t, resp.Trading, 1, "Unmarshal should replace the trading pair tickers decoded before")
+		assert.Len(t, resp.Funding, 1, "Unmarshal should replace the funding currency tickers decoded before")
+	}
+	require.NoError(t, json.Unmarshal([]byte(`[]`), &resp), "Unmarshal must not error for no tickers")
+	assert.Empty(t, resp, "Unmarshal should leave no tickers decoded before an empty list")
+
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["xBTCUSD",1]]`)), errUnknownSymbolType, "UnmarshalJSON should refuse a symbol of neither kind")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[[1,2]]`)), errTupleElementType, "UnmarshalJSON should refuse a ticker without a symbol")
+	for _, data := range []string{`[[1,2]]`, `[[]]`, `[1]`, `[["\uZZZZ",1]]`} {
+		assert.ErrorIsf(t, resp.UnmarshalJSON([]byte(data)), errTupleElementType, "UnmarshalJSON should refuse %s, a ticker without a symbol", data)
+	}
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["tBTCUSD","x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed trading pair ticker")
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["fUSD","x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed funding currency ticker")
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse an object")

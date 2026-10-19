@@ -77,7 +77,7 @@ func (e *Exchange) wsHandleAccountEvent(ctx context.Context, conn websocket.Conn
 	case "os":
 		return e.wsHandleOrders(ctx, respRaw)
 	case "on", "ou", "oc":
-		return e.wsHandleOrder(ctx, respRaw)
+		return e.wsHandleOrder(ctx, string(eventType) == "oc", respRaw)
 	case "ps":
 		return wsRelayAccountSnapshot[Position](ctx, e, respRaw)
 	case "pn", "pu", "pc":
@@ -151,7 +151,7 @@ func (e *Exchange) wsHandleOrders(ctx context.Context, respRaw []byte) error {
 }
 
 // wsHandleOrder relays an order placed, updated, or closed by being cancelled or filled
-func (e *Exchange) wsHandleOrder(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleOrder(ctx context.Context, closed bool, respRaw []byte) error {
 	var f wsTypedFrame[Order]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
@@ -159,6 +159,9 @@ func (e *Exchange) wsHandleOrder(ctx context.Context, respRaw []byte) error {
 	d, err := e.orderDetail(&f.Data)
 	if err != nil {
 		return fmt.Errorf("order %d: %w", f.Data.ID, err)
+	}
+	if closed {
+		d.Status = closedOrderStatus(d.Status)
 	}
 	return e.Websocket.DataHandler.Send(ctx, d)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -258,8 +259,8 @@ func (r *PlaceOrderRequest) body() (*placeOrderBody, error) {
 	if r.Amount == 0 {
 		return nil, fmt.Errorf("%w: an order's amount must not be zero", errInvalidAmount)
 	}
-	if r.Price < 0 {
-		return nil, fmt.Errorf("%w: %v", errInvalidPrice, r.Price)
+	if err := checkOrderNumbers([]float64{r.Amount}, []float64{r.Price, r.TrailingPrice, r.AuxiliaryLimitPrice, r.OCOStopPrice}); err != nil {
+		return nil, err
 	}
 	return &placeOrderBody{
 		Type:                r.Type,
@@ -292,8 +293,8 @@ func (r *UpdateOrderRequest) body() (*updateOrderBody, error) {
 	if r.ID == 0 {
 		return nil, errOrderIDRequired
 	}
-	if r.Price < 0 {
-		return nil, fmt.Errorf("%w: %v", errInvalidPrice, r.Price)
+	if err := checkOrderNumbers([]float64{r.Amount, r.Delta}, []float64{r.Price, r.TrailingPrice, r.AuxiliaryLimitPrice}); err != nil {
+		return nil, err
 	}
 	return &updateOrderBody{
 		ID:                  r.ID,
@@ -409,6 +410,22 @@ func isLedgerCategory(category uint64) bool {
 		return true
 	}
 	return false
+}
+
+// checkOrderNumbers returns an error for an amount that is not a finite number, or a price that is not a finite number
+// of at least zero; an amount is signed by its side, and a price of zero is left unsent
+func checkOrderNumbers(amounts, prices []float64) error {
+	for _, a := range amounts {
+		if math.IsNaN(a) || math.IsInf(a, 0) {
+			return fmt.Errorf("%w: %v", errInvalidAmount, a)
+		}
+	}
+	for _, p := range prices {
+		if p < 0 || math.IsNaN(p) || math.IsInf(p, 0) {
+			return fmt.Errorf("%w: %v", errInvalidPrice, p)
+		}
+	}
+	return nil
 }
 
 // orderDecimalParam formats an optional amount or price as Bitfinex's decimal strings, never in exponent notation;

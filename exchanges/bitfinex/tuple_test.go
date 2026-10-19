@@ -2,11 +2,15 @@ package bitfinex
 
 import (
 	"math"
+	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -81,6 +85,11 @@ func TestUnmarshalTuple(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`[null,null,null,null,null,null,null,null,null,null,null,null,null]`), &got), "Unmarshal must not error for null elements")
 	assert.Equal(t, tupleProbe{Float: 9, Text: "kept"}, got, "Null elements should leave their fields unset")
 
+	// As the json package does, null sets a pointer or slice decoded into again to nil, and leaves anything else as it is
+	reused := tupleProbe{Float: 9, Raw: json.RawMessage(`{}`), Level: tupleProbeLevel{Price: 2}, Levels: []tupleProbeLevel{{Price: 1}}, Optional: &optional, Strings: []string{"x"}}
+	require.NoError(t, json.Unmarshal([]byte(`[null,null,null,null,null,null,null,null,null,null,null,null,null,null]`), &reused), "Unmarshal must not error for null elements decoded into again")
+	assert.Equal(t, tupleProbe{Float: 9, Level: tupleProbeLevel{Price: 2}}, reused, "Null elements should set pointers and slices to nil, leaving other fields as they were")
+
 	for _, data := range []string{`[1.5]`, `[1.5 ]`} {
 		var short tupleProbe
 		require.NoErrorf(t, json.Unmarshal([]byte(data), &short), "Unmarshal must not error for short array %s", data)
@@ -105,10 +114,99 @@ func TestUnmarshalTuple(t *testing.T) {
 	require.NoError(t, unmarshalTuple([]byte(`["","",""]`), &blank), "unmarshalTuple must not error for empty strings")
 	assert.Equal(t, tupleProbe{Float: 9, Int: 9, Uint: 9}, blank, "Empty strings should leave number fields unset")
 
-	reused := tupleProbe{Levels: make([]tupleProbeLevel, 2, 4)}
-	reused.Levels[0] = tupleProbeLevel{Price: 8, Amount: 8}
-	require.NoError(t, unmarshalTuple([]byte(`[0,0,0,"",false,0,0,null,null,[[1,null]]]`), &reused), "unmarshalTuple must not error into a reused slice")
-	assert.Equal(t, []tupleProbeLevel{{Price: 1}}, reused.Levels, "A reused slice's elements should not keep earlier values")
+	reusedSlice := tupleProbe{Levels: make([]tupleProbeLevel, 2, 4)}
+	reusedSlice.Levels[0] = tupleProbeLevel{Price: 8, Amount: 8}
+	require.NoError(t, unmarshalTuple([]byte(`[0,0,0,"",false,0,0,null,null,[[1,null]]]`), &reusedSlice), "unmarshalTuple must not error into a reused slice")
+	assert.Equal(t, []tupleProbeLevel{{Price: 1}}, reusedSlice.Levels, "A reused slice's elements should not keep earlier values")
+}
+
+func TestLeadingElement(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		data     string
+		exp      string
+		dataType jsonparser.ValueType
+	}{
+		{data: `[1,"hb",2]`, exp: `1`, dataType: jsonparser.Number},
+		{data: ` [ "error", 10020, "symbol: invalid"]`, exp: `error`, dataType: jsonparser.String},
+		{data: `[[1,2],3]`, exp: `[1,2]`, dataType: jsonparser.Array},
+		{data: `[null]`, exp: `null`, dataType: jsonparser.Null},
+	} {
+		got, dataType, err := leadingElement([]byte(tc.data))
+		require.NoErrorf(t, err, "leadingElement must not error for %s", tc.data)
+		assert.Equalf(t, tc.exp, string(got), "leadingElement should return %s's first element", tc.data)
+		assert.Equalf(t, tc.dataType, dataType, "leadingElement should return the type of %s's first element", tc.data)
+	}
+	for _, data := range []string{`{"a":1}`, `1`, ``, ` `} {
+		_, _, err := leadingElement([]byte(data))
+		assert.ErrorIsf(t, err, errTupleNotArray, "leadingElement should refuse %q, which is not an array", data)
+	}
+	for _, data := range []string{`[]`, `[ ]`, `[`, `[,1]`} {
+		_, _, err := leadingElement([]byte(data))
+		assert.Errorf(t, err, "leadingElement should error for %q, which has no first element", data)
+	}
+}
+
+// tupleNested is a record holding records of its own type
+type tupleNested struct {
+	Value    float64       `tuple:"0"`
+	Children []tupleNested `tuple:"1"`
+}
+
+func (n *tupleNested) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, n) }
+
+func TestBuildTuplePlan(t *testing.T) {
+	t.Parallel()
+	nested, err := buildTuplePlan(reflect.TypeFor[tupleNested](), make(map[reflect.Type]*tuplePlan))
+	require.NoError(t, err, "buildTuplePlan must not error for a type nesting itself")
+	require.Len(t, nested.fields, 2, "buildTuplePlan must plan both of a type nesting itself's fields")
+	var tree tupleNested
+	require.NoError(t, json.Unmarshal([]byte(`[1,[[2,[]],[3,null]]]`), &tree), "Unmarshal must not error for a type nesting itself")
+	assert.Equal(t, tupleNested{Value: 1, Children: []tupleNested{{Value: 2}, {Value: 3}}}, tree, "a type nesting itself should decode through its own plan")
+
+	p, err := buildTuplePlan(reflect.TypeFor[tupleProbe](), make(map[reflect.Type]*tuplePlan))
+	require.NoError(t, err, "buildTuplePlan must not error")
+	positions := make([]int, len(p.fields))
+	nilable := make(map[string]bool, len(p.fields))
+	for i := range p.fields {
+		positions[i] = p.fields[i].position
+		nilable[strings.TrimPrefix(p.fields[i].name, "bitfinex.tupleProbe.")] = p.fields[i].nilable
+	}
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16}, positions, "buildTuplePlan should order the fields by position")
+	assert.Equal(t, map[string]bool{
+		"Float": false, "Int": false, "Uint": false, "Text": false, "Flag": false, "Time": false, "Boolean": false, "Raw": true, "Level": false,
+		"Levels": true, "Number": false, "Code": false, "Optional": true, "Strings": true, "Small": false, "Last": false,
+	}, nilable, "buildTuplePlan should mark the pointer and slice fields, which null sets to nil")
+	for name, typ := range map[string]reflect.Type{
+		"a shared position":                    reflect.TypeFor[tupleSharedPosition](),
+		"no tags":                              reflect.TypeFor[tupleUntagged](),
+		"no struct":                            reflect.TypeFor[int64](),
+		"a nested tuple without UnmarshalJSON": reflect.TypeFor[tupleNestsNoMethod](),
+	} {
+		_, err := buildTuplePlan(typ, make(map[reflect.Type]*tuplePlan))
+		assert.ErrorIsf(t, err, errInvalidTupleType, "buildTuplePlan should refuse a type with %s", name)
+	}
+}
+
+func TestTuplePlanDecode(t *testing.T) {
+	t.Parallel()
+	level, err := tuplePlanOf(reflect.TypeFor[tupleProbeLevel]())
+	require.NoError(t, err, "tuplePlanOf must not error")
+	got := tupleProbeLevel{Price: 9, Amount: 9}
+	require.NoError(t, level.decode([]byte(`[1,null,null]`), unsafe.Pointer(&got)), "decode must not error")
+	assert.Equal(t, tupleProbeLevel{Price: 1, Amount: 9}, got, "decode should set the fields of the elements given, and leave a number null leaves as it was")
+	require.NoError(t, level.decode([]byte(` null `), unsafe.Pointer(&got)), "decode must not error for null")
+	assert.Equal(t, tupleProbeLevel{Price: 1, Amount: 9}, got, "decode should leave the struct as it was for null")
+	assert.ErrorIs(t, level.decode([]byte(`{}`), unsafe.Pointer(&got)), errTupleNotArray, "decode should refuse an object")
+	assert.ErrorIs(t, level.decode([]byte(`[1,`), unsafe.Pointer(&got)), errMalformedTuple, "decode should refuse a malformed array")
+	assert.ErrorIs(t, level.decode([]byte(`["x"]`), unsafe.Pointer(&got)), errTupleElementType, "decode should refuse an element of the wrong type")
+
+	probe, err := tuplePlanOf(reflect.TypeFor[tupleProbe]())
+	require.NoError(t, err, "tuplePlanOf must not error")
+	optional := 1.0
+	reused := tupleProbe{Raw: json.RawMessage(`{}`), Levels: []tupleProbeLevel{{Price: 1}}, Optional: &optional, Strings: []string{"x"}}
+	require.NoError(t, probe.decode([]byte(`[null,null,null,null,null,null,null,null,null,null,null,null,null,null]`), unsafe.Pointer(&reused)), "decode must not error for null elements")
+	assert.Zero(t, reused, "decode should set the pointers and slices of null elements to nil")
 }
 
 func TestUnmarshalTupleErrors(t *testing.T) {

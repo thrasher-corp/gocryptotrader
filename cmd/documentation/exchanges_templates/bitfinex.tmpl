@@ -35,17 +35,24 @@ return a `Notification` holding the record they affected, whose `Err` reports a 
 
 + `SubmitOrder` places spot orders from the exchange wallet, as Bitfinex's EXCHANGE order types, and margin orders from
   the margin wallet. It places limit, market, stop, stop limit and trailing stop orders; fill or kill and immediate or
-  cancel limit orders; and post only, reduce only and good till time orders. A stop's trigger price is its price, and
-  a trailing stop takes its distance from the `TrackingValue`.
+  cancel limit orders; and post only, reduce only and good till time orders. A stop needs its `TriggerPrice`, which
+  Bitfinex takes as its price, and a stop limit its `Price` too, the limit it places; a trailing stop takes its distance
+  in price from the `TrackingValue`. A good till crossing limit order is placed post only, and a time in force or
+  tracking mode Bitfinex has no order for, such as good till day without an end time, is refused rather than left out.
 + Client order IDs must be numbers, as Bitfinex's are.
-+ `ModifyOrder` changes an order's price and amount; changing its amount needs the order's side, as Bitfinex signs an
-  amount by its side.
++ `ModifyOrder` looks the order up, as Bitfinex reads an update by the order's type and takes its amount as what remains
+  of the order. It moves a stop by its `TriggerPrice`, a stop limit by its `TriggerPrice` and its `Price`, its limit,
+  and any other order by its `Price`. An amount is the order's whole amount, as GCT holds it, and is sent less what the
+  order has executed; changing it needs the order's side, as Bitfinex signs an amount by its side.
 + With the authenticated websocket connected, orders are placed, updated and cancelled through it; otherwise over REST.
-+ `CancelAllOrders` cancels the open orders of the requested asset, and of its pair when one is given.
-  `CancelBatchOrders` cancels its orders in one request. Through the websocket both report the orders pending
-  cancellation, as Bitfinex confirms each with the order's close event.
++ `CancelAllOrders` cancels the open orders of the requested asset, and of its pair when one is given; a request naming
+  neither, or the nil one the cancel all orders RPC sends, cancels every open order through Bitfinex's own cancellation
+  of them all. `CancelBatchOrders` cancels its orders in one request. Both report the orders pending cancellation, as
+  Bitfinex confirms each when the order closes.
 + `GetOrderInfo` returns an order with its trades and their fees. `GetOrderHistory` returns the orders of the last two
-  weeks, as Bitfinex keeps them.
+  weeks, as Bitfinex keeps them. What an order has executed is read from the fills its status lists, and from its
+  trades where they reach further, as Bitfinex keeps an order's original amount from before any update. A partially
+  filled order from the history, or closed over the websocket, is reported partially filled and cancelled.
 
 ### Perpetual contracts
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (
@@ -184,6 +186,32 @@ func orderStatusFromBitfinex(status string) order.Status {
 	return order.UnknownStatus
 }
 
+// closedOrderStatus returns the status of an order that has left the book. Bitfinex's history, and its websocket's
+// order closed event, can report an order whose remainder was cancelled as PARTIALLY FILLED
+func closedOrderStatus(s order.Status) order.Status {
+	if s == order.PartiallyFilled {
+		return order.PartiallyFilledCancelled
+	}
+	return s
+}
+
+// orderStatusFill matches each fill an order's status lists, @ PRICE(AMOUNT), such as the two of "EXECUTED @
+// 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)", but not a note such as INSUFFICIENT BALANCE (G1)'s
+var orderStatusFill = regexp.MustCompile(`@ -?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d{1,3})?\((-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d{1,3})?)\)`)
+
+// orderStatusExecutedAmount returns the amount an order has executed, adding up the fills its status lists as the
+// decimals Bitfinex writes them in. Bitfinex keeps an order's original amount from before any update, so what an order
+// has executed cannot be told from what remains of it
+func orderStatusExecutedAmount(status string) decimal.Decimal {
+	executed := decimal.Zero
+	for _, fill := range orderStatusFill.FindAllStringSubmatch(status, -1) {
+		if amount, err := decimal.NewFromString(fill[1]); err == nil {
+			executed = executed.Add(amount.Abs())
+		}
+	}
+	return executed
+}
+
 // orderSideFromAmount returns the side an order's signed amount gives: positive buys, negative sells
 func orderSideFromAmount(amount float64) (order.Side, error) {
 	switch {
@@ -217,8 +245,8 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 	if !o.TimeInForce.Time().IsZero() {
 		tif |= order.GoodTillTime
 	}
-	amount := math.Abs(o.OriginalAmount)
 	remaining := math.Abs(o.Amount)
+	executed := orderStatusExecutedAmount(o.Status)
 	d := &order.Detail{
 		Exchange:             e.Name,
 		OrderID:              strconv.FormatUint(o.ID, 10),
@@ -229,9 +257,9 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 		TimeInForce:          tif,
 		Status:               orderStatusFromBitfinex(o.Status),
 		Price:                o.Price,
-		Amount:               amount,
+		Amount:               executed.Add(decimal.MustFromFloat(remaining)).InexactFloat64(),
 		RemainingAmount:      remaining,
-		ExecutedAmount:       amount - remaining,
+		ExecutedAmount:       executed.InexactFloat64(),
 		AverageExecutedPrice: o.AveragePrice,
 		HiddenOrder:          bool(o.Hidden) || o.Flags&OrderFlagHidden != 0,
 		ReduceOnly:           o.Flags&OrderFlagReduceOnly != 0,

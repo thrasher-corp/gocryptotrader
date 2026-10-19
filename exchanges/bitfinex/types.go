@@ -98,7 +98,7 @@ type Order struct {
 	UpdatedAt     types.Time `tuple:"5"`
 	// Amount is what remains of the order: positive for a buy, negative for a sell
 	Amount float64 `tuple:"6"`
-	// OriginalAmount is the amount the order was placed, or last updated, with
+	// OriginalAmount is the amount the order was placed with, which an update leaves as it was
 	OriginalAmount float64 `tuple:"7"`
 	// Type is one of the order types, such as LIMIT or EXCHANGE LIMIT
 	Type         string `tuple:"8"`

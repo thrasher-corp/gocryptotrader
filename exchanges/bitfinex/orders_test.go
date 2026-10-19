@@ -676,6 +676,21 @@ func TestPlaceOrderRequestBody(t *testing.T) {
 	body, err = (&PlaceOrderRequest{Type: ExchangeOrderTypePrefix + OrderTypeMarket, Symbol: "tBTCUSD", Amount: 1}).body()
 	require.NoError(t, err, "body must not error for a market order without a price")
 	assertBodyJSON(t, `{"type":"EXCHANGE MARKET","symbol":"tBTCUSD","amount":"1","price":"0"}`, body)
+	for _, tc := range []struct {
+		r   PlaceOrderRequest
+		err error
+	}{
+		{r: PlaceOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
+		{r: PlaceOrderRequest{Amount: math.Inf(-1)}, err: errInvalidAmount},
+		{r: PlaceOrderRequest{Amount: 1, Price: math.NaN()}, err: errInvalidPrice},
+		{r: PlaceOrderRequest{Amount: 1, TrailingPrice: math.Inf(1)}, err: errInvalidPrice},
+		{r: PlaceOrderRequest{Amount: 1, AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
+		{r: PlaceOrderRequest{Amount: 1, OCOStopPrice: math.NaN()}, err: errInvalidPrice},
+	} {
+		tc.r.Type, tc.r.Symbol = OrderTypeLimit, "tBTCUSD"
+		_, err := tc.r.body()
+		assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+	}
 }
 
 func TestUpdateOrderRequestBody(t *testing.T) {
@@ -702,6 +717,37 @@ func TestUpdateOrderRequestBody(t *testing.T) {
 	body, err = (&UpdateOrderRequest{ID: 1}).body()
 	require.NoError(t, err, "body must not error for an update of nothing")
 	assertBodyJSON(t, `{"id":1}`, body)
+	for _, tc := range []struct {
+		r   UpdateOrderRequest
+		err error
+	}{
+		{r: UpdateOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
+		{r: UpdateOrderRequest{Delta: math.Inf(1)}, err: errInvalidAmount},
+		{r: UpdateOrderRequest{Price: math.Inf(-1)}, err: errInvalidPrice},
+		{r: UpdateOrderRequest{TrailingPrice: -1}, err: errInvalidPrice},
+		{r: UpdateOrderRequest{AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
+	} {
+		tc.r.ID = 1
+		_, err := tc.r.body()
+		assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+	}
+}
+
+func TestCheckOrderNumbers(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, checkOrderNumbers([]float64{-1, 0, 1}, []float64{0, 1}), "checkOrderNumbers must accept signed amounts and prices of at least zero")
+	for _, tc := range []struct {
+		amounts, prices []float64
+		err             error
+	}{
+		{amounts: []float64{1, math.NaN()}, err: errInvalidAmount},
+		{amounts: []float64{math.Inf(1)}, err: errInvalidAmount},
+		{prices: []float64{1, -0.1}, err: errInvalidPrice},
+		{prices: []float64{math.NaN()}, err: errInvalidPrice},
+		{prices: []float64{math.Inf(1)}, err: errInvalidPrice},
+	} {
+		assert.ErrorIsf(t, checkOrderNumbers(tc.amounts, tc.prices), tc.err, "checkOrderNumbers should refuse amounts %v and prices %v", tc.amounts, tc.prices)
+	}
 }
 
 func TestCancelExistingOrderRequestBody(t *testing.T) {

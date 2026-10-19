@@ -511,7 +511,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case '{':
 		return e.wsHandleEvent(ctx, conn, respRaw)
 	case '[':
-		channelID, err := jsonparser.GetInt(respRaw, "[0]")
+		// The channel ID leads the frame, and is read directly, as an index lookup walks every element of the frame
+		channelID, err := jsonparser.GetInt(respRaw[1:])
 		if err != nil {
 			return fmt.Errorf("%w: %w: %.256s", errWebsocketMalformedFrame, err, respRaw)
 		}

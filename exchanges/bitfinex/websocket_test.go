@@ -364,7 +364,7 @@ func TestWebsocketHandleSharedChannelMarginJoins(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "an update for a margin book without a snapshot should report it missing")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the spot book should await the snapshot margin's book needs")
-	ex.Websocket.Wg.Wait()
+	waitForRenewals(t, ex)
 
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, frame(`[[1,100,1],[2,101,-1]],1792128962863`)), "a fresh snapshot must load")
 	err = ex.wsHandleData(t.Context(), conn, frame(`"cs",12345,1792128962864`))
@@ -405,7 +405,7 @@ func TestWebsocketSharedBookToggle(t *testing.T) {
 	err = ex.wsHandleData(t.Context(), conn, frame(`[4,98,1],1792128962863`))
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an update for a margin book left stale while unshared should call for a snapshot")
 	// The test connection is not connected, so the renewal gives up
-	ex.Websocket.Wg.Wait()
+	waitForRenewals(t, ex)
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, frame(`[[1,100,1],[2,101,-1],[3,99,1],[4,98,1]],1792128962864`)), "a fresh snapshot must load both books")
 	spotBook, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error for spot")
@@ -565,11 +565,11 @@ func TestWebsocketHandleChecksumMismatch(t *testing.T) {
 	_, err = ex.Websocket.Orderbook.GetOrderbook(testFundingUSD, asset.MarginFunding)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a book failing its checksum should be invalidated")
 	// The test connection is not connected, so resubscribing fails, and lets the book's next failure try again
-	ex.Websocket.Wg.Wait()
+	waitForRenewals(t, ex)
 	assert.False(t, ex.wsBookResync.pending(bookKey), "a failed resubscription should not leave the book awaiting a snapshot")
 	err = ex.wsHandleData(t.Context(), conn, frame(`"cs",12345,1792128962862`))
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a checksum of a book left invalid should resubscribe it again")
-	ex.Websocket.Wg.Wait()
+	waitForRenewals(t, ex)
 
 	_, started := ex.wsBookResync.start(bookKey)
 	require.True(t, started, "start must mark the book as resubscribing")
@@ -583,6 +583,24 @@ func TestWebsocketHandleChecksumMismatch(t *testing.T) {
 	}
 	_, err = ex.Websocket.Orderbook.GetOrderbook(testFundingUSD, asset.MarginFunding)
 	assert.NoError(t, err, "a fresh snapshot should restore the book")
+}
+
+// waitForRenewals waits for the channel renewals an exchange started, which give up once their connection is closed,
+// failing rather than hanging should one keep retrying
+func waitForRenewals(t *testing.T, ex *Exchange) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		ex.Websocket.Wg.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		require.FailNow(t, "channel renewals must give up on a closed connection")
+	}
 }
 
 // mustPublicFixture returns the public websocket fixture
@@ -623,7 +641,7 @@ func TestWebsocketProcessBookErrors(t *testing.T) {
 	rawKey := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USD.Item, Asset: asset.Spot}
 	err = raw.wsHandleData(t.Context(), rawConn, rawFrame(`[3,0,1],1792128962862`))
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "removing an order the book does not hold must invalidate it")
-	raw.Websocket.Wg.Wait()
+	waitForRenewals(t, raw)
 	_, started := raw.wsBookResync.start(rawKey)
 	require.True(t, started, "start must mark the book as resubscribing, its resubscription having failed")
 	assert.NoError(t, raw.wsHandleData(t.Context(), rawConn, rawFrame(`[1,0,1],1792128962863`)), "updates awaiting the resubscribed book's snapshot should be dropped")

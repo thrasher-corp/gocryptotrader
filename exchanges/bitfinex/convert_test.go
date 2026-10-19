@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (
@@ -152,6 +153,40 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 	}
 }
 
+func TestClosedOrderStatus(t *testing.T) {
+	t.Parallel()
+	for status, exp := range map[order.Status]order.Status{
+		order.PartiallyFilled:          order.PartiallyFilledCancelled,
+		order.PartiallyFilledCancelled: order.PartiallyFilledCancelled,
+		order.Filled:                   order.Filled,
+		order.Cancelled:                order.Cancelled,
+		order.Active:                   order.Active,
+		order.InsufficientBalance:      order.InsufficientBalance,
+	} {
+		assert.Equalf(t, exp, closedOrderStatus(status), "closedOrderStatus should report a closed %s order %s", status, exp)
+	}
+}
+
+func TestOrderStatusExecutedAmount(t *testing.T) {
+	t.Parallel()
+	for status, exp := range map[string]float64{
+		"ACTIVE":                 0,
+		"EXECUTED @ 107.6(-0.2)": 0.2,
+		"EXECUTED @ 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)":                     1,
+		"PARTIALLY FILLED @ 100.0(0.1), PARTIALLY FILLED @ 101.0(0.2)":                   0.3,
+		"CANCELED was: PARTIALLY FILLED @ 0.0218(-0.3), PARTIALLY FILLED @ 0.0218(-0.2)": 0.5,
+		"INSUFFICIENT BALANCE (G1) was: PARTIALLY FILLED @ 1.0(0.5)":                     0.5,
+		"EXECUTED @ 9500.0(-0.5) was ACTIVE (note:POSCLOSE)":                             0.5,
+		"PARTIALLY FILLED @ 1.2e3(1e-7)":                                                 0.0000001,
+		"RSN_DUST (amount is less than 0.00000001)":                                      0,
+		"CANCELED": 0,
+		"PARTIALLY FILLED @ x(0.1), PARTIALLY FILLED @ 100(y), PARTIALLY FILLED @ 100(0.1e-2147483647)": 0,
+	} {
+		got := orderStatusExecutedAmount(status)
+		assert.Truef(t, decimal.MustFromFloat(exp).Equal(got), "orderStatusExecutedAmount should add up the fills %q lists to %v exactly, got %s", status, exp, got)
+	}
+}
+
 func TestOrderSideFromAmount(t *testing.T) {
 	t.Parallel()
 	side, err := orderSideFromAmount(1)
@@ -185,6 +220,24 @@ func TestOrderDetail(t *testing.T) {
 	assert.Equal(t, 90.0, stop.TriggerPrice, "a stop order's price should be its trigger")
 	assert.Zero(t, stop.Price, "a stop order should trade at the market once triggered")
 	assert.True(t, stop.HiddenOrder, "an order Bitfinex reports hidden should be hidden")
+
+	// Bitfinex keeps an order's original amount from before any update, as the documented update reply does: one raised
+	// from 0.1 to 0.25, and one lowered from 1 to 0.4 after executing 0.3, each by an update
+	for _, tc := range []struct {
+		o                           *Order
+		amount, executed, remaining float64
+	}{
+		{o: &Order{ID: 1, Symbol: "tBTCUSD", Amount: 0.25, OriginalAmount: 0.1, Type: OrderTypeLimit, Status: "ACTIVE"}, amount: 0.25, remaining: 0.25},
+		{o: &Order{ID: 2, Symbol: "tBTCUSD", Amount: -0.4, OriginalAmount: -1, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, amount: 0.7, executed: 0.3, remaining: 0.4},
+		// Added up as floats, 0.1 and 0.2 make 0.30000000000000004
+		{o: &Order{ID: 3, Symbol: "tBTCUSD", Amount: 0.2, OriginalAmount: 0.3, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(0.1)"}, amount: 0.3, executed: 0.1, remaining: 0.2},
+	} {
+		got, err := e.orderDetail(tc.o)
+		require.NoErrorf(t, err, "orderDetail must not error for updated order %d", tc.o.ID)
+		assert.Equalf(t, tc.amount, got.Amount, "orderDetail should report updated order %d's whole amount as what it executed and what remains", tc.o.ID)
+		assert.Equalf(t, tc.executed, got.ExecutedAmount, "orderDetail should report what updated order %d executed from the fills its status lists", tc.o.ID)
+		assert.Equalf(t, tc.remaining, got.RemainingAmount, "orderDetail should report what remains of updated order %d", tc.o.ID)
+	}
 
 	for _, tc := range []struct {
 		o   *Order

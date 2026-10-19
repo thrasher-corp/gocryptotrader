@@ -20,8 +20,6 @@ func testTupleDecode[T any](t *testing.T, data string, exp T) {
 	assert.Equalf(t, exp, got, "Unmarshal should decode every field of %T", got)
 }
 
-// TestSharedRecordsEveryPosition decodes each shared record from an array with a distinct value at every tagged
-// position, so a field tagged with the wrong position or type cannot pass on a null or zero element
 func TestFundingFlagsUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -43,6 +41,8 @@ func TestFundingFlagsUnmarshalJSON(t *testing.T) {
 		FundingOffer{ID: 1000, Symbol: "fUSD", Amount: 1, OriginalAmount: 1, Type: FundingOfferTypeLimit, Status: "ACTIVE"})
 }
 
+// TestSharedRecordsEveryPosition decodes each shared record from an array with a distinct value at every tagged
+// position, so a field tagged with the wrong position or type cannot pass on a null or zero element
 func TestSharedRecordsEveryPosition(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `[1000,1001,1002,"s3",1700000000004,1700000000005,6.5,7.5,"s8","s9",1700000000010,null,1012,"s13",null,null,16.5,17.5,18.5,19.5,null,null,null,1,1,1025,null,null,"s28",null,null,{"k":31}]`,

@@ -259,6 +259,7 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 		err   error
 	}{
 		{frame: `[0,[1]]`, err: errWebsocketMalformedFrame},
+		{frame: `[0,"hb`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",["novel",[1]]]`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",[]]`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"on",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`, err: errUnknownOrderType},
@@ -281,6 +282,36 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 	relayed = relayedPayloads(quiet)
 	require.Len(t, relayed, 1, "only the account trade must be relayed with the fills feed off")
 	assert.IsType(t, &AccountTrade{}, relayed[0], "the account trade should be relayed with the fills feed off")
+}
+
+func TestWebsocketHandleOrder(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	const partial = `[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438519,-0.75,-1,"LIMIT",null,null,null,0,"PARTIALLY FILLED @ 230.0(-0.25)",null,null,230,230,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]`
+	for _, tc := range []struct {
+		closed bool
+		exp    order.Status
+	}{
+		{exp: order.PartiallyFilled},
+		{closed: true, exp: order.PartiallyFilledCancelled},
+	} {
+		require.NoErrorf(t, ex.wsHandleOrder(t.Context(), tc.closed, []byte(`[0,"ou",`+partial+`]`)), "wsHandleOrder must not error, closed %t", tc.closed)
+		relayed := relayedPayloads(ex)
+		require.Lenf(t, relayed, 1, "wsHandleOrder must relay the order, closed %t", tc.closed)
+		d, ok := relayed[0].(*order.Detail)
+		require.Truef(t, ok, "wsHandleOrder must relay the order as an order detail, closed %t", tc.closed)
+		assert.Equalf(t, tc.exp, d.Status, "wsHandleOrder should report a partially filled order %s, closed %t", tc.exp, tc.closed)
+	}
+	for event, exp := range map[string]order.Status{"on": order.PartiallyFilled, "ou": order.PartiallyFilled, "oc": order.PartiallyFilledCancelled} {
+		require.NoErrorf(t, ex.wsHandleAccountEvent(t.Context(), conn, []byte(`[0,"`+event+`",`+partial+`]`)), "wsHandleAccountEvent must not error for an %s event", event)
+		relayed := relayedPayloads(ex)
+		require.Lenf(t, relayed, 1, "wsHandleAccountEvent must relay the order of an %s event", event)
+		d, ok := relayed[0].(*order.Detail)
+		require.Truef(t, ok, "wsHandleAccountEvent must relay the order of an %s event as an order detail", event)
+		assert.Equalf(t, exp, d.Status, "wsHandleAccountEvent should report a partially filled order of an %s event %s", event, exp)
+	}
+	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",{}]`)), errTupleNotArray, "wsHandleOrder should refuse an order that is not an array")
+	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`)), errUnknownOrderType, "wsHandleOrder should refuse an order of an unknown type")
 }
 
 func TestWebsocketNotificationSignature(t *testing.T) {

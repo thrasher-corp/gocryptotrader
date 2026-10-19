@@ -243,7 +243,7 @@ type OrderOperationOrders struct {
 // Cancel Orders (multiple) return, but which may be one order, as Update Order and Cancel Order return
 func (o *OrderOperationOrders) UnmarshalJSON(data []byte) error {
 	// An order begins with its ID, a list of orders with an order
-	if _, dataType, _, err := jsonparser.Get(data, "[0]"); err == nil && dataType == jsonparser.Number {
+	if _, dataType, err := leadingElement(data); err == nil && dataType == jsonparser.Number {
 		var single Order
 		if err := single.UnmarshalJSON(data); err != nil {
 			return err

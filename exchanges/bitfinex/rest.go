@@ -95,7 +95,7 @@ func responseError(body []byte) error {
 	switch body[0] {
 	case '[':
 		// Only the first element is read, so a large response is not decoded twice
-		if event, dataType, _, _ := jsonparser.Get(body, "[0]"); dataType != jsonparser.String || string(event) != "error" {
+		if event, dataType, _ := leadingElement(body); dataType != jsonparser.String || string(event) != "error" {
 			return nil
 		}
 		var e errorTuple

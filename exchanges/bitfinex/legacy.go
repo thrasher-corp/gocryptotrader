@@ -134,7 +134,8 @@ func (e *Exchange) RequestFiatWithdrawal(ctx context.Context, req *FiatWithdrawa
 }
 
 // intermediaryBankAccount returns the intermediary bank account a wire goes through: its IBAN, or else its account
-// number, which GCT holds as a float64 and so is refused once it cannot be held exactly, rather than sent rounded
+// number, which GCT holds as a float64 and so is refused once it may not be the number given, rather than sent rounded.
+// 2^53 itself is refused, as 2^53+1 rounds to it
 func intermediaryBankAccount(f *withdraw.FiatRequest) (string, error) {
 	if f.IntermediaryIBAN != "" {
 		return f.IntermediaryIBAN, nil
@@ -143,7 +144,7 @@ func intermediaryBankAccount(f *withdraw.FiatRequest) (string, error) {
 	switch {
 	case n == 0:
 		return "", errIntermediaryBankAccountRequired
-	case n < 0 || n != math.Trunc(n) || n > 1<<53:
+	case n < 0 || n != math.Trunc(n) || n >= 1<<53:
 		return "", fmt.Errorf("%w: %v", errIntermediaryBankAccountInexact, n)
 	}
 	return strconv.FormatFloat(n, 'f', 0, 64), nil
