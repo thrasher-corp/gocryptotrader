@@ -406,6 +406,8 @@ func TestIsSymbolChannel(t *testing.T) {
 		{channelMarkPrice, true},
 		{channelOpenInterest, true},
 		{channelInstruments, false},
+		{liquidationOrders, false},
+		{channelOrders, false},
 		{subscription.MyAccountChannel, false},
 		{subscription.MyOrdersChannel, false},
 		{"unknown", false},
@@ -443,12 +445,25 @@ func TestIsAssetChannel(t *testing.T) {
 		{channelInstruments, true},
 		{liquidationOrders, true},
 		{subscription.MyAccountChannel, false},
+		{subscription.TickerChannel, false},
 		{channelTickers, false},
 		{"unknown", false},
 	} {
 		t.Run(tc.channel, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, isAssetChannel(&subscription.Subscription{Channel: tc.channel}), "asset channel classification must match the API scope")
+			if !tc.want {
+				return
+			}
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "test exchange setup must succeed")
+			authenticated := tc.channel == channelOrders || tc.channel == subscription.MyOrdersChannel
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Asset: asset.PerpetualSwap, Authenticated: authenticated}}
+			subs, err := ex.generateSubscriptions(!authenticated)
+			require.NoError(t, err, "asset subscription expansion must succeed")
+			require.Len(t, subs, 1, "all enabled instruments must share one asset subscription")
+			require.JSONEq(t, fmt.Sprintf(`{"channel":%q,"instType":"SWAP"}`, channelName(ex.Features.Subscriptions[0])), subs[0].QualifiedChannel, "asset channels must omit instrument-specific arguments")
 		})
 	}
 }

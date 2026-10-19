@@ -1440,14 +1440,18 @@ func channelName(s *subscription.Subscription) string {
 
 // isAssetChannel returns if the channel expects one Asset per subscription
 func isAssetChannel(s *subscription.Subscription) bool {
-	return s.Channel == subscription.MyOrdersChannel || s.Channel == channelOrders || s.Channel == liquidationOrders || s.Channel == channelInstruments
+	switch channelName(s) {
+	case channelOrders, liquidationOrders, channelInstruments:
+		return true
+	}
+	return false
 }
 
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
-	switch s.Channel {
-	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel,
-		channelTickers, channelTrades, channelOrderBooks, channelOrderBooks5, channelOrderBooks50TBT, channelOrderBooksTBT, channelBBOTBT, channelFundingRate, channelMarkPrice, channelOpenInterest:
+	switch channelName(s) {
+	case subscription.CandlesChannel, channelTickers, channelTrades, channelOrderBooks, channelOrderBooks5,
+		channelOrderBooks50TBT, channelOrderBooksTBT, channelBBOTBT, channelFundingRate, channelMarkPrice, channelOpenInterest:
 		return true
 	}
 	return false

@@ -16,7 +16,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestObservationLiquidationOrders(t *testing.T) {
+func TestPublicLiquidationSubscriptionCycle(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "setup must succeed")

@@ -5006,6 +5006,23 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		request *fundingrate.HistoricalRatesRequest
+		want    error
+	}{
+		{name: "nil request", want: common.ErrNilPointer},
+		{name: "unsupported asset", request: &fundingrate.HistoricalRatesRequest{Asset: asset.Spot, Pair: perpetualSwapPair}, want: futures.ErrNotPerpetualFuture},
+		{name: "empty pair", request: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap}, want: currency.ErrCurrencyPairEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := new(Exchange).GetHistoricalFundingRates(t.Context(), tc.request)
+			require.ErrorIs(t, err, tc.want, "invalid request must fail before accessing exchange state")
+			assert.Nil(t, result, "invalid request should return no rates")
+		})
+	}
+
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		// The live pager has no loop guard of its own, so bound the whole run to
@@ -5658,24 +5675,76 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			require.NotNil(t, result)
 		}
 	})
-	t.Run("shared conversion", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/public/instruments", r.URL.Path, "wrapper should request instruments")
-			_, err := fmt.Fprint(w, `{"code":"0","data":[{"instId":"BTC-USD-SWAP","instType":"SWAP","ctType":"inverse","settleCcy":"BTC","state":"suspend","ctVal":"100"}]}`)
-			assert.NoError(t, err, "response should write")
-		}))
-		t.Cleanup(server.Close)
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
-		got, err := ex.GetFuturesContractDetails(t.Context(), asset.PerpetualSwap)
-		require.NoError(t, err, "wrapper must convert suspended instruments")
-		require.Len(t, got, 1, "one contract must load")
-		assert.Equal(t, futures.Inverse, got[0].SettlementType, "wrapper should use native inverse classification")
-		assert.Equal(t, currency.BTC, got[0].SettlementCurrency, "wrapper should preserve inactive settlement terms")
-		assert.False(t, got[0].IsActive, "suspended instrument should remain inactive")
-	})
+	for _, tc := range []struct {
+		name, instrumentType, underlying, state, settlementType, alias string
+		item                                                           asset.Item
+		currency                                                       currency.Code
+		wantSettlement                                                 futures.ContractSettlementType
+		wantType                                                       futures.ContractType
+		wantErr                                                        error
+	}{
+		{name: "spot", item: asset.Spot, wantErr: futures.ErrNotFuturesAsset},
+		{name: "unsupported futures", item: asset.USDTMarginedFutures, wantErr: asset.ErrNotSupported},
+		{name: "wrong instrument type", item: asset.PerpetualSwap, instrumentType: "SPOT", wantErr: asset.ErrNotSupported},
+		{name: "active missing underlying", item: asset.PerpetualSwap, state: "live", wantErr: currency.ErrCreatingPair},
+		{name: "invalid settlement", item: asset.PerpetualSwap, underlying: "BTC-USD", settlementType: "unknown", wantErr: futures.ErrInvalidContractSettlementType},
+		{name: "linear", item: asset.PerpetualSwap, instrumentType: "SWAP", underlying: "BTC-USDT", state: "live", settlementType: "linear", currency: currency.USDT, wantSettlement: futures.Linear, wantType: futures.Perpetual},
+		{name: "inverse empty base currency", item: asset.PerpetualSwap, instrumentType: "swap", underlying: "BTC-USD", state: "live", settlementType: "inverse", currency: currency.BTC, wantSettlement: futures.Inverse, wantType: futures.Perpetual},
+		{name: "inverse fallback", item: asset.PerpetualSwap, underlying: "BTC-USD", state: "live", currency: currency.BTC, wantSettlement: futures.Inverse, wantType: futures.Perpetual},
+		{name: "linear fallback", item: asset.PerpetualSwap, underlying: "BTC-USDT", state: "live", currency: currency.USDT, wantSettlement: futures.Linear, wantType: futures.Perpetual},
+		{name: "explicit type wins", item: asset.PerpetualSwap, underlying: "BTC-USD", state: "live", settlementType: "linear", currency: currency.BTC, wantSettlement: futures.Linear, wantType: futures.Perpetual},
+		{name: "suspended inverse", item: asset.PerpetualSwap, state: "suspend", settlementType: "inverse", currency: currency.BTC, wantSettlement: futures.Inverse, wantType: futures.Perpetual},
+		{name: "inactive preserves underlying", item: asset.PerpetualSwap, state: "preopen", underlying: "BTC-USDT", settlementType: "linear", currency: currency.USDT, wantSettlement: futures.Linear, wantType: futures.Perpetual},
+		{name: "inactive empty metadata", item: asset.PerpetualSwap, state: "expired", wantSettlement: futures.Linear, wantType: futures.Perpetual},
+		{name: "this week", item: asset.Futures, instrumentType: "FUTURES", state: "live", underlying: "BTC-USD", alias: "this_week", settlementType: "inverse", currency: currency.BTC, wantSettlement: futures.Inverse, wantType: futures.Weekly},
+		{name: "next week", item: asset.Futures, underlying: "BTC-USD", alias: "next_week", wantSettlement: futures.Linear, wantType: futures.Weekly},
+		{name: "quarter", item: asset.Futures, underlying: "BTC-USD", alias: "quarter", wantSettlement: futures.Linear, wantType: futures.Quarterly},
+		{name: "next quarter", item: asset.Futures, underlying: "BTC-USD", alias: "next_quarter", wantSettlement: futures.Linear, wantType: futures.Quarterly},
+		{name: "unknown alias", item: asset.Futures, underlying: "BTC-USD", alias: "other", wantSettlement: futures.Linear},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			started, expires := time.Unix(1700000000, 0).UTC(), time.Unix(1700100000, 0).UTC()
+			instrumentID := "BTC-USD-SWAP"
+			if tc.item == asset.Futures {
+				instrumentID = "BTC-USD-231115"
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/public/instruments", r.URL.Path, "wrapper should request instruments")
+				assert.Equal(t, GetInstrumentTypeFromAssetItem(tc.item), r.URL.Query().Get("instType"), "request should use the selected asset")
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":%q,"instType":%q,"uly":%q,"state":%q,"ctType":%q,"settleCcy":%q,"alias":%q,"ctVal":"100","lever":"20","listTime":"%d","expTime":"%d"}]}`, instrumentID, tc.instrumentType, tc.underlying, tc.state, tc.settlementType, tc.currency.String(), tc.alias, started.UnixMilli(), expires.UnixMilli())
+				assert.NoError(t, err, "instrument response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			contracts, err := ex.GetFuturesContractDetails(t.Context(), tc.item)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid metadata must return the expected error")
+				return
+			}
+			require.NoError(t, err, "valid metadata must produce contract details")
+			require.Len(t, contracts, 1, "one instrument must produce one contract")
+			got := contracts[0]
+			assert.Equal(t, tc.wantSettlement, got.SettlementType, "settlement type should follow native metadata")
+			assert.Equal(t, tc.wantType, got.Type, "contract type should follow the asset and alias")
+			assert.Equal(t, tc.currency, got.MarginCurrency, "margin currency should survive in every state")
+			assert.Equal(t, tc.currency, got.SettlementCurrency, "settlement currency should survive in every state")
+			assert.Equal(t, tc.state == "live", got.IsActive, "activity should follow instrument state")
+			assert.Equal(t, tc.state, got.Status, "status should remain available")
+			assert.Equal(t, "Okx", got.Exchange, "exchange should be retained")
+			assert.Equal(t, instrumentID, got.Name.String(), "instrument identity should be retained")
+			assert.Equal(t, tc.item, got.Asset, "asset should be retained")
+			assert.Equal(t, started, got.StartDate.UTC(), "listing time should be retained")
+			assert.Equal(t, expires, got.EndDate.UTC(), "expiry should be retained")
+			assert.Equal(t, float64(100), got.Multiplier, "contract value should be retained")
+			assert.Equal(t, float64(20), got.MaxLeverage, "leverage should be retained")
+			if tc.underlying != "" {
+				assert.Equal(t, tc.underlying, got.Underlying.String(), "underlying should be retained in every state")
+			}
+		})
+	}
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {

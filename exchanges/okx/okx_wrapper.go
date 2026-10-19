@@ -2268,6 +2268,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r.Asset != asset.PerpetualSwap {
 		return nil, futures.ErrNotPerpetualFuture
 	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+	}
 	if r.EndDate.IsZero() {
 		// An unset end reads as open-ended, spanning up to now; a before-only
 		// query would make OKX answer with the oldest page after the start
@@ -2285,7 +2288,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if r.EndDate.Before(maxLookback) {
 			return nil, futures.ErrGetFundingDataRequired
 		}
-		r.StartDate = maxLookback
 	}
 	format, err := e.GetPairFormat(r.Asset, true)
 	if err != nil {
@@ -2299,54 +2301,56 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
-	// map of time indexes, allowing for easy lookup of slice index from unix time data
-	mti := make(map[int64]int)
+	// Match funding payments to the corresponding settlement timestamps.
+	rateIndexByTime := make(map[int64]int)
 	// The history arrives newest first, so after is the documented cursor for
 	// records earlier than the page's oldest funding time, while before holds
 	// the requested window floor.
 	sd := r.StartDate
-	afterTS := r.EndDate
+	historyCursor := r.EndDate
 	seen := make(map[int64]struct{})
 	for {
-		var frh []FundingRateResponse
-		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, afterTS, int64(requestLimit))
+		var history []FundingRateResponse
+		history, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, historyCursor, int64(requestLimit))
 		if err != nil {
 			return nil, err
 		}
-		if len(frh) == 0 {
+		if len(history) == 0 {
 			break
 		}
-		for i := range frh {
-			ft := frh[i].FundingTime.Time().Unix()
-			if _, dup := seen[ft]; dup {
+		for i := range history {
+			settledRate := &history[i]
+			settlementTime := settledRate.FundingTime.Time()
+			fundingTimestamp := settlementTime.Unix()
+			if _, dup := seen[fundingTimestamp]; dup {
 				continue
 			}
-			if frh[i].FundingTime.Time().Before(r.StartDate) || frh[i].FundingTime.Time().After(r.EndDate) {
+			if settlementTime.Before(r.StartDate) || settlementTime.After(r.EndDate) {
 				continue
 			}
-			if !frh[i].RealisedRatePresent {
+			if !settledRate.RealisedRatePresent {
 				return nil, fmt.Errorf("%w: realised funding rate missing", common.ErrNoResponse)
 			}
-			seen[ft] = struct{}{}
+			seen[fundingTimestamp] = struct{}{}
 			if r.IncludePayments {
-				mti[ft] = len(pairRate.FundingRates)
+				rateIndexByTime[fundingTimestamp] = len(pairRate.FundingRates)
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-				Time: frh[i].FundingTime.Time(),
-				Rate: frh[i].RealisedRate.Decimal(),
+				Time: settlementTime,
+				Rate: settledRate.RealisedRate.Decimal(),
 			})
 		}
-		if len(frh) < requestLimit {
+		if len(history) < requestLimit {
 			break
 		}
-		oldest := frh[len(frh)-1].FundingTime.Time()
-		if !oldest.Before(afterTS) {
+		oldest := history[len(history)-1].FundingTime.Time()
+		if !oldest.Before(historyCursor) {
 			break
 		}
 		if !sd.Before(oldest) {
 			break
 		}
-		afterTS = oldest
+		historyCursor = oldest
 	}
 	var fr *FundingRateResponse
 	fr, err = e.GetSingleFundingRate(ctx, fPair.String())
@@ -2401,7 +2405,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(fri).Unix()]; okay {
+				if index, okay := rateIndexByTime[billDetails[i].Timestamp.Time().Truncate(fri).Unix()]; okay {
 					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
 					continue
 				}
@@ -2866,9 +2870,58 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			resp[i], err = e.FuturesContractFromInstrument(&result[i], item)
+			instrument := &result[i]
+			if instrument.InstrumentType != "" && !strings.EqualFold(instrument.InstrumentType, instType) {
+				return nil, fmt.Errorf("%w: instrument type %s", asset.ErrNotSupported, instrument.InstrumentType)
+			}
+			var underlying currency.Pair
+			// Inactive instruments still have settlement terms needed to value open positions.
+			// Only active instruments require an underlying; preserve it whenever supplied.
+			if instrument.Underlying != "" || instrument.State == "live" {
+				underlying, err = currency.NewPairFromString(instrument.Underlying)
+				if err != nil {
+					return nil, err
+				}
+			}
+			settlementType, err := futures.StringToContractSettlementType(instrument.ContractType)
 			if err != nil {
 				return nil, err
+			}
+			if settlementType == futures.UnsetSettlementType {
+				settlementType = futures.Linear
+				// Derivative baseCcy is often empty; use the underlying only as a fallback.
+				if !instrument.SettlementCurrency.IsEmpty() && instrument.SettlementCurrency.Equal(underlying.Base) {
+					settlementType = futures.Inverse
+				}
+			}
+
+			var contractType futures.ContractType
+			if item == asset.PerpetualSwap {
+				contractType = futures.Perpetual
+			} else {
+				switch instrument.Alias {
+				case "this_week", "next_week":
+					contractType = futures.Weekly
+				case "quarter", "next_quarter":
+					contractType = futures.Quarterly
+				}
+			}
+
+			resp[i] = futures.Contract{
+				Exchange:           e.Name,
+				Name:               instrument.InstrumentID,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          instrument.ListTime.Time(),
+				EndDate:            instrument.ExpTime.Time(),
+				IsActive:           instrument.State == "live",
+				Status:             instrument.State,
+				Type:               contractType,
+				SettlementType:     settlementType,
+				MarginCurrency:     instrument.SettlementCurrency,
+				SettlementCurrency: instrument.SettlementCurrency,
+				Multiplier:         instrument.ContractValue.Float64(),
+				MaxLeverage:        instrument.MaxLeverage.Float64(),
 			}
 		}
 		return resp, nil

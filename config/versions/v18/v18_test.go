@@ -18,12 +18,46 @@ func TestExchanges(t *testing.T) {
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ name, input, expected string }{
-		{"defaults", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`},
-		{"escaped default", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`},
-		{"missing", `{}`, `{}`},
-		{"null", `{"api":{"urlEndpoints":null}}`, `{"api":{"urlEndpoints":null}}`},
-		{"custom", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`},
-		{"current", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`},
+		{
+			name:     "defaults",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+		},
+		{
+			name:     "escaped default",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "missing",
+			input:    `{}`,
+			expected: `{}`,
+		},
+		{
+			name:     "null",
+			input:    `{"api":{"urlEndpoints":null}}`,
+			expected: `{"api":{"urlEndpoints":null}}`,
+		},
+		{
+			name:     "custom",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+		},
+		{
+			name:     "current",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "mixed custom and legacy endpoints",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business"}}}`,
+		},
+		{
+			name:     "missing public endpoint",
+			input:    `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private"}}}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -32,11 +66,27 @@ func TestUpgradeExchange(t *testing.T) {
 			assert.JSONEq(t, tc.expected, string(got), "migration should replace only legacy defaults")
 		})
 	}
-	t.Run("invalid endpoint value", func(t *testing.T) {
-		t.Parallel()
-		_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`))
-		require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "invalid JSON must fail with its parser error")
-	})
+	for _, tc := range []struct {
+		name, input string
+		expected    error
+	}{
+		{
+			name:     "invalid endpoint value",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`,
+			expected: jsonparser.UnknownValueTypeError,
+		},
+		{
+			name:     "invalid endpoint escape",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\z"}}}`,
+			expected: jsonparser.MalformedValueError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, tc.expected, "invalid JSON must fail with its parser error")
+		})
+	}
 }
 
 func TestDowngradeExchange(t *testing.T) {
