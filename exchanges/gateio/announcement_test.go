@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -17,6 +18,9 @@ import (
 
 func TestGetAnnouncementArticles(t *testing.T) {
 	t.Parallel()
+	_, err := newFixedResponseExchange(t, "/api/v4/ann/list_article", `{"code":0,"data":null}`).GetAnnouncementArticles(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNoResults, "GetAnnouncementArticles must reject a response without data")
+
 	result, err := e.GetAnnouncementArticles(t.Context(), &AnnouncementArticlesRequest{Page: 1, Size: 2})
 	require.NoError(t, err, "GetAnnouncementArticles must not error")
 	if mockTests {

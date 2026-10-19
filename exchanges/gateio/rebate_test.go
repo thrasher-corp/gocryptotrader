@@ -344,6 +344,9 @@ func TestGetUserSubordinateRelationship(t *testing.T) {
 
 func TestGetRecentPartnerApplicationRecords(t *testing.T) {
 	t.Parallel()
+	_, err := newFixedResponseExchange(t, "/api/v4/rebate/partner/applications/recent", `{"code":0,"message":"success","data":null}`).GetRecentPartnerApplicationRecords(t.Context())
+	require.ErrorIs(t, err, common.ErrNoResults, "GetRecentPartnerApplicationRecords must reject a response without data")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -387,6 +390,9 @@ func TestGetRecentPartnerApplicationRecords(t *testing.T) {
 
 func TestCheckPartnerApplicationEligibility(t *testing.T) {
 	t.Parallel()
+	_, err := newFixedResponseExchange(t, "/api/v4/rebate/partner/eligibility", `{"code":0,"message":"success","data":null}`).CheckPartnerApplicationEligibility(t.Context())
+	require.ErrorIs(t, err, common.ErrNoResults, "CheckPartnerApplicationEligibility must reject a response without data")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -405,6 +411,9 @@ func TestGetAggregatedPartnerAgentStatistics(t *testing.T) {
 	startTime, endTime := getTime()
 	_, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), endTime, startTime, 1)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAggregatedPartnerAgentStatistics must reject a start after the end")
+
+	_, err = newFixedResponseExchange(t, "/api/v4/rebate/partner/data/aggregated", `{"code":0,"message":"success","data":null}`).GetAggregatedPartnerAgentStatistics(t.Context(), time.Time{}, time.Time{}, 0)
+	require.ErrorIs(t, err, common.ErrNoResults, "GetAggregatedPartnerAgentStatistics must reject a response without data")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

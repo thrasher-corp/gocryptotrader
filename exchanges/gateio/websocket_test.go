@@ -22,6 +22,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -67,17 +69,24 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 	e.Name = "ProcessSpotBalancesTest"
 	e.Accounts = accounts.MustNewAccounts(e)
 
+	// Gate's websocket user value identifies the primary account, which REST saves with an empty ID, so the balances
+	// carry that ID and their arrival time
 	for i, tc := range []websocketBalancesTest{
 		{
-			input: []byte(`[{"timestamp":"1755718222"}]`),
+			input: []byte(`[{"timestamp":"1755718222","currency":"USDT"}]`),
 			err:   exchange.ErrCredentialsAreEmpty,
+		},
+		{
+			deployCreds: true,
+			input:       []byte(`[{"timestamp":"1755718222"}]`),
+			err:         currency.ErrCurrencyCodeEmpty,
 		},
 		{
 			deployCreds: true,
 			input:       []byte(`[{"timestamp":"1755718222","timestamp_ms":"1755718222394","user":"12870774","currency":"USDT","change":"0","total":"3087.01142272991036062136","available":"3081.68642272991036062136","freeze":"5.325","freeze_change":"5.32500000000000000000","change_type":"order-create"}]`),
 			expected: accounts.SubAccounts{
 				{
-					ID:        "12870774",
+					ID:        "",
 					AssetType: asset.Spot,
 					Balances: accounts.CurrencyBalances{
 						currency.USDT: accounts.Balance{
@@ -86,7 +95,6 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 							Free:                   3081.68642272991036062136,
 							Hold:                   5.325,
 							AvailableWithoutBorrow: 3081.68642272991036062136,
-							UpdatedAt:              time.UnixMilli(1755718222394),
 						},
 					},
 				},
@@ -97,7 +105,7 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 			input:       []byte(`[{"timestamp":"1755718222","timestamp_ms":"1755718222394","user":"12870774","currency":"USDT","change":"-3.99375000000000000000","total":"3083.01767272991036062136","available":"3081.68642272991036062136","freeze":"1.33125","freeze_change":"-3.99375000000000000000","change_type":"order-match"}]`),
 			expected: accounts.SubAccounts{
 				{
-					ID:        "12870774",
+					ID:        "",
 					AssetType: asset.Spot,
 					Balances: accounts.CurrencyBalances{
 						currency.USDT: accounts.Balance{
@@ -106,7 +114,6 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 							Free:                   3081.68642272991036062136,
 							Hold:                   1.33125,
 							AvailableWithoutBorrow: 3081.68642272991036062136,
-							UpdatedAt:              time.UnixMilli(1755718222394),
 						},
 					},
 				},
@@ -516,4 +523,172 @@ func TestV14MigrationGeneratesValidSpotSubscriptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessSpotOrders(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	push := func(account string) []byte {
+		return []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","user":123456,"text":"t-abc","create_time_ms":"1605175506123","update_time_ms":"1605175507123","event":"put","currency_pair":"BTC_USDT","type":"limit","account":"` + account + `","side":"sell","amount":"1","price":"10001","left":"0.25","fee":"0.5"}]}`)
+	}
+	for account, a := range map[string]asset.Item{
+		"":             asset.Spot,
+		"spot":         asset.Spot,
+		"unified":      asset.Spot,
+		"margin":       asset.Margin,
+		"cross_margin": asset.CrossMargin,
+	} {
+		require.NoErrorf(t, ex.processSpotOrders(t.Context(), push(account)), "processSpotOrders must not error for account %q", account)
+		require.Lenf(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must relay the order for account %q", account)
+		exp := []order.Detail{{
+			Amount:         1,
+			Exchange:       ex.Name,
+			OrderID:        "30784435",
+			Side:           order.Sell,
+			Type:           order.Limit,
+			Pair:           currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			Cost:           0.5,
+			AssetType:      a,
+			Price:          10001,
+			ExecutedAmount: 0.75,
+			Date:           time.UnixMilli(1605175506123),
+			LastUpdated:    time.UnixMilli(1605175507123),
+		}}
+		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processSpotOrders should relay the order as %s for account %q", a, account)
+	}
+	assert.ErrorIs(t, ex.processSpotOrders(t.Context(), push("bogus")), asset.ErrNotSupported, "processSpotOrders should reject an unknown account")
+	assert.Error(t, ex.processSpotOrders(t.Context(), []byte(`{`)), "processSpotOrders should reject malformed JSON")
+	assert.ErrorIs(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","side":"bogus","type":"limit","account":"spot"}]}`)), order.ErrSideIsInvalid, "processSpotOrders should reject an unknown side")
+	assert.ErrorIs(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","side":"sell","type":"iceberg","account":"spot"}]}`)), order.ErrUnrecognisedOrderType, "processSpotOrders should reject an unknown order type")
+	require.Empty(t, ex.Websocket.DataHandler.C, "processSpotOrders must not relay a rejected push")
+}
+
+func TestWsHandleSpotDataNullResult(t *testing.T) {
+	t.Parallel()
+	// Gate sends a null result alongside an error; these channels decode one object, which must not dereference nil
+	for _, tc := range []struct {
+		channel     string
+		err         error
+		errContains string
+	}{
+		{channel: spotCandlesticksChannel, err: common.ErrMalformedData},
+		{channel: spotOrderbookTickerChannel, errContains: "currency pair not set"},
+		{channel: spotOrderbookUpdateChannel, err: currency.ErrCurrencyPairEmpty},
+		{channel: spotOrderbookChannel},
+	} {
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			var err error
+			require.NotPanics(t, func() {
+				err = ex.WsHandleSpotData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"update","result":null}`))
+			}, "WsHandleSpotData must not panic on a null result")
+			if tc.errContains != "" {
+				assert.ErrorContains(t, err, tc.errContains, "WsHandleSpotData should reject a null result")
+				return
+			}
+			assert.ErrorIs(t, err, tc.err, "WsHandleSpotData should return the expected error for a null result")
+		})
+	}
+}
+
+func TestProcessSpotBalancesUpdatesRESTSnapshot(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Name = t.Name()
+	ex.Accounts = accounts.MustNewAccounts(ex)
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	restSnapshot := accounts.NewSubAccount(asset.Spot, "")
+	restSnapshot.Balances.Set(currency.USDT, accounts.Balance{Total: 100, Free: 100})
+	restSnapshot.Balances.Set(currency.BTC, accounts.Balance{Total: 2, Free: 1, Hold: 1})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{restSnapshot}, true), "Accounts.Save must seed the REST balance snapshot")
+	assert.Error(t, ex.processSpotBalances(ctx, []byte(`{`)), "processSpotBalances should reject malformed JSON")
+
+	require.NoError(t, ex.processSpotBalances(ctx, []byte(`[{"timestamp":"1755718222","timestamp_ms":"1755718222394","user":"12870774","currency":"USDT","change":"-10","total":"100","available":"90","freeze":"10"}]`)), "processSpotBalances must not error")
+	creds, err := ex.GetCredentials(ctx)
+	require.NoError(t, err, "GetCredentials must not error")
+	balances, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+	require.NoError(t, err, "CurrencyBalances must not error")
+	assert.Equal(t, 100.0, balances[currency.USDT].Total, "processSpotBalances should replace the REST balance rather than add to it")
+	assert.Equal(t, 90.0, balances[currency.USDT].Free, "processSpotBalances should update the free balance")
+	assert.Equal(t, 10.0, balances[currency.USDT].Hold, "processSpotBalances should update the held balance")
+	assert.Equal(t, 2.0, balances[currency.BTC].Total, "processSpotBalances should keep balances the push does not carry")
+}
+
+func TestProcessCandlestick(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	assert.Error(t, ex.processCandlestick(t.Context(), []byte(`{`)), "processCandlestick should reject malformed JSON")
+	assert.ErrorIs(t, ex.processCandlestick(t.Context(), []byte(`{"t":"1606292580","n":"1m"}`)), common.ErrMalformedData, "processCandlestick should reject a name without a pair")
+	assert.ErrorIs(t, ex.processCandlestick(t.Context(), []byte(`{"t":"1606292580","n":"9x_BTC_USDT"}`)), kline.ErrInvalidInterval, "processCandlestick should reject an unknown interval")
+	assert.ErrorIs(t, ex.processCandlestick(t.Context(), []byte(`{"t":"1606292580","n":"1m__"}`)), currency.ErrCreatingPair, "processCandlestick should reject an invalid pair")
+	require.Empty(t, ex.Websocket.DataHandler.C, "processCandlestick must not relay rejected candles")
+
+	require.NoError(t, ex.processCandlestick(t.Context(), []byte(`{"t":"1606292580","v":"2362.32035","c":"19128.1","h":"19129.2","l":"19127.3","o":"19128.4","n":"1m_BTC_USDT"}`)), "processCandlestick must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processCandlestick must relay the candle")
+	items, ok := (<-ex.Websocket.DataHandler.C).Data.([]kline.Item)
+	require.True(t, ok, "processCandlestick must relay kline items")
+	var enabled []asset.Item
+	for _, a := range standardMarginAssetTypes {
+		if ok, err := ex.CurrencyPairs.IsPairEnabled(currency.NewBTCUSDT(), a); err == nil && ok {
+			enabled = append(enabled, a)
+		}
+	}
+	require.NotEmpty(t, enabled, "BTC_USDT must be enabled on a spot market asset")
+	relayed := make([]asset.Item, len(items))
+	for i := range items {
+		relayed[i] = items[i].Asset
+	}
+	assert.ElementsMatch(t, enabled, relayed, "processCandlestick should relay the candle for each asset BTC_USDT is enabled on")
+	for _, item := range items {
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), item.Pair, "processCandlestick should relay the pair")
+		assert.Equal(t, kline.OneMin, item.Interval, "processCandlestick should relay the interval")
+		assert.Equal(t, []kline.Candle{{Time: time.Unix(1606292580, 0), Open: 19128.4, Close: 19128.1, High: 19129.2, Low: 19127.3, Volume: 2362.32035}}, item.Candles, "processCandlestick should relay the candle")
+	}
+}
+
+func TestProcessOrderbookTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	assert.Error(t, ex.processOrderbookTicker(t.Context(), []byte(`{`), time.Now()), "processOrderbookTicker should reject malformed JSON")
+	require.NoError(t, ex.processOrderbookTicker(t.Context(), []byte(`{"t":1606293275123,"u":48733182,"s":"BTC_USDT","b":"19177.79","B":"0.0003341504","a":"19179.38","A":"0.09"}`), time.Now()), "processOrderbookTicker must not error")
+	ob, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderbook must find the loaded book")
+	assert.Equal(t, orderbook.Levels{{Price: 19177.79, Amount: 0.0003341504}}, ob.Bids, "processOrderbookTicker should load the best bid")
+	assert.Equal(t, orderbook.Levels{{Price: 19179.38, Amount: 0.09}}, ob.Asks, "processOrderbookTicker should load the best ask")
+}
+
+func TestProcessOrderbookUpdate(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	assert.Error(t, ex.processOrderbookUpdate(t.Context(), []byte(`{`), time.Now()), "processOrderbookUpdate should reject malformed JSON")
+	assert.ErrorIs(t, ex.processOrderbookUpdate(t.Context(), []byte(`{"t":1606294781123,"s":"","U":48776301,"u":48776306}`), time.Now()), currency.ErrCurrencyPairEmpty, "processOrderbookUpdate should reject an update without a pair")
+}
+
+func TestProcessOrderbookSnapshot(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	snapshot := []byte(`{"t":1606295412123,"lastUpdateId":48791820,"s":"BTC_USDT","bids":[["19079.55","0.0195"]],"asks":[["19080.24","0.1638"]]}`)
+	assert.Error(t, ex.processOrderbookSnapshot(t.Context(), []byte(`{`), time.Now()), "processOrderbookSnapshot should reject malformed JSON")
+	require.NoError(t, ex.processOrderbookSnapshot(t.Context(), snapshot, time.Now()), "processOrderbookSnapshot must not error")
+	ob, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderbook must find the loaded book")
+	assert.Equal(t, orderbook.Levels{{Price: 19079.55, Amount: 0.0195}}, ob.Bids, "processOrderbookSnapshot should load the bids")
+	assert.Equal(t, orderbook.Levels{{Price: 19080.24, Amount: 0.1638}}, ob.Asks, "processOrderbookSnapshot should load the asks")
+
+	unnamed := new(Exchange)
+	require.NoError(t, testexch.Setup(unnamed), "Setup must not error")
+	unnamed.Name = ""
+	assert.ErrorIs(t, unnamed.processOrderbookSnapshot(t.Context(), snapshot, time.Now()), common.ErrExchangeNameNotSet, "processOrderbookSnapshot should return a failure to load the book")
 }

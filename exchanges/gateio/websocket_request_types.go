@@ -65,7 +65,7 @@ type WebsocketOrderResponse struct {
 	TimeInForce               string        `json:"time_in_force"`
 	CurrencyPair              currency.Pair `json:"currency_pair"`
 	Type                      string        `json:"type"`
-	Account                   asset.Item    `json:"account"`
+	Account                   string        `json:"account"`
 	Side                      string        `json:"side"`
 	AmendText                 string        `json:"amend_text"`
 	Text                      string        `json:"text"`

@@ -1110,7 +1110,7 @@ type OptionAccount struct {
 	Point                        types.Number  `json:"point"`
 	Currency                     currency.Code `json:"currency"`
 	MaxOrderLimit                uint64        `json:"orders_limit"`
-	PositionNotionalLimit        uint64        `json:"position_notional_limit"`
+	PositionNotionalLimit        types.Number  `json:"position_notional_limit"`
 }
 
 // AccountBook represents account changing history item
@@ -1760,7 +1760,7 @@ type SpotAccountBookResponse struct {
 
 // CreateOrderRequest represents a single order creation param.
 type CreateOrderRequest struct {
-	Text                      string        `json:"text"`
+	Text                      string        `json:"text,omitempty"`
 	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
 	TradeQuote                currency.Code `json:"trade_quote,omitzero"` // Quote currency actually traded; unified markets only
 	Type                      string        `json:"type,omitempty"`
@@ -1860,7 +1860,7 @@ type GetSpotOrdersRequest struct {
 
 // ClosePositionRequestParam holds an order closing a position whose cross-currency trading is disabled
 type ClosePositionRequestParam struct {
-	Text         string        `json:"text"`
+	Text         string        `json:"text,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Amount       types.Number  `json:"amount"`
 	Price        types.Number  `json:"price"`
@@ -3811,27 +3811,27 @@ type WsFuturesUserTrade struct {
 
 // WsFuturesLiquidationNotification represents a liquidation notification push data
 type WsFuturesLiquidationNotification struct {
-	EntryPrice        types.Number  `json:"entry_price"`
-	FillPrice         types.Number  `json:"fill_price"`
-	Left              types.Number  `json:"left"`
-	Leverage          types.Number  `json:"leverage"`
-	LiquidiationPrice types.Number  `json:"liq_price"`
-	Margin            types.Number  `json:"margin"`
-	MarkPrice         types.Number  `json:"mark_price"`
-	OrderID           int64         `json:"order_id"`
-	OrderPrice        types.Number  `json:"order_price"`
-	Size              types.Number  `json:"size"`
-	Time              types.Time    `json:"time_ms"`
-	Contract          currency.Pair `json:"contract"`
-	User              string        `json:"user"`
+	EntryPrice       types.Number  `json:"entry_price"`
+	FillPrice        types.Number  `json:"fill_price"`
+	RemainingAmount  types.Number  `json:"left"`
+	Leverage         types.Number  `json:"leverage"`
+	LiquidationPrice types.Number  `json:"liq_price"`
+	Margin           types.Number  `json:"margin"`
+	MarkPrice        types.Number  `json:"mark_price"`
+	OrderID          int64         `json:"order_id"`
+	OrderPrice       types.Number  `json:"order_price"`
+	Size             types.Number  `json:"size"`
+	Time             types.Time    `json:"time_ms"`
+	Contract         currency.Pair `json:"contract"`
+	User             string        `json:"user"`
 }
 
 // WsFuturesAutoDeleveragesNotification represents futures auto deleverages push data
 type WsFuturesAutoDeleveragesNotification struct {
 	EntryPrice   types.Number  `json:"entry_price"`
 	FillPrice    types.Number  `json:"fill_price"`
-	PositionSize int64         `json:"position_size"`
-	TradeSize    int64         `json:"trade_size"`
+	PositionSize types.Number  `json:"position_size"`
+	TradeSize    types.Number  `json:"trade_size"`
 	Time         types.Time    `json:"time_ms"`
 	Contract     currency.Pair `json:"contract"`
 	User         string        `json:"user"`

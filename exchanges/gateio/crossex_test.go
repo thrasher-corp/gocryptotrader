@@ -49,6 +49,12 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 			symbol:   newCrossExchangeSymbol("newvenue", asset.Spot, currency.NewBTCUSDT()),
 			expected: "NEWVENUE_SPOT_BTC_USDT",
 		},
+		{
+			// Gate matches symbols case-sensitively, and a pair's codes cannot keep this one's case
+			name:     "mixed-case symbol as Gate lists it",
+			symbol:   CrossExchangeSymbolIdentifier{Symbol: " HYPERLIQUID_FUTURE_kPEPE_USDC "},
+			expected: "HYPERLIQUID_FUTURE_kPEPE_USDC",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -72,6 +78,10 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 		{name: "missing exchange", symbol: CrossExchangeSymbolIdentifier{Asset: asset.Spot, Pair: currency.NewBTCUSDT()}, rendered: "_SPOT_BTC_USDT", expectedErr: errCrossExchangeExchangeTypeRequired},
 		{name: "missing pair", symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Spot}, rendered: "BINANCE_SPOT__", expectedErr: currency.ErrCurrencyPairEmpty},
 		{name: "unsupported asset", symbol: newCrossExchangeSymbol("BINANCE", asset.Options, currency.NewBTCUSDT()), rendered: "BINANCE_OPTIONS_BTC_USDT", expectedErr: asset.ErrNotSupported},
+		{name: "symbol with an exchange", symbol: CrossExchangeSymbolIdentifier{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC", Exchange: "HYPERLIQUID"}, rendered: "HYPERLIQUID_FUTURE_kPEPE_USDC", expectedErr: errCrossExchangeSymbolConflict},
+		{name: "symbol with an asset", symbol: CrossExchangeSymbolIdentifier{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC", Asset: asset.Futures}, rendered: "HYPERLIQUID_FUTURE_kPEPE_USDC", expectedErr: errCrossExchangeSymbolConflict},
+		{name: "symbol with a pair", symbol: CrossExchangeSymbolIdentifier{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC", Pair: currency.NewBTCUSDT()}, rendered: "HYPERLIQUID_FUTURE_kPEPE_USDC", expectedErr: errCrossExchangeSymbolConflict},
+		{name: "symbol with half a pair", symbol: CrossExchangeSymbolIdentifier{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC", Pair: currency.Pair{Base: currency.BTC}}, rendered: "HYPERLIQUID_FUTURE_kPEPE_USDC", expectedErr: errCrossExchangeSymbolConflict},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -83,6 +93,16 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 			assert.Equal(t, tc.rendered, tc.symbol.String(), "String should render the fields that are set rather than hide them")
 		})
 	}
+}
+
+func TestCrossExchangeSymbolIdentifierNil(t *testing.T) {
+	t.Parallel()
+	var symbol *CrossExchangeSymbolIdentifier
+	require.ErrorIs(t, symbol.Validate(), currency.ErrSymbolStringEmpty, "Validate must reject a nil identifier")
+	_, err := symbol.Format()
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "Format must reject a nil identifier")
+	_, err = e.GetCrossExchangeADLRank(t.Context(), nil)
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeADLRank should reject a nil identifier")
 }
 
 func TestCrossExchangeSymbolIdentifierMarshalJSON(t *testing.T) {
@@ -102,7 +122,7 @@ func TestCrossExchangeSymbolIdentifierBusinessType(t *testing.T) {
 		asset.Margin:  "MARGIN",
 		asset.Futures: "FUTURE",
 	} {
-		assert.Equalf(t, exp, CrossExchangeSymbolIdentifier{Asset: a}.businessType(), "businessType should map %s", a)
+		assert.Equalf(t, exp, (&CrossExchangeSymbolIdentifier{Asset: a}).businessType(), "businessType should map %s", a)
 	}
 }
 
@@ -115,6 +135,8 @@ func TestCrossExchangeSymbolIdentifierIsEmpty(t *testing.T) {
 	}{
 		{name: "zero value", symbol: CrossExchangeSymbolIdentifier{}, expected: true},
 		{name: "whitespace exchange", symbol: CrossExchangeSymbolIdentifier{Exchange: "   "}, expected: true},
+		{name: "whitespace symbol", symbol: CrossExchangeSymbolIdentifier{Symbol: "   "}, expected: true},
+		{name: "symbol only", symbol: CrossExchangeSymbolIdentifier{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC"}},
 		{name: "exchange only", symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE"}},
 		{name: "asset only", symbol: CrossExchangeSymbolIdentifier{Asset: asset.Spot}},
 		{name: "pair only", symbol: CrossExchangeSymbolIdentifier{Pair: currency.NewBTCUSDT()}},
@@ -128,6 +150,7 @@ func TestCrossExchangeSymbolIdentifierIsEmpty(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.symbol.IsEmpty(), "IsEmpty should return the expected result")
 		})
 	}
+	assert.True(t, (*CrossExchangeSymbolIdentifier)(nil).IsEmpty(), "IsEmpty should treat a nil identifier as empty")
 }
 
 func TestFormatCrossExchangeSymbols(t *testing.T) {
@@ -153,17 +176,18 @@ func TestFormatCrossExchangeSymbols(t *testing.T) {
 
 func TestCrossExchangeHistoryParams(t *testing.T) {
 	t.Parallel()
-	_, err := crossExchangeHistoryParams(CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}, time.Time{}, time.Time{}, 0, 0)
+	_, err := crossExchangeHistoryParams(&CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}, time.Time{}, time.Time{}, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "crossExchangeHistoryParams must reject a symbol it cannot format")
 	startTime, endTime := time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
-	_, err = crossExchangeHistoryParams(CrossExchangeSymbolIdentifier{}, endTime, startTime, 0, 0)
+	_, err = crossExchangeHistoryParams(nil, endTime, startTime, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "crossExchangeHistoryParams must reject a start after the end")
 
-	params, err := crossExchangeHistoryParams(CrossExchangeSymbolIdentifier{}, time.Time{}, time.Time{}, 0, 0)
+	params, err := crossExchangeHistoryParams(&CrossExchangeSymbolIdentifier{}, time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err, "crossExchangeHistoryParams must not error without filters")
 	assert.Empty(t, params, "crossExchangeHistoryParams should send no filters when none are set")
 
-	params, err = crossExchangeHistoryParams(newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()), startTime, endTime, 2, 50)
+	futureSymbol := newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())
+	params, err = crossExchangeHistoryParams(&futureSymbol, startTime, endTime, 2, 50)
 	require.NoError(t, err, "crossExchangeHistoryParams must not error")
 	exp := url.Values{
 		"symbol": {"BINANCE_FUTURE_BTC_USDT"},
@@ -237,6 +261,18 @@ func TestGetCrossExchangeRiskLimits(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, result[0], "GetCrossExchangeRiskLimits should decode every field")
+}
+
+func TestGetCrossExchangeRiskLimitsMixedCaseSymbol(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetCrossExchangeRiskLimits(t.Context(), []CrossExchangeSymbolIdentifier{{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC"}})
+	require.NoError(t, err, "GetCrossExchangeRiskLimits must accept a mixed-case symbol")
+	require.Len(t, result, 1, "GetCrossExchangeRiskLimits must return the mixed-case symbol's limits")
+	assert.Equal(t, "HYPERLIQUID_FUTURE_kPEPE_USDC", result[0].Symbol, "GetCrossExchangeRiskLimits should return the symbol in Gate's case")
+	if mockTests {
+		exp := []*CrossExchangeRiskLimitTier{{MaxRiskLimitValue: 20000000, LeverageMax: 10, MaintenanceRate: 0.05, Tier: "1"}}
+		assert.Equal(t, exp, result[0].Tiers, "GetCrossExchangeRiskLimits should decode every tier field")
+	}
 }
 
 func TestGetCrossExchangeTransferCoins(t *testing.T) {
@@ -873,15 +909,16 @@ func TestSetCrossExchangePositionMarginMode(t *testing.T) {
 
 func TestGetCrossExchangePositionMarginMode(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangePositionMarginMode(t.Context(), CrossExchangeSymbolIdentifier{})
+	_, err := e.GetCrossExchangePositionMarginMode(t.Context(), &CrossExchangeSymbolIdentifier{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangePositionMarginMode must require a symbol")
-	_, err = e.GetCrossExchangePositionMarginMode(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "HYPERLIQUID", Asset: asset.Futures})
+	_, err = e.GetCrossExchangePositionMarginMode(t.Context(), &CrossExchangeSymbolIdentifier{Exchange: "HYPERLIQUID", Asset: asset.Futures})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangePositionMarginMode must reject a symbol it cannot format")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangePositionMarginMode(t.Context(), newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewPair(currency.BTC, currency.USDC)))
+	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	result, err := e.GetCrossExchangePositionMarginMode(t.Context(), &symbol)
 	require.NoError(t, err, "GetCrossExchangePositionMarginMode must not error")
 	if mockTests {
 		assert.Equal(t, &CrossExchangeMarginModeResponse{Symbol: "HYPERLIQUID_FUTURE_BTC_USDC", MarginMode: "ISOLATED"}, result, "GetCrossExchangePositionMarginMode should decode every field")
@@ -971,7 +1008,7 @@ func TestGetCrossExchangeUserFeeRates(t *testing.T) {
 
 func TestGetCrossExchangeContractPositions(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeContractPositions(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}, "")
+	_, err := e.GetCrossExchangeContractPositions(t.Context(), &CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractPositions must reject a symbol it cannot format")
 
 	if !mockTests {
@@ -1008,7 +1045,7 @@ func TestGetCrossExchangeContractPositions(t *testing.T) {
 		{},
 		{symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
 	} {
-		result, err := e.GetCrossExchangeContractPositions(t.Context(), tc.symbol, tc.exchangeType)
+		result, err := e.GetCrossExchangeContractPositions(t.Context(), &tc.symbol, tc.exchangeType)
 		require.NoError(t, err, "GetCrossExchangeContractPositions must not error")
 		if mockTests {
 			assert.Equal(t, exp, result, "GetCrossExchangeContractPositions should decode every field")
@@ -1018,7 +1055,7 @@ func TestGetCrossExchangeContractPositions(t *testing.T) {
 
 func TestGetCrossExchangeMarginPositions(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeMarginPositions(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Margin}, "")
+	_, err := e.GetCrossExchangeMarginPositions(t.Context(), &CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Margin}, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginPositions must reject a symbol it cannot format")
 
 	if !mockTests {
@@ -1054,7 +1091,7 @@ func TestGetCrossExchangeMarginPositions(t *testing.T) {
 		{},
 		{symbol: newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
 	} {
-		result, err := e.GetCrossExchangeMarginPositions(t.Context(), tc.symbol, tc.exchangeType)
+		result, err := e.GetCrossExchangeMarginPositions(t.Context(), &tc.symbol, tc.exchangeType)
 		require.NoError(t, err, "GetCrossExchangeMarginPositions must not error")
 		if mockTests {
 			assert.Equal(t, exp, result, "GetCrossExchangeMarginPositions should decode every field")
@@ -1064,15 +1101,16 @@ func TestGetCrossExchangeMarginPositions(t *testing.T) {
 
 func TestGetCrossExchangeADLRank(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeADLRank(t.Context(), CrossExchangeSymbolIdentifier{})
+	_, err := e.GetCrossExchangeADLRank(t.Context(), &CrossExchangeSymbolIdentifier{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeADLRank must require a symbol")
-	_, err = e.GetCrossExchangeADLRank(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures})
+	_, err = e.GetCrossExchangeADLRank(t.Context(), &CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeADLRank must reject a symbol it cannot format")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeADLRank(t.Context(), newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewPair(currency.ADA, currency.USDT)))
+	symbol := newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewPair(currency.ADA, currency.USDT))
+	result, err := e.GetCrossExchangeADLRank(t.Context(), &symbol)
 	require.NoError(t, err, "GetCrossExchangeADLRank must not error")
 	if mockTests {
 		exp := []*CrossExchangeADLRank{{UserID: "111", Symbol: "BINANCE_FUTURE_ADA_USDT", CrossExchangeADLRank: 1, ExchangeADLRank: 1}}

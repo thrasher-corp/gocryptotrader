@@ -118,7 +118,7 @@ func TestGetTradFiMT5Account(t *testing.T) {
 	result, err := e.GetTradFiMT5Account(t.Context())
 	require.NoError(t, err, "GetTradFiMT5Account must not error")
 	if mockTests {
-		exp := &TradFiMT5Account{Leverage: 100, StopOutLevel: 50, Status: 3}
+		exp := &TradFiMT5Account{Leverage: 100, StopOutLevel: "50%", Status: 3}
 		assert.Equal(t, exp, result, "GetTradFiMT5Account should decode every field")
 		return
 	}

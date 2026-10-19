@@ -87,7 +87,6 @@ func TestIsFutures(t *testing.T) {
 		PerpetualSwap,
 		Futures,
 		DeliveryFutures,
-		BTCMarginedDeliveryFutures,
 		UpsideProfitContract,
 		DownsideProfitContract,
 		CoinMarginedFutures,
@@ -110,7 +109,6 @@ func TestIsDerivative(t *testing.T) {
 		PerpetualSwap,
 		Futures,
 		DeliveryFutures,
-		BTCMarginedDeliveryFutures,
 		UpsideProfitContract,
 		DownsideProfitContract,
 		CoinMarginedFutures,
@@ -184,8 +182,6 @@ func TestNew(t *testing.T) {
 		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
 		{Input: "DELIVERY", Expected: DeliveryFutures},
-		{Input: "btcmargineddelivery", Expected: BTCMarginedDeliveryFutures},
-		{Input: "btcMarginedDelivery", Expected: BTCMarginedDeliveryFutures},
 		{Input: "all", Expected: All},
 	}
 

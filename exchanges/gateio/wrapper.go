@@ -158,6 +158,14 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	// The margin and cross margin balance channels save under the websocket user ID, which REST saves as "", so their
+	// balances would be counted twice
+	if err := e.DisableAssetWebsocketSupport(asset.Margin); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	if err := e.DisableAssetWebsocketSupport(asset.CrossMargin); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	e.API.Endpoints = e.NewEndpoints()
 	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -166,8 +174,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
 		exchange.WebsocketUSDTMargined: usdtFuturesWebsocketURL,
 		exchange.WebsocketCoinMargined: btcFuturesWebsocketURL,
-		exchange.WebsocketFutures:      deliveryRealBTCTradingURL,
-		exchange.WebsocketTrade:        deliveryRealUSDTTradingURL,
+		exchange.WebsocketFutures:      deliveryRealUSDTTradingURL,
 		exchange.WebsocketOptions:      optionsWebsocketURL,
 		exchange.EdgeCase1:             frontEndURL,
 	}); err != nil {
@@ -252,7 +259,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.USDTMarginedFutures)
 		},
-		Connector:     e.WsFuturesConnect,
+		Connector: func(ctx context.Context, conn websocket.Connection) error {
+			return e.WsFuturesConnect(ctx, conn, asset.USDTMarginedFutures)
+		},
 		Authenticate:  e.authenticateFutures,
 		MessageFilter: asset.USDTMarginedFutures,
 	}); err != nil {
@@ -276,44 +285,21 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.CoinMarginedFutures)
 		},
-		Connector:     e.WsFuturesConnect,
+		Connector: func(ctx context.Context, conn websocket.Connection) error {
+			return e.WsFuturesConnect(ctx, conn, asset.CoinMarginedFutures)
+		},
 		MessageFilter: asset.CoinMarginedFutures,
 	}); err != nil {
 		return err
 	}
 
-	// Futures connection - Delivery - BTC margined
+	// Futures connection - Delivery - USDT margined
 	wsDeliveryFuturesURL, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
 	if err != nil {
 		return err
 	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  wsDeliveryFuturesURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, conn, incoming, asset.BTCMarginedDeliveryFutures)
-		},
-		Subscriber:   e.DeliveryFuturesSubscribe,
-		Unsubscriber: e.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateDeliveryFuturesDefaultSubscriptions(asset.BTCMarginedDeliveryFutures)
-		},
-		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return e.WsDeliveryFuturesConnect(ctx, conn, asset.BTCMarginedDeliveryFutures)
-		},
-		MessageFilter: asset.BTCMarginedDeliveryFutures,
-	}); err != nil {
-		return err
-	}
-
-	// Futures connection - Delivery - USDT margined
-	wsDeliveryFuturesUSDTMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketTrade)
-	if err != nil {
-		return err
-	}
-	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsDeliveryFuturesUSDTMarginedURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -531,7 +517,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for _, fContract := range contracts {
-			if fContract.Name.IsEmpty() || (fContract.Type == "inverse" && a != asset.CoinMarginedFutures) || (fContract.Type == "linear" && a != asset.USDTMarginedFutures) {
+			if fContract.Name.IsEmpty() || (fContract.Type == "inverse" && a != asset.CoinMarginedFutures) || (fContract.Type == "direct" && a != asset.USDTMarginedFutures) {
 				continue
 			}
 			pairs = append(pairs, fContract.Name)
@@ -1130,7 +1116,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+		price, tif, err := contractOrderPriceAndTIF(s)
 		if err != nil {
 			return nil, err
 		}
@@ -1140,7 +1126,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderRequest{
 			Contract:    s.Pair,
 			OrderSize:   types.Number(size),
-			Price:       types.Number(s.Price),
+			Price:       types.Number(price),
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: tif,
 			Text:        s.ClientOrderID,
@@ -1509,6 +1495,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 }
 
+// spotOrderAsset returns the asset of a spot market order from its account label. Gate labels a unified account's
+// orders unified, and an empty label means spot
+func spotOrderAsset(account string) (asset.Item, error) {
+	if account == "" || account == unifiedAccount {
+		return asset.Spot, nil
+	}
+	return asset.New(account)
+}
+
 // spotOrderDetail returns the order detail of a spot, margin or cross margin order
 func (e *Exchange) spotOrderDetail(o *SpotOrder, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	side, err := order.StringToOrderSide(o.Side)
@@ -1722,11 +1717,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				if sOrderDetail.Status != statusOpen {
 					continue
 				}
-				orderAccount := sOrderDetail.Account
-				if orderAccount == "" {
-					orderAccount = asset.Spot.String()
-				}
-				if orderAccount != req.AssetType.String() {
+				if a, err := spotOrderAsset(sOrderDetail.Account); err != nil || a != req.AssetType {
 					continue
 				}
 				detail, err := e.spotOrderDetail(sOrderDetail, sOrder.CurrencyPair.Format(format), req.AssetType)
@@ -2865,7 +2856,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		if a == asset.DeliveryFutures {
 			return tradeBaseURL + "futures-delivery/" + settle.String() + "/" + cp.Upper().String(), nil
 		}
-		return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
+		return tradeBaseURL + "futures/" + settle.String() + "/" + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -2928,19 +2919,39 @@ func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
 	return nil
 }
 
+// contractOrderPriceAndTIF returns the price and time in force to send for a perpetual futures, delivery or options
+// order. Gate takes a zero price as a market order, which must be IOC or FOK, and has no order type field, so any other
+// type would go out as a plain limit order; conditional orders go through the price triggered order endpoints instead
+func contractOrderPriceAndTIF(s *order.Submit) (price float64, tif string, err error) {
+	switch s.Type {
+	case order.Limit:
+		price = s.Price
+	case order.Market:
+	default:
+		return 0, "", fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, s.Type)
+	}
+	if tif, err = toExchangeTIF(s.TimeInForce, price); err != nil {
+		return 0, "", err
+	}
+	if s.Type == order.Market && tif != iocTIF && tif != fokTIF {
+		return 0, "", fmt.Errorf("%w: %q; a market order must be IOC or FOK", order.ErrUnsupportedTimeInForce, s.TimeInForce)
+	}
+	return price, tif, nil
+}
+
 func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) {
 	amountWithDirection, err := getFutureOrderSize(s)
 	if err != nil {
 		return nil, err
 	}
-	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+	price, tif, err := contractOrderPriceAndTIF(s)
 	if err != nil {
 		return nil, err
 	}
 	return &FuturesOrderCreateParams{
 		Contract:    s.Pair,
 		Size:        types.Number(amountWithDirection),
-		Price:       types.Number(s.Price),
+		Price:       types.Number(price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,
 		Text:        s.ClientOrderID,
@@ -2952,14 +2963,14 @@ func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error
 	if err != nil {
 		return nil, err
 	}
-	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+	price, tif, err := contractOrderPriceAndTIF(s)
 	if err != nil {
 		return nil, err
 	}
 	return &DeliveryOrderCreateParams{
 		Contract:    s.Pair,
 		Size:        types.Number(amountWithDirection),
-		Price:       types.Number(s.Price),
+		Price:       types.Number(price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,
 		Text:        s.ClientOrderID,
@@ -3040,10 +3051,14 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
+		a, err := spotOrderAsset(resp.Account)
+		if err != nil {
+			return nil, err
+		}
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
-			AssetType:            resp.Account,
+			AssetType:            a,
 			Pair:                 resp.CurrencyPair,
 			ClientOrderID:        resp.Text,
 			Date:                 resp.CreateTimeMs.Time(),
@@ -3147,11 +3162,21 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		return nil, err
 	}
 
+	amount := s.GetTradeAmount(e.GetTradingRequirements())
+	// Gate sizes a market buy in the quote currency on margin accounts too, which the trading requirements only cover
+	// for spot
+	if s.Type == order.Market && side == order.Buy && s.AssetType != asset.Spot {
+		if s.QuoteAmount <= 0 {
+			return nil, fmt.Errorf("%w: a %s market buy is sized by its quote amount", order.ErrAmountMustBeSet, s.AssetType)
+		}
+		amount = s.QuoteAmount
+	}
+
 	return &CreateOrderRequest{
 		Side:         side.Lower(),
 		Type:         s.Type.Lower(),
 		Account:      s.AssetType,
-		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),
+		Amount:       types.Number(amount),
 		Price:        types.Number(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,

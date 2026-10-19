@@ -23,11 +23,24 @@ type CrossExchangeSymbolIdentifier struct {
 	Exchange string
 	Asset    asset.Item
 	Pair     currency.Pair
+	// Symbol is Gate's own symbol, such as one GetCrossExchangeSymbols lists, sent as given in place of Exchange, Asset
+	// and Pair. Gate matches symbols case-sensitively, and Pair cannot carry a mixed-case code such as the kPEPE of
+	// HYPERLIQUID_FUTURE_kPEPE_USDC.
+	Symbol string
 }
 
 // Validate ensures the identifier holds everything needed to render a CrossEx symbol. Which venues and markets Gate
 // actually lists is left for Gate to reject, as that set changes without notice.
-func (c CrossExchangeSymbolIdentifier) Validate() error {
+func (c *CrossExchangeSymbolIdentifier) Validate() error {
+	if c == nil {
+		return currency.ErrSymbolStringEmpty
+	}
+	if strings.TrimSpace(c.Symbol) != "" {
+		if strings.TrimSpace(c.Exchange) != "" || c.Asset != asset.Empty || !c.Pair.IsEmpty() {
+			return errCrossExchangeSymbolConflict
+		}
+		return nil
+	}
 	if strings.TrimSpace(c.Exchange) == "" {
 		return errCrossExchangeExchangeTypeRequired
 	}
@@ -44,7 +57,7 @@ func (c CrossExchangeSymbolIdentifier) Validate() error {
 
 // Format returns the identifier in Gate's {Exchange}_{Business}_{Base}_{Counter} format, erroring when it cannot be
 // rendered as a whole symbol.
-func (c CrossExchangeSymbolIdentifier) Format() (string, error) {
+func (c *CrossExchangeSymbolIdentifier) Format() (string, error) {
 	if err := c.Validate(); err != nil {
 		return "", err
 	}
@@ -54,12 +67,15 @@ func (c CrossExchangeSymbolIdentifier) Format() (string, error) {
 // String renders the identifier in Gate's {Exchange}_{Business}_{Base}_{Counter} format from whatever fields are set.
 // Use Validate or Format when the result must be a symbol Gate can act on.
 func (c CrossExchangeSymbolIdentifier) String() string {
+	if symbol := strings.TrimSpace(c.Symbol); symbol != "" {
+		return symbol
+	}
 	pair := c.Pair.Format(currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true})
 	return strings.ToUpper(strings.TrimSpace(c.Exchange)) + "_" + c.businessType() + "_" + pair.String()
 }
 
 // MarshalJSON implements json.Marshaler.
-func (c CrossExchangeSymbolIdentifier) MarshalJSON() ([]byte, error) {
+func (c CrossExchangeSymbolIdentifier) MarshalJSON() ([]byte, error) { //nolint:gocritic // hugeParam: a value receiver lets json call this for unaddressable values, such as requests marshalled by value
 	formatted, err := c.Format()
 	if err != nil {
 		return nil, err
@@ -68,11 +84,11 @@ func (c CrossExchangeSymbolIdentifier) MarshalJSON() ([]byte, error) {
 }
 
 // IsEmpty returns whether no part of the identifier has been set.
-func (c CrossExchangeSymbolIdentifier) IsEmpty() bool {
-	return strings.TrimSpace(c.Exchange) == "" && c.Asset == asset.Empty && c.Pair.IsEmpty()
+func (c *CrossExchangeSymbolIdentifier) IsEmpty() bool {
+	return c == nil || strings.TrimSpace(c.Symbol) == "" && strings.TrimSpace(c.Exchange) == "" && c.Asset == asset.Empty && c.Pair.IsEmpty()
 }
 
-func (c CrossExchangeSymbolIdentifier) businessType() string {
+func (c *CrossExchangeSymbolIdentifier) businessType() string {
 	if c.Asset == asset.Futures {
 		return "FUTURE"
 	}

@@ -207,7 +207,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 			optionsPositionsChannel:
 			userID, ok := channelsToSubscribe[i].Params["user_id"].(int64)
 			if !ok {
-				continue
+				return nil, fmt.Errorf("%w for channel %s", errUserIDRequired, channelsToSubscribe[i].Channel)
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
 			var creds *accounts.Credentials
@@ -291,22 +291,22 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case optionsContractTickersChannel:
 		return e.processOptionsContractTickers(ctx, push.Result)
 	case optionsUnderlyingTickersChannel:
-		var data *WsOptionUnderlyingTicker
+		var data WsOptionUnderlyingTicker
 		return e.processResponse(ctx, push.Result, &data)
 	case optionsTradesChannel,
 		optionsUnderlyingTradesChannel:
 		return e.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
-		var data *WsOptionsUnderlyingPrice
-		return e.processResponse(ctx, respRaw, &data)
+		var data WsOptionsUnderlyingPrice
+		return e.processResponse(ctx, push.Result, &data)
 	case optionsMarkPriceChannel:
-		var data *WsOptionsMarkPrice
+		var data WsOptionsMarkPrice
 		return e.processResponse(ctx, push.Result, &data)
 	case optionsSettlementChannel:
-		var data *WsOptionsSettlement
+		var data WsOptionsSettlement
 		return e.processResponse(ctx, push.Result, &data)
 	case optionsContractsChannel:
-		var data *WsOptionsContract
+		var data WsOptionsContract
 		return e.processResponse(ctx, push.Result, &data)
 	case optionsContractCandlesticksChannel,
 		optionsUnderlyingCandlesticksChannel:
@@ -314,8 +314,8 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case optionsOrderbookChannel:
 		return e.processOptionsOrderbookSnapshotPushData(ctx, push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
-		var data *WsOptionsOrderbookTicker
-		return e.processResponse(ctx, respRaw, &data)
+		var data WsOptionsOrderbookTicker
+		return e.processResponse(ctx, push.Result, &data)
 	case optionsOrderbookUpdateChannel:
 		return e.processOptionsOrderbookUpdate(ctx, push.Result, asset.Options, push.Time)
 	case optionsOrdersChannel:
@@ -346,7 +346,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 }
 
 func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming []byte) error {
-	var data *OptionsTicker
+	var data OptionsTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -385,13 +385,15 @@ func (e *Exchange) processOptionsTradesPushData(data []byte) error {
 	}
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
+		side, amount := tradeSideAndAmount(resp.Result[x].Size.Float64())
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     e.Name,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size.Float64(),
+			Amount:       amount,
+			Side:         side,
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
@@ -448,7 +450,7 @@ func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data [
 }
 
 func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
-	var data *WsFuturesAndOptionsOrderbookUpdate
+	var data WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -476,7 +478,7 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 
 func (e *Exchange) processOptionsOrderbookSnapshotPushData(ctx context.Context, event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
-		var data *WsOptionsOrderbookSnapshot
+		var data WsOptionsOrderbookSnapshot
 		if err := json.Unmarshal(incoming, &data); err != nil {
 			return err
 		}
@@ -506,10 +508,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(ctx context.Context, 
 	}
 	dataMap := map[string][2][]orderbook.Level{}
 	for x := range data {
-		ab, ok := dataMap[data[x].CurrencyPair]
-		if !ok {
-			ab = [2][]orderbook.Level{}
-		}
+		ab := dataMap[data[x].CurrencyPair]
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
 				Price: data[x].Price.Float64(), Amount: data[x].Amount.Float64(),
@@ -519,9 +518,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(ctx context.Context, 
 				Price: data[x].Price.Float64(), Amount: -data[x].Amount.Float64(),
 			})
 		}
-		if !ok {
-			dataMap[data[x].CurrencyPair] = ab
-		}
+		dataMap[data[x].CurrencyPair] = ab
 	}
 	if len(dataMap) == 0 {
 		return errors.New("missing orderbook ask and bid data")
@@ -559,26 +556,32 @@ func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte)
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		status, err := order.StringToOrderStatus(func() string {
-			if resp.Result[x].Status == "finished" {
-				return "cancelled"
-			}
-			return resp.Result[x].Status
-		}())
+		// A finished order says how it finished in finish_as
+		status := order.Cancelled
+		var err error
+		switch {
+		case resp.Result[x].Status != statusFinished:
+			status, err = order.StringToOrderStatus(resp.Result[x].Status)
+		case resp.Result[x].FinishAs != "":
+			status, err = orderStatusFromFinishAs(resp.Result[x].FinishAs)
+		}
 		if err != nil {
 			return err
 		}
+		side, amount, remaining := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), resp.Result[x].RemainingAmount.Float64())
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size.Float64(),
-			Exchange:       e.Name,
-			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
-			Status:         status,
-			Pair:           resp.Result[x].Contract,
-			Date:           resp.Result[x].CreationTime.Time(),
-			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
-			Price:          resp.Result[x].Price.Float64(),
-			AssetType:      asset.Options,
-			AccountID:      resp.Result[x].User,
+			Amount:          amount,
+			Exchange:        e.Name,
+			OrderID:         strconv.FormatInt(resp.Result[x].ID, 10),
+			Side:            side,
+			Status:          status,
+			Pair:            resp.Result[x].Contract,
+			Date:            resp.Result[x].CreationTime.Time(),
+			ExecutedAmount:  amount - remaining,
+			RemainingAmount: remaining,
+			Price:           resp.Result[x].Price.Float64(),
+			AssetType:       asset.Options,
+			AccountID:       resp.Result[x].User,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
@@ -599,14 +602,17 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
+		side, amount, _ := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), 0)
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].Contract,
+			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size.Float64(),
+			Amount:       amount,
+			AssetType:    asset.Options,
 		}
 	}
 	return e.Websocket.Fills.Update(fills...)

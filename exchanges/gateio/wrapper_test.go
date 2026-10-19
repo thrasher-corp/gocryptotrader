@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -758,4 +759,423 @@ func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 		require.NoErrorf(t, err, "GetURL must not error for %s", ep)
 		assert.Equalf(t, exp, got, "%s should use the default endpoint after the upgrade", ep)
 	}
+}
+
+func TestSpotOrderAsset(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		account string
+		exp     asset.Item
+		err     error
+	}{
+		{account: "", exp: asset.Spot},
+		{account: "unified", exp: asset.Spot},
+		{account: "spot", exp: asset.Spot},
+		{account: "margin", exp: asset.Margin},
+		{account: "cross_margin", exp: asset.CrossMargin},
+		{account: "options", exp: asset.Options},
+		{account: "bogus", err: asset.ErrNotSupported},
+	} {
+		a, err := spotOrderAsset(tc.account)
+		require.ErrorIsf(t, err, tc.err, "spotOrderAsset must return the expected error for %q", tc.account)
+		assert.Equalf(t, tc.exp, a, "spotOrderAsset should return the expected asset for %q", tc.account)
+	}
+}
+
+func TestGetActiveOrdersUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v4/spot/open_orders", r.URL.Path, "request path should be the open orders endpoint")
+		assert.Empty(t, r.URL.Query().Get("account"), "request should list every account's open orders")
+		labels := []string{"spot", "unified", "margin", "cross_margin", "", "bogus"}
+		orders := make([]string, 0, len(labels))
+		for id, account := range labels {
+			orders = append(orders, fmt.Sprintf(`{"id":"%d","text":"t-%d","create_time_ms":1744150200123,"update_time_ms":1744150300123,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":%q,"side":"sell","amount":"2","price":"6","left":"2","fee_currency":"USDT"}`, id, id, account))
+		}
+		_, err := fmt.Fprintf(w, `[{"currency_pair":"BTC_USDT","total":%d,"orders":[%s]}]`, len(orders), strings.Join(orders, ","))
+		assert.NoError(t, err, "writing open orders should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	for a, exp := range map[asset.Item][]string{
+		asset.Spot:        {"0", "1", "4"},
+		asset.Margin:      {"2"},
+		asset.CrossMargin: {"3"},
+	} {
+		result, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+		ids := make([]string, len(result))
+		for i := range result {
+			ids[i] = result[i].OrderID
+			assert.Equalf(t, a, result[i].AssetType, "GetActiveOrders should report order %s as %s", result[i].OrderID, a)
+		}
+		assert.Equalf(t, exp, ids, "GetActiveOrders should report the %s orders, counting unified and unlabelled orders as spot", a)
+	}
+}
+
+func TestSetDefaultsMarginWebsocketSupport(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	for _, a := range []asset.Item{asset.Margin, asset.CrossMargin} {
+		assert.Falsef(t, ex.IsAssetWebsocketSupported(a), "SetDefaults should leave %s balances to REST", a)
+	}
+	assert.True(t, ex.IsAssetWebsocketSupported(asset.Spot), "SetDefaults should keep spot websocket support")
+
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ex.generateSubscriptionsSpot()
+	require.NoError(t, err, "generateSubscriptionsSpot must not error")
+	require.NotEmpty(t, subs, "generateSubscriptionsSpot must generate subscriptions")
+	for _, s := range subs {
+		assert.NotContainsf(t, []string{marginBalancesChannel, crossMarginBalanceChannel}, s.Channel, "generateSubscriptionsSpot should not subscribe to %s", s.Channel)
+	}
+}
+
+func TestFetchTradablePairsPerpetualContractTypes(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Each settlement lists a contract of the other margin type, which the asset must leave out
+		var err error
+		switch r.URL.Path {
+		case "/api/v4/futures/usdt/contracts":
+			_, err = fmt.Fprint(w, `[{"name":"BTC_USDT","type":"direct"},{"name":"ETH_USD","type":"inverse"}]`)
+		case "/api/v4/futures/btc/contracts":
+			_, err = fmt.Fprint(w, `[{"name":"BTC_USD","type":"inverse"},{"name":"ETH_USDT","type":"direct"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+		assert.NoError(t, err, "writing contracts should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	for a, exp := range map[asset.Item]string{
+		asset.USDTMarginedFutures: "BTC_USDT",
+		asset.CoinMarginedFutures: "BTC_USD",
+	} {
+		pairs, err := ex.FetchTradablePairs(t.Context(), a)
+		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+		require.Lenf(t, pairs, 1, "FetchTradablePairs must return only %s's own contract type", a)
+		assert.Equalf(t, exp, pairs[0].String(), "FetchTradablePairs should return the %s contract", a)
+	}
+}
+
+func TestGetSpotOrderRequest(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewBTCUSDT()
+	for _, tc := range []struct {
+		name   string
+		submit *order.Submit
+		amount types.Number
+		err    error
+	}{
+		{name: "spot market buy", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50},
+		{name: "margin market buy", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50},
+		{name: "cross margin market buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Market, Side: order.Bid, QuoteAmount: 60}, amount: 60},
+		{name: "margin market buy without quote amount", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Buy, Amount: 0.001}, err: order.ErrAmountMustBeSet},
+		{name: "margin market sell", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Sell, Amount: 0.001, QuoteAmount: 50}, amount: 0.001},
+		{name: "cross margin limit buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, QuoteAmount: 50}, amount: 0.001},
+		{name: "invalid side", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.UnknownSide, QuoteAmount: 50}, err: order.ErrSideIsInvalid},
+		{name: "unsupported time in force", submit: &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime}, err: order.ErrUnsupportedTimeInForce},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.submit.Pair = pair
+			req, err := e.getSpotOrderRequest(tc.submit)
+			require.ErrorIs(t, err, tc.err, "getSpotOrderRequest must return the expected error")
+			if tc.err != nil {
+				return
+			}
+			assert.Equal(t, tc.amount, req.Amount, "getSpotOrderRequest should send the amount in the currency Gate sizes it by")
+			assert.Equal(t, tc.submit.AssetType, req.Account, "getSpotOrderRequest should send the account")
+		})
+	}
+}
+
+func TestContractOrderPriceAndTIF(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+		tif       order.TimeInForce
+		price     float64
+		exchTIF   string
+		err       error
+	}{
+		{name: "limit", orderType: order.Limit, price: 3000, exchTIF: gtcTIF},
+		{name: "post only limit", orderType: order.Limit, tif: order.PostOnly, price: 3000, exchTIF: pocTIF},
+		{name: "market", orderType: order.Market, exchTIF: iocTIF},
+		{name: "immediate or cancel market", orderType: order.Market, tif: order.ImmediateOrCancel, exchTIF: iocTIF},
+		{name: "fill or kill market", orderType: order.Market, tif: order.FillOrKill, exchTIF: fokTIF},
+		{name: "good till cancel market", orderType: order.Market, tif: order.GoodTillCancel, err: order.ErrUnsupportedTimeInForce},
+		{name: "post only market", orderType: order.Market, tif: order.PostOnly, err: order.ErrUnsupportedTimeInForce},
+		{name: "good till time limit", orderType: order.Limit, tif: order.GoodTillTime, err: order.ErrUnsupportedTimeInForce},
+		{name: "stop limit", orderType: order.StopLimit, err: order.ErrUnsupportedOrderType},
+		{name: "stop market", orderType: order.StopMarket, err: order.ErrUnsupportedOrderType},
+		{name: "take profit", orderType: order.TakeProfit, err: order.ErrUnsupportedOrderType},
+		{name: "trailing stop", orderType: order.TrailingStop, err: order.ErrUnsupportedOrderType},
+	} {
+		price, tif, err := contractOrderPriceAndTIF(&order.Submit{Type: tc.orderType, TimeInForce: tc.tif, Price: 3000, TriggerPrice: 2900})
+		require.ErrorIsf(t, err, tc.err, "contractOrderPriceAndTIF must return the expected error for a %s order", tc.name)
+		assert.Equalf(t, tc.price, price, "contractOrderPriceAndTIF should return the price to send for a %s order", tc.name)
+		assert.Equalf(t, tc.exchTIF, tif, "contractOrderPriceAndTIF should return the time in force to send for a %s order", tc.name)
+	}
+}
+
+func TestGetFuturesOrderRequest(t *testing.T) {
+	t.Parallel()
+	_, err := getFuturesOrderRequest(&order.Submit{Type: order.Limit, Side: order.UnknownSide, Price: 3000, Amount: 1})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "getFuturesOrderRequest must reject an invalid side")
+	_, err = getFuturesOrderRequest(&order.Submit{Type: order.StopLimit, Side: order.Buy, Price: 3000, TriggerPrice: 2900, Amount: 1})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "getFuturesOrderRequest must not send a stop limit as a plain limit order")
+
+	req, err := getFuturesOrderRequest(&order.Submit{Pair: currency.NewBTCUSDT(), Type: order.Market, Side: order.Sell, Price: 3000, Amount: 2, ClientOrderID: "t-market"})
+	require.NoError(t, err, "getFuturesOrderRequest must not error for a market order")
+	exp := &FuturesOrderCreateParams{Contract: currency.NewBTCUSDT(), Size: -2, TimeInForce: iocTIF, Text: "t-market"}
+	assert.Equal(t, exp, req, "getFuturesOrderRequest should send a market order at price 0 with IOC")
+}
+
+func TestGetDeliveryOrderRequest(t *testing.T) {
+	t.Parallel()
+	_, err := getDeliveryOrderRequest(&order.Submit{Type: order.Limit, Side: order.UnknownSide, Price: 3000, Amount: 1})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "getDeliveryOrderRequest must reject an invalid side")
+	_, err = getDeliveryOrderRequest(&order.Submit{Type: order.Limit, Side: order.Buy, Price: 3000, Amount: 1, TimeInForce: order.GoodTillTime})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "getDeliveryOrderRequest must reject an unsupported time in force")
+	_, err = getDeliveryOrderRequest(&order.Submit{Type: order.StopLimit, Side: order.Buy, Price: 3000, TriggerPrice: 2900, Amount: 1})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "getDeliveryOrderRequest must not send a stop limit as a plain limit order")
+
+	req, err := getDeliveryOrderRequest(&order.Submit{Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 3000, Amount: 2, ReduceOnly: true})
+	require.NoError(t, err, "getDeliveryOrderRequest must not error for a limit order")
+	exp := &DeliveryOrderCreateParams{Contract: currency.NewBTCUSDT(), Size: 2, Price: 3000, ReduceOnly: true, TimeInForce: gtcTIF}
+	assert.Equal(t, exp, req, "getDeliveryOrderRequest should send a limit order at its price with GTC")
+}
+
+func TestSetupWebsocketConnections(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	// Gate lists no BTC-settled delivery contracts, so there is no BTC delivery connection
+	assert.ElementsMatch(t, []string{gateioWebsocketEndpoint, usdtFuturesWebsocketURL, btcFuturesWebsocketURL, deliveryRealUSDTTradingURL, optionsWebsocketURL}, urls, "Setup should connect spot, both perpetual settlements, USDT delivery and options")
+	deliveryURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketFutures)
+	require.NoError(t, err, "GetURL must not error")
+	assert.Equal(t, deliveryRealUSDTTradingURL, deliveryURL, "SetDefaults should default the futures websocket endpoint to USDT delivery")
+}
+
+func TestDeriveSpotWebsocketOrderResponseAccount(t *testing.T) {
+	t.Parallel()
+	for account, exp := range map[string]asset.Item{
+		"spot":         asset.Spot,
+		"unified":      asset.Spot,
+		"":             asset.Spot,
+		"margin":       asset.Margin,
+		"cross_margin": asset.CrossMargin,
+	} {
+		var resp *WebsocketOrderResponse
+		require.NoErrorf(t, json.Unmarshal([]byte(`{"left":"0","amount":"0.0001","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"`+account+`","side":"sell","text":"t-1","id":"766075454481","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "Unmarshal must decode account %q", account)
+		got, err := e.deriveSpotWebsocketOrderResponse(resp)
+		require.NoErrorf(t, err, "deriveSpotWebsocketOrderResponse must not error for account %q", account)
+		assert.Equalf(t, exp, got.AssetType, "deriveSpotWebsocketOrderResponse should report account %q as %s", account, exp)
+	}
+	_, err := e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Account: "bogus", Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "deriveSpotWebsocketOrderResponse should reject an unknown account")
+	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "bogus", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "deriveSpotWebsocketOrderResponse should reject an unknown side")
+	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "bogus"})
+	assert.ErrorContains(t, err, "unrecognised order status", "deriveSpotWebsocketOrderResponse should reject an unknown finish")
+	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "iceberg", TimeInForce: "ioc", FinishAs: "filled"})
+	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "deriveSpotWebsocketOrderResponse should reject an unknown order type")
+	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "bogus", FinishAs: "filled"})
+	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveSpotWebsocketOrderResponse should reject an unknown time in force")
+}
+
+func TestFetchTradablePairsErrors(t *testing.T) {
+	t.Parallel()
+	_, err := e.FetchTradablePairs(t.Context(), asset.Binary)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an unsupported asset")
+
+	failing := newRoutedExchange(t, nil)
+	for _, a := range failing.GetAssetTypes(false) {
+		_, err := failing.FetchTradablePairs(t.Context(), a)
+		assert.ErrorContainsf(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed request for %s", a)
+	}
+
+	ex := newRoutedExchange(t, map[string]string{
+		"/api/v4/spot/currency_pairs":     `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"untradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"}]`,
+		"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
+		"/api/v4/delivery/usdt/contracts": `[{"name":"BTC_USDT_20261225","in_delisting":true},{"name":""},{"name":"ETH_USDT_20261225"}]`,
+		"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
+	})
+	pairs, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
+	require.NoError(t, err, "FetchTradablePairs must not error for spot")
+	assert.Equal(t, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, pairs, "FetchTradablePairs should leave out untradable spot pairs")
+	pairs, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
+	require.NoError(t, err, "FetchTradablePairs must not error for delivery")
+	assert.Equal(t, currency.Pairs{currency.NewPairWithDelimiter("ETH", "USDT_20261225", currency.UnderscoreDelimiter)}, pairs, "FetchTradablePairs should leave out delisting and unnamed delivery contracts")
+	_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
+	assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed contracts request")
+
+	ex = newRoutedExchange(t, map[string]string{
+		"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
+		"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
+		"/api/v4/options/contracts":       `[{"name":"_"}]`,
+		"/api/v4/delivery/usdt/contracts": `[{"name":"_"}]`,
+	})
+	_, err = ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
+	assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed spot pairs request for cross margin")
+	_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
+	assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid options contract")
+	_, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
+	assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid delivery contract")
+}
+
+func TestGetActiveOrdersErrors(t *testing.T) {
+	t.Parallel()
+	failing := newRoutedExchange(t, nil)
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
+		_, err := failing.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorContainsf(t, err, "SERVER_ERROR", "GetActiveOrders should return a failed request for %s", a)
+	}
+
+	ex := newRoutedExchange(t, map[string]string{
+		"/api/v4/spot/open_orders":    `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"open","account":"spot","side":"bogus","type":"limit"}]}]`,
+		"/api/v4/futures/usdt/orders": `[{"id":3,"contract":"BTC_USDT","status":"open","finish_as":"","size":1,"tif":"bogus"}]`,
+		"/api/v4/options/orders":      `[{"id":4,"contract":"_","status":"open","size":1,"tif":"gtc"}]`,
+	})
+	_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders should reject an open spot order it cannot read")
+
+	// A closed order the listing still carries is skipped before it is read
+	closedOrders := newFixedResponseExchange(t, "/api/v4/spot/open_orders", `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"closed","account":"spot","side":"bogus","type":"limit"},{"id":"2","status":"open","account":"spot","side":"buy","type":"limit","amount":"1","price":"2"}]}]`)
+	result, err := closedOrders.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "GetActiveOrders must skip a closed order")
+	require.Len(t, result, 1, "GetActiveOrders must report only the open order")
+	assert.Equal(t, "2", result[0].OrderID, "GetActiveOrders should report the open order")
+	_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType})
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "GetActiveOrders should reject a futures order it cannot read")
+	_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType})
+	assert.ErrorIs(t, err, currency.ErrCreatingPair, "GetActiveOrders should reject an options order it cannot read")
+}
+
+func TestSubmitOrderErrors(t *testing.T) {
+	t.Parallel()
+	failing := newRoutedExchange(t, nil)
+	for _, s := range []*order.Submit{
+		{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+		{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+		{AssetType: asset.DeliveryFutures, Pair: getPair(t, asset.DeliveryFutures), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+		{AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+	} {
+		s.Exchange = failing.Name
+		_, err := failing.SubmitOrder(t.Context(), s)
+		assert.ErrorContainsf(t, err, "SERVER_ERROR", "SubmitOrder should return a failed request for %s", s.AssetType)
+	}
+
+	// A side that is valid for submission but neither long nor short
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
+		_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy | order.Sell, Price: 1, Amount: 1})
+		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "SubmitOrder should reject a side that is neither long nor short for %s", a)
+	}
+	_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject an options time in force Gate does not support")
+
+	submit := func(ex *Exchange, a asset.Item) error {
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
+		return err
+	}
+	assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":""}`), asset.Spot), order.ErrOrderIDNotSet, "SubmitOrder should reject a spot order without an ID")
+	assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"bogus"}`), asset.Spot), order.ErrSideIsInvalid, "SubmitOrder should reject a spot order with an unknown side")
+	assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"buy","status":"bogus"}`), asset.Spot), "unrecognised order status", "SubmitOrder should reject a spot order with an unknown status")
+	assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/options/orders", `{"id":5,"status":"finished","finish_as":"bogus"}`), asset.Options), "unrecognised order status", "SubmitOrder should reject an options order with an unknown finish")
+}
+
+func TestSetupConfiguredWebsocketConnections(t *testing.T) {
+	t.Parallel()
+	// Each connection reads its URL from the configured endpoints and dials for its own asset, whatever the URL
+	for _, tc := range []struct {
+		a    asset.Item
+		path string
+	}{
+		{a: asset.USDTMarginedFutures, path: "/custom/usdt"},
+		{a: asset.CoinMarginedFutures, path: "/custom/btc"},
+		{a: asset.DeliveryFutures, path: "/custom/delivery"},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var dialled []string
+			var sizeDecimal []string
+			var mu sync.Mutex
+			// A websocket dial needs a real listener, which NewTestServer does not provide
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				dialled = append(dialled, r.URL.Path)
+				sizeDecimal = append(sizeDecimal, r.Header.Get(sizeDecimalHeader))
+				mu.Unlock()
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}))
+			t.Cleanup(server.Close)
+			wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+			cfg := &config.Config{}
+			root, err := testutils.RootPathFromCWD()
+			require.NoError(t, err, "RootPathFromCWD must not error")
+			require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+			exchCfg, err := cfg.GetExchangeConfig("GateIO")
+			require.NoError(t, err, "GetExchangeConfig must not error")
+			exchCfg.Features.Enabled.Websocket = true
+			exchCfg.API.AuthenticatedWebsocketSupport = false
+			exchCfg.API.Endpoints = map[string]string{
+				"WebsocketSpotURL":         wsURL + "/custom/spot",
+				"WebsocketUSDTMarginedURL": wsURL + "/custom/usdt",
+				"WebsocketCoinMarginedURL": wsURL + "/custom/btc",
+				"WebsocketFuturesURL":      wsURL + "/custom/delivery",
+				"WebsocketOptionsURL":      wsURL + "/custom/options",
+			}
+			for a, ps := range exchCfg.CurrencyPairs.Pairs {
+				ps.AssetEnabled = a == tc.a
+			}
+			ex := new(Exchange)
+			ex.SetDefaults()
+			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+
+			require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against a server refusing the upgrade")
+			mu.Lock()
+			defer mu.Unlock()
+			require.NotEmpty(t, dialled, "Connect must dial the enabled asset's connection")
+			assert.Equal(t, tc.path, dialled[0], "Connect should dial the configured URL of the enabled asset's connection")
+			if tc.a != asset.DeliveryFutures {
+				assert.Equal(t, "1", sizeDecimal[0], "Connect should request decimal sizes on perpetual connections")
+			}
+		})
+	}
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	assert.Error(t, ex.Setup(nil), "Setup should reject a nil config")
+
+	cfg := &config.Config{}
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+	exchCfg, err := cfg.GetExchangeConfig("GateIO")
+	require.NoError(t, err, "GetExchangeConfig must not error")
+	exchCfg.Enabled = false
+	ex = new(Exchange)
+	ex.SetDefaults()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for a disabled exchange")
+	assert.False(t, ex.IsEnabled(), "Setup should leave a disabled exchange disabled")
 }

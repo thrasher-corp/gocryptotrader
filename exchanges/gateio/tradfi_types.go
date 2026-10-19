@@ -56,9 +56,9 @@ type tradFiList[T any] struct {
 
 // TradFiMT5Account holds MT5 account information
 type TradFiMT5Account struct {
-	Leverage     uint64       `json:"leverage"`
-	StopOutLevel types.Number `json:"stop_out_level"`
-	Status       uint64       `json:"status"` // 1: not opened, 2: pending review, 3: active
+	Leverage     uint64 `json:"leverage"`
+	StopOutLevel string `json:"stop_out_level"` // A percentage, such as 50%
+	Status       uint64 `json:"status"`         // 1: not opened, 2: pending review, 3: active
 }
 
 // TradFiCategory holds a trading symbol category

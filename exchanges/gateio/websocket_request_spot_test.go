@@ -27,7 +27,7 @@ func wsAPISpotOrder(changes func(*WebsocketOrderResponse)) *WebsocketOrderRespon
 		Status:                    "open",
 		CurrencyPair:              BTCUSDT,
 		Type:                      "limit",
-		Account:                   asset.Spot,
+		Account:                   "spot",
 		Side:                      "buy",
 		Amount:                    1,
 		Price:                     1,

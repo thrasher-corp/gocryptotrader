@@ -345,7 +345,7 @@
      "data": {
       "quote_id": "12345678",
       "min_amount": "0.1",
-      "max_amount": "1000",
+      "max_amount": "1000:0.0",
       "price": "11.666",
       "slippage": "10",
       "estimate_gas_fee_amount_usdt": "$0.04",
@@ -1834,6 +1834,26 @@
       }
      ],
      "queryString": "symbols=BINANCE_FUTURE_BTC_USDT%2CBINANCE_FUTURE_ETH_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "symbol": "HYPERLIQUID_FUTURE_kPEPE_USDC",
+       "tiers": [
+        {
+         "min_risk_limit_value": "0",
+         "max_risk_limit_value": "20000000",
+         "quick_cal_amount": "0",
+         "leverage_max": "10",
+         "maintenance_rate": "0.05",
+         "tier": "1"
+        }
+       ]
+      }
+     ],
+     "queryString": "symbols=HYPERLIQUID_FUTURE_kPEPE_USDC",
      "bodyParams": "",
      "headers": {}
     }
@@ -11613,7 +11633,7 @@
       "available": "1514.901537",
       "point": "0.1",
       "orders_limit": 10,
-      "position_notional_limit": 1000000
+      "position_notional_limit": "1000000"
      },
      "queryString": "",
      "bodyParams": "",
@@ -16217,7 +16237,7 @@
       "finish_as": "open"
      },
      "queryString": "",
-     "bodyParams": "{\"text\":\"\",\"currency_pair\":\"BTC_USDT\",\"amount\":\"0.1\",\"price\":\"1234567384\"}",
+     "bodyParams": "{\"currency_pair\":\"BTC_USDT\",\"amount\":\"0.1\",\"price\":\"1234567384\"}",
      "headers": {}
     }
    ]
@@ -17161,7 +17181,7 @@
       "slippage": "0.05"
      },
      "queryString": "",
-     "bodyParams": "{\"text\":\"\",\"currency_pair\":\"BTC_USDT\",\"type\":\"limit\",\"account\":\"spot\",\"side\":\"buy\",\"amount\":\"1\",\"price\":\"900000\"}",
+     "bodyParams": "{\"currency_pair\":\"BTC_USDT\",\"type\":\"limit\",\"account\":\"spot\",\"side\":\"buy\",\"amount\":\"1\",\"price\":\"900000\"}",
      "headers": {}
     },
     {
@@ -17281,7 +17301,7 @@
       "finish_as": "open"
      },
      "queryString": "",
-     "bodyParams": "{\"text\":\"\",\"currency_pair\":\"BTC_USDT\",\"type\":\"limit\",\"account\":\"cross_margin\",\"side\":\"buy\",\"amount\":\"0.001\",\"price\":\"10000\",\"time_in_force\":\"poc\"}",
+     "bodyParams": "{\"currency_pair\":\"BTC_USDT\",\"type\":\"limit\",\"account\":\"cross_margin\",\"side\":\"buy\",\"amount\":\"0.001\",\"price\":\"10000\",\"time_in_force\":\"poc\"}",
      "headers": {}
     }
    ]
@@ -19818,7 +19838,7 @@
      "data": {
       "data": {
        "leverage": 100,
-       "stop_out_level": "50",
+       "stop_out_level": "50%",
        "status": 3
       },
       "timestamp": 1769426795464

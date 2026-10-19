@@ -321,7 +321,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 }
 
 func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) error {
-	var data *WsCandlesticks
+	var data WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -361,7 +361,7 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 }
 
 func (e *Exchange) processOrderbookTicker(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data *WsOrderbookTickerData
+	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (e *Exchange) processOrderbookTicker(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data *WsOrderbookUpdate
+	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookSnapshot(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data *WsOrderbookSnapshot
+	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -489,7 +489,7 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		if err != nil {
 			return err
 		}
-		a, err := asset.New(resp.Result[x].Account)
+		a, err := spotOrderAsset(resp.Result[x].Account)
 		if err != nil {
 			return err
 		}
@@ -550,22 +550,22 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{}
+	// Gate's websocket user value identifies the same primary account that REST stores with an empty ID, so saving under
+	// it would count the account's balances twice
+	subAcct := accounts.NewSubAccount(asset.Spot, "")
 	for _, bal := range resp {
-		a := accounts.NewSubAccount(asset.Spot, bal.User)
-		a.Balances.Set(bal.Currency, accounts.Balance{
-			Total:                  bal.Total.Float64(),
-			Free:                   bal.Available.Float64(),
-			Hold:                   bal.Freeze.Float64(),
-			AvailableWithoutBorrow: bal.Available.Float64(),
-			UpdatedAt:              bal.Timestamp.Time(),
+		balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, bal.Currency, func(balance *accounts.Balance) {
+			balance.Total = bal.Total.Float64()
+			balance.Free = bal.Available.Float64()
+			balance.Hold = bal.Freeze.Float64()
+			balance.AvailableWithoutBorrow = bal.Available.Float64()
 		})
-		subAccts = subAccts.Merge(a)
+		if err != nil {
+			return err
+		}
+		subAcct.Balances.Set(bal.Currency, balance)
 	}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, subAccts)
+	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
 }
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {

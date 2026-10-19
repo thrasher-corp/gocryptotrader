@@ -36,18 +36,18 @@ func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency curre
 	params := url.Values{}
 	params.Set("table_id", tableID)
 	var result []*RiskTable
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesRiskTableEPL, common.EncodeURLValues(futuresPath+settleCurrency.Lower().String()+"/risk_limit_table", params), &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesRiskTableEPL, common.EncodeURLValues("futures/"+settleCurrency.Lower().String()+"/risk_limit_table", params), &result)
 }
 
 // GetFuturesRiskLimitTiers retrieves the futures risk limit tiers of a contract, or of a page of up to 100 markets
 // when no contract is supplied, in which case limit and offset page through markets rather than tiers
 func (e *Exchange) GetFuturesRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
-	return e.getRiskLimitTiers(ctx, futuresPath, publicFuturesRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
+	return e.getRiskLimitTiers(ctx, "futures/", publicFuturesRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
 }
 
 // GetDeliveryRiskLimitTiers retrieves the delivery risk limit tiers
 func (e *Exchange) GetDeliveryRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
-	return e.getRiskLimitTiers(ctx, deliveryPath, publicDeliveryRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
+	return e.getRiskLimitTiers(ctx, "delivery/", publicDeliveryRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
 }
 
 func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
@@ -77,13 +77,13 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 
 // DeliveryUpdatePositionRiskLimit updates the position risk limit for a delivery contract
 func (e *Exchange) DeliveryUpdatePositionRiskLimit(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
-	return e.updatePositionRiskLimit(ctx, deliveryPath, deliveryUpdateRiskLimitEPL, settleCurrency, contract, riskLimit)
+	return e.updatePositionRiskLimit(ctx, "delivery/", deliveryUpdateRiskLimitEPL, settleCurrency, contract, riskLimit)
 }
 
 // FuturesUpdatePositionRiskLimit updates the position risk limit for a futures contract. Hedge mode positions are
 // updated with UpdatePositionRiskLimitInDualMode.
 func (e *Exchange) FuturesUpdatePositionRiskLimit(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
-	return e.updatePositionRiskLimit(ctx, futuresPath, perpetualUpdateRiskEPL, settleCurrency, contract, riskLimit)
+	return e.updatePositionRiskLimit(ctx, "futures/", perpetualUpdateRiskEPL, settleCurrency, contract, riskLimit)
 }
 
 func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, riskLimit float64) (*Position, error) {
@@ -96,7 +96,7 @@ func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath string
 	if riskLimit <= 0 {
 		return nil, errInvalidRiskLimit
 	}
-	path := assetPath + settleCurrency.Lower().String() + positionsPath + contract.Upper().String() + "/risk_limit"
+	path := assetPath + settleCurrency.Lower().String() + "/positions/" + contract.Upper().String() + "/risk_limit"
 	param := url.Values{}
 	param.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
 	var result *Position

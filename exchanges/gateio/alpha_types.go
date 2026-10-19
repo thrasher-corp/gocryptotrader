@@ -70,7 +70,7 @@ type AlphaCurrencyQuoteDetail struct {
 	alphaStatusError
 	QuoteID              string       `json:"quote_id"`
 	MinAmount            types.Number `json:"min_amount"`
-	MaxAmount            types.Number `json:"max_amount"`
+	MaxAmount            string       `json:"max_amount"` // Gate documents a non-numeric form, such as 1000:0.0
 	Price                types.Number `json:"price"`
 	Slippage             types.Number `json:"slippage"`
 	TargetTokenMinAmount types.Number `json:"target_token_min_amount"`

@@ -20,6 +20,7 @@ import (
 
 var (
 	errCrossExchangeExchangeTypeRequired = errors.New("crossex exchange type required")
+	errCrossExchangeSymbolConflict       = errors.New("crossex symbol cannot be combined with an exchange, asset or pair")
 	errCrossExchangeFromAccountRequired  = errors.New("crossex from account required")
 	errCrossExchangeToAccountRequired    = errors.New("crossex to account required")
 	errCrossExchangeLeverageRequired     = errors.New("crossex leverage required")
@@ -46,7 +47,7 @@ func formatCrossExchangeSymbols(symbols []CrossExchangeSymbolIdentifier) (string
 
 // crossExchangeHistoryParams builds the symbol, millisecond time range and paging filters the CrossEx record
 // endpoints share
-func crossExchangeHistoryParams(symbol CrossExchangeSymbolIdentifier, startTime, endTime time.Time, page, limit uint64) (url.Values, error) {
+func crossExchangeHistoryParams(symbol *CrossExchangeSymbolIdentifier, startTime, endTime time.Time, page, limit uint64) (url.Values, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		formatted, err := symbol.Format()
@@ -140,7 +141,7 @@ func (e *Exchange) GetCrossExchangeTransferHistory(ctx context.Context, arg *Get
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(CrossExchangeSymbolIdentifier{}, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(nil, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +383,7 @@ func (e *Exchange) SetCrossExchangePositionMarginMode(ctx context.Context, arg *
 }
 
 // GetCrossExchangePositionMarginMode retrieves a futures trading pair's margin mode.
-func (e *Exchange) GetCrossExchangePositionMarginMode(ctx context.Context, symbol CrossExchangeSymbolIdentifier) (*CrossExchangeMarginModeResponse, error) {
+func (e *Exchange) GetCrossExchangePositionMarginMode(ctx context.Context, symbol *CrossExchangeSymbolIdentifier) (*CrossExchangeMarginModeResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -432,7 +433,7 @@ func (e *Exchange) GetCrossExchangeUserFeeRates(ctx context.Context) ([]*CrossEx
 }
 
 // GetCrossExchangeContractPositions retrieves the authenticated user's open CrossEx contract positions.
-func (e *Exchange) GetCrossExchangeContractPositions(ctx context.Context, symbol CrossExchangeSymbolIdentifier, exchangeType string) ([]*CrossExchangePosition, error) {
+func (e *Exchange) GetCrossExchangeContractPositions(ctx context.Context, symbol *CrossExchangeSymbolIdentifier, exchangeType string) ([]*CrossExchangePosition, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		formatted, err := symbol.Format()
@@ -449,7 +450,7 @@ func (e *Exchange) GetCrossExchangeContractPositions(ctx context.Context, symbol
 }
 
 // GetCrossExchangeMarginPositions retrieves the authenticated user's open CrossEx leveraged (margin) positions.
-func (e *Exchange) GetCrossExchangeMarginPositions(ctx context.Context, symbol CrossExchangeSymbolIdentifier, exchangeType string) ([]*CrossExchangeMarginPosition, error) {
+func (e *Exchange) GetCrossExchangeMarginPositions(ctx context.Context, symbol *CrossExchangeSymbolIdentifier, exchangeType string) ([]*CrossExchangeMarginPosition, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		formatted, err := symbol.Format()
@@ -466,7 +467,7 @@ func (e *Exchange) GetCrossExchangeMarginPositions(ctx context.Context, symbol C
 }
 
 // GetCrossExchangeADLRank retrieves the ADL (Auto-Deleveraging) position reduction ranking for a CrossEx symbol.
-func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol CrossExchangeSymbolIdentifier) ([]*CrossExchangeADLRank, error) {
+func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol *CrossExchangeSymbolIdentifier) ([]*CrossExchangeADLRank, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -508,7 +509,7 @@ func (e *Exchange) GetCrossExchangeOrderHistory(ctx context.Context, arg *GetCro
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(&arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +525,7 @@ func (e *Exchange) GetCrossExchangeContractPositionHistory(ctx context.Context, 
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(&arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +538,7 @@ func (e *Exchange) GetCrossExchangeMarginPositionHistory(ctx context.Context, ar
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(&arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +551,7 @@ func (e *Exchange) GetCrossExchangeMarginInterestHistory(ctx context.Context, ar
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(&arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +567,7 @@ func (e *Exchange) GetCrossExchangeTradeHistory(ctx context.Context, arg *GetCro
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(&arg.Symbol, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +580,7 @@ func (e *Exchange) GetCrossExchangeAccountBook(ctx context.Context, arg *GetCros
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := crossExchangeHistoryParams(CrossExchangeSymbolIdentifier{}, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
+	params, err := crossExchangeHistoryParams(nil, arg.StartTime, arg.EndTime, arg.Page, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

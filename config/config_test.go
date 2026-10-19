@@ -1597,6 +1597,49 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
 
+func TestReadVersion17GateIOEndpointsConfigFromFile(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the current config fixture")
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+	var exchanges []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
+	var found bool
+	for i := range exchanges {
+		if string(exchanges[i]["name"]) != `"GateIO"` {
+			continue
+		}
+		var api map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(exchanges[i]["api"], &api), "Unmarshal must decode GateIO's API settings")
+		// Version 17 endpoints carry the API version prefix: the old spot default and a custom futures endpoint
+		api["urlEndpoints"] = json.RawMessage(`{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`)
+		exchanges[i]["api"], err = json.Marshal(api)
+		require.NoError(t, err, "Marshal must encode GateIO's API settings")
+		found = true
+	}
+	require.True(t, found, "Config fixture must contain GateIO")
+	saved["exchanges"], err = json.Marshal(exchanges)
+	require.NoError(t, err, "Marshal must encode saved exchanges")
+	saved["version"] = json.RawMessage(`17`)
+	data, err = json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the version 17 config")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 17 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	assert.Equal(t, 18, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
+	exch, err := migrated.GetExchangeConfig("GateIO")
+	require.NoError(t, err, "GetExchangeConfig must find GateIO")
+	assert.Equal(t, map[string]string{
+		"RestFuturesURL":           "https://proxy.example/gate-fx",
+		"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
+		"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
+	}, exch.API.Endpoints, "ReadConfigFromFile should drop the old spot default and strip the version prefix from the custom endpoint")
+}
+
 func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	t.Parallel()
 

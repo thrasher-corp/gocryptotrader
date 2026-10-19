@@ -80,12 +80,8 @@ const (
 	invalidUserID                = "invalidUserID"
 )
 
-// WsFuturesConnect initiates a websocket connection for futures account
-func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	a := asset.USDTMarginedFutures
-	if conn.GetURL() == btcFuturesWebsocketURL {
-		a = asset.CoinMarginedFutures
-	}
+// WsFuturesConnect initiates a websocket connection for a perpetual futures asset
+func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection, a asset.Item) error {
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
@@ -315,7 +311,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresOrderbookChannel:
 		return e.processFuturesOrderbookSnapshot(ctx, push.Event, push.Result, a, push.Time)
 	case futuresOrderbookTickerChannel:
-		var data *WsFuturesOrderbookTicker
+		var data WsFuturesOrderbookTicker
 		return e.processResponse(ctx, push.Result, &data)
 	case futuresOrderbookUpdateChannel:
 		return e.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
@@ -527,13 +523,15 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
+		side, amount := tradeSideAndAmount(resp.Result[x].Size.Float64())
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     e.Name,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size.Float64(),
+			Amount:       amount,
+			Side:         side,
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
@@ -612,7 +610,7 @@ func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 
 func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
-		var data *WsFuturesOrderbookSnapshot
+		var data WsFuturesOrderbookSnapshot
 		if err := json.Unmarshal(incoming, &data); err != nil {
 			return err
 		}
@@ -642,10 +640,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event st
 	}
 	dataMap := map[string][2][]orderbook.Level{}
 	for x := range data {
-		ab, ok := dataMap[data[x].CurrencyPair]
-		if !ok {
-			ab = [2][]orderbook.Level{}
-		}
+		ab := dataMap[data[x].CurrencyPair]
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
 				Price:  data[x].Price.Float64(),
@@ -657,9 +652,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event st
 				Amount: -data[x].Amount.Float64(),
 			})
 		}
-		if !ok {
-			dataMap[data[x].CurrencyPair] = ab
-		}
+		dataMap[data[x].CurrencyPair] = ab
 	}
 	if len(dataMap) == 0 {
 		return errors.New("missing orderbook ask and bid data")
@@ -699,12 +692,8 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		var status order.Status
-		if resp.Result[x].Status == "finished" {
-			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
-				status = order.Cancelled
-			} else {
-				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)
-			}
+		if resp.Result[x].Status == statusFinished && resp.Result[x].FinishAs != "" {
+			status, err = orderStatusFromFinishAs(resp.Result[x].FinishAs)
 		} else {
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}

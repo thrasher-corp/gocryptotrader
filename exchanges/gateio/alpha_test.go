@@ -99,7 +99,7 @@ func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 	exp := &AlphaCurrencyQuoteDetail{
 		QuoteID:                  "12345678",
 		MinAmount:                0.1,
-		MaxAmount:                1000,
+		MaxAmount:                "1000:0.0",
 		Price:                    11.666,
 		Slippage:                 10,
 		TargetTokenMinAmount:     500.6,
