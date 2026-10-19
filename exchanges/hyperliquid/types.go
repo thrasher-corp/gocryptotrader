@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -46,13 +48,38 @@ type Exchange struct {
 	websocketTradeReplays map[string]struct{}
 	// websocketWatermarks holds how far the websocket has relayed feeds that repeat entries: the newest trade per coin, the
 	// newest fill per account fills feed and each recent order's fills; websocketPendingMu guards it
-	websocketWatermarks websocketWatermarks
-	websocketPostID     atomic.Uint64
-	lastNonce           atomic.Uint64
-	// accountProbeInterval hands the doubled interval of an account websocket probe that connected to the next connection
-	// attempt, the reconnection the probe causes, so an account connection that keeps failing straight after the public
-	// one backs off instead of reconnecting the websocket every monitor cycle; it is zero otherwise
-	accountProbeInterval atomic.Int64
+	websocketWatermarks    websocketWatermarks
+	websocketPostID        atomic.Uint64
+	lastNonce              atomic.Uint64
+	websocketConnectionsMu sync.Mutex
+	// websocketPostConnection is the public connection WebsocketAPI posts use, held apart from the manager so a post
+	// never waits on the manager's lock, and websocketAccountConnection the account connection; a connection's disconnect
+	// clears only its own entry; websocketConnectionsMu guards both
+	websocketPostConnection    websocket.Connection
+	websocketAccountConnection websocket.Connection
+}
+
+// TenthsOfABasisPoint is a fee rate in tenths of a basis point, the unit of Hyperliquid's builder fees: 1 is 0.001% of
+// the notional, and 10 is one basis point
+type TenthsOfABasisPoint uint64
+
+// Rate returns the fee rate as a fraction of the notional, such as 0.0001 for one basis point
+func (t TenthsOfABasisPoint) Rate() float64 {
+	return float64(t) / 100000
+}
+
+// Percentage returns the fee rate as a percentage of the notional, such as 0.01 for one basis point
+func (t TenthsOfABasisPoint) Percentage() float64 {
+	return float64(t) / 1000
+}
+
+// percentageText returns the fee rate as an exact decimal percentage, such as 0.001 for one tenth of a basis point
+func (t TenthsOfABasisPoint) percentageText() string {
+	text := strconv.FormatUint(uint64(t)/1000, 10)
+	if fraction := uint64(t) % 1000; fraction != 0 {
+		text += strings.TrimRight(fmt.Sprintf(".%03d", fraction), "0")
+	}
+	return text
 }
 
 // ZonelessTime is a UTC timestamp decoded from an ISO 8601 string without a zone offset
@@ -302,7 +329,7 @@ type VaultDetailsResponse struct {
 	Leader                string            `json:"leader"`
 	Description           string            `json:"description"`
 	Portfolio             []PortfolioPeriod `json:"portfolio"`
-	APR                   float64           `json:"apr"`
+	AnnualPercentageRate  float64           `json:"apr"`
 	FollowerState         *VaultFollower    `json:"followerState"`
 	LeaderFraction        float64           `json:"leaderFraction"`
 	LeaderCommission      float64           `json:"leaderCommission"`
@@ -476,10 +503,10 @@ type ReferralReward struct {
 type UserFeesResponse struct {
 	DailyUserVolume        []DailyUserVolume `json:"dailyUserVlm"`
 	FeeSchedule            FeeSchedule       `json:"feeSchedule"`
-	UserCrossRate          types.Number      `json:"userCrossRate"`
-	UserAddRate            types.Number      `json:"userAddRate"`
-	UserSpotCrossRate      types.Number      `json:"userSpotCrossRate"`
-	UserSpotAddRate        types.Number      `json:"userSpotAddRate"`
+	UserTakerFeeRate       types.Number      `json:"userCrossRate"`
+	UserMakerFeeRate       types.Number      `json:"userAddRate"`
+	UserSpotTakerFeeRate   types.Number      `json:"userSpotCrossRate"`
+	UserSpotMakerFeeRate   types.Number      `json:"userSpotAddRate"`
 	ActiveReferralDiscount types.Number      `json:"activeReferralDiscount"`
 	// Trial's shape is undocumented; Hyperliquid has only been seen sending null
 	Trial json.RawMessage `json:"trial"`
@@ -492,18 +519,19 @@ type UserFeesResponse struct {
 
 // DailyUserVolume contains an account's taker and maker volume for one day, alongside the exchange's total volume
 type DailyUserVolume struct {
-	Date      string       `json:"date"`
-	UserCross types.Number `json:"userCross"`
-	UserAdd   types.Number `json:"userAdd"`
-	Exchange  types.Number `json:"exchange"`
+	Date            string       `json:"date"`
+	UserTakerVolume types.Number `json:"userCross"`
+	UserMakerVolume types.Number `json:"userAdd"`
+	ExchangeVolume  types.Number `json:"exchange"`
 }
 
-// FeeSchedule contains the base fee rates and discount tiers; cross rates apply to takers and add rates to makers
+// FeeSchedule contains the base fee rates and discount tiers; Hyperliquid calls taker rates cross rates and maker rates
+// add rates
 type FeeSchedule struct {
-	Cross                types.Number          `json:"cross"`
-	Add                  types.Number          `json:"add"`
-	SpotCross            types.Number          `json:"spotCross"`
-	SpotAdd              types.Number          `json:"spotAdd"`
+	TakerFeeRate         types.Number          `json:"cross"`
+	MakerFeeRate         types.Number          `json:"add"`
+	SpotTakerFeeRate     types.Number          `json:"spotCross"`
+	SpotMakerFeeRate     types.Number          `json:"spotAdd"`
 	Tiers                FeeTiers              `json:"tiers"`
 	ReferralDiscount     types.Number          `json:"referralDiscount"`
 	StakingDiscountTiers []StakingDiscountTier `json:"stakingDiscountTiers"`
@@ -517,17 +545,17 @@ type FeeTiers struct {
 
 // VIPFeeTier contains the fee rates that apply above a notional volume cutoff
 type VIPFeeTier struct {
-	NotionalCutoff types.Number `json:"ntlCutoff"`
-	Cross          types.Number `json:"cross"`
-	Add            types.Number `json:"add"`
-	SpotCross      types.Number `json:"spotCross"`
-	SpotAdd        types.Number `json:"spotAdd"`
+	NotionalCutoff   types.Number `json:"ntlCutoff"`
+	TakerFeeRate     types.Number `json:"cross"`
+	MakerFeeRate     types.Number `json:"add"`
+	SpotTakerFeeRate types.Number `json:"spotCross"`
+	SpotMakerFeeRate types.Number `json:"spotAdd"`
 }
 
 // MarketMakerFeeTier contains the maker rate that applies above a maker volume share cutoff
 type MarketMakerFeeTier struct {
 	MakerFractionCutoff types.Number `json:"makerFractionCutoff"`
-	Add                 types.Number `json:"add"`
+	MakerFeeRate        types.Number `json:"add"`
 }
 
 // StakingDiscountTier contains the fee discount for staking a share of the native token's maximum supply

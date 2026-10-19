@@ -134,10 +134,16 @@ type websocketTemplateExpander struct {
 	subscription.IExchange
 }
 
+// CanUseAuthenticatedWebsocketEndpoints expands account feeds whatever the account connection's state, as subscribing
+// one opens it; callers leave account feeds out when they cannot be subscribed
+func (websocketTemplateExpander) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return true
+}
+
 // websocketPendingKey identifies a subscription operation awaiting its acknowledgement on one connection
 type websocketPendingKey struct {
-	authenticated bool
-	subscription  WebsocketSubscription
+	connection   websocket.Connection
+	subscription WebsocketSubscription
 }
 
 // websocketPendingOperation is a subscription operation awaiting its acknowledgement
@@ -217,8 +223,8 @@ type WebsocketResponse struct {
 // WebsocketAllMids contains the mid price of every coin on one perpetual DEX; DEX is empty for the default DEX, which
 // also includes spot and outcome coins
 type WebsocketAllMids struct {
-	DEX  string                  `json:"dex"`
-	Mids map[string]types.Number `json:"mids"`
+	DEX       string                  `json:"dex"`
+	MidPrices map[string]types.Number `json:"mids"`
 }
 
 // WebsocketNotification contains a notification the frontend displays to a user, such as a fill message

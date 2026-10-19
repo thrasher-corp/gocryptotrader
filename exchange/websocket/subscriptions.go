@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -25,6 +26,8 @@ var (
 var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
 	errConnectionNotFound        = errors.New("connection not found")
+	errSetupSubscribesNothing    = errors.New("connection setup does not subscribe")
+	errSetupUnsubscribesNothing  = errors.New("connection setup does not unsubscribe")
 )
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
@@ -330,28 +333,150 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 	}
 
 	var subscriptionError error
-	for _, ws := range m.snapshotConnectionManager() {
+	for i, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {
 			continue
+		}
+		unconnected := len(m.snapshotManagedConnections(ws)) == 0
+		if ws.setup.Optional && unconnected && time.Now().Before(ws.retryAt) {
+			continue // The connection monitor retries it when due
 		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
-			return fatalErr
-		}
-
-		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && len(m.snapshotManagedConnections(ws)) == 0 {
+			if !ws.setup.Optional {
+				return common.AppendError(subscriptionError, fatalErr)
+			}
+			// The other setups are flushed whatever becomes of an optional one
+			if unconnected {
+				log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
+			} else {
+				subscriptionError = common.AppendError(subscriptionError, fatalErr)
+			}
 			continue
 		}
 
-		if err := m.scaleConnectionsToSubscriptions(ctx, ws, newSubs); err != nil {
-			return err
+		// Case if there is nothing to unsubscribe from and the connection is nil
+		if len(newSubs) == 0 && unconnected && !ws.setup.ConnectWithoutSubscriptions {
+			continue
 		}
+
+		err = m.scaleConnectionsToSubscriptions(ctx, ws, newSubs)
+		if !ws.setup.Optional {
+			if err != nil {
+				return common.AppendError(subscriptionError, err)
+			}
+			continue
+		}
+		if unconnected && errors.Is(err, common.ErrFatal) {
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, err))
+			continue
+		}
+		if unconnected && len(m.snapshotManagedConnections(ws)) != 0 {
+			ws.retryFailures, ws.retryAt = 0, time.Time{}
+		}
+		subscriptionError = common.AppendError(subscriptionError, err)
 	}
 	return subscriptionError
+}
+
+// SubscribeToSetup subscribes to subscriptions on the connections of the setup with the given message filter, using
+// their spare capacity before dialling new connections, for subscriptions made at runtime under multi-connection
+// management
+func (m *Manager) SubscribeToSetup(ctx context.Context, messageFilter any, subs subscription.List) error {
+	if slices.Contains(subs, nil) {
+		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
+	}
+	m.m.Lock()
+	defer m.m.Unlock()
+	ws, err := m.connectedSetup(messageFilter)
+	if err != nil {
+		return err
+	}
+	if ws.setup.SubscriptionsNotRequired {
+		return fmt.Errorf("%s: %w: message filter '%v'", m.exchangeName, errSetupSubscribesNothing, messageFilter)
+	}
+	if len(subs) == 0 {
+		return nil
+	}
+	// Refused before any is sent, as a connection may be dialled for them
+	if _, err := subscription.NewStoreFromList(subs); err != nil {
+		return err
+	}
+	for _, s := range subs {
+		if ws.subscriptions.Get(s) != nil {
+			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
+		}
+	}
+	unconnected := len(m.snapshotManagedConnections(ws)) == 0
+	if ws.setup.Optional && unconnected && time.Now().Before(ws.retryAt) {
+		return fmt.Errorf("%s websocket: %w: optional connection [URL:%s] is retried at %s", m.exchangeName, ErrNotConnected, ws.setup.URL, ws.retryAt)
+	}
+	err = m.subscribeToSetup(ctx, ws, subs)
+	if ws.setup.Optional && unconnected {
+		if errors.Is(err, common.ErrFatal) {
+			return m.optionalSetupFailed(slices.Index(m.snapshotConnectionManager(), ws), ws, err)
+		}
+		if len(m.snapshotManagedConnections(ws)) != 0 {
+			ws.retryFailures, ws.retryAt = 0, time.Time{}
+		}
+	}
+	return err
+}
+
+// UnsubscribeFromSetup unsubscribes from subscriptions held by the setup with the given message filter, closing any
+// connection left without subscriptions, for subscriptions removed at runtime under multi-connection management
+func (m *Manager) UnsubscribeFromSetup(ctx context.Context, messageFilter any, subs subscription.List) error {
+	if slices.Contains(subs, nil) {
+		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
+	}
+	m.m.Lock()
+	defer m.m.Unlock()
+	ws, err := m.connectedSetup(messageFilter)
+	if err != nil {
+		return err
+	}
+	if ws.setup.SubscriptionsNotRequired || ws.setup.Unsubscriber == nil {
+		return fmt.Errorf("%s: %w: message filter '%v'", m.exchangeName, errSetupUnsubscribesNothing, messageFilter)
+	}
+	if len(subs) == 0 {
+		return nil
+	}
+	// Refused before any is sent
+	if _, err := subscription.NewStoreFromList(subs); err != nil {
+		return err
+	}
+	for _, s := range subs {
+		if ws.subscriptions.Get(s) == nil {
+			return fmt.Errorf("%w: %s", subscription.ErrNotFound, s)
+		}
+	}
+	if err := m.unsubscribeFromSetup(ctx, ws, subs); err != nil {
+		return err
+	}
+	return m.closeIdleConnections(ctx, ws)
+}
+
+// connectedSetup returns the setup with the given message filter while the manager is connected; the caller must hold
+// m.m
+func (m *Manager) connectedSetup(messageFilter any) (*websocket, error) {
+	if !m.useMultiConnectionManagement {
+		return nil, fmt.Errorf("%s: multi connection management not enabled %w", m.exchangeName, errCannotObtainOutboundConnection)
+	}
+	if !m.IsEnabled() {
+		return nil, fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketNotEnabled)
+	}
+	if !m.IsConnected() {
+		return nil, ErrNotConnected
+	}
+	for _, ws := range m.snapshotConnectionManager() {
+		if ws.setup.MessageFilter == messageFilter {
+			return ws, nil
+		}
+	}
+	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
 }
 
 func collectSubscriptionGenerationError(subscriptionError, generationError error) (updatedSubscriptionError, fatalError error) {
@@ -463,73 +588,99 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	}
 	subs, unsubs := ws.subscriptions.Diff(incoming)
 	if len(unsubs) != 0 {
-		currentUnsubs := slices.Clone(unsubs)
-		// Unsubscribe first to free up capacity on existing connections
-		for _, conn := range m.snapshotManagedConnections(ws) {
-			leftOver, err := m.unsubscribeFromConnection(ctx, conn, currentUnsubs)
-			if err != nil {
-				return err
-			}
-			currentUnsubs = leftOver
-			if len(currentUnsubs) == 0 {
-				break
-			}
-		}
-
-		if len(currentUnsubs) != 0 {
-			log.Warnf(log.WebsocketMgr, "%v websocket: unable to find all subscriptions to remove on existing connections, attempting global unsubscribe for %v", m.exchangeName, currentUnsubs)
-			for _, s := range currentUnsubs {
-				if err := ws.subscriptions.Remove(s); err != nil {
-					return err
-				}
-			}
-		}
-		if contained := ws.subscriptions.Contained(unsubs); len(contained) > 0 {
-			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
+		if err := m.unsubscribeFromSetup(ctx, ws, unsubs); err != nil {
+			return err
 		}
 	}
 	if len(subs) != 0 {
-		// First, absorb subscriptions that should be tracked on existing
-		// connections (e.g. OKX spot/margin equivalents) before the
-		// generic capacity-based routing can misplace them.
-		currentSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
+		if err := m.subscribeToSetup(ctx, ws, subs); err != nil {
+			return err
+		}
+	}
+	return m.closeIdleConnections(ctx, ws)
+}
+
+// unsubscribeFromSetup unsubscribes from subscriptions held by a setup across its connections
+func (m *Manager) unsubscribeFromSetup(ctx context.Context, ws *websocket, unsubs subscription.List) error {
+	currentUnsubs := slices.Clone(unsubs)
+	// Unsubscribe first to free up capacity on existing connections
+	for _, conn := range m.snapshotManagedConnections(ws) {
+		leftOver, err := m.unsubscribeFromConnection(ctx, conn, currentUnsubs)
 		if err != nil {
 			return err
 		}
-
-		// Subscribe to existing connections to use up existing capacity
-		for _, conn := range m.snapshotManagedConnections(ws) {
-			leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
-			if err != nil {
-				return err
-			}
-			currentSubs = leftOver
-			if len(currentSubs) == 0 {
-				break
-			}
-		}
-
-		// Spawn new connections if there are still subscriptions left to process
-		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
-			toConnect, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batch)
-			if err != nil {
-				return err
-			}
-			if len(toConnect) == 0 {
-				continue
-			}
-			if err := m.createConnectAndSubscribe(ctx, ws, toConnect); err != nil {
-				return err
-			}
-		}
-
-		if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
-			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
+		currentUnsubs = leftOver
+		if len(currentUnsubs) == 0 {
+			break
 		}
 	}
 
-	// Clean up any connections that have no subscriptions left to reduce resource usage
+	if len(currentUnsubs) != 0 {
+		log.Warnf(log.WebsocketMgr, "%v websocket: unable to find all subscriptions to remove on existing connections, attempting global unsubscribe for %v", m.exchangeName, currentUnsubs)
+		for _, s := range currentUnsubs {
+			if err := ws.subscriptions.Remove(s); err != nil {
+				return err
+			}
+		}
+	}
+	if contained := ws.subscriptions.Contained(unsubs); len(contained) > 0 {
+		return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
+	}
+	return nil
+}
+
+// subscribeToSetup subscribes to subscriptions on a setup's existing connections, then on new connections
+func (m *Manager) subscribeToSetup(ctx context.Context, ws *websocket, subs subscription.List) error {
+	// First, absorb subscriptions that should be tracked on existing
+	// connections (e.g. OKX spot/margin equivalents) before the
+	// generic capacity-based routing can misplace them.
+	currentSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
+	if err != nil {
+		return err
+	}
+
+	// Subscribe to existing connections to use up existing capacity
+	for _, conn := range m.snapshotManagedConnections(ws) {
+		leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
+		if err != nil {
+			return err
+		}
+		currentSubs = leftOver
+		if len(currentSubs) == 0 {
+			break
+		}
+	}
+
+	// Spawn new connections if there are still subscriptions left to process
+	for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
+		toConnect, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batch)
+		if err != nil {
+			return err
+		}
+		if len(toConnect) == 0 {
+			continue
+		}
+		if err := m.createConnectAndSubscribe(ctx, ws, toConnect); err != nil {
+			return err
+		}
+	}
+
+	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
+		return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
+	}
+	return nil
+}
+
+// closeIdleConnections closes a setup's connections that hold no subscriptions, to reduce resource usage; a setup that
+// connects without subscriptions keeps one, and gets one if it has none
+func (m *Manager) closeIdleConnections(ctx context.Context, ws *websocket) error {
 	connections := m.snapshotManagedConnections(ws)
+	if len(connections) == 0 {
+		if ws.setup.ConnectWithoutSubscriptions {
+			return m.createConnectAndSubscribe(ctx, ws, nil)
+		}
+		return nil
+	}
 	clean := make([]Connection, 0, len(connections))
 	stale := make([]Connection, 0, len(connections))
 	for _, conn := range connections {
@@ -539,30 +690,14 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		}
 		stale = append(stale, conn)
 	}
+	if ws.setup.ConnectWithoutSubscriptions && len(clean) == 0 {
+		stale = stale[1:]
+	}
 	if len(stale) == 0 {
 		return nil
 	}
-	staleSet := make(map[Connection]struct{}, len(stale))
-	for _, conn := range stale {
-		staleSet[conn] = struct{}{}
-	}
-	m.connectionManagerMu.Lock()
-	for _, conn := range stale {
-		delete(m.connections, conn)
-	}
-	clean = clean[:0]
-	for _, conn := range ws.connections {
-		if _, ok := staleSet[conn]; ok {
-			continue
-		}
-		clean = append(clean, conn)
-	}
-	ws.connections = clean
-	m.connectionManagerMu.Unlock()
-	for _, conn := range stale {
-		if err := conn.Shutdown(); err != nil {
-			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
-		}
+	if err := m.retireConnections(ws, stale); err != nil {
+		log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 	}
 	return nil
 }

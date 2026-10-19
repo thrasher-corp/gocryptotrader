@@ -4791,21 +4791,6 @@
       }
      },
      "queryString": "",
-     "bodyParams": "{\"action\":{\"type\":\"withdraw3\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"time\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"amount\":\"25\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
-     "data": {
-      "status": "ok",
-      "response": {
-       "type": "default"
-      }
-     },
-     "queryString": "",
      "bodyParams": "{\"action\":{\"type\":\"usdSend\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"time\":4102444800000,\"destination\":\"0x0000000000000000000000000000000000000014\",\"amount\":\"25\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
      "headers": {
       "Content-Type": [

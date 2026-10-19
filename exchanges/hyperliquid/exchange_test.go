@@ -136,7 +136,7 @@ func skipLiveWithoutPrivateKey(t *testing.T) {
 func skipLiveUnlessAccountSigner(t *testing.T) {
 	t.Helper()
 	_, err := e.getAccountSigningCredentials(t.Context())
-	if errors.Is(err, errPrivateKeyRequired) || errors.Is(err, errUserSignedMasterRequired) || errors.Is(err, errTransferSubAccountUnsupported) {
+	if errors.Is(err, errPrivateKeyRequired) || errors.Is(err, errUserSignedMasterRequired) || errors.Is(err, errSubAccountUnsupported) {
 		t.Skip("Live user-signed action tests need the account's own private key in apiCredentials, and no subaccount or vault")
 	}
 	require.NoError(t, err, "getAccountSigningCredentials must not error")
@@ -260,7 +260,7 @@ func liveIsolatedOnlyTopUp(t *testing.T) *TopUpIsolatedOnlyMarginRequest {
 		if index < 0 || position.MarginUsed <= 0 {
 			continue
 		}
-		if asset := &metadata.Universe[index]; asset.OnlyIsolated || asset.MarginMode == "strictIsolated" || asset.MarginMode == "noCross" {
+		if asset := &metadata.Universe[index]; asset.MarginMode == "strictIsolated" || asset.MarginMode == "noCross" {
 			return &TopUpIsolatedOnlyMarginRequest{Asset: uint64(index), Leverage: math.Round(position.PositionValue.Float64()/position.MarginUsed.Float64()*100) / 100}
 		}
 	}
@@ -292,8 +292,7 @@ func liveApprovedBuilderFee(t *testing.T) *ApproveBuilderFeeRequest {
 	}
 	maximumFee, err := e.GetMaxBuilderFee(t.Context(), account, builders[0])
 	require.NoError(t, err, "GetMaxBuilderFee must not error")
-	// Maximum builder fees are in tenths of a basis point, which are thousandths of a percent
-	return &ApproveBuilderFeeRequest{Builder: builders[0], MaxFeeRate: float64(maximumFee) / 1000}
+	return &ApproveBuilderFeeRequest{Builder: builders[0], MaxFee: maximumFee}
 }
 
 // liveDEXAbstraction returns whether the live account has HIP-3 DEX abstraction enabled, or nil when it never set it
@@ -660,7 +659,7 @@ func TestCancelOrdersInternal(t *testing.T) {
 				var captured SignedActionRequest
 				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
 				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
-				ex.Websocket.Conn = connection
+				ex.websocketPostConnection = connection
 				expires := time.Now().Add(time.Hour)
 				statuses, err := ex.cancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 0, OrderID: 1}, {Asset: 1, OrderID: 2}}, Fast: true, ExpiresAfter: expires}, overWebsocket)
 				require.ErrorIs(t, err, tc.err, "cancelOrders must return the action result")
@@ -718,7 +717,7 @@ func TestCancelOrdersByClientOrderIDInternal(t *testing.T) {
 				var captured SignedActionRequest
 				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
 				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
-				ex.Websocket.Conn = connection
+				ex.websocketPostConnection = connection
 				expires := time.Now().Add(time.Hour)
 				arg := &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: 0, ClientOrderID: strings.ToUpper(testClientOrderID)}, {Asset: 1, ClientOrderID: testPriorityClientOrderID}}, Fast: true, ExpiresAfter: expires}
 				statuses, err := ex.cancelOrdersByClientOrderID(t.Context(), arg, overWebsocket)
@@ -782,7 +781,7 @@ func TestModifySingleOrderInternal(t *testing.T) {
 				var captured SignedActionRequest
 				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
 				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
-				ex.Websocket.Conn = connection
+				ex.websocketPostConnection = connection
 				expires := time.Now().Add(time.Hour)
 				err := ex.modifySingleOrder(t.Context(), &ModifyOrderRequest{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, Order: replacement, AlwaysPlace: tc.alwaysPlace, ExpiresAfter: expires}, overWebsocket)
 				require.ErrorIs(t, err, tc.err, "modifySingleOrder must return the action result")
@@ -841,7 +840,7 @@ func TestModifyOrdersInternal(t *testing.T) {
 				var captured SignedActionRequest
 				ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
 				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
-				ex.Websocket.Conn = connection
+				ex.websocketPostConnection = connection
 				expires := time.Now().Add(time.Hour)
 				statuses, err := ex.modifyOrders(t.Context(), &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {ClientOrderID: strings.ToUpper(testClientOrderID), Order: replacement}}, AlwaysPlace: true, ExpiresAfter: expires}, overWebsocket)
 				require.ErrorIs(t, err, tc.err, "modifyOrders must return the action result")
@@ -915,7 +914,7 @@ func TestPlaceOrdersInternal(t *testing.T) {
 				var captured SignedActionRequest
 				ex := newActionServerExchange(t, subAccountCredentials(), &captured, response)
 				connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + response + `}`)}
-				ex.Websocket.Conn = connection
+				ex.websocketPostConnection = connection
 				expires := time.Now().Add(time.Hour)
 				statuses, err := ex.placeOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{limit, limit}, Grouping: tc.grouping, PriorityRate: tc.priorityRate, Builder: tc.builder, ExpiresAfter: expires}, overWebsocket)
 				require.ErrorIs(t, err, tc.err, "placeOrders must return the action result")
@@ -1038,7 +1037,7 @@ func TestSendAsset(t *testing.T) {
 	_, err := newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SendAsset(t.Context(), valid)
 	assert.ErrorIs(t, err, errUserSignedMasterRequired, "SendAsset should require the account's own key")
 	_, err = newActionServerExchange(t, unownedSubAccountCredentials(), new(SignedActionRequest), defaultActionResponse).SendAsset(t.Context(), valid)
-	assert.ErrorIs(t, err, errTransferSubAccountInvalid, "SendAsset should reject a configured subaccount the account does not own")
+	assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SendAsset should reject a configured subaccount the account does not own")
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
@@ -1093,7 +1092,7 @@ func TestAgentSendAsset(t *testing.T) {
 	_, err := newActionServerExchange(t, &accounts.Credentials{Key: testAccountAddress}, new(SignedActionRequest), defaultActionResponse).AgentSendAsset(t.Context(), valid)
 	assert.ErrorIs(t, err, errPrivateKeyRequired, "AgentSendAsset should require a private key")
 	_, err = newActionServerExchange(t, unownedSubAccountCredentials(), new(SignedActionRequest), defaultActionResponse).AgentSendAsset(t.Context(), valid)
-	assert.ErrorIs(t, err, errTransferSubAccountInvalid, "AgentSendAsset should reject a configured subaccount the account does not own")
+	assert.ErrorIs(t, err, errOwnedSubAccountRequired, "AgentSendAsset should reject a configured subaccount the account does not own")
 	_, err = newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), rejectedActionResponse).AgentSendAsset(t.Context(), valid)
 	assert.ErrorIs(t, err, errActionResponse, "AgentSendAsset should return a rejected action")
 
@@ -1158,7 +1157,7 @@ func TestSendToEVMWithData(t *testing.T) {
 	_, err := e.SendToEVMWithData(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SendToEVMWithData must reject a nil request")
 	_, err = newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).SendToEVMWithData(t.Context(), &valid)
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "SendToEVMWithData must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "SendToEVMWithData must reject a configured subaccount")
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse)
@@ -1223,7 +1222,7 @@ func TestSendCoreUSDC(t *testing.T) {
 		assert.ErrorIsf(t, err, tc.err, "SendCoreUSDC should reject a request with %s", tc.name)
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).SendCoreUSDC(t.Context(), &SendCoreUSDCRequest{Destination: testWithdrawalAddress, Amount: 1})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "SendCoreUSDC must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "SendCoreUSDC must reject a configured subaccount")
 
 	var captured SignedActionRequest
 	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).SendCoreUSDC(t.Context(), &SendCoreUSDCRequest{Destination: testWithdrawalAddress, Amount: 1.5})
@@ -1262,7 +1261,7 @@ func TestSendCoreSpot(t *testing.T) {
 	require.ErrorIs(t, err, errTransferTokenInvalid, "SendCoreSpot must reject an empty token")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SendCoreSpot must report the empty token")
 	_, err = newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).SendCoreSpot(t.Context(), &SendCoreSpotRequest{Destination: testWithdrawalAddress, Token: currency.HYPE, Amount: 1})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "SendCoreSpot must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "SendCoreSpot must reject a configured subaccount")
 	_, err = newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), defaultActionResponse).SendCoreSpot(t.Context(), &SendCoreSpotRequest{Destination: testWithdrawalAddress, Token: currency.BTC, Amount: 1})
 	require.ErrorIs(t, err, errTransferTokenInvalid, "SendCoreSpot must reject an unknown token")
 
@@ -1284,43 +1283,6 @@ func TestSendCoreSpot(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
-func TestWithdrawFromBridge(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		arg  *WithdrawFromBridgeRequest
-		err  error
-	}{
-		{name: "nil request", err: common.ErrNilPointer},
-		{name: "an invalid destination", arg: &WithdrawFromBridgeRequest{Destination: "invalid", Amount: 1}, err: errInvalidAddress},
-		{name: "the zero address as destination", arg: &WithdrawFromBridgeRequest{Destination: testZeroAddress, Amount: 1}, err: errInvalidAddress},
-		{name: "a negative amount", arg: &WithdrawFromBridgeRequest{Destination: testWithdrawalAddress, Amount: -1}, err: errTransferAmountInvalid},
-	} {
-		_, err := e.WithdrawFromBridge(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "WithdrawFromBridge should reject a request with %s", tc.name)
-	}
-	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).WithdrawFromBridge(t.Context(), &WithdrawFromBridgeRequest{Destination: testWithdrawalAddress, Amount: 1})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "WithdrawFromBridge must reject a configured subaccount")
-
-	var captured SignedActionRequest
-	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).WithdrawFromBridge(t.Context(), &WithdrawFromBridgeRequest{Destination: testWithdrawalAddress, Amount: 1.5})
-	require.NoError(t, err, "WithdrawFromBridge must not error")
-	exp := `{"type":"withdraw3","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","destination":"` + testWithdrawalAddress + `","amount":"1.5","time":` + strconv.FormatUint(nonce, 10) + `}`
-	assert.JSONEq(t, exp, capturedAction(t, &captured), "WithdrawFromBridge should send the withdrawal with a time nonce")
-
-	arg := &WithdrawFromBridgeRequest{Destination: testWithdrawalAddress, Amount: 25}
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		skipLiveUnlessAccountSigner(t)
-		skipLiveWithoutTransferDestination(t)
-		// Hyperliquid deducts its $1 withdrawal fee from the amount
-		arg = &WithdrawFromBridgeRequest{Destination: liveTransferDestination, Amount: 5}
-	}
-	nonce, err = newUserSignedTestExchange(t).WithdrawFromBridge(t.Context(), arg)
-	require.NoError(t, err, "WithdrawFromBridge must not error")
-	assertUserSignedNonce(t, nonce)
-}
-
 func TestTransferUSDCBetweenSpotAndPerp(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -1329,7 +1291,7 @@ func TestTransferUSDCBetweenSpotAndPerp(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "no amount", arg: &TransferUSDCBetweenSpotAndPerpRequest{ToPerp: true}, err: errTransferAmountInvalid},
+		{name: "no amount", arg: &TransferUSDCBetweenSpotAndPerpRequest{ToPerpetual: true}, err: errTransferAmountInvalid},
 	} {
 		_, err := e.TransferUSDCBetweenSpotAndPerp(t.Context(), tc.arg)
 		assert.ErrorIsf(t, err, tc.err, "TransferUSDCBetweenSpotAndPerp should reject a request with %s", tc.name)
@@ -1338,16 +1300,16 @@ func TestTransferUSDCBetweenSpotAndPerp(t *testing.T) {
 	_, err := newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).TransferUSDCBetweenSpotAndPerp(t.Context(), valid)
 	assert.ErrorIs(t, err, errUserSignedMasterRequired, "TransferUSDCBetweenSpotAndPerp should require the account's own key")
 	_, err = newActionServerExchange(t, unownedSubAccountCredentials(), new(SignedActionRequest), defaultActionResponse).TransferUSDCBetweenSpotAndPerp(t.Context(), valid)
-	assert.ErrorIs(t, err, errTransferSubAccountInvalid, "TransferUSDCBetweenSpotAndPerp should reject a configured subaccount the account does not own")
+	assert.ErrorIs(t, err, errOwnedSubAccountRequired, "TransferUSDCBetweenSpotAndPerp should reject a configured subaccount the account does not own")
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
-	nonce, err := ex.TransferUSDCBetweenSpotAndPerp(t.Context(), &TransferUSDCBetweenSpotAndPerpRequest{Amount: 1, ToPerp: false})
+	nonce, err := ex.TransferUSDCBetweenSpotAndPerp(t.Context(), &TransferUSDCBetweenSpotAndPerpRequest{Amount: 1, ToPerpetual: false})
 	require.NoError(t, err, "TransferUSDCBetweenSpotAndPerp must not error for a subaccount")
 	exp := `{"type":"usdClassTransfer","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","amount":"1 subaccount:` + testSubAccountAddress + `","toPerp":false,"nonce":` + strconv.FormatUint(nonce, 10) + `}`
 	assert.JSONEq(t, exp, capturedAction(t, &captured), "TransferUSDCBetweenSpotAndPerp should name the subaccount in the amount")
 
-	arg := &TransferUSDCBetweenSpotAndPerpRequest{Amount: 100, ToPerp: true}
+	arg := &TransferUSDCBetweenSpotAndPerpRequest{Amount: 100, ToPerpetual: true}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveUnlessAccountSigner(t)
@@ -1364,7 +1326,7 @@ func TestDepositIntoStaking(t *testing.T) {
 	_, err := e.DepositIntoStaking(t.Context(), 0)
 	require.ErrorIs(t, err, errStakeAmountInvalid, "DepositIntoStaking must reject a zero amount")
 	_, err = newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).DepositIntoStaking(t.Context(), 1)
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "DepositIntoStaking must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "DepositIntoStaking must reject a configured subaccount")
 
 	var captured SignedActionRequest
 	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).DepositIntoStaking(t.Context(), 1)
@@ -1407,29 +1369,29 @@ func TestDelegateStake(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "an invalid validator", arg: &DelegateStakeRequest{Validator: "invalid", Wei: 1}, err: errInvalidAddress},
-		{name: "the zero address as validator", arg: &DelegateStakeRequest{Validator: testZeroAddress, Wei: 1}, err: errInvalidAddress},
+		{name: "an invalid validator", arg: &DelegateStakeRequest{Validator: "invalid", AmountInWei: 1}, err: errInvalidAddress},
+		{name: "the zero address as validator", arg: &DelegateStakeRequest{Validator: testZeroAddress, AmountInWei: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &DelegateStakeRequest{Validator: testValidatorAddress}, err: errStakeAmountInvalid},
 	} {
 		_, err := e.DelegateStake(t.Context(), tc.arg)
 		assert.ErrorIsf(t, err, tc.err, "DelegateStake should reject a request with %s", tc.name)
 	}
-	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).DelegateStake(t.Context(), &DelegateStakeRequest{Validator: testValidatorAddress, Wei: 1})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "DelegateStake must reject a configured subaccount")
+	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).DelegateStake(t.Context(), &DelegateStakeRequest{Validator: testValidatorAddress, AmountInWei: 1})
+	require.ErrorIs(t, err, errSubAccountUnsupported, "DelegateStake must reject a configured subaccount")
 
 	var captured SignedActionRequest
-	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).DelegateStake(t.Context(), &DelegateStakeRequest{Validator: "0X" + strings.ToUpper(testValidatorAddress[2:]), Wei: 2, IsUndelegate: true})
+	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).DelegateStake(t.Context(), &DelegateStakeRequest{Validator: "0X" + strings.ToUpper(testValidatorAddress[2:]), AmountInWei: 2, IsUndelegate: true})
 	require.NoError(t, err, "DelegateStake must not error")
 	exp := `{"type":"tokenDelegate","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","validator":"` + testValidatorAddress + `","wei":2,"isUndelegate":true,"nonce":` + strconv.FormatUint(nonce, 10) + `}`
 	assert.JSONEq(t, exp, capturedAction(t, &captured), "DelegateStake should send the lower-case validator")
 
-	arg := &DelegateStakeRequest{Validator: testValidatorAddress, Wei: 100000000}
+	arg := &DelegateStakeRequest{Validator: testValidatorAddress, AmountInWei: 100000000}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveUnlessAccountSigner(t)
 		// The mock validator is a placeholder, so the live test delegates a little HYPE to a real validator, where it stays
 		// the account's own stake, locked for a day
-		arg = &DelegateStakeRequest{Validator: testFoundationValidatorAddress, Wei: 1000000}
+		arg = &DelegateStakeRequest{Validator: testFoundationValidatorAddress, AmountInWei: 1000000}
 	}
 	nonce, err = newUserSignedTestExchange(t).DelegateStake(t.Context(), arg)
 	require.NoError(t, err, "DelegateStake must not error")
@@ -1444,8 +1406,8 @@ func TestTransferVaultUSDC(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "an invalid vault", arg: &VaultTransferRequest{VaultAddress: "invalid", USD: 1}, err: errInvalidAddress},
-		{name: "the zero address as vault", arg: &VaultTransferRequest{VaultAddress: testZeroAddress, USD: 1}, err: errInvalidAddress},
+		{name: "an invalid vault", arg: &VaultTransferRequest{VaultAddress: "invalid", AmountInMicroUSDC: 1}, err: errInvalidAddress},
+		{name: "the zero address as vault", arg: &VaultTransferRequest{VaultAddress: testZeroAddress, AmountInMicroUSDC: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &VaultTransferRequest{VaultAddress: testVaultAddress}, err: errTransferAmountInvalid},
 	} {
 		assert.ErrorIsf(t, e.TransferVaultUSDC(t.Context(), tc.arg), tc.err, "TransferVaultUSDC should reject a request with %s", tc.name)
@@ -1453,11 +1415,11 @@ func TestTransferVaultUSDC(t *testing.T) {
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
-	require.NoError(t, ex.TransferVaultUSDC(t.Context(), &VaultTransferRequest{VaultAddress: testVaultAddress, USD: 1000000}), "TransferVaultUSDC must not error")
+	require.NoError(t, ex.TransferVaultUSDC(t.Context(), &VaultTransferRequest{VaultAddress: testVaultAddress, AmountInMicroUSDC: 1000000}), "TransferVaultUSDC must not error")
 	assert.JSONEq(t, `{"type":"vaultTransfer","vaultAddress":"`+testVaultAddress+`","isDeposit":false,"usd":1000000}`, capturedAction(t, &captured), "TransferVaultUSDC should send the vault inside the action")
 	assert.Empty(t, captured.VaultAddress, "TransferVaultUSDC should not act for the configured subaccount")
 
-	arg := &VaultTransferRequest{VaultAddress: testVaultAddress, IsDeposit: true, USD: 5000000}
+	arg := &VaultTransferRequest{VaultAddress: testVaultAddress, IsDeposit: true, AmountInMicroUSDC: 5000000}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveWithoutPrivateKey(t)
@@ -1478,18 +1440,18 @@ func TestTransferHIP3BackstopLiquidator(t *testing.T) {
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
 		{name: "no amount", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz"}, err: errLiquidatorTransferInvalid},
-		{name: "a part of 1000 quote tokens", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz", Notional: liquidatorTransferStep + 1}, err: errLiquidatorTransferInvalid},
-		{name: "the default DEX", arg: &HIP3LiquidatorTransferRequest{Notional: liquidatorTransferStep}, err: errTransferDEXInvalid},
-		{name: "spot", arg: &HIP3LiquidatorTransferRequest{DEX: "Spot", Notional: liquidatorTransferStep}, err: errTransferDEXInvalid},
-		{name: "a passed expiry", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz", Notional: liquidatorTransferStep, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
+		{name: "a part of 1000 quote tokens", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: liquidatorTransferStep + 1}, err: errLiquidatorTransferInvalid},
+		{name: "the default DEX", arg: &HIP3LiquidatorTransferRequest{NotionalInMicroQuoteTokens: liquidatorTransferStep}, err: errTransferDEXInvalid},
+		{name: "spot", arg: &HIP3LiquidatorTransferRequest{DEX: "Spot", NotionalInMicroQuoteTokens: liquidatorTransferStep}, err: errTransferDEXInvalid},
+		{name: "a passed expiry", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: liquidatorTransferStep, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
 	} {
 		assert.ErrorIsf(t, e.TransferHIP3BackstopLiquidator(t.Context(), tc.arg), tc.err, "TransferHIP3BackstopLiquidator should reject a request with %s", tc.name)
 	}
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
-	require.ErrorIs(t, ex.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "abc", Notional: liquidatorTransferStep}), errTransferDEXInvalid, "TransferHIP3BackstopLiquidator must reject an unregistered DEX")
-	require.NoError(t, ex.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", Notional: 2 * liquidatorTransferStep}), "TransferHIP3BackstopLiquidator must not error")
+	require.ErrorIs(t, ex.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "abc", NotionalInMicroQuoteTokens: liquidatorTransferStep}), errTransferDEXInvalid, "TransferHIP3BackstopLiquidator must reject an unregistered DEX")
+	require.NoError(t, ex.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: 2 * liquidatorTransferStep}), "TransferHIP3BackstopLiquidator must not error")
 	assert.JSONEq(t, `{"type":"hip3LiquidatorTransfer","dex":"xyz","ntl":2000000000,"isDeposit":false}`, capturedAction(t, &captured), "TransferHIP3BackstopLiquidator should send the transfer")
 	assert.Empty(t, captured.VaultAddress, "TransferHIP3BackstopLiquidator should not act for the configured subaccount")
 
@@ -1497,10 +1459,10 @@ func TestTransferHIP3BackstopLiquidator(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveWithoutPrivateKey(t)
 	}
-	require.NoError(t, e.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", Notional: liquidatorTransferStep, IsDeposit: true}), "TransferHIP3BackstopLiquidator must not error")
+	require.NoError(t, e.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: liquidatorTransferStep, IsDeposit: true}), "TransferHIP3BackstopLiquidator must not error")
 	if !mockTests {
 		// Only the deposited principal can be withdrawn, so the live test takes back exactly what it deposited
-		assert.NoError(t, e.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", Notional: liquidatorTransferStep}), "TransferHIP3BackstopLiquidator should withdraw the live test's deposit")
+		assert.NoError(t, e.TransferHIP3BackstopLiquidator(t.Context(), &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: liquidatorTransferStep}), "TransferHIP3BackstopLiquidator should withdraw the live test's deposit")
 	}
 }
 
@@ -1523,7 +1485,7 @@ func TestApproveAgent(t *testing.T) {
 		assert.ErrorIsf(t, err, tc.err, "ApproveAgent should reject a request with %s", tc.name)
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).ApproveAgent(t.Context(), &ApproveAgentRequest{AgentAddress: testAgentAddress})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "ApproveAgent must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "ApproveAgent must reject a configured subaccount")
 
 	var captured SignedActionRequest
 	validUntil := time.Now().Add(time.Hour)
@@ -1556,23 +1518,20 @@ func TestApproveBuilderFee(t *testing.T) {
 		{name: "nil request", err: common.ErrNilPointer},
 		{name: "an invalid builder", arg: &ApproveBuilderFeeRequest{Builder: "invalid"}, err: errInvalidAddress},
 		{name: "the zero address as builder", arg: &ApproveBuilderFeeRequest{Builder: testZeroAddress}, err: errInvalidAddress},
-		{name: "a negative rate", arg: &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFeeRate: -0.001}, err: errBuilderFeeRateInvalid},
-		{name: "a rate that is not a number", arg: &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFeeRate: math.NaN()}, err: errBuilderFeeRateInvalid},
-		{name: "a rate that rounds to zero", arg: &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFeeRate: 1e-13}, err: errBuilderFeeRateInvalid},
 	} {
 		_, err := e.ApproveBuilderFee(t.Context(), tc.arg)
 		assert.ErrorIsf(t, err, tc.err, "ApproveBuilderFee should reject a request with %s", tc.name)
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).ApproveBuilderFee(t.Context(), &ApproveBuilderFeeRequest{Builder: testBuilderAddress})
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "ApproveBuilderFee must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "ApproveBuilderFee must reject a configured subaccount")
 
 	var captured SignedActionRequest
-	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).ApproveBuilderFee(t.Context(), &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFeeRate: 0.001})
+	nonce, err := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse).ApproveBuilderFee(t.Context(), &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFee: 1})
 	require.NoError(t, err, "ApproveBuilderFee must not error")
 	exp := `{"type":"approveBuilderFee","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","maxFeeRate":"0.001%","builder":"` + testBuilderAddress + `","nonce":` + strconv.FormatUint(nonce, 10) + `}`
 	assert.JSONEq(t, exp, capturedAction(t, &captured), "ApproveBuilderFee should send the rate as a percentage")
 
-	arg := &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFeeRate: 0.01}
+	arg := &ApproveBuilderFeeRequest{Builder: testBuilderAddress, MaxFee: 10}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveUnlessAccountSigner(t)
@@ -1807,7 +1766,7 @@ func TestSetUserDEXAbstraction(t *testing.T) {
 		credentials.SubAccount = subAccount
 		setTestCredentials(rejected, credentials)
 		_, err := rejected.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{User: testTraderAddress})
-		assert.ErrorIs(t, err, errTransferSubAccountInvalid, "SetUserDEXAbstraction should reject an unowned target before signing")
+		assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SetUserDEXAbstraction should reject an unowned target before signing")
 		assert.Equal(t, int32(1), lookups.Load(), "SetUserDEXAbstraction should validate the target irrespective of configuration")
 		assert.Zero(t, rejected.lastNonce.Load(), "SetUserDEXAbstraction should not sign an unowned target")
 	}
@@ -1871,7 +1830,7 @@ func TestSetUserAbstraction(t *testing.T) {
 		credentials.SubAccount = subAccount
 		setTestCredentials(rejected, credentials)
 		_, err := rejected.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{User: testTraderAddress, Abstraction: AccountAbstractionDisabled})
-		assert.ErrorIs(t, err, errTransferSubAccountInvalid, "SetUserAbstraction should reject an unowned target before signing")
+		assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SetUserAbstraction should reject an unowned target before signing")
 		assert.Equal(t, int32(1), lookups.Load(), "SetUserAbstraction should validate the target irrespective of configuration")
 		assert.Zero(t, rejected.lastNonce.Load(), "SetUserAbstraction should not sign an unowned target")
 	}
@@ -2053,20 +2012,20 @@ func TestBidGossipPriority(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "an unknown slot", arg: &GossipPriorityBidRequest{SlotID: 2, IP: ip, MaxGas: 1}, err: errGossipSlotInvalid},
-		{name: "no IP address", arg: &GossipPriorityBidRequest{MaxGas: 1}, err: errGossipIPInvalid},
+		{name: "an unknown slot", arg: &GossipPriorityBidRequest{SlotID: 2, IP: ip, MaxGasInWei: 1}, err: errGossipSlotInvalid},
+		{name: "no IP address", arg: &GossipPriorityBidRequest{MaxGasInWei: 1}, err: errGossipIPInvalid},
 		{name: "no maximum gas", arg: &GossipPriorityBidRequest{IP: ip}, err: errMaxGasInvalid},
 	} {
 		assert.ErrorIsf(t, e.BidGossipPriority(t.Context(), tc.arg), tc.err, "BidGossipPriority should reject a request with %s", tc.name)
 	}
 
 	var captured SignedActionRequest
-	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).BidGossipPriority(t.Context(), &GossipPriorityBidRequest{IP: netip.MustParseAddr("::ffff:1.2.3.4"), MaxGas: 100000000}), "BidGossipPriority must not error")
+	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).BidGossipPriority(t.Context(), &GossipPriorityBidRequest{IP: netip.MustParseAddr("::ffff:1.2.3.4"), MaxGasInWei: 100000000}), "BidGossipPriority must not error")
 	assert.JSONEq(t, `{"type":"gossipPriorityBid","slotId":0,"ip":"1.2.3.4","maxGas":100000000}`, capturedAction(t, &captured), "BidGossipPriority should send an IPv4-mapped address as IPv4")
 	assert.Empty(t, captured.VaultAddress, "BidGossipPriority should not act for the configured subaccount")
 
 	// 10000000 wei is the auction's 0.1 HYPE minimum price
-	arg := &GossipPriorityBidRequest{SlotID: 1, IP: ip, MaxGas: 10000000}
+	arg := &GossipPriorityBidRequest{SlotID: 1, IP: ip, MaxGasInWei: 10000000}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveWithoutPrivateKey(t)
@@ -2154,7 +2113,7 @@ func TestBuilderFeeWire(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		orders []OrderRequest
-		fee    uint64
+		fee    TenthsOfABasisPoint
 		err    error
 	}{
 		{name: "spot orders at the spot maximum", orders: []OrderRequest{spot}, fee: maximumSpotBuilderFee},
@@ -2335,7 +2294,7 @@ func TestSendUserSignedAction(t *testing.T) {
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse)
-	_, err = ex.sendUserSignedAction(t.Context(), signingCredentials(), &TokenDelegateAction{Validator: "invalid", Wei: 1})
+	_, err = ex.sendUserSignedAction(t.Context(), signingCredentials(), &TokenDelegateAction{Validator: "invalid", AmountInWei: 1})
 	require.ErrorIs(t, err, errEIP712Field, "sendUserSignedAction must return a signing error")
 	ex.Config.UseSandbox = true
 	nonce, err := ex.sendUserSignedAction(t.Context(), signingCredentials(), &USDSendAction{Destination: testWithdrawalAddress, Amount: "1"})
@@ -2494,40 +2453,17 @@ func TestSpotSendActionSigningFields(t *testing.T) {
 	assertSignedFieldsSent(t, action, "spotSend", fields)
 }
 
-func TestWithdraw3ActionSetEnvelope(t *testing.T) {
-	t.Parallel()
-	action := &Withdraw3Action{Destination: testWithdrawalAddress, Amount: "1.5"}
-	action.setEnvelope("Testnet", vectorNonce)
-	exp := &Withdraw3Action{Type: "withdraw3", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Destination: testWithdrawalAddress, Amount: "1.5", Time: vectorNonce}
-	assert.Equal(t, exp, action, "setEnvelope should set the withdraw3 type, signature chain ID, chain and time nonce")
-}
-
-func TestWithdraw3ActionSigningFields(t *testing.T) {
-	t.Parallel()
-	action := &Withdraw3Action{Type: "withdraw3", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Destination: testWithdrawalAddress, Amount: "1.5", Time: vectorNonce}
-	primaryType, fields := action.signingFields()
-	assert.Equal(t, "HyperliquidTransaction:Withdraw", primaryType, "signingFields should return the Withdraw primary type")
-	exp := []eip712Field{
-		{Name: "hyperliquidChain", Type: "string", Value: "Mainnet"},
-		{Name: "destination", Type: "string", Value: testWithdrawalAddress},
-		{Name: "amount", Type: "string", Value: "1.5"},
-		{Name: "time", Type: "uint64", Value: uint64(vectorNonce)},
-	}
-	assert.Equal(t, exp, fields, "signingFields should list the fields in EIP-712 type order")
-	assertSignedFieldsSent(t, action, "withdraw3", fields)
-}
-
 func TestUSDClassTransferActionSetEnvelope(t *testing.T) {
 	t.Parallel()
-	action := &USDClassTransferAction{Amount: "1", ToPerp: true}
+	action := &USDClassTransferAction{Amount: "1", ToPerpetual: true}
 	action.setEnvelope("Testnet", vectorNonce)
-	exp := &USDClassTransferAction{Type: "usdClassTransfer", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Amount: "1", ToPerp: true, Nonce: vectorNonce}
+	exp := &USDClassTransferAction{Type: "usdClassTransfer", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Amount: "1", ToPerpetual: true, Nonce: vectorNonce}
 	assert.Equal(t, exp, action, "setEnvelope should set the usdClassTransfer type, signature chain ID, chain and nonce")
 }
 
 func TestUSDClassTransferActionSigningFields(t *testing.T) {
 	t.Parallel()
-	action := &USDClassTransferAction{Type: "usdClassTransfer", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Amount: "1 subaccount:" + testSubAccountAddress, ToPerp: true, Nonce: vectorNonce}
+	action := &USDClassTransferAction{Type: "usdClassTransfer", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Amount: "1 subaccount:" + testSubAccountAddress, ToPerpetual: true, Nonce: vectorNonce}
 	primaryType, fields := action.signingFields()
 	assert.Equal(t, "HyperliquidTransaction:UsdClassTransfer", primaryType, "signingFields should return the UsdClassTransfer primary type")
 	exp := []eip712Field{
@@ -2542,15 +2478,15 @@ func TestUSDClassTransferActionSigningFields(t *testing.T) {
 
 func TestCDepositActionSetEnvelope(t *testing.T) {
 	t.Parallel()
-	action := &CDepositAction{Wei: 100000000}
+	action := &CDepositAction{AmountInWei: 100000000}
 	action.setEnvelope("Testnet", vectorNonce)
-	exp := &CDepositAction{Type: "cDeposit", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Wei: 100000000, Nonce: vectorNonce}
+	exp := &CDepositAction{Type: "cDeposit", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", AmountInWei: 100000000, Nonce: vectorNonce}
 	assert.Equal(t, exp, action, "setEnvelope should set the cDeposit type, signature chain ID, chain and nonce")
 }
 
 func TestCDepositActionSigningFields(t *testing.T) {
 	t.Parallel()
-	action := &CDepositAction{Type: "cDeposit", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Wei: 100000000, Nonce: vectorNonce}
+	action := &CDepositAction{Type: "cDeposit", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", AmountInWei: 100000000, Nonce: vectorNonce}
 	primaryType, fields := action.signingFields()
 	assert.Equal(t, "HyperliquidTransaction:CDeposit", primaryType, "signingFields should return the CDeposit primary type")
 	exp := []eip712Field{
@@ -2564,15 +2500,15 @@ func TestCDepositActionSigningFields(t *testing.T) {
 
 func TestCWithdrawActionSetEnvelope(t *testing.T) {
 	t.Parallel()
-	action := &CWithdrawAction{Wei: 50000000}
+	action := &CWithdrawAction{AmountInWei: 50000000}
 	action.setEnvelope("Testnet", vectorNonce)
-	exp := &CWithdrawAction{Type: "cWithdraw", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Wei: 50000000, Nonce: vectorNonce}
+	exp := &CWithdrawAction{Type: "cWithdraw", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", AmountInWei: 50000000, Nonce: vectorNonce}
 	assert.Equal(t, exp, action, "setEnvelope should set the cWithdraw type, signature chain ID, chain and nonce")
 }
 
 func TestCWithdrawActionSigningFields(t *testing.T) {
 	t.Parallel()
-	action := &CWithdrawAction{Type: "cWithdraw", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Wei: 50000000, Nonce: vectorNonce}
+	action := &CWithdrawAction{Type: "cWithdraw", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", AmountInWei: 50000000, Nonce: vectorNonce}
 	primaryType, fields := action.signingFields()
 	assert.Equal(t, "HyperliquidTransaction:CWithdraw", primaryType, "signingFields should return the CWithdraw primary type")
 	exp := []eip712Field{
@@ -2586,15 +2522,15 @@ func TestCWithdrawActionSigningFields(t *testing.T) {
 
 func TestTokenDelegateActionSetEnvelope(t *testing.T) {
 	t.Parallel()
-	action := &TokenDelegateAction{Validator: testValidatorAddress, Wei: 2}
+	action := &TokenDelegateAction{Validator: testValidatorAddress, AmountInWei: 2}
 	action.setEnvelope("Testnet", vectorNonce)
-	exp := &TokenDelegateAction{Type: "tokenDelegate", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Validator: testValidatorAddress, Wei: 2, Nonce: vectorNonce}
+	exp := &TokenDelegateAction{Type: "tokenDelegate", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", Validator: testValidatorAddress, AmountInWei: 2, Nonce: vectorNonce}
 	assert.Equal(t, exp, action, "setEnvelope should set the tokenDelegate type, signature chain ID, chain and nonce")
 }
 
 func TestTokenDelegateActionSigningFields(t *testing.T) {
 	t.Parallel()
-	action := &TokenDelegateAction{Type: "tokenDelegate", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Validator: testValidatorAddress, Wei: 2, IsUndelegate: true, Nonce: vectorNonce}
+	action := &TokenDelegateAction{Type: "tokenDelegate", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", Validator: testValidatorAddress, AmountInWei: 2, IsUndelegate: true, Nonce: vectorNonce}
 	primaryType, fields := action.signingFields()
 	assert.Equal(t, "HyperliquidTransaction:TokenDelegate", primaryType, "signingFields should return the TokenDelegate primary type")
 	exp := []eip712Field{
@@ -2714,7 +2650,7 @@ func TestSendAccountSignedAction(t *testing.T) {
 	t.Parallel()
 	action := &USDSendAction{Destination: testWithdrawalAddress, Amount: "1"}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).sendAccountSignedAction(t.Context(), action)
-	require.ErrorIs(t, err, errTransferSubAccountUnsupported, "sendAccountSignedAction must reject a configured subaccount")
+	require.ErrorIs(t, err, errSubAccountUnsupported, "sendAccountSignedAction must reject a configured subaccount")
 	_, err = newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).sendAccountSignedAction(t.Context(), action)
 	require.ErrorIs(t, err, errUserSignedMasterRequired, "sendAccountSignedAction must require the account's own key")
 
@@ -2736,7 +2672,7 @@ func TestGetAccountSigningCredentials(t *testing.T) {
 	assert.Equal(t, testAccountAddress, credentials.Key, "getAccountSigningCredentials should return the account's credentials")
 	setTestCredentials(ex, subAccountCredentials())
 	_, err = ex.getAccountSigningCredentials(t.Context())
-	assert.ErrorIs(t, err, errTransferSubAccountUnsupported, "getAccountSigningCredentials should reject a configured subaccount")
+	assert.ErrorIs(t, err, errSubAccountUnsupported, "getAccountSigningCredentials should reject a configured subaccount")
 	setTestCredentials(ex, agentCredentials())
 	_, err = ex.getAccountSigningCredentials(t.Context())
 	assert.ErrorIs(t, err, errUserSignedMasterRequired, "getAccountSigningCredentials should require the account's own key")
@@ -2772,13 +2708,13 @@ func TestAbstractionUser(t *testing.T) {
 		{name: "unconfigured owned", user: testSubAccountAddress, exp: testSubAccountAddress, lookups: 1},
 		{name: "another owned", subAccount: testTraderAddress, user: testSubAccountAddress, exp: testSubAccountAddress, lookups: 1},
 		{name: "malformed", subAccount: testSubAccountAddress, user: strings.ToUpper(testAccountAddress[2:]), err: errInvalidAddress},
-		{name: "unrelated user", user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "unrelated despite configuration", subAccount: testSubAccountAddress, user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "missing role", user: testTraderAddress, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "another master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"` + testWithdrawalAddress + `"}}`, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "malformed master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"invalid"}}`, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "explicit vault", user: testVaultAddress, lookups: 1, err: errTransferSubAccountInvalid},
-		{name: "configured vault", subAccount: testVaultAddress, lookups: 1, err: errTransferSubAccountInvalid},
+		{name: "unrelated user", user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "unrelated despite configuration", subAccount: testSubAccountAddress, user: testTraderAddress, role: `{"role":"user"}`, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "missing role", user: testTraderAddress, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "another master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"` + testWithdrawalAddress + `"}}`, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "malformed master", user: testTraderAddress, role: `{"role":"subAccount","data":{"master":"invalid"}}`, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "explicit vault", user: testVaultAddress, lookups: 1, err: errOwnedSubAccountRequired},
+		{name: "configured vault", subAccount: testVaultAddress, lookups: 1, err: errOwnedSubAccountRequired},
 		{name: "role failure", user: testTraderAddress, role: roleServerUnavailable, lookups: 1, err: request.ErrBadStatus},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2831,7 +2767,7 @@ func TestValidateUserSignedSubAccount(t *testing.T) {
 	assert.NoError(t, ex.validateUserSignedSubAccount(t.Context(), credentials, ""), "validateUserSignedSubAccount should accept no subaccount")
 	assert.NoError(t, ex.validateUserSignedSubAccount(t.Context(), credentials, testSubAccountAddress), "validateUserSignedSubAccount should accept an owned subaccount")
 	for _, subAccount := range []string{testVaultAddress, testTraderAddress, testOtherAddress} {
-		assert.ErrorIsf(t, ex.validateUserSignedSubAccount(t.Context(), credentials, subAccount), errTransferSubAccountInvalid, "validateUserSignedSubAccount should reject %s", subAccount)
+		assert.ErrorIsf(t, ex.validateUserSignedSubAccount(t.Context(), credentials, subAccount), errOwnedSubAccountRequired, "validateUserSignedSubAccount should reject %s", subAccount)
 	}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).validateUserSignedSubAccount(t.Context(), credentials, testSubAccountAddress), request.ErrBadStatus, "validateUserSignedSubAccount should return a role failure")
 }

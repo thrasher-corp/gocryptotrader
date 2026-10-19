@@ -257,6 +257,7 @@ func TestSetup(t *testing.T) {
 
 	ex, cfg = newConfig(t)
 	cfg.API.AuthenticatedSupport = true
+	cfg.API.AuthenticatedWebsocketSupport = true
 	cfg.API.Credentials.Key = testAccountAddress
 	cfg.WebsocketResponseMaxLimit = 15 * time.Second
 	require.NoError(t, ex.Setup(cfg), "Setup must not error")
@@ -266,6 +267,10 @@ func TestSetup(t *testing.T) {
 	require.NoError(t, err, "GetCredentials must not error")
 	assert.Equal(t, testAccountAddress, credentials.Key, "Setup should load the configured account address")
 	assert.True(t, ex.isMainnetEnvironment(), "Setup should sign for mainnet by default")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Setup should leave account feeds unusable until the account connection is up")
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Equal(t, []string{websocketURL}, urls, "Setup should set the public and account connections up on the websocket URL")
 
 	for _, tc := range []struct {
 		name      string
@@ -299,6 +304,9 @@ func TestSetup(t *testing.T) {
 				require.NoErrorf(t, err, "GetURL must not error for %s", kind)
 				assert.Equalf(t, exp, endpoint, "Setup should select the %s URL", kind)
 			}
+			urls, err := sandbox.Websocket.GetConfiguredWebsocketURLs()
+			require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+			assert.Equal(t, []string{tc.exp[exchange.WebsocketSpot]}, urls, "Setup should set the connections up on the selected websocket URL")
 		})
 	}
 
@@ -1968,7 +1976,7 @@ func TestConvertUserLedgerUpdate(t *testing.T) {
 		{delta: UserLedgerDelta{Type: "deployGasAuction", Token: currency.HYPE, Amount: 9}, currency: "HYPE", amount: 9, description: "deployGasAuction"},
 		{delta: UserLedgerDelta{Type: "vaultWithdraw", NetWithdrawnUSD: 6, RequestedUSD: 6.5}, currency: "USDC", amount: 6, description: "vaultWithdraw"},
 		{delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 7}, currency: "USDC", amount: 7, description: "perpetual to spot"},
-		{delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 8, ToPerp: true}, currency: "USDC", amount: 8, description: "spot to perpetual"},
+		{delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 8, ToPerpetual: true}, currency: "USDC", amount: 8, description: "spot to perpetual"},
 		{delta: UserLedgerDelta{Type: "cStakingTransfer", Token: currency.HYPE, Amount: 1, IsDeposit: true}, currency: "HYPE", amount: 1, description: "spot to staking"},
 		{delta: UserLedgerDelta{Type: "cStakingTransfer", Token: currency.HYPE, Amount: 0.5}, currency: "HYPE", amount: 0.5, description: "staking to spot"},
 		{delta: UserLedgerDelta{Type: "borrowLend", Token: currency.USDC, Amount: 50, Operation: "repay", InterestAmount: 0.0125}, currency: "USDC", amount: 50, description: "borrowLend: repay with 0.0125 interest"},
@@ -3413,87 +3421,51 @@ func TestConvertOpenOrder(t *testing.T) {
 	assert.Equal(t, exp, detail, "convertOpenOrder should keep a reduce-only order's flag")
 }
 
-func TestGetAvailableTransferChains(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAvailableTransferChains must require a currency")
-	_, err = e.GetAvailableTransferChains(t.Context(), currency.BTC)
-	require.ErrorIs(t, err, errTransferCurrencyInvalid, "GetAvailableTransferChains must reject a currency the bridge does not transfer")
-	chains, err := e.GetAvailableTransferChains(t.Context(), currency.USDC)
-	require.NoError(t, err, "GetAvailableTransferChains must not error")
-	assert.Equal(t, []string{"Arbitrum"}, chains, "GetAvailableTransferChains should return the mainnet bridge chain")
-	sandbox := &Exchange{}
-	sandbox.Config = &config.Exchange{UseSandbox: true}
-	chains, err = sandbox.GetAvailableTransferChains(t.Context(), currency.USDC)
-	require.NoError(t, err, "GetAvailableTransferChains must not error in sandbox mode")
-	assert.Equal(t, []string{"Arbitrum Sepolia"}, chains, "GetAvailableTransferChains should return the testnet bridge chain")
-}
-
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
 	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "WithdrawCryptocurrencyFunds must reject a nil request")
 	newRequest := func() *withdraw.Request {
-		return &withdraw.Request{Exchange: e.Name, Currency: currency.USDC, Amount: 25, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: testWithdrawalAddress}}
+		return &withdraw.Request{Exchange: e.Name, Currency: currency.USDC, Amount: 25, Type: withdraw.Crypto, InternalTransfer: true, Crypto: withdraw.CryptoRequest{Address: testWithdrawalAddress}}
 	}
 	for _, tc := range []struct {
 		name   string
 		mutate func(*withdraw.Request)
 		err    error
 	}{
-		{name: "currency", mutate: func(r *withdraw.Request) { r.Currency = currency.BTC }, err: errTransferCurrencyInvalid},
-		{name: "address tag", mutate: func(r *withdraw.Request) { r.Crypto.AddressTag = "tag" }, err: errWithdrawalAddressTag},
-		{name: "fee", mutate: func(r *withdraw.Request) { r.Crypto.FeeAmount = 1 }, err: errWithdrawalFeeInput},
-		{name: "chain", mutate: func(r *withdraw.Request) { r.Crypto.Chain = "Ethereum" }, err: errBridgeChainInvalid},
-		{name: "address", mutate: func(r *withdraw.Request) { r.Crypto.Address = "invalid" }, err: errInvalidAddress},
+		{name: "a withdrawal off Hyperliquid", mutate: func(r *withdraw.Request) { r.InternalTransfer = false }, err: common.ErrFunctionNotSupported},
+		{name: "a currency other than USDC", mutate: func(r *withdraw.Request) { r.Currency = currency.BTC }, err: errTransferCurrencyInvalid},
+		{name: "an address tag", mutate: func(r *withdraw.Request) { r.Crypto.AddressTag = "tag" }, err: errWithdrawalAddressTag},
+		{name: "a fee", mutate: func(r *withdraw.Request) { r.Crypto.FeeAmount = 1 }, err: errWithdrawalFeeInput},
+		{name: "an invalid address", mutate: func(r *withdraw.Request) { r.Crypto.Address = "invalid" }, err: errInvalidAddress},
 	} {
 		withdrawal := newRequest()
 		tc.mutate(withdrawal)
 		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), withdrawal)
-		assert.ErrorIsf(t, err, tc.err, "WithdrawCryptocurrencyFunds should reject an invalid %s", tc.name)
+		assert.ErrorIsf(t, err, tc.err, "WithdrawCryptocurrencyFunds should reject %s", tc.name)
 	}
 	_, err = new(Exchange).WithdrawCryptocurrencyFunds(t.Context(), newRequest())
 	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "WithdrawCryptocurrencyFunds must require credentials")
 	_, err = newUnavailableServerExchange(t).WithdrawCryptocurrencyFunds(t.Context(), newRequest())
 	require.ErrorIs(t, err, request.ErrBadStatus, "WithdrawCryptocurrencyFunds must return an action failure")
 
+	withdrawal := newRequest()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		skipLiveUnlessAccountSigner(t)
+		skipLiveWithoutTransferDestination(t)
+		withdrawal.Amount, withdrawal.Crypto.Address = 1, liveTransferDestination
 	}
-	for _, tc := range []struct {
-		name     string
-		internal bool
-	}{{name: "bridge withdrawal"}, {name: "internal transfer", internal: true}} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			withdrawal := newRequest()
-			withdrawal.InternalTransfer = tc.internal
-			withdrawal.Crypto.Chain = "arbitrum"
-			switch {
-			case mockTests:
-			case tc.internal && liveTransferDestination == "":
-				t.Skip("Live internal transfers need liveTransferDestination, an address you control")
-			case tc.internal:
-				withdrawal.Amount, withdrawal.Crypto.Address = 1, liveTransferDestination
-			default:
-				// The withdrawal returns to the configured account's own Arbitrum address, less the bridge's 1 USDC fee
-				credentials, err := e.GetCredentials(t.Context())
-				require.NoError(t, err, "GetCredentials must not error")
-				withdrawal.Amount, withdrawal.Crypto.Address = 2, credentials.Key
-			}
-			ex := newUserSignedTestExchange(t)
-			result, err := ex.WithdrawCryptocurrencyFunds(t.Context(), withdrawal)
-			require.NoErrorf(t, err, "WithdrawCryptocurrencyFunds must not error for a %s", tc.name)
-			if mockTests {
-				exp := &withdraw.ExchangeResponse{Name: ex.Name, ID: strconv.FormatUint(mockUserSignedNonce, 10), Status: "submitted"}
-				assert.Equalf(t, exp, result, "WithdrawCryptocurrencyFunds should return the action's nonce for a %s", tc.name)
-				return
-			}
-			assert.Equalf(t, "submitted", result.Status, "WithdrawCryptocurrencyFunds should submit the %s", tc.name)
-			assert.NotEmptyf(t, result.ID, "WithdrawCryptocurrencyFunds should return the action's nonce for a %s", tc.name)
-		})
+	ex := newUserSignedTestExchange(t)
+	result, err := ex.WithdrawCryptocurrencyFunds(t.Context(), withdrawal)
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for an internal transfer")
+	if mockTests {
+		exp := &withdraw.ExchangeResponse{Name: ex.Name, ID: strconv.FormatUint(mockUserSignedNonce, 10), Status: "submitted"}
+		assert.Equal(t, exp, result, "WithdrawCryptocurrencyFunds should return the transfer's nonce")
+		return
 	}
+	assert.Equal(t, "submitted", result.Status, "WithdrawCryptocurrencyFunds should submit the internal transfer")
+	assert.NotEmpty(t, result.ID, "WithdrawCryptocurrencyFunds should return the transfer's nonce")
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -3723,7 +3695,7 @@ func TestSetLeverage(t *testing.T) {
 	isolatedPair := currency.NewPair(currency.NewCode("HPOS"), currency.USDC)
 	var action string
 	ex := newTradingServerExchange(t, map[string]string{
-		"meta:": `{"universe":[{"name":"BTC","szDecimals":5,"maxLeverage":40},{"name":"ETH"},{"name":"OLD","isDelisted":true},{"name":"HPOS","maxLeverage":3,"onlyIsolated":true}]}`,
+		"meta:": `{"universe":[{"name":"BTC","szDecimals":5,"maxLeverage":40},{"name":"ETH"},{"name":"OLD","isDelisted":true},{"name":"HPOS","maxLeverage":3,"onlyIsolated":true,"marginMode":"strictIsolated"}]}`,
 	}, captureAction(t, &action, `{"status":"ok","response":{"type":"default"}}`))
 	for _, tc := range []struct {
 		a          asset.Item

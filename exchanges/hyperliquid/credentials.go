@@ -33,18 +33,12 @@ func (e *Exchange) getWatchAddress(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	accountAddress, _, err := normaliseAddress(credentials.Key)
-	if err != nil {
-		return "", err
-	}
 	if credentials.SubAccount == "" {
-		return accountAddress, nil
+		accountAddress, _, err := normaliseAddress(credentials.Key)
+		return accountAddress, err
 	}
 	vaultAddress, _, err := normaliseAddress(credentials.SubAccount)
-	if err != nil {
-		return "", err
-	}
-	return vaultAddress, nil
+	return vaultAddress, err
 }
 
 // getSigningCredentials returns credentials holding a private key, with the account address normalised, and the
@@ -126,9 +120,6 @@ func (e *Exchange) validateCachedAuthority(ctx context.Context, credentials *acc
 	delete(e.authorityValidations, validationKey)
 	if err := e.validateAuthority(ctx, &validationKey); err != nil {
 		return authorityValidationKey{}, err
-	}
-	if e.authorityValidations == nil {
-		e.authorityValidations = make(map[authorityValidationKey]struct{})
 	}
 	e.authorityValidations[validationKey] = struct{}{}
 	return validationKey, nil

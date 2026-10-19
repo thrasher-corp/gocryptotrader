@@ -386,9 +386,8 @@ func (e *Exchange) GetCandleSnapshot(ctx context.Context, arg *CandleSnapshotReq
 	}, &resp)
 }
 
-// GetMaxBuilderFee returns the maximum fee an account has approved for a builder, in tenths of a basis point; zero means
-// the builder is not approved
-func (e *Exchange) GetMaxBuilderFee(ctx context.Context, user, builder string) (uint64, error) {
+// GetMaxBuilderFee returns the maximum fee an account has approved for a builder; zero means the builder is not approved
+func (e *Exchange) GetMaxBuilderFee(ctx context.Context, user, builder string) (TenthsOfABasisPoint, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return 0, err
@@ -396,7 +395,7 @@ func (e *Exchange) GetMaxBuilderFee(ctx context.Context, user, builder string) (
 	if builder, _, err = normaliseAddress(builder); err != nil {
 		return 0, err
 	}
-	var resp *uint64
+	var resp *TenthsOfABasisPoint
 	if err := e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "maxBuilderFee", User: user, Builder: builder}, &resp); err != nil {
 		return 0, err
 	}

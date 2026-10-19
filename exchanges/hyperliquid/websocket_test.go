@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -55,8 +54,7 @@ var errWebsocketFixture = errors.New("websocket fixture failure")
 type websocketConnectionFixture struct {
 	websocket.Connection
 
-	exchange      *Exchange
-	authenticated bool
+	exchange *Exchange
 
 	mu      sync.Mutex
 	dialErr error
@@ -67,6 +65,8 @@ type websocketConnectionFixture struct {
 	handleErrs []error
 	messages   []websocket.Response
 	ping       websocket.PingHandler
+	match      *websocket.Match
+	subs       *subscription.Store
 
 	dialCalls atomic.Int32
 	readCalls atomic.Int32
@@ -101,6 +101,33 @@ func (f *websocketConnectionFixture) SetupPingHandler(_ request.EndpointLimit, h
 	f.mu.Unlock()
 }
 
+// matcher returns the fixture's response matcher, as a connection has its own under multi-connection management
+func (f *websocketConnectionFixture) matcher() *websocket.Match {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.match == nil {
+		f.match = websocket.NewMatch()
+	}
+	return f.match
+}
+
+func (f *websocketConnectionFixture) RequireMatchWithData(signature any, incoming []byte) error {
+	return f.matcher().RequireMatchWithData(signature, incoming)
+}
+
+func (f *websocketConnectionFixture) IncomingWithData(signature any, data []byte) bool {
+	return f.matcher().IncomingWithData(signature, data)
+}
+
+func (f *websocketConnectionFixture) Subscriptions() *subscription.Store {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.subs == nil {
+		f.subs = subscription.NewStore()
+	}
+	return f.subs
+}
+
 // SendJSONMessage records the request and handles its reply frames before returning sendErr, so a reply can settle an
 // operation whose send then reports a failure
 func (f *websocketConnectionFixture) SendJSONMessage(ctx context.Context, _ request.EndpointLimit, payload any) error {
@@ -114,7 +141,7 @@ func (f *websocketConnectionFixture) SendJSONMessage(ctx context.Context, _ requ
 	f.mu.Unlock()
 	if reply != nil {
 		for _, frame := range reply(encoded) {
-			handleErr := f.exchange.wsHandleData(ctx, []byte(frame), f.authenticated)
+			handleErr := f.exchange.wsHandleData(ctx, f, []byte(frame))
 			f.mu.Lock()
 			f.handleErrs = append(f.handleErrs, handleErr)
 			f.mu.Unlock()
@@ -126,19 +153,19 @@ func (f *websocketConnectionFixture) SendJSONMessage(ctx context.Context, _ requ
 // SendMessageReturnResponse sends a request and returns the response the match system received while its reply was
 // handled, or times out at once, as the reply has then already been handled
 func (f *websocketConnectionFixture) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
-	responses, err := f.exchange.Websocket.Match.Set(signature, 1)
+	responses, err := f.matcher().Set(signature, 1)
 	if err != nil {
 		return nil, err
 	}
 	if err := f.SendJSONMessage(ctx, epl, payload); err != nil {
-		f.exchange.Websocket.Match.RemoveSignature(signature)
+		f.matcher().RemoveSignature(signature)
 		return nil, err
 	}
 	select {
 	case response := <-responses:
 		return response, nil
 	default:
-		f.exchange.Websocket.Match.RemoveSignature(signature)
+		f.matcher().RemoveSignature(signature)
 		return nil, websocket.ErrSignatureTimeout
 	}
 }
@@ -201,7 +228,8 @@ func acknowledge(sent []byte) []string {
 }
 
 // newWebsocketTestExchange returns a trading server exchange with its markets enabled, the trade and fills feeds
-// enabled, account feeds usable, and fixture connections that acknowledge every subscription request
+// enabled, account feeds usable, and fixture connections that acknowledge every subscription request, the public one
+// carrying WebsocketAPI posts
 func newWebsocketTestExchange(t *testing.T) *Exchange {
 	t.Helper()
 	ex := newTradingServerExchange(t, nil, nil)
@@ -211,17 +239,87 @@ func newWebsocketTestExchange(t *testing.T) *Exchange {
 	ex.SetFillsFeedStatus(true)
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	ex.Websocket.Conn = &websocketConnectionFixture{exchange: ex, reply: acknowledge}
-	ex.Websocket.AuthConn = &websocketConnectionFixture{exchange: ex, authenticated: true, reply: acknowledge}
+	ex.websocketPostConnection = publicConn(t, ex)
 	return ex
 }
 
-// websocketFixture returns a connection's fixture
-func websocketFixture(t *testing.T, connection websocket.Connection) *websocketConnectionFixture {
+// websocketTestConnections holds the fixture connections standing in for each test exchange's public and account
+// connections until the test first using them ends; they are not managed, so the subscriptions added on them are held
+// in the manager's own store
+var websocketTestConnections sync.Map
+
+// websocketTestConnectionPair is a test exchange's public and account fixture connections
+type websocketTestConnectionPair struct {
+	public, account *websocketConnectionFixture
+}
+
+// websocketTestFixtures returns the exchange's fixture connections, which acknowledge every subscription request
+func websocketTestFixtures(t *testing.T, ex *Exchange) *websocketTestConnectionPair {
 	t.Helper()
-	fixture, ok := connection.(*websocketConnectionFixture)
-	require.True(t, ok, "connection must be a websocketConnectionFixture")
-	return fixture
+	pair, loaded := websocketTestConnections.LoadOrStore(ex, &websocketTestConnectionPair{
+		public:  &websocketConnectionFixture{exchange: ex, reply: acknowledge},
+		account: &websocketConnectionFixture{exchange: ex, reply: acknowledge},
+	})
+	if !loaded {
+		t.Cleanup(func() { websocketTestConnections.Delete(ex) })
+	}
+	connections, ok := pair.(*websocketTestConnectionPair)
+	require.True(t, ok, "the fixture connections must be a websocketTestConnectionPair")
+	return connections
+}
+
+// publicConn returns the fixture standing in for the exchange's public connection
+func publicConn(t *testing.T, ex *Exchange) *websocketConnectionFixture {
+	t.Helper()
+	return websocketTestFixtures(t, ex).public
+}
+
+// accountConn returns the fixture standing in for the exchange's account connection
+func accountConn(t *testing.T, ex *Exchange) *websocketConnectionFixture {
+	t.Helper()
+	return websocketTestFixtures(t, ex).account
+}
+
+// websocketTestConn returns the exchange's account fixture connection when account is set, else its public one
+func websocketTestConn(t *testing.T, ex *Exchange, account bool) *websocketConnectionFixture {
+	t.Helper()
+	if account {
+		return accountConn(t, ex)
+	}
+	return publicConn(t, ex)
+}
+
+// subscribeWebsocketTest subscribes to feeds as the manager does: expanded and keyed, then each on the connection its
+// account flag selects
+func subscribeWebsocketTest(t *testing.T, ex *Exchange, subs subscription.List) error {
+	t.Helper()
+	if slices.Contains(subs, nil) {
+		return common.ErrNilPointer
+	}
+	expanded, errs := subs.ExpandTemplates(ex)
+	for _, sub := range expanded {
+		errs = common.AppendError(errs, ex.websocketSubscribe(t.Context(), websocketTestConn(t, ex, sub.Authenticated), subscription.List{sub}))
+	}
+	return errs
+}
+
+// unsubscribeWebsocketTest unsubscribes from the held variants of feeds, each on the connection its account flag selects
+func unsubscribeWebsocketTest(t *testing.T, ex *Exchange, subs subscription.List) error {
+	t.Helper()
+	if slices.Contains(subs, nil) {
+		return common.ErrNilPointer
+	}
+	expanded, errs := subs.ExpandTemplates(websocketTemplateExpander{ex})
+	for _, sub := range expanded {
+		feed := newWebsocketSubscriptionKey(sub)
+		held := ex.Websocket.GetSubscription(feed)
+		if held == nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", subscription.ErrNotFound, feed))
+			continue
+		}
+		errs = common.AppendError(errs, ex.websocketUnsubscribe(t.Context(), websocketTestConn(t, ex, held.Authenticated), subscription.List{held}))
+	}
+	return errs
 }
 
 // receiveWebsocketData returns the next relayed message; handlers relay synchronously, so it must already be waiting
@@ -273,13 +371,13 @@ func assertNoWebsocketData(t *testing.T, ex *Exchange) {
 }
 
 // addWebsocketPending prepares a subscription as manageWebsocketSubscription does before sending its request, and
-// registers the operation awaiting its acknowledgement under key
+// registers the operation awaiting its acknowledgement under key, on the public fixture connection unless key names one
 func addWebsocketPending(t *testing.T, ex *Exchange, method string, sub *subscription.Subscription, key *websocketPendingKey) *websocketPendingOperation {
 	t.Helper()
-	connection := ex.Websocket.Conn
-	if key.authenticated {
-		connection = ex.Websocket.AuthConn
+	if key.connection == nil {
+		key.connection = publicConn(t, ex)
 	}
+	connection := key.connection
 	previousState := sub.State()
 	if method == wsMethodSubscribe {
 		require.NoError(t, ex.Websocket.AddSubscriptions(connection, sub), "AddSubscriptions must not error")
@@ -297,8 +395,12 @@ func addWebsocketPending(t *testing.T, ex *Exchange, method string, sub *subscri
 	return pending
 }
 
-// registerWebsocketPending registers an operation under key without preparing its subscription
+// registerWebsocketPending registers an operation under key, on the operation's connection unless key names one, without
+// preparing its subscription
 func registerWebsocketPending(ex *Exchange, key *websocketPendingKey, pending *websocketPendingOperation) {
+	if key.connection == nil {
+		key.connection = pending.connection
+	}
 	ex.websocketPendingMu.Lock()
 	if ex.websocketPending == nil {
 		ex.websocketPending = make(map[websocketPendingKey]*websocketPendingOperation)
@@ -317,7 +419,7 @@ func pendingWebsocketOperation(ex *Exchange, key *websocketPendingKey) *websocke
 // newSubscribedWebsocketSubscription returns a subscription stored as subscribed on the public connection
 func newSubscribedWebsocketSubscription(t *testing.T, ex *Exchange, sub *subscription.Subscription) *subscription.Subscription {
 	t.Helper()
-	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, sub), "AddSuccessfulSubscriptions must not error")
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(publicConn(t, ex), sub), "AddSuccessfulSubscriptions must not error")
 	return sub
 }
 
@@ -331,112 +433,6 @@ func deflateBase64(t *testing.T, data []byte) string {
 	require.NoError(t, err, "Write must not error")
 	require.NoError(t, writer.Close(), "Close must not error")
 	return base64.StdEncoding.EncodeToString(compressed.Bytes())
-}
-
-// waitForWebsocketReaders waits for the read loops, which return once their connection has no messages left
-func waitForWebsocketReaders(t *testing.T, ex *Exchange) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		ex.Websocket.Wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "the websocket readers must exit")
-	}
-}
-
-// websocketTestServer is a websocket server that refuses the upgrades its rule refuses and holds every other connection
-// open until the client closes it
-type websocketTestServer struct {
-	endpoint string
-	// attempts counts the upgrades the server has been asked for, and closed the connections its clients have closed
-	// normally, which a connection the client abandons never is
-	attempts, closed atomic.Int32
-}
-
-// refuseFirst returns a websocketTestServer rule refusing the first refusals upgrades
-func refuseFirst(refusals int32) func(attempt int32) bool {
-	return func(attempt int32) bool { return attempt <= refusals }
-}
-
-// newWebsocketTestServer starts a websocketTestServer refusing each upgrade, counted from 1, that refuse reports
-func newWebsocketTestServer(t *testing.T, refuse func(attempt int32) bool) *websocketTestServer {
-	t.Helper()
-	ws := new(websocketTestServer)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if refuse(ws.attempts.Add(1)) {
-			http.Error(w, "refused", http.StatusServiceUnavailable)
-			return
-		}
-		conn, err := new(gws.Upgrader).Upgrade(w, r, nil)
-		if err != nil {
-			return
-		}
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				if gws.IsCloseError(err, gws.CloseNormalClosure) {
-					ws.closed.Add(1)
-				}
-				_ = conn.Close()
-				return
-			}
-		}
-	}))
-	t.Cleanup(server.Close)
-	ws.endpoint = "ws" + strings.TrimPrefix(server.URL, "http")
-	return ws
-}
-
-// newAccountWebsocketTestExchange returns an exchange watching the mock signing account whose public and account
-// websocket connections reach servers of their own, the account server refusing the upgrades refuse reports, with the
-// given connection monitor delay, and how many upgrades each server has been asked for; the websocket is disabled and
-// shut down when the test ends
-func newAccountWebsocketTestExchange(t *testing.T, refuse func(attempt int32) bool, monitorDelay time.Duration) (ex *Exchange, publicAttempts, accountAttempts *atomic.Int32) {
-	t.Helper()
-	public, account := newWebsocketTestServer(t, refuseFirst(0)), newWebsocketTestServer(t, refuse)
-	ex = new(Exchange)
-	ex.SetDefaults()
-	ex.Name = t.Name()
-	cfg, err := ex.GetStandardConfig()
-	require.NoError(t, err, "GetStandardConfig must not error")
-	cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
-	cfg.ConnectionMonitorDelay, cfg.WebsocketTrafficTimeout = monitorDelay, time.Hour
-	require.NoError(t, ex.Setup(cfg), "Setup must not error")
-	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
-	require.NoError(t, ex.Websocket.SetWebsocketURL(public.endpoint, false, false), "SetWebsocketURL must not error for the public endpoint")
-	require.NoError(t, ex.Websocket.SetWebsocketURL(account.endpoint, true, false), "SetWebsocketURL must not error for the account endpoint")
-	ex.Websocket.SetSubscriptionsNotRequired()
-	t.Cleanup(func() {
-		// Disabling stops the connection monitor, which may then shut the connection down first
-		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket is already shut down")
-		}
-	})
-	return ex, &public.attempts, &account.attempts
-}
-
-// newWebsocketConnectTestExchange returns an exchange with the websocket enabled, the credentials set when given, and
-// fixture connections
-func newWebsocketConnectTestExchange(t *testing.T, credentials *accounts.Credentials) (ex *Exchange, public, authenticated *websocketConnectionFixture) {
-	t.Helper()
-	ex = new(Exchange)
-	ex.SetDefaults()
-	cfg, err := ex.GetStandardConfig()
-	require.NoError(t, err, "GetStandardConfig must not error")
-	cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
-	require.NoError(t, ex.Setup(cfg), "Setup must not error")
-	if credentials != nil {
-		setTestCredentials(ex, credentials)
-	}
-	public = &websocketConnectionFixture{exchange: ex}
-	authenticated = &websocketConnectionFixture{exchange: ex, authenticated: true}
-	ex.Websocket.Conn = public
-	ex.Websocket.AuthConn = authenticated
-	return ex, public, authenticated
 }
 
 // websocketVenueRequests records the requests other than pings that the mock of Hyperliquid's websocket receives; the
@@ -565,75 +561,13 @@ func websocketTestRestingOrder(t *testing.T) (placed OrderRequest, orderID uint6
 	return placeLiveRestingOrder(t)
 }
 
-func TestWebsocketConnect(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	ex.SetDefaults()
-	require.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect must reject a disabled websocket")
-
-	// The venue cannot be made to refuse a dial or to lack account feed support, so fixture connections stand in for it
-	ex, _, _ = newWebsocketConnectTestExchange(t, nil)
-	ex.SetEnabled(false)
-	require.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect must reject a disabled exchange")
-
-	ex, public, _ := newWebsocketConnectTestExchange(t, nil)
-	public.dialErr = errWebsocketFixture
-	ex.accountProbeInterval.Store(int64(time.Second))
-	require.ErrorIs(t, ex.WebsocketConnect(), errWebsocketFixture, "WebsocketConnect must return the public dial error")
-	assert.Zero(t, ex.accountProbeInterval.Load(), "WebsocketConnect should take the backoff a probe handed over even when its public dial fails")
-
-	ex, public, authenticated := newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
-	ex.API.AuthenticatedWebsocketSupport = false
-	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error without account feed support")
-	waitForWebsocketReaders(t, ex)
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
-	assert.Zero(t, authenticated.dialCalls.Load(), "WebsocketConnect should not dial the account connection without account feed support")
-
-	ex, _, authenticated = newWebsocketConnectTestExchange(t, nil)
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error without an account address")
-	waitForWebsocketReaders(t, ex)
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should disable account feeds without an account address")
-	assert.Zero(t, authenticated.dialCalls.Load(), "WebsocketConnect should not dial the account connection without an account address")
-
-	ex, public, authenticated = newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	authenticated.dialErr = errWebsocketFixture
-	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must keep the public connection when the account connection fails")
-	// Closing the shutdown channel, as the manager's Shutdown does, stops the probes of the fixture's endpoint
-	close(ex.Websocket.ShutdownC)
-	waitForWebsocketReaders(t, ex)
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should disable account feeds when the account connection fails")
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
-	assert.Zero(t, authenticated.readCalls.Load(), "WebsocketConnect should not read a failed account connection")
-
-	// A probe of the account endpoint connecting shuts the websocket down, so the connection monitor reconnects both
-	// connections
-	retried, publicAttempts, accountAttempts := newAccountWebsocketTestExchange(t, refuseFirst(2), 10*time.Millisecond)
-	require.NoError(t, retried.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
-	// Probing every connection monitor delay, here 10ms, reconnects well within the 3s that the 2s default delay would need
-	require.Eventually(t, retried.Websocket.CanUseAuthenticatedEndpoints, 3*time.Second, 10*time.Millisecond, "WebsocketConnect must connect the account connection once its endpoint accepts connections")
-	assert.Equal(t, int32(4), accountAttempts.Load(), "the account endpoint should receive the failed dial, a refused probe, an accepted probe and the redial")
-	assert.Equal(t, int32(2), publicAttempts.Load(), "the public endpoint should be redialled once, with the account endpoint")
-	assert.Zero(t, retried.accountProbeInterval.Load(), "WebsocketConnect should take the backoff the connected probe handed to the reconnection")
-
-	ex, public, authenticated = newWebsocketConnectTestExchange(t, &accounts.Credentials{Key: testAccountAddress})
-	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error")
-	waitForWebsocketReaders(t, ex)
-	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should enable account feeds")
-	assert.Equal(t, int32(1), public.readCalls.Load(), "WebsocketConnect should start the public reader")
-	assert.Equal(t, int32(1), authenticated.readCalls.Load(), "WebsocketConnect should start the account reader")
-
-	venue, _ := newVenueWebsocketTestExchange(t)
-	assert.True(t, venue.Websocket.IsConnected(), "WebsocketConnect should connect to the venue")
-	_, err := venue.getWatchAddress(t.Context())
-	assert.Equal(t, err == nil, venue.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should enable account feeds exactly when an account address is configured")
-}
-
 func TestConnectWebsocket(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
+	disabled := new(websocketConnectionFixture)
+	require.ErrorIs(t, ex.connectWebsocket(t.Context(), disabled), websocket.ErrWebsocketNotEnabled, "connectWebsocket must refuse a disabled exchange")
+	assert.Zero(t, disabled.dialCalls.Load(), "connectWebsocket should not dial for a disabled exchange")
+	ex.SetEnabled(true)
 	require.ErrorIs(t, ex.connectWebsocket(t.Context(), nil), common.ErrNilPointer, "connectWebsocket must reject a nil connection")
 
 	failed := &websocketConnectionFixture{dialErr: errWebsocketFixture}
@@ -651,219 +585,226 @@ func TestConnectWebsocket(t *testing.T) {
 	venue := new(Exchange)
 	require.NoError(t, testexch.Setup(venue), "Setup must not error")
 	require.NoError(t, venue.Websocket.SetAllConnectionURLs(venueWebsocketURL(t)), "SetAllConnectionURLs must not error")
-	require.NoError(t, venue.connectWebsocket(t.Context(), venue.Websocket.Conn), "connectWebsocket must dial the venue")
-	// The connection's ping handler stops when the manager's shutdown channel closes, as the manager's Shutdown does
-	close(venue.Websocket.ShutdownC)
-	assert.NoError(t, venue.Websocket.Conn.Shutdown(), "Shutdown should close the venue connection")
+	dialled, err := venue.Websocket.CreateTestConnection(websocketPublicConnection)
+	require.NoError(t, err, "CreateTestConnection must not error")
+	require.NoError(t, venue.connectWebsocket(t.Context(), dialled), "connectWebsocket must dial the venue")
+	assert.NoError(t, dialled.Shutdown(), "Shutdown should close the venue connection and stop its pings")
 }
 
-// awaitAccountWebsocketWithin runs awaitAccountWebsocket and fails the test unless it returns within 5 seconds, so a
-// regression that keeps probing fails rather than blocking until go test's timeout
-func awaitAccountWebsocketWithin(t *testing.T, ex *Exchange, endpoint string, shutdown <-chan struct{}, interval time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		ex.awaitAccountWebsocket(t.Context(), endpoint, "", shutdown, interval)
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "awaitAccountWebsocket must return")
-	}
-}
-
-func TestAwaitAccountWebsocket(t *testing.T) {
+func TestConnectPublicWebsocket(t *testing.T) {
 	t.Parallel()
-	ex, _, _ := newAccountWebsocketTestExchange(t, refuseFirst(0), time.Hour)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	probed := newWebsocketTestServer(t, refuseFirst(2))
+	ex := new(Exchange)
+	ex.SetDefaults()
+	failed := &websocketConnectionFixture{exchange: ex, dialErr: errWebsocketFixture}
+	require.ErrorIs(t, ex.connectPublicWebsocket(t.Context(), failed), errWebsocketFixture, "connectPublicWebsocket must return the dial error")
+	assert.Nil(t, ex.websocketPostConnection, "connectPublicWebsocket should not post on a connection it could not dial")
 
-	stopped := make(chan struct{})
-	close(stopped)
-	// A probe outliving its connection must leave alone the backoff a later probe hands to its reconnection
-	ex.accountProbeInterval.Store(int64(time.Second))
-	awaitAccountWebsocketWithin(t, ex, probed.endpoint, stopped, time.Hour)
-	assert.Zero(t, probed.attempts.Load(), "awaitAccountWebsocket should not probe once the websocket has shut down")
-	assert.Equal(t, int64(time.Second), ex.accountProbeInterval.Load(), "awaitAccountWebsocket should leave the backoff alone once the websocket has shut down")
-
-	interrupted := make(chan struct{})
-	interrupting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(interrupted)
-		if conn, err := new(gws.Upgrader).Upgrade(w, r, nil); err == nil {
-			_ = conn.Close()
-		}
-	}))
-	t.Cleanup(interrupting.Close)
-	awaitAccountWebsocketWithin(t, ex, "ws"+strings.TrimPrefix(interrupting.URL, "http"), interrupted, time.Millisecond)
-	assert.True(t, ex.Websocket.IsConnected(), "awaitAccountWebsocket should not shut down a websocket that shut down during its probe")
-	assert.Equal(t, int64(time.Second), ex.accountProbeInterval.Load(), "awaitAccountWebsocket should leave the backoff alone after a shutdown during its probe")
-
-	awaitAccountWebsocketWithin(t, ex, probed.endpoint, ex.Websocket.ShutdownC, time.Millisecond)
-	assert.Equal(t, int32(3), probed.attempts.Load(), "awaitAccountWebsocket should probe until a probe connects")
-	assert.False(t, ex.Websocket.IsConnected(), "awaitAccountWebsocket should shut the websocket down for the connection monitor to reconnect")
-	// The probes waited 1, 2 and 4ms, so the reconnection, should its account dial fail again, probes after 8ms
-	assert.Equal(t, int64(8*time.Millisecond), ex.accountProbeInterval.Load(), "awaitAccountWebsocket should hand the doubled interval of the probe that connected to the reconnection")
-
-	verbose := new(Exchange)
-	verbose.SetDefaults()
-	verbose.Verbose = true
-	var probesMu sync.Mutex
-	var probes []time.Time
-	refusing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		probesMu.Lock()
-		probes = append(probes, time.Now())
-		probesMu.Unlock()
-		http.Error(w, "refused", http.StatusServiceUnavailable)
-	}))
-	t.Cleanup(refusing.Close)
-	shutdown, done := make(chan struct{}), make(chan struct{})
-	go func() {
-		verbose.awaitAccountWebsocket(t.Context(), "ws"+strings.TrimPrefix(refusing.URL, "http"), "", shutdown, 5*time.Millisecond)
-		close(done)
-	}()
-	require.Eventually(t, func() bool {
-		probesMu.Lock()
-		defer probesMu.Unlock()
-		return len(probes) >= 4
-	}, 5*time.Second, time.Millisecond, "awaitAccountWebsocket must keep probing a refusing endpoint")
-	close(shutdown)
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "awaitAccountWebsocket must return once the websocket shuts down")
-	}
-	probesMu.Lock()
-	// Timers never fire early, so the intervals after the first three failed probes, 10, 20 and 40ms, bound the gap
-	assert.GreaterOrEqual(t, probes[3].Sub(probes[0]), 70*time.Millisecond, "awaitAccountWebsocket should double the interval after each failed probe")
-	probesMu.Unlock()
-	accepting := newWebsocketTestServer(t, refuseFirst(0))
-	awaitAccountWebsocketWithin(t, verbose, accepting.endpoint, make(chan struct{}), time.Millisecond)
-	assert.Equal(t, int32(1), accepting.attempts.Load(), "awaitAccountWebsocket should stop probing once a probe connects, even when the websocket cannot shut down")
-	assert.Zero(t, verbose.accountProbeInterval.Load(), "awaitAccountWebsocket should withdraw the backoff when the websocket cannot shut down for its probe")
+	connection := &websocketConnectionFixture{exchange: ex}
+	require.NoError(t, ex.connectPublicWebsocket(t.Context(), connection), "connectPublicWebsocket must not error")
+	assert.Equal(t, int32(1), connection.pingCalls.Load(), "connectPublicWebsocket should send application pings")
+	assert.Equal(t, websocket.Connection(connection), ex.websocketPostConnection, "connectPublicWebsocket should post on the connection it dialled")
 }
 
-func TestAccountWebsocketProbeBackoff(t *testing.T) {
+func TestConnectAccountWebsocket(t *testing.T) {
 	t.Parallel()
-	// The account endpoint refuses every dial and accepts every probe until it accepts everything, so each probe that
-	// connects reconnects the websocket into another failed account dial
-	var accepting atomic.Bool
-	var upgradesMu sync.Mutex
-	upgrades := make(map[int32]time.Time)
-	ex, _, accountAttempts := newAccountWebsocketTestExchange(t, func(attempt int32) bool {
-		upgradesMu.Lock()
-		upgrades[attempt] = time.Now()
-		upgradesMu.Unlock()
-		return attempt%2 == 1 && !accepting.Load()
-	}, 10*time.Millisecond)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
-	require.Eventually(t, func() bool { return accountAttempts.Load() >= 8 }, 10*time.Second, time.Millisecond, "the account endpoint must be dialled and probed in turn")
-	accepting.Store(true)
-	require.Eventually(t, ex.Websocket.CanUseAuthenticatedEndpoints, 10*time.Second, time.Millisecond, "the account connection must connect once its endpoint accepts it")
-	assert.Zero(t, ex.accountProbeInterval.Load(), "the reconnection should take the backoff its probe handed over")
-	upgradesMu.Lock()
-	defer upgradesMu.Unlock()
-	// Odd upgrades are account dials and even ones probes, the first connecting after the 10ms monitor delay and each
-	// later one after double the last, as timers never fire early
-	for dial, interval := range map[int32]time.Duration{3: 20 * time.Millisecond, 5: 40 * time.Millisecond, 7: 80 * time.Millisecond} {
-		assert.GreaterOrEqualf(t, upgrades[dial+1].Sub(upgrades[dial]), interval, "the probe after the account dial at upgrade %d should wait the interval the previous probe handed over", dial)
-	}
+	ex := new(Exchange)
+	ex.SetDefaults()
+	failed := &websocketConnectionFixture{exchange: ex, dialErr: errWebsocketFixture}
+	require.ErrorIs(t, ex.connectAccountWebsocket(t.Context(), failed), errWebsocketFixture, "connectAccountWebsocket must return the dial error")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "connectAccountWebsocket should not make account feeds usable without a connection")
+	assert.Nil(t, ex.websocketAccountConnection, "connectAccountWebsocket should not hold a connection it could not dial")
+
+	connection := &websocketConnectionFixture{exchange: ex}
+	require.NoError(t, ex.connectAccountWebsocket(t.Context(), connection), "connectAccountWebsocket must not error")
+	assert.Equal(t, int32(1), connection.pingCalls.Load(), "connectAccountWebsocket should send application pings")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "connectAccountWebsocket should make account feeds usable")
+	assert.Equal(t, websocket.Connection(connection), ex.websocketAccountConnection, "connectAccountWebsocket should hold the connection it dialled")
 }
 
-func TestNextAccountWebsocketProbeInterval(t *testing.T) {
-	t.Parallel()
-	for interval, exp := range map[time.Duration]time.Duration{
-		2 * time.Second:  4 * time.Second,
-		40 * time.Second: time.Minute,
-		time.Minute:      time.Minute,
-		time.Hour:        time.Hour,
-	} {
-		assert.Equalf(t, exp, nextAccountWebsocketProbeInterval(interval), "nextAccountWebsocketProbeInterval should follow %s with %s", interval, exp)
-	}
-}
-
-func TestProbeWebsocket(t *testing.T) {
-	t.Parallel()
-	server := newWebsocketTestServer(t, refuseFirst(1))
-	endpoint := server.endpoint
-	assert.ErrorIs(t, probeWebsocket(t.Context(), endpoint, ""), gws.ErrBadHandshake, "probeWebsocket should report a refused upgrade")
-	assert.NoError(t, probeWebsocket(t.Context(), endpoint, ""), "probeWebsocket should connect to an endpoint accepting upgrades")
-	assert.Equal(t, int32(2), server.attempts.Load(), "probeWebsocket should dial the endpoint once a probe")
-	// Hyperliquid allows an address 10 connections, so a probe must not hold one open
-	assert.Eventually(t, func() bool { return server.closed.Load() == 1 }, 5*time.Second, time.Millisecond, "probeWebsocket should close the connection it opens normally")
-
-	targets := make(chan string, 1)
-	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodConnect {
-			targets <- r.Host
-		}
-		http.Error(w, "refused", http.StatusForbidden)
-	}))
-	t.Cleanup(proxy.Close)
-	assert.Error(t, probeWebsocket(t.Context(), endpoint, proxy.URL), "probeWebsocket should report a proxy refusing the connection")
-	endpointURL, err := url.Parse(endpoint)
-	require.NoError(t, err, "url.Parse must not error for the endpoint")
-	select {
-	case target := <-targets:
-		assert.Equal(t, endpointURL.Host, target, "probeWebsocket should ask the proxy for the endpoint")
-	default:
-		assert.Fail(t, "probeWebsocket should dial through the proxy")
-	}
-	assert.Equal(t, int32(2), server.attempts.Load(), "probeWebsocket should not reach the endpoint around the proxy")
-	var invalid *url.Error
-	assert.ErrorAs(t, probeWebsocket(t.Context(), endpoint, "http://[::1"), &invalid, "probeWebsocket should reject an invalid proxy")
-}
-
-func TestWebsocketReadData(t *testing.T) {
+func TestPublicWebsocketDisconnected(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	publicSub := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
-	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, publicSub, &websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}})
-	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelNotification, User: testAccountAddress}}
-	authenticatedPending := addWebsocketPending(t, ex, wsMethodSubscribe, &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}, &authenticatedKey)
+	current := publicConn(t, ex)
+	sub := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
+	key := websocketPendingKey{connection: current, subscription: WebsocketSubscription{Type: wsChannelAllMids}}
+	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
 	ex.expectTradeReplay("BTC")
 	record := ex.websocketWatermarks.orders.touch(1, time.Now())
 	record.covered = true
 
-	connection := &websocketConnectionFixture{exchange: ex, messages: []websocket.Response{{Raw: []byte(`{"channel":"pong"}`)}, {Raw: []byte(`invalid`)}, {}}}
-	ex.Websocket.Wg.Add(1)
-	ex.wsReadData(t.Context(), connection, false)
-	assert.Equal(t, int32(3), connection.readCalls.Load(), "wsReadData should read until the connection closes")
-	relayed, ok := receiveWebsocketData(t, ex).(error)
-	require.True(t, ok, "wsReadData must relay the handler error")
-	assert.Error(t, relayed, "wsReadData should relay the handler error")
-	assertNoWebsocketData(t, ex)
-	require.ErrorIs(t, receivePendingResult(t, publicPending), websocket.ErrNotConnected, "wsReadData must fail the connection's pending operations when it closes")
-	assert.Nil(t, ex.Websocket.GetSubscription(publicSub), "wsReadData should roll back the connection's pending subscribe")
-	assert.Same(t, authenticatedPending, pendingWebsocketOperation(ex, &authenticatedKey), "wsReadData should leave the other connection's pending operations")
-	assert.Empty(t, ex.websocketTradeReplays, "wsReadData should stop awaiting the replays of a closed public connection")
-	assert.True(t, record.covered, "wsReadData should keep the orders' fills covered when the public connection closes")
+	ex.publicWebsocketDisconnected(t.Context(), &websocketConnectionFixture{exchange: ex})
+	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "publicWebsocketDisconnected should leave the current connection's pending operations")
+	assert.Equal(t, map[string]struct{}{"BTC": {}}, ex.websocketTradeReplays, "publicWebsocketDisconnected should keep the current connection's awaited replays when an older connection stops")
+	assert.Equal(t, websocket.Connection(current), ex.websocketPostConnection, "publicWebsocketDisconnected should keep posting on the current connection when an older one stops")
 
-	ex.expectTradeReplay("ETH")
-	ex.Websocket.Wg.Add(1)
-	ex.wsReadData(t.Context(), &websocketConnectionFixture{exchange: ex, messages: []websocket.Response{{}}}, true)
-	require.ErrorIs(t, receivePendingResult(t, authenticatedPending), websocket.ErrNotConnected, "wsReadData must fail the account connection's pending operations when it closes")
-	assert.False(t, record.covered, "wsReadData should mark the orders' fills incomplete when the account connection closes")
-	assert.Equal(t, map[string]struct{}{"ETH": {}}, ex.websocketTradeReplays, "wsReadData should keep the public connection's awaited replays when the account connection closes")
+	ex.publicWebsocketDisconnected(t.Context(), current)
+	require.ErrorIs(t, receivePendingResult(t, pending), websocket.ErrNotConnected, "publicWebsocketDisconnected must fail the connection's pending operations")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "publicWebsocketDisconnected should roll back the connection's pending subscribe")
+	assert.Empty(t, ex.websocketTradeReplays, "publicWebsocketDisconnected should stop awaiting the replays of the closed connection")
+	assert.Nil(t, ex.websocketPostConnection, "publicWebsocketDisconnected should stop posting on the closed connection")
+	assert.True(t, record.covered, "publicWebsocketDisconnected should keep the orders' fills covered")
+}
 
-	ex.Websocket.DataHandler = stream.NewRelay(1)
-	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must not error")
-	connection = &websocketConnectionFixture{exchange: ex, messages: []websocket.Response{{Raw: []byte(`invalid`)}, {Raw: []byte(`invalid`)}, {}}}
-	ex.Websocket.Wg.Add(1)
-	ex.wsReadData(t.Context(), connection, false)
-	assert.Equal(t, int32(3), connection.readCalls.Load(), "wsReadData should keep reading when the data handler is full")
+func TestAccountWebsocketDisconnected(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	current := accountConn(t, ex)
+	require.NoError(t, ex.connectAccountWebsocket(t.Context(), current), "connectAccountWebsocket must not error")
+	sub := &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}
+	key := websocketPendingKey{connection: current, subscription: WebsocketSubscription{Type: wsChannelNotification, User: testAccountAddress}}
+	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
+	record := ex.websocketWatermarks.orders.touch(1, time.Now())
+	record.covered = true
+
+	ex.accountWebsocketDisconnected(t.Context(), &websocketConnectionFixture{exchange: ex})
+	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "accountWebsocketDisconnected should leave the current connection's pending operations")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "accountWebsocketDisconnected should leave account feeds usable when an older connection stops")
+	assert.True(t, record.covered, "accountWebsocketDisconnected should keep the orders' fills covered when an older connection stops")
+
+	ex.accountWebsocketDisconnected(t.Context(), current)
+	require.ErrorIs(t, receivePendingResult(t, pending), websocket.ErrNotConnected, "accountWebsocketDisconnected must fail the connection's pending operations")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "accountWebsocketDisconnected should roll back the connection's pending subscribe")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "accountWebsocketDisconnected should stop account feeds when the account connection stops")
+	assert.Nil(t, ex.websocketAccountConnection, "accountWebsocketDisconnected should forget the closed connection")
+	assert.False(t, record.covered, "accountWebsocketDisconnected should mark the orders' fills incomplete")
+}
+
+// dropWebsocketAccountConnection connects the exchange's account fixture connection and drops it
+func dropWebsocketAccountConnection(t *testing.T, ex *Exchange) {
+	t.Helper()
+	require.NoError(t, ex.connectAccountWebsocket(t.Context(), accountConn(t, ex)), "connectAccountWebsocket must not error")
+	ex.accountWebsocketDisconnected(t.Context(), accountConn(t, ex))
+}
+
+// newAccountRecoveryTestExchange returns an exchange watching the test account and subscribing its orders, whose public
+// and account connections reach one local server that refuses the upgrades refuse reports, counted from 1, and when the
+// server was asked for each; the websocket is disabled and shut down when the test ends
+func newAccountRecoveryTestExchange(t *testing.T, refuse func(attempt int) bool, monitorDelay time.Duration) (ex *Exchange, attempts func() []time.Time) {
+	t.Helper()
+	venue := new(websocketVenueRequests)
+	var mu sync.Mutex
+	var times []time.Time
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		times = append(times, time.Now())
+		attempt := len(times)
+		mu.Unlock()
+		if refuse(attempt) {
+			http.Error(w, "refused", http.StatusServiceUnavailable)
+			return
+		}
+		mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, conn *gws.Conn) error {
+			if string(msg) == "drop" {
+				return conn.Close()
+			}
+			return venue.acknowledgeSubscriptions(t, msg, conn)
+		})
+	}))
+	t.Cleanup(server.Close)
+	ex = new(Exchange)
+	ex.SetDefaults()
+	ex.Name = t.Name()
+	cfg, err := ex.GetStandardConfig()
+	require.NoError(t, err, "GetStandardConfig must not error")
+	cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
+	cfg.ConnectionMonitorDelay, cfg.WebsocketTrafficTimeout = monitorDelay, time.Hour
+	require.NoError(t, ex.Setup(cfg), "Setup must not error")
+	ex.API.AuthenticatedWebsocketSupport = true
+	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
+	t.Cleanup(func() {
+		// Disabling stops the connection monitor, which may then shut the connection down first
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket is already shut down")
+		}
+	})
+	return ex, func() []time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(times)
+	}
+}
+
+func TestWebsocketAccountConnectionRecovery(t *testing.T) {
+	t.Parallel()
+	// The public connection dials first and is accepted; the account connection's first dial and first retry are refused
+	ex, attempts := newAccountRecoveryTestExchange(t, func(attempt int) bool { return attempt == 2 || attempt == 3 }, 20*time.Millisecond)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
+	assert.True(t, ex.Websocket.IsConnected(), "Connect should leave the public connection up")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Connect should not make account feeds usable while the account connection is down")
+	// The connector makes account feeds usable before the feeds are subscribed
+	accountFeed := newWebsocketSubscriptionKey(&subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true})
+	require.Eventually(t, func() bool {
+		sub := ex.Websocket.GetSubscription(accountFeed)
+		return sub != nil && sub.State() == subscription.SubscribedState
+	}, 10*time.Second, 5*time.Millisecond, "the manager must connect the account connection and subscribe the configured account feed once its endpoint accepts it")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the account connection should make account feeds usable")
+	upgrades := attempts()
+	require.Len(t, upgrades, 4, "the server must see the public dial, the refused account dial, a refused retry and the accepted retry")
+	// Retries wait the monitor delay, 20ms, after the first failure and double after each further one, as timers never
+	// fire early
+	assert.GreaterOrEqual(t, upgrades[3].Sub(upgrades[2]), 40*time.Millisecond, "the second retry should wait double the first")
+}
+
+// TestWebsocketConnectionLoss has the venue drop each connection: losing the account connection fails its pending
+// subscription operations and replaces it alone, and losing the public connection fails its own and reconnects
+func TestWebsocketConnectionLoss(t *testing.T) {
+	t.Parallel()
+	ex, attempts := newAccountRecoveryTestExchange(t, func(int) bool { return false }, 20*time.Millisecond)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.websocketConnectionsMu.Lock()
+	public, account := ex.websocketPostConnection, ex.websocketAccountConnection
+	ex.websocketConnectionsMu.Unlock()
+	require.NotNil(t, public, "Connect must connect the public connection")
+	require.NotNil(t, account, "Connect must connect the account connection")
+	publicKey := websocketPendingKey{connection: public, subscription: WebsocketSubscription{Type: wsChannelAllMids}}
+	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}, &publicKey)
+	accountKey := websocketPendingKey{connection: account, subscription: WebsocketSubscription{Type: wsChannelNotification, User: testAccountAddress}}
+	accountPending := addWebsocketPending(t, ex, wsMethodSubscribe, &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}, &accountKey)
+	settled := func(pending *websocketPendingOperation) error {
+		select {
+		case err := <-pending.done:
+			return err
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "a pending operation on a lost connection must settle")
+			return nil
+		}
+	}
+
+	require.NoError(t, account.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("drop")), "SendRawMessage must not error")
+	assert.ErrorIs(t, settled(accountPending), websocket.ErrNotConnected, "losing the account connection should fail its pending operations")
+	require.Eventually(t, func() bool {
+		ex.websocketConnectionsMu.Lock()
+		defer ex.websocketConnectionsMu.Unlock()
+		return ex.websocketAccountConnection != nil && ex.websocketAccountConnection != account
+	}, 10*time.Second, 5*time.Millisecond, "the manager must replace a lost account connection")
+	ex.websocketConnectionsMu.Lock()
+	assert.Equal(t, public, ex.websocketPostConnection, "losing the account connection should leave the public connection up")
+	ex.websocketConnectionsMu.Unlock()
+	assert.Same(t, publicPending, pendingWebsocketOperation(ex, &publicKey), "losing the account connection should leave the public connection's pending operations")
+	assert.Len(t, attempts(), 3, "the server should see the public dial, the account dial and the account's replacement")
+
+	require.NoError(t, public.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("drop")), "SendRawMessage must not error")
+	assert.ErrorIs(t, settled(publicPending), websocket.ErrNotConnected, "losing the public connection should fail its pending operations")
+	assert.Eventually(t, func() bool {
+		ex.websocketConnectionsMu.Lock()
+		defer ex.websocketConnectionsMu.Unlock()
+		return ex.websocketPostConnection != nil && ex.websocketPostConnection != public
+	}, 10*time.Second, 5*time.Millisecond, "the manager should reconnect once the public connection is lost")
 }
 
 func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.NoError(t, ex.wsHandleData(t.Context(), []byte(websocketConnectionEstablished), false), "wsHandleData should ignore the connection greeting")
-	assert.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"pong"}`), false), "wsHandleData should ignore a pong")
-	assert.ErrorContains(t, ex.wsHandleData(t.Context(), []byte(`invalid`), false), ex.Name+" decoding websocket message", "wsHandleData should name the exchange of a message it cannot decode")
-	err := ex.wsHandleData(t.Context(), []byte(`{"channel":"l2Book","data":{"coin":"ETH","time":1791278882097,"levels":[[],[]]}}`), false)
+	assert.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(websocketConnectionEstablished)), "wsHandleData should ignore the connection greeting")
+	assert.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"pong"}`)), "wsHandleData should ignore a pong")
+	assert.ErrorContains(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`invalid`)), ex.Name+" decoding websocket message", "wsHandleData should name the exchange of a message it cannot decode")
+	err := ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"l2Book","data":{"coin":"ETH","time":1791278882097,"levels":[[],[]]}}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleData should return the handler's error")
 	assert.ErrorContains(t, err, ex.Name+" l2Book message", "wsHandleData should name the exchange and channel of a message that fails")
-	err = ex.wsHandleData(t.Context(), websocketErrorFrame(t, "Subscription limit reached"), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), websocketErrorFrame(t, "Subscription limit reached"))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleData should return the server error")
 	assert.ErrorContains(t, err, ex.Name+" error message", "wsHandleData should identify the server error channel")
 	assert.ErrorContains(t, err, "Subscription limit reached", "wsHandleData should retain the server's message")
@@ -873,7 +814,7 @@ func TestWebsocketHandleData(t *testing.T) {
 func TestWebsocketHandleChannel(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.NoError(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: wsChannelPong}, []byte(`{"channel":"pong"}`), false), "wsHandleChannel should ignore a pong")
+	assert.NoError(t, ex.wsHandleChannel(t.Context(), publicConn(t, ex), &WebsocketResponse{Channel: wsChannelPong}, []byte(`{"channel":"pong"}`)), "wsHandleChannel should ignore a pong")
 	for _, channel := range []string{
 		wsChannelSubscriptionResponse, wsChannelPost, wsChannelError, wsChannelAllMids, wsChannelNotification, wsChannelWebData3,
 		wsChannelTWAPStates, wsChannelClearinghouseState, wsChannelOpenOrders, wsChannelCandle, wsChannelOrderbook, wsChannelTrades,
@@ -883,12 +824,12 @@ func TestWebsocketHandleChannel(t *testing.T) {
 		wsChannelAllDEXsAssetContexts, wsChannelOutcomeMetaUpdates, wsChannelFastAssetContexts,
 	} {
 		raw := []byte(`{"channel":"` + channel + `","data":"invalid!"}`)
-		assert.Errorf(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: channel, Data: json.RawMessage(`"invalid!"`)}, raw, false), "wsHandleChannel should pass %s data to its handler", channel)
+		assert.Errorf(t, ex.wsHandleChannel(t.Context(), publicConn(t, ex), &WebsocketResponse{Channel: channel, Data: json.RawMessage(`"invalid!"`)}, raw), "wsHandleChannel should pass %s data to its handler", channel)
 	}
 	assertNoWebsocketData(t, ex)
 
 	unhandled := `{"channel":"futureChannel","data":{}}`
-	require.NoError(t, ex.wsHandleChannel(t.Context(), &WebsocketResponse{Channel: "futureChannel", Data: json.RawMessage(`{}`)}, []byte(unhandled), false), "wsHandleChannel must not error for an unhandled channel")
+	require.NoError(t, ex.wsHandleChannel(t.Context(), publicConn(t, ex), &WebsocketResponse{Channel: "futureChannel", Data: json.RawMessage(`{}`)}, []byte(unhandled)), "wsHandleChannel must not error for an unhandled channel")
 	exp := websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + unhandled}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleChannel should relay a warning for an unhandled channel")
 }
@@ -956,12 +897,12 @@ func TestWebsocketRelay(t *testing.T) {
 		{
 			name:  "allMids",
 			frame: `{"channel":"allMids","data":{"mids":{"BTC":"85801.5","PURR/USDC":"0.14988","@107":"92.9315","#14880":"0.111485"}}}`,
-			exp:   &WebsocketAllMids{Mids: map[string]types.Number{"BTC": 85801.5, "PURR/USDC": 0.14988, "@107": 92.9315, "#14880": 0.111485}},
+			exp:   &WebsocketAllMids{MidPrices: map[string]types.Number{"BTC": 85801.5, "PURR/USDC": 0.14988, "@107": 92.9315, "#14880": 0.111485}},
 		},
 		{
 			name:  "builder DEX allMids",
 			frame: `{"channel":"allMids","data":{"dex":"xyz","mids":{"xyz:XYZ100":"31169.5"}}}`,
-			exp:   &WebsocketAllMids{DEX: "xyz", Mids: map[string]types.Number{"xyz:XYZ100": 31169.5}},
+			exp:   &WebsocketAllMids{DEX: "xyz", MidPrices: map[string]types.Number{"xyz:XYZ100": 31169.5}},
 		},
 		{
 			name:  "notification",
@@ -1198,7 +1139,7 @@ func TestWebsocketRelay(t *testing.T) {
 			}}}}},
 		},
 	} {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(tc.frame), false), "wsHandleData must not error for %s", tc.name)
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(tc.frame)), "wsHandleData must not error for %s", tc.name)
 		assert.Equalf(t, tc.exp, receiveWebsocketData(t, ex), "wsHandleData should relay the decoded %s message", tc.name)
 	}
 	assertNoWebsocketData(t, ex)
@@ -1446,12 +1387,12 @@ func TestWebsocketHandleCandle(t *testing.T) {
 			},
 		},
 	} {
-		require.NoError(t, ex.wsHandleData(t.Context(), []byte(tc.frame), false), "wsHandleData must not error")
+		require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(tc.frame)), "wsHandleData must not error")
 		assert.Equalf(t, tc.exp, receiveWebsocketData(t, ex), "wsHandleCandle should relay the %s %s candle", tc.exp.Asset, tc.exp.Pair)
 	}
-	err := ex.wsHandleData(t.Context(), []byte(`{"channel":"candle","data":{"s":"ETH","i":"1m"}}`), false)
+	err := ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"candle","data":{"s":"ETH","i":"1m"}}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleCandle should reject an unknown coin")
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"candle","data":{"s":"BTC","i":"7m"}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"candle","data":{"s":"BTC","i":"7m"}}`))
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "wsHandleCandle should reject an unsupported interval")
 	assertNoWebsocketData(t, ex)
 }
@@ -1461,7 +1402,7 @@ func TestWebsocketHandleOrderbook(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOrderbook(t.Context(), []byte(`"invalid"`)), "wsHandleOrderbook should reject invalid data")
 	frame := `{"channel":"l2Book","data":{"coin":"BTC","time":1791278882097,"levels":[[{"px":"85821.0","sz":"0.96592","n":4},{"px":"85818.0","sz":"0.80629","n":1}],[{"px":"85822.0","sz":"26.98831","n":71},{"px":"85823.0","sz":"4.42262","n":4}]]}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	_, ok := receiveWebsocketData(t, ex).(*orderbook.Depth)
 	require.True(t, ok, "wsHandleOrderbook must relay the orderbook depth")
 	book, err := ex.Websocket.Orderbook.GetOrderbook(perpetualPair, asset.PerpetualContract)
@@ -1470,11 +1411,11 @@ func TestWebsocketHandleOrderbook(t *testing.T) {
 	assert.Equal(t, orderbook.Levels{{Price: 85822, Amount: 26.98831, OrderCount: 71}, {Price: 85823, Amount: 4.42262, OrderCount: 4}}, book.Asks, "wsHandleOrderbook should load the asks")
 	assert.True(t, book.LastUpdated.Equal(time.UnixMilli(1791278882097)), "wsHandleOrderbook should load the book time")
 
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"l2Book","data":{"coin":"BTC","time":1791278882097,"levels":[[]]}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"l2Book","data":{"coin":"BTC","time":1791278882097,"levels":[[]]}}`))
 	assert.ErrorIs(t, err, errInvalidBookLevelCount, "wsHandleOrderbook should reject a book without two sides")
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"l2Book","data":{"coin":"ETH","time":1791278882097,"levels":[[],[]]}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"l2Book","data":{"coin":"ETH","time":1791278882097,"levels":[[],[]]}}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleOrderbook should reject an unknown coin")
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"l2Book","data":{"coin":"@107","time":1791278882097,"levels":[[{"px":"0","sz":"1","n":1}],[{"px":"92.7","sz":"1","n":1}]]}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"l2Book","data":{"coin":"@107","time":1791278882097,"levels":[[{"px":"0","sz":"1","n":1}],[{"px":"92.7","sz":"1","n":1}]]}}`))
 	assert.ErrorIs(t, err, orderbook.ErrPriceZero, "wsHandleOrderbook should reject an invalid book")
 	assertNoWebsocketData(t, ex)
 }
@@ -1487,20 +1428,20 @@ func TestWebsocketHandleTrades(t *testing.T) {
 	acknowledgement := func(coin string) []byte {
 		return []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"` + coin + `"}}}`)
 	}
-	require.NoError(t, ex.wsHandleData(t.Context(), acknowledgement("BTC"), false), "wsHandleData must not error for the acknowledgement")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error for the replayed trades")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), acknowledgement("BTC")), "wsHandleData must not error for the acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error for the replayed trades")
 	assertNoWebsocketData(t, ex)
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := []trade.Data{
 		{TID: "188095306343783", Exchange: ex.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Buy, Price: 85827, Amount: 0.02721, Timestamp: time.UnixMilli(1791278878126).UTC()},
 		{TID: "250009747508244", Exchange: ex.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Price: 85826, Amount: 0.00897, Timestamp: time.UnixMilli(1791278878126).UTC()},
 	}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleTrades should relay the trades after the replay")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), acknowledgement("BTC"), false), "wsHandleData must not error for a reconnect's acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), acknowledgement("BTC")), "wsHandleData must not error for a reconnect's acknowledgement")
 	reconnect := `{"channel":"trades","data":[{"coin":"BTC","side":"B","px":"85827.0","sz":"0.02721","time":1791278878126,"tid":188095306343783},{"coin":"BTC","side":"B","px":"85827.0","sz":"0.5","time":1791278878126,"tid":260000000000000},{"coin":"BTC","side":"A","px":"85830.0","sz":"0.01","time":1791278880000,"tid":3}]}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(reconnect), false), "wsHandleData must not error for a reconnect's replay")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(reconnect)), "wsHandleData must not error for a reconnect's replay")
 	missed := []trade.Data{
 		{TID: "260000000000000", Exchange: ex.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Buy, Price: 85827, Amount: 0.5, Timestamp: time.UnixMilli(1791278878126).UTC()},
 		{TID: "3", Exchange: ex.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Price: 85830, Amount: 0.01, Timestamp: time.UnixMilli(1791278880000).UTC()},
@@ -1508,20 +1449,20 @@ func TestWebsocketHandleTrades(t *testing.T) {
 	assert.Equal(t, missed, receiveWebsocketData(t, ex), "wsHandleTrades should relay only the replayed trades after the last relayed one")
 
 	// A market without recent trades replays an empty batch, which must not leave its replay awaited
-	require.NoError(t, ex.wsHandleData(t.Context(), acknowledgement("@107"), false), "wsHandleData must not error for the acknowledgement")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"trades","data":[]}`), false), "wsHandleData must not error for an empty replay")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), acknowledgement("@107")), "wsHandleData must not error for the acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"trades","data":[]}`)), "wsHandleData must not error for an empty replay")
 	assertNoWebsocketData(t, ex)
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"trades","data":[{"coin":"@107","side":"A","px":"92.7","sz":"0.41","time":1791279150013,"tid":499584618036466}]}`), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"trades","data":[{"coin":"@107","side":"A","px":"92.7","sz":"0.41","time":1791279150013,"tid":499584618036466}]}`)), "wsHandleData must not error")
 	firstLive := []trade.Data{{TID: "499584618036466", Exchange: ex.Name, CurrencyPair: spotPair, AssetType: asset.Spot, Side: order.Sell, Price: 92.7, Amount: 0.41, Timestamp: time.UnixMilli(1791279150013).UTC()}}
 	assert.Equal(t, firstLive, receiveWebsocketData(t, ex), "wsHandleTrades should relay a market's first live trades after its empty replay")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"trades","data":[]}`), false), "wsHandleData must not error for an empty batch")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"trades","data":[]}`)), "wsHandleData must not error for an empty batch")
 	assertNoWebsocketData(t, ex)
 
 	mixed := `{"channel":"trades","data":[{"coin":"BTC","side":"X","px":"85827.0","sz":"1","time":1791278878126,"tid":1},{"coin":"BTC","side":"B","px":"85827.0","sz":"0.02721","time":1791278878126,"tid":188095306343783}]}`
-	assert.ErrorIs(t, ex.wsHandleData(t.Context(), []byte(mixed), false), order.ErrSideIsInvalid, "wsHandleTrades should report a trade that cannot convert")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(mixed)), order.ErrSideIsInvalid, "wsHandleTrades should report a trade that cannot convert")
 	assert.Equal(t, exp[:1], receiveWebsocketData(t, ex), "wsHandleTrades should relay the trades that convert")
 
-	err := ex.wsHandleData(t.Context(), []byte(`{"channel":"trades","data":[{"coin":"ETH","side":"B","px":"2710.8","sz":"1","time":1791278878126,"tid":1}]}`), false)
+	err := ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"trades","data":[{"coin":"ETH","side":"B","px":"2710.8","sz":"1","time":1791278878126,"tid":1}]}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleTrades should reject an unknown coin")
 	assertNoWebsocketData(t, ex)
 }
@@ -1638,7 +1579,7 @@ func TestWebsocketHandleOrderUpdates(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOrderUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleOrderUpdates should reject invalid data")
 	frame := `{"channel":"orderUpdates","data":[{"order":{"coin":"@107","side":"B","limitPx":"93.218","sz":"3.28","oid":566617964508,"timestamp":1791281008463,"origSz":"3.28","cloid":"0x000000000000000000065d291c305ae0"},"status":"open","statusTimestamp":1791281008463},{"order":{"coin":"@107","side":"B","limitPx":"93.218","sz":"0.0","oid":566617964508,"timestamp":1791281008463,"origSz":"3.28","cloid":"0x000000000000000000065d291c305ae0"},"status":"filled","statusTimestamp":1791281008463},{"order":{"coin":"xyz:XYZ100","side":"A","limitPx":"31169.5","sz":"0.1","oid":566617840215,"timestamp":1791280994709,"origSz":"0.1","cloid":"0x000000000000000000065d291b5eb630"},"status":"canceled","statusTimestamp":1791281001374}]}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	placed := time.UnixMilli(1791281008463).UTC()
 	exp := []order.Detail{
 		{
@@ -1687,14 +1628,14 @@ func TestWebsocketHandleOrderUpdates(t *testing.T) {
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleOrderUpdates should relay the converted orders")
 
 	mixed := `{"channel":"orderUpdates","data":[{"order":{"coin":"ETH","side":"B","oid":1,"timestamp":1791281008463},"status":"open","statusTimestamp":1791281008463},{"order":{"coin":"BTC","side":"B","oid":2,"timestamp":1791281008463},"status":"unknownStatus","statusTimestamp":1791281008463},{"order":{"coin":"@107","side":"B","limitPx":"93.218","sz":"3.28","oid":566617964508,"timestamp":1791281008463,"origSz":"3.28","cloid":"0x000000000000000000065d291c305ae0"},"status":"open","statusTimestamp":1791281008463}]}`
-	err := ex.wsHandleData(t.Context(), []byte(mixed), true)
+	err := ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(mixed))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleOrderUpdates should report an order of an unknown coin")
 	assert.ErrorIs(t, err, errUnsupportedOrderStatus, "wsHandleOrderUpdates should report an order with an unknown status")
 	assert.Equal(t, exp[:1], receiveWebsocketData(t, ex), "wsHandleOrderUpdates should relay the orders that convert")
 
 	outcome := `{"channel":"orderUpdates","data":[{"order":{"coin":"#90700","side":"B","limitPx":"0.52","sz":"100.0","oid":570870444900,"timestamp":1791281008463,"origSz":"100.0"},"status":"open","statusTimestamp":1791281008463}]}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(outcome), true), "wsHandleData must not error for an outcome order, which no supported asset holds")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"orderUpdates","data":[]}`), true), "wsHandleData must not error for an empty batch")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(outcome)), "wsHandleData must not error for an outcome order, which no supported asset holds")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"orderUpdates","data":[]}`)), "wsHandleData must not error for an empty batch")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -1758,7 +1699,7 @@ func websocketUserFillsFrame(fills ...string) []byte {
 func handleWebsocketFrames(t *testing.T, ex *Exchange, frames ...[]byte) {
 	t.Helper()
 	for _, frame := range frames {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), frame, true), "wsHandleData must not error for %s", frame)
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), accountConn(t, ex), frame), "wsHandleData must not error for %s", frame)
 	}
 }
 
@@ -2079,8 +2020,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketOrderEventsExchange(t)
 		handleWebsocketFrames(t, ex, websocketOrderUpdatesFrame(websocketOrderRowJSON(1009, "open", "0.02", "0.02", websocketOrderPlaced)))
-		ex.Websocket.Wg.Add(1)
-		ex.wsReadData(t.Context(), &websocketConnectionFixture{exchange: ex, messages: []websocket.Response{{}}}, true)
+		dropWebsocketAccountConnection(t, ex)
 		handleWebsocketFrames(t, ex,
 			websocketUserFillsFrame(websocketOrderFillJSON(1009, 91, "85000.0", "0.005", websocketOrderPlaced+100, true)),
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1009, "canceled", "0.015", "0.02", websocketOrderPlaced+300)),
@@ -2180,8 +2120,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1012, "open", "0.02", "0.02", websocketOrderPlaced)),
 			websocketUserFillsFrame(websocketOrderFillJSON(1012, 121, "85000.0", "0.005", websocketOrderPlaced+100, true)),
 		)
-		ex.Websocket.Wg.Add(1)
-		ex.wsReadData(t.Context(), &websocketConnectionFixture{exchange: ex, messages: []websocket.Response{{}}}, true)
+		dropWebsocketAccountConnection(t, ex)
 		handleWebsocketFrames(t, ex,
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1012, "filled", "0.0", "0.02", websocketOrderPlaced+300)),
 			websocketUserFillsFrame(websocketOrderFillJSON(1012, 122, "85010.0", "0.015", websocketOrderPlaced+250, true)),
@@ -2203,17 +2142,17 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketOrderEventsExchange(t)
 		fills := subscription.List{{Channel: wsSubscriptionUserEvents, Authenticated: true}}
-		require.NoError(t, ex.Subscribe(fills), "Subscribe must not error")
+		require.NoError(t, subscribeWebsocketTest(t, ex, fills), "Subscribe must not error")
 		handleWebsocketFrames(t, ex,
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1013, "open", "0.02", "0.02", websocketOrderPlaced)),
 			websocketUserFillsFrame(websocketOrderFillJSON(1013, 131, "84000", "0.005", websocketOrderPlaced+100, true)),
 		)
 		merged := mergeOrderUpdates(t, append(receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex)...)...)
-		require.NoError(t, ex.Unsubscribe(fills), "Unsubscribe must not error")
+		require.NoError(t, unsubscribeWebsocketTest(t, ex, fills), "Unsubscribe must not error")
 		rest := merged.Copy()
 		rest.ExecutedAmount, rest.RemainingAmount, rest.Cost = 0.015, 0.005, 1260
 		require.NoError(t, merged.UpdateOrderFromDetail(&rest), "UpdateOrderFromDetail must not error")
-		require.NoError(t, ex.Subscribe(subscription.List{{Channel: wsSubscriptionUserEvents, Authenticated: true}}), "Subscribe must not error again")
+		require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: wsSubscriptionUserEvents, Authenticated: true}}), "Subscribe must not error again")
 		handleWebsocketFrames(t, ex, websocketUserFillsFrame(websocketOrderFillJSON(1013, 133, "84000", "0.002", websocketOrderPlaced+300, true)))
 		latest := receiveOrderUpdates(t, ex)[0]
 		assert.Zero(t, latest.ExecutedAmount, "wsHandleSubscriptionResponse should prevent incomplete cumulative execution")
@@ -2223,7 +2162,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 	t.Run("aggregated userFills subscribed beside userEvents", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketOrderEventsExchange(t)
-		require.NoError(t, ex.Subscribe(subscription.List{{Channel: wsSubscriptionUserEvents, Authenticated: true}}), "Subscribe must not error for userEvents")
+		require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: wsSubscriptionUserEvents, Authenticated: true}}), "Subscribe must not error for userEvents")
 		handleWebsocketFrames(t, ex,
 			websocketOrderUpdatesFrame(websocketOrderRowJSON(1015, "open", "0.02", "0.02", websocketOrderPlaced)),
 			websocketUserFillsFrame(websocketOrderFillJSON(1015, 151, "84000", "0.005", websocketOrderPlaced+100, true)),
@@ -2231,7 +2170,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		receiveOrderUpdates(t, ex)
 		receiveOrderUpdates(t, ex)
 		aggregated := subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}
-		require.NoError(t, ex.Subscribe(aggregated), "Subscribe must not error for aggregated userFills")
+		require.NoError(t, subscribeWebsocketTest(t, ex, aggregated), "Subscribe must not error for aggregated userFills")
 		handleWebsocketFrames(t, ex, websocketUserFillsFrame(websocketOrderFillJSON(1015, 152, "84000", "0.002", websocketOrderPlaced+200, true)))
 		assert.InDelta(t, 0.007, receiveOrderUpdates(t, ex)[0].ExecutedAmount, 1e-12, "wsHandleSubscriptionResponse should preserve coverage for aggregated userFills")
 	})
@@ -2239,10 +2178,10 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		t.Run(feed+" subscribed after the order's row", func(t *testing.T) {
 			t.Parallel()
 			ex := newWebsocketOrderEventsExchange(t)
-			require.NoError(t, ex.Subscribe(subscription.List{{Channel: wsChannelOrderUpdates, Authenticated: true}}), "Subscribe must not error for orderUpdates")
+			require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: wsChannelOrderUpdates, Authenticated: true}}), "Subscribe must not error for orderUpdates")
 			handleWebsocketFrames(t, ex, websocketOrderUpdatesFrame(websocketOrderRowJSON(1014, "open", "0.02", "0.02", websocketOrderPlaced)))
 			receiveOrderUpdates(t, ex)
-			require.NoErrorf(t, ex.Subscribe(subscription.List{{Channel: feed, Authenticated: true}}), "Subscribe must not error for %s", feed)
+			require.NoErrorf(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: feed, Authenticated: true}}), "Subscribe must not error for %s", feed)
 			frame := func(snapshot bool, fill string) []byte {
 				if feed == wsChannelUserFills {
 					return []byte(`{"channel":"userFills","data":{"isSnapshot":` + strconv.FormatBool(snapshot) + `,"user":"` + testAccountAddress + `","fills":[` + fill + `]}}`)
@@ -2575,24 +2514,24 @@ func TestWebsocketHandleUserEvent(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserEvent(t.Context(), []byte(`"invalid"`)), "wsHandleUserEvent should reject invalid data")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"fills":[`+websocketFillJSON+`]}}`), true), "wsHandleData must not error for fills")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{"fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for fills")
 	assert.Equal(t, []order.Detail{testWebsocketFillUpdate(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay fills to the order stream")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay fills to the fills feed")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`), true), "wsHandleData must not error for TWAP slice fills")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{"twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`)), "wsHandleData must not error for TWAP slice fills")
 	assert.Equal(t, []order.Detail{testWebsocketSpotFillUpdate(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay TWAP slice fills to the order stream")
 	assert.Equal(t, []fill.Data{testWebsocketSpotFillData(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay TWAP slice fills to the fills feed")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"funding":{"time":1791280800037,"coin":"BTC","usdc":"-0.601087","szi":"0.55919","fundingRate":"0.0000125","nSamples":null}}}`), true), "wsHandleData must not error for a funding payment")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{"funding":{"time":1791280800037,"coin":"BTC","usdc":"-0.601087","szi":"0.55919","fundingRate":"0.0000125","nSamples":null}}}`)), "wsHandleData must not error for a funding payment")
 	assert.Equal(t, &WebsocketUserFunding{Time: milli(1791280800037), Coin: "BTC", USDC: -0.601087, SignedSize: 0.55919, FundingRate: 0.0000125}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a funding payment")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"liquidation":{"lid":123456,"liquidator":"0x0000000000000000000000000000000000000009","liquidated_user":"0x000000000000000000000000000000000000000b","liquidated_ntl_pos":"356.80015","liquidated_account_value":"2.956494"}}}`), true), "wsHandleData must not error for a liquidation")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{"liquidation":{"lid":123456,"liquidator":"0x0000000000000000000000000000000000000009","liquidated_user":"0x000000000000000000000000000000000000000b","liquidated_ntl_pos":"356.80015","liquidated_account_value":"2.956494"}}}`)), "wsHandleData must not error for a liquidation")
 	assert.Equal(t, &WebsocketLiquidation{LiquidationID: 123456, Liquidator: "0x0000000000000000000000000000000000000009", LiquidatedUser: "0x000000000000000000000000000000000000000b", LiquidatedNotionalPosition: 356.80015, LiquidatedAccountValue: 2.956494}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay a liquidation")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{"nonUserCancel":[{"coin":"PNUT","oid":566615769247}]}}`), true), "wsHandleData must not error for cancels")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{"nonUserCancel":[{"coin":"PNUT","oid":566615769247}]}}`)), "wsHandleData must not error for cancels")
 	assert.Equal(t, []WebsocketNonUserCancel{{Coin: "PNUT", OrderID: 566615769247}}, receiveWebsocketData(t, ex), "wsHandleUserEvent should relay the orders the exchange cancelled")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"user","data":{}}`), true), "wsHandleData must not error for an empty event")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"user","data":{}}`)), "wsHandleData must not error for an empty event")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -2600,14 +2539,14 @@ func TestWebsocketHandleUserFills(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserFills(t.Context(), []byte(`"invalid"`)), "wsHandleUserFills should reject invalid data")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000a","fills":[`+websocketFillJSON+`]}}`), true), "wsHandleData must not error for the snapshot")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000a","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for the snapshot")
 	assertNoWebsocketData(t, ex)
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userFills","data":{"user":"0x000000000000000000000000000000000000000a","fills":[`+websocketFillJSON+`]}}`), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"user":"0x000000000000000000000000000000000000000a","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error")
 	assert.Equal(t, []order.Detail{testWebsocketFillUpdate(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserFills should relay new fills to the order stream")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserFills should relay new fills to the fills feed")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000A","fills":[`+websocketLaterFillJSON+`,`+websocketFillJSON+`]}}`), true), "wsHandleData must not error for a reconnect's snapshot")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000A","fills":[`+websocketLaterFillJSON+`,`+websocketFillJSON+`]}}`)), "wsHandleData must not error for a reconnect's snapshot")
 	missedUpdate := testWebsocketFillUpdate(ex.Name)
 	missedUpdate.Date, missedUpdate.LastUpdated = time.UnixMilli(1791280950000).UTC(), time.UnixMilli(1791280950000).UTC()
 	missedUpdate.Trades[0].TID, missedUpdate.Trades[0].Timestamp = "669583051366497", time.UnixMilli(1791280950000).UTC()
@@ -2616,13 +2555,13 @@ func TestWebsocketHandleUserFills(t *testing.T) {
 	missed.ID, missed.TradeID, missed.Timestamp = "669583051366497", "669583051366497", time.UnixMilli(1791280950000).UTC()
 	assert.Equal(t, []fill.Data{missed}, receiveWebsocketData(t, ex), "wsHandleUserFills should relay only the snapshot's fills after the last relayed one to the fills feed")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000b","fills":[`+websocketLaterFillJSON+`]}}`), true), "wsHandleData must not error for another account's snapshot")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000b","fills":[`+websocketLaterFillJSON+`]}}`)), "wsHandleData must not error for another account's snapshot")
 	assertNoWebsocketData(t, ex)
 
 	// An aggregated fill carries the trade ID of one of the fills it combines, so it would be counted beside them
 	aggregated := newWebsocketTestExchange(t)
-	require.NoError(t, aggregated.Subscribe(subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}), "Subscribe must not error")
-	require.NoError(t, aggregated.wsHandleData(t.Context(), []byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`]}}`), true), "wsHandleData must not error for an aggregated fill")
+	require.NoError(t, subscribeWebsocketTest(t, aggregated, subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}), "Subscribe must not error")
+	require.NoError(t, aggregated.wsHandleData(t.Context(), accountConn(t, aggregated), []byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for an aggregated fill")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(aggregated.Name)}, receiveWebsocketData(t, aggregated), "wsHandleUserFills should relay aggregated fills only to the fills feed")
 	assertNoWebsocketData(t, aggregated)
 }
@@ -2635,12 +2574,12 @@ func TestAggregatesUserFills(t *testing.T) {
 	assert.False(t, ex.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should ignore a held subscription without a subscribed feed")
 
 	aggregated := newWebsocketTestExchange(t)
-	require.NoError(t, aggregated.Subscribe(subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}), "Subscribe must not error")
+	require.NoError(t, subscribeWebsocketTest(t, aggregated, subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}), "Subscribe must not error")
 	assert.True(t, aggregated.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report a held userFills feed that combines fills")
 	assert.False(t, aggregated.aggregatesUserFills(testOtherAddress), "aggregatesUserFills should report no combining for another user")
 
 	plain := newWebsocketTestExchange(t)
-	require.NoError(t, plain.Subscribe(subscription.List{{Channel: wsChannelUserFills, Authenticated: true}}), "Subscribe must not error")
+	require.NoError(t, subscribeWebsocketTest(t, plain, subscription.List{{Channel: wsChannelUserFills, Authenticated: true}}), "Subscribe must not error")
 	assert.False(t, plain.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report a held userFills feed that sends each fill")
 }
 
@@ -2707,7 +2646,7 @@ func TestWebsocketHandleUserFundings(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserFundings(t.Context(), []byte(`"invalid"`)), "wsHandleUserFundings should reject invalid data")
 	frame := `{"channel":"userFundings","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000003","fundings":[{"time":1791216000037,"coin":"ENA","usdc":"-2.38878","szi":"777946.0","fundingRate":"0.0000125","nSamples":1},{"time":1791219600012,"coin":"BTC","usdc":"0.238633","szi":"-0.2238","fundingRate":"0.0000125","nSamples":null}]}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := &WebsocketUserFundings{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000003",
@@ -2717,7 +2656,7 @@ func TestWebsocketHandleUserFundings(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleUserFundings should relay the funding payments")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userFundings","data":{"user":"0x0000000000000000000000000000000000000003","fundings":[]}}`), true), "wsHandleData must not error without payments")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFundings","data":{"user":"0x0000000000000000000000000000000000000003","fundings":[]}}`)), "wsHandleData must not error without payments")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -2726,7 +2665,7 @@ func TestWebsocketHandleUserNonFundingLedgerUpdates(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserNonFundingLedgerUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleUserNonFundingLedgerUpdates should reject invalid data")
 	frame := `{"channel":"userNonFundingLedgerUpdates","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000001","nonFundingLedgerUpdates":[{"time":1748135719014,"hash":"0x2674629937983fbe452ec47df9c991d29c136ff7c79c3c1630d600d6707524d0","delta":{"type":"deposit","usdc":"200079.847397"}},{"time":1677618623525,"hash":"0x651383a8fda3daaf31cc0308597c0000f7f51388f97acf0df28797ee97ae278a","delta":{"type":"liquidation","liquidatedNtlPos":"356.80015","accountValue":"2.956494","leverageType":"Cross","liquidatedPositions":[{"coin":"ATOM","szi":"29.21"}]}}]}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := &WebsocketUserNonFundingLedgerUpdates{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000001",
@@ -2746,7 +2685,7 @@ func TestWebsocketHandleUserNonFundingLedgerUpdates(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleUserNonFundingLedgerUpdates should relay the ledger updates")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userNonFundingLedgerUpdates","data":{"user":"0x0000000000000000000000000000000000000001","nonFundingLedgerUpdates":[]}}`), true), "wsHandleData must not error without updates")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userNonFundingLedgerUpdates","data":{"user":"0x0000000000000000000000000000000000000001","nonFundingLedgerUpdates":[]}}`)), "wsHandleData must not error without updates")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -2755,7 +2694,7 @@ func TestWebsocketHandlePerpetualTicker(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandlePerpetualTicker(t.Context(), []byte(`"invalid"`)), "wsHandlePerpetualTicker should reject invalid data")
 	frame := `{"channel":"activeAssetCtx","data":{"coin":"BTC","ctx":{"funding":"0.0000125","openInterest":"39980.76392","prevDayPx":"85840.0","dayNtlVlm":"1821282705.4506571293","premium":"-0.0001864194","oraclePx":"85828.0","markPx":"85814.0","midPx":"85811.5","impactPxs":["85811.0","85812.0"],"dayBaseVlm":"21229.55909"}}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := &ticker.Price{
 		Last:         85811.5,
 		Open:         85840,
@@ -2773,12 +2712,12 @@ func TestWebsocketHandlePerpetualTicker(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Equal(t, 85811.5, stored.Last, "wsHandlePerpetualTicker should store the ticker")
 
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeAssetCtx","data":{"coin":"@107","ctx":{}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeAssetCtx","data":{"coin":"@107","ctx":{}}}`))
 	assert.ErrorIs(t, err, errWebsocketAssetMismatch, "wsHandlePerpetualTicker should reject a spot coin")
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeAssetCtx","data":{"coin":"ETH","ctx":{}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeAssetCtx","data":{"coin":"ETH","ctx":{}}}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandlePerpetualTicker should reject an unknown coin")
 	ex.setPairMappings(asset.PerpetualContract, []pairMapping{{coin: "UNPAIRED"}})
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeAssetCtx","data":{"coin":"UNPAIRED","ctx":{"markPx":"1.0"}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeAssetCtx","data":{"coin":"UNPAIRED","ctx":{"markPx":"1.0"}}}`))
 	assert.Error(t, err, "wsHandlePerpetualTicker should return the error of a ticker that cannot be stored")
 	assertNoWebsocketData(t, ex)
 }
@@ -2788,7 +2727,7 @@ func TestWebsocketHandleSpotTicker(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleSpotTicker(t.Context(), []byte(`"invalid"`)), "wsHandleSpotTicker should reject invalid data")
 	frame := `{"channel":"activeSpotAssetCtx","data":{"coin":"@107","ctx":{"prevDayPx":"93.124","dayNtlVlm":"64552049.6973299459","markPx":"92.949","midPx":"92.945","circulatingSupply":"298462370.4079165459","coin":"@107","totalSupply":"998882916.6303099394","dayBaseVlm":"690824.1400000008"}}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := &ticker.Price{
 		Last:         92.945,
 		Open:         93.124,
@@ -2804,12 +2743,12 @@ func TestWebsocketHandleSpotTicker(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Equal(t, 92.945, stored.Last, "wsHandleSpotTicker should store the ticker")
 
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"BTC","ctx":{}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"BTC","ctx":{}}}`))
 	assert.ErrorIs(t, err, errWebsocketAssetMismatch, "wsHandleSpotTicker should reject a perpetual coin")
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"@1","ctx":{}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"@1","ctx":{}}}`))
 	assert.ErrorIs(t, err, errPairMappingNotFound, "wsHandleSpotTicker should reject an unknown coin")
 	ex.setPairMappings(asset.Spot, []pairMapping{{coin: "@999"}})
-	err = ex.wsHandleData(t.Context(), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"@999","ctx":{"markPx":"1.0"}}}`), false)
+	err = ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"activeSpotAssetCtx","data":{"coin":"@999","ctx":{"markPx":"1.0"}}}`))
 	assert.Error(t, err, "wsHandleSpotTicker should return the error of a ticker that cannot be stored")
 	assertNoWebsocketData(t, ex)
 }
@@ -2818,14 +2757,14 @@ func TestWebsocketHandleUserTWAPSliceFills(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserTWAPSliceFills(t.Context(), []byte(`"invalid"`)), "wsHandleUserTWAPSliceFills should reject invalid data")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userTwapSliceFills","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`), true), "wsHandleData must not error for the snapshot")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userTwapSliceFills","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`)), "wsHandleData must not error for the snapshot")
 	assertNoWebsocketData(t, ex)
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userTwapSliceFills","data":{"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userTwapSliceFills","data":{"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664}]}}`)), "wsHandleData must not error")
 	assert.Equal(t, []order.Detail{testWebsocketSpotFillUpdate(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserTWAPSliceFills should relay new TWAP slice fills to the order stream")
 	assert.Equal(t, []fill.Data{testWebsocketSpotFillData(ex.Name)}, receiveWebsocketData(t, ex), "wsHandleUserTWAPSliceFills should relay new TWAP slice fills to the fills feed")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userTwapSliceFills","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664},{"fill":`+websocketLaterSpotFillJSON+`,"twapId":2278664}]}}`), true), "wsHandleData must not error for a reconnect's snapshot")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userTwapSliceFills","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664},{"fill":`+websocketLaterSpotFillJSON+`,"twapId":2278664}]}}`)), "wsHandleData must not error for a reconnect's snapshot")
 	missedUpdate := testWebsocketSpotFillUpdate(ex.Name)
 	missedUpdate.Date, missedUpdate.LastUpdated = time.UnixMilli(1791279180013).UTC(), time.UnixMilli(1791279180013).UTC()
 	missedUpdate.Trades[0].TID, missedUpdate.Trades[0].Timestamp = "499584618036467", time.UnixMilli(1791279180013).UTC()
@@ -2840,7 +2779,7 @@ func TestWebsocketHandleUserTWAPHistory(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleUserTWAPHistory(t.Context(), []byte(`"invalid"`)), "wsHandleUserTWAPHistory should reject invalid data")
 	frame := `{"channel":"userTwapHistory","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","history":[{"time":1769165674,"state":{"coin":"@107","user":"0x0000000000000000000000000000000000000007","side":"B","sz":"2000.0","executedSz":"2000.0","executedNtl":"41959.56859","minutes":30,"reduceOnly":true,"randomize":true,"timestamp":1769163872991,"trigger":{"px":"88.0","above":true},"stopPx":"85.5"},"status":{"status":"finished","description":"finished"},"twapId":1530771},{"time":1770013630,"state":{"coin":"@151","user":"0x0000000000000000000000000000000000000007","side":"B","sz":"86.0","executedSz":"49.0413","executedNtl":"107736.21719","minutes":60,"reduceOnly":false,"randomize":false,"timestamp":1770011558151,"trigger":null,"stopPx":null},"status":{"status":"error","description":"Insufficient spot balance"},"twapId":1560286}]}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), true), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := &WebsocketUserTWAPHistory{
 		IsSnapshot: true,
 		User:       "0x0000000000000000000000000000000000000007",
@@ -2882,7 +2821,7 @@ func TestWebsocketHandleUserTWAPHistory(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleUserTWAPHistory should relay the TWAP status changes")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"userTwapHistory","data":{"user":"0x0000000000000000000000000000000000000007","history":[]}}`), true), "wsHandleData must not error without changes")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userTwapHistory","data":{"user":"0x0000000000000000000000000000000000000007","history":[]}}`)), "wsHandleData must not error without changes")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -2891,7 +2830,7 @@ func TestWebsocketHandleOutcomeMetaUpdates(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	assert.Error(t, ex.wsHandleOutcomeMetaUpdates(t.Context(), []byte(`"invalid"`)), "wsHandleOutcomeMetaUpdates should reject invalid data")
 	frame := `{"channel":"outcomeMetaUpdates","data":[{"outcomeCreated":{"outcome":9115,"name":"template:binaryPrice","description":"perp:HYPE|priceDescription:HYPE-USDC perp mark|seconds:60|threshold:93.058|time:20261006-1015","sideSpecs":[{"name":"template:Yes"},{"name":"template:No"}],"quoteToken":"USDC","venue":"out","deployerFeeScale":"1.0"}},{"outcomeSettled":9112},{"questionUpdated":{"question":400,"name":"template:sportsContestResult","description":"competition:English Premier League|contestType:Match|participantA:Coventry City|participantB:Newcastle United","fallbackOutcome":9068,"namedOutcomes":[9069,9070,9071],"settledNamedOutcomes":[9069]}},{"questionSettled":400}]}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(frame)), "wsHandleData must not error")
 	exp := []WebsocketOutcomeMetaUpdate{
 		{OutcomeCreated: &OutcomeSpecification{
 			Outcome:            9115,
@@ -2914,7 +2853,7 @@ func TestWebsocketHandleOutcomeMetaUpdates(t *testing.T) {
 		{QuestionSettled: new(uint64(400))},
 	}
 	assert.Equal(t, exp, receiveWebsocketData(t, ex), "wsHandleOutcomeMetaUpdates should relay the outcome changes")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"outcomeMetaUpdates","data":[]}`), false), "wsHandleData must not error without changes")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"outcomeMetaUpdates","data":[]}`)), "wsHandleData must not error without changes")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -3082,7 +3021,7 @@ func TestWebsocketAPIPostInfo(t *testing.T) {
 
 	// The venue sends only well-formed info payloads, so a fixture connection supplies malformed ones
 	ex := newWebsocketTestExchange(t)
-	connection := websocketFixture(t, ex.Websocket.Conn)
+	connection := publicConn(t, ex)
 	connection.reply = replyToPost(`{"type":"info","payload":"invalid"}`)
 	assert.ErrorContains(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WebsocketAPI.PostInfo should reject an invalid info payload")
 	connection.reply = replyToPost(`{"type":"info","payload":{"type":"l2Book","data":"invalid"}}`)
@@ -3214,7 +3153,7 @@ func TestWebsocketAPIModifyOrders(t *testing.T) {
 func TestSendWebsocketAction(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	connection := websocketFixture(t, ex.Websocket.Conn)
+	connection := publicConn(t, ex)
 	action := &SignedActionRequest{Action: EmptyAction{Type: "noop"}, Nonce: 1}
 	connection.reply = replyToPost(`{"type":"action","payload":{"status":"ok","response":{"type":"default"}}}`)
 	response, err := ex.sendWebsocketAction(t.Context(), action)
@@ -3257,7 +3196,7 @@ func TestSendSignedActionOverWebsocket(t *testing.T) {
 		return defaultActionResponse
 	})
 	connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":{"status":"ok","response":{"type":"default"}}}`)}
-	ex.Websocket.Conn = connection
+	ex.websocketPostConnection = connection
 	response, err := ex.SendSignedAction(t.Context(), EmptyAction{Type: "noop"}, &L1ActionOptions{Websocket: true})
 	require.NoError(t, err, "SendSignedAction must not error over the websocket")
 	assert.JSONEq(t, `{"type":"default"}`, string(response), "SendSignedAction should return the websocket response")
@@ -3320,7 +3259,7 @@ func TestSendWebsocketPost(t *testing.T) {
 	// The venue cannot be made to answer with a structured error or another response type, to stay silent, to fail a
 	// send, or to accept an action that is not validly signed, so a fixture connection supplies those replies
 	ex := newWebsocketTestExchange(t)
-	connection := websocketFixture(t, ex.Websocket.Conn)
+	connection := publicConn(t, ex)
 	connection.reply = replyToPost(`{"type":"info","payload":{"type":"l2Book","data":null}}`)
 	_, err = ex.sendWebsocketPost(t.Context(), wsPostTypeInfo, &InfoRequest{Type: "l2Book", Coin: "BTC"})
 	require.NoError(t, err, "sendWebsocketPost must not error")
@@ -3373,11 +3312,11 @@ func TestSendWebsocketPost(t *testing.T) {
 	assert.ErrorContains(t, err, "posting info request", "sendWebsocketPost should name the request it could not post")
 
 	// The normal dispatcher decodes this envelope first; exercise the defensive decode at the connection boundary.
-	ex.Websocket.Conn = &postResponseConnection{response: []byte(`[]`)}
+	ex.websocketPostConnection = &postResponseConnection{response: []byte(`[]`)}
 	_, err = ex.sendWebsocketPost(t.Context(), wsPostTypeInfo, &InfoRequest{Type: "l2Book", Coin: "BTC"})
 	assert.ErrorContains(t, err, "decoding post response", "sendWebsocketPost should report invalid connection response JSON")
 
-	ex.Websocket.Conn = nil
+	ex.websocketPostConnection = nil
 	_, err = ex.sendWebsocketPost(t.Context(), wsPostTypeInfo, &InfoRequest{Type: "l2Book", Coin: "BTC"})
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "sendWebsocketPost should require a connection")
 }
@@ -3385,12 +3324,12 @@ func TestSendWebsocketPost(t *testing.T) {
 func TestWebsocketHandlePostResponse(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.Error(t, ex.wsHandlePostResponse([]byte(`"invalid"`)), "wsHandlePostResponse should reject invalid data")
-	assert.ErrorIs(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"post","data":{"id":7,"response":{"type":"info","payload":{}}}}`), false), websocket.ErrSignatureNotMatched, "wsHandlePostResponse should reject a response without a request")
-	responses, err := ex.Websocket.Match.Set(uint64(7), 1)
+	assert.Error(t, ex.wsHandlePostResponse(publicConn(t, ex), []byte(`"invalid"`)), "wsHandlePostResponse should reject invalid data")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"post","data":{"id":7,"response":{"type":"info","payload":{}}}}`)), websocket.ErrSignatureNotMatched, "wsHandlePostResponse should reject a response without a request")
+	responses, err := publicConn(t, ex).matcher().Set(uint64(7), 1)
 	require.NoError(t, err, "Set must not error")
 	data := `{"id":7,"response":{"type":"info","payload":{}}}`
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"post","data":`+data+`}`), false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"post","data":`+data+`}`)), "wsHandleData must not error")
 	assert.JSONEq(t, data, string(receivePostResponse(t, responses)), "wsHandlePostResponse should deliver the response to its request")
 }
 
@@ -3422,25 +3361,25 @@ func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 		`{"method":"post","subscription":{"type":"trades","coin":"BTC"}}`,
 		`{"method":"subscribe","subscription":{"type":" "}}`,
 	} {
-		err := ex.wsHandleSubscriptionResponse([]byte(data), false)
+		err := ex.wsHandleSubscriptionResponse(publicConn(t, ex), []byte(data))
 		assert.ErrorIsf(t, err, errWebsocketSubscription, "wsHandleSubscriptionResponse should reject %s", data)
 	}
-	assert.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"ETH"}}}`), false), "wsHandleSubscriptionResponse should ignore an acknowledgement without an operation")
+	assert.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"ETH"}}}`)), "wsHandleSubscriptionResponse should ignore an acknowledgement without an operation")
 
 	sub, key := testOrderbookSubscription()
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
 	ack := []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC","nSigFigs":null,"mantissa":null,"fast":false}}}`)
-	require.NoError(t, ex.wsHandleData(t.Context(), ack, true), "wsHandleData must not error for an acknowledgement on the other connection")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), ack), "wsHandleData must not error for an acknowledgement on the other connection")
 	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "wsHandleSubscriptionResponse should not settle another connection's operation")
-	require.NoError(t, ex.wsHandleData(t.Context(), ack, false), "wsHandleData must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), ack), "wsHandleData must not error")
 	require.NoError(t, receivePendingResult(t, pending), "the acknowledged subscribe must succeed")
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "wsHandleSubscriptionResponse should mark the subscription subscribed")
 	assert.Nil(t, pendingWebsocketOperation(ex, &key), "wsHandleSubscriptionResponse should remove the settled operation")
 	assert.Equal(t, map[string]struct{}{"ETH": {}}, ex.websocketTradeReplays, "wsHandleSubscriptionResponse should await the replay of an acknowledged trades subscription, with or without an operation, and none for a feed that sends none")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"BTC"}}}`), false), "wsHandleData must not error for a trades acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"BTC"}}}`)), "wsHandleData must not error for a trades acknowledgement")
 	assert.Equal(t, map[string]struct{}{"ETH": {}, "BTC": {}}, ex.websocketTradeReplays, "wsHandleSubscriptionResponse should await the replay each trades subscription's acknowledgement precedes")
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"channel":"subscriptionResponse","data":{"method":"unsubscribe","subscription":{"type":"trades","coin":"ETH"}}}`), false), "wsHandleData must not error for a trades unsubscribe acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"subscriptionResponse","data":{"method":"unsubscribe","subscription":{"type":"trades","coin":"ETH"}}}`)), "wsHandleData must not error for a trades unsubscribe acknowledgement")
 	assert.Equal(t, map[string]struct{}{"BTC": {}}, ex.websocketTradeReplays, "wsHandleSubscriptionResponse should stop awaiting the replay of an unsubscribed trades feed")
 
 	for _, tc := range []struct {
@@ -3476,13 +3415,13 @@ func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 					if pendingOperation {
 						sub := &subscription.Subscription{Channel: tc.feed, Authenticated: true, Params: map[string]any{"aggregateByTime": tc.aggregated}}
 						if method == wsMethodUnsubscribe {
-							require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.AuthConn, sub), "AddSuccessfulSubscriptions must store the feed")
+							require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(accountConn(t, ex), sub), "AddSuccessfulSubscriptions must store the feed")
 						}
-						pending = addWebsocketPending(t, ex, method, sub, &websocketPendingKey{authenticated: true, subscription: payload})
+						pending = addWebsocketPending(t, ex, method, sub, &websocketPendingKey{connection: accountConn(t, ex), subscription: payload})
 					}
 					raw, err := json.Marshal(WebsocketSubscriptionResponse{Method: method, Subscription: payload})
 					require.NoError(t, err, "Marshal must encode the acknowledgement")
-					require.NoError(t, ex.wsHandleSubscriptionResponse(raw, true), "wsHandleSubscriptionResponse must accept the acknowledgement")
+					require.NoError(t, ex.wsHandleSubscriptionResponse(accountConn(t, ex), raw), "wsHandleSubscriptionResponse must accept the acknowledgement")
 					if pending != nil {
 						require.NoError(t, receivePendingResult(t, pending), "wsHandleSubscriptionResponse must complete the pending operation")
 					}
@@ -3506,33 +3445,33 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	sub, key := testOrderbookSubscription()
-	settled, err := ex.completeWebsocketPending(false, wsMethodSubscribe, &key.subscription)
+	settled, err := ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &key.subscription)
 	assert.False(t, settled, "completeWebsocketPending should report an unknown operation as not settled")
 	assert.NoError(t, err, "completeWebsocketPending should ignore an unknown operation")
 
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
-	settled, err = ex.completeWebsocketPending(false, wsMethodUnsubscribe, &key.subscription)
+	settled, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
 	assert.True(t, settled, "completeWebsocketPending should report an operation completed with another method as settled")
 	assert.ErrorIs(t, err, errWebsocketSubscription, "completeWebsocketPending should reject a completion with another method")
 	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "completeWebsocketPending should keep an operation completed with another method")
 
-	settled, err = ex.completeWebsocketPending(false, wsMethodSubscribe, &key.subscription)
+	settled, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &key.subscription)
 	assert.True(t, settled, "completeWebsocketPending should report the operation as settled")
 	require.NoError(t, err, "completeWebsocketPending must not error")
 	require.NoError(t, receivePendingResult(t, pending), "the completed subscribe must succeed")
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "completeWebsocketPending should mark the subscription subscribed")
 
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, sub, &key)
-	_, err = ex.completeWebsocketPending(false, wsMethodUnsubscribe, &key.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
 	require.NoError(t, err, "completeWebsocketPending must not error for an unsubscribe")
 	require.NoError(t, receivePendingResult(t, pending), "the completed unsubscribe must succeed")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "completeWebsocketPending should remove the unsubscribed subscription")
 
 	conflict := newSubscribedWebsocketSubscription(t, ex, &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids})
 	conflictKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
-	pending = &websocketPendingOperation{method: wsMethodSubscribe, connection: ex.Websocket.Conn, subscription: conflict, done: make(chan error, 1)}
+	pending = &websocketPendingOperation{method: wsMethodSubscribe, connection: publicConn(t, ex), subscription: conflict, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &conflictKey, pending)
-	_, err = ex.completeWebsocketPending(false, wsMethodSubscribe, &conflictKey.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &conflictKey.subscription)
 	assert.ErrorIs(t, err, subscription.ErrInStateAlready, "completeWebsocketPending should return a state conflict")
 	assert.ErrorIs(t, receivePendingResult(t, pending), subscription.ErrInStateAlready, "completeWebsocketPending should fail the operation with the state conflict")
 	assert.Nil(t, ex.Websocket.GetSubscription(conflict), "completeWebsocketPending should roll back a subscribe it cannot complete")
@@ -3541,7 +3480,7 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	require.NoError(t, unstored.SetState(subscription.SubscribedState), "SetState must not error")
 	unstoredKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelOutcomeMetaUpdates}}
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, unstored, &unstoredKey)
-	_, err = ex.completeWebsocketPending(false, wsMethodUnsubscribe, &unstoredKey.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &unstoredKey.subscription)
 	assert.ErrorIs(t, err, subscription.ErrNotFound, "completeWebsocketPending should return a store error")
 	assert.ErrorIs(t, receivePendingResult(t, pending), subscription.ErrNotFound, "completeWebsocketPending should fail the operation with the store error")
 	assert.Equal(t, subscription.SubscribedState, unstored.State(), "completeWebsocketPending should restore the state of an unsubscribe it cannot complete")
@@ -3551,12 +3490,12 @@ func TestFailWebsocketPendingOperation(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	sub, key := testOrderbookSubscription()
-	assert.False(t, ex.failWebsocketPendingOperation(false, wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should report an unknown operation as not failed")
+	assert.False(t, ex.failWebsocketPendingOperation(publicConn(t, ex), wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should report an unknown operation as not failed")
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
-	assert.False(t, ex.failWebsocketPendingOperation(false, wsMethodUnsubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should not fail an operation of another method")
-	assert.False(t, ex.failWebsocketPendingOperation(true, wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should not fail another connection's operation")
+	assert.False(t, ex.failWebsocketPendingOperation(publicConn(t, ex), wsMethodUnsubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should not fail an operation of another method")
+	assert.False(t, ex.failWebsocketPendingOperation(accountConn(t, ex), wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should not fail another connection's operation")
 	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "failWebsocketPendingOperation should keep an operation it does not fail")
-	assert.True(t, ex.failWebsocketPendingOperation(false, wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should fail the operation")
+	assert.True(t, ex.failWebsocketPendingOperation(publicConn(t, ex), wsMethodSubscribe, &key.subscription, errWebsocketFixture), "failWebsocketPendingOperation should fail the operation")
 	assert.ErrorIs(t, receivePendingResult(t, pending), errWebsocketFixture, "failWebsocketPendingOperation should fail the operation with the cause")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "failWebsocketPendingOperation should roll back the subscribe")
 	assert.Nil(t, pendingWebsocketOperation(ex, &key), "failWebsocketPendingOperation should remove the operation")
@@ -3569,13 +3508,13 @@ func TestRollbackWebsocketPending(t *testing.T) {
 	assert.ErrorIs(t, ex.rollbackWebsocketPending(&websocketPendingOperation{}), common.ErrNilPointer, "rollbackWebsocketPending should reject an operation without a subscription")
 
 	sub, _ := testOrderbookSubscription()
-	require.NoError(t, ex.Websocket.AddSubscriptions(ex.Websocket.Conn, sub), "AddSubscriptions must not error")
-	require.NoError(t, ex.rollbackWebsocketPending(&websocketPendingOperation{method: wsMethodSubscribe, connection: ex.Websocket.Conn, subscription: sub}), "rollbackWebsocketPending must not error for a subscribe")
+	require.NoError(t, ex.Websocket.AddSubscriptions(publicConn(t, ex), sub), "AddSubscriptions must not error")
+	require.NoError(t, ex.rollbackWebsocketPending(&websocketPendingOperation{method: wsMethodSubscribe, connection: publicConn(t, ex), subscription: sub}), "rollbackWebsocketPending must not error for a subscribe")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "rollbackWebsocketPending should remove a subscribe's subscription")
 
 	unsubscribe := &subscription.Subscription{Channel: wsChannelAllMids}
 	require.NoError(t, unsubscribe.SetState(subscription.SubscribedState), "SetState must not error")
-	operation := &websocketPendingOperation{method: wsMethodUnsubscribe, connection: ex.Websocket.Conn, subscription: unsubscribe, previousState: subscription.SubscribedState}
+	operation := &websocketPendingOperation{method: wsMethodUnsubscribe, connection: publicConn(t, ex), subscription: unsubscribe, previousState: subscription.SubscribedState}
 	require.NoError(t, ex.rollbackWebsocketPending(operation), "rollbackWebsocketPending must not error for a subscription in its previous state")
 	require.NoError(t, unsubscribe.SetState(subscription.UnsubscribingState), "SetState must not error")
 	require.NoError(t, ex.rollbackWebsocketPending(operation), "rollbackWebsocketPending must not error for an unsubscribe")
@@ -3588,18 +3527,18 @@ func TestRollbackWebsocketPending(t *testing.T) {
 func TestFailWebsocketPending(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	assert.NoError(t, ex.failWebsocketPending(false, nil), "failWebsocketPending should not error without operations or a cause")
+	assert.NoError(t, ex.failWebsocketPending(publicConn(t, ex), nil), "failWebsocketPending should not error without operations or a cause")
 
 	publicSub, publicKey := testOrderbookSubscription()
 	publicPending := addWebsocketPending(t, ex, wsMethodSubscribe, publicSub, &publicKey)
 	invalidKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
-	invalidPending := &websocketPendingOperation{method: "post", connection: ex.Websocket.Conn, subscription: &subscription.Subscription{}, done: make(chan error, 1)}
+	invalidPending := &websocketPendingOperation{method: "post", connection: publicConn(t, ex), subscription: &subscription.Subscription{}, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &invalidKey, invalidPending)
 	authenticatedSub := &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsChannelOrderUpdates}
-	authenticatedKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress}}
+	authenticatedKey := websocketPendingKey{connection: accountConn(t, ex), subscription: WebsocketSubscription{Type: wsChannelOrderUpdates, User: testAccountAddress}}
 	authenticatedPending := addWebsocketPending(t, ex, wsMethodSubscribe, authenticatedSub, &authenticatedKey)
 
-	err := ex.failWebsocketPending(false, errWebsocketFixture)
+	err := ex.failWebsocketPending(publicConn(t, ex), errWebsocketFixture)
 	assert.ErrorIs(t, err, errWebsocketFixture, "failWebsocketPending should return the cause")
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented, "failWebsocketPending should return rollback errors")
 	assert.ErrorIs(t, receivePendingResult(t, publicPending), errWebsocketFixture, "failWebsocketPending should fail each operation with the cause")
@@ -3607,7 +3546,7 @@ func TestFailWebsocketPending(t *testing.T) {
 	assert.Nil(t, ex.Websocket.GetSubscription(publicSub), "failWebsocketPending should roll back the failed subscribe")
 	assert.Same(t, authenticatedPending, pendingWebsocketOperation(ex, &authenticatedKey), "failWebsocketPending should keep the other connection's operations")
 
-	assert.ErrorIs(t, ex.failWebsocketPending(true, errWebsocketServer), errWebsocketServer, "failWebsocketPending should return the cause")
+	assert.ErrorIs(t, ex.failWebsocketPending(accountConn(t, ex), errWebsocketServer), errWebsocketServer, "failWebsocketPending should return the cause")
 	assert.ErrorIs(t, receivePendingResult(t, authenticatedPending), errWebsocketServer, "failWebsocketPending should fail the account connection's operations")
 	assert.Nil(t, ex.Websocket.GetSubscription(authenticatedSub), "failWebsocketPending should roll back the account subscribe")
 	assert.Empty(t, ex.websocketPending, "failWebsocketPending should remove every failed operation")
@@ -3642,13 +3581,13 @@ func TestWebsocketHandleError(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	tradesSub, tradesKey := testTradesSubscription()
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, tradesSub, &tradesKey)
-	require.NoError(t, ex.wsHandleError([]byte(strconv.Quote(wsErrorAlreadySubscribed+`{"type":"trades","coin":"BTC"}`)), false), "wsHandleError must not error for a duplicate subscribe")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadySubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate subscribe")
 	require.NoError(t, receivePendingResult(t, pending), "wsHandleError must settle a duplicate subscribe")
 	assert.Equal(t, subscription.SubscribedState, tradesSub.State(), "wsHandleError should mark a duplicate subscribe subscribed")
 	assert.False(t, ex.consumeTradeReplay("BTC"), "wsHandleError should not await a replay for a duplicate trades subscribe, as none follows")
 
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, tradesSub, &tradesKey)
-	require.NoError(t, ex.wsHandleError([]byte(strconv.Quote(wsErrorAlreadyUnsubscribed+`{"type":"trades","coin":"BTC"}`)), false), "wsHandleError must not error for a duplicate unsubscribe")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadyUnsubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate unsubscribe")
 	require.NoError(t, receivePendingResult(t, pending), "wsHandleError must settle a duplicate unsubscribe")
 	assert.Nil(t, ex.Websocket.GetSubscription(tradesSub), "wsHandleError should remove a duplicate unsubscribe's subscription")
 
@@ -3658,7 +3597,7 @@ func TestWebsocketHandleError(t *testing.T) {
 		wsErrorAlreadyUnsubscribed + `{"type":"trades","coin":"ETH"}`,
 		wsErrorAlreadyUnsubscribed + `invalid`,
 	} {
-		err := ex.wsHandleError([]byte(strconv.Quote(message)), false)
+		err := ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(message)))
 		assert.ErrorIsf(t, err, errWebsocketServer, "wsHandleError should return %q without an operation", message)
 		assert.ErrorContainsf(t, err, message, "wsHandleError should return the server's message %q", message)
 	}
@@ -3666,9 +3605,9 @@ func TestWebsocketHandleError(t *testing.T) {
 	bookSub, bookKey := testOrderbookSubscription()
 	bookPending := addWebsocketPending(t, ex, wsMethodSubscribe, bookSub, &bookKey)
 	assetDataSub := &subscription.Subscription{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, QualifiedChannel: "activeAssetData:perpetualcontract:BTC-USDC"}
-	assetDataKey := websocketPendingKey{authenticated: true, subscription: WebsocketSubscription{Type: wsChannelActiveAssetData, Coin: "BTC", User: testAccountAddress}}
+	assetDataKey := websocketPendingKey{connection: accountConn(t, ex), subscription: WebsocketSubscription{Type: wsChannelActiveAssetData, Coin: "BTC", User: testAccountAddress}}
 	assetDataPending := addWebsocketPending(t, ex, wsMethodSubscribe, assetDataSub, &assetDataKey)
-	err := ex.wsHandleError([]byte(strconv.Quote(wsErrorInvalidSubscription+`{"type":"activeAssetData","user":"`+testAccountAddress+`","coin":"BTC"}`)), true)
+	err := ex.wsHandleError(accountConn(t, ex), []byte(strconv.Quote(wsErrorInvalidSubscription+`{"type":"activeAssetData","user":"`+testAccountAddress+`","coin":"BTC"}`)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return an invalid subscription's error")
 	assert.ErrorIs(t, receivePendingResult(t, assetDataPending), errWebsocketServer, "wsHandleError should fail the invalid subscription")
 	assert.Nil(t, ex.Websocket.GetSubscription(assetDataSub), "wsHandleError should roll back the invalid subscription")
@@ -3677,24 +3616,24 @@ func TestWebsocketHandleError(t *testing.T) {
 	candleSub := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Interval: kline.OneMin, QualifiedChannel: "candle:perpetualcontract:BTC-USDC:1m"}
 	candleKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelCandle, Coin: "BTC", Interval: "1m"}}
 	candlePending := addWebsocketPending(t, ex, wsMethodSubscribe, candleSub, &candleKey)
-	err = ex.wsHandleError([]byte(strconv.Quote(wsErrorParseFailure+`{"method":"subscribe","subscription":{"type":"candle","coin":"BTC","interval":"1m"}}`)), false)
+	err = ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorParseFailure+`{"method":"subscribe","subscription":{"type":"candle","coin":"BTC","interval":"1m"}}`)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a parse failure's error")
 	assert.ErrorIs(t, receivePendingResult(t, candlePending), errWebsocketServer, "wsHandleError should fail the subscription the server could not parse")
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations a parse failure does not answer")
 
-	responses, err := ex.Websocket.Match.Set(uint64(4), 1)
+	responses, err := publicConn(t, ex).matcher().Set(uint64(4), 1)
 	require.NoError(t, err, "Set must not error")
 	postFailure := wsErrorParseFailure + `{"method":"post","id":4,"request":{"type":"info","payload":{"type":"bogusInfoType"}}}`
-	require.NoError(t, ex.wsHandleError([]byte(strconv.Quote(postFailure)), false), "wsHandleError must not error for a post the server could not parse")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(postFailure))), "wsHandleError must not error for a post the server could not parse")
 	var response WebsocketPostResponse
 	require.NoError(t, json.Unmarshal(receivePostResponse(t, responses), &response), "Unmarshal must not error")
 	encodedFailure, err := json.Marshal(postFailure)
 	require.NoError(t, err, "Marshal must not error")
 	assert.Equal(t, WebsocketPostResponse{ID: 4, Response: WebsocketPostResponseBody{Type: wsPostTypeError, Payload: encodedFailure}}, response, "wsHandleError should answer the post with the server's error")
-	err = ex.wsHandleError([]byte(strconv.Quote(postFailure)), false)
+	err = ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(postFailure)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a post parse failure without a request")
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations a post parse failure does not answer")
-	require.True(t, ex.failWebsocketPendingOperation(false, wsMethodSubscribe, &bookKey.subscription, errWebsocketFixture), "failWebsocketPendingOperation must fail the remaining operation")
+	require.True(t, ex.failWebsocketPendingOperation(publicConn(t, ex), wsMethodSubscribe, &bookKey.subscription, errWebsocketFixture), "failWebsocketPendingOperation must fail the remaining operation")
 	require.ErrorIs(t, receivePendingResult(t, bookPending), errWebsocketFixture, "failWebsocketPendingOperation must fail the remaining operation")
 
 	for _, message := range []string{
@@ -3705,16 +3644,16 @@ func TestWebsocketHandleError(t *testing.T) {
 	} {
 		sub, key := testOrderbookSubscription()
 		pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
-		err := ex.wsHandleError([]byte(strconv.Quote(message)), false)
+		err := ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(message)))
 		assert.ErrorIsf(t, err, errWebsocketServer, "wsHandleError should return %q", message)
 		assert.ErrorIsf(t, receivePendingResult(t, pending), errWebsocketServer, "wsHandleError should fail every operation on the connection for %q", message)
 		assert.Nilf(t, ex.Websocket.GetSubscription(sub), "wsHandleError should roll back every operation on the connection for %q", message)
 	}
 
-	err = ex.wsHandleError([]byte(`null`), false)
+	err = ex.wsHandleError(publicConn(t, ex), []byte(`null`))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return an empty error")
 	assert.ErrorContains(t, err, "unspecified error", "wsHandleError should describe an empty error")
-	err = ex.wsHandleError([]byte(`{"message":"bad request"}`), false)
+	err = ex.wsHandleError(publicConn(t, ex), []byte(`{"message":"bad request"}`))
 	assert.ErrorContains(t, err, `{"message":"bad request"}`, "wsHandleError should return a structured error as it was sent")
 }
 
@@ -3752,39 +3691,42 @@ func TestWebsocketChannelName(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	subs, err := ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
+	public, err := ex.expandWebsocketSubscriptions(false)
+	require.NoError(t, err, "expandWebsocketSubscriptions must not error for the public feeds")
+	account, err := ex.expandWebsocketSubscriptions(true)
+	require.NoError(t, err, "expandWebsocketSubscriptions must not error for the account feeds")
+	subs := slices.Concat(public, account)
 	for _, sub := range subs {
-		assert.Equalf(t, newWebsocketSubscriptionKey(sub), sub.EnsureKeyed(), "generateSubscriptions should key %s by its feed", sub)
+		assert.Equalf(t, newWebsocketSubscriptionKey(sub), sub.EnsureKeyed(), "expandWebsocketSubscriptions should key %s by its feed", sub)
 	}
 	stored := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
 	held := newWebsocketSubscriptionKey(stored)
 	held.feed = WebsocketSubscription{Type: wsChannelAllMids}
 	stored.SetKey(held)
 	ex.Features.Subscriptions = subscription.List{stored}
-	_, err = ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error for an expanded subscription")
-	assert.Equal(t, held, stored.EnsureKeyed(), "generateSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
+	_, err = ex.expandWebsocketSubscriptions(false)
+	require.NoError(t, err, "expandWebsocketSubscriptions must not error for an expanded subscription")
+	assert.Equal(t, held, stored.EnsureKeyed(), "expandWebsocketSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
 
 	// The configuration replaces the held subscriptions, so a variant of a held book is no conflict
-	require.NoError(t, ex.Subscribe(subscription.List{testBookSubscription(20, nil)}), "Subscribe must not error")
+	require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{testBookSubscription(20, nil)}), "Subscribe must not error")
 	fast := testBookSubscription(5, nil)
 	fast.Enabled = true
 	ex.Features.Subscriptions = subscription.List{fast}
-	replacement, err := ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not validate the configuration beside the held subscriptions it replaces")
-	require.Len(t, replacement, 1, "generateSubscriptions must expand the configured book")
-	assert.Equal(t, WebsocketSubscription{Type: wsChannelOrderbook, Fast: true}, newWebsocketSubscriptionKey(replacement[0]).options, "generateSubscriptions should generate the configured variant")
+	replacement, err := ex.expandWebsocketSubscriptions(false)
+	require.NoError(t, err, "expandWebsocketSubscriptions must not validate the configuration beside the held subscriptions it replaces")
+	require.Len(t, replacement, 1, "expandWebsocketSubscriptions must expand the configured book")
+	assert.Equal(t, WebsocketSubscription{Type: wsChannelOrderbook, Fast: true}, newWebsocketSubscriptionKey(replacement[0]).options, "expandWebsocketSubscriptions should generate the configured variant")
 	slow := testBookSubscription(20, nil)
 	slow.Enabled = true
 	ex.Features.Subscriptions = subscription.List{fast, slow}
-	conflicting, err := ex.generateSubscriptions()
-	assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "generateSubscriptions should refuse a configuration holding two variants of a market's l2Book")
-	assert.Nil(t, conflicting, "generateSubscriptions should generate nothing of a refused configuration")
+	conflicting, err := ex.expandWebsocketSubscriptions(false)
+	assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "expandWebsocketSubscriptions should refuse a configuration holding two variants of a market's l2Book")
+	assert.Nil(t, conflicting, "expandWebsocketSubscriptions should generate nothing of a refused configuration")
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: "bogus"}, fast}
-	partial, err := ex.generateSubscriptions()
-	assert.ErrorIs(t, err, subscription.ErrNotSupported, "generateSubscriptions should report a configured subscription it cannot expand")
-	assert.Len(t, partial, 1, "generateSubscriptions should generate the configured subscriptions that expand")
+	partial, err := ex.expandWebsocketSubscriptions(false)
+	assert.ErrorIs(t, err, subscription.ErrNotSupported, "expandWebsocketSubscriptions should report a configured subscription it cannot expand")
+	assert.Len(t, partial, 1, "expandWebsocketSubscriptions should generate the configured subscriptions that expand")
 	exp := make(subscription.List, 0, 14)
 	for _, standard := range []struct {
 		channel, name string
@@ -3826,6 +3768,68 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
+func TestGenerateConnectionSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	public, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.Len(t, public, 12, "generatePublicSubscriptions must generate each market feed of each enabled market")
+	for _, sub := range public {
+		assert.Falsef(t, sub.Authenticated, "generatePublicSubscriptions should leave out the account feed %s", sub)
+	}
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	account, err := ex.generateAccountSubscriptions()
+	require.NoError(t, err, "generateAccountSubscriptions must not error")
+	require.Len(t, account, 2, "generateAccountSubscriptions must generate the account feeds while the account connection is down")
+	for _, sub := range account {
+		assert.Truef(t, sub.Authenticated, "generateAccountSubscriptions should leave out the market feed %s", sub)
+	}
+
+	ex.API.AuthenticatedWebsocketSupport = false
+	account, err = ex.generateAccountSubscriptions()
+	require.NoError(t, err, "generateAccountSubscriptions must not error without authenticated websocket support")
+	assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authenticated websocket support")
+	ex.API.AuthenticatedWebsocketSupport = true
+	setTestCredentials(ex, &accounts.Credentials{Key: "invalid"})
+	account, err = ex.generateAccountSubscriptions()
+	require.NoError(t, err, "generateAccountSubscriptions must not error without an account address")
+	assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without an account address")
+	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress, SubAccount: testSubAccountAddress})
+	account, err = ex.generateAccountSubscriptions()
+	require.NoError(t, err, "generateAccountSubscriptions must not error for a subaccount")
+	assert.Len(t, account, 2, "generateAccountSubscriptions should generate the account feeds of a subaccount")
+}
+
+func TestGenerateConnectionSubscriptionsApart(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	book := testBookSubscription(20, nil)
+	book.Enabled = true
+	userFills := &subscription.Subscription{Enabled: true, Channel: wsChannelUserFills, Authenticated: true}
+	aggregated := &subscription.Subscription{Enabled: true, Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}
+	ex.Features.Subscriptions = subscription.List{book, userFills, aggregated, {Enabled: true, Channel: "bogus", Authenticated: true}}
+	public, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not fail for the account feeds' configuration")
+	require.Len(t, public, 1, "generatePublicSubscriptions must generate the market feed")
+	_, err = ex.generateAccountSubscriptions()
+	assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "generateAccountSubscriptions should refuse two userFills variants")
+	ex.API.AuthenticatedWebsocketSupport = false
+	account, err := ex.generateAccountSubscriptions()
+	require.NoError(t, err, "generateAccountSubscriptions must not error without authenticated websocket support")
+	assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authenticated websocket support")
+}
+
+func TestAccountFeedsAvailable(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	require.NoError(t, ex.accountFeedsAvailable(t.Context()), "accountFeedsAvailable must not error with an account address and support enabled")
+	ex.API.AuthenticatedWebsocketSupport = false
+	assert.ErrorIs(t, ex.accountFeedsAvailable(t.Context()), errWebsocketAccountFeedsDisabled, "accountFeedsAvailable should require authenticated websocket support")
+	ex.API.AuthenticatedWebsocketSupport = true
+	setTestCredentials(ex, &accounts.Credentials{Key: "invalid"})
+	assert.ErrorIs(t, ex.accountFeedsAvailable(t.Context()), errInvalidAddress, "accountFeedsAvailable should require an account address")
+}
+
 func TestKeyWebsocketSubscriptions(t *testing.T) {
 	t.Parallel()
 	fresh := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
@@ -3856,6 +3860,35 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 		`{"method":"subscribe","subscription":{"type":"allMids","dex":"xyz"}}`,
 	}
 	assert.Equal(t, exp, venue.received(), "SubscribeToWebsocketChannels should send each feed's subscribe")
+
+	fast, slow := testBookSubscription(5, nil), testBookSubscription(20, nil)
+	fast.QualifiedChannel, slow.QualifiedChannel = "l2Book:fast", "l2Book:slow"
+	assert.ErrorIs(t, ex.SubscribeToWebsocketChannels(subscription.List{fast, slow}), subscription.ErrExclusiveSubscription, "SubscribeToWebsocketChannels should validate subscriptions already expanded")
+	tooMany := make(subscription.List, maximumWebsocketSubscriptions-1)
+	for i := range tooMany {
+		tooMany[i] = &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
+	}
+	assert.ErrorIs(t, ex.SubscribeToWebsocketChannels(tooMany), errWebsocketSubscriptionsLimit, "SubscribeToWebsocketChannels should refuse subscriptions past Hyperliquid's limit before sending any")
+	assert.Equal(t, exp, venue.received(), "SubscribeToWebsocketChannels should send nothing it refuses")
+
+	ex.API.AuthenticatedWebsocketSupport = false
+	for _, tc := range []struct{ accountFeed, marketFeed *subscription.Subscription }{
+		{&subscription.Subscription{Channel: wsChannelNotification, Authenticated: true}, &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "flx"}}},
+		{&subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}, testBookSubscription(0, nil)},
+	} {
+		assert.ErrorIsf(t, ex.SubscribeToWebsocketChannels(subscription.List{tc.accountFeed}), errWebsocketAccountFeedsDisabled, "SubscribeToWebsocketChannels should refuse account feed %q without authenticated websocket support", tc.accountFeed.QualifiedChannel)
+		assert.ErrorIsf(t, ex.SubscribeToWebsocketChannels(subscription.List{tc.accountFeed, tc.marketFeed}), errWebsocketAccountFeedsDisabled, "SubscribeToWebsocketChannels should refuse account feed %q beside a market feed without authenticated websocket support", tc.accountFeed.QualifiedChannel)
+	}
+	exp = slices.Concat(exp, []string{`{"method":"subscribe","subscription":{"type":"allMids","dex":"flx"}}`, `{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC"}}`})
+	assert.Equal(t, exp, venue.received(), "SubscribeToWebsocketChannels should subscribe only the market feeds beside the account feeds it refuses")
+	ex.API.AuthenticatedWebsocketSupport = true
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the account connection should not be up before an account feed is subscribed")
+	notification := &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true}
+	require.NoError(t, ex.SubscribeToWebsocketChannels(subscription.List{notification}), "SubscribeToWebsocketChannels must open the account connection for an account feed")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "SubscribeToWebsocketChannels should make account feeds usable once their connection is up")
+	assert.NotNil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(notification)), "SubscribeToWebsocketChannels should hold the account feed")
+	received := venue.received()
+	assert.JSONEq(t, `{"method":"subscribe","subscription":{"type":"notification","user":"`+testAccountAddress+`"}}`, received[len(received)-1], "SubscribeToWebsocketChannels should subscribe the account feed")
 }
 
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
@@ -4125,8 +4158,8 @@ func TestValidateSubscriptions(t *testing.T) {
 		assert.NoErrorf(t, err, "ValidateSubscriptions should accept %s", tc.name)
 	}
 
-	require.NoError(t, ex.Subscribe(subscription.List{testBookSubscription(20, nil)}), "Subscribe must not error")
-	assert.ErrorIs(t, ex.Subscribe(subscription.List{testBookSubscription(5, nil)}), subscription.ErrExclusiveSubscription, "ValidateSubscriptions should refuse a variant of a held l2Book")
+	require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{testBookSubscription(20, nil)}), "Subscribe must not error")
+	assert.ErrorIs(t, subscribeWebsocketTest(t, ex, subscription.List{testBookSubscription(5, nil)}), subscription.ErrExclusiveSubscription, "ValidateSubscriptions should refuse a variant of a held l2Book")
 	assert.NoError(t, ex.ValidateSubscriptions(nil), "ValidateSubscriptions should accept no subscriptions")
 }
 
@@ -4193,17 +4226,17 @@ func TestSubscribeHoldsFeedVariantsApart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := newWebsocketTestExchange(t)
-			connection := websocketFixture(t, ex.Websocket.Conn)
+			connection := publicConn(t, ex)
 			if tc.feed.Authenticated {
-				connection = websocketFixture(t, ex.Websocket.AuthConn)
+				connection = accountConn(t, ex)
 			}
-			require.NoError(t, ex.Subscribe(subscription.List{tc.feed}), "Subscribe must not error for the feed")
-			require.NoError(t, ex.Subscribe(subscription.List{tc.variant}), "Subscribe must hold the variant beside the feed")
-			assert.ErrorIs(t, ex.Subscribe(subscription.List{tc.variant}), subscription.ErrDuplicate, "Subscribe should refuse the held variant again")
-			require.NoError(t, ex.Unsubscribe(subscription.List{tc.variant}), "Unsubscribe must not error for the variant")
+			require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{tc.feed}), "Subscribe must not error for the feed")
+			require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{tc.variant}), "Subscribe must hold the variant beside the feed")
+			assert.ErrorIs(t, subscribeWebsocketTest(t, ex, subscription.List{tc.variant}), subscription.ErrDuplicate, "Subscribe should refuse the held variant again")
+			require.NoError(t, unsubscribeWebsocketTest(t, ex, subscription.List{tc.variant}), "Unsubscribe must not error for the variant")
 			assert.NotNil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(tc.feed)), "Unsubscribe should leave the feed held")
 			assert.Nil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(tc.variant)), "Unsubscribe should remove the variant")
-			assert.ErrorIs(t, ex.Unsubscribe(subscription.List{tc.variant}), subscription.ErrNotFound, "Unsubscribe should report a variant that is not held")
+			assert.ErrorIs(t, unsubscribeWebsocketTest(t, ex, subscription.List{tc.variant}), subscription.ErrNotFound, "Unsubscribe should report a variant that is not held")
 			assert.NotNil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(tc.feed)), "Unsubscribing a variant that is not held should leave the feed held")
 			assert.Equal(t, tc.requests, connection.sentRequests(), "Subscribe and Unsubscribe should send the variant's own requests")
 		})
@@ -4223,13 +4256,13 @@ func TestSubscribeHoldsFeedVariantsApart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := newWebsocketTestExchange(t)
-			connection := websocketFixture(t, ex.Websocket.Conn)
+			connection := publicConn(t, ex)
 			if tc.feed.Authenticated {
-				connection = websocketFixture(t, ex.Websocket.AuthConn)
+				connection = accountConn(t, ex)
 			}
-			require.NoError(t, ex.Subscribe(subscription.List{tc.feed}), "Subscribe must not error for the feed")
-			assert.ErrorIs(t, ex.Subscribe(subscription.List{tc.variant}), subscription.ErrExclusiveSubscription, "Subscribe should refuse a second variant of an exclusive feed")
-			assert.ErrorIs(t, ex.Unsubscribe(subscription.List{tc.variant}), subscription.ErrNotFound, "Unsubscribe should report a variant that is not held")
+			require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{tc.feed}), "Subscribe must not error for the feed")
+			assert.ErrorIs(t, subscribeWebsocketTest(t, ex, subscription.List{tc.variant}), subscription.ErrExclusiveSubscription, "Subscribe should refuse a second variant of an exclusive feed")
+			assert.ErrorIs(t, unsubscribeWebsocketTest(t, ex, subscription.List{tc.variant}), subscription.ErrNotFound, "Unsubscribe should report a variant that is not held")
 			assert.NotNil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(tc.feed)), "Unsubscribing a variant that is not held should leave the feed held")
 			assert.Equal(t, []string{tc.request}, connection.sentRequests(), "Subscribe and Unsubscribe should send nothing for the variant")
 		})
@@ -4238,8 +4271,8 @@ func TestSubscribeHoldsFeedVariantsApart(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.Subscribe(subscription.List{nil}), common.ErrNilPointer, "Subscribe should reject a nil subscription")
-	assert.ErrorIs(t, e.Subscribe(subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "Subscribe should report a subscription it cannot expand")
+	assert.ErrorIs(t, e.SubscribeToWebsocketChannels(subscription.List{nil}), common.ErrNilPointer, "SubscribeToWebsocketChannels should reject a nil subscription")
+	assert.ErrorIs(t, e.SubscribeToWebsocketChannels(subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "SubscribeToWebsocketChannels should report a subscription it cannot expand")
 
 	ex, venue := newVenueWebsocketTestExchange(t)
 	subs := subscription.List{
@@ -4247,21 +4280,21 @@ func TestSubscribe(t *testing.T) {
 		{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}},
 		{Channel: "bogus"},
 	}
-	assert.ErrorIs(t, ex.Subscribe(subs), subscription.ErrNotSupported, "Subscribe should report a subscription it cannot expand and subscribe the rest")
+	assert.ErrorIs(t, ex.SubscribeToWebsocketChannels(subs), subscription.ErrNotSupported, "SubscribeToWebsocketChannels should report a subscription it cannot expand and subscribe the rest")
 	subscribed := subs[:2]
 	t.Cleanup(func() {
-		assert.NoError(t, ex.Unsubscribe(subscribed), "Unsubscribe should remove the test's subscriptions")
+		assert.NoError(t, ex.UnsubscribeToWebsocketChannels(subscribed), "UnsubscribeToWebsocketChannels should remove the test's subscriptions")
 	})
 	for _, sub := range subscribed {
 		stored := ex.Websocket.GetSubscription(sub)
-		require.NotNilf(t, stored, "Subscribe must store %s", sub)
-		assert.Equalf(t, subscription.SubscribedState, stored.State(), "Subscribe should mark %s subscribed", sub)
+		require.NotNilf(t, stored, "SubscribeToWebsocketChannels must store %s", sub)
+		assert.Equalf(t, subscription.SubscribedState, stored.State(), "SubscribeToWebsocketChannels should mark %s subscribed", sub)
 	}
 	if mockTests {
 		assert.Equal(t, []string{
 			`{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC","nSigFigs":5,"mantissa":2,"fast":true}}`,
 			`{"method":"subscribe","subscription":{"type":"allMids","dex":"xyz"}}`,
-		}, venue.received(), "Subscribe should send each subscription request")
+		}, venue.received(), "SubscribeToWebsocketChannels should send each subscription request")
 	}
 
 	t.Run("account feed", func(t *testing.T) {
@@ -4270,16 +4303,16 @@ func TestSubscribe(t *testing.T) {
 			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		}
 		accountSubs := subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}
-		require.NoError(t, ex.Subscribe(accountSubs), "Subscribe must not error for an account feed")
+		require.NoError(t, ex.SubscribeToWebsocketChannels(accountSubs), "SubscribeToWebsocketChannels must not error for an account feed")
 		t.Cleanup(func() {
-			assert.NoError(t, ex.Unsubscribe(accountSubs), "Unsubscribe should remove the account feed")
+			assert.NoError(t, ex.UnsubscribeToWebsocketChannels(accountSubs), "UnsubscribeToWebsocketChannels should remove the account feed")
 		})
 		stored := ex.Websocket.GetSubscription(accountSubs[0])
-		require.NotNil(t, stored, "Subscribe must store the account feed")
-		assert.Equal(t, subscription.SubscribedState, stored.State(), "Subscribe should mark the account feed subscribed")
+		require.NotNil(t, stored, "SubscribeToWebsocketChannels must store the account feed")
+		assert.Equal(t, subscription.SubscribedState, stored.State(), "SubscribeToWebsocketChannels should mark the account feed subscribed")
 		if mockTests {
 			received := venue.received()
-			assert.JSONEq(t, `{"method":"subscribe","subscription":{"type":"userFills","user":"`+testAccountAddress+`","aggregateByTime":true}}`, received[len(received)-1], "Subscribe should send the account feed's subscription request")
+			assert.JSONEq(t, `{"method":"subscribe","subscription":{"type":"userFills","user":"`+testAccountAddress+`","aggregateByTime":true}}`, received[len(received)-1], "SubscribeToWebsocketChannels should send the account feed's subscription request")
 		}
 	})
 }
@@ -4289,20 +4322,20 @@ func TestUnsubscribe(t *testing.T) {
 	_, validates := any(e).(subscription.ListValidator)
 	assert.True(t, validates, "the exchange should validate the subscriptions it expands")
 	_, validates = any(websocketTemplateExpander{e}).(subscription.ListValidator)
-	assert.False(t, validates, "Unsubscribe should expand the subscriptions to remove without validating them")
-	assert.ErrorIs(t, e.Unsubscribe(subscription.List{nil}), common.ErrNilPointer, "Unsubscribe should reject a nil subscription")
+	assert.False(t, validates, "UnsubscribeToWebsocketChannels should expand the subscriptions to remove without validating them")
+	assert.ErrorIs(t, e.UnsubscribeToWebsocketChannels(subscription.List{nil}), common.ErrNilPointer, "UnsubscribeToWebsocketChannels should reject a nil subscription")
 	sub, _ := testOrderbookSubscription()
-	assert.ErrorIs(t, e.Unsubscribe(subscription.List{sub}), subscription.ErrNotFound, "Unsubscribe should reject a subscription it does not hold")
+	assert.ErrorIs(t, e.UnsubscribeToWebsocketChannels(subscription.List{sub}), subscription.ErrNotFound, "UnsubscribeToWebsocketChannels should reject a subscription it does not hold")
 
 	ex, venue := newVenueWebsocketTestExchange(t)
-	require.NoError(t, ex.Subscribe(subscription.List{sub}), "Subscribe must not error")
-	require.NoError(t, ex.Unsubscribe(subscription.List{sub}), "Unsubscribe must not error")
-	assert.Nil(t, ex.Websocket.GetSubscription(sub), "Unsubscribe should remove the subscription")
+	require.NoError(t, ex.SubscribeToWebsocketChannels(subscription.List{sub}), "SubscribeToWebsocketChannels must not error")
+	require.NoError(t, ex.UnsubscribeToWebsocketChannels(subscription.List{sub}), "UnsubscribeToWebsocketChannels must not error")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "UnsubscribeToWebsocketChannels should remove the subscription")
 	if mockTests {
 		assert.Equal(t, []string{
 			`{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC"}}`,
 			`{"method":"unsubscribe","subscription":{"type":"l2Book","coin":"BTC"}}`,
-		}, venue.received(), "Unsubscribe should send the unsubscribe request")
+		}, venue.received(), "UnsubscribeToWebsocketChannels should send the unsubscribe request")
 	}
 }
 
@@ -4335,6 +4368,19 @@ func TestGetSubscription(t *testing.T) {
 // venue cannot produce, through fixture connections; TestSubscribe and TestUnsubscribe cover the venue round trips
 func TestManageWebsocketSubscription(t *testing.T) {
 	t.Parallel()
+	t.Run("subscription limit", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		held := make(subscription.List, maximumWebsocketSubscriptions)
+		for i := range held {
+			held[i] = &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
+		}
+		keyWebsocketSubscriptions(held)
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(publicConn(t, ex), held...), "AddSuccessfulSubscriptions must not error")
+		sub := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
+		assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, sub), errWebsocketSubscriptionsLimit, "manageWebsocketSubscription should refuse a subscription past Hyperliquid's limit")
+		assert.Empty(t, publicConn(t, ex).sentRequests(), "manageWebsocketSubscription should send nothing past Hyperliquid's limit")
+	})
 	t.Run("subscription added after duplicate check", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
@@ -4342,31 +4388,29 @@ func TestManageWebsocketSubscription(t *testing.T) {
 		key := new(delayedSubscriptionKey)
 		key.Subscription = stored
 		stored.SetKey(key)
-		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, stored), "AddSuccessfulSubscriptions must store the competing subscription")
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(publicConn(t, ex), stored), "AddSuccessfulSubscriptions must store the competing subscription")
 		sub := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
-		err := ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, sub)
+		err := ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, sub.Authenticated), wsMethodSubscribe, sub)
 		assert.ErrorIs(t, err, subscription.ErrDuplicate, "manageWebsocketSubscription should return AddSubscriptions errors")
 		assert.Equal(t, 2, key.lookups, "manageWebsocketSubscription should reach the second duplicate check")
-		assert.Empty(t, websocketFixture(t, ex.Websocket.Conn).sentRequests(), "manageWebsocketSubscription should send no failed registration")
+		assert.Empty(t, publicConn(t, ex).sentRequests(), "manageWebsocketSubscription should send no failed registration")
 		assert.Nil(t, pendingWebsocketOperation(ex, &websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}), "manageWebsocketSubscription should register no pending operation")
 	})
 
 	ex := newWebsocketTestExchange(t)
-	connection := websocketFixture(t, ex.Websocket.Conn)
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, nil), common.ErrNilPointer, "manageWebsocketSubscription should reject a nil subscription")
+	connection := publicConn(t, ex)
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, nil), common.ErrNilPointer, "manageWebsocketSubscription should reject a nil subscription")
 	sub, _ := testOrderbookSubscription()
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), "post", sub), common.ErrNotYetImplemented, "manageWebsocketSubscription should reject another method")
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, &subscription.Subscription{Channel: "bogus"}), subscription.ErrNotSupported, "manageWebsocketSubscription should reject an unsupported channel")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, sub.Authenticated), "post", sub), common.ErrNotYetImplemented, "manageWebsocketSubscription should reject another method")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, &subscription.Subscription{Channel: "bogus"}), subscription.ErrNotSupported, "manageWebsocketSubscription should reject an unsupported channel")
 
-	ex.Websocket.Conn = nil
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, sub), common.ErrNilPointer, "manageWebsocketSubscription should require a connection")
-	ex.Websocket.Conn = connection
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), nil, wsMethodSubscribe, sub), common.ErrNilPointer, "manageWebsocketSubscription should require a connection")
 
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, sub), "manageWebsocketSubscription must not error")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, sub.Authenticated), wsMethodSubscribe, sub), "manageWebsocketSubscription must not error")
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "manageWebsocketSubscription should mark an acknowledged subscribe subscribed")
 	assert.NotNil(t, ex.Websocket.GetSubscription(sub.Clone()), "manageWebsocketSubscription should store the subscription")
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, sub), subscription.ErrDuplicate, "manageWebsocketSubscription should reject a duplicate subscribe")
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, sub), "manageWebsocketSubscription must not error for an unsubscribe")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, sub.Authenticated), wsMethodSubscribe, sub), subscription.ErrDuplicate, "manageWebsocketSubscription should reject a duplicate subscribe")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, sub.Authenticated), wsMethodUnsubscribe, sub), "manageWebsocketSubscription must not error for an unsubscribe")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "manageWebsocketSubscription should remove an acknowledged unsubscribe")
 	assert.Equal(t, []string{
 		`{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC"}}`,
@@ -4377,32 +4421,32 @@ func TestManageWebsocketSubscription(t *testing.T) {
 	}
 
 	trades, _ := testTradesSubscription()
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, trades), "manageWebsocketSubscription must not error for trades")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodSubscribe, trades), "manageWebsocketSubscription must not error for trades")
 	assert.True(t, ex.consumeTradeReplay("BTC"), "an acknowledged trades subscribe should await the trades it replays")
 	ex.expectTradeReplay("BTC")
 	watermarks := map[string]websocketPosition{"BTC": {time: time.UnixMilli(1791278878126), tradeID: 1}}
 	ex.websocketWatermarks.trades = maps.Clone(watermarks)
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, trades), "manageWebsocketSubscription must not error for a trades unsubscribe")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodUnsubscribe, trades), "manageWebsocketSubscription must not error for a trades unsubscribe")
 	assert.False(t, ex.consumeTradeReplay("BTC"), "an acknowledged trades unsubscribe should stop awaiting a replay")
 	assert.Empty(t, ex.websocketWatermarks.trades, "manageWebsocketSubscription should forget an unsubscribed feed's watermark")
 
 	connection.sendErr = errWebsocketFixture
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, trades), "manageWebsocketSubscription must keep a subscribe acknowledged before its send failed")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodSubscribe, trades), "manageWebsocketSubscription must keep a subscribe acknowledged before its send failed")
 	assert.Equal(t, subscription.SubscribedState, trades.State(), "manageWebsocketSubscription should keep an acknowledged subscribe")
 	connection.reply = nil
 	ex.websocketWatermarks.trades = maps.Clone(watermarks)
-	err := ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, trades)
+	err := ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodUnsubscribe, trades)
 	assert.Equal(t, watermarks, ex.websocketWatermarks.trades, "manageWebsocketSubscription should keep the watermark of a feed it failed to unsubscribe")
 	assert.ErrorIs(t, err, errWebsocketFixture, "manageWebsocketSubscription should return a send error")
 	assert.ErrorContains(t, err, "sending unsubscribe request", "manageWebsocketSubscription should name the request it could not send")
 	assert.Equal(t, subscription.SubscribedState, trades.State(), "manageWebsocketSubscription should restore the state of an unsubscribe that was not sent")
 	connection.sendErr = nil
 	connection.reply = acknowledge
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, trades), "manageWebsocketSubscription must not error when retrying an unsubscribe")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodUnsubscribe, trades), "manageWebsocketSubscription must not error when retrying an unsubscribe")
 
 	connection.sendErr = errWebsocketFixture
 	connection.reply = nil
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, trades), errWebsocketFixture, "manageWebsocketSubscription should return a send error")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, trades.Authenticated), wsMethodSubscribe, trades), errWebsocketFixture, "manageWebsocketSubscription should return a send error")
 	assert.Nil(t, ex.Websocket.GetSubscription(trades), "manageWebsocketSubscription should roll back a subscribe that was not sent")
 	assert.False(t, ex.consumeTradeReplay("BTC"), "a trades subscribe without an acknowledgement should await no replay")
 
@@ -4411,62 +4455,61 @@ func TestManageWebsocketSubscription(t *testing.T) {
 		assert.NoError(t, ex.Websocket.RemoveSubscriptions(connection, removed), "RemoveSubscriptions should not error")
 		return nil
 	}
-	err = ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, removed)
+	err = ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, removed.Authenticated), wsMethodSubscribe, removed)
 	assert.ErrorIs(t, err, errWebsocketFixture, "manageWebsocketSubscription should return a send error")
 	assert.ErrorIs(t, err, subscription.ErrNotFound, "manageWebsocketSubscription should return a rollback error")
 	connection.sendErr = nil
 	connection.reply = acknowledge
 
 	unsubscribing := &subscription.Subscription{Channel: wsChannelOutcomeMetaUpdates, QualifiedChannel: wsChannelOutcomeMetaUpdates}
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, unsubscribing), "manageWebsocketSubscription must not error for outcomeMetaUpdates")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, unsubscribing.Authenticated), wsMethodSubscribe, unsubscribing), "manageWebsocketSubscription must not error for outcomeMetaUpdates")
 	require.NoError(t, unsubscribing.SetState(subscription.UnsubscribingState), "SetState must not error")
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, unsubscribing), subscription.ErrInStateAlready, "manageWebsocketSubscription should reject an unsubscribe already in progress")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, unsubscribing.Authenticated), wsMethodUnsubscribe, unsubscribing), subscription.ErrInStateAlready, "manageWebsocketSubscription should reject an unsubscribe already in progress")
 	unrecorded := newSubscribedWebsocketSubscription(t, ex, &subscription.Subscription{Channel: wsChannelFastAssetContexts, QualifiedChannel: wsChannelFastAssetContexts})
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, unrecorded), errWebsocketFeedUnknown, "manageWebsocketSubscription should reject an unsubscribe of a subscription it did not subscribe")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, unrecorded.Authenticated), wsMethodUnsubscribe, unrecorded), errWebsocketFeedUnknown, "manageWebsocketSubscription should reject an unsubscribe of a subscription it did not subscribe")
 
 	// A market that has left the metadata, as a delisting removes it, is still unsubscribed with the feed it subscribed
 	ethPair := currency.NewPair(currency.ETH, currency.USDC)
 	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping, {pair: ethPair, coin: "ETH", sizeDecimals: 4, maxLeverage: 25}})
 	delisted := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{ethPair}, QualifiedChannel: "l2Book:perpetualcontract:ETH-USDC"}
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, delisted), "manageWebsocketSubscription must not error for the ETH book")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, delisted.Authenticated), wsMethodSubscribe, delisted), "manageWebsocketSubscription must not error for the ETH book")
 	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, delisted), "manageWebsocketSubscription must unsubscribe a market that has left the metadata")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, delisted.Authenticated), wsMethodUnsubscribe, delisted), "manageWebsocketSubscription must unsubscribe a market that has left the metadata")
 	assert.Nil(t, ex.Websocket.GetSubscription(delisted), "manageWebsocketSubscription should remove the subscription of a market that has left the metadata")
 	sent := connection.sentRequests()
 	assert.JSONEq(t, `{"method":"unsubscribe","subscription":{"type":"l2Book","coin":"ETH"}}`, sent[len(sent)-1], "manageWebsocketSubscription should unsubscribe the feed the market subscribed")
 
-	collisionKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
+	collisionKey := websocketPendingKey{connection: publicConn(t, ex), subscription: WebsocketSubscription{Type: wsChannelAllMids}}
 	collision := &websocketPendingOperation{method: wsMethodUnsubscribe, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &collisionKey, collision)
 	allMids := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, allMids), errWebsocketSubscription, "manageWebsocketSubscription should reject an operation already pending for the feed")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, allMids.Authenticated), wsMethodSubscribe, allMids), errWebsocketSubscription, "manageWebsocketSubscription should reject an operation already pending for the feed")
 	assert.Nil(t, ex.Websocket.GetSubscription(allMids), "manageWebsocketSubscription should roll back an operation it rejects")
 	assert.Same(t, collision, pendingWebsocketOperation(ex, &collisionKey), "manageWebsocketSubscription should keep the pending operation")
 
 	ex.websocketPending = nil
 	authenticated := &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsChannelOrderUpdates}
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, authenticated), "manageWebsocketSubscription must not error for an account feed")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, authenticated.Authenticated), wsMethodSubscribe, authenticated), "manageWebsocketSubscription must not error for an account feed")
 	assert.Equal(t, []string{
 		`{"method":"subscribe","subscription":{"type":"orderUpdates","user":"` + testAccountAddress + `"}}`,
-	}, websocketFixture(t, ex.Websocket.AuthConn).sentRequests(), "manageWebsocketSubscription should send account feeds on the account connection")
+	}, accountConn(t, ex).sentRequests(), "manageWebsocketSubscription should send account feeds on the account connection")
 
 	// An account feed is unsubscribed for the address it subscribed, after the configured address changes, and
 	// subscribing it again subscribes the new address
 	userFills := &subscription.Subscription{Channel: wsChannelUserFills, Authenticated: true, QualifiedChannel: wsChannelUserFills}
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, userFills), "manageWebsocketSubscription must not error for userFills")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, userFills.Authenticated), wsMethodSubscribe, userFills), "manageWebsocketSubscription must not error for userFills")
 	setTestCredentials(ex, &accounts.Credentials{Key: testOtherAddress})
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, userFills), "manageWebsocketSubscription must unsubscribe userFills after the address changes")
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodSubscribe, userFills), "manageWebsocketSubscription must subscribe userFills again")
-	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, userFills), "manageWebsocketSubscription must unsubscribe userFills again")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, userFills.Authenticated), wsMethodUnsubscribe, userFills), "manageWebsocketSubscription must unsubscribe userFills after the address changes")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, userFills.Authenticated), wsMethodSubscribe, userFills), "manageWebsocketSubscription must subscribe userFills again")
+	require.NoError(t, ex.manageWebsocketSubscription(t.Context(), websocketTestConn(t, ex, userFills.Authenticated), wsMethodUnsubscribe, userFills), "manageWebsocketSubscription must unsubscribe userFills again")
 	assert.Equal(t, []string{
 		`{"method":"subscribe","subscription":{"type":"orderUpdates","user":"` + testAccountAddress + `"}}`,
 		`{"method":"subscribe","subscription":{"type":"userFills","user":"` + testAccountAddress + `"}}`,
 		`{"method":"unsubscribe","subscription":{"type":"userFills","user":"` + testAccountAddress + `"}}`,
 		`{"method":"subscribe","subscription":{"type":"userFills","user":"` + testOtherAddress + `"}}`,
 		`{"method":"unsubscribe","subscription":{"type":"userFills","user":"` + testOtherAddress + `"}}`,
-	}, websocketFixture(t, ex.Websocket.AuthConn).sentRequests(), "manageWebsocketSubscription should unsubscribe each address it subscribed")
-	ex.Websocket.AuthConn = nil
-	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), wsMethodUnsubscribe, authenticated), common.ErrNilPointer, "manageWebsocketSubscription should require the account connection")
+	}, accountConn(t, ex).sentRequests(), "manageWebsocketSubscription should unsubscribe each address it subscribed")
+	assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), nil, wsMethodUnsubscribe, authenticated), common.ErrNilPointer, "manageWebsocketSubscription should require the account connection")
 	assert.Equal(t, subscription.SubscribedState, authenticated.State(), "manageWebsocketSubscription should not change a subscription it cannot send")
 }
 
@@ -4475,7 +4518,7 @@ func TestManageWebsocketSubscription(t *testing.T) {
 func TestAwaitWebsocketPending(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	connection := websocketFixture(t, ex.Websocket.Conn)
+	connection := publicConn(t, ex)
 	connection.reply = nil
 	subscribeRequest := &WebsocketSubscriptionRequest{Method: wsMethodSubscribe, Subscription: WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC"}}
 

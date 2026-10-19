@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestGetRateLimits(t *testing.T) {
+func TestRateLimits(t *testing.T) {
 	t.Parallel()
-	limits := GetRateLimits()
+	limits := rateLimits
 	// Info requests weigh 2, 20 or 60, and per-item requests one more per 20 items they can return
 	for _, tc := range []struct {
 		epl    request.EndpointLimit
@@ -28,22 +28,27 @@ func TestGetRateLimits(t *testing.T) {
 		{epl: infoStakingHistoryEPL, weight: 120},
 		{epl: infoTWAPHistoryEPL, weight: 120},
 	} {
-		require.Containsf(t, limits, tc.epl, "GetRateLimits must define endpoint limit %d", tc.epl)
-		assert.Equalf(t, tc.weight, limits[tc.epl].Weight(), "GetRateLimits should weigh endpoint limit %d", tc.epl)
+		require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
+		assert.Equalf(t, tc.weight, limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d", tc.epl)
 	}
 	// Candle snapshots weigh 20 plus one per 60 candles, up to the 5000 most recent candles Hyperliquid serves
 	for extraWeight := request.Weight(1); extraWeight <= 84; extraWeight++ {
 		epl := candleEPLBase + request.EndpointLimit(extraWeight)
-		require.Containsf(t, limits, epl, "GetRateLimits must define candle endpoint limit %d", epl)
-		assert.Equalf(t, 20+extraWeight, limits[epl].Weight(), "GetRateLimits should weigh candle endpoint limit %d", epl)
+		require.Containsf(t, limits, epl, "rateLimits must define candle endpoint limit %d", epl)
+		assert.Equalf(t, 20+extraWeight, limits[epl].Weight(), "rateLimits should weigh candle endpoint limit %d", epl)
 	}
 	// Actions weigh 1 plus one per 40 batched items, up to the 1000 item batch cap
 	for extraWeight := range request.Weight(26) {
 		epl := exchangeActionEPLBase + request.EndpointLimit(extraWeight)
-		require.Containsf(t, limits, epl, "GetRateLimits must define action endpoint limit %d", epl)
-		assert.Equalf(t, 1+extraWeight, limits[epl].Weight(), "GetRateLimits should weigh action endpoint limit %d", epl)
+		require.Containsf(t, limits, epl, "rateLimits must define action endpoint limit %d", epl)
+		assert.Equalf(t, 1+extraWeight, limits[epl].Weight(), "rateLimits should weigh action endpoint limit %d", epl)
 	}
-	assert.Len(t, limits, 11+84+26, "GetRateLimits should define only the info, candle and action weights")
+	assert.Len(t, limits, 11+84+26, "rateLimits should define only the info, candle and action weights")
+
+	first, second := new(Exchange), new(Exchange)
+	first.SetDefaults()
+	second.SetDefaults()
+	assert.True(t, first.Requester.GetRateLimiterDefinitions()[infoStandardEPL].SharesBudgetWith(second.Requester.GetRateLimiterDefinitions()[infoStandardEPL]), "Exchange instances should share the IP budget")
 }
 
 func TestCandleEndpointLimit(t *testing.T) {

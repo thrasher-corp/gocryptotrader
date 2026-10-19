@@ -56,9 +56,7 @@ type PerpetualAssetMetadata struct {
 	SizeDecimals  uint64 `json:"szDecimals"`
 	MaxLeverage   uint64 `json:"maxLeverage"`
 	MarginTableID uint64 `json:"marginTableId"`
-	// OnlyIsolated is deprecated in favour of MarginMode, and is set for both strictIsolated and noCross markets
-	OnlyIsolated bool `json:"onlyIsolated"`
-	IsDelisted   bool `json:"isDelisted"`
+	IsDelisted    bool   `json:"isDelisted"`
 	// MarginMode is strictIsolated when margin cannot be removed, or noCross when only isolated margin is allowed
 	MarginMode               string       `json:"marginMode"`
 	GrowthMode               string       `json:"growthMode"`
@@ -218,7 +216,7 @@ type UserLedgerUpdate struct {
 type UserLedgerDelta struct {
 	Type                       string               `json:"type"`
 	USDC                       types.Number         `json:"usdc"`
-	ToPerp                     bool                 `json:"toPerp"`
+	ToPerpetual                bool                 `json:"toPerp"`
 	User                       string               `json:"user"`
 	Destination                string               `json:"destination"`
 	SourceDEX                  string               `json:"sourceDex"`

@@ -160,8 +160,8 @@ type PlaceOrdersRequest struct {
 type BuilderFee struct {
 	// Builder is the address that receives the fee
 	Builder string
-	// Fee is in tenths of a basis point, at most 100 on perpetuals and 1000 on spot
-	Fee uint64
+	// Fee is at most 100, 0.1%, on perpetuals and 1000, 1%, on spot
+	Fee TenthsOfABasisPoint
 }
 
 // OrderAction is the order action payload
@@ -210,8 +210,8 @@ type PriorityGroupingWire struct {
 
 // BuilderFeeWire is the builder fee of an order action
 type BuilderFeeWire struct {
-	Builder string `json:"b" msgpack:"b"`
-	Fee     uint64 `json:"f" msgpack:"f"`
+	Builder string              `json:"b" msgpack:"b"`
+	Fee     TenthsOfABasisPoint `json:"f" msgpack:"f"`
 }
 
 // OrderActionStatus contains the outcome of one order in an order or batchModify action; exactly one field is set
@@ -659,40 +659,11 @@ func (a *SpotSendAction) signingFields() (primaryType string, fields []eip712Fie
 	)
 }
 
-// WithdrawFromBridgeRequest withdraws USDC to an Arbitrum address; Hyperliquid deducts the withdrawal fee from Amount
-type WithdrawFromBridgeRequest struct {
-	Destination string
-	Amount      float64
-}
-
-// Withdraw3Action is the withdraw3 action payload, which withdraws USDC through the Arbitrum bridge
-type Withdraw3Action struct {
-	Type             string `json:"type"`
-	SignatureChainID string `json:"signatureChainId"`
-	HyperliquidChain string `json:"hyperliquidChain"`
-	Destination      string `json:"destination"`
-	Amount           string `json:"amount"`
-	// Time is the action's nonce
-	Time uint64 `json:"time"`
-}
-
-func (a *Withdraw3Action) setEnvelope(chain string, nonce uint64) {
-	a.Type, a.SignatureChainID, a.HyperliquidChain, a.Time = "withdraw3", userSignedChainIDHex, chain, nonce
-}
-
-func (a *Withdraw3Action) signingFields() (primaryType string, fields []eip712Field) {
-	return "HyperliquidTransaction:Withdraw", userSignedFields(
-		a.HyperliquidChain, nonceFieldTime, a.Time,
-		eip712Field{Name: "destination", Type: eip712TypeString, Value: a.Destination},
-		eip712Field{Name: userSignedAmountField, Type: eip712TypeString, Value: a.Amount},
-	)
-}
-
-// TransferUSDCBetweenSpotAndPerpRequest transfers USDC between the spot and default perpetual DEX balances; ToPerp
+// TransferUSDCBetweenSpotAndPerpRequest transfers USDC between the spot and default perpetual DEX balances; ToPerpetual
 // moves it from spot to perpetuals
 type TransferUSDCBetweenSpotAndPerpRequest struct {
-	Amount float64
-	ToPerp bool
+	Amount      float64
+	ToPerpetual bool
 }
 
 // USDClassTransferAction is the usdClassTransfer action payload, which transfers USDC between the spot and default
@@ -702,9 +673,9 @@ type USDClassTransferAction struct {
 	SignatureChainID string `json:"signatureChainId"`
 	HyperliquidChain string `json:"hyperliquidChain"`
 	// Amount ends with " subaccount:" and the subaccount's address for a transfer of a subaccount's balances
-	Amount string `json:"amount"`
-	ToPerp bool   `json:"toPerp"`
-	Nonce  uint64 `json:"nonce"`
+	Amount      string `json:"amount"`
+	ToPerpetual bool   `json:"toPerp"`
+	Nonce       uint64 `json:"nonce"`
 }
 
 func (a *USDClassTransferAction) setEnvelope(chain string, nonce uint64) {
@@ -715,7 +686,7 @@ func (a *USDClassTransferAction) signingFields() (primaryType string, fields []e
 	return "HyperliquidTransaction:UsdClassTransfer", userSignedFields(
 		a.HyperliquidChain, nonceFieldNonce, a.Nonce,
 		eip712Field{Name: userSignedAmountField, Type: eip712TypeString, Value: a.Amount},
-		eip712Field{Name: "toPerp", Type: eip712TypeBool, Value: a.ToPerp},
+		eip712Field{Name: "toPerp", Type: eip712TypeBool, Value: a.ToPerpetual},
 	)
 }
 
@@ -724,9 +695,9 @@ type CDepositAction struct {
 	Type             string `json:"type"`
 	SignatureChainID string `json:"signatureChainId"`
 	HyperliquidChain string `json:"hyperliquidChain"`
-	// Wei is HYPE with 8 decimals
-	Wei   uint64 `json:"wei"`
-	Nonce uint64 `json:"nonce"`
+	// AmountInWei is HYPE with 8 decimals
+	AmountInWei uint64 `json:"wei"`
+	Nonce       uint64 `json:"nonce"`
 }
 
 func (a *CDepositAction) setEnvelope(chain string, nonce uint64) {
@@ -736,7 +707,7 @@ func (a *CDepositAction) setEnvelope(chain string, nonce uint64) {
 func (a *CDepositAction) signingFields() (primaryType string, fields []eip712Field) {
 	return "HyperliquidTransaction:CDeposit", userSignedFields(
 		a.HyperliquidChain, nonceFieldNonce, a.Nonce,
-		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.Wei},
+		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.AmountInWei},
 	)
 }
 
@@ -745,9 +716,9 @@ type CWithdrawAction struct {
 	Type             string `json:"type"`
 	SignatureChainID string `json:"signatureChainId"`
 	HyperliquidChain string `json:"hyperliquidChain"`
-	// Wei is HYPE with 8 decimals
-	Wei   uint64 `json:"wei"`
-	Nonce uint64 `json:"nonce"`
+	// AmountInWei is HYPE with 8 decimals
+	AmountInWei uint64 `json:"wei"`
+	Nonce       uint64 `json:"nonce"`
 }
 
 func (a *CWithdrawAction) setEnvelope(chain string, nonce uint64) {
@@ -757,15 +728,15 @@ func (a *CWithdrawAction) setEnvelope(chain string, nonce uint64) {
 func (a *CWithdrawAction) signingFields() (primaryType string, fields []eip712Field) {
 	return "HyperliquidTransaction:CWithdraw", userSignedFields(
 		a.HyperliquidChain, nonceFieldNonce, a.Nonce,
-		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.Wei},
+		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.AmountInWei},
 	)
 }
 
 // DelegateStakeRequest delegates HYPE to, or undelegates it from, a validator
 type DelegateStakeRequest struct {
 	Validator string
-	// Wei is HYPE with 8 decimals
-	Wei          uint64
+	// AmountInWei is HYPE with 8 decimals
+	AmountInWei  uint64
 	IsUndelegate bool
 }
 
@@ -775,8 +746,8 @@ type TokenDelegateAction struct {
 	SignatureChainID string `json:"signatureChainId"`
 	HyperliquidChain string `json:"hyperliquidChain"`
 	Validator        string `json:"validator"`
-	// Wei is HYPE with 8 decimals
-	Wei          uint64 `json:"wei"`
+	// AmountInWei is HYPE with 8 decimals
+	AmountInWei  uint64 `json:"wei"`
 	IsUndelegate bool   `json:"isUndelegate"`
 	Nonce        uint64 `json:"nonce"`
 }
@@ -789,7 +760,7 @@ func (a *TokenDelegateAction) signingFields() (primaryType string, fields []eip7
 	return "HyperliquidTransaction:TokenDelegate", userSignedFields(
 		a.HyperliquidChain, nonceFieldNonce, a.Nonce,
 		eip712Field{Name: "validator", Type: eip712TypeAddress, Value: a.Validator},
-		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.Wei},
+		eip712Field{Name: "wei", Type: eip712TypeUint64, Value: a.AmountInWei},
 		eip712Field{Name: "isUndelegate", Type: eip712TypeBool, Value: a.IsUndelegate},
 	)
 }
@@ -798,37 +769,37 @@ func (a *TokenDelegateAction) signingFields() (primaryType string, fields []eip7
 type VaultTransferRequest struct {
 	VaultAddress string
 	IsDeposit    bool
-	// USD is USDC with 6 decimals
-	USD uint64
+	// AmountInMicroUSDC is USDC with 6 decimals
+	AmountInMicroUSDC uint64
 	// ExpiresAfter, when set, makes Hyperliquid reject the action after this time
 	ExpiresAfter time.Time
 }
 
 // VaultTransferAction is the vaultTransfer action payload
 type VaultTransferAction struct {
-	Type         string `json:"type"         msgpack:"type"`
-	VaultAddress string `json:"vaultAddress" msgpack:"vaultAddress"`
-	IsDeposit    bool   `json:"isDeposit"    msgpack:"isDeposit"`
-	USD          uint64 `json:"usd"          msgpack:"usd"`
+	Type              string `json:"type"         msgpack:"type"`
+	VaultAddress      string `json:"vaultAddress" msgpack:"vaultAddress"`
+	IsDeposit         bool   `json:"isDeposit"    msgpack:"isDeposit"`
+	AmountInMicroUSDC uint64 `json:"usd"          msgpack:"usd"`
 }
 
 // HIP3LiquidatorTransferRequest deposits into, or withdraws from, a HIP-3 DEX's backstop liquidator; only the deposited
 // principal can be withdrawn
 type HIP3LiquidatorTransferRequest struct {
 	DEX string
-	// Notional is the DEX's quote token with 6 decimals, a multiple of 1000 quote tokens
-	Notional  uint64
-	IsDeposit bool
+	// NotionalInMicroQuoteTokens must be a multiple of 1000 quote tokens
+	NotionalInMicroQuoteTokens uint64
+	IsDeposit                  bool
 	// ExpiresAfter, when set, makes Hyperliquid reject the action after this time
 	ExpiresAfter time.Time
 }
 
 // HIP3LiquidatorTransferAction is the hip3LiquidatorTransfer action payload
 type HIP3LiquidatorTransferAction struct {
-	Type      string `json:"type"      msgpack:"type"`
-	DEX       string `json:"dex"       msgpack:"dex"`
-	Notional  uint64 `json:"ntl"       msgpack:"ntl"`
-	IsDeposit bool   `json:"isDeposit" msgpack:"isDeposit"`
+	Type                       string `json:"type"      msgpack:"type"`
+	DEX                        string `json:"dex"       msgpack:"dex"`
+	NotionalInMicroQuoteTokens uint64 `json:"ntl"       msgpack:"ntl"`
+	IsDeposit                  bool   `json:"isDeposit" msgpack:"isDeposit"`
 }
 
 // ApproveAgentRequest approves an API wallet to trade for the account; approving a new unnamed agent, or reusing a name,
@@ -868,8 +839,8 @@ func (a *ApproveAgentAction) signingFields() (primaryType string, fields []eip71
 // ApproveBuilderFeeRequest approves the maximum fee a builder may charge the account
 type ApproveBuilderFeeRequest struct {
 	Builder string
-	// MaxFeeRate is a percentage: 0.001 approves 0.001%, one tenth of a basis point
-	MaxFeeRate float64
+	// MaxFee is the highest builder fee the account allows; zero allows none
+	MaxFee TenthsOfABasisPoint
 }
 
 // ApproveBuilderFeeAction is the approveBuilderFee action payload
@@ -1178,18 +1149,18 @@ type GossipPriorityBidRequest struct {
 	SlotID uint64
 	// IP must exactly match the address the prioritised peer is seen from
 	IP netip.Addr
-	// MaxGas is HYPE with 8 decimals
-	MaxGas uint64
+	// MaxGasInWei is HYPE with 8 decimals
+	MaxGasInWei uint64
 	// ExpiresAfter, when set, makes Hyperliquid reject the action after this time
 	ExpiresAfter time.Time
 }
 
 // GossipPriorityBidAction is the gossipPriorityBid action payload
 type GossipPriorityBidAction struct {
-	Type   string `json:"type"   msgpack:"type"`
-	SlotID uint64 `json:"slotId" msgpack:"slotId"`
-	IP     string `json:"ip"     msgpack:"ip"`
-	MaxGas uint64 `json:"maxGas" msgpack:"maxGas"`
+	Type        string `json:"type"   msgpack:"type"`
+	SlotID      uint64 `json:"slotId" msgpack:"slotId"`
+	IP          string `json:"ip"     msgpack:"ip"`
+	MaxGasInWei uint64 `json:"maxGas" msgpack:"maxGas"`
 }
 
 // userSignedPayload is the payload of an action signed with the EIP-712 user-signed scheme, which signs the same values

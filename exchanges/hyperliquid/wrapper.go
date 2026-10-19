@@ -71,7 +71,6 @@ const (
 var (
 	errAmbiguousCoinMapping       = errors.New("ambiguous coin mapping")
 	errAssetContextNotFound       = errors.New("asset context not found")
-	errBridgeChainInvalid         = errors.New("invalid Hyperliquid bridge chain")
 	errCrossMarginUnavailable     = errors.New("cross margin is unavailable for an isolated-only market")
 	errEndpointEnvironment        = errors.New("endpoint does not match the configured sandbox environment")
 	errGroupedOrderChildFailure   = errors.New("one or more grouped TP/SL child orders were rejected")
@@ -90,11 +89,11 @@ var (
 	errSizePrecision              = errors.New("size exceeds market precision")
 	errSlippageTolerance          = errors.New("market order slippage tolerance must be greater than 0 and less than 1")
 	errSpotTokenNotFound          = errors.New("spot token metadata not found")
-	errTransferCurrencyInvalid    = errors.New("hyperliquid bridge transfers only support USDC")
+	errTransferCurrencyInvalid    = errors.New("hyperliquid transfers only support USDC")
 	errTriggerOrderPerpetualOnly  = errors.New("trigger orders are only supported for perpetual markets")
 	errUnsupportedOrderStatus     = errors.New("unsupported order status")
-	errWithdrawalAddressTag       = errors.New("hyperliquid bridge withdrawals do not support an address tag")
-	errWithdrawalFeeInput         = errors.New("hyperliquid calculates the bridge withdrawal fee")
+	errWithdrawalAddressTag       = errors.New("hyperliquid transfers do not support an address tag")
+	errWithdrawalFeeInput         = errors.New("hyperliquid calculates the transfer fee")
 )
 
 // pairMapping links a currency pair to the Hyperliquid coin and asset ID it trades as
@@ -211,7 +210,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	var err error
-	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimits()))
+	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits))
 	logDefaultError(err)
 	e.API.Endpoints = e.NewEndpoints()
 	logDefaultError(e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
@@ -228,7 +227,7 @@ func (e *Exchange) SetDefaults() {
 	e.pairMappingMisses = make(map[string]time.Time)
 	e.pairMappingsFetchMu.Unlock()
 	e.authorityValidationMu.Lock()
-	e.authorityValidations = nil
+	e.authorityValidations = make(map[authorityValidationKey]struct{})
 	e.authorityValidationMu.Unlock()
 	e.websocketPendingMu.Lock()
 	e.websocketPending = make(map[websocketPendingKey]*websocketPendingOperation)
@@ -276,36 +275,52 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Subscription acknowledgements are awaited outside the connections, so they need the configured limit too
 	e.WebsocketResponseMaxLimit = exch.WebsocketResponseMaxLimit
+	// Hyperliquid limits subscriptions per IP address rather than per connection, which subscribing enforces across
+	// both connections
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:                         exch,
-		DefaultURL:                             websocketURL,
-		RunningURL:                             wsURL,
-		RunningURLAuth:                         wsURL,
-		Connector:                              e.WebsocketConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.generateSubscriptions,
-		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		TradeFeed:                              exch.Features.Enabled.TradeFeed,
-		FillsFeed:                              exch.Features.Enabled.FillsFeed,
-		MaxWebsocketSubscriptionsPerConnection: maximumWebsocketSubscriptions,
+		ExchangeConfig:               exch,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement: true,
+		TradeFeed:                    exch.Features.Enabled.TradeFeed,
+		FillsFeed:                    exch.Features.Enabled.FillsFeed,
 	}); err != nil {
 		return err
 	}
+	// Authenticated websocket use means the account connection is up, which its connector reports
+	e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	// Both connections share one limiter, as Hyperliquid limits the messages an IP address sends
 	connectionRateLimit := request.NewWeightedRateLimitByDuration(websocketMessageInterval)
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            connectionRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                         wsURL,
+		RateLimit:                   connectionRateLimit,
+		ResponseCheckTimeout:        exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:            exch.WebsocketResponseMaxLimit,
+		Connector:                   e.connectPublicWebsocket,
+		GenerateSubscriptions:       e.generatePublicSubscriptions,
+		Subscriber:                  e.websocketSubscribe,
+		Unsubscriber:                e.websocketUnsubscribe,
+		Handler:                     e.wsHandleData,
+		OnDisconnect:                e.publicWebsocketDisconnected,
+		MessageFilter:               websocketPublicConnection,
+		ConnectWithoutSubscriptions: true,
 	}); err != nil {
 		return err
 	}
+	// The account connection is optional, so the public feeds stay up while it cannot connect, and the manager retries
+	// it with a backoff that keeps within the 30 new connections a minute Hyperliquid accepts from an IP address
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            connectionRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsURL,
-		Authenticated:        true,
+		URL:                   wsURL,
+		RateLimit:             connectionRateLimit,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Connector:             e.connectAccountWebsocket,
+		GenerateSubscriptions: e.generateAccountSubscriptions,
+		Subscriber:            e.websocketSubscribe,
+		Unsubscriber:          e.websocketUnsubscribe,
+		Handler:               e.wsHandleData,
+		OnDisconnect:          e.accountWebsocketDisconnected,
+		MessageFilter:         websocketAccountConnection,
+		Optional:              true,
 	})
 }
 
@@ -399,7 +414,7 @@ func (e *Exchange) fetchPerpetualPairMappings(ctx context.Context) ([]pairMappin
 				assetID:          offset + uint64(marketIndex),
 				sizeDecimals:     market.SizeDecimals,
 				maxLeverage:      market.MaxLeverage,
-				onlyIsolated:     market.OnlyIsolated || market.MarginMode != "",
+				onlyIsolated:     market.MarginMode != "",
 				deployerFeeScale: market.DeployerFeeScale.Float64(),
 				growthMode:       market.GrowthMode == "enabled",
 			}
@@ -1216,21 +1231,14 @@ func (e *Exchange) GetDepositAddress(context.Context, currency.Code, string, str
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetAvailableTransferChains returns the configured environment's Arbitrum network, which USDC withdrawals use
-func (e *Exchange) GetAvailableTransferChains(_ context.Context, c currency.Code) ([]string, error) {
-	if c.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if !c.Equal(currency.USDC) {
-		return nil, fmt.Errorf("%w: %s", errTransferCurrencyInvalid, c)
-	}
-	return []string{e.getBridgeChain()}, nil
-}
-
-// WithdrawCryptocurrencyFunds submits a USDC bridge withdrawal, or a Core USDC send when InternalTransfer is set
+// WithdrawCryptocurrencyFunds sends USDC to another Hyperliquid account, and requires InternalTransfer to be set: the
+// Arbitrum bridge that withdrew funds from Hyperliquid is deprecated in favour of Circle's CCTP, which is not wrapped
 func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
+	}
+	if !withdrawRequest.InternalTransfer {
+		return nil, fmt.Errorf("%w: only internal transfers to other Hyperliquid accounts", common.ErrFunctionNotSupported)
 	}
 	if !withdrawRequest.Currency.Equal(currency.USDC) {
 		return nil, fmt.Errorf("%w: %s", errTransferCurrencyInvalid, withdrawRequest.Currency)
@@ -1241,16 +1249,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if withdrawRequest.Crypto.FeeAmount != 0 {
 		return nil, errWithdrawalFeeInput
 	}
-	if chain := strings.TrimSpace(withdrawRequest.Crypto.Chain); chain != "" && !strings.EqualFold(chain, e.getBridgeChain()) {
-		return nil, fmt.Errorf("%w: expected %s", errBridgeChainInvalid, e.getBridgeChain())
-	}
-	var nonce uint64
-	var err error
-	if withdrawRequest.InternalTransfer {
-		nonce, err = e.SendCoreUSDC(ctx, &SendCoreUSDCRequest{Destination: withdrawRequest.Crypto.Address, Amount: withdrawRequest.Amount})
-	} else {
-		nonce, err = e.WithdrawFromBridge(ctx, &WithdrawFromBridgeRequest{Destination: withdrawRequest.Crypto.Address, Amount: withdrawRequest.Amount})
-	}
+	nonce, err := e.SendCoreUSDC(ctx, &SendCoreUSDCRequest{Destination: withdrawRequest.Crypto.Address, Amount: withdrawRequest.Amount})
 	if err != nil {
 		return nil, err
 	}
@@ -1559,13 +1558,13 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		}
 		switch {
 		case spot && feeBuilder.IsMaker:
-			rate = fees.UserSpotAddRate.Float64()
+			rate = fees.UserSpotMakerFeeRate.Float64()
 		case spot:
-			rate = fees.UserSpotCrossRate.Float64()
+			rate = fees.UserSpotTakerFeeRate.Float64()
 		case feeBuilder.IsMaker:
-			rate = fees.UserAddRate.Float64()
+			rate = fees.UserMakerFeeRate.Float64()
 		default:
-			rate = fees.UserCrossRate.Float64()
+			rate = fees.UserTakerFeeRate.Float64()
 		}
 		referralDiscount = fees.ActiveReferralDiscount.Float64()
 	}
@@ -2154,7 +2153,7 @@ func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpd
 	}
 	description := deltaType
 	switch {
-	case deltaType == "accountClassTransfer" && update.Delta.ToPerp:
+	case deltaType == "accountClassTransfer" && update.Delta.ToPerpetual:
 		description = "spot to perpetual"
 	case deltaType == "accountClassTransfer":
 		description = "perpetual to spot"

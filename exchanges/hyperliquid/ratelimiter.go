@@ -47,8 +47,9 @@ const (
 	actionBatchWeightSize  = 40
 )
 
-// GetRateLimits returns Hyperliquid's aggregate IP-weighted REST rate limits
-func GetRateLimits() request.RateLimitDefinitions {
+// rateLimits holds Hyperliquid's aggregate IP-weighted REST rate limits. Hyperliquid applies them per IP address, not per
+// Exchange instance, so every instance shares these limiters instead of building its own
+var rateLimits = func() request.RateLimitDefinitions {
 	limiter := request.NewRateLimit(restRateLimitInterval, restRateLimitWeight)
 	limits := request.RateLimitDefinitions{
 		infoStandardEPL:         request.GetRateLimiterWithWeight(limiter, standardInfoWeight),
@@ -70,7 +71,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		limits[exchangeActionEPLBase+request.EndpointLimit(extraWeight)] = request.GetRateLimiterWithWeight(limiter, 1+extraWeight)
 	}
 	return limits
-}
+}()
 
 // candleEndpointLimit returns the rate limit of a candle snapshot, which weighs one extra per 60 candles returned
 func candleEndpointLimit(count uint64) request.EndpointLimit {

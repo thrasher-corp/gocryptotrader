@@ -80,23 +80,25 @@ const (
 
 // Manager provides connection and subscription management and routing
 type Manager struct {
-	enabled                       atomic.Bool
-	state                         atomic.Uint32
-	verbose                       bool
-	canUseAuthenticatedEndpoints  atomic.Bool
-	connectionMonitorRunning      atomic.Bool
-	trafficTimeout                time.Duration
-	connectionMonitorDelay        time.Duration
-	proxyAddr                     string
-	defaultURL                    string
-	defaultURLAuth                string
-	runningURL                    string
-	runningURLAuth                string
-	exchangeName                  string
-	features                      *protocol.Features
-	m                             sync.Mutex
-	connectionManagerMu           sync.RWMutex
-	connections                   map[Connection]*websocket
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
+	verbose                      bool
+	canUseAuthenticatedEndpoints atomic.Bool
+	connectionMonitorRunning     atomic.Bool
+	trafficTimeout               time.Duration
+	connectionMonitorDelay       time.Duration
+	proxyAddr                    string
+	defaultURL                   string
+	defaultURLAuth               string
+	runningURL                   string
+	runningURLAuth               string
+	exchangeName                 string
+	features                     *protocol.Features
+	m                            sync.Mutex
+	connectionManagerMu          sync.RWMutex
+	connections                  map[Connection]*websocket
+	// readersDone holds, for each managed connection, a channel closed once its reader and disconnect hook have finished
+	readersDone                   map[Connection]chan struct{}
 	subscriptions                 *subscription.Store
 	connector                     func() error
 	preConnect                    func(context.Context)
@@ -164,6 +166,10 @@ type websocket struct {
 	setup         *ConnectionSetup
 	subscriptions *subscription.Store
 	connections   []Connection
+	// retryFailures counts an optional setup's consecutive connection failures, and retryAt is when it may be dialled
+	// again; both are guarded by the manager's m lock
+	retryFailures int
+	retryAt       time.Time
 }
 
 var globalReporter Reporter
@@ -190,6 +196,7 @@ func NewManager() *Manager {
 		features:          &protocol.Features{},
 		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
+		readersDone:       make(map[Connection]chan struct{}),
 	}
 }
 
@@ -396,7 +403,12 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 	if c.ConnectionRateLimiter != nil {
 		rateLimit = c.ConnectionRateLimiter()
 	}
+	var closed chan struct{}
+	if m.useMultiConnectionManagement {
+		closed = make(chan struct{})
+	}
 	return &connection{
+		closed:               closed,
 		ExchangeName:         m.exchangeName,
 		URL:                  connectionURL,
 		ProxyURL:             m.GetProxyAddress(),
@@ -531,97 +543,23 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	// TODO: Implement concurrency below.
 	for i, ws := range connectionManager {
-		var subs subscription.List
-		if !ws.setup.SubscriptionsNotRequired {
-			if ws.setup.GenerateSubscriptions == nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
-				break
-			}
-
-			var err error
-			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
-			var generationError error
-			if err != nil {
-				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-			}
-			var fatalErr error
-			subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, generationError)
-			if fatalErr != nil {
-				multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-				break
-			}
-
-			if len(subs) == 0 {
-				// If no subscriptions are generated, we skip this connection.
-				if m.verbose {
-					log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
-				}
-				continue
-			}
-		}
-
-		if ws.setup.Connector == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errNoConnectFunc)
-			break
-		}
-		if ws.setup.Handler == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
-			break
-		}
-		if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
-			break
-		}
-
-		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
-			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-				break
-			}
+		if ws.setup.Optional && time.Now().Before(ws.retryAt) {
 			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected", m.exchangeName, ws.setup.URL)
+				log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] is retried at %s, skipping", m.exchangeName, i+1, ws.setup.URL, ws.retryAt)
 			}
 			continue
 		}
-
-		// Pre-pass: absorb trackable logical subscriptions onto already-managed connections before batching/capacity routing to avoid misplacement.
-		remainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
-		if err != nil {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
-			continue
+		setupSubscriptionError, fatalErr := m.connectSetup(ctx, i, ws)
+		subscriptionError = common.AppendError(subscriptionError, setupSubscriptionError)
+		switch {
+		case fatalErr == nil:
+			ws.retryFailures, ws.retryAt = 0, time.Time{}
+		case ws.setup.Optional:
+			// The other connections are up, so the optional one's failure is reported rather than returned
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
+		default:
+			multiConnectFatalError = fatalErr
 		}
-		if len(remainingSubs) == 0 {
-			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(subs))
-			}
-			continue
-		}
-
-		for _, batchCandidates := range common.Batch(remainingSubs, m.MaxSubscriptionsPerConnection) {
-			batchRemainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batchCandidates)
-			if err != nil {
-				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
-				continue
-			}
-			if len(batchRemainingSubs) == 0 {
-				if m.verbose {
-					log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchCandidates))
-				}
-				continue
-			}
-			if err := m.createConnectAndSubscribe(ctx, ws, batchRemainingSubs); err != nil {
-				if errors.Is(err, common.ErrFatal) {
-					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-					break
-				}
-				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
-				continue
-			}
-			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Total Subs: %d] [Subscribed: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchRemainingSubs))
-			}
-		}
-
 		if multiConnectFatalError != nil {
 			break
 		}
@@ -629,20 +567,16 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
-		connectionManager = m.snapshotConnectionManager()
-		m.connectionManagerMu.Lock()
-		for _, ws := range connectionManager {
-			for _, conn := range ws.connections {
-				if err := conn.Shutdown(); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
+		for _, ws := range m.snapshotConnectionManager() {
+			connections := m.snapshotManagedConnections(ws)
+			if err := m.retireConnections(ws, connections); err != nil {
+				log.Errorln(log.WebsocketMgr, err)
+			}
+			for _, conn := range connections {
 				conn.Subscriptions().Clear()
 			}
-			ws.connections = nil
 			ws.subscriptions.Clear()
 		}
-		clear(m.connections)
-		m.connectionManagerMu.Unlock()
 		m.setState(disconnectedState) // Flip from connecting to disconnected.
 
 		// Drain residual error in the single buffered channel, this mitigates
@@ -669,11 +603,191 @@ func (m *Manager) connect(ctx context.Context) error {
 	return subscriptionError
 }
 
+// connectSetup dials a setup's connections and subscribes its generated subscriptions. A fatal error means the setup
+// could not be connected; a subscription error leaves its connections up. The caller must hold m.m
+func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subscriptionError, fatalErr error) {
+	var subs subscription.List
+	if !ws.setup.SubscriptionsNotRequired {
+		if ws.setup.GenerateSubscriptions == nil {
+			return nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+		}
+
+		var err error
+		subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+		var generationError error
+		if err != nil {
+			generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+		}
+		subscriptionError, fatalErr = collectSubscriptionGenerationError(nil, generationError)
+		if fatalErr != nil {
+			return nil, fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+
+		if len(subs) == 0 && !ws.setup.ConnectWithoutSubscriptions {
+			// If no subscriptions are generated, we skip this connection.
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
+			}
+			return subscriptionError, nil
+		}
+	}
+
+	if ws.setup.Connector == nil {
+		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errNoConnectFunc)
+	}
+	if ws.setup.Handler == nil {
+		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
+	}
+	if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
+		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
+	}
+
+	if len(subs) == 0 {
+		if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
+			return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+		}
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected", m.exchangeName, ws.setup.URL)
+		}
+		return subscriptionError, nil
+	}
+
+	// Pre-pass: absorb trackable logical subscriptions onto already-managed connections before batching/capacity routing to avoid misplacement.
+	remainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
+	if err != nil {
+		return common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)), nil
+	}
+	if len(remainingSubs) == 0 {
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(subs))
+		}
+		return subscriptionError, nil
+	}
+
+	for _, batchCandidates := range common.Batch(remainingSubs, m.MaxSubscriptionsPerConnection) {
+		batchRemainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batchCandidates)
+		if err != nil {
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+			continue
+		}
+		if len(batchRemainingSubs) == 0 {
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchCandidates))
+			}
+			continue
+		}
+		if err := m.createConnectAndSubscribe(ctx, ws, batchRemainingSubs); err != nil {
+			if errors.Is(err, common.ErrFatal) {
+				return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+			}
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+			continue
+		}
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Total Subs: %d] [Subscribed: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchRemainingSubs))
+		}
+	}
+	return subscriptionError, nil
+}
+
+// optionalSetupFailed closes an optional setup's connections after it failed to connect or lost a connection, so the
+// others stay up without it, and schedules its next attempt. The caller must hold m.m
+func (m *Manager) optionalSetupFailed(i int, ws *websocket, cause error) error {
+	connections := m.snapshotManagedConnections(ws)
+	cause = common.AppendError(cause, m.retireConnections(ws, connections))
+	for _, conn := range connections {
+		conn.Subscriptions().Clear()
+	}
+	ws.subscriptions.Clear()
+	ws.retryFailures++
+	delay := m.optionalRetryDelay(ws.retryFailures)
+	ws.retryAt = time.Now().Add(delay)
+	return fmt.Errorf("%s websocket: optional connection [conn:%d] [URL:%s] retried in %s: %w", m.exchangeName, i+1, ws.setup.URL, delay, cause)
+}
+
+// optionalRetryDelay returns how long an optional setup waits after its consecutive failures: the monitor delay,
+// doubled after each further failure up to a minute, or the monitor delay when that is longer
+func (m *Manager) optionalRetryDelay(failures int) time.Duration {
+	ceiling := max(time.Minute, m.connectionMonitorDelay)
+	delay := m.connectionMonitorDelay
+	for range failures - 1 {
+		if delay >= ceiling {
+			break
+		}
+		delay *= 2
+	}
+	return min(delay, ceiling)
+}
+
+// isolateConnectionFault handles a connection fault without reconnecting the other connections when the connection has
+// already been retired or belongs to an optional setup, which is retired and retried alone. The fault channel holds one
+// fault and drops the rest, so every managed connection is checked: a required setup's lost connection still needs the
+// reconnection, and an optional setup's is retired too. It reports whether it handled the fault
+func (m *Manager) isolateConnectionFault(err error) bool {
+	var fault *connectionFaultError
+	if !m.useMultiConnectionManagement || !errors.As(err, &fault) {
+		return false
+	}
+	m.m.Lock()
+	defer m.m.Unlock()
+	faulted, managed := m.managedWebsocket(fault.connection)
+	if managed && !faulted.setup.Optional {
+		return false
+	}
+	// Connections are retired and shut down under m.m, so a managed connection that is not connected has been lost
+	lost := func(c Connection) bool {
+		status, ok := c.(interface{ IsConnected() bool })
+		return ok && !status.IsConnected()
+	}
+	setups := m.snapshotConnectionManager()
+	for _, ws := range setups {
+		if !ws.setup.Optional && slices.ContainsFunc(m.snapshotManagedConnections(ws), lost) {
+			return false
+		}
+	}
+	for i, ws := range setups {
+		switch {
+		case !ws.setup.Optional:
+		case ws == faulted:
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, err))
+		case slices.ContainsFunc(m.snapshotManagedConnections(ws), lost):
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, ErrNotConnected))
+		}
+	}
+	return true
+}
+
+// retryOptionalSetups reconnects each optional setup whose connection failed once its retry is due
+func (m *Manager) retryOptionalSetups(ctx context.Context) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if !m.IsEnabled() || !m.IsConnected() {
+		return
+	}
+	for i, ws := range m.snapshotConnectionManager() {
+		if !ws.setup.Optional || ws.retryFailures == 0 || time.Now().Before(ws.retryAt) || len(m.snapshotManagedConnections(ws)) != 0 {
+			continue
+		}
+		subscriptionError, fatalErr := m.connectSetup(ctx, i, ws)
+		if fatalErr != nil {
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
+			continue
+		}
+		ws.retryFailures, ws.retryAt = 0, time.Time{}
+		if subscriptionError != nil {
+			log.Errorln(log.WebsocketMgr, subscriptionError)
+		}
+	}
+}
+
 // createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
 // The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
+	}
+	if ws.setup.SubscriptionsNotRequired && len(subs) != 0 {
+		return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
 	}
 
 	conn := m.createConnectionFromSetup(ws.setup)
@@ -685,25 +799,36 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 
 	if !conn.IsConnected() {
-		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
+		err := fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
+		// No reader will start, so the disconnect hook undoes what the connector set up here
+		if ws.setup.OnDisconnect != nil {
+			ws.setup.OnDisconnect(ctx, conn)
+		}
+		return err
 	}
 
 	m.trackConnection(conn, ws)
 
+	done := make(chan struct{})
+	m.connectionManagerMu.Lock()
+	if m.readersDone == nil {
+		m.readersDone = make(map[Connection]chan struct{})
+	}
+	m.readersDone[conn] = done
+	m.connectionManagerMu.Unlock()
 	m.Wg.Add(1)
-	go m.Reader(ctx, conn, ws.setup.Handler)
+	go m.managedReader(ctx, conn, ws.setup, done)
 
 	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
 		if err := ws.setup.Authenticate(ctx, conn); err != nil {
-			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
+			// The connection is no use to its setup, and a flush keeps the setup's other connections rather than
+			// rolling the setup back, so it is retired here
+			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, common.AppendError(err, m.retireConnections(ws, []Connection{conn})))
 		}
 	}
 
-	if ws.setup.SubscriptionsNotRequired {
-		if len(subs) != 0 {
-			return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
-		}
-		return nil
+	if len(subs) == 0 {
+		return nil // A connection kept without subscriptions
 	}
 
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
@@ -792,22 +917,18 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	// prevents the shutdown process from being interrupted, which could otherwise trigger a continuous traffic monitor
 	// cycle and potentially block the initiation of a new connection.
 	//
-	// Shutdown managed connections
-	m.connectionManagerMu.Lock()
+	// Shutdown managed connections, which stay registered until their readers and disconnect hooks have finished
+	m.connectionManagerMu.RLock()
+	var managed []Connection
 	for _, ws := range m.connectionManager {
-		for _, conn := range ws.connections {
-			if err := conn.Shutdown(); err != nil {
-				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
-			}
-			conn.Subscriptions().Clear()
-		}
-		ws.connections = nil
-		// Flush any subscriptions from last connection across any managed connections
-		ws.subscriptions.Clear()
+		managed = append(managed, ws.connections...)
 	}
-	// Clean map of old connections
-	clear(m.connections)
-	m.connectionManagerMu.Unlock()
+	m.connectionManagerMu.RUnlock()
+	for _, conn := range managed {
+		if err := conn.Shutdown(); err != nil {
+			nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
+		}
+	}
 
 	if m.Conn != nil {
 		if err := m.Conn.Shutdown(); err != nil {
@@ -819,12 +940,25 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 			nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 		}
 	}
-	// flush any subscriptions from last connection if needed
-	m.subscriptions.Clear()
-
 	close(m.ShutdownC)
 	m.setState(disconnectedState)
 	m.Wg.Wait()
+
+	// Flush any subscriptions from last connection across any managed connections, now no reader can still use them
+	m.connectionManagerMu.Lock()
+	for _, ws := range m.connectionManager {
+		for _, conn := range ws.connections {
+			conn.Subscriptions().Clear()
+		}
+		ws.connections = nil
+		ws.subscriptions.Clear()
+	}
+	// Clean map of old connections
+	clear(m.connections)
+	clear(m.readersDone)
+	m.connectionManagerMu.Unlock()
+	// flush any subscriptions from last connection if needed
+	m.subscriptions.Clear()
 	m.ShutdownC = make(chan struct{})
 
 	for _, conn := range []Connection{m.Conn, m.AuthConn} {
@@ -1056,6 +1190,52 @@ func checkWebsocketURL(s string) error {
 // Reader reads and handles data from a specific connection
 func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
+	m.read(ctx, conn, handler)
+}
+
+// managedReader reads and handles data from a managed connection, then calls its setup's OnDisconnect before done is
+// closed and the wait group released, so retiring the connection or shutting down waits for it
+func (m *Manager) managedReader(ctx context.Context, conn Connection, setup *ConnectionSetup, done chan struct{}) {
+	defer m.Wg.Done()
+	defer close(done)
+	if setup.OnDisconnect != nil {
+		defer setup.OnDisconnect(ctx, conn)
+	}
+	m.read(ctx, conn, setup.Handler)
+}
+
+// retireConnections shuts a setup's connections down, then unregisters them; a setup with a disconnect hook first has its
+// readers awaited, so the hook runs while its connection is still known. Setups without one are not awaited, as a reader
+// whose handler takes the manager's lock would otherwise wait on its own retirement. The caller must hold m.m
+func (m *Manager) retireConnections(ws *websocket, connections []Connection) error {
+	var errs error
+	for _, conn := range connections {
+		if err := conn.Shutdown(); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
+	for _, conn := range connections {
+		if ws.setup.OnDisconnect == nil {
+			break
+		}
+		m.connectionManagerMu.RLock()
+		done := m.readersDone[conn]
+		m.connectionManagerMu.RUnlock()
+		if done != nil {
+			<-done
+		}
+	}
+	m.connectionManagerMu.Lock()
+	for _, conn := range connections {
+		delete(m.connections, conn)
+		delete(m.readersDone, conn)
+		ws.connections = slices.DeleteFunc(ws.connections, func(c Connection) bool { return c == conn })
+	}
+	m.connectionManagerMu.Unlock()
+	return errs
+}
+
+func (m *Manager) read(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
@@ -1108,7 +1288,7 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
 	case err := <-m.ReadMessageErrors:
-		if errors.Is(err, errConnectionFault) {
+		if errors.Is(err, errConnectionFault) && !m.isolateConnectionFault(err) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
 				if shutdownErr := m.Shutdown(); shutdownErr != nil {
@@ -1152,6 +1332,8 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 			if err != nil {
 				log.Errorln(log.WebsocketMgr, err)
 			}
+		} else if m.useMultiConnectionManagement {
+			m.retryOptionalSetups(ctx)
 		}
 		t.Reset(m.connectionMonitorDelay)
 	}

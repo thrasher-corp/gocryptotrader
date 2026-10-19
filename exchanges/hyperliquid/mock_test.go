@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -96,13 +97,14 @@ var loadWebsocketPostFixtures = sync.OnceValues(func() ([]websocketPostFixture, 
 })
 
 // newVenueWebsocketTestExchange returns a mock exchange named after the test whose websocket connections reach a new
-// mock of Hyperliquid's websocket, and the requests the mock receives
+// mock of Hyperliquid's websocket, and the requests the mock receives; nothing is subscribed, so only the public
+// connection, which posts, connects until a test subscribes an account feed
 func newVenueWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenueRequests) {
 	t.Helper()
 	url, venue := startVenueWebsocketMock(t)
 	ex := newTestExchange(t)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(url), "SetAllConnectionURLs must not error")
-	ex.Websocket.SetSubscriptionsNotRequired()
+	ex.Features.Subscriptions = subscription.List{}
 	require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect to the mock websocket")
 	t.Cleanup(func() {
 		// Disabling stops the connection monitor, which would otherwise redial the mock after the test, and which may then

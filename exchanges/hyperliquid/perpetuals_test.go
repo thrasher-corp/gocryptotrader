@@ -21,7 +21,7 @@ func testDefaultMetadata() PerpetualMetadataResponse {
 			{Name: "BTC", SizeDecimals: 5, MaxLeverage: 40, MarginTableID: 56},
 			{Name: "ETH", SizeDecimals: 4, MaxLeverage: 25, MarginTableID: 55},
 			{Name: "MATIC", SizeDecimals: 1, MaxLeverage: 20, MarginTableID: 20, IsDelisted: true},
-			{Name: "HPOS", MaxLeverage: 3, MarginTableID: 3, OnlyIsolated: true, MarginMode: "strictIsolated"},
+			{Name: "HPOS", MaxLeverage: 3, MarginTableID: 3, MarginMode: "strictIsolated"},
 		},
 		MarginTables: []MarginTableEntry{
 			{ID: 50, Table: MarginTable{MarginTiers: []MarginTier{{LowerBound: 0, MaxLeverage: 50}}}},
@@ -44,7 +44,7 @@ func testXYZMetadata() PerpetualMetadataResponse {
 				DeployerFeeScale:         1,
 				LastFeeScaleChangeTime:   ZonelessTime(time.Date(2025, 11, 23, 17, 37, 10, 33211662, time.UTC)),
 			},
-			{Name: "xyz:TSLA", SizeDecimals: 3, MaxLeverage: 20, MarginTableID: 20, OnlyIsolated: true, MarginMode: "noCross"},
+			{Name: "xyz:TSLA", SizeDecimals: 3, MaxLeverage: 20, MarginTableID: 20, MarginMode: "noCross"},
 		},
 		MarginTables: []MarginTableEntry{{ID: 30, Table: MarginTable{MarginTiers: []MarginTier{{LowerBound: 0, MaxLeverage: 30}}}}},
 	}
@@ -278,7 +278,7 @@ func TestGetUserNonFundingLedgerUpdates(t *testing.T) {
 	require.NoError(t, err, "GetUserNonFundingLedgerUpdates must not error")
 	if mockTests {
 		exp := []UserLedgerUpdate{
-			{Time: milli(1791252100000), Hash: "0x6e5030418dccaafb6fc90445f45dbe0201de002728cfc9cd1218db944cc084e6", Delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 50099.8, ToPerp: true}},
+			{Time: milli(1791252100000), Hash: "0x6e5030418dccaafb6fc90445f45dbe0201de002728cfc9cd1218db944cc084e6", Delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 50099.8, ToPerpetual: true}},
 			{Time: milli(1791253000000), Hash: "0x31d548837f8c7791334f0445f45eaa0201be00691a8f9663d59df3d63e80517b", Delta: UserLedgerDelta{
 				Type:           "send",
 				User:           "0x0000000000000000000000000000000000000012",
@@ -520,7 +520,6 @@ func TestGetAllPerpetualMetadata(t *testing.T) {
 					SizeDecimals:             3,
 					MaxLeverage:              10,
 					MarginTableID:            10,
-					OnlyIsolated:             true,
 					IsDelisted:               true,
 					MarginMode:               "strictIsolated",
 					GrowthMode:               "enabled",

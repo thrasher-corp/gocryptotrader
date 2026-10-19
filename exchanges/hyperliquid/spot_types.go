@@ -114,8 +114,8 @@ type SpotDeployState struct {
 	Spots                        []uint64     `json:"spots"`
 	MaxSupply                    types.Number `json:"maxSupply"`
 	HyperliquidityGenesisBalance types.Number `json:"hyperliquidityGenesisBalance"`
-	// TotalGenesisBalanceWei can reach the maximum uint64, which a float64 cannot hold exactly
-	TotalGenesisBalanceWei       uint64                 `json:"totalGenesisBalanceWei,string"`
+	// TotalGenesisBalanceInWei can reach the maximum uint64, which a float64 cannot hold exactly
+	TotalGenesisBalanceInWei     uint64                 `json:"totalGenesisBalanceWei,string"`
 	UserGenesisBalances          []UserBalance          `json:"userGenesisBalances"`
 	ExistingTokenGenesisBalances []ExistingTokenBalance `json:"existingTokenGenesisBalances"`
 	BlacklistUsers               []string               `json:"blacklistUsers"`

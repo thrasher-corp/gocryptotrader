@@ -2,7 +2,6 @@ package hyperliquid
 
 import (
 	"bytes"
-	"cmp"
 	"compress/flate"
 	"context"
 	"encoding/base64"
@@ -11,7 +10,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,7 +18,6 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -38,15 +35,12 @@ import (
 const (
 	// websocketPingInterval keeps quiet connections inside the server's 60 second idle timeout
 	websocketPingInterval = 25 * time.Second
-	// accountWebsocketProbeTimeout bounds each probe of the websocket endpoint while the account connection is down
-	accountWebsocketProbeTimeout = 10 * time.Second
-	// maximumAccountWebsocketProbeInterval keeps failed probes well within the 30 new connections a minute that
-	// Hyperliquid accepts from an address
-	maximumAccountWebsocketProbeInterval = time.Minute
+	// websocketHandshakeTimeout bounds a dial, which holds the manager's lock while it retries the account connection
+	websocketHandshakeTimeout = 10 * time.Second
 	// websocketMessageInterval spaces requests within the limit of 2000 messages a minute
 	websocketMessageInterval = 30 * time.Millisecond
-	// maximumWebsocketSubscriptions is Hyperliquid's per-IP subscription limit; the manager counts the public and account
-	// connections' subscriptions against it together
+	// maximumWebsocketSubscriptions is Hyperliquid's per-IP subscription limit, which the public and account
+	// connections' subscriptions count against together
 	maximumWebsocketSubscriptions = 1000
 	// maximumFastAssetContextsSize bounds a decompressed fastAssetCtxs message; a full snapshot is about 82 KB
 	maximumFastAssetContextsSize = 16 << 20
@@ -106,13 +100,24 @@ const (
 	wsErrorParseFailure        = "Error parsing JSON into valid websocket request: "
 )
 
+// websocketConnectionRole is the message filter of a connection setup
+type websocketConnectionRole string
+
+// The public connection carries market feeds and WebsocketAPI posts, and the account connection the account feeds
+const (
+	websocketPublicConnection  websocketConnectionRole = "public"
+	websocketAccountConnection websocketConnectionRole = "account"
+)
+
 var (
-	errWebsocketAssetMismatch = errors.New("websocket market asset mismatch")
-	errWebsocketFeedUnknown   = errors.New("websocket subscription has no subscribed feed")
-	errWebsocketParameter     = errors.New("invalid websocket subscription parameter")
-	errWebsocketPost          = errors.New("websocket post request failed")
-	errWebsocketServer        = errors.New("websocket server error")
-	errWebsocketSubscription  = errors.New("websocket subscription acknowledgement error")
+	errWebsocketAssetMismatch        = errors.New("websocket market asset mismatch")
+	errWebsocketFeedUnknown          = errors.New("websocket subscription has no subscribed feed")
+	errWebsocketParameter            = errors.New("invalid websocket subscription parameter")
+	errWebsocketPost                 = errors.New("websocket post request failed")
+	errWebsocketServer               = errors.New("websocket server error")
+	errWebsocketSubscription         = errors.New("websocket subscription acknowledgement error")
+	errWebsocketSubscriptionsLimit   = errors.New("websocket subscriptions would exceed Hyperliquid's limit of 1000 for an IP address")
+	errWebsocketAccountFeedsDisabled = errors.New("authenticated websocket support is disabled")
 )
 
 var defaultSubscriptions = subscription.List{
@@ -173,49 +178,38 @@ var websocketStandardChannels = map[string]string{
 	subscription.MyTradesChannel:  wsSubscriptionUserEvents,
 }
 
-// WebsocketConnect connects the public stream and, when an account address is configured, a stream for its account
-// feeds
-func (e *Exchange) WebsocketConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	// Taken before dialling, as the backoff is for this attempt alone and a failed one must not leave it to a later
-	// connection
-	backoff := time.Duration(e.accountProbeInterval.Swap(0))
-	if err := e.connectWebsocket(ctx, e.Websocket.Conn); err != nil {
+// connectPublicWebsocket dials the public connection, which carries the market feeds and WebsocketAPI posts
+func (e *Exchange) connectPublicWebsocket(ctx context.Context, conn websocket.Connection) error {
+	if err := e.connectWebsocket(ctx, conn); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn, false)
+	e.websocketConnectionsMu.Lock()
+	e.websocketPostConnection = conn
+	e.websocketConnectionsMu.Unlock()
+	return nil
+}
 
-	if !e.IsWebsocketAuthenticationSupported() {
-		return nil
+// connectAccountWebsocket dials the account connection. Hyperliquid's account feeds are public and keyed by address, so
+// authenticated websocket use only means this connection is up
+func (e *Exchange) connectAccountWebsocket(ctx context.Context, conn websocket.Connection) error {
+	if err := e.connectWebsocket(ctx, conn); err != nil {
+		return err
 	}
-	if _, err := e.getWatchAddress(ctx); err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Warnf(log.WebsocketMgr, "%s account websocket feeds disabled: %s", e.Name, err)
-		return nil
-	}
-	if err := e.connectWebsocket(ctx, e.Websocket.AuthConn); err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Warnf(log.WebsocketMgr, "%s account websocket connection failed, retrying: %s", e.Name, err)
-		interval := max(cmp.Or(e.Config.ConnectionMonitorDelay, config.DefaultConnectionMonitorDelay), backoff)
-		go e.awaitAccountWebsocket(ctx, e.Websocket.AuthConn.GetURL(), e.Websocket.GetProxyAddress(), e.Websocket.ShutdownC, interval)
-		return nil
-	}
-	// Hyperliquid's account feeds are public and keyed by address, so authenticated here only means an address is set
+	e.websocketConnectionsMu.Lock()
+	e.websocketAccountConnection = conn
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.AuthConn, true)
+	e.websocketConnectionsMu.Unlock()
 	return nil
 }
 
 func (e *Exchange) connectWebsocket(ctx context.Context, connection websocket.Connection) error {
+	if !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
 	if connection == nil {
 		return common.ErrNilPointer
 	}
-	if err := connection.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
+	if err := connection.Dial(ctx, &gws.Dialer{HandshakeTimeout: websocketHandshakeTimeout}, http.Header{}, nil); err != nil {
 		return fmt.Errorf("dialling %s: %w", connection.GetURL(), err)
 	}
 	connection.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -226,103 +220,41 @@ func (e *Exchange) connectWebsocket(ctx context.Context, connection websocket.Co
 	return nil
 }
 
-// awaitAccountWebsocket probes the websocket endpoint after the account connection failed to dial, keeping the public
-// feeds up, and shuts the websocket down once a probe connects, so the connection monitor reconnects it with the account
-// feeds; it stops when the websocket shuts down. Probes start after the given interval, which doubles after each failed
-// probe up to a minute. A probe that connects hands the doubled interval to the reconnection it causes, so an account
-// dial that fails again straight after backs off further rather than starting over. The endpoint, proxy and shutdown
-// channel are passed in, as reading them later would race with the manager changing them
-func (e *Exchange) awaitAccountWebsocket(ctx context.Context, endpoint, proxy string, shutdown <-chan struct{}, interval time.Duration) {
-	timer := time.NewTimer(interval)
-	defer timer.Stop()
-	for {
-		select {
-		case <-shutdown:
-			return
-		case <-timer.C:
-		}
-		if err := probeWebsocket(ctx, endpoint, proxy); err != nil {
-			if e.Verbose {
-				log.Debugf(log.WebsocketMgr, "%s account websocket probe failed: %s", e.Name, err)
-			}
-			interval = nextAccountWebsocketProbeInterval(interval)
-			timer.Reset(interval)
-			continue
-		}
-		select {
-		case <-shutdown:
-			return
-		default:
-		}
-		// Handed over before shutting down, as the connection monitor can reconnect before Shutdown returns
-		backoff := int64(nextAccountWebsocketProbeInterval(interval))
-		e.accountProbeInterval.Store(backoff)
-		if err := e.Websocket.Shutdown(); err != nil {
-			// A shutdown or reconnection already under way also leaves the connection monitor to reconnect, though not
-			// because of this probe, so the backoff is withdrawn unless that reconnection has taken it already
-			e.accountProbeInterval.CompareAndSwap(backoff, 0)
-			if e.Verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket shutdown for the account feeds: %s", e.Name, err)
-			}
-		}
-		return
+// publicWebsocketDisconnected fails the public connection's outstanding subscription operations; when it is the current
+// public connection, WebsocketAPI posts stop using it and the trade replays it awaited are no longer expected
+func (e *Exchange) publicWebsocketDisconnected(_ context.Context, conn websocket.Connection) {
+	_ = e.failWebsocketPending(conn, websocket.ErrNotConnected)
+	e.websocketConnectionsMu.Lock()
+	current := e.websocketPostConnection == conn
+	if current {
+		e.websocketPostConnection = nil
+	}
+	e.websocketConnectionsMu.Unlock()
+	if current {
+		e.clearTradeReplays()
 	}
 }
 
-// nextAccountWebsocketProbeInterval doubles the interval between probes of the websocket endpoint, up to a minute unless
-// the interval was longer already
-func nextAccountWebsocketProbeInterval(interval time.Duration) time.Duration {
-	return max(interval, min(interval*2, maximumAccountWebsocketProbeInterval))
-}
-
-// probeWebsocket dials a websocket endpoint, through a proxy when one is set, then closes the connection normally
-func probeWebsocket(ctx context.Context, endpoint, proxy string) error {
-	dialer := gws.Dialer{HandshakeTimeout: accountWebsocketProbeTimeout}
-	if proxy != "" {
-		proxyURL, err := url.Parse(proxy)
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxyURL)
+// accountWebsocketDisconnected fails the account connection's outstanding subscription operations; when it is the
+// current account connection, account feeds stop, and as userEvents does not resend the fills sent while it is down, the
+// orders' fills may then be incomplete
+func (e *Exchange) accountWebsocketDisconnected(_ context.Context, conn websocket.Connection) {
+	_ = e.failWebsocketPending(conn, websocket.ErrNotConnected)
+	e.websocketConnectionsMu.Lock()
+	current := e.websocketAccountConnection == conn
+	if current {
+		e.websocketAccountConnection = nil
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	conn, resp, err := dialer.DialContext(ctx, endpoint, nil)
-	if resp != nil {
-		_ = resp.Body.Close()
-	}
-	if err != nil {
-		return err
-	}
-	_ = conn.WriteControl(gws.CloseMessage, gws.FormatCloseMessage(gws.CloseNormalClosure, ""), time.Now().Add(accountWebsocketProbeTimeout))
-	return conn.Close()
-}
-
-// wsReadData relays a connection's messages until it closes, then fails its outstanding subscription operations; the
-// replays the public connection awaited will not arrive, and userEvents does not resend the fills sent while the account
-// connection is down, so the orders' fills may then be incomplete
-func (e *Exchange) wsReadData(ctx context.Context, connection websocket.Connection, authenticated bool) {
-	defer e.Websocket.Wg.Done()
-	for {
-		message := connection.ReadMessage()
-		if message.Raw == nil {
-			_ = e.failWebsocketPending(authenticated, websocket.ErrNotConnected)
-			if authenticated {
-				e.uncoverWebsocketOrders()
-			} else {
-				e.clearTradeReplays()
-			}
-			return
-		}
-		if err := e.wsHandleData(ctx, message.Raw, authenticated); err != nil {
-			if sendErr := e.Websocket.DataHandler.Send(ctx, err); sendErr != nil {
-				log.Errorf(log.WebsocketMgr, "%s websocket data handler: %s; source error: %s", e.Name, sendErr, err)
-			}
-		}
+	e.websocketConnectionsMu.Unlock()
+	if current {
+		e.uncoverWebsocketOrders()
 	}
 }
 
 // wsHandleData handles a message, settling subscription operations on the connection that sent them; an error names
 // the channel whose message failed, as the data handler relays it without further context
-func (e *Exchange) wsHandleData(ctx context.Context, raw []byte, authenticated bool) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, raw []byte) error {
 	if string(raw) == websocketConnectionEstablished {
 		return nil
 	}
@@ -330,23 +262,23 @@ func (e *Exchange) wsHandleData(ctx context.Context, raw []byte, authenticated b
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return fmt.Errorf("%s decoding websocket message: %w", e.Name, err)
 	}
-	if err := e.wsHandleChannel(ctx, &envelope, raw, authenticated); err != nil {
+	if err := e.wsHandleChannel(ctx, conn, &envelope, raw); err != nil {
 		return fmt.Errorf("%s %s message: %w", e.Name, envelope.Channel, err)
 	}
 	return nil
 }
 
 // wsHandleChannel passes a message to its channel's handler, relaying a message of an unknown channel as unhandled
-func (e *Exchange) wsHandleChannel(ctx context.Context, envelope *WebsocketResponse, raw []byte, authenticated bool) error {
+func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *WebsocketResponse, raw []byte) error {
 	switch envelope.Channel {
 	case wsChannelSubscriptionResponse:
-		return e.wsHandleSubscriptionResponse(envelope.Data, authenticated)
+		return e.wsHandleSubscriptionResponse(conn, envelope.Data)
 	case wsChannelPost:
-		return e.wsHandlePostResponse(envelope.Data)
+		return e.wsHandlePostResponse(conn, envelope.Data)
 	case wsChannelPong:
 		return nil
 	case wsChannelError:
-		return e.wsHandleError(envelope.Data, authenticated)
+		return e.wsHandleError(conn, envelope.Data)
 	case wsChannelAllMids:
 		return wsRelay[WebsocketAllMids](ctx, e, envelope.Data)
 	case wsChannelNotification:
@@ -414,7 +346,7 @@ func wsRelay[T any](ctx context.Context, e *Exchange, raw []byte) error {
 }
 
 // wsHandleSubscriptionResponse completes the subscription operation an acknowledgement matches
-func (e *Exchange) wsHandleSubscriptionResponse(raw []byte, authenticated bool) error {
+func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, raw []byte) error {
 	var response WebsocketSubscriptionResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return fmt.Errorf("%w: %w", errWebsocketSubscription, err)
@@ -438,14 +370,14 @@ func (e *Exchange) wsHandleSubscriptionResponse(raw []byte, authenticated bool) 
 			e.clearTradeReplay(response.Subscription.Coin)
 		}
 	}
-	_, err := e.completeWebsocketPending(authenticated, response.Method, &response.Subscription)
+	_, err := e.completeWebsocketPending(conn, response.Method, &response.Subscription)
 	return err
 }
 
 // completeWebsocketPending applies the server's completion of a pending operation to the subscription store; it reports
 // whether an operation was pending, as a late or unknown completion is ignored
-func (e *Exchange) completeWebsocketPending(authenticated bool, method string, sub *WebsocketSubscription) (bool, error) {
-	key := websocketPendingKey{authenticated: authenticated, subscription: *sub}
+func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
+	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
 	if pending == nil {
@@ -474,8 +406,8 @@ func (e *Exchange) completeWebsocketPending(authenticated bool, method string, s
 }
 
 // failWebsocketPendingOperation fails and rolls back one pending operation; it reports whether the operation was pending
-func (e *Exchange) failWebsocketPendingOperation(authenticated bool, method string, sub *WebsocketSubscription, cause error) bool {
-	key := websocketPendingKey{authenticated: authenticated, subscription: *sub}
+func (e *Exchange) failWebsocketPendingOperation(conn websocket.Connection, method string, sub *WebsocketSubscription, cause error) bool {
+	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
 	if pending == nil || pending.method != method {
@@ -507,11 +439,11 @@ func (e *Exchange) rollbackWebsocketPending(pending *websocketPendingOperation) 
 }
 
 // failWebsocketPending fails and rolls back every operation outstanding on a connection
-func (e *Exchange) failWebsocketPending(authenticated bool, cause error) error {
+func (e *Exchange) failWebsocketPending(conn websocket.Connection, cause error) error {
 	e.websocketPendingMu.Lock()
 	pending := make([]*websocketPendingOperation, 0, len(e.websocketPending))
 	for key, operation := range e.websocketPending {
-		if key.authenticated == authenticated {
+		if key.connection == conn {
 			delete(e.websocketPending, key)
 			pending = append(pending, operation)
 		}
@@ -542,7 +474,7 @@ func (e *Exchange) abortWebsocketPending(key *websocketPendingKey, pending *webs
 
 // wsHandleError settles the operation an error message answers, which the message identifies by quoting its
 // subscription or request; any other error fails every operation pending on the connection
-func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
+func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 	var message string
 	if err := json.Unmarshal(raw, &message); err != nil {
 		message = strings.TrimSpace(string(raw))
@@ -554,7 +486,7 @@ func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadySubscribed); ok {
 		// The feed is active, so the subscribe succeeded, though without replaying recent trades
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(authenticated, wsMethodSubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(conn, wsMethodSubscribe, &sub); settled {
 				return err
 			}
 		}
@@ -563,17 +495,17 @@ func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadyUnsubscribed); ok {
 		// The feed is inactive, so the unsubscribe succeeded
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(authenticated, wsMethodUnsubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(conn, wsMethodUnsubscribe, &sub); settled {
 				return err
 			}
 		}
 		return cause
 	}
 	if quoted, ok := strings.CutPrefix(message, wsErrorInvalidSubscription); ok {
-		if sub, err := decodeWebsocketSubscription(quoted); err == nil && e.failWebsocketPendingOperation(authenticated, wsMethodSubscribe, &sub, cause) {
+		if sub, err := decodeWebsocketSubscription(quoted); err == nil && e.failWebsocketPendingOperation(conn, wsMethodSubscribe, &sub, cause) {
 			return cause
 		}
-		return e.failWebsocketPending(authenticated, cause)
+		return e.failWebsocketPending(conn, cause)
 	}
 	if quoted, ok := strings.CutPrefix(message, wsErrorParseFailure); ok {
 		var quotedRequest WebsocketQuotedRequest
@@ -581,18 +513,18 @@ func (e *Exchange) wsHandleError(raw []byte, authenticated bool) error {
 			switch quotedRequest.Method {
 			case wsMethodPost:
 				response, err := json.Marshal(&WebsocketPostResponse{ID: quotedRequest.ID, Response: WebsocketPostResponseBody{Type: wsPostTypeError, Payload: raw}})
-				if err == nil && e.Websocket.Match.IncomingWithData(quotedRequest.ID, response) {
+				if err == nil && conn.IncomingWithData(quotedRequest.ID, response) {
 					return nil
 				}
 				return cause
 			case wsMethodSubscribe, wsMethodUnsubscribe:
-				if e.failWebsocketPendingOperation(authenticated, quotedRequest.Method, &quotedRequest.Subscription, cause) {
+				if e.failWebsocketPendingOperation(conn, quotedRequest.Method, &quotedRequest.Subscription, cause) {
 					return cause
 				}
 			}
 		}
 	}
-	return e.failWebsocketPending(authenticated, cause)
+	return e.failWebsocketPending(conn, cause)
 }
 
 // decodeWebsocketSubscription decodes the canonical subscription an error message quotes
@@ -605,12 +537,12 @@ func decodeWebsocketSubscription(quoted string) (WebsocketSubscription, error) {
 }
 
 // wsHandlePostResponse delivers a post response to the request awaiting its ID
-func (e *Exchange) wsHandlePostResponse(raw []byte) error {
+func (e *Exchange) wsHandlePostResponse(conn websocket.Connection, raw []byte) error {
 	var response WebsocketPostResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return err
 	}
-	return e.Websocket.Match.RequireMatchWithData(response.ID, raw)
+	return conn.RequireMatchWithData(response.ID, raw)
 }
 
 func (e *Exchange) wsHandleCandle(ctx context.Context, raw []byte) error {
@@ -1350,7 +1282,9 @@ func (e *Exchange) sendWebsocketAction(ctx context.Context, payload *SignedActio
 // sendWebsocketPost posts an info request or a signed action, as requestType says, and returns its response payload; a
 // rejected request returns the server's error
 func (e *Exchange) sendWebsocketPost(ctx context.Context, requestType string, payload any) (json.RawMessage, error) {
-	connection := e.Websocket.Conn
+	e.websocketConnectionsMu.Lock()
+	connection := e.websocketPostConnection
+	e.websocketConnectionsMu.Unlock()
 	if connection == nil {
 		return nil, websocket.ErrNotConnected
 	}
@@ -1408,15 +1342,45 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(websocketSubscriptionTemplate)
 }
 
-// generateSubscriptions expands the configured subscriptions and keys each by the feed it selects; the configuration
-// replaces the held subscriptions, so it is validated on its own rather than beside the feeds a flush is about to remove
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	subs, err := e.Features.Subscriptions.ExpandTemplates(websocketTemplateExpander{e})
+// expandWebsocketSubscriptions expands one connection's share of the configured subscriptions, the account feeds or the
+// rest, and keys each by the feed it selects. Each share is expanded and validated apart, so the account feeds' errors
+// leave the public connection alone; the configuration replaces the held subscriptions, so it is validated on its own
+// rather than beside the feeds a flush is about to remove
+func (e *Exchange) expandWebsocketSubscriptions(account bool) (subscription.List, error) {
+	configured := slices.DeleteFunc(slices.Clone(e.Features.Subscriptions), func(s *subscription.Subscription) bool {
+		return s != nil && s.Authenticated != account
+	})
+	subs, err := configured.ExpandTemplates(websocketTemplateExpander{e})
 	if validationErr := e.ValidateSubscriptions(subs); validationErr != nil {
 		return nil, common.AppendError(err, validationErr)
 	}
 	keyWebsocketSubscriptions(subs)
 	return subs, err
+}
+
+// generatePublicSubscriptions returns the configured market feeds, which the public connection subscribes
+func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+	return e.expandWebsocketSubscriptions(false)
+}
+
+// generateAccountSubscriptions returns the configured account feeds, which the account connection subscribes when
+// account feeds are available
+func (e *Exchange) generateAccountSubscriptions() (subscription.List, error) {
+	if err := e.accountFeedsAvailable(context.TODO()); err != nil {
+		log.Warnf(log.WebsocketMgr, "%s account websocket feeds disabled: %s", e.Name, err)
+		return nil, nil
+	}
+	return e.expandWebsocketSubscriptions(true)
+}
+
+// accountFeedsAvailable returns an error unless authenticated websocket support is enabled and an account address is
+// configured, without which the account feeds cannot be subscribed
+func (e *Exchange) accountFeedsAvailable(ctx context.Context) error {
+	if !e.IsWebsocketAuthenticationSupported() {
+		return errWebsocketAccountFeedsDisabled
+	}
+	_, err := e.getWatchAddress(ctx)
+	return err
 }
 
 // keyWebsocketSubscriptions keys each subscription by the feed it selects, as the manager finds held subscriptions by the
@@ -1433,26 +1397,66 @@ func keyWebsocketSubscriptions(subs subscription.List) {
 	}
 }
 
-// SubscribeToWebsocketChannels subscribes to feeds through the websocket manager, keying each by the feed it selects
-// first, as the manager refuses a subscription matching a held one and would otherwise compare them without their
-// parameters
+// SubscribeToWebsocketChannels subscribes to feeds, keying each by the feed it selects first, as the manager refuses a
+// subscription matching a held one and would otherwise compare them without their parameters; account feeds go to the
+// account connection and the rest to the public connection
 func (e *Exchange) SubscribeToWebsocketChannels(channels subscription.List) error {
+	ctx := context.TODO()
 	if slices.Contains(channels, nil) {
 		return common.ErrNilPointer
 	}
-	keyWebsocketSubscriptions(channels)
-	return e.Base.SubscribeToWebsocketChannels(channels)
+	var errs error
+	if unavailable := e.accountFeedsAvailable(ctx); unavailable != nil {
+		channels = slices.DeleteFunc(slices.Clone(channels), func(s *subscription.Subscription) bool {
+			if s.Authenticated {
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s", unavailable, s))
+			}
+			return s.Authenticated
+		})
+	}
+	expanded, err := channels.ExpandTemplates(websocketTemplateExpander{e})
+	errs = common.AppendError(errs, err)
+	held := e.Websocket.GetSubscriptions()
+	// Expansion passes subscriptions already expanded through without validating them, so all are validated here
+	if err := e.ValidateSubscriptions(slices.Concat(expanded, held)); err != nil {
+		return common.AppendError(errs, err)
+	}
+	if total := len(held) + len(expanded); total > maximumWebsocketSubscriptions {
+		return common.AppendError(errs, fmt.Errorf("%w: %d held and %d requested", errWebsocketSubscriptionsLimit, len(held), len(expanded)))
+	}
+	keyWebsocketSubscriptions(expanded)
+	return common.AppendError(errs, e.manageWebsocketChannels(ctx, expanded, e.Websocket.SubscribeToSetup))
 }
 
-// UnsubscribeToWebsocketChannels unsubscribes from feeds through the websocket manager, keying each by the feed it selects
-// first, as the manager looks each up among the held subscriptions and would otherwise compare them without their
-// parameters
+// UnsubscribeToWebsocketChannels unsubscribes from feeds; a subscription is found by the feed it selects, so
+// unsubscribing a variant that is not held leaves the held variants subscribed
 func (e *Exchange) UnsubscribeToWebsocketChannels(channels subscription.List) error {
 	if slices.Contains(channels, nil) {
 		return common.ErrNilPointer
 	}
-	keyWebsocketSubscriptions(channels)
-	return e.Base.UnsubscribeToWebsocketChannels(channels)
+	expanded, errs := channels.ExpandTemplates(websocketTemplateExpander{e})
+	held := make(subscription.List, 0, len(expanded))
+	for _, sub := range expanded {
+		feed := newWebsocketSubscriptionKey(sub)
+		if sub = e.Websocket.GetSubscription(feed); sub == nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", subscription.ErrNotFound, feed))
+			continue
+		}
+		held = append(held, sub)
+	}
+	return common.AppendError(errs, e.manageWebsocketChannels(context.TODO(), held, e.Websocket.UnsubscribeFromSetup))
+}
+
+// manageWebsocketChannels passes account feeds to the account connection setup and the rest to the public one
+func (e *Exchange) manageWebsocketChannels(ctx context.Context, subs subscription.List, manage func(context.Context, any, subscription.List) error) error {
+	var errs error
+	for _, role := range []websocketConnectionRole{websocketPublicConnection, websocketAccountConnection} {
+		account := role == websocketAccountConnection
+		if roleSubs := slices.DeleteFunc(slices.Clone(subs), func(s *subscription.Subscription) bool { return s.Authenticated != account }); len(roleSubs) != 0 {
+			errs = common.AppendError(errs, manage(ctx, role, roleSubs))
+		}
+	}
+	return errs
 }
 
 // newWebsocketSubscriptionKey keys a subscription by the feed it selects
@@ -1491,35 +1495,21 @@ func (e *Exchange) ValidateSubscriptions(subs subscription.List) error {
 	return nil
 }
 
-// Subscribe subscribes to feeds, completing only once the server acknowledges each one
-func (e *Exchange) Subscribe(subscriptions subscription.List) error {
-	ctx := context.TODO()
-	if slices.Contains(subscriptions, nil) {
-		return common.ErrNilPointer
-	}
-	expanded, errs := subscriptions.ExpandTemplates(e)
-	for _, sub := range expanded {
-		errs = common.AppendError(errs, e.manageWebsocketSubscription(ctx, wsMethodSubscribe, sub))
+// websocketSubscribe subscribes to feeds on a connection, completing only once the server acknowledges each one
+func (e *Exchange) websocketSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	var errs error
+	for _, sub := range subs {
+		errs = common.AppendError(errs, e.manageWebsocketSubscription(ctx, conn, wsMethodSubscribe, sub))
 	}
 	return errs
 }
 
-// Unsubscribe unsubscribes from feeds, completing only once the server acknowledges each one; a subscription is found by
-// the feed it selects, so unsubscribing a variant that is not held leaves the held variants subscribed
-func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	ctx := context.TODO()
-	if slices.Contains(subscriptions, nil) {
-		return common.ErrNilPointer
-	}
-	expanded, errs := subscriptions.ExpandTemplates(websocketTemplateExpander{e})
-	for _, sub := range expanded {
-		feed := newWebsocketSubscriptionKey(sub)
-		held := e.Websocket.GetSubscription(feed)
-		if held == nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %s", subscription.ErrNotFound, feed))
-			continue
-		}
-		errs = common.AppendError(errs, e.manageWebsocketSubscription(ctx, wsMethodUnsubscribe, held))
+// websocketUnsubscribe unsubscribes from held feeds on a connection, completing only once the server acknowledges each
+// one
+func (e *Exchange) websocketUnsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	var errs error
+	for _, sub := range subs {
+		errs = common.AppendError(errs, e.manageWebsocketSubscription(ctx, conn, wsMethodUnsubscribe, sub))
 	}
 	return errs
 }
@@ -1528,8 +1518,8 @@ func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
 // subscription state back if the server rejects it, the connection drops or it times out
 // An unsubscribe repeats the feed its subscription subscribed, as Hyperliquid requires, rather than rebuilding it from
 // metadata that no longer lists a delisted market or from a configured address that has since changed
-func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method string, sub *subscription.Subscription) error {
-	if sub == nil {
+func (e *Exchange) manageWebsocketSubscription(ctx context.Context, connection websocket.Connection, method string, sub *subscription.Subscription) error {
+	if sub == nil || connection == nil {
 		return common.ErrNilPointer
 	}
 	var payload WebsocketSubscription
@@ -1548,13 +1538,6 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 	default:
 		return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, method)
 	}
-	connection := e.Websocket.Conn
-	if sub.Authenticated {
-		connection = e.Websocket.AuthConn
-	}
-	if connection == nil {
-		return common.ErrNilPointer
-	}
 	previousState := sub.State()
 	if method == wsMethodSubscribe {
 		feed := newWebsocketSubscriptionKey(sub)
@@ -1563,6 +1546,10 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 		if e.Websocket.GetSubscription(feed) != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, feed)
 		}
+		// Held subscriptions include those awaiting their acknowledgement, so both connections' count against the limit
+		if held := len(e.Websocket.GetSubscriptions()); held >= maximumWebsocketSubscriptions {
+			return fmt.Errorf("%w: %d held", errWebsocketSubscriptionsLimit, held)
+		}
 		sub.SetKey(feed)
 		if err := e.Websocket.AddSubscriptions(connection, sub); err != nil {
 			return err
@@ -1570,7 +1557,7 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, method strin
 	} else if err := sub.SetState(subscription.UnsubscribingState); err != nil {
 		return err
 	}
-	key := websocketPendingKey{authenticated: sub.Authenticated, subscription: payload}
+	key := websocketPendingKey{connection: connection, subscription: payload}
 	pending := &websocketPendingOperation{
 		method:        method,
 		connection:    connection,

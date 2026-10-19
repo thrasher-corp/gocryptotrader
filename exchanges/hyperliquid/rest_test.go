@@ -47,9 +47,9 @@ const (
 	// abstraction settings again, and move funds between its own balances and positions, outcome tokens and, 1000 quote
 	// tokens at a time, a HIP-3 backstop liquidator. Some actions last: 0.01 HYPE staked, 0.01 HYPE unstaked through the
 	// 7 day queue, 0.01 HYPE delegated to a validator for at least a day, a 1 hour API wallet for a discarded key, 0.0005
-	// USDC of request weight, any unclaimed referral rewards claimed, DEX abstraction enabled for good if it was never
-	// set, and a 2 USDC bridge withdrawal to the account's own Arbitrum address, less the 1 USDC fee. Funds only reach
-	// other addresses and vaults, and gossip priority is only bid for, when the live constants above are set
+	// USDC of request weight, any unclaimed referral rewards claimed, and DEX abstraction enabled for good if it was never
+	// set. Funds only reach other addresses and vaults, and gossip priority is only bid for, when the live constants above
+	// are set
 	canManipulateRealOrders = false
 	// testPrivateKey is the Python SDK's public signing test key, which mock mode signs with; testAccountAddress is its
 	// account address
@@ -420,7 +420,7 @@ func TestSendSignedAction(t *testing.T) {
 	assert.Error(t, err, "SendSignedAction should error for an action that cannot be signed")
 	assert.Zero(t, captured.Nonce, "SendSignedAction should not send an action that cannot be signed")
 
-	accepted.Websocket.Conn = nil
+	accepted.websocketPostConnection = nil
 	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, Websocket: true})
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedAction should post the action over the websocket when asked")
 	assert.Zero(t, captured.Nonce, "SendSignedAction should not send a websocket action to the exchange endpoint")
@@ -786,7 +786,7 @@ func TestGetMaxBuilderFee(t *testing.T) {
 	result, err := e.GetMaxBuilderFee(t.Context(), testTraderAddress, "0x0000000000000000000000000000000000000016")
 	require.NoError(t, err, "GetMaxBuilderFee must not error")
 	if mockTests {
-		assert.Equal(t, uint64(1000), result, "GetMaxBuilderFee should return the approved fee in tenths of a basis point")
+		assert.Equal(t, TenthsOfABasisPoint(1000), result, "GetMaxBuilderFee should return the approved fee in tenths of a basis point")
 	}
 
 	_, err = newResponseServerExchange(t, `null`).GetMaxBuilderFee(t.Context(), testTraderAddress, "0x0000000000000000000000000000000000000016")
@@ -919,7 +919,7 @@ func TestGetVaultDetails(t *testing.T) {
 				Volume:              60119255511.06,
 			}},
 		},
-		APR:                   0.036051779465087176,
+		AnnualPercentageRate:  0.036051779465087176,
 		FollowerState:         follower,
 		LeaderFraction:        0.0019940895074468785,
 		LeaderCommission:      0.1,
@@ -1097,23 +1097,23 @@ func TestGetUserFees(t *testing.T) {
 	require.NoError(t, err, "GetUserFees must not error")
 	if mockTests {
 		exp := &UserFeesResponse{
-			DailyUserVolume: []DailyUserVolume{{Date: "2026-10-05", UserCross: 15201.6, UserAdd: 9821.33, Exchange: 6311325373.4300003052}},
+			DailyUserVolume: []DailyUserVolume{{Date: "2026-10-05", UserTakerVolume: 15201.6, UserMakerVolume: 9821.33, ExchangeVolume: 6311325373.4300003052}},
 			FeeSchedule: FeeSchedule{
-				Cross:     0.00045,
-				Add:       0.00015,
-				SpotCross: 0.0007,
-				SpotAdd:   0.0004,
+				TakerFeeRate:     0.00045,
+				MakerFeeRate:     0.00015,
+				SpotTakerFeeRate: 0.0007,
+				SpotMakerFeeRate: 0.0004,
 				Tiers: FeeTiers{
-					VIP:         []VIPFeeTier{{NotionalCutoff: 5000000, Cross: 0.0004, Add: 0.00012, SpotCross: 0.0006, SpotAdd: 0.0003}},
-					MarketMaker: []MarketMakerFeeTier{{MakerFractionCutoff: 0.005, Add: -0.00001}},
+					VIP:         []VIPFeeTier{{NotionalCutoff: 5000000, TakerFeeRate: 0.0004, MakerFeeRate: 0.00012, SpotTakerFeeRate: 0.0006, SpotMakerFeeRate: 0.0003}},
+					MarketMaker: []MarketMakerFeeTier{{MakerFractionCutoff: 0.005, MakerFeeRate: -0.00001}},
 				},
 				ReferralDiscount:     0.04,
 				StakingDiscountTiers: []StakingDiscountTier{{BPSOfMaxSupply: 0.0001, Discount: 0.05}},
 			},
-			UserCrossRate:               0.000315,
-			UserAddRate:                 0.000105,
-			UserSpotCrossRate:           0.00049,
-			UserSpotAddRate:             0.00028,
+			UserTakerFeeRate:            0.000315,
+			UserMakerFeeRate:            0.000105,
+			UserSpotTakerFeeRate:        0.00049,
+			UserSpotMakerFeeRate:        0.00028,
 			ActiveReferralDiscount:      0.04,
 			Trial:                       json.RawMessage(`null`),
 			FeeTrialEscrow:              1.5,
@@ -1123,7 +1123,7 @@ func TestGetUserFees(t *testing.T) {
 		}
 		assert.Equal(t, exp, result, "GetUserFees should decode every field")
 	} else {
-		assert.NotZero(t, result.UserCrossRate, "GetUserFees should return the taker rate")
+		assert.NotZero(t, result.UserTakerFeeRate, "GetUserFees should return the taker rate")
 	}
 
 	_, err = newResponseServerExchange(t, `null`).GetUserFees(t.Context(), testVaultAddress)
@@ -1584,6 +1584,26 @@ func TestParseInterval(t *testing.T) {
 	}
 }
 
+func TestTenthsOfABasisPoint(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		fee        TenthsOfABasisPoint
+		rate       float64
+		percentage float64
+		text       string
+	}{
+		{fee: 0, rate: 0, percentage: 0, text: "0"},
+		{fee: 1, rate: 0.00001, percentage: 0.001, text: "0.001"},
+		{fee: 10, rate: 0.0001, percentage: 0.01, text: "0.01"},
+		{fee: 1000, rate: 0.01, percentage: 1, text: "1"},
+		{fee: 1250, rate: 0.0125, percentage: 1.25, text: "1.25"},
+	} {
+		assert.Equalf(t, tc.rate, tc.fee.Rate(), "Rate should convert %d tenths of a basis point to a fraction", tc.fee)
+		assert.Equalf(t, tc.percentage, tc.fee.Percentage(), "Percentage should convert %d tenths of a basis point to a percentage", tc.fee)
+		assert.Equalf(t, tc.text, tc.fee.percentageText(), "percentageText should format %d tenths of a basis point exactly", tc.fee)
+	}
+}
+
 func TestZonelessTimeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var z ZonelessTime
@@ -1624,8 +1644,14 @@ func TestUnmarshalTuple(t *testing.T) {
 	var value AssetValue
 	require.NoError(t, unmarshalTuple([]byte(`["BTC","1.5"]`), &value.Coin, &value.Value), "unmarshalTuple must not error")
 	assert.Equal(t, AssetValue{Coin: "BTC", Value: 1.5}, value, "unmarshalTuple should decode each element into its target")
+	// Decoding each element apart, a null element resets a reused target and a rejected tuple leaves every target alone
+	value = AssetValue{Coin: "ETH", Value: 17}
+	require.NoError(t, unmarshalTuple([]byte(`["BTC",null]`), &value.Coin, &value.Value), "unmarshalTuple must not error for a null element")
+	assert.Equal(t, AssetValue{Coin: "BTC"}, value, "unmarshalTuple should decode a null element rather than keep its target's previous value")
+	value = AssetValue{Coin: "ETH", Value: 17}
 	assert.ErrorIs(t, unmarshalTuple([]byte(`["BTC"]`), &value.Coin, &value.Value), errInvalidTupleLength, "unmarshalTuple should reject a short tuple")
 	assert.ErrorIs(t, unmarshalTuple([]byte(`["BTC","1","2"]`), &value.Coin, &value.Value), errInvalidTupleLength, "unmarshalTuple should reject a long tuple")
+	assert.Equal(t, AssetValue{Coin: "ETH", Value: 17}, value, "unmarshalTuple should leave the targets of a tuple it rejects")
 	assert.Error(t, unmarshalTuple([]byte(`{}`), &value.Coin, &value.Value), "unmarshalTuple should reject an object")
 	assert.Error(t, unmarshalTuple([]byte(`[1,"1"]`), &value.Coin, &value.Value), "unmarshalTuple should reject a mistyped element")
 }

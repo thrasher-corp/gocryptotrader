@@ -108,11 +108,13 @@ Subscriptions differing only in these parameters select separate feeds and are h
 market's orderbook and the account's `userFills` take one variant at a time: two orderbook variants would replace each
 other's stored book, and two `userFills` variants would relay each fill twice.
 
-Account feeds use a connection of their own, opened when an account address is configured. When it cannot connect, the
-public feeds stay up and the endpoint is probed after a connection monitor cycle, then at intervals doubling up to a
-minute, or staying at the monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an
-address; once a probe connects, the websocket reconnects with the account feeds. Should the account connection fail
-again on that reconnection, probing resumes from the doubled interval rather than starting over.
+The websocket manager runs two connections: a public one for market feeds and `WebsocketAPI()` posts, which stays open
+without subscriptions, and an account one for account feeds, opened when account feeds are subscribed, authenticated
+websocket support is enabled and an account address is configured. Hyperliquid limits an IP address to 1000
+subscriptions across both. When the account connection cannot connect or is lost, the public feeds stay up, and the
+manager retries it after a connection monitor cycle, then at intervals doubling up to a minute, or staying at the
+monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an IP address; the interval
+carries over reconnections until the account connection connects.
 
 Hyperliquid closes the connection, dropping every feed on it, when a subscription fails validation, so coins, DEXs and
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it
@@ -140,11 +142,11 @@ the exchange's methods of the same names.
 
 ### Withdrawals
 
-`WithdrawCryptocurrencyFunds` withdraws USDC through the Arbitrum bridge (Arbitrum Sepolia on testnet), whose fee
-Hyperliquid deducts from the amount. Hyperliquid has deprecated this legacy bridge in favour of minting USDC natively
-through Circle's CCTP, which the package does not wrap. Setting `InternalTransfer` sends USDC to another Hyperliquid
-account instead. Both are refused while `SubAccount` is set. Bridge deposits are credited to the address that sends
-them, so there are no deposit addresses, and a deposit below the bridge's 5 USDC minimum is not credited and is lost.
+`WithdrawCryptocurrencyFunds` only sends USDC to another Hyperliquid account, which needs `InternalTransfer` set, and is
+refused while `SubAccount` is set. Withdrawals off Hyperliquid are not supported: Hyperliquid has deprecated its
+Arbitrum bridge in favour of minting USDC natively through Circle's CCTP, which the package does not wrap. Bridge
+deposits are credited to the address that sends them, so there are no deposit addresses, and a deposit below the
+bridge's 5 USDC minimum is not credited and is lost.
 
 ### Not supported
 

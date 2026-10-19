@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -60,7 +61,8 @@ func newUserSignedTestExchange(*testing.T) *Exchange {
 // 10 connections and 30 new connections a minute per IP, and signing every live action with one exchange's nonce
 // counter keeps parallel tests from reusing a nonce
 var venueWebsocketExchange = sync.OnceValues(func() (*Exchange, error) {
-	e.Websocket.SetSubscriptionsNotRequired()
+	// Nothing is subscribed, so only the public connection, which posts, connects until a test subscribes an account feed
+	e.Features.Subscriptions = subscription.List{}
 	return e, e.Websocket.Enable(context.Background())
 })
 

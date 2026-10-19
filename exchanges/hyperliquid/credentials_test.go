@@ -124,6 +124,7 @@ func TestGetWatchAddress(t *testing.T) {
 	}{
 		{credentials: &accounts.Credentials{Key: strings.ToUpper(testAccountAddress)}, exp: testAccountAddress},
 		{credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: strings.ToUpper(testSubAccountAddress)}, exp: testSubAccountAddress},
+		{credentials: &accounts.Credentials{Key: "invalid", SubAccount: testSubAccountAddress}, exp: testSubAccountAddress},
 		{credentials: &accounts.Credentials{Key: "invalid"}, err: errInvalidAddress},
 		{credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: "invalid"}, err: errInvalidAddress},
 	} {
@@ -236,7 +237,8 @@ func TestValidateCachedAuthority(t *testing.T) {
 	}
 
 	ex.SetDefaults()
-	assert.Nil(t, ex.authorityValidations, "SetDefaults should clear the cached validations")
+	assert.Empty(t, ex.authorityValidations, "SetDefaults should clear the cached validations")
+	assert.NotNil(t, ex.authorityValidations, "SetDefaults should make the validation cache")
 
 	subAccounts, subAccountLookups := newRoleServerExchange(t, map[string]string{
 		testAccountAddress:    `{"role":"user"}`,

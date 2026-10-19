@@ -21,15 +21,15 @@ import (
 
 const (
 	// outcomeAssetIDBase offsets outcome encodings into the asset ID space
-	outcomeAssetIDBase         = 100000000
-	maximumPriorityRate        = 100000000
-	maximumPerpetualBuilderFee = 100
-	maximumSpotBuilderFee      = 1000
-	minimumScheduleCancelDelay = 5 * time.Second
-	minimumTWAPMinutes         = 5
-	maximumTWAPMinutes         = 1440
+	outcomeAssetIDBase                             = 1e8
+	maximumPriorityRate                            = 1e8
+	maximumPerpetualBuilderFee TenthsOfABasisPoint = 100
+	maximumSpotBuilderFee      TenthsOfABasisPoint = 1000
+	minimumScheduleCancelDelay                     = 5 * time.Second
+	minimumTWAPMinutes                             = 5
+	maximumTWAPMinutes                             = 1440
 	// liquidatorTransferStep is 1000 quote tokens with 6 decimals, the unit of HIP-3 backstop liquidator transfers
-	liquidatorTransferStep = 1000000000
+	liquidatorTransferStep = 1000e6
 	maximumAgentNameLength = 16
 	maximumAgentValidity   = 180 * 24 * time.Hour
 )
@@ -44,44 +44,43 @@ const (
 const userSignedAmountField = "amount"
 
 var (
-	errActionStatusCount             = errors.New("unexpected exchange action status count")
-	errActivationPriceInvalid        = errors.New("trailing stop activation price must not be negative")
-	errAddressEncodingInvalid        = errors.New("address encoding must be hex or base58")
-	errAgentNameInvalid              = errors.New("agent name must be at most 16 characters, and is required for an expiring agent")
-	errAgentValidUntilInvalid        = errors.New("agent expiry must be in the future and at most 180 days ahead")
-	errBuilderFeeInvalid             = errors.New("builder fee exceeds its maximum of 100 tenths of a basis point on perpetuals or 1000 on spot")
-	errBuilderFeeRateInvalid         = errors.New("builder fee rate must be a non-negative percentage")
-	errClientOrderIDInvalid          = errors.New("client order ID must be a 16-byte hexadecimal value")
-	errDestinationRecipientInvalid   = errors.New("invalid destination recipient")
-	errExpiresAfterPassed            = errors.New("action expiry must be in the future")
-	errGossipIPInvalid               = errors.New("invalid gossip priority IP address")
-	errGossipSlotInvalid             = errors.New("gossip priority slot must be 0 or 1")
-	errInvalidGrouping               = errors.New("invalid order grouping")
-	errInvalidLeverage               = errors.New("leverage must be a positive whole number within the market maximum")
-	errInvalidTriggerKind            = errors.New("trigger kind must be tp or sl")
-	errLiquidatorTransferInvalid     = errors.New("liquidator transfer must be a positive multiple of 1000 quote tokens")
-	errMarginChangeInvalid           = errors.New("isolated margin change must not be zero")
-	errMaxGasInvalid                 = errors.New("maximum gas must be greater than zero")
-	errNoActionItems                 = errors.New("at least one item is required")
-	errNonceRequired                 = errors.New("nonce is required")
-	errOrderPriceInvalid             = errors.New("order price must be greater than zero")
-	errOrderTypeRequired             = errors.New("an order must set exactly one of a limit or a trigger type")
-	errOutcomeAmountInvalid          = errors.New("outcome amount must be greater than zero")
-	errPriorityGroupingInvalid       = errors.New("priority grouping requires ungrouped orders that are all IOC, or all non-reduce-only ALO, on markets other than outcomes")
-	errPriorityRateInvalid           = errors.New("priority rate must be at most 100000000")
-	errRequestWeightInvalid          = errors.New("reserved request weight must be greater than zero")
-	errRetracementInvalid            = errors.New("set exactly one positive retracement percentage or price")
-	errScheduleCancelTimeInvalid     = errors.New("scheduled cancel time must be at least 5 seconds ahead")
-	errStakeAmountInvalid            = errors.New("stake amount must be greater than zero")
-	errTargetLeverageInvalid         = errors.New("target leverage must be greater than zero")
-	errTransferAmountInvalid         = errors.New("transfer amount must be greater than zero")
-	errTransferDEXInvalid            = errors.New("invalid transfer DEX")
-	errTransferSubAccountInvalid     = errors.New("user-signed transfer requires an owned subaccount")
-	errTransferSubAccountUnsupported = errors.New("this user-signed action does not support a configured subaccount")
-	errTransferTokenInvalid          = errors.New("invalid transfer token")
-	errTriggerPriceRequired          = errors.New("trigger price must be set")
-	errTWAPIDRequired                = errors.New("TWAP order ID is required")
-	errTWAPMinutesInvalid            = errors.New("TWAP duration must be 5 to 1440 minutes")
+	errActionStatusCount           = errors.New("unexpected exchange action status count")
+	errActivationPriceInvalid      = errors.New("trailing stop activation price must not be negative")
+	errAddressEncodingInvalid      = errors.New("address encoding must be hex or base58")
+	errAgentNameInvalid            = errors.New("agent name must be at most 16 characters, and is required for an expiring agent")
+	errAgentValidUntilInvalid      = errors.New("agent expiry must be in the future and at most 180 days ahead")
+	errBuilderFeeInvalid           = errors.New("builder fee exceeds its maximum of 100 tenths of a basis point on perpetuals or 1000 on spot")
+	errClientOrderIDInvalid        = errors.New("client order ID must be a 16-byte hexadecimal value")
+	errDestinationRecipientInvalid = errors.New("invalid destination recipient")
+	errExpiresAfterPassed          = errors.New("action expiry must be in the future")
+	errGossipIPInvalid             = errors.New("invalid gossip priority IP address")
+	errGossipSlotInvalid           = errors.New("gossip priority slot must be 0 or 1")
+	errInvalidGrouping             = errors.New("invalid order grouping")
+	errInvalidLeverage             = errors.New("leverage must be a positive whole number within the market maximum")
+	errInvalidTriggerKind          = errors.New("trigger kind must be tp or sl")
+	errLiquidatorTransferInvalid   = errors.New("liquidator transfer must be a positive multiple of 1000 quote tokens")
+	errMarginChangeInvalid         = errors.New("isolated margin change must not be zero")
+	errMaxGasInvalid               = errors.New("maximum gas in wei must be greater than zero")
+	errNoActionItems               = errors.New("at least one item is required")
+	errNonceRequired               = errors.New("nonce is required")
+	errOrderPriceInvalid           = errors.New("order price must be greater than zero")
+	errOrderTypeRequired           = errors.New("an order must set exactly one of a limit or a trigger type")
+	errOutcomeAmountInvalid        = errors.New("outcome amount must be greater than zero")
+	errOwnedSubAccountRequired     = errors.New("action requires a subaccount owned by the configured account")
+	errPriorityGroupingInvalid     = errors.New("priority grouping requires ungrouped orders that are all IOC, or all non-reduce-only ALO, on markets other than outcomes")
+	errPriorityRateInvalid         = errors.New("priority rate must be at most 100000000")
+	errRequestWeightInvalid        = errors.New("reserved request weight must be greater than zero")
+	errRetracementInvalid          = errors.New("set exactly one positive retracement percentage or price")
+	errScheduleCancelTimeInvalid   = errors.New("scheduled cancel time must be at least 5 seconds ahead")
+	errStakeAmountInvalid          = errors.New("stake amount in wei must be greater than zero")
+	errSubAccountUnsupported       = errors.New("action supports the main account only, not a configured subaccount or vault")
+	errTargetLeverageInvalid       = errors.New("target leverage must be greater than zero")
+	errTransferAmountInvalid       = errors.New("transfer amount must be greater than zero")
+	errTransferDEXInvalid          = errors.New("invalid transfer DEX")
+	errTransferTokenInvalid        = errors.New("invalid transfer token")
+	errTriggerPriceRequired        = errors.New("trigger price must be set")
+	errTWAPIDRequired              = errors.New("TWAP order ID is required")
+	errTWAPMinutesInvalid          = errors.New("TWAP duration must be 5 to 1440 minutes")
 )
 
 // PlaceOrders places a batch of orders as one signed order action and returns each order's status, in request order
@@ -476,20 +475,6 @@ func (e *Exchange) SendCoreSpot(ctx context.Context, arg *SendCoreSpotRequest) (
 	return e.sendUserSignedAction(ctx, credentials, &SpotSendAction{Destination: destination, Token: tokenIdentifier, Amount: amountText})
 }
 
-// WithdrawFromBridge requests a USDC withdrawal to Arbitrum through the legacy bridge, which Hyperliquid has deprecated
-// in favour of CCTP, and returns the action's nonce
-// Hyperliquid deducts the withdrawal fee from the amount
-func (e *Exchange) WithdrawFromBridge(ctx context.Context, arg *WithdrawFromBridgeRequest) (uint64, error) {
-	if arg == nil {
-		return 0, common.ErrNilPointer
-	}
-	destination, amountText, err := prepareTransfer(arg.Destination, arg.Amount)
-	if err != nil {
-		return 0, err
-	}
-	return e.sendAccountSignedAction(ctx, &Withdraw3Action{Destination: destination, Amount: amountText})
-}
-
 // TransferUSDCBetweenSpotAndPerp transfers USDC between the spot and default perpetual DEX balances of the account or its
 // configured subaccount, and returns the action's nonce
 func (e *Exchange) TransferUSDCBetweenSpotAndPerp(ctx context.Context, arg *TransferUSDCBetweenSpotAndPerpRequest) (uint64, error) {
@@ -511,24 +496,24 @@ func (e *Exchange) TransferUSDCBetweenSpotAndPerp(ctx context.Context, arg *Tran
 		// The action has no subaccount field, so Hyperliquid reads the subaccount from a suffix on the amount
 		amountText += " subaccount:" + subAccount
 	}
-	return e.sendUserSignedAction(ctx, credentials, &USDClassTransferAction{Amount: amountText, ToPerp: arg.ToPerp})
+	return e.sendUserSignedAction(ctx, credentials, &USDClassTransferAction{Amount: amountText, ToPerpetual: arg.ToPerpetual})
 }
 
 // DepositIntoStaking moves HYPE, in wei of 8 decimals, from spot into staking, and returns the action's nonce
-func (e *Exchange) DepositIntoStaking(ctx context.Context, wei uint64) (uint64, error) {
-	if wei == 0 {
+func (e *Exchange) DepositIntoStaking(ctx context.Context, amountInWei uint64) (uint64, error) {
+	if amountInWei == 0 {
 		return 0, errStakeAmountInvalid
 	}
-	return e.sendAccountSignedAction(ctx, &CDepositAction{Wei: wei})
+	return e.sendAccountSignedAction(ctx, &CDepositAction{AmountInWei: amountInWei})
 }
 
 // WithdrawFromStaking moves HYPE, in wei of 8 decimals, from staking back to spot through a 7 day unstaking queue, and
 // returns the action's nonce
-func (e *Exchange) WithdrawFromStaking(ctx context.Context, wei uint64) (uint64, error) {
-	if wei == 0 {
+func (e *Exchange) WithdrawFromStaking(ctx context.Context, amountInWei uint64) (uint64, error) {
+	if amountInWei == 0 {
 		return 0, errStakeAmountInvalid
 	}
-	return e.sendAccountSignedAction(ctx, &CWithdrawAction{Wei: wei})
+	return e.sendAccountSignedAction(ctx, &CWithdrawAction{AmountInWei: amountInWei})
 }
 
 // DelegateStake delegates staked HYPE to, or undelegates it from, a validator, and returns the action's nonce
@@ -541,10 +526,10 @@ func (e *Exchange) DelegateStake(ctx context.Context, arg *DelegateStakeRequest)
 	if err != nil {
 		return 0, err
 	}
-	if arg.Wei == 0 {
+	if arg.AmountInWei == 0 {
 		return 0, errStakeAmountInvalid
 	}
-	return e.sendAccountSignedAction(ctx, &TokenDelegateAction{Validator: validator, Wei: arg.Wei, IsUndelegate: arg.IsUndelegate})
+	return e.sendAccountSignedAction(ctx, &TokenDelegateAction{Validator: validator, AmountInWei: arg.AmountInWei, IsUndelegate: arg.IsUndelegate})
 }
 
 // TransferVaultUSDC deposits USDC into, or withdraws it from, a vault
@@ -556,10 +541,10 @@ func (e *Exchange) TransferVaultUSDC(ctx context.Context, arg *VaultTransferRequ
 	if err != nil {
 		return err
 	}
-	if arg.USD == 0 {
+	if arg.AmountInMicroUSDC == 0 {
 		return errTransferAmountInvalid
 	}
-	action := VaultTransferAction{Type: "vaultTransfer", VaultAddress: vault, IsDeposit: arg.IsDeposit, USD: arg.USD}
+	action := VaultTransferAction{Type: "vaultTransfer", VaultAddress: vault, IsDeposit: arg.IsDeposit, AmountInMicroUSDC: arg.AmountInMicroUSDC}
 	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
@@ -569,8 +554,8 @@ func (e *Exchange) TransferHIP3BackstopLiquidator(ctx context.Context, arg *HIP3
 	if arg == nil {
 		return common.ErrNilPointer
 	}
-	if arg.Notional == 0 || arg.Notional%liquidatorTransferStep != 0 {
-		return fmt.Errorf("%w: got %d", errLiquidatorTransferInvalid, arg.Notional)
+	if arg.NotionalInMicroQuoteTokens == 0 || arg.NotionalInMicroQuoteTokens%liquidatorTransferStep != 0 {
+		return fmt.Errorf("%w: got %d", errLiquidatorTransferInvalid, arg.NotionalInMicroQuoteTokens)
 	}
 	if dex := strings.TrimSpace(arg.DEX); dex == "" || strings.EqualFold(dex, "spot") {
 		return fmt.Errorf("%w: %q is not a HIP-3 DEX", errTransferDEXInvalid, arg.DEX)
@@ -583,7 +568,7 @@ func (e *Exchange) TransferHIP3BackstopLiquidator(ctx context.Context, arg *HIP3
 	if err != nil {
 		return err
 	}
-	action := HIP3LiquidatorTransferAction{Type: "hip3LiquidatorTransfer", DEX: dex, Notional: arg.Notional, IsDeposit: arg.IsDeposit}
+	action := HIP3LiquidatorTransferAction{Type: "hip3LiquidatorTransfer", DEX: dex, NotionalInMicroQuoteTokens: arg.NotionalInMicroQuoteTokens, IsDeposit: arg.IsDeposit}
 	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
@@ -623,14 +608,7 @@ func (e *Exchange) ApproveBuilderFee(ctx context.Context, arg *ApproveBuilderFee
 	if err != nil {
 		return 0, err
 	}
-	if arg.MaxFeeRate < 0 {
-		return 0, errBuilderFeeRateInvalid
-	}
-	rate, err := floatToWire(arg.MaxFeeRate)
-	if err != nil {
-		return 0, fmt.Errorf("%w: %w", errBuilderFeeRateInvalid, err)
-	}
-	return e.sendAccountSignedAction(ctx, &ApproveBuilderFeeAction{MaxFeeRate: rate + "%", Builder: builder})
+	return e.sendAccountSignedAction(ctx, &ApproveBuilderFeeAction{MaxFeeRate: arg.MaxFee.percentageText() + "%", Builder: builder})
 }
 
 // PlaceTWAPOrder places a time-weighted average price order and returns its running status
@@ -910,10 +888,10 @@ func (e *Exchange) BidGossipPriority(ctx context.Context, arg *GossipPriorityBid
 	if !arg.IP.IsValid() {
 		return errGossipIPInvalid
 	}
-	if arg.MaxGas == 0 {
+	if arg.MaxGasInWei == 0 {
 		return errMaxGasInvalid
 	}
-	action := GossipPriorityBidAction{Type: "gossipPriorityBid", SlotID: arg.SlotID, IP: arg.IP.Unmap().String(), MaxGas: arg.MaxGas}
+	action := GossipPriorityBidAction{Type: "gossipPriorityBid", SlotID: arg.SlotID, IP: arg.IP.Unmap().String(), MaxGasInWei: arg.MaxGasInWei}
 	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
@@ -1009,7 +987,7 @@ func builderFeeWire(builder *BuilderFee, orders []OrderRequest) (BuilderFeeWire,
 	if err != nil {
 		return BuilderFeeWire{}, err
 	}
-	maximum := uint64(maximumSpotBuilderFee)
+	maximum := maximumSpotBuilderFee
 	if slices.ContainsFunc(orders, func(o OrderRequest) bool { return o.Asset < spotAssetIDBase || o.Asset >= builderPerpetualAssetIDBase }) {
 		maximum = maximumPerpetualBuilderFee
 	}
@@ -1179,7 +1157,7 @@ func (e *Exchange) getAccountSigningCredentials(ctx context.Context) (*accounts.
 		return nil, err
 	}
 	if subAccount != "" {
-		return nil, errTransferSubAccountUnsupported
+		return nil, errSubAccountUnsupported
 	}
 	return credentials, nil
 }
@@ -1248,10 +1226,10 @@ func (e *Exchange) validateUserSignedSubAccount(ctx context.Context, credentials
 		return err
 	}
 	if role.Role != "subAccount" {
-		return fmt.Errorf("%w: role is %q", errTransferSubAccountInvalid, role.Role)
+		return fmt.Errorf("%w: role is %q", errOwnedSubAccountRequired, role.Role)
 	}
 	if masterAddress, _, err := normaliseAddress(role.Data.Master); err != nil || masterAddress != credentials.Key {
-		return fmt.Errorf("%w: configured account does not control %s", errTransferSubAccountInvalid, subAccount)
+		return fmt.Errorf("%w: configured account does not control %s", errOwnedSubAccountRequired, subAccount)
 	}
 	return nil
 }

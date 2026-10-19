@@ -158,7 +158,7 @@ func TestGetSpotDeployState(t *testing.T) {
 				Spots:                        []uint64{717},
 				MaxSupply:                    184467440737.0955200195,
 				HyperliquidityGenesisBalance: 120000,
-				TotalGenesisBalanceWei:       math.MaxUint64,
+				TotalGenesisBalanceInWei:     math.MaxUint64,
 				UserGenesisBalances:          []UserBalance{{User: "0x2000000000000000000000000000000000000162", Balance: 184467440737.0955200195}},
 				ExistingTokenGenesisBalances: []ExistingTokenBalance{{Token: 1, Balance: 300000}},
 				BlacklistUsers:               []string{"0x0000000000000000000000000000000000000019"},
