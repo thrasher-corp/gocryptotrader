@@ -930,11 +930,18 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	if s.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	// Spread prices are differentials between legs and may be zero or negative;
-	// market orders have no price; OCO, Chase, TrailingStop, and Trigger orders
-	// use trigger/tracking prices, not s.Price; every other limit-style order
-	// requires a positive price.
+	// Spread orders are checked on their own path, as their prices are
+	// differentials between legs and may be zero or negative. Otherwise a
+	// market order's price is optional, an optimal limit order takes none and
+	// OKX offers it on futures and perpetual swaps only, Trigger and
+	// ConditionalStop orders send -1 for a market fill, OCO, Chase and
+	// TrailingStop orders take their prices from other fields, and every other
+	// order type requires a positive price.
 	switch s.Type {
+	case order.OptimalLimit:
+		if s.AssetType != asset.Spread && s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
+			return nil, fmt.Errorf("%w: %v on %v", order.ErrUnsupportedOrderType, s.Type, s.AssetType)
+		}
 	case order.Market, order.OCO, order.Chase, order.TrailingStop, order.Trigger, order.ConditionalStop:
 	default:
 		if s.AssetType != asset.Spread && s.Price <= 0 {
@@ -3968,6 +3975,12 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
+			// quoteCcy is the currency a spread is priced in, while an inverse
+			// spread's legs settle in its base currency.
+			settlementCurrency := currency.NewCode(results[s].QuoteCurrency)
+			if contractSettlementType == futures.Inverse {
+				settlementCurrency = currency.NewCode(results[s].BaseCurrency)
+			}
 			resp[s] = futures.Contract{
 				Exchange:           e.Name,
 				Name:               results[s].SpreadID,
@@ -3979,7 +3992,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Type:               futures.LongDated,
 				SettlementType:     contractSettlementType,
 				MarginCurrency:     currency.NewCode(results[s].QuoteCurrency),
-				SettlementCurrency: currency.NewCode(results[s].QuoteCurrency),
+				SettlementCurrency: settlementCurrency,
 			}
 		}
 		return resp, nil

@@ -127,14 +127,20 @@ func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string,
 	case order.LimitMaker:
 		// A LimitMaker order must never take liquidity, so it places as
 		// post_only, and a time in force that fills immediately is refused.
+		if tif.IsValid() && tif.Is(order.PostOnly) {
+			return orderPostOnly, nil
+		}
 		switch tif {
-		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.PostOnly:
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
 			return orderPostOnly, nil
 		}
 	case order.Limit:
-		switch tif {
-		case order.PostOnly:
+		// TimeInForce.IsValid lets PostOnly combine with flags such as
+		// GoodTillCancel, and the order must still place as post-only.
+		if tif.IsValid() && tif.Is(order.PostOnly) {
 			return orderPostOnly, nil
+		}
+		switch tif {
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		case order.FillOrKill:

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"golang.org/x/time/rate"
 )
 
 func TestRateLimit_LimitStatic(t *testing.T) {
@@ -269,8 +270,10 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 }
 
 // TestBatchCancelLimitersTrackOrderBudgets pins the batch cancel limiters to
-// OKX's order budgets: OKX counts cancelled orders rather than requests, so
-// the cancel-algo limiter budgets 20 requests per 2 seconds (one per order).
+// OKX's order budgets: the cancel-batch-orders limiter budgets the 300 orders
+// per 2 seconds at the largest 20-order batch, while cancel-algos budgets 20
+// requests per 2 seconds and each request costs one slot whatever its order
+// count.
 func TestBatchCancelLimitersTrackOrderBudgets(t *testing.T) {
 	t.Parallel()
 	rl, err := request.New("RateLimit_BatchCancelBudgets", &http.Client{}, request.WithLimiter(rateLimits))
@@ -281,6 +284,9 @@ func TestBatchCancelLimitersTrackOrderBudgets(t *testing.T) {
 		require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelMultipleOrdersEPL), "cancel-batch-orders requests must stay within the limiter")
 	}
 	assert.GreaterOrEqual(t, time.Since(start), 500*time.Millisecond, "eight cancel-batch-orders requests should span the 15 requests per 2 seconds the 300 order budget needs")
+	// A timing bound cannot see a limiter that became too slow, so the budget
+	// one-order cancels draw on is pinned as well.
+	require.Equal(t, rate.Limit(10), rateLimits[cancelAlgoOrderEPL].Limit(), "cancel-algos must admit 20 one-order requests per 2 seconds")
 	require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelAlgoOrderEPL), "the first cancel-algos request must not wait")
 	start = time.Now()
 	for range 20 {

@@ -2005,6 +2005,16 @@ func TestWebsocketOrderMethodsGuards(t *testing.T) {
 
 		_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{
 			Exchange:  e.Name,
+			Pair:      spreadPair,
+			Side:      order.Buy,
+			Type:      order.OptimalLimit,
+			Amount:    1,
+			AssetType: asset.Spread,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread order should not transmit on the private connection whatever its type")
+
+		_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
 			Pair:      mainPair,
 			Side:      order.Buy,
 			Type:      order.Limit,
@@ -3088,21 +3098,54 @@ func TestSubmitOrderContractSendsSideAndReduceOnly(t *testing.T) {
 // where OKX ignores the flag and the position side carries the close intent.
 func TestSubmitOrderAlgoContractGuardsReduceOnlyByPositionMode(t *testing.T) {
 	t.Parallel()
-	algoExtras := func(s *order.Submit) {
-		s.TriggerPrice = 100
-		s.Price = -1
+	// Each algo type needs its own fields to place.
+	algoExtras := map[order.Type]func(s *order.Submit){
+		order.Trigger: func(s *order.Submit) {
+			s.TriggerPrice = 100
+			s.Price = -1
+		},
+		order.ConditionalStop: func(s *order.Submit) {
+			s.TriggerPrice = 100
+			s.Price = -1
+		},
+		order.Chase: func(s *order.Submit) {
+			s.TrackingMode = order.Percentage
+			s.TrackingValue = 0.1
+		},
+		order.TrailingStop: func(s *order.Submit) {
+			s.TrackingMode = order.Percentage
+			s.TrackingValue = 0.05
+		},
+		order.TWAP: func(s *order.Submit) {
+			s.TrackingMode = order.Percentage
+			s.TrackingValue = 0.01
+			s.Price = 100
+		},
+		order.OCO: func(s *order.Submit) {
+			s.RiskManagementModes.TakeProfit.Price = 110
+			s.RiskManagementModes.TakeProfit.LimitPrice = -1
+			s.RiskManagementModes.StopLoss.Price = 90
+			s.RiskManagementModes.StopLoss.LimitPrice = -1
+		},
 	}
 	for _, tc := range []struct {
 		name          string
+		orderType     order.Type
 		posMode       string
 		assetType     asset.Item
+		pair          currency.Pair
 		expReduceOnly any // nil when the field must be absent
 	}{
-		{"net mode passes reduceOnly", positionModeNet, asset.PerpetualSwap, true},
-		{"long/short mode suppresses reduceOnly", positionModeLongShort, asset.PerpetualSwap, nil},
-		{"margin passes reduceOnly regardless of mode", positionModeLongShort, asset.Margin, true},
+		{"net mode passes reduceOnly", order.Trigger, positionModeNet, asset.PerpetualSwap, mainPair, true},
+		{"long/short mode suppresses reduceOnly", order.Trigger, positionModeLongShort, asset.PerpetualSwap, mainPair, nil},
+		{"margin passes reduceOnly regardless of mode", order.Trigger, positionModeLongShort, asset.Margin, mainPair, true},
+		{"long/short mode suppresses reduceOnly", order.ConditionalStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		{"long/short mode suppresses reduceOnly", order.Chase, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		{"long/short mode suppresses reduceOnly", order.TrailingStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		{"long/short mode suppresses reduceOnly", order.TWAP, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		{"long/short mode suppresses reduceOnly", order.OCO, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.orderType.String()+"/"+tc.name, func(t *testing.T) {
 			t.Parallel()
 			var mu sync.Mutex
 			var body []byte
@@ -3124,16 +3167,16 @@ func TestSubmitOrderAlgoContractGuardsReduceOnlyByPositionMode(t *testing.T) {
 				writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0"})
 			}))
 			sub := &order.Submit{
-				Exchange:    e.Name,
-				Pair:        mainPair,
-				AssetType:   tc.assetType,
-				Side:        order.Sell,
-				Type:        order.Trigger,
-				Amount:      1,
-				MarginType:  margin.Multi,
-				ReduceOnly:  true,
+				Exchange:   e.Name,
+				Pair:       tc.pair,
+				AssetType:  tc.assetType,
+				Side:       order.Sell,
+				Type:       tc.orderType,
+				Amount:     1,
+				MarginType: margin.Multi,
+				ReduceOnly: true,
 			}
-			algoExtras(sub)
+			algoExtras[tc.orderType](sub)
 			_, err := e.SubmitOrder(t.Context(), sub)
 			require.NoError(t, err, "SubmitOrder must not error")
 			mu.Lock()
@@ -3754,6 +3797,75 @@ func TestSubmitOrderMarketOmitsPrice(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
 	_, has := sent["px"]
 	assert.False(t, has, "a market order should not send a price")
+}
+
+// TestSubmitOrderPriceGuard guards the submit price check: an order type that
+// sends px is refused without a price before any request transmits, while
+// market and optimal_limit_ioc orders, which OKX places with no px, still go
+// out, the latter only on the futures and perpetual swaps OKX offers it on.
+func TestSubmitOrderPriceGuard(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		assetType asset.Item
+		pair      currency.Pair
+		orderType order.Type
+		price     float64
+		expErr    error
+		expType   string // the ordType sent when the order is placed
+	}{
+		{"limit", asset.Spot, mainPair, order.Limit, 0, limits.ErrPriceBelowMin, ""},
+		{"limit with a negative price", asset.Spot, mainPair, order.Limit, -1, limits.ErrPriceBelowMin, ""},
+		{"limit maker", asset.Spot, mainPair, order.LimitMaker, 0, limits.ErrPriceBelowMin, ""},
+		{"market maker protection", asset.Options, optionsPair, order.MarketMakerProtection, 0, limits.ErrPriceBelowMin, ""},
+		{"optimal limit on spot", asset.Spot, mainPair, order.OptimalLimit, 0, order.ErrUnsupportedOrderType, ""},
+		{"market", asset.Spot, mainPair, order.Market, 0, nil, orderMarket},
+		{"optimal limit", asset.PerpetualSwap, perpetualSwapPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+		{"optimal limit on futures", asset.Futures, futuresPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/account/config":
+					writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+				case "/trade/order":
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:  e.Name,
+				Pair:      tc.pair,
+				AssetType: tc.assetType,
+				Side:      order.Buy,
+				Type:      tc.orderType,
+				Amount:    1,
+				Price:     tc.price,
+			})
+			mu.Lock()
+			defer mu.Unlock()
+			if tc.expErr != nil {
+				require.ErrorIs(t, err, tc.expErr, "an order OKX cannot place as given must be refused")
+				assert.Nil(t, body, "a refused order should not reach OKX")
+				return
+			}
+			require.NoError(t, err, "an order type OKX places with no px must not need a price")
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+			assert.Equal(t, tc.expType, sent["ordType"], "the order should send its documented ordType")
+			assert.NotContains(t, sent, "px", "the order should not send a price")
+		})
+	}
 }
 
 // TestSubmitOrderTriggerSendsOrderPrice guards the trigger order body: OKX
@@ -5328,6 +5440,29 @@ func TestGetOrderInfoReportsLeverage(t *testing.T) {
 	detail, err := e.GetOrderInfo(t.Context(), "ORD-1", perpetualSwapPair, asset.PerpetualSwap)
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.Equal(t, 10.0, detail.Leverage, "GetOrderInfo should report the order's leverage")
+}
+
+// TestGetFuturesContractDetailsSpreadSettlement guards the spread settlement
+// currency: quoteCcy is the currency a spread is priced in, so an inverse
+// spread, whose legs settle in its base currency, must not report it.
+func TestGetFuturesContractDetailsSpreadSettlement(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/spreads" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{
+			{"sprdId": "BTC-USDT_BTC-USDT-SWAP", "sprdType": "linear", "state": "live", "baseCcy": "BTC", "szCcy": "BTC", "quoteCcy": "USDT"},
+			{"sprdId": "BTC-USD-SWAP_BTC-USD-261225", "sprdType": "inverse", "state": "live", "baseCcy": "BTC", "szCcy": "USD", "quoteCcy": "USD"},
+		})
+	}))
+	contracts, err := e.GetFuturesContractDetails(t.Context(), asset.Spread)
+	require.NoError(t, err, "GetFuturesContractDetails must not error")
+	require.Len(t, contracts, 2, "GetFuturesContractDetails must return both spreads")
+	assert.Equal(t, "USDT", contracts[0].SettlementCurrency.String(), "a linear spread should settle in its quote currency")
+	assert.Equal(t, "BTC", contracts[1].SettlementCurrency.String(), "an inverse spread should settle in its base currency")
 }
 
 // TestOrderCost guards the order cost mapping: OKX fills spot and margin
