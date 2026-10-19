@@ -36,11 +36,9 @@ func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *E
 		tb.Helper()
 		operation, _ := jsonparser.GetString(message, "op")
 		if operation == wsAuthChannel {
-			if err := wsFixture(tb, message, conn); err != nil {
-				return err
-			}
+			// Connect can return as soon as the client reads the reply.
 			authenticated.Store(true)
-			return nil
+			return wsFixture(tb, message, conn)
 		}
 		assert.True(tb, authenticated.Load(), "trade requests should follow authentication")
 		return handler(tb, message, conn)

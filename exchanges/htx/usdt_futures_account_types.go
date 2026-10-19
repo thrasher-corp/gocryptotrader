@@ -8,7 +8,7 @@ import (
 
 // V5SetAssetModeRequest defines an account asset-mode change.
 type V5SetAssetModeRequest struct {
-	AssetMode uint64 `json:"assets_mode"`
+	AssetMode uint64 `json:"asset_mode"`
 }
 
 // V5AssetModeResponse stores the current account asset mode.
@@ -17,7 +17,7 @@ type V5AssetModeResponse struct {
 	Data V5AssetModeResponseData `json:"data"`
 }
 
-// V5SetAssetModeResponse uses the setter's plural field, unlike the getter.
+// V5SetAssetModeResponse stores the asset mode returned by the setter.
 type V5SetAssetModeResponse struct {
 	V5Response
 	Data V5SetAssetModeResponseData `json:"data"`
@@ -119,7 +119,7 @@ type V5AssetModeResponseData struct {
 
 // V5SetAssetModeResponseData contains data fields from V5SetAssetModeResponse.
 type V5SetAssetModeResponseData struct {
-	AssetMode uint64 `json:"assets_mode"`
+	AssetMode uint64 `json:"asset_mode"`
 }
 
 // V5FeeDeductionCurrencyResponseData contains data fields from V5FeeDeductionCurrencyResponse.
