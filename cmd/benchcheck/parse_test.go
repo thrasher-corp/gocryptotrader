@@ -559,6 +559,10 @@ func TestEmbeddedSkip(t *testing.T) {
 		{line: "fixture missing: --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
 		{line: " fixture missing: --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
 		{line: "fixture missing: --- SKIP: BenchmarkCodec", exp: "BenchmarkCodec"},
+		{line: ".--- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: "✓--- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: " --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: "ab--- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
 		// Only the last record counts, since go test's ends the line
 		{line: "transcript: --- SKIP: BenchmarkPrior--- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
 		{line: "transcript: --- SKIP: BenchmarkCodec/large and more"},
@@ -643,11 +647,18 @@ func TestParseRejectsNonFiniteAndNegative(t *testing.T) {
 
 func TestParseAcceptsNegativeCustomMetrics(t *testing.T) {
 	t.Parallel()
-	in := "pkg: github.com/thrasher-corp/gocryptotrader/currency\n" +
-		"BenchmarkNewCode-8   \t 1000000\t      1050 ns/op\t      16 B/op\t       2 allocs/op\t      -3.000 delta/op\n"
-	run, err := Parse(strings.NewReader(in))
-	require.NoError(t, err, "a negative custom metric must not fail the run, since b.ReportMetric allows one")
-	assert.Equal(t, []float64{2}, run.Samples["currency.BenchmarkNewCode"].Allocs, "the gated metrics should still be recorded")
+	// go test prints custom metrics before B/op and allocs/op, as in the first three lines
+	for _, line := range []string{
+		"BenchmarkNewCode-8   \t 1000000\t      1050 ns/op\t      -3.000 delta/op\t      16 B/op\t       2 allocs/op\n",
+		"BenchmarkNewCode-8   \t 1000000\t      1050 ns/op\t             NaN ratio/op\t      16 B/op\t       2 allocs/op\n",
+		"BenchmarkNewCode-8   \t 1000000\t      1050 ns/op\t      +Inf ratio/op\t      16 B/op\t       2 allocs/op\n",
+		"BenchmarkNewCode-8   \t 1000000\t      1050 ns/op\t      16 B/op\t       2 allocs/op\t      -3.000 delta/op\n",
+	} {
+		run, err := Parse(strings.NewReader("pkg: github.com/thrasher-corp/gocryptotrader/currency\n" + line))
+		require.NoErrorf(t, err, "a negative or non-finite custom metric must not fail the run, since b.ReportMetric allows one: %q", line)
+		assert.Equalf(t, &Samples{Pkg: "currency", Name: "BenchmarkNewCode", Bytes: []float64{16}, Allocs: []float64{2}},
+			run.Samples["currency.BenchmarkNewCode"], "the gated metrics should still be recorded: %q", line)
+	}
 }
 
 func TestParseBadMeasurementDoesNotVanish(t *testing.T) {

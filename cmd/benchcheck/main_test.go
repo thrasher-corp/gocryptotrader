@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,6 +65,31 @@ func TestMainExitStatus(t *testing.T) {
 		assert.Errorf(t, err, "main should exit non-zero for %s: %s", tc.name, out)
 		assert.Contains(t, string(out), "findings against the baseline", "main should print the findings error")
 	}
+}
+
+func TestMainRejectsArguments(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("BENCHCHECK_TEST_MAIN_ARGUMENT") != "" {
+		os.Args = []string{"benchcheck", "-samples", "3", "out.txt"}
+		main()
+		return
+	}
+	// stdin stays open, so a main that read it before rejecting the argument would wait out the deadline
+	stdin, stdinWriter, err := os.Pipe()
+	require.NoError(t, err, "os.Pipe must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, stdin.Close(), "closing stdin should not error")
+		assert.NoError(t, stdinWriter.Close(), "closing stdin's writer should not error")
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestMainRejectsArguments$") //nolint:gosec // re-runs this test binary to exercise main
+	cmd.Env = append(os.Environ(), "BENCHCHECK_TEST_MAIN_ARGUMENT=1")
+	cmd.Stdin = stdin
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, ctx.Err(), "main must reject the argument without waiting on stdin")
+	assert.Error(t, err, "main should exit non-zero when given a file argument")
+	assert.Contains(t, string(out), "unexpected argument", "main should refuse a file argument rather than read stdin")
 }
 
 func TestRunList(t *testing.T) {
@@ -214,6 +241,63 @@ func TestRunRejectsWrongSampleCount(t *testing.T) {
 	assert.ErrorIs(t, err, errSampleCount, "a run with the wrong number of samples should not be compared against the baseline")
 	assert.Contains(t, out.String(), "currency.BenchmarkNewCode reported B/op=3 allocs/op=3, expected 5",
 		"the offending benchmark should be named with its counts")
+}
+
+func TestRunRejectsOneShortBenchmark(t *testing.T) {
+	t.Parallel()
+	header := "goos: linux\ngoarch: amd64\npkg: github.com/thrasher-corp/gocryptotrader/currency\n"
+	complete := "BenchmarkA\n" + strings.Repeat("BenchmarkA-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", 7)
+	skipped := "BenchmarkC\n--- SKIP: BenchmarkC\n"
+	// Only the last benchmark is short of samples
+	short := "BenchmarkB\n" + strings.Repeat("BenchmarkB-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", 5)
+	done := "PASS\nok  \tgithub.com/thrasher-corp/gocryptotrader/currency\t1.2s\n"
+	for _, tc := range []struct {
+		name string
+		in   string
+		base Baseline
+	}{
+		{
+			name: "after a complete benchmark",
+			in:   header + complete + short,
+			base: Baseline{"currency.BenchmarkA": {Allocs: 2, Bytes: 16}, "currency.BenchmarkB": {Allocs: 2, Bytes: 16}},
+		},
+		{
+			name: "after an ignored skip",
+			in:   header + skipped + short,
+			base: Baseline{"currency.BenchmarkB": {Allocs: 2, Bytes: 16}, "currency.BenchmarkC": {Ignore: true, Reason: "needs a fixture"}},
+		},
+		{name: "alone", in: header + short, base: Baseline{"currency.BenchmarkB": {Allocs: 2, Bytes: 16}}},
+	} {
+		o := testOptions(t)
+		require.NoError(t, os.WriteFile(o.packagesPath, []byte("currency\n"), 0o600), "writing the package list must not error")
+		o.samples = 7
+		require.NoError(t, tc.base.Save(o.baselinePath), "seeding the baseline must not error")
+		var out bytes.Buffer
+		assert.ErrorIsf(t, run(strings.NewReader(tc.in+done), &out, o), errSampleCount, "a short benchmark %s should fail the run", tc.name)
+		assert.Containsf(t, out.String(), "currency.BenchmarkB reported B/op=5 allocs/op=5, expected 7",
+			"a short benchmark %s should be named with its counts", tc.name)
+		// make bench_update and make bench_apply prune as they update
+		for _, prune := range []bool{false, true} {
+			o.update, o.prune = true, prune
+			assert.ErrorIsf(t, run(strings.NewReader(tc.in+done), &bytes.Buffer{}, o), errSampleCount,
+				"an update with prune %t should refuse a short benchmark %s", prune, tc.name)
+		}
+		after, err := LoadBaseline(o.baselinePath, false)
+		require.NoErrorf(t, err, "reloading the baseline must not error after a short benchmark %s", tc.name)
+		assert.Equalf(t, tc.base, after, "a refused update should leave the baseline untouched after a short benchmark %s", tc.name)
+	}
+}
+
+func TestRunChecksSampleCountOfOne(t *testing.T) {
+	t.Parallel()
+	o := testOptions(t)
+	o.samples = 1
+	require.NoError(t, Baseline{}.Save(o.baselinePath), "seeding an empty baseline must not error")
+	var out bytes.Buffer
+	err := run(strings.NewReader(sampleOutput), &out, o)
+	assert.ErrorIs(t, err, errSampleCount, "-samples 1 is odd, so its count should be checked like any other")
+	assert.Contains(t, out.String(), "currency.BenchmarkNewCode reported B/op=3 allocs/op=3, expected 1",
+		"the benchmark reporting more samples should be named with its counts")
 }
 
 func TestRunRejectsArguments(t *testing.T) {
@@ -439,6 +523,29 @@ func TestRunPruneRefusesSkipRecordBudgets(t *testing.T) {
 	require.NoError(t, run(strings.NewReader(in), &out, o), "a prune whose deletions no skip record names must not error")
 	assert.Contains(t, out.String(), "pruned currency.BenchmarkGone", "a budget no skip record names should still be pruned")
 	assert.Contains(t, out.String(), "currency.BenchmarkCase/large skipped in this run; keeping it", "a budget a reported skip covers should be kept")
+}
+
+func TestRunPruneRefusesSkipRecordBudgetsAfterASkip(t *testing.T) {
+	t.Parallel()
+	o := testOptions(t)
+	require.NoError(t, os.WriteFile(o.packagesPath, []byte("currency\n"), 0o600), "writing the package list must not error")
+	base := Baseline{
+		"currency.BenchmarkAlpha":      {Allocs: 1, Bytes: 8},
+		"currency.BenchmarkCase/small": {Allocs: 2, Bytes: 16},
+		"currency.BenchmarkHidden":     {Allocs: 2, Bytes: 16},
+		"currency.BenchmarkLater":      {Allocs: 2, Bytes: 16},
+	}
+	require.NoError(t, base.Save(o.baselinePath), "seeding the baseline must not error")
+	in := "goos: linux\ngoarch: amd64\npkg: github.com/thrasher-corp/gocryptotrader/currency\nBenchmarkAlpha\n--- SKIP: BenchmarkAlpha\n" +
+		"BenchmarkCase\nBenchmarkCase/small\n" +
+		strings.Repeat("BenchmarkCase/small-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", 3) +
+		"fixture ready: BenchmarkHidden\nprogress: --- SKIP: BenchmarkHidden\n" +
+		"fixture ready: BenchmarkLater\nprogress: --- SKIP: BenchmarkLater\n" +
+		"PASS\nok  \tgithub.com/thrasher-corp/gocryptotrader/currency\t1.2s\n"
+	o.update, o.prune = true, true
+	err := run(strings.NewReader(in), &bytes.Buffer{}, o)
+	assert.ErrorIs(t, err, errSkipRecordBudgets, "a skip covering an earlier budget should not exempt a later budget a skip record names")
+	assert.ErrorContains(t, err, "currency.BenchmarkHidden, currency.BenchmarkLater", "the error should name every such budget")
 }
 
 func TestRunPruneIgnoresLoggedOkLine(t *testing.T) {

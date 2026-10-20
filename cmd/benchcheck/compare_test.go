@@ -100,6 +100,44 @@ func TestCompareIgnore(t *testing.T) {
 		"an ignored benchmark should produce no findings however far it moves")
 }
 
+func TestCompareIgnoreKeepsComparingLaterKeys(t *testing.T) {
+	t.Parallel()
+	base := Baseline{
+		"exchanges/alert.BenchmarkWait":  {Allocs: 4, Bytes: 778, Ignore: true, Reason: "non-deterministic"},
+		"exchanges/alert.BenchmarkWatch": {Allocs: 1, Bytes: 8},
+	}
+	results := resultsOf(result("exchanges/alert", "BenchmarkWait", 99, 9999), result("exchanges/alert", "BenchmarkWatch", 2, 8))
+	exp := []Finding{{Regression, "exchanges/alert.BenchmarkWatch", "allocs/op 1 -> 2"}}
+	assert.Equal(t, exp, Compare(base, results, nil, []string{"exchanges/alert"}),
+		"an ignored benchmark should not stop the benchmarks after it being compared")
+}
+
+func TestCompareUntrackedKeepsComparingLaterKeys(t *testing.T) {
+	t.Parallel()
+	base := Baseline{"exchanges/alert.BenchmarkWatch": {Allocs: 1, Bytes: 8}}
+	results := resultsOf(result("exchanges/alert", "BenchmarkWait", 4, 778), result("exchanges/alert", "BenchmarkWatch", 2, 8))
+	exp := []Finding{
+		{Untracked, "exchanges/alert.BenchmarkWait", "benchmark has no baseline entry; run 'make bench_update'"},
+		{Regression, "exchanges/alert.BenchmarkWatch", "allocs/op 1 -> 2"},
+	}
+	assert.ElementsMatch(t, exp, Compare(base, results, nil, []string{"exchanges/alert"}),
+		"an untracked benchmark should not stop the benchmarks after it being compared")
+}
+
+func TestCompareSkipKeepsCheckingLaterBudgets(t *testing.T) {
+	t.Parallel()
+	base := Baseline{
+		"exchanges/alert.BenchmarkAlert":     {Allocs: 0, Bytes: 0},
+		"exchanges/alert.BenchmarkWait":      {Ignore: true, Reason: "skips without a fixture"},
+		"exchanges/alert.BenchmarkWait/kick": {Allocs: 1, Bytes: 32},
+		"exchanges/alert.BenchmarkWatchGone": {Allocs: 1, Bytes: 8},
+	}
+	skipped := map[string]string{"exchanges/alert.BenchmarkWait": "exchanges/alert"}
+	exp := []Finding{{Missing, "exchanges/alert.BenchmarkWatchGone", "baseline entry has no matching benchmark; it was renamed or deleted, run 'make bench_update'"}}
+	assert.Equal(t, exp, Compare(base, resultsOf(result("exchanges/alert", "BenchmarkAlert", 0, 0)), skipped, []string{"exchanges/alert"}),
+		"a budget a skip covers should not stop the budgets after it being checked")
+}
+
 func TestCompareUntracked(t *testing.T) {
 	t.Parallel()
 	findings := Compare(Baseline{}, resultsOf(result("currency", "BenchmarkNewCode", 2, 16)), nil, []string{"currency"})

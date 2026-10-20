@@ -63,6 +63,13 @@ func TestCheckNames(t *testing.T) {
 		{name: "fields repeated across entries", data: `{"a.B": {"allocs": 1, "bytes": 2}, "a.C": {"allocs": 1, "bytes": 2}}`},
 		{name: "keys differing only in case", data: `{"a.B": {}, "a.b": {}}`},
 		{name: "braces and quotes inside a string", data: `{"a.B": {"reason": "a {brace} and a \"quote\""}, "a.C": {}}`},
+		{name: "a field in another case after a reason holding a bracket", data: `{"a.B": {"reason": "tolerance in [0, 1)", "Allocs": 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case after a reason ending in an escaped quote", data: `{"a.B": {"reason": "a 5\"", "Allocs": 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case after a reason ending in an escaped backslash", data: `{"a.B": {"reason": "a\\", "Allocs": 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case after a reason ending in a code point escape", data: `{"a.B": {"reason": "a\u0022", "Allocs": 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case after an empty reason", data: `{"a.B": {"reason": "", "Allocs": 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case before a spaced colon", data: `{"a.B": {"Allocs" : 1}}`, err: errUnknownField, msg: `a.B: "Allocs"`},
+		{name: "a field in another case before whitespace and a colon", data: "{\"a.B\": {\"Allocs\" \t\r\n: 1}}", err: errUnknownField, msg: `a.B: "Allocs"`},
 		{name: "every field Save writes", data: `{"a.B": {"allocs": 1, "bytes": 2, "allocs_tolerance": 0.1, "bytes_tolerance": 0, "ignore": true, "reason": "x"}}`},
 		{name: "a repeated key", data: `{"a.B": {}, "a.C": {}, "a.B": {}}`, err: errDuplicateName, msg: "a.B"},
 		{name: "a repeat spelled with an escape", data: `{"a.B": {}, "a\u002eB": {}}`, err: errDuplicateName, msg: "a.B"},
@@ -338,6 +345,18 @@ func TestBaselineUpdateSkipsIgnored(t *testing.T) {
 		"an ignored benchmark should keep its recorded values")
 }
 
+func TestBaselineUpdateFoldsResultsAfterIgnored(t *testing.T) {
+	t.Parallel()
+	base := Baseline{
+		"exchanges/alert.BenchmarkWait":  {Allocs: 4, Bytes: 778, Ignore: true, Reason: "non-deterministic"},
+		"exchanges/alert.BenchmarkWatch": {Allocs: 1, Bytes: 8},
+	}
+	changes := base.Update(resultsOf(result("exchanges/alert", "BenchmarkWait", 99, 9999), result("exchanges/alert", "BenchmarkWatch", 2, 8)), nil, true)
+	assert.Equal(t, []string{"exchanges/alert.BenchmarkWatch allocs/op 1 -> 2"}, changes,
+		"an ignored benchmark should not stop the results after it being folded in")
+	assert.Equal(t, uint64(2), base["exchanges/alert.BenchmarkWatch"].Allocs, "the result after an ignored benchmark should be recorded")
+}
+
 func TestBaselineUpdateWithoutPruneKeepsEntries(t *testing.T) {
 	t.Parallel()
 	base := Baseline{
@@ -348,6 +367,8 @@ func TestBaselineUpdateWithoutPruneKeepsEntries(t *testing.T) {
 	changes := base.Update(resultsOf(result("currency", "BenchmarkNewCode", 2, 16)), nil, false)
 	assert.Contains(t, changes, "currency.BenchmarkOther has no result in this run; keeping it (pass -prune to delete)",
 		"an entry without a result should be reported as kept")
+	assert.Contains(t, changes, "exchange/websocket/buffer.BenchmarkBufferPerf has no result in this run; keeping it (pass -prune to delete)",
+		"the second entry without a result should be reported too")
 	assert.Contains(t, base, "currency.BenchmarkOther", "a partial run should not delete entries it simply did not select")
 	assert.Contains(t, base, "exchange/websocket/buffer.BenchmarkBufferPerf", "an entry outside the run's packages should be kept too")
 	assert.Equal(t, uint64(2), base["currency.BenchmarkNewCode"].Allocs, "measured entries should still be refreshed")
