@@ -2,6 +2,7 @@ package okx
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -382,4 +383,87 @@ func TestChunkRequestsCarriesInstrumentID(t *testing.T) {
 		}
 	}
 	require.Positive(t, checked, "must exercise at least one pair specific subscription")
+}
+
+func TestIsSymbolChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel string
+		want    bool
+	}{
+		{subscription.CandlesChannel, true},
+		{subscription.TickerChannel, true},
+		{subscription.OrderbookChannel, true},
+		{subscription.AllTradesChannel, true},
+		{channelTickers, true},
+		{channelTrades, true},
+		{channelOrderBooks, true},
+		{channelOrderBooks5, true},
+		{channelOrderBooks50TBT, true},
+		{channelOrderBooksTBT, true},
+		{channelBBOTBT, true},
+		{channelFundingRate, true},
+		{channelMarkPrice, true},
+		{channelOpenInterest, true},
+		{channelInstruments, false},
+		{liquidationOrders, false},
+		{channelOrders, false},
+		{subscription.MyAccountChannel, false},
+		{subscription.MyOrdersChannel, false},
+		{"unknown", false},
+	} {
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, isSymbolChannel(&subscription.Subscription{Channel: tc.channel}), "Symbol channel classification must match the API scope")
+			if !tc.want {
+				return
+			}
+			tracked := new(Exchange)
+			require.NoError(t, testexch.Setup(tracked), "Test exchange setup must succeed")
+			a, pair := asset.Spot, mainPair
+			if tc.channel == channelFundingRate || tc.channel == channelMarkPrice || tc.channel == channelOpenInterest {
+				a, pair = asset.PerpetualSwap, perpetualSwapPair
+			}
+			tracked.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Asset: a, Pairs: currency.Pairs{pair}}}
+			got, err := tracked.generateSubscriptions(true)
+			require.NoError(t, err, "Symbol subscription expansion must succeed")
+			require.Len(t, got, 1, "Explicit single instrument must produce one subscription")
+			require.Contains(t, got[0].QualifiedChannel, fmt.Sprintf(`"instId":%q`, pair.String()), "Symbol channels must include the subscribed instrument")
+			require.Contains(t, got[0].QualifiedChannel, fmt.Sprintf(`"channel":%q`, channelName(tracked.Features.Subscriptions[0])), "Expansion must preserve the chosen exchange channel")
+		})
+	}
+}
+
+func TestIsAssetChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel string
+		want    bool
+	}{
+		{subscription.MyOrdersChannel, true},
+		{channelOrders, true},
+		{channelInstruments, true},
+		{liquidationOrders, true},
+		{subscription.MyAccountChannel, false},
+		{subscription.TickerChannel, false},
+		{channelTickers, false},
+		{"unknown", false},
+	} {
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, isAssetChannel(&subscription.Subscription{Channel: tc.channel}), "asset channel classification must match the API scope")
+			if !tc.want {
+				return
+			}
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "test exchange setup must succeed")
+			authenticated := tc.channel == channelOrders || tc.channel == subscription.MyOrdersChannel
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Asset: asset.PerpetualSwap, Authenticated: authenticated}}
+			subs, err := ex.generateSubscriptions(!authenticated)
+			require.NoError(t, err, "asset subscription expansion must succeed")
+			require.Len(t, subs, 1, "all enabled instruments must share one asset subscription")
+			require.JSONEq(t, fmt.Sprintf(`{"channel":%q,"instType":"SWAP"}`, channelName(ex.Features.Subscriptions[0])), subs[0].QualifiedChannel, "asset channels must omit instrument-specific arguments")
+		})
+	}
 }

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -42,7 +43,7 @@ const (
 	apiURL  = baseURL + apiPath
 
 	apiPath      = "api/v5/"
-	websocketURL = "wss://ws.okx.com:8443/ws/v5/"
+	websocketURL = "wss://ws.okx.com/ws/v5/"
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
@@ -1899,8 +1900,9 @@ func (e *Exchange) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID,
 
 // GetFee returns Cryptocurrency trade fee, and offline trade fee
 func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	// Here the Asset Type for the instrument Type is needed for getting the CryptocurrencyTrading Fee.
-	var fee float64
+	if feeBuilder == nil {
+		return 0, common.ErrNilPointer
+	}
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		// The spot underlying doubles as the instrument ID the fee rates are
@@ -1912,30 +1914,68 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		responses, err := e.GetTradeFee(ctx, instTypeSpot, instID, "")
 		if err != nil {
 			return 0, err
-		} else if len(responses) == 0 {
+		}
+		if len(responses) == 0 {
 			return 0, common.ErrNoResponse
 		}
-		if feeBuilder.IsMaker {
-			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
-				fee = responses[0].FeeRateMakerUSDC.Float64()
-			} else if fee = responses[0].FeeRateMaker.Float64(); fee == 0 {
-				fee = responses[0].FeeRateMakerUSDT.Float64()
+		if len(responses) != 1 || (responses[0].InstrumentType != asset.Empty && responses[0].InstrumentType != asset.Spot) {
+			return 0, fmt.Errorf("%w: expected one spot fee response for %s", errFeeRateUnavailable, instID)
+		}
+		rate := &responses[0]
+		var selectedRate *types.Number
+		switch {
+		case len(rate.FeeGroup) > 0:
+			// instId scopes the returned rates, including market maker incentives.
+			// If multiple groups remain, resolve the instrument's group explicitly.
+			group := &rate.FeeGroup[0]
+			if len(rate.FeeGroup) > 1 {
+				instruments, err := e.GetInstruments(ctx, &InstrumentsFetchParams{InstrumentType: instTypeSpot, InstrumentID: instID})
+				if err != nil {
+					return 0, err
+				}
+				if len(instruments) != 1 || instruments[0].InstrumentID.String() != instID || instruments[0].InstrumentType != instTypeSpot || instruments[0].TradingFeeGroupID == "" {
+					return 0, fmt.Errorf("%w: instrument fee group missing for %s", errFeeRateUnavailable, instID)
+				}
+				group = nil
+				for i := range rate.FeeGroup {
+					if rate.FeeGroup[i].GroupID != instruments[0].TradingFeeGroupID {
+						continue
+					}
+					if group != nil {
+						return 0, fmt.Errorf("%w: duplicate fee group for %s", errFeeRateUnavailable, instID)
+					}
+					group = &rate.FeeGroup[i]
+				}
 			}
-		} else {
-			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
-				fee = responses[0].FeeRateTakerUSDC.Float64()
-			} else if fee = responses[0].FeeRateTaker.Float64(); fee == 0 {
-				fee = responses[0].FeeRateTakerUSDT.Float64()
+			if group == nil || group.GroupID == "" {
+				return 0, fmt.Errorf("%w: matching fee group missing for %s", errFeeRateUnavailable, instID)
+			}
+			selectedRate = group.TakerRate
+			if feeBuilder.IsMaker {
+				selectedRate = group.MakerRate
+			}
+		case feeBuilder.Pair.Quote.Equal(currency.USDT):
+			selectedRate = rate.FeeRateTaker
+			if feeBuilder.IsMaker {
+				selectedRate = rate.FeeRateMaker
+			}
+		case !feeBuilder.Pair.Quote.IsFiatCurrency():
+			// Legacy USDC fields also cover other stablecoin and crypto quotes.
+			// makerU/takerU describe derivatives and cannot substitute for spot fees.
+			selectedRate = rate.FeeRateTakerUSDC
+			if feeBuilder.IsMaker {
+				selectedRate = rate.FeeRateMakerUSDC
 			}
 		}
-		if fee != 0 {
-			fee = -fee // A negative fee rate indicates a commission charge; a positive rate indicates a rebate.
+		if selectedRate == nil {
+			return 0, fmt.Errorf("%w: maker=%t instrument=%s", errFeeRateUnavailable, feeBuilder.IsMaker, instID)
 		}
-		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+		// OKX uses negative rates for commission charges and positive rates for rebates.
+		return -selectedRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
 		return 0.0015 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
 	default:
-		return fee, errFeeTypeUnsupported
+		return 0, errFeeTypeUnsupported
 	}
 }
 
@@ -5183,11 +5223,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if err != nil {
 		return err
 	}
-	var resp struct {
-		Code types.Number    `json:"code"`
-		Msg  string          `json:"msg"`
-		Data json.RawMessage `json:"data"`
-	}
+	var responseJSON json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		var payload []byte
 		if data != nil {
@@ -5222,7 +5258,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			Path:                   endpoint + requestPath,
 			Headers:                headers,
 			Body:                   bytes.NewBuffer(payload),
-			Result:                 &resp,
+			Result:                 &responseJSON,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -5230,6 +5266,10 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		}, nil
 	}
 	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {
+		return err
+	}
+	var resp RESTResponseHeader
+	if err := json.Unmarshal(responseJSON, &resp); err != nil {
 		return err
 	}
 	if resp.Code.Int64() != 0 {
@@ -5245,21 +5285,37 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
-	// Most endpoints can be unmarshalled directly (objects and full arrays).
-	directErr := json.Unmarshal(resp.Data, result)
+	// Each endpoint supplies its concrete response type; inspect the common
+	// envelope separately so an API error never depends on that payload shape.
+	responseData, kind, _, err := jsonparser.Get(responseJSON, "data")
+	if err != nil {
+		return fmt.Errorf("getting response data: %w", err)
+	}
+	if kind == jsonparser.String {
+		responseData = append(append([]byte{'"'}, responseData...), '"')
+	}
+	directErr := json.Unmarshal(responseData, result)
 	if directErr == nil {
 		return nil
 	}
 
 	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
-	var dataSlice []json.RawMessage
-	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+	var count int
+	_, sliceErr := jsonparser.ArrayEach(responseData, func(_ []byte, _ jsonparser.ValueType, _ int, _ error) { count++ })
+	if sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
-	if len(dataSlice) != 1 {
-		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, len(dataSlice))
+	if count != 1 {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, count)
 	}
-	if firstErr := json.Unmarshal(dataSlice[0], result); firstErr != nil {
+	first, kind, _, err := jsonparser.Get(responseData, "[0]")
+	if err != nil {
+		return fmt.Errorf("getting first response data item: %w", err)
+	}
+	if kind == jsonparser.String {
+		first = append(append([]byte{'"'}, first...), '"')
+	}
+	if firstErr := json.Unmarshal(first, result); firstErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as the first array item (error: %w)", directErr, firstErr)
 	}
 	return nil
