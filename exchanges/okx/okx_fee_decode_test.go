@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
@@ -25,28 +26,29 @@ func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			row := TradeFeeRate{MakerPresent: true, TakerPresent: true, MakerUSDTPresent: true, TakerUSDTPresent: true, MakerUSDCPresent: true, TakerUSDCPresent: true}
+			previous := types.Number(1)
+			row := TradeFeeRate{FeeRateMaker: &previous, FeeRateTaker: &previous, FeeRateMakerUSDT: &previous, FeeRateTakerUSDT: &previous, FeeRateMakerUSDC: &previous, FeeRateTakerUSDC: &previous}
 			err := json.Unmarshal([]byte(tc.payload), &row)
 			if tc.invalid {
 				require.Error(t, err, "invalid fees must fail decoding")
 				return
 			}
 			require.NoError(t, err, "valid fees must decode")
-			assert.Equal(t, tc.present, row.MakerPresent, "presence should match the response")
-			assert.Equal(t, tc.present, row.TakerPresent, "presence should match the response")
-			assert.Equal(t, tc.present, row.MakerUSDTPresent, "presence should match the response")
-			assert.Equal(t, tc.present, row.TakerUSDTPresent, "presence should match the response")
-			assert.Equal(t, tc.present, row.MakerUSDCPresent, "USDC maker presence should match")
-			assert.Equal(t, tc.present, row.TakerUSDCPresent, "USDC taker presence should match")
+			assert.Equal(t, tc.present, row.FeeRateMaker != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateTaker != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateMakerUSDT != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateTakerUSDT != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateMakerUSDC != nil, "USDC maker presence should match")
+			assert.Equal(t, tc.present, row.FeeRateTakerUSDC != nil, "USDC taker presence should match")
 		})
 	}
 	t.Run("independent legacy fields", func(t *testing.T) {
 		t.Parallel()
 		var row TradeFeeRate
 		require.NoError(t, json.Unmarshal([]byte(`{"maker":"-0.001","taker":null,"makerU":"","takerU":"-0.002","makerUSDC":"0.003","takerUSDC":"0"}`), &row), "mixed legacy fields must decode")
+		maker, takerUSDT, makerUSDC, takerUSDC := types.Number(-0.001), types.Number(-0.002), types.Number(0.003), types.Number(0)
 		assert.Equal(t, TradeFeeRate{
-			FeeRateMaker: -0.001, FeeRateTakerUSDT: -0.002, FeeRateMakerUSDC: 0.003,
-			MakerPresent: true, TakerUSDTPresent: true, MakerUSDCPresent: true, TakerUSDCPresent: true,
+			FeeRateMaker: &maker, FeeRateTakerUSDT: &takerUSDT, FeeRateMakerUSDC: &makerUSDC, FeeRateTakerUSDC: &takerUSDC,
 		}, row, "each legacy rate and presence flag should follow its own field")
 	})
 	t.Run("modern fee group", func(t *testing.T) {
@@ -54,7 +56,8 @@ func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
 		var row TradeFeeRate
 		require.NoError(t, json.Unmarshal([]byte(`{"feeGroup":[{"groupId":"4","maker":"0","taker":"-0.0005"}]}`), &row), "fee group must decode")
 		require.Len(t, row.FeeGroup, 1, "fee group must decode")
-		assert.Equal(t, TradeFeeGroup{GroupID: "4", MakerRate: 0, TakerRate: -0.0005, MakerPresent: true, TakerPresent: true}, row.FeeGroup[0], "fee group should preserve rates and presence")
+		maker, taker := types.Number(0), types.Number(-0.0005)
+		assert.Equal(t, TradeFeeGroup{GroupID: "4", MakerRate: &maker, TakerRate: &taker}, row.FeeGroup[0], "fee group should preserve rates and presence")
 		var instrument Instrument
 		require.NoError(t, json.Unmarshal([]byte(`{"instId":"BTC-USDT-SWAP","groupId":"4"}`), &instrument), "instrument must decode")
 		assert.Equal(t, "4", instrument.TradingFeeGroupID, "instrument should retain its fee group")
@@ -80,17 +83,24 @@ func TestTradeFeeGroupUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			row := TradeFeeGroup{MakerRate: 1, TakerRate: 2, MakerPresent: true, TakerPresent: true}
+			previous := types.Number(1)
+			row := TradeFeeGroup{MakerRate: &previous, TakerRate: &previous}
 			err := json.Unmarshal([]byte(tc.payload), &row)
 			if tc.invalid {
 				require.Error(t, err, "invalid fee values must fail decoding")
 				return
 			}
 			require.NoError(t, err, "valid fee responses must decode")
-			assert.Equal(t, tc.makerPresent, row.MakerPresent, "maker presence should match the response")
-			assert.Equal(t, tc.maker, row.MakerRate.Float64(), "maker rate should match the response")
-			assert.Equal(t, tc.takerPresent, row.TakerPresent, "taker presence should match the response")
-			assert.Equal(t, tc.taker, row.TakerRate.Float64(), "taker rate should match the response")
+			assert.Equal(t, tc.makerPresent, row.MakerRate != nil, "maker presence should match the response")
+			if tc.makerPresent {
+				require.NotNil(t, row.MakerRate, "maker rate must be available")
+				assert.Equal(t, tc.maker, row.MakerRate.Float64(), "maker rate should match the response")
+			}
+			assert.Equal(t, tc.takerPresent, row.TakerRate != nil, "taker presence should match the response")
+			if tc.takerPresent {
+				require.NotNil(t, row.TakerRate, "taker rate must be available")
+				assert.Equal(t, tc.taker, row.TakerRate.Float64(), "taker rate should match the response")
+			}
 		})
 	}
 }

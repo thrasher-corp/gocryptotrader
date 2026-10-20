@@ -79,6 +79,7 @@ const (
 )
 
 var (
+	errFeeRateUnavailable                   = errors.New("applicable trading fee rate unavailable")
 	errWebsocketRequestRejected             = errors.New("OKX websocket request rejected")
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
@@ -440,27 +441,26 @@ type OpenInterest struct {
 	Timestamp            types.Time   `json:"ts"`
 }
 
-// FundingRateResponse response data for the Funding Rate for an instruction type
+// FundingRateResponse response data for the Funding Rate for an instruction type.
+// A nil realised rate indicates that settlement evidence was not supplied.
 type FundingRateResponse struct {
-	// RealisedRatePresent distinguishes a settled zero from absent or empty evidence.
-	RealisedRatePresent          bool         `json:"-"`
-	InstrumentType               string       `json:"instType"`
-	InstrumentID                 string       `json:"instId"`
-	FormulaType                  string       `json:"formulaType"`
-	FundingRateMethod            string       `json:"method"`
-	FundingRate                  types.Number `json:"fundingRate"`
-	RealisedRate                 types.Number `json:"realizedRate"`
-	InterestRate                 types.Number `json:"interestRate"`
-	ImpactValue                  types.Number `json:"impactValue"`
-	NextFundingRate              types.Number `json:"nextFundingRate"`
-	FundingTime                  types.Time   `json:"fundingTime"`
-	NextFundingTime              types.Time   `json:"nextFundingTime"`
-	MinFundingRate               types.Number `json:"minFundingRate"`
-	MaxFundingRate               types.Number `json:"maxFundingRate"`
-	SettlementStateOfFundingRate string       `json:"settState"`
-	SettlementFundingRate        types.Number `json:"settFundingRate"`
-	Premium                      string       `json:"premium"`
-	Timestamp                    types.Time   `json:"ts"`
+	InstrumentType               string        `json:"instType"`
+	InstrumentID                 string        `json:"instId"`
+	FormulaType                  string        `json:"formulaType"`
+	FundingRateMethod            string        `json:"method"`
+	FundingRate                  types.Number  `json:"fundingRate"`
+	RealisedRate                 *types.Number `json:"realizedRate"`
+	InterestRate                 types.Number  `json:"interestRate"`
+	ImpactValue                  types.Number  `json:"impactValue"`
+	NextFundingRate              types.Number  `json:"nextFundingRate"`
+	FundingTime                  types.Time    `json:"fundingTime"`
+	NextFundingTime              types.Time    `json:"nextFundingTime"`
+	MinFundingRate               types.Number  `json:"minFundingRate"`
+	MaxFundingRate               types.Number  `json:"maxFundingRate"`
+	SettlementStateOfFundingRate string        `json:"settState"`
+	SettlementFundingRate        types.Number  `json:"settFundingRate"`
+	Premium                      string        `json:"premium"`
+	Timestamp                    types.Time    `json:"ts"`
 }
 
 // LimitPriceResponse hold an information for
@@ -859,6 +859,13 @@ type OrderData struct {
 
 func (o *OrderData) Error() error {
 	return getStatusError(o.StatusCode, o.StatusMessage)
+}
+
+// RESTResponseHeader contains the common status fields shared by REST endpoints.
+// Endpoint methods decode data into their own concrete response types.
+type RESTResponseHeader struct {
+	Code types.Number `json:"code"`
+	Msg  string       `json:"msg"`
 }
 
 // ResponseResult holds responses having a status result value
@@ -2239,27 +2246,21 @@ type MaximumLoanInstrument struct {
 	Side           order.Side   `json:"side"`
 }
 
-// TradeFeeRate holds trade fee rate information for a given instrument type
+// TradeFeeRate holds trade fee rate information for a given instrument type.
+// Nil fee rates represent omitted, null or empty API values.
 type TradeFeeRate struct {
-	// Presence flags distinguish omitted or empty rates from an explicit zero fee.
-	MakerPresent      bool            `json:"-"`
-	TakerPresent      bool            `json:"-"`
-	MakerUSDTPresent  bool            `json:"-"`
-	TakerUSDTPresent  bool            `json:"-"`
-	MakerUSDCPresent  bool            `json:"-"`
-	TakerUSDCPresent  bool            `json:"-"`
 	Category          string          `json:"category"`
 	DeliveryFeeRate   types.Number    `json:"delivery"`
 	Exercise          string          `json:"exercise"`
 	InstrumentType    asset.Item      `json:"instType"`
 	FeeRateLevel      string          `json:"level"`
-	FeeRateMaker      types.Number    `json:"maker"`
-	FeeRateTaker      types.Number    `json:"taker"`
+	FeeRateMaker      *types.Number   `json:"maker"`
+	FeeRateTaker      *types.Number   `json:"taker"`
 	Timestamp         types.Time      `json:"ts"`
-	FeeRateMakerUSDT  types.Number    `json:"makerU"`
-	FeeRateTakerUSDT  types.Number    `json:"takerU"`
-	FeeRateMakerUSDC  types.Number    `json:"makerUSDC"`
-	FeeRateTakerUSDC  types.Number    `json:"takerUSDC"`
+	FeeRateMakerUSDT  *types.Number   `json:"makerU"`
+	FeeRateTakerUSDT  *types.Number   `json:"takerU"`
+	FeeRateMakerUSDC  *types.Number   `json:"makerUSDC"`
+	FeeRateTakerUSDC  *types.Number   `json:"takerUSDC"`
 	RuleType          string          `json:"ruleType"`
 	Fiat              []FiatItemInfo  `json:"fiat"`
 	FeeGroup          []TradeFeeGroup `json:"feeGroup"`
@@ -2267,15 +2268,13 @@ type TradeFeeRate struct {
 }
 
 // TradeFeeGroup represents a trading fee group's maker and taker rates.
+// Nil fee rates represent omitted, null or empty API values.
 type TradeFeeGroup struct {
-	// Presence flags distinguish omitted or empty rates from an explicit zero fee.
-	MakerPresent bool         `json:"-"`
-	TakerPresent bool         `json:"-"`
-	GroupID      string       `json:"groupId"`
-	MakerRate    types.Number `json:"maker"`
-	TakerRate    types.Number `json:"taker"`
-	ELPMakerRate types.Number `json:"elpMaker"`
-	RPIMakerRate types.Number `json:"rpiMaker"`
+	GroupID      string        `json:"groupId"`
+	MakerRate    *types.Number `json:"maker"`
+	TakerRate    *types.Number `json:"taker"`
+	ELPMakerRate types.Number  `json:"elpMaker"`
+	RPIMakerRate types.Number  `json:"rpiMaker"`
 }
 
 // FiatItemInfo represents fiat currency with taker and maker fee details
@@ -3310,15 +3309,15 @@ type WSSubscriptionInformationList struct {
 	subs      subscription.List
 }
 
+// wsIncomingData contains the common routing fields; each channel decodes its own typed data.
 type wsIncomingData struct {
 	Event      string           `json:"event"`
 	Argument   SubscriptionInfo `json:"arg"`
 	StatusCode string           `json:"code"`
 	Message    string           `json:"msg"`
 	// For Websocket Trading Endpoints websocket responses
-	ID        string          `json:"id"`
-	Operation string          `json:"op"`
-	Data      json.RawMessage `json:"data"`
+	ID        string `json:"id"`
+	Operation string `json:"op"`
 }
 
 // WSInstrumentResponse represents websocket instruments push message
@@ -5571,17 +5570,8 @@ type withdrawData struct {
 	WithdrawalID string `json:"wdId"`
 }
 
-// tradeFeePresence preserves absent and empty fields separately from numeric zero.
-type tradeFeePresence struct {
-	Maker     *json.RawMessage `json:"maker"`
-	Taker     *json.RawMessage `json:"taker"`
-	MakerUSDT *json.RawMessage `json:"makerU"`
-	TakerUSDT *json.RawMessage `json:"takerU"`
-	MakerUSDC *json.RawMessage `json:"makerUSDC"`
-	TakerUSDC *json.RawMessage `json:"takerUSDC"`
-}
-
-// fundingRatePresence distinguishes unknown settlement rates from numeric zero.
-type fundingRatePresence struct {
-	RealisedRate *json.RawMessage `json:"realizedRate"`
+// OptionalNumber preserves whether an API numeric field contains a value.
+// Empty strings, null and omitted fields are absent; explicit zero is present.
+type OptionalNumber struct {
+	Value *types.Number
 }

@@ -389,8 +389,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if resp.Event == "error" {
 		return fmt.Errorf("%w: code %q channel %q: %s", errWebsocketRequestRejected, resp.StatusCode, resp.Argument.Channel, resp.Message)
 	}
-	if len(resp.Data) == 0 {
-		return nil
+	// Control responses have no data; channel payloads are decoded by their typed handlers.
+	if _, _, _, err := jsonparser.Get(respRaw, "data"); err != nil {
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return nil
+		}
+		return err
 	}
 	switch resp.Argument.Channel {
 	case channelCandle1Y, channelCandle6M, channelCandle3M, channelCandle1M, channelCandle1W,

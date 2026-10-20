@@ -5,37 +5,43 @@ import "github.com/thrasher-corp/gocryptotrader/encoding/json"
 // UnmarshalJSON preserves presence of legacy fee fields, including explicit zero rates.
 func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	type rate TradeFeeRate
-	var decoded rate
+	type response struct {
+		rate
+		Maker     OptionalNumber `json:"maker"`
+		Taker     OptionalNumber `json:"taker"`
+		MakerUSDT OptionalNumber `json:"makerU"`
+		TakerUSDT OptionalNumber `json:"takerU"`
+		MakerUSDC OptionalNumber `json:"makerUSDC"`
+		TakerUSDC OptionalNumber `json:"takerUSDC"`
+	}
+	var decoded response
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
-	var fields tradeFeePresence
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return err
-	}
-	decoded.MakerPresent = fields.Maker != nil && string(*fields.Maker) != `""`
-	decoded.TakerPresent = fields.Taker != nil && string(*fields.Taker) != `""`
-	decoded.MakerUSDTPresent = fields.MakerUSDT != nil && string(*fields.MakerUSDT) != `""`
-	decoded.TakerUSDTPresent = fields.TakerUSDT != nil && string(*fields.TakerUSDT) != `""`
-	decoded.MakerUSDCPresent = fields.MakerUSDC != nil && string(*fields.MakerUSDC) != `""`
-	decoded.TakerUSDCPresent = fields.TakerUSDC != nil && string(*fields.TakerUSDC) != `""`
-	*r = TradeFeeRate(decoded)
+	decoded.FeeRateMaker = decoded.Maker.Value
+	decoded.FeeRateTaker = decoded.Taker.Value
+	decoded.FeeRateMakerUSDT = decoded.MakerUSDT.Value
+	decoded.FeeRateTakerUSDT = decoded.TakerUSDT.Value
+	decoded.FeeRateMakerUSDC = decoded.MakerUSDC.Value
+	decoded.FeeRateTakerUSDC = decoded.TakerUSDC.Value
+	*r = TradeFeeRate(decoded.rate)
 	return nil
 }
 
 // UnmarshalJSON retains explicit zero rates without treating absent fields as free trading.
 func (r *TradeFeeGroup) UnmarshalJSON(data []byte) error {
 	type feeGroup TradeFeeGroup
-	var decoded feeGroup
+	type response struct {
+		feeGroup
+		Maker OptionalNumber `json:"maker"`
+		Taker OptionalNumber `json:"taker"`
+	}
+	var decoded response
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
-	var fields tradeFeePresence
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return err
-	}
-	decoded.MakerPresent = fields.Maker != nil && string(*fields.Maker) != `""`
-	decoded.TakerPresent = fields.Taker != nil && string(*fields.Taker) != `""`
-	*r = TradeFeeGroup(decoded)
+	decoded.MakerRate = decoded.Maker.Value
+	decoded.TakerRate = decoded.Taker.Value
+	*r = TradeFeeGroup(decoded.feeGroup)
 	return nil
 }

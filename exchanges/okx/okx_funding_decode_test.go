@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestFundingRateResponseUnmarshalJSON(t *testing.T) {
@@ -27,15 +28,19 @@ func TestFundingRateResponseUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			r := FundingRateResponse{RealisedRatePresent: true, RealisedRate: 1}
+			previous := types.Number(1)
+			r := FundingRateResponse{RealisedRate: &previous}
 			err := json.Unmarshal([]byte(tc.payload), &r)
 			if tc.invalid {
 				require.Error(t, err, "invalid rate must fail decoding")
 				return
 			}
 			require.NoError(t, err, "valid rate must decode")
-			assert.Equal(t, tc.present, r.RealisedRatePresent, "presence should match settled evidence")
-			assert.Equal(t, tc.want, r.RealisedRate.Float64(), "rate should preserve the supplied value")
+			assert.Equal(t, tc.present, r.RealisedRate != nil, "presence should match settled evidence")
+			if tc.present {
+				require.NotNil(t, r.RealisedRate, "settled rate must be available")
+				assert.Equal(t, tc.want, r.RealisedRate.Float64(), "rate should preserve the supplied value")
+			}
 		})
 	}
 }
