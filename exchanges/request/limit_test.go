@@ -1533,9 +1533,11 @@ func TestAdmitLocked(t *testing.T) {
 		second.m.Lock()
 		errs := make(chan error, 1)
 		go func() { errs <- admit(b) }()
-		require.Eventually(t, func() bool { return first.limiter.Tokens() < 0.5 }, time.Second, time.Millisecond, "admission must reserve the first participant before reaching the second")
+		// second.m is released before any require, since admission holds rateLimitReservationMu while it waits on it
+		reserved := assert.Eventually(t, func() bool { return first.limiter.Tokens() < 0.5 }, time.Second, time.Millisecond, "admission should reserve the first participant before reaching the second")
 		close(cancelled)
 		second.m.Unlock()
+		require.True(t, reserved, "admission must reserve the first participant before reaching the second")
 		require.ErrorIs(t, <-errs, ErrRateLimitBarrierRejected, "a participant cancelled after its reservation must reject the group")
 		assert.InDelta(t, 1, first.limiter.Tokens(), 0.001, "a rejected group should give back every reservation")
 		assert.InDelta(t, 1, second.limiter.Tokens(), 0.001, "a rejected group should give back every reservation")

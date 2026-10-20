@@ -27,6 +27,8 @@ var (
 	errMismatchedJSONBodyShape  = errors.New("mismatched JSON body shape")
 	errUnsupportedJSONBodyShape = errors.New("unsupported JSON body shape")
 	errUnexpectedTrailingJSON   = errors.New("unexpected trailing JSON content")
+
+	httpRecordMu sync.Mutex
 )
 
 // HTTPResponse defines expected response from the end point including request
@@ -75,6 +77,24 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 		}
 	}
 
+	// GetBody is the caller's own callback, so the request body is read before the mock file is locked
+	var body string
+	if res.Request.GetBody != nil {
+		bodycopy, bodyErr := res.Request.GetBody()
+		if bodyErr != nil {
+			return bodyErr
+		}
+		payload, bodyErr := io.ReadAll(bodycopy)
+		if bodyErr != nil {
+			return bodyErr
+		}
+		body = string(payload)
+	}
+
+	// Each recording rewrites the whole file, so concurrent requests would otherwise drop each other's entries
+	httpRecordMu.Lock()
+	defer httpRecordMu.Unlock()
+
 	contents, err := os.ReadFile(outputFilePath)
 	if err != nil {
 		return err
@@ -102,19 +122,6 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 
 	if err := json.Unmarshal(cleanedContents, &httpResponse.Data); err != nil {
 		return err
-	}
-
-	var body string
-	if res.Request.GetBody != nil {
-		bodycopy, bodyErr := res.Request.GetBody()
-		if bodyErr != nil {
-			return bodyErr
-		}
-		payload, bodyErr := io.ReadAll(bodycopy)
-		if bodyErr != nil {
-			return bodyErr
-		}
-		body = string(payload)
 	}
 
 	switch res.Request.Header.Get(contentType) {

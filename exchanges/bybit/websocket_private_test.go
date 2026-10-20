@@ -1032,6 +1032,15 @@ func TestWsProcessOrder(t *testing.T) {
 	conditional.Type = order.StopMarket
 	assert.Equal(t, []any{[]order.Detail{conditional}}, relayed(ex), "wsProcessOrder should relay a conditional market order as a stop market order")
 
+	// Block trade orders, and orders Bybit names no type for, read back as GetOrderHistory reads them
+	for orderType, exp := range map[string]order.Type{"Block trade-Limit": order.Limit, "Block trade Roll Back": order.UnknownType, "UNKNOWN": order.UnknownType} {
+		frame := bytes.Replace(bytes.Replace(frames[0], []byte(`"orderType":"Limit"`), []byte(`"orderType":"`+orderType+`"`), 1), []byte(`"stopOrderType":"TakeProfit"`), []byte(`"stopOrderType":""`), 1)
+		require.NoErrorf(t, ex.wsProcessOrder(t.Context(), frame), "wsProcessOrder must not error for order type %q", orderType)
+		typed := linear
+		typed.Type = exp
+		assert.Equalf(t, []any{[]order.Detail{typed}}, relayed(ex), "wsProcessOrder should relay order type %q as GetOrderHistory reads it", orderType)
+	}
+
 	// Bybit sizes a spot market buy by value unless told otherwise, and reports some such buys with an empty market unit
 	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[1], []byte(`"marketUnit":"quoteCoin"`), []byte(`"marketUnit":""`), 1)), "wsProcessOrder must not error for a spot market buy without a market unit")
 	assert.Equal(t, []any{[]order.Detail{spot}}, relayed(ex), "wsProcessOrder should read a spot market buy without a market unit as sized by value")

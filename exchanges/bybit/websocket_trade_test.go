@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -598,6 +599,29 @@ func TestWebsocketTradeRequestHeaderJSON(t *testing.T) {
 	assert.JSONEq(t, `{"X-BAPI-TIMESTAMP":"1711001595207"}`, string(data), "WebsocketTradeRequestHeader should leave out an unset receive window and referer")
 }
 
+func TestTimedTradeRequestStampSendTime(t *testing.T) {
+	t.Parallel()
+	newRequest := func(timestamp string) *WebsocketTradeRequest {
+		return &WebsocketTradeRequest{
+			RequestID: "test-001",
+			Header:    &WebsocketTradeRequestHeader{Timestamp: timestamp, ReceiveWindow: "8000"},
+			Operation: "order.create",
+			Arguments: []any{map[string]any{"category": cLinear}},
+		}
+	}
+	r := newRequest("1711001595207")
+	assert.Equal(t, newRequest("1711001600123"), timedTradeRequest{r}.StampSendTime(time.Unix(0, 1711001600123456789)), "StampSendTime should return the request stamped with its send time in milliseconds")
+	assert.Equal(t, newRequest("1711001595207"), r, "StampSendTime should leave the request unchanged")
+	// A connection that does not stamp requests sends the timed request as it is
+	timed, err := json.Marshal(timedTradeRequest{r})
+	require.NoError(t, err, "Marshal must not error")
+	plain, err := json.Marshal(r)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, string(plain), string(timed), "a timed request should marshal as the request it holds")
+	_, stamped := any(r).(websocket.SendTimeStamper)
+	assert.False(t, stamped, "WebsocketTradeRequest should not implement SendTimeStamper, so that a type embedding it is sent whole")
+}
+
 func TestSendWebsocketTradeRequest(t *testing.T) {
 	t.Parallel()
 	conn := &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"reqId":"1","retCode":0,"retMsg":"OK","op":"order.create","data":{"orderId":"a4c1718e-fe53-4659-a118-1f6ecce04ad9","orderLinkId":"test-005"},"retExtInfo":{},"header":{"X-Bapi-Limit":"10","X-Bapi-Limit-Status":"9","X-Bapi-Limit-Reset-Timestamp":"1711001595208","Traceid":"38b7977b430f9bd228f4b19724794dfd","Timenow":"1711001595209"},"connId":"cnt5leec0hvan15eukcg-2v"}`)}
@@ -619,8 +643,9 @@ func TestSendWebsocketTradeRequest(t *testing.T) {
 	}
 	assert.Equal(t, exp, resp, "sendWebsocketTradeRequest should decode every reply field")
 	require.Len(t, conn.sent, 1, "sendWebsocketTradeRequest must send one request")
-	req, ok := conn.sent[0].(*WebsocketTradeRequest)
-	require.True(t, ok, "sendWebsocketTradeRequest must send a WebsocketTradeRequest")
+	sent, ok := conn.sent[0].(timedTradeRequest)
+	require.True(t, ok, "sendWebsocketTradeRequest must send a request the trade connection stamps when it sends it")
+	req := sent.WebsocketTradeRequest
 	assert.Equal(t, "order.create", req.Operation, "request operation should be kept")
 	assert.NotEmpty(t, req.RequestID, "request should carry a request ID")
 	require.NotNil(t, req.Header, "request must carry headers")
@@ -631,6 +656,43 @@ func TestSendWebsocketTradeRequest(t *testing.T) {
 	require.ErrorContains(t, err, "connection lost", "sendWebsocketTradeRequest must return a failed send")
 	_, err = sendWebsocketTradeRequest[OrderResponse](t.Context(), e, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":"0"}`)}, "order.create", nil, wsCreateOrderEPL)
 	require.Error(t, err, "sendWebsocketTradeRequest must error for an undecodable reply")
+}
+
+func TestSendWebsocketTradeRequestStampsWhenSent(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	stamps := make(map[string]string)
+	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
+		mu.Lock()
+		stamps[string(req.Arguments[0])] = req.Header["X-BAPI-TIMESTAMP"]
+		mu.Unlock()
+		return orderReply(req, `{"orderId":"c1956690-b731-4191-97c0-94b00422231b","orderLinkId":""}`), ""
+	}}
+	ex := newTradeStreamExchange(t, m)
+	conn, err := ex.Websocket.GetConnection(OutboundTradeConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	// A rate limit barrier holds the first request back until the second joins it, as a rate limit wait would. Their
+	// endpoint has no budget, so they take nothing from the order budgets other tests draw on. The deadline ends both
+	// requests should the barrier never admit them
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	contexts, err := request.NewRateLimitBarrierContexts(ctx, 2)
+	require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+	held := make(chan error, 1)
+	go func() {
+		_, err := sendWebsocketTradeRequest[OrderResponse](contexts[0], ex, conn, "order.create", "held", wsSubscriptionEPL)
+		held <- err
+	}()
+	time.Sleep(100 * time.Millisecond)
+	joined := time.Now()
+	_, err = sendWebsocketTradeRequest[OrderResponse](contexts[1], ex, conn, "order.create", "joining", wsSubscriptionEPL)
+	require.NoError(t, err, "sendWebsocketTradeRequest must not error")
+	require.NoError(t, <-held, "sendWebsocketTradeRequest must not error for the held request")
+	mu.Lock()
+	defer mu.Unlock()
+	stamp, err := strconv.ParseInt(stamps[`"held"`], 10, 64)
+	require.NoError(t, err, "the held request's timestamp must be Unix milliseconds")
+	assert.GreaterOrEqual(t, stamp, joined.UnixMilli(), "a request held back by its rate limit should be stamped when it is sent, not when it was made")
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {

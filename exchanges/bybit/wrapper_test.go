@@ -206,6 +206,51 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 			},
 		},
 		{
+			// A spot market buy with a trigger price is sized by value like any spot market buy, so it sends its quote
+			// amount without a market unit, unlike a stop market buy
+			submit: &order.Submit{
+				Exchange:     e.GetName(),
+				Pair:         currency.NewBTCUSDT(),
+				AssetType:    asset.Spot,
+				Side:         order.Buy,
+				Type:         order.Market,
+				Amount:       0.001,
+				QuoteAmount:  25,
+				TriggerPrice: 90000,
+			},
+			exp: &PlaceOrderRequest{
+				Category:     cSpot,
+				Symbol:       "BTCUSDT",
+				Side:         sideBuy,
+				OrderType:    "Market",
+				Quantity:     25,
+				TimeInForce:  "IOC",
+				TriggerPrice: 90000,
+				TriggerBy:    "LastPrice",
+				OrderFilter:  "tpslOrder",
+			},
+		},
+		{
+			// A spot market sell is sized in the base currency whatever quote amount it carries
+			submit: &order.Submit{
+				Exchange:    e.GetName(),
+				Pair:        currency.NewBTCUSDT(),
+				AssetType:   asset.Spot,
+				Side:        order.Sell,
+				Type:        order.Market,
+				Amount:      0.001,
+				QuoteAmount: 25,
+			},
+			exp: &PlaceOrderRequest{
+				Category:    cSpot,
+				Symbol:      "BTCUSDT",
+				Side:        sideSell,
+				OrderType:   "Market",
+				Quantity:    0.001,
+				TimeInForce: "IOC",
+			},
+		},
+		{
 			submit: &order.Submit{
 				Exchange:   e.GetName(),
 				Pair:       currency.NewBTCUSDT(),

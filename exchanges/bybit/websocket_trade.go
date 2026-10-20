@@ -225,15 +225,34 @@ func (e *Exchange) sendWebsocketBatchOrderRequest(ctx context.Context, op, categ
 	return results, nil
 }
 
+// timedTradeRequest is an order request as sendWebsocketTradeRequest sends it, which the trade connection stamps with
+// the time it is sent, after any rate limit wait, since Bybit refuses a request whose timestamp is older than its
+// receive window. WebsocketTradeRequest itself leaves it out, so that a type embedding one is sent whole
+type timedTradeRequest struct {
+	*WebsocketTradeRequest
+}
+
+var _ websocket.SendTimeStamper = timedTradeRequest{}
+
+// StampSendTime returns a copy of the request stamped with the time it is sent
+func (r timedTradeRequest) StampSendTime(t time.Time) any {
+	header := *r.Header
+	header.Timestamp = strconv.FormatInt(t.UnixMilli(), 10)
+	stamped := *r.WebsocketTradeRequest
+	stamped.Header = &header
+	return &stamped
+}
+
 // sendWebsocketTradeRequest sends a request on the trade connection and returns its reply, or the error it reports
 func sendWebsocketTradeRequest[T any](ctx context.Context, e *Exchange, conn websocket.Connection, op string, args any, epl request.EndpointLimit) (*WebsocketTradeResponse[T], error) {
+	// The trade connection stamps the request again once its rate limit wait is over, through StampSendTime
 	req := &WebsocketTradeRequest{
 		RequestID: e.MessageID(),
 		Header:    &WebsocketTradeRequestHeader{Timestamp: strconv.FormatInt(time.Now().UnixMilli(), 10)},
 		Operation: op,
 		Arguments: []any{args},
 	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, epl, req.RequestID, req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, epl, req.RequestID, timedTradeRequest{req})
 	if err != nil {
 		return nil, err
 	}

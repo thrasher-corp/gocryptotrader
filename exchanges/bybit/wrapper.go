@@ -1450,17 +1450,9 @@ func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item) (*order.Detail, error
 	if err != nil {
 		return nil, err
 	}
-	orderType := order.UnknownType
-	switch o.OrderType {
-	case "UNKNOWN", "Block trade Roll Back":
-		// Bybit documents these as order types it only returns, for funding and for a block trade's roll back, with no
-		// GoCryptoTrader counterpart
-	case "Block trade-Limit":
-		orderType = order.Limit
-	default:
-		if orderType, err = order.StringToOrderType(o.OrderType); err != nil {
-			return nil, err
-		}
+	orderType, err := orderTypeFromString(o.OrderType)
+	if err != nil {
+		return nil, err
 	}
 	orderType = conditionalOrderType(orderType, o.StopOrderType)
 	side, err := order.StringToOrderSide(o.Side)
@@ -1510,6 +1502,19 @@ func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item) (*order.Detail, error
 	}
 	d.SetFees(fees)
 	return d, nil
+}
+
+// orderTypeFromString returns the order type of a Bybit order, REST or pushed
+func orderTypeFromString(s string) (order.Type, error) {
+	switch s {
+	case "UNKNOWN", "Block trade Roll Back":
+		// Bybit documents these as order types it only returns, for funding and for a block trade's roll back, with no
+		// GoCryptoTrader counterpart
+		return order.UnknownType, nil
+	case "Block trade-Limit":
+		return order.Limit, nil
+	}
+	return order.StringToOrderType(s)
 }
 
 // quoteSized reports whether an order's qty is a quote amount, which only a spot market order's can be. Bybit sizes a

@@ -257,7 +257,7 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		orderType, err := order.StringToOrderType(o.OrderType)
+		orderType, err := orderTypeFromString(o.OrderType)
 		if err != nil {
 			return err
 		}
