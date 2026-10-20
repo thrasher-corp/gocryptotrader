@@ -125,10 +125,12 @@ other's stored book, and two `userFills` variants would relay each fill twice.
 The websocket manager runs two connections: a public one for market feeds and `WebsocketAPI()` posts, which stays open
 without subscriptions, and an account one for account feeds, opened when account feeds are subscribed, authenticated
 websocket support is enabled and an account address is configured. Hyperliquid limits an IP address to 1000
-subscriptions across both. When the account connection cannot connect or is lost, the public feeds stay up, and the
-manager retries it after a connection monitor cycle, then at intervals doubling up to a minute, or staying at the
-monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an IP address; the interval
-carries over reconnections until the account connection connects.
+subscriptions across both, so the market feeds configured past the room the configured account feeds need are left
+out, and held ones are removed when account feeds are added; any other market feed is refused once it would leave too
+little room for the configured account feeds not yet held. When the account connection cannot connect or is lost, the
+public feeds stay up, and the manager retries it after a connection monitor cycle, then at intervals doubling up to a
+minute, or staying at the monitor delay when that is longer, as Hyperliquid accepts 30 new connections a minute from an
+IP address; the interval carries over reconnections until the account connection connects.
 
 Hyperliquid closes the connection, dropping every feed on it, when a subscription fails validation, so coins, DEXs and
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it

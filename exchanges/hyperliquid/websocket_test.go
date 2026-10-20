@@ -499,11 +499,27 @@ func newLocalWebsocketTestExchange(t *testing.T, configured subscription.List) (
 		}
 		// Disabling stops the connection monitor, which would otherwise redial the server after the test
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
+		if err := shutdownWebsocketWithin(t, ex); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})
 	return ex, venue
+}
+
+// shutdownWebsocketWithin shuts the websocket down, failing the test once Shutdown has not returned within five seconds:
+// the connection monitor holds the manager's lock while it waits for a lost connection's reader, so a reader that never
+// reports it has stopped would otherwise block the test's cleanup until go test's timeout
+func shutdownWebsocketWithin(t *testing.T, ex *Exchange) error {
+	t.Helper()
+	result := make(chan error, 1)
+	go func() { result <- ex.Websocket.Shutdown() }()
+	select {
+	case err := <-result:
+		return err
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "Shutdown should return within five seconds")
+		return nil
+	}
 }
 
 // websocketVenueRequest is a request as Hyperliquid's websocket receives it: a ping, a subscription request or a post
@@ -716,7 +732,7 @@ func newAccountRecoveryTestExchange(t *testing.T, refuse func(attempt int) bool,
 	t.Cleanup(func() {
 		// Disabling stops the connection monitor, which may then shut the connection down first
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
+		if err := shutdownWebsocketWithin(t, ex); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket is already shut down")
 		}
 	})
@@ -3830,6 +3846,209 @@ func TestAccountFeedsAvailable(t *testing.T) {
 	assert.ErrorIs(t, ex.accountFeedsAvailable(t.Context()), errInvalidAddress, "accountFeedsAvailable should require an account address")
 }
 
+// reservedAccountFeedTypes returns the subscription type of each account feed the exchange keeps room for
+func reservedAccountFeedTypes(ex *Exchange) []string {
+	ex.websocketPendingMu.Lock()
+	defer ex.websocketPendingMu.Unlock()
+	feedTypes := make([]string, 0, len(ex.websocketAccountFeeds))
+	for _, feed := range ex.websocketAccountFeeds {
+		feedTypes = append(feedTypes, feed.options.Type)
+	}
+	return feedTypes
+}
+
+func TestReserveAccountFeeds(t *testing.T) {
+	t.Parallel()
+	myOrders := &subscription.Subscription{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}
+	for _, tc := range []struct {
+		name       string
+		configured subscription.List
+		exp        []string
+	}{
+		{name: "defaults", configured: defaultSubscriptions.Clone(), exp: []string{wsChannelOrderUpdates, wsSubscriptionUserEvents}},
+		{name: "one feed configured twice", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelOrderUpdates, Authenticated: true}}, exp: []string{wsChannelOrderUpdates}},
+		{name: "a registered DEX", configured: subscription.List{{Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "xyz"}}}, exp: []string{wsChannelOpenOrders}},
+		{name: "an unregistered DEX, checked when subscribed", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "abc"}}}, exp: []string{wsChannelOrderUpdates, wsChannelOpenOrders}},
+		{name: "an invalid option", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": "bad"}}}, exp: []string{wsChannelOrderUpdates}},
+		{name: "a market feed set authenticated", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelAllMids, Authenticated: true}}, exp: []string{wsChannelOrderUpdates}},
+		{name: "an empty pair", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{currency.EMPTYPAIR}}}, exp: []string{wsChannelOrderUpdates}},
+		{name: "an unsupported channel", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: "bogus", Authenticated: true}}, exp: []string{}},
+		{name: "exclusive variants", configured: subscription.List{myOrders.Clone(), {Enabled: true, Channel: wsChannelUserFills, Authenticated: true}, {Enabled: true, Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}, exp: []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			ex.Features.Subscriptions = tc.configured
+			_, err := ex.generatePublicSubscriptions()
+			require.NoError(t, err, "generatePublicSubscriptions must not error")
+			assert.Equal(t, tc.exp, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep room for each account feed the account connection subscribes, once")
+		})
+	}
+
+	// No request delays the public connection, as the DEX an account feed names is checked when it is subscribed
+	counted, requests := newCountingServerExchange(t, nil)
+	counted.API.AuthenticatedWebsocketSupport = true
+	counted.Features.Subscriptions = subscription.List{{Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "xyz"}}}
+	_, err := counted.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	assert.Equal(t, []string{wsChannelOpenOrders}, reservedAccountFeedTypes(counted), "generatePublicSubscriptions should keep room for an account feed naming a DEX")
+	assert.Empty(t, requests(), "generatePublicSubscriptions should make no request to keep room for the account feeds")
+
+	ex := newWebsocketTestExchange(t)
+	_, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.Len(t, reservedAccountFeedTypes(ex), 2, "generatePublicSubscriptions must keep room for the default account feeds")
+	ex.Features.Subscriptions = subscription.List{myOrders.Clone()}
+	_, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	assert.Equal(t, []string{wsChannelOrderUpdates}, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep room only for the account feed still configured")
+	ex.API.AuthenticatedWebsocketSupport = false
+	_, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error without authenticated websocket support")
+	assert.Empty(t, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep no room without authenticated websocket support")
+	ex.API.AuthenticatedWebsocketSupport = true
+	setTestCredentials(ex, &accounts.Credentials{Key: "invalid"})
+	_, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error without an account address")
+	assert.Empty(t, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep no room without an account address")
+}
+
+func TestGeneratePublicSubscriptionsKeepsRoomForAccountFeeds(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	market := make(subscription.List, maximumWebsocketSubscriptions)
+	for i := range market {
+		market[i] = &subscription.Subscription{Enabled: true, Channel: wsChannelAllMids, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
+	}
+	ex.Features.Subscriptions = slices.Concat(market, subscription.List{
+		{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
+	})
+	subs, err := ex.generatePublicSubscriptions()
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report the market feeds it leaves out")
+	require.Len(t, subs, maximumWebsocketSubscriptions-2, "generatePublicSubscriptions must leave room for the two account feeds")
+	assert.Equal(t, "d997", subs[len(subs)-1].Params["dex"], "generatePublicSubscriptions should leave out the market feeds configured last")
+
+	ex.API.AuthenticatedWebsocketSupport = false
+	subs, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error while no account feed needs room")
+	assert.Len(t, subs, maximumWebsocketSubscriptions, "generatePublicSubscriptions should generate every market feed while no account feed needs room")
+
+	// A feed configured twice takes no slot, and an invalid one is left out, so every valid market feed is kept
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Features.Subscriptions = slices.Concat(market[:maximumWebsocketSubscriptions-2], subscription.List{
+		market[0],
+		{Enabled: true, Channel: wsChannelAllMids, Params: map[string]any{"dex": 42}},
+		{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
+	})
+	subs, err = ex.generatePublicSubscriptions()
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report an invalid market feed it leaves out as a partial generation")
+	assert.ErrorIs(t, err, errWebsocketParameter, "generatePublicSubscriptions should report why it refused an invalid market feed")
+	assert.Len(t, subs, maximumWebsocketSubscriptions-1, "generatePublicSubscriptions should keep every valid market feed that fits and a feed configured twice")
+
+	account := make(subscription.List, maximumWebsocketSubscriptions+1)
+	for i := range account {
+		account[i] = &subscription.Subscription{Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
+	}
+	ex.Features.Subscriptions = slices.Concat(market[:1], account)
+	subs, err = ex.generatePublicSubscriptions()
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report a market feed left out by account feeds filling the limit")
+	assert.Empty(t, subs, "generatePublicSubscriptions should leave out every market feed while the account feeds fill the limit")
+}
+
+func TestWebsocketFeedIdentity(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{
+		{Channel: wsChannelAllMids},
+		{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}},
+		{Channel: wsChannelAllMids, Asset: asset.Spot},
+		{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}},
+		{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{currency.NewPairWithDelimiter("btc", "usdc", "/")}},
+		{Channel: subscription.AllTradesChannel, Asset: asset.Spot, Pairs: currency.Pairs{perpetualPair}},
+		{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{testBuilderPair}},
+		{Channel: subscription.TickerChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}},
+		{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Levels: 20},
+		{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Levels: 5},
+		{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}},
+	}
+	for _, a := range subs {
+		key := newWebsocketSubscriptionKey(a)
+		id, ok := key.identity()
+		require.Truef(t, ok, "identity must exist for %s", a)
+		for _, b := range subs {
+			other := newWebsocketSubscriptionKey(b)
+			otherID, _ := other.identity()
+			assert.Equalf(t, key.Match(other), id == otherID, "identity should agree with Match for %s and %s", a, b)
+		}
+	}
+	_, ok := newWebsocketSubscriptionKey(&subscription.Subscription{Channel: "bogus"}).identity()
+	assert.False(t, ok, "identity should not exist for a key that matches nothing")
+	_, ok = newWebsocketSubscriptionKey(&subscription.Subscription{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair, testBuilderPair}}).identity()
+	assert.False(t, ok, "identity should not exist for a market feed naming two markets")
+}
+
+func TestCapMarketFeeds(t *testing.T) {
+	t.Parallel()
+	feed := func(dex any) *subscription.Subscription {
+		return &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": dex}}
+	}
+	a, b, c, d, invalid := feed("a"), feed("b"), feed("c"), feed("d"), feed(42)
+	// Refused for its asset, though its key matches c's, so keeping it would keep a held c
+	shield := feed("c")
+	shield.Asset = asset.Spot
+	noAsset := &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{perpetualPair}}
+	// The invalid entry comes first, so that it would take a slot while there is room if refused entries counted
+	subs := subscription.List{invalid, a, b, a.Clone(), shield, noAsset, c, c.Clone(), d}
+	kept, leftOut, refused := e.capMarketFeeds(subs, 2)
+	assert.Equal(t, subscription.List{a, b, subs[3]}, kept, "capMarketFeeds should keep the feeds that fit and a feed configured twice")
+	assert.Equal(t, 2, leftOut, "capMarketFeeds should count each feed it leaves out once")
+	assert.ErrorIs(t, refused, errWebsocketParameter, "capMarketFeeds should report a feed with an invalid parameter")
+	assert.ErrorIs(t, refused, subscription.ErrNotSupported, "capMarketFeeds should report a feed that takes no asset set with one")
+	assert.ErrorIs(t, refused, asset.ErrNotSupported, "capMarketFeeds should report a market feed without an asset")
+	kept, leftOut, _ = e.capMarketFeeds(subs, 0)
+	assert.Empty(t, kept, "capMarketFeeds should leave out every feed without room")
+	assert.Equal(t, 4, leftOut, "capMarketFeeds should count every distinct valid feed it leaves out")
+}
+
+func TestAwaitedAccountFeeds(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	_, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	myOrders := &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true}
+	myTrades := &subscription.Subscription{Channel: subscription.MyTradesChannel, Authenticated: true}
+	notification := &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true}
+	market := &subscription.Subscription{Channel: wsChannelAllMids}
+	for _, tc := range []struct {
+		name string
+		held subscription.List
+		exp  int
+	}{
+		{name: "nothing held", exp: 2},
+		{name: "a market feed held", held: subscription.List{market}, exp: 2},
+		{name: "a reserved feed's channel held as a market feed", held: subscription.List{{Channel: subscription.MyOrdersChannel}}, exp: 2},
+		{name: "one reserved feed held", held: subscription.List{market, myOrders}, exp: 1},
+		{name: "every reserved feed held", held: subscription.List{myOrders, myTrades}, exp: 0},
+		// An account feed subscribed at runtime stays held while a reserved feed is subscribed again at runtime
+		{name: "an unconfigured account feed held", held: subscription.List{notification}, exp: 2},
+		{name: "a reserved and an unconfigured account feed held", held: subscription.List{market, myOrders, notification}, exp: 1},
+	} {
+		assert.Equalf(t, tc.exp, ex.awaitedAccountFeeds(t.Context(), tc.held), "awaitedAccountFeeds should leave %d slots with %s", tc.exp, tc.name)
+	}
+
+	// myTrades stays held after the configuration drops it until the account connection's flush removes it, which comes
+	// after the market feeds subscribe
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
+	_, err = ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	assert.Equal(t, 1, ex.awaitedAccountFeeds(t.Context(), subscription.List{market}), "awaitedAccountFeeds should leave a slot for the one reserved feed")
+	assert.Equal(t, 1, ex.awaitedAccountFeeds(t.Context(), subscription.List{myTrades}), "awaitedAccountFeeds should leave the reserved feed's slot beside a held feed the configuration dropped")
+	assert.Zero(t, ex.awaitedAccountFeeds(t.Context(), subscription.List{myOrders, myTrades}), "awaitedAccountFeeds should leave no slots once the reserved feed is held")
+	ex.API.AuthenticatedWebsocketSupport = false
+	assert.Zero(t, ex.awaitedAccountFeeds(t.Context(), nil), "awaitedAccountFeeds should leave no slots without authenticated websocket support")
+}
+
 func TestKeyWebsocketSubscriptions(t *testing.T) {
 	t.Parallel()
 	fresh := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
@@ -4381,6 +4600,31 @@ func TestManageWebsocketSubscription(t *testing.T) {
 		assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, sub), errWebsocketSubscriptionsLimit, "manageWebsocketSubscription should refuse a subscription past Hyperliquid's limit")
 		assert.Empty(t, publicConn(t, ex).sentRequests(), "manageWebsocketSubscription should send nothing past Hyperliquid's limit")
 	})
+	t.Run("room kept for account feeds", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		_, err := ex.generatePublicSubscriptions()
+		require.NoError(t, err, "generatePublicSubscriptions must not error")
+		// The default account feeds keep two slots, so these market feeds leave room for one more
+		held := make(subscription.List, maximumWebsocketSubscriptions-3)
+		for i := range held {
+			held[i] = &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
+		}
+		keyWebsocketSubscriptions(held)
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(publicConn(t, ex), held...), "AddSuccessfulSubscriptions must not error")
+		last := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
+		require.NoError(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, last), "manageWebsocketSubscription must subscribe a market feed into the room left beside the account feeds")
+		market := &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
+		assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), publicConn(t, ex), wsMethodSubscribe, market), errWebsocketSubscriptionsLimit, "manageWebsocketSubscription should keep the room of the account feeds not held")
+		assert.Len(t, publicConn(t, ex).sentRequests(), 1, "manageWebsocketSubscription should send no market feed into the account feeds' room")
+		for _, channel := range []string{subscription.MyOrdersChannel, subscription.MyTradesChannel} {
+			sub := &subscription.Subscription{Channel: channel, Authenticated: true, QualifiedChannel: channel}
+			require.NoErrorf(t, ex.manageWebsocketSubscription(t.Context(), accountConn(t, ex), wsMethodSubscribe, sub), "manageWebsocketSubscription must subscribe the account feed %s into its room", channel)
+		}
+		notification := &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true, QualifiedChannel: wsChannelNotification}
+		assert.ErrorIs(t, ex.manageWebsocketSubscription(t.Context(), accountConn(t, ex), wsMethodSubscribe, notification), errWebsocketSubscriptionsLimit, "manageWebsocketSubscription should refuse an account feed past Hyperliquid's limit")
+		assert.Len(t, accountConn(t, ex).sentRequests(), 2, "manageWebsocketSubscription should send no account feed past Hyperliquid's limit")
+	})
 	t.Run("subscription added after duplicate check", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
@@ -4538,6 +4782,23 @@ func TestAwaitWebsocketPending(t *testing.T) {
 	assert.ErrorIs(t, ex.awaitWebsocketPending(t.Context(), connection, &key, pending, subscribeRequest), websocket.ErrSignatureTimeout, "awaitWebsocketPending should time out without an acknowledgement")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "awaitWebsocketPending should roll back an operation that timed out")
 	assert.Nil(t, pendingWebsocketOperation(ex, &key), "awaitWebsocketPending should remove an operation that timed out")
+}
+
+func TestCheckWebsocketFeed(t *testing.T) {
+	t.Parallel()
+	// TestWebsocketSubscriptionPayload cannot show these checks, as mapping the pair to a coin refuses each of them too
+	for _, tc := range []struct {
+		name string
+		sub  *subscription.Subscription
+		err  error
+	}{
+		{name: "an empty pair", sub: &subscription.Subscription{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{currency.EMPTYPAIR}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "no asset", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{perpetualPair}}, err: asset.ErrNotSupported},
+		{name: "an unsupported asset", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Asset: asset.Futures, Pairs: currency.Pairs{perpetualPair}}, err: asset.ErrNotSupported},
+	} {
+		_, err := e.checkWebsocketFeed(tc.sub)
+		assert.ErrorIsf(t, err, tc.err, "checkWebsocketFeed should refuse a feed with %s", tc.name)
+	}
 }
 
 func TestWebsocketSubscriptionPayload(t *testing.T) {

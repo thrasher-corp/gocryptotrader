@@ -48,7 +48,10 @@ type Exchange struct {
 	websocketTradeReplays map[string]struct{}
 	// websocketWatermarks holds how far the websocket has relayed feeds that repeat entries: the newest trade per coin, the
 	// newest fill per account fills feed and each recent order's fills; websocketPendingMu guards it
-	websocketWatermarks    websocketWatermarks
+	websocketWatermarks websocketWatermarks
+	// websocketAccountFeeds holds a key for each account feed the account connection subscribes when it connects, noted
+	// when the market feeds are generated so that they leave room for them; websocketPendingMu guards it
+	websocketAccountFeeds  []*websocketSubscriptionKey
 	websocketPostID        atomic.Uint64
 	lastNonce              atomic.Uint64
 	websocketConnectionsMu sync.Mutex

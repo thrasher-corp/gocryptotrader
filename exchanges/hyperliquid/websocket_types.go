@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -70,6 +71,29 @@ type websocketSubscriptionKey struct {
 }
 
 var _ subscription.MatchableKey = (*websocketSubscriptionKey)(nil)
+
+// websocketFeedIdentity is a comparable form of a websocketSubscriptionKey naming at most one market: two such keys match
+// when their identities are equal
+type websocketFeedIdentity struct {
+	options     WebsocketSubscription
+	assetType   asset.Item
+	base, quote *currency.Item
+}
+
+// identity returns the key's comparable form, and false for a key that matches nothing or names other than one market
+func (k *websocketSubscriptionKey) identity() (websocketFeedIdentity, bool) {
+	if !k.valid {
+		return websocketFeedIdentity{}, false
+	}
+	id := websocketFeedIdentity{options: k.options}
+	if websocketFeeds[k.options.Type].coin {
+		if len(k.Pairs) != 1 {
+			return websocketFeedIdentity{}, false
+		}
+		id.assetType, id.base, id.quote = k.Asset, k.Pairs[0].Base.Item, k.Pairs[0].Quote.Item
+	}
+	return id, true
+}
 
 // GetSubscription returns the subscription the key identifies
 func (k *websocketSubscriptionKey) GetSubscription() *subscription.Subscription {

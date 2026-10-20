@@ -2445,10 +2445,17 @@ func newLifecycleTestManager(t *testing.T, setups ...*ConnectionSetup) *Manager 
 	m.connectionMonitorRunning.Store(true)
 	t.Cleanup(func() {
 		m.setEnabled(false)
-		if err := m.Shutdown(); err != nil {
+		// Bounded, as a manager left holding its lock by a failed test would otherwise block the cleanup
+		err, ok := lifecycleWithin(t, func() error {
+			err := m.Shutdown()
+			m.Wg.Wait()
+			return err
+		})
+		if !ok {
+			assert.Fail(t, "Shutdown should return within five seconds")
+		} else if err != nil {
 			assert.ErrorIs(t, err, ErrNotConnected, "Shutdown should succeed or find the manager disconnected")
 		}
-		m.Wg.Wait()
 	})
 	setup := newDefaultSetup()
 	setup.UseMultiConnectionManagement = true
@@ -2458,6 +2465,23 @@ func newLifecycleTestManager(t *testing.T, setups ...*ConnectionSetup) *Manager 
 		require.NoError(t, m.SetupNewConnection(s), "SetupNewConnection must not error")
 	}
 	return m
+}
+
+// lifecycleWithin returns what call returns, and false once call has not returned within five seconds: a call that
+// retires connections waits for their readers while holding the manager's lock, so a reader that never reports it has
+// stopped would otherwise block the test until go test's timeout. Call reads whatever the test checks before it returns,
+// so the bound gives the manager's goroutines no extra time to change it
+func lifecycleWithin[T any](t *testing.T, call func() T) (T, bool) {
+	t.Helper()
+	result := make(chan T, 1)
+	go func() { result <- call() }()
+	select {
+	case r := <-result:
+		return r, true
+	case <-time.After(5 * time.Second):
+		var zero T
+		return zero, false
+	}
 }
 
 // lifecycleTestSetup returns a connection setup on url subscribing whatever generate returns through the manager's
@@ -2713,30 +2737,52 @@ func TestConnectRollbackLeavesHandlersUnawaited(t *testing.T) {
 
 func TestConnectOptionalSetupRetiresConnections(t *testing.T) {
 	t.Parallel()
-	wsURL, dial := lifecycleTestServer(t)
-	disconnected := make(chan Connection, 1)
-	var m *Manager
-	account := lifecycleTestSetup(&m, wsURL, "account", dial, func() (subscription.List, error) {
-		return subscription.List{{Channel: "account"}}, nil
-	})
-	account.Optional = true
-	account.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
-	account.OnDisconnect = func(_ context.Context, conn Connection) { disconnected <- conn }
-	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
-		return subscription.List{{Channel: "public"}}, nil
-	}), account)
-	m.SetCanUseAuthenticatedEndpoints(true)
+	// An immediate hook shows the connection unregistered once Connect returns, and a slow one that Connect waits for it
+	for _, hookDelay := range []time.Duration{0, 20 * time.Millisecond} {
+		t.Run(hookDelay.String(), func(t *testing.T) {
+			t.Parallel()
+			wsURL, dial := lifecycleTestServer(t)
+			disconnected := make(chan Connection, 1)
+			var m *Manager
+			account := lifecycleTestSetup(&m, wsURL, "account", dial, func() (subscription.List, error) {
+				return subscription.List{{Channel: "account"}}, nil
+			})
+			account.Optional = true
+			account.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
+			account.OnDisconnect = func(_ context.Context, conn Connection) {
+				time.Sleep(hookDelay)
+				disconnected <- conn
+			}
+			m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
+				return subscription.List{{Channel: "public"}}, nil
+			}), account)
+			m.SetCanUseAuthenticatedEndpoints(true)
 
-	require.NoError(t, m.Connect(t.Context()), "Connect must not fail for an optional connection's failure")
-	assert.Empty(t, m.snapshotManagedConnections(m.connectionManager[1]), "Connect should close the connection of an optional setup that failed after dialling")
-	select {
-	case <-disconnected:
-	default:
-		assert.Fail(t, "Connect should wait for the reader of an optional setup's closed connection")
+			type connected struct {
+				err          error
+				account      []Connection
+				disconnected bool
+				registered   int
+			}
+			got, ok := lifecycleWithin(t, func() connected {
+				got := connected{err: m.Connect(t.Context()), account: m.snapshotManagedConnections(m.connectionManager[1])}
+				select {
+				case <-disconnected:
+					got.disconnected = true
+				default:
+				}
+				m.connectionManagerMu.RLock()
+				got.registered = len(m.connections)
+				m.connectionManagerMu.RUnlock()
+				return got
+			})
+			require.True(t, ok, "Connect must return within five seconds")
+			require.NoError(t, got.err, "Connect must not fail for an optional connection's failure")
+			assert.Empty(t, got.account, "Connect should close the connection of an optional setup that failed after dialling")
+			assert.True(t, got.disconnected, "Connect should wait for the reader of an optional setup's closed connection")
+			assert.Equal(t, 1, got.registered, "Connect should unregister the closed connection of an optional setup")
+		})
 	}
-	m.connectionManagerMu.RLock()
-	assert.Len(t, m.connections, 1, "Connect should unregister the closed connection of an optional setup")
-	m.connectionManagerMu.RUnlock()
 }
 
 func TestConnectRequiredSetupFailureWaitsForReaders(t *testing.T) {
@@ -2757,17 +2803,30 @@ func TestConnectRequiredSetupFailureWaitsForReaders(t *testing.T) {
 		return subscription.List{{Channel: "second"}}, nil
 	}))
 
-	err := m.Connect(t.Context())
-	require.ErrorIs(t, err, errDastardlyReason, "Connect must return the required connection's failure")
-	require.ErrorIs(t, err, common.ErrFatal, "Connect must report the failure as fatal")
-	assert.False(t, m.IsConnected(), "Connect should not leave the manager connected")
-	assert.Empty(t, m.snapshotManagedConnections(m.connectionManager[0]), "Connect should close the connections it made")
-	assert.Equal(t, int32(1), disconnected.Load(), "Connect should return only once the closed connection's reader has stopped")
-	select {
-	case <-m.ShutdownC:
-		assert.Fail(t, "Connect should renew the shutdown channel after closing its connections")
-	default:
+	type connected struct {
+		err          error
+		connected    bool
+		connections  []Connection
+		disconnected int32
+		renewed      bool
 	}
+	got, ok := lifecycleWithin(t, func() connected {
+		err := m.Connect(t.Context())
+		got := connected{err: err, connected: m.IsConnected(), connections: m.snapshotManagedConnections(m.connectionManager[0]), disconnected: disconnected.Load(), renewed: true}
+		select {
+		case <-m.ShutdownC:
+			got.renewed = false
+		default:
+		}
+		return got
+	})
+	require.True(t, ok, "Connect must return within five seconds")
+	require.ErrorIs(t, got.err, errDastardlyReason, "Connect must return the required connection's failure")
+	require.ErrorIs(t, got.err, common.ErrFatal, "Connect must report the failure as fatal")
+	assert.False(t, got.connected, "Connect should not leave the manager connected")
+	assert.Empty(t, got.connections, "Connect should close the connections it made")
+	assert.Equal(t, int32(1), got.disconnected, "Connect should return only once the closed connection's reader has stopped")
+	assert.True(t, got.renewed, "Connect should renew the shutdown channel after closing its connections")
 }
 
 func TestOnDisconnect(t *testing.T) {
@@ -2982,6 +3041,53 @@ func TestFlushChannelsConnectedOptionalSetup(t *testing.T) {
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should keep an earlier optional setup's failure beside a required setup's failure to subscribe")
 }
 
+func TestFlushChannelsContinuesPastRefusedSubscriptions(t *testing.T) {
+	t.Parallel()
+	wsURL, dial := lifecycleTestServer(t)
+	errRefused := errors.New("subscriptions refused")
+	var firstSubs, secondSubs subscription.List
+	var firstRefuses, firstDialFails atomic.Bool
+	var m *Manager
+	first := lifecycleTestSetup(&m, wsURL, "first", func(ctx context.Context, conn Connection) error {
+		if firstDialFails.Load() {
+			return errDastardlyReason
+		}
+		return dial(ctx, conn)
+	}, func() (subscription.List, error) { return firstSubs.Clone(), nil })
+	subscriber := first.Subscriber
+	first.Subscriber = func(ctx context.Context, conn Connection, subs subscription.List) error {
+		if firstRefuses.Load() {
+			return errRefused
+		}
+		return subscriber(ctx, conn, subs)
+	}
+	m = newLifecycleTestManager(t, first, lifecycleTestSetup(&m, wsURL, "second", dial, func() (subscription.List, error) {
+		return secondSubs.Clone(), nil
+	}))
+	firstWs, secondWs := m.connectionManager[0], m.connectionManager[1]
+	firstSubs, secondSubs = subscription.List{{Channel: "first"}}, subscription.List{{Channel: "second"}}
+	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
+
+	added := &subscription.Subscription{Channel: "second added"}
+	firstSubs = subscription.List{{Channel: "first"}, {Channel: "first added"}}
+	secondSubs = subscription.List{{Channel: "second"}, added}
+	firstRefuses.Store(true)
+	assert.ErrorIs(t, m.FlushChannels(t.Context()), errRefused, "FlushChannels should return a setup's refused subscriptions")
+	assert.NotNil(t, secondWs.subscriptions.Get(added), "FlushChannels should flush the setups after one whose subscriptions were refused")
+
+	firstRefuses.Store(false)
+	firstDialFails.Store(true)
+	m.m.Lock()
+	require.NoError(t, m.retireConnections(firstWs, m.snapshotManagedConnections(firstWs)), "retireConnections must not error")
+	m.m.Unlock()
+	later := &subscription.Subscription{Channel: "second later"}
+	secondSubs = subscription.List{{Channel: "second"}, added, later}
+	err := m.FlushChannels(t.Context())
+	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should return a setup's failure to connect")
+	assert.ErrorIs(t, err, common.ErrFatal, "FlushChannels should report a failure to connect as fatal")
+	assert.Nil(t, secondWs.subscriptions.Get(later), "FlushChannels should stop at a setup whose connection cannot be made")
+}
+
 func TestOptionalRetryDelay(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -3036,17 +3142,31 @@ func TestRetiredConnectionHookSeesRegisteredConnection(t *testing.T) {
 
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	generated = nil
-	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
-	select {
-	case state := <-states:
-		assert.True(t, state.managed, "FlushChannels should keep an idle connection registered until its disconnect hook finishes")
-	default:
-		require.FailNow(t, "FlushChannels must wait for the disconnect hook of a connection it closes")
+	type flushed struct {
+		err         error
+		state       *hookState
+		connections []Connection
+		readers     int
 	}
-	assert.Empty(t, m.snapshotManagedConnections(m.connectionManager[0]), "FlushChannels should close a connection left without subscriptions")
-	m.connectionManagerMu.RLock()
-	assert.Empty(t, m.readersDone, "FlushChannels should forget a retired connection's reader")
-	m.connectionManagerMu.RUnlock()
+	got, ok := lifecycleWithin(t, func() flushed {
+		got := flushed{err: m.FlushChannels(t.Context())}
+		select {
+		case state := <-states:
+			got.state = &state
+		default:
+		}
+		got.connections = m.snapshotManagedConnections(m.connectionManager[0])
+		m.connectionManagerMu.RLock()
+		got.readers = len(m.readersDone)
+		m.connectionManagerMu.RUnlock()
+		return got
+	})
+	require.True(t, ok, "FlushChannels must return within five seconds")
+	require.NoError(t, got.err, "FlushChannels must not error")
+	require.NotNil(t, got.state, "FlushChannels must wait for the disconnect hook of a connection it closes")
+	assert.True(t, got.state.managed, "FlushChannels should keep an idle connection registered until its disconnect hook finishes")
+	assert.Empty(t, got.connections, "FlushChannels should close a connection left without subscriptions")
+	assert.Zero(t, got.readers, "FlushChannels should forget a retired connection's reader")
 }
 
 func TestConnectionShutdownStopsPingHandler(t *testing.T) {

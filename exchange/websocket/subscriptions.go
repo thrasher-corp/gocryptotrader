@@ -365,9 +365,12 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 
 		err = m.scaleConnectionsToSubscriptions(ctx, ws, newSubs)
 		if !ws.setup.Optional {
-			if err != nil {
+			// Subscriptions refused on one setup's connections leave the other setups to flush, as setups can share a
+			// venue's subscription limit; only a connection that cannot be made ends the flush
+			if errors.Is(err, common.ErrFatal) {
 				return common.AppendError(subscriptionError, err)
 			}
+			subscriptionError = common.AppendError(subscriptionError, err)
 			continue
 		}
 		if unconnected && errors.Is(err, common.ErrFatal) {

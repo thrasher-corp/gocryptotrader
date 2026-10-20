@@ -1358,16 +1358,120 @@ func (e *Exchange) expandWebsocketSubscriptions(account bool) (subscription.List
 	return subs, err
 }
 
-// generatePublicSubscriptions returns the configured market feeds, which the public connection subscribes
+// generatePublicSubscriptions returns the configured market feeds, which the public connection subscribes, first noting
+// the account feeds they leave room for, as the public connection subscribes before the account connection. The market
+// feeds past that room are left out, so that a flush removes held ones to make way for account feeds the configuration
+// adds
 func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
-	return e.expandWebsocketSubscriptions(false)
+	reserved := e.reserveAccountFeeds(context.TODO())
+	subs, err := e.expandWebsocketSubscriptions(false)
+	if err != nil && !errors.Is(err, websocket.ErrSubscriptionPartial) {
+		return subs, err
+	}
+	if room := max(maximumWebsocketSubscriptions-reserved, 0); len(subs) > room {
+		var leftOut int
+		var refused error
+		subs, leftOut, refused = e.capMarketFeeds(subs, room)
+		if leftOut != 0 {
+			err = common.AppendError(err, fmt.Errorf("%w: account feeds need %d of Hyperliquid's %d slots, which leaves out %d of the market feeds",
+				websocket.ErrSubscriptionPartial, reserved, maximumWebsocketSubscriptions, leftOut))
+		}
+		if refused != nil {
+			err = common.AppendError(err, fmt.Errorf("%w: market feeds left out: %w", websocket.ErrSubscriptionPartial, refused))
+		}
+	}
+	return subs, err
+}
+
+// capMarketFeeds returns the market feeds that fit in room slots, leaving out the feeds configured last, with how many it
+// left out and why it refused the entries whose form the public connection would refuse. A feed configured twice takes
+// one slot, and its later entries are kept or left out with its first. A refused entry is left out too, as its key can
+// still match a held feed, which the flush would then keep in a slot the account feeds need
+func (e *Exchange) capMarketFeeds(subs subscription.List, room int) (kept subscription.List, leftOut int, refused error) {
+	kept = make(subscription.List, 0, min(len(subs), room))
+	counted := make(map[websocketFeedIdentity]struct{}, room)
+	left := make(map[websocketFeedIdentity]struct{})
+	for _, sub := range subs {
+		if _, err := e.checkWebsocketFeed(sub); err != nil {
+			refused = common.AppendError(refused, fmt.Errorf("%s: %w", sub, err))
+			continue
+		}
+		// A form checkWebsocketFeed accepts always has an identity
+		id, _ := newWebsocketSubscriptionKey(sub).identity()
+		if _, ok := counted[id]; ok {
+			kept = append(kept, sub)
+			continue
+		}
+		if len(counted) == room {
+			left[id] = struct{}{}
+			continue
+		}
+		counted[id] = struct{}{}
+		kept = append(kept, sub)
+	}
+	return kept, len(left), refused
+}
+
+// reserveAccountFeeds notes each account feed the account connection subscribes when it connects, for market feeds to
+// leave room for in Hyperliquid's subscription limit, and returns how many it noted: a feed configured twice is noted
+// once, and one whose form the account connection would refuse is not noted. The market or DEX a feed names is checked
+// only when it is subscribed, so that no request delays the public connection, and a feed naming one that does not
+// exist keeps its slot
+func (e *Exchange) reserveAccountFeeds(ctx context.Context) int {
+	var reserved []*websocketSubscriptionKey
+	if e.accountFeedsAvailable(ctx) == nil {
+		configured, err := e.expandWebsocketSubscriptions(true)
+		// Any generation error but a partial one fails the account connection, which then subscribes nothing
+		if err != nil && !errors.Is(err, websocket.ErrSubscriptionPartial) {
+			configured = nil
+		}
+		for _, sub := range configured {
+			if _, err := e.checkWebsocketFeed(sub); err != nil {
+				continue
+			}
+			feed := newWebsocketSubscriptionKey(sub)
+			if slices.ContainsFunc(reserved, func(k *websocketSubscriptionKey) bool { return k.Match(feed) }) {
+				continue
+			}
+			reserved = append(reserved, feed)
+		}
+	}
+	e.websocketPendingMu.Lock()
+	e.websocketAccountFeeds = reserved
+	e.websocketPendingMu.Unlock()
+	return len(reserved)
+}
+
+// awaitedAccountFeeds returns how many of the reserved account feeds are not held, which a market feed leaves room for;
+// none while account feeds are unavailable. A held account feed that is not reserved keeps its slot even when the flush
+// under way will remove it, as the account connection flushes after the public one and a market feed given that slot
+// would starve a reserved feed whenever the removal does not happen; the market feed waits for the next flush instead
+func (e *Exchange) awaitedAccountFeeds(ctx context.Context, held subscription.List) int {
+	if e.accountFeedsAvailable(ctx) != nil {
+		return 0
+	}
+	e.websocketPendingMu.Lock()
+	reserved := e.websocketAccountFeeds
+	e.websocketPendingMu.Unlock()
+	var awaited int
+	for _, feed := range reserved {
+		if !slices.ContainsFunc(held, func(sub *subscription.Subscription) bool {
+			return sub.Authenticated && feed.Match(newWebsocketSubscriptionKey(sub))
+		}) {
+			awaited++
+		}
+	}
+	return awaited
 }
 
 // generateAccountSubscriptions returns the configured account feeds, which the account connection subscribes when
 // account feeds are available
 func (e *Exchange) generateAccountSubscriptions() (subscription.List, error) {
 	if err := e.accountFeedsAvailable(context.TODO()); err != nil {
-		log.Warnf(log.WebsocketMgr, "%s account websocket feeds disabled: %s", e.Name, err)
+		// Authenticated websocket support is off by default, which leaves the account feeds out without a warning
+		if !errors.Is(err, errWebsocketAccountFeedsDisabled) {
+			log.Warnf(log.WebsocketMgr, "%s account websocket feeds disabled: %s", e.Name, err)
+		}
 		return nil, nil
 	}
 	return e.expandWebsocketSubscriptions(true)
@@ -1546,9 +1650,16 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, connection w
 		if e.Websocket.GetSubscription(feed) != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, feed)
 		}
-		// Held subscriptions include those awaiting their acknowledgement, so both connections' count against the limit
-		if held := len(e.Websocket.GetSubscriptions()); held >= maximumWebsocketSubscriptions {
-			return fmt.Errorf("%w: %d held", errWebsocketSubscriptionsLimit, held)
+		// Held subscriptions include those awaiting their acknowledgement, so both connections' count against the limit;
+		// a market feed also leaves room for the account feeds not yet held, which the account connection subscribes
+		// when it connects
+		held := e.Websocket.GetSubscriptions()
+		var reserved int
+		if !sub.Authenticated {
+			reserved = e.awaitedAccountFeeds(ctx, held)
+		}
+		if len(held)+reserved >= maximumWebsocketSubscriptions {
+			return fmt.Errorf("%w: %d held and %d kept for account feeds", errWebsocketSubscriptionsLimit, len(held), reserved)
 		}
 		sub.SetKey(feed)
 		if err := e.Websocket.AddSubscriptions(connection, sub); err != nil {
@@ -1603,6 +1714,35 @@ func (e *Exchange) awaitWebsocketPending(ctx context.Context, connection websock
 // websocketSubscriptionPayload builds the feed a subscription refers to, validating every coin, DEX and option first,
 // because Hyperliquid closes the connection, dropping every feed on it, for a subscription it cannot validate
 func (e *Exchange) websocketSubscriptionPayload(ctx context.Context, sub *subscription.Subscription) (WebsocketSubscription, error) {
+	payload, err := e.checkWebsocketFeed(sub)
+	if err != nil {
+		return WebsocketSubscription{}, err
+	}
+	feed := websocketFeeds[payload.Type]
+	if feed.user {
+		if payload.User, err = e.getWatchAddress(ctx); err != nil {
+			return WebsocketSubscription{}, err
+		}
+	}
+	if feed.coin {
+		mapping, err := e.getPairMapping(ctx, sub.Pairs[0], sub.Asset)
+		if err != nil {
+			return WebsocketSubscription{}, err
+		}
+		payload.Coin = mapping.coin
+	}
+	if payload.DEX != "" {
+		if err := e.validateWebsocketDEX(ctx, payload.DEX); err != nil {
+			return WebsocketSubscription{}, err
+		}
+	}
+	return payload, nil
+}
+
+// checkWebsocketFeed returns the options of the feed a subscription refers to once the checks that need no request pass:
+// its options, its authenticated flag against the feed's kind, and its pair and asset; the market's coin and the DEX's
+// registration are left to websocketSubscriptionPayload
+func (e *Exchange) checkWebsocketFeed(sub *subscription.Subscription) (WebsocketSubscription, error) {
 	payload, err := websocketFeedOptions(sub)
 	if err != nil {
 		return WebsocketSubscription{}, err
@@ -1611,31 +1751,22 @@ func (e *Exchange) websocketSubscriptionPayload(ctx context.Context, sub *subscr
 	if sub.Authenticated != feed.user {
 		return WebsocketSubscription{}, fmt.Errorf("%w: %s must set authenticated to %t", subscription.ErrNotSupported, payload.Type, feed.user)
 	}
-	if feed.user {
-		if payload.User, err = e.getWatchAddress(ctx); err != nil {
-			return WebsocketSubscription{}, err
-		}
-	}
 	switch {
 	case feed.coin:
 		if len(sub.Pairs) != 1 {
 			return WebsocketSubscription{}, subscription.ErrNotSinglePair
 		}
+		if sub.Pairs[0].IsEmpty() {
+			return WebsocketSubscription{}, currency.ErrCurrencyPairEmpty
+		}
+		if !e.SupportsAsset(sub.Asset) {
+			return WebsocketSubscription{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, sub.Asset)
+		}
 		if payload.Type == wsChannelActiveAssetData && sub.Asset != asset.PerpetualContract {
 			return WebsocketSubscription{}, fmt.Errorf("%w: %s serves perpetual contracts only", asset.ErrNotSupported, payload.Type)
 		}
-		mapping, err := e.getPairMapping(ctx, sub.Pairs[0], sub.Asset)
-		if err != nil {
-			return WebsocketSubscription{}, err
-		}
-		payload.Coin = mapping.coin
 	case sub.Asset != asset.Empty:
 		return WebsocketSubscription{}, fmt.Errorf("%w: %s does not take an asset", subscription.ErrNotSupported, payload.Type)
-	}
-	if payload.DEX != "" {
-		if err := e.validateWebsocketDEX(ctx, payload.DEX); err != nil {
-			return WebsocketSubscription{}, err
-		}
 	}
 	return payload, nil
 }
