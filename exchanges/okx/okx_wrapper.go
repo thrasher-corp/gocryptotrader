@@ -1550,8 +1550,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // maxCancelAlgosPerRequest is the documented maximum number of algo orders
-// POST /api/v5/trade/cancel-algos accepts per request. The caller supplies
-// the batch, so a longer algo list is rejected rather than chunked.
+// POST /api/v5/trade/cancel-algos accepts per request.
 const maxCancelAlgosPerRequest = 10
 
 // errSpreadBatchCancelUnsupported reports that spread orders cannot join a
