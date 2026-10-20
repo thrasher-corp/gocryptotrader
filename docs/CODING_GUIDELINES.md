@@ -33,6 +33,14 @@ relaying them to `DataHandler`. Do not relay a ticker that fails processing.
 For batches, relay the successfully processed entries and report any failures.
 Never relay an empty batch.
 
+Batch endpoints carry a documented maximum number of entries per request.
+Wrapper methods over such endpoints must enforce that maximum and reject a
+longer list with an error rather than silently chunk it: the caller is
+responsible for supplying a batch within the maximum. An asset or order kind
+the endpoint cannot batch at all is rejected as unsupported. Flows that
+legitimately exceed the maximum, such as a cancel-all crawling every open
+order, dispatch explicitly sized batches at the call site.
+
 ### Endpoint Organisation
 
 - Implement API endpoints in the order they are presented in the API documentation to maintain alignment with the source.
