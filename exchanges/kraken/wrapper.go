@@ -198,9 +198,8 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.spotBalances.active, e.spotOrders.active, e.spotDayOpens.active = e.websocketActive, e.websocketActive, e.websocketActive
+	e.spotBalances.active, e.spotOrders.active = e.websocketActive, e.websocketActive
 	e.spotOrders.settledRetention = spotOrderReadRetention
-	e.spotDayOpens.settledRetention = dayOpensReadRetention
 }
 
 // websocketActive reports whether the websocket is connected, or connecting, as it is until every connection has
@@ -395,12 +394,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err := e.ensureAssetNames(ctx); err != nil {
 			return err
 		}
-		requested := time.Now()
 		tickers, err := e.GetTickerInformation(ctx, &TickerInformationRequest{DisplayNames: true})
 		if err != nil {
 			return err
 		}
-		e.recordDayOpens(requested, tickers)
 		prices = make([]ticker.Price, 0, len(tickers))
 		for symbol := range tickers {
 			t := tickers[symbol]
@@ -1095,6 +1092,15 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 		if s.Type.Is(order.Limit) {
 			o.LimitPrice = s.Price
 		}
+		// Kraken takes none of these prices as a signed offset, so each gets the checks Add Order makes of it over REST
+		if o.Triggers != nil {
+			if err := checkOrderPrice(OrderPrice{Value: o.Triggers.Price}, ""); err != nil {
+				return nil, err
+			}
+		}
+		if err := checkOrderPrice(OrderPrice{Value: o.LimitPrice}, ""); err != nil {
+			return nil, err
+		}
 		resp, err := e.WebsocketAddOrder(ctx, &WebsocketAddOrderRequest{Pair: s.Pair, Order: o})
 		if err != nil {
 			return nil, err
@@ -1317,6 +1323,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	switch action.AssetType {
 	case asset.Spot:
 		if e.privateWebsocketAvailable() {
+			// The trigger price is sent as a static price, so it gets the check Amend Order makes of it over REST. The
+			// limit price is left to Kraken, which takes a trailing stop limit order's as a signed offset
+			if err := checkOrderPrice(OrderPrice{Value: action.TriggerPrice}, ""); err != nil {
+				return nil, err
+			}
 			if _, err := e.WebsocketAmendOrder(ctx, &WebsocketAmendOrderRequest{
 				OrderID:       action.OrderID,
 				ClientOrderID: clientOrderIDWithoutOrderID(action.OrderID, action.ClientOrderID),

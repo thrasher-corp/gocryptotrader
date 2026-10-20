@@ -65,17 +65,6 @@ type Exchange struct {
 	// spotOrders reads spot orders over REST once the executions channel reports them finished after fills, as its
 	// messages carry each fill's fee but not the order's
 	spotOrders wsRefresher
-	// spotDayOpens reads the spot opening prices of the day over REST when a websocket ticker finds none read for its
-	// UTC day, as websocket tickers carry none
-	spotDayOpens wsRefresher
-	// dayOpens holds each spot pair's opening price of the UTC day, as the REST ticker read requested last reported it,
-	// at dayOpensRequested
-	dayOpens          map[key.PairAsset]float64
-	dayOpensRequested time.Time
-	// dayOpensAsked is the latest UTC day a ticker asked to have the opening prices of read, at dayOpensAskedAt
-	dayOpensAsked   string
-	dayOpensAskedAt time.Time
-	dayOpensMu      sync.Mutex
 	// futuresOrders holds what the futures feeds have reported of each order, as Kraken names only the order when it
 	// leaves the open orders, and reports its fills on a feed of their own
 	futuresOrders futuresOrderTracker

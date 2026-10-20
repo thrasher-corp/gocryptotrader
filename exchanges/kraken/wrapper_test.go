@@ -14,7 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -126,7 +125,7 @@ func boundedContext(t *testing.T) context.Context {
 	if !mockTests {
 		return t.Context()
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), testWaitTimeout)
 	t.Cleanup(cancel)
 	return ctx
 }
@@ -470,9 +469,6 @@ func TestUpdateTickers(t *testing.T) {
 				return
 			}
 			if tc.a == asset.Spot {
-				open, unread := ex.dayOpen(wsTestPair, dayOpensRead(ex))
-				assert.False(t, unread, "UpdateTickers should record the spot opening prices of the day")
-				assert.Equal(t, spot[wsTestPair].Open, open, "UpdateTickers should record each pair's opening price of the day")
 				// Spot tickers carry no time, so they are stamped when stored
 				for _, p := range result {
 					assert.WithinRangef(t, p.LastUpdated, started, time.Now(), "UpdateTickers should stamp the %s ticker when storing it", p.Pair)
@@ -521,18 +517,6 @@ func TestUpdateTickers(t *testing.T) {
 		seedTestAssetNames(unreadableEx)
 		assert.ErrorIs(t, unreadableEx.UpdateTickers(t.Context(), asset.Spot), errInvalidSymbol, "UpdateTickers should reject a spot ticker whose symbol names no pair")
 		assert.ErrorIs(t, unreadableEx.UpdateTickers(t.Context(), asset.Futures), currency.ErrSymbolStringEmpty, "UpdateTickers should return the error matching a futures ticker's symbol")
-	})
-
-	t.Run("requested before a UTC midnight and answered after", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) {
-			ex, _ := newDelayedReplyTestExchange(t, 2*time.Second, dayOpensReply)
-			// The bubble's clock starts at a UTC midnight, so the read is requested a second before the next
-			time.Sleep(24*time.Hour - time.Second)
-			requested := time.Now()
-			require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error")
-			assertDayOpensReadAt(t, ex, requested)
-		})
 	})
 }
 
@@ -1832,7 +1816,7 @@ func awaitClosed(t *testing.T, ch <-chan struct{}, msg string) {
 	t.Helper()
 	select {
 	case <-ch:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWaitTimeout):
 		require.FailNow(t, msg)
 	}
 }
@@ -1843,7 +1827,7 @@ func awaitError(t *testing.T, ch <-chan error, msg string) error {
 	select {
 	case err := <-ch:
 		return err
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWaitTimeout):
 		require.FailNow(t, msg)
 		return nil
 	}
@@ -2004,7 +1988,7 @@ func TestUpdateAccountBalancesKeepsNewerFuturesBalances(t *testing.T) {
 			var r result
 			select {
 			case r = <-older:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWaitTimeout):
 				require.FailNow(t, "the older read must finish once released")
 			}
 			require.NoError(t, r.err, "the older UpdateAccountBalances must not error")
@@ -3355,6 +3339,25 @@ func TestSubmitSpotOrder(t *testing.T) {
 		assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
 	})
 
+	for _, tc := range []struct {
+		name   string
+		submit *order.Submit
+	}{
+		{name: "trailing stop order at a negative distance", submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingMode: order.Distance, TrackingValue: -100}},
+		{name: "trailing stop order at a negative percentage", submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingMode: order.Percentage, TrackingValue: -2}},
+		{name: "stop loss order with a negative trigger price", submit: &order.Submit{Type: order.Stop, Side: order.Sell, Amount: 0.3, TriggerPrice: -100}},
+		{name: "stop loss limit order with a negative limit price", submit: &order.Submit{Type: order.StopLimit, Side: order.Sell, Amount: 0.3, TriggerPrice: 100, Price: -1}},
+		{name: "limit order with a negative price", submit: &order.Submit{Type: order.Limit, Side: order.Buy, Amount: 0.3, Price: -1}},
+	} {
+		t.Run(tc.name+" refused before the private websocket", func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersWsTestExchange(t)
+			tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = ex.Name, spotTestPair, asset.Spot
+			_, err := ex.submitSpotOrder(t.Context(), tc.submit)
+			assert.ErrorIs(t, err, errInvalidOrderPrice, "submitSpotOrder should refuse the price before sending, as Add Order does over REST")
+		})
+	}
+
 	t.Run("REST reply without a transaction ID", func(t *testing.T) {
 		t.Parallel()
 		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
@@ -3775,6 +3778,24 @@ func TestModifyOrder(t *testing.T) {
 			assert.Equal(t, tc.exp, resp, "ModifyOrder should amend the order over the private websocket")
 		})
 	}
+
+	t.Run("spot negative trigger price refused before the private websocket", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersWsTestExchange(t)
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OAIYAU-LGI3M-PFM5VW", TriggerPrice: -2})
+		assert.ErrorIs(t, err, errInvalidOrderPrice, "ModifyOrder should refuse a negative trigger price before sending, as Amend Order does over REST")
+	})
+
+	t.Run("spot trailing stop limit offset below the trigger over the private websocket", func(t *testing.T) {
+		t.Parallel()
+		// Kraken takes a trailing stop limit order's limit price as a signed offset from its trigger price
+		ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+			request: ordersWsRequest("amend_order", `"order_id":"OAIYAU-LGI3M-PFM5VW","limit_price":-150`),
+			replies: []string{ordersWsReply("amend_order", `{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW"}`)},
+		})
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.TrailingStopLimit, Side: order.Sell, Price: -150})
+		assert.NoError(t, err, "ModifyOrder should send a negative limit price offset")
+	})
 
 	for _, tc := range []struct {
 		name   string

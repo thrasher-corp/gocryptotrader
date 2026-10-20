@@ -111,7 +111,8 @@ GetFuturesAccounts and the Derivatives History API's GetFuturesOrderEvents.
 + The spot websocket uses Kraken's websocket v2 API over three connections: market data subscriptions stream on the
 public connection; account subscriptions stream, and orders are placed, on the private connection; and level 3 order
 books stream on their own connection. The private and level 3 connections connect when their subscriptions are
-configured, authenticated websocket support is enabled and credentials are set.
+configured, authenticated websocket support is enabled and credentials are set. Spot tickers carry no opening price
+of the day, so they leave `Open` unset.
 
 + The futures websocket streams the tickers, order books and trades of futures subscriptions, and, when
 authenticated websocket support is enabled and credentials are set, the account's open orders, fills and balances
@@ -121,9 +122,8 @@ take no `levels`.
 + Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
 the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
 balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports
-finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone. Spot
-tickers carry no opening price of the day, so each takes it from REST's tickers, read once a UTC day when that day's
-first websocket ticker arrives. These reads are retried only while the websocket is connected, or still connecting.
+finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone.
+These reads are retried only while the websocket is connected, or still connecting.
 
 + The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
 under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that

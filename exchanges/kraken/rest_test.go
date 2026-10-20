@@ -49,6 +49,11 @@ var (
 	partialTestPairs = []currency.Pair{{Base: currency.XBT}, {Quote: currency.USD}}
 )
 
+// testWaitTimeout bounds how long a test waits for the exchange to finish work, whether done in the background or
+// paging through recorded responses. It is generous, as the package's tests start together and, under -race, sonic
+// compiles each type's decoder on first use behind one lock, which can hold that work up for several seconds
+const testWaitTimeout = 30 * time.Second
+
 // testExchangeConfig returns the test configuration's Kraken settings encoded as JSON, loading the configuration once,
 // so each test exchange decodes a copy of its own rather than keeping the whole configuration reachable
 var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {

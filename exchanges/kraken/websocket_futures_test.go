@@ -677,12 +677,12 @@ func TestWebsocketFuturesBookSequenceGap(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "an update out of sequence must resubscribe the book")
+	}, testWaitTimeout, 10*time.Millisecond, "an update out of sequence must resubscribe the book")
 	assert.Equal(t, exp, got, "an update out of sequence should resubscribe the book, unsubscribing first")
 	require.Eventually(t, func() bool {
 		stored := ex.Websocket.GetSubscription(s)
 		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
 	require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(snapshot)), "wsFuturesHandleData must load the new snapshot")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "a new snapshot should restore the book")
@@ -722,11 +722,11 @@ func TestWebsocketFuturesResubscribeBookChannelNames(t *testing.T) {
 			require.Eventually(t, func() bool {
 				got = append(got, server.takeRequests()...)
 				return len(got) >= len(exp)
-			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			}, testWaitTimeout, 10*time.Millisecond, "the book must be resubscribed")
 			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
 			require.Eventually(t, func() bool {
 				return s.State() == subscription.SubscribedState && ex.Websocket.GetSubscription(s) == s
-			}, 5*time.Second, 10*time.Millisecond, "the subscription must be subscribed again")
+			}, testWaitTimeout, 10*time.Millisecond, "the subscription must be subscribed again")
 		})
 	}
 }
@@ -760,12 +760,12 @@ func TestWebsocketFuturesUpdateBookResubscribe(t *testing.T) {
 		require.Eventually(t, func() bool {
 			got = append(got, server.takeRequests()...)
 			return len(got) >= len(exp)
-		}, 5*time.Second, 10*time.Millisecond, "an update the book rejects must resubscribe the book")
+		}, testWaitTimeout, 10*time.Millisecond, "an update the book rejects must resubscribe the book")
 		assert.Equal(t, exp, got, "an update the book rejects should resubscribe the book, unsubscribing first")
 		require.Eventually(t, func() bool {
 			stored := ex.Websocket.GetSubscription(s)
 			return stored != nil && stored.State() == subscription.SubscribedState
-		}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+		}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
 	})
 
 	t.Run("unrelayed update", func(t *testing.T) {
@@ -1201,12 +1201,12 @@ func TestWebsocketFuturesUpdateBook(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "wsFuturesUpdateBook must resubscribe a book an update skips")
+	}, testWaitTimeout, 10*time.Millisecond, "wsFuturesUpdateBook must resubscribe a book an update skips")
 	assert.Equal(t, exp, got, "wsFuturesUpdateBook should resubscribe a book an update skips once, unsubscribing first")
 	require.Eventually(t, func() bool {
 		stored := ex.Websocket.GetSubscription(s)
 		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
 
 	assert.ErrorIs(t, ex.wsFuturesUpdateBook(t.Context(), conn, []byte(`{"feed":"book","product_id":"PF_MOONUSD","side":"buy","seq":1}`)), currency.ErrPairNotFound, "wsFuturesUpdateBook should reject an unknown product")
 	assert.Error(t, ex.wsFuturesUpdateBook(t.Context(), conn, []byte(`{"feed":"book","product_id":"PF_XBTUSD","seq":"1"}`)), "wsFuturesUpdateBook should reject an update it cannot decode")

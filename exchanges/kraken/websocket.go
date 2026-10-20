@@ -629,9 +629,7 @@ func (e *Exchange) wsProcessStatus(ctx context.Context, msg *wsChannelMessage) e
 	return nil
 }
 
-// wsProcessTicker stores a message's tickers and relays those stored, reporting the others without holding them back.
-// Each takes the opening price of its UTC day from the opens REST reported, which a ticker on a day not read yet asks
-// to be read
+// wsProcessTicker stores a message's tickers and relays those stored, reporting the others without holding them back
 func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) error {
 	var tickers []WebsocketTicker
 	if err := json.Unmarshal(msg.Data, &tickers); err != nil {
@@ -647,10 +645,6 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 		}
 		// Kraken stamps each ticker, so the message's time stands in only for a ticker without one
 		updated := cmp.Or(tickers[i].Timestamp, msg.Timestamp, time.Now())
-		open, unread := e.dayOpen(pair, updated)
-		if day := updated.UTC().Format(time.DateOnly); unread && e.askDayOpens(day) {
-			e.spotDayOpens.refresh(ctx, e.readDayOpens, day)
-		}
 		prices = append(prices, ticker.Price{
 			ExchangeName:               e.Name,
 			AssetType:                  asset.Spot,
@@ -665,7 +659,6 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 			AskSize:                    tickers[i].AskQuantity,
 			BaseVolume:                 tickers[i].Volume,
 			VolumeWeightedAveragePrice: tickers[i].VolumeWeightedAveragePrice,
-			Open:                       open,
 			// Change is the price's change over 24 hours, so the price it changed from is the 24 hour open
 			Open24Hour:          decimal.MustFromFloat(tickers[i].Last).Sub(decimal.MustFromFloat(tickers[i].Change)).InexactFloat64(),
 			PercentChange24Hour: tickers[i].ChangePercentage,
@@ -678,85 +671,6 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, msg *wsChannelMessage) e
 		return errs
 	}
 	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))
-}
-
-// dayOpensReadRetention is how long a UTC day whose opening prices were read is passed over when a ticker asks for them
-// again, so the tickers asking while a read runs cost no other
-const dayOpensReadRetention = 24 * time.Hour
-
-// dayOpen returns a spot pair's opening price on the UTC day of at, as the REST ticker read recorded last reported it,
-// and whether that read was requested before that day, so a later read is needed. A pair the read reported no open
-// for, or a time before the read's day, has none
-func (e *Exchange) dayOpen(pair currency.Pair, at time.Time) (open float64, unread bool) {
-	day := at.Truncate(24 * time.Hour)
-	e.dayOpensMu.Lock()
-	defer e.dayOpensMu.Unlock()
-	read := e.dayOpensRequested.Truncate(24 * time.Hour)
-	switch {
-	case read.Before(day):
-		return 0, true
-	case read.After(day):
-		return 0, false
-	}
-	return e.dayOpens[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}], false
-}
-
-// dayOpensAskCooldown is how long a UTC day asked to have its opening prices read is not asked again while they stay
-// unread. Every ticker on the day would ask, renewing the read's attempts, so a read that keeps failing, or that cannot
-// settle the day while the local clock lags Kraken's across a UTC midnight, would repeat for as long as trades stream
-const dayOpensAskCooldown = time.Hour
-
-// askDayOpens reports whether a ticker on a UTC day whose opening prices are unread asks for them to be read, recording
-// the ask: a day later than the one asked last is asked at once, and the day asked last, or one before it, again only
-// once dayOpensAskCooldown has passed, as a read settles every day up to its own
-func (e *Exchange) askDayOpens(day string) bool {
-	now := time.Now()
-	e.dayOpensMu.Lock()
-	defer e.dayOpensMu.Unlock()
-	if day <= e.dayOpensAsked && now.Sub(e.dayOpensAskedAt) < dayOpensAskCooldown {
-		return false
-	}
-	e.dayOpensAsked, e.dayOpensAskedAt = day, now
-	return true
-}
-
-// recordDayOpens records the opening prices of the day a REST ticker read requested at requested reported, unless a
-// read requested after it was recorded first. A symbol that names no pair is passed over
-func (e *Exchange) recordDayOpens(requested time.Time, tickers map[string]TickerInformation) {
-	opens := make(map[key.PairAsset]float64, len(tickers))
-	for symbol := range tickers {
-		pair, err := e.pairFromDisplaySymbol(symbol)
-		if err != nil {
-			continue
-		}
-		opens[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}] = tickers[symbol].OpeningPrice.Float64()
-	}
-	e.dayOpensMu.Lock()
-	defer e.dayOpensMu.Unlock()
-	if requested.Before(e.dayOpensRequested) {
-		return
-	}
-	e.dayOpens, e.dayOpensRequested = opens, requested
-}
-
-// readDayOpens reads every spot pair's opening price of the day over REST, which websocket tickers carry none of. Its
-// keys are the UTC days tickers found no opens read for, each settled by a read requested on or after it
-func (e *Exchange) readDayOpens(ctx context.Context, days []string) []string {
-	requested := time.Now()
-	tickers, err := e.GetTickerInformation(ctx, &TickerInformationRequest{DisplayNames: true})
-	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s reading the spot opening prices of the day failed: %v", e.Name, err)
-		return days
-	}
-	e.recordDayOpens(requested, tickers)
-	read := requested.UTC().Format(time.DateOnly)
-	var unsettled []string
-	for _, day := range days {
-		if day > read {
-			unsettled = append(unsettled, day)
-		}
-	}
-	return unsettled
 }
 
 // wsProcessBook loads order book snapshots and applies updates, checking each against its checksum. A book that fails

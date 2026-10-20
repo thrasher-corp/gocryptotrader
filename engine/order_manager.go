@@ -838,6 +838,12 @@ func (m *OrderManager) processFuturesPositions(ctx context.Context, exch exchang
 
 func (m *OrderManager) processMatchingOrders(ctx context.Context, exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {
 	for x := range orders {
+		// A futures order the exchange no longer lists as open is looked up only when its status is unknown: several
+		// exchanges cannot settle one, and a lookup that fails or whose result is refused leaves LastUpdated as it was, so
+		// the order would be asked for on every sweep
+		if orders[x].AssetType.IsFutures() && orders[x].Status != order.UnknownStatus {
+			continue
+		}
 		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue
 		}

@@ -3,7 +3,6 @@ package kraken
 import (
 	"bufio"
 	"context"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -1241,101 +1239,8 @@ func TestWebsocketProcessTickerBatch(t *testing.T) {
 	assert.Error(t, ex.wsProcessTicker(t.Context(), &wsChannelMessage{Data: json.RawMessage(`"bad"`)}), "wsProcessTicker should reject data that is not a list")
 }
 
-// dayOpensReply is Get Ticker Information's reply by display names, holding BTC/USD's opening price of the day
-const dayOpensReply = `{"error":[],"result":{"BTC/USD":{"a":["81720.10000","1","1.000"],"b":["81720.00000","2","2.000"],"c":["81720.10000","0.00029992"],` +
-	`"h":["81771.50000","83467.70000"],"l":["81656.40000","80328.60000"],"o":"81683.80000","p":["81717.59466","81876.00203"],"t":[1115,196973],"v":["3.55247230","4011.48934847"]}}}`
-
-// dayOpensServer serves Get Ticker Information's replies to the reads of the spot opening prices of the day, counting
-// them
-type dayOpensServer struct {
-	mu    sync.Mutex
-	reads int
-	// replies answers the reads in turn, the last answering every read after it
-	replies []string
-	// hold, when set, holds every reply until it is closed, each read being counted first
-	hold chan struct{}
-}
-
-func (s *dayOpensServer) handle(t *testing.T) http.HandlerFunc {
-	t.Helper()
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/0/public/Ticker", r.URL.Path, "only the tickers should be read") {
-			http.Error(w, "unexpected request", http.StatusNotFound)
-			return
-		}
-		assert.Equal(t, "assetVersion=1", r.URL.RawQuery, "every pair's ticker should be read by its display name")
-		s.mu.Lock()
-		s.reads++
-		reply := s.replies[0]
-		if len(s.replies) > 1 {
-			s.replies = s.replies[1:]
-		}
-		s.mu.Unlock()
-		if s.hold != nil {
-			select {
-			case <-s.hold:
-			case <-r.Context().Done():
-				return
-			}
-		}
-		_, err := w.Write([]byte(reply))
-		assert.NoError(t, err, "Write should not error")
-	}
-}
-
-func (s *dayOpensServer) readCount() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.reads
-}
-
-// dayOpensRead returns when the REST ticker read whose opening prices an exchange holds was requested
-func dayOpensRead(ex *Exchange) time.Time {
-	ex.dayOpensMu.Lock()
-	defer ex.dayOpensMu.Unlock()
-	return ex.dayOpensRequested
-}
-
-// roundTripFunc answers HTTP requests in memory
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-// RoundTrip implements http.RoundTripper
-func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
-}
-
-// newDelayedReplyTestExchange returns an exchange named after the test, built from its defaults, whose every REST
-// request is answered in memory with reply once delay has passed, and a count of the requests. Inside a synctest
-// bubble the delay passes on the bubble's clock, so a test can hold a request across a time it chooses
-func newDelayedReplyTestExchange(t *testing.T, delay time.Duration, reply string) (*Exchange, *atomic.Int32) {
-	t.Helper()
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.Name, ex.Verbose = t.Name(), false
-	requests := new(atomic.Int32)
-	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		time.Sleep(delay)
-		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(reply)), Request: r}, nil
-	})}), "SetHTTPClient must not error")
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	seedTestAssetNames(ex)
-	return ex, requests
-}
-
-// assertDayOpensReadAt asserts that an exchange holds dayOpensReply's opening prices as read at requested, those of
-// the next UTC day still to be read
-func assertDayOpensReadAt(t *testing.T, ex *Exchange, requested time.Time) {
-	t.Helper()
-	assert.Equal(t, requested.UTC(), dayOpensRead(ex).UTC(), "the opening prices should be recorded as of when their read was requested")
-	open, unread := ex.dayOpen(wsTestPair, requested)
-	assert.False(t, unread, "the opening prices of the day the read was requested on should be held")
-	assert.Equal(t, 81683.8, open, "the opening prices read should be held for the day the read was requested on")
-	_, unread = ex.dayOpen(wsTestPair, requested.Add(time.Second))
-	assert.True(t, unread, "the opening prices of the next UTC day should still need a read")
-}
-
-// tickerMessage returns a message sent at sent holding a BTC/USD ticker, stamped at stamped unless it is zero
+// tickerMessage returns a ticker message sent at sent, holding a BTC/USD ticker stamped at stamped, or unstamped when
+// stamped is zero
 func tickerMessage(stamped, sent time.Time) *wsChannelMessage {
 	var timestamp string
 	if !stamped.IsZero() {
@@ -1345,8 +1250,8 @@ func tickerMessage(stamped, sent time.Time) *wsChannelMessage {
 		`"ask":81776.7,"ask_qty":0.00050857,"last":81776.6,"volume":4031.89061547,"vwap":81871.6,"low":80328.6,"high":83467.7,"change":-1448.7,"change_pct":-1.74` + timestamp + `}]`)}
 }
 
-// tickerMessagePrice returns the price tickerMessage's ticker is relayed as, with the opening price of the day and time
-func tickerMessagePrice(exchangeName string, open float64, updated time.Time) []ticker.Price {
+// tickerMessagePrice returns the price tickerMessage's ticker is relayed as, updated at updated
+func tickerMessagePrice(exchangeName string, updated time.Time) []ticker.Price {
 	return []ticker.Price{{
 		ExchangeName:               exchangeName,
 		AssetType:                  asset.Spot,
@@ -1361,247 +1266,28 @@ func tickerMessagePrice(exchangeName string, open float64, updated time.Time) []
 		AskSize:                    0.00050857,
 		BaseVolume:                 4031.89061547,
 		VolumeWeightedAveragePrice: 81871.6,
-		Open:                       open,
 		Open24Hour:                 83225.3,
 		PercentChange24Hour:        -1.74,
 		LastUpdated:                updated,
 	}}
 }
 
-func TestWebsocketProcessTickerDayOpen(t *testing.T) {
+func TestWebsocketProcessTickerTime(t *testing.T) {
 	t.Parallel()
-	server := &dayOpensServer{replies: []string{dayOpensReply}, hold: make(chan struct{})}
-	ex := newHTTPTestExchange(t, server.handle(t))
-	// Cleanups run last first, so a held read is let go before the server closes
-	release := sync.OnceFunc(func() { close(server.hold) })
-	t.Cleanup(release)
+	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
-	ex.spotDayOpens.interval = time.Millisecond
-	useConnectedRefreshers(ex)
-	idle := func() bool {
-		ex.spotDayOpens.mu.Lock()
-		defer ex.spotDayOpens.mu.Unlock()
-		return !ex.spotDayOpens.running
-	}
-
-	// Tickers that arrive before the opens of their day are read carry none, and those asking while the read runs cost
-	// no other
-	now := time.Now().UTC()
-	require.NoError(t, ex.wsProcessTicker(t.Context(), tickerMessage(now, time.Time{})), "wsProcessTicker must not error")
-	require.Eventually(t, func() bool { return server.readCount() == 1 }, 5*time.Second, time.Millisecond, "a ticker must ask for the opens of its day to be read")
-	for range 2 {
-		require.NoError(t, ex.wsProcessTicker(t.Context(), tickerMessage(now, time.Time{})), "wsProcessTicker must not error while the read is held")
-	}
-	unread := tickerMessagePrice(ex.Name, 0, now)
-	assert.Equal(t, []any{unread, unread, unread}, relayed(ex), "tickers that arrive before the opens of their day are read should carry none")
-	release()
-	require.Eventually(t, idle, 5*time.Second, time.Millisecond, "the refresher must stop once the opens of the day are read")
-	assert.Equal(t, 1, server.readCount(), "the tickers asking while the read ran should cost no other read")
-
-	day := dayOpensRead(ex).UTC()
+	stamped := time.Date(2026, 10, 20, 0, 0, 1, 103000000, time.UTC)
 	for _, tc := range []struct {
 		name          string
 		stamped, sent time.Time
-		open          float64
-		updated       time.Time
 	}{
-		{name: "stamped the day read", stamped: day, open: 81683.8, updated: day},
-		{name: "stamped the day before, arriving late", stamped: day.Add(-24 * time.Hour), updated: day.Add(-24 * time.Hour)},
-		{name: "stamped the day read, after one from the day before", stamped: day, open: 81683.8, updated: day},
-		{name: "stamped the day read, in a message sent the day before", stamped: day, sent: day.Add(-24 * time.Hour), open: 81683.8, updated: day},
-		{name: "unstamped, in a message sent the day read", sent: day, open: 81683.8, updated: day},
+		{name: "stamped, in a message sent a second later", stamped: stamped, sent: stamped.Add(time.Second)},
+		{name: "stamped, in a message sent the day before", stamped: stamped, sent: stamped.Add(-24 * time.Hour)},
+		{name: "unstamped, in a message sent at that time", sent: stamped},
 	} {
 		require.NoErrorf(t, ex.wsProcessTicker(t.Context(), tickerMessage(tc.stamped, tc.sent)), "wsProcessTicker must not error for a ticker %s", tc.name)
-		assert.Equalf(t, []any{tickerMessagePrice(ex.Name, tc.open, tc.updated)}, relayed(ex), "a ticker %s should be relayed with the opening price of its day as read, and its own time before its message's", tc.name)
+		assert.Equalf(t, []any{tickerMessagePrice(ex.Name, stamped)}, relayed(ex), "a ticker %s should be relayed with its own time before its message's", tc.name)
 	}
-	assert.True(t, idle(), "a ticker on or before the day read should ask for no other read")
-	assert.Equal(t, 1, server.readCount(), "a ticker on or before the day read should ask for no other read")
-
-	next := day.Add(24 * time.Hour)
-	require.NoError(t, ex.wsProcessTicker(t.Context(), tickerMessage(next, time.Time{})), "wsProcessTicker must not error for a ticker on the next day")
-	assert.Equal(t, []any{tickerMessagePrice(ex.Name, 0, next)}, relayed(ex), "a ticker on the day after the read should carry no open until its day's are read")
-	assert.Eventually(t, func() bool { return server.readCount() > 1 }, 5*time.Second, time.Millisecond, "a ticker on the day after the read should ask for its day's opens")
-	require.Eventually(t, idle, 5*time.Second, time.Millisecond, "the refresher must stop once the next day's read has had its attempts")
-}
-
-func TestWebsocketProcessTickerDayOpenRetried(t *testing.T) {
-	t.Parallel()
-	server := &dayOpensServer{replies: []string{`{"error":["EService:Unavailable"]}`, dayOpensReply}}
-	ex := newHTTPTestExchange(t, server.handle(t))
-	seedTestAssetNames(ex)
-	ex.spotDayOpens.interval = time.Millisecond
-	useConnectedRefreshers(ex)
-	now := time.Now().UTC()
-	require.NoError(t, ex.wsProcessTicker(t.Context(), tickerMessage(now, time.Time{})), "wsProcessTicker must not error")
-	assert.Equal(t, []any{tickerMessagePrice(ex.Name, 0, now)}, relayed(ex), "a ticker that arrives before the opens of its day are read should carry none")
-	require.Eventually(t, func() bool {
-		ex.spotDayOpens.mu.Lock()
-		defer ex.spotDayOpens.mu.Unlock()
-		return server.readCount() == 2 && !ex.spotDayOpens.running
-	}, 5*time.Second, time.Millisecond, "a failed read of the opens of the day must be made again")
-	open, unread := ex.dayOpen(wsTestPair, dayOpensRead(ex))
-	assert.False(t, unread, "the read made again should record the opens of the day")
-	assert.Equal(t, 81683.8, open, "the read made again should record each pair's opening price of the day")
-}
-
-func TestWebsocketProcessTickerDayOpenAsks(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name  string
-		reply string
-		// ahead stamps the tickers a UTC day ahead of the clock, as a local clock lagging Kraken's across a midnight would
-		ahead time.Duration
-		// reads are the reads each ask costs, and again whether the tickers ask again once the cool-down has passed
-		reads int32
-		again bool
-	}{
-		{name: "a read that fails", reply: `{"error":["EService:Unavailable"]}`, reads: wsRefreshAttempts, again: true},
-		{name: "a read that cannot settle the tickers' day", reply: dayOpensReply, ahead: 24 * time.Hour, reads: wsRefreshAttempts, again: true},
-		{name: "a read that succeeds", reply: dayOpensReply, reads: 1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			synctest.Test(t, func(t *testing.T) {
-				ex, reads := newDelayedReplyTestExchange(t, 0, tc.reply)
-				useConnectedRefreshers(ex)
-				// Tickers stream every second, as they do on every trade
-				stream := func(d time.Duration) {
-					for end := time.Now().Add(d); time.Now().Before(end); time.Sleep(time.Second) {
-						require.NoError(t, ex.wsProcessTicker(t.Context(), tickerMessage(time.Now().Add(tc.ahead), time.Time{})), "wsProcessTicker must not error")
-						relayed(ex)
-					}
-				}
-				stream(dayOpensAskCooldown)
-				assert.Equalf(t, tc.reads, reads.Load(), "tickers streaming through the cool-down should cost one ask's reads after %s", tc.name)
-				stream(time.Minute)
-				exp := tc.reads
-				if tc.again {
-					exp *= 2
-				}
-				assert.Equalf(t, exp, reads.Load(), "tickers streaming after the cool-down should ask again only while their day is unread after %s", tc.name)
-				// The refresher spends its attempts before the bubble ends, even should the asks not be bounded
-				time.Sleep((wsRefreshAttempts + 1) * wsRefreshInterval)
-			})
-		})
-	}
-}
-
-func TestAskDayOpens(t *testing.T) {
-	t.Parallel()
-	synctest.Test(t, func(t *testing.T) {
-		ex := new(Exchange)
-		for _, tc := range []struct {
-			name  string
-			wait  time.Duration
-			day   string
-			asked bool
-		}{
-			{name: "a day first", day: "2000-01-01", asked: true},
-			{name: "the same day again", day: "2000-01-01"},
-			{name: "a day before it", day: "1999-12-31"},
-			{name: "the same day just before the cool-down ends", wait: dayOpensAskCooldown - time.Nanosecond, day: "2000-01-01"},
-			{name: "the same day once the cool-down ends", wait: time.Nanosecond, day: "2000-01-01", asked: true},
-			{name: "a later day", day: "2000-01-02", asked: true},
-			{name: "the later day again", day: "2000-01-02"},
-			{name: "a day before the later one, once the cool-down ends", wait: dayOpensAskCooldown, day: "2000-01-01", asked: true},
-		} {
-			time.Sleep(tc.wait)
-			assert.Equalf(t, tc.asked, ex.askDayOpens(tc.day), "askDayOpens should report whether %s is asked", tc.name)
-		}
-	})
-}
-
-func TestDayOpen(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
-	read := time.Date(2026, 10, 9, 7, 30, 0, 0, time.UTC)
-	open, unread := ex.dayOpen(wsTestPair, read)
-	assert.Zero(t, open, "dayOpen should return no open before any read")
-	assert.True(t, unread, "dayOpen should ask for a read before any")
-	ex.recordDayOpens(read, map[string]TickerInformation{"BTC/USD": {OpeningPrice: 81683.8}})
-	aest := time.FixedZone("AEST", 10*60*60)
-	for _, tc := range []struct {
-		name   string
-		pair   currency.Pair
-		at     time.Time
-		open   float64
-		unread bool
-	}{
-		{name: "the time of the read", pair: wsTestPair, at: read, open: 81683.8},
-		{name: "the start of the UTC day read", pair: wsTestPair, at: time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), open: 81683.8},
-		{name: "the end of the UTC day read", pair: wsTestPair, at: time.Date(2026, 10, 9, 23, 59, 59, 999999999, time.UTC), open: 81683.8},
-		{name: "the UTC day read, on the next day in another zone", pair: wsTestPair, at: time.Date(2026, 10, 10, 9, 0, 0, 0, aest), open: 81683.8},
-		{name: "the UTC day read, for a pair the read reported no open for", pair: wsTestDOGEPair, at: read},
-		{name: "the next UTC day", pair: wsTestPair, at: time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC), unread: true},
-		{name: "the next UTC day, in another zone", pair: wsTestPair, at: time.Date(2026, 10, 10, 10, 0, 0, 0, aest), unread: true},
-		{name: "the UTC day before", pair: wsTestPair, at: time.Date(2026, 10, 8, 23, 59, 59, 999999999, time.UTC)},
-		{name: "the UTC day before, on the day read in another zone", pair: wsTestPair, at: time.Date(2026, 10, 9, 9, 0, 0, 0, aest)},
-	} {
-		open, unread := ex.dayOpen(tc.pair, tc.at)
-		assert.Equalf(t, tc.open, open, "dayOpen should return the opening price at %s", tc.name)
-		assert.Equalf(t, tc.unread, unread, "dayOpen should report whether another read is needed at %s", tc.name)
-	}
-}
-
-func TestRecordDayOpens(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
-	held := func() (map[key.PairAsset]float64, time.Time) {
-		ex.dayOpensMu.Lock()
-		defer ex.dayOpensMu.Unlock()
-		return ex.dayOpens, ex.dayOpensRequested
-	}
-	btc := key.PairAsset{Base: wsTestPair.Base.Item, Quote: wsTestPair.Quote.Item, Asset: asset.Spot}
-	doge := key.PairAsset{Base: wsTestDOGEPair.Base.Item, Quote: wsTestDOGEPair.Quote.Item, Asset: asset.Spot}
-	read := time.Date(2026, 10, 9, 7, 30, 0, 0, time.UTC)
-	ex.recordDayOpens(read, map[string]TickerInformation{"BTC/USD": {OpeningPrice: 81683.8}, "DOGE/USD": {OpeningPrice: 0.2101}, "BTCUSD": {OpeningPrice: 1}})
-	opens, requested := held()
-	assert.Equal(t, map[key.PairAsset]float64{btc: 81683.8, doge: 0.2101}, opens, "recordDayOpens should record each pair's opening price, passing over a symbol that names no pair")
-	assert.Equal(t, read, requested, "recordDayOpens should record when the read was requested")
-
-	ex.recordDayOpens(read.Add(-time.Minute), map[string]TickerInformation{"BTC/USD": {OpeningPrice: 1}})
-	opens, requested = held()
-	assert.Equal(t, map[key.PairAsset]float64{btc: 81683.8, doge: 0.2101}, opens, "recordDayOpens should not record a read requested before the one recorded")
-	assert.Equal(t, read, requested, "recordDayOpens should keep when the read recorded was requested")
-
-	later := read.Add(time.Minute)
-	ex.recordDayOpens(later, map[string]TickerInformation{"BTC/USD": {OpeningPrice: 81700}})
-	opens, requested = held()
-	assert.Equal(t, map[key.PairAsset]float64{btc: 81700}, opens, "recordDayOpens should replace the opening prices whole with a read requested later")
-	assert.Equal(t, later, requested, "recordDayOpens should record when the later read was requested")
-}
-
-func TestReadDayOpens(t *testing.T) {
-	t.Parallel()
-	server := &dayOpensServer{replies: []string{`{"error":["EService:Unavailable"]}`, dayOpensReply}}
-	ex := newHTTPTestExchange(t, server.handle(t))
-	seedTestAssetNames(ex)
-	assert.Equal(t, []string{"2000-01-01"}, ex.readDayOpens(t.Context(), []string{"2000-01-01"}), "readDayOpens should settle no day when its read fails")
-	_, unread := ex.dayOpen(wsTestPair, time.Now())
-	assert.True(t, unread, "readDayOpens should record no opening prices when its read fails")
-
-	assert.Equal(t, []string{"9999-12-31"}, ex.readDayOpens(t.Context(), []string{"2000-01-01", "9999-12-31"}), "readDayOpens should settle the days up to the one its read was requested on")
-	read := dayOpensRead(ex)
-	open, unread := ex.dayOpen(wsTestPair, read)
-	assert.False(t, unread, "readDayOpens should record the opening prices of its day")
-	assert.Equal(t, 81683.8, open, "readDayOpens should record each pair's opening price of the day")
-	assert.Empty(t, ex.readDayOpens(t.Context(), []string{read.UTC().Format(time.DateOnly)}), "readDayOpens should settle the day its read was requested on")
-	assert.Equal(t, 3, server.readCount(), "readDayOpens should read every pair's ticker once each time")
-
-	t.Run("requested before a UTC midnight and answered after", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) {
-			ex, _ := newDelayedReplyTestExchange(t, 2*time.Second, dayOpensReply)
-			// The bubble's clock starts at a UTC midnight, so the read is requested a second before the next
-			time.Sleep(24*time.Hour - time.Second)
-			requested := time.Now()
-			nextDay := requested.Add(time.Second).UTC().Format(time.DateOnly)
-			assert.Equal(t, []string{nextDay}, ex.readDayOpens(t.Context(), []string{nextDay}), "readDayOpens should not settle the day after the one its read was requested on")
-			assertDayOpensReadAt(t, ex, requested)
-		})
-	})
 }
 
 func TestWebsocketHandleDataUnhandled(t *testing.T) {
@@ -1684,12 +1370,12 @@ func TestResubscribeBook(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "resubscribeSpotBook must resubscribe the subscribed book")
+	}, testWaitTimeout, 10*time.Millisecond, "resubscribeSpotBook must resubscribe the subscribed book")
 	assert.Equal(t, exp, got, "resubscribeSpotBook should resubscribe only the book subscribed, unsubscribing first")
 	require.Eventually(t, func() bool {
 		stored := ex.Websocket.GetSubscription(s)
 		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
 }
 
 func TestResubscribeBookChannelNames(t *testing.T) {
@@ -1748,11 +1434,11 @@ func TestResubscribeBookChannelNames(t *testing.T) {
 			require.Eventually(t, func() bool {
 				got = append(got, server.takeRequests()...)
 				return len(got) >= len(exp)
-			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			}, testWaitTimeout, 10*time.Millisecond, "the book must be resubscribed")
 			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
 			require.Eventually(t, func() bool {
 				return subs[0].State() == subscription.SubscribedState && ex.Websocket.GetSubscription(subs[0]) == subs[0]
-			}, 5*time.Second, 10*time.Millisecond, "the subscription must be subscribed again")
+			}, testWaitTimeout, 10*time.Millisecond, "the subscription must be subscribed again")
 		})
 	}
 }
@@ -2121,12 +1807,12 @@ func TestSubscribeLevel3(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "a level 3 snapshot failing its checksum must resubscribe the book")
+	}, testWaitTimeout, 10*time.Millisecond, "a level 3 snapshot failing its checksum must resubscribe the book")
 	assertRequests(t, exp, got)
 	require.Eventually(t, func() bool {
 		stored := ex.Websocket.GetSubscription(s)
 		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 5*time.Second, 10*time.Millisecond, "the level 3 book must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the level 3 book must be subscribed again")
 
 	ex.level3BooksMu.Lock()
 	ex.level3Books = map[key.PairAsset]*level3Book{{Base: wsTestPair.Base.Item, Quote: wsTestPair.Quote.Item, Asset: asset.Spot}: {}}
@@ -2809,12 +2495,12 @@ func TestResubscribeOrderbook(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, server.takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "resubscribeOrderbook must resubscribe the book")
+	}, testWaitTimeout, 10*time.Millisecond, "resubscribeOrderbook must resubscribe the book")
 	assert.Equal(t, exp, got, "resubscribeOrderbook should unsubscribe the book before subscribing again")
 	require.Eventually(t, func() bool {
 		stored := ex.Websocket.GetSubscription(book)
 		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 5*time.Second, 10*time.Millisecond, "the book must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
 
 	ex.resubscribeOrderbook(conn, &subscription.Subscription{QualifiedChannel: wsChannelBook, Asset: asset.Spot, Pairs: currency.Pairs{wsTestDOGEPair}, Levels: 10})
 	assert.Never(t, func() bool {
@@ -2886,11 +2572,11 @@ func TestResubscribeOrderbookReceivingConnection(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got = append(got, servers[1].takeRequests()...)
 		return len(got) >= len(exp)
-	}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed on the connection it failed on")
+	}, testWaitTimeout, 10*time.Millisecond, "the book must be resubscribed on the connection it failed on")
 	assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
 	require.Eventually(t, func() bool {
 		return subs[1].State() == subscription.SubscribedState && ex.Websocket.GetSubscription(subs[1]) == subs[1]
-	}, 5*time.Second, 10*time.Millisecond, "the second connection's subscription must be subscribed again")
+	}, testWaitTimeout, 10*time.Millisecond, "the second connection's subscription must be subscribed again")
 	assert.Empty(t, servers[0].takeRequests(), "the first connection should not be resubscribed")
 	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "the first connection's subscription should stay subscribed")
 }
@@ -2945,11 +2631,11 @@ func TestResubscribeOrderbookStaleConnectionSubscription(t *testing.T) {
 			require.Eventually(t, func() bool {
 				got = append(got, server.takeRequests()...)
 				return len(got) >= len(exp)
-			}, 5*time.Second, 10*time.Millisecond, "the book must be resubscribed")
+			}, testWaitTimeout, 10*time.Millisecond, "the book must be resubscribed")
 			assert.Equal(t, exp, got, "the book should be unsubscribed before being subscribed again")
 			require.Eventually(t, func() bool {
 				return live.State() == subscription.SubscribedState && ex.Websocket.GetSubscription(live) == live
-			}, 5*time.Second, 10*time.Millisecond, "the manager's subscription must be subscribed again")
+			}, testWaitTimeout, 10*time.Millisecond, "the manager's subscription must be subscribed again")
 			assert.Equal(t, tc.staleState, stale.State(), "the old subscription should not be resubscribed")
 		})
 	}
@@ -3150,7 +2836,7 @@ func TestWebsocketProcessExecutions(t *testing.T) {
 		err := ex.wsProcessExecutions(t.Context(), msg)
 		assert.EqualError(t, err, "channel buffer is full: failed to relay <*order.Detail>, channel buffer is full: failed to relay <*order.Detail>, channel buffer is full: failed to relay <[]fill.Data>",
 			"wsProcessExecutions should return the error relaying each update and the fills")
-		require.Eventually(t, func() bool { return len(server.readOrders()) == 1 }, 5*time.Second, time.Millisecond, "the order reported filled must be read although its update was not relayed")
+		require.Eventually(t, func() bool { return len(server.readOrders()) == 1 }, testWaitTimeout, time.Millisecond, "the order reported filled must be read although its update was not relayed")
 		relayed(ex)
 		release()
 		var fee float64
@@ -3161,7 +2847,7 @@ func TestWebsocketProcessExecutions(t *testing.T) {
 				}
 			}
 			return fee != 0
-		}, 5*time.Second, time.Millisecond, "the read should relay the order reported filled")
+		}, testWaitTimeout, time.Millisecond, "the read should relay the order reported filled")
 		assert.Equal(t, 0.6916, fee, "the read should relay the order's fee")
 		assert.Equal(t, [][]string{{finishedSpotOrderID}}, server.readOrders(), "only the order reported filled should be read")
 	})
@@ -3312,7 +2998,7 @@ func TestWebsocketProcessBalances(t *testing.T) {
 		ex.spotBalances.mu.Lock()
 		defer ex.spotBalances.mu.Unlock()
 		return !ex.spotBalances.running
-	}, 5*time.Second, time.Millisecond, "the refresher must finish the update's refresh")
+	}, testWaitTimeout, time.Millisecond, "the refresher must finish the update's refresh")
 	reads := server.readCount()
 	for _, msg := range []*wsChannelMessage{{Type: wsTypeSnapshot, Data: json.RawMessage(`"bad"`)}, {Type: "update", Data: json.RawMessage(`"bad"`)}} {
 		assert.Errorf(t, ex.wsProcessBalances(t.Context(), msg), "wsProcessBalances should reject a %s that is not a list", msg.Type)

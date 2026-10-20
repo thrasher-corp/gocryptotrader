@@ -269,9 +269,9 @@ func (s *futuresOrderState) complete() bool {
 // addTo adds to an order update what the feeds have reported of the order. An order whose quantity open_orders has
 // reported, and which the tracker has not forgotten since, gets its quantity and executed quantity; any other, such as a
 // market order, which rests in no book, gets them only once its fills, all reported as they happened, have filled it in
-// full, as fills alone tell neither an order's quantity nor whether earlier fills were missed. The average price, cost and fee are added once the fills counted
-// make up the executed quantity, as partial totals would replace fuller ones the order store holds. An inverse
-// contract's cost would be in its base currency, so it is left out
+// full, as fills alone tell neither an order's quantity nor whether earlier fills were missed. The average price, cost
+// and fee are added once the fills counted make up the executed quantity, as partial totals would replace fuller ones
+// the order store holds. An inverse contract's cost would be in its base currency, so it is left out
 func (s *futuresOrderState) addTo(d *order.Detail) {
 	// The order store keeps the fee currency of the update that first stores an order, which can be a fill's
 	if !s.mixedFees && !s.feeAsset.IsEmpty() {
