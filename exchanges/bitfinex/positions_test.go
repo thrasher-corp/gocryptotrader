@@ -42,7 +42,7 @@ func newBodyCheckExchange(t *testing.T, response string, bodies ...string) *Exch
 }
 
 // activePositionOfType returns one of the account's active positions of a type, skipping a live test when it has none
-func activePositionOfType(t *testing.T, positionType uint64) *Position {
+func activePositionOfType(t *testing.T, positionType uint64) *PositionResponse {
 	t.Helper()
 	positions, err := e.GetActivePositions(t.Context())
 	require.NoError(t, err, "GetActivePositions must not error")
@@ -145,7 +145,7 @@ func TestGetActivePositions(t *testing.T) {
 	result, err := e.GetActivePositions(t.Context())
 	require.NoError(t, err, "GetActivePositions must not error")
 	if mockTests {
-		exp := []Position{{
+		exp := []PositionResponse{{
 			Symbol:               "tBTCUSD",
 			Status:               "ACTIVE",
 			Amount:               0.0195,
@@ -198,10 +198,10 @@ func TestClaimPosition(t *testing.T) {
 	}
 	result, err := e.ClaimPosition(t.Context(), &ClaimPositionRequest{PositionID: 142031891, Amount: 0.001})
 	require.NoError(t, err, "ClaimPosition must not error")
-	exp := &Notification[Position]{
+	exp := &Notification[PositionResponse]{
 		Time: types.Time(time.UnixMilli(1568650414540)),
 		Type: "pm-req",
-		Data: Position{
+		Data: PositionResponse{
 			Symbol:    "tBTCUSD",
 			Status:    "ACTIVE",
 			Amount:    -0.001,
@@ -238,10 +238,10 @@ func TestIncreasePosition(t *testing.T) {
 	}
 	result, err := e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD", Amount: 1})
 	require.NoError(t, err, "IncreasePosition must not error")
-	exp := &Notification[Position]{
+	exp := &Notification[PositionResponse]{
 		Time:   types.Time(time.UnixMilli(1612447904081)),
 		Type:   "pmi-req",
-		Data:   Position{Symbol: "tBTCUSD", Amount: 1, BasePrice: 100},
+		Data:   PositionResponse{Symbol: "tBTCUSD", Amount: 1, BasePrice: 100},
 		Status: NotificationStatusSuccess,
 		Text:   "Submitting position increase.",
 	}
@@ -311,7 +311,7 @@ func TestGetPositionsHistory(t *testing.T) {
 	result, err := e.GetPositionsHistory(t.Context(), req)
 	require.NoError(t, err, "GetPositionsHistory must not error")
 	if mockTests {
-		exp := []Position{{
+		exp := []PositionResponse{{
 			Symbol:    "tBTCUSD",
 			Status:    "CLOSED",
 			BasePrice: 8639.50216298,
@@ -345,7 +345,7 @@ func TestGetPositionsSnapshot(t *testing.T) {
 	result, err := e.GetPositionsSnapshot(t.Context(), req)
 	require.NoError(t, err, "GetPositionsSnapshot must not error")
 	if mockTests {
-		exp := []Position{{
+		exp := []PositionResponse{{
 			Symbol:    "tETHUSD",
 			Status:    "ACTIVE",
 			Amount:    -0.2,
@@ -380,7 +380,7 @@ func TestGetPositionsAudit(t *testing.T) {
 	result, err := e.GetPositionsAudit(t.Context(), req)
 	require.NoError(t, err, "GetPositionsAudit must not error")
 	if mockTests {
-		exp := []Position{{
+		exp := []PositionResponse{{
 			Symbol:    "tETHUSD",
 			Status:    "ACTIVE",
 			Amount:    0.9682,

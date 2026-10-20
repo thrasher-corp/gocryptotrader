@@ -26,37 +26,37 @@ var (
 	testClientOrderIDDate = time.Date(2023, time.March, 16, 0, 0, 0, 0, time.UTC)
 
 	// testActiveOrder is the order the documented Retrieve Orders examples return
-	testActiveOrder = Order{
+	testActiveOrder = OrderResponse{
 		ID: 33950998275, ClientOrderID: 1573476747887, Symbol: "tETHUSD", CreatedAt: types.Time(time.UnixMilli(1573476748000)), UpdatedAt: types.Time(time.UnixMilli(1573476748000)),
 		Amount: -0.5, OriginalAmount: -0.5, Type: OrderTypeLimit, Status: "ACTIVE", Price: 220, Routing: "BFX",
 	}
 	// testSubmittedOrder is the order the documented Submit Order and Cancel Orders (multiple) examples return
-	testSubmittedOrder = Order{
+	testSubmittedOrder = OrderResponse{
 		ID: testOrderID, ClientOrderID: testClientOrderID, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1678987199446)), UpdatedAt: types.Time(time.UnixMilli(1678987199448)),
 		Amount: 0.1, OriginalAmount: 0.1, Type: ExchangeOrderTypePrefix + OrderTypeLimit, Status: "ACTIVE", Price: 10000, Routing: "API>BFX",
 	}
 	// testUpdatedOrder is the order the documented Update Order example returns
-	testUpdatedOrder = Order{
+	testUpdatedOrder = OrderResponse{
 		ID: testOrderID, ClientOrderID: testClientOrderID, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1678987199446)), UpdatedAt: types.Time(time.UnixMilli(1678988263843)),
 		Amount: 0.25, OriginalAmount: 0.1, Type: ExchangeOrderTypePrefix + OrderTypeLimit, PreviousType: ExchangeOrderTypePrefix + OrderTypeLimit, Status: "ACTIVE", Price: 25000, Routing: "API>BFX",
 	}
 	// testCancelledOrder is the order the documented Cancel Order example returns
-	testCancelledOrder = Order{
+	testCancelledOrder = OrderResponse{
 		ID: testOrderID, ClientOrderID: testClientOrderID, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1678987199446)), UpdatedAt: types.Time(time.UnixMilli(1678989283489)),
 		Amount: 0.25, OriginalAmount: 0.1, Type: ExchangeOrderTypePrefix + OrderTypeLimit, PreviousType: ExchangeOrderTypePrefix + OrderTypeLimit, Status: "CANCELED", Price: 25000, Routing: "API>BFX",
 	}
 	// testHistoricOrder is the order the documented Orders History examples return
-	testHistoricOrder = Order{
+	testHistoricOrder = OrderResponse{
 		ID: 33961681942, GroupID: 1227, ClientOrderID: 1337, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1573482478000)), UpdatedAt: types.Time(time.UnixMilli(1573485373000)),
 		Amount: 0.001, OriginalAmount: 0.001, Type: ExchangeOrderTypePrefix + OrderTypeLimit, Status: "CANCELED", Price: 15, Routing: "API>BFX",
 	}
 	// testOTCOrder is the order the documented OTC Orders History example returns
-	testOTCOrder = OTCOrder{
+	testOTCOrder = OTCOrderResponse{
 		ID: 123, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1669126974000)), UpdatedAt: types.Time(time.UnixMilli(1670596411000)), IsInitiator: true,
 		InitiatorNickname: "john-doe", CounterpartyNickname: "jane-btc", Amount: 0.025, Price: 26325, Status: "REJECTED",
 	}
 	// testLedgerEntry is the entry the documented Ledgers example returns
-	testLedgerEntry = LedgerEntry{
+	testLedgerEntry = LedgerEntryResponse{
 		ID: 2531822314, Currency: currency.USD, Wallet: "margin", Time: types.Time(time.UnixMilli(1573521810000)), Amount: 0.01644445, Description: "Settlement @ 185.79 on wallet margin",
 	}
 )
@@ -83,7 +83,7 @@ func cancelLiveTestOrderOnCleanup(t *testing.T, id uint64) {
 }
 
 // placeLiveTestOrder places liveTestOrderRequest's order, to be cancelled once the test ends
-func placeLiveTestOrder(t *testing.T) *Order {
+func placeLiveTestOrder(t *testing.T) *OrderResponse {
 	t.Helper()
 	resp, err := e.PlaceOrder(t.Context(), liveTestOrderRequest(t))
 	require.NoError(t, err, "PlaceOrder must not error")
@@ -115,7 +115,7 @@ func TestGetOpenOrders(t *testing.T) {
 	result, err := e.GetOpenOrders(t.Context(), req)
 	require.NoError(t, err, "GetOpenOrders must not error")
 	if mockTests {
-		exp := []Order{testActiveOrder}
+		exp := []OrderResponse{testActiveOrder}
 		assert.Equal(t, exp, result, "GetOpenOrders should decode every field")
 	} else {
 		for i := range result {
@@ -146,7 +146,7 @@ func TestGetOpenOrdersBySymbol(t *testing.T) {
 	result, err := e.GetOpenOrdersBySymbol(t.Context(), &OpenOrdersBySymbolRequest{Symbol: symbol})
 	require.NoError(t, err, "GetOpenOrdersBySymbol must not error")
 	if mockTests {
-		exp := []Order{testActiveOrder}
+		exp := []OrderResponse{testActiveOrder}
 		assert.Equal(t, exp, result, "GetOpenOrdersBySymbol should decode every field")
 	} else {
 		for i := range result {
@@ -177,10 +177,10 @@ func TestPlaceOrder(t *testing.T) {
 	if mockTests {
 		result, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{Type: ExchangeOrderTypePrefix + OrderTypeLimit, Symbol: "tBTCUSD", Amount: 0.1, Price: 10000, ClientOrderID: testClientOrderID})
 		require.NoError(t, err, "PlaceOrder must not error")
-		exp := &Notification[[]Order]{
+		exp := &Notification[[]OrderResponse]{
 			Time:   types.Time(time.Unix(1678987199, 0)),
 			Type:   "on-req",
-			Data:   []Order{testSubmittedOrder},
+			Data:   []OrderResponse{testSubmittedOrder},
 			Status: NotificationStatusSuccess,
 			Text:   "Submitting exchange limit buy order for 0.1 BTC.",
 		}
@@ -210,7 +210,7 @@ func TestUpdateOrder(t *testing.T) {
 	if mockTests {
 		result, err := e.UpdateOrder(t.Context(), &UpdateOrderRequest{ID: testOrderID, Amount: 0.25, Price: 25000})
 		require.NoError(t, err, "UpdateOrder must not error")
-		exp := &Notification[Order]{
+		exp := &Notification[OrderResponse]{
 			Time:   types.Time(time.UnixMilli(1678988263842)),
 			Type:   "ou-req",
 			Data:   testUpdatedOrder,
@@ -242,7 +242,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	skipLiveUnlessCanManipulate(t)
 	if mockTests {
-		exp := &Notification[Order]{
+		exp := &Notification[OrderResponse]{
 			Time:   types.Time(time.UnixMilli(1678989283488)),
 			Type:   "oc-req",
 			Data:   testCancelledOrder,
@@ -280,10 +280,10 @@ func TestCancelOrders(t *testing.T) {
 	if mockTests {
 		result, err := e.CancelOrders(t.Context(), &CancelOrdersRequest{IDs: []uint64{testOrderID}, ClientOrderIDs: []DatedClientOrderID{{ID: testClientOrderID, Date: testClientOrderIDDate}}})
 		require.NoError(t, err, "CancelOrders must not error")
-		exp := &Notification[[]Order]{
+		exp := &Notification[[]OrderResponse]{
 			Time:   types.Time(time.UnixMilli(1568711312683)),
 			Type:   "oc_multi-req",
-			Data:   []Order{testSubmittedOrder},
+			Data:   []OrderResponse{testSubmittedOrder},
 			Status: NotificationStatusSuccess,
 			Text:   "Submitting 2 order cancellations.",
 		}
@@ -339,14 +339,14 @@ func TestOrderMultiOp(t *testing.T) {
 			&CancelOrdersRequest{IDs: []uint64{testOrderID}},
 		})
 		require.NoError(t, err, "OrderMultiOp must not error")
-		exp := &Notification[[]Notification[OrderOperationOrders]]{
+		exp := &Notification[[]Notification[OrderOperationOrdersResponse]]{
 			Time: types.Time(time.UnixMilli(1569347312984)),
 			Type: "ox_multi-req",
-			Data: []Notification[OrderOperationOrders]{
+			Data: []Notification[OrderOperationOrdersResponse]{
 				{
 					Time: types.Time(time.UnixMilli(1569347312977)),
 					Type: "on-req",
-					Data: OrderOperationOrders{Orders: []Order{{
+					Data: OrderOperationOrdersResponse{Orders: []OrderResponse{{
 						ID: 31492970019, ClientOrderID: 1569347312970, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1569347312971)), UpdatedAt: types.Time(time.UnixMilli(1569347312971)),
 						Amount: 0.001, OriginalAmount: 0.001, Type: OrderTypeLimit, Flags: OrderFlagPostOnly, Status: "ACTIVE", Price: 15, Routing: "API>BFX", Meta: json.RawMessage(`{"$F7":1}`),
 					}}},
@@ -356,7 +356,7 @@ func TestOrderMultiOp(t *testing.T) {
 				{
 					Time: types.Time(time.UnixMilli(1569347312984)),
 					Type: "on-req",
-					Data: OrderOperationOrders{Orders: []Order{{
+					Data: OrderOperationOrdersResponse{Orders: []OrderResponse{{
 						ID: 31492970020, ClientOrderID: 1569347312977, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1569347312978)), UpdatedAt: types.Time(time.UnixMilli(1569347312978)),
 						Amount: 0.001, OriginalAmount: 0.001, Type: OrderTypeLimit, Status: "ACTIVE", Price: 15, Routing: "API>BFX",
 					}}},
@@ -366,21 +366,21 @@ func TestOrderMultiOp(t *testing.T) {
 				{
 					Time:   types.Time(time.UnixMilli(1678988263842)),
 					Type:   "ou-req",
-					Data:   OrderOperationOrders{Orders: []Order{testUpdatedOrder}},
+					Data:   OrderOperationOrdersResponse{Orders: []OrderResponse{testUpdatedOrder}},
 					Status: NotificationStatusSuccess,
 					Text:   "Submitting update to exchange limit buy order for 0.1 BTC.",
 				},
 				{
 					Time:   types.Time(time.UnixMilli(1678989283488)),
 					Type:   "oc-req",
-					Data:   OrderOperationOrders{Orders: []Order{testCancelledOrder}},
+					Data:   OrderOperationOrdersResponse{Orders: []OrderResponse{testCancelledOrder}},
 					Status: NotificationStatusSuccess,
 					Text:   "Submitted for cancellation; waiting for confirmation (ID: 1747566428).",
 				},
 				{
 					Time:   types.Time(time.UnixMilli(1568711312683)),
 					Type:   "oc_multi-req",
-					Data:   OrderOperationOrders{Orders: []Order{testSubmittedOrder}},
+					Data:   OrderOperationOrdersResponse{Orders: []OrderResponse{testSubmittedOrder}},
 					Status: NotificationStatusSuccess,
 					Text:   "Submitting 2 order cancellations.",
 				},
@@ -425,7 +425,7 @@ func TestGetOrdersHistory(t *testing.T) {
 	result, err := e.GetOrdersHistory(t.Context(), req)
 	require.NoError(t, err, "GetOrdersHistory must not error")
 	if mockTests {
-		exp := []Order{testHistoricOrder}
+		exp := []OrderResponse{testHistoricOrder}
 		assert.Equal(t, exp, result, "GetOrdersHistory should decode every field")
 	} else {
 		for i := range result {
@@ -456,7 +456,7 @@ func TestGetOrdersHistoryBySymbol(t *testing.T) {
 	result, err := e.GetOrdersHistoryBySymbol(t.Context(), req)
 	require.NoError(t, err, "GetOrdersHistoryBySymbol must not error")
 	if mockTests {
-		exp := []Order{testHistoricOrder}
+		exp := []OrderResponse{testHistoricOrder}
 		assert.Equal(t, exp, result, "GetOrdersHistoryBySymbol should decode every field")
 	} else {
 		for i := range result {
@@ -492,7 +492,7 @@ func TestGetOrderTrades(t *testing.T) {
 	result, err := e.GetOrderTrades(t.Context(), req)
 	require.NoError(t, err, "GetOrderTrades must not error")
 	if mockTests {
-		exp := []AccountTrade{{
+		exp := []AccountTradeResponse{{
 			ID: 399251013, Symbol: "tETHUSD", ExecutedAt: types.Time(time.UnixMilli(1573485493000)), OrderID: 33963608932, ExecutedAmount: 0.26334268, ExecutedPrice: 187.37,
 			OrderType: ExchangeOrderTypePrefix + OrderTypeMarket, Maker: -1, Fee: -0.09868591, FeeCurrency: currency.USD, ClientOrderID: 1234,
 		}}
@@ -524,7 +524,7 @@ func TestGetAccountTrades(t *testing.T) {
 	result, err := e.GetAccountTrades(t.Context(), req)
 	require.NoError(t, err, "GetAccountTrades must not error")
 	if mockTests {
-		exp := []AccountTrade{{
+		exp := []AccountTradeResponse{{
 			ID: 402088407, Symbol: "tETHUST", ExecutedAt: types.Time(time.UnixMilli(1574963975602)), OrderID: 34938060782, ExecutedAmount: -0.2, ExecutedPrice: 153.57,
 			OrderType: OrderTypeMarket, Maker: -1, Fee: -0.061668, FeeCurrency: currency.USD, ClientOrderID: 1234,
 		}}
@@ -560,7 +560,7 @@ func TestGetAccountTradesBySymbol(t *testing.T) {
 	result, err := e.GetAccountTradesBySymbol(t.Context(), req)
 	require.NoError(t, err, "GetAccountTradesBySymbol must not error")
 	if mockTests {
-		exp := []AccountTrade{{
+		exp := []AccountTradeResponse{{
 			ID: 402088407, Symbol: "tETHUST", ExecutedAt: types.Time(time.UnixMilli(1574963975602)), OrderID: 34938060782, ExecutedAmount: -0.2, ExecutedPrice: 153.57,
 			OrderType: OrderTypeMarket, Maker: -1, Fee: -0.061668, FeeCurrency: currency.USD, ClientOrderID: 1234,
 		}}
@@ -595,7 +595,7 @@ func TestGetOTCOrdersHistory(t *testing.T) {
 		result, err := e.GetOTCOrdersHistory(t.Context(), req)
 		require.NoErrorf(t, err, "GetOTCOrdersHistory must not error for symbol %q", req.Symbol)
 		if mockTests {
-			exp := []OTCOrder{testOTCOrder}
+			exp := []OTCOrderResponse{testOTCOrder}
 			assert.Equalf(t, exp, result, "GetOTCOrdersHistory should decode every field for symbol %q", req.Symbol)
 		} else {
 			for i := range result {
@@ -627,7 +627,7 @@ func TestGetLedgers(t *testing.T) {
 		result, err := e.GetLedgers(t.Context(), req)
 		require.NoErrorf(t, err, "GetLedgers must not error for currency %q", req.Currency)
 		if mockTests {
-			exp := []LedgerEntry{testLedgerEntry}
+			exp := []LedgerEntryResponse{testLedgerEntry}
 			assert.Equalf(t, exp, result, "GetLedgers should decode every field for currency %q", req.Currency)
 		} else {
 			for i := range result {
@@ -811,18 +811,18 @@ func TestOrderMetaBody(t *testing.T) {
 
 func TestOrderOperationOrdersUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	testTupleDecode(t, `[1,null,2,"tBTCUSD"]`, OrderOperationOrders{Orders: []Order{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}}})
-	testTupleDecode(t, ` [ [1,null,2,"tBTCUSD"], [3] ] `, OrderOperationOrders{Orders: []Order{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}, {ID: 3}}})
-	testTupleDecode(t, `[]`, OrderOperationOrders{Orders: []Order{}})
-	// An operation's notification, whose data the tuple decoder hands to OrderOperationOrders
+	testTupleDecode(t, `[1,null,2,"tBTCUSD"]`, OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}}})
+	testTupleDecode(t, ` [ [1,null,2,"tBTCUSD"], [3] ] `, OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}, {ID: 3}}})
+	testTupleDecode(t, `[]`, OrderOperationOrdersResponse{Orders: []OrderResponse{}})
+	// An operation's notification, whose data the tuple decoder hands to OrderOperationOrdersResponse
 	testTupleDecode(t, `[1678989283488,"oc-req",null,null,[1,null,2,"tBTCUSD"],null,"SUCCESS","Submitted"]`,
-		Notification[OrderOperationOrders]{Time: types.Time(time.UnixMilli(1678989283488)), Type: "oc-req", Data: OrderOperationOrders{Orders: []Order{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}}}, Status: NotificationStatusSuccess, Text: "Submitted"})
+		Notification[OrderOperationOrdersResponse]{Time: types.Time(time.UnixMilli(1678989283488)), Type: "oc-req", Data: OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}}}, Status: NotificationStatusSuccess, Text: "Submitted"})
 
-	reused := OrderOperationOrders{Orders: []Order{{ID: 9, Symbol: "tETHUSD", Price: 9}}}
+	reused := OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 9, Symbol: "tETHUSD", Price: 9}}}
 	require.NoError(t, reused.UnmarshalJSON([]byte(`[[1,null,2,null]]`)), "UnmarshalJSON must not error into decoded orders")
-	assert.Equal(t, OrderOperationOrders{Orders: []Order{{ID: 1, ClientOrderID: 2}}}, reused, "UnmarshalJSON should not keep an earlier decode's fields where the new orders are null")
+	assert.Equal(t, OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 1, ClientOrderID: 2}}}, reused, "UnmarshalJSON should not keep an earlier decode's fields where the new orders are null")
 
-	var orders OrderOperationOrders
+	var orders OrderOperationOrdersResponse
 	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[1,"x"]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed order")
 	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[["x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed order in a list")
 	assert.Error(t, orders.UnmarshalJSON([]byte(`{}`)), "UnmarshalJSON should refuse an object")
@@ -833,9 +833,9 @@ func TestOrderOperationOrdersUnmarshalJSON(t *testing.T) {
 func TestOrdersRecordsEveryPosition(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `[1000,"s1",1700000000002,1700000000003,null,1,"s6","s7",null,9.5,10.5,null,"s12",1700000000013]`,
-		OTCOrder{ID: 1000, Symbol: "s1", CreatedAt: types.Time(time.UnixMilli(1700000000002)), UpdatedAt: types.Time(time.UnixMilli(1700000000003)), IsInitiator: true, InitiatorNickname: "s6", CounterpartyNickname: "s7", Amount: 9.5, Price: 10.5, Status: "s12", TimeInForce: types.Time(time.UnixMilli(1700000000013))})
+		OTCOrderResponse{ID: 1000, Symbol: "s1", CreatedAt: types.Time(time.UnixMilli(1700000000002)), UpdatedAt: types.Time(time.UnixMilli(1700000000003)), IsInitiator: true, InitiatorNickname: "s6", CounterpartyNickname: "s7", Amount: 9.5, Price: 10.5, Status: "s12", TimeInForce: types.Time(time.UnixMilli(1700000000013))})
 	testTupleDecode(t, `[1000,"UST","s2",1700000000003,null,5.5,6.5,null,"s8"]`,
-		LedgerEntry{ID: 1000, Currency: currency.UST, Wallet: "s2", Time: types.Time(time.UnixMilli(1700000000003)), Amount: 5.5, Balance: 6.5, Description: "s8"})
+		LedgerEntryResponse{ID: 1000, Currency: currency.UST, Wallet: "s2", Time: types.Time(time.UnixMilli(1700000000003)), Amount: 5.5, Balance: 6.5, Description: "s8"})
 }
 
 func TestIsOrderType(t *testing.T) {

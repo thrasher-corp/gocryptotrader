@@ -66,6 +66,11 @@ const (
 	statusHistoryPageLimit = 5000
 	// orderHistoryReach is how far back Bitfinex's order history reaches
 	orderHistoryReach = 14 * 24 * time.Hour
+	// orderTradesReach is how far back an order's trades reach, short of Bitfinex's 10 days by an hour, as its clock and
+	// the request's travel are not GCT's
+	orderTradesReach = 10*24*time.Hour - time.Hour
+	// amountDecimalPlaces is how many decimal places Bitfinex keeps an amount to
+	amountDecimalPlaces = 8
 )
 
 var (
@@ -79,6 +84,8 @@ var (
 	errPositionCollateralNotSet = errors.New("position collateral not set")
 	errTriggerPriceRequired     = errors.New("trigger price required")
 	errTriggerPriceUnsupported  = errors.New("trigger price not supported")
+	errPriceUnsupported         = errors.New("price not supported")
+	errOrderTypeUnchangeable    = errors.New("order type cannot be changed")
 	errTrackingModeUnsupported  = errors.New("tracking mode not supported")
 )
 
@@ -302,7 +309,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 // UpdateOrderExecutionLimits stores the smallest and largest order amounts of an asset's pairs; spot and margin trade
 // the same markets, so share them, and the futures assets trade the derivative pairs their collateral margins
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var info []PairInfoEntry
+	var info []PairInfoEntryResponse
 	var err error
 	switch a {
 	case asset.Spot, asset.Margin:
@@ -411,7 +418,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 
 // tickerPrice returns a trading pair's ticker as GCT records it. Bitfinex's REST tickers carry no time; their first
 // trade time is not one
-func (e *Exchange) tickerPrice(t *Ticker, p currency.Pair, a asset.Item) *ticker.Price {
+func (e *Exchange) tickerPrice(t *TickerResponse, p currency.Pair, a asset.Item) *ticker.Price {
 	return &ticker.Price{
 		ExchangeName:        e.Name,
 		Pair:                p,
@@ -430,7 +437,7 @@ func (e *Exchange) tickerPrice(t *Ticker, p currency.Pair, a asset.Item) *ticker
 }
 
 // fundingTickerPrice returns a funding currency's ticker as GCT records it, its rates as prices
-func (e *Exchange) fundingTickerPrice(t *FundingTicker, p currency.Pair, a asset.Item) *ticker.Price {
+func (e *Exchange) fundingTickerPrice(t *FundingTickerResponse, p currency.Pair, a asset.Item) *ticker.Price {
 	return &ticker.Price{
 		ExchangeName:          e.Name,
 		Pair:                  p,
@@ -565,19 +572,19 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 
 // getMovementsHistory returns the account's deposits and withdrawals of a currency, or of every currency when it is
 // empty, page by page
-func (e *Exchange) getMovementsHistory(ctx context.Context, c currency.Code) ([]Movement, error) {
-	return pageBack(time.Time{}, time.Time{}, movementsPageLimit, func(end time.Time) ([]Movement, error) {
+func (e *Exchange) getMovementsHistory(ctx context.Context, c currency.Code) ([]MovementResponse, error) {
+	return pageBack(time.Time{}, time.Time{}, movementsPageLimit, func(end time.Time) ([]MovementResponse, error) {
 		return e.GetMovements(ctx, &MovementsRequest{Currency: c, End: end, Limit: movementsPageLimit})
-	}, func(m *Movement) uint64 { return m.ID }, func(m *Movement) time.Time { return m.UpdatedAt.Time() })
+	}, func(m *MovementResponse) uint64 { return m.ID }, func(m *MovementResponse) time.Time { return m.UpdatedAt.Time() })
 }
 
 // movementChain returns the method a movement went over, its chain, in the form GetAvailableTransferChains returns
-func movementChain(m *Movement) string {
+func movementChain(m *MovementResponse) string {
 	return strings.ToLower(m.Method)
 }
 
 // movementType returns whether a movement is a deposit, whose amount is positive, or a withdrawal
-func movementType(m *Movement) string {
+func movementType(m *MovementResponse) string {
 	if m.Amount.Float64() < 0 {
 		return "withdrawal"
 	}
@@ -729,7 +736,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	var placed *Order
+	var placed *OrderResponse
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		if placed, err = e.WebsocketPlaceOrder(ctx, req); err != nil {
 			return nil, err
@@ -750,6 +757,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	if status := orderStatusFromBitfinex(placed.Status); status != order.UnknownStatus {
 		resp.Status = status
+	}
+	// Neither stop has a price of its own, which the order manager would copy into their later modifications; a
+	// trailing stop's trigger is the stop price Bitfinex works out from its distance
+	switch s.Type {
+	case order.Stop:
+		resp.Price = 0
+	case order.TrailingStop:
+		resp.Price, resp.TriggerPrice = 0, placed.Price
 	}
 	return resp, nil
 }
@@ -853,8 +868,10 @@ func derivativeLeverage(leverage float64) (uint64, error) {
 // modification carries none of what Bitfinex reads an update by: the order's type, which its prices follow, what the
 // order has executed, as Bitfinex takes the amount an update gives as what remains of the order, and a derivative
 // order's leverage, which Bitfinex needs to update it, so the order is looked up for each. A stop moves by its trigger
-// price, and a stop limit by its trigger price and its limit price, each when given; a stop's price, which it has none
-// of, is neither sent nor reported
+// price, and a stop limit by its trigger price and its limit price, each when given; a stop has no price of its own, so
+// its price is neither sent nor reported, and a price given without a trigger price is refused. A trailing stop's stop
+// trails the market, so a price for it is refused. Bitfinex updates neither an order's type, so another is refused, nor
+// its time in force, which the response reports as the order has it
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -871,28 +888,44 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	if err != nil {
 		return nil, err
 	}
+	d, err := e.orderDetail(o)
+	if err != nil {
+		return nil, err
+	}
+	if m.Type != order.UnknownType && m.Type != order.AnyType && m.Type != d.Type {
+		return nil, fmt.Errorf("%w: order %d is a %s order, not %s", errOrderTypeUnchangeable, id, d.Type, m.Type)
+	}
 	req := &UpdateOrderRequest{ID: id}
-	if m.Amount != 0 {
-		if req.Amount, err = remainingOrderAmount(m.Amount, o); err != nil {
+	var remaining float64
+	// What remains as looked up is left unsent, as Bitfinex would set what remains to it, undoing a fill made since; the
+	// order manager sends the order's own amount with a price change
+	switch {
+	case m.Amount == 0:
+	case sameAmount(m.Amount, d.Amount):
+		remaining = d.RemainingAmount
+	default:
+		executed := orderExecutedAmount(o)
+		if isOrderStatusCut(o.Status) {
+			trades, err := e.GetOrderTrades(ctx, &OrderTradesRequest{Symbol: o.Symbol, OrderID: id})
+			if err != nil {
+				return nil, err
+			}
+			executed = cutOrderExecutedAmount(o, trades)
+		}
+		if remaining, err = remainingOrderAmount(m.Amount, id, executed); err != nil {
 			return nil, err
 		}
+		if !sameAmount(remaining, d.RemainingAmount) {
+			req.Amount = remaining
+			if m.Side.IsShort() {
+				req.Amount = -remaining
+			}
+		}
 	}
-	remaining := req.Amount
-	if m.Side.IsShort() {
-		req.Amount = -req.Amount
-	}
-	orderType, _, err := orderTypeFromBitfinex(o.Type)
-	if err != nil {
+	if err := setUpdatePrices(req, d.Type, m); err != nil {
 		return nil, err
 	}
-	if err := setUpdatePrices(req, orderType, m); err != nil {
-		return nil, err
-	}
-	pair, err := pairFromSymbol(o.Symbol)
-	if err != nil {
-		return nil, err
-	}
-	if isDerivativePair(pair) {
+	if isDerivativePair(d.Pair) {
 		if req.Leverage, err = orderLeverage(o); err != nil {
 			return nil, err
 		}
@@ -906,8 +939,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	}
 	resp, err := m.DeriveModifyResponse()
 	if err == nil {
-		resp.RemainingAmount = remaining
-		if orderType == order.Stop {
+		resp.Type, resp.TimeInForce, resp.RemainingAmount = d.Type, d.TimeInForce, remaining
+		if d.Type == order.Stop {
 			resp.Price = 0
 		}
 	}
@@ -915,29 +948,44 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 }
 
 // remainingOrderAmount returns what remains of an order once modified to amount, which is what Bitfinex takes an
-// update's amount as, the order having executed the fills its status lists. It is worked out in decimal, so the amount
-// sent carries no binary rounding error
-func remainingOrderAmount(amount float64, o *Order) (float64, error) {
+// update's amount as, less what the order has executed. It is worked out in decimal, so the amount sent carries no
+// binary rounding error
+func remainingOrderAmount(amount float64, id uint64, executed decimal.Decimal) (float64, error) {
 	total, err := decimal.NewFromString(strconv.FormatFloat(amount, 'f', -1, 64))
 	if err != nil {
 		return 0, fmt.Errorf("%w: %v: %w", errInvalidAmount, amount, err)
 	}
-	executed := orderStatusExecutedAmount(o.Status)
 	remaining := total.Sub(executed)
 	if !remaining.IsPositive() {
-		return 0, fmt.Errorf("%w: %v, as order %d has executed %s of it", errInvalidAmount, amount, o.ID, executed)
+		return 0, fmt.Errorf("%w: %v, as order %d has executed %s of it", errInvalidAmount, amount, id, executed)
 	}
 	return remaining.InexactFloat64(), nil
 }
 
+// sameAmount reports whether two amounts are the same to the 8 decimal places Bitfinex keeps amounts to, as an amount
+// carried as a float, such as the order store's, can differ past them from what Bitfinex reports
+func sameAmount(a, b float64) bool {
+	x, errX := decimal.NewFromString(strconv.FormatFloat(a, 'f', -1, 64))
+	y, errY := decimal.NewFromString(strconv.FormatFloat(b, 'f', -1, 64))
+	return errX == nil && errY == nil && x.Round(amountDecimalPlaces).Equal(y.Round(amountDecimalPlaces))
+}
+
 // setUpdatePrices sets the prices an update sends by the type of the order it updates, as placeOrderRequest places
-// them: Bitfinex takes a stop's trigger price as its price, and a stop limit's limit price as its auxiliary limit price
+// them: Bitfinex takes a stop's trigger price as its price, and a stop limit's limit price as its auxiliary limit price.
+// A stop moves by its trigger price alone, as it is placed by, so a price without one is refused rather than dropped
 func setUpdatePrices(req *UpdateOrderRequest, orderType order.Type, m *order.Modify) error {
 	switch orderType {
 	case order.Stop:
+		if m.Price != 0 && m.TriggerPrice == 0 {
+			return fmt.Errorf("%w: a stop order moves by its trigger price, not by price %v", errTriggerPriceRequired, m.Price)
+		}
 		req.Price = m.TriggerPrice
 	case order.StopLimit:
 		req.Price, req.AuxiliaryLimitPrice = m.TriggerPrice, m.Price
+	case order.TrailingStop:
+		if m.Price != 0 || m.TriggerPrice != 0 {
+			return fmt.Errorf("%w: a trailing stop's stop trails the market by its distance", errPriceUnsupported)
+		}
 	default:
 		// The modification's response would record a trigger price Bitfinex was never sent
 		if m.TriggerPrice != 0 {
@@ -949,12 +997,12 @@ func setUpdatePrices(req *UpdateOrderRequest, orderType order.Type, m *order.Mod
 }
 
 // openOrder returns an open order, by its ID
-func (e *Exchange) openOrder(ctx context.Context, id uint64) (*Order, error) {
+func (e *Exchange) openOrder(ctx context.Context, id uint64) (*OrderResponse, error) {
 	orders, err := e.GetOpenOrders(ctx, &OpenOrdersRequest{IDs: []uint64{id}})
 	if err != nil {
 		return nil, err
 	}
-	i := slices.IndexFunc(orders, func(o Order) bool { return o.ID == id })
+	i := slices.IndexFunc(orders, func(o OrderResponse) bool { return o.ID == id })
 	if i == -1 {
 		return nil, fmt.Errorf("%w: %d is not open", order.ErrOrderNotFound, id)
 	}
@@ -962,7 +1010,7 @@ func (e *Exchange) openOrder(ctx context.Context, id uint64) (*Order, error) {
 }
 
 // orderLeverage returns a derivative order's leverage, which Bitfinex reports in its meta data
-func orderLeverage(o *Order) (uint64, error) {
+func orderLeverage(o *OrderResponse) (uint64, error) {
 	leverage, err := jsonparser.GetFloat(o.Meta, orderMetaLeverageKey)
 	if err != nil {
 		return 0, fmt.Errorf("%w: order %d: %w", errOrderLeverageUnknown, o.ID, err)
@@ -1078,7 +1126,7 @@ func (e *Exchange) submitOrderCancellations(ctx context.Context, req *CancelOrde
 
 // openOrderDetails returns the account's open orders of an asset, on a pair when one is given
 func (e *Exchange) openOrderDetails(ctx context.Context, p currency.Pair, a asset.Item) ([]order.Detail, error) {
-	var orders []Order
+	var orders []OrderResponse
 	var err error
 	if p.IsEmpty() {
 		orders, err = e.GetOpenOrders(ctx, &OpenOrdersRequest{})
@@ -1096,7 +1144,7 @@ func (e *Exchange) openOrderDetails(ctx context.Context, p currency.Pair, a asse
 }
 
 // orderDetails returns orders as GCT records them, leaving out those of other assets when an asset is given
-func (e *Exchange) orderDetails(orders []Order, a asset.Item) ([]order.Detail, error) {
+func (e *Exchange) orderDetails(orders []OrderResponse, a asset.Item) ([]order.Detail, error) {
 	details := make([]order.Detail, 0, len(orders))
 	for i := range orders {
 		d, err := e.orderDetail(&orders[i])
@@ -1111,27 +1159,31 @@ func (e *Exchange) orderDetails(orders []Order, a asset.Item) ([]order.Detail, e
 	return details, nil
 }
 
-// GetOrderInfo returns an order, open or from the last two weeks' history, with the trades it made up to 10 days ago
+// GetOrderInfo returns an order, open or from the last two weeks' history, with the trades it made up to 10 days ago.
+// An order whose trades show a fill its read does not is read again, with its trades, so its status and amounts
+// include the fill; a fill made after that is left to the order's next read
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.Pair, a asset.Item) (*order.Detail, error) {
 	id, err := parseOrderID(orderID)
 	if err != nil {
 		return nil, err
 	}
-	orders, err := e.GetOpenOrders(ctx, &OpenOrdersRequest{IDs: []uint64{id}})
+	o, closed, err := e.orderByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	closed := len(orders) == 0
-	if closed {
-		if orders, err = e.GetOrdersHistory(ctx, &OrdersHistoryRequest{IDs: []uint64{id}}); err != nil {
+	trades, err := e.GetOrderTrades(ctx, &OrderTradesRequest{Symbol: o.Symbol, OrderID: id})
+	if err != nil {
+		return nil, err
+	}
+	if isOrderReadBehindTrades(o, trades) {
+		if o, closed, err = e.orderByID(ctx, id); err != nil {
+			return nil, err
+		}
+		if trades, err = e.GetOrderTrades(ctx, &OrderTradesRequest{Symbol: o.Symbol, OrderID: id}); err != nil {
 			return nil, err
 		}
 	}
-	i := slices.IndexFunc(orders, func(o Order) bool { return o.ID == id })
-	if i == -1 {
-		return nil, fmt.Errorf("%w: %s", order.ErrOrderNotFound, orderID)
-	}
-	d, err := e.orderDetail(&orders[i])
+	d, err := e.orderDetail(o)
 	if err != nil {
 		return nil, err
 	}
@@ -1141,14 +1193,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 	if (!p.IsEmpty() && !d.Pair.Equal(p)) || (a.IsValid() && d.AssetType != a) {
 		return nil, fmt.Errorf("%w: %s is a %s %s order", order.ErrOrderNotFound, orderID, d.AssetType, d.Pair)
 	}
-	trades, err := e.GetOrderTrades(ctx, &OrderTradesRequest{Symbol: orders[i].Symbol, OrderID: id})
-	if err != nil {
-		return nil, err
-	}
-	// The trades up to the order's update, as read, can count fills its status does not list, though they reach back
-	// only 10 days, and any made since were taken from what remained of the order
-	updated := orders[i].UpdatedAt.Time()
-	tradedBefore, tradedSince := decimal.Zero, decimal.Zero
 	for j := range trades {
 		t := &trades[j]
 		side, err := orderSideFromAmount(t.ExecutedAmount)
@@ -1169,27 +1213,71 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 			IsMaker:   t.Maker == 1,
 		})
 		d.Fee -= t.Fee
-		if amount := decimal.MustFromFloat(math.Abs(t.ExecutedAmount)); t.ExecutedAt.Time().After(updated) {
-			tradedSince = tradedSince.Add(amount)
-		} else {
-			tradedBefore = tradedBefore.Add(amount)
+	}
+	if isOrderStatusCut(o.Status) {
+		executed := cutOrderExecutedAmount(o, trades)
+		d.Amount, d.ExecutedAmount = executed.Add(decimal.MustFromFloat(d.RemainingAmount)).InexactFloat64(), executed.InexactFloat64()
+	}
+	return d, nil
+}
+
+// isOrderReadBehindTrades reports whether an order's trades show a fill its read does not: one made after the read, or
+// more than a status listing every fill lists
+func isOrderReadBehindTrades(o *OrderResponse, trades []AccountTradeResponse) bool {
+	updated := o.UpdatedAt.Time()
+	if updated.IsZero() {
+		return false
+	}
+	traded := decimal.Zero
+	for i := range trades {
+		if trades[i].ExecutedAt.Time().After(updated) {
+			return true
+		}
+		traded = traded.Add(decimal.MustFromFloat(math.Abs(trades[i].ExecutedAmount)))
+	}
+	return !isOrderStatusCut(o.Status) && traded.GreaterThan(orderStatusExecutedAmount(o.Status))
+}
+
+// cutOrderExecutedAmount returns what an order whose status was cut short had executed when read: what its trades up to
+// the read executed, when they count every fill, as they do for an order created within their reach that count at least
+// the fills its status lists, and otherwise the estimate from its amounts, or its trades when they count more. Without
+// the read's update time, its trades cannot be told from fills made since
+func cutOrderExecutedAmount(o *OrderResponse, trades []AccountTradeResponse) decimal.Decimal {
+	estimate := orderExecutedAmount(o)
+	updated := o.UpdatedAt.Time()
+	if updated.IsZero() {
+		return estimate
+	}
+	traded := decimal.Zero
+	for i := range trades {
+		if !trades[i].ExecutedAt.Time().After(updated) {
+			traded = traded.Add(decimal.MustFromFloat(math.Abs(trades[i].ExecutedAmount)))
 		}
 	}
-	// Without the order's update time its trades cannot be told apart from the fills it was read with, so the fills its
-	// status lists stand alone
-	if updated.IsZero() {
-		return d, nil
+	complete := time.Since(o.CreatedAt.Time()) < orderTradesReach && traded.GreaterThanOrEqual(orderStatusExecutedAmount(o.Status))
+	if complete || traded.GreaterThan(estimate) {
+		return traded
 	}
-	executed := orderStatusExecutedAmount(orders[i].Status)
-	if tradedBefore.GreaterThan(executed) {
-		executed = tradedBefore
+	return estimate
+}
+
+// orderByID returns an order, open or from the last two weeks' history, and whether it was from the history
+func (e *Exchange) orderByID(ctx context.Context, id uint64) (o *OrderResponse, closed bool, err error) {
+	orders, err := e.GetOpenOrders(ctx, &OpenOrdersRequest{IDs: []uint64{id}})
+	if err != nil {
+		return nil, false, err
 	}
-	whole := executed.Add(decimal.MustFromFloat(d.RemainingAmount))
-	if executed = executed.Add(tradedSince); executed.GreaterThan(whole) {
-		executed = whole
+	i := slices.IndexFunc(orders, func(o OrderResponse) bool { return o.ID == id })
+	if i == -1 {
+		if orders, err = e.GetOrdersHistory(ctx, &OrdersHistoryRequest{IDs: []uint64{id}}); err != nil {
+			return nil, false, err
+		}
+		if i = slices.IndexFunc(orders, func(o OrderResponse) bool { return o.ID == id }); i == -1 {
+			return nil, false, fmt.Errorf("%w: %d", order.ErrOrderNotFound, id)
+		}
+		closed = true
 	}
-	d.Amount, d.ExecutedAmount, d.RemainingAmount = whole.InexactFloat64(), executed.InexactFloat64(), whole.Sub(executed).InexactFloat64()
-	return d, nil
+	return &orders[i], closed, nil
 }
 
 // GetActiveOrders returns the account's open orders of an asset, on the request's pairs, or every pair when it names
@@ -1215,12 +1303,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	orderID := func(o *Order) uint64 { return o.ID }
-	createdAt := func(o *Order) time.Time { return o.CreatedAt.Time() }
-	var orders []Order
+	orderID := func(o *OrderResponse) uint64 { return o.ID }
+	createdAt := func(o *OrderResponse) time.Time { return o.CreatedAt.Time() }
+	var orders []OrderResponse
 	if len(req.Pairs) == 0 {
 		var err error
-		orders, err = pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]Order, error) {
+		orders, err = pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]OrderResponse, error) {
 			return e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Start: req.StartTime, End: end, Limit: ordersHistoryPageLimit})
 		}, orderID, createdAt)
 		if err != nil {
@@ -1232,7 +1320,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		pairOrders, err := pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]Order, error) {
+		pairOrders, err := pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]OrderResponse, error) {
 			return e.GetOrdersHistoryBySymbol(ctx, &OrdersHistoryBySymbolRequest{Symbol: symbol, Start: req.StartTime, End: end, Limit: ordersHistoryPageLimit})
 		}, orderID, createdAt)
 		if err != nil {
@@ -1362,7 +1450,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, f *exchange.FeeBuilder) (fl
 			return 0, err
 		}
 		c := bitfinexCurrency(f.Pair.Base)
-		i := slices.IndexFunc(fees, func(w CurrencyWithdrawalFee) bool { return w.Currency.Equal(c) })
+		i := slices.IndexFunc(fees, func(w CurrencyWithdrawalFeeResponse) bool { return w.Currency.Equal(c) })
 		if i == -1 {
 			return 0, fmt.Errorf("%w: no withdrawal fee for %s", currency.ErrCurrencyNotSupported, c)
 		}
@@ -1560,7 +1648,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	statusByKey := make(map[string]*DerivativeStatus, len(statuses))
+	statusByKey := make(map[string]*DerivativeStatusResponse, len(statuses))
 	for i := range statuses {
 		statusByKey[statuses[i].Key] = &statuses[i].Status
 	}
@@ -1606,7 +1694,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 
 // latestFundingRate returns the funding rate Bitfinex set at a derivative's latest funding event, which it reports
 // until the next, a funding interval on
-func latestFundingRate(s *DerivativeStatus) fundingrate.Rate {
+func latestFundingRate(s *DerivativeStatusResponse) fundingrate.Rate {
 	r := fundingrate.Rate{Rate: decimal.MustFromFloat(s.CurrentFunding)}
 	if next := s.NextFundingTime.Time(); !next.IsZero() {
 		r.Time = next.Add(-derivativeFundingInterval)
@@ -1650,7 +1738,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	resp := make([]fundingrate.LatestRateResponse, len(pairs))
 	for i, p := range pairs {
-		j := slices.IndexFunc(statuses, func(s DerivativeStatusEntry) bool { return s.Key == keys[i] })
+		j := slices.IndexFunc(statuses, func(s DerivativeStatusEntryResponse) bool { return s.Key == keys[i] })
 		if j == -1 {
 			return nil, fmt.Errorf("%w: %s %s", fundingrate.ErrNoFundingRatesFound, r.Asset, p)
 		}
@@ -1691,9 +1779,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, err
 	}
 	// The snapshots up to an interval after the window report the rates of the window's last events
-	snapshots, err := pageBack(r.StartDate, historyEnd(r.EndDate.Add(derivativeFundingInterval)), statusHistoryPageLimit, func(pageEnd time.Time) ([]DerivativeStatus, error) {
+	snapshots, err := pageBack(r.StartDate, historyEnd(r.EndDate.Add(derivativeFundingInterval)), statusHistoryPageLimit, func(pageEnd time.Time) ([]DerivativeStatusResponse, error) {
 		return e.GetDerivativesStatusHistory(ctx, &DerivativesStatusHistoryRequest{Key: symbol, Start: r.StartDate, End: pageEnd, Limit: statusHistoryPageLimit, Sort: -1})
-	}, func(s *DerivativeStatus) int64 { return s.Time.Time().UnixMilli() }, func(s *DerivativeStatus) time.Time { return s.Time.Time() })
+	}, func(s *DerivativeStatusResponse) int64 { return s.Time.Time().UnixMilli() }, func(s *DerivativeStatusResponse) time.Time { return s.Time.Time() })
 	if err != nil {
 		return nil, err
 	}
@@ -1796,7 +1884,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pai
 }
 
 // derivativePosition returns the active position on a perpetual contract
-func (e *Exchange) derivativePosition(ctx context.Context, a asset.Item, p currency.Pair) (*Position, error) {
+func (e *Exchange) derivativePosition(ctx context.Context, a asset.Item, p currency.Pair) (*PositionResponse, error) {
 	if !isDerivativeAsset(a) {
 		return nil, fmt.Errorf("%w: %s", futures.ErrNotPerpetualFuture, a)
 	}
@@ -1808,7 +1896,7 @@ func (e *Exchange) derivativePosition(ctx context.Context, a asset.Item, p curre
 	if err != nil {
 		return nil, err
 	}
-	i := slices.IndexFunc(positions, func(pos Position) bool { return pos.Symbol == symbol })
+	i := slices.IndexFunc(positions, func(pos PositionResponse) bool { return pos.Symbol == symbol })
 	if i == -1 {
 		return nil, fmt.Errorf("%w: %s %s", futures.ErrNoPositionsFound, a, p)
 	}

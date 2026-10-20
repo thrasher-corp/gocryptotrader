@@ -78,11 +78,11 @@ func (e *Exchange) GetPlatformStatus(ctx context.Context) (*PlatformStatusRespon
 }
 
 // GetTicker returns a trading pair's ticker, for a symbol such as tBTCUSD
-func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
 	if !isTradingSymbol(symbol) {
 		return nil, errTradingSymbolRequired
 	}
-	var resp *Ticker
+	var resp *TickerResponse
 	if err := e.SendHTTPRequest(ctx, tickerEPL, http.MethodGet, "ticker/"+symbol, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -93,11 +93,11 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*Ticker, error
 }
 
 // GetFundingTicker returns a funding currency's ticker, for a symbol such as fUSD
-func (e *Exchange) GetFundingTicker(ctx context.Context, symbol string) (*FundingTicker, error) {
+func (e *Exchange) GetFundingTicker(ctx context.Context, symbol string) (*FundingTickerResponse, error) {
 	if !isFundingSymbol(symbol) {
 		return nil, errFundingSymbolRequired
 	}
-	var resp *FundingTicker
+	var resp *FundingTickerResponse
 	if err := e.SendHTTPRequest(ctx, tickerEPL, http.MethodGet, "ticker/"+symbol, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (e *Exchange) GetTickers(ctx context.Context, symbols []string) (*TickersRe
 
 // GetTickersHistory returns the hourly best bid and ask of trading pairs, such as tBTCUSD, or of every pair when
 // Symbols is empty. Funding currencies are refused, as Bitfinex keeps no history of theirs and returns none
-func (e *Exchange) GetTickersHistory(ctx context.Context, req *TickersHistoryRequest) ([]HistoricTicker, error) {
+func (e *Exchange) GetTickersHistory(ctx context.Context, req *TickersHistoryRequest) ([]HistoricTickerResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -144,13 +144,13 @@ func (e *Exchange) GetTickersHistory(ctx context.Context, req *TickersHistoryReq
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []HistoricTicker
+	var resp []HistoricTickerResponse
 	return resp, e.SendHTTPRequest(ctx, tickersHistoryEPL, http.MethodGet, common.EncodeURLValues("tickers/hist", params), nil, &resp)
 }
 
 // GetPublicTrades returns a trading pair's trades, for a symbol such as tBTCUSD; Bitfinex returns none, rather than an
 // error, for a pair it does not list
-func (e *Exchange) GetPublicTrades(ctx context.Context, req *PublicTradesRequest) ([]PublicTrade, error) {
+func (e *Exchange) GetPublicTrades(ctx context.Context, req *PublicTradesRequest) ([]PublicTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -161,13 +161,13 @@ func (e *Exchange) GetPublicTrades(ctx context.Context, req *PublicTradesRequest
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []PublicTrade
+	var resp []PublicTradeResponse
 	return resp, e.SendHTTPRequest(ctx, publicTradesEPL, http.MethodGet, common.EncodeURLValues("trades/"+req.Symbol+"/hist", params), nil, &resp)
 }
 
 // GetPublicFundingTrades returns a funding currency's trades, for a symbol such as fUSD; Bitfinex returns none, rather
 // than an error, for a currency it does not list
-func (e *Exchange) GetPublicFundingTrades(ctx context.Context, req *PublicTradesRequest) ([]PublicFundingTrade, error) {
+func (e *Exchange) GetPublicFundingTrades(ctx context.Context, req *PublicTradesRequest) ([]PublicFundingTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -178,12 +178,12 @@ func (e *Exchange) GetPublicFundingTrades(ctx context.Context, req *PublicTrades
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []PublicFundingTrade
+	var resp []PublicFundingTradeResponse
 	return resp, e.SendHTTPRequest(ctx, publicTradesEPL, http.MethodGet, common.EncodeURLValues("trades/"+req.Symbol+"/hist", params), nil, &resp)
 }
 
 // GetBook returns a trading pair's book aggregated by price, bids then asks, for a symbol such as tBTCUSD
-func (e *Exchange) GetBook(ctx context.Context, req *BookRequest) ([]BookLevel, error) {
+func (e *Exchange) GetBook(ctx context.Context, req *BookRequest) ([]BookLevelResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -198,13 +198,13 @@ func (e *Exchange) GetBook(ctx context.Context, req *BookRequest) ([]BookLevel, 
 	if err != nil {
 		return nil, err
 	}
-	var resp []BookLevel
+	var resp []BookLevelResponse
 	return resp, e.SendHTTPRequest(ctx, bookEPL, http.MethodGet, common.EncodeURLValues("book/"+req.Symbol+"/"+precision, params), nil, &resp)
 }
 
 // GetFundingBook returns a funding currency's book aggregated by rate and period, bids then offers, for a symbol such
 // as fUSD
-func (e *Exchange) GetFundingBook(ctx context.Context, req *BookRequest) ([]FundingBookLevel, error) {
+func (e *Exchange) GetFundingBook(ctx context.Context, req *BookRequest) ([]FundingBookLevelResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -219,12 +219,12 @@ func (e *Exchange) GetFundingBook(ctx context.Context, req *BookRequest) ([]Fund
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingBookLevel
+	var resp []FundingBookLevelResponse
 	return resp, e.SendHTTPRequest(ctx, bookEPL, http.MethodGet, common.EncodeURLValues("book/"+req.Symbol+"/"+precision, params), nil, &resp)
 }
 
 // GetRawBook returns a trading pair's book of individual orders, bids then asks, for a symbol such as tBTCUSD
-func (e *Exchange) GetRawBook(ctx context.Context, req *RawBookRequest) ([]RawBookLevel, error) {
+func (e *Exchange) GetRawBook(ctx context.Context, req *RawBookRequest) ([]RawBookLevelResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -235,13 +235,13 @@ func (e *Exchange) GetRawBook(ctx context.Context, req *RawBookRequest) ([]RawBo
 	if err != nil {
 		return nil, err
 	}
-	var resp []RawBookLevel
+	var resp []RawBookLevelResponse
 	return resp, e.SendHTTPRequest(ctx, bookEPL, http.MethodGet, common.EncodeURLValues("book/"+req.Symbol+"/R0", params), nil, &resp)
 }
 
 // GetRawFundingBook returns a funding currency's book of individual bids and offers, bids first, for a symbol such as
 // fUSD
-func (e *Exchange) GetRawFundingBook(ctx context.Context, req *RawBookRequest) ([]RawFundingBookLevel, error) {
+func (e *Exchange) GetRawFundingBook(ctx context.Context, req *RawBookRequest) ([]RawFundingBookLevelResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (e *Exchange) GetRawFundingBook(ctx context.Context, req *RawBookRequest) (
 	if err != nil {
 		return nil, err
 	}
-	var resp []RawFundingBookLevel
+	var resp []RawFundingBookLevelResponse
 	return resp, e.SendHTTPRequest(ctx, bookEPL, http.MethodGet, common.EncodeURLValues("book/"+req.Symbol+"/R0", params), nil, &resp)
 }
 
@@ -279,7 +279,7 @@ func bookParams(length uint64) (url.Values, error) {
 }
 
 // GetLastStat returns a statistic's latest value
-func (e *Exchange) GetLastStat(ctx context.Context, req *StatsRequest) (*Stat, error) {
+func (e *Exchange) GetLastStat(ctx context.Context, req *StatsRequest) (*StatResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (e *Exchange) GetLastStat(ctx context.Context, req *StatsRequest) (*Stat, e
 	if err != nil {
 		return nil, err
 	}
-	var resp *Stat
+	var resp *StatResponse
 	if err := e.SendHTTPRequest(ctx, statsEPL, http.MethodGet, "stats1/"+key+"/last", nil, &resp); err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func (e *Exchange) GetLastStat(ctx context.Context, req *StatsRequest) (*Stat, e
 
 // GetStatsHistory returns a statistic's values, newest first unless sorted otherwise; Bitfinex keeps a value every
 // minute, every 30 minutes for the volume keys and every day for the volume weighted average price
-func (e *Exchange) GetStatsHistory(ctx context.Context, req *StatsHistoryRequest) ([]Stat, error) {
+func (e *Exchange) GetStatsHistory(ctx context.Context, req *StatsHistoryRequest) ([]StatResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (e *Exchange) GetStatsHistory(ctx context.Context, req *StatsHistoryRequest
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []Stat
+	var resp []StatResponse
 	return resp, e.SendHTTPRequest(ctx, statsEPL, http.MethodGet, common.EncodeURLValues("stats1/"+key+"/hist", params), nil, &resp)
 }
 
@@ -359,7 +359,7 @@ func statsKey(req *StatsRequest) (string, error) {
 }
 
 // GetLastCandle returns a trading pair's or funding currency's latest candle
-func (e *Exchange) GetLastCandle(ctx context.Context, req *CandlesRequest) (*Candle, error) {
+func (e *Exchange) GetLastCandle(ctx context.Context, req *CandlesRequest) (*CandleResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (e *Exchange) GetLastCandle(ctx context.Context, req *CandlesRequest) (*Can
 	if err != nil {
 		return nil, err
 	}
-	var resp *Candle
+	var resp *CandleResponse
 	if err := e.SendHTTPRequest(ctx, candlesEPL, http.MethodGet, "candles/"+key+"/last", nil, &resp); err != nil {
 		return nil, err
 	}
@@ -378,7 +378,7 @@ func (e *Exchange) GetLastCandle(ctx context.Context, req *CandlesRequest) (*Can
 }
 
 // GetCandlesHistory returns a trading pair's or funding currency's candles, the latest 100 unless limited otherwise
-func (e *Exchange) GetCandlesHistory(ctx context.Context, req *CandlesHistoryRequest) ([]Candle, error) {
+func (e *Exchange) GetCandlesHistory(ctx context.Context, req *CandlesHistoryRequest) ([]CandleResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func (e *Exchange) GetCandlesHistory(ctx context.Context, req *CandlesHistoryReq
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []Candle
+	var resp []CandleResponse
 	return resp, e.SendHTTPRequest(ctx, candlesEPL, http.MethodGet, common.EncodeURLValues("candles/"+key+"/hist", params), nil, &resp)
 }
 
@@ -435,19 +435,19 @@ func candleKey(req *CandlesRequest) (string, error) {
 
 // GetDerivativesStatus returns the status of derivative pairs, by keys such as tBTCF0:USTF0, or of every pair when keys
 // is empty
-func (e *Exchange) GetDerivativesStatus(ctx context.Context, keys []string) ([]DerivativeStatusEntry, error) {
+func (e *Exchange) GetDerivativesStatus(ctx context.Context, keys []string) ([]DerivativeStatusEntryResponse, error) {
 	params := url.Values{}
 	params.Set("keys", "ALL")
 	if len(keys) > 0 {
 		params.Set("keys", strings.Join(keys, ","))
 	}
-	var resp []DerivativeStatusEntry
+	var resp []DerivativeStatusEntryResponse
 	return resp, e.SendHTTPRequest(ctx, derivativesStatusEPL, http.MethodGet, common.EncodeURLValues("status/deriv", params), nil, &resp)
 }
 
 // GetDerivativesStatusHistory returns a derivative pair's status over time, for a key such as tBTCF0:USTF0, newest
 // first unless sorted otherwise; Bitfinex returns none, rather than an error, for a pair it does not list
-func (e *Exchange) GetDerivativesStatusHistory(ctx context.Context, req *DerivativesStatusHistoryRequest) ([]DerivativeStatus, error) {
+func (e *Exchange) GetDerivativesStatusHistory(ctx context.Context, req *DerivativesStatusHistoryRequest) ([]DerivativeStatusResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -458,13 +458,13 @@ func (e *Exchange) GetDerivativesStatusHistory(ctx context.Context, req *Derivat
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []DerivativeStatus
+	var resp []DerivativeStatusResponse
 	return resp, e.SendHTTPRequest(ctx, derivativesStatusHistoryEPL, http.MethodGet, common.EncodeURLValues("status/deriv/"+req.Key+"/hist", params), nil, &resp)
 }
 
 // GetLiquidations returns positions' liquidations, newest first unless sorted otherwise; a liquidation's trigger and
 // each of its market executions are separate liquidations
-func (e *Exchange) GetLiquidations(ctx context.Context, req *LiquidationsRequest) ([]Liquidation, error) {
+func (e *Exchange) GetLiquidations(ctx context.Context, req *LiquidationsRequest) ([]LiquidationResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -481,7 +481,7 @@ func (e *Exchange) GetLiquidations(ctx context.Context, req *LiquidationsRequest
 
 // GetLeaderboards returns a leaderboard's standings, newest first unless sorted otherwise; Bitfinex returns none,
 // rather than an error, for a leaderboard that does not run
-func (e *Exchange) GetLeaderboards(ctx context.Context, req *LeaderboardsRequest) ([]LeaderboardStanding, error) {
+func (e *Exchange) GetLeaderboards(ctx context.Context, req *LeaderboardsRequest) ([]LeaderboardStandingResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -501,12 +501,12 @@ func (e *Exchange) GetLeaderboards(ctx context.Context, req *LeaderboardsRequest
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, req.Sort); err != nil {
 		return nil, err
 	}
-	var resp []LeaderboardStanding
+	var resp []LeaderboardStandingResponse
 	return resp, e.SendHTTPRequest(ctx, leaderboardsEPL, http.MethodGet, common.EncodeURLValues("rankings/"+req.Key+":"+timeFrame+":"+req.Symbol+"/hist", params), nil, &resp)
 }
 
 // GetFundingStatistics returns a funding currency's hourly funding statistics, newest first, for a symbol such as fUSD
-func (e *Exchange) GetFundingStatistics(ctx context.Context, req *FundingStatisticsRequest) ([]FundingStatistic, error) {
+func (e *Exchange) GetFundingStatistics(ctx context.Context, req *FundingStatisticsRequest) ([]FundingStatisticResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -517,50 +517,50 @@ func (e *Exchange) GetFundingStatistics(ctx context.Context, req *FundingStatist
 	if err := setHistoryParams(params, req.Start, req.End, req.Limit, 0); err != nil {
 		return nil, err
 	}
-	var resp []FundingStatistic
+	var resp []FundingStatisticResponse
 	return resp, e.SendHTTPRequest(ctx, fundingStatisticsEPL, http.MethodGet, common.EncodeURLValues("funding/stats/"+req.Symbol+"/hist", params), nil, &resp)
 }
 
 // GetCurrencySymbols returns the currencies whose symbols elsewhere differ from Bitfinex's, such as DSH, known as DASH
-func (e *Exchange) GetCurrencySymbols(ctx context.Context) ([]CurrencySymbol, error) {
-	return getPublicConfig[[]CurrencySymbol](ctx, e, "conf/pub:map:currency:sym")
+func (e *Exchange) GetCurrencySymbols(ctx context.Context) ([]CurrencySymbolResponse, error) {
+	return getPublicConfig[[]CurrencySymbolResponse](ctx, e, "conf/pub:map:currency:sym")
 }
 
 // GetCurrencyLabels returns the currencies' names, such as Bitcoin for BTC
-func (e *Exchange) GetCurrencyLabels(ctx context.Context) ([]CurrencyLabel, error) {
-	return getPublicConfig[[]CurrencyLabel](ctx, e, "conf/pub:map:currency:label")
+func (e *Exchange) GetCurrencyLabels(ctx context.Context) ([]CurrencyLabelResponse, error) {
+	return getPublicConfig[[]CurrencyLabelResponse](ctx, e, "conf/pub:map:currency:label")
 }
 
 // GetCurrencyUnits returns the units of the currencies whose amounts are in units other than whole coins, such as
 // MegaIOTA for IOT
-func (e *Exchange) GetCurrencyUnits(ctx context.Context) ([]CurrencyUnit, error) {
-	return getPublicConfig[[]CurrencyUnit](ctx, e, "conf/pub:map:currency:unit")
+func (e *Exchange) GetCurrencyUnits(ctx context.Context) ([]CurrencyUnitResponse, error) {
+	return getPublicConfig[[]CurrencyUnitResponse](ctx, e, "conf/pub:map:currency:unit")
 }
 
 // GetCurrencyUnderlyings returns the currencies derivative currencies track, such as BTC for BTCF0
-func (e *Exchange) GetCurrencyUnderlyings(ctx context.Context) ([]CurrencyUnderlying, error) {
-	return getPublicConfig[[]CurrencyUnderlying](ctx, e, "conf/pub:map:currency:undl")
+func (e *Exchange) GetCurrencyUnderlyings(ctx context.Context) ([]CurrencyUnderlyingResponse, error) {
+	return getPublicConfig[[]CurrencyUnderlyingResponse](ctx, e, "conf/pub:map:currency:undl")
 }
 
 // GetCurrencyPools returns the networks currencies are carried on, such as ETH for the tokens on Ethereum
-func (e *Exchange) GetCurrencyPools(ctx context.Context) ([]CurrencyPool, error) {
-	return getPublicConfig[[]CurrencyPool](ctx, e, "conf/pub:map:currency:pool")
+func (e *Exchange) GetCurrencyPools(ctx context.Context) ([]CurrencyPoolResponse, error) {
+	return getPublicConfig[[]CurrencyPoolResponse](ctx, e, "conf/pub:map:currency:pool")
 }
 
 // GetCurrencyExplorers returns the currencies' block explorers
-func (e *Exchange) GetCurrencyExplorers(ctx context.Context) ([]CurrencyExplorer, error) {
-	return getPublicConfig[[]CurrencyExplorer](ctx, e, "conf/pub:map:currency:explorer")
+func (e *Exchange) GetCurrencyExplorers(ctx context.Context) ([]CurrencyExplorerResponse, error) {
+	return getPublicConfig[[]CurrencyExplorerResponse](ctx, e, "conf/pub:map:currency:explorer")
 }
 
 // GetCurrencyWithdrawalFees returns the fee a withdrawal of each currency costs
-func (e *Exchange) GetCurrencyWithdrawalFees(ctx context.Context) ([]CurrencyWithdrawalFee, error) {
-	return getPublicConfig[[]CurrencyWithdrawalFee](ctx, e, "conf/pub:map:currency:tx:fee")
+func (e *Exchange) GetCurrencyWithdrawalFees(ctx context.Context) ([]CurrencyWithdrawalFeeResponse, error) {
+	return getPublicConfig[[]CurrencyWithdrawalFeeResponse](ctx, e, "conf/pub:map:currency:tx:fee")
 }
 
 // GetTransferMethods returns the methods API withdrawals take, such as BITCOIN, with the currencies each moves; a
 // currency may move by several methods, one for each network it is carried on
-func (e *Exchange) GetTransferMethods(ctx context.Context) ([]TransferMethod, error) {
-	return getPublicConfig[[]TransferMethod](ctx, e, "conf/pub:map:tx:method")
+func (e *Exchange) GetTransferMethods(ctx context.Context) ([]TransferMethodResponse, error) {
+	return getPublicConfig[[]TransferMethodResponse](ctx, e, "conf/pub:map:tx:method")
 }
 
 // GetSpotPairs returns the trading pairs of the exchange wallet, without their t prefix, such as BTCUSD and AAVE:USD;
@@ -602,19 +602,19 @@ func (e *Exchange) GetLeaderboardCompetitions(ctx context.Context) ([]string, er
 }
 
 // GetPairInfo returns the trading pairs' market information, such as their order sizes and margin requirements
-func (e *Exchange) GetPairInfo(ctx context.Context) ([]PairInfoEntry, error) {
-	return getPublicConfig[[]PairInfoEntry](ctx, e, "conf/pub:info:pair")
+func (e *Exchange) GetPairInfo(ctx context.Context) ([]PairInfoEntryResponse, error) {
+	return getPublicConfig[[]PairInfoEntryResponse](ctx, e, "conf/pub:info:pair")
 }
 
 // GetFuturesPairInfo returns the derivative pairs' market information, such as their order sizes and margin
 // requirements
-func (e *Exchange) GetFuturesPairInfo(ctx context.Context) ([]PairInfoEntry, error) {
-	return getPublicConfig[[]PairInfoEntry](ctx, e, "conf/pub:info:pair:futures")
+func (e *Exchange) GetFuturesPairInfo(ctx context.Context) ([]PairInfoEntryResponse, error) {
+	return getPublicConfig[[]PairInfoEntryResponse](ctx, e, "conf/pub:info:pair:futures")
 }
 
 // GetTransferMethodStatuses returns whether each transfer method's deposits and withdrawals run, and what they need
-func (e *Exchange) GetTransferMethodStatuses(ctx context.Context) ([]TransferMethodStatus, error) {
-	return getPublicConfig[[]TransferMethodStatus](ctx, e, "conf/pub:info:tx:status")
+func (e *Exchange) GetTransferMethodStatuses(ctx context.Context) ([]TransferMethodStatusResponse, error) {
+	return getPublicConfig[[]TransferMethodStatusResponse](ctx, e, "conf/pub:info:tx:status")
 }
 
 // GetMarginSpecification returns the collateral haircuts and margin requirements of margin trading
@@ -651,8 +651,8 @@ func getPublicConfig[T any](ctx context.Context, e *Exchange, path string) (T, e
 
 // GetVirtualAssetServiceProviders returns the virtual asset service providers a withdrawal can name as its recipient,
 // for the Travel Rule
-func (e *Exchange) GetVirtualAssetServiceProviders(ctx context.Context) ([]VirtualAssetServiceProvider, error) {
-	var resp []VirtualAssetServiceProvider
+func (e *Exchange) GetVirtualAssetServiceProviders(ctx context.Context) ([]VirtualAssetServiceProviderResponse, error) {
+	var resp []VirtualAssetServiceProviderResponse
 	return resp, e.SendHTTPRequest(ctx, virtualAssetServiceProvidersEPL, http.MethodGet, "ext/vasps", nil, &resp)
 }
 

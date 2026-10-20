@@ -37,19 +37,19 @@ func optionalFundingSymbolPath(prefix, symbol, suffix string) (string, error) {
 
 // GetActiveFundingOffers returns the account's active funding offers in a funding currency, such as fUSD, or in every
 // currency when symbol is empty
-func (e *Exchange) GetActiveFundingOffers(ctx context.Context, symbol string) ([]FundingOffer, error) {
+func (e *Exchange) GetActiveFundingOffers(ctx context.Context, symbol string) ([]FundingOfferResponse, error) {
 	path, err := optionalFundingSymbolPath("auth/r/funding/offers", symbol, "")
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingOffer
+	var resp []FundingOfferResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingOffersEPL, path, nil, &resp)
 }
 
 // SubmitFundingOffer submits an offer to provide or take funding, returning the offer. A LIMIT offer's rate is fixed.
 // FRRDELTAFIX offers at the flash return rate plus the offer's rate, fixed once taken; FRRDELTAVAR does so varying with
 // the flash return rate even once taken, and offers at the flash return rate itself with a zero rate
-func (e *Exchange) SubmitFundingOffer(ctx context.Context, req *SubmitFundingOfferRequest) (*Notification[FundingOffer], error) {
+func (e *Exchange) SubmitFundingOffer(ctx context.Context, req *SubmitFundingOfferRequest) (*Notification[FundingOfferResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (e *Exchange) SubmitFundingOffer(ctx context.Context, req *SubmitFundingOff
 	if err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[FundingOffer](ctx, e, submitFundingOfferEPL, "auth/w/funding/offer/submit", body)
+	return sendNotificationRequest[FundingOfferResponse](ctx, e, submitFundingOfferEPL, "auth/w/funding/offer/submit", body)
 }
 
 // body validates the offer and returns the body submitting it, over REST or the websocket
@@ -91,11 +91,11 @@ func (r *SubmitFundingOfferRequest) body() (*submitFundingOfferBody, error) {
 }
 
 // CancelFundingOffer cancels a funding offer, as GetActiveFundingOffers returns it, returning the offer
-func (e *Exchange) CancelFundingOffer(ctx context.Context, offerID uint64) (*Notification[FundingOffer], error) {
+func (e *Exchange) CancelFundingOffer(ctx context.Context, offerID uint64) (*Notification[FundingOfferResponse], error) {
 	if offerID == 0 {
 		return nil, errFundingOfferIDRequired
 	}
-	return sendNotificationRequest[FundingOffer](ctx, e, cancelFundingOfferEPL, "auth/w/funding/offer/cancel", &fundingIDBody{ID: offerID})
+	return sendNotificationRequest[FundingOfferResponse](ctx, e, cancelFundingOfferEPL, "auth/w/funding/offer/cancel", &fundingIDBody{ID: offerID})
 }
 
 // CancelAllFundingOffers cancels the account's funding offers in a currency, such as USD, or in every currency when c
@@ -116,7 +116,7 @@ func (e *Exchange) FundingClose(ctx context.Context, id uint64) (*Notification[j
 }
 
 // FundingAutoRenew turns auto-renew of a currency's funding on or off, returning the settings it applies
-func (e *Exchange) FundingAutoRenew(ctx context.Context, req *FundingAutoRenewRequest) (*Notification[FundingAutoRenewSettings], error) {
+func (e *Exchange) FundingAutoRenew(ctx context.Context, req *FundingAutoRenewRequest) (*Notification[FundingAutoRenewSettingsResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (e *Exchange) FundingAutoRenew(ctx context.Context, req *FundingAutoRenewRe
 	if req.Rate != 0 {
 		body.Rate = strconv.FormatFloat(req.Rate, 'f', -1, 64)
 	}
-	return sendNotificationRequest[FundingAutoRenewSettings](ctx, e, fundingAutoRenewEPL, "auth/w/funding/auto", body)
+	return sendNotificationRequest[FundingAutoRenewSettingsResponse](ctx, e, fundingAutoRenewEPL, "auth/w/funding/auto", body)
 }
 
 // KeepFunding sets whether to keep funding the account has taken: its credits, which positions use, or its loans,
@@ -161,7 +161,7 @@ func (e *Exchange) KeepFunding(ctx context.Context, req *KeepFundingRequest) (*N
 
 // GetFundingOffersHistory returns the account's inactive funding offers, executed or cancelled, in a funding currency,
 // or in every currency when the request's symbol is empty
-func (e *Exchange) GetFundingOffersHistory(ctx context.Context, req *FundingOffersHistoryRequest) ([]FundingOffer, error) {
+func (e *Exchange) GetFundingOffersHistory(ctx context.Context, req *FundingOffersHistoryRequest) ([]FundingOfferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -173,24 +173,24 @@ func (e *Exchange) GetFundingOffersHistory(ctx context.Context, req *FundingOffe
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingOffer
+	var resp []FundingOfferResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingOffersHistoryEPL, path, &body, &resp)
 }
 
 // GetFundingLoans returns the account's active funding loans, funding not used in positions, in a funding currency,
 // such as fUSD, or in every currency when symbol is empty
-func (e *Exchange) GetFundingLoans(ctx context.Context, symbol string) ([]FundingCredit, error) {
+func (e *Exchange) GetFundingLoans(ctx context.Context, symbol string) ([]FundingCreditResponse, error) {
 	path, err := optionalFundingSymbolPath("auth/r/funding/loans", symbol, "")
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingCredit
+	var resp []FundingCreditResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingLoansEPL, path, nil, &resp)
 }
 
 // GetFundingLoansHistory returns the account's closed funding loans of the last 3 days in a funding currency, or in
 // every currency when the request's symbol is empty
-func (e *Exchange) GetFundingLoansHistory(ctx context.Context, req *FundingLoansHistoryRequest) ([]FundingCredit, error) {
+func (e *Exchange) GetFundingLoansHistory(ctx context.Context, req *FundingLoansHistoryRequest) ([]FundingCreditResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -202,24 +202,24 @@ func (e *Exchange) GetFundingLoansHistory(ctx context.Context, req *FundingLoans
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingCredit
+	var resp []FundingCreditResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingLoansHistoryEPL, path, &body, &resp)
 }
 
 // GetFundingCredits returns the account's active funding credits, funding used in positions, in a funding currency,
 // such as fUSD, or in every currency when symbol is empty
-func (e *Exchange) GetFundingCredits(ctx context.Context, symbol string) ([]FundingCredit, error) {
+func (e *Exchange) GetFundingCredits(ctx context.Context, symbol string) ([]FundingCreditResponse, error) {
 	path, err := optionalFundingSymbolPath("auth/r/funding/credits", symbol, "")
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingCredit
+	var resp []FundingCreditResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingCreditsEPL, path, nil, &resp)
 }
 
 // GetFundingCreditsHistory returns the account's closed funding credits of the last 3 days in a funding currency, or
 // in every currency when the request's symbol is empty
-func (e *Exchange) GetFundingCreditsHistory(ctx context.Context, req *FundingCreditsHistoryRequest) ([]FundingCredit, error) {
+func (e *Exchange) GetFundingCreditsHistory(ctx context.Context, req *FundingCreditsHistoryRequest) ([]FundingCreditResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -231,13 +231,13 @@ func (e *Exchange) GetFundingCreditsHistory(ctx context.Context, req *FundingCre
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingCredit
+	var resp []FundingCreditResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingCreditsHistoryEPL, path, &body, &resp)
 }
 
 // GetAccountFundingTrades returns the trades the account's funding offers made in a funding currency, or in every
 // currency when the request's symbol is empty
-func (e *Exchange) GetAccountFundingTrades(ctx context.Context, req *AccountFundingTradesRequest) ([]AccountFundingTrade, error) {
+func (e *Exchange) GetAccountFundingTrades(ctx context.Context, req *AccountFundingTradesRequest) ([]AccountFundingTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (e *Exchange) GetAccountFundingTrades(ctx context.Context, req *AccountFund
 	if err != nil {
 		return nil, err
 	}
-	var resp []AccountFundingTrade
+	var resp []AccountFundingTradeResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, fundingTradesEPL, path, &body, &resp)
 }
 

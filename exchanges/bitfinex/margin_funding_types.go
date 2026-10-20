@@ -47,8 +47,8 @@ type FundingAutoRenewRequest struct {
 	Period uint64
 }
 
-// FundingAutoRenewSettings is a currency's funding auto-renew settings, as FundingAutoRenew applies them
-type FundingAutoRenewSettings struct {
+// FundingAutoRenewSettingsResponse is a currency's funding auto-renew settings, as FundingAutoRenew applies them
+type FundingAutoRenewSettingsResponse struct {
 	Currency currency.Code `tuple:"0"`
 	// Period is in days
 	Period uint64 `tuple:"1"`
@@ -59,7 +59,9 @@ type FundingAutoRenewSettings struct {
 }
 
 // UnmarshalJSON decodes a funding auto-renew settings array
-func (f *FundingAutoRenewSettings) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingAutoRenewSettingsResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, f)
+}
 
 // KeepFundingRequest holds the credits or loans whose funding to keep, or stop keeping
 type KeepFundingRequest struct {

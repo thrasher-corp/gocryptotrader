@@ -41,7 +41,7 @@ var (
 
 // wsInput is an input request: [0, TYPE, null, DATA]
 type wsInput struct {
-	ChannelID int64  `tuple:"0"`
+	ChannelID uint64 `tuple:"0"`
 	Type      string `tuple:"1"`
 	Data      any    `tuple:"3"`
 }
@@ -51,7 +51,7 @@ func (w *wsInput) MarshalJSON() ([]byte, error) { return marshalTuple(w) }
 
 // WebsocketPlaceOrder places an order through the authenticated websocket, returning the order Bitfinex placed. A
 // request without a client order ID is given one, which the notification answering it is matched by
-func (e *Exchange) WebsocketPlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*Order, error) {
+func (e *Exchange) WebsocketPlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (e *Exchange) WebsocketPlaceOrder(ctx context.Context, req *PlaceOrderReque
 	if err != nil {
 		return nil, err
 	}
-	n, err := wsSendInput[Order](ctx, e, wsOrderNew, wsInputSignature(wsOrderNewRequest, strconv.FormatUint(placed.ClientOrderID, 10)), body)
+	n, err := wsSendInput[OrderResponse](ctx, e, wsOrderNew, wsInputSignature(wsOrderNewRequest, strconv.FormatUint(placed.ClientOrderID, 10)), body)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (e *Exchange) WebsocketPlaceOrder(ctx context.Context, req *PlaceOrderReque
 }
 
 // WebsocketUpdateOrder updates an order through the authenticated websocket, returning the order as Bitfinex updated it
-func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderRequest) (*Order, error) {
+func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderReq
 	if err != nil {
 		return nil, err
 	}
-	n, err := wsSendInput[Order](ctx, e, wsOrderUpdate, wsInputSignature(wsOrderUpdateRequest, strconv.FormatUint(req.ID, 10)), body)
+	n, err := wsSendInput[OrderResponse](ctx, e, wsOrderUpdate, wsInputSignature(wsOrderUpdateRequest, strconv.FormatUint(req.ID, 10)), body)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +88,11 @@ func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderReq
 
 // WebsocketCancelExistingOrder submits an order for cancellation through the authenticated websocket; Bitfinex confirms
 // the cancellation afterwards with the order's close event
-func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, orderID uint64) (*Order, error) {
+func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, orderID uint64) (*OrderResponse, error) {
 	if orderID == 0 {
 		return nil, errOrderIDRequired
 	}
-	n, err := wsSendInput[Order](ctx, e, wsOrderCancel, wsInputSignature(wsOrderCancelRequest, strconv.FormatUint(orderID, 10)), &cancelOrderBody{ID: orderID})
+	n, err := wsSendInput[OrderResponse](ctx, e, wsOrderCancel, wsInputSignature(wsOrderCancelRequest, strconv.FormatUint(orderID, 10)), &cancelOrderBody{ID: orderID})
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (e *Exchange) WebsocketCancelOrders(ctx context.Context, req *CancelOrdersR
 
 // WebsocketSubmitFundingOffer submits a funding offer through the authenticated websocket, returning the offer as
 // Bitfinex accepted it, which holds its ID, amount, rate and period
-func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitFundingOfferRequest) (*FundingOffer, error) {
+func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitFundingOfferRequest) (*FundingOfferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitF
 	// Bitfinex numbers the offer itself, so its notification is matched by type, one request at a time
 	e.wsInputMu.Lock()
 	defer e.wsInputMu.Unlock()
-	n, err := wsSendInput[FundingOffer](ctx, e, wsFundingOfferNew, wsFundingOfferNewRequest, body)
+	n, err := wsSendInput[FundingOfferResponse](ctx, e, wsFundingOfferNew, wsFundingOfferNewRequest, body)
 	if err != nil {
 		return nil, err
 	}
@@ -138,11 +138,11 @@ func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitF
 }
 
 // WebsocketCancelFundingOffer cancels a funding offer through the authenticated websocket
-func (e *Exchange) WebsocketCancelFundingOffer(ctx context.Context, offerID uint64) (*FundingOffer, error) {
+func (e *Exchange) WebsocketCancelFundingOffer(ctx context.Context, offerID uint64) (*FundingOfferResponse, error) {
 	if offerID == 0 {
 		return nil, errFundingOfferIDRequired
 	}
-	n, err := wsSendInput[FundingOffer](ctx, e, wsFundingOfferCancel, wsInputSignature(wsFundingOfferCancelRequest, strconv.FormatUint(offerID, 10)), &fundingIDBody{ID: offerID})
+	n, err := wsSendInput[FundingOfferResponse](ctx, e, wsFundingOfferCancel, wsInputSignature(wsFundingOfferCancelRequest, strconv.FormatUint(offerID, 10)), &fundingIDBody{ID: offerID})
 	if err != nil {
 		return nil, err
 	}

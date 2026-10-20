@@ -22,12 +22,12 @@ import (
 // notice. A struct describes such a record with tuple tags giving each field's position, `tuple:"16"`, and decodes it
 // with one line:
 //
-//	func (o *Order) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
+//	func (o *OrderResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
 //
 // `tuple:"1,inline"` on a named struct field decodes that struct's fields from position 1 on, for records Bitfinex
 // prefixes with their symbol or key. Positions no field takes are skipped, decoding stops once the last field is set,
 // and a null element leaves its field as it is, but for a pointer, slice, map or interface, which it sets to nil,
-// json.RawMessage included, so a struct decoded into again keeps none of what it held.
+// json.RawMessage included, so a struct decoded into again keeps none of what those held.
 //
 // Each type's tags are compiled once into a decoder per field, which writes the element straight into the field at its
 // offset. Websocket frames decode in a single pass with no reflection, and the same way whichever JSON implementation

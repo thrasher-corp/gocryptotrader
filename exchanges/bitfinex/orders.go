@@ -24,7 +24,7 @@ var (
 )
 
 // GetOpenOrders returns the account's active orders, or those the request filters by ID, group ID or client order ID
-func (e *Exchange) GetOpenOrders(ctx context.Context, req *OpenOrdersRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, req *OpenOrdersRequest) ([]OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -32,13 +32,13 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, req *OpenOrdersRequest) ([
 	if err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, retrieveOrdersEPL, "auth/r/orders", body, &resp)
 }
 
 // GetOpenOrdersBySymbol returns the account's active orders on a trading pair, or those the request filters by ID,
 // group ID or client order ID
-func (e *Exchange) GetOpenOrdersBySymbol(ctx context.Context, req *OpenOrdersBySymbolRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrdersBySymbol(ctx context.Context, req *OpenOrdersBySymbolRequest) ([]OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -49,51 +49,51 @@ func (e *Exchange) GetOpenOrdersBySymbol(ctx context.Context, req *OpenOrdersByS
 	if err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, retrieveOrdersBySymbolEPL, "auth/r/orders/"+req.Symbol, body, &resp)
 }
 
 // PlaceOrder submits an order on a trading pair, returning a notification whose Data holds the new order
-func (e *Exchange) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*Notification[[]Order], error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*Notification[[]OrderResponse], error) {
 	body, err := req.body()
 	if err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[[]Order](ctx, e, submitOrderEPL, "auth/w/order/submit", body)
+	return sendNotificationRequest[[]OrderResponse](ctx, e, submitOrderEPL, "auth/w/order/submit", body)
 }
 
 // UpdateOrder updates a margin, exchange or derivative order, returning a notification whose Data holds the order
-func (e *Exchange) UpdateOrder(ctx context.Context, req *UpdateOrderRequest) (*Notification[Order], error) {
+func (e *Exchange) UpdateOrder(ctx context.Context, req *UpdateOrderRequest) (*Notification[OrderResponse], error) {
 	body, err := req.body()
 	if err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[Order](ctx, e, updateOrderEPL, "auth/w/order/update", body)
+	return sendNotificationRequest[OrderResponse](ctx, e, updateOrderEPL, "auth/w/order/update", body)
 }
 
 // CancelExistingOrder submits a margin, exchange or derivative order for cancellation, which Bitfinex confirms
 // afterwards, returning a notification whose Data holds the order
-func (e *Exchange) CancelExistingOrder(ctx context.Context, req *CancelExistingOrderRequest) (*Notification[Order], error) {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, req *CancelExistingOrderRequest) (*Notification[OrderResponse], error) {
 	body, err := req.body()
 	if err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[Order](ctx, e, cancelOrderEPL, "auth/w/order/cancel", body)
+	return sendNotificationRequest[OrderResponse](ctx, e, cancelOrderEPL, "auth/w/order/cancel", body)
 }
 
 // CancelOrders submits orders for cancellation, by their IDs, group IDs or client order IDs, or every open order,
 // trading and derivative alike, returning a notification whose Data holds the orders
-func (e *Exchange) CancelOrders(ctx context.Context, req *CancelOrdersRequest) (*Notification[[]Order], error) {
+func (e *Exchange) CancelOrders(ctx context.Context, req *CancelOrdersRequest) (*Notification[[]OrderResponse], error) {
 	body, err := req.body()
 	if err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[[]Order](ctx, e, cancelOrdersEPL, "auth/w/order/cancel/multi", body)
+	return sendNotificationRequest[[]OrderResponse](ctx, e, cancelOrdersEPL, "auth/w/order/cancel/multi", body)
 }
 
 // OrderMultiOp sends up to 75 order operations in one request, returning a notification whose Data holds each
 // operation's notification in order; each reports its operation's own outcome, which its Err checks
-func (e *Exchange) OrderMultiOp(ctx context.Context, ops []OrderOperation) (*Notification[[]Notification[OrderOperationOrders]], error) {
+func (e *Exchange) OrderMultiOp(ctx context.Context, ops []OrderOperation) (*Notification[[]Notification[OrderOperationOrdersResponse]], error) {
 	if len(ops) == 0 {
 		return nil, errOrderOperationsRequired
 	}
@@ -112,11 +112,11 @@ func (e *Exchange) OrderMultiOp(ctx context.Context, ops []OrderOperation) (*Not
 		}
 		body.Ops[i] = [2]any{abbreviation, opBody}
 	}
-	return sendNotificationRequest[[]Notification[OrderOperationOrders]](ctx, e, orderMultiOpEPL, "auth/w/order/multi", body)
+	return sendNotificationRequest[[]Notification[OrderOperationOrdersResponse]](ctx, e, orderMultiOpEPL, "auth/w/order/multi", body)
 }
 
 // GetOrdersHistory returns the account's closed and cancelled orders from up to two weeks ago
-func (e *Exchange) GetOrdersHistory(ctx context.Context, req *OrdersHistoryRequest) ([]Order, error) {
+func (e *Exchange) GetOrdersHistory(ctx context.Context, req *OrdersHistoryRequest) ([]OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -124,13 +124,13 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, req *OrdersHistoryReque
 	if err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, ordersHistoryEPL, "auth/r/orders/hist", &ordersHistoryBody{historyBody: history, IDs: req.IDs}, &resp)
 }
 
 // GetOrdersHistoryBySymbol returns the account's closed and cancelled orders on a trading pair from up to two weeks
 // ago
-func (e *Exchange) GetOrdersHistoryBySymbol(ctx context.Context, req *OrdersHistoryBySymbolRequest) ([]Order, error) {
+func (e *Exchange) GetOrdersHistoryBySymbol(ctx context.Context, req *OrdersHistoryBySymbolRequest) ([]OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -141,12 +141,12 @@ func (e *Exchange) GetOrdersHistoryBySymbol(ctx context.Context, req *OrdersHist
 	if err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, ordersHistoryBySymbolEPL, "auth/r/orders/"+req.Symbol+"/hist", &ordersHistoryBody{historyBody: history, IDs: req.IDs}, &resp)
 }
 
 // GetOrderTrades returns the trades an order made, up to 10 days old; the trades leave OrderPrice unset
-func (e *Exchange) GetOrderTrades(ctx context.Context, req *OrderTradesRequest) ([]AccountTrade, error) {
+func (e *Exchange) GetOrderTrades(ctx context.Context, req *OrderTradesRequest) ([]AccountTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -156,13 +156,13 @@ func (e *Exchange) GetOrderTrades(ctx context.Context, req *OrderTradesRequest) 
 	if req.OrderID == 0 {
 		return nil, errOrderIDRequired
 	}
-	var resp []AccountTrade
+	var resp []AccountTradeResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, orderTradesEPL, "auth/r/order/"+req.Symbol+":"+strconv.FormatUint(req.OrderID, 10)+"/trades", nil, &resp)
 }
 
 // GetAccountTrades returns the account's trades, the most recent by default; trades from before March 2020 leave
 // OrderType unset
-func (e *Exchange) GetAccountTrades(ctx context.Context, req *AccountTradesRequest) ([]AccountTrade, error) {
+func (e *Exchange) GetAccountTrades(ctx context.Context, req *AccountTradesRequest) ([]AccountTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -170,13 +170,13 @@ func (e *Exchange) GetAccountTrades(ctx context.Context, req *AccountTradesReque
 	if err != nil {
 		return nil, err
 	}
-	var resp []AccountTrade
+	var resp []AccountTradeResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, tradesEPL, "auth/r/trades/hist", &body, &resp)
 }
 
 // GetAccountTradesBySymbol returns the account's trades on a trading pair, the most recent by default; trades from
 // before March 2020 leave OrderType unset
-func (e *Exchange) GetAccountTradesBySymbol(ctx context.Context, req *AccountTradesBySymbolRequest) ([]AccountTrade, error) {
+func (e *Exchange) GetAccountTradesBySymbol(ctx context.Context, req *AccountTradesBySymbolRequest) ([]AccountTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -187,12 +187,12 @@ func (e *Exchange) GetAccountTradesBySymbol(ctx context.Context, req *AccountTra
 	if err != nil {
 		return nil, err
 	}
-	var resp []AccountTrade
+	var resp []AccountTradeResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, tradesBySymbolEPL, "auth/r/trades/"+req.Symbol+"/hist", &body, &resp)
 }
 
 // GetOTCOrdersHistory returns the account's over the counter orders, on a trading pair or on every pair
-func (e *Exchange) GetOTCOrdersHistory(ctx context.Context, req *OTCOrdersHistoryRequest) ([]OTCOrder, error) {
+func (e *Exchange) GetOTCOrdersHistory(ctx context.Context, req *OTCOrdersHistoryRequest) ([]OTCOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -207,13 +207,13 @@ func (e *Exchange) GetOTCOrdersHistory(ctx context.Context, req *OTCOrdersHistor
 	if err != nil {
 		return nil, err
 	}
-	var resp []OTCOrder
+	var resp []OTCOrderResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, otcOrdersHistoryEPL, path, &ordersHistoryBody{historyBody: history, IDs: req.IDs}, &resp)
 }
 
 // GetLedgers returns the account's ledger entries, of a currency or of every currency, the most recent by default and
 // up to six years old
-func (e *Exchange) GetLedgers(ctx context.Context, req *LedgersRequest) ([]LedgerEntry, error) {
+func (e *Exchange) GetLedgers(ctx context.Context, req *LedgersRequest) ([]LedgerEntryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (e *Exchange) GetLedgers(ctx context.Context, req *LedgersRequest) ([]Ledge
 	if !req.Currency.IsEmpty() {
 		path = "auth/r/ledgers/" + req.Currency.Upper().String() + "/hist"
 	}
-	var resp []LedgerEntry
+	var resp []LedgerEntryResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, ledgersEPL, path, &ledgersBody{historyBody: history, Category: req.Category, Wallet: req.Wallet}, &resp)
 }
 
@@ -413,7 +413,7 @@ func isLedgerCategory(category uint64) bool {
 }
 
 // checkOrderNumbers returns an error for an amount that is not a finite number, or a price that is not a finite number
-// of at least zero; an amount is signed by its side, and a price of zero is left unsent
+// of at least zero; an amount is signed by its side
 func checkOrderNumbers(amounts, prices []float64) error {
 	for _, a := range amounts {
 		if math.IsNaN(a) || math.IsInf(a, 0) {

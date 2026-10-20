@@ -56,7 +56,7 @@ func TestRequestThalexDeposit(t *testing.T) {
 	}
 	result, err := e.RequestThalexDeposit(t.Context(), req)
 	require.NoError(t, err, "RequestThalexDeposit must not error")
-	exp := &ThalexTransfer{
+	exp := &ThalexTransferResponse{
 		Type:               "deposit",
 		DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
 		Amount:             1000,
@@ -91,7 +91,7 @@ func TestRequestThalexWithdrawal(t *testing.T) {
 	}
 	result, err := e.RequestThalexWithdrawal(t.Context(), req)
 	require.NoError(t, err, "RequestThalexWithdrawal must not error")
-	exp := &ThalexTransfer{
+	exp := &ThalexTransferResponse{
 		Type:               "withdraw",
 		DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
 		Amount:             90,

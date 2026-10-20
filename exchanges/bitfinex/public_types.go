@@ -20,8 +20,8 @@ type PlatformStatusResponse struct {
 // UnmarshalJSON decodes a platform status array
 func (p *PlatformStatusResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
-// Ticker is a trading pair's ticker; its changes, volume, high and low cover the last 24 hours
-type Ticker struct {
+// TickerResponse is a trading pair's ticker; its changes, volume, high and low cover the last 24 hours
+type TickerResponse struct {
 	Bid     float64 `tuple:"0"`
 	BidSize float64 `tuple:"1"`
 	Ask     float64 `tuple:"2"`
@@ -39,11 +39,11 @@ type Ticker struct {
 }
 
 // UnmarshalJSON decodes a trading pair ticker array
-func (t *Ticker) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *TickerResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
 
-// FundingTicker is a funding currency's ticker; its rates are daily, and its changes, volume, high and low cover the
+// FundingTickerResponse is a funding currency's ticker; its rates are daily, and its changes, volume, high and low cover the
 // last 24 hours
-type FundingTicker struct {
+type FundingTickerResponse struct {
 	// FlashReturnRate is the average rate of all fixed rate funding over the last hour
 	FlashReturnRate float64 `tuple:"0"`
 	Bid             float64 `tuple:"1"`
@@ -69,12 +69,12 @@ type FundingTicker struct {
 }
 
 // UnmarshalJSON decodes a funding currency ticker array
-func (t *FundingTicker) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *FundingTickerResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
 
 // TickerEntry is a trading pair's ticker as GetTickers returns it, prefixed with its symbol
 type TickerEntry struct {
-	Symbol string `tuple:"0"`
-	Ticker Ticker `tuple:"1,inline"`
+	Symbol string         `tuple:"0"`
+	Ticker TickerResponse `tuple:"1,inline"`
 }
 
 // UnmarshalJSON decodes a symbol prefixed trading pair ticker array
@@ -82,8 +82,8 @@ func (t *TickerEntry) UnmarshalJSON(data []byte) error { return unmarshalTuple(d
 
 // FundingTickerEntry is a funding currency's ticker as GetTickers returns it, prefixed with its symbol
 type FundingTickerEntry struct {
-	Symbol string        `tuple:"0"`
-	Ticker FundingTicker `tuple:"1,inline"`
+	Symbol string                `tuple:"0"`
+	Ticker FundingTickerResponse `tuple:"1,inline"`
 }
 
 // UnmarshalJSON decodes a symbol prefixed funding currency ticker array
@@ -144,8 +144,8 @@ type TickersHistoryRequest struct {
 	Sort int64
 }
 
-// HistoricTicker is a trading pair's best bid and ask at an hour
-type HistoricTicker struct {
+// HistoricTickerResponse is a trading pair's best bid and ask at an hour
+type HistoricTickerResponse struct {
 	Symbol string     `tuple:"0"`
 	Bid    float64    `tuple:"1"`
 	Ask    float64    `tuple:"3"`
@@ -153,7 +153,7 @@ type HistoricTicker struct {
 }
 
 // UnmarshalJSON decodes a historic ticker array
-func (h *HistoricTicker) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, h) }
+func (h *HistoricTickerResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, h) }
 
 // PublicTradesRequest selects a trading pair's or funding currency's trades
 type PublicTradesRequest struct {
@@ -168,8 +168,8 @@ type PublicTradesRequest struct {
 	Sort int64
 }
 
-// PublicTrade is a trading pair's trade
-type PublicTrade struct {
+// PublicTradeResponse is a trading pair's trade
+type PublicTradeResponse struct {
 	ID   uint64     `tuple:"0"`
 	Time types.Time `tuple:"1"`
 	// Amount is positive for a buy and negative for a sell
@@ -178,10 +178,10 @@ type PublicTrade struct {
 }
 
 // UnmarshalJSON decodes a trading pair trade array
-func (p *PublicTrade) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
+func (p *PublicTradeResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
-// PublicFundingTrade is a funding currency's trade
-type PublicFundingTrade struct {
+// PublicFundingTradeResponse is a funding currency's trade
+type PublicFundingTradeResponse struct {
 	ID   uint64     `tuple:"0"`
 	Time types.Time `tuple:"1"`
 	// Amount is positive for funding provided and negative for funding taken
@@ -193,7 +193,7 @@ type PublicFundingTrade struct {
 }
 
 // UnmarshalJSON decodes a funding currency trade array
-func (p *PublicFundingTrade) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
+func (p *PublicFundingTradeResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
 // BookRequest selects a trading pair's or funding currency's book, aggregated by price or rate
 type BookRequest struct {
@@ -214,8 +214,8 @@ type RawBookRequest struct {
 	Length uint64
 }
 
-// BookLevel is a price level of a trading pair's book
-type BookLevel struct {
+// BookLevelResponse is a price level of a trading pair's book
+type BookLevelResponse struct {
 	Price float64 `tuple:"0"`
 	// Count is the number of orders at the price; on the websocket, 0 removes the level
 	Count uint64 `tuple:"1"`
@@ -224,10 +224,10 @@ type BookLevel struct {
 }
 
 // UnmarshalJSON decodes a trading pair book level array
-func (b *BookLevel) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *BookLevelResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
-// FundingBookLevel is a rate and period level of a funding currency's book
-type FundingBookLevel struct {
+// FundingBookLevelResponse is a rate and period level of a funding currency's book
+type FundingBookLevelResponse struct {
 	// Rate is daily; 0.01 is one percent
 	Rate float64 `tuple:"0"`
 	// Period is in days
@@ -239,10 +239,10 @@ type FundingBookLevel struct {
 }
 
 // UnmarshalJSON decodes a funding currency book level array
-func (b *FundingBookLevel) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *FundingBookLevelResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
-// RawBookLevel is an order in a trading pair's raw book
-type RawBookLevel struct {
+// RawBookLevelResponse is an order in a trading pair's raw book
+type RawBookLevelResponse struct {
 	OrderID uint64 `tuple:"0"`
 	// Price is zero on the websocket when the order leaves the book
 	Price float64 `tuple:"1"`
@@ -251,10 +251,10 @@ type RawBookLevel struct {
 }
 
 // UnmarshalJSON decodes a trading pair raw book level array
-func (b *RawBookLevel) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *RawBookLevelResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
-// RawFundingBookLevel is an offer in a funding currency's raw book
-type RawFundingBookLevel struct {
+// RawFundingBookLevelResponse is an offer in a funding currency's raw book
+type RawFundingBookLevelResponse struct {
 	OfferID uint64 `tuple:"0"`
 	// Period is in days
 	Period uint64 `tuple:"1"`
@@ -265,7 +265,9 @@ type RawFundingBookLevel struct {
 }
 
 // UnmarshalJSON decodes a funding currency raw book level array
-func (b *RawFundingBookLevel) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *RawFundingBookLevelResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, b)
+}
 
 // Stats keys, the statistics GetLastStat and GetStatsHistory return
 const (
@@ -320,14 +322,14 @@ type StatsHistoryRequest struct {
 	Sort int64
 }
 
-// Stat is a statistic's value at a time
-type Stat struct {
+// StatResponse is a statistic's value at a time
+type StatResponse struct {
 	Time  types.Time `tuple:"0"`
 	Value float64    `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a statistic array
-func (s *Stat) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
+func (s *StatResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
 
 // CandlesRequest selects a trading pair's or funding currency's candles. A funding currency's candles cover its
 // funding of one period, or of a range of periods aggregated; the website's are aggregated 30 over 2 to 30 days
@@ -359,8 +361,8 @@ type CandlesHistoryRequest struct {
 	Sort int64
 }
 
-// Candle is a candle of a trading pair's prices or a funding currency's rates
-type Candle struct {
+// CandleResponse is a candle of a trading pair's prices or a funding currency's rates
+type CandleResponse struct {
 	Time   types.Time `tuple:"0"`
 	Open   float64    `tuple:"1"`
 	Close  float64    `tuple:"2"`
@@ -370,10 +372,10 @@ type Candle struct {
 }
 
 // UnmarshalJSON decodes a candle array
-func (c *Candle) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CandleResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// DerivativeStatus is a derivative pair's status, as its history and the websocket status channel send it
-type DerivativeStatus struct {
+// DerivativeStatusResponse is a derivative pair's status, as its history and the websocket status channel send it
+type DerivativeStatusResponse struct {
 	Time types.Time `tuple:"0"`
 	// DerivativePrice is the mid price of the derivative's book
 	DerivativePrice float64 `tuple:"2"`
@@ -398,16 +400,18 @@ type DerivativeStatus struct {
 }
 
 // UnmarshalJSON decodes a derivative status array
-func (d *DerivativeStatus) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
+func (d *DerivativeStatusResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
 
-// DerivativeStatusEntry is a derivative pair's status as GetDerivativesStatus returns it, prefixed with its key
-type DerivativeStatusEntry struct {
-	Key    string           `tuple:"0"`
-	Status DerivativeStatus `tuple:"1,inline"`
+// DerivativeStatusEntryResponse is a derivative pair's status as GetDerivativesStatus returns it, prefixed with its key
+type DerivativeStatusEntryResponse struct {
+	Key    string                   `tuple:"0"`
+	Status DerivativeStatusResponse `tuple:"1,inline"`
 }
 
 // UnmarshalJSON decodes a keyed derivative status array
-func (d *DerivativeStatusEntry) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
+func (d *DerivativeStatusEntryResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, d)
+}
 
 // DerivativesStatusHistoryRequest selects a derivative pair's status history
 type DerivativesStatusHistoryRequest struct {
@@ -431,8 +435,8 @@ type LiquidationsRequest struct {
 	Sort int64
 }
 
-// Liquidation is a position's liquidation
-type Liquidation struct {
+// LiquidationResponse is a position's liquidation
+type LiquidationResponse struct {
 	// Type is pos
 	Type       string     `tuple:"0"`
 	PositionID uint64     `tuple:"1"`
@@ -452,10 +456,10 @@ type Liquidation struct {
 }
 
 // UnmarshalJSON decodes a liquidation array
-func (l *Liquidation) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LiquidationResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
 
 // liquidationsResponse holds the liquidations GetLiquidations returns, which Bitfinex sends each in an array of its own
-type liquidationsResponse []Liquidation
+type liquidationsResponse []LiquidationResponse
 
 // UnmarshalJSON decodes a list of liquidations, each sent alone in an array; any more an array holds are kept too, and
 // null holds none, as it would for a plain slice
@@ -472,7 +476,7 @@ func (l *liquidationsResponse) UnmarshalJSON(data []byte) error {
 			if elementType == jsonparser.Null {
 				return nil
 			}
-			var liquidation Liquidation
+			var liquidation LiquidationResponse
 			if err := liquidation.UnmarshalJSON(element); err != nil {
 				return fmt.Errorf("liquidation %d: %w", n, err)
 			}
@@ -514,8 +518,8 @@ type LeaderboardsRequest struct {
 	Sort int64
 }
 
-// LeaderboardStanding is a user's standing on a leaderboard
-type LeaderboardStanding struct {
+// LeaderboardStandingResponse is a user's standing on a leaderboard
+type LeaderboardStandingResponse struct {
 	Time     types.Time `tuple:"0"`
 	Username string     `tuple:"2"`
 	Ranking  uint64     `tuple:"3"`
@@ -526,7 +530,9 @@ type LeaderboardStanding struct {
 }
 
 // UnmarshalJSON decodes a leaderboard standing array
-func (l *LeaderboardStanding) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LeaderboardStandingResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, l)
+}
 
 // FundingStatisticsRequest selects a funding currency's statistics, which Bitfinex keeps hourly
 type FundingStatisticsRequest struct {
@@ -538,8 +544,8 @@ type FundingStatisticsRequest struct {
 	Limit uint64
 }
 
-// FundingStatistic is a funding currency's funding at a time
-type FundingStatistic struct {
+// FundingStatisticResponse is a funding currency's funding at a time
+type FundingStatisticResponse struct {
 	Time types.Time `tuple:"0"`
 	// FlashReturnRate is the daily flash return rate divided by 365: multiplied by 365 it gives the daily rate, and by
 	// 365, 365 and 100 the yearly rate in percent
@@ -555,63 +561,63 @@ type FundingStatistic struct {
 }
 
 // UnmarshalJSON decodes a funding statistic array
-func (f *FundingStatistic) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingStatisticResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
 
-// CurrencySymbol is a currency and the symbol it is better known by, such as DSH and DASH
-type CurrencySymbol struct {
+// CurrencySymbolResponse is a currency and the symbol it is better known by, such as DSH and DASH
+type CurrencySymbolResponse struct {
 	Currency currency.Code `tuple:"0"`
 	Symbol   string        `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency symbol array
-func (c *CurrencySymbol) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencySymbolResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// CurrencyLabel is a currency and its name, such as BTC and Bitcoin
-type CurrencyLabel struct {
+// CurrencyLabelResponse is a currency and its name, such as BTC and Bitcoin
+type CurrencyLabelResponse struct {
 	Currency currency.Code `tuple:"0"`
 	Label    string        `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency label array
-func (c *CurrencyLabel) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyLabelResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// CurrencyUnit is a currency and the unit its amounts are in
-type CurrencyUnit struct {
+// CurrencyUnitResponse is a currency and the unit its amounts are in
+type CurrencyUnitResponse struct {
 	Currency currency.Code `tuple:"0"`
 	// Unit is the unit's symbol and name, such as Mi|MegaIOTA
 	Unit string `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency unit array
-func (c *CurrencyUnit) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyUnitResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// CurrencyUnderlying is a derivative currency and the currency it tracks, such as BTCF0 and BTC
-type CurrencyUnderlying struct {
+// CurrencyUnderlyingResponse is a derivative currency and the currency it tracks, such as BTCF0 and BTC
+type CurrencyUnderlyingResponse struct {
 	Currency   currency.Code `tuple:"0"`
 	Underlying currency.Code `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency underlying array
-func (c *CurrencyUnderlying) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyUnderlyingResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// CurrencyPool is a currency and the network it is carried on, such as BAT on ETH
-type CurrencyPool struct {
+// CurrencyPoolResponse is a currency and the network it is carried on, such as BAT on ETH
+type CurrencyPoolResponse struct {
 	Currency currency.Code `tuple:"0"`
 	// Pool is the network's currency, such as ETH, TRX or ARBETH for Arbitrum
 	Pool currency.Code `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency pool array
-func (c *CurrencyPool) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyPoolResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
-// CurrencyExplorer is a currency and its block explorer
-type CurrencyExplorer struct {
+// CurrencyExplorerResponse is a currency and its block explorer
+type CurrencyExplorerResponse struct {
 	Currency currency.Code `tuple:"0"`
 	Explorer BlockExplorer `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency explorer array
-func (c *CurrencyExplorer) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyExplorerResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
 // BlockExplorer is a block explorer's URLs; the address and transaction URLs hold VAL where the address or transaction
 // ID goes
@@ -624,14 +630,16 @@ type BlockExplorer struct {
 // UnmarshalJSON decodes a block explorer array
 func (b *BlockExplorer) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
-// CurrencyWithdrawalFee is a currency and the fee its withdrawals cost
-type CurrencyWithdrawalFee struct {
+// CurrencyWithdrawalFeeResponse is a currency and the fee its withdrawals cost
+type CurrencyWithdrawalFeeResponse struct {
 	Currency currency.Code `tuple:"0"`
 	Fee      WithdrawalFee `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a currency withdrawal fee array
-func (c *CurrencyWithdrawalFee) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *CurrencyWithdrawalFeeResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, c)
+}
 
 // WithdrawalFee is a withdrawal's fee
 type WithdrawalFee struct {
@@ -642,25 +650,25 @@ type WithdrawalFee struct {
 // UnmarshalJSON decodes a withdrawal fee array
 func (w *WithdrawalFee) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
 
-// TransferMethod is a method API withdrawals take and the currencies it moves, such as WIRE for USD, EUR and others
-type TransferMethod struct {
+// TransferMethodResponse is a method API withdrawals take and the currencies it moves, such as WIRE for USD, EUR and others
+type TransferMethodResponse struct {
 	// Method is the method's name, such as BITCOIN or TETHERUSE
 	Method     string          `tuple:"0"`
 	Currencies []currency.Code `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a transfer method array
-func (t *TransferMethod) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *TransferMethodResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
 
-// PairInfoEntry is a pair's market information, prefixed with the pair
-type PairInfoEntry struct {
+// PairInfoEntryResponse is a pair's market information, prefixed with the pair
+type PairInfoEntryResponse struct {
 	// Pair is the pair without its t prefix, such as BTCUSD or BTCF0:USTF0
 	Pair string   `tuple:"0"`
 	Info PairInfo `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a pair info entry array
-func (p *PairInfoEntry) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
+func (p *PairInfoEntryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
 // PairInfo is a pair's market information
 type PairInfo struct {
@@ -680,8 +688,8 @@ type PairInfo struct {
 // UnmarshalJSON decodes a pair info array
 func (p *PairInfo) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
-// TransferMethodStatus is whether a transfer method's deposits and withdrawals run, and what they need
-type TransferMethodStatus struct {
+// TransferMethodStatusResponse is whether a transfer method's deposits and withdrawals run, and what they need
+type TransferMethodStatusResponse struct {
 	// Method is the method's name, such as BITCOIN, as GetTransferMethods lists it
 	Method string `tuple:"0"`
 	// DepositActive is false while the method's deposits are in maintenance
@@ -695,7 +703,9 @@ type TransferMethodStatus struct {
 }
 
 // UnmarshalJSON decodes a transfer method status array
-func (t *TransferMethodStatus) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *TransferMethodStatusResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, t)
+}
 
 // MarginSpecificationResponse holds the collateral haircuts and margin requirements of margin trading
 type MarginSpecificationResponse struct {
@@ -721,9 +731,9 @@ type PerpetualContractFees struct {
 	CorrectionSlope          float64 `json:"correction_slope"`
 }
 
-// VirtualAssetServiceProvider is a virtual asset service provider a withdrawal can name as its recipient, for the
+// VirtualAssetServiceProviderResponse is a virtual asset service provider a withdrawal can name as its recipient, for the
 // Travel Rule
-type VirtualAssetServiceProvider struct {
+type VirtualAssetServiceProviderResponse struct {
 	// ID is the provider's decentralised ID, which a withdrawal's vasp_did takes
 	ID   string `json:"id"`
 	Name string `json:"name"`

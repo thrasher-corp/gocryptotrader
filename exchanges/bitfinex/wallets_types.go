@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Wallet is a wallet's balances
-type Wallet struct {
+// WalletResponse is a wallet's balances
+type WalletResponse struct {
 	// Type is exchange, margin or funding
 	Type     string        `tuple:"0"`
 	Currency currency.Code `tuple:"1"`
@@ -22,7 +22,7 @@ type Wallet struct {
 }
 
 // UnmarshalJSON decodes a wallet array
-func (w *Wallet) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WalletResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
 
 // WalletChangeMetadata details a wallet's last ledger entry; which fields are set depends on its reason
 type WalletChangeMetadata struct {

@@ -51,15 +51,15 @@ func (e *Exchange) GetMarginInfoAllSymbols(ctx context.Context) ([]MarginInfoSym
 }
 
 // GetActivePositions returns the account's active margin and derivative positions
-func (e *Exchange) GetActivePositions(ctx context.Context) ([]Position, error) {
-	var resp []Position
+func (e *Exchange) GetActivePositions(ctx context.Context) ([]PositionResponse, error) {
+	var resp []PositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, positionsEPL, "auth/r/positions", nil, &resp)
 }
 
 // ClaimPosition settles a margin position, or part of it, as an exchange buy or sale with the margin wallet's funds,
 // returning the position. The position's realised profit and the margin wallet's funds, net of financing charges,
 // must cover the financing the claimed part owes
-func (e *Exchange) ClaimPosition(ctx context.Context, req *ClaimPositionRequest) (*Notification[Position], error) {
+func (e *Exchange) ClaimPosition(ctx context.Context, req *ClaimPositionRequest) (*Notification[PositionResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -70,13 +70,13 @@ func (e *Exchange) ClaimPosition(ctx context.Context, req *ClaimPositionRequest)
 	if req.Amount != 0 {
 		body.Amount = strconv.FormatFloat(req.Amount, 'f', -1, 64)
 	}
-	return sendNotificationRequest[Position](ctx, e, claimPositionEPL, "auth/w/position/claim", body)
+	return sendNotificationRequest[PositionResponse](ctx, e, claimPositionEPL, "auth/w/position/claim", body)
 }
 
 // IncreasePosition opens or increases a margin position with the margin wallet's funds, the reverse of claiming one,
 // returning the position's symbol, amount and base price. It needs a verified or paper trading account, and full
 // verification for a long position on a pair quoted in fiat
-func (e *Exchange) IncreasePosition(ctx context.Context, req *IncreasePositionRequest) (*Notification[Position], error) {
+func (e *Exchange) IncreasePosition(ctx context.Context, req *IncreasePositionRequest) (*Notification[PositionResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (e *Exchange) IncreasePosition(ctx context.Context, req *IncreasePositionRe
 	if req.Amount == 0 {
 		return nil, errInvalidAmount
 	}
-	return sendNotificationRequest[Position](ctx, e, increasePositionEPL, "auth/w/position/increase", &increasePositionBody{
+	return sendNotificationRequest[PositionResponse](ctx, e, increasePositionEPL, "auth/w/position/increase", &increasePositionBody{
 		Symbol: req.Symbol,
 		Amount: strconv.FormatFloat(req.Amount, 'f', -1, 64),
 	})
@@ -116,7 +116,7 @@ func (e *Exchange) GetIncreasePositionInfo(ctx context.Context, req *IncreasePos
 }
 
 // GetPositionsHistory returns the account's past positions, up to 50 a request
-func (e *Exchange) GetPositionsHistory(ctx context.Context, req *PositionsHistoryRequest) ([]Position, error) {
+func (e *Exchange) GetPositionsHistory(ctx context.Context, req *PositionsHistoryRequest) ([]PositionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -124,12 +124,12 @@ func (e *Exchange) GetPositionsHistory(ctx context.Context, req *PositionsHistor
 	if err != nil {
 		return nil, err
 	}
-	var resp []Position
+	var resp []PositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, positionsHistoryEPL, "auth/r/positions/hist", &positionsHistoryBody{historyBody: history, ID: req.PositionID}, &resp)
 }
 
 // GetPositionsSnapshot returns the daily snapshots of the account's positions, up to 500 a request
-func (e *Exchange) GetPositionsSnapshot(ctx context.Context, req *PositionsSnapshotRequest) ([]Position, error) {
+func (e *Exchange) GetPositionsSnapshot(ctx context.Context, req *PositionsSnapshotRequest) ([]PositionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -137,13 +137,13 @@ func (e *Exchange) GetPositionsSnapshot(ctx context.Context, req *PositionsSnaps
 	if err != nil {
 		return nil, err
 	}
-	var resp []Position
+	var resp []PositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, positionsSnapshotEPL, "auth/r/positions/snap", &positionsHistoryBody{historyBody: history, ID: req.PositionID}, &resp)
 }
 
 // GetPositionsAudit returns the states the account's latest positions, or the positions requested, went through, up
 // to 250 a request, each with the reason for the change, such as the trade that made it, in its Meta
-func (e *Exchange) GetPositionsAudit(ctx context.Context, req *PositionsAuditRequest) ([]Position, error) {
+func (e *Exchange) GetPositionsAudit(ctx context.Context, req *PositionsAuditRequest) ([]PositionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (e *Exchange) GetPositionsAudit(ctx context.Context, req *PositionsAuditReq
 	if err != nil {
 		return nil, err
 	}
-	var resp []Position
+	var resp []PositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, positionsAuditEPL, "auth/r/positions/audit", &positionsAuditBody{historyBody: history, IDs: req.PositionIDs}, &resp)
 }
 

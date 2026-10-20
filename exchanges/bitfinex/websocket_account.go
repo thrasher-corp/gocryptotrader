@@ -79,27 +79,27 @@ func (e *Exchange) wsHandleAccountEvent(ctx context.Context, conn websocket.Conn
 	case "on", "ou", "oc":
 		return e.wsHandleOrder(ctx, string(eventType) == "oc", respRaw)
 	case "ps":
-		return wsRelayAccountSnapshot[Position](ctx, e, respRaw)
+		return wsRelayAccountSnapshot[PositionResponse](ctx, e, respRaw)
 	case "pn", "pu", "pc":
-		return wsRelayAccountUpdate[Position](ctx, e, respRaw)
+		return wsRelayAccountUpdate[PositionResponse](ctx, e, respRaw)
 	case "te", "tu":
 		return e.wsHandleAccountTrade(ctx, string(eventType), respRaw)
 	case "fos":
-		return wsRelayAccountSnapshot[FundingOffer](ctx, e, respRaw)
+		return wsRelayAccountSnapshot[FundingOfferResponse](ctx, e, respRaw)
 	case "fon", "fou", "foc":
-		return wsRelayAccountUpdate[FundingOffer](ctx, e, respRaw)
+		return wsRelayAccountUpdate[FundingOfferResponse](ctx, e, respRaw)
 	case "fcs", "fls":
-		return wsRelayAccountSnapshot[FundingCredit](ctx, e, respRaw)
+		return wsRelayAccountSnapshot[FundingCreditResponse](ctx, e, respRaw)
 	case "fcn", "fcu", "fcc", "fln", "flu", "flc":
-		return wsRelayAccountUpdate[FundingCredit](ctx, e, respRaw)
+		return wsRelayAccountUpdate[FundingCreditResponse](ctx, e, respRaw)
 	case "fte", "ftu":
-		return wsRelayAccountUpdate[AccountFundingTrade](ctx, e, respRaw)
+		return wsRelayAccountUpdate[AccountFundingTradeResponse](ctx, e, respRaw)
 	case "ws":
 		return e.wsHandleWallets(ctx, conn, respRaw)
 	case "wu":
 		return e.wsHandleWalletUpdate(ctx, conn, respRaw)
 	case "bu":
-		return wsRelayAccountUpdate[BalanceInfo](ctx, e, respRaw)
+		return wsRelayAccountUpdate[BalanceInfoResponse](ctx, e, respRaw)
 	case "miu":
 		return e.wsHandleMarginInfo(ctx, respRaw)
 	case "fiu":
@@ -128,7 +128,7 @@ func wsRelayAccountUpdate[T any](ctx context.Context, e *Exchange, respRaw []byt
 
 // wsHandleOrders relays the snapshot of the account's open orders
 func (e *Exchange) wsHandleOrders(ctx context.Context, respRaw []byte) error {
-	var f wsTypedFrame[[]Order]
+	var f wsTypedFrame[[]OrderResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (e *Exchange) wsHandleOrders(ctx context.Context, respRaw []byte) error {
 
 // wsHandleOrder relays an order placed, updated, or closed by being cancelled or filled
 func (e *Exchange) wsHandleOrder(ctx context.Context, closed bool, respRaw []byte) error {
-	var f wsTypedFrame[Order]
+	var f wsTypedFrame[OrderResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (e *Exchange) wsHandleOrder(ctx context.Context, closed bool, respRaw []byt
 // wsHandleAccountTrade relays a trade one of the account's orders made. Its execution update, which follows with the
 // fee, is also relayed as a fill, when the fills feed is on
 func (e *Exchange) wsHandleAccountTrade(ctx context.Context, eventType string, respRaw []byte) error {
-	var f wsTypedFrame[AccountTrade]
+	var f wsTypedFrame[AccountTradeResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (e *Exchange) wsHandleAccountTrade(ctx context.Context, eventType string, r
 
 // wsHandleWallets stores and relays the snapshot of the account's wallets
 func (e *Exchange) wsHandleWallets(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var f wsTypedFrame[[]Wallet]
+	var f wsTypedFrame[[]WalletResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -218,17 +218,17 @@ func (e *Exchange) wsHandleWallets(ctx context.Context, conn websocket.Connectio
 
 // wsHandleWalletUpdate stores and relays an update of one of the account's wallets
 func (e *Exchange) wsHandleWalletUpdate(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var f wsTypedFrame[Wallet]
+	var f wsTypedFrame[WalletResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
-	return e.wsStoreWallets(ctx, conn, []Wallet{f.Data})
+	return e.wsStoreWallets(ctx, conn, []WalletResponse{f.Data})
 }
 
 // wsStoreWallets stores the balances of wallets, each under the asset its balance funds, and relays them. Bitfinex
 // sends no available balance until it has calculated it, so until then none of the wallet is free, and Bitfinex is
 // asked to calculate it
-func (e *Exchange) wsStoreWallets(ctx context.Context, conn websocket.Connection, wallets []Wallet) error {
+func (e *Exchange) wsStoreWallets(ctx context.Context, conn websocket.Connection, wallets []WalletResponse) error {
 	var subAccts accounts.SubAccounts
 	var calcs []string
 	var errs error

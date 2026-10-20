@@ -148,6 +148,15 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		"RSN_PAUSE":                                         order.Cancelled,
 		"FORCED EXECUTED @ 1(-1)":                           order.Liquidated,
 		"NOVEL":                                             order.UnknownStatus,
+		// Bitfinex cuts a status listing many fills short, keeping its end, and earlier cut one without marking it
+		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":    order.PartiallyFilled,
+		"...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":                                      order.PartiallyFilled,
+		"CANCELED was: ...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":                        order.PartiallyFilledCancelled,
+		"EXECUTED @ 2365.3(594.14534185): was ...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)": order.Filled,
+		"(-41.37139577), PARTIALLY FILLED @ 12.58(-15.53), PARTIALLY FILLED @ 12.58(-41.34952975)":             order.PartiallyFilled,
+		"LLED @ 12.58(-15.53), PARTIALLY FILLED @ 12.58(-41.34952975)":                                         order.PartiallyFilled,
+		"CANCELED was:  12.58(-15.53)":  order.PartiallyFilledCancelled,
+		"...LLED @ 2365.3(45.58642898)": order.UnknownStatus,
 	} {
 		assert.Equalf(t, exp, orderStatusFromBitfinex(status), "orderStatusFromBitfinex should give %q's status", status)
 	}
@@ -181,9 +190,81 @@ func TestOrderStatusExecutedAmount(t *testing.T) {
 		"RSN_DUST (amount is less than 0.00000001)":                                      0,
 		"CANCELED": 0,
 		"PARTIALLY FILLED @ x(0.1), PARTIALLY FILLED @ 100(y), PARTIALLY FILLED @ 100(0.1e-2147483647)": 0,
+		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)":                               45.58642898,
 	} {
 		got := orderStatusExecutedAmount(status)
-		assert.Truef(t, decimal.MustFromFloat(exp).Equal(got), "orderStatusExecutedAmount should add up the fills %q lists to %v exactly, got %s", status, exp, got)
+		assert.Truef(t, decimal.MustFromFloat(exp).Equal(got), "orderStatusExecutedAmount should add up the fills %q lists in full to %v exactly, got %s", status, exp, got)
+	}
+}
+
+func TestSplitOrderStatus(t *testing.T) {
+	t.Parallel()
+	for status, exp := range map[string][2]string{
+		"ACTIVE":                         {"ACTIVE", ""},
+		"PARTIALLY FILLED @ 107.6(-0.1)": {"PARTIALLY FILLED @ 107.6(-0.1)", ""},
+		"CANCELED was: PARTIALLY FILLED @ 107.6(-0.1)":               {"CANCELED", "PARTIALLY FILLED @ 107.6(-0.1)"},
+		"EXECUTED @ 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)": {"EXECUTED @ 916.2(0.78)", "PARTIALLY FILLED @ 915.9(0.22)"},
+		"EXECUTED @ 9500.0(-0.5) was ACTIVE (note:POSCLOSE)":         {"EXECUTED @ 9500.0(-0.5)", "ACTIVE (note:POSCLOSE)"},
+		"CANCELED was:  12.58(-15.53)":                               {"CANCELED", " 12.58(-15.53)"},
+	} {
+		current, previous := splitOrderStatus(status)
+		assert.Equalf(t, exp, [2]string{current, previous}, "splitOrderStatus should split %q into what the order is and what it was", status)
+	}
+}
+
+func TestIsFillListCut(t *testing.T) {
+	t.Parallel()
+	for fills, exp := range map[string]bool{
+		"":                          false,
+		"ACTIVE":                    false,
+		"CANCELED":                  false,
+		"NOVEL":                     false,
+		"INSUFFICIENT BALANCE (G1)": false,
+		"RSN_DUST (amount is less than 0.00000001)":        false,
+		"PARTIALLY FILLED @ 12.58(-15.53)":                 false,
+		"EXECUTED @ 12.58(-15.53)":                         false,
+		"FORCED EXECUTED @ 12.58(-15.53)":                  false,
+		"... 2365.3(53.94146517)":                          true,
+		"...LLED @ 2365.3(45.58642898)":                    true,
+		"(-41.37139577), PARTIALLY FILLED @ 12.58(-15.53)": true,
+		" 12.58(-15.53)":                                   true,
+		"LLED @ 12.58(-15.53)":                             true,
+		"ARTIALLY FILLED @ 12.58(-15.53)":                  true,
+		"D EXECUTED @ 12.58(-15.53)":                       true,
+		"XECUTED @ 12.58(-15.53)":                          true,
+	} {
+		assert.Equalf(t, exp, isFillListCut(fills), "isFillListCut should report whether %q starts part way through a fill", fills)
+	}
+}
+
+func TestIsOrderStatusCut(t *testing.T) {
+	t.Parallel()
+	for status, exp := range map[string]bool{
+		"ACTIVE": false,
+		"PARTIALLY FILLED @ 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)": false,
+		"CANCELED was: PARTIALLY FILLED @ 107.6(-0.1)":                                   false,
+		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)":                true,
+		"CANCELED was: ...LLED @ 2365.3(45.58642898)":                                    true,
+		"EXECUTED @ 2365.3(594.14534185): was ...LLED @ 2365.3(45.58642898)":             true,
+	} {
+		assert.Equalf(t, exp, isOrderStatusCut(status), "isOrderStatusCut should report whether %q was cut short", status)
+	}
+}
+
+func TestOrderExecutedAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		o   *OrderResponse
+		exp string
+	}{
+		{o: &OrderResponse{Amount: 0.25, OriginalAmount: 0.1, Status: "ACTIVE"}, exp: "0"},
+		{o: &OrderResponse{Amount: -0.4, OriginalAmount: -1, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, exp: "0.3"},
+		{o: &OrderResponse{Amount: 694.14534185, OriginalAmount: 1093.673236, Status: "... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)"}, exp: "399.52789415"},
+		{o: &OrderResponse{Amount: -0.9, OriginalAmount: -1, Status: "...LLED @ 100.0(-0.2), PARTIALLY FILLED @ 100.0(-0.2)"}, exp: "0.4"},
+		{o: &OrderResponse{OriginalAmount: 1, Status: "CANCELED was: ...LLED @ 100.0(0.2)"}, exp: "1"},
+	} {
+		got := orderExecutedAmount(tc.o)
+		assert.Truef(t, decimal.MustFromString(tc.exp).Equal(got), "orderExecutedAmount should report %s executed for an order of %v, placed for %v, %q, got %s", tc.exp, tc.o.Amount, tc.o.OriginalAmount, tc.o.Status, got)
 	}
 }
 
@@ -201,7 +282,7 @@ func TestOrderSideFromAmount(t *testing.T) {
 
 func TestOrderDetail(t *testing.T) {
 	t.Parallel()
-	got, err := e.orderDetail(&Order{
+	got, err := e.orderDetail(&OrderResponse{
 		ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1700000000001)), UpdatedAt: types.Time(time.UnixMilli(1700000000002)),
 		Amount: -0.25, OriginalAmount: -1, Type: ExchangeOrderTypePrefix + OrderTypeStopLimit, TimeInForce: types.Time(time.UnixMilli(1700000000003)),
 		Flags: OrderFlagHidden | OrderFlagReduceOnly | OrderFlagPostOnly, Status: "PARTIALLY FILLED @ 100(-0.75)", Price: 110, AveragePrice: 100,
@@ -215,22 +296,25 @@ func TestOrderDetail(t *testing.T) {
 		LastUpdated: time.UnixMilli(1700000000002),
 	}, got, "orderDetail should convert every field, a stop limit's price being its trigger")
 
-	stop, err := e.orderDetail(&Order{ID: 1, Symbol: "tBTCUSD", Amount: 1, OriginalAmount: 1, Type: OrderTypeStop, Price: 90, Hidden: true})
+	stop, err := e.orderDetail(&OrderResponse{ID: 1, Symbol: "tBTCUSD", Amount: 1, OriginalAmount: 1, Type: OrderTypeStop, Price: 90, Hidden: true})
 	require.NoError(t, err, "orderDetail must not error for a stop order")
 	assert.Equal(t, 90.0, stop.TriggerPrice, "a stop order's price should be its trigger")
 	assert.Zero(t, stop.Price, "a stop order should trade at the market once triggered")
 	assert.True(t, stop.HiddenOrder, "an order Bitfinex reports hidden should be hidden")
+	trailing, err := e.orderDetail(&OrderResponse{ID: 1, Symbol: "tBTCUSD", Amount: -1, OriginalAmount: -1, Type: OrderTypeTrailingStop, Price: 95, TrailingPrice: 5})
+	require.NoError(t, err, "orderDetail must not error for a trailing stop order")
+	assert.Equal(t, [2]float64{95, 0}, [2]float64{trailing.TriggerPrice, trailing.Price}, "a trailing stop order's price should be the stop Bitfinex works out from its distance, its trigger")
 
 	// Bitfinex keeps an order's original amount from before any update, as the documented update reply does: one raised
 	// from 0.1 to 0.25, and one lowered from 1 to 0.4 after executing 0.3, each by an update
 	for _, tc := range []struct {
-		o                           *Order
+		o                           *OrderResponse
 		amount, executed, remaining float64
 	}{
-		{o: &Order{ID: 1, Symbol: "tBTCUSD", Amount: 0.25, OriginalAmount: 0.1, Type: OrderTypeLimit, Status: "ACTIVE"}, amount: 0.25, remaining: 0.25},
-		{o: &Order{ID: 2, Symbol: "tBTCUSD", Amount: -0.4, OriginalAmount: -1, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, amount: 0.7, executed: 0.3, remaining: 0.4},
+		{o: &OrderResponse{ID: 1, Symbol: "tBTCUSD", Amount: 0.25, OriginalAmount: 0.1, Type: OrderTypeLimit, Status: "ACTIVE"}, amount: 0.25, remaining: 0.25},
+		{o: &OrderResponse{ID: 2, Symbol: "tBTCUSD", Amount: -0.4, OriginalAmount: -1, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, amount: 0.7, executed: 0.3, remaining: 0.4},
 		// Added up as floats, 0.1 and 0.2 make 0.30000000000000004
-		{o: &Order{ID: 3, Symbol: "tBTCUSD", Amount: 0.2, OriginalAmount: 0.3, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(0.1)"}, amount: 0.3, executed: 0.1, remaining: 0.2},
+		{o: &OrderResponse{ID: 3, Symbol: "tBTCUSD", Amount: 0.2, OriginalAmount: 0.3, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(0.1)"}, amount: 0.3, executed: 0.1, remaining: 0.2},
 	} {
 		got, err := e.orderDetail(tc.o)
 		require.NoErrorf(t, err, "orderDetail must not error for updated order %d", tc.o.ID)
@@ -240,12 +324,12 @@ func TestOrderDetail(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		o   *Order
+		o   *OrderResponse
 		err error
 	}{
-		{o: &Order{Symbol: "tBTC", Type: OrderTypeLimit, OriginalAmount: 1}, err: errSymbolUnparsable},
-		{o: &Order{Symbol: "tBTCUSD", Type: "NOVEL", OriginalAmount: 1}, err: errUnknownOrderType},
-		{o: &Order{Symbol: "tBTCUSD", Type: OrderTypeLimit}, err: errOrderSideUnresolved},
+		{o: &OrderResponse{Symbol: "tBTC", Type: OrderTypeLimit, OriginalAmount: 1}, err: errSymbolUnparsable},
+		{o: &OrderResponse{Symbol: "tBTCUSD", Type: "NOVEL", OriginalAmount: 1}, err: errUnknownOrderType},
+		{o: &OrderResponse{Symbol: "tBTCUSD", Type: OrderTypeLimit}, err: errOrderSideUnresolved},
 	} {
 		_, err := e.orderDetail(tc.o)
 		assert.ErrorIsf(t, err, tc.err, "orderDetail should return the expected error for %+v", tc.o)

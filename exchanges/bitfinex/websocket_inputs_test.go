@@ -25,6 +25,14 @@ func wsTestOrderRequest(t *testing.T) *PlaceOrderRequest {
 	return liveTestOrderRequest(t)
 }
 
+// newUnauthenticatedWebsocketExchange returns an exchange whose websocket cannot send authenticated inputs
+func newUnauthenticatedWebsocketExchange(t *testing.T) *Exchange {
+	t.Helper()
+	ex := newTestExchange(t)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	return ex
+}
+
 func TestWebsocketInput(t *testing.T) {
 	t.Parallel()
 	out, err := json.Marshal(&wsInput{Type: wsOrderCancel, Data: &cancelOrderBody{ID: 5}})
@@ -38,9 +46,7 @@ func TestWebsocketPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOrder must reject a nil request")
 	_, err = e.WebsocketPlaceOrder(t.Context(), &PlaceOrderRequest{Type: "NOVEL", Symbol: "tBTCUSD", Amount: 1})
 	require.ErrorIs(t, err, errInvalidOrderType, "WebsocketPlaceOrder must validate the order")
-	unauthenticated := newTestExchange(t)
-	unauthenticated.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	_, err = unauthenticated.WebsocketPlaceOrder(t.Context(), &mockOrderRequest)
+	_, err = newUnauthenticatedWebsocketExchange(t).WebsocketPlaceOrder(t.Context(), &mockOrderRequest)
 	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketPlaceOrder must need an authenticated websocket")
 
 	skipLiveUnlessCanManipulate(t)
@@ -79,6 +85,8 @@ func TestWebsocketUpdateOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketUpdateOrder must reject a nil request")
 	_, err = e.WebsocketUpdateOrder(t.Context(), &UpdateOrderRequest{})
 	require.ErrorIs(t, err, errOrderIDRequired, "WebsocketUpdateOrder must validate the update")
+	_, err = newUnauthenticatedWebsocketExchange(t).WebsocketUpdateOrder(t.Context(), &UpdateOrderRequest{ID: 1, Price: 1})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketUpdateOrder must need an authenticated websocket")
 
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t, nil)
@@ -104,6 +112,8 @@ func TestWebsocketCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketCancelExistingOrder(t.Context(), 0)
 	require.ErrorIs(t, err, errOrderIDRequired, "WebsocketCancelExistingOrder must need an order ID")
+	_, err = newUnauthenticatedWebsocketExchange(t).WebsocketCancelExistingOrder(t.Context(), 1)
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketCancelExistingOrder must need an authenticated websocket")
 
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t, nil)
@@ -152,6 +162,8 @@ func TestWebsocketSubmitFundingOffer(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketSubmitFundingOffer must reject a nil request")
 	_, err = e.WebsocketSubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: "NOVEL"})
 	require.ErrorIs(t, err, errInvalidFundingOfferType, "WebsocketSubmitFundingOffer must validate the offer")
+	_, err = newUnauthenticatedWebsocketExchange(t).WebsocketSubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUST", Amount: 150, Rate: 0.02, Period: 2})
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketSubmitFundingOffer must need an authenticated websocket")
 
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t, nil)
@@ -167,7 +179,7 @@ func TestWebsocketSubmitFundingOffer(t *testing.T) {
 		t.Cleanup(func() { _, _ = e.CancelFundingOffer(context.WithoutCancel(t.Context()), offer.ID) })
 		return
 	}
-	assert.Equal(t, &FundingOffer{ID: 41238934, Amount: 500, Rate: 0.02, Period: 2}, offer, "WebsocketSubmitFundingOffer should return the offer its notification carries")
+	assert.Equal(t, &FundingOfferResponse{ID: 41238934, Amount: 500, Rate: 0.02, Period: 2}, offer, "WebsocketSubmitFundingOffer should return the offer its notification carries")
 	inputs := venue.inputs(wsFundingOfferNew)
 	require.Len(t, inputs, 1, "WebsocketSubmitFundingOffer must send one offer")
 	assert.JSONEq(t, `{"type":"LIMIT","symbol":"fUST","amount":"500","rate":"0.02","period":2}`, string(inputs[0]), "WebsocketSubmitFundingOffer should send the offer's fields")
@@ -177,6 +189,8 @@ func TestWebsocketCancelFundingOffer(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketCancelFundingOffer(t.Context(), 0)
 	require.ErrorIs(t, err, errFundingOfferIDRequired, "WebsocketCancelFundingOffer must need an offer ID")
+	_, err = newUnauthenticatedWebsocketExchange(t).WebsocketCancelFundingOffer(t.Context(), 1)
+	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketCancelFundingOffer must need an authenticated websocket")
 
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t, nil)

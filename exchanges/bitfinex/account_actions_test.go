@@ -61,7 +61,7 @@ func testWithdrawalRequest() *WithdrawalRequest {
 }
 
 // testLNXInvoice is the invoice the LNX mock responses hold, the payments' alike
-var testLNXInvoice = LNXInvoice{
+var testLNXInvoice = LNXInvoiceResponse{
 	PaymentHash:        testLNXPaymentHash,
 	CreatedAt:          types.Time(time.UnixMilli(1732125293487)),
 	ExpiresAt:          types.Time(time.UnixMilli(1732128893487)),
@@ -186,7 +186,7 @@ func TestGetLoginHistory(t *testing.T) {
 	result, err := e.GetLoginHistory(t.Context(), req)
 	require.NoError(t, err, "GetLoginHistory must not error")
 	if mockTests {
-		exp := []Login{{
+		exp := []LoginResponse{{
 			ID:        78404724,
 			Time:      types.Time(time.UnixMilli(1579202754000)),
 			IP:        "184.214.55.220",
@@ -205,7 +205,7 @@ func TestGetKeyPermissions(t *testing.T) {
 	result, err := e.GetKeyPermissions(t.Context())
 	require.NoError(t, err, "GetKeyPermissions must not error")
 	if mockTests {
-		exp := []KeyPermission{
+		exp := []KeyPermissionResponse{
 			{Scope: "account", Read: true, Write: true},
 			{Scope: "history", Read: true, Write: true},
 			{Scope: "orders", Read: true, Write: true},
@@ -273,7 +273,7 @@ func TestGetChangelog(t *testing.T) {
 	result, err := e.GetChangelog(t.Context(), req)
 	require.NoError(t, err, "GetChangelog must not error")
 	if mockTests {
-		exp := []ChangelogEntry{{
+		exp := []ChangelogEntryResponse{{
 			CreatedAt: types.Time(time.UnixMilli(1574332100000)),
 			Log:       "settings: api key created",
 			IP:        "182.64.34.9",
@@ -331,20 +331,20 @@ func TestTransferBetweenWallets(t *testing.T) {
 	}
 	result, err := e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeMargin, To: WalletTypeExchange, Currency: currency.USD, Amount: 50})
 	require.NoError(t, err, "TransferBetweenWallets must not error")
-	exp := &Notification[WalletTransfer]{
+	exp := &Notification[WalletTransferResponse]{
 		Time:   types.Time(time.UnixMilli(1568736745789)),
 		Type:   "acc_tf",
-		Data:   WalletTransfer{UpdatedAt: types.Time(time.UnixMilli(1568736745790)), WalletFrom: WalletTypeMargin, WalletTo: WalletTypeExchange, Currency: currency.USD, Amount: 50},
+		Data:   WalletTransferResponse{UpdatedAt: types.Time(time.UnixMilli(1568736745790)), WalletFrom: WalletTypeMargin, WalletTo: WalletTypeExchange, Currency: currency.USD, Amount: 50},
 		Status: NotificationStatusSuccess,
 		Text:   "50.0 US Dollar transferred from Margin to Exchange",
 	}
 	assert.Equal(t, exp, result, "TransferBetweenWallets should decode the transfer")
 	result, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeMargin, Currency: currency.UST, CurrencyTo: currency.NewCode("USTF0"), Amount: 200})
 	require.NoError(t, err, "TransferBetweenWallets must not error converting the currency")
-	exp = &Notification[WalletTransfer]{
+	exp = &Notification[WalletTransferResponse]{
 		Time:   types.Time(time.UnixMilli(1574173088379)),
 		Type:   "acc_tf",
-		Data:   WalletTransfer{UpdatedAt: types.Time(time.UnixMilli(1574173088379)), WalletFrom: WalletTypeExchange, WalletTo: WalletTypeMargin, Currency: currency.UST, CurrencyTo: currency.NewCode("USTF0"), Amount: 200},
+		Data:   WalletTransferResponse{UpdatedAt: types.Time(time.UnixMilli(1574173088379)), WalletFrom: WalletTypeExchange, WalletTo: WalletTypeMargin, Currency: currency.UST, CurrencyTo: currency.NewCode("USTF0"), Amount: 200},
 		Status: NotificationStatusSuccess,
 		Text:   "200.0 Tether USDt transfered from Exchange to Margin", //nolint:misspell // Bitfinex's notification text, as the docs give it
 	}
@@ -373,10 +373,10 @@ func TestRequestDepositAddress(t *testing.T) {
 		assert.NotEmpty(t, result.Data.Address, "RequestDepositAddress should return an address")
 		return
 	}
-	exp := &Notification[DepositAddress]{
+	exp := &Notification[DepositAddressResponse]{
 		Time:   types.Time(time.UnixMilli(1568738594687)),
 		Type:   "acc_dep",
-		Data:   DepositAddress{Method: "BITCOIN", Currency: currency.BTC, Address: "YOURADDRESS"},
+		Data:   DepositAddressResponse{Method: "BITCOIN", Currency: currency.BTC, Address: "YOURADDRESS"},
 		Status: NotificationStatusSuccess,
 		Text:   "success",
 	}
@@ -412,7 +412,7 @@ func TestGetDepositAddressList(t *testing.T) {
 	result, err := e.GetDepositAddressList(t.Context(), req)
 	require.NoError(t, err, "GetDepositAddressList must not error")
 	if mockTests {
-		exp := []WalletDepositAddress{
+		exp := []WalletDepositAddressResponse{
 			{Address: "0x6C20eBD2222CE0F809713EF06AE400C2445B72B7", WalletType: WalletTypeExchange},
 			{Address: "0xcd752F90494d103F993aB91472129e9DF4987ED0", WalletType: WalletTypeMargin},
 			{Address: "0x01Dd2e1E9bE8C4667C645c8FA694aB89B894d734", WalletType: WalletTypeExchange},
@@ -465,7 +465,7 @@ func TestLNXInvoicePayments(t *testing.T) {
 	var resp lnxInvoiceListResponse
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getPaymentsByUser", lnxInvoicePaymentsQuery{Offset: 5}, &resp), "lnxInvoicePayments must not error")
 	assert.JSONEq(t, `{"action":"getPaymentsByUser","query":{"offset":5}}`, <-bodies, "lnxInvoicePayments should send the action and query")
-	assert.Equal(t, lnxInvoiceListResponse{Payments: []LNXInvoice{{PaymentHash: "abc"}}}, resp, "lnxInvoicePayments should decode the response")
+	assert.Equal(t, lnxInvoiceListResponse{Payments: []LNXInvoiceResponse{{PaymentHash: "abc"}}}, resp, "lnxInvoicePayments should decode the response")
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoiceById", lnxInvoicePaymentsQuery{PaymentHash: "abc"}, nil), "lnxInvoicePayments must not error")
 	assert.JSONEq(t, `{"action":"getInvoiceById","query":{"txid":"abc"}}`, <-bodies, "lnxInvoicePayments should send the payment hash as txid")
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoicesByUser", lnxInvoicePaymentsQuery{}, nil), "lnxInvoicePayments must not error")
@@ -478,7 +478,7 @@ func TestGetLNXInvoices(t *testing.T) {
 	result, err := e.GetLNXInvoices(t.Context(), 0)
 	require.NoError(t, err, "GetLNXInvoices must not error")
 	if mockTests {
-		assert.Equal(t, []LNXInvoice{testLNXInvoice}, result, "GetLNXInvoices should decode every invoice")
+		assert.Equal(t, []LNXInvoiceResponse{testLNXInvoice}, result, "GetLNXInvoices should decode every invoice")
 	}
 
 	result, err = newResponseServerExchange(t, `{"payments":[{}]}`).GetLNXInvoices(t.Context(), 0)
@@ -498,7 +498,7 @@ func TestGetLNXPayments(t *testing.T) {
 	result, err := e.GetLNXPayments(t.Context(), offset)
 	require.NoError(t, err, "GetLNXPayments must not error")
 	if mockTests {
-		assert.Equal(t, []LNXInvoice{testLNXInvoice}, result, "GetLNXPayments should decode every payment")
+		assert.Equal(t, []LNXInvoiceResponse{testLNXInvoice}, result, "GetLNXPayments should decode every payment")
 	}
 
 	result, err = newResponseServerExchange(t, `{"invoices":[{}]}`).GetLNXPayments(t.Context(), offset)
@@ -607,10 +607,10 @@ func TestRequestWithdrawal(t *testing.T) {
 	}
 	result, err := e.RequestWithdrawal(t.Context(), testWithdrawalRequest())
 	require.NoError(t, err, "RequestWithdrawal must not error")
-	exp := &Notification[Withdrawal]{
+	exp := &Notification[WithdrawalResponse]{
 		Time:   types.Time(time.UnixMilli(1568742390999)),
 		Type:   "acc_wd-req",
-		Data:   Withdrawal{ID: 13080092, Method: "ethereum", Wallet: WalletTypeExchange, Amount: 0.01, Fee: 0.00135},
+		Data:   WithdrawalResponse{ID: 13080092, Method: "ethereum", Wallet: WalletTypeExchange, Amount: 0.01, Fee: 0.00135},
 		Status: NotificationStatusSuccess,
 		Text:   "Your withdrawal request has been successfully submitted.",
 	}
@@ -632,7 +632,7 @@ func TestGetMovements(t *testing.T) {
 	}
 	result, err := e.GetMovements(t.Context(), &MovementsRequest{Currency: currency.ETH, Start: time.UnixMilli(testMovementsStart), End: time.UnixMilli(testMovementsEnd), Limit: 25, Address: "DESTINATION_ADDRESS"})
 	require.NoError(t, err, "GetMovements must not error")
-	exp := []Movement{{
+	exp := []MovementResponse{{
 		ID:                 13105603,
 		Currency:           currency.ETH,
 		Method:             "ETHEREUM",
@@ -648,7 +648,7 @@ func TestGetMovements(t *testing.T) {
 	// Without a currency the path leaves it out, which the recorded request's path holds
 	result, err = e.GetMovements(t.Context(), &MovementsRequest{IDs: []uint64{13293039}})
 	require.NoError(t, err, "GetMovements must not error without a currency")
-	exp = []Movement{{
+	exp = []MovementResponse{{
 		ID:                 13293039,
 		Currency:           currency.ETH,
 		Method:             "ETHEREUM",
@@ -686,7 +686,7 @@ func TestGetMovementInfo(t *testing.T) {
 	require.NoError(t, err, "GetMovementInfo must not error")
 	if mockTests {
 		exp := &MovementInfoResponse{
-			Movement: Movement{
+			Movement: MovementResponse{
 				ID:        24,
 				Currency:  currency.EUR,
 				Method:    "WIRE",
@@ -721,7 +721,7 @@ func TestGetAlertList(t *testing.T) {
 	result, err := e.GetAlertList(t.Context())
 	require.NoError(t, err, "GetAlertList must not error")
 	if mockTests {
-		assert.Equal(t, []Alert{{Key: "price:tETHUSD:220", Type: alertTypePrice, Symbol: "tETHUSD", Price: 220, Countdown: 100}}, result, "GetAlertList should decode every alert")
+		assert.Equal(t, []AlertResponse{{Key: "price:tETHUSD:220", Type: alertTypePrice, Symbol: "tETHUSD", Price: 220, Countdown: 100}}, result, "GetAlertList should decode every alert")
 	}
 
 	_, err = newUnavailableServerExchange(t).GetAlertList(t.Context())
@@ -755,7 +755,7 @@ func TestSetAlert(t *testing.T) {
 	result, err := e.SetAlert(t.Context(), req)
 	require.NoError(t, err, "SetAlert must not error")
 	if mockTests {
-		assert.Equal(t, &Alert{Key: "price:tETHUSD:185", Type: alertTypePrice, Symbol: "tETHUSD", Price: 185, Countdown: 100}, result, "SetAlert should decode the alert")
+		assert.Equal(t, &AlertResponse{Key: "price:tETHUSD:185", Type: alertTypePrice, Symbol: "tETHUSD", Price: 185, Countdown: 100}, result, "SetAlert should decode the alert")
 	} else {
 		assert.Equal(t, "price:tBTCUSD:1.5", result.Key, "SetAlert should key the alert by its symbol and price")
 	}
@@ -850,7 +850,7 @@ func TestWriteUserSettings(t *testing.T) {
 	result, err := e.WriteUserSettings(t.Context(), settings)
 	require.NoError(t, err, "WriteUserSettings must not error")
 	if mockTests {
-		exp := &Notification[UserSettingsCount]{Time: types.Time(time.UnixMilli(1574340932016)), Type: "acc_ss", Data: UserSettingsCount{Count: 2}, Status: NotificationStatusSuccess}
+		exp := &Notification[UserSettingsCountResponse]{Time: types.Time(time.UnixMilli(1574340932016)), Type: "acc_ss", Data: UserSettingsCountResponse{Count: 2}, Status: NotificationStatusSuccess}
 		assert.Equal(t, exp, result, "WriteUserSettings should decode the notification")
 	} else {
 		assert.Equal(t, uint64(1), result.Data.Count, "WriteUserSettings should write the setting")
@@ -1010,28 +1010,28 @@ func TestAccountActionsRecordsEveryPosition(t *testing.T) {
 	testTupleDecode(t, `[null,{"ETH":1.75},2.75]`,
 		SummaryFundingEarnings{Earnings: map[currency.Code]float64{currency.ETH: 1.75}, TotalEarningsUSD: 2.75})
 	testTupleDecode(t, `[1000,null,1700000000002,null,"s4",null,null,{"k":7}]`,
-		Login{ID: 1000, Time: types.Time(time.UnixMilli(1700000000002)), IP: "s4", ExtraInfo: LoginExtraInfo(`{"k":7}`)})
+		LoginResponse{ID: 1000, Time: types.Time(time.UnixMilli(1700000000002)), IP: "s4", ExtraInfo: LoginExtraInfo(`{"k":7}`)})
 	testTupleDecode(t, `["s0",1,1]`,
-		KeyPermission{Scope: "s0", Read: true, Write: true})
+		KeyPermissionResponse{Scope: "s0", Read: true, Write: true})
 	testTupleDecode(t, `["s0"]`,
 		GenerateTokenResponse{Token: "s0"})
 	testTupleDecode(t, `[1700000000000,null,"s2",null,null,"s5","s6"]`,
-		ChangelogEntry{CreatedAt: types.Time(time.UnixMilli(1700000000000)), Log: "s2", IP: "s5", UserAgent: "s6"})
+		ChangelogEntryResponse{CreatedAt: types.Time(time.UnixMilli(1700000000000)), Log: "s2", IP: "s5", UserAgent: "s6"})
 	testTupleDecode(t, `[1700000000000,"s1","s2",null,"UST","BTC",null,7.5]`,
-		WalletTransfer{UpdatedAt: types.Time(time.UnixMilli(1700000000000)), WalletFrom: "s1", WalletTo: "s2", Currency: currency.UST, CurrencyTo: currency.BTC, Amount: 7.5})
+		WalletTransferResponse{UpdatedAt: types.Time(time.UnixMilli(1700000000000)), WalletFrom: "s1", WalletTo: "s2", Currency: currency.UST, CurrencyTo: currency.BTC, Amount: 7.5})
 	testTupleDecode(t, `[null,"s1","UST",null,"s4","s5"]`,
-		DepositAddress{Method: "s1", Currency: currency.UST, Address: "s4", PoolAddress: "s5"})
+		DepositAddressResponse{Method: "s1", Currency: currency.UST, Address: "s4", PoolAddress: "s5"})
 	testTupleDecode(t, `["s0","s1"]`,
-		WalletDepositAddress{Address: "s0", WalletType: "s1"})
+		WalletDepositAddressResponse{Address: "s0", WalletType: "s1"})
 	testTupleDecode(t, `["s0","s1",null,null,"4.5"]`,
 		GenerateInvoiceResponse{InvoiceHash: "s0", Invoice: "s1", Amount: 4.5})
 	testTupleDecode(t, `[1000,null,"s2","s3","s4",5.5,null,null,8.5]`,
-		Withdrawal{ID: 1000, Method: "s2", PaymentID: "s3", Wallet: "s4", Amount: 5.5, Fee: 8.5})
+		WithdrawalResponse{ID: 1000, Method: "s2", PaymentID: "s3", Wallet: "s4", Amount: 5.5, Fee: 8.5})
 	testTupleDecode(t, `[1000,"UST","s2",null,null,1700000000005,1700000000006,null,null,"s9",null,null,"12.5",13.5,null,null,"s16","s17",null,null,"s20","s21"]`,
-		Movement{ID: 1000, Currency: currency.UST, Method: "s2", StartedAt: types.Time(time.UnixMilli(1700000000005)), UpdatedAt: types.Time(time.UnixMilli(1700000000006)), Status: "s9", Amount: 12.5, Fees: 13.5, DestinationAddress: "s16", PaymentID: "s17", TransactionID: "s20", Note: "s21"})
+		MovementResponse{ID: 1000, Currency: currency.UST, Method: "s2", StartedAt: types.Time(time.UnixMilli(1700000000005)), UpdatedAt: types.Time(time.UnixMilli(1700000000006)), Status: "s9", Amount: 12.5, Fees: 13.5, DestinationAddress: "s16", PaymentID: "s17", TransactionID: "s20", Note: "s21"})
 	testTupleDecode(t, `[1000,"UST","s2",null,"s4",1700000000005,1700000000006,null,null,"s9",null,null,12.5,"13.5",null,null,"s16","s17",null,null,"s20","s21",null,null,"24.5",1025,null,null,"s28","s29","s30",{"k":31}]`,
 		MovementInfoResponse{
-			Movement:                        Movement{ID: 1000, Currency: currency.UST, Method: "s2", StartedAt: types.Time(time.UnixMilli(1700000000005)), UpdatedAt: types.Time(time.UnixMilli(1700000000006)), Status: "s9", Amount: 12.5, Fees: 13.5, DestinationAddress: "s16", PaymentID: "s17", TransactionID: "s20", Note: "s21"},
+			Movement:                        MovementResponse{ID: 1000, Currency: currency.UST, Method: "s2", StartedAt: types.Time(time.UnixMilli(1700000000005)), UpdatedAt: types.Time(time.UnixMilli(1700000000006)), Status: "s9", Amount: 12.5, Fees: 13.5, DestinationAddress: "s16", PaymentID: "s17", TransactionID: "s20", Note: "s21"},
 			Remark:                          "s4",
 			BankFees:                        24.5,
 			BankRouterID:                    1025,
@@ -1041,13 +1041,13 @@ func TestAccountActionsRecordsEveryPosition(t *testing.T) {
 			ExternalBankAccountInfo:         json.RawMessage(`{"k":31}`),
 		})
 	testTupleDecode(t, `["s0","s1","s2",3.5,1004]`,
-		Alert{Key: "s0", Type: "s1", Symbol: "s2", Price: 3.5, Countdown: 1004})
+		AlertResponse{Key: "s0", Type: "s1", Symbol: "s2", Price: 3.5, Countdown: 1004})
 	testTupleDecode(t, `[true]`,
 		DeleteAlertResponse{Deleted: true})
 	testTupleDecode(t, `[0.5]`,
 		BalanceAvailableResponse{Amount: 0.5})
 	testTupleDecode(t, `[1000]`,
-		UserSettingsCount{Count: 1000})
+		UserSettingsCountResponse{Count: 1000})
 	testTupleDecode(t, `["s0",{"k":1}]`,
 		userSetting{Key: "s0", Value: json.RawMessage(`{"k":1}`)})
 }

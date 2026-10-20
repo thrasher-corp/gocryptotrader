@@ -59,12 +59,13 @@ var (
 	errInvalidPrice           = errors.New("invalid price")
 	errInvalidSort            = errors.New("invalid sort, want 1 for ascending or -1 for descending")
 	errNotificationFailed     = errors.New("request failed")
+	errTimeBeforeUnixEpoch    = errors.New("time before the Unix epoch")
 )
 
 // APIError is an error Bitfinex reports in a response body, as an ["error", CODE, MESSAGE] array or as an object
 // holding an error
 type APIError struct {
-	Code    int64
+	Code    uint64
 	Message string
 }
 
@@ -73,13 +74,13 @@ func (a *APIError) Error() string {
 	if a.Code == 0 {
 		return a.Message
 	}
-	return strconv.FormatInt(a.Code, 10) + " " + a.Message
+	return strconv.FormatUint(a.Code, 10) + " " + a.Message
 }
 
 // errorTuple is the ["error", CODE, MESSAGE] array Bitfinex reports errors in
 type errorTuple struct {
 	Event   string `tuple:"0"`
-	Code    int64  `tuple:"1"`
+	Code    uint64 `tuple:"1"`
 	Message string `tuple:"2"`
 }
 
@@ -109,7 +110,8 @@ func responseError(body []byte) error {
 		if message == "" {
 			return nil
 		}
-		code, _ := jsonparser.GetInt(body, "code")
+		rawCode, _ := jsonparser.GetUnsafeString(body, "code")
+		code, _ := strconv.ParseUint(rawCode, 10, 64)
 		if detail, _ := jsonparser.GetString(body, "message"); detail != "" && detail != message {
 			message += ": " + detail
 		}
@@ -294,10 +296,11 @@ func setHistoryParams(params url.Values, start, end time.Time, limit uint64, sor
 
 // historyBody is the window, limit and sort an authenticated history endpoint's body takes, each sent only when set
 type historyBody struct {
-	Start int64  `json:"start,omitempty"`
-	End   int64  `json:"end,omitempty"`
+	Start uint64 `json:"start,omitempty"`
+	End   uint64 `json:"end,omitempty"`
 	Limit uint64 `json:"limit,omitempty"`
-	Sort  int64  `json:"sort,omitempty"`
+	// Sort is 1 for oldest first or -1 for newest first
+	Sort int64 `json:"sort,omitempty"`
 }
 
 // newHistoryBody returns the body of a window, limit and sort, erroring when the window is reversed or sort is
@@ -312,11 +315,25 @@ func newHistoryBody(start, end time.Time, limit uint64, sort int64) (historyBody
 		}
 	}
 	body := historyBody{Limit: limit, Sort: sort}
-	if !start.IsZero() {
-		body.Start = start.UnixMilli()
+	var err error
+	if body.Start, err = unixMilliParam(start); err != nil {
+		return historyBody{}, err
 	}
-	if !end.IsZero() {
-		body.End = end.UnixMilli()
+	if body.End, err = unixMilliParam(end); err != nil {
+		return historyBody{}, err
 	}
 	return body, nil
+}
+
+// unixMilliParam returns a time as the Unix milliseconds an authenticated body takes, zero, which is left unsent, for the
+// zero time, and an error for a time before 1970, from when Bitfinex has nothing
+func unixMilliParam(t time.Time) (uint64, error) {
+	if t.IsZero() {
+		return 0, nil
+	}
+	ms := t.UnixMilli()
+	if ms < 0 {
+		return 0, fmt.Errorf("%w: %s", errTimeBeforeUnixEpoch, t)
+	}
+	return uint64(ms), nil
 }

@@ -25,8 +25,8 @@ type thalexTransferBody struct {
 	TwoFactorToken *TwoFactorToken `json:"tfaToken"`
 }
 
-// ThalexTransfer is a transfer between the account and its Thalex derivatives account
-type ThalexTransfer struct {
+// ThalexTransferResponse is a transfer between the account and its Thalex derivatives account
+type ThalexTransferResponse struct {
 	// Type is deposit for a transfer to Thalex and withdraw for one from it
 	Type               string        `json:"type"`
 	DestinationAddress string        `json:"addressDest"`

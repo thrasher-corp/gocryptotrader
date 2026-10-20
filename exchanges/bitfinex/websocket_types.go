@@ -38,7 +38,7 @@ const (
 // wsConfRequest configures a connection's flags
 type wsConfRequest struct {
 	Event string `json:"event"`
-	Flags int64  `json:"flags"`
+	Flags uint64 `json:"flags"`
 }
 
 // wsAuthRequest authenticates a connection
@@ -53,23 +53,23 @@ type wsAuthRequest struct {
 // wsUnsubscribeRequest unsubscribes a channel
 type wsUnsubscribeRequest struct {
 	Event     string `json:"event"`
-	ChannelID int64  `json:"chanId"`
+	ChannelID uint64 `json:"chanId"`
 }
 
 // wsEvent is an object event: a reply to a conf, auth, subscribe or unsubscribe request, an error, or information
 type wsEvent struct {
 	Event          string `json:"event"`
 	Status         string `json:"status"`
-	Code           int64  `json:"code"`
+	Code           uint64 `json:"code"`
 	Message        string `json:"msg"`
-	ChannelID      int64  `json:"chanId"`
+	ChannelID      uint64 `json:"chanId"`
 	SubscriptionID string `json:"subId"`
 }
 
 // PlatformInfoEvent is information Bitfinex sends about the platform: its server restarting, so connections will
 // reconnect, or maintenance starting or ending, during which orders can be neither placed nor cancelled
 type PlatformInfoEvent struct {
-	Code    int64
+	Code    uint64
 	Message string
 }
 
@@ -77,12 +77,12 @@ type PlatformInfoEvent struct {
 type WebsocketDerivativeStatus struct {
 	Pair      currency.Pair
 	AssetType asset.Item
-	Status    DerivativeStatus
+	Status    DerivativeStatusResponse
 }
 
 // wsDataFrame is a channel event carrying its data alone: [CHANNEL_ID, DATA, TIME]
 type wsDataFrame[T any] struct {
-	ChannelID int64      `tuple:"0"`
+	ChannelID uint64     `tuple:"0"`
 	Data      T          `tuple:"1"`
 	Time      types.Time `tuple:"2"`
 }
@@ -92,7 +92,7 @@ func (f *wsDataFrame[T]) UnmarshalJSON(data []byte) error { return unmarshalTupl
 
 // wsTypedFrame is a channel event carrying a type before its data: [CHANNEL_ID, TYPE, DATA, TIME]
 type wsTypedFrame[T any] struct {
-	ChannelID int64      `tuple:"0"`
+	ChannelID uint64     `tuple:"0"`
 	Type      string     `tuple:"1"`
 	Data      T          `tuple:"2"`
 	Time      types.Time `tuple:"3"`
@@ -104,7 +104,7 @@ func (f *wsTypedFrame[T]) UnmarshalJSON(data []byte) error { return unmarshalTup
 // wsChannelKey identifies a channel, which Bitfinex numbers per connection
 type wsChannelKey struct {
 	conn websocket.Connection
-	id   int64
+	id   uint64
 }
 
 // wsPendingSubscription is a connection's subscription awaiting Bitfinex's confirmation, or its channel's renewal
@@ -163,7 +163,7 @@ func (r *wsChannelRegistry) dropPending(conn websocket.Connection, s *subscripti
 
 // confirm maps the channel ID Bitfinex gave a subscription request to its subscription, however late the confirmation,
 // reporting whether it did: the channel of a request dropped meanwhile drains instead
-func (r *wsChannelRegistry) confirm(subID string, conn websocket.Connection, channelID int64) (bool, error) {
+func (r *wsChannelRegistry) confirm(subID string, conn websocket.Connection, channelID uint64) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	p, ok := r.pending[subID]
@@ -190,7 +190,7 @@ func (r *wsChannelRegistry) confirm(subID string, conn websocket.Connection, cha
 
 // isDraining reports whether a connection's channel is draining, its subscription unsubscribed before Bitfinex
 // confirmed it
-func (r *wsChannelRegistry) isDraining(conn websocket.Connection, channelID int64) bool {
+func (r *wsChannelRegistry) isDraining(conn websocket.Connection, channelID uint64) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.draining[wsChannelKey{conn: conn, id: channelID}]
@@ -198,7 +198,7 @@ func (r *wsChannelRegistry) isDraining(conn websocket.Connection, channelID int6
 }
 
 // drained forgets a draining channel Bitfinex has unsubscribed, reporting whether it was draining
-func (r *wsChannelRegistry) drained(conn websocket.Connection, channelID int64) bool {
+func (r *wsChannelRegistry) drained(conn websocket.Connection, channelID uint64) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	k := wsChannelKey{conn: conn, id: channelID}
@@ -209,7 +209,7 @@ func (r *wsChannelRegistry) drained(conn websocket.Connection, channelID int64) 
 
 // adopt maps a connection's channel to s when it carries a subscription equal to s, reporting whether it does: Bitfinex
 // refuses a second subscription to a channel it confirmed after the first's request stopped waiting
-func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID int64, s *subscription.Subscription) bool {
+func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID uint64, s *subscription.Subscription) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	k := wsChannelKey{conn: conn, id: channelID}
@@ -223,14 +223,14 @@ func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID int64, s 
 }
 
 // get returns the subscription a connection's channel carries, or nil
-func (r *wsChannelRegistry) get(conn websocket.Connection, channelID int64) *subscription.Subscription {
+func (r *wsChannelRegistry) get(conn websocket.Connection, channelID uint64) *subscription.Subscription {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.channels[wsChannelKey{conn: conn, id: channelID}]
 }
 
 // idOf returns the ID of the connection's channel carrying a subscription
-func (r *wsChannelRegistry) idOf(conn websocket.Connection, s *subscription.Subscription) (int64, bool) {
+func (r *wsChannelRegistry) idOf(conn websocket.Connection, s *subscription.Subscription) (uint64, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	key := subscription.ExactKey{Subscription: s}
@@ -244,7 +244,7 @@ func (r *wsChannelRegistry) idOf(conn websocket.Connection, s *subscription.Subs
 
 // channelOf returns the ID of the connection's channel carrying the subscription itself, rather than one equal to it,
 // as a renewal follows its own subscription
-func (r *wsChannelRegistry) channelOf(conn websocket.Connection, s *subscription.Subscription) (int64, bool) {
+func (r *wsChannelRegistry) channelOf(conn websocket.Connection, s *subscription.Subscription) (uint64, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for k, sub := range r.channels {
@@ -256,7 +256,7 @@ func (r *wsChannelRegistry) channelOf(conn websocket.Connection, s *subscription
 }
 
 // remove forgets a connection's channel
-func (r *wsChannelRegistry) remove(conn websocket.Connection, channelID int64) {
+func (r *wsChannelRegistry) remove(conn websocket.Connection, channelID uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.channels, wsChannelKey{conn: conn, id: channelID})
@@ -264,7 +264,7 @@ func (r *wsChannelRegistry) remove(conn websocket.Connection, channelID int64) {
 
 // park forgets a connection's channel, which a renewal has unsubscribed, keeping its subscription until the renewal
 // subscribes it again
-func (r *wsChannelRegistry) park(conn websocket.Connection, channelID int64) {
+func (r *wsChannelRegistry) park(conn websocket.Connection, channelID uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	k := wsChannelKey{conn: conn, id: channelID}
@@ -355,15 +355,15 @@ func (w *wsSharedChannels) carriesMargin(s *subscription.Subscription) bool {
 	return ok
 }
 
-// BalanceInfo is the value of the account's assets, which the websocket sends as it changes
-type BalanceInfo struct {
+// BalanceInfoResponse is the value of the account's assets, which the websocket sends as it changes
+type BalanceInfoResponse struct {
 	AssetsUnderManagement float64 `tuple:"0"`
 	// NetAssetsUnderManagement is AssetsUnderManagement less the account's liabilities
 	NetAssetsUnderManagement float64 `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a balance info array
-func (b *BalanceInfo) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *BalanceInfoResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
 // wsNotificationSignature returns the signature matching a notification with the input request it answers, from the
 // ID of the order or offer it carries, or the client order ID a new order is placed with. A request whose

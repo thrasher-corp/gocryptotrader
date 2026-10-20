@@ -31,7 +31,7 @@ func liveKeepFundingRequest(t *testing.T) *KeepFundingRequest {
 	require.NoError(t, err, "GetFundingLoans must not error")
 	for _, taken := range []struct {
 		fundingType string
-		records     []FundingCredit
+		records     []FundingCreditResponse
 	}{{KeepFundingTypeCredit, credits}, {KeepFundingTypeLoan, loans}} {
 		for i := range taken.records {
 			// Only funding the account borrows can be kept
@@ -120,7 +120,7 @@ func TestGetActiveFundingOffers(t *testing.T) {
 	result, err := e.GetActiveFundingOffers(t.Context(), symbol)
 	require.NoError(t, err, "GetActiveFundingOffers must not error")
 	if mockTests {
-		exp := []FundingOffer{{
+		exp := []FundingOfferResponse{{
 			ID:             652606505,
 			Symbol:         "fETH",
 			CreatedAt:      types.Time(time.UnixMilli(1574000611000)),
@@ -183,10 +183,10 @@ func TestSubmitFundingOffer(t *testing.T) {
 	result, err := e.SubmitFundingOffer(t.Context(), req)
 	require.NoError(t, err, "SubmitFundingOffer must not error")
 	if mockTests {
-		exp := &Notification[FundingOffer]{
+		exp := &Notification[FundingOfferResponse]{
 			Time: types.Time(time.UnixMilli(1568713496510)),
 			Type: "fon-req",
-			Data: FundingOffer{
+			Data: FundingOfferResponse{
 				ID:             604366339,
 				Symbol:         "fUSD",
 				CreatedAt:      types.Time(time.UnixMilli(1568713496502)),
@@ -229,10 +229,10 @@ func TestCancelFundingOffer(t *testing.T) {
 	result, err := e.CancelFundingOffer(t.Context(), offerID)
 	require.NoError(t, err, "CancelFundingOffer must not error")
 	if mockTests {
-		exp := &Notification[FundingOffer]{
+		exp := &Notification[FundingOfferResponse]{
 			Time: types.Time(time.UnixMilli(1568716652310)),
 			Type: "foc-req",
-			Data: FundingOffer{
+			Data: FundingOfferResponse{
 				ID:             604393839,
 				Symbol:         "fUSD",
 				CreatedAt:      types.Time(time.UnixMilli(1568716545000)),
@@ -326,10 +326,10 @@ func TestFundingAutoRenew(t *testing.T) {
 	}
 	result, err := e.FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Activate: true, Currency: currency.UST, Amount: 350, Period: 2})
 	require.NoError(t, err, "FundingAutoRenew must not error")
-	exp := &Notification[FundingAutoRenewSettings]{
+	exp := &Notification[FundingAutoRenewSettingsResponse]{
 		Time:   types.Time(time.UnixMilli(1574075756185)),
 		Type:   "fa-req",
-		Data:   FundingAutoRenewSettings{Currency: currency.UST, Period: 2, Threshold: 350},
+		Data:   FundingAutoRenewSettingsResponse{Currency: currency.UST, Period: 2, Threshold: 350},
 		Status: NotificationStatusSuccess,
 		Text:   "Auto-renew of UST offers activated at FRR for 2 days periods",
 	}
@@ -400,7 +400,7 @@ func TestGetFundingOffersHistory(t *testing.T) {
 	result, err := e.GetFundingOffersHistory(t.Context(), req)
 	require.NoError(t, err, "GetFundingOffersHistory must not error")
 	if mockTests {
-		exp := []FundingOffer{{
+		exp := []FundingOfferResponse{{
 			ID:             653170899,
 			Symbol:         "fUSD",
 			CreatedAt:      types.Time(time.UnixMilli(1574072620000)),
@@ -436,7 +436,7 @@ func TestGetFundingLoans(t *testing.T) {
 	result, err := e.GetFundingLoans(t.Context(), symbol)
 	require.NoError(t, err, "GetFundingLoans must not error")
 	if mockTests {
-		exp := []FundingCredit{{
+		exp := []FundingCreditResponse{{
 			ID:           2995368,
 			Symbol:       "fUST",
 			CreatedAt:    types.Time(time.UnixMilli(1574077517000)),
@@ -478,7 +478,7 @@ func TestGetFundingLoansHistory(t *testing.T) {
 	result, err := e.GetFundingLoansHistory(t.Context(), req)
 	require.NoError(t, err, "GetFundingLoansHistory must not error")
 	if mockTests {
-		exp := []FundingCredit{{
+		exp := []FundingCreditResponse{{
 			ID:           3027653,
 			Symbol:       "fUST",
 			Side:         -1,
@@ -516,7 +516,7 @@ func TestGetFundingCredits(t *testing.T) {
 	result, err := e.GetFundingCredits(t.Context(), symbol)
 	require.NoError(t, err, "GetFundingCredits must not error")
 	if mockTests {
-		exp := []FundingCredit{{
+		exp := []FundingCreditResponse{{
 			ID:           26222883,
 			Symbol:       "fUST",
 			Side:         1,
@@ -560,7 +560,7 @@ func TestGetFundingCreditsHistory(t *testing.T) {
 	result, err := e.GetFundingCreditsHistory(t.Context(), req)
 	require.NoError(t, err, "GetFundingCreditsHistory must not error")
 	if mockTests {
-		exp := []FundingCredit{{
+		exp := []FundingCreditResponse{{
 			ID:           171988300,
 			Symbol:       "fUSD",
 			Side:         1,
@@ -603,7 +603,7 @@ func TestGetAccountFundingTrades(t *testing.T) {
 	result, err := e.GetAccountFundingTrades(t.Context(), req)
 	require.NoError(t, err, "GetAccountFundingTrades must not error")
 	if mockTests {
-		exp := []AccountFundingTrade{{
+		exp := []AccountFundingTradeResponse{{
 			ID:        636040,
 			Symbol:    "fUST",
 			CreatedAt: types.Time(time.UnixMilli(1574077528000)),
@@ -664,5 +664,5 @@ func TestGetFundingInfo(t *testing.T) {
 func TestMarginFundingRecordsEveryPosition(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `["UST",1001,2.5,3.5]`,
-		FundingAutoRenewSettings{Currency: currency.UST, Period: 1001, Rate: 2.5, Threshold: 3.5})
+		FundingAutoRenewSettingsResponse{Currency: currency.UST, Period: 1001, Rate: 2.5, Threshold: 3.5})
 }

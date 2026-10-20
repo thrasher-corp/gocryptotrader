@@ -167,7 +167,7 @@ func TestSendHTTPRequest(t *testing.T) {
 		assert.NoError(t, err, "Writing the response should not error")
 	})).SendHTTPRequest(t.Context(), tickerEPL, http.MethodGet, "ticker/tBTCUSD", nil, &result)
 	require.ErrorAs(t, err, &apiErr, "SendHTTPRequest must return the error Bitfinex reports with an error status")
-	assert.Equal(t, int64(10020), apiErr.Code, "SendHTTPRequest should decode the error code reported with an error status")
+	assert.Equal(t, uint64(10020), apiErr.Code, "SendHTTPRequest should decode the error code reported with an error status")
 
 	err = newUnavailableServerExchange(t).SendHTTPRequest(t.Context(), tickerEPL, http.MethodGet, "ticker/tBTCUSD", nil, &result)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SendHTTPRequest should return a request failure without a reported error")
@@ -243,17 +243,19 @@ func TestResponseError(t *testing.T) {
 		`{"error":"ERR_RATE_LIMIT"}`:               &APIError{Message: "ERR_RATE_LIMIT"},
 		`{"error":"ERR","message":"detail"}`:       &APIError{Message: "ERR: detail"},
 		`{"error":"ERR","code":5,"message":"ERR"}`: &APIError{Code: 5, Message: "ERR"},
-		`[1]`:                    nil,
-		`[["error",1,"nested"]]`: nil,
-		`["tBTCUSD",1]`:          nil,
-		`{"id":1}`:               nil,
-		`{"error":""}`:           nil,
-		``:                       nil,
-		`null`:                   nil,
+		`{"error":"ERR","code":-5}`:                &APIError{Message: "ERR"},
+		`[1]`:                                      nil,
+		`[["error",1,"nested"]]`:                   nil,
+		`["tBTCUSD",1]`:                            nil,
+		`{"id":1}`:                                 nil,
+		`{"error":""}`:                             nil,
+		``:                                         nil,
+		`null`:                                     nil,
 	} {
 		assert.Equalf(t, want, responseError([]byte(body)), "responseError should report the error in %s", body)
 	}
 	assert.Error(t, responseError([]byte(`["error","code","message"]`)), "responseError should report an error array it cannot decode")
+	assert.Error(t, responseError([]byte(`["error",-1,"message"]`)), "responseError should report an error array whose code is not a Bitfinex code")
 	assert.Equal(t, "10020 symbol: invalid", (&APIError{Code: 10020, Message: "symbol: invalid"}).Error(), "APIError should give its code and message")
 	assert.Equal(t, "ERR_RATE_LIMIT", (&APIError{Message: "ERR_RATE_LIMIT"}).Error(), "APIError should give only its message without a code")
 }
@@ -295,15 +297,15 @@ func TestSortParam(t *testing.T) {
 func TestSendNotificationRequest(t *testing.T) {
 	t.Parallel()
 	ex := newResponseServerExchange(t, `[1678987199,"oc-req",null,null,[1,null,2,"tBTCUSD"],null,"SUCCESS","Submitted"]`)
-	resp, err := sendNotificationRequest[Order](t.Context(), ex, cancelOrderEPL, "auth/w/order/cancel", map[string]uint64{"id": 1})
+	resp, err := sendNotificationRequest[OrderResponse](t.Context(), ex, cancelOrderEPL, "auth/w/order/cancel", map[string]uint64{"id": 1})
 	require.NoError(t, err, "sendNotificationRequest must not error")
-	assert.Equal(t, &Notification[Order]{Time: types.Time(time.Unix(1678987199, 0)), Type: "oc-req", Data: Order{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}, Status: NotificationStatusSuccess, Text: "Submitted"}, resp, "sendNotificationRequest should decode the notification")
+	assert.Equal(t, &Notification[OrderResponse]{Time: types.Time(time.Unix(1678987199, 0)), Type: "oc-req", Data: OrderResponse{ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD"}, Status: NotificationStatusSuccess, Text: "Submitted"}, resp, "sendNotificationRequest should decode the notification")
 
-	_, err = sendNotificationRequest[Order](t.Context(), newResponseServerExchange(t, `[1678987199,"oc-req",null,null,null,null,"ERROR","Order not found."]`), cancelOrderEPL, "auth/w/order/cancel", nil)
+	_, err = sendNotificationRequest[OrderResponse](t.Context(), newResponseServerExchange(t, `[1678987199,"oc-req",null,null,null,null,"ERROR","Order not found."]`), cancelOrderEPL, "auth/w/order/cancel", nil)
 	assert.ErrorIs(t, err, errNotificationFailed, "sendNotificationRequest should error for a failed notification")
-	_, err = sendNotificationRequest[Order](t.Context(), newResponseServerExchange(t, `null`), cancelOrderEPL, "auth/w/order/cancel", nil)
+	_, err = sendNotificationRequest[OrderResponse](t.Context(), newResponseServerExchange(t, `null`), cancelOrderEPL, "auth/w/order/cancel", nil)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "sendNotificationRequest should error for a null response")
-	_, err = sendNotificationRequest[Order](t.Context(), newUnavailableServerExchange(t), cancelOrderEPL, "auth/w/order/cancel", nil)
+	_, err = sendNotificationRequest[OrderResponse](t.Context(), newUnavailableServerExchange(t), cancelOrderEPL, "auth/w/order/cancel", nil)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "sendNotificationRequest should return the request failure")
 }
 
@@ -333,4 +335,26 @@ func TestNewHistoryBody(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "newHistoryBody should refuse a reversed window")
 	_, err = newHistoryBody(time.Time{}, time.Time{}, 0, -2)
 	assert.ErrorIs(t, err, errInvalidSort, "newHistoryBody should refuse an invalid sort")
+	beforeEpoch := time.UnixMilli(-1)
+	_, err = newHistoryBody(beforeEpoch, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errTimeBeforeUnixEpoch, "newHistoryBody should refuse a start before 1970")
+	_, err = newHistoryBody(time.Time{}, beforeEpoch, 0, 0)
+	assert.ErrorIs(t, err, errTimeBeforeUnixEpoch, "newHistoryBody should refuse an end before 1970")
+}
+
+func TestUnixMilliParam(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		t   time.Time
+		exp uint64
+		err error
+	}{
+		{},
+		{t: time.UnixMilli(1700000000000), exp: 1700000000000},
+		{t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
+	} {
+		got, err := unixMilliParam(tc.t)
+		require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
+		assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
+	}
 }

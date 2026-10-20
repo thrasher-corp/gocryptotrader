@@ -45,7 +45,7 @@ var (
 )
 
 // wsHandleChannelEvent handles an event on a public channel, which the subscription its channel carries describes
-func (e *Exchange) wsHandleChannelEvent(ctx context.Context, conn websocket.Connection, channelID int64, respRaw []byte) error {
+func (e *Exchange) wsHandleChannelEvent(ctx context.Context, conn websocket.Connection, channelID uint64, respRaw []byte) error {
 	data := wsFrameData(respRaw)
 	if len(data) == 0 {
 		return fmt.Errorf("%w: %.256s", errWebsocketMalformedFrame, respRaw)
@@ -98,7 +98,7 @@ func (e *Exchange) wsHandleChannelEvent(ctx context.Context, conn websocket.Conn
 
 // wsHandleDerivativeStatus relays a derivative pair's status, and its funding rate as funding data
 func (e *Exchange) wsHandleDerivativeStatus(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
-	var f wsDataFrame[DerivativeStatus]
+	var f wsDataFrame[DerivativeStatusResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -137,14 +137,14 @@ func isSnapshot(data []byte) bool {
 func (e *Exchange) wsHandleTicker(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	var t *ticker.Price
 	if s.Asset == asset.MarginFunding {
-		var f wsDataFrame[FundingTicker]
+		var f wsDataFrame[FundingTickerResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
 		t = e.fundingTickerPrice(&f.Data, s.Pairs[0], s.Asset)
 		t.LastUpdated = f.Time.Time()
 	} else {
-		var f wsDataFrame[Ticker]
+		var f wsDataFrame[TickerResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func (e *Exchange) wsHandleTradesSnapshot(s *subscription.Subscription, data, re
 		return fmt.Errorf("%w: trades event is not a snapshot: %.256s", errWebsocketMalformedFrame, respRaw)
 	}
 	if s.Asset == asset.MarginFunding {
-		var f wsDataFrame[[]PublicFundingTrade]
+		var f wsDataFrame[[]PublicFundingTradeResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func (e *Exchange) wsHandleTradesSnapshot(s *subscription.Subscription, data, re
 		}
 		return e.Websocket.Trade.Update(e.IsSaveTradeDataEnabled(), trades...)
 	}
-	var f wsDataFrame[[]PublicTrade]
+	var f wsDataFrame[[]PublicTradeResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -207,13 +207,13 @@ func (e *Exchange) wsHandleTradeExecuted(s *subscription.Subscription, respRaw [
 		return nil
 	}
 	if s.Asset == asset.MarginFunding {
-		var f wsTypedFrame[PublicFundingTrade]
+		var f wsTypedFrame[PublicFundingTradeResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
 		return e.Websocket.Trade.Update(e.IsSaveTradeDataEnabled(), e.fundingTradeData(s.Pairs[0], s.Asset, &f.Data))
 	}
-	var f wsTypedFrame[PublicTrade]
+	var f wsTypedFrame[PublicTradeResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (e *Exchange) wsSharedTrades(s *subscription.Subscription, trades []trade.D
 }
 
 // tradeData returns a trading pair's trade as GCT records it: a positive amount bought, a negative one sold
-func (e *Exchange) tradeData(p currency.Pair, a asset.Item, t *PublicTrade) trade.Data {
+func (e *Exchange) tradeData(p currency.Pair, a asset.Item, t *PublicTradeResponse) trade.Data {
 	side := order.Buy
 	if t.Amount < 0 {
 		side = order.Sell
@@ -251,11 +251,12 @@ func (e *Exchange) tradeData(p currency.Pair, a asset.Item, t *PublicTrade) trad
 	}
 }
 
-// fundingTradeData returns a funding currency's trade as GCT records it, its rate as the price
-func (e *Exchange) fundingTradeData(p currency.Pair, a asset.Item, t *PublicFundingTrade) trade.Data {
-	side := order.Buy
+// fundingTradeData returns a funding currency's trade as GCT records it, its rate as the price. Its taker's funding
+// taken, a negative amount, meets the funding book's offers, its asks, so buys, and funding provided meets its bids
+func (e *Exchange) fundingTradeData(p currency.Pair, a asset.Item, t *PublicFundingTradeResponse) trade.Data {
+	side := order.Sell
 	if t.Amount < 0 {
-		side = order.Sell
+		side = order.Buy
 	}
 	return trade.Data{
 		Exchange:     e.Name,
@@ -271,19 +272,19 @@ func (e *Exchange) fundingTradeData(p currency.Pair, a asset.Item, t *PublicFund
 
 // wsHandleCandles relays a snapshot of candles, oldest first, or the update of one
 func (e *Exchange) wsHandleCandles(ctx context.Context, s *subscription.Subscription, data, respRaw []byte) error {
-	var candles []Candle
+	var candles []CandleResponse
 	if isSnapshot(data) {
-		var f wsDataFrame[[]Candle]
+		var f wsDataFrame[[]CandleResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
 		candles = f.Data
 	} else {
-		var f wsDataFrame[Candle]
+		var f wsDataFrame[CandleResponse]
 		if err := f.UnmarshalJSON(respRaw); err != nil {
 			return err
 		}
-		candles = []Candle{f.Data}
+		candles = []CandleResponse{f.Data}
 	}
 	if len(candles) == 0 {
 		return nil
@@ -323,24 +324,24 @@ type wsBookLevel interface {
 }
 
 // level returns the order as a level; an order leaving the book is priced zero, and its amount's sign gives its side
-func (b *RawBookLevel) level() (l orderbook.Level, bid, remove bool) {
+func (b *RawBookLevelResponse) level() (l orderbook.Level, bid, remove bool) {
 	return orderbook.Level{ID: int64(b.OrderID), Price: b.Price, Amount: math.Abs(b.Amount)}, b.Amount > 0, b.Price == 0 //nolint:gosec // Bitfinex numbers orders well within int64
 }
 
 // level returns the price level; a level leaving the book counts no orders, and its amount's sign gives its side
-func (b *BookLevel) level() (l orderbook.Level, bid, remove bool) {
+func (b *BookLevelResponse) level() (l orderbook.Level, bid, remove bool) {
 	return orderbook.Level{Price: b.Price, Amount: math.Abs(b.Amount), OrderCount: int64(b.Count)}, b.Amount > 0, b.Count == 0 //nolint:gosec // A level counts few orders
 }
 
 // level returns the offer as a level; an offer leaving the book is rated zero, and its amount's sign gives its side, a
 // negative amount bidding for funding
-func (b *RawFundingBookLevel) level() (l orderbook.Level, bid, remove bool) {
+func (b *RawFundingBookLevelResponse) level() (l orderbook.Level, bid, remove bool) {
 	return orderbook.Level{ID: int64(b.OfferID), Price: b.Rate, Period: int64(b.Period), Amount: math.Abs(b.Amount)}, b.Amount < 0, b.Rate == 0 //nolint:gosec // Bitfinex numbers offers well within int64, and periods are days
 }
 
 // level returns the rate and period level; a level leaving the book counts no offers, and its amount's sign gives its
 // side, a negative amount bidding for funding
-func (b *FundingBookLevel) level() (l orderbook.Level, bid, remove bool) {
+func (b *FundingBookLevelResponse) level() (l orderbook.Level, bid, remove bool) {
 	return orderbook.Level{Price: b.Rate, Period: int64(b.Period), Amount: math.Abs(b.Amount), OrderCount: int64(b.Count)}, b.Amount < 0, b.Count == 0 //nolint:gosec // Periods are days, and a level counts few offers
 }
 
@@ -350,13 +351,13 @@ func (e *Exchange) wsHandleBook(ctx context.Context, conn websocket.Connection, 
 	raw := isRawBook(s)
 	switch {
 	case s.Asset == asset.MarginFunding && raw:
-		return wsProcessBook[RawFundingBookLevel](ctx, e, conn, s, data, respRaw)
+		return wsProcessBook[RawFundingBookLevelResponse](ctx, e, conn, s, data, respRaw)
 	case s.Asset == asset.MarginFunding:
-		return wsProcessBook[FundingBookLevel](ctx, e, conn, s, data, respRaw)
+		return wsProcessBook[FundingBookLevelResponse](ctx, e, conn, s, data, respRaw)
 	case raw:
-		return wsProcessBook[RawBookLevel](ctx, e, conn, s, data, respRaw)
+		return wsProcessBook[RawBookLevelResponse](ctx, e, conn, s, data, respRaw)
 	}
-	return wsProcessBook[BookLevel](ctx, e, conn, s, data, respRaw)
+	return wsProcessBook[BookLevelResponse](ctx, e, conn, s, data, respRaw)
 }
 
 // wsProcessBook loads a book's snapshot or applies one of its updates, to margin's book as well as spot's when the

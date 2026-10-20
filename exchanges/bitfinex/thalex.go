@@ -17,7 +17,7 @@ var (
 
 // RequestThalexDeposit transfers funds from the account to its Thalex derivatives account, which Bitfinex validates
 // with two factor authentication; two deposits every 24 hours are free
-func (e *Exchange) RequestThalexDeposit(ctx context.Context, req *ThalexTransferRequest) (*ThalexTransfer, error) {
+func (e *Exchange) RequestThalexDeposit(ctx context.Context, req *ThalexTransferRequest) (*ThalexTransferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func (e *Exchange) RequestThalexDeposit(ctx context.Context, req *ThalexTransfer
 	if err != nil {
 		return nil, err
 	}
-	var resp *ThalexTransfer
+	var resp *ThalexTransferResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, thalexDepositEPL, "auth/w/ext/wallets/deposits/request", body, &resp); err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (e *Exchange) RequestThalexDeposit(ctx context.Context, req *ThalexTransfer
 
 // RequestThalexWithdrawal transfers funds from the account's Thalex derivatives account to the account, which
 // Bitfinex validates with two factor authentication
-func (e *Exchange) RequestThalexWithdrawal(ctx context.Context, req *ThalexTransferRequest) (*ThalexTransfer, error) {
+func (e *Exchange) RequestThalexWithdrawal(ctx context.Context, req *ThalexTransferRequest) (*ThalexTransferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (e *Exchange) RequestThalexWithdrawal(ctx context.Context, req *ThalexTrans
 	if err != nil {
 		return nil, err
 	}
-	var resp *ThalexTransfer
+	var resp *ThalexTransferResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, thalexWithdrawalEPL, "auth/w/ext/wallets/withdrawals/request", body, &resp); err != nil {
 		return nil, err
 	}

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -106,27 +107,27 @@ func TestWebsocketHandleAccountEvents(t *testing.T) {
 	assert.Equal(t, order.Cancelled, cancelled.Status, "a cancelled order should be relayed as cancelled")
 
 	ethUST := currency.NewPair(currency.ETH, currency.UST)
-	positions, ok := relayed[4].([]Position)
+	positions, ok := relayed[4].([]PositionResponse)
 	require.True(t, ok, "the position snapshot must be relayed as positions")
 	require.Len(t, positions, 1, "the position snapshot must hold its position")
 	assert.Equal(t, uint64(142420429), positions[0].ID, "the snapshot's position should be relayed")
-	assert.IsType(t, &Position{}, relayed[5], "a position update should be relayed as a position")
+	assert.IsType(t, &PositionResponse{}, relayed[5], "a position update should be relayed as a position")
 
-	assert.Equal(t, &AccountTrade{
+	assert.Equal(t, &AccountTradeResponse{
 		ID: 402088407, Symbol: "tETHUST", ExecutedAt: types.Time(time.UnixMilli(1574963975602)), OrderID: 34938060782, ExecutedAmount: -0.2, ExecutedPrice: 153.57,
 		OrderType: OrderTypeMarket, Maker: -1,
 	}, relayed[6], "a trade executed should be relayed without its fee")
-	assert.IsType(t, &AccountTrade{}, relayed[7], "a trade execution update should be relayed as an account trade")
+	assert.IsType(t, &AccountTradeResponse{}, relayed[7], "a trade execution update should be relayed as an account trade")
 	assert.Equal(t, []fill.Data{{
 		ID: "402088407", Timestamp: time.UnixMilli(1574963975602), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: ethUST, Side: order.Sell,
 		OrderID: "34938060782", ClientOrderID: "1714466193700", TradeID: "402088407", Price: 153.57, Amount: 0.2,
 	}}, relayed[8], "a trade execution update should be relayed as a fill")
 
-	assert.IsType(t, []FundingOffer{}, relayed[9], "the funding offer snapshot should be relayed as funding offers")
-	assert.IsType(t, &FundingOffer{}, relayed[10], "a new funding offer should be relayed as a funding offer")
-	assert.IsType(t, []FundingCredit{}, relayed[11], "the funding credit snapshot should be relayed as funding credits")
-	assert.IsType(t, &FundingCredit{}, relayed[12], "a funding credit update should be relayed as a funding credit")
-	assert.IsType(t, []FundingCredit{}, relayed[13], "the funding loan snapshot should be relayed as funding credits")
+	assert.IsType(t, []FundingOfferResponse{}, relayed[9], "the funding offer snapshot should be relayed as funding offers")
+	assert.IsType(t, &FundingOfferResponse{}, relayed[10], "a new funding offer should be relayed as a funding offer")
+	assert.IsType(t, []FundingCreditResponse{}, relayed[11], "the funding credit snapshot should be relayed as funding credits")
+	assert.IsType(t, &FundingCreditResponse{}, relayed[12], "a funding credit update should be relayed as a funding credit")
+	assert.IsType(t, []FundingCreditResponse{}, relayed[13], "the funding loan snapshot should be relayed as funding credits")
 
 	wallets, ok := relayed[14].(accounts.SubAccounts)
 	require.True(t, ok, "the wallet snapshot must be relayed as sub accounts")
@@ -154,11 +155,11 @@ func TestWebsocketHandleAccountEvents(t *testing.T) {
 	assert.Equal(t, asset.Spot, updated[0].AssetType, "an exchange wallet update should be relayed for spot")
 	assert.Equal(t, []string{`[0,"calc",null,[["wallet_exchange_SAN"]]]`, `[0,"calc",null,[["wallet_exchange_BTC"]]]`}, conn.messages(), "Bitfinex should be asked to calculate each wallet's available balance it has yet to")
 
-	assert.Equal(t, &BalanceInfo{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4131.85}, relayed[16], "a balance update should be relayed as balance info")
+	assert.Equal(t, &BalanceInfoResponse{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4131.85}, relayed[16], "a balance update should be relayed as balance info")
 	assert.Equal(t, &MarginInfoBaseResponse{Key: marginInfoKeyBase, Info: MarginInfoBase{UserProfitLoss: -13.014640000000007, MarginBalance: 49331.70267297, MarginNet: 49318.68803297, MarginMinimum: 27}}, relayed[17], "a margin summary should be relayed")
 	assert.Equal(t, &MarginInfoSymbolResponse{Key: marginInfoKeySymbol, Symbol: "tETHUSD", Info: MarginInfoSymbol{TradableBalance: 149361.09689202666, GrossBalance: 149639.26293509, BuyAmount: 830.0182168075556, SellAmount: 895.0658432466332}}, relayed[18], "a trading pair's margin should be relayed")
 	assert.Equal(t, &FundingInfoResponse{Key: "sym", Symbol: "fUSD", Info: FundingInfo{YieldLoan: 0.0008595462068208099, DurationLoan: 1.8444560185185186}}, relayed[19], "a funding info update should be relayed")
-	assert.Equal(t, &AccountFundingTrade{ID: 636854, Symbol: "fUSD", CreatedAt: types.Time(time.UnixMilli(1575282446000)), OfferID: 41238905, Amount: -1000, Rate: 0.002, Period: 7}, relayed[20], "a funding trade should be relayed")
+	assert.Equal(t, &AccountFundingTradeResponse{ID: 636854, Symbol: "fUSD", CreatedAt: types.Time(time.UnixMilli(1575282446000)), OfferID: 41238905, Amount: -1000, Rate: 0.002, Period: 7}, relayed[20], "a funding trade should be relayed")
 	notification, ok := relayed[21].(*Notification[json.RawMessage])
 	require.True(t, ok, "a notification no request awaits must be relayed")
 	assert.Equal(t, wsFundingOfferNewRequest, notification.Type, "the notification should be relayed as sent")
@@ -281,7 +282,15 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 	require.NoError(t, quiet.wsHandleData(t.Context(), quietConn, []byte(`[0,"tu",[402088407,"tETHUST",1574963975602,34938060782,-0.2,153.57,"MARKET",0,-1,-0.061668,"USD",0]]`)), "a trade execution update must be handled with the fills feed off")
 	relayed = relayedPayloads(quiet)
 	require.Len(t, relayed, 1, "only the account trade must be relayed with the fills feed off")
-	assert.IsType(t, &AccountTrade{}, relayed[0], "the account trade should be relayed with the fills feed off")
+	assert.IsType(t, &AccountTradeResponse{}, relayed[0], "the account trade should be relayed with the fills feed off")
+}
+
+func TestBalanceInfoResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var got BalanceInfoResponse
+	require.NoError(t, got.UnmarshalJSON([]byte(`[4131.85,4130.5]`)), "UnmarshalJSON must not error")
+	assert.Equal(t, BalanceInfoResponse{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4130.5}, got, "UnmarshalJSON should decode the assets under management, then their net")
+	assert.ErrorIs(t, got.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse balance info that is not an array")
 }
 
 func TestWebsocketHandleOrder(t *testing.T) {
@@ -312,6 +321,179 @@ func TestWebsocketHandleOrder(t *testing.T) {
 	}
 	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",{}]`)), errTupleNotArray, "wsHandleOrder should refuse an order that is not an array")
 	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`)), errUnknownOrderType, "wsHandleOrder should refuse an order of an unknown type")
+}
+
+func TestWebsocketHandleOrderCutStatus(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	// An order's events as Bitfinex sent them, on its paper trading pair, recorded by github.com/visualHFT/VisualHFT: from
+	// the fifth fill on, its status is cut short, keeping its end
+	frame := func(event, updated, remaining, status string) []byte {
+		return []byte(`[0,"` + event + `",[198036008757,null,1740997824277,"tTESTETH:TESTUSD",1740997824277,` + updated + `,` + remaining +
+			`,1093.673236,"EXCHANGE LIMIT",null,null,null,0,"` + status + `",null,null,2365.3,2365.3,0,0,null,null,null,0,0,null,null,null,"BFX",null,null,{}]]`)
+	}
+	for _, tc := range []struct {
+		frame               []byte
+		status              order.Status
+		executed, remaining float64
+	}{
+		{frame: frame("on", "1740997824279", "1039.73177083", "PARTIALLY FILLED @ 2365.3(53.94146517)"), status: order.PartiallyFilled, executed: 53.94146517, remaining: 1039.73177083},
+		{frame: frame("ou", "1740997826230", "794.14534185", "PARTIALLY FILLED @ 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 299.52789415, remaining: 794.14534185},
+		{frame: frame("ou", "1740997827231", "694.14534185", "... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 399.52789415, remaining: 694.14534185},
+		{frame: frame("ou", "1740997828232", "594.14534185", "...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 499.52789415, remaining: 594.14534185},
+		{frame: frame("oc", "1740997828295", "594.14534185", "CANCELED was: ...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilledCancelled, executed: 499.52789415, remaining: 594.14534185},
+	} {
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, tc.frame), "wsHandleData must not error for %s", tc.frame)
+		relayed := relayedPayloads(ex)
+		require.Lenf(t, relayed, 1, "wsHandleData must relay the order of %s", tc.frame)
+		d, ok := relayed[0].(*order.Detail)
+		require.Truef(t, ok, "wsHandleData must relay the order of %s as an order detail", tc.frame)
+		assert.Equalf(t, tc.status, d.Status, "wsHandleData should report the order's status from %s", tc.frame)
+		assert.Equalf(t, [3]float64{1093.673236, tc.executed, tc.remaining}, [3]float64{d.Amount, d.ExecutedAmount, d.RemainingAmount},
+			"wsHandleData should report the order's whole amount, what it executed and what remains from %s", tc.frame)
+	}
+}
+
+func TestWebsocketHandleOrders(t *testing.T) {
+	t.Parallel()
+	ex, _ := newAccountTestExchange(t)
+	const open = `[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438519,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]`
+	const novel = `[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]`
+	exp := []order.Detail{{
+		Exchange: ex.Name, OrderID: "1185815098", ClientOrderID: "1575287436979", Pair: testETHUSD, AssetType: asset.Margin, Side: order.Sell, Type: order.Limit,
+		Status: order.Active, Price: 230, Amount: 2.5, RemainingAmount: 2.5, Date: time.UnixMilli(1575287438515), LastUpdated: time.UnixMilli(1575287438519),
+	}}
+	require.NoError(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+open+`]]`)), "wsHandleOrders must not error for a snapshot of an open order")
+	assert.Equal(t, []any{exp}, relayedPayloads(ex), "wsHandleOrders should relay the snapshot's orders as order details")
+	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+novel+`,`+open+`]]`)), errUnknownOrderType, "wsHandleOrders should report an order of an unknown type")
+	assert.Equal(t, []any{exp}, relayedPayloads(ex), "wsHandleOrders should relay the snapshot's other orders")
+	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+novel+`]]`)), errUnknownOrderType, "wsHandleOrders should report a snapshot holding no order it can relay")
+	require.NoError(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[]]`)), "wsHandleOrders must not error for an empty snapshot")
+	assert.Empty(t, relayedPayloads(ex), "wsHandleOrders should relay nothing for a snapshot holding no order it can relay")
+	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",{}]`)), errTupleElementType, "wsHandleOrders should refuse a snapshot that is not an array")
+	fillRelay(t, ex)
+	assert.ErrorContains(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+open+`]]`)), "channel buffer is full", "wsHandleOrders should report orders it cannot relay")
+}
+
+func TestWebsocketHandleAccountTrade(t *testing.T) {
+	t.Parallel()
+	ex, _ := newAccountTestExchange(t)
+	ethUST := currency.NewPair(currency.ETH, currency.UST)
+	executedFrame := accountFixtureFrames(t)[8]
+	eventType, err := jsonparser.GetString(executedFrame, "[1]")
+	require.NoError(t, err, "the trade executed event's type must be read")
+	executed := AccountTradeResponse{
+		ID: 402088407, Symbol: "tETHUST", ExecutedAt: types.Time(time.UnixMilli(1574963975602)), OrderID: 34938060782, ExecutedAmount: -0.2, ExecutedPrice: 153.57,
+		OrderType: OrderTypeMarket, Maker: -1,
+	}
+	require.NoError(t, ex.wsHandleAccountTrade(t.Context(), eventType, executedFrame), "wsHandleAccountTrade must not error for a trade executed")
+	assert.Equal(t, []any{&executed}, relayedPayloads(ex), "wsHandleAccountTrade should relay a trade executed, without a fill")
+
+	updated := executed
+	updated.Fee, updated.FeeCurrency, updated.ClientOrderID = -0.061668, currency.USD, 1714466193700
+	require.NoError(t, ex.wsHandleAccountTrade(t.Context(), "tu", []byte(`[0,"tu",[402088407,"tETHUST",1574963975602,34938060782,-0.2,153.57,"MARKET",0,-1,-0.061668,"USD",1714466193700]]`)), "wsHandleAccountTrade must not error for a trade's execution update")
+	assert.Equal(t, []any{&updated, []fill.Data{{
+		ID: "402088407", Timestamp: time.UnixMilli(1574963975602), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: ethUST, Side: order.Sell,
+		OrderID: "34938060782", ClientOrderID: "1714466193700", TradeID: "402088407", Price: 153.57, Amount: 0.2,
+	}}}, relayedPayloads(ex), "wsHandleAccountTrade should relay a trade's execution update, and the trade as a fill")
+	require.NoError(t, ex.wsHandleAccountTrade(t.Context(), "tu", []byte(`[0,"tu",[402088408,"tETHUST",1574963975602,34938060782,0.1,153.57,"EXCHANGE MARKET",0,1,-0.03,"USD",0]]`)), "wsHandleAccountTrade must not error for a trade without a client order ID")
+	relayed := relayedPayloads(ex)
+	require.Len(t, relayed, 2, "wsHandleAccountTrade must relay the trade and its fill")
+	assert.Equal(t, []fill.Data{{
+		ID: "402088408", Timestamp: time.UnixMilli(1574963975602), Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: ethUST, Side: order.Buy,
+		OrderID: "34938060782", TradeID: "402088408", Price: 153.57, Amount: 0.1,
+	}}, relayed[1], "wsHandleAccountTrade should relay a spot buy's fill, without a client order ID")
+
+	for _, tc := range []struct {
+		name, frame string
+		err         error
+	}{
+		{name: "a trade that is not an array", frame: `[0,"tu",{}]`, err: errTupleNotArray},
+		{name: "a trade on a symbol that is not a pair", frame: `[0,"tu",[1,"tX",1574963975602,2,1,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errSymbolUnparsable},
+		{name: "a trade without an amount", frame: `[0,"tu",[1,"tETHUST",1574963975602,2,0,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errOrderSideUnresolved},
+	} {
+		assert.ErrorIsf(t, ex.wsHandleAccountTrade(t.Context(), "tu", []byte(tc.frame)), tc.err, "wsHandleAccountTrade should refuse %s", tc.name)
+	}
+	relayedPayloads(ex)
+	ex.Features.Enabled.FillsFeed = false
+	require.NoError(t, ex.wsHandleAccountTrade(t.Context(), "tu", []byte(`[0,"tu",[402088407,"tETHUST",1574963975602,34938060782,-0.2,153.57,"MARKET",0,-1,-0.061668,"USD",1714466193700]]`)), "wsHandleAccountTrade must not error with the fills feed off")
+	assert.Equal(t, []any{&updated}, relayedPayloads(ex), "wsHandleAccountTrade should relay a trade's execution update alone with the fills feed off")
+	fillRelay(t, ex)
+	assert.ErrorContains(t, ex.wsHandleAccountTrade(t.Context(), eventType, executedFrame), "channel buffer is full", "wsHandleAccountTrade should report a trade it cannot relay")
+}
+
+// assertWalletBalances checks the balances stored for wallets, each under the asset its balance funds
+func assertWalletBalances(t *testing.T, ex *Exchange, exp map[asset.Item]map[currency.Code][3]float64) {
+	t.Helper()
+	creds := &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret}
+	for a, balances := range exp {
+		for c, b := range balances {
+			got, err := ex.Accounts.GetBalance("", creds, a, c)
+			require.NoErrorf(t, err, "GetBalance must not error for %s %s", a, c)
+			stored := [3]float64{got.Total, got.Free, got.Hold}
+			assert.Equalf(t, b, stored, "the stored %s %s balance should be the wallet's total, its available balance free and the rest held", a, c)
+		}
+	}
+}
+
+// relayedSubAccountAssets returns the assets of the sub accounts relayed once, which must be all that was relayed
+func relayedSubAccountAssets(t *testing.T, ex *Exchange) []asset.Item {
+	t.Helper()
+	relayed := relayedPayloads(ex)
+	require.Len(t, relayed, 1, "the wallets must be relayed once")
+	subAccts, ok := relayed[0].(accounts.SubAccounts)
+	require.True(t, ok, "the wallets must be relayed as sub accounts")
+	assets := make([]asset.Item, len(subAccts))
+	for i := range subAccts {
+		assets[i] = subAccts[i].AssetType
+	}
+	return assets
+}
+
+func TestWebsocketHandleWallets(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	require.NoError(t, ex.wsHandleWallets(t.Context(), conn, []byte(`[0,"ws",[["exchange","BTC",1.5,0,1.25,null,null],["funding","USD",820,0,null,null,null]]]`)), "wsHandleWallets must not error")
+	assert.ElementsMatch(t, []asset.Item{asset.Spot, asset.MarginFunding}, relayedSubAccountAssets(t, ex), "wsHandleWallets should relay each wallet under the asset its balance funds")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:          {currency.BTC: {1.5, 1.25, 0.25}},
+		asset.MarginFunding: {currency.USD: {820, 0, 820}},
+	})
+	assert.Equal(t, []string{`[0,"calc",null,[["wallet_funding_USD"]]]`}, conn.messages(), "wsHandleWallets should ask Bitfinex to calculate an available balance it has yet to")
+	assert.ErrorIs(t, ex.wsHandleWallets(t.Context(), conn, []byte(`[0,"ws",{}]`)), errTupleElementType, "wsHandleWallets should refuse a snapshot that is not an array")
+}
+
+func TestWebsocketHandleWalletUpdate(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	require.NoError(t, ex.wsHandleWalletUpdate(t.Context(), conn, []byte(`[0,"wu",["margin","UST",100,0,80,null,null]]`)), "wsHandleWalletUpdate must not error")
+	assert.Equal(t, []asset.Item{asset.Margin}, relayedSubAccountAssets(t, ex), "wsHandleWalletUpdate should relay the wallet under the asset its balance funds")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{asset.Margin: {currency.UST: {100, 80, 20}}})
+	assert.Empty(t, conn.messages(), "wsHandleWalletUpdate should not ask for an available balance Bitfinex has sent")
+	assert.ErrorIs(t, ex.wsHandleWalletUpdate(t.Context(), conn, []byte(`[0,"wu",{}]`)), errTupleNotArray, "wsHandleWalletUpdate should refuse an update that is not an array")
+}
+
+func TestWebsocketStoreWallets(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	available := 0.25
+	err := ex.wsStoreWallets(t.Context(), conn, []WalletResponse{
+		{Type: WalletTypeExchange, Currency: currency.BTC, Balance: 1, AvailableBalance: &available},
+		{Type: "novel", Currency: currency.ETH, Balance: 1},
+		{Type: WalletTypeExchange, Currency: currency.EMPTYCODE, Balance: 1, AvailableBalance: &available},
+		{Type: WalletTypeMargin, Currency: currency.UST, Balance: 2},
+	})
+	assert.ErrorIs(t, err, errUnknownWalletType, "wsStoreWallets should report a wallet of an unknown type")
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "wsStoreWallets should report a balance it cannot store")
+	assert.ElementsMatch(t, []asset.Item{asset.Spot, asset.Margin}, relayedSubAccountAssets(t, ex), "wsStoreWallets should relay the wallets it stored")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:   {currency.BTC: {1, 0.25, 0.75}},
+		asset.Margin: {currency.UST: {2, 0, 2}},
+	})
+	assert.Equal(t, []string{`[0,"calc",null,[["wallet_margin_UST"]]]`}, conn.messages(), "wsStoreWallets should ask Bitfinex to calculate an available balance it has yet to")
+	fillRelay(t, ex)
+	err = ex.wsStoreWallets(t.Context(), conn, []WalletResponse{{Type: WalletTypeExchange, Currency: currency.BTC, Balance: 1, AvailableBalance: &available}})
+	assert.ErrorContains(t, err, "channel buffer is full", "wsStoreWallets should report balances it cannot relay")
 }
 
 func TestWebsocketNotificationSignature(t *testing.T) {

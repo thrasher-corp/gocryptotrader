@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -162,10 +163,16 @@ func orderTypeFromBitfinex(orderType string) (order.Type, order.TimeInForce, err
 // orderStatusFromBitfinex returns the status an order's status text describes. Bitfinex appends how an order got
 // there: "EXECUTED @ 107.6(-0.2)", "CANCELED was: PARTIALLY FILLED @ 107.6(-0.1)"
 func orderStatusFromBitfinex(status string) order.Status {
-	primary, history, _ := strings.Cut(status, " was:")
+	primary, history := splitOrderStatus(status)
+	if isFillListCut(primary) {
+		// A cut status keeps its end, the fill the order is now partly filled by
+		if i := strings.LastIndex(primary, ", "); i != -1 {
+			primary = primary[i+2:]
+		}
+	}
 	primary, _, _ = strings.Cut(primary, " @")
 	primary = strings.TrimSpace(primary)
-	partiallyFilled := strings.Contains(history, "PARTIALLY FILLED")
+	partiallyFilled := strings.Contains(history, "PARTIALLY FILLED") || isFillListCut(history)
 	switch {
 	case primary == "ACTIVE":
 		return order.Active
@@ -199,15 +206,65 @@ func closedOrderStatus(s order.Status) order.Status {
 // 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)", but not a note such as INSUFFICIENT BALANCE (G1)'s
 var orderStatusFill = regexp.MustCompile(`@ -?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d{1,3})?\((-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d{1,3})?)\)`)
 
-// orderStatusExecutedAmount returns the amount an order has executed, adding up the fills its status lists as the
-// decimals Bitfinex writes them in. Bitfinex keeps an order's original amount from before any update, so what an order
-// has executed cannot be told from what remains of it
+// orderStatusFillPhrases are the phrases each fill an order's status lists begins with
+var orderStatusFillPhrases = []string{"PARTIALLY FILLED", "EXECUTED", "FORCED EXECUTED"}
+
+// splitOrderStatus splits an order's status into what the order is and, after "was", what it was before: "CANCELED
+// was: PARTIALLY FILLED @ 107.6(-0.1)", "EXECUTED @ 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)" and "EXECUTED @
+// 9500.0(-0.5) was ACTIVE (note:POSCLOSE)"
+func splitOrderStatus(status string) (current, previous string) {
+	current, previous, ok := strings.Cut(status, " was")
+	if !ok {
+		return status, ""
+	}
+	return strings.TrimSuffix(current, ":"), strings.TrimPrefix(strings.TrimPrefix(previous, ":"), " ")
+}
+
+// isFillListCut reports whether a list of fills from an order's status starts part way through a fill, as Bitfinex cuts
+// a long status short, keeping its end. It marks the cut with "...", and earlier cut without a mark, as in
+// "(-41.37139577), PARTIALLY FILLED @ 12.58(-15.53)"
+func isFillListCut(fills string) bool {
+	if fills == "" {
+		return false
+	}
+	if fills[0] < 'A' || fills[0] > 'Z' {
+		return true
+	}
+	phrase, _, _ := strings.Cut(fills, " @")
+	if slices.Contains(orderStatusFillPhrases, phrase) {
+		return false
+	}
+	return slices.ContainsFunc(orderStatusFillPhrases, func(p string) bool { return strings.HasSuffix(p, phrase) })
+}
+
+// isOrderStatusCut reports whether Bitfinex cut an order's status short, which then lists only its latest fills
+func isOrderStatusCut(status string) bool {
+	current, previous := splitOrderStatus(status)
+	return isFillListCut(current) || isFillListCut(previous)
+}
+
+// orderStatusExecutedAmount returns the amount of the fills an order's status lists in full, added up as the decimals
+// Bitfinex writes them in
 func orderStatusExecutedAmount(status string) decimal.Decimal {
 	executed := decimal.Zero
 	for _, fill := range orderStatusFill.FindAllStringSubmatch(status, -1) {
 		if amount, err := decimal.NewFromString(fill[1]); err == nil {
 			executed = executed.Add(amount.Abs())
 		}
+	}
+	return executed
+}
+
+// orderExecutedAmount returns the amount an order has executed. Its status lists every fill until Bitfinex cuts it
+// short; Bitfinex keeps the original amount from before any update, so the original amount less what remains, the
+// estimate for a cut status, is exact only for an order whose amount was never updated
+func orderExecutedAmount(o *OrderResponse) decimal.Decimal {
+	executed := orderStatusExecutedAmount(o.Status)
+	if !isOrderStatusCut(o.Status) {
+		return executed
+	}
+	if unfilled := decimal.MustFromFloat(math.Abs(o.OriginalAmount)).Sub(decimal.MustFromFloat(math.Abs(o.Amount))); unfilled.GreaterThan(executed) {
+		return unfilled
 	}
 	return executed
 }
@@ -224,7 +281,7 @@ func orderSideFromAmount(amount float64) (order.Side, error) {
 }
 
 // orderDetail returns an order as GCT records it
-func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
+func (e *Exchange) orderDetail(o *OrderResponse) (*order.Detail, error) {
 	pair, err := pairFromSymbol(o.Symbol)
 	if err != nil {
 		return nil, err
@@ -246,7 +303,7 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 		tif |= order.GoodTillTime
 	}
 	remaining := math.Abs(o.Amount)
-	executed := orderStatusExecutedAmount(o.Status)
+	executed := orderExecutedAmount(o)
 	d := &order.Detail{
 		Exchange:             e.Name,
 		OrderID:              strconv.FormatUint(o.ID, 10),
@@ -273,8 +330,9 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 		d.ClientOrderID = strconv.FormatUint(o.ClientOrderID, 10)
 	}
 	switch orderType {
-	case order.Stop:
-		// A stop's price is the one it triggers at, and it then trades at the market
+	case order.Stop, order.TrailingStop:
+		// A stop's price is the one it triggers at, a trailing stop's worked out from its distance, and each then trades
+		// at the market
 		d.TriggerPrice, d.Price = o.Price, 0
 	case order.StopLimit:
 		d.TriggerPrice, d.Price = o.Price, o.AuxiliaryLimitPrice

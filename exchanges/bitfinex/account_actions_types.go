@@ -199,8 +199,8 @@ type LoginHistoryRequest struct {
 	Limit uint64
 }
 
-// Login is a login to the account
-type Login struct {
+// LoginResponse is a login to the account
+type LoginResponse struct {
 	ID        uint64         `tuple:"0"`
 	Time      types.Time     `tuple:"2"`
 	IP        string         `tuple:"4"`
@@ -208,7 +208,7 @@ type Login struct {
 }
 
 // UnmarshalJSON decodes a login info array
-func (l *Login) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LoginResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
 
 // LoginExtraInfo is a JSON object of more about a login, such as its network, location and user agent
 type LoginExtraInfo json.RawMessage
@@ -238,8 +238,8 @@ func (l LoginExtraInfo) MarshalJSON() ([]byte, error) {
 	return l, nil
 }
 
-// KeyPermission is whether the API key or token reads and writes in a scope
-type KeyPermission struct {
+// KeyPermissionResponse is whether the API key or token reads and writes in a scope
+type KeyPermissionResponse struct {
 	// Scope is account, history, orders, positions, funding, settings, wallets, withdraw, ui_withdraw or bfxpay
 	Scope string        `tuple:"0"`
 	Read  types.Boolean `tuple:"1"`
@@ -247,7 +247,7 @@ type KeyPermission struct {
 }
 
 // UnmarshalJSON decodes a key permission array
-func (k *KeyPermission) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, k) }
+func (k *KeyPermissionResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, k) }
 
 // GenerateTokenRequest holds the lifetime and capabilities of an authentication token
 type GenerateTokenRequest struct {
@@ -264,7 +264,7 @@ type GenerateTokenRequest struct {
 // generateTokenBody is the body of a Generate Token request
 type generateTokenBody struct {
 	Scope           string   `json:"scope"`
-	TimeToLive      int64    `json:"ttl,omitempty"`
+	TimeToLive      uint64   `json:"ttl,omitempty"`
 	Capabilities    []string `json:"caps,omitempty"`
 	WritePermission bool     `json:"writePermission,omitempty"`
 	UserIP          string   `json:"_cust_ip,omitempty"`
@@ -286,8 +286,8 @@ type ChangelogRequest struct {
 	Limit uint64
 }
 
-// ChangelogEntry is a change to the account
-type ChangelogEntry struct {
+// ChangelogEntryResponse is a change to the account
+type ChangelogEntryResponse struct {
 	CreatedAt types.Time `tuple:"0"`
 	// Log describes the change, such as "settings: api key created"
 	Log string `tuple:"2"`
@@ -298,7 +298,7 @@ type ChangelogEntry struct {
 }
 
 // UnmarshalJSON decodes a changelog array
-func (c *ChangelogEntry) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *ChangelogEntryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
 
 // TwoFactorToken validates a request with two factor authentication, by a one time password or a U2F (WebAuthn)
 // assertion
@@ -363,8 +363,8 @@ type transferBody struct {
 	TwoFactorToken    *TwoFactorToken `json:"tfaToken,omitempty"`
 }
 
-// WalletTransfer is a transfer of funds between wallets
-type WalletTransfer struct {
+// WalletTransferResponse is a transfer of funds between wallets
+type WalletTransferResponse struct {
 	UpdatedAt  types.Time    `tuple:"0"`
 	WalletFrom string        `tuple:"1"`
 	WalletTo   string        `tuple:"2"`
@@ -375,7 +375,7 @@ type WalletTransfer struct {
 }
 
 // UnmarshalJSON decodes a transfer array
-func (w *WalletTransfer) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WalletTransferResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
 
 // DepositAddressRequest holds the method and wallet of a deposit address
 type DepositAddressRequest struct {
@@ -395,8 +395,8 @@ type depositAddressBody struct {
 	Renew  uint64 `json:"op_renew,omitempty"`
 }
 
-// DepositAddress is a deposit address
-type DepositAddress struct {
+// DepositAddressResponse is a deposit address
+type DepositAddressResponse struct {
 	// Method is the deposit method, such as BITCOIN
 	Method   string        `tuple:"1"`
 	Currency currency.Code `tuple:"2"`
@@ -407,7 +407,7 @@ type DepositAddress struct {
 }
 
 // UnmarshalJSON decodes a deposit address array
-func (d *DepositAddress) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
+func (d *DepositAddressResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
 
 // DepositAddressListRequest holds the method and page of the deposit addresses GetDepositAddressList returns
 type DepositAddressListRequest struct {
@@ -426,15 +426,17 @@ type depositAddressListBody struct {
 	PageSize uint64 `json:"pageSize,omitempty"`
 }
 
-// WalletDepositAddress is a deposit address and the wallet deposits to it credit
-type WalletDepositAddress struct {
+// WalletDepositAddressResponse is a deposit address and the wallet deposits to it credit
+type WalletDepositAddressResponse struct {
 	// Address is the address, or for a currency needing a tag, memo or payment ID, that tag
 	Address    string `tuple:"0"`
 	WalletType string `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a deposit address list array
-func (w *WalletDepositAddress) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WalletDepositAddressResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, w)
+}
 
 // generateInvoiceBody is the body of a Generate Invoice request
 type generateInvoiceBody struct {
@@ -469,12 +471,12 @@ type lnxInvoicePaymentsQuery struct {
 
 // lnxInvoiceListResponse is the invoices or payments the LNX Invoice Payments list actions return
 type lnxInvoiceListResponse struct {
-	Invoices []LNXInvoice `json:"invoices"`
-	Payments []LNXInvoice `json:"payments"`
+	Invoices []LNXInvoiceResponse `json:"invoices"`
+	Payments []LNXInvoiceResponse `json:"payments"`
 }
 
-// LNXInvoice is a Lightning Network invoice of the account, or a payment of one, which Bitfinex describes alike
-type LNXInvoice struct {
+// LNXInvoiceResponse is a Lightning Network invoice of the account, or a payment of one, which Bitfinex describes alike
+type LNXInvoiceResponse struct {
 	PaymentHash string     `json:"payment_hash"`
 	CreatedAt   types.Time `json:"created_at"`
 	// ExpiresAt is unset for an invoice without an expiry
@@ -544,8 +546,8 @@ type withdrawalBody struct {
 	DestinationCorporateName string `json:"dest_corp_name,omitempty"`
 }
 
-// Withdrawal is a requested withdrawal
-type Withdrawal struct {
+// WithdrawalResponse is a requested withdrawal
+type WithdrawalResponse struct {
 	// ID is zero when the withdrawal failed
 	ID        uint64  `tuple:"0"`
 	Method    string  `tuple:"2"`
@@ -556,7 +558,7 @@ type Withdrawal struct {
 }
 
 // UnmarshalJSON decodes a withdrawal array
-func (w *Withdrawal) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WithdrawalResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
 
 // MovementsRequest holds the currency and filters of the deposits and withdrawals GetMovements returns
 type MovementsRequest struct {
@@ -580,8 +582,8 @@ type movementsBody struct {
 	Address string   `json:"address,omitempty"`
 }
 
-// Movement is a deposit or withdrawal
-type Movement struct {
+// MovementResponse is a deposit or withdrawal
+type MovementResponse struct {
 	ID       uint64        `tuple:"0"`
 	Currency currency.Code `tuple:"1"`
 	// Method is the method the movement went over, such as BITCOIN or TETHERUSE, or WIRE for fiat; the docs call it
@@ -604,7 +606,7 @@ type Movement struct {
 }
 
 // UnmarshalJSON decodes a movement array
-func (m *Movement) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MovementResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
 
 // movementInfoBody is the body of a Movement Info request
 type movementInfoBody struct {
@@ -614,7 +616,7 @@ type movementInfoBody struct {
 // MovementInfoResponse details a deposit or withdrawal
 type MovementInfoResponse struct {
 	// Movement's PaymentID is the memo or tag
-	Movement Movement `tuple:"0,inline"`
+	Movement MovementResponse `tuple:"0,inline"`
 	// Remark is a remark on the movement, such as on bank details
 	Remark string `tuple:"4"`
 	// BankFees are a wire's bank fees
@@ -639,8 +641,8 @@ type alertListBody struct {
 	Type string `json:"type"`
 }
 
-// Alert is a price alert
-type Alert struct {
+// AlertResponse is a price alert
+type AlertResponse struct {
 	// Key identifies the alert as type:symbol:price, such as price:tBTCUSD:600
 	Key string `tuple:"0"`
 	// Type is price
@@ -652,7 +654,7 @@ type Alert struct {
 }
 
 // UnmarshalJSON decodes an alert array
-func (a *Alert) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, a) }
+func (a *AlertResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, a) }
 
 // SetAlertRequest holds a price alert on a trading pair
 type SetAlertRequest struct {
@@ -703,7 +705,8 @@ type BalanceAvailableRequest struct {
 
 // balanceAvailableBody is the body of a Balance Available for Orders/Offers request
 type balanceAvailableBody struct {
-	Symbol    string `json:"symbol"`
+	Symbol string `json:"symbol"`
+	// Direction is 1 to buy or -1 to sell
 	Direction int64  `json:"dir,omitempty"`
 	Rate      string `json:"rate,omitempty"`
 	Type      string `json:"type"`
@@ -728,13 +731,13 @@ type userSettingKeysBody struct {
 	Keys []string `json:"keys"`
 }
 
-// UserSettingsCount holds how many settings a write created or changed
-type UserSettingsCount struct {
+// UserSettingsCountResponse holds how many settings a write created or changed
+type UserSettingsCountResponse struct {
 	Count uint64 `tuple:"0"`
 }
 
 // UnmarshalJSON decodes a settings count array
-func (u *UserSettingsCount) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, u) }
+func (u *UserSettingsCountResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, u) }
 
 // userSetting is a setting's key and value, as User Settings Read returns them
 type userSetting struct {

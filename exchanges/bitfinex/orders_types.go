@@ -234,25 +234,25 @@ type orderMultiOpBody struct {
 	Ops [][2]any `json:"ops"`
 }
 
-// OrderOperationOrders holds the orders an operation of OrderMultiOp affected
-type OrderOperationOrders struct {
-	Orders []Order
+// OrderOperationOrdersResponse holds the orders an operation of OrderMultiOp affected
+type OrderOperationOrdersResponse struct {
+	Orders []OrderResponse
 }
 
 // UnmarshalJSON decodes an operation notification's data, which the docs show as a list of orders, as Submit Order and
 // Cancel Orders (multiple) return, but which may be one order, as Update Order and Cancel Order return
-func (o *OrderOperationOrders) UnmarshalJSON(data []byte) error {
+func (o *OrderOperationOrdersResponse) UnmarshalJSON(data []byte) error {
 	// An order begins with its ID, a list of orders with an order
 	if _, dataType, err := leadingElement(data); err == nil && dataType == jsonparser.Number {
-		var single Order
+		var single OrderResponse
 		if err := single.UnmarshalJSON(data); err != nil {
 			return err
 		}
-		o.Orders = []Order{single}
+		o.Orders = []OrderResponse{single}
 		return nil
 	}
 	// A fresh slice, as decoding into the old one would keep its orders' fields wherever the new ones are null
-	var orders []Order
+	var orders []OrderResponse
 	if err := json.Unmarshal(data, &orders); err != nil {
 		return err
 	}
@@ -331,8 +331,8 @@ type OTCOrdersHistoryRequest struct {
 	IDs   []uint64
 }
 
-// OTCOrder is an over the counter order between the account and a counterparty
-type OTCOrder struct {
+// OTCOrderResponse is an over the counter order between the account and a counterparty
+type OTCOrderResponse struct {
 	ID        uint64     `tuple:"0"`
 	Symbol    string     `tuple:"1"`
 	CreatedAt types.Time `tuple:"2"`
@@ -351,7 +351,7 @@ type OTCOrder struct {
 }
 
 // UnmarshalJSON decodes an OTC order array
-func (o *OTCOrder) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
+func (o *OTCOrderResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
 
 // LedgersRequest filters the ledger entries GetLedgers returns
 type LedgersRequest struct {
@@ -374,8 +374,8 @@ type ledgersBody struct {
 	Wallet   string `json:"wallet,omitempty"`
 }
 
-// LedgerEntry is a change to one of the account's wallet balances
-type LedgerEntry struct {
+// LedgerEntryResponse is a change to one of the account's wallet balances
+type LedgerEntryResponse struct {
 	ID       uint64        `tuple:"0"`
 	Currency currency.Code `tuple:"1"`
 	// Wallet is exchange, margin, funding or contribution, or empty when Bitfinex sends none
@@ -388,4 +388,4 @@ type LedgerEntry struct {
 }
 
 // UnmarshalJSON decodes a ledger entry array
-func (l *LedgerEntry) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LedgerEntryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }

@@ -308,7 +308,11 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) (map[
 	}
 	switch c {
 	case wsCandlesChannel:
-		req["key"] = "trade:" + s.Interval.Short() + ":" + symbol + fundingPeriod
+		timeFrame, ok := candleTimeFrames[s.Interval]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", kline.ErrUnsupportedInterval, s.Interval)
+		}
+		req["key"] = "trade:" + timeFrame + ":" + symbol + fundingPeriod
 	case wsStatusChannel:
 		if !isDerivativeAsset(a) {
 			return nil, fmt.Errorf("%w: %s %s", errStatusChannelAsset, a, p)
@@ -423,7 +427,7 @@ func (e *Exchange) wsUnsubscribeChannel(ctx context.Context, conn websocket.Conn
 }
 
 // wsSendUnsubscribe sends a channel's unsubscribe request
-func (e *Exchange) wsSendUnsubscribe(ctx context.Context, conn websocket.Connection, channelID int64) error {
+func (e *Exchange) wsSendUnsubscribe(ctx context.Context, conn websocket.Connection, channelID uint64) error {
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsUnsubscribeSignature(channelID), &wsUnsubscribeRequest{Event: "unsubscribe", ChannelID: channelID})
 	if err != nil {
 		return err
@@ -512,7 +516,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsHandleEvent(ctx, conn, respRaw)
 	case '[':
 		// The channel ID leads the frame, and is read directly, as an index lookup walks every element of the frame
-		channelID, err := jsonparser.GetInt(respRaw[1:])
+		value, dataType, err := leadingElement(respRaw)
+		if err != nil {
+			return fmt.Errorf("%w: %w: %.256s", errWebsocketMalformedFrame, err, respRaw)
+		}
+		if dataType != jsonparser.Number {
+			return fmt.Errorf("%w: channel ID is a %s: %.256s", errWebsocketMalformedFrame, dataType, respRaw)
+		}
+		channelID, err := strconv.ParseUint(string(value), 10, 64)
 		if err != nil {
 			return fmt.Errorf("%w: %w: %.256s", errWebsocketMalformedFrame, err, respRaw)
 		}
@@ -604,8 +615,8 @@ func wsSubscribeSignature(subID string) string {
 }
 
 // wsUnsubscribeSignature matches an unsubscribe request with its reply
-func wsUnsubscribeSignature(channelID int64) string {
-	return "unsubscribe:" + strconv.FormatInt(channelID, 10)
+func wsUnsubscribeSignature(channelID uint64) string {
+	return "unsubscribe:" + strconv.FormatUint(channelID, 10)
 }
 
 // isConnectionClosed reports whether a connection reports itself disconnected; the manager's connections do

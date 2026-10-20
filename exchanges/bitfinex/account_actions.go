@@ -62,7 +62,7 @@ func (e *Exchange) GetAccountSummary(ctx context.Context) (*AccountSummaryRespon
 }
 
 // GetLoginHistory returns the account's logins, at most 250 a request
-func (e *Exchange) GetLoginHistory(ctx context.Context, req *LoginHistoryRequest) ([]Login, error) {
+func (e *Exchange) GetLoginHistory(ctx context.Context, req *LoginHistoryRequest) ([]LoginResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -70,13 +70,13 @@ func (e *Exchange) GetLoginHistory(ctx context.Context, req *LoginHistoryRequest
 	if err != nil {
 		return nil, err
 	}
-	var resp []Login
+	var resp []LoginResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, loginHistoryEPL, "auth/r/logins/hist", &body, &resp)
 }
 
 // GetKeyPermissions returns whether the API key reads and writes in each scope
-func (e *Exchange) GetKeyPermissions(ctx context.Context) ([]KeyPermission, error) {
-	var resp []KeyPermission
+func (e *Exchange) GetKeyPermissions(ctx context.Context) ([]KeyPermissionResponse, error) {
+	var resp []KeyPermissionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, keyPermissionsEPL, "auth/r/permissions", nil, &resp)
 }
 
@@ -103,7 +103,7 @@ func (e *Exchange) GenerateToken(ctx context.Context, req *GenerateTokenRequest)
 	body := &generateTokenBody{
 		// The docs give api as the only scope
 		Scope:           "api",
-		TimeToLive:      int64(req.TimeToLive / time.Second),
+		TimeToLive:      uint64(req.TimeToLive / time.Second),
 		Capabilities:    req.Capabilities,
 		WritePermission: req.WritePermission,
 		UserIP:          req.UserIP,
@@ -119,7 +119,7 @@ func (e *Exchange) GenerateToken(ctx context.Context, req *GenerateTokenRequest)
 }
 
 // GetChangelog returns the changes made to the account, such as API keys created, at most 500 a request
-func (e *Exchange) GetChangelog(ctx context.Context, req *ChangelogRequest) ([]ChangelogEntry, error) {
+func (e *Exchange) GetChangelog(ctx context.Context, req *ChangelogRequest) ([]ChangelogEntryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -127,13 +127,13 @@ func (e *Exchange) GetChangelog(ctx context.Context, req *ChangelogRequest) ([]C
 	if err != nil {
 		return nil, err
 	}
-	var resp []ChangelogEntry
+	var resp []ChangelogEntryResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, changelogEPL, "auth/r/audit/hist", &body, &resp)
 }
 
 // TransferBetweenWallets transfers funds between the account's exchange, margin and funding wallets, or to a wallet of
 // its sub-account or master account, converting them when CurrencyTo is set, such as UST to USTF0 for derivatives
-func (e *Exchange) TransferBetweenWallets(ctx context.Context, req *TransferBetweenWalletsRequest) (*Notification[WalletTransfer], error) {
+func (e *Exchange) TransferBetweenWallets(ctx context.Context, req *TransferBetweenWalletsRequest) (*Notification[WalletTransferResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -166,12 +166,12 @@ func (e *Exchange) TransferBetweenWallets(ctx context.Context, req *TransferBetw
 	if !req.CurrencyTo.IsEmpty() {
 		body.CurrencyTo = req.CurrencyTo.Upper().String()
 	}
-	return sendNotificationRequest[WalletTransfer](ctx, e, transferEPL, "auth/w/transfer", body)
+	return sendNotificationRequest[WalletTransferResponse](ctx, e, transferEPL, "auth/w/transfer", body)
 }
 
 // RequestDepositAddress returns the account's deposit address for a method and wallet, or with Renew a new one, the
 // old ones staying valid. For a currency needing a tag, memo or payment ID, the address returned is that tag
-func (e *Exchange) RequestDepositAddress(ctx context.Context, req *DepositAddressRequest) (*Notification[DepositAddress], error) {
+func (e *Exchange) RequestDepositAddress(ctx context.Context, req *DepositAddressRequest) (*Notification[DepositAddressResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -186,11 +186,11 @@ func (e *Exchange) RequestDepositAddress(ctx context.Context, req *DepositAddres
 	if req.Renew {
 		body.Renew = 1
 	}
-	return sendNotificationRequest[DepositAddress](ctx, e, depositAddressEPL, "auth/w/deposit/address", body)
+	return sendNotificationRequest[DepositAddressResponse](ctx, e, depositAddressEPL, "auth/w/deposit/address", body)
 }
 
 // GetDepositAddressList returns a page of the account's deposit addresses for a method, with the wallet each credits
-func (e *Exchange) GetDepositAddressList(ctx context.Context, req *DepositAddressListRequest) ([]WalletDepositAddress, error) {
+func (e *Exchange) GetDepositAddressList(ctx context.Context, req *DepositAddressListRequest) ([]WalletDepositAddressResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (e *Exchange) GetDepositAddressList(ctx context.Context, req *DepositAddres
 	}
 	// The docs list methods in lower case, and the pub:map:tx:method configuration in upper case
 	body := &depositAddressListBody{Method: strings.ToLower(req.Method), Page: req.Page, PageSize: req.PageSize}
-	var resp []WalletDepositAddress
+	var resp []WalletDepositAddressResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, depositAddressListEPL, "auth/r/deposit/address/all", body, &resp)
 }
 
@@ -227,7 +227,7 @@ func (e *Exchange) lnxInvoicePayments(ctx context.Context, action string, query 
 }
 
 // GetLNXInvoices returns the account's Lightning Network invoices, from an offset into them
-func (e *Exchange) GetLNXInvoices(ctx context.Context, offset uint64) ([]LNXInvoice, error) {
+func (e *Exchange) GetLNXInvoices(ctx context.Context, offset uint64) ([]LNXInvoiceResponse, error) {
 	var resp lnxInvoiceListResponse
 	if err := e.lnxInvoicePayments(ctx, "getInvoicesByUser", lnxInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func (e *Exchange) GetLNXInvoices(ctx context.Context, offset uint64) ([]LNXInvo
 }
 
 // GetLNXPayments returns the account's Lightning Network payments, from an offset into them
-func (e *Exchange) GetLNXPayments(ctx context.Context, offset uint64) ([]LNXInvoice, error) {
+func (e *Exchange) GetLNXPayments(ctx context.Context, offset uint64) ([]LNXInvoiceResponse, error) {
 	var resp lnxInvoiceListResponse
 	if err := e.lnxInvoicePayments(ctx, "getPaymentsByUser", lnxInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
 		return nil, err
@@ -245,11 +245,11 @@ func (e *Exchange) GetLNXPayments(ctx context.Context, offset uint64) ([]LNXInvo
 }
 
 // GetLNXInvoice returns the account's Lightning Network invoice with a payment hash
-func (e *Exchange) GetLNXInvoice(ctx context.Context, paymentHash string) (*LNXInvoice, error) {
+func (e *Exchange) GetLNXInvoice(ctx context.Context, paymentHash string) (*LNXInvoiceResponse, error) {
 	if paymentHash == "" {
 		return nil, errLNXPaymentHashRequired
 	}
-	var resp *LNXInvoice
+	var resp *LNXInvoiceResponse
 	if err := e.lnxInvoicePayments(ctx, "getInvoiceById", lnxInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
 		return nil, err
 	}
@@ -260,11 +260,11 @@ func (e *Exchange) GetLNXInvoice(ctx context.Context, paymentHash string) (*LNXI
 }
 
 // GetLNXPayment returns the account's Lightning Network payment with a payment hash
-func (e *Exchange) GetLNXPayment(ctx context.Context, paymentHash string) (*LNXInvoice, error) {
+func (e *Exchange) GetLNXPayment(ctx context.Context, paymentHash string) (*LNXInvoiceResponse, error) {
 	if paymentHash == "" {
 		return nil, errLNXPaymentHashRequired
 	}
-	var resp *LNXInvoice
+	var resp *LNXInvoiceResponse
 	if err := e.lnxInvoicePayments(ctx, "getPaymentById", lnxInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (e *Exchange) GetLNXPayment(ctx context.Context, paymentHash string) (*LNXI
 
 // RequestWithdrawal requests a withdrawal from one of the account's wallets to an address, or with
 // TransactionMethodLightning the payment of an invoice. Withdrawals worth $1,000 or more need TravelRule details
-func (e *Exchange) RequestWithdrawal(ctx context.Context, req *WithdrawalRequest) (*Notification[Withdrawal], error) {
+func (e *Exchange) RequestWithdrawal(ctx context.Context, req *WithdrawalRequest) (*Notification[WithdrawalResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -329,12 +329,12 @@ func (e *Exchange) RequestWithdrawal(ctx context.Context, req *WithdrawalRequest
 		body.DestinationLastName = t.LastName
 		body.DestinationCorporateName = t.CorporateName
 	}
-	return sendNotificationRequest[Withdrawal](ctx, e, withdrawalEPL, "auth/w/withdraw", body)
+	return sendNotificationRequest[WithdrawalResponse](ctx, e, withdrawalEPL, "auth/w/withdraw", body)
 }
 
 // GetMovements returns the account's deposits and withdrawals in a currency, or recent ones in every currency when
 // Currency is unset, at most 2500 a request
-func (e *Exchange) GetMovements(ctx context.Context, req *MovementsRequest) ([]Movement, error) {
+func (e *Exchange) GetMovements(ctx context.Context, req *MovementsRequest) ([]MovementResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (e *Exchange) GetMovements(ctx context.Context, req *MovementsRequest) ([]M
 		path = "auth/r/movements/" + req.Currency.Upper().String() + "/hist"
 	}
 	body := &movementsBody{historyBody: history, IDs: req.IDs, Address: req.Address}
-	var resp []Movement
+	var resp []MovementResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, movementsEPL, path, body, &resp)
 }
 
@@ -368,15 +368,15 @@ func (e *Exchange) GetMovementInfo(ctx context.Context, id uint64) (*MovementInf
 }
 
 // GetAlertList returns the account's active price alerts
-func (e *Exchange) GetAlertList(ctx context.Context) ([]Alert, error) {
-	var resp []Alert
+func (e *Exchange) GetAlertList(ctx context.Context) ([]AlertResponse, error) {
+	var resp []AlertResponse
 	// The docs give no body, but Bitfinex's own client sends the alert type
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, alertListEPL, "auth/r/alerts", &alertListBody{Type: alertTypePrice}, &resp)
 }
 
 // SetAlert sets a price alert on a trading pair, which Bitfinex removes once it has triggered Count times, 100 by
 // default
-func (e *Exchange) SetAlert(ctx context.Context, req *SetAlertRequest) (*Alert, error) {
+func (e *Exchange) SetAlert(ctx context.Context, req *SetAlertRequest) (*AlertResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (e *Exchange) SetAlert(ctx context.Context, req *SetAlertRequest) (*Alert, 
 		return nil, fmt.Errorf("%w: %v", errInvalidPrice, req.Price)
 	}
 	body := &setAlertBody{Type: alertTypePrice, Symbol: req.Symbol, Price: strconv.FormatFloat(req.Price, 'f', -1, 64), Count: req.Count}
-	var resp *Alert
+	var resp *AlertResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, alertSetEPL, "auth/w/alert/set", body, &resp); err != nil {
 		return nil, err
 	}
@@ -462,14 +462,14 @@ func (e *Exchange) GetBalanceAvailable(ctx context.Context, req *BalanceAvailabl
 
 // WriteUserSettings creates or changes the account's custom settings, whose keys are api: followed by letters, digits,
 // underscores and hyphens, and whose values are any JSON
-func (e *Exchange) WriteUserSettings(ctx context.Context, settings map[string]json.RawMessage) (*Notification[UserSettingsCount], error) {
+func (e *Exchange) WriteUserSettings(ctx context.Context, settings map[string]json.RawMessage) (*Notification[UserSettingsCountResponse], error) {
 	if len(settings) == 0 {
 		return nil, errUserSettingsRequired
 	}
 	if err := checkUserSettingKeys(maps.Keys(settings)); err != nil {
 		return nil, err
 	}
-	return sendNotificationRequest[UserSettingsCount](ctx, e, userSettingsWriteEPL, "auth/w/settings/set", &userSettingsWriteBody{Settings: settings})
+	return sendNotificationRequest[UserSettingsCountResponse](ctx, e, userSettingsWriteEPL, "auth/w/settings/set", &userSettingsWriteBody{Settings: settings})
 }
 
 // GetUserSettings returns the values of the account's custom settings with the given keys, keyed as Bitfinex returns

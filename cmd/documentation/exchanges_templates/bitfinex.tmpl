@@ -28,8 +28,9 @@ nonce than the last, so a key should not be shared with another client.
 ### Records
 
 Bitfinex sends most records as arrays whose positions carry the fields. Each type decodes its array by the positions its
-`tuple` tags give, so `Order`, `Position`, `FundingOffer` and the other records have named fields. Write requests
-return a `Notification` holding the record they affected, whose `Err` reports a request Bitfinex refused.
+`tuple` tags give, so `OrderResponse`, `PositionResponse`, `FundingOfferResponse` and the other records have named
+fields. Write requests return a `Notification` holding the record they affected, whose `Err` reports a request Bitfinex
+refused.
 
 ### Orders
 
@@ -37,22 +38,30 @@ return a `Notification` holding the record they affected, whose `Err` reports a 
   the margin wallet. It places limit, market, stop, stop limit and trailing stop orders; fill or kill and immediate or
   cancel limit orders; and post only, reduce only and good till time orders. A stop needs its `TriggerPrice`, which
   Bitfinex takes as its price, and a stop limit its `Price` too, the limit it places; a trailing stop takes its distance
-  in price from the `TrackingValue`. A good till crossing limit order is placed post only, and a time in force or
-  tracking mode Bitfinex has no order for, such as good till day without an end time, is refused rather than left out.
+  in price from the `TrackingValue`. Neither stop has a price of its own, and a trailing stop's `TriggerPrice` is the
+  stop Bitfinex works out from its distance. A good till crossing limit order is placed post only, and a time in force
+  or tracking mode Bitfinex has no order for, such as good till day without an end time, is refused rather than left
+  out.
 + Client order IDs must be numbers, as Bitfinex's are.
 + `ModifyOrder` looks the order up, as Bitfinex reads an update by the order's type and takes its amount as what remains
-  of the order. It moves a stop by its `TriggerPrice`, a stop limit by its `TriggerPrice` and its `Price`, its limit,
-  and any other order by its `Price`. An amount is the order's whole amount, as GCT holds it, and is sent less what the
-  order has executed; changing it needs the order's side, as Bitfinex signs an amount by its side.
+  of the order. It moves a stop by its `TriggerPrice`, refusing a `Price` without one, such as the modify order RPC
+  sends; a stop limit by its `TriggerPrice` and its `Price`, its limit; a trailing stop, which trails the market, by
+  neither; and any other order by its `Price`. An amount is the order's whole amount, as GCT holds it, and is sent less
+  what the order has executed, or not at all when unchanged, as Bitfinex would put back a fill made since the order was
+  looked up; changing it needs the order's side, as Bitfinex signs an amount by its side. Bitfinex changes neither an
+  order's type, so another is refused, nor its time in force.
 + With the authenticated websocket connected, orders are placed, updated and cancelled through it; otherwise over REST.
 + `CancelAllOrders` cancels the open orders of the requested asset, and of its pair when one is given; a request naming
   neither, or the nil one the cancel all orders RPC sends, cancels every open order through Bitfinex's own cancellation
   of them all. `CancelBatchOrders` cancels its orders in one request. Both report the orders pending cancellation, as
   Bitfinex confirms each when the order closes.
-+ `GetOrderInfo` returns an order with its trades and their fees. `GetOrderHistory` returns the orders of the last two
-  weeks, as Bitfinex keeps them. What an order has executed is read from the fills its status lists, and from its
-  trades where they reach further, as Bitfinex keeps an order's original amount from before any update. A partially
-  filled order from the history, or closed over the websocket, is reported partially filled and cancelled.
++ `GetOrderInfo` returns an order with its trades and their fees, reading the order again when its trades show a fill
+  the first read does not. `GetOrderHistory` returns the orders of the last two weeks, as Bitfinex keeps them. What an
+  order has executed is read from the fills its status lists. Bitfinex cuts a status listing many fills short, keeping
+  the latest, so a cut status's order is reported by its last fill, and has executed what its trades count, which
+  `GetOrderInfo` reads for an order of the last 10 days, or else its original amount less what remains, which is exact
+  unless the order's amount was updated, as Bitfinex keeps an order's original amount from before any update. A
+  partially filled order from the history, or closed over the websocket, is reported partially filled and cancelled.
 
 ### Perpetual contracts
 
@@ -116,7 +125,9 @@ markets, so a pair enabled for both has one channel, which updates both.
   price levels aggregated to five down to one significant figure; its levels set the length Bitfinex sends, 1, 25, 100
   or 250. Each book is checked against the checksum Bitfinex sends of its top 25 levels a side; a book that no longer
   matches is invalidated and its channel subscribed again, retrying until Bitfinex accepts, so it sends a new snapshot.
-+ Funding candles take their funding period, such as `p30`, from the `_period` parameter.
++ Candles take Bitfinex's time frames: a minute, 5, 15 or 30 minutes, an hour, 3, 6 or 12 hours, a day, a week, two
+  weeks or a month; another interval is refused. Funding candles take their funding period, such as `p30`, from the
+  `_period` parameter.
 + A perpetual contract's `status` channel relays its funding rate as funding data, and its status, with its mark price
   and open interest, as a `WebsocketDerivativeStatus`.
 + Each connection asks Bitfinex to stamp its events with the time they were sent, which tickers and order books are

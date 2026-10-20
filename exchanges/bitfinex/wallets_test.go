@@ -15,7 +15,7 @@ func TestGetWallets(t *testing.T) {
 	result, err := e.GetWallets(t.Context())
 	require.NoError(t, err, "GetWallets must not error")
 	if mockTests {
-		exp := []Wallet{{
+		exp := []WalletResponse{{
 			Type:             "exchange",
 			Currency:         currency.UST,
 			Balance:          19788.6529257,

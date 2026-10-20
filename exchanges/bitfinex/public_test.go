@@ -65,7 +65,7 @@ func TestGetTicker(t *testing.T) {
 	result, err := e.GetTicker(t.Context(), "tBTCUSD")
 	require.NoError(t, err, "GetTicker must not error")
 	if mockTests {
-		exp := &Ticker{
+		exp := &TickerResponse{
 			Bid:                 82402,
 			BidSize:             1.65150279,
 			Ask:                 82423,
@@ -103,7 +103,7 @@ func TestGetFundingTicker(t *testing.T) {
 	result, err := e.GetFundingTicker(t.Context(), "fUSD")
 	require.NoError(t, err, "GetFundingTicker must not error")
 	if mockTests {
-		exp := &FundingTicker{
+		exp := &FundingTickerResponse{
 			FlashReturnRate:                0.00030070958904109587,
 			Bid:                            0.0001712,
 			BidPeriod:                      120,
@@ -138,12 +138,12 @@ func TestGetTickers(t *testing.T) {
 	if mockTests {
 		exp := &TickersResponse{
 			Trading: []TickerEntry{
-				{Symbol: "tBTCUSD", Ticker: Ticker{Bid: 82402, BidSize: 1.65150279, Ask: 82423, AskSize: 2.78348726, DailyChange: 1100, DailyChangeRelative: 0.01352614, LastPrice: 82424, Volume: 540.71148817, High: 82641, Low: 79821, FirstTradeTime: types.Time(time.UnixMilli(1358182043000))}},
-				{Symbol: "tTESTBTC:TESTUSD", Ticker: Ticker{Bid: 82345, BidSize: 39.43474446, Ask: 82427, AskSize: 93.60610432, DailyChange: 1065, DailyChangeRelative: 0.01309625, LastPrice: 82386, Volume: 146.73022923, High: 82644, Low: 79845, FirstTradeTime: types.Time(time.UnixMilli(1592991523941))}},
+				{Symbol: "tBTCUSD", Ticker: TickerResponse{Bid: 82402, BidSize: 1.65150279, Ask: 82423, AskSize: 2.78348726, DailyChange: 1100, DailyChangeRelative: 0.01352614, LastPrice: 82424, Volume: 540.71148817, High: 82641, Low: 79821, FirstTradeTime: types.Time(time.UnixMilli(1358182043000))}},
+				{Symbol: "tTESTBTC:TESTUSD", Ticker: TickerResponse{Bid: 82345, BidSize: 39.43474446, Ask: 82427, AskSize: 93.60610432, DailyChange: 1065, DailyChangeRelative: 0.01309625, LastPrice: 82386, Volume: 146.73022923, High: 82644, Low: 79845, FirstTradeTime: types.Time(time.UnixMilli(1592991523941))}},
 			},
 			Funding: []FundingTickerEntry{
-				{Symbol: "fUSD", Ticker: FundingTicker{FlashReturnRate: 0.00030070958904109587, Bid: 0.0001712, BidPeriod: 120, BidSize: 18938194.36843404, Ask: 0.0001258336, AskPeriod: 2, AskSize: 40993.865045, DailyChange: -0.000075, DailyChangeRelative: -0.375, LastRate: 0.000125, Volume: 95383739.75889896, High: 0.0002, Low: 0.000001, FlashReturnRateAmountAvailable: 220861838.82944623, FirstTradeTime: types.Time(time.UnixMilli(1469734163000))}},
-				{Symbol: "fBTC", Ticker: FundingTicker{FlashReturnRate: 2.1917808219178083e-08, Bid: 0.002, BidPeriod: 2, BidSize: 0.202, Ask: 1e-08, AskPeriod: 2, AskSize: 842.19826519, LastRate: 2e-08, Volume: 101.13070526, High: 2e-08, Low: 1e-08, FlashReturnRateAmountAvailable: 841.40737511, FirstTradeTime: types.Time(time.UnixMilli(1469734183000))}},
+				{Symbol: "fUSD", Ticker: FundingTickerResponse{FlashReturnRate: 0.00030070958904109587, Bid: 0.0001712, BidPeriod: 120, BidSize: 18938194.36843404, Ask: 0.0001258336, AskPeriod: 2, AskSize: 40993.865045, DailyChange: -0.000075, DailyChangeRelative: -0.375, LastRate: 0.000125, Volume: 95383739.75889896, High: 0.0002, Low: 0.000001, FlashReturnRateAmountAvailable: 220861838.82944623, FirstTradeTime: types.Time(time.UnixMilli(1469734163000))}},
+				{Symbol: "fBTC", Ticker: FundingTickerResponse{FlashReturnRate: 2.1917808219178083e-08, Bid: 0.002, BidPeriod: 2, BidSize: 0.202, Ask: 1e-08, AskPeriod: 2, AskSize: 842.19826519, LastRate: 2e-08, Volume: 101.13070526, High: 2e-08, Low: 1e-08, FlashReturnRateAmountAvailable: 841.40737511, FirstTradeTime: types.Time(time.UnixMilli(1469734183000))}},
 			},
 		}
 		assert.Equal(t, exp, result, "GetTickers should decode every ticker")
@@ -196,7 +196,7 @@ func TestGetTickersHistory(t *testing.T) {
 	result, err := e.GetTickersHistory(t.Context(), &TickersHistoryRequest{Symbols: []string{"tBTCUSD", "tETHUSD"}, Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetTickersHistory must not error")
 	if mockTests {
-		exp := []HistoricTicker{
+		exp := []HistoricTickerResponse{
 			{Symbol: "tETHUSD", Bid: 2423.1, Ask: 2423.5, Time: types.Time(time.UnixMilli(1792022415000))},
 			{Symbol: "tBTCUSD", Bid: 81700, Ask: 81715, Time: types.Time(time.UnixMilli(1792022415000))},
 			{Symbol: "tETHUSD", Bid: 2420.1, Ask: 2420.2, Time: types.Time(time.UnixMilli(1792026015000))},
@@ -232,7 +232,7 @@ func TestGetPublicTrades(t *testing.T) {
 	result, err := e.GetPublicTrades(t.Context(), &PublicTradesRequest{Symbol: "tBTCUSD", Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetPublicTrades must not error")
 	if mockTests {
-		exp := []PublicTrade{
+		exp := []PublicTradeResponse{
 			{ID: 1993816156, Time: types.Time(time.UnixMilli(1792022401421)), Amount: -0.00020198, Price: 81678},
 			{ID: 1993816158, Time: types.Time(time.UnixMilli(1792022402063)), Amount: 0.00000329, Price: 81688},
 			{ID: 1993816159, Time: types.Time(time.UnixMilli(1792022402064)), Amount: 0.00003671, Price: 81688},
@@ -264,7 +264,7 @@ func TestGetPublicFundingTrades(t *testing.T) {
 	result, err := e.GetPublicFundingTrades(t.Context(), &PublicTradesRequest{Symbol: "fUSD", Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetPublicFundingTrades must not error")
 	if mockTests {
-		exp := []PublicFundingTrade{
+		exp := []PublicFundingTradeResponse{
 			{ID: 434057819, Time: types.Time(time.UnixMilli(1792022451000)), Amount: 773.566735, Rate: 0.00026938, Period: 120},
 			{ID: 434058034, Time: types.Time(time.UnixMilli(1792023032000)), Amount: -599.18397559, Rate: 0.00016127, Period: 2},
 			{ID: 434058030, Time: types.Time(time.UnixMilli(1792023032000)), Amount: -500, Rate: 0.00016127, Period: 2},
@@ -294,7 +294,7 @@ func TestGetBook(t *testing.T) {
 	result, err := e.GetBook(t.Context(), &BookRequest{Symbol: "tBTCUSD", Length: 1})
 	require.NoError(t, err, "GetBook must not error")
 	if mockTests {
-		exp := []BookLevel{{Price: 82159, Count: 2, Amount: 0.00216011}, {Price: 82171, Count: 1, Amount: -0.00022}}
+		exp := []BookLevelResponse{{Price: 82159, Count: 2, Amount: 0.00216011}, {Price: 82171, Count: 1, Amount: -0.00022}}
 		assert.Equal(t, exp, result, "GetBook should decode every level")
 	} else {
 		assert.Len(t, result, 2, "GetBook should return a level a side")
@@ -324,7 +324,7 @@ func TestGetFundingBook(t *testing.T) {
 	result, err := e.GetFundingBook(t.Context(), &BookRequest{Symbol: "fUSD", Precision: 1, Length: 1})
 	require.NoError(t, err, "GetFundingBook must not error")
 	if mockTests {
-		exp := []FundingBookLevel{{Rate: 0.0001712, Period: 120, Count: 1, Amount: -20000}, {Rate: 0.0001252, Period: 2, Count: 1, Amount: 500}}
+		exp := []FundingBookLevelResponse{{Rate: 0.0001712, Period: 120, Count: 1, Amount: -20000}, {Rate: 0.0001252, Period: 2, Count: 1, Amount: 500}}
 		assert.Equal(t, exp, result, "GetFundingBook should decode every level")
 	} else {
 		assert.Len(t, result, 2, "GetFundingBook should return a level a side")
@@ -348,7 +348,7 @@ func TestGetRawBook(t *testing.T) {
 	result, err := e.GetRawBook(t.Context(), &RawBookRequest{Symbol: "tBTCUSD", Length: 1})
 	require.NoError(t, err, "GetRawBook must not error")
 	if mockTests {
-		exp := []RawBookLevel{{OrderID: 246603709470, Price: 82149, Amount: 0.00009406}, {OrderID: 246646973663, Price: 82156, Amount: -0.06086039}}
+		exp := []RawBookLevelResponse{{OrderID: 246603709470, Price: 82149, Amount: 0.00009406}, {OrderID: 246646973663, Price: 82156, Amount: -0.06086039}}
 		assert.Equal(t, exp, result, "GetRawBook should decode every order")
 	} else {
 		assert.Len(t, result, 2, "GetRawBook should return an order a side")
@@ -372,7 +372,7 @@ func TestGetRawFundingBook(t *testing.T) {
 	result, err := e.GetRawFundingBook(t.Context(), &RawBookRequest{Symbol: "fUSD", Length: 1})
 	require.NoError(t, err, "GetRawFundingBook must not error")
 	if mockTests {
-		exp := []RawFundingBookLevel{{OfferID: 5038297953, Period: 120, Rate: 0.0001712, Amount: -20000}, {OfferID: 5149012082, Period: 2, Rate: 0.000125120548, Amount: 500}}
+		exp := []RawFundingBookLevelResponse{{OfferID: 5038297953, Period: 120, Rate: 0.0001712, Amount: -20000}, {OfferID: 5149012082, Period: 2, Rate: 0.000125120548, Amount: 500}}
 		assert.Equal(t, exp, result, "GetRawFundingBook should decode every offer")
 	} else {
 		assert.Len(t, result, 2, "GetRawFundingBook should return an offer a side")
@@ -419,7 +419,7 @@ func TestGetLastStat(t *testing.T) {
 	result, err := e.GetLastStat(t.Context(), &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: StatsSideLong})
 	require.NoError(t, err, "GetLastStat must not error")
 	if mockTests {
-		exp := &Stat{Time: types.Time(time.UnixMilli(1792129680000)), Value: 89621.97322647}
+		exp := &StatResponse{Time: types.Time(time.UnixMilli(1792129680000)), Value: 89621.97322647}
 		assert.Equal(t, exp, result, "GetLastStat should decode the statistic")
 	} else {
 		assert.Positive(t, result.Value, "GetLastStat should return the size of the pair's long positions")
@@ -444,7 +444,7 @@ func TestGetStatsHistory(t *testing.T) {
 	result, err := e.GetStatsHistory(t.Context(), &StatsHistoryRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "fUSD", Pair: "tBTCUSD", Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetStatsHistory must not error")
 	if mockTests {
-		exp := []Stat{
+		exp := []StatResponse{
 			{Time: types.Time(time.UnixMilli(1792022400000)), Value: 5600850891.1279125},
 			{Time: types.Time(time.UnixMilli(1792022460000)), Value: 5600850891.1279125},
 			{Time: types.Time(time.UnixMilli(1792022520000)), Value: 5600850891.1279125},
@@ -511,7 +511,7 @@ func TestGetLastCandle(t *testing.T) {
 	result, err := e.GetLastCandle(t.Context(), &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneDay})
 	require.NoError(t, err, "GetLastCandle must not error")
 	if mockTests {
-		exp := &Candle{Time: types.Time(time.UnixMilli(1792108800000)), Open: 82233, Close: 82179, High: 82547, Low: 81692, Volume: 33.39572295}
+		exp := &CandleResponse{Time: types.Time(time.UnixMilli(1792108800000)), Open: 82233, Close: 82179, High: 82547, Low: 81692, Volume: 33.39572295}
 		assert.Equal(t, exp, result, "GetLastCandle should decode the candle")
 	} else {
 		assert.Positive(t, result.Close, "GetLastCandle should return the pair's latest candle")
@@ -520,7 +520,7 @@ func TestGetLastCandle(t *testing.T) {
 	result, err = e.GetLastCandle(t.Context(), &CandlesRequest{Symbol: "fUSD", Interval: kline.OneDay, Period: 30})
 	require.NoError(t, err, "GetLastCandle must not error for a funding currency")
 	if mockTests {
-		exp := &Candle{Time: types.Time(time.UnixMilli(1792108800000)), Open: 0.00016, Close: 0.000132, High: 0.00016, Low: 0.00013, Volume: 19052.79981827}
+		exp := &CandleResponse{Time: types.Time(time.UnixMilli(1792108800000)), Open: 0.00016, Close: 0.000132, High: 0.00016, Low: 0.00013, Volume: 19052.79981827}
 		assert.Equal(t, exp, result, "GetLastCandle should decode a funding currency's candle")
 	} else {
 		assert.Positive(t, result.Close, "GetLastCandle should return the currency's latest candle")
@@ -545,7 +545,7 @@ func TestGetCandlesHistory(t *testing.T) {
 	result, err := e.GetCandlesHistory(t.Context(), &CandlesHistoryRequest{Symbol: "tBTCUSD", Interval: kline.OneHour, Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetCandlesHistory must not error")
 	if mockTests {
-		exp := []Candle{
+		exp := []CandleResponse{
 			{Time: types.Time(time.UnixMilli(1792022400000)), Open: 81678, Close: 81659, High: 81845, Low: 81368, Volume: 7.16225303},
 			{Time: types.Time(time.UnixMilli(1792026000000)), Open: 81675, Close: 81663, High: 81930, Low: 81504, Volume: 6.00131924},
 			{Time: types.Time(time.UnixMilli(1792029600000)), Open: 81640, Close: 81557, High: 81808, Low: 80210, Volume: 53.38772928},
@@ -558,7 +558,7 @@ func TestGetCandlesHistory(t *testing.T) {
 	result, err = e.GetCandlesHistory(t.Context(), &CandlesHistoryRequest{Symbol: "fUSD", Interval: kline.OneHour, Aggregation: 30, PeriodStart: 2, PeriodEnd: 30, Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetCandlesHistory must not error for aggregated funding candles")
 	if mockTests {
-		exp := []Candle{
+		exp := []CandleResponse{
 			{Time: types.Time(time.UnixMilli(1792022400000)), Open: 0.000133, Close: 0.00014384, High: 0.00017987, Low: 0.00012051, Volume: 3074226.6222474203},
 			{Time: types.Time(time.UnixMilli(1792026000000)), Open: 0.00013346, Close: 0.00014, High: 0.00017087, Low: 0.00012281, Volume: 880889.47972334},
 			{Time: types.Time(time.UnixMilli(1792029600000)), Open: 0.000133, Close: 0.00014, High: 0.0001784, Low: 0.0001244, Volume: 4190168.7710503098},
@@ -619,13 +619,13 @@ func TestGetDerivativesStatus(t *testing.T) {
 	result, err := e.GetDerivativesStatus(t.Context(), []string{"tBTCF0:USTF0", "tETHF0:USTF0"})
 	require.NoError(t, err, "GetDerivativesStatus must not error")
 	if mockTests {
-		exp := []DerivativeStatusEntry{
-			{Key: "tBTCF0:USTF0", Status: DerivativeStatus{
+		exp := []DerivativeStatusEntryResponse{
+			{Key: "tBTCF0:USTF0", Status: DerivativeStatusResponse{
 				Time: types.Time(time.UnixMilli(1792129748000)), DerivativePrice: 82189.30837992, SpotPrice: 82135, InsuranceFundBalance: 61340784.36117272,
 				NextFundingTime: types.Time(time.UnixMilli(1792137600000)), NextFundingAccrued: 0.00042072, NextFundingStep: 6688, CurrentFunding: 0.00010884,
 				MarkPrice: 82139.1843, OpenInterest: 9254.32427008, ClampMinimum: 0.0005, ClampMaximum: 0.0025,
 			}},
-			{Key: "tETHF0:USTF0", Status: DerivativeStatus{
+			{Key: "tETHF0:USTF0", Status: DerivativeStatusResponse{
 				Time: types.Time(time.UnixMilli(1792129748000)), DerivativePrice: 2448.245538685, SpotPrice: 2446.8, InsuranceFundBalance: 61340784.36117272,
 				NextFundingTime: types.Time(time.UnixMilli(1792137600000)), NextFundingAccrued: 0.00036349, NextFundingStep: 6688, CurrentFunding: 0.00004981,
 				MarkPrice: 2447.0178, OpenInterest: 10858.12719944, ClampMinimum: 0.0005, ClampMaximum: 0.0025,
@@ -670,7 +670,7 @@ func TestGetDerivativesStatusHistory(t *testing.T) {
 	result, err := e.GetDerivativesStatusHistory(t.Context(), &DerivativesStatusHistoryRequest{Key: "tBTCF0:USTF0", Start: start, End: end, Limit: testPublicHistoryLimit, Sort: 1})
 	require.NoError(t, err, "GetDerivativesStatusHistory must not error")
 	if mockTests {
-		exp := []DerivativeStatus{
+		exp := []DerivativeStatusResponse{
 			{
 				Time: types.Time(time.UnixMilli(1792022457000)), DerivativePrice: 81735.99909449, SpotPrice: 81690, InsuranceFundBalance: 61384568.96803488,
 				NextFundingTime: types.Time(time.UnixMilli(1792051200000)), NextFundingAccrued: 0.00000111, NextFundingStep: 17, CurrentFunding: 0.0001331,
@@ -711,7 +711,7 @@ func TestGetLiquidations(t *testing.T) {
 	result, err := e.GetLiquidations(t.Context(), req)
 	require.NoError(t, err, "GetLiquidations must not error")
 	if mockTests {
-		exp := []Liquidation{
+		exp := []LiquidationResponse{
 			{Type: "pos", PositionID: 194460875, Time: types.Time(time.UnixMilli(1792030515850)), Symbol: "tDEXEF0:USTF0", Amount: 52.3842728, BasePrice: 1.8957, IsMarketSold: true},
 			{Type: "pos", PositionID: 194460875, Time: types.Time(time.UnixMilli(1792030515852)), Symbol: "tDEXEF0:USTF0", Amount: 52.3842728, BasePrice: 1.8957, IsMatch: true, IsMarketSold: true, PriceAcquired: 1.7488},
 			{Type: "pos", PositionID: 194320977, Time: types.Time(time.UnixMilli(1792030726016)), Symbol: "tZECUSD", Amount: 2.00001238, BasePrice: 1276.159368523508, IsMarketSold: true},
@@ -774,7 +774,7 @@ func TestGetLeaderboards(t *testing.T) {
 	result, err := e.GetLeaderboards(t.Context(), req)
 	require.NoError(t, err, "GetLeaderboards must not error")
 	if mockTests {
-		exp := []LeaderboardStanding{
+		exp := []LeaderboardStandingResponse{
 			{Time: types.Time(time.UnixMilli(1791763200000)), Username: "countyourmoney", Ranking: 1, Value: 4234382.58},
 			{Time: types.Time(time.UnixMilli(1791763200000)), Username: "Bobby-Big-Size", Ranking: 2, Value: 4066612.79},
 			{Time: types.Time(time.UnixMilli(1791763200000)), Username: "EGAF", Ranking: 3, Value: 2585259.28},
@@ -812,7 +812,7 @@ func TestGetFundingStatistics(t *testing.T) {
 	result, err := e.GetFundingStatistics(t.Context(), &FundingStatisticsRequest{Symbol: "fUSD", Start: start, End: end, Limit: testPublicHistoryLimit})
 	require.NoError(t, err, "GetFundingStatistics must not error")
 	if mockTests {
-		exp := []FundingStatistic{
+		exp := []FundingStatisticResponse{
 			{Time: types.Time(time.UnixMilli(1792105500000)), FlashReturnRate: 0.00000082, AveragePeriod: 82.01, FundingAmount: 5950334298.556745, FundingAmountUsed: 5758174671.332418, FundingBelowThreshold: 402445978.86773586},
 			{Time: types.Time(time.UnixMilli(1792101900000)), FlashReturnRate: 0.00000082, AveragePeriod: 81.16, FundingAmount: 5942068272.108026, FundingAmountUsed: 5758506652.673497, FundingBelowThreshold: 410051733.793576},
 			{Time: types.Time(time.UnixMilli(1792098300000)), FlashReturnRate: 0.00000082, AveragePeriod: 81.62, FundingAmount: 5941551577.016957, FundingAmountUsed: 5758004731.183161, FundingBelowThreshold: 413009916.16160125},
@@ -845,7 +845,7 @@ func testPublicConfig[T any](t *testing.T, name string, get func(*Exchange) (T, 
 
 func TestGetCurrencySymbols(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencySymbols", func(ex *Exchange) ([]CurrencySymbol, error) { return ex.GetCurrencySymbols(t.Context()) }, []CurrencySymbol{
+	testPublicConfig(t, "GetCurrencySymbols", func(ex *Exchange) ([]CurrencySymbolResponse, error) { return ex.GetCurrencySymbols(t.Context()) }, []CurrencySymbolResponse{
 		{Currency: currency.NewCode("ALG"), Symbol: "ALGO"},
 		{Currency: currency.NewCode("ATO"), Symbol: "ATOM"},
 		{Currency: currency.NewCode("AUSDT"), Symbol: "aUSDT"},
@@ -856,7 +856,7 @@ func TestGetCurrencySymbols(t *testing.T) {
 
 func TestGetCurrencyLabels(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyLabels", func(ex *Exchange) ([]CurrencyLabel, error) { return ex.GetCurrencyLabels(t.Context()) }, []CurrencyLabel{
+	testPublicConfig(t, "GetCurrencyLabels", func(ex *Exchange) ([]CurrencyLabelResponse, error) { return ex.GetCurrencyLabels(t.Context()) }, []CurrencyLabelResponse{
 		{Currency: currency.AAVE, Label: "Aave"},
 		{Currency: currency.ADA, Label: "Cardano ADA"},
 		{Currency: currency.NewCode("ALG"), Label: "Algorand"},
@@ -867,14 +867,16 @@ func TestGetCurrencyLabels(t *testing.T) {
 
 func TestGetCurrencyUnits(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyUnits", func(ex *Exchange) ([]CurrencyUnit, error) { return ex.GetCurrencyUnits(t.Context()) }, []CurrencyUnit{
+	testPublicConfig(t, "GetCurrencyUnits", func(ex *Exchange) ([]CurrencyUnitResponse, error) { return ex.GetCurrencyUnits(t.Context()) }, []CurrencyUnitResponse{
 		{Currency: currency.IOT, Unit: "Mi|MegaIOTA"},
 	})
 }
 
 func TestGetCurrencyUnderlyings(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyUnderlyings", func(ex *Exchange) ([]CurrencyUnderlying, error) { return ex.GetCurrencyUnderlyings(t.Context()) }, []CurrencyUnderlying{
+	testPublicConfig(t, "GetCurrencyUnderlyings", func(ex *Exchange) ([]CurrencyUnderlyingResponse, error) {
+		return ex.GetCurrencyUnderlyings(t.Context())
+	}, []CurrencyUnderlyingResponse{
 		{Currency: currency.NewCode("AAVEF0"), Underlying: currency.AAVE},
 		{Currency: currency.NewCode("ADAF0"), Underlying: currency.ADA},
 		{Currency: currency.NewCode("ALGF0"), Underlying: currency.NewCode("ALG")},
@@ -885,7 +887,7 @@ func TestGetCurrencyUnderlyings(t *testing.T) {
 
 func TestGetCurrencyPools(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyPools", func(ex *Exchange) ([]CurrencyPool, error) { return ex.GetCurrencyPools(t.Context()) }, []CurrencyPool{
+	testPublicConfig(t, "GetCurrencyPools", func(ex *Exchange) ([]CurrencyPoolResponse, error) { return ex.GetCurrencyPools(t.Context()) }, []CurrencyPoolResponse{
 		{Currency: currency.AAVE, Pool: currency.ETH},
 		{Currency: currency.NewCode("ALKN"), Pool: currency.ETH},
 		{Currency: currency.ARB, Pool: currency.NewCode("ARBETH")},
@@ -896,7 +898,7 @@ func TestGetCurrencyPools(t *testing.T) {
 
 func TestGetCurrencyExplorers(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyExplorers", func(ex *Exchange) ([]CurrencyExplorer, error) { return ex.GetCurrencyExplorers(t.Context()) }, []CurrencyExplorer{
+	testPublicConfig(t, "GetCurrencyExplorers", func(ex *Exchange) ([]CurrencyExplorerResponse, error) { return ex.GetCurrencyExplorers(t.Context()) }, []CurrencyExplorerResponse{
 		{Currency: currency.ADA, Explorer: BlockExplorer{URL: "https://adastat.net", AddressURL: "https://adastat.net/addresses/VAL", TransactionURL: "https://adastat.net/transactions/VAL"}},
 		// Bitfinex sends this address URL with its trailing space
 		{Currency: currency.NewCode("ALG"), Explorer: BlockExplorer{URL: "https://allo.info", AddressURL: "https://allo.info/account/VAL ", TransactionURL: "https://allo.info/tx/VAL"}},
@@ -908,7 +910,9 @@ func TestGetCurrencyExplorers(t *testing.T) {
 
 func TestGetCurrencyWithdrawalFees(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetCurrencyWithdrawalFees", func(ex *Exchange) ([]CurrencyWithdrawalFee, error) { return ex.GetCurrencyWithdrawalFees(t.Context()) }, []CurrencyWithdrawalFee{
+	testPublicConfig(t, "GetCurrencyWithdrawalFees", func(ex *Exchange) ([]CurrencyWithdrawalFeeResponse, error) {
+		return ex.GetCurrencyWithdrawalFees(t.Context())
+	}, []CurrencyWithdrawalFeeResponse{
 		{Currency: currency.AAVE, Fee: WithdrawalFee{Amount: 0.018825}},
 		{Currency: currency.ADA, Fee: WithdrawalFee{Amount: 0.3}},
 		{Currency: currency.NewCode("ALG")},
@@ -919,7 +923,7 @@ func TestGetCurrencyWithdrawalFees(t *testing.T) {
 
 func TestGetTransferMethods(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetTransferMethods", func(ex *Exchange) ([]TransferMethod, error) { return ex.GetTransferMethods(t.Context()) }, []TransferMethod{
+	testPublicConfig(t, "GetTransferMethods", func(ex *Exchange) ([]TransferMethodResponse, error) { return ex.GetTransferMethods(t.Context()) }, []TransferMethodResponse{
 		{Method: "BITCOIN", Currencies: []currency.Code{currency.BTC}},
 		{Method: "LITECOIN", Currencies: []currency.Code{currency.LTC}},
 		{Method: "ETHEREUM", Currencies: []currency.Code{currency.ETH}},
@@ -973,7 +977,7 @@ func TestGetLeaderboardCompetitions(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetPairInfo", func(ex *Exchange) ([]PairInfoEntry, error) { return ex.GetPairInfo(t.Context()) }, []PairInfoEntry{
+	testPublicConfig(t, "GetPairInfo", func(ex *Exchange) ([]PairInfoEntryResponse, error) { return ex.GetPairInfo(t.Context()) }, []PairInfoEntryResponse{
 		{Pair: "AAVE:USD", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1612517298684)), MinimumOrderSize: 0.02, MaximumOrderSize: 5000}},
 		{Pair: "AAVE:UST", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1612518415535)), MinimumOrderSize: 0.02, MaximumOrderSize: 5000}},
 		{Pair: "ADABTC", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1596710520048)), MinimumOrderSize: 4, MaximumOrderSize: 250000, InitialMargin: 0.3, MinimumMargin: 0.15}},
@@ -984,7 +988,7 @@ func TestGetPairInfo(t *testing.T) {
 
 func TestGetFuturesPairInfo(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetFuturesPairInfo", func(ex *Exchange) ([]PairInfoEntry, error) { return ex.GetFuturesPairInfo(t.Context()) }, []PairInfoEntry{
+	testPublicConfig(t, "GetFuturesPairInfo", func(ex *Exchange) ([]PairInfoEntryResponse, error) { return ex.GetFuturesPairInfo(t.Context()) }, []PairInfoEntryResponse{
 		{Pair: "AAVEF0:USTF0", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1633350178515)), MinimumOrderSize: 0.02, MaximumOrderSize: 5000, InitialMargin: 0.01, MinimumMargin: 0.005}},
 		{Pair: "ADAF0:USTF0", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1612351549219)), MinimumOrderSize: 4, MaximumOrderSize: 250000, InitialMargin: 0.01, MinimumMargin: 0.005}},
 		{Pair: "ALGF0:USTF0", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1631890038807)), MinimumOrderSize: 8, MaximumOrderSize: 250000, InitialMargin: 0.01, MinimumMargin: 0.005}},
@@ -998,7 +1002,9 @@ func TestGetFuturesPairInfo(t *testing.T) {
 
 func TestGetTransferMethodStatuses(t *testing.T) {
 	t.Parallel()
-	testPublicConfig(t, "GetTransferMethodStatuses", func(ex *Exchange) ([]TransferMethodStatus, error) { return ex.GetTransferMethodStatuses(t.Context()) }, []TransferMethodStatus{
+	testPublicConfig(t, "GetTransferMethodStatuses", func(ex *Exchange) ([]TransferMethodStatusResponse, error) {
+		return ex.GetTransferMethodStatuses(t.Context())
+	}, []TransferMethodStatusResponse{
 		{Method: "BITCOIN", DepositActive: true, WithdrawalActive: true, DepositConfirmationsRequired: 3},
 		{Method: "LITECOIN", DepositActive: true, WithdrawalActive: true, DepositConfirmationsRequired: 24},
 		{Method: "ETHEREUM", DepositActive: true, WithdrawalActive: true, DepositConfirmationsRequired: 5},
@@ -1052,7 +1058,7 @@ func TestGetVirtualAssetServiceProviders(t *testing.T) {
 	result, err := e.GetVirtualAssetServiceProviders(t.Context())
 	require.NoError(t, err, "GetVirtualAssetServiceProviders must not error")
 	if mockTests {
-		exp := []VirtualAssetServiceProvider{
+		exp := []VirtualAssetServiceProviderResponse{
 			{ID: "did:ethr:0xf2bd35dc59cbbe3efb15a5bd411ac84e7c86d25a", Name: "100s Holdings Limited (IM)"},
 			{ID: "did:ethr:0xdf41ef7dcb92ab5aed72e284db3766ace5026948", Name: "1Money (US)"},
 			{ID: "did:ethr:0xfeb4f99829a9acdf52979abee87e83addf22a7e1", Name: "1xBet"},
@@ -1179,72 +1185,72 @@ func TestGetForeignExchangeRate(t *testing.T) {
 func TestPublicRecordsEveryPosition(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `[0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,1700000000010]`,
-		Ticker{Bid: 0.5, BidSize: 1.5, Ask: 2.5, AskSize: 3.5, DailyChange: 4.5, DailyChangeRelative: 5.5, LastPrice: 6.5, Volume: 7.5, High: 8.5, Low: 9.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000010))})
+		TickerResponse{Bid: 0.5, BidSize: 1.5, Ask: 2.5, AskSize: 3.5, DailyChange: 4.5, DailyChangeRelative: 5.5, LastPrice: 6.5, Volume: 7.5, High: 8.5, Low: 9.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000010))})
 	testTupleDecode(t, `[0.5,1.5,1002,3.5,4.5,1005,6.5,7.5,8.5,9.5,10.5,11.5,12.5,null,null,15.5,1700000000016]`,
-		FundingTicker{FlashReturnRate: 0.5, Bid: 1.5, BidPeriod: 1002, BidSize: 3.5, Ask: 4.5, AskPeriod: 1005, AskSize: 6.5, DailyChange: 7.5, DailyChangeRelative: 8.5, LastRate: 9.5, Volume: 10.5, High: 11.5, Low: 12.5, FlashReturnRateAmountAvailable: 15.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000016))})
+		FundingTickerResponse{FlashReturnRate: 0.5, Bid: 1.5, BidPeriod: 1002, BidSize: 3.5, Ask: 4.5, AskPeriod: 1005, AskSize: 6.5, DailyChange: 7.5, DailyChangeRelative: 8.5, LastRate: 9.5, Volume: 10.5, High: 11.5, Low: 12.5, FlashReturnRateAmountAvailable: 15.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000016))})
 	testTupleDecode(t, `["s0",1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,1700000000011]`,
-		TickerEntry{Symbol: "s0", Ticker: Ticker{Bid: 1.5, BidSize: 2.5, Ask: 3.5, AskSize: 4.5, DailyChange: 5.5, DailyChangeRelative: 6.5, LastPrice: 7.5, Volume: 8.5, High: 9.5, Low: 10.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000011))}})
+		TickerEntry{Symbol: "s0", Ticker: TickerResponse{Bid: 1.5, BidSize: 2.5, Ask: 3.5, AskSize: 4.5, DailyChange: 5.5, DailyChangeRelative: 6.5, LastPrice: 7.5, Volume: 8.5, High: 9.5, Low: 10.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000011))}})
 	testTupleDecode(t, `["s0",1.5,2.5,1003,4.5,5.5,1006,7.5,8.5,9.5,10.5,11.5,12.5,13.5,null,null,16.5,1700000000017]`,
-		FundingTickerEntry{Symbol: "s0", Ticker: FundingTicker{FlashReturnRate: 1.5, Bid: 2.5, BidPeriod: 1003, BidSize: 4.5, Ask: 5.5, AskPeriod: 1006, AskSize: 7.5, DailyChange: 8.5, DailyChangeRelative: 9.5, LastRate: 10.5, Volume: 11.5, High: 12.5, Low: 13.5, FlashReturnRateAmountAvailable: 16.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000017))}})
+		FundingTickerEntry{Symbol: "s0", Ticker: FundingTickerResponse{FlashReturnRate: 1.5, Bid: 2.5, BidPeriod: 1003, BidSize: 4.5, Ask: 5.5, AskPeriod: 1006, AskSize: 7.5, DailyChange: 8.5, DailyChangeRelative: 9.5, LastRate: 10.5, Volume: 11.5, High: 12.5, Low: 13.5, FlashReturnRateAmountAvailable: 16.5, FirstTradeTime: types.Time(time.UnixMilli(1700000000017))}})
 	testTupleDecode(t, `[1000,1700000000001,2.5,3.5]`,
-		PublicTrade{ID: 1000, Time: types.Time(time.UnixMilli(1700000000001)), Amount: 2.5, Price: 3.5})
+		PublicTradeResponse{ID: 1000, Time: types.Time(time.UnixMilli(1700000000001)), Amount: 2.5, Price: 3.5})
 	testTupleDecode(t, `[1000,1700000000001,2.5,3.5,1004]`,
-		PublicFundingTrade{ID: 1000, Time: types.Time(time.UnixMilli(1700000000001)), Amount: 2.5, Rate: 3.5, Period: 1004})
+		PublicFundingTradeResponse{ID: 1000, Time: types.Time(time.UnixMilli(1700000000001)), Amount: 2.5, Rate: 3.5, Period: 1004})
 	testTupleDecode(t, `[0.5,1001,2.5]`,
-		BookLevel{Price: 0.5, Count: 1001, Amount: 2.5})
+		BookLevelResponse{Price: 0.5, Count: 1001, Amount: 2.5})
 	testTupleDecode(t, `[0.5,1001,1002,3.5]`,
-		FundingBookLevel{Rate: 0.5, Period: 1001, Count: 1002, Amount: 3.5})
+		FundingBookLevelResponse{Rate: 0.5, Period: 1001, Count: 1002, Amount: 3.5})
 	testTupleDecode(t, `[1000,1.5,2.5]`,
-		RawBookLevel{OrderID: 1000, Price: 1.5, Amount: 2.5})
+		RawBookLevelResponse{OrderID: 1000, Price: 1.5, Amount: 2.5})
 	testTupleDecode(t, `[1000,1001,2.5,3.5]`,
-		RawFundingBookLevel{OfferID: 1000, Period: 1001, Rate: 2.5, Amount: 3.5})
+		RawFundingBookLevelResponse{OfferID: 1000, Period: 1001, Rate: 2.5, Amount: 3.5})
 	testTupleDecode(t, `[1700000000000,1.5,2.5,3.5,4.5,5.5]`,
-		Candle{Time: types.Time(time.UnixMilli(1700000000000)), Open: 1.5, Close: 2.5, High: 3.5, Low: 4.5, Volume: 5.5})
+		CandleResponse{Time: types.Time(time.UnixMilli(1700000000000)), Open: 1.5, Close: 2.5, High: 3.5, Low: 4.5, Volume: 5.5})
 	testTupleDecode(t, `[1700000000000,null,2.5,3.5,null,5.5,null,1700000000007,8.5,1009,null,11.5,null,null,14.5,null,null,17.5,null,null,null,21.5,22.5]`,
-		DerivativeStatus{Time: types.Time(time.UnixMilli(1700000000000)), DerivativePrice: 2.5, SpotPrice: 3.5, InsuranceFundBalance: 5.5, NextFundingTime: types.Time(time.UnixMilli(1700000000007)), NextFundingAccrued: 8.5, NextFundingStep: 1009, CurrentFunding: 11.5, MarkPrice: 14.5, OpenInterest: 17.5, ClampMinimum: 21.5, ClampMaximum: 22.5})
+		DerivativeStatusResponse{Time: types.Time(time.UnixMilli(1700000000000)), DerivativePrice: 2.5, SpotPrice: 3.5, InsuranceFundBalance: 5.5, NextFundingTime: types.Time(time.UnixMilli(1700000000007)), NextFundingAccrued: 8.5, NextFundingStep: 1009, CurrentFunding: 11.5, MarkPrice: 14.5, OpenInterest: 17.5, ClampMinimum: 21.5, ClampMaximum: 22.5})
 	testTupleDecode(t, `["s0",1700000000001,null,3.5,4.5,null,6.5,null,1700000000008,9.5,1010,null,12.5,null,null,15.5,null,null,18.5,null,null,null,22.5,23.5]`,
-		DerivativeStatusEntry{Key: "s0", Status: DerivativeStatus{Time: types.Time(time.UnixMilli(1700000000001)), DerivativePrice: 3.5, SpotPrice: 4.5, InsuranceFundBalance: 6.5, NextFundingTime: types.Time(time.UnixMilli(1700000000008)), NextFundingAccrued: 9.5, NextFundingStep: 1010, CurrentFunding: 12.5, MarkPrice: 15.5, OpenInterest: 18.5, ClampMinimum: 22.5, ClampMaximum: 23.5}})
+		DerivativeStatusEntryResponse{Key: "s0", Status: DerivativeStatusResponse{Time: types.Time(time.UnixMilli(1700000000001)), DerivativePrice: 3.5, SpotPrice: 4.5, InsuranceFundBalance: 6.5, NextFundingTime: types.Time(time.UnixMilli(1700000000008)), NextFundingAccrued: 9.5, NextFundingStep: 1010, CurrentFunding: 12.5, MarkPrice: 15.5, OpenInterest: 18.5, ClampMinimum: 22.5, ClampMaximum: 23.5}})
 	testTupleDecode(t, `["s0",1001,1700000000002,null,"s4",5.5,6.5,null,1,1,null,11.5]`,
-		Liquidation{Type: "s0", PositionID: 1001, Time: types.Time(time.UnixMilli(1700000000002)), Symbol: "s4", Amount: 5.5, BasePrice: 6.5, IsMatch: true, IsMarketSold: true, PriceAcquired: 11.5})
+		LiquidationResponse{Type: "s0", PositionID: 1001, Time: types.Time(time.UnixMilli(1700000000002)), Symbol: "s4", Amount: 5.5, BasePrice: 6.5, IsMatch: true, IsMarketSold: true, PriceAcquired: 11.5})
 	testTupleDecode(t, `[1]`,
 		PlatformStatusResponse{Operative: true})
 	testTupleDecode(t, `["s0",1.5,null,3.5,null,null,null,null,null,null,null,null,1700000000012]`,
-		HistoricTicker{Symbol: "s0", Bid: 1.5, Ask: 3.5, Time: types.Time(time.UnixMilli(1700000000012))})
+		HistoricTickerResponse{Symbol: "s0", Bid: 1.5, Ask: 3.5, Time: types.Time(time.UnixMilli(1700000000012))})
 	testTupleDecode(t, `[1700000000000,1.5]`,
-		Stat{Time: types.Time(time.UnixMilli(1700000000000)), Value: 1.5})
+		StatResponse{Time: types.Time(time.UnixMilli(1700000000000)), Value: 1.5})
 	testTupleDecode(t, `[1700000000000,null,"s2",1003,null,null,6.5,null,null,"s9"]`,
-		LeaderboardStanding{Time: types.Time(time.UnixMilli(1700000000000)), Username: "s2", Ranking: 1003, Value: 6.5, TwitterHandle: "s9"})
+		LeaderboardStandingResponse{Time: types.Time(time.UnixMilli(1700000000000)), Username: "s2", Ranking: 1003, Value: 6.5, TwitterHandle: "s9"})
 	testTupleDecode(t, `[1700000000000,null,null,3.5,4.5,null,null,7.5,8.5,null,null,11.5]`,
-		FundingStatistic{Time: types.Time(time.UnixMilli(1700000000000)), FlashReturnRate: 3.5, AveragePeriod: 4.5, FundingAmount: 7.5, FundingAmountUsed: 8.5, FundingBelowThreshold: 11.5})
+		FundingStatisticResponse{Time: types.Time(time.UnixMilli(1700000000000)), FlashReturnRate: 3.5, AveragePeriod: 4.5, FundingAmount: 7.5, FundingAmountUsed: 8.5, FundingBelowThreshold: 11.5})
 	testTupleDecode(t, `["UST","s1"]`,
-		CurrencySymbol{Currency: currency.UST, Symbol: "s1"})
+		CurrencySymbolResponse{Currency: currency.UST, Symbol: "s1"})
 	testTupleDecode(t, `["UST","s1"]`,
-		CurrencyLabel{Currency: currency.UST, Label: "s1"})
+		CurrencyLabelResponse{Currency: currency.UST, Label: "s1"})
 	testTupleDecode(t, `["UST","s1"]`,
-		CurrencyUnit{Currency: currency.UST, Unit: "s1"})
+		CurrencyUnitResponse{Currency: currency.UST, Unit: "s1"})
 	testTupleDecode(t, `["UST","BTC"]`,
-		CurrencyUnderlying{Currency: currency.UST, Underlying: currency.BTC})
+		CurrencyUnderlyingResponse{Currency: currency.UST, Underlying: currency.BTC})
 	testTupleDecode(t, `["UST","BTC"]`,
-		CurrencyPool{Currency: currency.UST, Pool: currency.BTC})
+		CurrencyPoolResponse{Currency: currency.UST, Pool: currency.BTC})
 	testTupleDecode(t, `["UST",["s0","s1","s2"]]`,
-		CurrencyExplorer{Currency: currency.UST, Explorer: BlockExplorer{URL: "s0", AddressURL: "s1", TransactionURL: "s2"}})
+		CurrencyExplorerResponse{Currency: currency.UST, Explorer: BlockExplorer{URL: "s0", AddressURL: "s1", TransactionURL: "s2"}})
 	testTupleDecode(t, `["s0","s1","s2"]`,
 		BlockExplorer{URL: "s0", AddressURL: "s1", TransactionURL: "s2"})
 	testTupleDecode(t, `["UST",[null,1.5]]`,
-		CurrencyWithdrawalFee{Currency: currency.UST, Fee: WithdrawalFee{Amount: 1.5}})
+		CurrencyWithdrawalFeeResponse{Currency: currency.UST, Fee: WithdrawalFee{Amount: 1.5}})
 	testTupleDecode(t, `[null,1.5]`,
 		WithdrawalFee{Amount: 1.5})
 	testTupleDecode(t, `["s0",["UST","BTC"]]`,
-		TransferMethod{Method: "s0", Currencies: []currency.Code{currency.UST, currency.BTC}})
+		TransferMethodResponse{Method: "s0", Currencies: []currency.Code{currency.UST, currency.BTC}})
 	testTupleDecode(t, `["s0",[1700000000000,null,null,"3.5","4.5",null,null,null,8.5,9.5]]`,
-		PairInfoEntry{Pair: "s0", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1700000000000)), MinimumOrderSize: 3.5, MaximumOrderSize: 4.5, InitialMargin: 8.5, MinimumMargin: 9.5}})
+		PairInfoEntryResponse{Pair: "s0", Info: PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1700000000000)), MinimumOrderSize: 3.5, MaximumOrderSize: 4.5, InitialMargin: 8.5, MinimumMargin: 9.5}})
 	testTupleDecode(t, `[1700000000000,null,null,"3.5","4.5",null,null,null,8.5,9.5]`,
 		PairInfo{FirstTradeTime: types.Time(time.UnixMilli(1700000000000)), MinimumOrderSize: 3.5, MaximumOrderSize: 4.5, InitialMargin: 8.5, MinimumMargin: 9.5})
 	testTupleDecode(t, `["s0",1,1,null,null,null,null,1,1,null,null,1011]`,
-		TransferMethodStatus{Method: "s0", DepositActive: true, WithdrawalActive: true, DepositPaymentIDAllowed: true, WithdrawalPaymentIDAllowed: true, DepositConfirmationsRequired: 1011})
+		TransferMethodStatusResponse{Method: "s0", DepositActive: true, WithdrawalActive: true, DepositPaymentIDAllowed: true, WithdrawalPaymentIDAllowed: true, DepositConfirmationsRequired: 1011})
 	// Mixed flags, so a flag tagged with another's position cannot pass on both decodes
 	testTupleDecode(t, `["s0",1,0,null,null,null,null,0,1]`,
-		TransferMethodStatus{Method: "s0", DepositActive: true, WithdrawalPaymentIDAllowed: true})
+		TransferMethodStatusResponse{Method: "s0", DepositActive: true, WithdrawalPaymentIDAllowed: true})
 	testTupleDecode(t, `[0.5,1.5]`,
 		MarketAveragePriceResponse{AveragePrice: 0.5, Amount: 1.5})
 	testTupleDecode(t, `[0.5,1.5]`,
@@ -1257,53 +1263,53 @@ func TestPublicRecordsEveryPosition(t *testing.T) {
 func TestPublicRecordsDocumentedExamples(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `[388063448,1567526214876,1.918524,10682]`,
-		PublicTrade{ID: 388063448, Time: types.Time(time.UnixMilli(1567526214876)), Amount: 1.918524, Price: 10682})
+		PublicTradeResponse{ID: 388063448, Time: types.Time(time.UnixMilli(1567526214876)), Amount: 1.918524, Price: 10682})
 	testTupleDecode(t, `[124486873,1567526287066,-210.69675707,0.00034369,2]`,
-		PublicFundingTrade{ID: 124486873, Time: types.Time(time.UnixMilli(1567526287066)), Amount: -210.69675707, Rate: 0.00034369, Period: 2})
-	testTupleDecode(t, `[8744.9,2,0.45603413]`, BookLevel{Price: 8744.9, Count: 2, Amount: 0.45603413})
-	testTupleDecode(t, `[0.0003301,30,1,-3862.874]`, FundingBookLevel{Rate: 0.0003301, Period: 30, Count: 1, Amount: -3862.874})
-	testTupleDecode(t, `[34006738527,8744.9,0.25603413]`, RawBookLevel{OrderID: 34006738527, Price: 8744.9, Amount: 0.25603413})
-	testTupleDecode(t, `[645902785,30,0.0003301,-3862.874]`, RawFundingBookLevel{OfferID: 645902785, Period: 30, Rate: 0.0003301, Amount: -3862.874})
+		PublicFundingTradeResponse{ID: 124486873, Time: types.Time(time.UnixMilli(1567526287066)), Amount: -210.69675707, Rate: 0.00034369, Period: 2})
+	testTupleDecode(t, `[8744.9,2,0.45603413]`, BookLevelResponse{Price: 8744.9, Count: 2, Amount: 0.45603413})
+	testTupleDecode(t, `[0.0003301,30,1,-3862.874]`, FundingBookLevelResponse{Rate: 0.0003301, Period: 30, Count: 1, Amount: -3862.874})
+	testTupleDecode(t, `[34006738527,8744.9,0.25603413]`, RawBookLevelResponse{OrderID: 34006738527, Price: 8744.9, Amount: 0.25603413})
+	testTupleDecode(t, `[645902785,30,0.0003301,-3862.874]`, RawFundingBookLevelResponse{OfferID: 645902785, Period: 30, Rate: 0.0003301, Amount: -3862.874})
 	testTupleDecode(t, `[1678465320000,20097,20094,20097,20094,0.07870586]`,
-		Candle{Time: types.Time(time.UnixMilli(1678465320000)), Open: 20097, Close: 20094, High: 20097, Low: 20094, Volume: 0.07870586})
+		CandleResponse{Time: types.Time(time.UnixMilli(1678465320000)), Open: 20097, Close: 20094, High: 20097, Low: 20094, Volume: 0.07870586})
 	testTupleDecode(t, `[1570578776000,null,8194.95,8196.95,null,101120.80328179,null,1570579200000,0.00021817,9379,null,0,null,null,8192.823333333334,null,null,5174.01444474,null,null,null,0.0005,0.0025]`,
-		DerivativeStatus{Time: types.Time(time.UnixMilli(1570578776000)), DerivativePrice: 8194.95, SpotPrice: 8196.95, InsuranceFundBalance: 101120.80328179, NextFundingTime: types.Time(time.UnixMilli(1570579200000)), NextFundingAccrued: 0.00021817, NextFundingStep: 9379, MarkPrice: 8192.823333333334, OpenInterest: 5174.01444474, ClampMinimum: 0.0005, ClampMaximum: 0.0025})
+		DerivativeStatusResponse{Time: types.Time(time.UnixMilli(1570578776000)), DerivativePrice: 8194.95, SpotPrice: 8196.95, InsuranceFundBalance: 101120.80328179, NextFundingTime: types.Time(time.UnixMilli(1570579200000)), NextFundingAccrued: 0.00021817, NextFundingStep: 9379, MarkPrice: 8192.823333333334, OpenInterest: 5174.01444474, ClampMinimum: 0.0005, ClampMaximum: 0.0025})
 	testTupleDecode(t, `["tAMPF0:USTF0",1596124822000,null,0.896,0.771995,null,1396531.67460709,null,1596153600000,0.0001056,6,null,-0.01381344,null,null,0.7664,null,null,246502.09001551,null,null,null,0.0005,0.0025]`,
-		DerivativeStatusEntry{Key: "tAMPF0:USTF0", Status: DerivativeStatus{Time: types.Time(time.UnixMilli(1596124822000)), DerivativePrice: 0.896, SpotPrice: 0.771995, InsuranceFundBalance: 1396531.67460709, NextFundingTime: types.Time(time.UnixMilli(1596153600000)), NextFundingAccrued: 0.0001056, NextFundingStep: 6, CurrentFunding: -0.01381344, MarkPrice: 0.7664, OpenInterest: 246502.09001551, ClampMinimum: 0.0005, ClampMaximum: 0.0025}})
+		DerivativeStatusEntryResponse{Key: "tAMPF0:USTF0", Status: DerivativeStatusResponse{Time: types.Time(time.UnixMilli(1596124822000)), DerivativePrice: 0.896, SpotPrice: 0.771995, InsuranceFundBalance: 1396531.67460709, NextFundingTime: types.Time(time.UnixMilli(1596153600000)), NextFundingAccrued: 0.0001056, NextFundingStep: 6, CurrentFunding: -0.01381344, MarkPrice: 0.7664, OpenInterest: 246502.09001551, ClampMinimum: 0.0005, ClampMaximum: 0.0025}})
 	testTupleDecode(t, `["pos",158793100,1678465351520,null,"tAMPF0:USTF0",1e-08,1.0093,null,0,1,null,1.0098]`,
-		Liquidation{Type: "pos", PositionID: 158793100, Time: types.Time(time.UnixMilli(1678465351520)), Symbol: "tAMPF0:USTF0", Amount: 1e-08, BasePrice: 1.0093, IsMarketSold: true, PriceAcquired: 1.0098})
+		LiquidationResponse{Type: "pos", PositionID: 158793100, Time: types.Time(time.UnixMilli(1678465351520)), Symbol: "tAMPF0:USTF0", Amount: 1e-08, BasePrice: 1.0093, IsMarketSold: true, PriceAcquired: 1.0098})
 	// GET liquidations/hist, which sends each liquidation in an array of its own
 	testTupleDecode(t, `[[["pos",158793100,1678465351520,null,"tAMPF0:USTF0",1e-8,1.0093,null,0,1,null,1.0098]]]`,
 		liquidationsResponse{{Type: "pos", PositionID: 158793100, Time: types.Time(time.UnixMilli(1678465351520)), Symbol: "tAMPF0:USTF0", Amount: 1e-08, BasePrice: 1.0093, IsMarketSold: true, PriceAcquired: 1.0098}})
 	testTupleDecode(t, `["tMKRF0:USTF0",643.57,null,648.82,null,null,null,null,null,null,null,null,1674061204000]`,
-		HistoricTicker{Symbol: "tMKRF0:USTF0", Bid: 643.57, Ask: 648.82, Time: types.Time(time.UnixMilli(1674061204000))})
+		HistoricTickerResponse{Symbol: "tMKRF0:USTF0", Bid: 643.57, Ask: 648.82, Time: types.Time(time.UnixMilli(1674061204000))})
 	testTupleDecode(t, `[1573554000000,25957.94278561]`,
-		Stat{Time: types.Time(time.UnixMilli(1573554000000)), Value: 25957.94278561})
+		StatResponse{Time: types.Time(time.UnixMilli(1573554000000)), Value: 25957.94278561})
 	testTupleDecode(t, `[1575201600000,null,"USERNAME",1,null,null,15504971.51,null,0,"TWITTER_HANDLE"]`,
-		LeaderboardStanding{Time: types.Time(time.UnixMilli(1575201600000)), Username: "USERNAME", Ranking: 1, Value: 15504971.51, TwitterHandle: "TWITTER_HANDLE"})
+		LeaderboardStandingResponse{Time: types.Time(time.UnixMilli(1575201600000)), Username: "USERNAME", Ranking: 1, Value: 15504971.51, TwitterHandle: "TWITTER_HANDLE"})
 	testTupleDecode(t, `[1678467900000,null,null,0.00000187,68.88,null,null,3230660371.4429536,2988430006.4623938,null,null,1447938775.5708046]`,
-		FundingStatistic{Time: types.Time(time.UnixMilli(1678467900000)), FlashReturnRate: 0.00000187, AveragePeriod: 68.88, FundingAmount: 3230660371.4429536, FundingAmountUsed: 2988430006.4623938, FundingBelowThreshold: 1447938775.5708046})
+		FundingStatisticResponse{Time: types.Time(time.UnixMilli(1678467900000)), FlashReturnRate: 0.00000187, AveragePeriod: 68.88, FundingAmount: 3230660371.4429536, FundingAmountUsed: 2988430006.4623938, FundingBelowThreshold: 1447938775.5708046})
 
 	// GET conf/pub:{action}:{object}:{detail}, whose entries the configs send in a list alone in an array
 	testTupleDecode(t, `["DSH","DASH"]`,
-		CurrencySymbol{Currency: currency.NewCode("DSH"), Symbol: "DASH"})
+		CurrencySymbolResponse{Currency: currency.NewCode("DSH"), Symbol: "DASH"})
 	testTupleDecode(t, `["IOT","Mi|MegaIOTA"]`,
-		CurrencyUnit{Currency: currency.IOT, Unit: "Mi|MegaIOTA"})
+		CurrencyUnitResponse{Currency: currency.IOT, Unit: "Mi|MegaIOTA"})
 	testTupleDecode(t, `["BTCF0","BTC"]`,
-		CurrencyUnderlying{Currency: currency.NewCode("BTCF0"), Underlying: currency.BTC})
+		CurrencyUnderlyingResponse{Currency: currency.NewCode("BTCF0"), Underlying: currency.BTC})
 	testTupleDecode(t, `["AIO",["https://mainnet.aion.network","https://mainnet.aion.network/#/account/VAL","https://mainnet.aion.network/#/transaction/VAL"]]`,
-		CurrencyExplorer{Currency: currency.NewCode("AIO"), Explorer: BlockExplorer{URL: "https://mainnet.aion.network", AddressURL: "https://mainnet.aion.network/#/account/VAL", TransactionURL: "https://mainnet.aion.network/#/transaction/VAL"}})
+		CurrencyExplorerResponse{Currency: currency.NewCode("AIO"), Explorer: BlockExplorer{URL: "https://mainnet.aion.network", AddressURL: "https://mainnet.aion.network/#/account/VAL", TransactionURL: "https://mainnet.aion.network/#/transaction/VAL"}})
 	testTupleDecode(t, `["BTC",[0,0.0004]]`,
-		CurrencyWithdrawalFee{Currency: currency.BTC, Fee: WithdrawalFee{Amount: 0.0004}})
+		CurrencyWithdrawalFeeResponse{Currency: currency.BTC, Fee: WithdrawalFee{Amount: 0.0004}})
 	testTupleDecode(t, `["WIRE",["USD","GBP","HKD","EUR","SGD","TWD","CHF","JPY","CNH"]]`,
-		TransferMethod{Method: "WIRE", Currencies: []currency.Code{currency.USD, currency.GBP, currency.HKD, currency.EUR, currency.SGD, currency.TWD, currency.CHF, currency.JPY, currency.NewCode("CNH")}})
+		TransferMethodResponse{Method: "WIRE", Currencies: []currency.Code{currency.USD, currency.GBP, currency.HKD, currency.EUR, currency.SGD, currency.TWD, currency.CHF, currency.JPY, currency.NewCode("CNH")}})
 	testTupleDecode(t, `["1INCH:USD",[null,null,null,"4.0","100000.0",null,null,null,null,null,null,null]]`,
-		PairInfoEntry{Pair: "1INCH:USD", Info: PairInfo{MinimumOrderSize: 4, MaximumOrderSize: 100000}})
+		PairInfoEntryResponse{Pair: "1INCH:USD", Info: PairInfo{MinimumOrderSize: 4, MaximumOrderSize: 100000}})
 	testTupleDecode(t, `["AAVEF0:USTF0",[null,null,null,"0.02","5000.0",null,null,null,0.01,0.005]]`,
-		PairInfoEntry{Pair: "AAVEF0:USTF0", Info: PairInfo{MinimumOrderSize: 0.02, MaximumOrderSize: 5000, InitialMargin: 0.01, MinimumMargin: 0.005}})
+		PairInfoEntryResponse{Pair: "AAVEF0:USTF0", Info: PairInfo{MinimumOrderSize: 0.02, MaximumOrderSize: 5000, InitialMargin: 0.01, MinimumMargin: 0.005}})
 	// The docs' example ends before the deposit confirmations
 	testTupleDecode(t, `["RIPPLE",1,1,null,null,null,null,1,1]`,
-		TransferMethodStatus{Method: "RIPPLE", DepositActive: true, WithdrawalActive: true, DepositPaymentIDAllowed: true, WithdrawalPaymentIDAllowed: true})
+		TransferMethodStatusResponse{Method: "RIPPLE", DepositActive: true, WithdrawalActive: true, DepositPaymentIDAllowed: true, WithdrawalPaymentIDAllowed: true})
 
 	// POST calc/trade/avg, for a trading pair and for a funding currency, and POST calc/fx
 	testTupleDecode(t, `[24187.614862350845,1.123]`,

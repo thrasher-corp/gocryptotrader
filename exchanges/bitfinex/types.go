@@ -88,8 +88,8 @@ func (n *Notification[T]) Err() error {
 	return nil
 }
 
-// Order is an order on a trading pair
-type Order struct {
+// OrderResponse is an order on a trading pair
+type OrderResponse struct {
 	ID            uint64     `tuple:"0"`
 	GroupID       uint64     `tuple:"1"`
 	ClientOrderID uint64     `tuple:"2"`
@@ -126,10 +126,10 @@ type Order struct {
 }
 
 // UnmarshalJSON decodes an order array
-func (o *Order) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
+func (o *OrderResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
 
-// AccountTrade is a trade one of the account's orders made
-type AccountTrade struct {
+// AccountTradeResponse is a trade one of the account's orders made
+type AccountTradeResponse struct {
 	ID         uint64     `tuple:"0"`
 	Symbol     string     `tuple:"1"`
 	ExecutedAt types.Time `tuple:"2"`
@@ -150,10 +150,10 @@ type AccountTrade struct {
 }
 
 // UnmarshalJSON decodes an account trade array
-func (t *AccountTrade) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *AccountTradeResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
 
-// Position is a margin or derivative position
-type Position struct {
+// PositionResponse is a margin or derivative position
+type PositionResponse struct {
 	Symbol string `tuple:"0"`
 	// Status is ACTIVE or CLOSED
 	Status string `tuple:"1"`
@@ -182,7 +182,7 @@ type Position struct {
 }
 
 // UnmarshalJSON decodes a position array
-func (p *Position) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
+func (p *PositionResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
 
 // FundingFlags is the sum of a funding offer's or credit's flags. Bitfinex documents some endpoints' flags as an
 // object reserved for future parameters, which decodes as no flags
@@ -202,8 +202,8 @@ func (f *FundingFlags) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FundingOffer is an offer to provide or take funding
-type FundingOffer struct {
+// FundingOfferResponse is an offer to provide or take funding
+type FundingOfferResponse struct {
 	ID        uint64     `tuple:"0"`
 	Symbol    string     `tuple:"1"`
 	CreatedAt types.Time `tuple:"2"`
@@ -226,11 +226,11 @@ type FundingOffer struct {
 }
 
 // UnmarshalJSON decodes a funding offer array
-func (f *FundingOffer) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingOfferResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
 
-// FundingCredit is funding provided or taken that is open: a credit is used in a position, a loan is not and leaves
+// FundingCreditResponse is funding provided or taken that is open: a credit is used in a position, a loan is not and leaves
 // PositionPair empty
-type FundingCredit struct {
+type FundingCreditResponse struct {
 	ID     uint64 `tuple:"0"`
 	Symbol string `tuple:"1"`
 	// Side is 1 when the account lends, -1 when it borrows and 0 when it does both
@@ -258,10 +258,10 @@ type FundingCredit struct {
 }
 
 // UnmarshalJSON decodes a funding credit or loan array
-func (f *FundingCredit) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingCreditResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
 
-// AccountFundingTrade is a trade one of the account's funding offers made
-type AccountFundingTrade struct {
+// AccountFundingTradeResponse is a trade one of the account's funding offers made
+type AccountFundingTradeResponse struct {
 	ID        uint64     `tuple:"0"`
 	Symbol    string     `tuple:"1"`
 	CreatedAt types.Time `tuple:"2"`
@@ -277,7 +277,9 @@ type AccountFundingTrade struct {
 }
 
 // UnmarshalJSON decodes an account funding trade array
-func (f *AccountFundingTrade) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *AccountFundingTradeResponse) UnmarshalJSON(data []byte) error {
+	return unmarshalTuple(data, f)
+}
 
 // MarginInfoBase is the account's margin summary
 type MarginInfoBase struct {
