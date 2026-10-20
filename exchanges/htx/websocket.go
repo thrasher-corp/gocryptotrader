@@ -59,11 +59,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 			return e.wsHandleSubscriptionResponse(conn, action, channel, respRaw)
 		case wsRequestOp:
-			ch, err := jsonparser.GetString(respRaw, "ch")
+			channel, err := jsonparser.GetString(respRaw, "ch")
 			if err != nil {
 				return fmt.Errorf("%w 'ch': %w", common.ErrParsingWSField, err)
 			}
-			return conn.RequireMatchWithData(ch, respRaw)
+			return conn.RequireMatchWithData(channel, respRaw)
 		}
 	}
 
@@ -96,15 +96,15 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return err
 	}
 
-	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
+	if channel, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		var s *subscription.Subscription
 		if conn == nil {
-			s = e.Websocket.GetSubscription(ch)
+			s = e.Websocket.GetSubscription(channel)
 		} else {
-			s = e.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: ch}}, connection: conn})
+			s = e.Websocket.GetSubscription(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: channel}}, connection: conn})
 		}
 		if s == nil {
-			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
+			return fmt.Errorf("%w: %q", subscription.ErrNotFound, channel)
 		}
 		return e.wsHandleChannelMsgs(ctx, s, respRaw)
 	}
@@ -218,7 +218,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	var req any
 	switch {
 	case s.Authenticated && s.Asset == asset.Spot:
-		req = wsReq{Action: op, Channel: s.QualifiedChannel}
+		req = websocketRequest{Action: op, Channel: s.QualifiedChannel}
 	case s.Authenticated && s.Asset == asset.USDTMarginedFutures:
 		contractCode := "*"
 		if s.Channel == subscription.MyAccountChannel {
@@ -234,9 +234,9 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	default:
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
-			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
+			req = websocketSubscriptionRequest{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
 		} else {
-			req = wsSubReq{ID: wsUnsubOp + ":" + s.QualifiedChannel, Unsub: s.QualifiedChannel}
+			req = websocketSubscriptionRequest{ID: wsUnsubOp + ":" + s.QualifiedChannel, Unsub: s.QualifiedChannel}
 		}
 	}
 	if op == wsSubOp {

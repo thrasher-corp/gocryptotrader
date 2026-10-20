@@ -24,6 +24,15 @@ import (
 
 func TestWSHandleCandleMsg(t *testing.T) {
 	t.Parallel()
+	t.Run("timestamp overflow", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+		err := h.wsHandleCandleMsg(t.Context(), &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}}, []byte(`{"tick":{"id":9223372036854775808}}`))
+		require.ErrorIs(t, err, common.ErrInvalidResponse, "an unrepresentable candle timestamp must be rejected before dispatch")
+		assert.Empty(t, h.Websocket.DataHandler.C, "invalid timestamps should not dispatch a candle")
+	})
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})

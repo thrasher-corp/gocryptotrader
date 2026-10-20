@@ -2,6 +2,7 @@ package htx
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -30,14 +31,17 @@ func TestWSHandleMyAccountMsg(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 3, "Must see correct number of records")
-	exp := []WsAccountUpdate{
-		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000)), SeqNum: 1},
-		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167)), SeqNum: 2},
-		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade", SeqNum: 3},
+	exp := []WebsocketAccountUpdate{
+		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000))},
+		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167))},
+		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade"},
 	}
-	for _, ex := range exp {
+	for i, ex := range exp {
+		var err error
+		ex.SequenceNumber, err = types.NewPreciseNumberFromString(strconv.Itoa(i + 1))
+		require.NoError(t, err, "expected sequence number must parse")
 		uAny := <-e.Websocket.DataHandler.C
-		u, ok := uAny.Data.(WsAccountUpdate)
+		u, ok := uAny.Data.(WebsocketAccountUpdate)
 		require.True(t, ok, "Must get the correct type from DataHandler")
 		require.NotNil(t, u)
 		assert.Equal(t, ex, u)

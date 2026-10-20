@@ -10,13 +10,13 @@ import (
 // V5AssetsDeductionCurrenciesResponse stores currencies supported for fee deduction.
 type V5AssetsDeductionCurrenciesResponse struct {
 	V5Response
-	Data V5AssetsDeductionCurrenciesResponseData `json:"data"`
+	Data V5DeductionCurrencies `json:"data"`
 }
 
 // V5MultiAssetsMarginCurrenciesResponse stores currencies supported by multi-assets margin.
 type V5MultiAssetsMarginCurrenciesResponse struct {
 	V5Response
-	Data V5MultiAssetsMarginCurrenciesResponseData `json:"data"`
+	Data V5MarginCurrencies `json:"data"`
 }
 
 // V5EliteRatioResponse stores elite-trader long/short ratios.
@@ -178,12 +178,12 @@ type V5Settlement struct {
 	SettlementPrice types.Number `json:"settlement_price"`
 }
 
-// V5AssetsDeductionCurrenciesResponseData contains data fields from V5AssetsDeductionCurrenciesResponse.
-type V5AssetsDeductionCurrenciesResponseData struct {
+// V5DeductionCurrencies contains data fields from V5AssetsDeductionCurrenciesResponse.
+type V5DeductionCurrencies struct {
 	Currencies []string `json:"currency"`
 }
 
-// V5MultiAssetsMarginCurrenciesResponseData contains data fields from V5MultiAssetsMarginCurrenciesResponse.
-type V5MultiAssetsMarginCurrenciesResponseData struct {
+// V5MarginCurrencies contains data fields from V5MultiAssetsMarginCurrenciesResponse.
+type V5MarginCurrencies struct {
 	Currencies []string `json:"multi_assets"`
 }

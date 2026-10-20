@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -347,7 +348,7 @@ func TestUnmarshalResponse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			response := new(FFinancialRecords)
+			response := new(FuturesFinancialRecordsResponse)
 			var result any = response
 			if tc.nilResult {
 				result = nil
@@ -379,8 +380,8 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 	resp, err := h.GetCurrenciesIncludingChains(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetCurrenciesIncludingChains must not error")
 	require.Len(t, resp, 1, "one currency must decode")
-	require.Len(t, resp[0].ChainData, 1, "one chain must decode")
-	assert.Equal(t, 280000.0, resp[0].ChainData[0].MaximumWithdrawAmount.Float64(), "maximum withdrawal amount should decode")
+	require.Len(t, resp[0].Chains, 1, "one chain must decode")
+	assert.Equal(t, 280000.0, resp[0].Chains[0].MaximumWithdrawAmount.Float64(), "maximum withdrawal amount should decode")
 }
 
 func TestGetMarginRates(t *testing.T) {
@@ -392,7 +393,7 @@ func TestGetMarginRates(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSpotKline(t.Context(), KlinesRequestParams{Symbol: btcusdtPair, Period: "1min"})
+	_, err := e.GetSpotKline(t.Context(), KlinesRequest{Symbol: btcusdtPair, Period: "1min"})
 	require.NoError(t, err)
 }
 
@@ -405,9 +406,9 @@ func TestGetMarketDetailMerged(t *testing.T) {
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepth(t.Context(),
-		&OrderBookDataRequestParams{
+		&OrderBookRequest{
 			Symbol: btcusdtPair,
-			Type:   OrderBookDataRequestParamsTypeStep1,
+			Type:   OrderBookDepthTypeStep1,
 		})
 	require.NoError(t, err)
 }
@@ -437,7 +438,7 @@ func TestGetTradeHistory(t *testing.T) {
 		got, err := h.GetTradeHistory(t.Context(), btcusdtPair, 50)
 		require.NoError(t, err, "GetTradeHistory must not error")
 		require.Len(t, got, 1, "GetTradeHistory must return the decoded trade history")
-		assert.Equal(t, int64(123), got[0].ID, "trade history ID should match")
+		assert.Equal(t, uint64(123), got[0].ID, "trade history ID should match")
 	})
 }
 
@@ -497,17 +498,17 @@ func TestGetAggregatedBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderPlace, `{"status":"ok","data":"123"}`, nil)
-	arg := SpotNewOrderRequestParams{
+	arg := SpotOrderRequest{
 		Symbol:    btcusdtPair,
 		AccountID: 123,
 		Amount:    0.01,
 		Price:     10.1,
-		Type:      SpotNewOrderRequestTypeBuyLimit,
+		Type:      SpotOrderTypeBuyLimit,
 	}
 
 	orderID, err := h.SpotNewOrder(t.Context(), &arg)
 	require.NoError(t, err, "SpotNewOrder must not error")
-	assert.Equal(t, int64(123), orderID, "SpotNewOrder should return the decoded order ID")
+	assert.Equal(t, uint64(123), orderID, "SpotNewOrder should return the decoded order ID")
 }
 
 func TestCancelExistingOrder(t *testing.T) {
@@ -517,12 +518,12 @@ func TestCancelExistingOrder(t *testing.T) {
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxOrderCancel, "123"), `{"status":"ok","data":"123"}`, nil)
 		orderID, err := h.CancelExistingOrder(t.Context(), 123)
 		require.NoError(t, err, "CancelExistingOrder must not error")
-		assert.Equal(t, int64(123), orderID, "CancelExistingOrder should return the decoded order ID")
+		assert.Equal(t, uint64(123), orderID, "CancelExistingOrder should return the decoded order ID")
 	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		const nonexistentOrderID = int64(9223372036854775807)
+		const nonexistentOrderID = uint64(9223372036854775807)
 		_, err := e.CancelExistingOrder(t.Context(), nonexistentOrderID)
 		require.Error(t, err, "CancelExistingOrder must reject a nonexistent live order")
 	})
@@ -689,62 +690,63 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name      string
-		count     int
-		failFirst bool
-		nullFirst bool
+		name             string
+		orderCount       int
+		clientOrderCount int
+		response         string
+		wantError        error
 	}{
-		{name: "single", count: 1}, {name: "limit", count: 50}, {name: "chunked", count: 51}, {name: "multiple chunks", count: 101}, {name: "partial HTTP failure", count: 51, failFirst: true}, {name: "partial empty reply", count: 51, nullFirst: true},
+		{name: "missing identifiers", wantError: order.ErrOrderIDNotSet},
+		{name: "mixed identifiers", orderCount: 1, clientOrderCount: 1, wantError: errMixedOrderIdentifiers},
+		{name: "too many order IDs", orderCount: 51, wantError: errCancelOrderLimitExceeded},
+		{name: "too many client order IDs", clientOrderCount: 51, wantError: errCancelOrderLimitExceeded},
+		{name: "single order ID", orderCount: 1},
+		{name: "maximum order IDs", orderCount: 50},
+		{name: "single client order ID", clientOrderCount: 1},
+		{name: "maximum client order IDs", clientOrderCount: 50},
+		{name: "empty response", orderCount: 1, response: `{"status":"ok","data":null}`, wantError: errEmptyResult},
+		{name: "exchange rejection", orderCount: 1, response: `{"status":"error","err-code":"bad-request","err-msg":"rejected"}`, wantError: request.ErrAuthRequestFailed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			orderIDs := make([]string, tc.orderCount)
+			for i := range orderIDs {
+				orderIDs[i] = strconv.Itoa(i + 1)
+			}
+			clientOrderIDs := make([]string, tc.clientOrderCount)
+			for i := range clientOrderIDs {
+				clientOrderIDs[i] = "client-" + strconv.Itoa(i+1)
+			}
+			response := tc.response
+			if response == "" {
+				response = `{"status":"ok","data":{"success":["ack"],"failed":[]}}`
+			}
 			calls := 0
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderCancelBatch, `{"status":"ok","data":{"success":["ack"],"failed":[]}}`, func(r *http.Request) {
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderCancelBatch, response, func(r *http.Request) {
 				calls++
 				var payload map[string][]string
-				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
-				require.Len(t, payload, 1, "only one identifier kind may be sent")
-				for _, ids := range payload {
-					assert.LessOrEqual(t, len(ids), 50)
-					assert.NotEmpty(t, ids)
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "request body must decode")
+				require.Len(t, payload, 1, "request must contain one identifier kind")
+				if tc.orderCount > 0 {
+					assert.Equal(t, orderIDs, payload["order-ids"], "request should retain every order ID")
+				} else {
+					assert.Equal(t, clientOrderIDs, payload["client-order-ids"], "request should retain every client order ID")
 				}
 			})
-			// The transport also lets the fixture return an error or empty result for the first batch.
-			if tc.failFirst || tc.nullFirst {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					calls++
-					if calls == 1 {
-						if tc.failFirst {
-							w.WriteHeader(http.StatusBadRequest)
-							return
-						}
-						_, err := w.Write([]byte(`{"status":"ok","data":null}`))
-						assert.NoError(t, err)
-						return
-					}
-					_, err := w.Write([]byte(`{"status":"ok","data":{"success":["ack"],"failed":[]}}`))
-					assert.NoError(t, err)
-				}))
-				t.Cleanup(server.Close)
-				require.NoError(t, h.API.Endpoints.SetRunningURL("RestSpotURL", server.URL))
-			}
-			ids := make([]string, tc.count)
-			for i := range ids {
-				ids[i] = strconv.Itoa(i + 1)
-			}
-			result, err := h.CancelOrderBatch(t.Context(), ids, []string{"client"})
-			if tc.failFirst || tc.nullFirst {
-				require.Error(t, err)
+			result, err := h.CancelOrderBatch(t.Context(), orderIDs, clientOrderIDs)
+			if tc.wantError != nil {
+				require.ErrorIs(t, err, tc.wantError, "cancellation must return the expected error")
+				assert.Nil(t, result, "failed request should not return a result")
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, err, "cancellation must succeed")
+				require.NotNil(t, result, "successful request must return a result")
+				assert.Equal(t, []string{"ack"}, result.Success, "result should retain the exchange acknowledgement")
 			}
-			require.NotNil(t, result)
-			wantCalls := (tc.count+49)/50 + 1
-			assert.Equal(t, wantCalls, calls)
-			if tc.failFirst || tc.nullFirst {
-				wantCalls--
+			wantCalls := 0
+			if tc.wantError == nil || tc.response != "" {
+				wantCalls = 1
 			}
-			assert.Len(t, result.Success, wantCalls, "successful later batches should be retained")
+			assert.Equal(t, wantCalls, calls, "cancellation should send exactly one request after validation")
 		})
 	}
 }

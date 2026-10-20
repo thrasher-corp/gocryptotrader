@@ -2,8 +2,10 @@ package htx
 
 import (
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,9 +173,13 @@ func TestGetSwapAssetsAndPositions(t *testing.T) {
 
 func TestGetSwapAllSubAccAssets(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", emptySuccessResponse, nil)
-	_, err := h.GetSwapAllSubAccAssets(t.Context(), ethusdPair)
-	require.NoError(t, err, "GetSwapAllSubAccAssets must not error")
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", `{"status":"ok","data":[{"sub_uid":123,"list":[{"symbol":"ETH","contract_code":"ETH-USD","margin_balance":0.125}]}]}`, nil)
+	response, err := h.GetSwapAllSubAccAssets(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapAllSubAccAssets must decode decimal balances")
+	require.Len(t, response.Data, 1, "response must contain the subaccount")
+	require.Len(t, response.Data[0].List, 1, "subaccount must contain its balance")
+	assert.Equal(t, uint64(123), response.Data[0].SubUID, "subaccount ID should decode")
+	assert.Equal(t, 0.125, response.Data[0].List[0].MarginBalance, "fractional margin balance should retain its decimals")
 }
 
 func TestGetSubAccPositionInfo(t *testing.T) {
@@ -284,7 +290,7 @@ func TestPlaceSwapOrders(t *testing.T) {
 func TestPlaceSwapBatchOrders(t *testing.T) {
 	t.Parallel()
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", emptySuccessResponse, nil)
-	req := BatchOrderRequestType{Data: []batchOrderData{{
+	req := SwapBatchOrderRequest{Data: []SwapBatchOrder{{
 		ContractCode:   "ETH-USD",
 		Price:          5,
 		Volume:         1,
@@ -295,17 +301,49 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 	}}}
 	_, err := h.PlaceSwapBatchOrders(t.Context(), req)
 	require.NoError(t, err, "PlaceSwapBatchOrders must not error")
-	_, err = h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{})
+	_, err = h.PlaceSwapBatchOrders(t.Context(), SwapBatchOrderRequest{})
 	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject an empty batch")
-	_, err = h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{Data: make([]batchOrderData, 11)})
+	_, err = h.PlaceSwapBatchOrders(t.Context(), SwapBatchOrderRequest{Data: make([]SwapBatchOrder, 11)})
 	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject more than ten orders")
 }
 
 func TestCancelSwapOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", emptySuccessResponse, nil)
-	_, err := h.CancelSwapOrder(t.Context(), "test123", "", ethusdPair)
-	require.NoError(t, err, "CancelSwapOrder must not error")
+	for _, tc := range []struct {
+		name           string
+		orderIDs       string
+		clientOrderIDs string
+		wantErr        error
+	}{
+		{name: "order ID", orderIDs: "123"},
+		{name: "client order ID", clientOrderIDs: "123"},
+		{name: "ten order IDs", orderIDs: strings.Repeat("123,", 9) + "123"},
+		{name: "ten client order IDs", clientOrderIDs: strings.Repeat("123,", 9) + "123"},
+		{name: "missing IDs", wantErr: order.ErrOrderIDNotSet},
+		{name: "mixed IDs", orderIDs: "123", clientOrderIDs: "456", wantErr: errMixedOrderIdentifiers},
+		{name: "eleven order IDs", orderIDs: strings.Repeat("123,", 10) + "123", wantErr: errCancelOrderLimitExceeded},
+		{name: "eleven client order IDs", clientOrderIDs: strings.Repeat("123,", 10) + "123", wantErr: errCancelOrderLimitExceeded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			calls := make(chan struct{}, 1)
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", emptySuccessResponse, func(r *http.Request) {
+				calls <- struct{}{}
+				var payload map[string]string
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "cancellation body must decode")
+				assert.Equal(t, tc.orderIDs, payload["order_id"], "order IDs should be retained")
+				assert.Equal(t, tc.clientOrderIDs, payload["client_order_id"], "client order IDs should be retained")
+			})
+			_, err := h.CancelSwapOrder(t.Context(), tc.orderIDs, tc.clientOrderIDs, ethusdPair)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "CancelSwapOrder must reject invalid identifier combinations")
+				assert.Empty(t, calls, "invalid cancellations should not send a request")
+				return
+			}
+			require.NoError(t, err, "CancelSwapOrder must accept a supported batch")
+			assert.Len(t, calls, 1, "a cancellation batch should send one request")
+		})
+	}
 }
 
 func TestCancelAllSwapOrders(t *testing.T) {
@@ -317,11 +355,43 @@ func TestCancelAllSwapOrders(t *testing.T) {
 
 func TestPlaceLightningCloseOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", emptySuccessResponse, nil)
-	_, err := h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "lightning", 5, 1)
-	require.NoError(t, err, "PlaceLightningCloseOrder must not error")
-	_, err = h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "invalid", 5, 1)
-	require.ErrorIs(t, err, errInvalidOrderPriceType, "PlaceLightningCloseOrder must reject an invalid order price type")
+	for _, tc := range []struct {
+		name          string
+		clientOrderID uint64
+		priceType     string
+		wantErr       error
+	}{
+		{name: "client order ID", clientOrderID: 1, priceType: "lightning"},
+		{name: "omitted client order ID", priceType: "lightning"},
+		{name: "maximum client order ID", clientOrderID: math.MaxInt64, priceType: "lightning"},
+		{name: "client order ID over maximum", clientOrderID: math.MaxInt64 + 1, priceType: "lightning", wantErr: errInvalidClientOrderID},
+		{name: "invalid price type", clientOrderID: 1, priceType: "invalid", wantErr: errInvalidOrderPriceType},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			calls := make(chan struct{}, 1)
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", emptySuccessResponse, func(r *http.Request) {
+				calls <- struct{}{}
+				var payload map[string]json.RawMessage
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "lightning close body must decode")
+				if tc.clientOrderID == 0 {
+					assert.NotContains(t, payload, "client_order_id", "zero client order ID should be omitted")
+					return
+				}
+				var clientOrderID uint64
+				require.NoError(t, json.Unmarshal(payload["client_order_id"], &clientOrderID), "client order ID must decode without precision loss")
+				assert.Equal(t, tc.clientOrderID, clientOrderID, "client order ID should be retained")
+			})
+			_, err := h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", tc.priceType, 5, tc.clientOrderID)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "PlaceLightningCloseOrder must reject invalid parameters")
+				assert.Empty(t, calls, "invalid lightning close orders should not send a request")
+				return
+			}
+			require.NoError(t, err, "PlaceLightningCloseOrder must accept valid parameters")
+			assert.Len(t, calls, 1, "lightning close should send one request")
+		})
+	}
 }
 
 func TestGetSwapOrderInfo(t *testing.T) {
@@ -351,8 +421,8 @@ func TestGetSwapOrderHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
 	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapOrderHistory must reject lookbacks over two days")
-	_, err = e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", nil, -1, 0, 0)
-	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapOrderHistory must reject negative lookbacks")
+	_, err = e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", nil, 3, 0, 0)
+	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapOrderHistory must reject a three-day lookback")
 }
 
 func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
@@ -368,7 +438,7 @@ func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 	resp, err := h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, endTime, 11, 50)
 	require.NoError(t, err, "GetSwapOrderHistoryByTimeRange must not error")
 	require.Len(t, resp.Data.Orders, 1, "decoded order history must be returned")
-	assert.Equal(t, int64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
+	assert.Equal(t, uint64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
 
 	var requestBody map[string]any
 	require.NoError(t, json.Unmarshal(<-body, &requestBody), "request body must decode")

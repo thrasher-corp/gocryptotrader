@@ -2,6 +2,7 @@ package htx
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -101,6 +102,10 @@ func (e *Exchange) V5UniversalTransfer(ctx context.Context, req *V5UniversalTran
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
+	if req.Amount > math.MaxInt64 {
+		return nil, errInvalidTransferAmount
+	}
+
 	var resp *V5UniversalTransferResponse
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", nil, req, &resp); err != nil {
 		return resp, err

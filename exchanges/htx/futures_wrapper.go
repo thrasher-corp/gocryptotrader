@@ -60,7 +60,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
 
-	const pageSize = int64(50)
+	const pageSize = uint64(50)
 	result := &fundingrate.HistoricalRates{
 		Exchange:  e.Name,
 		Asset:     r.Asset,
@@ -85,7 +85,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 					StartTime:    window.start,
 					EndTime:      window.end,
 					From:         from,
-					Limit:        uint64(pageSize),
+					Limit:        pageSize,
 					Direction:    "next",
 				})
 				if err != nil {
@@ -115,7 +115,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 		}
 	} else {
-		for page := int64(1); ; page++ {
+		for page := uint64(1); ; page++ {
 			history, err := e.GetHistoricalFundingRatesForPair(ctx, r.Pair, pageSize, page)
 			if err != nil {
 				return nil, err
@@ -177,7 +177,7 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 		if marginType != margin.Isolated && marginType != margin.Unset {
 			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
 		}
-		return e.FSwitchLeverage(ctx, pair.Base, leverage)
+		return e.FuturesSwitchLeverage(ctx, pair.Base, leverage)
 	case asset.CoinMarginedFutures:
 		if marginType != margin.Isolated && marginType != margin.Unset {
 			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
@@ -288,7 +288,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		if marginType != margin.Isolated && marginType != margin.Unset {
 			return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
 		}
-		account, err := e.FGetAccountInfo(ctx, pair.Base)
+		account, err := e.FuturesGetAccountInfo(ctx, pair.Base)
 		if err != nil {
 			return 0, err
 		}

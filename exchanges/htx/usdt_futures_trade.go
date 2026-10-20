@@ -56,8 +56,8 @@ func (e *Exchange) CancelV5Order(ctx context.Context, code currency.Pair, orderI
 
 // CancelV5BatchOrders cancels multiple USDT-margined orders.
 func (e *Exchange) CancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOrdersRequest) (*V5BatchOrderResponse, error) {
-	if req == nil {
-		return nil, common.ErrNilPointer
+	if err := req.Validate(); err != nil {
+		return nil, err
 	}
 	var resp *V5BatchOrderResponse
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", nil, req, &resp); err != nil {

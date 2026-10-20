@@ -154,7 +154,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 	}
 	switch sub.Channel {
 	case subscription.MyOrdersChannel:
-		response := new(FWsSubOrderData)
+		response := new(FuturesWebsocketSubOrder)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 		}
 		return e.Websocket.DataHandler.Send(ctx, &detail)
 	case subscription.MyTradesChannel:
-		response := new(FWsSubMatchOrderData)
+		response := new(FuturesWebsocketSubMatchOrder)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 			volume:         response.Volume,
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
-			leverage:       response.LeverageRate,
+			leverage:       float64(response.LeverageRate),
 			createdAt:      response.CreatedAt,
 			reduceOnly:     response.Offset == orderOffsetClose,
 		})
@@ -214,7 +214,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 		}
 		return e.Websocket.DataHandler.Send(ctx, &detail)
 	case subscription.MyAccountChannel:
-		response := new(FWsSubEquityUpdates)
+		response := new(FuturesWebsocketSubEquityUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -236,13 +236,13 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case wsPositionsChannel:
-		response := new(FWsSubPositionUpdates)
+		response := new(FuturesWebsocketSubPositionUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, response)
 	case wsTriggerOrdersChannel:
-		response := new(FWsSubTriggerOrderUpdates)
+		response := new(FuturesWebsocketSubTriggerOrderUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -277,27 +277,21 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 	}
 	orderID := data.orderIDString
 	if orderID == "" {
-		orderID = strconv.FormatInt(data.orderID, 10)
+		orderID = strconv.FormatUint(data.orderID, 10)
 	}
 	var clientOrderID string
 	if data.clientOrderID != 0 {
-		clientOrderID = strconv.FormatInt(data.clientOrderID, 10)
+		clientOrderID = strconv.FormatUint(data.clientOrderID, 10)
 	}
-	var createdAt, cancelledAt time.Time
-	if data.createdAt != 0 {
-		createdAt = time.UnixMilli(data.createdAt)
-	}
-	if data.cancelledAt != 0 {
-		cancelledAt = time.UnixMilli(data.cancelledAt)
-	}
+	createdAt, cancelledAt := data.createdAt.Time(), data.cancelledAt.Time()
 	trades := make([]order.TradeHistory, 0, len(data.trades))
 	for _, fill := range data.trades {
 		id := fill.ID
 		if id == "" {
-			id = strconv.FormatInt(fill.TradeID, 10)
+			id = strconv.FormatUint(fill.TradeID, 10)
 		}
 		feeAsset := fill.FeeAsset
-		if feeAsset == "" {
+		if feeAsset.IsEmpty() {
 			feeAsset = data.feeAsset
 		}
 		trades = append(trades, order.TradeHistory{
@@ -306,9 +300,9 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 			Price:     fill.TradePrice,
 			Amount:    fill.TradeVolume,
 			Fee:       -fill.TradeFee,
-			FeeAsset:  feeAsset,
+			FeeAsset:  feeAsset.String(),
 			Total:     fill.TradeTurnover,
-			Timestamp: time.UnixMilli(fill.CreatedAt),
+			Timestamp: fill.CreatedAt.Time(),
 			IsMaker:   strings.EqualFold(fill.Role, "maker"),
 			Type:      orderVars.OrderType,
 			Side:      orderVars.Side,
@@ -334,7 +328,7 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 		Cost:                 data.tradeTurnover,
 		CostAsset:            currency.USD,
 		Fee:                  -data.fee,
-		FeeAsset:             currency.NewCode(data.feeAsset),
+		FeeAsset:             data.feeAsset,
 		Leverage:             data.leverage,
 		ReduceOnly:           data.reduceOnly,
 		AssetType:            data.asset,

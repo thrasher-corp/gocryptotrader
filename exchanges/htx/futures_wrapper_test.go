@@ -353,7 +353,7 @@ func TestGetLeverage(t *testing.T) {
 	}{
 		{
 			name: "delivery futures", item: asset.Futures, pair: btccwPair, marginType: margin.Isolated,
-			endpoint: exchange.RestFutures, method: http.MethodPost, path: fAccountData,
+			endpoint: exchange.RestFutures, method: http.MethodPost, path: futuresAccount,
 			response: `{"status":"ok","data":[{"symbol":"BTC","lever_rate":5}]}`,
 		},
 		{
@@ -427,7 +427,7 @@ func TestGetLeverage(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetLeverage must reject unsupported assets")
 	_, err = h.GetLeverage(t.Context(), asset.Futures, currency.EMPTYPAIR, margin.Unset, order.UnknownSide)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage must reject empty pairs")
-	_, err = newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fAccountData, `{"status":"ok","data":[]}`, nil).
+	_, err = newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresAccount, `{"status":"ok","data":[]}`, nil).
 		GetLeverage(t.Context(), asset.Futures, btccwPair, margin.Isolated, order.UnknownSide)
 	require.ErrorIs(t, err, futures.ErrPositionNotFound, "GetLeverage must report missing leverage data")
 }

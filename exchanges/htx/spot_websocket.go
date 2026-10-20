@@ -3,6 +3,7 @@ package htx
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -45,17 +46,21 @@ func (e *Exchange) wsHandleCandleMsg(ctx context.Context, s *subscription.Subscr
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	var c WsKline
+	var c WebsocketKline
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
+	if c.Tick.ID > math.MaxInt64 {
+		return fmt.Errorf("%w: candle timestamp exceeds the signed Unix time range", common.ErrInvalidResponse)
+	}
+
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Exchange: e.Name,
 		Asset:    s.Asset,
 		Pair:     s.Pairs[0],
 		Interval: s.Interval,
 		Candles: []kline.Candle{{
-			Time:   time.Unix(c.Tick.ID, 0).UTC(),
+			Time:   time.Unix(int64(c.Tick.ID), 0).UTC(),
 			Open:   c.Tick.Open,
 			Close:  c.Tick.Close,
 			High:   c.Tick.High,
@@ -74,7 +79,7 @@ func (e *Exchange) wsHandleAllTradesMsg(ctx context.Context, s *subscription.Sub
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	var t WsTrade
+	var t WebsocketTrade
 	if err := json.Unmarshal(respRaw, &t); err != nil {
 		return err
 	}
@@ -116,7 +121,7 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	var wsTicker WsTick
+	var wsTicker WebsocketTick
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
@@ -162,7 +167,7 @@ func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Sub
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	var update WsDepth
+	var update WebsocketDepth
 	if err := json.Unmarshal(respRaw, &update); err != nil {
 		return err
 	}

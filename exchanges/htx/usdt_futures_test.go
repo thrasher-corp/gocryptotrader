@@ -13,12 +13,29 @@ import (
 
 func TestGetLinearSwapMarkets(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapMarkets, `{"status":"ok","data":[{"contract_code":"BTC-USDT"}]}`, nil)
-	resp, err := h.GetLinearSwapMarkets(t.Context(), btcusdtPair, "cross", "swap", "futures")
-	require.NoError(t, err, "GetLinearSwapMarkets must not error")
-	require.Len(t, resp, 1, "decoded markets must be returned")
-	assert.Equal(t, "BTC-USDT", resp[0].ContractCode, "contract code should decode")
+	for _, tc := range []struct {
+		name, date string
+		expected   time.Time
+		wantErr    bool
+	}{
+		{name: "dated contract", date: "20211203", expected: time.Date(2021, time.December, 3, 0, 0, 0, 0, time.UTC)},
+		{name: "perpetual", date: ""},
+		{name: "malformed date", date: "20211303", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapMarkets, `{"status":"ok","data":[{"contract_code":"BTC-USDT","delivery_date":"`+tc.date+`"}]}`, nil)
+			resp, err := h.GetLinearSwapMarkets(t.Context(), btcusdtPair, "cross", "swap", "futures")
+			if tc.wantErr {
+				require.Error(t, err, "GetLinearSwapMarkets must reject a malformed date")
+				return
+			}
+			require.NoError(t, err, "GetLinearSwapMarkets must decode contract metadata")
+			require.Len(t, resp, 1, "decoded markets must be returned")
+			assert.Equal(t, "BTC-USDT", resp[0].ContractCode, "contract code should decode")
+			assert.Equal(t, tc.expected, resp[0].DeliveryDate.Time(), "delivery date should follow the documented date or empty perpetual representation")
+		})
+	}
 }
 
 func TestGetLinearSwapMarketDepth(t *testing.T) {
@@ -26,7 +43,7 @@ func TestGetLinearSwapMarketDepth(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapMarketDepth, `{"status":"ok","tick":{"id":123}}`, nil)
 	resp, err := h.GetLinearSwapMarketDepth(t.Context(), btcusdtPair, "step0")
 	require.NoError(t, err, "GetLinearSwapMarketDepth must not error")
-	assert.Equal(t, int64(123), resp.Tick.ID, "depth ID should decode")
+	assert.Equal(t, uint64(123), resp.Tick.ID, "depth ID should decode")
 }
 
 func TestGetLinearSwapMarketOverview(t *testing.T) {
@@ -34,7 +51,7 @@ func TestGetLinearSwapMarketOverview(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapMarketOverview, `{"status":"ok","ch":"market.BTC-USDT.detail","tick":{"id":123}}`, nil)
 	resp, err := h.GetLinearSwapMarketOverview(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetLinearSwapMarketOverview must not error")
-	assert.Equal(t, int64(123), resp.Tick.ID, "overview ID should decode")
+	assert.Equal(t, uint64(123), resp.Tick.ID, "overview ID should decode")
 }
 
 func TestGetLinearSwapKlineData(t *testing.T) {
@@ -55,5 +72,5 @@ func TestGetLinearSwapBatchTrades(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapBatchTrades, `{"status":"ok","id":123,"data":[{"id":1,"data":[{"id":2,"price":10}]}]}`, nil)
 	resp, err := h.GetLinearSwapBatchTrades(t.Context(), btcusdtPair, 10)
 	require.NoError(t, err, "GetLinearSwapBatchTrades must not error")
-	assert.Equal(t, int64(123), resp.ID, "batch ID should decode")
+	assert.Equal(t, uint64(123), resp.ID, "batch ID should decode")
 }

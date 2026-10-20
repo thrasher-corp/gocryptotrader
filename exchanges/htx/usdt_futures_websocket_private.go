@@ -24,31 +24,31 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 	}
 	switch sub.Channel {
 	case subscription.MyOrdersChannel:
-		response := new(V5WsOrderUpdate)
+		response := new(V5WebsocketOrderUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
 	case wsTradeUpdatesChannel:
-		response := new(V5WsTradeUpdate)
+		response := new(V5WebsocketTradeUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
 	case wsExecutionDetailsChannel:
-		response := new(V5WsTradeDetailUpdate)
+		response := new(V5WebsocketTradeDetailUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
 	case wsPositionsChannel:
-		response := new(V5WsPositionUpdate)
+		response := new(V5WebsocketPositionUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, response)
 	case subscription.MyAccountChannel:
-		response := new(V5WsAccountUpdate)
+		response := new(V5WebsocketAccountUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -71,7 +71,7 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case subscription.MyTradesChannel:
-		response := new(V5WsMatchOrderUpdate)
+		response := new(V5WebsocketMatchOrderUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -81,16 +81,16 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 			if contractCode == "" {
 				contractCode = response.ContractCode
 			}
-			match.V5WsOrderData.TradeVolume = match.TotalTradeVolume
-			match.V5WsOrderData.TradeAveragePrice = match.TradePrice
-			match.V5WsOrderData.UpdatedTime = match.MatchTime
-			if err := e.sendV5WSOrderUpdate(ctx, sub, contractCode, &match.V5WsOrderData); err != nil {
+			match.V5WebsocketOrder.TradeVolume = match.TotalTradeVolume
+			match.V5WebsocketOrder.TradeAveragePrice = match.TradePrice
+			match.V5WebsocketOrder.UpdatedTime = match.MatchTime
+			if err := e.sendV5WSOrderUpdate(ctx, sub, contractCode, &match.V5WebsocketOrder); err != nil {
 				return err
 			}
 		}
 		return nil
 	case wsTriggerOrdersChannel:
-		response := new(V5WsAlgoOrderUpdate)
+		response := new(V5WebsocketAlgoOrderUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 }
 
 // sendV5WSOrderUpdate converts each V5 order-notification variant into the canonical order type.
-func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Subscription, contractCode string, data *V5WsOrderData) error {
+func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Subscription, contractCode string, data *V5WebsocketOrder) error {
 	var created, updated time.Time
 	if data.CreatedTime != 0 {
 		created = time.UnixMilli(data.CreatedTime.Int64())
@@ -109,7 +109,7 @@ func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Su
 	if data.UpdatedTime != 0 {
 		updated = time.UnixMilli(data.UpdatedTime.Int64())
 	}
-	detail, err := e.formatV5OrderDetail(&V5OrderData{
+	detail, err := e.formatV5OrderDetail(&V5Order{
 		ContractCode:      contractCode,
 		Side:              data.Side,
 		PositionSide:      data.PositionSide,
@@ -138,11 +138,11 @@ func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Su
 }
 
 // WSPlaceV5Order places an order through the dedicated V5 trade connection.
-func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5WsOrderResponse, error) {
+func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5WebsocketOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *V5WsOrderResponse
+	var resp *V5WebsocketOrderResponse
 	if err := e.sendV5TradeRequest(ctx, "place_order", req, &resp); err != nil {
 		return nil, err
 	}
@@ -150,11 +150,11 @@ func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5
 }
 
 // WSPlaceV5BatchOrders places multiple orders through the dedicated V5 trade connection.
-func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderRequest) (*V5WsBatchOrderResponse, error) {
+func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderRequest) (*V5WebsocketBatchOrderResponse, error) {
 	if len(req) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	var resp *V5WsBatchOrderResponse
+	var resp *V5WebsocketBatchOrderResponse
 	if err := e.sendV5TradeRequest(ctx, "place_batch_orders", req, &resp); err != nil {
 		return nil, err
 	}
@@ -162,11 +162,11 @@ func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderReque
 }
 
 // WSCancelV5Order cancels an order through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderRequest) (*V5WsOrderResponse, error) {
+func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderRequest) (*V5WebsocketOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *V5WsOrderResponse
+	var resp *V5WebsocketOrderResponse
 	if err := e.sendV5TradeRequest(ctx, "cancel_order", req, &resp); err != nil {
 		return nil, err
 	}
@@ -174,11 +174,11 @@ func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderReques
 }
 
 // WSCancelV5BatchOrders cancels multiple orders through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOrdersRequest) (*V5WsBatchOrderResponse, error) {
-	if req == nil {
-		return nil, common.ErrNilPointer
+func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
 	}
-	var resp *V5WsBatchOrderResponse
+	var resp *V5WebsocketBatchOrderResponse
 	if err := e.sendV5TradeRequest(ctx, "cancel_batch_orders", req, &resp); err != nil {
 		return nil, err
 	}
@@ -186,11 +186,11 @@ func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatch
 }
 
 // WSCancelAllV5Orders cancels all matching orders through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrdersRequest) (*V5WsBatchOrderResponse, error) {
+func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *V5WsBatchOrderResponse
+	var resp *V5WebsocketBatchOrderResponse
 	if err := e.sendV5TradeRequest(ctx, "cancel_all_orders", req, &resp); err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, dat
 		return err
 	}
 	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: operation, CID: cid, Data: data})
+	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WebsocketTradeRequest{Operation: operation, CID: cid, Data: data})
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, dat
 }
 
 // sendV5WSExecutionUpdates publishes executions without inventing order state or remaining volume.
-func (e *Exchange) sendV5WSExecutionUpdates(ctx context.Context, sub *subscription.Subscription, contractCode string, data []V5WsExecutionData) error {
+func (e *Exchange) sendV5WSExecutionUpdates(ctx context.Context, sub *subscription.Subscription, contractCode string, data []V5WebsocketExecution) error {
 	fills := make([]fill.Data, 0, len(data))
 	for i := range data {
 		execution := &data[i]

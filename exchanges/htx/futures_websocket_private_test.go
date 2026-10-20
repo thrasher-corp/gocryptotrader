@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestFormatLegacyFuturesWSOrder(t *testing.T) {
@@ -57,10 +58,10 @@ func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 		tradeVolume:    1,
 		tradeTurnover:  100,
 		fee:            -0.1,
-		feeAsset:       "BTC",
+		feeAsset:       currency.BTC,
 		leverage:       5,
-		createdAt:      1000,
-		cancelledAt:    2000,
+		createdAt:      types.Time(time.UnixMilli(1000)),
+		cancelledAt:    types.Time(time.UnixMilli(2000)),
 		reduceOnly:     true,
 		orderIDString:  "order-id",
 		orderPriceType: "limit",
@@ -371,9 +372,10 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 					require.NoError(t, stored.UpdateOrderFromDetail(detail), "order store must accept the charged fee")
 					assert.Equal(t, 0.003, stored.Fee, "order store should record the derivative fee")
 					sub.Channel = subscription.MyTradesChannel
-					match := []byte(`{"op":"notify","topic":"matchOrders.BTC-USD","contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"order_id_str":"order-1","volume":2,"price":110,"trade_volume":2,"trade":[{"id":"9007199254740993","trade_id":42,"trade_volume":1,"trade_price":90,"created_at":1603878749908,"role":"maker"},{"id":"9007199254740994","trade_id":42,"trade_volume":1,"trade_price":110,"created_at":1603878749909,"role":"taker"}]}`)
+					match := []byte(`{"op":"notify","topic":"matchOrders.BTC-USD","contract_code":"BTC-USD","direction":"buy","lever_rate":5,"order_type":1,"status":6,"order_id":1,"order_id_str":"order-1","volume":2,"price":110,"trade_volume":2,"trade":[{"id":"9007199254740993","trade_id":42,"trade_volume":1,"trade_price":90,"created_at":1603878749908,"role":"maker"},{"id":"9007199254740994","trade_id":42,"trade_volume":1,"trade_price":110,"created_at":1603878749909,"role":"taker"}]}`)
 					require.NoError(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, match), "fee-less match notification must pass through its asset handler")
 					matched := read()
+					assert.Equal(t, 5.0, matched.Leverage, "integer venue leverage should reach the canonical order")
 					assert.Empty(t, matched.Trades, "fee-less matches should not overwrite fee-bearing fills")
 					require.NoError(t, stored.UpdateOrderFromDetail(matched), "order management merge must accept the match update")
 					assert.Equal(t, detail.Trades, stored.Trades, "subsequent fee-less match should preserve every recorded fill field")
@@ -395,9 +397,9 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 		a        asset.Item
 		expected any
 	}{
-		{a: asset.Futures, expected: &FWsSubPositionUpdates{}},
-		{a: asset.CoinMarginedFutures, expected: &SwapWsSubPositionUpdates{}},
-		{a: asset.USDTMarginedFutures, expected: &V5WsPositionUpdate{}},
+		{a: asset.Futures, expected: &FuturesWebsocketSubPositionUpdates{}},
+		{a: asset.CoinMarginedFutures, expected: &SwapWebsocketPositionUpdates{}},
+		{a: asset.USDTMarginedFutures, expected: &V5WebsocketPositionUpdate{}},
 	} {
 		sub := &subscription.Subscription{Asset: tt.a, Channel: wsPositionsChannel, Authenticated: true}
 		require.NoErrorf(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, []byte(`{"op":"notify","topic":"orders.*","ts":1603878749908}`)), "%s private message must be dispatched", tt.a)
@@ -420,8 +422,8 @@ func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 		{name: "cancellation pending", channel: subscription.MyTradesChannel, raw: `{"status":9}`},
 		{name: "cancelling", channel: subscription.MyTradesChannel, raw: `{"status":10}`},
 		{name: "accounts", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":[{"symbol":"BTC","margin_balance":2,"margin_frozen":1,"margin_available":1}]}`},
-		{name: "positions", channel: wsPositionsChannel, expected: &FWsSubPositionUpdates{}},
-		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &FWsSubTriggerOrderUpdates{}},
+		{name: "positions", channel: wsPositionsChannel, expected: &FuturesWebsocketSubPositionUpdates{}},
+		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &FuturesWebsocketSubTriggerOrderUpdates{}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

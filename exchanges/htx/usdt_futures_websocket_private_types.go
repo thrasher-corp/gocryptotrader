@@ -4,19 +4,20 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// V5WsTradeRequest wraps an authenticated V5 trade operation.
-type V5WsTradeRequest struct {
+// V5WebsocketTradeRequest wraps an authenticated V5 trade operation.
+type V5WebsocketTradeRequest struct {
 	Operation string `json:"op"`
 	CID       string `json:"cid"`
 	Data      any    `json:"data"`
 }
 
-// V5WsRateLimit stores the rate-limit state returned by V5 trade operations.
-type V5WsRateLimit struct {
+// V5WebsocketRateLimit stores the rate-limit state returned by V5 trade operations.
+type V5WebsocketRateLimit struct {
 	Limit     types.Number `json:"limit"`
 	Interval  types.Number `json:"interval"`
 	Remaining types.Number `json:"remaining"`
@@ -25,7 +26,7 @@ type V5WsRateLimit struct {
 
 // UnmarshalJSON accepts both the object schema and the JSON-encoded string used
 // in HTX's trade acknowledgement examples.
-func (r *V5WsRateLimit) UnmarshalJSON(data []byte) error {
+func (r *V5WebsocketRateLimit) UnmarshalJSON(data []byte) error {
 	data = bytes.TrimSpace(data)
 	if len(data) > 0 && data[0] == '"' {
 		var encoded string
@@ -34,43 +35,43 @@ func (r *V5WsRateLimit) UnmarshalJSON(data []byte) error {
 		}
 		data = []byte(encoded)
 	}
-	type rateLimit V5WsRateLimit
+	type rateLimit V5WebsocketRateLimit
 	var decoded rateLimit
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return fmt.Errorf("decoding rate-limit state: %w", err)
 	}
-	*r = V5WsRateLimit(decoded)
+	*r = V5WebsocketRateLimit(decoded)
 	return nil
 }
 
-// V5WsOrderResponse stores a single V5 WebSocket trade acknowledgement.
-type V5WsOrderResponse struct {
+// V5WebsocketOrderResponse stores a single V5 WebSocket trade acknowledgement.
+type V5WebsocketOrderResponse struct {
 	V5Response
-	CID       string              `json:"cid"`
-	Data      V5OrderResponseData `json:"data"`
-	RateLimit V5WsRateLimit       `json:"rate_limit"`
+	CID       string                 `json:"cid"`
+	Data      V5OrderAcknowledgement `json:"data"`
+	RateLimit V5WebsocketRateLimit   `json:"rate_limit"`
 }
 
-// V5WsBatchOrderResponse stores batch V5 WebSocket trade acknowledgements.
-type V5WsBatchOrderResponse struct {
+// V5WebsocketBatchOrderResponse stores batch V5 WebSocket trade acknowledgements.
+type V5WebsocketBatchOrderResponse struct {
 	V5Response
-	CID       string                `json:"cid"`
-	Data      []V5OrderResponseData `json:"data"`
-	RateLimit V5WsRateLimit         `json:"rate_limit"`
+	CID       string                   `json:"cid"`
+	Data      []V5OrderAcknowledgement `json:"data"`
+	RateLimit V5WebsocketRateLimit     `json:"rate_limit"`
 }
 
-// V5WsOrderUpdate contains an authenticated V5 USDT-margined order update.
-type V5WsOrderUpdate struct {
-	Operation    string        `json:"op"`
-	Topic        string        `json:"topic"`
-	ContractCode string        `json:"contract_code"`
-	Timestamp    types.Time    `json:"ts"`
-	UID          string        `json:"uid"`
-	Data         V5WsOrderData `json:"data"`
+// V5WebsocketOrderUpdate contains an authenticated V5 USDT-margined order update.
+type V5WebsocketOrderUpdate struct {
+	Operation    string           `json:"op"`
+	Topic        string           `json:"topic"`
+	ContractCode string           `json:"contract_code"`
+	Timestamp    types.Time       `json:"ts"`
+	UID          string           `json:"uid"`
+	Data         V5WebsocketOrder `json:"data"`
 }
 
-// V5WsOrderData contains the order fields published by the V5 notification API.
-type V5WsOrderData struct {
+// V5WebsocketOrder contains the order fields published by the V5 notification API.
+type V5WebsocketOrder struct {
 	Side                 string       `json:"side"`
 	PositionSide         string       `json:"position_side"`
 	Type                 string       `json:"type"`
@@ -110,28 +111,28 @@ type V5WsOrderData struct {
 	AmendResult          string       `json:"amend_result"`
 }
 
-// V5WsTradeUpdate contains an authenticated V5 USDT-margined execution update.
-type V5WsTradeUpdate struct {
-	Operation    string              `json:"op"`
-	Topic        string              `json:"topic"`
-	ContractCode string              `json:"contract_code"`
-	Timestamp    types.Time          `json:"ts"`
-	UID          string              `json:"uid"`
-	Data         []V5WsExecutionData `json:"data"`
+// V5WebsocketTradeUpdate contains an authenticated V5 USDT-margined execution update.
+type V5WebsocketTradeUpdate struct {
+	Operation    string                 `json:"op"`
+	Topic        string                 `json:"topic"`
+	ContractCode string                 `json:"contract_code"`
+	Timestamp    types.Time             `json:"ts"`
+	UID          string                 `json:"uid"`
+	Data         []V5WebsocketExecution `json:"data"`
 }
 
-// V5WsTradeDetailUpdate contains an authenticated V5 USDT-margined execution-detail update.
-type V5WsTradeDetailUpdate struct {
-	Operation    string              `json:"op"`
-	Topic        string              `json:"topic"`
-	ContractCode string              `json:"contract_code"`
-	Timestamp    types.Time          `json:"ts"`
-	UID          string              `json:"uid"`
-	Data         []V5WsExecutionData `json:"data"`
+// V5WebsocketTradeDetailUpdate contains an authenticated V5 USDT-margined execution-detail update.
+type V5WebsocketTradeDetailUpdate struct {
+	Operation    string                 `json:"op"`
+	Topic        string                 `json:"topic"`
+	ContractCode string                 `json:"contract_code"`
+	Timestamp    types.Time             `json:"ts"`
+	UID          string                 `json:"uid"`
+	Data         []V5WebsocketExecution `json:"data"`
 }
 
-// V5WsPositionUpdate contains an authenticated V5 USDT-margined position update.
-type V5WsPositionUpdate struct {
+// V5WebsocketPositionUpdate contains an authenticated V5 USDT-margined position update.
+type V5WebsocketPositionUpdate struct {
 	Operation    string          `json:"op"`
 	Topic        string          `json:"topic"`
 	ContractCode string          `json:"contract_code"`
@@ -140,8 +141,8 @@ type V5WsPositionUpdate struct {
 	Data         json.RawMessage `json:"data"`
 }
 
-// V5WsAccountUpdate contains an authenticated V5 USDT-margined account update.
-type V5WsAccountUpdate struct {
+// V5WebsocketAccountUpdate contains an authenticated V5 USDT-margined account update.
+type V5WebsocketAccountUpdate struct {
 	Operation string           `json:"op"`
 	Topic     string           `json:"topic"`
 	Timestamp types.Time       `json:"ts"`
@@ -149,18 +150,18 @@ type V5WsAccountUpdate struct {
 	Data      V5AccountBalance `json:"data"`
 }
 
-// V5WsMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
-type V5WsMatchOrderUpdate struct {
-	Operation    string               `json:"op"`
-	Topic        string               `json:"topic"`
-	ContractCode string               `json:"contract_code"`
-	Timestamp    types.Time           `json:"ts"`
-	UID          string               `json:"uid"`
-	Data         []V5WsMatchOrderData `json:"data"`
+// V5WebsocketMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
+type V5WebsocketMatchOrderUpdate struct {
+	Operation    string                  `json:"op"`
+	Topic        string                  `json:"topic"`
+	ContractCode string                  `json:"contract_code"`
+	Timestamp    types.Time              `json:"ts"`
+	UID          string                  `json:"uid"`
+	Data         []V5WebsocketMatchOrder `json:"data"`
 }
 
-// V5WsAlgoOrderUpdate contains an authenticated V5 USDT-margined strategy-order update.
-type V5WsAlgoOrderUpdate struct {
+// V5WebsocketAlgoOrderUpdate contains an authenticated V5 USDT-margined strategy-order update.
+type V5WebsocketAlgoOrderUpdate struct {
 	Operation    string          `json:"op"`
 	Topic        string          `json:"topic"`
 	ContractCode string          `json:"contract_code"`
@@ -169,10 +170,10 @@ type V5WsAlgoOrderUpdate struct {
 	Data         json.RawMessage `json:"data"`
 }
 
-// V5WsExecutionData describes a fill rather than a complete order snapshot.
-type V5WsExecutionData struct {
+// V5WebsocketExecution describes a fill rather than a complete order snapshot.
+type V5WebsocketExecution struct {
 	TradeFee       types.Number        `json:"trade_fee"`
-	FeeCurrency    string              `json:"fee_currency"`
+	FeeCurrency    currency.Code       `json:"fee_currency"`
 	DeductionPrice types.Number        `json:"deduction_price"`
 	ContractCode   string              `json:"contract_code"`
 	ID             string              `json:"id"`
@@ -190,9 +191,9 @@ type V5WsExecutionData struct {
 	UpdatedTime    types.Time          `json:"updated_time"`
 }
 
-// V5WsMatchOrderData carries cumulative order state from the matching engine.
-type V5WsMatchOrderData struct {
-	V5WsOrderData
+// V5WebsocketMatchOrder carries cumulative order state from the matching engine.
+type V5WebsocketMatchOrder struct {
+	V5WebsocketOrder
 	ID               string       `json:"id"`
 	ContractCode     string       `json:"contract_code"`
 	TotalTradeVolume types.Number `json:"total_trade_volume"`

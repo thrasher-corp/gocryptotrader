@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -96,22 +96,23 @@ func getSignatureHost(endpoint string) (string, error) {
 }
 
 // GetMarginRates gets margin rates
-func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
-	var resp MarginRatesData
+func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesResponse, error) {
+	resp := new(MarginRatesResponse)
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp, err
+			return *resp, err
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginRates, vals, nil, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginRates, vals, nil, resp, false)
+	return *resp, err
 }
 
 // GetSpotKline returns kline data
-// KlinesRequestParams contains symbol currency.Pair, period and size
-func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]KlineItem, error) {
+// KlinesRequest contains symbol currency.Pair, period and size
+func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequest) ([]KlineItem, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -124,14 +125,10 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([
 		vals.Set("size", strconv.FormatUint(arg.Size, 10))
 	}
 
-	type response struct {
-		Response
-		Data []KlineItem `json:"data"`
-	}
+	result := new(SpotKlineResponse)
 
-	var result response
-
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), result)
+	return result.Data, err
 }
 
 // Get24HrMarketSummary returns 24hr market summary for a given market symbol
@@ -143,37 +140,36 @@ func (e *Exchange) Get24HrMarketSummary(ctx context.Context, symbol currency.Pai
 		return result, err
 	}
 	params.Set("symbol", symbolValue)
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, htx24HrMarketSummary+params.Encode(), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, htx24HrMarketSummary+params.Encode(), &result)
+	return result, err
 }
 
 // GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
 func (e *Exchange) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	var result struct {
-		Data []FuturesBatchTicker `json:"ticks"`
-	}
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchCoinMarginSwapContracts, &result)
+	result := new(FuturesBatchTickersResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchCoinMarginSwapContracts, result)
+	return result.Data, err
 }
 
 // GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
 func (e *Exchange) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	var result struct {
-		Data []FuturesBatchTicker `json:"ticks"`
-	}
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchLinearSwapContracts, &result)
+	result := new(FuturesBatchTickersResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchLinearSwapContracts, result)
+	return result.Data, err
 }
 
 // GetBatchFuturesContracts returns the tickers for futures contracts
 func (e *Exchange) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	var result struct {
-		Data []FuturesBatchTicker `json:"ticks"`
-	}
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchContracts, &result)
+	result := new(FuturesBatchTickersResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchContracts, result)
+	return result.Data, err
 }
 
 // GetTickers returns the ticker for the specified symbol
 func (e *Exchange) GetTickers(ctx context.Context) (Tickers, error) {
 	var result Tickers
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, htxMarketTickers, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxMarketTickers, &result)
+	return result, err
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
@@ -185,21 +181,16 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 	}
 	vals.Set("symbol", symbolValue)
 
-	type response struct {
-		Response
-		Tick DetailMerged `json:"tick"`
-	}
+	result := new(MarketDetailMergedResponse)
 
-	var result response
-
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), result)
 	// the tick carries no time of its own on this endpoint, only the envelope does
 	result.Tick.Timestamp = result.Timestamp
 	return result.Tick, err
 }
 
 // GetDepth returns the depth for the specified symbol
-func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (*Orderbook, error) {
+func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookRequest) (*Orderbook, error) {
 	symbolValue, err := e.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -207,17 +198,12 @@ func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams
 	vals := url.Values{}
 	vals.Set("symbol", symbolValue)
 
-	if obd.Type != OrderBookDataRequestParamsTypeNone {
+	if obd.Type != OrderBookDepthTypeNone {
 		vals.Set("type", string(obd.Type))
 	}
 
-	type response struct {
-		Response
-		Depth Orderbook `json:"tick"`
-	}
-
-	var result response
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), &result)
+	result := new(OrderBookResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), result)
 	if err != nil {
 		return nil, err
 	}
@@ -233,16 +219,10 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 	}
 	vals.Set("symbol", symbolValue)
 
-	type response struct {
-		Response
-		Tick struct {
-			Data []Trade `json:"data"`
-		} `json:"tick"`
-	}
+	result := new(TradesResponse)
 
-	var result response
-
-	return result.Tick.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), result)
+	return result.Tick.Data, err
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -261,7 +241,7 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair)
 }
 
 // GetTradeHistory returns the trades for the specified symbol
-func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, size int64) ([]TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, size uint64) ([]TradeHistory, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -270,17 +250,13 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 	vals.Set("symbol", symbolValue)
 
 	if size > 0 {
-		vals.Set("size", strconv.FormatInt(size, 10))
+		vals.Set("size", strconv.FormatUint(size, 10))
 	}
 
-	type response struct {
-		Response
-		TradeHistory []TradeHistory `json:"data"`
-	}
+	result := new(TradeHistoryResponse)
 
-	var result response
-
-	return result.TradeHistory, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), result)
+	return result.TradeHistory, err
 }
 
 // GetMarketDetail returns the ticker for the specified symbol
@@ -292,52 +268,38 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (D
 	}
 	vals.Set("symbol", symbolValue)
 
-	type response struct {
-		Response
-		Tick Detail `json:"tick"`
-	}
+	result := new(MarketDetailResponse)
 
-	var result response
-
-	return result.Tick, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), result)
+	return result.Tick, err
 }
 
 // GetSymbols returns an array of symbols supported by HTX
 func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
-	type response struct {
-		Response
-		Symbols []Symbol `json:"data"`
-	}
+	result := new(SymbolsResponse)
 
-	var result response
-
-	return result.Symbols, e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, result)
+	return result.Symbols, err
 }
 
 // GetCurrencies returns a list of currencies supported by HTX
 func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
-	type response struct {
-		Response
-		Currencies []string `json:"data"`
-	}
+	result := new(CurrenciesResponse)
 
-	var result response
-
-	return result.Currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, result)
+	return result.Currencies, err
 }
 
 // GetCurrenciesIncludingChains returns currency and chain data
-func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr currency.Code) ([]CurrenciesChainData, error) {
-	resp := struct {
-		Data []CurrenciesChainData `json:"data"`
-	}{}
+func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr currency.Code) ([]CurrencyChains, error) {
+	resp := new(CurrenciesIncludingChainsResponse)
 
 	vals := url.Values{}
 	if !curr.IsEmpty() {
 		vals.Set("currency", curr.Lower().String())
 	}
 	path := common.EncodeURLValues(htxCurrenciesReference, vals)
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -346,64 +308,50 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 
 // GetCurrentServerTime returns the HTX server time
 func (e *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
-	var result struct {
-		Response
-		Timestamp types.Time `json:"data"`
-	}
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, &result)
+	result := new(CurrentServerTimeResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, result)
 	return result.Timestamp.Time(), err
 }
 
 // GetAccounts returns the HTX user accounts
 func (e *Exchange) GetAccounts(ctx context.Context) ([]Account, error) {
-	result := struct {
-		Accounts []Account `json:"data"`
-	}{}
-	return result.Accounts, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccounts, url.Values{}, nil, &result, false)
+	result := new(AccountsResponse)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccounts, url.Values{}, nil, result, false)
+	return result.Accounts, err
 }
 
 // GetAccountBalance returns the users HTX account balance
 func (e *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
-	result := struct {
-		AccountBalanceData AccountBalance `json:"data"`
-	}{}
+	result := new(AccountBalanceResponse)
 	endpoint := fmt.Sprintf(htxAccountBalance, accountID)
 	v := url.Values{}
 	v.Set("account-id", accountID)
-	return result.AccountBalanceData.AccountBalanceDetails, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, &result, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, result, false)
+	return result.AccountBalanceData.AccountBalanceDetails, err
 }
 
 // GetAggregatedBalance returns the balances of all the sub-account aggregated.
 func (e *Exchange) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalance, error) {
-	result := struct {
-		AggregatedBalances []AggregatedBalance `json:"data"`
-	}{}
-	return result.AggregatedBalances, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
+	result := new(AggregatedBalanceResponse)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
 		http.MethodGet,
 		htxAggregatedBalance,
 		nil,
 		nil,
-		&result,
+		result,
 		false,
 	)
+	return result.AggregatedBalances, err
 }
 
 // SpotNewOrder submits an order to HTX
-func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestParams) (int64, error) {
+func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotOrderRequest) (uint64, error) {
 	symbolValue, err := e.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return 0, err
 	}
 
-	data := struct {
-		AccountID     uint64 `json:"account-id,string"`
-		ClientOrderID string `json:"client-order-id,omitempty"`
-		Amount        string `json:"amount"`
-		Price         string `json:"price"`
-		Source        string `json:"source"`
-		Symbol        string `json:"symbol"`
-		Type          string `json:"type"`
-	}{
+	data := &spotOrderSubmissionRequest{
 		AccountID:     arg.AccountID,
 		ClientOrderID: arg.ClientOrderID,
 		Amount:        strconv.FormatFloat(arg.Amount, 'f', -1, 64),
@@ -412,7 +360,7 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 	}
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
+	if arg.Type != SpotOrderTypeBuyMarket && arg.Type != SpotOrderTypeSellMarket {
 		data.Price = strconv.FormatFloat(arg.Price, 'f', -1, 64)
 	}
 
@@ -420,61 +368,47 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 		data.Source = arg.Source
 	}
 
-	result := struct {
-		OrderID int64 `json:"data,string"`
-	}{}
-	return result.OrderID, e.SendAuthenticatedHTTPRequest(ctx,
+	result := new(SpotOrderIDResponse)
+	err = e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		htxOrderPlace,
 		nil,
 		data,
-		&result,
+		result,
 		false,
 	)
+	return result.OrderID, err
 }
 
 // CancelExistingOrder cancels an order on HTX
-func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (int64, error) {
-	resp := struct {
-		OrderID int64 `json:"data,string"`
-	}{}
-	endpoint := fmt.Sprintf(htxOrderCancel, strconv.FormatInt(orderID, 10))
-	return resp.OrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, url.Values{}, nil, &resp, false)
+func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID uint64) (uint64, error) {
+	resp := new(SpotOrderIDResponse)
+	endpoint := fmt.Sprintf(htxOrderCancel, strconv.FormatUint(orderID, 10))
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, url.Values{}, nil, resp, false)
+	return resp.OrderID, err
 }
 
 // CancelOrderBatch cancels a batch of orders
 func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs []string) (*CancelOrderBatch, error) {
-	result := new(CancelOrderBatch)
-	var errs error
-	for kind, identifiers := range [][]string{orderIDs, clientOrderIDs} {
-		for _, batch := range common.Batch(identifiers, 50) {
-			resp := struct {
-				Response
-				Data *CancelOrderBatch `json:"data"`
-			}{}
-			data := struct {
-				ClientOrderIDs []string `json:"client-order-ids,omitempty"`
-				OrderIDs       []string `json:"order-ids,omitempty"`
-			}{}
-			if kind == 0 {
-				data.OrderIDs = batch
-			} else {
-				data.ClientOrderIDs = batch
-			}
-			if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, &resp, false); err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			if resp.Data == nil {
-				errs = common.AppendError(errs, errEmptyResult)
-				continue
-			}
-			result.Success = append(result.Success, resp.Data.Success...)
-			result.Failed = append(result.Failed, resp.Data.Failed...)
-		}
+	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
+		return nil, order.ErrOrderIDNotSet
 	}
-	return result, errs
+	if len(orderIDs) != 0 && len(clientOrderIDs) != 0 {
+		return nil, errMixedOrderIdentifiers
+	}
+	if len(orderIDs) > 50 || len(clientOrderIDs) > 50 {
+		return nil, fmt.Errorf("%w: maximum 50 orders", errCancelOrderLimitExceeded)
+	}
+	resp := new(CancelOrderBatchResponse)
+	data := &cancelOrderBatchRequest{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs}
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, resp, false); err != nil {
+		return nil, err
+	}
+	if resp.Data == nil {
+		return nil, errEmptyResult
+	}
+	return resp.Data, nil
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do
@@ -487,10 +421,7 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 	params.Set("account-id", accountID)
 	var result CancelOpenOrdersBatch
 
-	data := struct {
-		AccountID string `json:"account-id"`
-		Symbol    string `json:"symbol"`
-	}{
+	data := &cancelOpenOrdersBatchRequest{
 		AccountID: accountID,
 		Symbol:    symbolValue,
 	}
@@ -512,33 +443,29 @@ func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
 }
 
 // GetOrder returns order information for the specified order
-func (e *Exchange) GetOrder(ctx context.Context, orderID int64) (OrderInfo, error) {
-	resp := struct {
-		Order OrderInfo `json:"data"`
-	}{}
-	endpoint := "/order/orders/" + strconv.FormatInt(orderID, 10)
-	return resp.Order, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (OrderInfo, error) {
+	resp := new(OrderResponse)
+	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		endpoint,
 		nil,
 		nil,
-		&resp,
+		resp,
 		false)
+	return resp.Order, err
 }
 
 // GetOrderMatchResults returns matched order info for the specified order
-func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID int64) ([]OrderMatchInfo, error) {
-	resp := struct {
-		Orders []OrderMatchInfo `json:"data"`
-	}{}
-	endpoint := fmt.Sprintf(htxGetOrderMatch, strconv.FormatInt(orderID, 10))
-	return resp.Orders, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, url.Values{}, nil, &resp, false)
+func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID uint64) ([]OrderMatchInfo, error) {
+	resp := new(OrderMatchResultsResponse)
+	endpoint := fmt.Sprintf(htxGetOrderMatch, strconv.FormatUint(orderID, 10))
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, url.Values{}, nil, resp, false)
+	return resp.Orders, err
 }
 
 // GetOrders returns a list of orders
 func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTypes, start, end, states, from, direct, size string) ([]OrderInfo, error) {
-	resp := struct {
-		Orders []OrderInfo `json:"data"`
-	}{}
+	resp := new(OrdersResponse)
 
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -572,14 +499,13 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTyp
 		vals.Set("size", size)
 	}
 
-	return resp.Orders, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrders, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrders, vals, nil, resp, false)
+	return resp.Orders, err
 }
 
 // GetOpenOrders returns a list of orders
-func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, accountID, side string, size int64) ([]OrderInfo, error) {
-	resp := struct {
-		Orders []OrderInfo `json:"data"`
-	}{}
+func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, accountID, side string, size uint64) ([]OrderInfo, error) {
+	resp := new(OrdersResponse)
 
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -591,16 +517,15 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 	if side != "" {
 		vals.Set("side", side)
 	}
-	vals.Set("size", strconv.FormatInt(size, 10))
+	vals.Set("size", strconv.FormatUint(size, 10))
 
-	return resp.Orders, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOpenOrders, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOpenOrders, vals, nil, resp, false)
+	return resp.Orders, err
 }
 
 // GetOrdersMatch returns a list of matched orders
 func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, orderTypes, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
-	resp := struct {
-		Orders []OrderMatchInfo `json:"data"`
-	}{}
+	resp := new(OrderMatchResultsResponse)
 
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -633,20 +558,17 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, ord
 		vals.Set("size", size)
 	}
 
-	return resp.Orders, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrdersMatch, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrdersMatch, vals, nil, resp, false)
+	return resp.Orders, err
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy string, amount float64, in bool) (int64, error) {
+func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy string, amount float64, in bool) (uint64, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
 	}
-	data := struct {
-		Symbol   string `json:"symbol"`
-		Currency string `json:"currency"`
-		Amount   string `json:"amount"`
-	}{
+	data := &marginAmountRequest{
 		Symbol:   symbolValue,
 		Currency: ccy,
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
@@ -657,48 +579,39 @@ func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy
 		path = htxMarginTransferOut
 	}
 
-	resp := struct {
-		TransferID int64 `json:"data"`
-	}{}
-	return resp.TransferID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, data, &resp, false)
+	resp := new(MarginTransferResponse)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, data, resp, false)
+	return resp.TransferID, err
 }
 
 // MarginOrder submits a margin order application
-func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, ccy string, amount float64) (int64, error) {
+func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, ccy string, amount float64) (uint64, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
 	}
-	data := struct {
-		Symbol   string `json:"symbol"`
-		Currency string `json:"currency"`
-		Amount   string `json:"amount"`
-	}{
+	data := &marginAmountRequest{
 		Symbol:   symbolValue,
 		Currency: ccy,
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	resp := struct {
-		MarginOrderID int64 `json:"data"`
-	}{}
-	return resp.MarginOrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxMarginOrders, nil, data, &resp, false)
+	resp := new(MarginOrderResponse)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxMarginOrders, nil, data, resp, false)
+	return resp.MarginOrderID, err
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (e *Exchange) MarginRepayment(ctx context.Context, orderID int64, amount float64) (int64, error) {
-	data := struct {
-		Amount string `json:"amount"`
-	}{
+func (e *Exchange) MarginRepayment(ctx context.Context, orderID uint64, amount float64) (uint64, error) {
+	data := &marginRepaymentRequest{
 		Amount: strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	resp := struct {
-		MarginOrderID int64 `json:"data"`
-	}{}
+	resp := new(MarginOrderResponse)
 
-	endpoint := fmt.Sprintf(htxMarginRepay, strconv.FormatInt(orderID, 10))
-	return resp.MarginOrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, nil, data, &resp, false)
+	endpoint := fmt.Sprintf(htxMarginRepay, strconv.FormatUint(orderID, 10))
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, nil, data, resp, false)
+	return resp.MarginOrderID, err
 }
 
 // GetMarginLoanOrders returns the margin loan orders
@@ -735,17 +648,14 @@ func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair
 		vals.Set("size", size)
 	}
 
-	resp := struct {
-		MarginLoanOrders []MarginOrder `json:"data"`
-	}{}
-	return resp.MarginLoanOrders, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginLoanOrders, vals, nil, &resp, false)
+	resp := new(MarginLoanOrdersResponse)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginLoanOrders, vals, nil, resp, false)
+	return resp.MarginLoanOrders, err
 }
 
 // GetMarginAccountBalance returns the margin account balances
 func (e *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.Pair) ([]MarginAccountBalance, error) {
-	resp := struct {
-		Balances []MarginAccountBalance `json:"data"`
-	}{}
+	resp := new(MarginAccountBalanceResponse)
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -754,27 +664,19 @@ func (e *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	return resp.Balances, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginAccountBalance, vals, nil, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginAccountBalance, vals, nil, resp, false)
+	return resp.Balances, err
 }
 
 // Withdraw withdraws the desired amount and currency
-func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrTag, chain string, amount, fee float64) (int64, error) {
+func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrTag, chain string, amount, fee float64) (uint64, error) {
 	if c.IsEmpty() || address == "" || amount <= 0 {
 		return 0, errWithdrawDetailsUnset
 	}
 
-	resp := struct {
-		WithdrawID int64 `json:"data"`
-	}{}
+	resp := new(WithdrawResponse)
 
-	data := struct {
-		Address  string `json:"address"`
-		Amount   string `json:"amount"`
-		Currency string `json:"currency"`
-		Fee      string `json:"fee,omitempty"`
-		Chain    string `json:"chain,omitempty"`
-		AddrTag  string `json:"addr-tag,omitempty"`
-	}{
+	data := &withdrawalRequest{
 		Address:  address,
 		Currency: c.Lower().String(),
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
@@ -792,31 +694,29 @@ func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrT
 		data.Chain = strings.ToLower(chain)
 	}
 
-	return resp.WithdrawID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxWithdrawCreate, nil, data, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxWithdrawCreate, nil, data, resp, false)
+	return resp.WithdrawID, err
 }
 
 // CancelWithdraw cancels a withdraw request
-func (e *Exchange) CancelWithdraw(ctx context.Context, withdrawID int64) (int64, error) {
-	resp := struct {
-		WithdrawID int64 `json:"data"`
-	}{}
+func (e *Exchange) CancelWithdraw(ctx context.Context, withdrawID uint64) (uint64, error) {
+	resp := new(WithdrawResponse)
 	vals := url.Values{}
-	vals.Set("withdraw-id", strconv.FormatInt(withdrawID, 10))
+	vals.Set("withdraw-id", strconv.FormatUint(withdrawID, 10))
 
-	endpoint := fmt.Sprintf(htxWithdrawCancel, strconv.FormatInt(withdrawID, 10))
-	return resp.WithdrawID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, vals, nil, &resp, false)
+	endpoint := fmt.Sprintf(htxWithdrawCancel, strconv.FormatUint(withdrawID, 10))
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, vals, nil, resp, false)
+	return resp.WithdrawID, err
 }
 
 // QueryDepositAddress returns the deposit address for a specified currency
 func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency currency.Code) ([]DepositAddress, error) {
-	resp := struct {
-		DepositAddress []DepositAddress `json:"data"`
-	}{}
+	resp := new(DepositAddressResponse)
 
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency.Lower().String())
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountDepositAddress, vals, nil, &resp, true)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountDepositAddress, vals, nil, resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -828,14 +728,12 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 
 // QueryWithdrawQuotas returns the users cryptocurrency withdraw quotas
 func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (WithdrawQuota, error) {
-	resp := struct {
-		WithdrawQuota WithdrawQuota `json:"data"`
-	}{}
+	resp := new(WithdrawQuotasResponse)
 
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountWithdrawQuota, vals, nil, &resp, true)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountWithdrawQuota, vals, nil, resp, true)
 	if err != nil {
 		return WithdrawQuota{}, err
 	}
@@ -843,7 +741,7 @@ func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency strin
 }
 
 // SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
-func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (WithdrawalHistory, error) {
+func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit uint64) (WithdrawalHistory, error) {
 	var resp WithdrawalHistory
 	vals := url.Values{}
 	vals.Set("type", transferType)
@@ -854,12 +752,13 @@ func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c c
 		vals.Set("direct", direction)
 	}
 	if fromID > 0 {
-		vals.Set("from", strconv.FormatInt(fromID, 10))
+		vals.Set("from", strconv.FormatUint(fromID, 10))
 	}
 	if limit > 0 {
-		vals.Set("size", strconv.FormatInt(limit, 10))
+		vals.Set("size", strconv.FormatUint(limit, 10))
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxWithdrawHistory, vals, nil, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxWithdrawHistory, vals, nil, &resp, false)
+	return resp, err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -900,8 +799,8 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		}
 	}
 	if strings.HasPrefix(path, "/v5/") || strings.Contains(path, "/v3/") {
-		var resp V5Response
-		if err := json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
+		resp := new(V5Response)
+		if err := json.Unmarshal(tempResp, resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
 			message := resp.Message
 			if message == "" {
 				message = resp.Msg

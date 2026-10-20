@@ -8,12 +8,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestWsTradeIDUnmarshalJSON(t *testing.T) {
+func TestWebsocketTradeIDUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name        string
 		input       []byte
-		expected    WsTradeID
+		expected    WebsocketTradeID
 		expectedErr error
 		wantErr     bool
 	}{
@@ -26,7 +26,7 @@ func TestWsTradeIDUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var id WsTradeID
+			var id WebsocketTradeID
 			err := id.UnmarshalJSON(tc.input)
 			if tc.wantErr || tc.expectedErr != nil {
 				if tc.expectedErr != nil {
@@ -43,9 +43,9 @@ func TestWsTradeIDUnmarshalJSON(t *testing.T) {
 
 	t.Run("feed payload", func(t *testing.T) {
 		t.Parallel()
-		var response WsTrade
+		var response WebsocketTrade
 		require.NoError(t, json.Unmarshal([]byte(`{"tick":{"data":[{"id":137005445109359290000000000}]}}`), &response), "large derivative trade ID must decode")
 		require.Len(t, response.Tick.Data, 1, "one trade must decode")
-		assert.Equal(t, WsTradeID("137005445109359290000000000"), response.Tick.Data[0].ID, "trade ID should retain full precision")
+		assert.Equal(t, WebsocketTradeID("137005445109359290000000000"), response.Tick.Data[0].ID, "trade ID should retain full precision")
 	})
 }

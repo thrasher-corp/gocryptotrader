@@ -14,13 +14,13 @@ type V5SetAssetModeRequest struct {
 // V5AssetModeResponse stores the current account asset mode.
 type V5AssetModeResponse struct {
 	V5Response
-	Data V5AssetModeResponseData `json:"data"`
+	Data V5AssetMode `json:"data"`
 }
 
 // V5SetAssetModeResponse stores the asset mode returned by the setter.
 type V5SetAssetModeResponse struct {
 	V5Response
-	Data V5SetAssetModeResponseData `json:"data"`
+	Data V5AssetMode `json:"data"`
 }
 
 // V5AccountBillsRequest defines account transaction-record filters.
@@ -61,12 +61,12 @@ type V5SetFeeDeductionCurrencyRequest struct {
 // V5FeeDeductionCurrencyResponse stores the configured fee-deduction currency.
 type V5FeeDeductionCurrencyResponse struct {
 	V5Response
-	Data V5FeeDeductionCurrencyResponseData `json:"data"`
+	Data V5FeeDeductionCurrency `json:"data"`
 }
 
 // V5UniversalTransferRequest defines a transfer between supported HTX account types.
 type V5UniversalTransferRequest struct {
-	Amount          int64  `json:"amount"`
+	Amount          uint64 `json:"amount"`
 	Currency        string `json:"currency"`
 	FromAccountType string `json:"from_account_type"`
 	ToAccountType   string `json:"to_account_type"`
@@ -77,7 +77,7 @@ type V5UniversalTransferRequest struct {
 // V5UniversalTransferResponse stores a universal-transfer acknowledgement.
 type V5UniversalTransferResponse struct {
 	V5Response
-	Data V5UniversalTransferResponseData `json:"data"`
+	Data V5TransferAcknowledgement `json:"data"`
 }
 
 // V5UniversalTransferRecordsRequest defines universal-transfer record filters.
@@ -112,23 +112,18 @@ type V5UniversalTransferRecord struct {
 	TransferTime    types.Time   `json:"transfer_time"`
 }
 
-// V5AssetModeResponseData contains data fields from V5AssetModeResponse.
-type V5AssetModeResponseData struct {
+// V5AssetMode contains data fields from V5AssetModeResponse.
+type V5AssetMode struct {
 	AssetMode uint64 `json:"asset_mode"`
 }
 
-// V5SetAssetModeResponseData contains data fields from V5SetAssetModeResponse.
-type V5SetAssetModeResponseData struct {
-	AssetMode uint64 `json:"asset_mode"`
-}
-
-// V5FeeDeductionCurrencyResponseData contains data fields from V5FeeDeductionCurrencyResponse.
-type V5FeeDeductionCurrencyResponseData struct {
+// V5FeeDeductionCurrency contains data fields from V5FeeDeductionCurrencyResponse.
+type V5FeeDeductionCurrency struct {
 	FeeOption         uint64 `json:"fee_option"`
 	DeductionCurrency string `json:"deduction_currency"`
 }
 
-// V5UniversalTransferResponseData contains data fields from V5UniversalTransferResponse.
-type V5UniversalTransferResponseData struct {
+// V5TransferAcknowledgement contains data fields from V5UniversalTransferResponse.
+type V5TransferAcknowledgement struct {
 	TransferID uint64 `json:"transfer_id"`
 }

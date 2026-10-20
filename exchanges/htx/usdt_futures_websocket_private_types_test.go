@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestV5WsRateLimitUnmarshalJSON(t *testing.T) {
+func TestV5WebsocketRateLimitUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name    string
@@ -28,7 +28,7 @@ func TestV5WsRateLimitUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			state := V5WsRateLimit{Limit: 99}
+			state := V5WebsocketRateLimit{Limit: 99}
 			err := state.UnmarshalJSON([]byte(tc.raw))
 			if tc.wantErr {
 				require.Error(t, err, "invalid state must return a decoding error")
@@ -37,14 +37,14 @@ func TestV5WsRateLimitUnmarshalJSON(t *testing.T) {
 			}
 			require.NoError(t, err, "rate limit must decode")
 			if tc.empty {
-				assert.Equal(t, V5WsRateLimit{}, state, "null should clear state")
+				assert.Equal(t, V5WebsocketRateLimit{}, state, "null should clear state")
 				return
 			}
 			assert.Equal(t, types.Number(24), state.Limit)
 			assert.Equal(t, types.Number(3000), state.Interval)
 			assert.Equal(t, types.Number(19), state.Remaining)
 			assert.Equal(t, time.UnixMilli(1772779491561), state.Reset.Time())
-			var response V5WsOrderResponse
+			var response V5WebsocketOrderResponse
 			require.NoError(t, json.Unmarshal([]byte(`{"rate_limit":`+tc.raw+`}`), &response), "embedded trade response must decode")
 			assert.Equal(t, state, response.RateLimit, "embedded rate limit should match standalone state")
 		})

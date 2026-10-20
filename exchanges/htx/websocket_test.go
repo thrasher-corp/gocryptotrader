@@ -96,12 +96,12 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 		return w.WriteMessage(gws.TextMessage, []byte(`{"code":200,"message":"Success","cid":"`+cid+`","data":[{"order_id":"1","client_order_id":"2"}],"rate_limit":{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}}`))
 	}
 	action, _ := jsonparser.GetString(msg, "action")
-	ch, _ := jsonparser.GetString(msg, "ch")
-	if action == "req" && ch == "auth" {
+	channel, _ := jsonparser.GetString(msg, "ch")
+	if action == "req" && channel == "auth" {
 		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
 	}
 	if action == "sub" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+channel+`"}`))
 	}
 	id, _ := jsonparser.GetString(msg, "id")
 	sub, _ := jsonparser.GetString(msg, "sub")
@@ -135,7 +135,7 @@ func TestWSHandleData(t *testing.T) {
 		require.NoError(t, h.wsHandleData(t.Context(), conn, raw), "wsHandleData must route a concrete private derivative topic")
 		require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 		message := <-h.Websocket.DataHandler.C
-		assert.IsType(t, &SwapWsSubPositionUpdates{}, message.Data, "notification should be decoded using its subscription")
+		assert.IsType(t, &SwapWebsocketPositionUpdates{}, message.Data, "notification should be decoded using its subscription")
 	})
 	t.Run("futures subscription response", func(t *testing.T) {
 		t.Parallel()

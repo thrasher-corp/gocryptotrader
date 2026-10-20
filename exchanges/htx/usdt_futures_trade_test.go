@@ -113,6 +113,7 @@ func TestGetV5OrderDetails(t *testing.T) {
 	assert.Equal(t, "100000032538647", resp.Data[0].TradeID, "trade ID should decode")
 	assert.Equal(t, types.Number(31400), resp.Data[0].TradePrice, "trade price should decode")
 	assert.Equal(t, types.Number(0.01884), resp.Data[0].TradeFee, "trade fee should decode")
+	assert.True(t, currency.USDT.Equal(resp.Data[0].FeeCurrency), "fee currency should decode as a single currency")
 	assert.False(t, resp.Data[0].CreatedTime.Time().IsZero(), "creation time should decode")
 }
 

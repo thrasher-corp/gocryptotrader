@@ -42,7 +42,7 @@ func (s *V5OrderState) UnmarshalJSON(data []byte) error {
 		*s = V5OrderState(value)
 		return nil
 	}
-	var state int64
+	var state uint64
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -80,12 +80,12 @@ type LinearSwapMarket struct {
 	SettlementPeriod  string       `json:"settlement_period"`
 	DeliveryTime      string       `json:"delivery_time"`
 	CreateDate        types.Time   `json:"create_date"`
-	ContractStatus    int64        `json:"contract_status"`
+	ContractStatus    uint64       `json:"contract_status"`
 	SupportMarginMode string       `json:"support_margin_mode"`
 	ContractType      string       `json:"contract_type"`
 	Pair              string       `json:"pair"`
 	BusinessType      string       `json:"business_type"`
-	DeliveryDate      string       `json:"delivery_date"`
+	DeliveryDate      types.Time   `json:"delivery_date"`
 	TradePartition    string       `json:"trade_partition"`
 }
 
@@ -121,12 +121,12 @@ type V5AccountBalance struct {
 // V5OpenInterestResponse stores the current USDT-margined contract open interest.
 type V5OpenInterestResponse struct {
 	V5Response
-	Success bool               `json:"success"`
-	Data    V5OpenInterestData `json:"data"`
+	Success bool           `json:"success"`
+	Data    V5OpenInterest `json:"data"`
 }
 
-// V5OpenInterestData stores current USDT-margined contract open interest data.
-type V5OpenInterestData struct {
+// V5OpenInterest stores current USDT-margined contract open interest data.
+type V5OpenInterest struct {
 	ContractCode  string       `json:"contract_code"`
 	Amount        types.Number `json:"amount"`
 	Volume        types.Number `json:"volume"`
@@ -147,7 +147,7 @@ type V5OrderRequest struct {
 	ClientOrderID       string        `json:"client_order_id,omitempty"`
 	Price               types.Number  `json:"price,omitempty"`
 	Volume              types.Number  `json:"volume"`
-	ReduceOnly          int64         `json:"reduce_only,omitempty"`
+	ReduceOnly          uint64        `json:"reduce_only,omitempty"`
 	TimeInForce         string        `json:"time_in_force,omitempty"`
 	TakeProfitTrigger   types.Number  `json:"tp_trigger_price,omitempty"`
 	TakeProfitPrice     types.Number  `json:"tp_order_price,omitempty"`
@@ -178,11 +178,11 @@ type V5CancelAllOrdersRequest struct {
 // V5OrderResponse stores a USDT-margined V5 order response.
 type V5OrderResponse struct {
 	V5Response
-	Data V5OrderResponseData `json:"data"`
+	Data V5OrderAcknowledgement `json:"data"`
 }
 
-// V5OrderResponseData stores a USDT-margined V5 order acknowledgement.
-type V5OrderResponseData struct {
+// V5OrderAcknowledgement stores a USDT-margined V5 order acknowledgement.
+type V5OrderAcknowledgement struct {
 	Code          int64  `json:"code,omitempty"`
 	Message       string `json:"message,omitempty"`
 	OrderID       string `json:"order_id"`
@@ -190,13 +190,8 @@ type V5OrderResponseData struct {
 }
 
 // UnmarshalJSON preserves order identifiers regardless of whether HTX emits them as strings or bare numbers.
-func (v *V5OrderResponseData) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Code          int64           `json:"code"`
-		Message       string          `json:"message"`
-		OrderID       json.RawMessage `json:"order_id"`
-		ClientOrderID json.RawMessage `json:"client_order_id"`
-	}
+func (v *V5OrderAcknowledgement) UnmarshalJSON(data []byte) error {
+	var raw V5OrderAcknowledgementPayload
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
@@ -231,23 +226,23 @@ func (v *V5OrderResponseData) UnmarshalJSON(data []byte) error {
 // V5CancelAllOrdersResponse stores USDT-margined V5 cancel all order acknowledgements.
 type V5CancelAllOrdersResponse struct {
 	V5Response
-	Data []V5OrderResponseData `json:"data"`
+	Data []V5OrderAcknowledgement `json:"data"`
 }
 
 // V5OrderQueryResponse stores a USDT-margined V5 order query response.
 type V5OrderQueryResponse struct {
 	V5Response
-	Data V5OrderData `json:"data"`
+	Data V5Order `json:"data"`
 }
 
 // V5OrdersQueryResponse stores a USDT-margined V5 order list response.
 type V5OrdersQueryResponse struct {
 	V5Response
-	Data []V5OrderData `json:"data"`
+	Data []V5Order `json:"data"`
 }
 
-// V5OrderData stores USDT-margined V5 order details.
-type V5OrderData struct {
+// V5Order stores USDT-margined V5 order details.
+type V5Order struct {
 	ID                  string       `json:"id"`
 	ContractCode        string       `json:"contract_code"`
 	Side                string       `json:"side"`
@@ -307,4 +302,18 @@ type V5AccountBalanceDetails struct {
 	IsolatedOrderFrozen   types.Number `json:"isolated_order_frozen"`
 	CreatedTime           types.Time   `json:"created_time"`
 	UpdatedTime           types.Time   `json:"updated_time"`
+}
+
+// V5OrderAcknowledgementPayload preserves numeric and string order identifiers before decoding.
+type V5OrderAcknowledgementPayload struct {
+	Code          int64           `json:"code"`
+	Message       string          `json:"message"`
+	OrderID       json.RawMessage `json:"order_id"`
+	ClientOrderID json.RawMessage `json:"client_order_id"`
+}
+
+// LinearSwapMarketsResponse contains USDT-margined contract metadata.
+type LinearSwapMarketsResponse struct {
+	Response
+	Data []LinearSwapMarket `json:"data"`
 }

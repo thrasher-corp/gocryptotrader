@@ -8,11 +8,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WsTradeID preserves large integer identifiers without floating-point conversion.
-type WsTradeID string
+// WebsocketTradeID preserves large integer identifiers without floating-point conversion.
+type WebsocketTradeID string
 
 // UnmarshalJSON accepts the numeric and quoted identifier representations used by HTX feeds.
-func (i *WsTradeID) UnmarshalJSON(data []byte) error {
+func (i *WebsocketTradeID) UnmarshalJSON(data []byte) error {
 	data = bytes.TrimSpace(data)
 	if len(data) == 0 {
 		return errInvalidTradeID
@@ -22,7 +22,7 @@ func (i *WsTradeID) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &value); err != nil {
 			return err
 		}
-		*i = WsTradeID(value)
+		*i = WebsocketTradeID(value)
 		return nil
 	}
 	for _, character := range data {
@@ -30,85 +30,100 @@ func (i *WsTradeID) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("%w %q", errInvalidTradeID, data)
 		}
 	}
-	*i = WsTradeID(data)
+	*i = WebsocketTradeID(data)
 	return nil
 }
 
-// wsSubReq is a request to subscribe to or unubscribe from a topic for public channels (private channels use generic wsReq)
-type wsSubReq struct {
+// websocketSubscriptionRequest is a request to subscribe to or unsubscribe from a topic for public channels (private channels use generic websocketRequest)
+type websocketSubscriptionRequest struct {
 	ID    string `json:"id,omitempty"`
 	Sub   string `json:"sub,omitempty"`
 	Unsub string `json:"unsub,omitempty"`
 }
 
-// WsHeartBeat defines a heartbeat request
-type WsHeartBeat struct {
+// WebsocketHeartBeat defines a heartbeat request
+type WebsocketHeartBeat struct {
 	ClientNonce int64 `json:"ping"`
 }
 
-// WsDepth defines market depth websocket response
-type WsDepth struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		Bids      [][]any    `json:"bids"`
-		Asks      [][]any    `json:"asks"`
-		Timestamp types.Time `json:"ts"`
-		Version   int64      `json:"version"`
-	} `json:"tick"`
+// WebsocketDepth defines market depth websocket response
+type WebsocketDepth struct {
+	Channel   string             `json:"ch"`
+	Timestamp types.Time         `json:"ts"`
+	Tick      WebsocketDepthTick `json:"tick"`
 }
 
-// WsKline defines market kline websocket response
-type WsKline struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  int64   `json:"count"`
-	} `json:"tick"`
+// WebsocketKline defines market kline websocket response
+type WebsocketKline struct {
+	Channel   string             `json:"ch"`
+	Timestamp types.Time         `json:"ts"`
+	Tick      WebsocketKlineTick `json:"tick"`
 }
 
-// WsTick stores websocket ticker data
-type WsTick struct {
-	Channel   string     `json:"ch"`
-	Rep       string     `json:"rep"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		Bid           []float64  `json:"bid"`
-		Ask           []float64  `json:"ask"`
-		Amount        float64    `json:"amount"`
-		Close         float64    `json:"close"`
-		Count         float64    `json:"count"`
-		High          float64    `json:"high"`
-		ID            float64    `json:"id"`
-		Low           float64    `json:"low"`
-		Open          float64    `json:"open"`
-		Timestamp     types.Time `json:"ts"`
-		Volume        float64    `json:"vol"`
-		TradeTurnover float64    `json:"trade_turnover"`
-	} `json:"tick"`
+// WebsocketTick stores websocket ticker data
+type WebsocketTick struct {
+	Channel   string              `json:"ch"`
+	Rep       string              `json:"rep"`
+	Timestamp types.Time          `json:"ts"`
+	Tick      WebsocketTickerTick `json:"tick"`
 }
 
-// WsTrade defines market trade websocket response
-type WsTrade struct {
-	Channel   string     `json:"ch"`
+// WebsocketTrade defines market trade websocket response
+type WebsocketTrade struct {
+	Channel   string             `json:"ch"`
+	Timestamp types.Time         `json:"ts"`
+	Tick      WebsocketTradeTick `json:"tick"`
+}
+
+// WebsocketDepthTick defines the nested API object.
+type WebsocketDepthTick struct {
+	Bids      [][]any    `json:"bids"`
+	Asks      [][]any    `json:"asks"`
 	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID        int64      `json:"id"`
-		Timestamp types.Time `json:"ts"`
-		Data      []struct {
-			Amount    float64    `json:"amount"`
-			Timestamp types.Time `json:"ts"`
-			ID        WsTradeID  `json:"id"`
-			TradeID   WsTradeID  `json:"tradeId"`
-			Price     float64    `json:"price"`
-			Direction string     `json:"direction"`
-		} `json:"data"`
-	}
+	Version   uint64     `json:"version"`
+}
+
+// WebsocketKlineTick defines the nested API object.
+type WebsocketKlineTick struct {
+	ID     uint64  `json:"id"`
+	Open   float64 `json:"open"`
+	Close  float64 `json:"close"`
+	Low    float64 `json:"low"`
+	High   float64 `json:"high"`
+	Amount float64 `json:"amount"`
+	Volume float64 `json:"vol"`
+	Count  uint64  `json:"count"`
+}
+
+// WebsocketTickerTick defines the nested API object.
+type WebsocketTickerTick struct {
+	Bid           []float64  `json:"bid"`
+	Ask           []float64  `json:"ask"`
+	Amount        float64    `json:"amount"`
+	Close         float64    `json:"close"`
+	Count         float64    `json:"count"`
+	High          float64    `json:"high"`
+	ID            float64    `json:"id"`
+	Low           float64    `json:"low"`
+	Open          float64    `json:"open"`
+	Timestamp     types.Time `json:"ts"`
+	Volume        float64    `json:"vol"`
+	TradeTurnover float64    `json:"trade_turnover"`
+}
+
+// WebsocketTradeTick defines the nested API object.
+type WebsocketTradeTick struct {
+	ID        uint64                    `json:"id"`
+	Timestamp types.Time                `json:"ts"`
+	Data      []WebsocketTradeExecution `json:"data"`
+}
+
+// WebsocketTradeExecution defines the nested API object.
+type WebsocketTradeExecution struct {
+	Amount    float64          `json:"amount"`
+	Timestamp types.Time       `json:"ts"`
+	ID        WebsocketTradeID `json:"id"`
+	TradeID   WebsocketTradeID `json:"tradeId"`
+	Price     float64          `json:"price"`
+	Direction string           `json:"direction"`
 }

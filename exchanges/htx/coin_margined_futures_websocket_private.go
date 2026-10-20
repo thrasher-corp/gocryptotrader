@@ -18,7 +18,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 	}
 	switch sub.Channel {
 	case subscription.MyOrdersChannel:
-		response := new(SwapWsSubOrderData)
+		response := new(SwapWebsocketOrder)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 			trades:         response.Trade,
 			fee:            response.Fee,
 			feeAsset:       response.FeeAsset,
-			leverage:       response.LeverageRate,
+			leverage:       float64(response.LeverageRate),
 			createdAt:      response.CreatedAt,
 			cancelledAt:    response.CanceledAt,
 			reduceOnly:     response.Offset == orderOffsetClose,
@@ -49,7 +49,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 		}
 		return e.Websocket.DataHandler.Send(ctx, &detail)
 	case subscription.MyTradesChannel:
-		response := new(SwapWsSubMatchOrderData)
+		response := new(SwapWebsocketMatchOrder)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 			volume:         response.Volume,
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
-			leverage:       response.LeverageRate,
+			leverage:       float64(response.LeverageRate),
 			createdAt:      response.CreatedAt,
 			reduceOnly:     response.Offset == orderOffsetClose,
 		})
@@ -78,7 +78,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 		}
 		return e.Websocket.DataHandler.Send(ctx, &detail)
 	case subscription.MyAccountChannel:
-		response := new(SwapWsSubEquityData)
+		response := new(SwapWebsocketAccountUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
@@ -104,13 +104,13 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case wsPositionsChannel:
-		response := new(SwapWsSubPositionUpdates)
+		response := new(SwapWebsocketPositionUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, response)
 	case wsTriggerOrdersChannel:
-		response := new(SwapWsSubTriggerOrderUpdates)
+		response := new(SwapWebsocketTriggerOrderUpdates)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}

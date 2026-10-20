@@ -101,7 +101,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 			return wsFixture(tb, message, conn)
 		})
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		var response *V5WsOrderResponse
+		var response *V5WebsocketOrderResponse
 		err := h.sendV5TradeRequest(t.Context(), "place_order", &V5OrderRequest{ContractCode: "BTC-USDT"}, &response)
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "trade request must require authentication even when connected")
 		assert.Nil(t, response, "unauthenticated trade request should return no response")
@@ -187,7 +187,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := tc.setup(t)
-			var response *V5WsOrderResponse
+			var response *V5WebsocketOrderResponse
 			ctx := t.Context()
 			if tc.cancel {
 				var cancel context.CancelFunc
@@ -312,7 +312,7 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-		data := &V5WsOrderData{
+		data := &V5WebsocketOrder{
 			Side:              "buy",
 			PositionSide:      "long",
 			Type:              orderPriceTypePostOnly,
@@ -354,7 +354,7 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-		err := h.sendV5WSOrderUpdate(t.Context(), &subscription.Subscription{Asset: asset.USDTMarginedFutures}, "BTC-USDT", &V5WsOrderData{Side: "invalid"})
+		err := h.sendV5WSOrderUpdate(t.Context(), &subscription.Subscription{Asset: asset.USDTMarginedFutures}, "BTC-USDT", &V5WebsocketOrder{Side: "invalid"})
 		require.Error(t, err, "sendV5WSOrderUpdate must reject an invalid order")
 	})
 }
@@ -370,10 +370,10 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"rpi","volume":"2","trade_volume":"1"}}`},
 		{name: "trades", channel: wsTradeUpdatesChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "trade details", channel: wsExecutionDetailsChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
-		{name: "positions", channel: wsPositionsChannel, expected: &V5WsPositionUpdate{}},
+		{name: "positions", channel: wsPositionsChannel, expected: &V5WebsocketPositionUpdate{}},
 		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"4","profit_unreal":"-2","initial_margin":"1","isolated_available":"0.9","available_margin":"1"}]}}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":[{"side":"buy","type":"limit","order_id":"1381717672952373249","state":"partially_filled","volume":"5","trade_volume":"1","total_trade_volume":"3","trade_price":"100","lever_rate":"","match_time":"1749468764315"}]}`},
-		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WsAlgoOrderUpdate{}},
+		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WebsocketAlgoOrderUpdate{}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -471,7 +471,7 @@ func TestSendV5WSExecutionUpdates(t *testing.T) {
 			t.Parallel()
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "setup must succeed")
-			var data []V5WsExecutionData
+			var data []V5WebsocketExecution
 			require.NoError(t, json.Unmarshal([]byte(tc.raw), &data), "execution array must decode")
 			err := h.sendV5WSExecutionUpdates(t.Context(), &subscription.Subscription{Asset: asset.USDTMarginedFutures}, "BTC-USDT", data)
 			if tc.wantErr {

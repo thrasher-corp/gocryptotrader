@@ -63,10 +63,10 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 	if err != nil {
 		return err
 	}
-	req := wsReq{
+	req := websocketRequest{
 		Action:  wsRequestOp,
 		Channel: wsAuthChannel,
-		Params: wsAuthReq{
+		Params: websocketAuthenticationRequest{
 			AuthType:         "api",
 			AccessKey:        creds.Key,
 			SignatureMethod:  signatureMethod,
@@ -87,7 +87,7 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 }
 
 func (e *Exchange) wsHandleMyAccountMsg(ctx context.Context, respRaw []byte) error {
-	u := &wsAccountUpdateMsg{}
+	u := &websocketAccountUpdateMessage{}
 	if err := json.Unmarshal(respRaw, u); err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (e *Exchange) wsHandleMyAccountMsg(ctx context.Context, respRaw []byte) err
 }
 
 func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
-	var msg wsOrderUpdateMsg
+	var msg websocketOrderUpdateMessage
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 		Pair:            p,
 	}
 	if o.OrderID != 0 {
-		d.OrderID = strconv.FormatInt(o.OrderID, 10)
+		d.OrderID = strconv.FormatUint(o.OrderID, 10)
 	}
 	switch o.EventType {
 	case "trigger", "deletion", "cancellation":
@@ -163,7 +163,7 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 }
 
 func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
-	var msg wsTradeUpdateMsg
+	var msg websocketTradeUpdateMessage
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 		Pair:          p,
 		Date:          t.OrderCreateTime.Time(),
 		LastUpdated:   t.TradeTime.Time(),
-		OrderID:       strconv.FormatInt(t.OrderID, 10),
+		OrderID:       strconv.FormatUint(t.OrderID, 10),
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
 		return &order.ClassificationError{
@@ -216,9 +216,9 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 			Price:     t.TradePrice.Float64(),
 			Amount:    t.TradeVolume.Float64(),
 			Fee:       t.TransactFee.Float64(),
-			FeeAsset:  t.FeeCurrency,
+			FeeAsset:  t.FeeCurrency.String(),
 			Exchange:  e.Name,
-			TID:       strconv.FormatInt(t.TradeID, 10),
+			TID:       strconv.FormatUint(t.TradeID, 10),
 			Type:      d.Type,
 			Side:      d.Side,
 			IsMaker:   !t.IsTaker,

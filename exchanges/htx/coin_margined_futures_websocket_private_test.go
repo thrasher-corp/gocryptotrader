@@ -26,8 +26,8 @@ func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
 		{name: "cancellation pending", channel: subscription.MyTradesChannel, raw: `{"status":9}`},
 		{name: "cancelling", channel: subscription.MyTradesChannel, raw: `{"status":10}`},
 		{name: "accounts", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":[{"margin_asset":"BTC","margin_balance":2,"margin_frozen":1,"margin_available":1}]}`},
-		{name: "positions", channel: wsPositionsChannel, expected: &SwapWsSubPositionUpdates{}},
-		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &SwapWsSubTriggerOrderUpdates{}},
+		{name: "positions", channel: wsPositionsChannel, expected: &SwapWebsocketPositionUpdates{}},
+		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &SwapWebsocketTriggerOrderUpdates{}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

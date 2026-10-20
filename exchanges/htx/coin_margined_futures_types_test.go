@@ -8,82 +8,82 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestFinancialRecordDataUnmarshalJSON(t *testing.T) {
+func TestSwapFinancialRecordsResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var arrayResp FinancialRecordData
+	var arrayResp SwapFinancialRecordsResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":34,"symbol":"ETH","contract_code":"ETH-USD","type":3,"amount":1.25,"ts":1604312615051}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support v3 array data")
+	require.NoError(t, err, "SwapFinancialRecordsResponse unmarshal must support v3 array data")
 	require.Len(t, arrayResp.Data.FinancialRecord, 1, "financial records must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.FinancialRecord[0].QueryID, "query id should decode")
+	assert.Equal(t, uint64(12), arrayResp.Data.FinancialRecord[0].QueryID, "query id should decode")
 	assert.Equal(t, int64(1604312615051), arrayResp.Timestamp.Time().UnixMilli(), "response timestamp should decode")
 
-	var emptyResp FinancialRecordData
+	var emptyResp SwapFinancialRecordsResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support empty string data")
+	require.NoError(t, err, "SwapFinancialRecordsResponse unmarshal must support empty string data")
 	assert.Empty(t, emptyResp.Data.FinancialRecord, "financial records should be empty")
 
-	var legacyResp FinancialRecordData
+	var legacyResp SwapFinancialRecordsResponse
 	err = json.Unmarshal([]byte(`{"data":{"financial_record":[{"query_id":12,"id":34}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	require.NoError(t, err, "SwapFinancialRecordsResponse unmarshal must support legacy object data")
+	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "FinancialRecordData unmarshal must return malformed JSON errors")
+	require.Error(t, err, "SwapFinancialRecordsResponse unmarshal must return malformed JSON errors")
 	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "FinancialRecordData unmarshal must return malformed data errors")
+	require.Error(t, err, "SwapFinancialRecordsResponse unmarshal must return malformed data errors")
 }
 
-func TestSwapOrderHistoryUnmarshalJSON(t *testing.T) {
+func TestSwapOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	t.Run("numeric order price", func(t *testing.T) {
 		t.Parallel()
-		var response SwapOrderHistory
+		var response SwapOrderHistoryResponse
 		require.NoError(t, json.Unmarshal([]byte(`{"data":[{"order_price_type":6}]}`), &response), "numeric V3 order price type must decode")
 		require.Len(t, response.Data.Orders, 1, "numeric V3 history must retain its order")
 		assert.Equal(t, LegacyOrderPriceType("post_only"), response.Data.Orders[0].OrderPriceType, "numeric type should retain post-only semantics")
 	})
-	var arrayResp SwapOrderHistory
+	var arrayResp SwapOrderHistoryResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"order_id":34,"order_id_str":"34","symbol":"ETH","contract_code":"ETH-USD","lever_rate":20,"direction":"buy","offset":"open","volume":1,"price":10,"create_date":1604312615051,"order_source":"api","order_price_type":"limit","margin_frozen":0,"profit":0,"trade_volume":0,"trade_turnover":0,"fee":0,"trade_avg_price":0,"status":6,"order_type":1,"fee_asset":"ETH","liquidation_type":"0"}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support v3 array data")
+	require.NoError(t, err, "SwapOrderHistoryResponse unmarshal must support v3 array data")
 	require.Len(t, arrayResp.Data.Orders, 1, "orders must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.Orders[0].QueryID, "query id should decode")
+	assert.Equal(t, uint64(12), arrayResp.Data.Orders[0].QueryID, "query id should decode")
 
-	var emptyResp SwapOrderHistory
+	var emptyResp SwapOrderHistoryResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support empty string data")
+	require.NoError(t, err, "SwapOrderHistoryResponse unmarshal must support empty string data")
 	assert.Empty(t, emptyResp.Data.Orders, "orders should be empty")
 
-	var legacyResp SwapOrderHistory
+	var legacyResp SwapOrderHistoryResponse
 	err = json.Unmarshal([]byte(`{"data":{"orders":[{"query_id":12,"order_id":34}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	require.NoError(t, err, "SwapOrderHistoryResponse unmarshal must support legacy object data")
+	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "SwapOrderHistory unmarshal must return malformed JSON errors")
+	require.Error(t, err, "SwapOrderHistoryResponse unmarshal must return malformed JSON errors")
 	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "SwapOrderHistory unmarshal must return malformed data errors")
+	require.Error(t, err, "SwapOrderHistoryResponse unmarshal must return malformed data errors")
 }
 
-func TestAccountTradeHistoryDataUnmarshalJSON(t *testing.T) {
+func TestSwapTradeHistoryResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var arrayResp AccountTradeHistoryData
+	var arrayResp SwapTradeHistoryResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":"match","match_id":34,"order_id":56,"order_id_str":"56","symbol":"ETH","contract_code":"ETH-USD","direction":"buy","offset":"open","trade_volume":1,"trade_price":10,"trade_turnover":10,"trade_fee":0.1,"offset_profitloss":0,"create_date":"1604312615051","role":"Maker","order_source":"api","fee_asset":"ETH"}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support v3 array data")
+	require.NoError(t, err, "SwapTradeHistoryResponse unmarshal must support v3 array data")
 	require.Len(t, arrayResp.Data.Trades, 1, "trades must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.Trades[0].QueryID, "query id should decode")
+	assert.Equal(t, uint64(12), arrayResp.Data.Trades[0].QueryID, "query id should decode")
 
-	var emptyResp AccountTradeHistoryData
+	var emptyResp SwapTradeHistoryResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support empty string data")
+	require.NoError(t, err, "SwapTradeHistoryResponse unmarshal must support empty string data")
 	assert.Empty(t, emptyResp.Data.Trades, "trades should be empty")
 
-	var legacyResp AccountTradeHistoryData
+	var legacyResp SwapTradeHistoryResponse
 	err = json.Unmarshal([]byte(`{"data":{"trades":[{"query_id":12,"id":"match"}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	require.NoError(t, err, "SwapTradeHistoryResponse unmarshal must support legacy object data")
+	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "AccountTradeHistoryData unmarshal must return malformed JSON errors")
+	require.Error(t, err, "SwapTradeHistoryResponse unmarshal must return malformed JSON errors")
 	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "AccountTradeHistoryData unmarshal must return malformed data errors")
+	require.Error(t, err, "SwapTradeHistoryResponse unmarshal must return malformed data errors")
 }

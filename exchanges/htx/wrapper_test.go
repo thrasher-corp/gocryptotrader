@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -371,7 +372,7 @@ func TestGetOrderHistory(t *testing.T) {
 		pair           currency.Pair
 		path, contract string
 	}{
-		{asset.Futures, btccwPair, fOrderHistory, "BTC_CW"},
+		{asset.Futures, btccwPair, futuresOrderHistory, "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v3/swap_hisorders", "BTC-USD"},
 	} {
 		t.Run(tc.item.String()+" window overlap", func(t *testing.T) {
@@ -540,7 +541,7 @@ func TestGetOrderHistory(t *testing.T) {
 			name:     "delivery futures",
 			item:     asset.Futures,
 			pair:     btccwPair,
-			path:     fOrderHistory,
+			path:     futuresOrderHistory,
 			contract: "BTC_CW",
 			extraEntry: map[string]any{
 				"create_date": time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -773,7 +774,7 @@ func TestCancelAllOrders(t *testing.T) {
 			want:     map[string]string{"8": htxStatusSuccess, "9": "fail: not found"},
 		},
 		{
-			name: "delivery", item: asset.Futures, pair: currency.NewPair(currency.BTC, currency.NewCode("261016")), endpoint: exchange.RestFutures, path: fCancelAllOrders,
+			name: "delivery", item: asset.Futures, pair: currency.NewPair(currency.BTC, currency.NewCode("261016")), endpoint: exchange.RestFutures, path: futuresCancelAllOrders,
 			response: `{"status":"ok","data":{"errors":[{"order_id":"9","err_code":1061,"err_msg":"not found"}],"successes":"8"},"ts":1700000000000}`,
 			want:     map[string]string{"8": htxStatusSuccess, "9": "fail: not found"},
 		},
@@ -861,7 +862,7 @@ func TestCancelAllOrders(t *testing.T) {
 			response: `{"code":200,"data":[{"order_id":"1"}]}`,
 		},
 		{
-			name: "delivery futures", endpoint: exchange.RestFutures, path: fCancelAllOrders,
+			name: "delivery futures", endpoint: exchange.RestFutures, path: futuresCancelAllOrders,
 			cancel:   order.Cancel{Pair: btccwPair, AssetType: asset.Futures},
 			response: `{"status":"ok","data":{"successes":"1","errors":[]}}`,
 		},
@@ -1154,7 +1155,7 @@ func TestGetActiveOrders(t *testing.T) {
 		contract string
 	}{
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
-		{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), fQueryOpenOrders, "BTC261016"},
+		{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), futuresQueryOpenOrders, "BTC261016"},
 	} {
 		t.Run(tc.item.String(), func(t *testing.T) {
 			t.Parallel()
@@ -1255,7 +1256,7 @@ func TestGetActiveOrders(t *testing.T) {
 		pair           currency.Pair
 		path, contract string
 	}{
-		{asset.Futures, btccwPair, fQueryOpenOrders, "BTC_CW"},
+		{asset.Futures, btccwPair, futuresQueryOpenOrders, "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
 	} {
 		for _, fee := range []float64{-0.1, 0, 0.02} {
@@ -1281,7 +1282,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Run("delivery contracts share base", func(t *testing.T) {
 		t.Parallel()
 		var calls atomic.Int32
-		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fQueryOpenOrders, `{"status":"ok","data":{"total_page":1,"orders":[{"order_id_str":"1","contract_code":"BTC261009","direction":"buy","order_price_type":"limit","status":3},{"order_id_str":"2","contract_code":"BTC261016","direction":"buy","order_price_type":"limit","status":3}]}}`, func(_ *http.Request) { calls.Add(1) })
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresQueryOpenOrders, `{"status":"ok","data":{"total_page":1,"orders":[{"order_id_str":"1","contract_code":"BTC261009","direction":"buy","order_price_type":"limit","status":3},{"order_id_str":"2","contract_code":"BTC261016","direction":"buy","order_price_type":"limit","status":3}]}}`, func(_ *http.Request) { calls.Add(1) })
 		pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("261009")), currency.NewPair(currency.BTC, currency.NewCode("261016"))}
 		orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Type: order.AnyType, Side: order.AnySide, Pairs: pairs})
 		require.NoError(t, err, "delivery orders must decode")
@@ -1397,6 +1398,16 @@ func TestGetAccountID(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 
+	for _, leverage := range []float64{-1, 1.5, math.NaN(), math.Inf(1), math.Exp2(64)} {
+		t.Run(fmt.Sprintf("invalid integral leverage %v", leverage), func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+			_, err := h.SubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btccwPair, AssetType: asset.Futures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, Leverage: leverage})
+			require.ErrorIs(t, err, errInvalidLeverage, "SubmitOrder must reject leverage that cannot be represented as a non-negative integer before I/O")
+		})
+	}
+
 	for _, tc := range []struct {
 		name          string
 		clientOrderID string
@@ -1445,7 +1456,7 @@ func TestSubmitOrder(t *testing.T) {
 			additional     []httpTestResponse
 		}{
 			{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC-USD", nil},
-			{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), exchange.RestFutures, fOrder, `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC261016", nil},
+			{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), exchange.RestFutures, futuresOrder, `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC261016", nil},
 			{asset.USDTMarginedFutures, btcusdtPair, exchange.RestUSDTMargined, "/v5/trade/order", `{"code":200,"data":{"order_id":"1"}}`, "BTC-USDT", []httpTestResponse{{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1}}},
 		} {
 			for _, side := range []order.Side{order.Buy, order.Sell} {
@@ -1497,7 +1508,7 @@ func TestSubmitOrder(t *testing.T) {
 	}{
 		{asset.Spot, btcusdtPair, exchange.RestSpot, "/v1/order/orders/place", `{"status":"ok","data":"1"}`},
 		{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
-		{asset.Futures, btccwPair, exchange.RestFutures, fOrder, `{"status":"ok","data":{"order_id_str":"1"}}`},
+		{asset.Futures, btccwPair, exchange.RestFutures, futuresOrder, `{"status":"ok","data":{"order_id_str":"1"}}`},
 	} {
 		for _, side := range []order.Side{order.Buy, order.Sell} {
 			for _, tc := range []struct {
@@ -1666,7 +1677,7 @@ func TestSubmitOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "delivery futures", endpoint: exchange.RestFutures, path: fOrder,
+			name: "delivery futures", endpoint: exchange.RestFutures, path: futuresOrder,
 			submission: order.Submit{Pair: btccwPair, AssetType: asset.Futures, Side: order.Buy, Type: order.Limit, Price: 5, Amount: 1, Leverage: 5},
 			response:   `{"status":"ok","data":{"order_id":1,"order_id_str":"1"}}`,
 			status:     order.New,
@@ -1770,7 +1781,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedField: "client_order_id", expectedValue: "client-42",
 		},
 		{
-			name: "delivery futures order ID", endpoint: exchange.RestFutures, path: fCancelOrder,
+			name: "delivery futures order ID", endpoint: exchange.RestFutures, path: futuresCancelOrder,
 			cancel:        order.Cancel{OrderID: "42", Pair: btccwPair, AssetType: asset.Futures},
 			expectedField: "order_id", expectedValue: "42",
 			response: `{"status":"ok","data":{"successes":"42","errors":[]}}`,
@@ -1821,14 +1832,18 @@ func TestCancelOrder(t *testing.T) {
 					t.Parallel()
 					path := "/swap-api/v1/swap_cancel"
 					if a == asset.Futures {
-						path = fCancelOrder
+						path = futuresCancelOrder
 					}
 					h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, path, `{"status":"ok","data":`+tc.data+`}`, func(r *http.Request) {
 						var body map[string]any
 						if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "cancellation request should decode") {
 							return
 						}
-						for field, value := range map[string]string{"order_id": identifiers.orderID, "client_order_id": identifiers.clientID} {
+						clientID := identifiers.clientID
+						if identifiers.orderID != "" {
+							clientID = ""
+						}
+						for field, value := range map[string]string{"order_id": identifiers.orderID, "client_order_id": clientID} {
 							if value == "" {
 								assert.NotContains(t, body, field, "unused identifier should be omitted")
 							} else {
@@ -2044,7 +2059,7 @@ func TestFormatV5OrderDetail(t *testing.T) {
 				t.Parallel()
 				h := new(Exchange)
 				h.SetDefaults()
-				detail, err := h.formatV5OrderDetail(&V5OrderData{ContractCode: "BTC-USDT", Side: "buy", Type: "limit", State: "filled", TimeInForce: tif, MarginMode: "cross", Fee: -0.1143702, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
+				detail, err := h.formatV5OrderDetail(&V5Order{ContractCode: "BTC-USDT", Side: "buy", Type: "limit", State: "filled", TimeInForce: tif, MarginMode: "cross", Fee: -0.1143702, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
 				require.NoError(t, err, "documented order enums must decode")
 				assert.Equal(t, currency.USDT, detail.FeeAsset, "aggregate fee should remain denominated in USDT")
 				assert.Equal(t, 0.1143702, detail.Fee, "charged fee should be positive in GCT")
@@ -2058,7 +2073,7 @@ func TestFormatV5OrderDetail(t *testing.T) {
 	h.SetDefaults()
 	_, err := h.formatV5OrderDetail(nil, asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, common.ErrNilPointer, "formatV5OrderDetail must reject nil data")
-	detail, err := h.formatV5OrderDetail(&V5OrderData{
+	detail, err := h.formatV5OrderDetail(&V5Order{
 		ContractCode:      "BTC-USDT",
 		OrderID:           "1",
 		ClientOrderID:     "2",
@@ -2086,7 +2101,7 @@ func TestFormatV5OrderDetail(t *testing.T) {
 	assert.Equal(t, margin.Multi, detail.MarginType, "margin type should match")
 	assert.Equal(t, 1.0, detail.RemainingAmount, "remaining amount should match")
 
-	detail, err = h.formatV5OrderDetail(&V5OrderData{
+	detail, err = h.formatV5OrderDetail(&V5Order{
 		ContractCode: "BTC-USDT",
 		Side:         "sell",
 		Type:         "limit",
@@ -2155,7 +2170,7 @@ func TestGetOrderInfo(t *testing.T) {
 			data      string
 			costAsset currency.Code
 		}{
-			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: fOrderInfo, data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
+			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo, data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
 			{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), path: "/swap-api/v1/swap_order_info", data: `{"symbol":"ADA","contract_code":"ADA-USD",` + fields + `}`, costAsset: currency.USD},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2204,13 +2219,13 @@ func TestGetOrderInfo(t *testing.T) {
 	}{
 		{
 			name: "delivery filled", asset: asset.Futures,
-			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: fOrderInfo,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo,
 			data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":1,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":6,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":0}`,
 			cost: 10,
 		},
 		{
 			name: "delivery partially cancelled", asset: asset.Futures,
-			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: fOrderInfo,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo,
 			data:      `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":2,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":5,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":1604367700000}`,
 			closeTime: time.UnixMilli(1604367700000), cost: 10,
 		},
@@ -2314,7 +2329,7 @@ func TestGetOrderInfo(t *testing.T) {
 			expectedMarginMode: "cross",
 		},
 		{
-			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: fOrderInfo, pair: btccwPair, asset: asset.Futures,
+			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: futuresOrderInfo, pair: btccwPair, asset: asset.Futures,
 			response: `{"status":"ok","data":[{"contract_code":"BTC_CW","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":-0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
 		},
 	} {
@@ -2694,7 +2709,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		t.Parallel()
 		h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
 			tb.Helper()
-			var req V5WsTradeRequest
+			var req V5WebsocketTradeRequest
 			if err := json.Unmarshal(message, &req); err != nil {
 				return err
 			}
@@ -2809,7 +2824,7 @@ func TestCompatibleVars(t *testing.T) {
 		name           string
 		side           string
 		orderPriceType string
-		status         int64
+		status         uint64
 		expectedSide   order.Side
 		expectedType   order.Type
 		expectedStatus order.Status
@@ -2857,7 +2872,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		{
 			name:           "buy market",
 			state:          "filled",
-			requestType:    string(SpotNewOrderRequestTypeBuyMarket),
+			requestType:    string(SpotOrderTypeBuyMarket),
 			expectedSide:   order.Buy,
 			expectedType:   order.Market,
 			expectedStatus: order.Filled,
@@ -2865,7 +2880,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		{
 			name:           "sell market",
 			state:          "partial-filled",
-			requestType:    string(SpotNewOrderRequestTypeSellMarket),
+			requestType:    string(SpotOrderTypeSellMarket),
 			expectedSide:   order.Sell,
 			expectedType:   order.Market,
 			expectedStatus: order.PartiallyFilled,
@@ -2873,7 +2888,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		{
 			name:           "buy limit",
 			state:          "submitted",
-			requestType:    string(SpotNewOrderRequestTypeBuyLimit),
+			requestType:    string(SpotOrderTypeBuyLimit),
 			expectedSide:   order.Buy,
 			expectedType:   order.Limit,
 			expectedStatus: order.New,
@@ -2881,7 +2896,7 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		{
 			name:           "sell limit",
 			state:          "canceled",
-			requestType:    string(SpotNewOrderRequestTypeSellLimit),
+			requestType:    string(SpotOrderTypeSellLimit),
 			expectedSide:   order.Sell,
 			expectedType:   order.Limit,
 			expectedStatus: order.Cancelled,
@@ -3197,376 +3212,179 @@ var (
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	for _, clientIDs := range []bool{false, true} {
-		t.Run(fmt.Sprintf("V5 documented rows clientIDs=%t", clientIDs), func(t *testing.T) {
-			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", `{"code":200,"data":[{"client_order_id":"100","order_id":"900","code":200,"message":"Success"},{"client_order_id":"101","order_id":"901","code":1061,"message":"not found"}]}`, func(r *http.Request) {
-				var body V5CancelBatchOrdersRequest
-				require.NoError(t, json.NewDecoder(r.Body).Decode(&body), "batch request must decode")
-				if clientIDs {
-					assert.Equal(t, []string{"100", "101"}, body.ClientOrderIDs, "requested client IDs should be sent")
-					assert.Empty(t, body.OrderIDs, "client-ID requests should omit exchange IDs")
-				} else {
-					assert.Equal(t, []string{"900", "901"}, body.OrderIDs, "requested exchange IDs should be sent")
-					assert.Empty(t, body.ClientOrderIDs, "exchange-ID requests should omit client IDs")
-				}
-			})
-			cancels := []order.Cancel{{OrderID: "900", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}, {OrderID: "901", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}}
-			if clientIDs {
-				cancels[0].ClientOrderID, cancels[1].ClientOrderID = "100", "101"
-			}
-			response, err := h.CancelBatchOrders(t.Context(), cancels)
-			require.NoError(t, err, "documented batch response must decode")
-			want := map[string]string{"900": htxStatusSuccess, "901": "not found"}
-			if clientIDs {
-				want["100"], want["101"] = htxStatusSuccess, "not found"
-			}
-			assert.Equal(t, want, response.Status, "batch statuses should retain the requested identities")
-		})
-	}
-	t.Run("V5 batch per-order failure", func(t *testing.T) {
-		t.Parallel()
-		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders",
-			`{"code":200,"data":[{"order_id":"1","client_order_id":"1","code":200,"message":"Success"},{"order_id":"2","client_order_id":"2","code":1061,"message":"not found"}]}`,
-			func(r *http.Request) {
-				var req map[string]any
-				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "batch request should decode") {
-					return
-				}
-				assert.Equal(t, []any{"1", "2"}, req["order_id"], "exchange order IDs should be sent as order_id")
-				assert.NotContains(t, req, "client_order_id", "an exchange-ID batch should not send client order IDs")
-			})
-		resp, err := h.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: "1", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair},
-			{OrderID: "2", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair},
-		})
-		require.NoError(t, err, "batch cancellation must not error")
-		assert.Equal(t, map[string]string{"1": htxStatusSuccess, "2": "not found"}, resp.Status, "per-order failures should not be reported as cancelled")
-	})
-	t.Run("validation", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := e.CancelBatchOrders(t.Context(), nil)
-		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders must reject empty requests")
-
-		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{}})
-		require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must require an order ID")
-
-		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: "1", AssetType: asset.Spot},
-			{OrderID: "2", AssetType: asset.Futures},
-		})
-		require.ErrorIs(t, err, errBatchAssetMismatch, "CancelBatchOrders must reject mixed assets")
-
-		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: "1", AssetType: asset.Futures, Pair: btccwPair},
-			{OrderID: "2", AssetType: asset.Futures, Pair: currency.NewPair(currency.ETH, currency.NewCode("CW"))},
-		})
-		require.ErrorIs(t, err, errBatchPairMismatch, "CancelBatchOrders must reject mixed derivative pairs")
-	})
-	for _, tc := range []struct {
-		name, data string
-		want       map[string]string
+	markets := []struct {
+		assetType asset.Item
+		endpoint  exchange.URL
+		path      string
+		pair      currency.Pair
+		limit     int
+		response  string
 	}{
-		{"client failures", `{"success":[],"failed":[{"client-order-id":"client-1","err-msg":"first rejected"},{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": "first rejected", "client-2": "second rejected"}},
-		{"mixed partial results", `{"success":["client-1"],"failed":[{"client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "client-2": "second rejected"}},
-		{"exchange ID preferred", `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, map[string]string{"client-1": htxStatusSuccess, "42": "second rejected", "client-2": "second rejected"}},
-	} {
-		t.Run("spot "+tc.name, func(t *testing.T) {
-			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", `{"status":"ok","data":`+tc.data+`}`, func(r *http.Request) {
-				var payload struct {
-					ClientOrderIDs []string `json:"client-order-ids"`
-				}
-				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "client cancellation body should decode") {
-					assert.Equal(t, []string{"client-1", "client-2"}, payload.ClientOrderIDs, "both client identifiers should be attempted")
-				}
-			})
-			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, ClientOrderID: "client-1"}, {AssetType: asset.Spot, ClientOrderID: "client-2"}})
-			require.NoError(t, err, "partial result envelope must decode")
-			require.NotNil(t, response, "completed statuses must exist")
-			assert.Equal(t, tc.want, response.Status, "each failed client identifier should retain its individual reason")
-		})
+		{assetType: asset.Spot, endpoint: exchange.RestSpot, path: "/v1/order/orders/batchcancel", pair: btcusdtPair, limit: 50, response: `{"status":"ok","data":{"success":[],"failed":[]}}`},
+		{assetType: asset.Futures, endpoint: exchange.RestFutures, path: futuresCancelOrder, pair: btccwPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
+		{assetType: asset.CoinMarginedFutures, endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel", pair: btcusdPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
+		{assetType: asset.USDTMarginedFutures, endpoint: exchange.RestUSDTMargined, path: "/v5/trade/cancel_batch_orders", pair: btcusdtPair, limit: 10, response: `{"code":200,"data":[]}`},
 	}
-
-	for _, failBatch := range []int{1, 2} {
-		t.Run(fmt.Sprintf("spot partial batch %d", failBatch), func(t *testing.T) {
-			t.Parallel()
-			var calls atomic.Int32
-			want := make(map[string]string)
-			var cancels []order.Cancel
-			for i := 1; i <= 51; i++ {
-				id := strconv.Itoa(i)
-				cancels = append(cancels, order.Cancel{AssetType: asset.Spot, OrderID: id})
-				if (i <= 50 && failBatch != 1) || (i == 51 && failBatch != 2) {
-					want[id] = htxStatusSuccess
-				}
-			}
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", "", nil)
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var payload struct {
-					OrderIDs []string `json:"order-ids"`
-				}
-				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "batch request should decode") {
-					return
-				}
-				if int(calls.Add(1)) == failBatch {
-					_, _ = w.Write([]byte(`{"status":"error","err-code":"system-busy","err-msg":"batch refused"}`))
-					return
-				}
-				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"status": "ok", "data": map[string]any{"success": payload.OrderIDs}}), "batch response should encode")
-			}))
-			require.NoError(t, h.SetHTTPClient(server.Client()), "spot mock client must be configured")
-			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot mock must be configured")
-			response, err := h.CancelBatchOrders(t.Context(), cancels)
-			require.ErrorContains(t, err, "batch refused", "failed batch must remain visible")
-			require.NotNil(t, response, "completed statuses must remain available on error")
-			assert.Equal(t, want, response.Status, "successful batches should retain every status")
-			assert.Equal(t, int32(2), calls.Load(), "both batches should be attempted")
-		})
-	}
-	for _, tc := range []struct {
-		name      string
-		clientID  string
-		successID string
-		want      map[string]string
-	}{
-		{name: "same order by both identifiers", clientID: "client-2", successID: "42", want: map[string]string{"42": "second rejected", "client-2": "second rejected"}},
-		{name: "numeric client ID collision", clientID: "client-2", successID: "client-2", want: map[string]string{"42": "second rejected", "client-2": htxStatusSuccess}},
-		{name: "unrequested client ID", clientID: "other", successID: "client-1", want: map[string]string{"42": "second rejected", "client-1": htxStatusSuccess}},
-	} {
-		t.Run("spot "+tc.name, func(t *testing.T) {
-			t.Parallel()
-			responseBody := fmt.Sprintf(`{"status":"ok","data":{"success":[%q],"failed":[{"order-id":"42","client-order-id":%q,"err-msg":"second rejected"}]}}`, tc.successID, tc.clientID)
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", responseBody, nil)
-			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, OrderID: "42"}, {AssetType: asset.Spot, ClientOrderID: "client-2"}})
-			require.NoError(t, err, "batch response must decode")
-			require.NotNil(t, response, "statuses must exist")
-			assert.Equal(t, tc.want, response.Status, "client aliases should preserve existing statuses and omit unrequested aliases")
-		})
-	}
-
-	for _, tc := range []struct {
-		name                       string
-		orders, clients, failBatch int
-		nullBatch                  bool
-	}{
-		{name: "ten", orders: 10},
-		{name: "eleven", orders: 11},
-		{name: "twenty-one clients", clients: 21},
-		{name: "two mixed IDs", orders: 1, clients: 1},
-		{name: "mixed", orders: 11, clients: 11},
-		{name: "first failure", orders: 11, clients: 1, failBatch: 1},
-		{name: "later failure", orders: 11, failBatch: 2},
-		{name: "null batch", orders: 11, failBatch: 1, nullBatch: true},
-	} {
-		t.Run("V5 "+tc.name, func(t *testing.T) {
-			t.Parallel()
-			orders := make([]order.Cancel, 0, tc.orders+tc.clients)
-			for i := range tc.orders {
-				orders = append(orders, order.Cancel{OrderID: strconv.Itoa(i + 1), AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair})
-			}
-			for i := range tc.clients {
-				orders = append(orders, order.Cancel{ClientOrderID: strconv.Itoa(i + 100), AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair})
-			}
-			calls := 0
-			var mu sync.Mutex
-			var sent []string
-			expected := make([]string, 0, len(orders))
-			for _, ord := range orders {
-				if ord.OrderID != "" {
-					expected = append(expected, ord.OrderID)
-				} else {
-					expected = append(expected, ord.ClientOrderID)
-				}
-			}
-			want := make(map[string]string)
-			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", "", nil)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var req V5CancelBatchOrdersRequest
-				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "batch request should decode") {
-					return
-				}
-				assert.Equal(t, "BTC-USDT", req.ContractCode, "batch should retain contract identity")
-				assert.NotEqual(t, len(req.OrderIDs) > 0, len(req.ClientOrderIDs) > 0, "batch should contain exactly one ID kind")
-				ids, field := req.OrderIDs, "order_id"
-				if len(ids) == 0 {
-					ids, field = req.ClientOrderIDs, "client_order_id"
-				}
-				assert.LessOrEqual(t, len(ids), 10, "batch should obey venue limit")
-				mu.Lock()
-				defer mu.Unlock()
-				sent = append(sent, ids...)
-				calls++
-				if calls == tc.failBatch {
-					if tc.nullBatch {
-						_, _ = w.Write([]byte(`null`))
-					} else {
-						_, _ = w.Write([]byte(`{"code":1000,"message":"batch failed"}`))
-					}
-					return
-				}
-				data := make([]map[string]any, 0, len(ids))
-				for _, id := range ids {
-					want[id] = htxStatusSuccess
-					data = append(data, map[string]any{field: id, "code": 200})
-				}
-				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": 200, "data": data}), "batch response should encode")
-			}))
-			t.Cleanup(server.Close)
-			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be configured")
-			response, err := h.CancelBatchOrders(t.Context(), orders)
-			switch {
-			case tc.nullBatch:
-				require.ErrorIs(t, err, errEmptyResult, "null batch must remain visible")
-			case tc.failBatch > 0:
-				require.ErrorContains(t, err, "batch failed", "failed batch must remain visible")
-			default:
-				require.NoError(t, err, "all cancellation batches must succeed")
-			}
-			require.NotNil(t, response, "completed statuses must remain available")
-			mu.Lock()
-			defer mu.Unlock()
-			assert.Equal(t, expected, sent, "every requested identifier should be attempted once")
-			assert.Equal(t, (tc.orders+9)/10+(tc.clients+9)/10, calls, "all batches should be attempted")
-			assert.Equal(t, want, response.Status, "every completed identifier should retain its status")
-		})
-	}
-	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.Futures} {
-		for _, tc := range []struct {
-			name       string
-			orderIDs   int
-			clientIDs  int
-			batchSizes []int
-			failBatch  int
-			rejected   bool
-		}{
-			{name: "ten order IDs", orderIDs: 10, batchSizes: []int{10}},
-			{name: "eleven order IDs", orderIDs: 11, batchSizes: []int{10, 1}},
-			{name: "twenty-one client IDs", clientIDs: 21, batchSizes: []int{10, 10, 1}},
-			{name: "mixed identifiers", orderIDs: 11, clientIDs: 11, batchSizes: []int{10, 1, 10, 1}},
-			{name: "continue after failed first batch", orderIDs: 11, clientIDs: 1, batchSizes: []int{10, 1, 1}, failBatch: 1},
-			{name: "preserve success before failed batch", orderIDs: 11, batchSizes: []int{10, 1}, failBatch: 2},
-			{name: "venue order rejection", orderIDs: 1, batchSizes: []int{1}, rejected: true},
-		} {
-			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
-				t.Parallel()
-				pair, path := btcusdPair, "/swap-api/v1/swap_cancel"
-				if a == asset.Futures {
-					pair, path = btccwPair, fCancelOrder
-				}
-				orders := make([]order.Cancel, 0, tc.orderIDs+tc.clientIDs)
-				expectedIdentifiers := make([]string, 0, tc.orderIDs+tc.clientIDs)
-				for i := range tc.orderIDs {
-					orders = append(orders, order.Cancel{OrderID: strconv.Itoa(i + 1), AssetType: a, Pair: pair})
-					expectedIdentifiers = append(expectedIdentifiers, strconv.Itoa(i+1))
-				}
-				for i := range tc.clientIDs {
-					// When both identifiers are supplied, only the preferred client ID is cancelled.
-					orders = append(orders, order.Cancel{OrderID: "ignored", ClientOrderID: strconv.Itoa(100 + i), AssetType: a, Pair: pair})
-					expectedIdentifiers = append(expectedIdentifiers, strconv.Itoa(100+i))
-				}
-				var mu sync.Mutex
-				var sizes []int
-				wantStatuses := make(map[string]string)
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					assert.Equal(t, path, r.URL.Path, "cancellation endpoint should match the asset")
-					var body struct {
-						OrderID       string `json:"order_id"`
-						ClientOrderID string `json:"client_order_id"`
-					}
-					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "cancellation request should decode") {
-						return
-					}
-					assert.NotEqual(t, body.OrderID != "", body.ClientOrderID != "", "request should contain exactly one identifier kind")
-					identifiers := body.OrderID
-					if identifiers == "" {
-						identifiers = body.ClientOrderID
-					}
-					batch := strings.Split(identifiers, ",")
-					assert.LessOrEqual(t, len(batch), 10, "each cancellation request should respect the ten-order limit")
-					mu.Lock()
-					defer mu.Unlock()
-					sizes = append(sizes, len(batch))
-					if assert.LessOrEqual(t, len(sizes), len(tc.batchSizes), "requests should not duplicate cancellation batches") {
-						start := 0
-						for _, size := range tc.batchSizes[:len(sizes)-1] {
-							start += size
+	for _, market := range markets {
+		for _, clientIDs := range []bool{false, true} {
+			for _, tc := range []struct {
+				name    string
+				count   int
+				mixed   bool
+				wantErr error
+			}{
+				{name: "one", count: 1},
+				{name: "maximum", count: market.limit},
+				{name: "over maximum", count: market.limit + 1, wantErr: errCancelOrderLimitExceeded},
+				{name: "mixed identifier kinds", count: 2, mixed: true, wantErr: errMixedOrderIdentifiers},
+			} {
+				t.Run(fmt.Sprintf("%s/clientIDs=%t/%s", market.assetType, clientIDs, tc.name), func(t *testing.T) {
+					t.Parallel()
+					cancels := make([]order.Cancel, tc.count)
+					ids := make([]string, tc.count)
+					for i := range cancels {
+						ids[i] = strconv.Itoa(i + 1)
+						cancels[i] = order.Cancel{AssetType: market.assetType, Pair: market.pair, OrderID: ids[i]}
+						if clientIDs {
+							// An individual order's client ID takes precedence over its exchange ID.
+							cancels[i].OrderID = "ignored"
+							cancels[i].ClientOrderID = ids[i]
 						}
-						assert.Equal(t, start < tc.orderIDs, body.OrderID != "", "request should use the correct identifier field")
-						assert.Equal(t, expectedIdentifiers[start:start+tc.batchSizes[len(sizes)-1]], batch, "request should cancel the exact identifiers in this batch")
 					}
-					w.Header().Set("Content-Type", "application/json")
-					if len(sizes) == tc.failBatch {
-						_, _ = w.Write([]byte(`{"status":"error","err_code":1000,"err_msg":"batch failed"}`))
+					if tc.mixed {
+						if clientIDs {
+							cancels[1].ClientOrderID = ""
+							cancels[1].OrderID = ids[1]
+						} else {
+							cancels[1].ClientOrderID = ids[1]
+						}
+					}
+					var calls atomic.Int32
+					h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, market.response, func(r *http.Request) {
+						calls.Add(1)
+						var body map[string]json.RawMessage
+						require.NoError(t, json.NewDecoder(r.Body).Decode(&body), "batch request must decode")
+						field, omitted := "order_id", "client_order_id"
+						if market.assetType == asset.Spot {
+							field, omitted = "order-ids", "client-order-ids"
+						}
+						if clientIDs {
+							field, omitted = omitted, field
+						}
+						assert.NotContains(t, body, omitted, "batch should contain one identifier kind")
+						var sent []string
+						if market.assetType == asset.Futures || market.assetType == asset.CoinMarginedFutures {
+							var joined string
+							require.NoError(t, json.Unmarshal(body[field], &joined), "legacy identifiers must decode")
+							sent = strings.Split(joined, ",")
+						} else {
+							require.NoError(t, json.Unmarshal(body[field], &sent), "batch identifiers must decode")
+						}
+						assert.Equal(t, ids, sent, "one request should contain every selected identifier")
+					})
+					response, err := h.CancelBatchOrders(t.Context(), cancels)
+					if tc.wantErr != nil {
+						require.ErrorIs(t, err, tc.wantErr, "invalid batches must return the validation error")
+						assert.Zero(t, calls.Load(), "invalid batches should not send a request")
 						return
 					}
-					if tc.rejected {
-						wantStatuses["1"] = "not found"
-						_, _ = w.Write([]byte(`{"status":"ok","data":{"successes":"","errors":[{"order_id":"1","err_msg":"not found"}]}}`))
-						return
-					}
-					for _, id := range batch {
-						wantStatuses[id] = htxStatusSuccess
-					}
-					assert.NotContains(t, batch, "ignored", "client IDs should take precedence over duplicate order IDs")
-					_, _ = fmt.Fprintf(w, `{"status":"ok","data":{"successes":%q,"errors":[]}}`, identifiers)
-				}))
-				t.Cleanup(server.Close)
-				h := new(Exchange)
-				require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
-				h.API.AuthenticatedSupport = true
-				h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-				require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be configured")
-				resp, err := h.CancelBatchOrders(t.Context(), orders)
-				if tc.failBatch != 0 {
-					require.ErrorContains(t, err, "batch failed", "failed batches must remain visible to the caller")
-				} else {
-					require.NoError(t, err, "batch cancellation must succeed")
-				}
-				require.NotNil(t, resp, "batch cancellation must preserve completed statuses")
-				mu.Lock()
-				defer mu.Unlock()
-				assert.Equal(t, tc.batchSizes, sizes, "all identifier batches should be attempted")
-				assert.Equal(t, wantStatuses, resp.Status, "statuses should retain all successful batches and venue rejections")
+					require.NoError(t, err, "supported batches must succeed")
+					require.NotNil(t, response, "successful batches must return statuses")
+					assert.Equal(t, int32(1), calls.Load(), "a batch should send exactly one request")
+				})
+			}
+		}
+		t.Run(market.assetType.String()+"/API error", func(t *testing.T) {
+			t.Parallel()
+			body := `{"status":"error","err_code":1000,"err_msg":"batch refused"}`
+			switch market.assetType {
+			case asset.Spot:
+				body = `{"status":"error","err-code":"system-busy","err-msg":"batch refused"}`
+			case asset.USDTMarginedFutures:
+				body = `{"code":1000,"message":"batch refused"}`
+			}
+			var calls atomic.Int32
+			h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, body, func(*http.Request) { calls.Add(1) })
+			_, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: market.assetType, Pair: market.pair}})
+			require.ErrorContains(t, err, "batch refused", "API errors must reach the caller")
+			assert.Equal(t, int32(1), calls.Load(), "a failed batch should send one request")
+		})
+		if market.assetType == asset.Spot || market.assetType == asset.USDTMarginedFutures {
+			t.Run(market.assetType.String()+"/null result", func(t *testing.T) {
+				t.Parallel()
+				var calls atomic.Int32
+				h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, `null`, func(*http.Request) { calls.Add(1) })
+				_, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: market.assetType, Pair: market.pair}})
+				require.ErrorIs(t, err, errEmptyResult, "null responses must return an empty-result error")
+				assert.Equal(t, int32(1), calls.Load(), "an empty-result batch should send one request")
 			})
 		}
 	}
-	for _, tt := range []struct {
-		name     string
-		endpoint exchange.URL
-		path     string
-		orders   []order.Cancel
-		response string
-		statusID string
+	for _, tc := range []struct {
+		name    string
+		orders  []order.Cancel
+		wantErr error
 	}{
-		{
-			name: "spot", endpoint: exchange.RestSpot, path: "/v1/order/orders/batchcancel",
-			orders:   []order.Cancel{{ClientOrderID: "client-1", AssetType: asset.Spot, Pair: btcusdtPair}},
-			response: `{"status":"ok","data":{"success":["client-1"],"failed":[]}}`, statusID: "client-1",
-		},
-		{
-			name: "coin margined futures", endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel",
-			orders:   []order.Cancel{{OrderID: "1", AssetType: asset.CoinMarginedFutures, Pair: btcusdPair}},
-			response: `{"status":"ok","data":{"successes":"1","errors":[]}}`, statusID: "1",
-		},
-		{
-			name: "USDT margined futures", endpoint: exchange.RestUSDTMargined, path: "/v5/trade/cancel_batch_orders",
-			orders:   []order.Cancel{{OrderID: "1", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}},
-			response: `{"code":200,"data":[{"code":200,"order_id":"1"}]}`, statusID: "1",
-		},
-		{
-			name: "delivery futures", endpoint: exchange.RestFutures, path: fCancelOrder,
-			orders:   []order.Cancel{{OrderID: "1", AssetType: asset.Futures, Pair: btccwPair}},
-			response: `{"status":"ok","data":{"successes":"1","errors":[]}}`, statusID: "1",
-		},
+		{name: "empty", wantErr: order.ErrCancelOrderIsNil},
+		{name: "missing identifier", orders: []order.Cancel{{}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "mixed assets", orders: []order.Cancel{{OrderID: "1", AssetType: asset.Spot}, {OrderID: "2", AssetType: asset.Futures}}, wantErr: errBatchAssetMismatch},
+		{name: "mixed derivative pairs", orders: []order.Cancel{{OrderID: "1", AssetType: asset.Futures, Pair: btccwPair}, {OrderID: "2", AssetType: asset.Futures, Pair: ethusdPair}}, wantErr: errBatchPairMismatch},
+		{name: "empty derivative pair", orders: []order.Cancel{{OrderID: "1", AssetType: asset.CoinMarginedFutures}}, wantErr: currency.ErrCurrencyPairEmpty},
+		{name: "unsupported asset", orders: []order.Cancel{{OrderID: "1", AssetType: asset.Margin}}, wantErr: asset.ErrNotSupported},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run("validation/"+tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := newHTTPTestExchange(t, tt.endpoint, http.MethodPost, tt.path, tt.response, nil)
-			resp, err := h.CancelBatchOrders(t.Context(), tt.orders)
-			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Equal(t, htxStatusSuccess, resp.Status[tt.statusID], "cancellation status should indicate success")
+			var calls atomic.Int32
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/unused", emptySuccessResponse, func(*http.Request) { calls.Add(1) })
+			_, err := h.CancelBatchOrders(t.Context(), tc.orders)
+			require.ErrorIs(t, err, tc.wantErr, "invalid requests must return their validation error")
+			assert.Zero(t, calls.Load(), "validation failures should not send a request")
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		data string
+		want map[string]string
+	}{
+		{name: "client failures", data: `{"success":[],"failed":[{"client-order-id":"client-1","err-msg":"first rejected"},{"client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": "first rejected", "client-2": "second rejected"}},
+		{name: "partial result", data: `{"success":["client-1"],"failed":[{"client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": htxStatusSuccess, "client-2": "second rejected"}},
+		{name: "exchange ID alias", data: `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": htxStatusSuccess, "42": "second rejected", "client-2": "second rejected"}},
+		{name: "preserve existing alias status", data: `{"success":["client-2"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"42": "second rejected", "client-2": htxStatusSuccess}},
+		{name: "unrequested alias", data: `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"other","err-msg":"second rejected"}]}`, want: map[string]string{"42": "second rejected", "client-1": htxStatusSuccess}},
+	} {
+		t.Run("spot statuses/"+tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", `{"status":"ok","data":`+tc.data+`}`, nil)
+			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, ClientOrderID: "client-1"}, {AssetType: asset.Spot, ClientOrderID: "client-2"}})
+			require.NoError(t, err, "per-order result envelopes must decode")
+			require.NotNil(t, response, "per-order statuses must be returned")
+			assert.Equal(t, tc.want, response.Status, "statuses should retain individual failures and requested aliases")
+		})
+	}
+	for _, clientIDs := range []bool{false, true} {
+		t.Run(fmt.Sprintf("V5 statuses/clientIDs=%t", clientIDs), func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", `{"code":200,"data":[{"client_order_id":"100","order_id":"900","code":200,"message":"Success"},{"client_order_id":"101","order_id":"901","code":1061,"message":"not found"}]}`, nil)
+			cancels := []order.Cancel{{OrderID: "900", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}, {OrderID: "901", AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}}
+			want := map[string]string{"900": htxStatusSuccess, "901": "not found"}
+			if clientIDs {
+				cancels[0].ClientOrderID, cancels[1].ClientOrderID = "100", "101"
+				want["100"], want["101"] = htxStatusSuccess, "not found"
+			}
+			response, err := h.CancelBatchOrders(t.Context(), cancels)
+			require.NoError(t, err, "V5 per-order results must decode")
+			require.NotNil(t, response, "V5 statuses must be returned")
+			assert.Equal(t, want, response.Status, "V5 statuses should retain failures and requested aliases")
+		})
+	}
+	for _, market := range markets[1:3] {
+		t.Run(market.assetType.String()+"/per-order rejection", func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, `{"status":"ok","data":{"successes":"1","errors":[{"order_id":"2","err_msg":"not found"}]}}`, nil)
+			response, err := h.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: market.assetType, Pair: market.pair}, {OrderID: "2", AssetType: market.assetType, Pair: market.pair}})
+			require.NoError(t, err, "legacy per-order results must decode")
+			require.NotNil(t, response, "legacy statuses must be returned")
+			assert.Equal(t, map[string]string{"1": htxStatusSuccess, "2": "not found"}, response.Status, "legacy statuses should retain individual rejections")
 		})
 	}
 }

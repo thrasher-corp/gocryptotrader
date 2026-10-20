@@ -83,7 +83,7 @@ func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name   string
-		amount int64
+		amount uint64
 		wire   string
 	}{
 		{"documented integer", 123, "123"},
@@ -103,6 +103,12 @@ func TestV5UniversalTransfer(t *testing.T) {
 			require.NoError(t, err, "integer transfer payload must send")
 		})
 	}
+
+	t.Run("signed long overflow", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(Exchange).V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 1 << 63})
+		require.ErrorIs(t, err, errInvalidTransferAmount, "transfer must reject values outside the documented Long range before I/O")
+	})
 
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
 	_, err := h.V5UniversalTransfer(t.Context(), nil)

@@ -90,7 +90,7 @@ func TestV5OrderQueryResponseUnmarshal(t *testing.T) {
 	assert.False(t, resp.Data.PriceProtect.Bool(), "empty price-protect should decode as false")
 }
 
-func TestV5OrderResponseDataUnmarshalJSON(t *testing.T) {
+func TestV5OrderAcknowledgementUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name          string
@@ -103,8 +103,8 @@ func TestV5OrderResponseDataUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var response V5OrderResponseData
-			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "V5OrderResponseData unmarshal must not error")
+			var response V5OrderAcknowledgement
+			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "V5OrderAcknowledgement unmarshal must not error")
 			assert.Equal(t, tc.orderID, response.OrderID, "order ID should retain full precision")
 			assert.Equal(t, tc.clientOrderID, response.ClientOrderID, "client order ID should retain full precision")
 		})

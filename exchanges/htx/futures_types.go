@@ -8,25 +8,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// FContractInfoData gets contract info data for futures
-type FContractInfoData struct {
-	Data []FContractInfo `json:"data"`
+// FuturesContractInfoResponse gets contract info data for futures
+type FuturesContractInfoResponse struct {
+	Data []FuturesContractInfo `json:"data"`
 }
 
-// FContractIndexPriceInfo stores contract index price
-type FContractIndexPriceInfo struct {
-	Data      []FContractIndexPriceInfoData `json:"data"`
+// FuturesContractIndexPriceInfoResponse stores contract index price
+type FuturesContractIndexPriceInfoResponse struct {
+	Data      []FuturesContractIndexPriceInfo `json:"data"`
+	Timestamp types.Time                      `json:"ts"`
+}
+
+// FuturesContractOpenInterestResponse stores open interest data for futures contracts
+type FuturesContractOpenInterestResponse struct {
+	Data      []FuturesContractOpenInterest `json:"data"`
 	Timestamp types.Time                    `json:"ts"`
 }
 
-// FContractOIData stores open interest data for futures contracts
-type FContractOIData struct {
-	Data      []FContractOpenInterest `json:"data"`
-	Timestamp types.Time              `json:"ts"`
-}
-
-// FContractOpenInterest stores open interest data for futures contracts.
-type FContractOpenInterest struct {
+// FuturesContractOpenInterest stores open interest data for futures contracts.
+type FuturesContractOpenInterest struct {
 	Volume        float64 `json:"volume"`
 	Amount        float64 `json:"amount"`
 	Symbol        string  `json:"symbol"`
@@ -40,21 +40,21 @@ type FContractOpenInterest struct {
 	ContractType  string  `json:"contract_type"`
 }
 
-// FEstimatedDeliveryPriceInfo stores estimated delivery price data for futures
-type FEstimatedDeliveryPriceInfo struct {
-	Data      FEstimatedDeliveryPriceInfoData `json:"data"`
-	Timestamp types.Time                      `json:"ts"`
+// FuturesEstimatedDeliveryPriceResponse stores estimated delivery price data for futures
+type FuturesEstimatedDeliveryPriceResponse struct {
+	Data      FuturesEstimatedDeliveryPrice `json:"data"`
+	Timestamp types.Time                    `json:"ts"`
 }
 
-// FMarketDepth gets orderbook data for futures
-type FMarketDepth struct {
-	Ch        string           `json:"ch"`
-	Timestamp types.Time       `json:"ts"`
-	Tick      FMarketDepthTick `json:"tick"`
+// FuturesMarketDepthResponse gets orderbook data for futures
+type FuturesMarketDepthResponse struct {
+	Channel   string                 `json:"ch"`
+	Timestamp types.Time             `json:"ts"`
+	Tick      FuturesMarketDepthTick `json:"tick"`
 }
 
-// OBData stores market depth data
-type OBData struct {
+// FuturesOrderbook stores market depth data
+type FuturesOrderbook struct {
 	Symbol string
 	Asks   []obItem
 	Bids   []obItem
@@ -65,9 +65,9 @@ type obItem struct {
 	Quantity float64
 }
 
-// FKlineData stores kline data for futures
-type FKlineData struct {
-	Ch        string         `json:"ch"`
+// FuturesKlineResponse stores kline data for futures
+type FuturesKlineResponse struct {
+	Channel   string         `json:"ch"`
 	Data      []FuturesKline `json:"data"`
 	Timestamp types.Time     `json:"ts"`
 }
@@ -84,133 +84,133 @@ type FuturesKline struct {
 	Amount      float64    `json:"amount"`
 }
 
-// FMarketOverviewData stores overview data for futures
-type FMarketOverviewData struct {
-	Ch        string                  `json:"ch"`
-	Tick      FMarketOverviewDataTick `json:"tick"`
-	Timestamp types.Time              `json:"ts"`
-}
-
-// FLastTradeData stores last trade's data for a contract
-type FLastTradeData struct {
-	Ch        string             `json:"ch"`
-	Tick      FLastTradeDataTick `json:"tick"`
-	Timestamp types.Time         `json:"ts"`
-}
-
-// FBatchTradesForContractData stores batch of trades data for a contract
-type FBatchTradesForContractData struct {
-	Ch        string                    `json:"ch"`
+// FuturesMarketOverviewResponse stores overview data for futures
+type FuturesMarketOverviewResponse struct {
+	Channel   string                    `json:"ch"`
+	Tick      FuturesMarketOverviewTick `json:"tick"`
 	Timestamp types.Time                `json:"ts"`
-	Data      []FBatchTradesForContract `json:"data"`
+}
+
+// FuturesLastTradeResponse stores last trade's data for a contract
+type FuturesLastTradeResponse struct {
+	Channel   string               `json:"ch"`
+	Tick      FuturesLastTradeTick `json:"tick"`
+	Timestamp types.Time           `json:"ts"`
+}
+
+// FuturesBatchTradesForContractResponse stores batch of trades data for a contract
+type FuturesBatchTradesForContractResponse struct {
+	Channel   string                          `json:"ch"`
+	Timestamp types.Time                      `json:"ts"`
+	Data      []FuturesBatchTradesForContract `json:"data"`
 }
 
 // FuturesTrade is futures trade data
 type FuturesTrade struct {
 	Amount    float64    `json:"amount"`
 	Direction string     `json:"direction"`
-	ID        int64      `json:"id"`
+	ID        uint64     `json:"id"`
 	Price     float64    `json:"price"`
 	Timestamp types.Time `json:"ts"`
 }
 
-// FTieredAdjustmentFactorInfo stores info on adjustment factor for futures
-type FTieredAdjustmentFactorInfo struct {
-	Data      []FTieredAdjustmentFactorInfoData `json:"data"`
-	Timestamp types.Time                        `json:"ts"`
+// FuturesTieredAdjustmentFactorInfoResponse stores info on adjustment factor for futures
+type FuturesTieredAdjustmentFactorInfoResponse struct {
+	Data      []FuturesTieredAdjustmentFactorInfo `json:"data"`
+	Timestamp types.Time                          `json:"ts"`
 }
 
-// FOIData gets oi data on futures
-type FOIData struct {
-	Data      FOI        `json:"data"`
-	Timestamp types.Time `json:"ts"`
+// FuturesOpenInterestResponse gets oi data on futures
+type FuturesOpenInterestResponse struct {
+	Data      FuturesOpenInterest `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
-// FTopAccountsLongShortRatio stores long/short ratio for top futures accounts
-type FTopAccountsLongShortRatio struct {
-	Data      FTopAccountsLongShortRatioData `json:"data"`
-	Timestamp types.Time                     `json:"ts"`
+// FuturesTopAccountsLongShortRatioResponse stores long/short ratio for top futures accounts
+type FuturesTopAccountsLongShortRatioResponse struct {
+	Data      FuturesTopAccountsLongShortRatio `json:"data"`
+	Timestamp types.Time                       `json:"ts"`
 }
 
-// FTopPositionsLongShortRatio stores long short ratio for top futures positions
-type FTopPositionsLongShortRatio struct {
-	Data      FTopPositionsLongShortRatioData `json:"data"`
-	Timestamp types.Time                      `json:"timestamp"`
+// FuturesTopPositionsLongShortRatioResponse stores long short ratio for top futures positions
+type FuturesTopPositionsLongShortRatioResponse struct {
+	Data      FuturesTopPositionsLongShortRatio `json:"data"`
+	Timestamp types.Time                        `json:"timestamp"`
 }
 
-// FIndexKlineData stores index kline data for futures
-type FIndexKlineData struct {
-	Ch        string        `json:"ch"`
-	Data      []FIndexKline `json:"data"`
-	Timestamp types.Time    `json:"ts"`
+// FuturesIndexKlineResponse stores index kline data for futures
+type FuturesIndexKlineResponse struct {
+	Channel   string              `json:"ch"`
+	Data      []FuturesIndexKline `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
-// FBasisData stores basis data for futures
-type FBasisData struct {
-	Ch        string     `json:"ch"`
-	Data      []FBasis   `json:"data"`
-	Timestamp types.Time `json:"ts"`
+// FuturesBasisResponse stores basis data for futures
+type FuturesBasisResponse struct {
+	Channel   string         `json:"ch"`
+	Data      []FuturesBasis `json:"data"`
+	Timestamp types.Time     `json:"ts"`
 }
 
-// FUserAccountData stores user account data info for futures
-type FUserAccountData struct {
-	AccData   []FUserAccountDataAccData `json:"data"`
-	Timestamp types.Time                `json:"ts"`
+// FuturesUserAccountResponse stores user account data info for futures
+type FuturesUserAccountResponse struct {
+	AccData   []FuturesUserAccount `json:"data"`
+	Timestamp types.Time           `json:"ts"`
 }
 
-// FUsersPositionsInfo stores positions data for futures
-type FUsersPositionsInfo struct {
-	PosInfo   []FUsersPositionsInfoPosInfo `json:"data"`
-	Timestamp types.Time                   `json:"ts"`
+// FuturesUsersPositionsInfoResponse stores positions data for futures
+type FuturesUsersPositionsInfoResponse struct {
+	PosInfo   []FuturesPosition `json:"data"`
+	Timestamp types.Time        `json:"ts"`
 }
 
-// FSubAccountAssetsInfo gets subaccounts asset data
-type FSubAccountAssetsInfo struct {
-	Timestamp types.Time                  `json:"ts"`
-	Data      []FSubAccountAssetsInfoData `json:"data"`
+// FuturesSubAccountAssetsInfoResponse gets subaccounts asset data
+type FuturesSubAccountAssetsInfoResponse struct {
+	Timestamp types.Time                    `json:"ts"`
+	Data      []FuturesSubAccountAssetsInfo `json:"data"`
 }
 
-// FSingleSubAccountAssetsInfo stores futures assets info for a single subaccount
-type FSingleSubAccountAssetsInfo struct {
-	AssetsData []FSingleSubAccountAssetsInfoAssetsData `json:"data"`
-	Timestamp  types.Time                              `json:"ts"`
+// FuturesSingleSubAccountAssetsInfoResponse stores futures assets info for a single subaccount
+type FuturesSingleSubAccountAssetsInfoResponse struct {
+	AssetsData []FuturesSingleSubAccountAsset `json:"data"`
+	Timestamp  types.Time                     `json:"ts"`
 }
 
-// FSingleSubAccountPositionsInfo stores futures positions' info for a single subaccount
-type FSingleSubAccountPositionsInfo struct {
-	PositionsData []FSingleSubAccountPositionsInfoPositionsData `json:"data"`
-	Timestamp     types.Time                                    `json:"ts"`
+// FuturesSingleSubAccountPositionsInfoResponse stores futures positions' info for a single subaccount
+type FuturesSingleSubAccountPositionsInfoResponse struct {
+	PositionsData []FuturesSingleSubAccountPosition `json:"data"`
+	Timestamp     types.Time                        `json:"ts"`
 }
 
-// FFinancialRecord stores a financial record entry for futures.
-type FFinancialRecord struct {
-	QueryID      int64      `json:"query_id"`
-	ID           int64      `json:"id"`
+// FuturesFinancialRecord stores a financial record entry for futures.
+type FuturesFinancialRecord struct {
+	QueryID      uint64     `json:"query_id"`
+	ID           uint64     `json:"id"`
 	Timestamp    types.Time `json:"ts"`
 	Symbol       string     `json:"symbol"`
 	ContractCode string     `json:"contract_code"`
-	RecordType   int64      `json:"type"`
+	RecordType   uint64     `json:"type"`
 	Amount       float64    `json:"amount"`
 }
 
-// FFinancialRecordsData stores financial record data and legacy pagination values.
-type FFinancialRecordsData struct {
-	FinancialRecord []FFinancialRecord `json:"financial_record"`
-	TotalPage       int64              `json:"total_page"`
-	CurrentPage     int64              `json:"current_page"`
-	TotalSize       int64              `json:"total_size"`
+// FuturesFinancialRecords stores financial record data and legacy pagination values.
+type FuturesFinancialRecords struct {
+	FinancialRecord []FuturesFinancialRecord `json:"financial_record"`
+	TotalPage       uint64                   `json:"total_page"`
+	CurrentPage     uint64                   `json:"current_page"`
+	TotalSize       uint64                   `json:"total_size"`
 }
 
-// FFinancialRecords stores financial records data for futures.
-type FFinancialRecords struct {
-	Data      FFinancialRecordsData `json:"data"`
-	Timestamp types.Time            `json:"ts"`
+// FuturesFinancialRecordsResponse stores financial records data for futures.
+type FuturesFinancialRecordsResponse struct {
+	Data      FuturesFinancialRecords `json:"data"`
+	Timestamp types.Time              `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
-func (f *FFinancialRecords) UnmarshalJSON(data []byte) error {
-	var response FFinancialRecords
+func (f *FuturesFinancialRecordsResponse) UnmarshalJSON(data []byte) error {
+	var response FuturesFinancialRecordsResponse
 	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
 		return err
 	}
@@ -218,79 +218,80 @@ func (f *FFinancialRecords) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FSettlementRecords stores user's futures settlement records
-type FSettlementRecords struct {
-	Data      FSettlementRecordsData `json:"data"`
+// FuturesSettlementRecordsResponse stores user's futures settlement records
+type FuturesSettlementRecordsResponse struct {
+	Data      FuturesSettlementRecords `json:"data"`
+	Timestamp types.Time               `json:"ts"`
+}
+
+// FuturesContractOrderLimitResponse stores contract info on futures order limit
+type FuturesContractOrderLimitResponse struct {
+	ContractData []FuturesContractOrderLimit `json:"data"`
+	Timestamp    types.Time                  `json:"ts"`
+}
+
+// FuturesContractTradingFeeResponse stores contract trading fee data
+type FuturesContractTradingFeeResponse struct {
+	ContractTradingFeeData []FuturesContractTradingFee `json:"data"`
+	Timestamp              types.Time                  `json:"ts"`
+}
+
+// FuturesTransferLimitResponse stores transfer limit data for futures
+type FuturesTransferLimitResponse struct {
+	Data      []FuturesTransferLimit `json:"data"`
 	Timestamp types.Time             `json:"ts"`
 }
 
-// FContractInfoOnOrderLimit stores contract info on futures order limit
-type FContractInfoOnOrderLimit struct {
-	ContractData []FContractInfoOnOrderLimitContractData `json:"data"`
-	Timestamp    types.Time                              `json:"ts"`
+// FuturesPositionLimitResponse stores information on futures positions limit
+type FuturesPositionLimitResponse struct {
+	Data      []FuturesPositionLimit `json:"data"`
+	Timestamp types.Time             `json:"ts"`
 }
 
-// FContractTradingFeeData stores contract trading fee data
-type FContractTradingFeeData struct {
-	ContractTradingFeeData []FContractTradingFee `json:"data"`
-	Timestamp              types.Time            `json:"ts"`
+// FuturesAssetsAndPositionsResponse stores assets and positions data for futures
+type FuturesAssetsAndPositionsResponse struct {
+	Data []FuturesAssetsAndPositions `json:"data"`
 }
 
-// FTransferLimitData stores transfer limit data for futures
-type FTransferLimitData struct {
-	Data      []FTransferLimit `json:"data"`
-	Timestamp types.Time       `json:"ts"`
+// FuturesAccountTransferResponse stores internal transfer data for futures
+type FuturesAccountTransferResponse struct {
+	Status    string                 `json:"status"`
+	Timestamp types.Time             `json:"ts"`
+	Data      FuturesAccountTransfer `json:"data"`
 }
 
-// FPositionLimitData stores information on futures positions limit
-type FPositionLimitData struct {
-	Data      []FPositionLimit `json:"data"`
-	Timestamp types.Time       `json:"ts"`
+// FuturesTransferRecordsResponse gets transfer records data
+type FuturesTransferRecordsResponse struct {
+	Timestamp types.Time             `json:"ts"`
+	Data      FuturesTransferRecords `json:"data"`
 }
 
-// FAssetsAndPositionsData stores assets and positions data for futures
-type FAssetsAndPositionsData struct {
-	Data []FAssetsAndPositions `json:"data"`
+// FuturesAvailableLeverageResponse stores available leverage data for futures
+type FuturesAvailableLeverageResponse struct {
+	Data      []FuturesAvailableLeverage `json:"data"`
+	Timestamp types.Time                 `json:"timestamp"`
 }
 
-// FAccountTransferData stores internal transfer data for futures
-type FAccountTransferData struct {
-	Status    string           `json:"status"`
-	Timestamp types.Time       `json:"ts"`
-	Data      FAccountTransfer `json:"data"`
-}
-
-// FTransferRecords gets transfer records data
-type FTransferRecords struct {
-	Timestamp types.Time           `json:"ts"`
-	Data      FTransferRecordsData `json:"data"`
-}
-
-// FAvailableLeverageData stores available leverage data for futures
-type FAvailableLeverageData struct {
-	Data      []FAvailableLeverage `json:"data"`
-	Timestamp types.Time           `json:"timestamp"`
-}
-
-// FSwitchLeverageRequest defines a delivery-contract leverage change.
-type FSwitchLeverageRequest struct {
+// FuturesSwitchLeverageRequest defines a delivery-contract leverage change.
+type FuturesSwitchLeverageRequest struct {
 	Symbol       string `json:"symbol"`
 	LeverageRate uint64 `json:"lever_rate"`
 }
 
-// FSwitchLeverageResponse contains the leverage accepted by HTX.
-type FSwitchLeverageResponse struct {
+// FuturesSwitchLeverageResponse contains the leverage accepted by HTX.
+type FuturesSwitchLeverageResponse struct {
 	Response
-	Data FSwitchLeverageResponseData `json:"data"`
+	Data FuturesLeverage `json:"data"`
 }
 
-// FOrderData stores order data for futures
-type FOrderData struct {
-	Data      FOrder     `json:"data"`
-	Timestamp types.Time `json:"ts"`
+// FuturesOrderResponse stores order data for futures
+type FuturesOrderResponse struct {
+	Data      FuturesOrder `json:"data"`
+	Timestamp types.Time   `json:"ts"`
 }
 
-type fBatchOrderData struct {
+// FuturesBatchOrderRequest contains one order in HTX's batch placement request.
+type FuturesBatchOrderRequest struct {
 	Symbol         string  `json:"symbol"`
 	ContractType   string  `json:"contract_type"`
 	ContractCode   string  `json:"contract_code"`
@@ -299,42 +300,42 @@ type fBatchOrderData struct {
 	Volume         float64 `json:"volume"`
 	Direction      string  `json:"direction"`
 	Offset         string  `json:"offset"`
-	LeverageRate   float64 `json:"leverRate"`
+	LeverageRate   uint64  `json:"leverRate"`
 	OrderPriceType string  `json:"orderPriceType"`
 }
 
-// FBatchOrderResponse stores batch order data
-type FBatchOrderResponse struct {
-	OrdersData []FOrderData `json:"orders_data"`
+// FuturesBatchOrderResponse stores batch order data
+type FuturesBatchOrderResponse struct {
+	OrdersData []FuturesOrderResponse `json:"orders_data"`
 }
 
-// FCancelOrderData stores cancel order data
-type FCancelOrderData struct {
-	Data      FCancelOrder `json:"data"`
-	Timestamp types.Time   `json:"ts"`
+// FuturesCancelOrderResponse stores cancel order data
+type FuturesCancelOrderResponse struct {
+	Data      FuturesCancelOrder `json:"data"`
+	Timestamp types.Time         `json:"ts"`
 }
 
-// FOrderInfo stores order info
-type FOrderInfo struct {
-	Data      []FOrderInfoData `json:"data"`
-	Timestamp types.Time       `json:"timestamp"`
+// FuturesOrderInfoResponse stores order info
+type FuturesOrderInfoResponse struct {
+	Data      []FuturesOrderInfo `json:"data"`
+	Timestamp types.Time         `json:"timestamp"`
 }
 
-// FOrderDetailsData stores order details for futures orders
-type FOrderDetailsData struct {
-	Data      FOrderDetails `json:"data"`
-	Timestamp types.Time    `json:"ts"`
+// FuturesOrderDetailsResponse stores order details for futures orders
+type FuturesOrderDetailsResponse struct {
+	Data      FuturesOrderDetails `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
-// FOpenOrdersData stores open orders data for futures
-type FOpenOrdersData struct {
-	Data      FOpenOrders `json:"data"`
-	Timestamp types.Time  `json:"ts"`
+// FuturesOpenOrdersResponse stores open orders data for futures
+type FuturesOpenOrdersResponse struct {
+	Data      FuturesOpenOrders `json:"data"`
+	Timestamp types.Time        `json:"ts"`
 }
 
-// FOrderHistoryEntry stores an order history entry for futures.
-type FOrderHistoryEntry struct {
-	QueryID         int64                `json:"query_id"`
+// FuturesOrderHistoryEntry stores an order history entry for futures.
+type FuturesOrderHistoryEntry struct {
+	QueryID         uint64               `json:"query_id"`
 	Symbol          string               `json:"symbol"`
 	ContractType    string               `json:"contract_type"`
 	ContractCode    string               `json:"contract_code"`
@@ -343,8 +344,8 @@ type FOrderHistoryEntry struct {
 	OrderPriceType  LegacyOrderPriceType `json:"order_price_type"`
 	Direction       string               `json:"direction"`
 	Offset          string               `json:"offset"`
-	LeverageRate    float64              `json:"lever_rate"`
-	OrderID         int64                `json:"order_id"`
+	LeverageRate    uint64               `json:"lever_rate"`
+	OrderID         uint64               `json:"order_id"`
 	OrderIDString   string               `json:"order_id_str"`
 	OrderSource     string               `json:"order_source"`
 	CreateDate      types.Time           `json:"create_date"`
@@ -355,30 +356,30 @@ type FOrderHistoryEntry struct {
 	TradeAvgPrice   float64              `json:"trade_avg_price"`
 	MarginFrozen    float64              `json:"margin_frozen"`
 	Profit          float64              `json:"profit"`
-	Status          int64                `json:"status"`
-	OrderType       int64                `json:"order_type"`
-	FeeAsset        string               `json:"fee_asset"`
+	Status          uint64               `json:"status"`
+	OrderType       uint64               `json:"order_type"`
+	FeeAsset        currency.Code        `json:"fee_asset"`
 	LiquidationType types.Number         `json:"liquidation_type"`
 }
 
-// FOrderHistoryResponseData stores order history data and legacy pagination values.
-type FOrderHistoryResponseData struct {
-	Orders      []FOrderHistoryEntry `json:"orders"`
-	TotalPage   int64                `json:"total_page"`
-	CurrentPage int64                `json:"current_page"`
-	TotalSize   int64                `json:"total_size"`
+// FuturesOrderHistory stores order history data and legacy pagination values.
+type FuturesOrderHistory struct {
+	Orders      []FuturesOrderHistoryEntry `json:"orders"`
+	TotalPage   uint64                     `json:"total_page"`
+	CurrentPage uint64                     `json:"current_page"`
+	TotalSize   uint64                     `json:"total_size"`
 }
 
-// FOrderHistoryData stores order history data.
-type FOrderHistoryData struct {
-	Data      FOrderHistoryResponseData `json:"data"`
-	Timestamp types.Time                `json:"ts"`
+// FuturesOrderHistoryResponse stores order history data.
+type FuturesOrderHistoryResponse struct {
+	Data      FuturesOrderHistory `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
-func (f *FOrderHistoryData) UnmarshalJSON(data []byte) error {
-	var response FOrderHistoryData
+func (f *FuturesOrderHistoryResponse) UnmarshalJSON(data []byte) error {
+	var response FuturesOrderHistoryResponse
 	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
 		return err
 	}
@@ -386,47 +387,47 @@ func (f *FOrderHistoryData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FTradeHistoryEntry stores a trade history entry for futures.
-type FTradeHistoryEntry struct {
-	QueryID       int64   `json:"query_id"`
-	ID            string  `json:"id"`
-	ContractCode  string  `json:"contract_code"`
-	ContractType  string  `json:"contract_type"`
-	CreateDate    int64   `json:"create_date"`
-	Direction     string  `json:"direction"`
-	MatchID       int64   `json:"match_id"`
-	Offset        string  `json:"offset"`
-	OffsetPNL     float64 `json:"offset_profitloss"`
-	OrderID       int64   `json:"order_id"`
-	OrderIDString string  `json:"order_id_str"`
-	Symbol        string  `json:"symbol"`
-	OrderSource   string  `json:"order_source"`
-	TradeFee      float64 `json:"trade_fee"`
-	TradePrice    float64 `json:"trade_price"`
-	TradeTurnover float64 `json:"trade_turnover"`
-	TradeVolume   float64 `json:"trade_volume"`
-	Role          string  `json:"role"`
-	FeeAsset      string  `json:"fee_asset"`
+// FuturesTradeHistoryEntry stores a trade history entry for futures.
+type FuturesTradeHistoryEntry struct {
+	QueryID       uint64        `json:"query_id"`
+	ID            string        `json:"id"`
+	ContractCode  string        `json:"contract_code"`
+	ContractType  string        `json:"contract_type"`
+	CreateDate    types.Time    `json:"create_date"`
+	Direction     string        `json:"direction"`
+	MatchID       uint64        `json:"match_id"`
+	Offset        string        `json:"offset"`
+	OffsetPNL     float64       `json:"offset_profitloss"`
+	OrderID       uint64        `json:"order_id"`
+	OrderIDString string        `json:"order_id_str"`
+	Symbol        string        `json:"symbol"`
+	OrderSource   string        `json:"order_source"`
+	TradeFee      float64       `json:"trade_fee"`
+	TradePrice    float64       `json:"trade_price"`
+	TradeTurnover float64       `json:"trade_turnover"`
+	TradeVolume   float64       `json:"trade_volume"`
+	Role          string        `json:"role"`
+	FeeAsset      currency.Code `json:"fee_asset"`
 }
 
-// FTradeHistoryResponseData stores trade history data and legacy pagination values.
-type FTradeHistoryResponseData struct {
-	TotalPage   int64                `json:"total_page"`
-	CurrentPage int64                `json:"current_page"`
-	TotalSize   int64                `json:"total_size"`
-	Trades      []FTradeHistoryEntry `json:"trades"`
+// FuturesTradeHistory stores trade history data and legacy pagination values.
+type FuturesTradeHistory struct {
+	TotalPage   uint64                     `json:"total_page"`
+	CurrentPage uint64                     `json:"current_page"`
+	TotalSize   uint64                     `json:"total_size"`
+	Trades      []FuturesTradeHistoryEntry `json:"trades"`
 }
 
-// FTradeHistoryData stores trade history data for futures.
-type FTradeHistoryData struct {
-	Data      FTradeHistoryResponseData `json:"data"`
-	Timestamp types.Time                `json:"ts"`
+// FuturesTradeHistoryResponse stores trade history data for futures.
+type FuturesTradeHistoryResponse struct {
+	Data      FuturesTradeHistory `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
-func (f *FTradeHistoryData) UnmarshalJSON(data []byte) error {
-	var response FTradeHistoryData
+func (f *FuturesTradeHistoryResponse) UnmarshalJSON(data []byte) error {
+	var response FuturesTradeHistoryResponse
 	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
 		return err
 	}
@@ -437,10 +438,7 @@ func (f *FTradeHistoryData) UnmarshalJSON(data []byte) error {
 // unmarshalV3FuturesResponse preserves HTX's legacy paginated response shape
 // while accepting the array and empty-data forms returned by current V3 APIs.
 func unmarshalV3FuturesResponse[T, P any](data []byte, timestamp *types.Time, arrayResponse *[]T, legacyResponse *P) error {
-	var raw struct {
-		Data      json.RawMessage `json:"data"`
-		Timestamp types.Time      `json:"ts"`
-	}
+	var raw futuresV3Response
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
@@ -454,182 +452,182 @@ func unmarshalV3FuturesResponse[T, P any](data []byte, timestamp *types.Time, ar
 	return json.Unmarshal(raw.Data, legacyResponse)
 }
 
-// FTriggerOrderData stores trigger order data
-type FTriggerOrderData struct {
-	Data      FTriggerOrder `json:"data"`
-	Timestamp types.Time    `json:"ts"`
+// FuturesTriggerOrderResponse stores trigger order data
+type FuturesTriggerOrderResponse struct {
+	Data      FuturesTriggerOrder `json:"data"`
+	Timestamp types.Time          `json:"ts"`
 }
 
-// FTriggerOpenOrders stores trigger open orders data
-type FTriggerOpenOrders struct {
-	Data      FTriggerOpenOrdersData `json:"data"`
-	Timestamp types.Time             `json:"ts"`
+// FuturesTriggerOpenOrdersResponse stores trigger open orders data
+type FuturesTriggerOpenOrdersResponse struct {
+	Data      FuturesTriggerOpenOrders `json:"data"`
+	Timestamp types.Time               `json:"ts"`
 }
 
-// FTriggerOrderHistoryData stores trigger order history for futures
-type FTriggerOrderHistoryData struct {
-	Data      FTriggerOrderHistory `json:"data"`
-	Timestamp types.Time           `json:"ts"`
+// FuturesTriggerOrderHistoryResponse stores trigger order history for futures
+type FuturesTriggerOrderHistoryResponse struct {
+	Data      FuturesTriggerOrderHistory `json:"data"`
+	Timestamp types.Time                 `json:"ts"`
 }
 
-// FContractInfo contains data fields from FContractInfoData.
-type FContractInfo struct {
+// FuturesContractInfo contains data fields from FuturesContractInfoResponse.
+type FuturesContractInfo struct {
 	Symbol         string     `json:"symbol"`
 	ContractCode   string     `json:"contract_code"`
 	ContractType   string     `json:"contract_type"`
 	ContractSize   float64    `json:"contract_size"`
 	PriceTick      float64    `json:"price_tick"`
-	DeliveryDate   string     `json:"delivery_date"`
+	DeliveryDate   types.Time `json:"delivery_date"`
 	DeliveryTime   types.Time `json:"delivery_time"`
 	CreateDate     types.Time `json:"create_date"`
-	ContractStatus int64      `json:"contract_status"`
+	ContractStatus uint64     `json:"contract_status"`
 	SettlementTime types.Time `json:"settlement_time"`
 }
 
-// FContractIndexPriceInfoData contains data fields from FContractIndexPriceInfo.
-type FContractIndexPriceInfoData struct {
+// FuturesContractIndexPriceInfo contains data fields from FuturesContractIndexPriceInfoResponse.
+type FuturesContractIndexPriceInfo struct {
 	Symbol     string  `json:"symbol"`
 	IndexPrice float64 `json:"index_price"`
 }
 
-// FEstimatedDeliveryPriceInfoData contains data fields from FEstimatedDeliveryPriceInfo.
-type FEstimatedDeliveryPriceInfoData struct {
+// FuturesEstimatedDeliveryPrice contains data fields from FuturesEstimatedDeliveryPriceResponse.
+type FuturesEstimatedDeliveryPrice struct {
 	DeliveryPrice float64 `json:"delivery_price"`
 }
 
-// FMarketDepthTick contains tick fields from FMarketDepth.
-type FMarketDepthTick struct {
-	MRID      int64        `json:"mrid"`
-	ID        int64        `json:"id"`
+// FuturesMarketDepthTick contains tick fields from FuturesMarketDepthResponse.
+type FuturesMarketDepthTick struct {
+	MRID      uint64       `json:"mrid"`
+	ID        uint64       `json:"id"`
 	Bids      [][2]float64 `json:"bids"`
 	Asks      [][2]float64 `json:"asks"`
 	Timestamp types.Time   `json:"ts"`
-	Version   int64        `json:"version"`
-	Ch        string       `json:"ch"`
+	Version   uint64       `json:"version"`
+	Channel   string       `json:"ch"`
 }
 
-// FMarketOverviewDataTick contains tick fields from FMarketOverviewData.
-type FMarketOverviewDataTick struct {
+// FuturesMarketOverviewTick contains tick fields from FuturesMarketOverviewResponse.
+type FuturesMarketOverviewTick struct {
 	Vol       types.Number `json:"vol"`
 	Ask       []float64    `json:"ask"`
 	Bid       []float64    `json:"bid"`
 	Close     types.Number `json:"close"`
 	Count     float64      `json:"count"`
 	High      types.Number `json:"high"`
-	ID        int64        `json:"id"`
+	ID        uint64       `json:"id"`
 	Low       types.Number `json:"low"`
 	Open      types.Number `json:"open"`
 	Timestamp types.Time   `json:"ts"`
 	Amount    types.Number `json:"amount"`
 }
 
-// FLastTrade contains data fields from FLastTradeData.
-type FLastTrade struct {
+// FuturesLastTrade contains data fields from FuturesLastTradeResponse.
+type FuturesLastTrade struct {
 	Amount    types.Number `json:"amount"`
 	Direction string       `json:"direction"`
-	ID        int64        `json:"id"`
+	ID        uint64       `json:"id"`
 	Price     types.Number `json:"price"`
 	Timestamp types.Time   `json:"ts"`
 }
 
-// FLastTradeDataTick contains tick fields from FLastTradeData.
-type FLastTradeDataTick struct {
-	Data      []FLastTrade `json:"data"`
-	ID        int64        `json:"id"`
-	Timestamp types.Time   `json:"ts"`
+// FuturesLastTradeTick contains tick fields from FuturesLastTradeResponse.
+type FuturesLastTradeTick struct {
+	Data      []FuturesLastTrade `json:"data"`
+	ID        uint64             `json:"id"`
+	Timestamp types.Time         `json:"ts"`
 }
 
-// FBatchTradesForContract contains data fields from FBatchTradesForContractData.
-type FBatchTradesForContract struct {
-	ID        int64          `json:"id"`
+// FuturesBatchTradesForContract contains data fields from FuturesBatchTradesForContractResponse.
+type FuturesBatchTradesForContract struct {
+	ID        uint64         `json:"id"`
 	Timestamp types.Time     `json:"ts"`
 	Data      []FuturesTrade `json:"data"`
 }
 
-// FTieredAdjustmentFactorInfoLadders contains ladders fields from FTieredAdjustmentFactorInfo.
-type FTieredAdjustmentFactorInfoLadders struct {
-	Ladder       int64   `json:"ladder"`
+// FuturesTieredAdjustmentFactorInfoLadders contains ladders fields from FuturesTieredAdjustmentFactorInfoResponse.
+type FuturesTieredAdjustmentFactorInfoLadders struct {
+	Ladder       uint64  `json:"ladder"`
 	MinSize      float64 `json:"min_size"`
 	MaxSize      float64 `json:"max_size"`
 	AdjustFactor float64 `json:"adjust_factor"`
 }
 
-// FTieredAdjustmentFactorInfoList contains list fields from FTieredAdjustmentFactorInfo.
-type FTieredAdjustmentFactorInfoList struct {
-	LeverageRate float64                              `json:"lever_rate"`
-	Ladders      []FTieredAdjustmentFactorInfoLadders `json:"ladders"`
+// FuturesTieredAdjustmentFactorInfoList contains list fields from FuturesTieredAdjustmentFactorInfoResponse.
+type FuturesTieredAdjustmentFactorInfoList struct {
+	LeverageRate float64                                    `json:"lever_rate"`
+	Ladders      []FuturesTieredAdjustmentFactorInfoLadders `json:"ladders"`
 }
 
-// FTieredAdjustmentFactorInfoData contains data fields from FTieredAdjustmentFactorInfo.
-type FTieredAdjustmentFactorInfoData struct {
-	Symbol string                            `json:"symbol"`
-	List   []FTieredAdjustmentFactorInfoList `json:"list"`
+// FuturesTieredAdjustmentFactorInfo contains data fields from FuturesTieredAdjustmentFactorInfoResponse.
+type FuturesTieredAdjustmentFactorInfo struct {
+	Symbol string                                  `json:"symbol"`
+	List   []FuturesTieredAdjustmentFactorInfoList `json:"list"`
 }
 
-// FOIDataTick contains tick fields from FOIData.
-type FOIDataTick struct {
+// FuturesOpenInterestTick contains tick fields from FuturesOpenInterestResponse.
+type FuturesOpenInterestTick struct {
 	Volume     types.Number `json:"volume"`
-	AmountType int64        `json:"amount_type"`
+	AmountType uint64       `json:"amount_type"`
 	Timestamp  types.Time   `json:"ts"`
 }
 
-// FOI contains data fields from FOIData.
-type FOI struct {
-	Symbol       string        `json:"symbol"`
-	ContractType string        `json:"contract_type"`
-	Tick         []FOIDataTick `json:"tick"`
+// FuturesOpenInterest contains data fields from FuturesOpenInterestResponse.
+type FuturesOpenInterest struct {
+	Symbol       string                    `json:"symbol"`
+	ContractType string                    `json:"contract_type"`
+	Tick         []FuturesOpenInterestTick `json:"tick"`
 }
 
-// FTopAccountsLongShortRatioList contains list fields from FTopAccountsLongShortRatio.
-type FTopAccountsLongShortRatioList struct {
+// FuturesTopAccountsLongShortRatioList contains list fields from FuturesTopAccountsLongShortRatioResponse.
+type FuturesTopAccountsLongShortRatioList struct {
 	BuyRatio    float64    `json:"buy_ratio"`
 	SellRatio   float64    `json:"sell_ratio"`
 	LockedRatio float64    `json:"locked_ratio"`
 	Timestamp   types.Time `json:"ts"`
 }
 
-// FTopAccountsLongShortRatioData contains data fields from FTopAccountsLongShortRatio.
-type FTopAccountsLongShortRatioData struct {
-	List   []FTopAccountsLongShortRatioList `json:"list"`
-	Symbol string                           `json:"symbol"`
+// FuturesTopAccountsLongShortRatio contains data fields from FuturesTopAccountsLongShortRatioResponse.
+type FuturesTopAccountsLongShortRatio struct {
+	List   []FuturesTopAccountsLongShortRatioList `json:"list"`
+	Symbol string                                 `json:"symbol"`
 }
 
-// FTopPositionsLongShortRatioList contains list fields from FTopPositionsLongShortRatio.
-type FTopPositionsLongShortRatioList struct {
+// FuturesTopPositionsLongShortRatioList contains list fields from FuturesTopPositionsLongShortRatioResponse.
+type FuturesTopPositionsLongShortRatioList struct {
 	BuyRatio  float64    `json:"buy_ratio"`
 	SellRatio float64    `json:"sell_ratio"`
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// FTopPositionsLongShortRatioData contains data fields from FTopPositionsLongShortRatio.
-type FTopPositionsLongShortRatioData struct {
-	Symbol string                            `json:"symbol"`
-	List   []FTopPositionsLongShortRatioList `json:"list"`
+// FuturesTopPositionsLongShortRatio contains data fields from FuturesTopPositionsLongShortRatioResponse.
+type FuturesTopPositionsLongShortRatio struct {
+	Symbol string                                  `json:"symbol"`
+	List   []FuturesTopPositionsLongShortRatioList `json:"list"`
 }
 
-// FIndexKline contains data fields from FIndexKlineData.
-type FIndexKline struct {
+// FuturesIndexKline contains data fields from FuturesIndexKlineResponse.
+type FuturesIndexKline struct {
 	Vol    float64 `json:"vol"`
 	Close  float64 `json:"close"`
 	Count  float64 `json:"count"`
 	High   float64 `json:"high"`
-	ID     int64   `json:"id"`
+	ID     uint64  `json:"id"`
 	Low    float64 `json:"low"`
 	Open   float64 `json:"open"`
 	Amount float64 `json:"amount"`
 }
 
-// FBasis contains data fields from FBasisData.
-type FBasis struct {
+// FuturesBasis contains data fields from FuturesBasisResponse.
+type FuturesBasis struct {
 	Basis         types.Number `json:"basis"`
 	BasisRate     types.Number `json:"basis_rate"`
 	ContractPrice types.Number `json:"contract_price"`
-	ID            int64        `json:"id"`
+	ID            uint64       `json:"id"`
 	IndexPrice    types.Number `json:"index_price"`
 }
 
-// FUserAccountDataAccData contains accdata fields from FUserAccountData.
-type FUserAccountDataAccData struct {
+// FuturesUserAccount contains accdata fields from FuturesUserAccountResponse.
+type FuturesUserAccount struct {
 	Symbol            currency.Code `json:"symbol"`
 	MarginBalance     float64       `json:"margin_balance"`
 	MarginPosition    float64       `json:"margin_position"`
@@ -645,8 +643,8 @@ type FUserAccountDataAccData struct {
 	MarginStatic      float64       `json:"margin_static"`
 }
 
-// FUsersPositionsInfoPosInfo contains posinfo fields from FUsersPositionsInfo.
-type FUsersPositionsInfoPosInfo struct {
+// FuturesPosition contains posinfo fields from FuturesUsersPositionsInfoResponse.
+type FuturesPosition struct {
 	Symbol         string  `json:"symbol"`
 	ContractCode   string  `json:"contract_code"`
 	ContractType   string  `json:"contract_type"`
@@ -659,27 +657,27 @@ type FUsersPositionsInfoPosInfo struct {
 	ProfitRate     float64 `json:"profit_rate"`
 	Profit         float64 `json:"profit"`
 	PositionMargin float64 `json:"position_margin"`
-	LeverageRate   float64 `json:"lever_rate"`
+	LeverageRate   uint64  `json:"lever_rate"`
 	Direction      string  `json:"direction"`
 	LastPrice      float64 `json:"last_price"`
 }
 
-// FSubAccountAssetsInfoList contains list fields from FSubAccountAssetsInfo.
-type FSubAccountAssetsInfoList struct {
+// FuturesSubAccountAsset contains list fields from FuturesSubAccountAssetsInfoResponse.
+type FuturesSubAccountAsset struct {
 	Symbol           string  `json:"symbol"`
 	MarginBalance    float64 `json:"margin_balance"`
 	LiquidationPrice float64 `json:"liquidation_price"`
 	RiskRate         float64 `json:"risk_rate"`
 }
 
-// FSubAccountAssetsInfoData contains data fields from FSubAccountAssetsInfo.
-type FSubAccountAssetsInfoData struct {
-	SubUID int64                       `json:"sub_uid"`
-	List   []FSubAccountAssetsInfoList `json:"list"`
+// FuturesSubAccountAssetsInfo contains data fields from FuturesSubAccountAssetsInfoResponse.
+type FuturesSubAccountAssetsInfo struct {
+	SubUID uint64                   `json:"sub_uid"`
+	List   []FuturesSubAccountAsset `json:"list"`
 }
 
-// FSingleSubAccountAssetsInfoAssetsData contains assetsdata fields from FSingleSubAccountAssetsInfo.
-type FSingleSubAccountAssetsInfoAssetsData struct {
+// FuturesSingleSubAccountAsset contains assetsdata fields from FuturesSingleSubAccountAssetsInfoResponse.
+type FuturesSingleSubAccountAsset struct {
 	Symbol            currency.Code `json:"symbol"`
 	MarginBalance     float64       `json:"margin_balance"`
 	MarginPosition    float64       `json:"margin_position"`
@@ -695,8 +693,8 @@ type FSingleSubAccountAssetsInfoAssetsData struct {
 	MarginStatic      float64       `json:"margin_static"`
 }
 
-// FSingleSubAccountPositionsInfoPositionsData contains positionsdata fields from FSingleSubAccountPositionsInfo.
-type FSingleSubAccountPositionsInfoPositionsData struct {
+// FuturesSingleSubAccountPosition contains positionsdata fields from FuturesSingleSubAccountPositionsInfoResponse.
+type FuturesSingleSubAccountPosition struct {
 	Symbol         string  `json:"symbol"`
 	ContractCode   string  `json:"contract_code"`
 	ContractType   string  `json:"contract_type"`
@@ -709,13 +707,13 @@ type FSingleSubAccountPositionsInfoPositionsData struct {
 	ProfitRate     float64 `json:"profit_rate"`
 	Profit         float64 `json:"profit"`
 	PositionMargin float64 `json:"position_margin"`
-	LeverageRate   float64 `json:"lever_rate"`
+	LeverageRate   uint64  `json:"lever_rate"`
 	Direction      string  `json:"direction"`
 	LastPrice      float64 `json:"last_price"`
 }
 
-// FSettlementRecordsPositions contains positions fields from FSettlementRecords.
-type FSettlementRecordsPositions struct {
+// FuturesSettlementPosition contains positions fields from FuturesSettlementRecordsResponse.
+type FuturesSettlementPosition struct {
 	Symbol                 string  `json:"symbol"`
 	ContractCode           string  `json:"contract_code"`
 	Direction              string  `json:"direction"`
@@ -728,61 +726,61 @@ type FSettlementRecordsPositions struct {
 	SettlmentType          string  `json:"settlement_type"`
 }
 
-// FSettlementRecordsSettlementRecords contains settlementrecords fields from FSettlementRecords.
-type FSettlementRecordsSettlementRecords struct {
-	Symbol               string                        `json:"symbol"`
-	MarginBalanceInit    float64                       `json:"margin_balance_init"`
-	MarginBalance        int64                         `json:"margin_balance"`
-	SettlementProfitReal float64                       `json:"settlement_profit_real"`
-	SettlementTime       types.Time                    `json:"settlement_time"`
-	Clawback             float64                       `json:"clawback"`
-	DeliveryFee          float64                       `json:"delivery_fee"`
-	OffsetProfitLoss     float64                       `json:"offset_profitloss"`
-	Fee                  float64                       `json:"fee"`
-	FeeAsset             string                        `json:"fee_asset"`
-	Positions            []FSettlementRecordsPositions `json:"positions"`
+// FuturesSettlementRecord contains settlementrecords fields from FuturesSettlementRecordsResponse.
+type FuturesSettlementRecord struct {
+	Symbol               string                      `json:"symbol"`
+	MarginBalanceInit    float64                     `json:"margin_balance_init"`
+	MarginBalance        float64                     `json:"margin_balance"`
+	SettlementProfitReal float64                     `json:"settlement_profit_real"`
+	SettlementTime       types.Time                  `json:"settlement_time"`
+	Clawback             float64                     `json:"clawback"`
+	DeliveryFee          float64                     `json:"delivery_fee"`
+	OffsetProfitLoss     float64                     `json:"offset_profitloss"`
+	Fee                  float64                     `json:"fee"`
+	FeeAsset             currency.Code               `json:"fee_asset"`
+	Positions            []FuturesSettlementPosition `json:"positions"`
 }
 
-// FSettlementRecordsData contains data fields from FSettlementRecords.
-type FSettlementRecordsData struct {
-	SettlementRecords []FSettlementRecordsSettlementRecords `json:"settlement_records"`
-	CurrentPage       int64                                 `json:"current_page"`
-	TotalPage         int64                                 `json:"total_page"`
-	TotalSize         int64                                 `json:"total_size"`
+// FuturesSettlementRecords contains data fields from FuturesSettlementRecordsResponse.
+type FuturesSettlementRecords struct {
+	SettlementRecords []FuturesSettlementRecord `json:"settlement_records"`
+	CurrentPage       uint64                    `json:"current_page"`
+	TotalPage         uint64                    `json:"total_page"`
+	TotalSize         uint64                    `json:"total_size"`
 }
 
-// FContractInfoOnOrderLimitContractTypes contains contracttypes fields from FContractInfoOnOrderLimit.
-type FContractInfoOnOrderLimitContractTypes struct {
+// FuturesContractTypeOrderLimit contains contracttypes fields from FuturesContractOrderLimitResponse.
+type FuturesContractTypeOrderLimit struct {
 	ContractType string `json:"contract_type"`
-	OpenLimit    int64  `json:"open_limit"`
-	CloseLimit   int64  `json:"close_limit"`
+	OpenLimit    uint64 `json:"open_limit"`
+	CloseLimit   uint64 `json:"close_limit"`
 }
 
-// FContractInfoOnOrderLimitList contains list fields from FContractInfoOnOrderLimit.
-type FContractInfoOnOrderLimitList struct {
-	Symbol        string                                   `json:"symbol"`
-	ContractTypes []FContractInfoOnOrderLimitContractTypes `json:"types"`
+// FuturesSymbolOrderLimit contains list fields from FuturesContractOrderLimitResponse.
+type FuturesSymbolOrderLimit struct {
+	Symbol        string                          `json:"symbol"`
+	ContractTypes []FuturesContractTypeOrderLimit `json:"types"`
 }
 
-// FContractInfoOnOrderLimitContractData contains contractdata fields from FContractInfoOnOrderLimit.
-type FContractInfoOnOrderLimitContractData struct {
-	OrderPriceType string                          `json:"order_price_type"`
-	List           []FContractInfoOnOrderLimitList `json:"list"`
+// FuturesContractOrderLimit contains contractdata fields from FuturesContractOrderLimitResponse.
+type FuturesContractOrderLimit struct {
+	OrderPriceType string                    `json:"order_price_type"`
+	List           []FuturesSymbolOrderLimit `json:"list"`
 }
 
-// FContractTradingFee contains contracttradingfeedata fields from FContractTradingFeeData.
-type FContractTradingFee struct {
-	Symbol        string       `json:"symbol"`
-	OpenMakerFee  types.Number `json:"open_maker_fee"`
-	OpenTakerFee  types.Number `json:"open_taker_fee"`
-	CloseMakerFee types.Number `json:"close_maker_fee"`
-	CloseTakerFee types.Number `json:"close_taker_fee"`
-	DeliveryFee   types.Number `json:"delivery_fee"`
-	FeeAsset      string       `json:"fee_asset"`
+// FuturesContractTradingFee contains contracttradingfeedata fields from FuturesContractTradingFeeResponse.
+type FuturesContractTradingFee struct {
+	Symbol        string        `json:"symbol"`
+	OpenMakerFee  types.Number  `json:"open_maker_fee"`
+	OpenTakerFee  types.Number  `json:"open_taker_fee"`
+	CloseMakerFee types.Number  `json:"close_maker_fee"`
+	CloseTakerFee types.Number  `json:"close_taker_fee"`
+	DeliveryFee   types.Number  `json:"delivery_fee"`
+	FeeAsset      currency.Code `json:"fee_asset"`
 }
 
-// FTransferLimit contains data fields from FTransferLimitData.
-type FTransferLimit struct {
+// FuturesTransferLimit contains data fields from FuturesTransferLimitResponse.
+type FuturesTransferLimit struct {
 	Symbol                 string  `json:"symbol"`
 	MaxTransferIn          float64 `json:"transfer_in_max_each"`
 	MinTransferIn          float64 `json:"transfer_in_min_each"`
@@ -794,21 +792,21 @@ type FTransferLimit struct {
 	NetTransferOutMaxDaily float64 `json:"net_transfer_out_max_daily"`
 }
 
-// FPositionLimitDataList contains list fields from FPositionLimitData.
-type FPositionLimitDataList struct {
+// FuturesContractPositionLimit contains list fields from FuturesPositionLimitResponse.
+type FuturesContractPositionLimit struct {
 	ContractType string  `json:"contract_type"`
 	BuyLimit     float64 `json:"buy_limit"`
 	SellLimit    float64 `json:"sell_limit"`
 }
 
-// FPositionLimit contains data fields from FPositionLimitData.
-type FPositionLimit struct {
-	Symbol string                   `json:"symbol"`
-	List   []FPositionLimitDataList `json:"list"`
+// FuturesPositionLimit contains data fields from FuturesPositionLimitResponse.
+type FuturesPositionLimit struct {
+	Symbol string                         `json:"symbol"`
+	List   []FuturesContractPositionLimit `json:"list"`
 }
 
-// FAssetsAndPositions contains data fields from FAssetsAndPositionsData.
-type FAssetsAndPositions struct {
+// FuturesAssetsAndPositions contains data fields from FuturesAssetsAndPositionsResponse.
+type FuturesAssetsAndPositions struct {
 	Symbol            string  `json:"symbol"`
 	MarginBalance     float64 `json:"margin_balance"`
 	MarginPosition    float64 `json:"margin_position"`
@@ -820,238 +818,244 @@ type FAssetsAndPositions struct {
 	WithdrawAvailable float64 `json:"withdraw_available"`
 }
 
-// FAccountTransfer contains data fields from FAccountTransferData.
-type FAccountTransfer struct {
+// FuturesAccountTransfer contains data fields from FuturesAccountTransferResponse.
+type FuturesAccountTransfer struct {
 	OrderID string `json:"order_id"`
 }
 
-// FTransferRecordsTransferRecord contains transferrecord fields from FTransferRecords.
-type FTransferRecordsTransferRecord struct {
-	ID             int64      `json:"id"`
+// FuturesTransferRecord contains transferrecord fields from FuturesTransferRecordsResponse.
+type FuturesTransferRecord struct {
+	ID             uint64     `json:"id"`
 	Timestamp      types.Time `json:"ts"`
 	Symbol         string     `json:"symbol"`
-	SubUID         int64      `json:"sub_uid"`
+	SubUID         uint64     `json:"sub_uid"`
 	SubAccountName string     `json:"sub_account_name"`
-	TransferType   int64      `json:"transfer_type"`
+	TransferType   uint64     `json:"transfer_type"`
 	Amount         float64    `json:"amount"`
 }
 
-// FTransferRecordsData contains data fields from FTransferRecords.
-type FTransferRecordsData struct {
-	TransferRecord []FTransferRecordsTransferRecord `json:"transfer_record"`
-	TotalPage      int64                            `json:"total_page"`
-	CurrentPage    int64                            `json:"current_page"`
-	TotalSize      int64                            `json:"total_size"`
+// FuturesTransferRecords contains data fields from FuturesTransferRecordsResponse.
+type FuturesTransferRecords struct {
+	TransferRecord []FuturesTransferRecord `json:"transfer_record"`
+	TotalPage      uint64                  `json:"total_page"`
+	CurrentPage    uint64                  `json:"current_page"`
+	TotalSize      uint64                  `json:"total_size"`
 }
 
-// FAvailableLeverage contains data fields from FAvailableLeverageData.
-type FAvailableLeverage struct {
+// FuturesAvailableLeverage contains data fields from FuturesAvailableLeverageResponse.
+type FuturesAvailableLeverage struct {
 	Symbol                string `json:"symbol"`
 	AvailableLeverageRate string `json:"available_level_rate"`
 }
 
-// FSwitchLeverageResponseData contains data fields from FSwitchLeverageResponse.
-type FSwitchLeverageResponseData struct {
+// FuturesLeverage contains data fields from FuturesSwitchLeverageResponse.
+type FuturesLeverage struct {
 	Symbol       string `json:"symbol"`
 	LeverageRate uint64 `json:"lever_rate"`
 }
 
-// FOrder contains data fields from FOrderData.
-type FOrder struct {
-	OrderID       int64  `json:"order_id"`
+// FuturesOrder contains data fields from FuturesOrderResponse.
+type FuturesOrder struct {
+	OrderID       uint64 `json:"order_id"`
 	OrderIDStr    string `json:"order_id_str"`
-	ClientOrderID int64  `json:"client_order_id"`
+	ClientOrderID uint64 `json:"client_order_id"`
 }
 
-// FCancelOrderDataErrors contains errors fields from FCancelOrderData.
-type FCancelOrderDataErrors struct {
-	OrderID int64  `json:"order_id,string"`
+// FuturesCancelOrderError contains errors fields from FuturesCancelOrderResponse.
+type FuturesCancelOrderError struct {
+	OrderID uint64 `json:"order_id,string"`
 	ErrCode int64  `json:"err_code"`
 	ErrMsg  string `json:"err_msg"`
 }
 
-// FCancelOrder contains data fields from FCancelOrderData.
-type FCancelOrder struct {
-	Errors    []FCancelOrderDataErrors `json:"errors"`
-	Successes string                   `json:"successes"`
+// FuturesCancelOrder contains data fields from FuturesCancelOrderResponse.
+type FuturesCancelOrder struct {
+	Errors    []FuturesCancelOrderError `json:"errors"`
+	Successes string                    `json:"successes"`
 }
 
-// FOrderInfoData contains data fields from FOrderInfo.
-type FOrderInfoData struct {
-	ClientOrderID   int64        `json:"client_order_id"`
-	ContractCode    string       `json:"contract_code"`
-	ContractType    string       `json:"contract_type"`
-	CreatedAt       int64        `json:"created_at"`
-	CanceledAt      int64        `json:"canceled_at"`
-	Direction       string       `json:"direction"`
-	Fee             float64      `json:"fee"`
-	FeeAsset        string       `json:"fee_asset"`
-	LeverRate       int64        `json:"lever_rate"`
-	MarginFrozen    float64      `json:"margin_frozen"`
-	Offset          string       `json:"offset"`
-	OrderID         int64        `json:"order_id"`
-	OrderIDString   string       `json:"order_id_str"`
-	OrderPriceType  string       `json:"order_price_type"`
-	OrderSource     string       `json:"order_source"`
-	OrderType       int64        `json:"order_type"`
-	Price           float64      `json:"price"`
-	Profit          float64      `json:"profit"`
-	Status          int64        `json:"status"`
-	Symbol          string       `json:"symbol"`
-	TradeAvgPrice   float64      `json:"trade_avg_price"`
-	TradeTurnover   float64      `json:"trade_turnover"`
-	TradeVolume     float64      `json:"trade_volume"`
-	Volume          float64      `json:"volume"`
-	LiquidationType types.Number `json:"liquidation_type"`
+// FuturesOrderInfo contains data fields from FuturesOrderInfoResponse.
+type FuturesOrderInfo struct {
+	ClientOrderID   uint64        `json:"client_order_id"`
+	ContractCode    string        `json:"contract_code"`
+	ContractType    string        `json:"contract_type"`
+	CreatedAt       types.Time    `json:"created_at"`
+	CanceledAt      types.Time    `json:"canceled_at"`
+	Direction       string        `json:"direction"`
+	Fee             float64       `json:"fee"`
+	FeeAsset        currency.Code `json:"fee_asset"`
+	LeverRate       uint64        `json:"lever_rate"`
+	MarginFrozen    float64       `json:"margin_frozen"`
+	Offset          string        `json:"offset"`
+	OrderID         uint64        `json:"order_id"`
+	OrderIDString   string        `json:"order_id_str"`
+	OrderPriceType  string        `json:"order_price_type"`
+	OrderSource     string        `json:"order_source"`
+	OrderType       uint64        `json:"order_type"`
+	Price           float64       `json:"price"`
+	Profit          float64       `json:"profit"`
+	Status          uint64        `json:"status"`
+	Symbol          string        `json:"symbol"`
+	TradeAvgPrice   float64       `json:"trade_avg_price"`
+	TradeTurnover   float64       `json:"trade_turnover"`
+	TradeVolume     float64       `json:"trade_volume"`
+	Volume          float64       `json:"volume"`
+	LiquidationType types.Number  `json:"liquidation_type"`
 }
 
-// FOrderDetailsDataTrades contains trades fields from FOrderDetailsData.
-type FOrderDetailsDataTrades struct {
-	ID            string  `json:"id"`
-	TradeID       int64   `json:"trade_id"`
-	TradeVolume   float64 `json:"trade_volume"`
-	TradePrice    float64 `json:"trade_price"`
-	TradeFee      float64 `json:"trade_fee"`
-	TradeTurnover float64 `json:"trade_turnover"`
-	Role          string  `json:"role"`
-	CreatedAt     int64   `json:"created_at"`
+// FuturesOrderTrade contains trades fields from FuturesOrderDetailsResponse.
+type FuturesOrderTrade struct {
+	ID            string     `json:"id"`
+	TradeID       uint64     `json:"trade_id"`
+	TradeVolume   float64    `json:"trade_volume"`
+	TradePrice    float64    `json:"trade_price"`
+	TradeFee      float64    `json:"trade_fee"`
+	TradeTurnover float64    `json:"trade_turnover"`
+	Role          string     `json:"role"`
+	CreatedAt     types.Time `json:"created_at"`
 }
 
-// FOrderDetails contains data fields from FOrderDetailsData.
-type FOrderDetails struct {
-	Symbol         string                    `json:"symbol"`
-	ContractType   string                    `json:"contract_type"`
-	ContractCode   string                    `json:"contract_code"`
-	Volume         float64                   `json:"volume"`
-	Price          float64                   `json:"price"`
-	OrderPriceType string                    `json:"order_price_type"`
-	Direction      string                    `json:"direction"`
-	Offset         string                    `json:"offset"`
-	LeverageRate   float64                   `json:"lever_rate"`
-	MarginFrozen   float64                   `json:"margin_frozen"`
-	Profit         float64                   `json:"profit"`
-	OrderSource    string                    `json:"order_source"`
-	OrderID        int64                     `json:"order_id"`
-	OrderIDString  string                    `json:"order_id_str"`
-	ClientOrderID  int64                     `json:"client_order_id"`
-	OrderType      int64                     `json:"order_type"`
-	Status         int64                     `json:"status"`
-	TradeVolume    float64                   `json:"trade_volume"`
-	TradeTurnover  int64                     `json:"trade_turnover"`
-	TradeAvgPrice  float64                   `json:"trade_avg_price"`
-	Fee            float64                   `json:"fee"`
-	CreatedAt      int64                     `json:"created_at"`
-	CanceledAt     int64                     `json:"canceled_at"`
-	FinalInterest  float64                   `json:"final_interest"`
-	AdjustValue    int64                     `json:"adjust_value"`
-	FeeAsset       string                    `json:"fee_asset"`
-	Trades         []FOrderDetailsDataTrades `json:"trades"`
-	TotalPage      int64                     `json:"total_page"`
-	TotalSize      int64                     `json:"total_size"`
-	CurrentPage    int64                     `json:"current_page"`
+// FuturesOrderDetails contains data fields from FuturesOrderDetailsResponse.
+type FuturesOrderDetails struct {
+	Symbol         string              `json:"symbol"`
+	ContractType   string              `json:"contract_type"`
+	ContractCode   string              `json:"contract_code"`
+	Volume         float64             `json:"volume"`
+	Price          float64             `json:"price"`
+	OrderPriceType string              `json:"order_price_type"`
+	Direction      string              `json:"direction"`
+	Offset         string              `json:"offset"`
+	LeverageRate   uint64              `json:"lever_rate"`
+	MarginFrozen   float64             `json:"margin_frozen"`
+	Profit         float64             `json:"profit"`
+	OrderSource    string              `json:"order_source"`
+	OrderID        uint64              `json:"order_id"`
+	OrderIDString  string              `json:"order_id_str"`
+	ClientOrderID  uint64              `json:"client_order_id"`
+	OrderType      uint64              `json:"order_type"`
+	Status         uint64              `json:"status"`
+	TradeVolume    float64             `json:"trade_volume"`
+	TradeTurnover  float64             `json:"trade_turnover"`
+	TradeAvgPrice  float64             `json:"trade_avg_price"`
+	Fee            float64             `json:"fee"`
+	CreatedAt      types.Time          `json:"created_at"`
+	CanceledAt     types.Time          `json:"canceled_at"`
+	FinalInterest  float64             `json:"final_interest"`
+	AdjustValue    float64             `json:"adjust_value"`
+	FeeAsset       currency.Code       `json:"fee_asset"`
+	Trades         []FuturesOrderTrade `json:"trades"`
+	TotalPage      uint64              `json:"total_page"`
+	TotalSize      uint64              `json:"total_size"`
+	CurrentPage    uint64              `json:"current_page"`
 }
 
-// FOpenOrdersDataOrders contains orders fields from FOpenOrdersData.
-type FOpenOrdersDataOrders struct {
-	Symbol         string  `json:"symbol"`
-	ContractType   string  `json:"contract_type"`
-	ContractCode   string  `json:"contract_code"`
-	Volume         float64 `json:"volume"`
-	Price          float64 `json:"price"`
-	OrderPriceType string  `json:"order_price_type"`
-	OrderType      int64   `json:"order_type"`
-	Direction      string  `json:"direction"`
-	Offset         string  `json:"offset"`
-	LeverageRate   float64 `json:"lever_rate"`
-	OrderID        int64   `json:"order_id"`
-	OrderIDString  string  `json:"order_id_str"`
-	ClientOrderID  int64   `json:"client_order_id"`
-	OrderSource    string  `json:"order_source"`
-	CreatedAt      int64   `json:"created_at"`
-	TradeVolume    float64 `json:"trade_volume"`
-	Fee            float64 `json:"fee"`
-	TradeAvgPrice  float64 `json:"trade_avg_price"`
-	MarginFrozen   float64 `json:"margin_frozen"`
-	Profit         float64 `json:"profit"`
-	Status         int64   `json:"status"`
-	FeeAsset       string  `json:"fee_asset"`
+// FuturesOpenOrder contains orders fields from FuturesOpenOrdersResponse.
+type FuturesOpenOrder struct {
+	Symbol         string        `json:"symbol"`
+	ContractType   string        `json:"contract_type"`
+	ContractCode   string        `json:"contract_code"`
+	Volume         float64       `json:"volume"`
+	Price          float64       `json:"price"`
+	OrderPriceType string        `json:"order_price_type"`
+	OrderType      uint64        `json:"order_type"`
+	Direction      string        `json:"direction"`
+	Offset         string        `json:"offset"`
+	LeverageRate   uint64        `json:"lever_rate"`
+	OrderID        uint64        `json:"order_id"`
+	OrderIDString  string        `json:"order_id_str"`
+	ClientOrderID  uint64        `json:"client_order_id"`
+	OrderSource    string        `json:"order_source"`
+	CreatedAt      types.Time    `json:"created_at"`
+	TradeVolume    float64       `json:"trade_volume"`
+	Fee            float64       `json:"fee"`
+	TradeAvgPrice  float64       `json:"trade_avg_price"`
+	MarginFrozen   float64       `json:"margin_frozen"`
+	Profit         float64       `json:"profit"`
+	Status         uint64        `json:"status"`
+	FeeAsset       currency.Code `json:"fee_asset"`
 }
 
-// FOpenOrders contains data fields from FOpenOrdersData.
-type FOpenOrders struct {
-	Orders      []FOpenOrdersDataOrders `json:"orders"`
-	TotalPage   int64                   `json:"total_page"`
-	CurrentPage int64                   `json:"current_page"`
-	TotalSize   int64                   `json:"total_size"`
+// FuturesOpenOrders contains data fields from FuturesOpenOrdersResponse.
+type FuturesOpenOrders struct {
+	Orders      []FuturesOpenOrder `json:"orders"`
+	TotalPage   uint64             `json:"total_page"`
+	CurrentPage uint64             `json:"current_page"`
+	TotalSize   uint64             `json:"total_size"`
 }
 
-// FTriggerOrder contains data fields from FTriggerOrderData.
-type FTriggerOrder struct {
-	OrderID    int64  `json:"order_id"`
+// FuturesTriggerOrder contains data fields from FuturesTriggerOrderResponse.
+type FuturesTriggerOrder struct {
+	OrderID    uint64 `json:"order_id"`
 	OrderIDStr string `json:"order_id_str"`
 }
 
-// FTriggerOpenOrdersOrders contains orders fields from FTriggerOpenOrders.
-type FTriggerOpenOrdersOrders struct {
-	Symbol         string  `json:"symbol"`
-	ContractCode   string  `json:"contract_code"`
-	ContractType   string  `json:"contract_type"`
-	TriggerType    string  `json:"trigger_type"`
-	Volume         float64 `json:"volume"`
-	OrderType      int64   `json:"order_type"`
-	Direction      string  `json:"direction"`
-	Offset         string  `json:"offset"`
-	LeverageRate   float64 `json:"lever_rate"`
-	OrderID        int64   `json:"order_id"`
-	OrderIDString  string  `json:"order_id_str"`
-	OrderSource    string  `json:"order_source"`
-	TriggerPrice   float64 `json:"trigger_price"`
-	OrderPrice     float64 `json:"order_price"`
-	CreatedAt      int64   `json:"created_at"`
-	OrderPriceType string  `json:"order_price_type"`
-	Status         int64   `json:"status"`
+// FuturesOpenTriggerOrder contains orders fields from FuturesTriggerOpenOrdersResponse.
+type FuturesOpenTriggerOrder struct {
+	Symbol         string     `json:"symbol"`
+	ContractCode   string     `json:"contract_code"`
+	ContractType   string     `json:"contract_type"`
+	TriggerType    string     `json:"trigger_type"`
+	Volume         float64    `json:"volume"`
+	OrderType      uint64     `json:"order_type"`
+	Direction      string     `json:"direction"`
+	Offset         string     `json:"offset"`
+	LeverageRate   uint64     `json:"lever_rate"`
+	OrderID        uint64     `json:"order_id"`
+	OrderIDString  string     `json:"order_id_str"`
+	OrderSource    string     `json:"order_source"`
+	TriggerPrice   float64    `json:"trigger_price"`
+	OrderPrice     float64    `json:"order_price"`
+	CreatedAt      types.Time `json:"created_at"`
+	OrderPriceType string     `json:"order_price_type"`
+	Status         uint64     `json:"status"`
 }
 
-// FTriggerOpenOrdersData contains data fields from FTriggerOpenOrders.
-type FTriggerOpenOrdersData struct {
-	Orders      []FTriggerOpenOrdersOrders `json:"orders"`
-	TotalPage   int64                      `json:"total_page"`
-	CurrentPage int64                      `json:"current_page"`
-	TotalSize   int64                      `json:"total_size"`
+// FuturesTriggerOpenOrders contains data fields from FuturesTriggerOpenOrdersResponse.
+type FuturesTriggerOpenOrders struct {
+	Orders      []FuturesOpenTriggerOrder `json:"orders"`
+	TotalPage   uint64                    `json:"total_page"`
+	CurrentPage uint64                    `json:"current_page"`
+	TotalSize   uint64                    `json:"total_size"`
 }
 
-// FTriggerOrderHistoryDataOrders contains orders fields from FTriggerOrderHistoryData.
-type FTriggerOrderHistoryDataOrders struct {
-	Symbol          string  `json:"symbol"`
-	ContractCode    string  `json:"contract_code"`
-	ContractType    string  `json:"contract_type"`
-	TriggerType     string  `json:"trigger_type"`
-	Volume          float64 `json:"volume"`
-	OrderType       int64   `json:"order_type"`
-	Direction       string  `json:"direction"`
-	Offset          string  `json:"offset"`
-	LeverageRate    float64 `json:"lever_rate"`
-	OrderID         int64   `json:"order_id"`
-	OrderIDString   string  `json:"order_id_str"`
-	RelationOrderID string  `json:"relation_order_id"`
-	OrderPriceType  string  `json:"order_price_type"`
-	Status          string  `json:"status"`
-	OrderSource     string  `json:"order_source"`
-	TriggerPrice    int64   `json:"trigger_price"`
-	TriggeredPrice  float64 `json:"triggered_price"`
-	OrderPrice      float64 `json:"order_price"`
-	CreatedAt       int64   `json:"created_at"`
-	TriggeredAt     int64   `json:"triggered_at"`
-	OrderInsertAt   float64 `json:"order_insert_at"`
-	CancelledAt     int64   `json:"canceled_at"`
-	FailCode        int64   `json:"fail_code"`
-	FailReason      string  `json:"fail_reason"`
+// FuturesTriggerOrderHistoryEntry contains orders fields from FuturesTriggerOrderHistoryResponse.
+type FuturesTriggerOrderHistoryEntry struct {
+	Symbol          string     `json:"symbol"`
+	ContractCode    string     `json:"contract_code"`
+	ContractType    string     `json:"contract_type"`
+	TriggerType     string     `json:"trigger_type"`
+	Volume          float64    `json:"volume"`
+	OrderType       uint64     `json:"order_type"`
+	Direction       string     `json:"direction"`
+	Offset          string     `json:"offset"`
+	LeverageRate    uint64     `json:"lever_rate"`
+	OrderID         uint64     `json:"order_id"`
+	OrderIDString   string     `json:"order_id_str"`
+	RelationOrderID string     `json:"relation_order_id"`
+	OrderPriceType  string     `json:"order_price_type"`
+	Status          string     `json:"status"`
+	OrderSource     string     `json:"order_source"`
+	TriggerPrice    float64    `json:"trigger_price"`
+	TriggeredPrice  float64    `json:"triggered_price"`
+	OrderPrice      float64    `json:"order_price"`
+	CreatedAt       types.Time `json:"created_at"`
+	TriggeredAt     types.Time `json:"triggered_at"`
+	OrderInsertAt   float64    `json:"order_insert_at"`
+	CancelledAt     types.Time `json:"canceled_at"`
+	FailCode        int64      `json:"fail_code"`
+	FailReason      string     `json:"fail_reason"`
 }
 
-// FTriggerOrderHistory contains data fields from FTriggerOrderHistoryData.
-type FTriggerOrderHistory struct {
-	Orders      []FTriggerOrderHistoryDataOrders `json:"orders"`
-	TotalPage   int64                            `json:"total_page"`
-	CurrentPage int64                            `json:"current_page"`
-	TotalSize   int64                            `json:"total_size"`
+// FuturesTriggerOrderHistory contains data fields from FuturesTriggerOrderHistoryResponse.
+type FuturesTriggerOrderHistory struct {
+	Orders      []FuturesTriggerOrderHistoryEntry `json:"orders"`
+	TotalPage   uint64                            `json:"total_page"`
+	CurrentPage uint64                            `json:"current_page"`
+	TotalSize   uint64                            `json:"total_size"`
+}
+
+// futuresV3Response retains the data shape until the API version is identified.
+type futuresV3Response struct {
+	Data      json.RawMessage `json:"data"`
+	Timestamp types.Time      `json:"ts"`
 }
