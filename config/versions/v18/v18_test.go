@@ -122,7 +122,7 @@ func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {
 
 func TestDowngradeConfigRejectsMalformedPrecision(t *testing.T) {
 	t.Parallel()
-	input := []byte(`{"remoteControl":{"gRPC":{"timeInNanoSeconds":tru}}}`)
+	input := []byte(`{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`)
 	output, err := new(v18.Version).DowngradeConfig(t.Context(), input)
 	require.ErrorIs(t, err, common.ErrGettingField, "DowngradeConfig must return the field-access sentinel")
 	require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "DowngradeConfig must preserve the malformed literal error")
