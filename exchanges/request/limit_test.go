@@ -2,6 +2,7 @@ package request
 
 import (
 	"context"
+	"math"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -64,6 +65,34 @@ func TestRateLimit(t *testing.T) {
 		defer cancel()
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error when context deadline exceeded")
+	})
+
+	t.Run("deadline refusal preserves capacity and admission waits", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			limiter := NewRateLimit(time.Second, 60)
+			weighted := GetRateLimiterWithWeight(limiter, 3)
+			single := GetRateLimiterWithWeight(limiter, 1)
+			at := time.Now()
+
+			deadlineCtx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+			defer cancel()
+			require.ErrorIs(t, weighted.RateLimit(deadlineCtx), context.DeadlineExceeded,
+				"a request requiring more than 25ms must be refused")
+			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
+				"deadline refusal should leave capacity untouched")
+
+			require.NoError(t, single.RateLimit(WithDelayNotAllowed(t.Context())),
+				"the untouched token must be available immediately")
+			waitCtx, cancelWait := context.WithTimeout(t.Context(), time.Minute)
+			defer cancelWait()
+			start := time.Now()
+			require.NoError(t, single.RateLimit(waitCtx),
+				"a deadline allowing the delay must admit the request")
+			assert.Equal(t, 16_666_666*time.Nanosecond, time.Since(start),
+				"admission with a deadline should wait for one token")
+		})
 	})
 }
 
@@ -530,6 +559,220 @@ func TestCancelAll(t *testing.T) {
 	require.Equal(t, -1.0, r.TokensAt(tn), "must have negative tokens remaining")
 	cancelAll(reservations, tn)
 	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
+}
+
+func TestDurationFromTokens(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		tokens float64
+		limit  rate.Limit
+		want   time.Duration
+	}{
+		{
+			name:   "no deficit",
+			tokens: 0,
+			limit:  60,
+			want:   0,
+		},
+		{
+			name:   "fraction of a token",
+			tokens: 0.5,
+			limit:  1,
+			want:   500 * time.Millisecond,
+		},
+		{
+			name:   "one token at sixty per second",
+			tokens: 1,
+			limit:  60,
+			want:   16666666 * time.Nanosecond,
+		},
+		{
+			name:   "two tokens at sixty per second",
+			tokens: 2,
+			limit:  60,
+			want:   33333333 * time.Nanosecond,
+		},
+		{
+			name:   "duration beyond a second",
+			tokens: 200,
+			limit:  60,
+			want:   3333333333 * time.Nanosecond,
+		},
+		{
+			name:   "unlimited limiter needs no time",
+			tokens: 5,
+			limit:  rate.Inf,
+			want:   0,
+		},
+		{
+			name:   "zero limit is unbounded",
+			tokens: 1,
+			limit:  0,
+			want:   time.Duration(math.MaxInt64),
+		},
+		{
+			name:   "negative limit is unbounded",
+			tokens: 1,
+			limit:  -1,
+			want:   time.Duration(math.MaxInt64),
+		},
+		{
+			name:   "overflow clamps to the maximum duration",
+			tokens: 1e19,
+			limit:  1,
+			want:   time.Duration(math.MaxInt64),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, durationFromTokens(tc.tokens, tc.limit),
+				"delay should match the token deficit at the configured limit")
+		})
+	}
+}
+
+func TestPendingDelayLocked(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		limit  rate.Limit
+		burst  int
+		weight Weight
+		want   time.Duration
+	}{
+		{
+			name:   "weight matches available tokens",
+			limit:  1,
+			burst:  1,
+			weight: 1,
+			want:   0,
+		},
+		{
+			name:   "surplus tokens need no delay",
+			limit:  1,
+			burst:  5,
+			weight: 1,
+			want:   0,
+		},
+		{
+			name:   "two missing tokens at one per second",
+			limit:  1,
+			burst:  1,
+			weight: 3,
+			want:   2 * time.Second,
+		},
+		{
+			name:   "two missing tokens at sixty per second",
+			limit:  60,
+			burst:  1,
+			weight: 3,
+			want:   33333333 * time.Nanosecond,
+		},
+		{
+			name:   "extreme rate truncates to zero",
+			limit:  1.08e10,
+			burst:  1,
+			weight: 11,
+			want:   0,
+		},
+		{
+			name:   "unlimited limiter needs no delay",
+			limit:  rate.Inf,
+			burst:  1,
+			weight: 5,
+			want:   0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := GetRateLimiterWithWeight(rate.NewLimiter(tc.limit, tc.burst), tc.weight)
+			assert.Equal(t, tc.want, r.pendingDelayLocked(time.Now()),
+				"pending delay should match the missing capacity at the configured limit")
+		})
+	}
+}
+
+func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		actions int
+		weight  Weight
+	}{
+		{name: "sixty per second", actions: 60, weight: 3},
+		{name: "large weight", actions: 60, weight: 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			limiter := NewRateLimit(time.Second, tc.actions)
+			weighted := GetRateLimiterWithWeight(limiter, tc.weight)
+			single := GetRateLimiterWithWeight(limiter, 1)
+			ctx := WithDelayNotAllowed(t.Context())
+			at := time.Now()
+
+			require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
+				"a request that needs a delay must be refused when delays are not allowed")
+			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
+				"a refused request should leave the limiter's capacity untouched")
+			// Long enough for one token's delay but not for the whole request's.
+			deadlineCtx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+			defer cancel()
+			require.ErrorIs(t, weighted.RateLimit(deadlineCtx), context.DeadlineExceeded,
+				"a request whose delay exceeds its deadline must be refused")
+			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
+				"a request refused for its deadline should leave the limiter's capacity untouched")
+			require.NoError(t, single.RateLimit(ctx),
+				"an unrelated weight-1 request must still be admitted without delay")
+			waitCtx, cancelWait := context.WithTimeout(t.Context(), time.Minute)
+			defer cancelWait()
+			require.NoError(t, single.RateLimit(waitCtx),
+				"a request whose deadline allows its delay must wait and be admitted")
+		})
+	}
+}
+
+func TestRateLimitAdmittedRequestConsumesCapacity(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		limiter := NewRateLimit(time.Hour, 1)
+		weighted := GetRateLimiterWithWeight(limiter, 1)
+		ctx := WithDelayNotAllowed(t.Context())
+		require.NoError(t, weighted.RateLimit(ctx), "first request must be admitted without delay")
+		require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
+			"an admitted request must retain its reservation")
+	})
+}
+
+func TestRateLimitBarrierRejectedAdmissionRestoresCapacity(t *testing.T) {
+	t.Parallel()
+
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err, "barrier contexts must be created")
+
+	// Weight exceeds the burst, so the group cannot be admitted and the peer's reservation must be
+	// fully restored instead of leaving its capacity consumed.
+	peer := NewRateLimitWithWeight(time.Second, 60, 1)
+	weighted := NewRateLimitWithWeight(time.Second, 60, 3)
+	at := time.Now()
+	errs := make(chan error, 2)
+	go func() { errs <- peer.RateLimit(contexts[0]) }()
+	go func() { errs <- weighted.RateLimit(contexts[1]) }()
+	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
+	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
+	assert.InDelta(t, 1, peer.limiter.TokensAt(at), 1e-9,
+		"a refused group admission should leave the peer's capacity untouched")
+	assert.InDelta(t, 1, weighted.limiter.TokensAt(at), 1e-9,
+		"a refused group admission should leave the weighted participant's capacity untouched")
+	require.True(t, weighted.m.TryLock(), "a refused group admission must release the weighted participant's limiter")
+	weighted.m.Unlock()
 }
 
 func TestInitiateRateLimit(t *testing.T) {
