@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/buger/jsonparser"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Version implements ConfigVersion for the gRPC timestamp migration.
@@ -27,7 +28,7 @@ func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error
 	case errors.Is(err, jsonparser.KeyPathNotFoundError):
 		return config, nil
 	case err != nil:
-		return config, fmt.Errorf("error getting gRPC configuration: %w", err)
+		return config, fmt.Errorf("%w gRPC configuration: %w", common.ErrGettingField, err)
 	case valueType != jsonparser.Object:
 		return config, nil
 	}
@@ -37,12 +38,12 @@ func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error
 	case err == nil && precisionType != jsonparser.Null:
 		return config, nil
 	case err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, fmt.Errorf("error getting gRPC timestamp precision: %w", err)
+		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrGettingField, err)
 	}
 
 	updated, err := jsonparser.Set(config, []byte("false"), "remoteControl", "gRPC", "timeInNanoSeconds")
 	if err != nil {
-		return config, fmt.Errorf("error restoring gRPC timestamp precision: %w", err)
+		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrSettingField, err)
 	}
 	return updated, nil
 }

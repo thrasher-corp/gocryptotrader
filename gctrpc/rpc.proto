@@ -108,7 +108,8 @@ message CurrencyPair {
 }
 
 message TickerResponse {
-  reserved 2, 10;
+  reserved 2; // Former int64 last_updated, replaced by Timestamp field 31.
+  reserved 10; // Former price_ath.
   reserved "price_ath";
 
   CurrencyPair pair = 1;
@@ -166,7 +167,7 @@ message OrderbookItem {
 }
 
 message OrderbookResponse {
-  reserved 5;
+  reserved 5; // Former int64 last_updated, replaced by Timestamp field 8.
 
   CurrencyPair pair = 1;
   string currency_pair = 2;
@@ -334,7 +335,7 @@ message OrderDetails {
 }
 
 message TradeHistory {
-  reserved 1;
+  reserved 1; // Former int64 creation_time, replaced by Timestamp field 10.
 
   google.protobuf.Timestamp creation_time = 10;
   string id = 2;

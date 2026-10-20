@@ -52,3 +52,16 @@ func TestRetypedTimestampWireNumbers(t *testing.T) {
 		})
 	}
 }
+
+func TestTickerResponseReservedPriceATH(t *testing.T) {
+	t.Parallel()
+	response := new(TickerResponse)
+	descriptor := response.ProtoReflect().Descriptor()
+	assert.True(t, descriptor.ReservedRanges().Has(10), "former price_ath wire number should remain reserved")
+	assert.True(t, descriptor.ReservedNames().Has("price_ath"), "former price_ath name should remain reserved")
+	assert.Nil(t, descriptor.Fields().ByNumber(10), "reserved wire number should not identify a live field")
+	legacy := protowire.AppendTag(nil, 10, protowire.Fixed64Type)
+	legacy = protowire.AppendFixed64(legacy, 123)
+	require.NoError(t, proto.Unmarshal(legacy, response), "legacy price_ath field must remain decodable as unknown data")
+	assert.False(t, response.ProtoReflect().Has(descriptor.Fields().ByName("last_updated")), "legacy price_ath should not populate the timestamp")
+}

@@ -3,8 +3,10 @@ package v18_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 )
@@ -42,7 +44,7 @@ func TestUpgradeConfig(t *testing.T) {
 			t.Parallel()
 			output, err := new(v18.Version).UpgradeConfig(t.Context(), []byte(tc.input))
 			require.NoError(t, err, "UpgradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove only the obsolete timestamp setting")
+			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove, and only remove, the obsolete timestamp setting")
 		})
 	}
 }
@@ -106,13 +108,6 @@ func TestRegisteredMigration(t *testing.T) {
 	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 17)
 	require.NoError(t, err, "Deploy must apply the registered v18 downgrade")
 	assert.JSONEq(t, `{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should restore the legacy default and set version 17")
-
-	previousSeconds := []byte(`{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`)
-	upgraded, err = versions.Manager.Deploy(t.Context(), previousSeconds, 18)
-	require.NoError(t, err, "Deploy must upgrade a previous seconds selection")
-	downgraded, err = versions.Manager.Deploy(t.Context(), upgraded, 17)
-	require.NoError(t, err, "Deploy must downgrade the upgraded seconds selection")
-	assert.JSONEq(t, `{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should return the legacy default unchanged")
 }
 
 func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {
@@ -120,6 +115,17 @@ func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {
 
 	input := []byte(`{"remoteControl":{"gRPC":`)
 	output, err := new(v18.Version).DowngradeConfig(t.Context(), input)
-	require.Error(t, err, "DowngradeConfig must reject malformed configuration")
+	require.ErrorIs(t, err, common.ErrGettingField, "DowngradeConfig must reject malformed configuration")
+	require.ErrorIs(t, err, jsonparser.MalformedJsonError, "DowngradeConfig must preserve the parser error")
 	assert.Equal(t, input, output, "DowngradeConfig should return the original configuration on error")
+}
+
+func TestDowngradeConfigRejectsMalformedPrecision(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"remoteControl":{"gRPC":{"timeInNanoSeconds":tru}}}`)
+	output, err := new(v18.Version).DowngradeConfig(t.Context(), input)
+	require.ErrorIs(t, err, common.ErrGettingField, "DowngradeConfig must return the field-access sentinel")
+	require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "DowngradeConfig must preserve the malformed literal error")
+	require.ErrorContains(t, err, "gRPC timestamp precision", "DowngradeConfig must fail while reading the precision field")
+	assert.Equal(t, input, output, "DowngradeConfig should preserve the original configuration on error")
 }
