@@ -195,6 +195,64 @@ func TestConvertTradesToCandles(t *testing.T) {
 	}
 }
 
+func TestConvertTradesToCandlesSignedPrices(t *testing.T) {
+	t.Parallel()
+	startDate := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		trades   []Data
+		expected kline.Candle
+	}{
+		{
+			name: "positive prices out of order",
+			trades: []Data{
+				{Timestamp: startDate.Add(2 * time.Second), Price: 90, Amount: 3},
+				{Timestamp: startDate, Price: 100, Amount: 0.5},
+				{Timestamp: startDate.Add(time.Second), Price: 110, Amount: 2},
+			},
+			expected: kline.Candle{Time: startDate, Open: 100, High: 110, Low: 90, Close: 90, Volume: 5.5},
+		},
+		{
+			name: "every trade negative",
+			trades: []Data{
+				{Timestamp: startDate, Price: -100, Amount: -1},
+				{Timestamp: startDate.Add(time.Second), Price: -110, Amount: -2},
+				{Timestamp: startDate.Add(2 * time.Second), Price: -90, Amount: -3},
+			},
+			expected: kline.Candle{Time: startDate, Open: -100, High: -90, Low: -110, Close: -90, Volume: 6},
+		},
+		{
+			name: "mixed sign prices",
+			trades: []Data{
+				{Timestamp: startDate, Price: -100, Amount: 1},
+				{Timestamp: startDate.Add(time.Second), Price: 50, Amount: -2},
+				{Timestamp: startDate.Add(2 * time.Second), Price: -75, Amount: 3},
+			},
+			expected: kline.Candle{Time: startDate, Open: -100, High: 50, Low: -100, Close: -75, Volume: 6},
+		},
+		{
+			name: "mixed sign prices starting positive",
+			trades: []Data{
+				{Timestamp: startDate, Price: 10, Amount: 1},
+				{Timestamp: startDate.Add(time.Second), Price: -30, Amount: 2},
+				{Timestamp: startDate.Add(2 * time.Second), Price: -20, Amount: 3},
+			},
+			expected: kline.Candle{Time: startDate, Open: 10, High: 10, Low: -30, Close: -20, Volume: 6},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			candles, err := ConvertTradesToCandles(kline.FifteenSecond, tt.trades...)
+			require.NoError(t, err, "ConvertTradesToCandles must not error")
+			require.Len(t, candles.Candles, 1, "trades in one interval must produce one candle")
+			c := candles.Candles[0]
+			c.Time = c.Time.UTC()
+			assert.Equal(t, tt.expected, c, "candle should keep signed prices and total absolute amounts")
+		})
+	}
+}
+
 func TestShutdown(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
