@@ -19,8 +19,8 @@ type StatusResponse struct {
 	LockedIndices []string `json:"locked_indices"`
 }
 
-// testConnectionParams contains the expected result of a public/test request
-type testConnectionParams struct {
+// TestConnectionRequest contains the expected result of a public/test request
+type TestConnectionRequest struct {
 	ExpectedResult string `json:"expected_result"`
 }
 

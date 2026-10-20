@@ -2,9 +2,12 @@ package deribit
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -35,6 +38,53 @@ func (e *Exchange) wsHandleOrders(ctx context.Context, channel string, respRaw [
 		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, details))
 	}
 	return errs
+}
+
+// wsHandlePortfolio saves a user.portfolio notification's balance as UpdateAccountBalances does, under each asset that
+// holds the main account's balances, then relays the summary
+func (e *Exchange) wsHandlePortfolio(ctx context.Context, respRaw []byte) error {
+	summary := new(AccountSummary)
+	if err := decodeNotification(respRaw, summary); err != nil {
+		return err
+	}
+	assets, err := e.mainAccountAssets(ctx)
+	if err != nil {
+		return err
+	}
+	for _, a := range assets {
+		if _, err := e.Accounts.UpdateBalance(ctx, "", a, summary.Currency, func(b *accounts.Balance) {
+			b.Total = summary.Balance
+			b.Hold = max(summary.Balance-summary.AvailableWithdrawalFunds, 0)
+			b.Free = summary.AvailableWithdrawalFunds
+		}); err != nil {
+			return err
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, summary)
+}
+
+// mainAccountAssets returns the assets the main account's balances are saved under, or spot when none are saved yet.
+// Deribit's balances back every asset, so a copy saved under another asset would be counted again in asset.All totals,
+// and the portfolio manager saves the balances of an exchange without segregated asset accounts under spot
+func (e *Exchange) mainAccountAssets(ctx context.Context) (asset.Items, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	subAccounts, err := e.Accounts.SubAccounts(creds, asset.All)
+	if err != nil && !errors.Is(err, accounts.ErrNoSubAccounts) {
+		return nil, err
+	}
+	var assets asset.Items
+	for _, s := range subAccounts {
+		if s.ID == "" {
+			assets = append(assets, s.AssetType)
+		}
+	}
+	if len(assets) == 0 {
+		return asset.Items{asset.Spot}, nil
+	}
+	return assets, nil
 }
 
 // wsHandleUserTrades passes the account's trades to the fills feed

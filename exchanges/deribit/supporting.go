@@ -64,7 +64,7 @@ func (e *Exchange) testConnection(ctx context.Context, expectedResult string, ov
 	// A typed nil pointer would be sent as null params, so only a set parameter is assigned
 	var params any
 	if expectedResult != "" {
-		params = &testConnectionParams{ExpectedResult: expectedResult}
+		params = &TestConnectionRequest{ExpectedResult: expectedResult}
 	}
 	var resp *TestConnectionResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/test", params, &resp); err != nil {

@@ -25,7 +25,7 @@ func (e *Exchange) createCombo(ctx context.Context, trades []ComboTrade, overWeb
 		return nil, err
 	}
 	var resp *Combo
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/create_combo", &createComboParams{Trades: trades}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_combo", &CreateComboRequest{Trades: trades}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -87,7 +87,7 @@ func (e *Exchange) getComboDetails(ctx context.Context, comboID string, overWebs
 		return nil, errComboIDRequired
 	}
 	var resp *Combo
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combo_details", &comboIDParams{ComboID: comboID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combo_details", &ComboIDRequest{ComboID: comboID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -128,5 +128,5 @@ func (e *Exchange) getCombos(ctx context.Context, ccy currency.Code, overWebsock
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp []Combo
-	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combos", &currencyParams{Currency: marketDataCurrency(ccy)}, &resp)
+	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combos", &CurrencyRequest{Currency: marketDataCurrency(ccy)}, &resp)
 }

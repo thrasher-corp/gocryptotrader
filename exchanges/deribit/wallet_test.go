@@ -793,7 +793,7 @@ func TestListAddressBeneficiariesParamsMarshalJSON(t *testing.T) {
 		UpdatedAfter:  time.UnixMilli(1700000001000),
 		Personal:      new(false),
 	}
-	encoded, err := json.Marshal(&listAddressBeneficiariesParams{
+	encoded, err := json.Marshal(&ListAddressBeneficiariesParams{
 		ListAddressBeneficiariesRequest: arg,
 		CreatedBefore:                   arg.CreatedBefore.UnixMilli(),
 		CreatedAfter:                    arg.CreatedAfter.UnixMilli(),
@@ -801,11 +801,11 @@ func TestListAddressBeneficiariesParamsMarshalJSON(t *testing.T) {
 		UpdatedAfter:                    arg.UpdatedAfter.UnixMilli(),
 	})
 	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"currency":"BTC","created_before":1700000003000,"created_after":1700000000000,"updated_before":1700000004000,"updated_after":1700000001000,"personal":false}`, string(encoded), "listAddressBeneficiariesParams should send each time once in Unix milliseconds and a false filter")
+	assert.JSONEq(t, `{"currency":"BTC","created_before":1700000003000,"created_after":1700000000000,"updated_before":1700000004000,"updated_after":1700000001000,"personal":false}`, string(encoded), "ListAddressBeneficiariesParams should send each time once in Unix milliseconds and a false filter")
 
-	encoded, err = json.Marshal(&listAddressBeneficiariesParams{ListAddressBeneficiariesRequest: &ListAddressBeneficiariesRequest{}})
+	encoded, err = json.Marshal(&ListAddressBeneficiariesParams{ListAddressBeneficiariesRequest: &ListAddressBeneficiariesRequest{}})
 	require.NoError(t, err, "Marshal must not error for an empty request")
-	assert.JSONEq(t, `{}`, string(encoded), "listAddressBeneficiariesParams should leave out every unset filter")
+	assert.JSONEq(t, `{}`, string(encoded), "ListAddressBeneficiariesParams should leave out every unset filter")
 }
 
 func TestRemoveFromAddressBook(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +83,8 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 }
 
 // newUnauthenticatedWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected to
-// a new mock of Deribit's websocket without authenticating, and the requests the mock receives
+// a new mock of Deribit's websocket without authenticated websocket support, so it does not authenticate, and the
+// requests the mock receives
 func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	t.Helper()
 	ex, venue := connectWebsocketTestExchange(t, false)
@@ -91,7 +93,8 @@ func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocke
 }
 
 // connectWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected to a new mock
-// of Deribit's websocket, authenticating when it connects if authenticated is set, and the requests the mock receives
+// of Deribit's websocket, with authenticated websocket support if authenticated is set, so it authenticates when it
+// connects, and the requests the mock receives
 func connectWebsocketTestExchange(t *testing.T, authenticated bool) (*Exchange, *websocketVenue) {
 	t.Helper()
 	url, venue := startWebsocketVenue(t)
@@ -99,6 +102,7 @@ func connectWebsocketTestExchange(t *testing.T, authenticated bool) (*Exchange, 
 	require.NoError(t, ex.Websocket.SetWebsocketURL(url, false, true), "SetWebsocketURL must not error")
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetSubscriptionsNotRequired()
+	ex.API.AuthenticatedWebsocketSupport = authenticated
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the mock websocket")
 	t.Cleanup(func() {
@@ -112,6 +116,66 @@ func connectWebsocketTestExchange(t *testing.T, authenticated bool) (*Exchange, 
 	return ex, venue
 }
 
+// websocketVenue is a mock of Deribit's websocket, which answers requests as Deribit does and records them
+type websocketVenue struct {
+	mu       sync.Mutex
+	requests []websocketVenueRequest
+	// refusals counts the requests of each subscription method still to be refused
+	refusals map[string]int
+	// delays holds how long the mock waits to answer the next request of a method, answering others meanwhile
+	delays map[string]time.Duration
+	// notices holds the notification the mock sends ahead of its answer to the next request of a method
+	notices map[string][]byte
+	// writeMu serialises the mock's answers, which a delayed answer writes from its own goroutine
+	writeMu sync.Mutex
+}
+
+// delayNext has the mock answer the next request of a method only after a delay, answering any request it receives
+// meanwhile first
+func (v *websocketVenue) delayNext(method string, delay time.Duration) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.delays == nil {
+		v.delays = make(map[string]time.Duration)
+	}
+	v.delays[method] = delay
+}
+
+// notifyBeforeNext has the mock send a notification ahead of its answer to the next request of a method, as Deribit
+// sends one it had sent already before answering
+func (v *websocketVenue) notifyBeforeNext(method string, notice []byte) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.notices == nil {
+		v.notices = make(map[string][]byte)
+	}
+	v.notices[method] = notice
+}
+
+// refuse has the mock refuse the next count requests of a subscription method, acknowledging none of their channels as
+// Deribit acknowledges no channel it does not subscribe or unsubscribe
+func (v *websocketVenue) refuse(method string, count int) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.refusals == nil {
+		v.refusals = make(map[string]int)
+	}
+	v.refusals[method] = count
+}
+
+// received returns the requests received for a method, in arrival order
+func (v *websocketVenue) received(method string) []websocketVenueRequest {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	var requests []websocketVenueRequest
+	for i := range v.requests {
+		if v.requests[i].Method == method {
+			requests = append(requests, v.requests[i])
+		}
+	}
+	return requests
+}
+
 // startWebsocketVenue starts a mock of Deribit's websocket and returns its URL and the requests it receives; it listens
 // on loopback, as the exchange dials with a plain dialer that cannot reach the in-memory network
 func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
@@ -122,34 +186,66 @@ func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
 	return "ws" + strings.TrimPrefix(server.URL, "http"), venue
 }
 
-// record keeps a request the mock received
-func (v *websocketVenue) record(req *websocketVenueRequest) {
+// record keeps a request the mock received, and returns whether to refuse it, how long to wait to answer it and the
+// notification to send ahead of the answer
+func (v *websocketVenue) record(req *websocketVenueRequest) (refused bool, delay time.Duration, notice []byte) {
 	v.mu.Lock()
+	defer v.mu.Unlock()
 	v.requests = append(v.requests, *req)
-	v.mu.Unlock()
+	delay = v.delays[req.Method]
+	delete(v.delays, req.Method)
+	notice = v.notices[req.Method]
+	delete(v.notices, req.Method)
+	if v.refusals[req.Method] > 0 {
+		v.refusals[req.Method]--
+		return true, delay, notice
+	}
+	return false, delay, notice
 }
 
 // answer replies to a request as Deribit does: it authenticates a client signature of the test client ID and rejects
-// any other, acknowledges every channel of a subscription request and answers any other request with the
-// testdata/http.json response recorded for the same method and params; a request without one is answered with an error,
-// so the request fails at once, and reported
+// any other, acknowledges every channel of a subscription request unless told to refuse it and answers any other
+// request with the testdata/http.json response recorded for the same method and params; a request without one is
+// answered with an error, so the request fails at once, and reported
 func (v *websocketVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error {
 	var req websocketVenueRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return fmt.Errorf("%w: %s: %w", errWebsocketVenueRequest, msg, err)
 	}
-	v.record(&req)
+	refused, delay, notice := v.record(&req)
 	if req.Method == "private/logout" {
 		return conn.Close()
 	}
+	if notice != nil {
+		v.writeMu.Lock()
+		err := conn.WriteMessage(gws.TextMessage, notice)
+		v.writeMu.Unlock()
+		if err != nil {
+			return err
+		}
+	}
 	result, answerErr := websocketVenueResult(&req)
-	if answerErr != nil {
+	switch {
+	case answerErr != nil:
 		result = json.RawMessage(`{"error":{"code":-32601,"message":"no mock response"}}`)
+	case refused:
+		result = json.RawMessage(`{"result":[]}`)
 	}
 	frame, err := websocketVenueFrame(req.ID, result)
 	if err != nil {
 		return err
 	}
+	if delay > 0 {
+		go func() {
+			time.Sleep(delay)
+			v.writeMu.Lock()
+			defer v.writeMu.Unlock()
+			_ = conn.WriteMessage(gws.TextMessage, frame) // The connection may have closed meanwhile
+		}()
+		return answerErr
+	}
+	v.writeMu.Lock()
+	defer v.writeMu.Unlock()
 	if err := conn.WriteMessage(gws.TextMessage, frame); err != nil {
 		return err
 	}
@@ -172,7 +268,7 @@ func websocketVenueResult(req *websocketVenueRequest) (json.RawMessage, error) {
 		}
 		return json.RawMessage(`{"result":{"access_token":"` + mockAccessToken + `","expires_in":31536000,"refresh_token":"mock-refresh-token","scope":"connection mainaccount","enabled_features":[],"token_type":"bearer"}}`), nil
 	case "public/subscribe", "private/subscribe", "public/unsubscribe", "private/unsubscribe":
-		var params subscriptionParams
+		var params SubscriptionRequest
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			return nil, err
 		}

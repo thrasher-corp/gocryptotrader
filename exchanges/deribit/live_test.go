@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -88,4 +89,23 @@ func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocke
 	t.Helper()
 	t.Skip("the live tests share one connection, which authenticates when it connects")
 	return nil, nil
+}
+
+// websocketVenue stands in for the mock of Deribit's websocket, which the live tests do not use, as they share Deribit's
+// websocket; it records nothing
+type websocketVenue struct{}
+
+func (*websocketVenue) delayNext(string, time.Duration) {}
+
+func (*websocketVenue) notifyBeforeNext(string, []byte) {}
+
+func (*websocketVenue) refuse(string, int) {}
+
+func (*websocketVenue) received(string) []websocketVenueRequest { return nil }
+
+// startWebsocketVenue skips the test, as the live tests share Deribit's websocket rather than a mock of it
+func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
+	t.Helper()
+	t.Skip("the live tests share Deribit's websocket")
+	return "", nil
 }

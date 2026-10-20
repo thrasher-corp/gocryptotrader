@@ -10,10 +10,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -110,23 +112,114 @@ func orderbookChangeLevels(changes []WebsocketOrderbookChange) orderbook.Levels 
 }
 
 // resubscribeChannel resubscribes the subscription of a qualified channel in the background, so Deribit sends a new
-// snapshot without holding up the reader
+// snapshot without holding up the reader, which must go on matching responses while a resubscription waits for them
 func (e *Exchange) resubscribeChannel(ctx context.Context, channel string) {
-	var sub *subscription.Subscription
-	for _, s := range e.Websocket.GetSubscriptions() {
-		if s.QualifiedChannel == channel {
-			sub = s
-			break
-		}
-	}
+	sub := e.markResubscribing(channel)
 	if sub == nil {
 		return
 	}
+	generation := e.connectionGeneration.Load()
 	go func() {
-		if err := e.Websocket.ResubscribeToChannel(ctx, e.Websocket.Conn, sub); err != nil && !errors.Is(err, subscription.ErrInStateAlready) {
+		if err := e.resubscribe(ctx, sub, generation); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s resubscribing to %s: %s", e.Name, channel, err)
 		}
 	}()
+}
+
+// markResubscribing marks the held subscription of a qualified channel as resubscribing and returns it, or nil when none
+// is held or it is resubscribing already, as the changes still arriving for its invalid book would each resubscribe it
+// again once the resubscription under way finished
+func (e *Exchange) markResubscribing(channel string) *subscription.Subscription {
+	for _, s := range e.Websocket.GetSubscriptions() {
+		if s.QualifiedChannel == channel {
+			if s.SetState(subscription.ResubscribingState) != nil {
+				return nil
+			}
+			return s
+		}
+	}
+	return nil
+}
+
+// resubscribe unsubscribes a subscription marked as resubscribing and subscribes it again on the connection of a
+// generation. When its unsubscribe fails or is not sent the channel is as it was, so a subscription still held is
+// marked subscribed again for the next change out of sequence to retry, and one unsubscribed meanwhile is left
+// unsubscribed; when the subscribe fails after it, no further notification prompts another attempt, so the subscribe is
+// retried
+func (e *Exchange) resubscribe(ctx context.Context, sub *subscription.Subscription, generation uint64) error {
+	subs := subscription.List{sub}
+	var unsubscribed bool
+	err := e.onConnection(generation, sub, func() error {
+		if err := e.Websocket.UnsubscribeChannels(ctx, e.Websocket.Conn, subs); err != nil {
+			return err
+		}
+		unsubscribed = true
+		return e.Websocket.SubscribeToChannels(ctx, e.Websocket.Conn, subs)
+	})
+	switch {
+	case err == nil:
+		return nil
+	case !unsubscribed:
+		if sub.State() == subscription.ResubscribingState {
+			err = common.AppendError(err, sub.SetState(subscription.SubscribedState))
+		}
+		if errors.Is(err, websocket.ErrNotConnected) || errors.Is(err, subscription.ErrNotFound) {
+			return nil
+		}
+	case sub.State() == subscription.UnsubscribedState:
+		if retryErr := e.subscribeAgain(ctx, sub, generation); retryErr != nil {
+			return common.AppendError(err, retryErr)
+		}
+		return nil
+	}
+	return err
+}
+
+// subscribeAgain retries subscribing a subscription a resubscription unsubscribed, backing off between attempts, until
+// the attempts run out, the context ends or the connection goes, as a new connection subscribes every channel itself
+func (e *Exchange) subscribeAgain(ctx context.Context, sub *subscription.Subscription, generation uint64) error {
+	backoff := request.DefaultBackoff()
+	var err error
+	for attempt := 1; attempt < maximumRequestAttempts; attempt++ {
+		timer := time.NewTimer(backoff(attempt))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		err = e.onConnection(generation, sub, func() error {
+			return e.Websocket.SubscribeToChannels(ctx, e.Websocket.Conn, subscription.List{sub})
+		})
+		if err == nil || errors.Is(err, websocket.ErrNotConnected) {
+			return err
+		}
+	}
+	return err
+}
+
+// nextConnectionGeneration starts the generation of a new connection once no subscription change is being made on the
+// last one
+func (e *Exchange) nextConnectionGeneration() {
+	e.connectionMtx.Lock()
+	defer e.connectionMtx.Unlock()
+	e.connectionGeneration.Add(1)
+}
+
+// onConnection makes a subscription change on the connection of a generation, holding a new connection back until it is
+// made. It is not made once that connection has gone, and the subscription is removed again when the connection goes
+// meanwhile, as a new connection subscribes its own channels and would refuse them all as duplicates of it
+func (e *Exchange) onConnection(generation uint64, sub *subscription.Subscription, change func() error) error {
+	e.connectionMtx.Lock()
+	defer e.connectionMtx.Unlock()
+	if e.connectionGeneration.Load() != generation || !e.Websocket.IsConnected() {
+		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, sub.QualifiedChannel)
+	}
+	err := change()
+	if !e.Websocket.IsConnected() && e.Websocket.GetSubscription(qualifiedChannelKey{sub}) != nil {
+		err = common.AppendError(err, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, sub))
+	}
+	return err
 }
 
 // wsHandleTicker stores and relays a ticker
@@ -140,6 +233,30 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 	tick := data.tickerPrice(e.Name, cp, a)
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tick)
+}
+
+// wsHandleQuote stores a quote's best prices and sizes on the instrument's stored ticker, keeping the ticker's other
+// fields, which a quote does not carry, and relays the ticker
+func (e *Exchange) wsHandleQuote(ctx context.Context, respRaw []byte) error {
+	var data WebsocketQuote
+	if err := decodeNotification(respRaw, &data); err != nil {
+		return err
+	}
+	a, cp, err := getAssetPairByInstrument(data.InstrumentName)
+	if err != nil {
+		return err
+	}
+	tick, err := ticker.GetTicker(e.Name, cp, a)
+	if err != nil {
+		tick = &ticker.Price{ExchangeName: e.Name, Pair: cp, AssetType: a}
+	}
+	tick.Bid, tick.BidSize = data.BestBidPrice, data.BestBidAmount
+	tick.Ask, tick.AskSize = data.BestAskPrice, data.BestAskAmount
+	tick.LastUpdated = data.Timestamp.Time()
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
@@ -288,12 +405,13 @@ func (e *Exchange) wsHandleCandle(ctx context.Context, channel string, respRaw [
 		Exchange: e.Name,
 		Interval: interval,
 		Candles: []kline.Candle{{
-			Time:   candle.Tick.Time(),
-			Open:   candle.Open,
-			High:   candle.High,
-			Low:    candle.Low,
-			Close:  candle.Close,
-			Volume: candle.Volume,
+			Time:        candle.Tick.Time(),
+			Open:        candle.Open,
+			High:        candle.High,
+			Low:         candle.Low,
+			Close:       candle.Close,
+			Volume:      candle.Volume,
+			QuoteVolume: candle.Cost,
 		}},
 	})
 }

@@ -34,7 +34,7 @@ func (e *Exchange) getCancelOnDisconnect(ctx context.Context, scope string, over
 		return nil, err
 	}
 	var resp *CancelOnDisconnectResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_cancel_on_disconnect", &cancelOnDisconnectParams{Scope: scope}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_cancel_on_disconnect", &CancelOnDisconnectRequest{Scope: scope}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

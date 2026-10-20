@@ -153,7 +153,7 @@ func (e *Exchange) changeSubaccountName(ctx context.Context, arg *ChangeSubaccou
 	if arg.Name == "" {
 		return errSubaccountNameRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/change_subaccount_name", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/change_subaccount_name", arg)
 }
 
 // CreateAPIKey creates an API key, whose scope cannot exceed the scope of the key creating it, and returns it with its
@@ -222,7 +222,7 @@ func (e *Exchange) deleteMember(ctx context.Context, memberID uint64, overWebsoc
 		return nil, errMemberIDRequired
 	}
 	var resp *MembersResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/delete_member", &memberIDParams{MemberID: memberID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/delete_member", &MemberIDRequest{MemberID: memberID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -243,7 +243,7 @@ func (e *Exchange) disableAPIKey(ctx context.Context, id uint64, overWebsocket b
 		return nil, errAPIKeyIDRequired
 	}
 	var resp *APIKey
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/disable_api_key", &apiKeyIDParams{ID: id}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/disable_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -285,7 +285,7 @@ func (e *Exchange) editAPIKey(ctx context.Context, arg *EditAPIKeyRequest, overW
 // EnableAffiliateProgram enables the account's affiliate program, which pays commission on the trading of users it
 // refers; it cannot be disabled through the API
 func (e *Exchange) EnableAffiliateProgram(ctx context.Context) error {
-	return e.sendOKRequest(ctx, false, nonMatchingEPL, "private/enable_affiliate_program", nil)
+	return e.sendOKRequest(ctx, false, "private/enable_affiliate_program", nil)
 }
 
 // EnableAPIKey enables a disabled API key, which can authenticate at once
@@ -298,7 +298,7 @@ func (e *Exchange) enableAPIKey(ctx context.Context, id uint64, overWebsocket bo
 		return nil, errAPIKeyIDRequired
 	}
 	var resp *APIKey
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/enable_api_key", &apiKeyIDParams{ID: id}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/enable_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -452,7 +452,7 @@ func (e *Exchange) getPosition(ctx context.Context, instrumentName string, overW
 		return nil, errInstrumentNameRequired
 	}
 	var resp *Position
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_position", &instrumentNameParams{InstrumentName: instrumentName}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_position", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -488,7 +488,7 @@ func (e *Exchange) GetSubaccounts(ctx context.Context, withPortfolio bool) ([]Su
 
 func (e *Exchange) getSubaccounts(ctx context.Context, withPortfolio, overWebsocket bool) ([]Subaccount, error) {
 	var resp []Subaccount
-	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_subaccounts", &withPortfolioParams{WithPortfolio: withPortfolio}, &resp)
+	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_subaccounts", &WithPortfolioRequest{WithPortfolio: withPortfolio}, &resp)
 }
 
 // GetSubaccountsDetails returns the positions of the main account and each subaccount in a currency and, optionally,
@@ -531,7 +531,7 @@ func (e *Exchange) getTransactionLog(ctx context.Context, arg *GetTransactionLog
 	if arg.StartTime.After(arg.EndTime) {
 		return nil, common.ErrStartAfterEnd
 	}
-	params := &getTransactionLogParams{
+	params := &GetTransactionLogParams{
 		GetTransactionLogRequest: arg,
 		StartTimestamp:           arg.StartTime.UnixMilli(),
 		EndTimestamp:             arg.EndTime.UnixMilli(),
@@ -577,7 +577,7 @@ func (e *Exchange) listCustodyAccounts(ctx context.Context, ccy currency.Code, o
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp []CustodyAccount
-	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/list_custody_accounts", &currencyParams{Currency: ccy}, &resp)
+	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/list_custody_accounts", &CurrencyRequest{Currency: ccy}, &resp)
 }
 
 // PMESimulate calculates a portfolio margin account's extended risk matrix and margins for a currency, or for its
@@ -613,7 +613,7 @@ func (e *Exchange) removeAPIKey(ctx context.Context, id uint64, overWebsocket bo
 	if id == 0 {
 		return errAPIKeyIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/remove_api_key", &apiKeyIDParams{ID: id})
+	return e.sendOKRequest(ctx, overWebsocket, "private/remove_api_key", &APIKeyIDRequest{ID: id})
 }
 
 // RemoveSubaccount removes a subaccount permanently, which must hold no positions, open orders or balance; on an
@@ -627,7 +627,7 @@ func (e *Exchange) removeSubaccount(ctx context.Context, subaccountID uint64, ov
 	if subaccountID == 0 {
 		return errSubaccountIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/remove_subaccount", &subaccountIDParams{SubaccountID: subaccountID})
+	return e.sendOKRequest(ctx, overWebsocket, "private/remove_subaccount", &SubaccountIDRequest{SubaccountID: subaccountID})
 }
 
 // ResetAPIKey replaces an API key's secret, invalidating the old one at once, and returns the key with its new secret,
@@ -641,7 +641,7 @@ func (e *Exchange) resetAPIKey(ctx context.Context, id uint64, overWebsocket boo
 		return nil, errAPIKeyIDRequired
 	}
 	var resp *APIKey
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/reset_api_key", &apiKeyIDParams{ID: id}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/reset_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -660,7 +660,7 @@ func (e *Exchange) setAnnouncementAsRead(ctx context.Context, announcementID uin
 	if announcementID == 0 {
 		return errAnnouncementIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_announcement_as_read", &announcementIDParams{AnnouncementID: announcementID})
+	return e.sendOKRequest(ctx, overWebsocket, "private/set_announcement_as_read", &AnnouncementIDRequest{AnnouncementID: announcementID})
 }
 
 // SetDisabledTradingProducts sets the trading products a subaccount cannot trade, which only the main account can; on
@@ -689,7 +689,7 @@ func (e *Exchange) setDisabledTradingProducts(ctx context.Context, arg *SetDisab
 	if params.TradingProducts == nil {
 		params.TradingProducts = []string{}
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_disabled_trading_products", &params)
+	return e.sendOKRequest(ctx, overWebsocket, "private/set_disabled_trading_products", &params)
 }
 
 // SetEmailForSubaccount sets the email address of a subaccount, which it can log in and receive notifications with once
@@ -709,7 +709,7 @@ func (e *Exchange) setEmailForSubaccount(ctx context.Context, arg *SetEmailForSu
 	if arg.Email == "" {
 		return errSubaccountEmailRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_email_for_subaccount", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/set_email_for_subaccount", arg)
 }
 
 // SetEmailLanguage sets the language of the account's notification emails, such as en, ko, zh, ja or ru; it does not
@@ -722,7 +722,7 @@ func (e *Exchange) setEmailLanguage(ctx context.Context, language string, overWe
 	if language == "" {
 		return errEmailLanguageRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_email_language", &emailLanguageParams{Language: language})
+	return e.sendOKRequest(ctx, overWebsocket, "private/set_email_language", &EmailLanguageRequest{Language: language})
 }
 
 // SetMember creates a Direct Access member of the main account, or edits an existing one, and returns every member; it
@@ -771,7 +771,7 @@ func (e *Exchange) setSelfTradingConfig(ctx context.Context, arg *SetSelfTrading
 	default:
 		return fmt.Errorf("%w: %q", errInvalidSelfTradingMode, arg.Mode)
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_self_trading_config", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/set_self_trading_config", arg)
 }
 
 // SimulatePortfolio calculates the margins of the account's portfolio in a currency, optionally with simulated
@@ -811,7 +811,7 @@ func (e *Exchange) toggleNotificationsFromSubaccount(ctx context.Context, arg *T
 	if arg.SubaccountID == 0 {
 		return errSubaccountIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/toggle_notifications_from_subaccount", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/toggle_notifications_from_subaccount", arg)
 }
 
 // ToggleSubaccountLogin enables or disables a subaccount's login with its email and password, ending any session it has
@@ -833,7 +833,7 @@ func (e *Exchange) toggleSubaccountLogin(ctx context.Context, arg *ToggleSubacco
 	default:
 		return fmt.Errorf("%w: %q", errInvalidSubaccountLoginState, arg.State)
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/toggle_subaccount_login", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/toggle_subaccount_login", arg)
 }
 
 // GetAnnouncements returns the platform's announcements published up to a time, newest first
@@ -845,7 +845,7 @@ func (e *Exchange) getAnnouncements(ctx context.Context, arg *GetAnnouncementsRe
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	params := &getAnnouncementsParams{GetAnnouncementsRequest: arg}
+	params := &GetAnnouncementsParams{GetAnnouncementsRequest: arg}
 	if !arg.StartTime.IsZero() {
 		params.StartTimestamp = arg.StartTime.UnixMilli()
 	}

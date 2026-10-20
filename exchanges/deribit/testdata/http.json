@@ -4013,6 +4013,41 @@
       ]
      },
      "queryString": ""
+    },
+    {
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/get_order_history_by_instrument\",\"params\":{\"instrument_name\":\"BTC-PERPETUAL\",\"count\":1000,\"include_old\":true,\"include_unfilled\":true,\"historical\":true}}",
+     "data": {
+      "jsonrpc": "2.0",
+      "result": [
+       {
+        "amount": 40,
+        "api": true,
+        "average_price": 3659.8,
+        "creation_timestamp": 1550661808761,
+        "direction": "buy",
+        "filled_amount": 40,
+        "instrument_name": "BTC-PERPETUAL",
+        "is_liquidation": false,
+        "is_rebalance": false,
+        "label": "",
+        "last_update_timestamp": 1550661808761,
+        "max_show": 40,
+        "order_id": "146475",
+        "order_state": "filled",
+        "order_type": "limit",
+        "post_only": false,
+        "price": 3886.5,
+        "reduce_only": false,
+        "time_in_force": "good_til_cancelled"
+       }
+      ]
+     },
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     },
+     "queryString": ""
     }
    ]
   },
@@ -7003,73 +7038,90 @@
       ]
      },
      "queryString": ""
+    },
+    {
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_block_rfq_trades\",\"params\":{\"currency\":\"any\",\"count\":10}}",
+     "data": {
+      "jsonrpc": "2.0",
+      "result": {
+       "block_rfqs": [
+        {
+         "amount": 50.0,
+         "combo_id": null,
+         "direction": "buy",
+         "id": 58310,
+         "index_prices": {
+          "eth_usdc": 2382.98
+         },
+         "legs": [
+          {
+           "direction": "buy",
+           "instrument_name": "ETH_USDC-30OCT26-2500-P",
+           "price": 145.2,
+           "ratio": 2
+          },
+          {
+           "direction": "sell",
+           "instrument_name": "ETH_USDC-27NOV26-2500-P",
+           "price": 212.2,
+           "ratio": 3
+          }
+         ],
+         "mark_price": -350.066846896,
+         "timestamp": 1792493488177,
+         "trades": [
+          {
+           "amount": 50.0,
+           "direction": "buy",
+           "price": -346.2
+          }
+         ]
+        }
+       ],
+       "continuation": "1792476701723:58279"
+      },
+      "testnet": false,
+      "usDiff": 909,
+      "usIn": 1792504727399252,
+      "usOut": 1792504727400161
+     },
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     },
+     "queryString": ""
     }
    ]
   },
   "/api/v2/public/get_book_summary_by_currency": {
    "POST": [
     {
-     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_book_summary_by_currency\",\"params\":{\"currency\":\"BTC\",\"kind\":\"spot\"}}",
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_book_summary_by_currency\",\"params\":{\"currency\":\"USDC\",\"kind\":\"spot\"}}",
      "data": {
       "jsonrpc": "2.0",
       "result": [
        {
-        "ask_price": 0.0298,
-        "base_currency": "ETH",
-        "bid_price": 0.0296,
-        "creation_timestamp": 1792117609761,
-        "estimated_delivery_price": 0.029704,
-        "high": 0.0299,
-        "instrument_name": "ETH_BTC",
-        "last": 0.0297,
-        "low": 0.029,
-        "mark_price": 0.029704,
-        "mid_price": 0.0297,
-        "price_change": 1.3652,
-        "quote_currency": "BTC",
-        "volume": 64.6903,
-        "volume_notional": 1.89155548,
-        "volume_usd": 153563.8
-       },
-       {
-        "ask_price": 82001.13,
+        "ask_price": 81366.09,
         "base_currency": "BTC",
-        "bid_price": 82001.12,
-        "creation_timestamp": 1792117609761,
-        "estimated_delivery_price": 82007.48,
-        "high": 82555.08,
+        "bid_price": 81366.08,
+        "creation_timestamp": 1792483307692,
+        "estimated_delivery_price": 81365.8,
+        "high": 83012.79,
         "instrument_name": "BTC_USDC",
-        "last": 82052.6,
-        "low": 79676.02,
-        "mark_price": 82007.58,
-        "mid_price": 82001.125,
-        "price_change": 0.7099,
+        "last": 81370.84,
+        "low": 81080.64,
+        "mark_price": 81365.8,
+        "mid_price": 81366.085,
+        "price_change": -1.6465,
         "quote_currency": "USDC",
-        "volume": 6329.64840534
-       },
-       {
-        "ask_price": 82242,
-        "base_currency": "BTC",
-        "bid_price": 81956,
-        "creation_timestamp": 1792117609761,
-        "estimated_delivery_price": 82118.7513,
-        "high": 82812,
-        "instrument_name": "BTC_USDT",
-        "last": 82111,
-        "low": 79874,
-        "mark_price": 82119.0013,
-        "mid_price": 82099,
-        "price_change": 1.7699,
-        "quote_currency": "USDT",
-        "volume": 2.3004,
-        "volume_notional": 186677.3843,
-        "volume_usd": 186448.08
+        "volume": 4622.84472413
        }
       ],
       "testnet": false,
-      "usDiff": 297,
-      "usIn": 1792117609760816,
-      "usOut": 1792117609761113
+      "usDiff": 924,
+      "usIn": 1792483307692487,
+      "usOut": 1792483307693411
      },
      "headers": {
       "Content-Type": [
@@ -8338,6 +8390,136 @@
       "usDiff": 555,
       "usIn": 1792117619754227,
       "usOut": 1792117619754782
+     },
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     },
+     "queryString": ""
+    },
+    {
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_instrument\",\"params\":{\"instrument_name\":\"BTC_USDC\"}}",
+     "data": {
+      "jsonrpc": "2.0",
+      "result": {
+       "base_currency": "BTC",
+       "base_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+       "contract_size": 1e-08,
+       "counter_currency": "USDC",
+       "creation_timestamp": 1682341202000,
+       "expiration_timestamp": 32503708800000,
+       "index_id": 1000004,
+       "instrument_id": 254613,
+       "instrument_name": "BTC_USDC",
+       "instrument_type": "linear",
+       "is_active": true,
+       "is_cbe_routed": true,
+       "is_csr": true,
+       "kind": "spot",
+       "maker_commission": 0.0002,
+       "max_leverage": 10,
+       "min_trade_amount": 1e-08,
+       "price_index": "btc_usdc",
+       "product_group": "BTC",
+       "quote_currency": "USDC",
+       "quote_currency_uuid": "2b92315d-eab7-5bef-84fa-089a131333f5",
+       "state": "open",
+       "taker_commission": 0.0005,
+       "tick_size": 0.01,
+       "tick_size_steps": [],
+       "underlying_type": "crypto"
+      },
+      "testnet": false,
+      "usDiff": 311,
+      "usIn": 1792483735185394,
+      "usOut": 1792483735185705
+     },
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     },
+     "queryString": ""
+    },
+    {
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_instrument\",\"params\":{\"instrument_name\":\"BTC-FS-27NOV26_PERP\"}}",
+     "data": {
+      "jsonrpc": "2.0",
+      "result": {
+       "base_currency": "BTC",
+       "base_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+       "contract_size": 10,
+       "counter_currency": "USD",
+       "creation_timestamp": 1787818001000,
+       "expiration_timestamp": 1795766400000,
+       "index_id": 1000033,
+       "instrument_id": 683926,
+       "instrument_name": "BTC-FS-27NOV26_PERP",
+       "instrument_type": "reversed",
+       "is_active": true,
+       "kind": "future_combo",
+       "maker_commission": 0,
+       "min_trade_amount": 10,
+       "price_index": "btc_usd",
+       "product_group": "BTC",
+       "quote_currency": "USD",
+       "quote_currency_uuid": "dc311642-e9fb-4ba9-a312-c75c1aef4ae1",
+       "settlement_currency": "BTC",
+       "settlement_period": "month",
+       "state": "open",
+       "taker_commission": 0,
+       "tick_size": 0.5,
+       "tick_size_steps": [],
+       "underlying_type": "crypto"
+      },
+      "testnet": false,
+      "usDiff": 473,
+      "usIn": 1792483736016930,
+      "usOut": 1792483736017403
+     },
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     },
+     "queryString": ""
+    },
+    {
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"public/get_instrument\",\"params\":{\"instrument_name\":\"BTC-CS-26MAR27-100000_130000\"}}",
+     "data": {
+      "jsonrpc": "2.0",
+      "result": {
+       "base_currency": "BTC",
+       "base_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+       "contract_size": 1,
+       "counter_currency": "USD",
+       "creation_timestamp": 1792117056000,
+       "expiration_timestamp": 1806048000000,
+       "index_id": 1000033,
+       "instrument_id": 715547,
+       "instrument_name": "BTC-CS-26MAR27-100000_130000",
+       "instrument_type": "reversed",
+       "is_active": false,
+       "kind": "option_combo",
+       "maker_commission": 0,
+       "min_trade_amount": 0.1,
+       "price_index": "btc_usd",
+       "product_group": "BTC",
+       "quote_currency": "BTC",
+       "quote_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+       "settlement_currency": "BTC",
+       "settlement_period": "month",
+       "state": "inactive",
+       "taker_commission": 0,
+       "tick_size": 0.0001,
+       "tick_size_steps": [],
+       "underlying_type": "crypto"
+      },
+      "testnet": false,
+      "usDiff": 340,
+      "usIn": 1792483736840239,
+      "usOut": 1792483736840579
      },
      "headers": {
       "Content-Type": [

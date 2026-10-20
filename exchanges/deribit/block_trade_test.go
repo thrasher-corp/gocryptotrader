@@ -86,7 +86,7 @@ type blockTradeTestTicker struct {
 func liveBlockTradeLegs(t *testing.T) []BlockTradeLeg {
 	t.Helper()
 	var ticker blockTradeTestTicker
-	err := e.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/ticker", &instrumentNameParams{InstrumentName: liveBlockTradeInstrument}, &ticker)
+	err := e.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: liveBlockTradeInstrument}, &ticker)
 	require.NoError(t, err, "public/ticker must not error")
 	require.Positive(t, ticker.MarkPrice, "public/ticker must return a mark price")
 	// The perpetual's tick size is 0.5
@@ -507,6 +507,9 @@ func TestSimulateBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidBlockTradeRole, "SimulateBlockTrade must reject an undocumented role")
 	_, err = e.SimulateBlockTrade(t.Context(), &SimulateBlockTradeRequest{})
 	require.ErrorIs(t, err, errBlockTradeLegsRequired, "SimulateBlockTrade must reject a block trade without legs")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":true}`)
+	_, err = limited.SimulateBlockTrade(noDelay, mockSimulateBlockTradeRequest())
+	assert.NoError(t, err, "SimulateBlockTrade should be limited as a non-matching engine request")
 
 	skipLiveWithoutCredentials(t)
 	arg := mockSimulateBlockTradeRequest()

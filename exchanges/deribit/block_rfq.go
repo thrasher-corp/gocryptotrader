@@ -131,7 +131,7 @@ func (e *Exchange) addBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRe
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidBlockRFQExecutionInstruction, arg.ExecutionInstruction)
 	}
-	params := &addBlockRFQQuoteParams{AddBlockRFQQuoteRequest: arg}
+	params := &AddBlockRFQQuoteParams{AddBlockRFQQuoteRequest: arg}
 	if !arg.ExpiresAt.IsZero() {
 		params.ExpiresAt = arg.ExpiresAt.UnixMilli()
 	}
@@ -176,7 +176,7 @@ func (e *Exchange) cancelBlockRFQ(ctx context.Context, blockRFQID uint64, method
 		return nil, errBlockRFQIDRequired
 	}
 	var resp *BlockRFQ
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, &blockRFQIDParams{BlockRFQID: blockRFQID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, &BlockRFQIDRequest{BlockRFQID: blockRFQID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -357,8 +357,10 @@ func (e *Exchange) getBlockRFQTrades(ctx context.Context, arg *GetBlockRFQTrades
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	params := *arg
+	params.Currency = marketDataCurrency(arg.Currency)
 	var resp *BlockRFQTradesResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_block_rfq_trades", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_block_rfq_trades", &params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

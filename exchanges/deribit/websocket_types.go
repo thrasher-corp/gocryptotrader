@@ -6,28 +6,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// wsEnvelope is the envelope of every websocket message: a response carries its request's ID, and a subscription
+// WebsocketEnvelope is the envelope of every websocket message: a response carries its request's ID, and a subscription
 // notification or heartbeat its method
-type wsEnvelope struct {
-	ID     int64            `json:"id"`
-	Method string           `json:"method"`
-	Params wsEnvelopeParams `json:"params"`
+type WebsocketEnvelope struct {
+	ID     int64                   `json:"id"`
+	Method string                  `json:"method"`
+	Params WebsocketEnvelopeParams `json:"params"`
 }
 
-// wsEnvelopeParams identifies a notification's channel or a heartbeat's type
-type wsEnvelopeParams struct {
+// WebsocketEnvelopeParams identifies a notification's channel or a heartbeat's type
+type WebsocketEnvelopeParams struct {
 	Channel string `json:"channel"`
 	// Type is test_request when a heartbeat must be answered with a public/test request
 	Type string `json:"type"`
 }
 
-// wsNotification decodes a subscription notification's data into the value Data holds
-type wsNotification struct {
-	Params wsNotificationParams `json:"params"`
+// WebsocketNotification decodes a subscription notification's data into the value Data holds
+type WebsocketNotification struct {
+	Params WebsocketNotificationParams `json:"params"`
 }
 
-// wsNotificationParams contains a subscription notification's channel and data
-type wsNotificationParams struct {
+// WebsocketNotificationParams contains a subscription notification's channel and data
+type WebsocketNotificationParams struct {
 	Channel string `json:"channel"`
 	Data    any    `json:"data"`
 }
@@ -152,6 +152,9 @@ type WebsocketPriceIndex struct {
 	Timestamp types.Time `json:"timestamp"`
 	IndexName string     `json:"index_name"`
 	Price     float64    `json:"price"`
+	// MDASource and MDAVersion are undocumented, and sent only for some indexes, such as sol_usdc
+	MDASource  string `json:"mda_source"`
+	MDAVersion uint64 `json:"mda_version"`
 }
 
 // WebsocketPriceRanking contains one component exchange's price of an index
@@ -212,7 +215,8 @@ type WebsocketCandle struct {
 	Low    float64    `json:"low"`
 	Close  float64    `json:"close"`
 	Volume float64    `json:"volume"`
-	Cost   float64    `json:"cost"`
+	// Cost is the volume in the instrument's quote currency, which is USD for an inverse future
+	Cost float64 `json:"cost"`
 }
 
 // WebsocketInstrumentState contains an instrument's new state

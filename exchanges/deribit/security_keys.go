@@ -42,13 +42,13 @@ func (s *SecurityKeyChallengeError) Unwrap() error {
 // authorisation data of one of its security keys, such as the current code of a two-factor authentication app; Deribit
 // accepts each code once, so the context should only send the challenged request again
 func WithSecurityKeyAuthorisation(ctx context.Context, challenge, authorisationData string) context.Context {
-	return context.WithValue(ctx, securityKeyAuthorisationKey{}, &securityKeyAuthorisation{AuthorisationData: authorisationData, Challenge: challenge})
+	return context.WithValue(ctx, securityKeyAuthorisationKey{}, &SecurityKeyAuthorisation{AuthorisationData: authorisationData, Challenge: challenge})
 }
 
 // authorisedParams returns a private method's params with the context's security key authorisation added, or the
 // params unchanged when the context holds none
 func authorisedParams(ctx context.Context, params any) (any, error) {
-	authorisation, ok := ctx.Value(securityKeyAuthorisationKey{}).(*securityKeyAuthorisation)
+	authorisation, ok := ctx.Value(securityKeyAuthorisationKey{}).(*SecurityKeyAuthorisation)
 	if !ok {
 		return params, nil
 	}

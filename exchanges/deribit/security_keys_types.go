@@ -20,8 +20,8 @@ type SecurityKey struct {
 	Name string `json:"name"`
 }
 
-// securityKeyAuthorisation confirms a security key challenge
-type securityKeyAuthorisation struct {
+// SecurityKeyAuthorisation confirms a security key challenge
+type SecurityKeyAuthorisation struct {
 	AuthorisationData string `json:"authorization_data"`
 	Challenge         string `json:"challenge"`
 }

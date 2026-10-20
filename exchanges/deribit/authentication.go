@@ -43,7 +43,7 @@ func (e *Exchange) authenticate(ctx context.Context, arg *AuthenticateRequest, o
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &authenticateParams{AuthenticateRequest: arg}
+	params := &AuthenticateParams{AuthenticateRequest: arg}
 	if !arg.Timestamp.IsZero() {
 		params.Timestamp = arg.Timestamp.UnixMilli()
 	}

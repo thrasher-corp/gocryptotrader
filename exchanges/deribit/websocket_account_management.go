@@ -54,7 +54,7 @@ func (w WebsocketAPI) EditAPIKey(ctx context.Context, arg *EditAPIKeyRequest) (*
 // EnableAffiliateProgram enables the account's affiliate program as Exchange.EnableAffiliateProgram does, over the
 // websocket
 func (w WebsocketAPI) EnableAffiliateProgram(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "private/enable_affiliate_program", nil)
+	return w.e.sendOKRequest(ctx, true, "private/enable_affiliate_program", nil)
 }
 
 // EnableAPIKey enables an API key as Exchange.EnableAPIKey does, over the websocket

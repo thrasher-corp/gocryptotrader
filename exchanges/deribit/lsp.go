@@ -31,7 +31,7 @@ func (e *Exchange) GetLSPParticipants(ctx context.Context, detailed bool) (*LSPP
 
 func (e *Exchange) getLSPParticipants(ctx context.Context, detailed, overWebsocket bool) (*LSPParticipantsResponse, error) {
 	var resp *LSPParticipantsResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_lsp_participants", &lspParticipantsParams{Detailed: detailed}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_lsp_participants", &LSPParticipantsRequest{Detailed: detailed}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -48,7 +48,7 @@ func (e *Exchange) GetLSPParticipantsUsage(ctx context.Context, userID uint64) (
 
 func (e *Exchange) getLSPParticipantsUsage(ctx context.Context, userID uint64, overWebsocket bool) (*LSPParticipantsUsageResponse, error) {
 	var resp *LSPParticipantsUsageResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_lsp_participants_usage", &lspParticipantsUsageParams{UserID: userID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_lsp_participants_usage", &LSPParticipantsUsageRequest{UserID: userID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

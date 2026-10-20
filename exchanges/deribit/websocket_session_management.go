@@ -12,12 +12,12 @@ func (w WebsocketAPI) SetHeartbeat(ctx context.Context, interval time.Duration) 
 	if interval < minimumHeartbeatInterval {
 		return fmt.Errorf("%w: %s", errHeartbeatIntervalTooShort, interval)
 	}
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "public/set_heartbeat", &setHeartbeatParams{Interval: interval.Seconds()})
+	return w.e.sendOKRequest(ctx, true, "public/set_heartbeat", &SetHeartbeatRequest{Interval: interval.Seconds()})
 }
 
 // DisableHeartbeat stops Deribit sending heartbeats over the websocket; Deribit only accepts it over the websocket
 func (w WebsocketAPI) DisableHeartbeat(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "public/disable_heartbeat", nil)
+	return w.e.sendOKRequest(ctx, true, "public/disable_heartbeat", nil)
 }
 
 // EnableCancelOnDisconnect makes Deribit cancel the orders a connection placed once it closes, other than by
@@ -27,7 +27,7 @@ func (w WebsocketAPI) EnableCancelOnDisconnect(ctx context.Context, scope string
 	if err := validateCancelOnDisconnectScope(scope); err != nil {
 		return err
 	}
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "private/enable_cancel_on_disconnect", &cancelOnDisconnectParams{Scope: scope})
+	return w.e.sendOKRequest(ctx, true, "private/enable_cancel_on_disconnect", &CancelOnDisconnectRequest{Scope: scope})
 }
 
 // DisableCancelOnDisconnect stops Deribit cancelling the orders a connection placed once it closes, for the connection
@@ -36,7 +36,7 @@ func (w WebsocketAPI) DisableCancelOnDisconnect(ctx context.Context, scope strin
 	if err := validateCancelOnDisconnectScope(scope); err != nil {
 		return err
 	}
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "private/disable_cancel_on_disconnect", &cancelOnDisconnectParams{Scope: scope})
+	return w.e.sendOKRequest(ctx, true, "private/disable_cancel_on_disconnect", &CancelOnDisconnectRequest{Scope: scope})
 }
 
 // GetCancelOnDisconnect returns whether the connection, which an empty scope defaults to, or the account cancels a

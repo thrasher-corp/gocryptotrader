@@ -1,6 +1,11 @@
 package deribit
 
 import (
+	"context"
+	"errors"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -8,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -103,6 +109,282 @@ func TestResubscribeChannel(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return len(venue.received("public/unsubscribe")) == 1 && len(venue.received("public/subscribe")) == 2
 	}, 5*time.Second, 10*time.Millisecond, "resubscribeChannel should unsubscribe and subscribe the channel again")
+
+	t.Run("unsubscribe refused", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		venue.refuse("public/unsubscribe", 1)
+		ex.resubscribeChannel(t.Context(), sub.QualifiedChannel)
+		assert.Eventually(t, func() bool {
+			return len(venue.received("public/unsubscribe")) == 1 && sub.State() == subscription.SubscribedState
+		}, 5*time.Second, 10*time.Millisecond, "a channel Deribit did not unsubscribe should be left subscribed")
+		ex.resubscribeChannel(t.Context(), sub.QualifiedChannel)
+		assert.Eventually(t, func() bool {
+			return len(venue.received("public/unsubscribe")) == 2 && len(venue.received("public/subscribe")) == 2
+		}, 5*time.Second, 10*time.Millisecond, "the next change out of sequence should resubscribe a channel Deribit did not unsubscribe")
+	})
+
+	t.Run("subscribe refused", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		venue.refuse("public/subscribe", 1)
+		ex.resubscribeChannel(t.Context(), sub.QualifiedChannel)
+		assert.Eventually(t, func() bool {
+			return len(venue.received("public/subscribe")) == 3 && sub.State() == subscription.SubscribedState
+		}, 5*time.Second, 10*time.Millisecond, "a refused resubscription should be subscribed again")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "a refused resubscription should be held again")
+	})
+
+	t.Run("change during a resubscription", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		book := func(base string) *subscription.Subscription {
+			return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "PERPETUAL", currency.DashDelimiter)}, Interval: kline.HundredMilliseconds}
+		}
+		require.NoError(t, ex.Subscribe(subscription.List{book("BTC"), book("ETH")}), "Subscribe must not error")
+		btc, eth := heldSubscription(ex, "book.BTC-PERPETUAL.100ms"), heldSubscription(ex, "book.ETH-PERPETUAL.100ms")
+		require.NotNil(t, btc, "Subscribe must hold the BTC-PERPETUAL book")
+		require.NotNil(t, eth, "Subscribe must hold the ETH-PERPETUAL book")
+		// A change the reader cannot apply arrives for another book while the resubscription waits for its answer
+		venue.notifyBeforeNext("public/unsubscribe", notification("book.ETH-PERPETUAL.100ms", `{"timestamp":1792107433716,"type":"change","prev_change_id":1,"change_id":2,"instrument_name":"ETH-PERPETUAL","bids":[],"asks":[]}`))
+		require.NoError(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, btc), ex.connectionGeneration.Load()), "resubscribe must not wait out its answer while the reader resubscribes another book")
+		assert.Eventually(t, func() bool {
+			return len(venue.received("public/unsubscribe")) == 2 && len(venue.received("public/subscribe")) == 3 && eth.State() == subscription.SubscribedState
+		}, 5*time.Second, 10*time.Millisecond, "the other book should be resubscribed once the resubscription under way is made")
+	})
+}
+
+func TestMarkResubscribing(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	const channel = "deribit_price_index.btc_usd"
+	assert.Nil(t, ex.markResubscribing(channel), "markResubscribing should return nil without a held subscription")
+	sub := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}, QualifiedChannel: channel}
+	sub.SetKey(qualifiedChannelKey{sub})
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, sub), "AddSuccessfulSubscriptions must not error")
+	assert.Same(t, sub, ex.markResubscribing(channel), "markResubscribing should return the held subscription")
+	assert.Equal(t, subscription.ResubscribingState, sub.State(), "markResubscribing should mark the subscription as resubscribing")
+	assert.Nil(t, ex.markResubscribing(channel), "markResubscribing should leave a subscription already resubscribing to that resubscription")
+}
+
+// markedResubscribing marks a held subscription as resubscribing, as a book change the reader cannot apply does, and
+// returns it
+func markedResubscribing(t *testing.T, ex *Exchange, sub *subscription.Subscription) *subscription.Subscription {
+	t.Helper()
+	require.Same(t, sub, ex.markResubscribing(sub.QualifiedChannel), "markResubscribing must mark the held subscription")
+	return sub
+}
+
+// newSubscribedTestExchange returns an exchange connected to a mock of Deribit's websocket, the mock, and the
+// subscription to an index channel the exchange holds
+func newSubscribedTestExchange(t *testing.T) (*Exchange, *websocketVenue, *subscription.Subscription) {
+	t.Helper()
+	ex, venue := newWebsocketTestExchange(t)
+	require.NoError(t, ex.Subscribe(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}}), "Subscribe must not error")
+	held := ex.Websocket.GetSubscriptions()
+	require.Len(t, held, 1, "Subscribe must store the subscription")
+	return ex, venue, held[0]
+}
+
+func TestResubscribe(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the mock websocket refuses requests on demand; live tests share Deribit's websocket")
+	}
+
+	t.Run("resubscribed", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		require.NoError(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load()), "resubscribe must not error")
+		assert.Len(t, venue.received("public/unsubscribe"), 1, "resubscribe should unsubscribe the channel")
+		assert.Len(t, venue.received("public/subscribe"), 2, "resubscribe should subscribe the channel again")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should leave the subscription subscribed")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "resubscribe should leave the subscription held")
+	})
+
+	t.Run("unsubscribe refused", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		venue.refuse("public/unsubscribe", 1)
+		assert.ErrorIs(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load()), errUnacknowledgedSubscription, "resubscribe should return the refused unsubscribe")
+		assert.Len(t, venue.received("public/subscribe"), 1, "resubscribe should not subscribe a channel it could not unsubscribe")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should mark the subscription it could not unsubscribe as subscribed")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "resubscribe should leave the subscription it could not unsubscribe held")
+		require.NoError(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load()), "a later resubscription must not error")
+		assert.Len(t, venue.received("public/subscribe"), 2, "a later resubscription should subscribe the channel again")
+	})
+
+	t.Run("subscribe refused", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		venue.refuse("public/subscribe", 1)
+		require.NoError(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load()), "resubscribe must not error once a retried subscribe succeeds")
+		assert.Len(t, venue.received("public/subscribe"), 3, "resubscribe should retry the refused subscribe")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should leave the subscription subscribed")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "resubscribe should hold the subscription again")
+	})
+
+	t.Run("subscribe not retried", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		venue.refuse("public/subscribe", 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		err := ex.resubscribe(ctx, markedResubscribing(t, ex, sub), ex.connectionGeneration.Load())
+		assert.ErrorIs(t, err, errUnacknowledgedSubscription, "resubscribe should return the refused subscribe")
+		assert.ErrorIs(t, err, context.Canceled, "resubscribe should return why the subscribe was not retried")
+		assert.Len(t, venue.received("public/subscribe"), 2, "resubscribe should not retry the subscribe once the context ends")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "resubscribe should not hold a subscription Deribit refused")
+	})
+
+	t.Run("removed meanwhile", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			remove func(context.Context, *Exchange, *subscription.Subscription) error
+		}{
+			{"unsubscribed", func(_ context.Context, ex *Exchange, sub *subscription.Subscription) error {
+				return ex.Unsubscribe(subscription.List{sub})
+			}},
+			{"unsubscribed by an equal subscription", func(_ context.Context, ex *Exchange, _ *subscription.Subscription) error {
+				return ex.Unsubscribe(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
+			}},
+			{"flushed", func(ctx context.Context, ex *Exchange, _ *subscription.Subscription) error {
+				ex.Features.Supports.WebsocketCapabilities.Subscribe = true
+				ex.Features.Supports.WebsocketCapabilities.Unsubscribe = true
+				ex.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+				return ex.Websocket.FlushChannels(ctx)
+			}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, venue, sub := newSubscribedTestExchange(t)
+				markedResubscribing(t, ex, sub)
+				require.NoError(t, tc.remove(t.Context(), ex, sub), "removing a subscription resubscribing must not error")
+				require.Empty(t, ex.Websocket.GetSubscriptions(), "removing a subscription resubscribing must leave none held")
+				require.NoError(t, ex.resubscribe(t.Context(), sub, ex.connectionGeneration.Load()), "resubscribe must not error for a subscription removed meanwhile")
+				assert.Len(t, venue.received("public/subscribe"), 1, "resubscribe should not subscribe a channel removed meanwhile again")
+				assert.NotEqual(t, subscription.ResubscribingState, sub.State(), "resubscribe should not leave a subscription removed meanwhile marked as resubscribing")
+				assert.Empty(t, ex.Websocket.GetSubscriptions(), "resubscribe should not hold a subscription removed meanwhile")
+			})
+		}
+	})
+
+	t.Run("connection gone", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, sub := newSubscribedTestExchange(t)
+		require.NoError(t, ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load()-1), "resubscribe must leave a connection that has gone to the new one")
+		assert.Empty(t, venue.received("public/unsubscribe"), "resubscribe should send nothing for a connection that has gone")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should mark a subscription it did not resubscribe as subscribed again")
+	})
+}
+
+func TestSubscribeAgain(t *testing.T) {
+	t.Parallel()
+	newSub := func() *subscription.Subscription {
+		sub := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}, QualifiedChannel: "deribit_price_index.btc_usd"}
+		sub.SetKey(qualifiedChannelKey{sub})
+		return sub
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	assert.ErrorIs(t, newTestExchange(t).subscribeAgain(ctx, newSub(), 0), context.Canceled, "subscribeAgain should stop when the context ends")
+	assert.ErrorIs(t, newTestExchange(t).subscribeAgain(t.Context(), newSub(), 0), websocket.ErrNotConnected, "subscribeAgain should leave subscribing again to the reconnection")
+
+	if !mockTests {
+		return
+	}
+	ex, venue := newWebsocketTestExchange(t)
+	retried := newSub()
+	venue.refuse("public/subscribe", 1)
+	require.NoError(t, ex.subscribeAgain(t.Context(), retried, ex.connectionGeneration.Load()), "subscribeAgain must not error once a subscribe succeeds")
+	assert.Len(t, venue.received("public/subscribe"), 2, "subscribeAgain should retry a refused subscribe")
+	assert.Equal(t, subscription.SubscribedState, retried.State(), "subscribeAgain should leave the subscription subscribed")
+
+	ex, venue = newWebsocketTestExchange(t)
+	venue.refuse("public/subscribe", maximumRequestAttempts)
+	assert.ErrorIs(t, ex.subscribeAgain(t.Context(), newSub(), ex.connectionGeneration.Load()), errUnacknowledgedSubscription, "subscribeAgain should return the last refusal")
+	assert.Len(t, venue.received("public/subscribe"), maximumRequestAttempts-1, "subscribeAgain should stop retrying after the attempts a resubscription has left")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "subscribeAgain should not hold a subscription Deribit refused")
+
+	ex, venue = newWebsocketTestExchange(t)
+	assert.ErrorIs(t, ex.subscribeAgain(t.Context(), newSub(), ex.connectionGeneration.Load()-1), websocket.ErrNotConnected, "subscribeAgain should leave a connection that has gone to the new one")
+	assert.Empty(t, venue.received("public/subscribe"), "subscribeAgain should send nothing for a connection that has gone")
+}
+
+func TestOnConnection(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the test disconnects its websocket; live tests share Deribit's websocket")
+	}
+	ex, _ := newWebsocketTestExchange(t)
+	sub := &subscription.Subscription{Channel: ChannelPlatformState, QualifiedChannel: ChannelPlatformState}
+	sub.SetKey(qualifiedChannelKey{sub})
+	generation := ex.connectionGeneration.Load()
+	var changes int
+	change := func() error {
+		changes++
+		return nil
+	}
+	assert.ErrorIs(t, ex.onConnection(generation+1, sub, change), websocket.ErrNotConnected, "onConnection should not make a change on another connection")
+	require.NoError(t, ex.onConnection(generation, sub, change), "onConnection must make a change on its connection")
+	assert.Equal(t, 1, changes, "onConnection should make the change once")
+	var locked bool
+	require.NoError(t, ex.onConnection(generation, sub, func() error {
+		if locked = !ex.connectionMtx.TryLock(); !locked {
+			ex.connectionMtx.Unlock()
+		}
+		return nil
+	}), "onConnection must make a change on its connection")
+	assert.True(t, locked, "onConnection should hold a new connection back while it makes a change")
+	errChange := errors.New("change failed")
+	assert.ErrorIs(t, ex.onConnection(generation, sub, func() error { return errChange }), errChange, "onConnection should return the change's error")
+
+	require.NoError(t, ex.onConnection(generation, sub, func() error {
+		require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
+		require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+		return ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, sub)
+	}), "onConnection must not error when the connection goes during the change")
+	assert.Nil(t, ex.Websocket.GetSubscription(qualifiedChannelKey{sub}), "onConnection should remove a subscription stored once the connection went")
+	assert.ErrorIs(t, ex.onConnection(generation, sub, change), websocket.ErrNotConnected, "onConnection should not make a change without a connection")
+	assert.Equal(t, 1, changes, "onConnection should make no change without a connection")
+	require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect the websocket again")
+	assert.Greater(t, ex.connectionGeneration.Load(), generation, "a new connection should start a new generation")
+}
+
+func TestNextConnectionGeneration(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the test makes subscription changes on its own connection; live tests share Deribit's websocket")
+	}
+	ex, _ := newWebsocketTestExchange(t)
+	sub := &subscription.Subscription{Channel: ChannelPlatformState, QualifiedChannel: ChannelPlatformState}
+	sub.SetKey(qualifiedChannelKey{sub})
+	var started atomic.Int64
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			for range 200 {
+				generation := ex.connectionGeneration.Load()
+				_ = ex.onConnection(generation, sub, func() error {
+					runtime.Gosched()
+					if ex.connectionGeneration.Load() != generation {
+						started.Add(1)
+					}
+					return nil
+				})
+			}
+		})
+		wg.Go(func() {
+			for range 200 {
+				ex.nextConnectionGeneration()
+				runtime.Gosched()
+			}
+		})
+	}
+	wg.Wait()
+	assert.Zero(t, started.Load(), "nextConnectionGeneration should not start a generation while a subscription change is made")
+	assert.Equal(t, uint64(801), ex.connectionGeneration.Load(), "nextConnectionGeneration should start one generation a call")
 }
 
 func TestWebsocketOrderbookChangeUnmarshalJSON(t *testing.T) {
@@ -179,6 +461,86 @@ func TestWebsocketHandleTicker(t *testing.T) {
 	err = ex.wsHandleTicker(t.Context(), notification("ticker.BTC-PERPETUAL.100ms", `{"instrument_name":"BTC-PERPETUAL","last_price":"high"}`))
 	assert.ErrorIs(t, err, errMalformedNotification, "wsHandleTicker should reject a malformed ticker")
 	assertNothingRelayed(t, ex)
+}
+
+func TestWebsocketHandleQuote(t *testing.T) {
+	t.Parallel()
+	// Trimmed from a live quote.BTC-PERPETUAL notification
+	const channel = "quote.BTC-PERPETUAL"
+	const quote = `{"timestamp":1792107433899,"instrument_name":"BTC-PERPETUAL","best_ask_price":82141.5,"best_bid_price":82141.0,"best_ask_amount":59940.0,"best_bid_amount":6.69e4}`
+	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)
+
+	t.Run("no stored ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		require.NoError(t, ex.wsHandleNotification(t.Context(), channel, notification(channel, quote)), "wsHandleNotification must not error for a quote")
+		exp := &ticker.Price{ExchangeName: ex.Name, Pair: perp, AssetType: asset.Futures, Bid: 82141, BidSize: 66900, Ask: 82141.5, AskSize: 59940, LastUpdated: time.UnixMilli(1792107433899)}
+		assert.Equal(t, exp, relayed(t, ex), "wsHandleQuote should relay the quote as a ticker")
+		stored, err := ticker.GetTicker(ex.Name, perp, asset.Futures)
+		require.NoError(t, err, "GetTicker must not error")
+		assert.Equal(t, exp, stored, "wsHandleQuote should store the quote as a ticker")
+	})
+
+	t.Run("stored ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		// The ticker channel's BTC-PERPETUAL ticker of TestWebsocketHandleTicker, with an open interest
+		require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+			ExchangeName: ex.Name,
+			Pair:         perp,
+			AssetType:    asset.Futures,
+			Bid:          78186.5,
+			BidSize:      25070,
+			Ask:          78187,
+			AskSize:      57700,
+			Last:         78187,
+			Close:        78187,
+			High:         79779.5,
+			Low:          77728,
+			BaseVolume:   4652.02138044,
+			QuoteVolume:  366626080,
+			MarkPrice:    78187.9,
+			IndexPrice:   78178.92,
+			OpenInterest: 863084480,
+			LastUpdated:  time.UnixMilli(1789024543036),
+		}), "ProcessTicker must not error")
+		require.NoError(t, ex.wsHandleNotification(t.Context(), channel, notification(channel, quote)), "wsHandleNotification must not error for a quote")
+		exp := &ticker.Price{
+			ExchangeName: ex.Name,
+			Pair:         perp,
+			AssetType:    asset.Futures,
+			Bid:          82141,
+			BidSize:      66900,
+			Ask:          82141.5,
+			AskSize:      59940,
+			Last:         78187,
+			Close:        78187,
+			High:         79779.5,
+			Low:          77728,
+			BaseVolume:   4652.02138044,
+			QuoteVolume:  366626080,
+			MarkPrice:    78187.9,
+			IndexPrice:   78178.92,
+			OpenInterest: 863084480,
+			LastUpdated:  time.UnixMilli(1792107433899),
+		}
+		assert.Equal(t, exp, relayed(t, ex), "wsHandleQuote should relay the stored ticker with the quote merged onto it")
+		stored, err := ticker.GetTicker(ex.Name, perp, asset.Futures)
+		require.NoError(t, err, "GetTicker must not error")
+		assert.Equal(t, exp, stored, "wsHandleQuote should keep the stored ticker's other fields")
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		assert.ErrorIs(t, ex.wsHandleQuote(t.Context(), notification(channel, `[]`)), errMalformedNotification, "wsHandleQuote should reject a malformed quote")
+		assert.ErrorIs(t, ex.wsHandleQuote(t.Context(), notification("quote.BTC", `{"instrument_name":"BTC"}`)), errUnsupportedInstrumentFormat, "wsHandleQuote should reject an instrument it cannot resolve")
+		err := ex.wsHandleQuote(t.Context(), notification(channel, `{"timestamp":1792107433899,"instrument_name":"BTC-PERPETUAL","best_ask_price":82141.0,"best_bid_price":82141.0,"best_ask_amount":1.0,"best_bid_amount":1.0}`))
+		assert.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "wsHandleQuote should return a ticker the store refuses")
+		_, err = ticker.GetTicker(ex.Name, perp, asset.Futures)
+		assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "wsHandleQuote should not store a ticker the store refuses")
+		assertNothingRelayed(t, ex)
+	})
 }
 
 // TestWebsocketHandleIncrementalTicker covers incremental_ticker, where Deribit sends one snapshot and then
@@ -493,15 +855,16 @@ func TestWebsocketHandleCandle(t *testing.T) {
 		Exchange: ex.Name,
 		Interval: kline.OneMin,
 		Candles: []kline.Candle{{
-			Time:   time.UnixMilli(1792107420000),
-			Open:   82145,
-			High:   82149.5,
-			Low:    82143,
-			Close:  82143,
-			Volume: 0.78312766,
+			Time:        time.UnixMilli(1792107420000),
+			Open:        82145,
+			High:        82149.5,
+			Low:         82143,
+			Close:       82143,
+			Volume:      0.78312766,
+			QuoteVolume: 64330,
 		}},
 	}
-	assert.Equal(t, exp, relayed(t, ex), "wsHandleCandle should relay the candle with the interval its channel's resolution names")
+	assert.Equal(t, exp, relayed(t, ex), "wsHandleCandle should relay the candle, its cost as the quote volume, with the interval its channel's resolution names")
 
 	for channel, expErr := range map[string]error{
 		"chart.trades":                      errMalformedNotification,

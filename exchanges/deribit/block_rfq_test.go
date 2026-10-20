@@ -752,6 +752,15 @@ func TestGetBlockRFQTrades(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetBlockRFQTrades should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetBlockRFQTrades(t.Context(), testGetBlockRFQTradesRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockRFQTrades should return the request failure")
+
+	ex := newWrapperServerExchange(t, func(_ string, params json.RawMessage) string {
+		assert.JSONEq(t, `{"currency":"any","count":10}`, string(params), "GetBlockRFQTrades should send every currency as any, as Deribit rejects ANY")
+		return `{"jsonrpc":"2.0","result":{"block_rfqs":[]}}`
+	})
+	arg := &GetBlockRFQTradesRequest{Currency: currency.ANY, Count: 10}
+	_, err = ex.GetBlockRFQTrades(t.Context(), arg)
+	require.NoError(t, err, "GetBlockRFQTrades must not error for every currency")
+	assert.Equal(t, "ANY", arg.Currency.String(), "GetBlockRFQTrades should leave the request unchanged")
 }
 
 func TestValidateBlockRFQLegs(t *testing.T) {

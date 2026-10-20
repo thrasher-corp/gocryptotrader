@@ -22,7 +22,7 @@ func (w WebsocketAPI) Subscribe(ctx context.Context, channels []string) ([]strin
 		return nil, errChannelsRequired
 	}
 	var resp []string
-	return resp, w.e.SendWebsocketRequest(ctx, subscribeEPL, "public/subscribe", &subscriptionParams{Channels: channels}, &resp)
+	return resp, w.e.SendWebsocketRequest(ctx, subscribeEPL, "public/subscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
 // SubscribePrivate subscribes the authenticated connection to public and private channels, adding an optional label of
@@ -46,7 +46,7 @@ func (w WebsocketAPI) Unsubscribe(ctx context.Context, channels []string) ([]str
 		return nil, errChannelsRequired
 	}
 	var resp []string
-	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "public/unsubscribe", &subscriptionParams{Channels: channels}, &resp)
+	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "public/unsubscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
 // UnsubscribePrivate unsubscribes the authenticated connection from public and private channels and returns the
@@ -56,16 +56,16 @@ func (w WebsocketAPI) UnsubscribePrivate(ctx context.Context, channels []string)
 		return nil, errChannelsRequired
 	}
 	var resp []string
-	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "private/unsubscribe", &subscriptionParams{Channels: channels}, &resp)
+	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "private/unsubscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
 // UnsubscribeAll unsubscribes the connection from every channel; Deribit only accepts it over the websocket
 func (w WebsocketAPI) UnsubscribeAll(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "public/unsubscribe_all", nil)
+	return w.e.sendOKRequest(ctx, true, "public/unsubscribe_all", nil)
 }
 
 // UnsubscribeAllPrivate unsubscribes the authenticated connection from every channel; Deribit only accepts it over the
 // websocket
 func (w WebsocketAPI) UnsubscribeAllPrivate(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, nonMatchingEPL, "private/unsubscribe_all", nil)
+	return w.e.sendOKRequest(ctx, true, "private/unsubscribe_all", nil)
 }

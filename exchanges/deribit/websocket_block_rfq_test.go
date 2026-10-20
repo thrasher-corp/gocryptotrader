@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 )
 
@@ -230,4 +231,16 @@ func TestWebsocketAPIGetBlockRFQTrades(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().GetBlockRFQTrades(t.Context(), testGetBlockRFQTradesRequest())
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetBlockRFQTrades should error without a websocket connection")
+
+	if !mockTests {
+		return
+	}
+	anyCurrency, venue := newWebsocketTestExchange(t)
+	anyTrades, err := anyCurrency.WebsocketAPI().GetBlockRFQTrades(t.Context(), &GetBlockRFQTradesRequest{Currency: currency.ANY, Count: 10})
+	require.NoError(t, err, "WebsocketAPI.GetBlockRFQTrades must not error for every currency")
+	require.Len(t, anyTrades.BlockRFQs, 1, "WebsocketAPI.GetBlockRFQTrades must return the recorded trade")
+	assert.Equal(t, uint64(58310), anyTrades.BlockRFQs[0].ID, "WebsocketAPI.GetBlockRFQTrades should return every currency's trades")
+	requests := venue.received("public/get_block_rfq_trades")
+	require.Len(t, requests, 1, "WebsocketAPI.GetBlockRFQTrades must send one request")
+	assert.JSONEq(t, `{"currency":"any","count":10}`, string(requests[0].Params), "WebsocketAPI.GetBlockRFQTrades should send every currency as any, as Deribit rejects ANY")
 }

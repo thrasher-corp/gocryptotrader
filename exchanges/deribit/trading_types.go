@@ -56,8 +56,8 @@ type OrderRequest struct {
 	OTOCOConfig []SecondaryOrder `json:"otoco_config,omitempty"`
 }
 
-// orderParams contains a buy or sell request's params, with its valid until time in Unix milliseconds
-type orderParams struct {
+// OrderParams contains a buy or sell request's params, with its valid until time in Unix milliseconds
+type OrderParams struct {
 	*OrderRequest
 	ValidUntil int64 `json:"valid_until,omitempty"`
 }
@@ -153,9 +153,9 @@ type CancelAllByKindOrTypeRequest struct {
 	IncludeStarbaseOrders bool `json:"include_starbase_orders,omitempty"`
 }
 
-// cancelAllByKindOrTypeParams contains a cancel by kind or type request's params, with its currencies as a single
+// CancelAllByKindOrTypeParams contains a cancel by kind or type request's params, with its currencies as a single
 // currency or a list
-type cancelAllByKindOrTypeParams struct {
+type CancelAllByKindOrTypeParams struct {
 	*CancelAllByKindOrTypeRequest
 	Currency any `json:"currency"`
 }
@@ -191,8 +191,8 @@ type CancelQuotesRequest struct {
 	CurrencyPair string `json:"currency_pair,omitempty"`
 }
 
-// cancelQuotesParams contains a cancel quotes request's params, with the delta bounds of a delta cancel
-type cancelQuotesParams struct {
+// CancelQuotesParams contains a cancel quotes request's params, with the delta bounds of a delta cancel
+type CancelQuotesParams struct {
 	*CancelQuotesRequest
 	MinDelta *float64 `json:"min_delta,omitempty"`
 	MaxDelta *float64 `json:"max_delta,omitempty"`
@@ -275,8 +275,8 @@ type EditOrderRequest struct {
 	DisplayAmount float64   `json:"display_amount,omitempty"`
 }
 
-// editOrderParams contains an edit request's params, with its valid until time in Unix milliseconds
-type editOrderParams struct {
+// EditOrderParams contains an edit request's params, with its valid until time in Unix milliseconds
+type EditOrderParams struct {
 	*EditOrderRequest
 	ValidUntil int64 `json:"valid_until,omitempty"`
 }
@@ -303,8 +303,8 @@ type EditOrderByLabelRequest struct {
 	ValidUntil time.Time `json:"-"`
 }
 
-// editOrderByLabelParams contains an edit by label request's params, with its valid until time in Unix milliseconds
-type editOrderByLabelParams struct {
+// EditOrderByLabelParams contains an edit by label request's params, with its valid until time in Unix milliseconds
+type EditOrderByLabelParams struct {
 	*EditOrderByLabelRequest
 	ValidUntil int64 `json:"valid_until,omitempty"`
 }
@@ -520,8 +520,8 @@ func (o *OrderHistoryResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// orderMarginByIDsParams contains the orders of a private/get_order_margin_by_ids request
-type orderMarginByIDsParams struct {
+// OrderMarginByIDsRequest contains the orders of a private/get_order_margin_by_ids request
+type OrderMarginByIDsRequest struct {
 	IDs []string `json:"ids"`
 }
 
@@ -544,9 +544,9 @@ type SettlementHistoryByCurrencyRequest struct {
 	SearchStartTime time.Time `json:"-"`
 }
 
-// settlementHistoryByCurrencyParams contains a settlement history request's params, with its search start time in Unix
+// SettlementHistoryByCurrencyParams contains a settlement history request's params, with its search start time in Unix
 // milliseconds
-type settlementHistoryByCurrencyParams struct {
+type SettlementHistoryByCurrencyParams struct {
 	*SettlementHistoryByCurrencyRequest
 	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
 }
@@ -563,9 +563,9 @@ type SettlementHistoryByInstrumentRequest struct {
 	SearchStartTime time.Time `json:"-"`
 }
 
-// settlementHistoryByInstrumentParams contains a settlement history request's params, with its search start time in
+// SettlementHistoryByInstrumentParams contains a settlement history request's params, with its search start time in
 // Unix milliseconds
-type settlementHistoryByInstrumentParams struct {
+type SettlementHistoryByInstrumentParams struct {
 	*SettlementHistoryByInstrumentRequest
 	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
 }
@@ -637,8 +637,8 @@ type UserTradesByCurrencyRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// userTradesByCurrencyParams contains a user trades request's params, with its time range in Unix milliseconds
-type userTradesByCurrencyParams struct {
+// UserTradesByCurrencyParams contains a user trades request's params, with its time range in Unix milliseconds
+type UserTradesByCurrencyParams struct {
 	*UserTradesByCurrencyRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -662,8 +662,8 @@ type UserTradesByCurrencyAndTimeRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// userTradesByCurrencyAndTimeParams contains a user trades request's params, with its time range in Unix milliseconds
-type userTradesByCurrencyAndTimeParams struct {
+// UserTradesByCurrencyAndTimeParams contains a user trades request's params, with its time range in Unix milliseconds
+type UserTradesByCurrencyAndTimeParams struct {
 	*UserTradesByCurrencyAndTimeRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -687,8 +687,8 @@ type UserTradesByInstrumentRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// userTradesByInstrumentParams contains a user trades request's params, with its time range in Unix milliseconds
-type userTradesByInstrumentParams struct {
+// UserTradesByInstrumentParams contains a user trades request's params, with its time range in Unix milliseconds
+type UserTradesByInstrumentParams struct {
 	*UserTradesByInstrumentRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -710,9 +710,9 @@ type UserTradesByInstrumentAndTimeRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// userTradesByInstrumentAndTimeParams contains a user trades request's params, with its time range in Unix
+// UserTradesByInstrumentAndTimeParams contains a user trades request's params, with its time range in Unix
 // milliseconds
-type userTradesByInstrumentAndTimeParams struct {
+type UserTradesByInstrumentAndTimeParams struct {
 	*UserTradesByInstrumentAndTimeRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -751,8 +751,8 @@ type MassQuoteRequest struct {
 	Quotes     []MassQuoteEntry `json:"quotes"`
 }
 
-// massQuoteParams contains a mass quote request's params, with its valid until time in Unix milliseconds
-type massQuoteParams struct {
+// MassQuoteParams contains a mass quote request's params, with its valid until time in Unix milliseconds
+type MassQuoteParams struct {
 	*MassQuoteRequest
 	ValidUntil int64 `json:"valid_until,omitempty"`
 }
@@ -884,9 +884,9 @@ type SetMMPConfigRequest struct {
 	TradeCountLimit uint64 `json:"trade_count_limit,omitempty"`
 }
 
-// setMMPConfigParams contains a set MMP configuration request's params, with its interval and frozen time in seconds,
+// SetMMPConfigParams contains a set MMP configuration request's params, with its interval and frozen time in seconds,
 // which are always sent as zero is meaningful
-type setMMPConfigParams struct {
+type SetMMPConfigParams struct {
 	*SetMMPConfigRequest
 	Interval   uint64 `json:"interval"`
 	FrozenTime uint64 `json:"frozen_time"`

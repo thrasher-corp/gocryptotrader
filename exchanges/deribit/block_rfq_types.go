@@ -85,8 +85,8 @@ type AddBlockRFQQuoteRequest struct {
 	ExpiresAt time.Time `json:"-"`
 }
 
-// addBlockRFQQuoteParams contains an AddBlockRFQQuoteRequest's params, with its expiry in Unix milliseconds
-type addBlockRFQQuoteParams struct {
+// AddBlockRFQQuoteParams contains an AddBlockRFQQuoteRequest's params, with its expiry in Unix milliseconds
+type AddBlockRFQQuoteParams struct {
 	*AddBlockRFQQuoteRequest
 	ExpiresAt int64 `json:"expires_at,omitempty"`
 }
@@ -152,8 +152,8 @@ func (c *CancelAllBlockRFQQuotesResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// blockRFQIDParams contains the Block RFQ of a request
-type blockRFQIDParams struct {
+// BlockRFQIDRequest contains the Block RFQ of a request
+type BlockRFQIDRequest struct {
 	BlockRFQID uint64 `json:"block_rfq_id"`
 }
 
@@ -335,7 +335,7 @@ type BlockRFQsResponse struct {
 
 // GetBlockRFQTradesRequest selects recent Block RFQ trades, newest first
 type GetBlockRFQTradesRequest struct {
-	// Currency is required; currency.NewCode("any") selects every currency
+	// Currency is required; currency.ANY selects every currency
 	Currency currency.Code `json:"currency"`
 	// Continuation is the token of the next page, which the previous page returned
 	Continuation string `json:"continuation,omitempty"`

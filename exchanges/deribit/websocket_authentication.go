@@ -47,6 +47,6 @@ func (w WebsocketAPI) Logout(ctx context.Context, invalidateToken bool) error {
 		JSONRPC: jsonRPCVersion,
 		ID:      w.e.MessageSequence(),
 		Method:  "private/logout",
-		Params:  &logoutParams{InvalidateToken: invalidateToken},
+		Params:  &LogoutRequest{InvalidateToken: invalidateToken},
 	})
 }

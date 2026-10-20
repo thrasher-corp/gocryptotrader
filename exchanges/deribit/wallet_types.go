@@ -408,9 +408,9 @@ type ListAddressBeneficiariesRequest struct {
 	Continuation string `json:"continuation,omitempty"`
 }
 
-// listAddressBeneficiariesParams contains a list address beneficiaries request's params, with its times in Unix
+// ListAddressBeneficiariesParams contains a list address beneficiaries request's params, with its times in Unix
 // milliseconds
-type listAddressBeneficiariesParams struct {
+type ListAddressBeneficiariesParams struct {
 	*ListAddressBeneficiariesRequest
 	CreatedBefore int64 `json:"created_before,omitempty"`
 	CreatedAfter  int64 `json:"created_after,omitempty"`
@@ -499,8 +499,8 @@ type ClearanceOriginator struct {
 	Address     string `json:"address,omitempty"`
 }
 
-// setCoinbaseSubaccountWithdrawalsAllowedParams contains whether subaccounts may withdraw, always sent so false can be
-type setCoinbaseSubaccountWithdrawalsAllowedParams struct {
+// SetCoinbaseSubaccountWithdrawalsAllowedRequest contains whether subaccounts may withdraw, always sent so false can be
+type SetCoinbaseSubaccountWithdrawalsAllowedRequest struct {
 	Enabled bool `json:"enabled"`
 }
 

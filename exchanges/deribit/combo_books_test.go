@@ -73,6 +73,9 @@ func TestCreateCombo(t *testing.T) {
 	require.ErrorIs(t, err, errComboTradesRequired, "CreateCombo must reject an empty trade list")
 	_, err = e.CreateCombo(t.Context(), []ComboTrade{{Amount: 1, Direction: DirectionBuy}})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateCombo must reject a trade without an instrument")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":{"id":"BTC-CS-29APR22-37500_37500"}}`)
+	_, err = limited.CreateCombo(noDelay, []ComboTrade{{InstrumentName: "BTC-29APR22-37500-C", Amount: 1, Direction: DirectionBuy}, {InstrumentName: "BTC-29APR22-37500-P", Amount: 1, Direction: DirectionSell}})
+	assert.NoError(t, err, "CreateCombo should be limited as a non-matching engine request")
 
 	skipLiveUnlessCanManipulate(t)
 	result, err := e.CreateCombo(t.Context(), testComboTrades(t))

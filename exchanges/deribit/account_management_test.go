@@ -1842,17 +1842,17 @@ func TestGetAnnouncements(t *testing.T) {
 func TestGetAnnouncementsParamsMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		params *getAnnouncementsParams
+		params *GetAnnouncementsParams
 		exp    string
 	}{
-		{params: &getAnnouncementsParams{GetAnnouncementsRequest: &GetAnnouncementsRequest{}}, exp: `{}`},
+		{params: &GetAnnouncementsParams{GetAnnouncementsRequest: &GetAnnouncementsRequest{}}, exp: `{}`},
 		{
-			params: &getAnnouncementsParams{GetAnnouncementsRequest: testAnnouncementsRequest(), StartTimestamp: mockAnnouncementsStartTime},
+			params: &GetAnnouncementsParams{GetAnnouncementsRequest: testAnnouncementsRequest(), StartTimestamp: mockAnnouncementsStartTime},
 			exp:    `{"count":1,"start_timestamp":1791800000000}`,
 		},
 	} {
 		encoded, err := json.Marshal(tc.params)
 		require.NoError(t, err, "Marshal must not error")
-		assert.JSONEq(t, tc.exp, string(encoded), "getAnnouncementsParams should send the start time once, in Unix milliseconds, and leave out unset params")
+		assert.JSONEq(t, tc.exp, string(encoded), "GetAnnouncementsParams should send the start time once, in Unix milliseconds, and leave out unset params")
 	}
 }

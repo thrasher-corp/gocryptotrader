@@ -26,8 +26,8 @@ type BlockTradeApprovalRequest struct {
 	Role string `json:"role"`
 }
 
-// blockTradeApprovalParams contains a BlockTradeApprovalRequest's params, with its timestamp in Unix milliseconds
-type blockTradeApprovalParams struct {
+// BlockTradeApprovalParams contains a BlockTradeApprovalRequest's params, with its timestamp in Unix milliseconds
+type BlockTradeApprovalParams struct {
 	*BlockTradeApprovalRequest
 	Timestamp int64 `json:"timestamp"`
 }
@@ -45,19 +45,19 @@ type ExecuteBlockTradeRequest struct {
 	CounterpartySignature string `json:"counterparty_signature"`
 }
 
-// executeBlockTradeParams contains an ExecuteBlockTradeRequest's params, with its timestamp in Unix milliseconds
-type executeBlockTradeParams struct {
+// ExecuteBlockTradeParams contains an ExecuteBlockTradeRequest's params, with its timestamp in Unix milliseconds
+type ExecuteBlockTradeParams struct {
 	*ExecuteBlockTradeRequest
 	Timestamp int64 `json:"timestamp"`
 }
 
-// blockTradeIDParams contains the block trade of a private/get_block_trade request
-type blockTradeIDParams struct {
+// BlockTradeIDRequest contains the block trade of a private/get_block_trade request
+type BlockTradeIDRequest struct {
 	ID string `json:"id"`
 }
 
-// brokerCodeParams contains the broker code of a private/get_block_trade_requests request; an empty code is left out
-type brokerCodeParams struct {
+// BrokerCodeRequest contains the broker code of a private/get_block_trade_requests request; an empty code is left out
+type BrokerCodeRequest struct {
 	BrokerCode string `json:"broker_code,omitempty"`
 }
 
@@ -192,8 +192,8 @@ type BrokerTrade struct {
 	Taker     BrokerTradeParty `json:"taker"`
 }
 
-// blockTradeSignatureParams contains the signature of a private/invalidate_block_trade_signature request
-type blockTradeSignatureParams struct {
+// BlockTradeSignatureRequest contains the signature of a private/invalidate_block_trade_signature request
+type BlockTradeSignatureRequest struct {
 	Signature string `json:"signature"`
 }
 
@@ -214,8 +214,8 @@ type VerifyBlockTradeRequest struct {
 	Trades []BlockTradeLeg `json:"trades"`
 }
 
-// verifyBlockTradeParams contains a VerifyBlockTradeRequest's params, with its timestamp in Unix milliseconds
-type verifyBlockTradeParams struct {
+// VerifyBlockTradeParams contains a VerifyBlockTradeRequest's params, with its timestamp in Unix milliseconds
+type VerifyBlockTradeParams struct {
 	*VerifyBlockTradeRequest
 	Timestamp int64 `json:"timestamp"`
 }

@@ -18,9 +18,9 @@ type LSPParticipantConfig struct {
 	GroupLimits map[string]float64 `json:"group_limits"`
 }
 
-// lspParticipantsParams contains whether a private/get_lsp_participants request returns each participant's
+// LSPParticipantsRequest contains whether a private/get_lsp_participants request returns each participant's
 // configuration
-type lspParticipantsParams struct {
+type LSPParticipantsRequest struct {
 	Detailed bool `json:"detailed,omitempty"`
 }
 
@@ -37,9 +37,9 @@ type LSPParticipant struct {
 	Config  *LSPParticipantConfig `json:"config"`
 }
 
-// lspParticipantsUsageParams contains the participant a private/get_lsp_participants_usage request selects, every
+// LSPParticipantsUsageRequest contains the participant a private/get_lsp_participants_usage request selects, every
 // participant when zero
-type lspParticipantsUsageParams struct {
+type LSPParticipantsUsageRequest struct {
 	UserID uint64 `json:"user_id,omitempty"`
 }
 

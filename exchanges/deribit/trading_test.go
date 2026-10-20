@@ -581,7 +581,7 @@ type liveTradingTicker struct {
 func getLiveTradingTicker(t *testing.T) *liveTradingTicker {
 	t.Helper()
 	var ticker *liveTradingTicker
-	err := e.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/ticker", &instrumentNameParams{InstrumentName: liveTradingInstrument}, &ticker)
+	err := e.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: liveTradingInstrument}, &ticker)
 	require.NoError(t, err, "public/ticker must not error")
 	require.NotNil(t, ticker, "public/ticker must return the ticker")
 	return ticker
@@ -1048,6 +1048,9 @@ func TestGetMMPConfig(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMMPConfig must reject a nil request")
 	_, err = e.GetMMPConfig(t.Context(), &MMPGroupRequest{MMPGroup: "MassQuoteBot7"})
 	require.ErrorIs(t, err, errMMPIndexNameRequired, "GetMMPConfig must reject an MMP group without its index")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
+	_, err = limited.GetMMPConfig(noDelay, mockMMPGroupRequest())
+	assert.NoError(t, err, "GetMMPConfig should be limited as a non-matching engine request")
 
 	skipLiveWithoutCredentials(t)
 	arg := mockMMPGroupRequest()
@@ -1070,6 +1073,9 @@ func TestGetMMPStatus(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMMPStatus must reject a nil request")
 	_, err = e.GetMMPStatus(t.Context(), &MMPGroupRequest{MMPGroup: "MassQuoteBot7"})
 	require.ErrorIs(t, err, errMMPIndexNameRequired, "GetMMPStatus must reject an MMP group without its index")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
+	_, err = limited.GetMMPStatus(noDelay, mockMMPGroupRequest())
+	assert.NoError(t, err, "GetMMPStatus should be limited as a non-matching engine request")
 
 	skipLiveWithoutCredentials(t)
 	arg := mockMMPGroupRequest()
@@ -1621,6 +1627,8 @@ func TestResetMMP(t *testing.T) {
 	require.ErrorIs(t, err, errMMPIndexNameRequired, "ResetMMP must reject an empty index name")
 	err = e.ResetMMP(t.Context(), &MMPGroupRequest{IndexName: mmpIndexNameAll})
 	require.ErrorIs(t, err, errMMPIndexNameAllNeedsBlockRFQ, "ResetMMP must reject every index outside block RFQ MMP")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
+	assert.NoError(t, limited.ResetMMP(noDelay, mockMMPGroupRequest()), "ResetMMP should be limited as a non-matching engine request")
 
 	skipLiveUnlessCanManipulate(t)
 	arg := mockMMPGroupRequest()
@@ -1679,6 +1687,9 @@ func TestSetMMPConfig(t *testing.T) {
 	_, err = ex.SetMMPConfig(t.Context(), &SetMMPConfigRequest{IndexName: "btc_usd", FrozenTime: 90 * time.Second})
 	require.NoError(t, err, "SetMMPConfig must not error")
 	assert.JSONEq(t, `{"index_name":"btc_usd","interval":0,"frozen_time":90,"max_quote_quantity":0}`, lastParams(), "SetMMPConfig should send the times in seconds, and a zero interval, which removes the configuration")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
+	_, err = limited.SetMMPConfig(noDelay, mockSetMMPConfigRequest())
+	assert.NoError(t, err, "SetMMPConfig should be limited as a non-matching engine request")
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {

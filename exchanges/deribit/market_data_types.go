@@ -59,8 +59,8 @@ type APRRecord struct {
 	APR float64 `json:"apr"`
 }
 
-// indexNameParams contains the index of a request
-type indexNameParams struct {
+// IndexNameRequest contains the index of a request
+type IndexNameRequest struct {
 	IndexName string `json:"index_name"`
 }
 
@@ -268,8 +268,8 @@ type InstrumentTimeRangeRequest struct {
 	EndTime        time.Time `json:"-"`
 }
 
-// instrumentTimeRangeParams contains an instrument time range request's params, with its times in Unix milliseconds
-type instrumentTimeRangeParams struct {
+// InstrumentTimeRangeParams contains an instrument time range request's params, with its times in Unix milliseconds
+type InstrumentTimeRangeParams struct {
 	*InstrumentTimeRangeRequest
 	StartTimestamp int64 `json:"start_timestamp"`
 	EndTimestamp   int64 `json:"end_timestamp"`
@@ -322,8 +322,8 @@ type IndexPriceResponse struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
 }
 
-// indexPriceNamesParams contains whether an index price names request asks for each index's combo creation settings
-type indexPriceNamesParams struct {
+// IndexPriceNamesRequest contains whether an index price names request asks for each index's combo creation settings
+type IndexPriceNamesRequest struct {
 	Extended bool `json:"extended,omitempty"`
 }
 
@@ -482,9 +482,9 @@ type LastSettlementsByCurrencyRequest struct {
 	SearchStartTime time.Time `json:"-"`
 }
 
-// lastSettlementsByCurrencyParams contains a currency's last settlements request params, with its search start time in
+// LastSettlementsByCurrencyParams contains a currency's last settlements request params, with its search start time in
 // Unix milliseconds
-type lastSettlementsByCurrencyParams struct {
+type LastSettlementsByCurrencyParams struct {
 	*LastSettlementsByCurrencyRequest
 	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
 }
@@ -501,9 +501,9 @@ type LastSettlementsByInstrumentRequest struct {
 	SearchStartTime time.Time `json:"-"`
 }
 
-// lastSettlementsByInstrumentParams contains an instrument's last settlements request params, with its search start
+// LastSettlementsByInstrumentParams contains an instrument's last settlements request params, with its search start
 // time in Unix milliseconds
-type lastSettlementsByInstrumentParams struct {
+type LastSettlementsByInstrumentParams struct {
 	*LastSettlementsByInstrumentRequest
 	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
 }
@@ -525,8 +525,8 @@ type LastTradesByCurrencyRequest struct {
 	Sorting string `json:"sorting,omitempty"`
 }
 
-// lastTradesByCurrencyParams contains a currency's last trades request params, with its times in Unix milliseconds
-type lastTradesByCurrencyParams struct {
+// LastTradesByCurrencyParams contains a currency's last trades request params, with its times in Unix milliseconds
+type LastTradesByCurrencyParams struct {
 	*LastTradesByCurrencyRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -547,9 +547,9 @@ type LastTradesByCurrencyAndTimeRequest struct {
 	Sorting string `json:"sorting,omitempty"`
 }
 
-// lastTradesByCurrencyAndTimeParams contains a currency's last trades by time request params, with its times in Unix
+// LastTradesByCurrencyAndTimeParams contains a currency's last trades by time request params, with its times in Unix
 // milliseconds
-type lastTradesByCurrencyAndTimeParams struct {
+type LastTradesByCurrencyAndTimeParams struct {
 	*LastTradesByCurrencyAndTimeRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -570,8 +570,8 @@ type LastTradesByInstrumentRequest struct {
 	Sorting string `json:"sorting,omitempty"`
 }
 
-// lastTradesByInstrumentParams contains an instrument's last trades request params, with its times in Unix milliseconds
-type lastTradesByInstrumentParams struct {
+// LastTradesByInstrumentParams contains an instrument's last trades request params, with its times in Unix milliseconds
+type LastTradesByInstrumentParams struct {
 	*LastTradesByInstrumentRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -589,9 +589,9 @@ type LastTradesByInstrumentAndTimeRequest struct {
 	Sorting string `json:"sorting,omitempty"`
 }
 
-// lastTradesByInstrumentAndTimeParams contains an instrument's last trades by time request params, with its times in
+// LastTradesByInstrumentAndTimeParams contains an instrument's last trades by time request params, with its times in
 // Unix milliseconds
-type lastTradesByInstrumentAndTimeParams struct {
+type LastTradesByInstrumentAndTimeParams struct {
 	*LastTradesByInstrumentAndTimeRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
@@ -683,13 +683,13 @@ func (o *OrderBookLevel) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &o.Price, &o.Amount)
 }
 
-// supportedIndexNamesParams contains the index type of a supported index names request
-type supportedIndexNamesParams struct {
+// SupportedIndexNamesRequest contains the index type of a supported index names request
+type SupportedIndexNamesRequest struct {
 	Type string `json:"type,omitempty"`
 }
 
-// tradeVolumesParams contains whether a trade volumes request asks for 7 and 30 day volumes
-type tradeVolumesParams struct {
+// TradeVolumesRequest contains whether a trade volumes request asks for 7 and 30 day volumes
+type TradeVolumesRequest struct {
 	Extended bool `json:"extended,omitempty"`
 }
 
@@ -724,9 +724,9 @@ type TradingViewChartDataRequest struct {
 	Resolution kline.Interval `json:"-"`
 }
 
-// tradingViewChartDataParams contains a TradingView chart data request's params, with its times in Unix milliseconds
+// TradingViewChartDataParams contains a TradingView chart data request's params, with its times in Unix milliseconds
 // and its resolution as Deribit names it
-type tradingViewChartDataParams struct {
+type TradingViewChartDataParams struct {
 	*TradingViewChartDataRequest
 	StartTimestamp  int64  `json:"start_timestamp"`
 	EndTimestamp    int64  `json:"end_timestamp"`
@@ -743,7 +743,7 @@ type TradingViewChartDataResponse struct {
 	High  []float64    `json:"high"`
 	Low   []float64    `json:"low"`
 	Close []float64    `json:"close"`
-	// Volume is in the base currency, and Cost in the quote currency
+	// Volume is in the base currency, and Cost in the quote currency, which Deribit sends as zero for option combos
 	Volume []float64 `json:"volume"`
 	Cost   []float64 `json:"cost"`
 }
@@ -757,9 +757,9 @@ type VolatilityIndexDataRequest struct {
 	Resolution kline.Interval `json:"-"`
 }
 
-// volatilityIndexDataParams contains a volatility index data request's params, with its times in Unix milliseconds and
+// VolatilityIndexDataParams contains a volatility index data request's params, with its times in Unix milliseconds and
 // its resolution as Deribit names it
-type volatilityIndexDataParams struct {
+type VolatilityIndexDataParams struct {
 	*VolatilityIndexDataRequest
 	StartTimestamp  int64  `json:"start_timestamp"`
 	EndTimestamp    int64  `json:"end_timestamp"`

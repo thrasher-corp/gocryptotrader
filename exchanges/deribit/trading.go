@@ -66,7 +66,7 @@ func (e *Exchange) placeOrder(ctx context.Context, method string, arg *OrderRequ
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &orderParams{OrderRequest: arg}
+	params := &OrderParams{OrderRequest: arg}
 	if !arg.ValidUntil.IsZero() {
 		params.ValidUntil = arg.ValidUntil.UnixMilli()
 	}
@@ -90,7 +90,7 @@ func (e *Exchange) cancelOrderByID(ctx context.Context, orderID string, overWebs
 		return nil, errOrderIDRequired
 	}
 	var resp *Order
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/cancel", &orderIDParams{OrderID: orderID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/cancel", &OrderIDRequest{OrderID: orderID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -233,7 +233,7 @@ func (e *Exchange) cancelAllByKindOrType(ctx context.Context, arg *CancelAllByKi
 	if arg.IncludeStarbaseOrders && arg.Detailed {
 		return nil, errStarbaseOrdersWithDetailed
 	}
-	params := &cancelAllByKindOrTypeParams{CancelAllByKindOrTypeRequest: arg, Currency: arg.Currencies}
+	params := &CancelAllByKindOrTypeParams{CancelAllByKindOrTypeRequest: arg, Currency: arg.Currencies}
 	if len(arg.Currencies) == 1 {
 		params.Currency = arg.Currencies[0]
 	}
@@ -280,7 +280,7 @@ func (e *Exchange) cancelQuotes(ctx context.Context, arg *CancelQuotesRequest, o
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &cancelQuotesParams{CancelQuotesRequest: arg}
+	params := &CancelQuotesParams{CancelQuotesRequest: arg}
 	if arg.CancelType == "delta" {
 		params.MinDelta, params.MaxDelta = &arg.MinDelta, &arg.MaxDelta
 	}
@@ -339,7 +339,7 @@ func (e *Exchange) editOrder(ctx context.Context, arg *EditOrderRequest, overWeb
 	if err := validateAdvancedOrderType(arg.Advanced); err != nil {
 		return nil, err
 	}
-	params := &editOrderParams{EditOrderRequest: arg}
+	params := &EditOrderParams{EditOrderRequest: arg}
 	if !arg.ValidUntil.IsZero() {
 		params.ValidUntil = arg.ValidUntil.UnixMilli()
 	}
@@ -372,7 +372,7 @@ func (e *Exchange) editOrderByLabel(ctx context.Context, arg *EditOrderByLabelRe
 	if err := validateAdvancedOrderType(arg.Advanced); err != nil {
 		return nil, err
 	}
-	params := &editOrderByLabelParams{EditOrderByLabelRequest: arg}
+	params := &EditOrderByLabelParams{EditOrderByLabelRequest: arg}
 	if !arg.ValidUntil.IsZero() {
 		params.ValidUntil = arg.ValidUntil.UnixMilli()
 	}
@@ -425,7 +425,7 @@ func (e *Exchange) getMMPConfig(ctx context.Context, arg *MMPGroupRequest, overW
 		return nil, err
 	}
 	var resp []MMPConfig
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/get_mmp_config", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_config", arg, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -441,7 +441,7 @@ func (e *Exchange) getMMPStatus(ctx context.Context, arg *MMPGroupRequest, overW
 		return nil, err
 	}
 	var resp []MMPStatus
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/get_mmp_status", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_status", arg, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -609,7 +609,7 @@ func (e *Exchange) getOrderMarginByIDs(ctx context.Context, orderIDs []string, o
 		}
 	}
 	var resp []OrderMargin
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_margin_by_ids", &orderMarginByIDsParams{IDs: orderIDs}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_margin_by_ids", &OrderMarginByIDsRequest{IDs: orderIDs}, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -626,7 +626,7 @@ func (e *Exchange) getOrderState(ctx context.Context, orderID string, overWebsoc
 		return nil, errOrderIDRequired
 	}
 	var resp *Order
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_state", &orderIDParams{OrderID: orderID}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_state", &OrderIDRequest{OrderID: orderID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -660,7 +660,7 @@ func (e *Exchange) getSettlementHistoryByCurrency(ctx context.Context, arg *Sett
 	if err := validateTradingCount(arg.Count); err != nil {
 		return nil, err
 	}
-	params := &settlementHistoryByCurrencyParams{SettlementHistoryByCurrencyRequest: arg}
+	params := &SettlementHistoryByCurrencyParams{SettlementHistoryByCurrencyRequest: arg}
 	if !arg.SearchStartTime.IsZero() {
 		params.SearchStartTimestamp = arg.SearchStartTime.UnixMilli()
 	}
@@ -693,7 +693,7 @@ func (e *Exchange) getSettlementHistoryByInstrument(ctx context.Context, arg *Se
 	if err := validateTradingCount(arg.Count); err != nil {
 		return nil, err
 	}
-	params := &settlementHistoryByInstrumentParams{SettlementHistoryByInstrumentRequest: arg}
+	params := &SettlementHistoryByInstrumentParams{SettlementHistoryByInstrumentRequest: arg}
 	if !arg.SearchStartTime.IsZero() {
 		params.SearchStartTimestamp = arg.SearchStartTime.UnixMilli()
 	}
@@ -759,7 +759,7 @@ func (e *Exchange) getUserTradesByCurrency(ctx context.Context, arg *UserTradesB
 	if err != nil {
 		return nil, err
 	}
-	params := &userTradesByCurrencyParams{UserTradesByCurrencyRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &UserTradesByCurrencyParams{UserTradesByCurrencyRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *UserTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_trades_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -799,7 +799,7 @@ func (e *Exchange) getUserTradesByCurrencyAndTime(ctx context.Context, arg *User
 	if err != nil {
 		return nil, err
 	}
-	params := &userTradesByCurrencyAndTimeParams{UserTradesByCurrencyAndTimeRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &UserTradesByCurrencyAndTimeParams{UserTradesByCurrencyAndTimeRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *UserTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_trades_by_currency_and_time", params, &resp); err != nil {
 		return nil, err
@@ -833,7 +833,7 @@ func (e *Exchange) getUserTradesByInstrument(ctx context.Context, arg *UserTrade
 	if err != nil {
 		return nil, err
 	}
-	params := &userTradesByInstrumentParams{UserTradesByInstrumentRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &UserTradesByInstrumentParams{UserTradesByInstrumentRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *UserTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_trades_by_instrument", params, &resp); err != nil {
 		return nil, err
@@ -870,7 +870,7 @@ func (e *Exchange) getUserTradesByInstrumentAndTime(ctx context.Context, arg *Us
 	if err != nil {
 		return nil, err
 	}
-	params := &userTradesByInstrumentAndTimeParams{UserTradesByInstrumentAndTimeRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &UserTradesByInstrumentAndTimeParams{UserTradesByInstrumentAndTimeRequest: arg, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *UserTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_trades_by_instrument_and_time", params, &resp); err != nil {
 		return nil, err
@@ -914,7 +914,7 @@ func (e *Exchange) massQuote(ctx context.Context, arg *MassQuoteRequest, overWeb
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &massQuoteParams{MassQuoteRequest: arg}
+	params := &MassQuoteParams{MassQuoteRequest: arg}
 	if !arg.ValidUntil.IsZero() {
 		params.ValidUntil = arg.ValidUntil.UnixMilli()
 	}
@@ -962,7 +962,7 @@ func (e *Exchange) resetMMP(ctx context.Context, arg *MMPGroupRequest, overWebso
 	if arg.IndexName == mmpIndexNameAll && !arg.BlockRFQ {
 		return errMMPIndexNameAllNeedsBlockRFQ
 	}
-	return e.sendOKRequest(ctx, overWebsocket, matchingEPL, "private/reset_mmp", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/reset_mmp", arg)
 }
 
 // Sell places a sell order and returns it with the trades it made at once; spot orders routed to Coinbase Exchange fill
@@ -993,13 +993,13 @@ func (e *Exchange) setMMPConfig(ctx context.Context, arg *SetMMPConfigRequest, o
 	if arg.TradeCountLimit > maximumMMPTradeCountLimit {
 		return nil, fmt.Errorf("%w: %d", errInvalidMMPTradeCountLimit, arg.TradeCountLimit)
 	}
-	params := &setMMPConfigParams{
+	params := &SetMMPConfigParams{
 		SetMMPConfigRequest: arg,
 		Interval:            uint64(arg.Interval.Seconds()),
 		FrozenTime:          uint64(arg.FrozenTime.Seconds()),
 	}
 	var resp mmpConfigs
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/set_mmp_config", params, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_mmp_config", params, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil

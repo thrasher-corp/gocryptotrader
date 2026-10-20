@@ -21,8 +21,8 @@ type ComboTrade struct {
 	Direction string `json:"direction"`
 }
 
-// createComboParams contains the trades of a create combo request
-type createComboParams struct {
+// CreateComboRequest contains the trades of a create combo request
+type CreateComboRequest struct {
 	Trades []ComboTrade `json:"trades"`
 }
 
@@ -69,8 +69,8 @@ type LegPrice struct {
 	Ratio uint64 `json:"ratio"`
 }
 
-// comboIDParams contains the combo of a request
-type comboIDParams struct {
+// ComboIDRequest contains the combo of a request
+type ComboIDRequest struct {
 	ComboID string `json:"combo_id"`
 }
 

@@ -21,8 +21,8 @@ type AuthenticateRequest struct {
 	Scope string `json:"scope,omitempty"`
 }
 
-// authenticateParams contains an authentication request's params, with its timestamp in Unix milliseconds
-type authenticateParams struct {
+// AuthenticateParams contains an authentication request's params, with its timestamp in Unix milliseconds
+type AuthenticateParams struct {
 	*AuthenticateRequest
 	Timestamp int64 `json:"timestamp,omitempty"`
 }
@@ -59,8 +59,8 @@ type ForkTokenRequest struct {
 	SessionName  string `json:"session_name"`
 }
 
-// logoutParams contains whether a logout invalidates the session's tokens, which Deribit does when it is left out, so
+// LogoutRequest contains whether a logout invalidates the session's tokens, which Deribit does when it is left out, so
 // it is always sent
-type logoutParams struct {
+type LogoutRequest struct {
 	InvalidateToken bool `json:"invalidate_token"`
 }

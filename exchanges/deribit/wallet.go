@@ -221,7 +221,7 @@ func (e *Exchange) deleteAddressBeneficiary(ctx context.Context, arg *AddressBen
 	if err := arg.validate(); err != nil {
 		return err
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/delete_address_beneficiary", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/delete_address_beneficiary", arg)
 }
 
 // GetAddressBeneficiary returns an address's beneficiary information
@@ -409,7 +409,7 @@ func (e *Exchange) listAddressBeneficiaries(ctx context.Context, arg *ListAddres
 	if !arg.UpdatedAfter.IsZero() && !arg.UpdatedBefore.IsZero() && arg.UpdatedAfter.After(arg.UpdatedBefore) {
 		return nil, fmt.Errorf("%w: updated after %s is after updated before %s", common.ErrStartAfterEnd, arg.UpdatedAfter, arg.UpdatedBefore)
 	}
-	params := &listAddressBeneficiariesParams{ListAddressBeneficiariesRequest: arg}
+	params := &ListAddressBeneficiariesParams{ListAddressBeneficiariesRequest: arg}
 	if !arg.CreatedBefore.IsZero() {
 		params.CreatedBefore = arg.CreatedBefore.UnixMilli()
 	}
@@ -444,7 +444,7 @@ func (e *Exchange) removeFromAddressBook(ctx context.Context, arg *RemoveFromAdd
 	if err := validateAddressBookEntry(arg.Currency, arg.Type, arg.Address, arg.EntryID, AddressBookTypeTransfer, AddressBookTypeWithdrawal); err != nil {
 		return err
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/remove_from_address_book", arg)
+	return e.sendOKRequest(ctx, overWebsocket, "private/remove_from_address_book", arg)
 }
 
 // SaveAddressBeneficiary saves an address's beneficiary information, which the travel rule needs for withdrawals to it,
@@ -545,7 +545,7 @@ func (e *Exchange) SetCoinbaseSubaccountWithdrawalsAllowed(ctx context.Context, 
 
 func (e *Exchange) setCoinbaseSubaccountWithdrawalsAllowed(ctx context.Context, enabled, overWebsocket bool) (*CoinbaseSubaccountWithdrawalsResponse, error) {
 	var resp *CoinbaseSubaccountWithdrawalsResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_coinbase_subaccount_withdrawals_allowed", &setCoinbaseSubaccountWithdrawalsAllowedParams{Enabled: enabled}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_coinbase_subaccount_withdrawals_allowed", &SetCoinbaseSubaccountWithdrawalsAllowedRequest{Enabled: enabled}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

@@ -1645,7 +1645,6 @@
     "supports": {
      "restAPI": true,
      "restCapabilities": {
-      "tickerBatching": true,
       "autoPairUpdates": true,
       "fundingRateFetching": false
      },

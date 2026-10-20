@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -65,6 +66,15 @@ type Exchange struct {
 	// not stream, as of the last spot pairs fetched
 	coinbaseRoutedSpot    map[string]struct{}
 	coinbaseRoutedSpotMtx sync.RWMutex
+	// subscriptionMtx serialises subscribing and unsubscribing, so a book channel is checked against the book channels
+	// held once any subscribed before it are stored
+	subscriptionMtx sync.Mutex
+	// connectionGeneration counts the connections dialled, so a resubscription started on one connection is not made on
+	// the next, which subscribes its own channels; connectionMtx holds a new connection back while one is made. The
+	// reader loads the generation without connectionMtx, which a resubscription holds while it waits for the reader to
+	// match its responses
+	connectionGeneration atomic.Uint64
+	connectionMtx        sync.Mutex
 }
 
 // JSONRPCRequest is the envelope of every request; requests sent over HTTP leave the ID out, as each HTTP response
@@ -353,18 +363,18 @@ type Settlement struct {
 	Socialised        float64 `json:"socialized"`
 }
 
-// currencyParams contains the currency of a request
-type currencyParams struct {
+// CurrencyRequest contains the currency of a request
+type CurrencyRequest struct {
 	Currency currency.Code `json:"currency"`
 }
 
-// instrumentNameParams contains the instrument of a request
-type instrumentNameParams struct {
+// InstrumentNameRequest contains the instrument of a request
+type InstrumentNameRequest struct {
 	InstrumentName string `json:"instrument_name"`
 }
 
-// orderIDParams contains the order of a request
-type orderIDParams struct {
+// OrderIDRequest contains the order of a request
+type OrderIDRequest struct {
 	OrderID string `json:"order_id"`
 }
 

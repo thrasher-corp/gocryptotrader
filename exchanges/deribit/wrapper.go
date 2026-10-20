@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -41,6 +42,7 @@ var (
 	errOrderLabelNotUnique    = errors.New("label does not identify one open order")
 	errCandleFieldsMismatch   = errors.New("candle fields differ in length")
 	errTradePagingStalled     = errors.New("trades sharing one timestamp fill a whole page")
+	errDepositAddressNetwork  = errors.New("deposit address is on another network")
 )
 
 const (
@@ -60,6 +62,10 @@ const (
 	maximumFundingRatePage = 744
 	// latestFundingRateWindow is how far back GetLatestFundingRates looks for the latest hourly funding record
 	latestFundingRateWindow = 16 * time.Hour
+	// optionFeeCap is the share of an option's price its fee is capped at
+	optionFeeCap = 0.125
+	// instrumentTypeReversed is the instrument type of an inverse instrument
+	instrumentTypeReversed = "reversed"
 )
 
 // anyCurrency selects every currency where a method accepts it; Deribit rejects it upper case
@@ -90,7 +96,6 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:        true,
 				TickerFetching:        true,
 				KlineFetching:         true,
 				TradeFetching:         true,
@@ -115,8 +120,7 @@ func (e *Exchange) SetDefaults() {
 				TickerFetching:    true,
 				OrderbookFetching: true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.AutoWithdrawFiat,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
 			},
@@ -125,8 +129,7 @@ func (e *Exchange) SetDefaults() {
 				Leverage:     true,
 				FundingRates: true,
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
-					kline.OneHour:   true,
-					kline.EightHour: true,
+					kline.OneHour: true,
 				},
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported: true,
@@ -330,6 +333,20 @@ func (e *Exchange) isCoinbaseRoutedSpot(instrumentName string) bool {
 	return ok
 }
 
+// isCoinbaseRoutedSpotCurrency reports whether a currency, or any when every currency is meant, is the base or quote of
+// a spot instrument Deribit routes to Coinbase Exchange
+func (e *Exchange) isCoinbaseRoutedSpotCurrency(ccy string) bool {
+	e.coinbaseRoutedSpotMtx.RLock()
+	defer e.coinbaseRoutedSpotMtx.RUnlock()
+	for instrumentName := range e.coinbaseRoutedSpot {
+		base, quote, _ := strings.Cut(instrumentName, currency.UnderscoreDelimiter)
+		if ccy == channelAny || strings.EqualFold(ccy, base) || strings.EqualFold(ccy, quote) {
+			return true
+		}
+	}
+	return false
+}
+
 // UpdateTickers updates the tickers of an asset's enabled pairs from the book summaries of the currencies Deribit
 // summarises them under, one request per currency, as Deribit summarises no more than one currency at a time; summaries
 // leave out the best bid and ask sizes and the index price, which UpdateTicker returns
@@ -402,12 +419,24 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	return ticker.GetTicker(e.Name, p, a)
 }
 
-// summaryCurrency returns the currency Deribit summarises an instrument's book under: a spot pair's base currency, or
-// a derivative's settlement currency, which is the quote currency of a linear derivative's underlying pair
+// summaryCurrency returns the currency Deribit summarises an instrument's book under: a spot pair's quote currency, as
+// a currency's spot summaries list every pair it is either side of and spot pairs share far fewer quote currencies
+// than base ones, or a derivative's settlement currency
 func summaryCurrency(a asset.Item, instrumentName string) currency.Code {
+	if a != asset.Spot {
+		return settlementCurrency(instrumentName)
+	}
+	_, quote, _ := strings.Cut(instrumentName, currency.UnderscoreDelimiter)
+	return currency.NewCode(quote)
+}
+
+// settlementCurrency returns the currency a derivative settles in, which Deribit groups its instruments and orders
+// under: the quote currency of a linear derivative's underlying pair, such as USDC for SOL_USDC-PERPETUAL, or else its
+// underlying currency, such as BTC for BTC-PERPETUAL
+func settlementCurrency(instrumentName string) currency.Code {
 	underlying, _, _ := strings.Cut(instrumentName, currency.DashDelimiter)
 	base, quote, linear := strings.Cut(underlying, currency.UnderscoreDelimiter)
-	if linear && a != asset.Spot {
+	if linear {
 		return currency.NewCode(quote)
 	}
 	return currency.NewCode(base)
@@ -738,7 +767,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	return req.ProcessResponse(candles)
 }
 
-// chartCandles returns a pair's chart candles within a time range
+// chartCandles returns a pair's chart candles within a time range, with their volume in the quote currency
 func (e *Exchange) chartCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) ([]kline.Candle, error) {
 	resp, err := e.getTradingViewChartData(ctx, &TradingViewChartDataRequest{
 		InstrumentName: formatPairString(a, p),
@@ -750,18 +779,19 @@ func (e *Exchange) chartCandles(ctx context.Context, p currency.Pair, a asset.It
 		return nil, err
 	}
 	length := len(resp.Ticks)
-	if len(resp.Open) != length || len(resp.High) != length || len(resp.Low) != length || len(resp.Close) != length || len(resp.Volume) != length {
-		return nil, fmt.Errorf("%w: %d ticks, %d opens, %d highs, %d lows, %d closes and %d volumes", errCandleFieldsMismatch, length, len(resp.Open), len(resp.High), len(resp.Low), len(resp.Close), len(resp.Volume))
+	if len(resp.Open) != length || len(resp.High) != length || len(resp.Low) != length || len(resp.Close) != length || len(resp.Volume) != length || len(resp.Cost) != length {
+		return nil, fmt.Errorf("%w: %d ticks, %d opens, %d highs, %d lows, %d closes, %d volumes and %d costs", errCandleFieldsMismatch, length, len(resp.Open), len(resp.High), len(resp.Low), len(resp.Close), len(resp.Volume), len(resp.Cost))
 	}
 	candles := make([]kline.Candle, length)
 	for i := range resp.Ticks {
 		candles[i] = kline.Candle{
-			Time:   resp.Ticks[i].Time().UTC(),
-			Open:   resp.Open[i],
-			High:   resp.High[i],
-			Low:    resp.Low[i],
-			Close:  resp.Close[i],
-			Volume: resp.Volume[i],
+			Time:        resp.Ticks[i].Time().UTC(),
+			Open:        resp.Open[i],
+			High:        resp.High[i],
+			Low:         resp.Low[i],
+			Close:       resp.Close[i],
+			Volume:      resp.Volume[i],
+			QuoteVolume: resp.Cost[i],
 		}
 	}
 	return candles, nil
@@ -916,13 +946,14 @@ func triggerParam(priceType order.PriceType) (string, error) {
 	}
 }
 
-// tradeHistory converts one of the account's trades to an order's trade
+// tradeHistory converts one of the account's trades to an order's trade, typed as its order was placed when Deribit
+// holds that order as a limit order
 func tradeHistory(exchangeName string, t *UserTrade) (order.TradeHistory, error) {
 	side, err := order.StringToOrderSide(t.Direction)
 	if err != nil {
 		return order.TradeHistory{}, err
 	}
-	orderType, err := parseOrderType(t.OrderType)
+	orderType, err := parseOrderType(cmp.Or(t.OriginalOrderType, t.OrderType))
 	if err != nil {
 		return order.TradeHistory{}, err
 	}
@@ -977,7 +1008,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 		}
 		amount := m.Amount
 		if amount == 0 {
-			existing, err := e.getOrdersByLabel(ctx, "private/get_open_orders_by_label", &OrdersByLabelRequest{Currency: m.Pair.Base, Label: m.ClientOrderID}, overWebsocket)
+			labelCurrency := m.Pair.Base
+			if m.AssetType != asset.Spot {
+				labelCurrency = settlementCurrency(name)
+			}
+			existing, err := e.getOrdersByLabel(ctx, "private/get_open_orders_by_label", &OrdersByLabelRequest{Currency: labelCurrency, Label: m.ClientOrderID}, overWebsocket)
 			if err != nil {
 				return nil, err
 			}
@@ -1034,17 +1069,20 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their IDs, one request each, as Deribit cancels no list of orders; each order's
-// status is its state once cancelled, or the error cancelling it
+// status is its state once cancelled, or the error cancelling it. Every cancel is validated before any is sent, so an
+// invalid batch cancels nothing
 func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(cancels) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
-	overWebsocket := e.websocketForWrapper(true)
-	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
 	for i := range cancels {
 		if err := cancels[i].Validate(cancels[i].StandardCancel()); err != nil {
 			return nil, err
 		}
+	}
+	overWebsocket := e.websocketForWrapper(true)
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
+	for i := range cancels {
 		cancelled, err := e.cancelOrderByID(ctx, cancels[i].OrderID, overWebsocket)
 		if err != nil {
 			resp.Status[cancels[i].OrderID] = err.Error()
@@ -1094,17 +1132,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 	return resp, nil
 }
 
-// cancelOrderTypeParam returns the order type a cancel all request cancels; market orders never rest
+// cancelOrderTypeParam returns the order type a cancel all request cancels; market orders never rest, and Deribit
+// cancels stop and take profit orders only as whole groups, so order.Stop selects every stop order, and a stop limit,
+// stop market or take profit type cannot be cancelled apart from the rest of its group
 func cancelOrderTypeParam(t order.Type) (string, error) {
 	switch t {
 	case order.AnyType, order.UnknownType:
 		return "all", nil
 	case order.Limit:
 		return OrderTypeLimit, nil
-	case order.Stop, order.StopLimit, order.StopMarket:
+	case order.Stop:
 		return "stop", nil
-	case order.TakeProfit, order.TakeProfitMarket:
-		return "take", nil
 	case order.TrailingStop:
 		return OrderTypeTrailingStop, nil
 	default:
@@ -1112,20 +1150,50 @@ func cancelOrderTypeParam(t order.Type) (string, error) {
 	}
 }
 
-// GetOrderInfo returns an order by its ID
-func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
-	resp, err := e.getOrderState(ctx, orderID, e.websocketForWrapper(true))
-	if err != nil {
+// GetOrderInfo returns an order by its ID. Deribit finds an order by its ID only until 30 minutes after it closes, so
+// when it no longer finds one and a pair is given, the order is looked for in the latest page of the pair's historical
+// orders; Deribit's error is returned when it is not there, together with any error looking for it
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+	overWebsocket := e.websocketForWrapper(true)
+	resp, err := e.getOrderState(ctx, orderID, overWebsocket)
+	if err == nil {
+		return e.orderDetail(resp)
+	}
+	var apiErr *APIError
+	if pair.IsEmpty() || !errors.As(err, &apiErr) || apiErr.Code != errorCodeOrderNotFound {
 		return nil, err
 	}
-	return e.orderDetail(resp)
+	name, nameErr := e.pairInstrument(pair, a)
+	if nameErr != nil {
+		return nil, common.AppendError(err, nameErr)
+	}
+	history, historyErr := e.getOrderHistoryByInstrument(ctx, &OrderHistoryByInstrumentRequest{
+		InstrumentName:  name,
+		Count:           maximumTradingCount,
+		IncludeOld:      true,
+		IncludeUnfilled: true,
+		Historical:      true,
+	}, overWebsocket)
+	if historyErr != nil {
+		return nil, common.AppendError(err, historyErr)
+	}
+	for i := range history.Orders {
+		if history.Orders[i].OrderID == orderID {
+			return e.orderDetail(&history.Orders[i])
+		}
+	}
+	return nil, err
 }
 
-// GetDepositAddress returns a currency's current deposit address, on a network for a Coinbase wallet type account
+// GetDepositAddress returns a currency's current deposit address, on a network for a Coinbase wallet type account. An
+// address Deribit reports on a network other than the one requested is refused, so it is never filed under that network
 func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, chain string) (*deposit.Address, error) {
 	resp, err := e.getCurrentDepositAddress(ctx, &GetCurrentDepositAddressRequest{Currency: c, Network: chain}, e.websocketForWrapper(true))
 	if err != nil {
 		return nil, err
+	}
+	if chain != "" && resp.Network != chain {
+		return nil, fmt.Errorf("%w: %s address on %q, not %q", errDepositAddressNetwork, c, resp.Network, chain)
 	}
 	return &deposit.Address{
 		Address: resp.Address,
@@ -1134,20 +1202,43 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, ch
 	}, nil
 }
 
-// WithdrawCryptocurrencyFunds withdraws to an address in the account's address book; on an account with two-factor
-// authentication Deribit returns a SecurityKeyChallengeError, which the withdrawal must be confirmed through with
-// Withdraw and WithSecurityKeyAuthorisation
+// GetAvailableTransferChains returns the networks a currency is deposited and withdrawn on, by the resource names
+// GetDepositAddress and withdrawals take as their chain for a Coinbase wallet type account; a currency without networks
+// has none
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, c currency.Code) ([]string, error) {
+	detail, err := e.currencyDetail(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	chains := make([]string, len(detail.CoinbaseNetworks))
+	for i := range detail.CoinbaseNetworks {
+		chains[i] = detail.CoinbaseNetworks[i].ResourceName
+	}
+	return chains, nil
+}
+
+// WithdrawCryptocurrencyFunds withdraws to an address in the account's address book. When Deribit asks for a security
+// key, as on an account with two-factor authentication, the request's one-time password confirms the withdrawal once,
+// zero padded to six digits; a zero password means none was set, so a code of 000000 cannot be sent this way. Without
+// one, Deribit's SecurityKeyChallengeError is returned, which the withdrawal must be confirmed through with Withdraw
+// and WithSecurityKeyAuthorisation
 func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, r *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.withdraw(ctx, &WithdrawRequest{
+	arg := &WithdrawRequest{
 		Currency: r.Currency,
 		Amount:   r.Amount,
 		Address:  r.Crypto.Address,
 		Tag:      r.Crypto.AddressTag,
 		Network:  r.Crypto.Chain,
-	}, e.websocketForWrapper(true))
+	}
+	overWebsocket := e.websocketForWrapper(true)
+	resp, err := e.withdraw(ctx, arg, overWebsocket)
+	var challenge *SecurityKeyChallengeError
+	if r.OneTimePassword != 0 && errors.As(err, &challenge) {
+		resp, err = e.withdraw(WithSecurityKeyAuthorisation(ctx, challenge.Challenge, fmt.Sprintf("%06d", r.OneTimePassword)), arg, overWebsocket)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1199,8 +1290,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return e.filteredOrders(req, open)
 }
 
-// GetOrderHistory returns the latest page of each requested pair's orders, including those older than two days and
-// those that never filled
+// GetOrderHistory returns the latest page of each requested pair's recent orders and the latest page of its historical
+// orders, each order once, including those that never filled; Deribit keeps an order as a recent record for 30 minutes
+// after it closes, and serves older orders only as historical records
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1210,21 +1302,33 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	overWebsocket := e.websocketForWrapper(true)
 	var history []Order
+	seen := make(map[string]struct{})
 	for _, pair := range req.Pairs {
 		name, err := e.pairInstrument(pair, req.AssetType)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := e.getOrderHistoryByInstrument(ctx, &OrderHistoryByInstrumentRequest{
-			InstrumentName:  name,
-			Count:           maximumTradingCount,
-			IncludeOld:      true,
-			IncludeUnfilled: true,
-		}, overWebsocket)
-		if err != nil {
-			return nil, err
+		for _, historical := range []bool{false, true} {
+			resp, err := e.getOrderHistoryByInstrument(ctx, &OrderHistoryByInstrumentRequest{
+				InstrumentName:  name,
+				Count:           maximumTradingCount,
+				IncludeOld:      true,
+				IncludeUnfilled: true,
+				Historical:      historical,
+			}, overWebsocket)
+			if err != nil {
+				return nil, err
+			}
+			// An order closed in the last 30 minutes can be a recent and a historical record at once; the recent record,
+			// requested first, is kept
+			for i := range resp.Orders {
+				if _, ok := seen[resp.Orders[i].OrderID]; ok {
+					continue
+				}
+				seen[resp.Orders[i].OrderID] = struct{}{}
+				history = append(history, resp.Orders[i])
+			}
 		}
-		history = append(history, resp.Orders...)
 	}
 	return e.filteredOrders(req, history)
 }
@@ -1242,7 +1346,10 @@ func (e *Exchange) filteredOrders(req *order.MultiOrderRequest, orders []Order) 
 	return req.Filter(e.Name, details), nil
 }
 
-// GetFeeByType returns an estimate of fee based on the type of transaction
+// GetFeeByType returns an estimate of a fee: a trade's at its instrument's standard maker or taker commission, as
+// tradeFee charges it, or the offline estimate without valid credentials, a withdrawal's the currency's withdrawal fee,
+// and a deposit's nothing. It leaves out the fees of a combo's legs, as a combo's own commission is zero, and fee tier
+// discounts
 func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
@@ -1252,17 +1359,18 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	var fee float64
-	var err error
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee, err = calculateTradingFee(feeBuilder)
+		var err error
+		if fee, err = e.tradeFee(ctx, feeBuilder); err != nil {
+			return 0, err
+		}
+	case exchange.CryptocurrencyWithdrawalFee:
+		detail, err := e.currencyDetail(ctx, feeBuilder.Pair.Base)
 		if err != nil {
 			return 0, err
 		}
-	case exchange.CryptocurrencyDepositFee:
-	case exchange.CryptocurrencyWithdrawalFee:
-		// Withdrawals are processed instantly if the balance in our hot wallet permits so. We keep only a small percentage of coins in hot storage,
-		// therefore there is a chance that your withdrawal cannot be processed immediately. If needed, once a day we will replenish the balance of the hot wallet from the cold storage.
+		fee = detail.WithdrawalFee
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
@@ -1270,6 +1378,76 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		fee = 0
 	}
 	return fee, nil
+}
+
+// tradeFee returns a trade's fee in the currency its instrument is priced in, at the instrument's maker or taker
+// commission of what Deribit charges it on: the value traded for spot and linear futures, the USD amount of an inverse
+// future, and the underlying of an option, whose fee is capped at a share of its price
+func (e *Exchange) tradeFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	name, err := e.pairInstrumentWithoutAsset(feeBuilder.Pair)
+	if err != nil {
+		return 0, err
+	}
+	overWebsocket := e.websocketForWrapper(false)
+	instrument, err := e.getInstrument(ctx, name, overWebsocket)
+	if err != nil {
+		return 0, err
+	}
+	commission := instrument.TakerCommission
+	if feeBuilder.IsMaker {
+		commission = instrument.MakerCommission
+	}
+	reversed := instrument.InstrumentType == instrumentTypeReversed
+	switch {
+	case instrument.Kind == KindOption:
+		// An inverse option is priced in its underlying, and a linear one in the currency its underlying is priced in
+		underlyingPrice := 1.0
+		if !reversed {
+			tick, err := e.getTicker(ctx, name, overWebsocket)
+			if err != nil {
+				return 0, err
+			}
+			underlyingPrice = tick.UnderlyingPrice
+		}
+		return min(commission*underlyingPrice, optionFeeCap*feeBuilder.PurchasePrice) * feeBuilder.Amount, nil
+	case reversed:
+		return commission * feeBuilder.Amount, nil
+	default:
+		return commission * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+	}
+}
+
+// pairInstrumentWithoutAsset returns the instrument name of a pair whose asset is not given: the asset whose available
+// pairs hold it, or else the asset its name implies, which a linear future's configured name, such as
+// BTC-USDC-PERPETUAL, does not
+func (e *Exchange) pairInstrumentWithoutAsset(p currency.Pair) (string, error) {
+	if p.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
+	a, err := e.GetPairAssetType(p)
+	if err != nil {
+		if a, err = getAssetFromInstrument(p.String()); err != nil {
+			return "", err
+		}
+	}
+	return e.pairInstrument(p, a)
+}
+
+// currencyDetail returns a currency's deposit and withdrawal parameters
+func (e *Exchange) currencyDetail(ctx context.Context, c currency.Code) (*CurrencyDetail, error) {
+	if c.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	currencies, err := e.getCurrencies(ctx, e.websocketForWrapper(false))
+	if err != nil {
+		return nil, err
+	}
+	for i := range currencies {
+		if currencies[i].Currency.Equal(c) {
+			return &currencies[i], nil
+		}
+	}
+	return nil, fmt.Errorf("%w: %s", currency.ErrCurrencyNotSupported, c)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality
@@ -1327,7 +1505,7 @@ func (e *Exchange) futuresContract(instrument *Instrument) (*futures.Contract, e
 		Multiplier:         instrument.ContractSize,
 		MaxLeverage:        instrument.MaxLeverage,
 	}
-	if instrument.InstrumentType == "reversed" {
+	if instrument.InstrumentType == instrumentTypeReversed {
 		contract.SettlementType = futures.Inverse
 	}
 	if contract.Type == futures.Perpetual {
@@ -1380,7 +1558,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // GetFuturesPositionSummary returns the account's position in a future. Sizes are in the base currency, the notional
-// size its value at the mark price, and the contract size the number of contracts
+// size its value at the mark price, and the contract size the number of contracts. The unrealised profit and loss is
+// Deribit's total profit and loss, which it reckons from the position's average price and so leaves the realised
+// profit out
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, r)
@@ -1401,7 +1581,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		return nil, err
 	}
 	settlementType := futures.Linear
-	if instrument.InstrumentType == "reversed" {
+	if instrument.InstrumentType == instrumentTypeReversed {
 		settlementType = futures.Inverse
 	}
 	var contracts float64
@@ -1423,7 +1603,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		ContractMultiplier:           decimal.MustFromFloat(instrument.ContractSize),
 		ContractSettlementType:       settlementType,
 		AverageOpenPrice:             decimal.MustFromFloat(position.AveragePrice),
-		UnrealisedPNL:                decimal.MustFromFloat(position.TotalProfitLoss - position.RealisedProfitLoss),
+		UnrealisedPNL:                decimal.MustFromFloat(position.TotalProfitLoss),
 		RealisedPNL:                  decimal.MustFromFloat(position.RealisedProfitLoss),
 	}, nil
 }
@@ -1507,7 +1687,8 @@ func (e *Exchange) IsPerpetualFutureCurrency(assetType asset.Item, pair currency
 	return pqs[len(pqs)-1] == perpString, nil
 }
 
-// GetLatestFundingRates returns a perpetual's latest hourly funding record, as its 8 hour rate
+// GetLatestFundingRates returns a perpetual's latest hourly funding rate, which Deribit records at the end of each
+// hour, and the time of the next record, an hour later
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, r)
@@ -1526,11 +1707,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	latest := records[len(records)-1]
 	return []fundingrate.LatestRateResponse{{
-		Exchange:    e.Name,
-		Asset:       r.Asset,
-		Pair:        r.Pair,
-		LatestRate:  fundingrate.Rate{Time: latest.Timestamp.Time(), Rate: decimal.MustFromFloat(latest.Interest8Hour)},
-		TimeChecked: now,
+		Exchange:       e.Name,
+		Asset:          r.Asset,
+		Pair:           r.Pair,
+		LatestRate:     fundingrate.Rate{Time: latest.Timestamp.Time(), Rate: decimal.MustFromFloat(latest.Interest1Hour)},
+		TimeOfNextRate: latest.Timestamp.Time().Add(time.Hour),
+		TimeChecked:    now,
 	}}, nil
 }
 
@@ -1744,56 +1926,9 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	}
 }
 
-func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	assetType, err := getAssetFromInstrument(feeBuilder.Pair.String())
-	if err != nil {
-		return 0, err
-	}
-	switch assetType {
-	case asset.Futures, asset.FutureCombo:
-		switch {
-		case strings.HasSuffix(feeBuilder.Pair.String(), "USDC-PERPETUAL"):
-			if feeBuilder.IsMaker {
-				return 0, nil
-			}
-			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
-		case strings.HasPrefix(feeBuilder.Pair.String(), currency.BTC.String()),
-			strings.HasPrefix(feeBuilder.Pair.String(), currency.ETH.String()):
-			if strings.HasSuffix(feeBuilder.Pair.String(), perpString) {
-				if feeBuilder.IsMaker {
-					return 0, nil
-				}
-				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
-			}
-			// weekly futures contracts
-			if feeBuilder.IsMaker {
-				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0001, nil
-			}
-			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
-		case strings.HasPrefix(feeBuilder.Pair.String(), "SOL"): // perpetual and weekly SOL contracts
-			if feeBuilder.IsMaker {
-				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.00002, nil
-			}
-			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
-		}
-	case asset.Options, asset.OptionCombo:
-		switch {
-		case strings.HasPrefix(feeBuilder.Pair.String(), currency.BTC.String()),
-			strings.HasPrefix(feeBuilder.Pair.String(), currency.ETH.String()):
-			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
-		case strings.HasPrefix(feeBuilder.Pair.String(), "SOL"):
-			if feeBuilder.IsMaker {
-				return 0, nil
-			}
-			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
-		}
-	}
-	return 0, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, assetType.String())
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
+// getOfflineTradeFee estimates a trade's fee at the highest standard commission, Coinbase-routed spot's 0.05% taker rate
 func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0003 * price * amount
+	return 0.0005 * price * amount
 }
 
 func formatFuturesTradablePair(pair currency.Pair) string {
@@ -1865,7 +2000,7 @@ func futureComboPairToString(pair currency.Pair) string {
 	return before + "_" + after
 }
 
-// orderDetail converts an order as Deribit reports it
+// orderDetail converts an order as Deribit reports it, typed as it was placed when Deribit holds it as a limit order
 func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 	a, pair, err := getAssetPairByInstrument(o.InstrumentName)
 	if err != nil {
@@ -1875,7 +2010,7 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := parseOrderType(o.OrderType)
+	orderType, err := parseOrderType(cmp.Or(o.OriginalOrderType, o.OrderType))
 	if err != nil {
 		return nil, err
 	}
@@ -1960,16 +2095,18 @@ func parseOrderType(orderType string) (order.Type, error) {
 }
 
 // parseOrderStatus converts an order state, reporting partly filled open and cancelled orders as such; an untriggered
-// trigger order is pending, as Bybit's are, and a triggered one open
+// trigger order is pending, and a triggered one closed, as Deribit places a new order with its own ID when it triggers
 func parseOrderStatus(state string, filledAmount float64) (order.Status, error) {
 	switch state {
-	case "open", "triggered":
+	case "open":
 		if filledAmount > 0 {
 			return order.PartiallyFilled, nil
 		}
 		return order.Open, nil
 	case "untriggered":
 		return order.Pending, nil
+	case "triggered":
+		return order.Closed, nil
 	case "filled":
 		return order.Filled, nil
 	case "cancelled":

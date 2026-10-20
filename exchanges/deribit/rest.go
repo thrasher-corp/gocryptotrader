@@ -34,7 +34,10 @@ const (
 
 	// errorCodeRetry asks the client to send the request again, as Deribit could not process it yet
 	errorCodeRetry = 10040
-	// maximumRequestAttempts bounds how often a request Deribit asks to retry is sent
+	// errorCodeOrderNotFound reports that no order has the ID or label a request names
+	errorCodeOrderNotFound = 10004
+	// maximumRequestAttempts bounds how often a request Deribit asks to retry, or a book subscription Deribit refuses to
+	// renew, is sent
 	maximumRequestAttempts = 5
 )
 
@@ -85,6 +88,11 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 	if creds != nil {
 		requestType = request.AuthenticatedRequest
 	}
+	if !resendable(method) {
+		// Deribit may have carried out a request whose response timed out, so the requester must not send it again;
+		// retryRequest still does when Deribit answers that it did not process the request
+		ctx = request.WithRetryNotAllowed(ctx)
+	}
 	return retryRequest(ctx, func() error {
 		resp := &JSONRPCResponse{Result: result}
 		var challenged privateResult
@@ -93,25 +101,7 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 			resp.Result = &challenged
 		}
 		err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
-			headers := map[string]string{"Content-Type": "application/json"}
-			if creds != nil {
-				authorisation, err := signHTTPRequest(creds, path, body, time.Now(), e.Requester.GetNonce(nonce.UnixNano).String())
-				if err != nil {
-					return nil, err
-				}
-				headers["Authorization"] = authorisation
-			}
-			return &request.Item{
-				Method:                 http.MethodPost,
-				Path:                   endpoint + path,
-				Headers:                headers,
-				Body:                   bytes.NewReader(body),
-				Result:                 resp,
-				Verbose:                e.Verbose,
-				HTTPDebugging:          e.HTTPDebugging,
-				HTTPRecording:          e.HTTPRecording,
-				HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-			}, nil
+			return e.httpRequestItem(endpoint, path, body, resp, creds)
 		}, requestType)
 		// Deribit answers a failed request with an error status, so its error object explains the failure better; an
 		// authenticated request's failure is still reported as one, as the requester reports it
@@ -129,6 +119,32 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 		}
 		return nil
 	})
+}
+
+// httpRequestItem returns the item posting a JSON-RPC body to an endpoint's path, signed when credentials are given; a
+// signed item is nonce enabled, as taking its nonce already holds the requester's timed lock, which the requester would
+// otherwise wait out before sending it
+func (e *Exchange) httpRequestItem(endpoint, path string, body []byte, result any, creds *accounts.Credentials) (*request.Item, error) {
+	headers := map[string]string{"Content-Type": "application/json"}
+	if creds != nil {
+		authorisation, err := signHTTPRequest(creds, path, body, time.Now(), e.Requester.GetNonce(nonce.UnixNano).String())
+		if err != nil {
+			return nil, err
+		}
+		headers["Authorization"] = authorisation
+	}
+	return &request.Item{
+		Method:                 http.MethodPost,
+		Path:                   endpoint + path,
+		Headers:                headers,
+		Body:                   bytes.NewReader(body),
+		Result:                 result,
+		NonceEnabled:           creds != nil,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+	}, nil
 }
 
 // sendHTTPQueryRequest sends a public, non-matching engine method as an HTTP GET request with its params in the query
@@ -184,10 +200,10 @@ func (e *Exchange) sendRequest(ctx context.Context, overWebsocket bool, epl requ
 	}
 }
 
-// sendOKRequest sends a request whose result is "ok" when it succeeds
-func (e *Exchange) sendOKRequest(ctx context.Context, overWebsocket bool, epl request.EndpointLimit, method string, params any) error {
+// sendOKRequest sends a non-matching engine request whose result is "ok" when it succeeds
+func (e *Exchange) sendOKRequest(ctx context.Context, overWebsocket bool, method string, params any) error {
 	var resp string
-	if err := e.sendRequest(ctx, overWebsocket, epl, method, params, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, params, &resp); err != nil {
 		return err
 	}
 	if resp != resultOK {
@@ -199,6 +215,14 @@ func (e *Exchange) sendOKRequest(ctx context.Context, overWebsocket bool, epl re
 // isPrivateMethod reports whether a method needs authentication
 func isPrivateMethod(method string) bool {
 	return strings.HasPrefix(method, privateMethodPrefix)
+}
+
+// resendable reports whether a request may be sent again after its response times out: a public method, or a private
+// one that only reads, as Deribit may already have carried out an order, cancel, withdrawal, transfer or other change
+func resendable(method string) bool {
+	action, private := strings.CutPrefix(method, privateMethodPrefix)
+	return !private || strings.HasPrefix(action, "get_") || strings.HasPrefix(action, "list_") ||
+		strings.HasPrefix(action, "simulate_")
 }
 
 // retryRequest sends a request until Deribit stops asking for it to be retried, backing off between attempts

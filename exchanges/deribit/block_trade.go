@@ -38,8 +38,8 @@ func (e *Exchange) decidePendingBlockTrade(ctx context.Context, arg *BlockTradeA
 	if err := validateBlockTradeKey(arg.Timestamp, arg.Nonce, arg.Role); err != nil {
 		return err
 	}
-	params := &blockTradeApprovalParams{BlockTradeApprovalRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, method, params)
+	params := &BlockTradeApprovalParams{BlockTradeApprovalRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
+	return e.sendOKRequest(ctx, overWebsocket, method, params)
 }
 
 // ExecuteBlockTrade executes a block trade with the signature the counterparty's VerifyBlockTrade returned, taking the
@@ -61,7 +61,7 @@ func (e *Exchange) executeBlockTrade(ctx context.Context, arg *ExecuteBlockTrade
 	if arg.CounterpartySignature == "" {
 		return nil, errCounterpartySignatureRequired
 	}
-	params := &executeBlockTradeParams{ExecuteBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
+	params := &ExecuteBlockTradeParams{ExecuteBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
 	var resp *BlockTrade
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/execute_block_trade", params, &resp); err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func (e *Exchange) getBlockTrade(ctx context.Context, id string, overWebsocket b
 		return nil, errBlockTradeIDRequired
 	}
 	var resp *BlockTrade
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade", &blockTradeIDParams{ID: id}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade", &BlockTradeIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -99,7 +99,7 @@ func (e *Exchange) GetBlockTradeRequests(ctx context.Context, brokerCode string)
 
 func (e *Exchange) getBlockTradeRequests(ctx context.Context, brokerCode string, overWebsocket bool) ([]PendingBlockTrade, error) {
 	var resp []PendingBlockTrade
-	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade_requests", &brokerCodeParams{BrokerCode: brokerCode}, &resp)
+	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade_requests", &BrokerCodeRequest{BrokerCode: brokerCode}, &resp)
 }
 
 // GetBlockTrades returns the account's block trades, newest first, in every currency unless one is selected
@@ -176,7 +176,7 @@ func (e *Exchange) invalidateBlockTradeSignature(ctx context.Context, signature 
 	if signature == "" {
 		return errSignatureRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, nonMatchingEPL, "private/invalidate_block_trade_signature", &blockTradeSignatureParams{Signature: signature})
+	return e.sendOKRequest(ctx, overWebsocket, "private/invalidate_block_trade_signature", &BlockTradeSignatureRequest{Signature: signature})
 }
 
 // RejectBlockTrade rejects a pending block trade a broker or registered partner executed for the account, which cancels
@@ -203,7 +203,7 @@ func (e *Exchange) simulateBlockTrade(ctx context.Context, arg *SimulateBlockTra
 		return false, err
 	}
 	var resp *bool
-	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/simulate_block_trade", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/simulate_block_trade", arg, &resp); err != nil {
 		return false, err
 	}
 	if resp == nil {
@@ -228,7 +228,7 @@ func (e *Exchange) verifyBlockTrade(ctx context.Context, arg *VerifyBlockTradeRe
 	if err := validateBlockTradeLegs(arg.Trades); err != nil {
 		return nil, err
 	}
-	params := &verifyBlockTradeParams{VerifyBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
+	params := &VerifyBlockTradeParams{VerifyBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
 	var resp *VerifyBlockTradeResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/verify_block_trade", params, &resp); err != nil {
 		return nil, err

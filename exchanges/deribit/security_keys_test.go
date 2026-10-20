@@ -46,13 +46,13 @@ func TestSecurityKeyChallengeErrorUnwrap(t *testing.T) {
 func TestWithSecurityKeyAuthorisation(t *testing.T) {
 	t.Parallel()
 	ctx := WithSecurityKeyAuthorisation(t.Context(), testSecurityKeyChallenge, testSecurityKeyCode)
-	exp := &securityKeyAuthorisation{AuthorisationData: testSecurityKeyCode, Challenge: testSecurityKeyChallenge}
+	exp := &SecurityKeyAuthorisation{AuthorisationData: testSecurityKeyCode, Challenge: testSecurityKeyChallenge}
 	assert.Equal(t, exp, ctx.Value(securityKeyAuthorisationKey{}), "WithSecurityKeyAuthorisation should hold the authorisation in the context")
 }
 
 func TestAuthorisedParams(t *testing.T) {
 	t.Parallel()
-	params := &instrumentNameParams{InstrumentName: "BTC-PERPETUAL"}
+	params := &InstrumentNameRequest{InstrumentName: "BTC-PERPETUAL"}
 	got, err := authorisedParams(t.Context(), params)
 	require.NoError(t, err, "authorisedParams must not error without an authorisation")
 	assert.Same(t, params, got, "authorisedParams should leave params unchanged without an authorisation")
@@ -65,7 +65,7 @@ func TestAuthorisedParams(t *testing.T) {
 		exp    string
 	}{
 		{name: "no params", exp: `{` + authorisation + `}`},
-		{name: "a nil request", params: (*instrumentNameParams)(nil), exp: `{` + authorisation + `}`},
+		{name: "a nil request", params: (*InstrumentNameRequest)(nil), exp: `{` + authorisation + `}`},
 		{name: "a request", params: params, exp: `{"instrument_name":"BTC-PERPETUAL",` + authorisation + `}`},
 		{name: "a map", params: map[string]any{"currency": "BTC"}, exp: `{"currency":"BTC",` + authorisation + `}`},
 	} {

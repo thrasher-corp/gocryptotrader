@@ -65,6 +65,10 @@ if err != nil {
 
 Deribit accepts each code once, so a context holding one should only send the challenged request again.
 
+`WithdrawCryptocurrencyFunds` confirms a withdrawal's challenge itself, once, with the request's `OneTimePassword`,
+which the engine fills from the exchange's OTP secret. A zero password means none is set, so a code of 000000 cannot be
+sent this way, and the challenge is returned instead.
+
 ### Orders
 
 + Amounts are in Deribit's units: USD for perpetuals and inverse futures, and the base currency for options, linear
@@ -77,31 +81,54 @@ Deribit accepts each code once, so a context holding one should only send the ch
 + `ModifyOrder` edits an order identified by its ID, or by its label in a pair. Deribit requires an amount with every
   edit, so when the modification leaves it unset, the order is fetched first and keeps its amount.
 + `CancelBatchOrders` cancels one order a request, as Deribit cancels no list of orders, and reports each order's state
-  or error. `CancelAllOrders` cancels a pair's orders, or every order of the asset when the pair is empty.
+  or error; it checks every cancel first, so an invalid batch cancels nothing. `CancelAllOrders` cancels a pair's
+  orders, or every order of the asset when the pair is empty. Deribit cancels stop and take profit orders only as
+  whole groups, so `order.Stop` cancels every stop order, and stop limit, stop market and take profit types are
+  refused.
 + `GetActiveOrders` returns the open orders of the requested pairs, or of every pair of the asset when none are
-  requested. `GetOrderHistory` returns the latest 1000 orders of each requested pair, including those older than two
-  days and those that never filled.
+  requested. `GetOrderHistory` returns the latest 1000 recent and the latest 1000 historical orders of each requested
+  pair, each order once, including those that never filled; Deribit keeps an order as a recent record for 30 minutes
+  after it closes, and serves older ones only as historical records.
++ `GetOrderInfo` looks an order up by its ID, which Deribit does only until 30 minutes after the order closes, so an
+  older order is looked for in the latest 1000 historical orders of the pair given.
 
 ### Balances
 
 Deribit's balances back every kind of instrument, so `UpdateAccountBalances` saves them under the asset requested. A
 balance's total is the currency's cash balance, its free amount what can be withdrawn, and its hold the rest, which
-covers the margin in use, positive session profit and reserved balances.
+covers the margin in use, positive session profit and reserved balances. The `user.portfolio` notifications a
+`myAccount` subscription receives update a currency's balance in the same way under each asset it is saved under, or
+under spot before any balances are saved.
 
 `GetAccountFundingHistory` returns the latest 1000 deposits and withdrawals of each currency available to the account,
 and `GetWithdrawalsHistory` the latest 1000 withdrawals of a currency, or of each one when the currency is empty.
 
+`GetAvailableTransferChains` returns a currency's networks, which a Coinbase wallet type account passes as the chain of
+`GetDepositAddress` and withdrawals; a currency without networks has none. `GetDepositAddress` refuses an address
+Deribit reports on a network other than the one requested.
+
+### Fees
+
+`GetFeeByType` estimates a trade's fee at its instrument's standard maker or taker commission of what Deribit charges it
+on: the value traded for spot and linear futures, the USD amount of an inverse future, and an option's underlying,
+capped at 12.5% of the option's price. Without valid credentials it estimates the fee at the highest standard
+commission, 0.05% of the value traded. It returns a currency's withdrawal fee, and deposits are free. Estimates leave
+out the fees of a combo's legs, as a combo's own commission is zero, and fee tier discounts.
+
 ### Market data
 
-+ `UpdateTickers` updates the tickers of an asset's enabled pairs from Deribit's book summaries, one request per currency
-  they are summarised under: a spot pair's base currency, or a derivative's settlement currency, which is USDC for linear
-  instruments such as `ETH_USDC-PERPETUAL`. Summaries leave out the best bid and ask sizes and the index price, which
-  `UpdateTicker` returns.
++ `UpdateTickers` updates the tickers of an asset's enabled pairs from Deribit's book summaries, one request per
+  currency they are summarised under: a spot pair's quote currency, or a derivative's settlement currency, which is USDC
+  for linear instruments such as `ETH_USDC-PERPETUAL`. Summaries leave out the best bid and ask sizes and the index
+  price, which `UpdateTicker` returns, so REST ticker batching is off.
 + Deribit serves no trade tape for the spot it routes to Coinbase Exchange, such as `BTC_USDC`, so `GetRecentTrades` and
-  `GetHistoricTrades` fail for it, and its trades and candles are left out of subscriptions once its pairs are fetched.
+  `GetHistoricTrades` fail for it, and its trades and candles are left out of subscriptions, as are spot trades by kind
+  for every currency or for a routed pair's base or quote.
 + A combo's spread can be quoted at a zero price, which an orderbook cannot hold, so such levels are left out.
 + Candles of 1 minute to 2 hours are fetched directly and longer ones are built from them, as Deribit aligns its 3 hour
-  and longer candles to 08:00 UTC.
+  and longer candles to 08:00 UTC. A candle's quote volume is Deribit's cost, which it sends as zero for option combos.
++ Funding rates are the hourly rates Deribit records at the end of each hour, so `GetLatestFundingRates` expects the
+  next an hour after the latest.
 
 ### Websocket
 
@@ -112,10 +139,16 @@ channel. An instrument's channels are subscribed for each enabled pair of the su
 channels take their options from the subscription's parameters:
 
 + `kind` and `currency` select the instruments of a channel such as `trades` subscribed without an asset, and default
-  to `any`
+  to `any`, except that `trades` needs a kind, such as `future`, as Deribit refuses `any`
 + `index_name`, such as `btc_usd`, selects an index channel's index, and is required
 + `currency` selects a currency channel's currency, such as for `user.portfolio`, and defaults to `any`
-+ `group`, with 1, 10 or 20 levels, subscribes a grouped orderbook, whose prices it groups, such as by `none` or `5`
++ `group`, with 1, 10 or 20 levels, subscribes a grouped orderbook, whose prices it groups, such as by `none` or `5`;
+  an instrument's orderbook is kept from one book channel, so a second one for it, plain or grouped, is refused
+
+Subscriptions are held by their qualified channel, so channels differing only by a parameter, such as two indexes, are
+held apart. The websocket manager's `SubscribeToChannels` checks a request for duplicates before Deribit qualifies its
+channels, comparing their channel, asset, pairs, levels and interval but not their parameters, so subscribe to a second
+channel differing only by a parameter through `Subscribe`.
 
 Intervals of 100ms, 1s (Deribit's `agg2`) or, when authenticated, raw set how often a channel notifies, and candles take
 their resolution from the interval. An orderbook change that does not follow the last one applied invalidates the book
@@ -127,6 +160,11 @@ The connection asks Deribit for a heartbeat every 15 seconds and answers each on
 
 Requests are limited to Deribit's default credits: 20 non-matching engine and 5 matching engine requests a second, and
 the lower rates of the methods Deribit limits separately. Subaccounts with more trading volume are allowed more.
+
+A request Deribit answers with code 10040, which it sends when it did not process the request, is sent again, up to five
+times in all. A REST request whose response times out is also sent again if it only reads, as public methods and
+private get, list and simulate methods do; Deribit may already have carried out any other, such as an order, a cancel,
+a withdrawal or a transfer.
 
 ### How to do REST public/private calls
 
@@ -175,6 +213,10 @@ if err != nil {
 	// Handle error
 }
 ```
+
+A method's `XRequest` argument holds its inputs as Go types. Where Deribit takes them in another form, such as times in
+Unix milliseconds, the JSON-RPC params the method sends are an exported `XParams` type. `SendHTTPRequest`,
+`SendAuthenticatedHTTPRequest` and `SendWebsocketRequest` take either for a request built by hand.
 
 ### How to do Websocket public/private calls
 

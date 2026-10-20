@@ -1,8 +1,10 @@
 package deribit
 
 import (
+	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,39 +18,17 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-// websocketVenue records the requests the mock of Deribit's websocket receives; live tests share Deribit's websocket,
-// and get a nil venue, which records nothing
-type websocketVenue struct {
-	mu       sync.Mutex
-	requests []websocketVenueRequest
-}
 
 // websocketVenueRequest is a JSON-RPC request as Deribit's websocket receives it
 type websocketVenueRequest struct {
 	ID     int64           `json:"id"`
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
-}
-
-// received returns the requests received for a method, in arrival order
-func (v *websocketVenue) received(method string) []websocketVenueRequest {
-	if v == nil {
-		return nil
-	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	var requests []websocketVenueRequest
-	for i := range v.requests {
-		if v.requests[i].Method == method {
-			requests = append(requests, v.requests[i])
-		}
-	}
-	return requests
 }
 
 func TestSendWebsocketRequest(t *testing.T) {
@@ -121,6 +101,34 @@ func TestWebsocketConnect(t *testing.T) {
 	disabled := newTestExchange(t)
 	require.NoError(t, disabled.Websocket.Disable(), "Disable must not error")
 	assert.ErrorIs(t, disabled.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should refuse a disabled websocket")
+
+	if !mockTests {
+		return
+	}
+	_, unauthenticatedVenue := newUnauthenticatedWebsocketTestExchange(t)
+	assert.Empty(t, unauthenticatedVenue.received("public/auth"), "WebsocketConnect should not authenticate without authenticated websocket support")
+
+	// Connecting without the manager leaves no connection monitor to redial, and waiting for each connection's reader to
+	// stop keeps it from marking the next connection closed
+	url, reloginVenue := startWebsocketVenue(t)
+	relogin := newTestExchange(t)
+	require.NoError(t, relogin.Websocket.SetWebsocketURL(url, false, false), "SetWebsocketURL must not error")
+	relogin.API.AuthenticatedWebsocketSupport = true
+	for _, tc := range []struct {
+		clientID      string
+		authenticated bool
+	}{
+		{testClientID, true},
+		{"other-client-id", false},
+		{testClientID, true},
+	} {
+		relogin.SetCredentials(&accounts.Credentials{Key: tc.clientID, Secret: testClientSecret})
+		require.NoError(t, relogin.WebsocketConnect(), "WebsocketConnect must connect, whether or not its login succeeds")
+		assert.Equalf(t, tc.authenticated, relogin.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should leave the connection of client ID %s authenticated only when its login succeeds", tc.clientID)
+		require.NoError(t, relogin.Websocket.Conn.Shutdown(), "Shutdown must close the connection")
+		relogin.Websocket.Wg.Wait()
+	}
+	assert.Len(t, reloginVenue.received("public/auth"), 3, "WebsocketConnect should authenticate every connection, a connection after a failed login included")
 }
 
 func TestWebsocketLogin(t *testing.T) {
@@ -252,14 +260,14 @@ func TestWebsocketHandleNotification(t *testing.T) {
 			exp:     &WebsocketPerpetualInterest{Timestamp: types.Time(time.UnixMilli(1792107433899)), IndexPrice: 82119.87, Interest: 3.70194509563518e-05},
 		},
 		{
-			channel: "quote.BTC-PERPETUAL",
-			data:    `{"timestamp":1792107433899,"instrument_name":"BTC-PERPETUAL","best_ask_price":82141.5,"best_bid_price":82141.0,"best_ask_amount":59940.0,"best_bid_amount":6.69e4}`,
-			exp:     &WebsocketQuote{Timestamp: types.Time(time.UnixMilli(1792107433899)), InstrumentName: "BTC-PERPETUAL", BestBidPrice: 82141, BestBidAmount: 66900, BestAskPrice: 82141.5, BestAskAmount: 59940},
-		},
-		{
 			channel: "deribit_price_index.btc_usd",
 			data:    `{"timestamp":1792107433668,"price":82119.87,"index_name":"btc_usd"}`,
 			exp:     &WebsocketPriceIndex{Timestamp: types.Time(time.UnixMilli(1792107433668)), IndexName: "btc_usd", Price: 82119.87},
+		},
+		{
+			channel: "deribit_price_index.sol_usdc",
+			data:    `{"timestamp":1792483554699,"price":103.8935,"index_name":"sol_usdc","mda_source":"primary","mda_version":1792160739946}`,
+			exp:     &WebsocketPriceIndex{Timestamp: types.Time(time.UnixMilli(1792483554699)), IndexName: "sol_usdc", Price: 103.8935, MDASource: "primary", MDAVersion: 1792160739946},
 		},
 		{
 			channel: "deribit_price_ranking.btc_usd",
@@ -400,26 +408,6 @@ func TestWebsocketHandleNotification(t *testing.T) {
 			channel: "user.lsp",
 			data:    `{"type":"transfer","instrument_name":"BTC-PERPETUAL","direction":"sell","amount":5000,"price":63481.75,"currency":"BTC","success":true,"starbase_match_id":987654321,"timestamp":1750000400000}`,
 			exp:     &WebsocketLSPEvent{Type: "transfer", InstrumentName: "BTC-PERPETUAL", Currency: currency.BTC, Direction: DirectionSell, Amount: 5000, Price: 63481.75, Success: true, StarbaseMatchID: 987654321, Timestamp: types.Time(time.UnixMilli(1750000400000))},
-		},
-		{
-			channel: "user.portfolio.btc",
-			data:    `{"delta_total_map":{"btc_usd":31.594397699},"margin_balance":302.62675921,"session_upl":0.05341555,"options_gamma_map":{"btc_usd":1e-05},"options_value":-0.0079,"available_withdrawal_funds":301.35426172,"maintenance_margin":0.8854841,"available_funds":301.38036328,"balance":302.60065765,"equity":302.6188592,"fee_balance":0,"currency":"BTC","portfolio_margining_enabled":false,"margin_model":"segregated_sm","initial_margin":1.24639592,"spot_reserve":0,"delta_total":31.602298,"additional_reserve":0}`,
-			exp: &AccountSummary{
-				Currency:                    currency.BTC,
-				Balance:                     302.60065765,
-				Equity:                      302.6188592,
-				MarginBalance:               302.62675921,
-				AvailableFunds:              301.38036328,
-				AvailableWithdrawalFunds:    301.35426172,
-				InitialMargin:               1.24639592,
-				MaintenanceMargin:           0.8854841,
-				SessionUnrealisedProfitLoss: 0.05341555,
-				OptionsValue:                -0.0079,
-				OptionsGammaByIndex:         map[string]float64{"btc_usd": 1e-05},
-				DeltaTotal:                  31.602298,
-				DeltaTotalByIndex:           map[string]float64{"btc_usd": 31.594397699},
-				MarginModel:                 "segregated_sm",
-			},
 		},
 		{
 			channel: "user.changes.BTC-PERPETUAL.raw",
@@ -636,6 +624,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	// Deribit routes these enabled spot pairs to Coinbase Exchange, and refuses their trades and candles
+	routed := []string{"BTC_USDC", "ETH_USDC"}
+	for _, name := range routed {
+		require.Truef(t, ex.isCoinbaseRoutedSpot(name), "generateSubscriptions must load %s as routed to Coinbase Exchange", name)
+	}
 	exp := subscription.List{}
 	for _, s := range ex.Features.Subscriptions {
 		for _, a := range ex.GetAssetTypes(true) {
@@ -650,6 +643,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 				sub.Pairs = pairs[i : i+1]
 				name, err := websocketChannelName(sub)
 				require.NoError(t, err, "websocketChannelName must not error")
+				if a == asset.Spot && (name == ChannelTrades || name == ChannelChartTrades) && slices.Contains(routed, formatPairString(a, p)) {
+					continue
+				}
 				interval := intervalHundredMS
 				if name == ChannelChartTrades {
 					interval = "1D"
@@ -665,6 +661,212 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err = ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error unauthenticated")
 	assert.False(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool { return s.Authenticated }), "generateSubscriptions should leave out private channels without authentication")
+
+	// spotSubscriptions enables only a Coinbase-routed and a matched spot pair, and subscribes the channels given
+	spotSubscriptions := func(t *testing.T, ex *Exchange, channels ...string) {
+		t.Helper()
+		setWrapperTestPairs(t, ex, asset.Spot, currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter), currency.NewPairWithDelimiter("ETH", "BTC", currency.UnderscoreDelimiter))
+		for _, a := range ex.GetAssetTypes(false) {
+			if a != asset.Spot {
+				require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+			}
+		}
+		ex.Features.Subscriptions = subscription.List{}
+		for _, channel := range channels {
+			interval := kline.HundredMilliseconds
+			if channel == subscription.CandlesChannel {
+				interval = kline.OneDay
+			}
+			ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: channel, Interval: interval})
+		}
+	}
+	// spotInstruments is a public/get_instruments response with a Coinbase-routed and a matched spot pair
+	const spotInstruments = `{"jsonrpc":"2.0","result":[{"instrument_name":"BTC_USDC","kind":"spot","is_active":true,"is_cbe_routed":true,"is_csr":true},{"instrument_name":"ETH_BTC","kind":"spot","is_active":true}]}`
+	streamed := []string{"ticker.BTC_USDC.100ms", "ticker.ETH_BTC.100ms", "trades.ETH_BTC.100ms", "chart.trades.ETH_BTC.1D"}
+
+	t.Run("routed spot loaded", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperServerExchange(t, func(method string, _ json.RawMessage) string {
+			assert.Failf(t, "unexpected request", "generateSubscriptions should not request %s once the routed spot is loaded", method)
+			return spotInstruments
+		})
+		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel)
+		_, err := ex.tradablePairs(asset.Spot, []Instrument{{InstrumentName: "BTC_USDC", IsActive: true, IsCoinbaseExchangeRouted: true}})
+		require.NoError(t, err, "tradablePairs must not error")
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error")
+		assert.ElementsMatch(t, streamed, subs.QualifiedChannels(), "generateSubscriptions should leave out the trades and candles of Coinbase-routed spot")
+	})
+
+	t.Run("routed spot unloaded", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var requests []string
+		ex := newWrapperServerExchange(t, func(method string, params json.RawMessage) string {
+			mu.Lock()
+			requests = append(requests, method+" "+string(params))
+			mu.Unlock()
+			return spotInstruments
+		})
+		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel)
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error")
+		assert.ElementsMatch(t, streamed, subs.QualifiedChannels(), "generateSubscriptions should load the spot instruments to leave out the trades and candles of Coinbase-routed spot")
+		mu.Lock()
+		assert.Equal(t, []string{`public/get_instruments {"currency":"any","kind":"spot"}`}, requests, "generateSubscriptions should request the spot instruments once")
+		mu.Unlock()
+		_, err = ex.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error again")
+		mu.Lock()
+		assert.Len(t, requests, 1, "generateSubscriptions should not request the spot instruments again once loaded")
+		mu.Unlock()
+	})
+
+	t.Run("spot trades by kind", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+			requests.Add(1)
+			return spotInstruments
+		})
+		ex.Features.Subscriptions = subscription.List{
+			{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "spot"}},
+			{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "spot", "currency": "ETH"}},
+			{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "future"}},
+		}
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error")
+		assert.ElementsMatch(t, []string{"trades.spot.ETH.100ms", "trades.future.any.100ms"}, subs.QualifiedChannels(), "generateSubscriptions should leave out spot trades by kind of every currency, which Deribit refuses while any spot is routed")
+		assert.Equal(t, int32(1), requests.Load(), "generateSubscriptions should load the spot instruments for spot trades by kind")
+	})
+
+	t.Run("routed spot not needed", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperServerExchange(t, func(method string, _ json.RawMessage) string {
+			assert.Failf(t, "unexpected request", "generateSubscriptions should not request %s without spot trades or candles to subscribe", method)
+			return spotInstruments
+		})
+		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.OrderbookChannel)
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error")
+		assert.ElementsMatch(t, []string{"ticker.BTC_USDC.100ms", "ticker.ETH_BTC.100ms", "book.BTC_USDC.100ms", "book.ETH_BTC.100ms"}, subs.QualifiedChannels(), "generateSubscriptions should subscribe every pair's ticker and book")
+		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded")
+	})
+
+	t.Run("loading fails", func(t *testing.T) {
+		t.Parallel()
+		ex := newUnavailableServerExchange(t)
+		spotSubscriptions(t, ex, subscription.AllTradesChannel)
+		_, err := ex.generateSubscriptions()
+		assert.ErrorIs(t, err, request.ErrBadStatus, "generateSubscriptions should return the failure to load the spot instruments")
+		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded, for the next generation to load")
+	})
+}
+
+func TestIsSpotKindTrades(t *testing.T) {
+	t.Parallel()
+	spot := currency.NewPairWithDelimiter("ETH", "BTC", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name string
+		sub  *subscription.Subscription
+		exp  bool
+	}{
+		{name: "spot trades", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"kind": "spot"}}, exp: true},
+		{name: "spot trades named by channel", sub: &subscription.Subscription{Channel: ChannelTrades, Params: map[string]any{"kind": "SPOT", "currency": "BTC"}}, exp: true},
+		{name: "future trades", sub: &subscription.Subscription{Channel: ChannelTrades, Params: map[string]any{"kind": "future"}}},
+		{name: "trades without a kind", sub: &subscription.Subscription{Channel: ChannelTrades}},
+		{name: "a spot pair's trades", sub: &subscription.Subscription{Asset: asset.Spot, Channel: ChannelTrades, Pairs: currency.Pairs{spot}, Params: map[string]any{"kind": "spot"}}},
+		{name: "spot instrument states", sub: &subscription.Subscription{Channel: ChannelInstrumentState, Params: map[string]any{"kind": "spot"}}},
+		{name: "an unknown channel", sub: &subscription.Subscription{Channel: "bogus", Params: map[string]any{"kind": "spot"}}},
+		{name: "a malformed kind", sub: &subscription.Subscription{Channel: ChannelTrades, Params: map[string]any{"kind": 1}}},
+	} {
+		assert.Equalf(t, tc.exp, isSpotKindTrades(tc.sub), "isSpotKindTrades should report %s correctly", tc.name)
+	}
+}
+
+func TestIsRoutedSpotSensitive(t *testing.T) {
+	t.Parallel()
+	spot := currency.NewPairWithDelimiter("ETH", "BTC", currency.UnderscoreDelimiter)
+	assert.True(t, isRoutedSpotSensitive(&subscription.Subscription{Asset: asset.Spot, Channel: ChannelChartTrades, Pairs: currency.Pairs{spot}}), "isRoutedSpotSensitive should report a spot pair's candles")
+	assert.True(t, isRoutedSpotSensitive(&subscription.Subscription{Channel: ChannelTrades, Params: map[string]any{"kind": "spot"}}), "isRoutedSpotSensitive should report spot trades by kind")
+	assert.False(t, isRoutedSpotSensitive(&subscription.Subscription{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spot}}), "isRoutedSpotSensitive should not report a spot pair's ticker")
+}
+
+func TestExpandSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	subs, err := ex.expandSubscriptions(subscription.List{
+		{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}},
+		{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}},
+	})
+	require.NoError(t, err, "expandSubscriptions must not error")
+	require.Len(t, subs, 2, "expandSubscriptions must qualify each subscription")
+	for _, s := range subs {
+		assert.Equalf(t, qualifiedChannelKey{s}, s.EnsureKeyed(), "expandSubscriptions should key %s by its qualified channel", s.QualifiedChannel)
+	}
+	_, err = ex.expandSubscriptions(subscription.List{{Channel: ChannelPriceIndex}})
+	assert.ErrorIs(t, err, errChannelParameter, "expandSubscriptions should return a qualification failure")
+
+	// The store reads a held subscription's key without its lock while it compares subscriptions, so expanding a held
+	// subscription again must leave its key alone, which the race detector checks
+	store := subscription.NewStore()
+	require.NoError(t, store.Add(subs[0]), "Add must not error")
+	compare, err := ex.expandSubscriptions(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
+	require.NoError(t, err, "expandSubscriptions must not error")
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for range 100 {
+			_, _ = ex.expandSubscriptions(subscription.List{subs[0]})
+		}
+	})
+	wg.Go(func() {
+		for range 100 {
+			store.Diff(compare)
+		}
+	})
+	wg.Wait()
+	assert.Equal(t, qualifiedChannelKey{subs[0]}, subs[0].EnsureKeyed(), "expandSubscriptions should leave a held subscription keyed by its qualified channel")
+
+	keyedByAnother := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}, QualifiedChannel: "deribit_price_index.eth_usd"}
+	keyedByAnother.SetKey(qualifiedChannelKey{subs[0]})
+	_, err = ex.expandSubscriptions(subscription.List{keyedByAnother})
+	require.NoError(t, err, "expandSubscriptions must not error")
+	assert.Equal(t, qualifiedChannelKey{keyedByAnother}, keyedByAnother.EnsureKeyed(), "expandSubscriptions should key a subscription keyed by another one by its own qualified channel")
+}
+
+func TestQualifiedChannelKey(t *testing.T) {
+	t.Parallel()
+	btc := &subscription.Subscription{Channel: ChannelPriceIndex, QualifiedChannel: "deribit_price_index.btc_usd"}
+	key := qualifiedChannelKey{btc}
+	assert.True(t, key.Match(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "deribit_price_index.btc_usd"}}), "Match should match the same qualified channel")
+	assert.False(t, key.Match(qualifiedChannelKey{&subscription.Subscription{Channel: ChannelPriceIndex, QualifiedChannel: "deribit_price_index.eth_usd"}}), "Match should not match a channel differing by a parameter")
+	assert.False(t, key.Match(nil), "Match should not match a nil key")
+	assert.False(t, key.Match(qualifiedChannelKey{}), "Match should not match a key without a subscription")
+	assert.Same(t, btc, key.GetSubscription(), "GetSubscription should return the key's subscription")
+	assert.Equal(t, "deribit_price_index.btc_usd", key.String(), "String should return the qualified channel")
+	assert.Equal(t, "Uninitialised qualifiedChannelKey", qualifiedChannelKey{}.String(), "String should describe a key without a subscription")
+}
+
+func TestIsSpotTradesOrCandles(t *testing.T) {
+	t.Parallel()
+	spot := currency.NewPairWithDelimiter("ETH", "BTC", currency.UnderscoreDelimiter)
+	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		exp bool
+	}{
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{spot}}, exp: true},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: ChannelTrades, Pairs: currency.Pairs{spot}}, exp: true},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: currency.Pairs{spot}}, exp: true},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: ChannelChartTrades, Pairs: currency.Pairs{spot}}, exp: true},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spot}}},
+		{sub: &subscription.Subscription{Asset: asset.Futures, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{perp}}},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{spot, perp}}},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: subscription.AllTradesChannel}},
+		{sub: &subscription.Subscription{Asset: asset.Spot, Channel: "bogus", Pairs: currency.Pairs{spot}}},
+	} {
+		assert.Equalf(t, tc.exp, isSpotTradesOrCandles(tc.sub), "isSpotTradesOrCandles should report %s %s of %d pairs correctly", tc.sub.Asset, tc.sub.Channel, len(tc.sub.Pairs))
+	}
 }
 
 func TestGetSubscriptionTemplate(t *testing.T) {
@@ -680,7 +882,7 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spot}, Interval: kline.ThousandMilliseconds, Levels: 10, Params: map[string]any{"group": float64(5)}}, exp: []string{"book.ETH_BTC.5.10.agg2"}},
 		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Futures, Pairs: currency.Pairs{perp}, Interval: kline.FifteenMin}, exp: []string{"chart.trades.BTC-PERPETUAL.15"}},
 		{sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, Interval: kline.Raw, Params: map[string]any{"kind": KindFuture, "currency": "btc"}}, exp: []string{"user.orders.future.BTC.raw"}},
-		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds}, exp: []string{"trades.any.any.100ms"}},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": KindFuture}}, exp: []string{"trades.future.any.100ms"}},
 		{sub: &subscription.Subscription{Channel: ChannelIncrementalTicker, Asset: asset.Futures, Pairs: currency.Pairs{perp}}, exp: []string{"incremental_ticker.BTC-PERPETUAL"}},
 		{sub: &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}, exp: []string{"deribit_price_index.btc_usd"}},
 		{sub: &subscription.Subscription{Channel: subscription.MyAccountChannel, Authenticated: true}, exp: []string{"user.portfolio.any"}},
@@ -697,6 +899,8 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 
 	_, err := subscription.List{{Channel: ChannelQuote}}.ExpandTemplates(ex)
 	assert.ErrorIs(t, err, errChannelNeedsInstrument, "GetSubscriptionTemplate should need pairs for an instrument channel")
+	_, err = subscription.List{{Channel: ChannelTrades, Interval: kline.HundredMilliseconds}}.ExpandTemplates(ex)
+	assert.ErrorIs(t, err, errChannelParameter, "GetSubscriptionTemplate should need a kind for trades without an asset")
 	_, err = subscription.List{{Channel: "bogus"}}.ExpandTemplates(ex)
 	assert.ErrorIs(t, err, subscription.ErrNotSupported, "GetSubscriptionTemplate should reject an unknown channel")
 }
@@ -766,7 +970,11 @@ func TestQualifyChannel(t *testing.T) {
 		{sub: &subscription.Subscription{Channel: ChannelBlockTradeConfirmations, Authenticated: true, Params: map[string]any{"currency": []string{}}}, err: errChannelParameter},
 		{sub: &subscription.Subscription{Channel: ChannelBlockRFQMaker, Params: map[string]any{"currency": "BTC"}}, err: errChannelNeedsAuthentication},
 		{sub: &subscription.Subscription{Channel: ChannelAnnouncements}, exp: "announcements"},
-		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.OneMin}, err: kline.ErrUnsupportedInterval},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": KindOption, "currency": "btc"}}, exp: "trades.option.BTC.100ms"},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds}, err: errChannelParameter},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": channelAny}}, err: errChannelParameter},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "ANY", "currency": "BTC"}}, err: errChannelParameter},
+		{sub: &subscription.Subscription{Channel: ChannelTrades, Interval: kline.OneMin, Params: map[string]any{"kind": KindFuture}}, err: kline.ErrUnsupportedInterval},
 		{sub: &subscription.Subscription{Channel: "bogus"}, err: subscription.ErrNotSupported},
 	} {
 		qualified, err := qualifyChannel(tc.sub)
@@ -885,35 +1093,137 @@ func TestChannelCurrency(t *testing.T) {
 	}
 }
 
+// heldSubscription returns the subscription an exchange holds for a qualified channel, or nil; the live tests share one
+// connection, so each checks only the channels it subscribes, which no other test subscribes
+func heldSubscription(ex *Exchange, channel string) *subscription.Subscription {
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		if s.QualifiedChannel == channel {
+			return s
+		}
+	}
+	return nil
+}
+
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
-	public := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}}
+	const channel = "deribit_price_index.sol_usdc"
+	public := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "sol_usdc"}}
 	require.NoError(t, ex.Subscribe(subscription.List{public}), "Subscribe must not error")
-	held := ex.Websocket.GetSubscriptions()
-	require.Len(t, held, 1, "Subscribe must store the acknowledged subscription")
-	assert.Equal(t, "deribit_price_index.eth_usd", held[0].QualifiedChannel, "Subscribe should store the qualified channel")
+	held := heldSubscription(ex, channel)
+	require.NotNil(t, held, "Subscribe must store the acknowledged subscription under its qualified channel")
 	if mockTests {
 		requests := venue.received("public/subscribe")
 		require.Len(t, requests, 1, "Subscribe must send a public/subscribe request")
-		assert.JSONEq(t, `{"channels":["deribit_price_index.eth_usd"]}`, string(requests[0].Params), "Subscribe should send the qualified channel")
+		assert.JSONEq(t, `{"channels":["deribit_price_index.sol_usdc"]}`, string(requests[0].Params), "Subscribe should send the qualified channel")
 	}
-	require.NoError(t, ex.Unsubscribe(held), "Unsubscribe must not error")
-	assert.Empty(t, ex.Websocket.GetSubscriptions(), "Unsubscribe should remove the acknowledged subscription")
+	require.NoError(t, ex.Unsubscribe(subscription.List{held}), "Unsubscribe must not error")
+	assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the acknowledged subscription")
 
 	assert.ErrorIs(t, ex.Subscribe(subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "Subscribe should reject an unknown channel")
+	assert.ErrorIs(t, ex.Subscribe(subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Subscribe should return a qualification failure")
+
+	if !mockTests {
+		return
+	}
+	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)
+	plainBook := func() *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{perp}, Interval: kline.HundredMilliseconds}
+	}
+	groupedBook := func() *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{perp}, Interval: kline.HundredMilliseconds, Levels: 10}
+	}
+
+	t.Run("channels differing by a parameter", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newWebsocketTestExchange(t)
+		btc := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}
+		eth := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}}
+		require.NoError(t, ex.Subscribe(subscription.List{btc, eth}), "Subscribe must not error for two indexes")
+		assert.ElementsMatch(t, []string{"deribit_price_index.btc_usd", "deribit_price_index.eth_usd"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Subscribe should hold each index's channel")
+		require.NoError(t, ex.Unsubscribe(subscription.List{heldSubscription(ex, "deribit_price_index.eth_usd")}), "Unsubscribe must not error")
+		assert.Equal(t, []string{"deribit_price_index.btc_usd"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Unsubscribe should leave the other index's channel held")
+	})
+
+	t.Run("book channels requested together", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		rawBook := plainBook()
+		rawBook.Interval = kline.Raw
+		rawBook.Authenticated = true
+		tickerSub := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{perp}, Interval: kline.HundredMilliseconds}
+		err := ex.Subscribe(subscription.List{groupedBook(), rawBook, tickerSub})
+		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "Subscribe should refuse a public and a private book channel of one instrument")
+		requests := venue.received("public/subscribe")
+		require.Len(t, requests, 1, "Subscribe must still subscribe the other channels")
+		assert.JSONEq(t, `{"channels":["ticker.BTC-PERPETUAL.100ms"]}`, string(requests[0].Params), "Subscribe should send neither book channel")
+		assert.Empty(t, venue.received("private/subscribe"), "Subscribe should send nothing for the refused raw book")
+		assert.Equal(t, []string{"ticker.BTC-PERPETUAL.100ms"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Subscribe should hold neither book channel")
+	})
+
+	t.Run("book channel held", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.Subscribe(subscription.List{plainBook()}), "Subscribe must not error for a plain book")
+		err := ex.Subscribe(subscription.List{groupedBook()})
+		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "Subscribe should refuse a grouped book while the instrument's plain book is held")
+		assert.Len(t, venue.received("public/subscribe"), 1, "Subscribe should send nothing for a refused book channel")
+		assert.Equal(t, []string{"book.BTC-PERPETUAL.100ms"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Subscribe should hold only the book channel held before")
+	})
+
+	t.Run("book channels requested at once", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		venue.delayNext("public/subscribe", 200*time.Millisecond)
+		errs := make([]error, 2)
+		var wg sync.WaitGroup
+		for i, book := range []*subscription.Subscription{plainBook(), groupedBook()} {
+			wg.Go(func() { errs[i] = ex.Subscribe(subscription.List{book}) })
+		}
+		wg.Wait()
+		refused := slices.IndexFunc(errs, func(err error) bool { return errors.Is(err, subscription.ErrExclusiveSubscription) })
+		require.NotEqual(t, -1, refused, "Subscribe must refuse one of two book channels requested at once")
+		assert.NoError(t, errs[1-refused], "Subscribe should subscribe the other book channel")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "Subscribe should hold one book channel of the instrument")
+		assert.Len(t, venue.received("public/subscribe"), 1, "Subscribe should send only the book channel it holds")
+	})
+
+	t.Run("unsubscribe during a subscribe", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			access string
+			sub    *subscription.Subscription
+		}{
+			{"public", &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}},
+			{"private", &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}},
+		} {
+			t.Run(tc.access, func(t *testing.T) {
+				t.Parallel()
+				ex, venue := newWebsocketTestExchange(t)
+				method := tc.access + "/subscribe"
+				venue.delayNext(method, 150*time.Millisecond)
+				subscribed := make(chan error, 1)
+				go func() { subscribed <- ex.Subscribe(subscription.List{tc.sub}) }()
+				require.Eventually(t, func() bool { return len(venue.received(method)) == 1 }, 5*time.Second, time.Millisecond, "Subscribe must send its request")
+				assert.NoError(t, ex.Unsubscribe(subscription.List{tc.sub}), "Unsubscribe should wait for the subscribe under way, then remove its subscription")
+				assert.NoError(t, <-subscribed, "Subscribe should not error")
+				assert.Empty(t, ex.Websocket.GetSubscriptions(), "Unsubscribe should leave no subscription held")
+			})
+		}
+	})
 }
 
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
 	skipLiveWithoutCredentials(t)
-	private := &subscription.Subscription{Channel: ChannelUserLock, Authenticated: true}
+	const channel = "user.liquidation"
+	private := &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}
 	require.NoError(t, ex.Subscribe(subscription.List{private}), "Subscribe must not error for a private channel")
-	held := ex.Websocket.GetSubscriptions()
-	require.Len(t, held, 1, "Subscribe must store the private subscription")
-	require.NoError(t, ex.Unsubscribe(held), "Unsubscribe must not error for a private channel")
-	assert.Empty(t, ex.Websocket.GetSubscriptions(), "Unsubscribe should remove the private subscription")
+	held := heldSubscription(ex, channel)
+	require.NotNil(t, held, "Subscribe must store the private subscription under its qualified channel")
+	require.NoError(t, ex.Unsubscribe(subscription.List{held}), "Unsubscribe must not error for a private channel")
+	assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the private subscription")
 	if mockTests {
 		assert.Len(t, venue.received("private/subscribe"), 1, "Subscribe should subscribe a private channel through private/subscribe")
 		assert.Len(t, venue.received("private/unsubscribe"), 1, "Unsubscribe should unsubscribe a private channel through private/unsubscribe")
@@ -924,27 +1234,94 @@ func TestHandleSubscription(t *testing.T) {
 	t.Parallel()
 	ex, _ := newWebsocketTestExchange(t)
 	require.NoError(t, ex.handleSubscription(t.Context(), true, false, nil), "handleSubscription must not error without subscriptions")
-	err := ex.handleSubscription(t.Context(), true, false, subscription.List{{Channel: ChannelPriceIndex}})
-	assert.ErrorIs(t, err, errChannelParameter, "handleSubscription should return a qualification failure")
+
+	disconnected := newTestExchange(t)
+	indexSubs, err := disconnected.expandSubscriptions(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
+	require.NoError(t, err, "expandSubscriptions must not error")
+	err = disconnected.handleSubscription(t.Context(), true, false, indexSubs)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "handleSubscription should return the request failure")
 
 	if !mockTests {
 		return
 	}
-	subs := subscription.List{
+	subs, err := ex.expandSubscriptions(subscription.List{
 		{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}},
 		{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": unacknowledgedChannel}},
-	}
+	})
+	require.NoError(t, err, "expandSubscriptions must not error")
 	err = ex.handleSubscription(t.Context(), true, false, subs)
 	assert.ErrorIs(t, err, errUnacknowledgedSubscription, "handleSubscription should report a channel Deribit does not acknowledge")
 	held := ex.Websocket.GetSubscriptions()
 	require.Len(t, held, 1, "handleSubscription must store only the acknowledged subscription")
 	assert.Equal(t, "deribit_price_index.btc_usd", held[0].QualifiedChannel, "handleSubscription should store the acknowledged channel")
+	require.NoError(t, ex.handleSubscription(t.Context(), false, false, held), "handleSubscription must not error unsubscribing")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "handleSubscription should remove the unsubscribed channel")
 
 	_, err = newTestExchange(t).WebsocketAPI().Subscribe(t.Context(), []string{"deribit_price_index.btc_usd"})
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe must error without a connection")
-	disconnected := newTestExchange(t)
-	err = disconnected.handleSubscription(t.Context(), true, false, subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "handleSubscription should return the request failure")
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe should error without a connection")
+}
+
+func TestRefuseBookConflicts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		held      []string
+		requested []string
+		allowed   []string
+		refused   int
+	}{
+		{name: "no book channel", requested: []string{"ticker.BTC-PERPETUAL.100ms", "deribit_price_index.btc_usd"}, allowed: []string{"deribit_price_index.btc_usd", "ticker.BTC-PERPETUAL.100ms"}},
+		{name: "one book channel twice", requested: []string{"book.BTC-PERPETUAL.100ms", "book.BTC-PERPETUAL.100ms"}, allowed: []string{"book.BTC-PERPETUAL.100ms", "book.BTC-PERPETUAL.100ms"}},
+		{name: "book channels of two instruments", requested: []string{"book.BTC-PERPETUAL.100ms", "book.ETH-PERPETUAL.none.10.100ms"}, allowed: []string{"book.BTC-PERPETUAL.100ms", "book.ETH-PERPETUAL.none.10.100ms"}},
+		{name: "plain and grouped requested", requested: []string{"book.BTC-PERPETUAL.100ms", "book.BTC-PERPETUAL.none.10.100ms", "book.ETH-PERPETUAL.100ms", "ticker.BTC-PERPETUAL.100ms"}, allowed: []string{"book.ETH-PERPETUAL.100ms", "ticker.BTC-PERPETUAL.100ms"}, refused: 2},
+		{name: "two intervals requested", requested: []string{"book.BTC-PERPETUAL.100ms", "book.BTC-PERPETUAL.agg2"}, allowed: []string{}, refused: 2},
+		{name: "two groupings requested", requested: []string{"book.BTC-PERPETUAL.none.10.100ms", "book.BTC-PERPETUAL.5.1.100ms"}, allowed: []string{}, refused: 2},
+		{name: "grouped while plain held", held: []string{"book.BTC-PERPETUAL.100ms"}, requested: []string{"book.BTC-PERPETUAL.none.10.100ms", "book.ETH-PERPETUAL.none.10.100ms"}, allowed: []string{"book.ETH-PERPETUAL.none.10.100ms"}, refused: 1},
+		{name: "plain while grouped held", held: []string{"book.BTC-PERPETUAL.none.10.100ms"}, requested: []string{"book.BTC-PERPETUAL.raw"}, allowed: []string{}, refused: 1},
+		{name: "held book channel requested", held: []string{"book.BTC-PERPETUAL.100ms"}, requested: []string{"book.BTC-PERPETUAL.100ms"}, allowed: []string{"book.BTC-PERPETUAL.100ms"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			for _, channel := range tc.held {
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, &subscription.Subscription{QualifiedChannel: channel}), "AddSuccessfulSubscriptions must not error")
+			}
+			requested := make(subscription.List, len(tc.requested))
+			for i, channel := range tc.requested {
+				requested[i] = &subscription.Subscription{QualifiedChannel: channel}
+			}
+			allowed, err := ex.refuseBookConflicts(requested)
+			assert.Equal(t, tc.allowed, allowed.QualifiedChannels(), "refuseBookConflicts should leave the conflicting book channels out")
+			if tc.refused == 0 {
+				assert.NoError(t, err, "refuseBookConflicts should not error without a conflict")
+				return
+			}
+			assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "refuseBookConflicts should refuse a second book channel of an instrument")
+			refusals := 1
+			var joined interface{ Unwrap() []error }
+			if errors.As(err, &joined) {
+				refusals = len(joined.Unwrap())
+			}
+			assert.Equal(t, tc.refused, refusals, "refuseBookConflicts should return an error for each channel left out")
+		})
+	}
+}
+
+func TestBookInstrument(t *testing.T) {
+	t.Parallel()
+	for channel, exp := range map[string]string{
+		"book.BTC-PERPETUAL.100ms":         "BTC-PERPETUAL",
+		"book.BTC-PERPETUAL.none.10.100ms": "BTC-PERPETUAL",
+		"book.ETH_USDC.raw":                "ETH_USDC",
+		"book.BTC-PERPETUAL":               "",
+		"bookkeeping.BTC-PERPETUAL.100ms":  "",
+		"ticker.BTC-PERPETUAL.100ms":       "",
+		"book":                             "",
+	} {
+		instrument, ok := bookInstrument(channel)
+		assert.Equalf(t, exp != "", ok, "bookInstrument should report whether %s is a qualified book channel", channel)
+		assert.Equalf(t, exp, instrument, "bookInstrument should return %s's instrument", channel)
+	}
 }
 
 func TestWebsocketBlockRFQQuotesUnmarshalJSON(t *testing.T) {

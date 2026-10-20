@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"io"
@@ -105,6 +106,41 @@ func newUnavailableServerExchange(t *testing.T) *Exchange {
 	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "unavailable", http.StatusServiceUnavailable)
 	}))
+}
+
+// countingTransport counts the requests sent through it
+type countingTransport struct {
+	base http.RoundTripper
+	sent atomic.Int32
+}
+
+// RoundTrip counts a request and sends it
+func (c *countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.sent.Add(1)
+	return c.base.RoundTrip(r)
+}
+
+// newTimeoutServerExchange returns an exchange, with placeholder credentials, whose REST requests are never answered and
+// so time out after a short HTTP client timeout, and the transport counting the requests its client sends
+func newTimeoutServerExchange(t *testing.T) (*Exchange, *countingTransport) {
+	t.Helper()
+	unanswered := make(chan struct{})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-unanswered:
+		}
+	}))
+	t.Cleanup(func() { close(unanswered) })
+	ex := new(Exchange)
+	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	ex.Name = t.Name()
+	setTestCredentials(ex, &accounts.Credentials{Key: testClientID, Secret: testClientSecret})
+	transport := &countingTransport{base: server.Client().Transport}
+	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport, Timeout: 100 * time.Millisecond}), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+	return ex, transport
 }
 
 // setTestCredentials enables authenticated support with the given credentials
@@ -221,6 +257,101 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	err = ex.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/get_account_summary", nil, &result)
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should report missing credentials as an authentication failure")
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SendAuthenticatedHTTPRequest should return the credentials error")
+
+	for _, tc := range []struct {
+		method string
+		epl    request.EndpointLimit
+		sent   int
+	}{
+		{method: "private/buy", epl: matchingEPL, sent: 1},
+		{method: "private/mass_quote", epl: massQuoteEPL, sent: 1},
+		{method: "private/withdraw", epl: nonMatchingEPL, sent: 1},
+		{method: "private/submit_transfer_to_user", epl: nonMatchingEPL, sent: 1},
+		{method: "private/get_account_summary", epl: nonMatchingEPL, sent: request.MaxRetryAttempts + 1},
+	} {
+		unanswered, transport := newTimeoutServerExchange(t)
+		err := unanswered.SendAuthenticatedHTTPRequest(t.Context(), tc.epl, tc.method, nil, &result)
+		assert.Errorf(t, err, "SendAuthenticatedHTTPRequest should return the timeout of %s", tc.method)
+		assert.Equalf(t, tc.sent, int(transport.sent.Load()), "SendAuthenticatedHTTPRequest should make %d attempts at %s when its response times out", tc.sent, tc.method)
+	}
+	var attempts atomic.Int32
+	retried := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		body := `{"jsonrpc":"2.0","result":{"currency":"BTC"}}`
+		if attempts.Add(1) == 1 {
+			body = `{"jsonrpc":"2.0","error":{"code":10040,"message":"retry"}}`
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	require.NoError(t, retried.SendAuthenticatedHTTPRequest(t.Context(), matchingEPL, "private/buy", nil, &result), "SendAuthenticatedHTTPRequest must succeed once Deribit stops asking for a retry")
+	assert.Equal(t, int32(2), attempts.Load(), "SendAuthenticatedHTTPRequest should send a matching engine request again when Deribit asks for a retry")
+
+	quick := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"currency":"BTC"}}`)
+	const signedRequests = 10
+	start := time.Now()
+	for range signedRequests {
+		require.NoError(t, quick.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/get_account_summary", nil, &result), "SendAuthenticatedHTTPRequest must not error")
+	}
+	// A signed request that waited out the timed lock its nonce takes would spend the lock's whole duration
+	assert.Less(t, time.Since(start), signedRequests*request.DefaultMutexLockTimeout/2, "SendAuthenticatedHTTPRequest should not wait out the timed lock taken with its nonce")
+}
+
+func TestResendable(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		method string
+		exp    bool
+	}{
+		{method: "public/get_time", exp: true},
+		{method: "public/auth", exp: true},
+		{method: "private/get_account_summary", exp: true},
+		{method: "private/list_api_keys", exp: true},
+		{method: "private/simulate_portfolio", exp: true},
+		{method: "private/buy"},
+		{method: "private/cancel_all"},
+		{method: "private/withdraw"},
+		{method: "private/submit_transfer_to_subaccount"},
+		{method: "private/verify_block_trade"},
+		{method: "private/getaway"},
+		{method: "get_time", exp: true},
+	} {
+		assert.Equalf(t, tc.exp, resendable(tc.method), "resendable should report whether %s may be sent again", tc.method)
+	}
+}
+
+func TestHTTPRequestItem(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	var result map[string]string
+	for _, tc := range []struct {
+		name  string
+		path  string
+		body  string
+		creds *accounts.Credentials
+	}{
+		{name: "an unsigned request", path: "/api/v2/public/get_time", body: `{"jsonrpc":"2.0","method":"public/get_time"}`},
+		{name: "a signed request", path: "/api/v2/private/get_account_summary", body: `{"jsonrpc":"2.0","method":"private/get_account_summary","params":{"currency":"BTC"}}`, creds: &accounts.Credentials{Key: testClientID, Secret: testClientSecret}},
+	} {
+		item, err := ex.httpRequestItem(apiURL, tc.path, []byte(tc.body), &result, tc.creds)
+		require.NoErrorf(t, err, "httpRequestItem must not error for %s", tc.name)
+		if tc.creds != nil {
+			assertHTTPSignature(t, item.Headers["Authorization"], tc.path, []byte(tc.body))
+			delete(item.Headers, "Authorization")
+		}
+		exp := &request.Item{
+			Method:                 http.MethodPost,
+			Path:                   apiURL + tc.path,
+			Headers:                map[string]string{"Content-Type": "application/json"},
+			Body:                   bytes.NewReader([]byte(tc.body)),
+			Result:                 &result,
+			NonceEnabled:           tc.creds != nil,
+			Verbose:                ex.Verbose,
+			HTTPDebugging:          ex.HTTPDebugging,
+			HTTPRecording:          ex.HTTPRecording,
+			HTTPMockDataSliceLimit: ex.HTTPMockDataSliceLimit,
+		}
+		assert.Equalf(t, exp, item, "httpRequestItem should build %s", tc.name)
+	}
 }
 
 func TestSendHTTPQueryRequest(t *testing.T) {
@@ -321,11 +452,13 @@ func TestSendRequest(t *testing.T) {
 
 func TestSendOKRequest(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`).sendOKRequest(t.Context(), false, nonMatchingEPL, "private/reset_mmp", nil), "sendOKRequest must not error for an ok result")
-	err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).sendOKRequest(t.Context(), false, nonMatchingEPL, "private/reset_mmp", nil)
+	require.NoError(t, newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`).sendOKRequest(t.Context(), false, "private/reset_mmp", nil), "sendOKRequest must not error for an ok result")
+	err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).sendOKRequest(t.Context(), false, "private/reset_mmp", nil)
 	assert.ErrorIs(t, err, errUnexpectedResult, "sendOKRequest should reject a result other than ok")
-	err = newUnavailableServerExchange(t).sendOKRequest(t.Context(), false, nonMatchingEPL, "private/reset_mmp", nil)
+	err = newUnavailableServerExchange(t).sendOKRequest(t.Context(), false, "private/reset_mmp", nil)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "sendOKRequest should return the request failure")
+	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
+	assert.NoError(t, limited.sendOKRequest(noDelay, false, "private/reset_mmp", nil), "sendOKRequest should send a non-matching engine request")
 }
 
 func TestIsPrivateMethod(t *testing.T) {

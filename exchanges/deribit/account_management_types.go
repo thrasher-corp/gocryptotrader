@@ -178,8 +178,8 @@ type TradingProductDetail struct {
 	RequiresConsent bool   `json:"requires_consent"`
 }
 
-// memberIDParams contains the member of a request
-type memberIDParams struct {
+// MemberIDRequest contains the member of a request
+type MemberIDRequest struct {
 	MemberID uint64 `json:"member_id"`
 }
 
@@ -202,8 +202,8 @@ type Member struct {
 	LastModificationTimestamp types.Time `json:"m_tstamp"`
 }
 
-// apiKeyIDParams contains the API key of a request
-type apiKeyIDParams struct {
+// APIKeyIDRequest contains the API key of a request
+type APIKeyIDRequest struct {
 	ID uint64 `json:"id"`
 }
 
@@ -589,8 +589,8 @@ type GetPositionsRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// withPortfolioParams contains whether a subaccounts request includes their portfolios
-type withPortfolioParams struct {
+// WithPortfolioRequest contains whether a subaccounts request includes their portfolios
+type WithPortfolioRequest struct {
 	WithPortfolio bool `json:"with_portfolio,omitempty"`
 }
 
@@ -626,8 +626,8 @@ type GetTransactionLogRequest struct {
 	Continuation uint64 `json:"continuation,omitempty"`
 }
 
-// getTransactionLogParams contains a transaction log request's params, with its times in Unix milliseconds
-type getTransactionLogParams struct {
+// GetTransactionLogParams contains a transaction log request's params, with its times in Unix milliseconds
+type GetTransactionLogParams struct {
 	*GetTransactionLogRequest
 	StartTimestamp int64 `json:"start_timestamp"`
 	EndTimestamp   int64 `json:"end_timestamp"`
@@ -869,13 +869,13 @@ type PMETicker struct {
 	IndexPrice float64 `json:"index_price"`
 }
 
-// subaccountIDParams contains the subaccount of a request
-type subaccountIDParams struct {
+// SubaccountIDRequest contains the subaccount of a request
+type SubaccountIDRequest struct {
 	SubaccountID uint64 `json:"subaccount_id"`
 }
 
-// announcementIDParams contains the announcement of a request
-type announcementIDParams struct {
+// AnnouncementIDRequest contains the announcement of a request
+type AnnouncementIDRequest struct {
 	AnnouncementID uint64 `json:"announcement_id"`
 }
 
@@ -893,8 +893,8 @@ type SetEmailForSubaccountRequest struct {
 	Email        string `json:"email"`
 }
 
-// emailLanguageParams contains the language of a set email language request
-type emailLanguageParams struct {
+// EmailLanguageRequest contains the language of a set email language request
+type EmailLanguageRequest struct {
 	Language string `json:"language"`
 }
 
@@ -950,8 +950,8 @@ type GetAnnouncementsRequest struct {
 	Count uint64 `json:"count,omitempty"`
 }
 
-// getAnnouncementsParams contains an announcements request's params, with its start time in Unix milliseconds
-type getAnnouncementsParams struct {
+// GetAnnouncementsParams contains an announcements request's params, with its start time in Unix milliseconds
+type GetAnnouncementsParams struct {
 	*GetAnnouncementsRequest
 	StartTimestamp int64 `json:"start_timestamp,omitempty"`
 }

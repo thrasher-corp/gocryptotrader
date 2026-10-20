@@ -120,12 +120,12 @@ func TestNewClientSignatureRequest(t *testing.T) {
 
 func TestAuthenticateParamsMarshalJSON(t *testing.T) {
 	t.Parallel()
-	encoded, err := json.Marshal(&authenticateParams{
+	encoded, err := json.Marshal(&AuthenticateParams{
 		AuthenticateRequest: &AuthenticateRequest{GrantType: GrantTypeClientSignature, ClientID: "id", Timestamp: time.UnixMilli(1700000000000), Signature: "sig", Nonce: "nonce"},
 		Timestamp:           1700000000000,
 	})
 	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"grant_type":"client_signature","client_id":"id","timestamp":1700000000000,"signature":"sig","nonce":"nonce"}`, string(encoded), "authenticateParams should send the timestamp in Unix milliseconds once")
+	assert.JSONEq(t, `{"grant_type":"client_signature","client_id":"id","timestamp":1700000000000,"signature":"sig","nonce":"nonce"}`, string(encoded), "AuthenticateParams should send the timestamp in Unix milliseconds once")
 }
 
 func TestExchangeToken(t *testing.T) {

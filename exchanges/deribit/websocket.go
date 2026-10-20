@@ -105,8 +105,9 @@ type websocketChannel struct {
 	// instrument channels may be qualified per pair by its instrument name, for a subscription with an asset
 	instrument bool
 	// kindCurrency channels may be qualified by the kind and currency parameters, each any when unset, for a
-	// subscription without an asset
+	// subscription without an asset; kindRequired ones need an instrument kind, as Deribit refuses any
 	kindCurrency bool
+	kindRequired bool
 	// interval channels end with the subscription's interval: 100ms, raw (one millisecond) or agg2 (one second)
 	interval bool
 	// resolution channels end with the subscription's interval as a candle resolution
@@ -131,7 +132,7 @@ var websocketChannels = map[string]websocketChannel{
 	ChannelIncrementalTicker:          {instrument: true},
 	ChannelPerpetual:                  {instrument: true, interval: true},
 	ChannelQuote:                      {instrument: true},
-	ChannelTrades:                     {instrument: true, kindCurrency: true, interval: true},
+	ChannelTrades:                     {instrument: true, kindCurrency: true, kindRequired: true, interval: true},
 	ChannelBlockTradeConfirmations:    {optionalCurrency: true, private: true},
 	ChannelPriceIndex:                 {indexName: true},
 	ChannelPriceRanking:               {indexName: true},
@@ -199,12 +200,13 @@ func (e *Exchange) WebsocketAPI() WebsocketAPI {
 }
 
 // WebsocketConnect connects the websocket, asks Deribit for heartbeats and authenticates the connection when
-// credentials are set
+// authenticated websocket support is enabled, so a connection after a failed login can authenticate again
 func (e *Exchange) WebsocketConnect() error {
 	ctx := context.TODO()
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	e.nextConnectionGeneration()
 	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
@@ -213,7 +215,7 @@ func (e *Exchange) WebsocketConnect() error {
 	if err := e.WebsocketAPI().SetHeartbeat(ctx, websocketHeartbeatInterval); err != nil {
 		log.Errorf(log.WebsocketMgr, "%s websocket heartbeat could not be set: %s", e.Name, err)
 	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.IsWebsocketAuthenticationSupported() {
 		if err := e.wsLogin(ctx); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s websocket authentication failed: %s", e.Name, err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -312,7 +314,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 // wsHandleData passes a response to the request awaiting it, answers a heartbeat test request and processes a
 // subscription notification
 func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	var envelope wsEnvelope
+	var envelope WebsocketEnvelope
 	if err := json.Unmarshal(respRaw, &envelope); err != nil {
 		return fmt.Errorf("%s could not parse websocket data: %w: %s", e.Name, err, respRaw)
 	}
@@ -362,7 +364,7 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, res
 	case ChannelPerpetual:
 		return wsRelay[WebsocketPerpetualInterest](ctx, e, respRaw)
 	case ChannelQuote:
-		return wsRelay[WebsocketQuote](ctx, e, respRaw)
+		return e.wsHandleQuote(ctx, respRaw)
 	case ChannelPriceIndex:
 		return wsRelay[WebsocketPriceIndex](ctx, e, respRaw)
 	case ChannelPriceRanking:
@@ -392,7 +394,7 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, res
 	case ChannelInstrumentCreation:
 		return wsRelay[WebsocketInstrumentCreation](ctx, e, respRaw)
 	case ChannelUserPortfolio:
-		return wsRelay[AccountSummary](ctx, e, respRaw)
+		return e.wsHandlePortfolio(ctx, respRaw)
 	case ChannelUserChanges:
 		return wsRelay[WebsocketUserChanges](ctx, e, respRaw)
 	case ChannelUserAccessLog:
@@ -427,7 +429,7 @@ func notificationChannelName(channel string) string {
 
 // decodeNotification decodes a subscription notification's data into the value data points to
 func decodeNotification(respRaw []byte, data any) error {
-	notification := wsNotification{Params: wsNotificationParams{Data: data}}
+	notification := WebsocketNotification{Params: WebsocketNotificationParams{Data: data}}
 	if err := json.Unmarshal(respRaw, &notification); err != nil {
 		return fmt.Errorf("%w: %w", errMalformedNotification, err)
 	}
@@ -443,25 +445,111 @@ func wsRelay[T any](ctx context.Context, e *Exchange, respRaw []byte) error {
 	return e.Websocket.DataHandler.Send(ctx, data)
 }
 
-// generateSubscriptions returns the configured subscriptions with their channels qualified
+// generateSubscriptions returns the configured subscriptions with their channels qualified, leaving out those Deribit
+// refuses for the spot it routes to Coinbase Exchange
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.expandSubscriptions(e.Features.Subscriptions)
 	if err != nil {
 		return nil, err
+	}
+	if slices.ContainsFunc(subs, isRoutedSpotSensitive) {
+		e.coinbaseRoutedSpotMtx.RLock()
+		loaded := e.coinbaseRoutedSpot != nil
+		e.coinbaseRoutedSpotMtx.RUnlock()
+		// Only the spot instruments say which spot is routed, and no spot pairs may have been fetched yet
+		if !loaded {
+			if _, err := e.FetchTradablePairs(context.TODO(), asset.Spot); err != nil {
+				return nil, fmt.Errorf("loading the spot instruments Deribit routes to Coinbase Exchange: %w", err)
+			}
+		}
 	}
 	return slices.DeleteFunc(subs, e.isUnstreamedSubscription), nil
 }
 
-// isUnstreamedSubscription reports whether a subscription is to the trades or candles of spot Deribit routes to Coinbase
-// Exchange, which Deribit refuses
+// expandSubscriptions qualifies subscriptions' channels and keys each by its qualified channel. A subscription already
+// qualified comes back as it is, and may be held, so it is keyed only when it is not keyed by its qualified channel
+// already, as the subscription store reads a held subscription's key without its lock
+func (e *Exchange) expandSubscriptions(subs subscription.List) (subscription.List, error) {
+	expanded, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range expanded {
+		if key, ok := s.EnsureKeyed().(qualifiedChannelKey); !ok || key.Subscription != s {
+			s.SetKey(qualifiedChannelKey{s})
+		}
+	}
+	return expanded, nil
+}
+
+// qualifiedChannelKey identifies a subscription by its qualified channel, as channels such as an index's differ only by
+// a parameter the default key leaves out
+type qualifiedChannelKey struct {
+	*subscription.Subscription
+}
+
+// Match reports whether a subscription has the same qualified channel
+func (k qualifiedChannelKey) Match(eachKey subscription.MatchableKey) bool {
+	if eachKey == nil {
+		return false
+	}
+	s := eachKey.GetSubscription()
+	return s != nil && s.QualifiedChannel == k.QualifiedChannel
+}
+
+// GetSubscription returns the subscription the key identifies
+func (k qualifiedChannelKey) GetSubscription() *subscription.Subscription {
+	return k.Subscription
+}
+
+// String returns the qualified channel
+func (k qualifiedChannelKey) String() string {
+	if k.Subscription == nil {
+		return "Uninitialised qualifiedChannelKey"
+	}
+	return k.QualifiedChannel
+}
+
+// isUnstreamedSubscription reports whether Deribit refuses a subscription for the spot it routes to Coinbase Exchange: a
+// routed pair's trades or candles, or spot trades by kind for every currency or a routed pair's base or quote
 func (e *Exchange) isUnstreamedSubscription(sub *subscription.Subscription) bool {
+	switch {
+	case isSpotTradesOrCandles(sub):
+		return e.isCoinbaseRoutedSpot(formatPairString(asset.Spot, sub.Pairs[0]))
+	case isSpotKindTrades(sub):
+		ccy, err := channelCurrency(sub.Params, true)
+		return err == nil && e.isCoinbaseRoutedSpotCurrency(ccy)
+	default:
+		return false
+	}
+}
+
+// isRoutedSpotSensitive reports whether Deribit refuses a subscription when spot it stands for is routed to Coinbase
+// Exchange
+func isRoutedSpotSensitive(sub *subscription.Subscription) bool {
+	return isSpotTradesOrCandles(sub) || isSpotKindTrades(sub)
+}
+
+// isSpotTradesOrCandles reports whether a subscription is to the trades or candles of one spot pair
+func isSpotTradesOrCandles(sub *subscription.Subscription) bool {
 	if sub.Asset != asset.Spot || len(sub.Pairs) != 1 {
 		return false
 	}
-	if name, err := websocketChannelName(sub); err != nil || (name != ChannelTrades && name != ChannelChartTrades) {
+	name, err := websocketChannelName(sub)
+	return err == nil && (name == ChannelTrades || name == ChannelChartTrades)
+}
+
+// isSpotKindTrades reports whether a subscription is to the trades of spot by kind, without an asset
+func isSpotKindTrades(sub *subscription.Subscription) bool {
+	if sub.Asset != asset.Empty {
 		return false
 	}
-	return e.isCoinbaseRoutedSpot(formatPairString(asset.Spot, sub.Pairs[0]))
+	name, err := websocketChannelName(sub)
+	if err != nil || name != ChannelTrades {
+		return false
+	}
+	kind, err := channelParameter(sub.Params, "kind", channelAny)
+	return err == nil && strings.EqualFold(kind, KindSpot)
 }
 
 // GetSubscriptionTemplate returns the channel qualification template, which qualifies an instrument channel per pair
@@ -540,6 +628,9 @@ func qualifyChannel(sub *subscription.Subscription) (string, error) {
 		kind, err := channelParameter(sub.Params, "kind", channelAny)
 		if err != nil {
 			return "", err
+		}
+		if channel.kindRequired && strings.EqualFold(kind, channelAny) {
+			return "", fmt.Errorf("%w: %s needs an instrument kind, as Deribit refuses %s", errChannelParameter, name, kind)
 		}
 		ccy, err := channelCurrency(sub.Params, true)
 		if err != nil {
@@ -698,29 +789,43 @@ func channelCurrency(params map[string]any, required bool) (string, error) {
 	return strings.ToUpper(ccy), nil
 }
 
-// Subscribe subscribes the websocket to channels, through private/subscribe for private channels
+// Subscribe subscribes the websocket to channels, through private/subscribe for private channels, refusing a book channel
+// for an instrument with another book channel held or requested
 func (e *Exchange) Subscribe(subs subscription.List) error {
+	e.subscriptionMtx.Lock()
+	defer e.subscriptionMtx.Unlock()
+	subs, err := e.expandSubscriptions(subs)
+	if err != nil {
+		return err
+	}
 	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, true, false, subs.Public())
+	subs, errs := e.refuseBookConflicts(subs)
+	errs = common.AppendError(errs, e.handleSubscription(ctx, true, false, subs.Public()))
 	return common.AppendError(errs, e.handleSubscription(ctx, true, true, subs.Private()))
 }
 
 // Unsubscribe unsubscribes the websocket from channels, through private/unsubscribe for private channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	e.subscriptionMtx.Lock()
+	defer e.subscriptionMtx.Unlock()
+	subs, err := e.expandSubscriptions(subs)
+	if err != nil {
+		return err
+	}
 	ctx := context.TODO()
 	errs := e.handleSubscription(ctx, false, false, subs.Public())
 	return common.AppendError(errs, e.handleSubscription(ctx, false, true, subs.Private()))
 }
 
-// handleSubscription subscribes to or unsubscribes from channels, then stores or removes each channel Deribit
+// handleSubscription subscribes to or unsubscribes from qualified channels, then stores or removes each channel Deribit
 // acknowledged and reports the rest
 func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bool, subs subscription.List) error {
-	subs, err := subs.ExpandTemplates(e)
-	if err != nil || len(subs) == 0 {
-		return err
+	if len(subs) == 0 {
+		return nil
 	}
 	channels := subs.QualifiedChannels()
 	var acknowledged []string
+	var err error
 	switch {
 	case subscribe && private:
 		acknowledged, err = e.WebsocketAPI().SubscribePrivate(ctx, &PrivateSubscribeRequest{Channels: channels})
@@ -747,4 +852,52 @@ func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bo
 		}
 	}
 	return errs
+}
+
+// refuseBookConflicts returns the subscriptions less each book subscription whose instrument has another book channel
+// held, or requested in the same list, and an error for each one left out: every book channel of an instrument writes
+// its one stored book, which a change from one channel then fails to follow, or a snapshot from another replaces at
+// its own depth
+func (e *Exchange) refuseBookConflicts(subs subscription.List) (subscription.List, error) {
+	held := make(map[string]string)
+	for _, s := range e.Websocket.GetSubscriptions() {
+		if instrument, ok := bookInstrument(s.QualifiedChannel); ok {
+			held[instrument] = s.QualifiedChannel
+		}
+	}
+	requested := make(map[string][]string)
+	for _, s := range subs {
+		if instrument, ok := bookInstrument(s.QualifiedChannel); ok && !slices.Contains(requested[instrument], s.QualifiedChannel) {
+			requested[instrument] = append(requested[instrument], s.QualifiedChannel)
+		}
+	}
+	allowed := make(subscription.List, 0, len(subs))
+	var errs error
+	for _, s := range subs {
+		instrument, ok := bookInstrument(s.QualifiedChannel)
+		switch {
+		case !ok:
+			allowed = append(allowed, s)
+		case held[instrument] != "" && held[instrument] != s.QualifiedChannel:
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s, as %s is subscribed", subscription.ErrExclusiveSubscription, s.QualifiedChannel, held[instrument]))
+		case len(requested[instrument]) > 1:
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s, as %s are requested together", subscription.ErrExclusiveSubscription, s.QualifiedChannel, strings.Join(requested[instrument], " and ")))
+		default:
+			allowed = append(allowed, s)
+		}
+	}
+	return allowed, errs
+}
+
+// bookInstrument returns the instrument a qualified book channel is for
+func bookInstrument(channel string) (string, bool) {
+	rest, ok := strings.CutPrefix(channel, ChannelBook+".")
+	if !ok {
+		return "", false
+	}
+	instrument, _, ok := strings.Cut(rest, ".")
+	if !ok {
+		return "", false
+	}
+	return instrument, true
 }

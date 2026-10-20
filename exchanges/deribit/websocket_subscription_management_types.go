@@ -1,7 +1,7 @@
 package deribit
 
-// subscriptionParams contains the channels of a subscribe or unsubscribe request
-type subscriptionParams struct {
+// SubscriptionRequest contains the channels of a subscribe or unsubscribe request
+type SubscriptionRequest struct {
 	Channels []string `json:"channels"`
 }
 
