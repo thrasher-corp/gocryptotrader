@@ -1662,7 +1662,7 @@ func (e *Exchange) ConfigureWS(ctx context.Context) error {
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	var err error
-	if subs, err = subs.ExpandTemplates(e); err != nil {
+	if subs, err = subs.ExpandTemplatesIfNeeded(e); err != nil {
 		return err
 	}
 	return e.ParallelChanOp(ctx, subs, e.subscribeToChan, 1)
@@ -1672,7 +1672,7 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	var err error
-	if subs, err = subs.ExpandTemplates(e); err != nil {
+	if subs, err = subs.ExpandTemplatesIfNeeded(e); err != nil {
 		return err
 	}
 	return e.ParallelChanOp(ctx, subs, e.unsubscribeFromChan, 1)

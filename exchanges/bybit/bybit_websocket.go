@@ -172,7 +172,7 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 }
 
 func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
-	subs, err = subs.ExpandTemplates(e)
+	subs, err = subs.ExpandTemplatesIfNeeded(e)
 	if err != nil {
 		return args, err
 	}
