@@ -51,9 +51,10 @@ type SpotAssetContext struct {
 	MarkPrice         types.Number `json:"markPx"`
 	MidPrice          types.Number `json:"midPx"`
 	CirculatingSupply types.Number `json:"circulatingSupply"`
-	Coin              string       `json:"coin"`
-	TotalSupply       types.Number `json:"totalSupply"`
-	DayBaseVolume     types.Number `json:"dayBaseVlm"`
+	// Coin is the spot market's name, such as PURR/USDC or @107, rather than a currency code
+	Coin          string       `json:"coin"`
+	TotalSupply   types.Number `json:"totalSupply"`
+	DayBaseVolume types.Number `json:"dayBaseVlm"`
 }
 
 // SpotMetadataAndAssetContextsResponse contains spot metadata and current market contexts
@@ -271,9 +272,9 @@ type OutcomeDeployerLimitsResponse struct {
 	NumberOfActiveOutcomesRemaining uint64 `json:"nActiveOutcomesRemaining"`
 }
 
-// OutcomeTemplate contains a template for deploying outcomes or questions; Name, Description and side names contain
+// OutcomeTemplateResponse contains a template for deploying outcomes or questions; Name, Description and side names contain
 // {keyword} placeholders for the values each deployment supplies
-type OutcomeTemplate struct {
+type OutcomeTemplateResponse struct {
 	ID   string              `json:"id"`
 	Role OutcomeTemplateRole `json:"role"`
 	Name string              `json:"name"`

@@ -110,7 +110,7 @@ func newVenueWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenueRequ
 		// Disabling stops the connection monitor, which would otherwise redial the mock after the test, and which may then
 		// shut the connection down first
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
+		if err := shutdownWebsocketWithin(t, ex); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})

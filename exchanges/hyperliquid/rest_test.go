@@ -136,8 +136,8 @@ func setTestCredentials(ex *Exchange, credentials *accounts.Credentials) {
 }
 
 // testOpenOrder is the open order the mock responses return for testTraderAddress
-func testOpenOrder() FrontendOpenOrder {
-	return FrontendOpenOrder{
+func testOpenOrder() FrontendOpenOrderResponse {
+	return FrontendOpenOrderResponse{
 		Coin:             "BTC",
 		Side:             "B",
 		LimitPrice:       85000,
@@ -147,7 +147,7 @@ func testOpenOrder() FrontendOpenOrder {
 		OriginalSize:     0.002,
 		ClientOrderID:    testClientOrderID,
 		TriggerCondition: "N/A",
-		Children: []FrontendOpenOrder{{
+		Children: []FrontendOpenOrderResponse{{
 			Coin:             "BTC",
 			Side:             "A",
 			LimitPrice:       90000,
@@ -158,7 +158,7 @@ func testOpenOrder() FrontendOpenOrder {
 			TriggerCondition: "Price above 90000",
 			IsTrigger:        true,
 			TriggerPrice:     90000,
-			Children:         []FrontendOpenOrder{},
+			Children:         []FrontendOpenOrderResponse{},
 			ReduceOnly:       true,
 			OrderType:        "Take Profit Market",
 		}},
@@ -169,8 +169,8 @@ func testOpenOrder() FrontendOpenOrder {
 
 // testPositionTPSLOrder is the position TP/SL order the mock responses return for testTraderAddress, which Hyperliquid
 // lists without a size, as it closes the whole position
-func testPositionTPSLOrder() FrontendOpenOrder {
-	return FrontendOpenOrder{
+func testPositionTPSLOrder() FrontendOpenOrderResponse {
+	return FrontendOpenOrderResponse{
 		Coin:             "BTC",
 		Side:             "A",
 		LimitPrice:       72000,
@@ -179,7 +179,7 @@ func testPositionTPSLOrder() FrontendOpenOrder {
 		TriggerCondition: "Price below 80000",
 		IsTrigger:        true,
 		TriggerPrice:     80000,
-		Children:         []FrontendOpenOrder{},
+		Children:         []FrontendOpenOrderResponse{},
 		IsPositionTPSL:   true,
 		ReduceOnly:       true,
 		OrderType:        "Stop Market",
@@ -187,8 +187,8 @@ func testPositionTPSLOrder() FrontendOpenOrder {
 }
 
 // testTakerFill is the mock responses' fill with every optional field set
-func testTakerFill() Fill {
-	return Fill{
+func testTakerFill() FillResponse {
+	return FillResponse{
 		Coin:          "HYPE",
 		Price:         92.618,
 		Size:          0.14,
@@ -211,8 +211,8 @@ func testTakerFill() Fill {
 }
 
 // testMakerFill is the mock responses' fill without optional fields, which earns a rebate
-func testMakerFill() Fill {
-	return Fill{
+func testMakerFill() FillResponse {
+	return FillResponse{
 		Coin:          "BTC",
 		Price:         85791.2407407407,
 		Size:          0.00054,
@@ -351,17 +351,17 @@ func TestSendSignedAction(t *testing.T) {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
-	_, err := ex.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: maximumActionBatchSize + 1})
+	_, err := ex.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: maximumActionBatchSize + 1})
 	assert.ErrorIs(t, err, errActionBatchTooLarge, "SendSignedAction should reject an oversized batch")
-	_, err = ex.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: time.Now().Add(-time.Second)})
+	_, err = ex.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: time.Now().Add(-time.Second)})
 	assert.ErrorIs(t, err, errExpiresAfterPassed, "SendSignedAction should reject a passed expiry before signing")
 	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
-	_, err = ex.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1})
+	_, err = ex.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1})
 	assert.ErrorIs(t, err, errPrivateKeyRequired, "SendSignedAction should require a private key")
 
 	missing, _ := newRoleServerExchange(t, nil, nil, nil)
 	setTestCredentials(missing, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
-	_, err = missing.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1})
+	_, err = missing.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1})
 	assert.ErrorIs(t, err, errConfiguredAccountMissing, "SendSignedAction should validate the account before signing")
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendSignedAction should report failed authority as an authentication failure")
 	assert.Zero(t, missing.lastNonce.Load(), "SendSignedAction should not consume a nonce when authority fails")
@@ -381,7 +381,7 @@ func TestSendSignedAction(t *testing.T) {
 	})
 	setTestCredentials(accepted, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey, SubAccount: testSubAccountAddress})
 	expiresAfter := time.Now().Add(time.Minute)
-	response, err := accepted.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: expiresAfter})
+	response, err := accepted.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: expiresAfter})
 	require.NoError(t, err, "SendSignedAction must not error for an accepted action")
 	assert.JSONEq(t, `{"type":"cancel","data":{"statuses":["success"]}}`, string(response), "SendSignedAction should return the response payload")
 	assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "SendSignedAction should act for the configured subaccount")
@@ -393,7 +393,7 @@ func TestSendSignedAction(t *testing.T) {
 	assert.Equal(t, exp, captured.Signature, "SendSignedAction should sign the vault and expiry it sends")
 
 	var boundNonce uint64
-	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, SetNonce: func(nonce uint64) { boundNonce = nonce }})
+	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1, SetNonce: func(nonce uint64) { boundNonce = nonce }})
 	require.NoError(t, err, "SendSignedAction must not error without the vault")
 	assert.Empty(t, captured.VaultAddress, "SendSignedAction should not act for the vault unless the action accepts one")
 	assert.Nil(t, captured.ExpiresAfter, "SendSignedAction should not send an unset expiry")
@@ -403,7 +403,7 @@ func TestSendSignedAction(t *testing.T) {
 	assert.Equal(t, exp, captured.Signature, "SendSignedAction should sign without a vault")
 
 	lastNonce := accepted.lastNonce.Load()
-	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, Nonce: 1700000000000})
+	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1, Nonce: 1700000000000})
 	require.NoError(t, err, "SendSignedAction must not error with an explicit nonce")
 	assert.Equal(t, uint64(1700000000000), captured.Nonce, "SendSignedAction should sign with the explicit nonce")
 	assert.Equal(t, lastNonce, accepted.lastNonce.Load(), "SendSignedAction should not consume a nonce when given one")
@@ -421,7 +421,7 @@ func TestSendSignedAction(t *testing.T) {
 	assert.Zero(t, captured.Nonce, "SendSignedAction should not send an action that cannot be signed")
 
 	accepted.websocketPostConnection = nil
-	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1, Websocket: true})
+	_, err = accepted.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1, Websocket: true})
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedAction should post the action over the websocket when asked")
 	assert.Zero(t, captured.Nonce, "SendSignedAction should not send a websocket action to the exchange endpoint")
 
@@ -441,7 +441,7 @@ func TestSendSignedAction(t *testing.T) {
 			assert.NoError(t, err, "Writing the action response should not error")
 		})
 		setTestCredentials(rejected, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
-		_, err = rejected.SendSignedAction(t.Context(), action, &L1ActionOptions{BatchLength: 1})
+		_, err = rejected.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1})
 		assert.ErrorIsf(t, err, errActionResponse, "SendSignedAction should report the rejected action %s", tc.response)
 		if tc.signerRejected {
 			assert.ErrorIsf(t, err, errSignerRejected, "SendSignedAction should identify the signer rejection %s", tc.response)
@@ -485,17 +485,17 @@ func TestGetOpenOrders(t *testing.T) {
 
 	for _, tc := range []struct {
 		dex string
-		exp []BasicOrder
+		exp []BasicOrderResponse
 	}{
 		{
-			exp: []BasicOrder{
+			exp: []BasicOrderResponse{
 				{Coin: "PURR/USDC", Side: "A", LimitPrice: 0.14922, Size: 131, OrderID: 566598803191, Timestamp: milli(1791279137528), OriginalSize: 1171, ClientOrderID: "0x00000000000000000b831bfccf6ef32d"},
 				{Coin: "BTC", Side: "B", LimitPrice: 85700, Size: 0.05, OrderID: 566598803180, Timestamp: milli(1791279137001), OriginalSize: 0.05},
 			},
 		},
 		{
 			dex: "xyz",
-			exp: []BasicOrder{{Coin: "xyz:XYZ100", Side: "B", LimitPrice: 31100, Size: 0.25, OrderID: 566598803100, Timestamp: milli(1791279130000), OriginalSize: 0.3, ClientOrderID: "0x00000000000000000b831bfccf6ef300"}},
+			exp: []BasicOrderResponse{{Coin: "xyz:XYZ100", Side: "B", LimitPrice: 31100, Size: 0.25, OrderID: 566598803100, Timestamp: milli(1791279130000), OriginalSize: 0.3, ClientOrderID: "0x00000000000000000b831bfccf6ef300"}},
 		},
 	} {
 		result, err := e.GetOpenOrders(t.Context(), testTraderAddress, tc.dex)
@@ -516,7 +516,7 @@ func TestGetFrontendOpenOrders(t *testing.T) {
 	result, err := e.GetFrontendOpenOrders(t.Context(), testTraderAddress, "")
 	require.NoError(t, err, "GetFrontendOpenOrders must not error")
 	if mockTests {
-		assert.Equal(t, []FrontendOpenOrder{testOpenOrder(), testPositionTPSLOrder()}, result, "GetFrontendOpenOrders should decode every order field")
+		assert.Equal(t, []FrontendOpenOrderResponse{testOpenOrder(), testPositionTPSLOrder()}, result, "GetFrontendOpenOrders should decode every order field")
 	} else if len(result) > 0 {
 		assert.NotZero(t, result[0].OrderID, "GetFrontendOpenOrders should return order IDs")
 	}
@@ -529,10 +529,10 @@ func TestGetUserFills(t *testing.T) {
 
 	for _, tc := range []struct {
 		aggregateByTime bool
-		exp             []Fill
+		exp             []FillResponse
 	}{
-		{exp: []Fill{testTakerFill(), testMakerFill()}},
-		{aggregateByTime: true, exp: []Fill{testTakerFill()}},
+		{exp: []FillResponse{testTakerFill(), testMakerFill()}},
+		{aggregateByTime: true, exp: []FillResponse{testTakerFill()}},
 	} {
 		result, err := e.GetUserFills(t.Context(), testTraderAddress, tc.aggregateByTime)
 		require.NoErrorf(t, err, "GetUserFills must not error when aggregating by time is %t", tc.aggregateByTime)
@@ -568,7 +568,7 @@ func TestGetUserFillsByTime(t *testing.T) {
 		result, err := e.GetUserFillsByTime(t.Context(), arg)
 		require.NoErrorf(t, err, "GetUserFillsByTime must not error for %+v", arg)
 		if mockTests {
-			assert.Equalf(t, []Fill{testMakerFill(), testTakerFill()}, result, "GetUserFillsByTime should decode every fill, oldest first, for %+v", arg)
+			assert.Equalf(t, []FillResponse{testMakerFill(), testTakerFill()}, result, "GetUserFillsByTime should decode every fill, oldest first, for %+v", arg)
 		} else if len(result) > 1 {
 			assert.Falsef(t, result[1].Time.Time().Before(result[0].Time.Time()), "GetUserFillsByTime should return fills oldest first for %+v", arg)
 		}
@@ -618,7 +618,7 @@ func TestGetOrderStatus(t *testing.T) {
 		result, err := e.GetOrderStatus(t.Context(), arg)
 		require.NoErrorf(t, err, "GetOrderStatus must not error for %+v", arg)
 		if mockTests {
-			exp := &OrderStatusResponse{Status: "order", Order: &HistoricalOrder{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}
+			exp := &OrderStatusResponse{Status: "order", Order: &HistoricalOrderResponse{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}
 			assert.Equalf(t, exp, result, "GetOrderStatus should decode the order for %+v", arg)
 		} else {
 			assert.Containsf(t, []string{"order", "unknownOid"}, result.Status, "GetOrderStatus should return a known status for %+v", arg)
@@ -757,7 +757,7 @@ func TestGetCandleSnapshot(t *testing.T) {
 	require.NoError(t, err, "GetCandleSnapshot must weigh a request without an end time by the candles up to now")
 	assert.JSONEq(t, `{"type":"candleSnapshot","req":{"coin":"BTC","interval":"1h","startTime":`+strconv.FormatInt(recentStart.UnixMilli(), 10)+`}}`, string(requestBody), "GetCandleSnapshot should omit a zero end time")
 
-	exp := []Candle{
+	exp := []CandleResponse{
 		{OpenTime: milli(1791252000000), CloseTime: milli(1791255599999), Coin: "BTC", Interval: "1h", Open: 85641, Close: 85513, High: 85739, Low: 85433, Volume: 526.02537, NumberOfTrades: 7830},
 		{OpenTime: milli(1791255600000), CloseTime: milli(1791259199999), Coin: "BTC", Interval: "1h", Open: 85513, Close: 85690, High: 85702, Low: 85390, Volume: 611.8724, NumberOfTrades: 8104},
 	}
@@ -803,7 +803,7 @@ func TestGetHistoricalOrders(t *testing.T) {
 	result, err := e.GetHistoricalOrders(t.Context(), testTraderAddress)
 	require.NoError(t, err, "GetHistoricalOrders must not error")
 	if mockTests {
-		assert.Equal(t, []HistoricalOrder{{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}, result, "GetHistoricalOrders should decode every order field")
+		assert.Equal(t, []HistoricalOrderResponse{{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}, result, "GetHistoricalOrders should decode every order field")
 	} else {
 		assert.NotEmpty(t, result, "GetHistoricalOrders should return the trader's orders")
 	}
@@ -817,8 +817,8 @@ func TestGetUserTWAPSliceFills(t *testing.T) {
 	result, err := e.GetUserTWAPSliceFills(t.Context(), testTraderAddress)
 	require.NoError(t, err, "GetUserTWAPSliceFills must not error")
 	if mockTests {
-		exp := []TWAPSliceFill{{
-			Fill: Fill{
+		exp := []TWAPSliceFillResponse{{
+			Fill: FillResponse{
 				Coin:          "NEAR",
 				Price:         5.2062,
 				Size:          34.7,
@@ -849,7 +849,7 @@ func TestGetSubAccounts(t *testing.T) {
 	result, err := e.GetSubAccounts(t.Context(), testAccountAddress)
 	require.NoError(t, err, "GetSubAccounts must not error")
 	if mockTests {
-		exp := []SubAccount{{
+		exp := []SubAccountResponse{{
 			Name:           "pr2_12",
 			SubAccountUser: "0x0000000000000000000000000000000000000017",
 			Master:         testAccountAddress,
@@ -907,7 +907,7 @@ func TestGetVaultDetails(t *testing.T) {
 		VaultAddress: testVaultAddress,
 		Leader:       "0x677d831aef5328190852e24f13c46cac05f984e7",
 		Description:  "This community-owned vault provides liquidity to Hyperliquid through multiple market making strategies, performs liquidations, and accrues platform fees.",
-		Portfolio: []PortfolioPeriod{
+		Portfolio: []PortfolioPeriodResponse{
 			{Period: "day", History: PortfolioHistory{
 				AccountValueHistory: []PortfolioValue{{Time: milli(1791189344472), Value: 181448095.7272160053}},
 				PNLHistory:          []PortfolioValue{{Time: milli(1791189344472), Value: 10342.6522}},
@@ -955,7 +955,7 @@ func TestGetUserVaultEquities(t *testing.T) {
 	result, err := e.GetUserVaultEquities(t.Context(), testVaultLeaderAddress)
 	require.NoError(t, err, "GetUserVaultEquities must not error")
 	if mockTests {
-		exp := []UserVaultEquity{{VaultAddress: testVaultAddress, Equity: 604897.465556, LockedUntilTimestamp: milli(1770680880422)}}
+		exp := []UserVaultEquityResponse{{VaultAddress: testVaultAddress, Equity: 604897.465556, LockedUntilTimestamp: milli(1770680880422)}}
 		assert.Equal(t, exp, result, "GetUserVaultEquities should decode every field")
 	} else {
 		assert.NotEmpty(t, result, "GetUserVaultEquities should return the leader's vault equity")
@@ -1001,7 +1001,7 @@ func TestGetPortfolio(t *testing.T) {
 	result, err := e.GetPortfolio(t.Context(), testVaultLeaderAddress)
 	require.NoError(t, err, "GetPortfolio must not error")
 	if mockTests {
-		exp := []PortfolioPeriod{
+		exp := []PortfolioPeriodResponse{
 			{Period: "month", History: PortfolioHistory{
 				AccountValueHistory: []PortfolioValue{{Time: milli(1734565200011), Value: 50551.370822}},
 				PNLHistory:          []PortfolioValue{{Time: milli(1734565200011), Value: 476.765822}},
@@ -1097,7 +1097,7 @@ func TestGetUserFees(t *testing.T) {
 	require.NoError(t, err, "GetUserFees must not error")
 	if mockTests {
 		exp := &UserFeesResponse{
-			DailyUserVolume: []DailyUserVolume{{Date: "2026-10-05", UserTakerVolume: 15201.6, UserMakerVolume: 9821.33, ExchangeVolume: 6311325373.4300003052}},
+			DailyUserVolume: []DailyUserVolume{{Date: CalendarDate(time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)), UserTakerVolume: 15201.6, UserMakerVolume: 9821.33, ExchangeVolume: 6311325373.4300003052}},
 			FeeSchedule: FeeSchedule{
 				TakerFeeRate:     0.00045,
 				MakerFeeRate:     0.00015,
@@ -1140,7 +1140,7 @@ func TestGetDelegations(t *testing.T) {
 	result, err := e.GetDelegations(t.Context(), testFoundationValidatorAddress)
 	require.NoError(t, err, "GetDelegations must not error")
 	if mockTests {
-		exp := []Delegation{{Validator: "0x000000000000000000000000000000000000001a", Amount: 10740.27855992, LockedUntilTimestamp: milli(1746044474341)}}
+		exp := []DelegationResponse{{Validator: "0x000000000000000000000000000000000000001a", Amount: 10740.27855992, LockedUntilTimestamp: milli(1746044474341)}}
 		assert.Equal(t, exp, result, "GetDelegations should decode every field")
 	} else {
 		assert.NotEmpty(t, result, "GetDelegations should return the validator's self-delegation")
@@ -1175,7 +1175,7 @@ func TestGetDelegatorHistory(t *testing.T) {
 	result, err := e.GetDelegatorHistory(t.Context(), testFoundationValidatorAddress)
 	require.NoError(t, err, "GetDelegatorHistory must not error")
 	if mockTests {
-		exp := []DelegatorUpdate{
+		exp := []DelegatorUpdateResponse{
 			{
 				Time:  milli(1787860095825),
 				Hash:  "0x1dd5a477b2ec41601f4f04431c75e7020573005d4def6032c19e4fca71e01b4a",
@@ -1206,7 +1206,7 @@ func TestGetDelegatorRewards(t *testing.T) {
 	result, err := e.GetDelegatorRewards(t.Context(), testFoundationValidatorAddress)
 	require.NoError(t, err, "GetDelegatorRewards must not error")
 	if mockTests {
-		exp := []DelegatorReward{
+		exp := []DelegatorRewardResponse{
 			{Time: milli(1791244800027), Source: "delegation", TotalAmount: 0.63878098},
 			{Time: milli(1791244800027), Source: "commission", TotalAmount: 17.51099385},
 		}
@@ -1324,7 +1324,7 @@ func TestGetAllBorrowLendReserveStates(t *testing.T) {
 	result, err := e.GetAllBorrowLendReserveStates(t.Context())
 	require.NoError(t, err, "GetAllBorrowLendReserveStates must not error")
 	if mockTests {
-		exp := []BorrowLendReserveStateEntry{
+		exp := []BorrowLendReserveStateEntryResponse{
 			{Token: 150, State: BorrowLendReserveStateResponse{BorrowYearlyRate: 0.05, Balance: 13338366.2448045798, OraclePrice: 93.248, LoanToValue: 0.65, TotalSupplied: 13338366.2448045798}},
 			{Token: 268, State: BorrowLendReserveStateResponse{
 				BorrowYearlyRate: 0.05,
@@ -1378,7 +1378,7 @@ func TestGetRecentTradesForCoin(t *testing.T) {
 	result, err := e.GetRecentTradesForCoin(t.Context(), "BTC")
 	require.NoError(t, err, "GetRecentTradesForCoin must not error")
 	if mockTests {
-		exp := []RecentTrade{
+		exp := []RecentTradeResponse{
 			{Coin: "BTC", Side: "A", Price: 85812, Size: 0.00347, Time: milli(1791275814004), Hash: "0xe3c768699c49511ce5410445f45e660201be004f374c6fee879013bc5b4d2b07", TradeID: 284092582946010, Users: []string{"0x000000000000000000000000000000000000000a", "0x000000000000000000000000000000000000000b"}},
 			{Coin: "BTC", Side: "B", Price: 85813, Size: 0.01757, Time: milli(1791275814806), Hash: "0x0000000000000000000000000000000000000000000000000000000000000000", TradeID: 744489298526402, Users: []string{"0x000000000000000000000000000000000000000c", "0x000000000000000000000000000000000000000d"}},
 		}
@@ -1397,7 +1397,7 @@ func TestGetTWAPHistory(t *testing.T) {
 	result, err := e.GetTWAPHistory(t.Context(), testTraderAddress)
 	require.NoError(t, err, "GetTWAPHistory must not error")
 	if mockTests {
-		exp := []TWAPHistoryEntry{
+		exp := []TWAPHistoryEntryResponse{
 			{
 				Time: types.Time(time.Unix(1791348375, 0)),
 				State: TWAPState{
@@ -1453,9 +1453,9 @@ func TestGetUserTWAPSliceFillsByTime(t *testing.T) {
 	}
 
 	// No public account is known to have TWAP slice fills, so live tests only check that the response decodes
-	exp := []TWAPSliceFill{
+	exp := []TWAPSliceFillResponse{
 		{
-			Fill: Fill{
+			Fill: FillResponse{
 				Coin:          "BTC",
 				Price:         85536,
 				Size:          0.00347,
@@ -1474,7 +1474,7 @@ func TestGetUserTWAPSliceFillsByTime(t *testing.T) {
 			TWAPID: 2288752,
 		},
 		{
-			Fill: Fill{
+			Fill: FillResponse{
 				Coin:          "BTC",
 				Price:         85536,
 				Size:          0.00347,
@@ -1615,10 +1615,57 @@ func TestZonelessTimeUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, json.Unmarshal([]byte(`"2025-11-23 17:37"`), &z), errInvalidZonelessTime, "ZonelessTime should reject another layout")
 }
 
+func TestZonelessTimeMarshalJSON(t *testing.T) {
+	t.Parallel()
+	exp := `"2025-11-23T17:37:10.033211662"`
+	var z ZonelessTime
+	require.NoError(t, json.Unmarshal([]byte(exp), &z), "Unmarshal must not error for a zone-less timestamp")
+	encoded, err := json.Marshal(z)
+	require.NoError(t, err, "Marshal must not error")
+	assert.Equal(t, exp, string(encoded), "ZonelessTime should encode as Hyperliquid sends it")
+	encoded, err = json.Marshal(ZonelessTime{})
+	require.NoError(t, err, "Marshal must not error for an unset timestamp")
+	assert.Equal(t, `""`, string(encoded), "ZonelessTime should encode an unset timestamp as an empty string")
+}
+
 func TestZonelessTimeTime(t *testing.T) {
 	t.Parallel()
 	exp := time.Date(2025, 11, 23, 17, 37, 10, 0, time.UTC)
 	assert.Equal(t, exp, ZonelessTime(exp).Time(), "Time should return the timestamp as a time.Time")
+}
+
+func TestCalendarDateUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var d CalendarDate
+	require.NoError(t, json.Unmarshal([]byte(`"2026-10-06"`), &d), "Unmarshal must not error for a calendar date")
+	assert.Equal(t, time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC), d.Time(), "CalendarDate should decode as the start of the UTC day")
+	require.NoError(t, json.Unmarshal([]byte(`""`), &d), "Unmarshal must not error for an empty date")
+	assert.True(t, d.Time().IsZero(), "CalendarDate should decode an empty date as zero")
+	assert.ErrorIs(t, json.Unmarshal([]byte(`20261006`), &d), errInvalidCalendarDate, "CalendarDate should reject a number")
+	assert.ErrorIs(t, json.Unmarshal([]byte(`"2026-10-06T00:00:00Z"`), &d), errInvalidCalendarDate, "CalendarDate should reject a timestamp")
+}
+
+func TestCalendarDateMarshalJSON(t *testing.T) {
+	t.Parallel()
+	var volume DailyUserVolume
+	require.NoError(t, json.Unmarshal([]byte(`{"date":"2026-10-06"}`), &volume), "Unmarshal must not error for a calendar date")
+	encoded, err := json.Marshal(volume.Date)
+	require.NoError(t, err, "Marshal must not error")
+	assert.Equal(t, `"2026-10-06"`, string(encoded), "CalendarDate should encode as Hyperliquid sends it")
+	encoded, err = json.Marshal(volume)
+	require.NoError(t, err, "Marshal must not error for the day's volume")
+	var decoded DailyUserVolume
+	require.NoError(t, json.Unmarshal(encoded, &decoded), "Unmarshal must decode an encoded day's volume")
+	assert.Equal(t, volume.Date.Time(), decoded.Date.Time(), "CalendarDate should decode what it encodes")
+	encoded, err = json.Marshal(CalendarDate{})
+	require.NoError(t, err, "Marshal must not error for an unset date")
+	assert.Equal(t, `""`, string(encoded), "CalendarDate should encode an unset date as an empty string")
+}
+
+func TestCalendarDateTime(t *testing.T) {
+	t.Parallel()
+	exp := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, exp, CalendarDate(exp).Time(), "Time should return the date as a time.Time")
 }
 
 func TestIsHex128(t *testing.T) {
@@ -1658,9 +1705,9 @@ func TestUnmarshalTuple(t *testing.T) {
 
 func TestPortfolioPeriodUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var period PortfolioPeriod
+	var period PortfolioPeriodResponse
 	require.NoError(t, json.Unmarshal([]byte(`["week",{"accountValueHistory":[[1791189344472,"1.5"]],"pnlHistory":[[1791189344472,"-0.5"]],"vlm":"2.0"}]`), &period), "Unmarshal must not error")
-	exp := PortfolioPeriod{
+	exp := PortfolioPeriodResponse{
 		Period: "week",
 		History: PortfolioHistory{
 			AccountValueHistory: []PortfolioValue{{Time: milli(1791189344472), Value: 1.5}},
@@ -1709,9 +1756,9 @@ func TestBorrowLendTokenStateEntryUnmarshalJSON(t *testing.T) {
 
 func TestBorrowLendReserveStateEntryUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var entry BorrowLendReserveStateEntry
+	var entry BorrowLendReserveStateEntryResponse
 	require.NoError(t, json.Unmarshal([]byte(`[0,{"borrowYearlyRate":"0.05","totalBorrowed":"0.5"}]`), &entry), "Unmarshal must not error")
-	assert.Equal(t, BorrowLendReserveStateEntry{State: BorrowLendReserveStateResponse{BorrowYearlyRate: 0.05, TotalBorrowed: 0.5}}, entry, "BorrowLendReserveStateEntry should decode its token and state")
+	assert.Equal(t, BorrowLendReserveStateEntryResponse{State: BorrowLendReserveStateResponse{BorrowYearlyRate: 0.05, TotalBorrowed: 0.5}}, entry, "BorrowLendReserveStateEntry should decode its token and state")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[0]`), &entry), errInvalidTupleLength, "BorrowLendReserveStateEntry should reject a short tuple")
 }
 

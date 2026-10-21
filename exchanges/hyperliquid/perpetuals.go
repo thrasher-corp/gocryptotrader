@@ -13,8 +13,8 @@ import (
 var errDEXRequired = errors.New("perpetual DEX name is required")
 
 // GetPerpetualDEXs returns the perpetual DEX registry; the first entry is the default DEX and is always nil
-func (e *Exchange) GetPerpetualDEXs(ctx context.Context) ([]*PerpetualDEX, error) {
-	var resp []*PerpetualDEX
+func (e *Exchange) GetPerpetualDEXs(ctx context.Context) ([]*PerpetualDEXResponse, error) {
+	var resp []*PerpetualDEXResponse
 	if err := e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "perpDexs"}, &resp); err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (e *Exchange) GetClearinghouseState(ctx context.Context, user, dex string) 
 // range, oldest first; a zero end time ends the range now
 // Payments at one funding instant share a timestamp, so callers paging by the last returned time must drop repeated
 // payments, and older history is returned as daily aggregates with NumberOfSamples set
-func (e *Exchange) GetUserFunding(ctx context.Context, arg *UserFundingRequest) ([]UserFundingUpdate, error) {
+func (e *Exchange) GetUserFunding(ctx context.Context, arg *UserFundingRequest) ([]UserFundingUpdateResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -84,7 +84,7 @@ func (e *Exchange) GetUserFunding(ctx context.Context, arg *UserFundingRequest) 
 	if err != nil {
 		return nil, err
 	}
-	var resp []UserFundingUpdate
+	var resp []UserFundingUpdateResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserFundingEPL, &InfoRequest{
 		Type:      "userFunding",
 		User:      user,
@@ -95,7 +95,7 @@ func (e *Exchange) GetUserFunding(ctx context.Context, arg *UserFundingRequest) 
 
 // GetUserNonFundingLedgerUpdates returns up to 2000 of an account's non-funding ledger updates, such as deposits,
 // transfers and withdrawals, over an inclusive time range; a zero end time ends the range now
-func (e *Exchange) GetUserNonFundingLedgerUpdates(ctx context.Context, arg *UserNonFundingLedgerUpdatesRequest) ([]UserLedgerUpdate, error) {
+func (e *Exchange) GetUserNonFundingLedgerUpdates(ctx context.Context, arg *UserNonFundingLedgerUpdatesRequest) ([]UserLedgerUpdateResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -107,7 +107,7 @@ func (e *Exchange) GetUserNonFundingLedgerUpdates(ctx context.Context, arg *User
 	if err != nil {
 		return nil, err
 	}
-	var resp []UserLedgerUpdate
+	var resp []UserLedgerUpdateResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserLedgerEPL, &InfoRequest{
 		Type:      "userNonFundingLedgerUpdates",
 		User:      user,
@@ -118,7 +118,7 @@ func (e *Exchange) GetUserNonFundingLedgerUpdates(ctx context.Context, arg *User
 
 // GetFundingHistory returns up to 500 of a perpetual market's hourly funding rates over an inclusive time range; a zero
 // end time ends the range now
-func (e *Exchange) GetFundingHistory(ctx context.Context, arg *FundingHistoryRequest) ([]FundingRateHistory, error) {
+func (e *Exchange) GetFundingHistory(ctx context.Context, arg *FundingHistoryRequest) ([]FundingRateHistoryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -129,7 +129,7 @@ func (e *Exchange) GetFundingHistory(ctx context.Context, arg *FundingHistoryReq
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingRateHistory
+	var resp []FundingRateHistoryResponse
 	return resp, e.SendHTTPRequest(ctx, infoFundingHistoryEPL, &InfoRequest{
 		Type:      "fundingHistory",
 		Coin:      arg.Coin,
@@ -139,8 +139,8 @@ func (e *Exchange) GetFundingHistory(ctx context.Context, arg *FundingHistoryReq
 }
 
 // GetPredictedFundings returns each default perpetual DEX market's predicted funding on Hyperliquid and other venues
-func (e *Exchange) GetPredictedFundings(ctx context.Context) ([]PredictedFunding, error) {
-	var resp []PredictedFunding
+func (e *Exchange) GetPredictedFundings(ctx context.Context) ([]PredictedFundingResponse, error) {
+	var resp []PredictedFundingResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "predictedFundings"}, &resp)
 }
 
@@ -163,7 +163,8 @@ func (e *Exchange) GetPerpetualDeployAuctionStatus(ctx context.Context) (*GasAuc
 	return resp, nil
 }
 
-// GetActiveAssetData returns an account's leverage and trading capacity for one perpetual market
+// GetActiveAssetData returns an account's leverage and trading capacity for one perpetual market; coin is the market's
+// case-sensitive name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 func (e *Exchange) GetActiveAssetData(ctx context.Context, user, coin string) (*ActiveAssetDataResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
@@ -223,7 +224,8 @@ func (e *Exchange) GetAllPerpetualMetadata(ctx context.Context) ([]PerpetualMeta
 }
 
 // GetPerpetualAnnotation returns a builder-deployed perpetual market's display annotation; default DEX markets have
-// none, so they return common.ErrNoResponse
+// none, so they return common.ErrNoResponse. coin is the market's case-sensitive name, such as xyz:XYZ100, rather than a
+// currency code
 func (e *Exchange) GetPerpetualAnnotation(ctx context.Context, coin string) (*PerpetualAnnotationResponse, error) {
 	if strings.TrimSpace(coin) == "" {
 		return nil, errCoinRequired
@@ -239,15 +241,15 @@ func (e *Exchange) GetPerpetualAnnotation(ctx context.Context, coin string) (*Pe
 }
 
 // GetPerpetualCategories returns the category of every annotated builder-deployed perpetual market
-func (e *Exchange) GetPerpetualCategories(ctx context.Context) ([]PerpetualCategory, error) {
-	var resp []PerpetualCategory
+func (e *Exchange) GetPerpetualCategories(ctx context.Context) ([]PerpetualCategoryResponse, error) {
+	var resp []PerpetualCategoryResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "perpCategories"}, &resp)
 }
 
 // GetPerpetualConciseAnnotations returns the annotation of every annotated builder-deployed perpetual market, without
 // descriptions
-func (e *Exchange) GetPerpetualConciseAnnotations(ctx context.Context) ([]PerpetualConciseAnnotation, error) {
-	var resp []PerpetualConciseAnnotation
+func (e *Exchange) GetPerpetualConciseAnnotations(ctx context.Context) ([]PerpetualConciseAnnotationResponse, error) {
+	var resp []PerpetualConciseAnnotationResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "perpConciseAnnotations"}, &resp)
 }
 

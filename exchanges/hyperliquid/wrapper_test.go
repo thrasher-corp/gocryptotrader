@@ -1241,9 +1241,9 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestConvertTrade(t *testing.T) {
 	t.Parallel()
-	_, err := e.convertTrade(&RecentTrade{Side: "X"}, perpetualPair, asset.PerpetualContract)
+	_, err := e.convertTrade(&RecentTradeResponse{Side: "X"}, perpetualPair, asset.PerpetualContract)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "convertTrade must reject an invalid side")
-	result, err := e.convertTrade(&RecentTrade{Coin: "BTC", Side: "B", Price: 100, Size: 2, Time: milli(1791275814004), Hash: "0x1", TradeID: 7}, perpetualPair, asset.PerpetualContract)
+	result, err := e.convertTrade(&RecentTradeResponse{Coin: "BTC", Side: "B", Price: 100, Size: 2, Time: milli(1791275814004), Hash: "0x1", TradeID: 7}, perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "convertTrade must not error")
 	exp := trade.Data{TID: "7", Exchange: e.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Buy, Price: 100, Amount: 2, Timestamp: time.UnixMilli(1791275814004).UTC()}
 	assert.Equal(t, exp, result, "convertTrade should convert the trade")
@@ -1288,10 +1288,77 @@ func TestGetHistoricCandles(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetHistoricCandles should return a candle failure")
 }
 
+func TestGetHistoricCandlesFromDailyCandles(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		interval   kline.Interval
+		start, end time.Time
+		candles    int
+	}{
+		{name: "three days", interval: kline.ThreeDay, start: time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC), end: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC), candles: 20},
+		{name: "one week", interval: kline.OneWeek, start: time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), end: time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC), candles: 10},
+		{name: "two weeks", interval: kline.TwoWeek, start: time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC), end: time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC), candles: 5},
+		{name: "32 days", interval: 32 * kline.OneDay, start: time.Date(2025, 5, 22, 0, 0, 0, 0, time.UTC), end: time.Date(2025, 7, 25, 0, 0, 0, 0, time.UTC), candles: 2},
+		{name: "60 days", interval: 60 * kline.OneDay, start: time.Date(2025, 5, 10, 0, 0, 0, 0, time.UTC), end: time.Date(2025, 9, 7, 0, 0, 0, 0, time.UTC), candles: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var days strings.Builder
+			days.WriteByte('[')
+			for open := tc.start.AddDate(0, 0, -7); open.Before(tc.end.AddDate(0, 0, 7)); open = open.AddDate(0, 0, 1) {
+				if days.Len() > 1 {
+					days.WriteByte(',')
+				}
+				fmt.Fprintf(&days, `{"t":%d,"T":%d,"s":"BTC","i":"1d","o":"1","c":"2","h":"3","l":"0.5","v":"10","n":1}`, open.UnixMilli(), open.AddDate(0, 0, 1).UnixMilli()-1)
+			}
+			days.WriteByte(']')
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body InfoRequest
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
+					return
+				}
+				if !assert.Equal(t, "candleSnapshot", body.Type, "GetHistoricCandles should only request candles") || !assert.NotNil(t, body.Request, "GetHistoricCandles should send the candle request") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				if !assert.Equal(t, "1d", body.Request.Interval, "GetHistoricCandles should request daily candles") {
+					http.Error(w, "unexpected interval", http.StatusBadRequest)
+					return
+				}
+				_, err := w.Write([]byte(days.String()))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+			result, err := ex.GetHistoricCandles(t.Context(), perpetualPair, asset.PerpetualContract, tc.interval, tc.start, tc.end)
+			require.NoError(t, err, "GetHistoricCandles must not error")
+			assert.Equal(t, tc.interval, result.Interval, "GetHistoricCandles should return the requested interval")
+			require.Len(t, result.Candles, tc.candles, "GetHistoricCandles must return each interval of the range")
+			var volume float64
+			for i := range result.Candles {
+				assert.Equalf(t, kline.Candle{Time: result.Candles[i].Time, Open: 1, High: 3, Low: 0.5, Close: 2, Volume: result.Candles[i].Volume}, result.Candles[i], "GetHistoricCandles should build candle %d from daily candles", i)
+				volume += result.Candles[i].Volume
+			}
+			assert.Equal(t, tc.start, result.Candles[0].Time, "GetHistoricCandles should start at the range's start")
+			assert.Equal(t, 10*tc.end.Sub(tc.start).Hours()/24, volume, "GetHistoricCandles should combine every day of the range")
+		})
+	}
+
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		assert.Fail(t, "GetHistoricCandles should not request candles it refuses")
+		http.Error(w, "unexpected request", http.StatusBadRequest)
+	}))
+	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+	for _, interval := range []kline.Interval{kline.OneMonth, kline.ThreeMonth, kline.SixMonth, kline.NineMonth, kline.OneYear} {
+		_, err := ex.GetHistoricCandles(t.Context(), perpetualPair, asset.PerpetualContract, interval, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "GetHistoricCandles should refuse %s candles, which are not calendar aligned", interval.Word())
+	}
+}
+
 func TestConvertCandle(t *testing.T) {
 	t.Parallel()
 	exp := kline.Candle{Time: time.UnixMilli(1791252000000).UTC(), Open: 1, High: 4, Low: 0.5, Close: 2, Volume: 3}
-	assert.Equal(t, exp, convertCandle(&Candle{OpenTime: milli(1791252000000), CloseTime: milli(1791255599999), Open: 1, Close: 2, High: 4, Low: 0.5, Volume: 3, NumberOfTrades: 5}), "convertCandle should convert the candle")
+	assert.Equal(t, exp, convertCandle(&CandleResponse{OpenTime: milli(1791252000000), CloseTime: milli(1791255599999), Open: 1, Close: 2, High: 4, Low: 0.5, Volume: 3, NumberOfTrades: 5}), "convertCandle should convert the candle")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
@@ -1939,7 +2006,7 @@ func TestGetUserNonFundingLedgerUpdatesPaginated(t *testing.T) {
 
 func TestConvertUserLedgerUpdate(t *testing.T) {
 	t.Parallel()
-	_, err := e.convertUserLedgerUpdate(testAccountAddress, &UserLedgerUpdate{Delta: UserLedgerDelta{Type: " "}})
+	_, err := e.convertUserLedgerUpdate(testAccountAddress, &UserLedgerUpdateResponse{Delta: UserLedgerDelta{Type: " "}})
 	require.ErrorIs(t, err, errMalformedResponse, "convertUserLedgerUpdate must reject an update without a type")
 
 	entry := func(description, ccy string, amount, fee float64, delta *UserLedgerDelta) exchange.FundingHistory {
@@ -1987,7 +2054,7 @@ func TestConvertUserLedgerUpdate(t *testing.T) {
 		tc.delta.Fee = 0.5
 		tc.delta.User = testAccountAddress
 		tc.delta.Destination = testWithdrawalAddress
-		result, err := e.convertUserLedgerUpdate(testAccountAddress, &UserLedgerUpdate{Delta: tc.delta, Hash: "0x1", Time: milli(1791200000000)})
+		result, err := e.convertUserLedgerUpdate(testAccountAddress, &UserLedgerUpdateResponse{Delta: tc.delta, Hash: "0x1", Time: milli(1791200000000)})
 		require.NoErrorf(t, err, "convertUserLedgerUpdate must not error for %s", tc.description)
 		exp := []exchange.FundingHistory{entry(tc.description, tc.currency, tc.amount, 0.5, &tc.delta)}
 		if tc.currency != "USDC" {
@@ -2013,7 +2080,7 @@ func TestConvertUserLedgerUpdate(t *testing.T) {
 		{name: "fee in the movement's token", account: testAccountAddress, delta: &ownToken, exp: []exchange.FundingHistory{entry("spotTransfer", "HYPE", 2, 0.1, &ownToken)}},
 		{name: "update without a user", account: testAccountAddress, delta: &withdrawal, exp: []exchange.FundingHistory{entry("withdraw", "USDC", 11, 1, &withdrawal)}},
 	} {
-		result, err := e.convertUserLedgerUpdate(tc.account, &UserLedgerUpdate{Delta: *tc.delta, Hash: "0x1", Time: milli(1791200000000)})
+		result, err := e.convertUserLedgerUpdate(tc.account, &UserLedgerUpdateResponse{Delta: *tc.delta, Hash: "0x1", Time: milli(1791200000000)})
 		require.NoErrorf(t, err, "convertUserLedgerUpdate must not error for the %s", tc.name)
 		assert.Equalf(t, tc.exp, result, "convertUserLedgerUpdate should report the fee of the %s", tc.name)
 	}
@@ -2303,7 +2370,7 @@ func TestSubmitOrder(t *testing.T) {
 		submission error
 		err        error
 	}{
-		{name: "partial GTC fill", submit: limit, statuses: []string{`{"filled":{"oid":7,"totalSz":"0.0004","avgPx":"85000"}}`}, status: order.PartiallyFilled, remaining: 0.0006},
+		{name: "partial GTC fill", submit: limit, statuses: []string{`{"filled":{"oid":7,"totalSz":"0.0004","avgPx":"85000"}}`}, status: order.PartiallyFilledCancelled, remaining: 0.0006},
 		{name: "rejected child", submit: &bracket, statuses: []string{`{"resting":{"oid":11}}`, `{"error":"bad TP"}`, `"waitingForFill"`}, status: order.New, remaining: 0.001, submission: errGroupedOrderChildFailure},
 		{name: "partial ALO fill", submit: func() *order.Submit { s := *limit; s.TimeInForce = order.PostOnly; return &s }(), statuses: []string{`{"filled":{"oid":7,"totalSz":"0.0004","avgPx":"85000"}}`}, err: errActionStatusMalformed},
 		{name: "partial trigger fill", submit: stopMarket, statuses: []string{`{"filled":{"oid":9,"totalSz":"0.04","avgPx":"90"}}`}, err: errActionStatusMalformed},
@@ -2565,7 +2632,7 @@ func TestModifyOrder(t *testing.T) {
 		err       error
 	}{
 		{status: `{"filled":{"oid":7,"totalSz":"1","avgPx":"100"}}`, exp: order.Filled},
-		{status: `{"filled":{"oid":7,"totalSz":"0.4","avgPx":"100"}}`, exp: order.PartiallyFilled, remaining: 0.6},
+		{status: `{"filled":{"oid":7,"totalSz":"0.4","avgPx":"100"}}`, exp: order.PartiallyFilledCancelled, remaining: 0.6},
 		{status: `{"filled":{"oid":7,"totalSz":"2","avgPx":"100"}}`, err: errInvalidFilledSize},
 		{status: `{"filled":{"oid":7,"totalSz":"0.400001","avgPx":"100"}}`, err: errInvalidFilledSize},
 		{status: `{"error":"Cannot modify canceled or filled order"}`, err: order.ErrUnableToPlaceOrder},
@@ -2748,7 +2815,7 @@ func TestCancelOrderBatch(t *testing.T) {
 func TestRecordCancelStatuses(t *testing.T) {
 	t.Parallel()
 	statuses := make(map[string]string)
-	err := recordCancelStatuses(statuses, []string{"1", "2"}, []CancelActionStatus{{}, {Error: "Order was never placed, already canceled, or filled."}})
+	err := recordCancelStatuses(statuses, []string{"1", "2"}, []CancelActionStatusResponse{{}, {Error: "Order was never placed, already canceled, or filled."}})
 	assert.ErrorIs(t, err, errActionResponse, "recordCancelStatuses should return each failed cancel")
 	assert.Equal(t, map[string]string{"1": "success", "2": "Order was never placed, already canceled, or filled."}, statuses, "recordCancelStatuses should record each cancel's outcome")
 }
@@ -3280,10 +3347,10 @@ func TestGetOrderHistory(t *testing.T) {
 func TestLatestOrderStatuses(t *testing.T) {
 	t.Parallel()
 	assert.Empty(t, latestOrderStatuses(nil), "latestOrderStatuses should return nothing for no status changes")
-	statusChange := func(orderID uint64, status string, statusTimestamp int64) HistoricalOrder {
-		return HistoricalOrder{Order: FrontendOpenOrder{OrderID: orderID, Timestamp: milli(1791275926947)}, Status: status, StatusTimestamp: milli(statusTimestamp)}
+	statusChange := func(orderID uint64, status string, statusTimestamp int64) HistoricalOrderResponse {
+		return HistoricalOrderResponse{Order: FrontendOpenOrderResponse{OrderID: orderID, Timestamp: milli(1791275926947)}, Status: status, StatusTimestamp: milli(statusTimestamp)}
 	}
-	statusChanges := []HistoricalOrder{
+	statusChanges := []HistoricalOrderResponse{
 		statusChange(1, "canceled", 1791275930650),
 		statusChange(2, "open", 1791275930000),
 		statusChange(1, "open", 1791275930036),
@@ -3291,7 +3358,7 @@ func TestLatestOrderStatuses(t *testing.T) {
 		statusChange(3, "filled", 1791275931000),
 		statusChange(2, "filled", 1791275932000),
 	}
-	exp := []HistoricalOrder{
+	exp := []HistoricalOrderResponse{
 		statusChange(1, "canceled", 1791275930650),
 		statusChange(2, "filled", 1791275932000),
 		statusChange(3, "filled", 1791275931000),
@@ -3306,27 +3373,27 @@ func TestLatestOrderStatuses(t *testing.T) {
 		{"open", "triggered", "filled"},
 		{"open", "filled", "triggered"},
 	} {
-		changes := make([]HistoricalOrder, len(statuses))
+		changes := make([]HistoricalOrderResponse, len(statuses))
 		for i, status := range statuses {
 			changes[i] = statusChange(4, status, 1791275933000)
 		}
-		assert.Equalf(t, []HistoricalOrder{statusChange(4, "filled", 1791275933000)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the final change of %v at one time", statuses)
+		assert.Equalf(t, []HistoricalOrderResponse{statusChange(4, "filled", 1791275933000)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the final change of %v at one time", statuses)
 	}
 	for _, statuses := range [][]string{{"triggered", "open"}, {"open", "triggered"}} {
-		changes := []HistoricalOrder{statusChange(5, statuses[0], 1791275934000), statusChange(5, statuses[1], 1791275934000)}
-		assert.Equalf(t, []HistoricalOrder{statusChange(5, "triggered", 1791275934000)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the triggered change of %v at one time", statuses)
+		changes := []HistoricalOrderResponse{statusChange(5, statuses[0], 1791275934000), statusChange(5, statuses[1], 1791275934000)}
+		assert.Equalf(t, []HistoricalOrderResponse{statusChange(5, "triggered", 1791275934000)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the triggered change of %v at one time", statuses)
 	}
 
 	// Once triggered, an order's changes give the trigger time as its timestamp and no trigger price, as live
 	placed, triggeredAt := milli(1791651887088), milli(1791654299637)
-	triggerChange := func(status string, statusTimestamp, timestamp types.Time, triggerPrice types.Number) HistoricalOrder {
-		return HistoricalOrder{Order: FrontendOpenOrder{OrderID: 6, Timestamp: timestamp, TriggerPrice: triggerPrice}, Status: status, StatusTimestamp: statusTimestamp}
+	triggerChange := func(status string, statusTimestamp, timestamp types.Time, triggerPrice types.Number) HistoricalOrderResponse {
+		return HistoricalOrderResponse{Order: FrontendOpenOrderResponse{OrderID: 6, Timestamp: timestamp, TriggerPrice: triggerPrice}, Status: status, StatusTimestamp: statusTimestamp}
 	}
 	filled := triggerChange("filled", triggeredAt, triggeredAt, 0)
 	triggered := triggerChange("triggered", triggeredAt, placed, 5.3257)
 	opened := triggerChange("open", placed, placed, 5.3257)
-	for _, changes := range [][]HistoricalOrder{{filled, triggered, opened}, {opened, triggered, filled}, {triggered, filled}} {
-		assert.Equal(t, []HistoricalOrder{triggerChange("filled", triggeredAt, placed, 5.3257)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the final change with the trigger price and placement time of the earlier ones")
+	for _, changes := range [][]HistoricalOrderResponse{{filled, triggered, opened}, {opened, triggered, filled}, {triggered, filled}} {
+		assert.Equal(t, []HistoricalOrderResponse{triggerChange("filled", triggeredAt, placed, 5.3257)}, latestOrderStatuses(changes), "latestOrderStatuses should keep the final change with the trigger price and placement time of the earlier ones")
 	}
 }
 
@@ -3405,17 +3472,17 @@ func TestSizePositionOrders(t *testing.T) {
 func TestConvertOpenOrder(t *testing.T) {
 	t.Parallel()
 	ex := newTradingServerExchange(t, nil, nil)
-	_, err := ex.convertOpenOrder(t.Context(), &BasicOrder{Coin: "MISSING", Side: "B"})
+	_, err := ex.convertOpenOrder(t.Context(), &BasicOrderResponse{Coin: "MISSING", Side: "B"})
 	assert.ErrorIs(t, err, errPairMappingNotFound, "convertOpenOrder should reject an order without a market")
-	detail, err := ex.convertOpenOrder(t.Context(), &BasicOrder{Coin: "BTC", Side: "X", ReduceOnly: true})
+	detail, err := ex.convertOpenOrder(t.Context(), &BasicOrderResponse{Coin: "BTC", Side: "X", ReduceOnly: true})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "convertOpenOrder should reject an order with an unknown side")
 	assert.Zero(t, detail, "convertOpenOrder should return no order when it cannot convert one")
-	detail, err = ex.convertOpenOrder(t.Context(), &BasicOrder{Coin: "@107", Side: "A", LimitPrice: 95.5, Size: 1, OrderID: 9, Timestamp: milli(1791275926947), OriginalSize: 1.5, ClientOrderID: testClientOrderID})
+	detail, err = ex.convertOpenOrder(t.Context(), &BasicOrderResponse{Coin: "@107", Side: "A", LimitPrice: 95.5, Size: 1, OrderID: 9, Timestamp: milli(1791275926947), OriginalSize: 1.5, ClientOrderID: testClientOrderID})
 	require.NoError(t, err, "convertOpenOrder must not error")
 	placed := time.UnixMilli(1791275926947).UTC()
 	exp := order.Detail{Price: 95.5, Amount: 1.5, ExecutedAmount: 0.5, RemainingAmount: 1, Exchange: ex.Name, OrderID: "9", ClientOrderID: testClientOrderID, Side: order.Sell, Status: order.PartiallyFilled, AssetType: asset.Spot, Date: placed, LastUpdated: placed, Pair: spotPair}
 	assert.Equal(t, exp, detail, "convertOpenOrder should convert the order without its order type or time in force")
-	detail, err = ex.convertOpenOrder(t.Context(), &BasicOrder{Coin: "BTC", Side: "A", LimitPrice: 100, Size: 1, OrderID: 10, Timestamp: milli(1791275926947), OriginalSize: 1, ReduceOnly: true})
+	detail, err = ex.convertOpenOrder(t.Context(), &BasicOrderResponse{Coin: "BTC", Side: "A", LimitPrice: 100, Size: 1, OrderID: 10, Timestamp: milli(1791275926947), OriginalSize: 1, ReduceOnly: true})
 	require.NoError(t, err, "convertOpenOrder must not error for a reduce-only order")
 	exp = order.Detail{ReduceOnly: true, Price: 100, Amount: 1, RemainingAmount: 1, Exchange: ex.Name, OrderID: "10", Side: order.Sell, Status: order.Open, AssetType: asset.PerpetualContract, Date: placed, LastUpdated: placed, Pair: perpetualPair}
 	assert.Equal(t, exp, detail, "convertOpenOrder should keep a reduce-only order's flag")
@@ -4511,14 +4578,14 @@ func TestConvertOrderFromMapping(t *testing.T) {
 	assert.Equal(t, exp, result, "convertOrderFromMapping should classify a filled trigger order by its type, whatever its trigger flag")
 
 	for _, tc := range []struct {
-		mutate func(*FrontendOpenOrder)
+		mutate func(*FrontendOpenOrderResponse)
 		status string
 		err    error
 	}{
-		{mutate: func(o *FrontendOpenOrder) { o.OrderType = "unknown" }, status: "open", err: order.ErrTypeIsInvalid},
-		{mutate: func(o *FrontendOpenOrder) { o.TimeInForce = "bad" }, status: "open", err: order.ErrInvalidTimeInForce},
-		{mutate: func(o *FrontendOpenOrder) { o.Side = "X" }, status: "open", err: order.ErrSideIsInvalid},
-		{mutate: func(*FrontendOpenOrder) {}, status: "unknown", err: errUnsupportedOrderStatus},
+		{mutate: func(o *FrontendOpenOrderResponse) { o.OrderType = "unknown" }, status: "open", err: order.ErrTypeIsInvalid},
+		{mutate: func(o *FrontendOpenOrderResponse) { o.TimeInForce = "bad" }, status: "open", err: order.ErrInvalidTimeInForce},
+		{mutate: func(o *FrontendOpenOrderResponse) { o.Side = "X" }, status: "open", err: order.ErrSideIsInvalid},
+		{mutate: func(*FrontendOpenOrderResponse) {}, status: "unknown", err: errUnsupportedOrderStatus},
 	} {
 		invalid := testOpenOrder()
 		tc.mutate(&invalid)
@@ -4531,7 +4598,7 @@ func TestConvertWebsocketOrder(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	ex.Name = t.Name()
-	update := &WebsocketOrder{Order: testOpenOrder().BasicOrder, Status: "canceled", StatusTimestamp: milli(1791275930650)}
+	update := &WebsocketOrder{Order: testOpenOrder().BasicOrderResponse, Status: "canceled", StatusTimestamp: milli(1791275930650)}
 	_, err := ex.convertWsOrder(update)
 	require.ErrorIs(t, err, errPairMappingNotFound, "convertWsOrder must report an order without a cached market")
 	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
@@ -4557,7 +4624,7 @@ func TestConvertWebsocketOrder(t *testing.T) {
 
 func TestConvertBasicOrder(t *testing.T) {
 	t.Parallel()
-	source := BasicOrder{Coin: "BTC", Side: "A", LimitPrice: 100, Size: 1, OrderID: 7, Timestamp: milli(1791275926947)}
+	source := BasicOrderResponse{Coin: "BTC", Side: "A", LimitPrice: 100, Size: 1, OrderID: 7, Timestamp: milli(1791275926947)}
 	result, err := e.convertBasicOrder(&source, "filled", time.Time{}, perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "convertBasicOrder must not error")
 	exp := order.Detail{
@@ -4741,7 +4808,7 @@ func TestDeriveFilledOrderState(t *testing.T) {
 		err               error
 	}{
 		{requested: 0.1, filled: 0.1, decimals: 5, timeInForce: TimeInForceGTC, status: order.Filled},
-		{requested: 0.1, filled: 0.04, decimals: 5, timeInForce: TimeInForceGTC, status: order.PartiallyFilled, remaining: 0.06},
+		{requested: 0.1, filled: 0.04, decimals: 5, timeInForce: TimeInForceGTC, status: order.PartiallyFilledCancelled, remaining: 0.06},
 		{requested: 0.1, filled: 0.04, decimals: 5, timeInForce: TimeInForceIOC, status: order.PartiallyFilledCancelled, remaining: 0.06},
 		{requested: 0.1, filled: 0.04, decimals: 5, timeInForce: TimeInForceALO, err: errActionStatusMalformed},
 		{requested: 0.1, filled: 0.04, decimals: 5, err: errActionStatusMalformed},

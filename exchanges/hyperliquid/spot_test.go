@@ -384,7 +384,7 @@ func TestGetOutcomeTemplates(t *testing.T) {
 	result, err := e.GetOutcomeTemplates(t.Context())
 	require.NoError(t, err, "GetOutcomeTemplates must not error")
 	if mockTests {
-		exp := []OutcomeTemplate{
+		exp := []OutcomeTemplateResponse{
 			{
 				ID:          "aiModelHeadToHead",
 				Role:        OutcomeTemplateRole{StandaloneOutcome: &StandaloneOutcomeRole{SideNames: []string{"{shortNameA}", "{shortNameB}"}}},

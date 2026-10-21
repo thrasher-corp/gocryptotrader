@@ -23,6 +23,7 @@ import (
 const zonelessTimeLayout = "2006-01-02T15:04:05.999999999"
 
 var (
+	errInvalidCalendarDate = errors.New("invalid calendar date")
 	errInvalidTupleLength  = errors.New("invalid tuple length")
 	errInvalidZonelessTime = errors.New("invalid zone-less timestamp")
 )
@@ -106,9 +107,51 @@ func (z *ZonelessTime) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON encodes the timestamp as Hyperliquid sends it, and an unset one as an empty string
+func (z ZonelessTime) MarshalJSON() ([]byte, error) {
+	if time.Time(z).IsZero() {
+		return []byte(`""`), nil
+	}
+	return []byte(`"` + time.Time(z).UTC().Format(zonelessTimeLayout) + `"`), nil
+}
+
 // Time returns the timestamp as a time.Time
 func (z ZonelessTime) Time() time.Time {
 	return time.Time(z)
+}
+
+// CalendarDate is a UTC calendar day decoded from a YYYY-MM-DD string
+type CalendarDate time.Time
+
+// UnmarshalJSON decodes a YYYY-MM-DD date as the start of that UTC day
+func (d *CalendarDate) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidCalendarDate, err)
+	}
+	if text == "" {
+		*d = CalendarDate{}
+		return nil
+	}
+	parsed, err := time.Parse(time.DateOnly, text)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errInvalidCalendarDate, err)
+	}
+	*d = CalendarDate(parsed)
+	return nil
+}
+
+// MarshalJSON encodes the date as Hyperliquid sends it, and an unset one as an empty string
+func (d CalendarDate) MarshalJSON() ([]byte, error) {
+	if time.Time(d).IsZero() {
+		return []byte(`""`), nil
+	}
+	return []byte(`"` + time.Time(d).UTC().Format(time.DateOnly) + `"`), nil
+}
+
+// Time returns the start of the UTC day as a time.Time
+func (d CalendarDate) Time() time.Time {
+	return time.Time(d)
 }
 
 // AccountAbstraction identifies how Hyperliquid shares balances across spot and perpetual DEXs
@@ -125,8 +168,9 @@ const (
 
 // InfoRequest is the body of every info endpoint request; its type field selects the response schema
 type InfoRequest struct {
-	Type                       string              `json:"type"`
-	DEX                        string              `json:"dex,omitempty"`
+	Type string `json:"type"`
+	DEX  string `json:"dex,omitempty"`
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin                       string              `json:"coin,omitempty"`
 	User                       string              `json:"user,omitempty"`
 	VaultAddress               string              `json:"vaultAddress,omitempty"`
@@ -155,6 +199,7 @@ type DEXInfoRequest struct {
 
 // CandleSnapshotWire is the nested req object of a candle snapshot request
 type CandleSnapshotWire struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin      string `json:"coin"`
 	Interval  string `json:"interval"`
 	StartTime uint64 `json:"startTime"`
@@ -162,8 +207,9 @@ type CandleSnapshotWire struct {
 	EndTime uint64 `json:"endTime,omitempty"`
 }
 
-// BasicOrder contains the order fields that every order response includes
-type BasicOrder struct {
+// BasicOrderResponse contains the order fields that every order response includes
+type BasicOrderResponse struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin          string       `json:"coin"`
 	Side          string       `json:"side"`
 	LimitPrice    types.Number `json:"limitPx"`
@@ -176,21 +222,22 @@ type BasicOrder struct {
 	ReduceOnly bool `json:"reduceOnly"`
 }
 
-// FrontendOpenOrder contains an order with the additional fields the frontend displays
-type FrontendOpenOrder struct {
-	BasicOrder
-	TriggerCondition string              `json:"triggerCondition"`
-	IsTrigger        bool                `json:"isTrigger"`
-	TriggerPrice     types.Number        `json:"triggerPx"`
-	Children         []FrontendOpenOrder `json:"children"`
-	IsPositionTPSL   bool                `json:"isPositionTpsl"`
-	ReduceOnly       bool                `json:"reduceOnly"`
-	OrderType        string              `json:"orderType"`
-	TimeInForce      string              `json:"tif"`
+// FrontendOpenOrderResponse contains an order with the additional fields the frontend displays
+type FrontendOpenOrderResponse struct {
+	BasicOrderResponse
+	TriggerCondition string                      `json:"triggerCondition"`
+	IsTrigger        bool                        `json:"isTrigger"`
+	TriggerPrice     types.Number                `json:"triggerPx"`
+	Children         []FrontendOpenOrderResponse `json:"children"`
+	IsPositionTPSL   bool                        `json:"isPositionTpsl"`
+	ReduceOnly       bool                        `json:"reduceOnly"`
+	OrderType        string                      `json:"orderType"`
+	TimeInForce      string                      `json:"tif"`
 }
 
-// Fill contains one fill of an account's order
-type Fill struct {
+// FillResponse contains one fill of an account's order
+type FillResponse struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin          string       `json:"coin"`
 	Price         types.Number `json:"px"`
 	Size          types.Number `json:"sz"`
@@ -251,19 +298,20 @@ type OrderStatusRequest struct {
 
 // OrderStatusResponse contains an order's latest status; Status is unknownOid when the order does not exist
 type OrderStatusResponse struct {
-	Status string           `json:"status"`
-	Order  *HistoricalOrder `json:"order"`
+	Status string                   `json:"status"`
+	Order  *HistoricalOrderResponse `json:"order"`
 }
 
-// HistoricalOrder contains an order and its latest status
-type HistoricalOrder struct {
-	Order           FrontendOpenOrder `json:"order"`
-	Status          string            `json:"status"`
-	StatusTimestamp types.Time        `json:"statusTimestamp"`
+// HistoricalOrderResponse contains an order and its latest status
+type HistoricalOrderResponse struct {
+	Order           FrontendOpenOrderResponse `json:"order"`
+	Status          string                    `json:"status"`
+	StatusTimestamp types.Time                `json:"statusTimestamp"`
 }
 
 // L2BookRequest contains the coin and optional price aggregation of an L2 book request
 type L2BookRequest struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin string
 	// NumberOfSignificantFigures aggregates levels to 2, 3, 4 or 5 significant figures; zero requests full precision
 	NumberOfSignificantFigures uint64
@@ -274,6 +322,7 @@ type L2BookRequest struct {
 
 // L2BookResponse contains an L2 book snapshot, with bids first and asks second
 type L2BookResponse struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin   string      `json:"coin"`
 	Time   types.Time  `json:"time"`
 	Levels [][]L2Level `json:"levels"`
@@ -290,16 +339,18 @@ type L2Level struct {
 
 // CandleSnapshotRequest contains the parameters of a candle snapshot request
 type CandleSnapshotRequest struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin      string
 	Interval  kline.Interval
 	StartTime time.Time
 	EndTime   time.Time
 }
 
-// Candle contains one OHLCV interval
-type Candle struct {
-	OpenTime       types.Time   `json:"t"`
-	CloseTime      types.Time   `json:"T"`
+// CandleResponse contains one OHLCV interval
+type CandleResponse struct {
+	OpenTime  types.Time `json:"t"`
+	CloseTime types.Time `json:"T"`
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin           string       `json:"s"`
 	Interval       string       `json:"i"`
 	Open           types.Number `json:"o"`
@@ -310,14 +361,14 @@ type Candle struct {
 	NumberOfTrades uint64       `json:"n"`
 }
 
-// TWAPSliceFill contains one fill of a TWAP order's slice
-type TWAPSliceFill struct {
-	Fill   Fill   `json:"fill"`
-	TWAPID uint64 `json:"twapId"`
+// TWAPSliceFillResponse contains one fill of a TWAP order's slice
+type TWAPSliceFillResponse struct {
+	Fill   FillResponse `json:"fill"`
+	TWAPID uint64       `json:"twapId"`
 }
 
-// SubAccount contains a subaccount and its first perpetual DEX and spot states
-type SubAccount struct {
+// SubAccountResponse contains a subaccount and its first perpetual DEX and spot states
+type SubAccountResponse struct {
 	Name               string                         `json:"name"`
 	SubAccountUser     string                         `json:"subAccountUser"`
 	Master             string                         `json:"master"`
@@ -327,32 +378,32 @@ type SubAccount struct {
 
 // VaultDetailsResponse contains a vault's configuration, performance history and followers
 type VaultDetailsResponse struct {
-	Name                  string            `json:"name"`
-	VaultAddress          string            `json:"vaultAddress"`
-	Leader                string            `json:"leader"`
-	Description           string            `json:"description"`
-	Portfolio             []PortfolioPeriod `json:"portfolio"`
-	AnnualPercentageRate  float64           `json:"apr"`
-	FollowerState         *VaultFollower    `json:"followerState"`
-	LeaderFraction        float64           `json:"leaderFraction"`
-	LeaderCommission      float64           `json:"leaderCommission"`
-	Followers             []VaultFollower   `json:"followers"`
-	MaxDistributable      float64           `json:"maxDistributable"`
-	MaxWithdrawable       float64           `json:"maxWithdrawable"`
-	IsClosed              bool              `json:"isClosed"`
-	Relationship          VaultRelationship `json:"relationship"`
-	AllowDeposits         bool              `json:"allowDeposits"`
-	AlwaysCloseOnWithdraw bool              `json:"alwaysCloseOnWithdraw"`
+	Name                  string                    `json:"name"`
+	VaultAddress          string                    `json:"vaultAddress"`
+	Leader                string                    `json:"leader"`
+	Description           string                    `json:"description"`
+	Portfolio             []PortfolioPeriodResponse `json:"portfolio"`
+	AnnualPercentageRate  float64                   `json:"apr"`
+	FollowerState         *VaultFollower            `json:"followerState"`
+	LeaderFraction        float64                   `json:"leaderFraction"`
+	LeaderCommission      float64                   `json:"leaderCommission"`
+	Followers             []VaultFollower           `json:"followers"`
+	MaxDistributable      float64                   `json:"maxDistributable"`
+	MaxWithdrawable       float64                   `json:"maxWithdrawable"`
+	IsClosed              bool                      `json:"isClosed"`
+	Relationship          VaultRelationship         `json:"relationship"`
+	AllowDeposits         bool                      `json:"allowDeposits"`
+	AlwaysCloseOnWithdraw bool                      `json:"alwaysCloseOnWithdraw"`
 }
 
-// PortfolioPeriod contains an account's or a vault's history over one period, such as day, week or perpAllTime
-type PortfolioPeriod struct {
+// PortfolioPeriodResponse contains an account's or a vault's history over one period, such as day, week or perpAllTime
+type PortfolioPeriodResponse struct {
 	Period  string
 	History PortfolioHistory
 }
 
 // UnmarshalJSON decodes a [period, history] tuple
-func (p *PortfolioPeriod) UnmarshalJSON(data []byte) error {
+func (p *PortfolioPeriodResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &p.Period, &p.History)
 }
 
@@ -396,8 +447,8 @@ type VaultRelationshipData struct {
 	ChildAddresses []string `json:"childAddresses"`
 }
 
-// UserVaultEquity contains an account's equity in one vault
-type UserVaultEquity struct {
+// UserVaultEquityResponse contains an account's equity in one vault
+type UserVaultEquityResponse struct {
 	VaultAddress string       `json:"vaultAddress"`
 	Equity       types.Number `json:"equity"`
 	// LockedUntilTimestamp is when the deposit's lockup ends, and may be in the past
@@ -522,7 +573,7 @@ type UserFeesResponse struct {
 
 // DailyUserVolume contains an account's taker and maker volume for one day, alongside the exchange's total volume
 type DailyUserVolume struct {
-	Date            string       `json:"date"`
+	Date            CalendarDate `json:"date"`
 	UserTakerVolume types.Number `json:"userCross"`
 	UserMakerVolume types.Number `json:"userAdd"`
 	ExchangeVolume  types.Number `json:"exchange"`
@@ -573,8 +624,8 @@ type StakingLink struct {
 	StakingUser string `json:"stakingUser"`
 }
 
-// Delegation contains an account's stake delegated to one validator
-type Delegation struct {
+// DelegationResponse contains an account's stake delegated to one validator
+type DelegationResponse struct {
 	Validator string       `json:"validator"`
 	Amount    types.Number `json:"amount"`
 	// LockedUntilTimestamp is one day after the account's last delegation to the validator
@@ -589,8 +640,8 @@ type DelegatorSummaryResponse struct {
 	NumberOfPendingWithdrawals uint64       `json:"nPendingWithdrawals"`
 }
 
-// DelegatorUpdate contains one staking history entry
-type DelegatorUpdate struct {
+// DelegatorUpdateResponse contains one staking history entry
+type DelegatorUpdateResponse struct {
 	Time types.Time `json:"time"`
 	// Hash is zero for finalised withdrawals
 	Hash  string         `json:"hash"`
@@ -623,8 +674,8 @@ type WithdrawalDelta struct {
 	Phase string `json:"phase"`
 }
 
-// DelegatorReward contains one day's staking reward from one source
-type DelegatorReward struct {
+// DelegatorRewardResponse contains one day's staking reward from one source
+type DelegatorRewardResponse struct {
 	Time types.Time `json:"time"`
 	// Source is delegation, or commission for validators
 	Source      string       `json:"source"`
@@ -674,14 +725,14 @@ type BorrowLendReserveStateResponse struct {
 	TotalBorrowed    types.Number `json:"totalBorrowed"`
 }
 
-// BorrowLendReserveStateEntry contains the borrow/lend reserve of one token
-type BorrowLendReserveStateEntry struct {
+// BorrowLendReserveStateEntryResponse contains the borrow/lend reserve of one token
+type BorrowLendReserveStateEntryResponse struct {
 	Token uint64
 	State BorrowLendReserveStateResponse
 }
 
 // UnmarshalJSON decodes a [token, state] tuple
-func (b *BorrowLendReserveStateEntry) UnmarshalJSON(data []byte) error {
+func (b *BorrowLendReserveStateEntryResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &b.Token, &b.State)
 }
 
@@ -692,8 +743,9 @@ type ExchangeStatusResponse struct {
 	Time            types.Time `json:"time"`
 }
 
-// RecentTrade contains one public trade
-type RecentTrade struct {
+// RecentTradeResponse contains one public trade
+type RecentTradeResponse struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin    string       `json:"coin"`
 	Side    string       `json:"side"`
 	Price   types.Number `json:"px"`

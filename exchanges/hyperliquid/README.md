@@ -120,7 +120,8 @@ be authenticated, and other feeds take no asset. Subscription parameters set the
 
 Subscriptions differing only in these parameters select separate feeds and are held side by side, except that a
 market's orderbook and the account's `userFills` take one variant at a time: two orderbook variants would replace each
-other's stored book, and two `userFills` variants would relay each fill twice.
+other's stored book, and two `userFills` variants would relay each fill twice. An aggregated `userFills` is refused
+beside `userEvents`, which the standard account trades channel uses, for the same reason.
 
 The websocket manager runs two connections: a public one for market feeds and `WebsocketAPI()` posts, which stays open
 without subscriptions, and an account one for account feeds, opened when account feeds are subscribed, authenticated
@@ -134,11 +135,14 @@ IP address; the interval carries over reconnections until the account connection
 
 Hyperliquid closes the connection, dropping every feed on it, when a subscription fails validation, so coins, DEXs and
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it
-rejects them or the connection drops. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens,
-Hyperliquid replays recent entries, and only those newer than the last entry relayed from that feed are relayed, so a
-first subscription relays none and resubscribing after a reconnect relays what the replay holds of the gap. Account
-trades use `userEvents`, which includes TWAP slice fills but replays nothing, so the fills it misses while disconnected
-are not recovered from the websocket.
+rejects them, the connection drops or they time out. Hyperliquid may still subscribe a feed whose subscribe timed out or
+was cancelled once sent, so the feed keeps its slot, and neither it nor a variant exclusive of it can be subscribed,
+until Hyperliquid answers; a late acknowledgement unsubscribes it, and the slot stays held until the connection drops if
+that unsubscribe fails. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens, Hyperliquid replays
+recent entries, and only those newer than the last entry relayed from that feed are relayed, so a first subscription
+relays none and resubscribing after a reconnect relays what the replay holds of the gap. Account trades use
+`userEvents`, which includes TWAP slice fills but replays nothing, so the fills it misses while disconnected are not
+recovered from the websocket.
 
 `orderUpdates` sends a row only when an order's status changes, so fills from `userEvents`, and from `userFills` and
 `userTwapSliceFills` when subscribed, are also relayed to the order stream as trades of their orders; a fill both feeds
@@ -167,11 +171,15 @@ bridge's 5 USDC minimum is not credited and is lost.
 ### Not supported
 
 Token, market and outcome deployment, validator actions and the other platform administration actions are not wrapped.
-`SendSignedAction` signs and sends any L1 action, including one the package does not wrap, and its `L1ActionOptions`
-set the batch length that weighs the action against the rate limit, whether it acts for the configured subaccount or
-vault, its expiry and nonce, and whether it is sent over the websocket instead of REST. The signature hashes an
-action's fields in declaration order, so an action type the package does not define must declare its fields, with
-`json` and `msgpack` tags, in the order Hyperliquid's SDKs send them.
+`GetHistoricCandles` refuses the intervals GCT aligns to calendar months, one, three, six and nine months and a year, as
+Hyperliquid's `1M` candle spans 30 days from its own start dates. Its 3-day and weekly candles open on other days than
+GCT's too, so those are built from daily candles, as are other intervals of whole days, while `GetCandleSnapshot` returns
+Hyperliquid's own.
+`SendSignedAction` signs and sends any L1 action, including one the package does not wrap, and its
+`L1ActionOptionsRequest` sets the batch length that weighs the action against the rate limit, whether it acts for the
+configured subaccount or vault, its expiry and nonce, and whether it is sent over the websocket instead of REST. The
+signature hashes an action's fields in declaration order, so an action type the package does not define must declare its
+fields, with `json` and `msgpack` tags, in the order Hyperliquid's SDKs send them.
 
 ### How to do REST public/private calls
 

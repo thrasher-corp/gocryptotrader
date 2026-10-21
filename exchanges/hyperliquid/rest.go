@@ -72,9 +72,9 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 // SendSignedAction signs an L1 action with the configured key and returns the response payload of an accepted action
 // The action is any L1 action payload, such as OrderAction or CancelAction, and nil options send an unbatched action
 // for the account itself
-func (e *Exchange) SendSignedAction(ctx context.Context, action any, opts *L1ActionOptions) (json.RawMessage, error) {
+func (e *Exchange) SendSignedAction(ctx context.Context, action any, opts *L1ActionOptionsRequest) (json.RawMessage, error) {
 	if opts == nil {
-		opts = &L1ActionOptions{}
+		opts = &L1ActionOptionsRequest{}
 	}
 	if opts.BatchLength > maximumActionBatchSize {
 		return nil, fmt.Errorf("%w: maximum %d, got %d", errActionBatchTooLarge, maximumActionBatchSize, opts.BatchLength)
@@ -194,12 +194,12 @@ func (e *Exchange) GetAllMids(ctx context.Context, dex string) (map[string]types
 // GetOpenOrders returns every open order of an account on a perpetual DEX, newest first; the first DEX also includes
 // spot orders. It omits the order type, time in force and trigger fields of GetFrontendOpenOrders, which may return only
 // 100 of the orders of an account with very many
-func (e *Exchange) GetOpenOrders(ctx context.Context, user, dex string) ([]BasicOrder, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, user, dex string) ([]BasicOrderResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []BasicOrder
+	var resp []BasicOrderResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "openOrders", User: user, DEX: dex}, &resp)
 }
 
@@ -207,24 +207,24 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, user, dex string) ([]Basic
 // includes spot orders. It returns every open order of most accounts, but only 100, not necessarily the newest, of an
 // account with very many, such as one of HLP's child vaults; GetOpenOrders returns every open order without the
 // frontend fields
-func (e *Exchange) GetFrontendOpenOrders(ctx context.Context, user, dex string) ([]FrontendOpenOrder, error) {
+func (e *Exchange) GetFrontendOpenOrders(ctx context.Context, user, dex string) ([]FrontendOpenOrderResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []FrontendOpenOrder
+	var resp []FrontendOpenOrderResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "frontendOpenOrders", User: user, DEX: dex}, &resp)
 }
 
 // GetUserFills returns an account's 2000 most recent fills across every perpetual DEX and spot, newest first; with
 // aggregateByTime the partial fills of an order matched within one block are combined. TWAP slice fills are only
 // returned by GetUserTWAPSliceFills
-func (e *Exchange) GetUserFills(ctx context.Context, user string, aggregateByTime bool) ([]Fill, error) {
+func (e *Exchange) GetUserFills(ctx context.Context, user string, aggregateByTime bool) ([]FillResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []Fill
+	var resp []FillResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserFillsEPL, &InfoRequest{Type: "userFills", User: user, AggregateByTime: aggregateByTime}, &resp)
 }
 
@@ -232,7 +232,7 @@ func (e *Exchange) GetUserFills(ctx context.Context, user string, aggregateByTim
 // most recent fills are available, and TWAP slice fills are not returned
 // Fills of one millisecond can straddle the 2000 fill limit, so callers paging by the last fill's time must de-duplicate
 // fills by trade ID
-func (e *Exchange) GetUserFillsByTime(ctx context.Context, arg *UserFillsByTimeRequest) ([]Fill, error) {
+func (e *Exchange) GetUserFillsByTime(ctx context.Context, arg *UserFillsByTimeRequest) ([]FillResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -244,7 +244,7 @@ func (e *Exchange) GetUserFillsByTime(ctx context.Context, arg *UserFillsByTimeR
 	if err != nil {
 		return nil, err
 	}
-	var resp []Fill
+	var resp []FillResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserFillsEPL, &InfoRequest{
 		Type:            "userFillsByTime",
 		User:            user,
@@ -355,7 +355,7 @@ func validateBookAggregation(significantFigures, mantissa uint64) error {
 
 // GetCandleSnapshot returns candles over an inclusive time range, or up to now when the end time is zero; only the most
 // recent 5000 candles are available
-func (e *Exchange) GetCandleSnapshot(ctx context.Context, arg *CandleSnapshotRequest) ([]Candle, error) {
+func (e *Exchange) GetCandleSnapshot(ctx context.Context, arg *CandleSnapshotRequest) ([]CandleResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -374,7 +374,7 @@ func (e *Exchange) GetCandleSnapshot(ctx context.Context, arg *CandleSnapshotReq
 	if weightEnd.IsZero() {
 		weightEnd = time.Now()
 	}
-	var resp []Candle
+	var resp []CandleResponse
 	return resp, e.SendHTTPRequest(ctx, candleEndpointLimit(kline.TotalCandlesPerInterval(arg.StartTime, weightEnd, arg.Interval)), &InfoRequest{
 		Type: "candleSnapshot",
 		Request: &CandleSnapshotWire{
@@ -407,33 +407,33 @@ func (e *Exchange) GetMaxBuilderFee(ctx context.Context, user, builder string) (
 
 // GetHistoricalOrders returns an account's 2000 most recent order status changes, newest first; an order is listed once
 // per status change
-func (e *Exchange) GetHistoricalOrders(ctx context.Context, user string) ([]HistoricalOrder, error) {
+func (e *Exchange) GetHistoricalOrders(ctx context.Context, user string) ([]HistoricalOrderResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []HistoricalOrder
+	var resp []HistoricalOrderResponse
 	return resp, e.SendHTTPRequest(ctx, infoHistoricalOrdersEPL, &InfoRequest{Type: "historicalOrders", User: user}, &resp)
 }
 
 // GetUserTWAPSliceFills returns an account's 2000 most recent TWAP slice fills, newest first
-func (e *Exchange) GetUserTWAPSliceFills(ctx context.Context, user string) ([]TWAPSliceFill, error) {
+func (e *Exchange) GetUserTWAPSliceFills(ctx context.Context, user string) ([]TWAPSliceFillResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []TWAPSliceFill
+	var resp []TWAPSliceFillResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserFillsEPL, &InfoRequest{Type: "userTwapSliceFills", User: user}, &resp)
 }
 
 // GetSubAccounts returns a master account's subaccounts with their first perpetual DEX and spot states; an account
 // without subaccounts returns none
-func (e *Exchange) GetSubAccounts(ctx context.Context, user string) ([]SubAccount, error) {
+func (e *Exchange) GetSubAccounts(ctx context.Context, user string) ([]SubAccountResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []SubAccount
+	var resp []SubAccountResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "subAccounts", User: user}, &resp)
 }
 
@@ -459,12 +459,12 @@ func (e *Exchange) GetVaultDetails(ctx context.Context, vaultAddress, user strin
 }
 
 // GetUserVaultEquities returns an account's equity in each vault it has deposited into
-func (e *Exchange) GetUserVaultEquities(ctx context.Context, user string) ([]UserVaultEquity, error) {
+func (e *Exchange) GetUserVaultEquities(ctx context.Context, user string) ([]UserVaultEquityResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []UserVaultEquity
+	var resp []UserVaultEquityResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "userVaultEquities", User: user}, &resp)
 }
 
@@ -485,12 +485,12 @@ func (e *Exchange) GetUserRole(ctx context.Context, user string) (*UserRoleRespo
 }
 
 // GetPortfolio returns an account's account value and PNL history and its volume over each portfolio period
-func (e *Exchange) GetPortfolio(ctx context.Context, user string) ([]PortfolioPeriod, error) {
+func (e *Exchange) GetPortfolio(ctx context.Context, user string) ([]PortfolioPeriodResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []PortfolioPeriod
+	var resp []PortfolioPeriodResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "portfolio", User: user}, &resp)
 }
 
@@ -527,12 +527,12 @@ func (e *Exchange) GetUserFees(ctx context.Context, user string) (*UserFeesRespo
 }
 
 // GetDelegations returns an account's staking delegations to each validator
-func (e *Exchange) GetDelegations(ctx context.Context, user string) ([]Delegation, error) {
+func (e *Exchange) GetDelegations(ctx context.Context, user string) ([]DelegationResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []Delegation
+	var resp []DelegationResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "delegations", User: user}, &resp)
 }
 
@@ -553,22 +553,22 @@ func (e *Exchange) GetDelegatorSummary(ctx context.Context, user string) (*Deleg
 }
 
 // GetDelegatorHistory returns an account's staking deposits, delegations and withdrawals, newest first
-func (e *Exchange) GetDelegatorHistory(ctx context.Context, user string) ([]DelegatorUpdate, error) {
+func (e *Exchange) GetDelegatorHistory(ctx context.Context, user string) ([]DelegatorUpdateResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []DelegatorUpdate
+	var resp []DelegatorUpdateResponse
 	return resp, e.SendHTTPRequest(ctx, infoStakingHistoryEPL, &InfoRequest{Type: "delegatorHistory", User: user}, &resp)
 }
 
 // GetDelegatorRewards returns an account's daily staking rewards by source, newest first
-func (e *Exchange) GetDelegatorRewards(ctx context.Context, user string) ([]DelegatorReward, error) {
+func (e *Exchange) GetDelegatorRewards(ctx context.Context, user string) ([]DelegatorRewardResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []DelegatorReward
+	var resp []DelegatorRewardResponse
 	return resp, e.SendHTTPRequest(ctx, infoStakingHistoryEPL, &InfoRequest{Type: "delegatorRewards", User: user}, &resp)
 }
 
@@ -631,8 +631,8 @@ func (e *Exchange) GetBorrowLendReserveState(ctx context.Context, token uint64) 
 }
 
 // GetAllBorrowLendReserveStates returns the borrow/lend reserve of every token that has one
-func (e *Exchange) GetAllBorrowLendReserveStates(ctx context.Context) ([]BorrowLendReserveStateEntry, error) {
-	var resp []BorrowLendReserveStateEntry
+func (e *Exchange) GetAllBorrowLendReserveStates(ctx context.Context) ([]BorrowLendReserveStateEntryResponse, error) {
+	var resp []BorrowLendReserveStateEntryResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "allBorrowLendReserveStates"}, &resp)
 }
 
@@ -661,22 +661,22 @@ func (e *Exchange) GetExchangeStatus(ctx context.Context) (*ExchangeStatusRespon
 
 // GetRecentTradesForCoin returns a coin's most recent public trades
 // The info endpoint documentation omits recentTrades, but its rate limit table weighs it
-func (e *Exchange) GetRecentTradesForCoin(ctx context.Context, coin string) ([]RecentTrade, error) {
+func (e *Exchange) GetRecentTradesForCoin(ctx context.Context, coin string) ([]RecentTradeResponse, error) {
 	if strings.TrimSpace(coin) == "" {
 		return nil, errCoinRequired
 	}
-	var resp []RecentTrade
+	var resp []RecentTradeResponse
 	return resp, e.SendHTTPRequest(ctx, infoRecentTradesEPL, &InfoRequest{Type: "recentTrades", Coin: coin}, &resp)
 }
 
 // GetTWAPHistory returns an account's 2000 most recent TWAP order status changes, newest first
 // The info endpoint documentation omits twapHistory, but its rate limit table weighs it
-func (e *Exchange) GetTWAPHistory(ctx context.Context, user string) ([]TWAPHistoryEntry, error) {
+func (e *Exchange) GetTWAPHistory(ctx context.Context, user string) ([]TWAPHistoryEntryResponse, error) {
 	user, _, err := normaliseAddress(user)
 	if err != nil {
 		return nil, err
 	}
-	var resp []TWAPHistoryEntry
+	var resp []TWAPHistoryEntryResponse
 	return resp, e.SendHTTPRequest(ctx, infoTWAPHistoryEPL, &InfoRequest{Type: "twapHistory", User: user}, &resp)
 }
 
@@ -684,7 +684,7 @@ func (e *Exchange) GetTWAPHistory(ctx context.Context, user string) ([]TWAPHisto
 // first; slice fills of one millisecond can straddle the limit, so callers paging by the last fill's time must
 // de-duplicate fills by trade ID
 // The info endpoint documentation omits userTwapSliceFillsByTime, but its rate limit table weighs it
-func (e *Exchange) GetUserTWAPSliceFillsByTime(ctx context.Context, arg *UserTWAPSliceFillsByTimeRequest) ([]TWAPSliceFill, error) {
+func (e *Exchange) GetUserTWAPSliceFillsByTime(ctx context.Context, arg *UserTWAPSliceFillsByTimeRequest) ([]TWAPSliceFillResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -696,7 +696,7 @@ func (e *Exchange) GetUserTWAPSliceFillsByTime(ctx context.Context, arg *UserTWA
 	if err != nil {
 		return nil, err
 	}
-	var resp []TWAPSliceFill
+	var resp []TWAPSliceFillResponse
 	return resp, e.SendHTTPRequest(ctx, infoUserFillsEPL, &InfoRequest{
 		Type:      "userTwapSliceFillsByTime",
 		User:      user,

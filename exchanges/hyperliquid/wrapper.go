@@ -198,10 +198,10 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.FourHour},
 					kline.IntervalCapacity{Interval: kline.EightHour},
 					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					// Hyperliquid's 3d, 1w and 1M candles open on its own days, which GCT's candle alignment refuses: 3d
+					// on epoch days divisible by three, 1w on Thursdays and 1M, a 30-day candle, on epoch days divisible
+					// by 30. Leaving them out builds 3d and 1w from daily candles; GetHistoricCandles refuses 1M
 					kline.IntervalCapacity{Interval: kline.OneDay},
-					kline.IntervalCapacity{Interval: kline.ThreeDay},
-					kline.IntervalCapacity{Interval: kline.OneWeek},
-					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
 				GlobalResultLimit: maximumCandleCount,
 			},
@@ -686,6 +686,12 @@ func (e *Exchange) GetHistoricTrades(context.Context, currency.Pair, asset.Item,
 
 // GetHistoricCandles returns candles within the requested time range
 func (e *Exchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	// GCT aligns these intervals to calendar months, which neither Hyperliquid's 1M candle follows nor GCT's conversion
+	// from daily candles, as it groups a fixed number of days
+	switch interval {
+	case kline.OneMonth, kline.ThreeMonth, kline.SixMonth, kline.NineMonth, kline.OneYear:
+		return nil, fmt.Errorf("%w: %s", kline.ErrUnsupportedInterval, interval.Word())
+	}
 	req, err := e.GetKlineRequest(p, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
@@ -1117,7 +1123,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	var openOrders []BasicOrder
+	var openOrders []BasicOrderResponse
 	for _, dex := range dexes {
 		orders, err := e.GetOpenOrders(ctx, address, dex)
 		if err != nil {
@@ -1393,7 +1399,7 @@ func (e *Exchange) sizePositionOrders(ctx context.Context, address, dex string, 
 }
 
 // convertOpenOrder converts an open order from openOrders, whose order type and time in force are unknown
-func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrder) (order.Detail, error) {
+func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrderResponse) (order.Detail, error) {
 	mapping, a, err := e.getPairMappingByCoin(ctx, source.Coin)
 	if err != nil {
 		return order.Detail{}, err
@@ -1450,8 +1456,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, filter *order.MultiOrder
 // or a trigger order's triggered and filled changes, at one time in either order
 // A triggered order's filled change has no trigger price and gives the trigger time as the order's timestamp, so the
 // kept change takes the trigger price and the earliest timestamp, the placement time, of the order's other changes
-func latestOrderStatuses(statusChanges []HistoricalOrder) []HistoricalOrder {
-	latest := make([]HistoricalOrder, 0, len(statusChanges))
+func latestOrderStatuses(statusChanges []HistoricalOrderResponse) []HistoricalOrderResponse {
+	latest := make([]HistoricalOrderResponse, 0, len(statusChanges))
 	positions := make(map[uint64]int, len(statusChanges))
 	for i := range statusChanges {
 		change := statusChanges[i]
@@ -2096,9 +2102,9 @@ func (e *Exchange) openOrderDEXes(ctx context.Context, a asset.Item) ([]string, 
 // getUserNonFundingLedgerUpdatesPaginated pages through every ledger update from start until now; Hyperliquid returns
 // at most 2000 updates a request, oldest first, so each full page's last timestamp starts the next page, and the
 // records at that boundary, which repeat on the next page, are dropped as identical records
-func (e *Exchange) getUserNonFundingLedgerUpdatesPaginated(ctx context.Context, user string, start time.Time) ([]UserLedgerUpdate, error) {
+func (e *Exchange) getUserNonFundingLedgerUpdatesPaginated(ctx context.Context, user string, start time.Time) ([]UserLedgerUpdateResponse, error) {
 	cursor := start
-	var result []UserLedgerUpdate
+	var result []UserLedgerUpdateResponse
 	seen := make(map[string]struct{})
 	for {
 		page, err := e.GetUserNonFundingLedgerUpdates(ctx, &UserNonFundingLedgerUpdatesRequest{User: user, StartTime: cursor})
@@ -2136,7 +2142,7 @@ func (e *Exchange) getUserNonFundingLedgerUpdatesPaginated(ctx context.Context, 
 // as in the recipient's, so a fee is reported only to the account that paid it, the update's user when it names one, in
 // the movement's entry when the fee is in its currency and in an entry of its own otherwise; a fee without a fee token is
 // in USDC, and a native token fee is in HYPE
-func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpdate) ([]exchange.FundingHistory, error) {
+func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpdateResponse) ([]exchange.FundingHistory, error) {
 	deltaType := strings.TrimSpace(update.Delta.Type)
 	if deltaType == "" {
 		return nil, fmt.Errorf("%w: ledger update type is empty", errMalformedResponse)
@@ -2518,7 +2524,7 @@ func (e *Exchange) cancelOrderBatch(ctx context.Context, cancels []order.Cancel)
 }
 
 // recordCancelStatuses maps each identifier to success or its error, and returns the failed cancels as errors
-func recordCancelStatuses(statuses map[string]string, identifiers []string, results []CancelActionStatus) error {
+func recordCancelStatuses(statuses map[string]string, identifiers []string, results []CancelActionStatusResponse) error {
 	var errs error
 	for i := range results {
 		if results[i].Error == "" {
@@ -2532,7 +2538,7 @@ func recordCancelStatuses(statuses map[string]string, identifiers []string, resu
 }
 
 // convertOrder converts an order from its coin, fetching market mappings when the coin is not cached
-func (e *Exchange) convertOrder(ctx context.Context, source *FrontendOpenOrder, status string, statusTimestamp time.Time) (order.Detail, error) {
+func (e *Exchange) convertOrder(ctx context.Context, source *FrontendOpenOrderResponse, status string, statusTimestamp time.Time) (order.Detail, error) {
 	mapping, a, err := e.getPairMappingByCoin(ctx, source.Coin)
 	if err != nil {
 		return order.Detail{}, err
@@ -2540,7 +2546,7 @@ func (e *Exchange) convertOrder(ctx context.Context, source *FrontendOpenOrder, 
 	return e.convertOrderFromMapping(source, status, statusTimestamp, &mapping, a)
 }
 
-func (e *Exchange) convertOrderFromMapping(source *FrontendOpenOrder, status string, statusTimestamp time.Time, mapping *pairMapping, a asset.Item) (order.Detail, error) {
+func (e *Exchange) convertOrderFromMapping(source *FrontendOpenOrderResponse, status string, statusTimestamp time.Time, mapping *pairMapping, a asset.Item) (order.Detail, error) {
 	orderType, err := parseOrderType(source.OrderType)
 	if err != nil {
 		return order.Detail{}, err
@@ -2549,7 +2555,7 @@ func (e *Exchange) convertOrderFromMapping(source *FrontendOpenOrder, status str
 	if err != nil {
 		return order.Detail{}, err
 	}
-	detail, err := e.convertBasicOrder(&source.BasicOrder, status, statusTimestamp, mapping.pair, a)
+	detail, err := e.convertBasicOrder(&source.BasicOrderResponse, status, statusTimestamp, mapping.pair, a)
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -2570,7 +2576,7 @@ func (e *Exchange) convertWsOrder(update *WebsocketOrder) (order.Detail, error) 
 }
 
 // convertBasicOrder converts the order fields every order source provides; its size is the order's remaining size
-func (e *Exchange) convertBasicOrder(source *BasicOrder, status string, statusTimestamp time.Time, p currency.Pair, a asset.Item) (order.Detail, error) {
+func (e *Exchange) convertBasicOrder(source *BasicOrderResponse, status string, statusTimestamp time.Time, p currency.Pair, a asset.Item) (order.Detail, error) {
 	side, err := parseSide(source.Side)
 	if err != nil {
 		return order.Detail{}, err
@@ -2589,7 +2595,8 @@ func (e *Exchange) convertBasicOrder(source *BasicOrder, status string, statusTi
 		case order.Cancelled:
 			orderStatus = order.PartiallyFilledCancelled
 		case order.Filled:
-			// An IOC order that executes part of its size ends filled, keeping its cancelled rest as its size
+			// An order that ends filled with part of its size unexecuted, such as an IOC order or a GTC order whose rest is
+			// under the minimum order value, keeps its cancelled rest as its size
 			if source.Size.Float64() > 0 {
 				orderStatus = order.PartiallyFilledCancelled
 			}
@@ -2649,7 +2656,7 @@ func convertL2Level(level *L2Level) orderbook.Level {
 }
 
 // convertTrade converts a public trade; its side is the aggressor's
-func (e *Exchange) convertTrade(t *RecentTrade, p currency.Pair, a asset.Item) (trade.Data, error) {
+func (e *Exchange) convertTrade(t *RecentTradeResponse, p currency.Pair, a asset.Item) (trade.Data, error) {
 	side, err := parseSide(t.Side)
 	if err != nil {
 		return trade.Data{}, err
@@ -2666,7 +2673,7 @@ func (e *Exchange) convertTrade(t *RecentTrade, p currency.Pair, a asset.Item) (
 	}, nil
 }
 
-func convertCandle(c *Candle) kline.Candle {
+func convertCandle(c *CandleResponse) kline.Candle {
 	return kline.Candle{
 		Time:   c.OpenTime.Time().UTC(),
 		Open:   c.Open.Float64(),
@@ -2829,10 +2836,9 @@ func deriveFilledOrderState(requested, filled float64, sizeDecimals uint64, time
 		return order.Filled, 0, nil
 	}
 	remaining := (requestedUnits - filledUnits) / scale
+	// An order answered filled is not resting, so the size it left unfilled was cancelled
 	switch timeInForce {
-	case TimeInForceGTC:
-		return order.PartiallyFilled, remaining, nil
-	case TimeInForceIOC:
+	case TimeInForceGTC, TimeInForceIOC:
 		return order.PartiallyFilledCancelled, remaining, nil
 	default:
 		return order.UnknownStatus, 0, fmt.Errorf("%w: partial fill for %q time in force", errActionStatusMalformed, timeInForce)

@@ -370,7 +370,7 @@ func TestPlaceOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAddress, "PlaceOrders must reject a builder address without the 0x prefix")
 	statuses, err := ex.PlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{spot}, PriorityRate: 5, Builder: &BuilderFee{Builder: "0X" + strings.ToUpper(testBuilderAddress[2:]), Fee: maximumSpotBuilderFee}, ExpiresAfter: expiresAfter})
 	require.NoError(t, err, "PlaceOrders must not error for a spot order with the spot builder fee maximum")
-	assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 1}}}, statuses, "PlaceOrders should return the order's status")
+	assert.Equal(t, []OrderActionStatusResponse{{Resting: &RestingOrderStatus{OrderID: 1}}}, statuses, "PlaceOrders should return the order's status")
 	assert.JSONEq(t, `{"type":"order","orders":[{"a":10107,"b":false,"p":"95.5","s":"1.5","r":false,"t":{"limit":{"tif":"Alo"}}}],"grouping":{"p":5},"builder":{"b":"`+testBuilderAddress+`","f":1000}}`, capturedAction(t, &captured), "PlaceOrders should send a priority grouping and the lower-case builder")
 	assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "PlaceOrders should act for the configured subaccount")
 	require.NotNil(t, captured.ExpiresAfter, "PlaceOrders must send the expiry")
@@ -402,7 +402,7 @@ func TestPlaceOrders(t *testing.T) {
 	statuses, err = e.PlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: bracket, Grouping: GroupingNormalTPSL})
 	require.NoError(t, err, "PlaceOrders must not error for a bracket order")
 	if mockTests {
-		exp := []OrderActionStatus{
+		exp := []OrderActionStatusResponse{
 			{Resting: &RestingOrderStatus{OrderID: testOrderID, ClientOrderID: testClientOrderID}},
 			{Waiting: orderStatusWaitingForFill},
 			{Waiting: orderStatusWaitingForFill},
@@ -424,7 +424,7 @@ func TestPlaceOrders(t *testing.T) {
 	statuses, err = e.PlaceOrders(t.Context(), &PlaceOrdersRequest{Orders: priority, PriorityRate: 1000})
 	require.NoError(t, err, "PlaceOrders must not error for priority orders")
 	if mockTests {
-		exp := []OrderActionStatus{
+		exp := []OrderActionStatusResponse{
 			{Filled: &FilledOrderStatus{TotalSize: 0.002, AveragePrice: 85813.5, OrderID: 566563303545, ClientOrderID: testPriorityClientOrderID}},
 			{Error: "Order could not immediately match against any resting orders. asset=1"},
 		}
@@ -468,7 +468,7 @@ func TestCancelOrders(t *testing.T) {
 	statuses, err := e.CancelOrders(t.Context(), &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 0, OrderID: orderID}, {Asset: 1, OrderID: 566563303543}}, Fast: true})
 	require.NoError(t, err, "CancelOrders must not error")
 	if mockTests {
-		assert.Equal(t, []CancelActionStatus{{}, {Error: "Order was never placed, already canceled, or filled. asset=1"}}, statuses, "CancelOrders should return each cancel's status")
+		assert.Equal(t, []CancelActionStatusResponse{{}, {Error: "Order was never placed, already canceled, or filled. asset=1"}}, statuses, "CancelOrders should return each cancel's status")
 		return
 	}
 	require.Len(t, statuses, 2, "CancelOrders must return each cancel's status")
@@ -514,7 +514,7 @@ func TestCancelOrdersByClientOrderID(t *testing.T) {
 	statuses, err := e.CancelOrdersByClientOrderID(t.Context(), &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{Asset: 0, ClientOrderID: clientOrderID}}, Fast: true})
 	require.NoError(t, err, "CancelOrdersByClientOrderID must not error")
 	if mockTests {
-		assert.Equal(t, []CancelActionStatus{{}}, statuses, "CancelOrdersByClientOrderID should return the cancel's status")
+		assert.Equal(t, []CancelActionStatusResponse{{}}, statuses, "CancelOrdersByClientOrderID should return the cancel's status")
 		return
 	}
 	require.Len(t, statuses, 1, "CancelOrdersByClientOrderID must return the cancel's status")
@@ -617,7 +617,7 @@ func TestModifyOrders(t *testing.T) {
 	statuses, err := e.ModifyOrders(t.Context(), arg)
 	require.NoError(t, err, "ModifyOrders must not error")
 	if mockTests {
-		assert.Equal(t, []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 566563303546}}}, statuses, "ModifyOrders should return the replacement's status")
+		assert.Equal(t, []OrderActionStatusResponse{{Resting: &RestingOrderStatus{OrderID: 566563303546}}}, statuses, "ModifyOrders should return the replacement's status")
 		return
 	}
 	require.Len(t, statuses, 1, "ModifyOrders must return the replacement's status")
@@ -647,10 +647,10 @@ func TestCancelOrdersInternal(t *testing.T) {
 		for _, tc := range []struct {
 			name     string
 			response string
-			expected []CancelActionStatus
+			expected []CancelActionStatusResponse
 			err      error
 		}{
-			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatus{{}, {Error: "Order not found"}}},
+			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatusResponse{{}, {Error: "Order not found"}}},
 			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
 			{name: "missing statuses", response: statusesResponse("cancel"), err: errActionStatusCount},
 		} {
@@ -705,10 +705,10 @@ func TestCancelOrdersByClientOrderIDInternal(t *testing.T) {
 		for _, tc := range []struct {
 			name     string
 			response string
-			expected []CancelActionStatus
+			expected []CancelActionStatusResponse
 			err      error
 		}{
-			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatus{{}, {Error: "Order not found"}}},
+			{name: "mixed statuses", response: statusesResponse("cancel", `"success"`, `{"error":"Order not found"}`), expected: []CancelActionStatusResponse{{}, {Error: "Order not found"}}},
 			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
 			{name: "missing statuses", response: statusesResponse("cancel"), err: errActionStatusCount},
 		} {
@@ -828,10 +828,10 @@ func TestModifyOrdersInternal(t *testing.T) {
 		for _, tc := range []struct {
 			name     string
 			response string
-			expected []OrderActionStatus
+			expected []OrderActionStatusResponse
 			err      error
 		}{
-			{name: "mixed statuses", response: statusesResponse("order", `{"resting":{"oid":3}}`, `{"error":"Order not found"}`), expected: []OrderActionStatus{{Resting: &RestingOrderStatus{OrderID: 3}}, {Error: "Order not found"}}},
+			{name: "mixed statuses", response: statusesResponse("order", `{"resting":{"oid":3}}`, `{"error":"Order not found"}`), expected: []OrderActionStatusResponse{{Resting: &RestingOrderStatus{OrderID: 3}}, {Error: "Order not found"}}},
 			{name: "rejected action", response: rejectedActionResponse, err: errActionResponse},
 			{name: "missing statuses", response: statusesResponse("order"), err: errActionStatusCount},
 		} {
@@ -919,7 +919,7 @@ func TestPlaceOrdersInternal(t *testing.T) {
 				statuses, err := ex.placeOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{limit, limit}, Grouping: tc.grouping, PriorityRate: tc.priorityRate, Builder: tc.builder, ExpiresAfter: expires}, overWebsocket)
 				require.ErrorIs(t, err, tc.err, "placeOrders must return the action result")
 				if tc.err == nil {
-					assert.Equal(t, []OrderActionStatus{{Filled: &FilledOrderStatus{TotalSize: 0.001, AveragePrice: 85000, OrderID: 1}}, {Error: "Insufficient margin"}}, statuses, "placeOrders should preserve each order's status")
+					assert.Equal(t, []OrderActionStatusResponse{{Filled: &FilledOrderStatus{TotalSize: 0.001, AveragePrice: 85000, OrderID: 1}}, {Error: "Insufficient margin"}}, statuses, "placeOrders should preserve each order's status")
 				} else {
 					assert.Nil(t, statuses, "placeOrders should return no statuses for an invalid response")
 				}
@@ -1584,7 +1584,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 	status, err := e.PlaceTWAPOrder(t.Context(), arg)
 	require.NoError(t, err, "PlaceTWAPOrder must not error")
 	if mockTests {
-		assert.Equal(t, &TWAPOrderStatus{Running: &TWAPRunningStatus{TWAPID: 77738308}}, status, "PlaceTWAPOrder should return the running TWAP order")
+		assert.Equal(t, &TWAPOrderStatusResponse{Running: &TWAPRunningStatus{TWAPID: 77738308}}, status, "PlaceTWAPOrder should return the running TWAP order")
 		return
 	}
 	require.NotNil(t, status.Running, "PlaceTWAPOrder must return the running TWAP order")
@@ -2152,86 +2152,86 @@ func TestModifyOrderID(t *testing.T) {
 
 func TestParseActionStatuses(t *testing.T) {
 	t.Parallel()
-	_, err := parseActionStatuses[CancelActionStatus](json.RawMessage(`[`), 1)
+	_, err := parseActionStatuses[CancelActionStatusResponse](json.RawMessage(`[`), 1)
 	assert.ErrorContains(t, err, "decoding action statuses", "parseActionStatuses should report invalid JSON")
-	_, err = parseActionStatuses[CancelActionStatus](json.RawMessage(`null`), 1)
+	_, err = parseActionStatuses[CancelActionStatusResponse](json.RawMessage(`null`), 1)
 	assert.ErrorIs(t, err, errActionStatusMalformed, "parseActionStatuses should reject a missing response")
-	_, err = parseActionStatuses[CancelActionStatus](json.RawMessage(`{"data":{"statuses":["success","success"]}}`), 3)
+	_, err = parseActionStatuses[CancelActionStatusResponse](json.RawMessage(`{"data":{"statuses":["success","success"]}}`), 3)
 	assert.ErrorIs(t, err, errActionStatusCount, "parseActionStatuses should reject a status count that does not match the batch")
-	statuses, err := parseActionStatuses[CancelActionStatus](json.RawMessage(`{"type":"cancel","data":{"statuses":[{"error":"Invalid nonce"}]}}`), 2)
+	statuses, err := parseActionStatuses[CancelActionStatusResponse](json.RawMessage(`{"type":"cancel","data":{"statuses":[{"error":"Invalid nonce"}]}}`), 2)
 	require.NoError(t, err, "parseActionStatuses must not error for a lone status")
-	assert.Equal(t, []CancelActionStatus{{Error: "Invalid nonce"}, {Error: "Invalid nonce"}}, statuses, "parseActionStatuses should apply a lone status to every item")
+	assert.Equal(t, []CancelActionStatusResponse{{Error: "Invalid nonce"}, {Error: "Invalid nonce"}}, statuses, "parseActionStatuses should apply a lone status to every item")
 }
 
 func TestParseActionStatus(t *testing.T) {
 	t.Parallel()
-	_, err := parseActionStatus[CancelActionStatus](json.RawMessage(`[`))
+	_, err := parseActionStatus[CancelActionStatusResponse](json.RawMessage(`[`))
 	assert.ErrorContains(t, err, "decoding action status response", "parseActionStatus should report invalid JSON")
 	for _, response := range []string{`null`, `{"data":{}}`, `{"data":{"status":null}}`} {
-		_, err = parseActionStatus[CancelActionStatus](json.RawMessage(response))
+		_, err = parseActionStatus[CancelActionStatusResponse](json.RawMessage(response))
 		assert.ErrorIsf(t, err, errActionStatusMalformed, "parseActionStatus should reject %s", response)
 	}
-	_, err = parseActionStatus[CancelActionStatus](json.RawMessage(`{"data":{"status":"unknown"}}`))
+	_, err = parseActionStatus[CancelActionStatusResponse](json.RawMessage(`{"data":{"status":"unknown"}}`))
 	assert.ErrorIs(t, err, errUnknownCancelStatus, "parseActionStatus should return the status's decoding error")
-	_, err = parseActionStatus[TWAPOrderStatus](json.RawMessage(`{"data":{"status":[]}}`))
+	_, err = parseActionStatus[TWAPOrderStatusResponse](json.RawMessage(`{"data":{"status":[]}}`))
 	assert.ErrorContains(t, err, "decoding action status: ", "parseActionStatus should report an undecodable status")
-	status, err := parseActionStatus[TWAPOrderStatus](json.RawMessage(`{"type":"twapOrder","data":{"status":{"running":{"twapId":2}}}}`))
+	status, err := parseActionStatus[TWAPOrderStatusResponse](json.RawMessage(`{"type":"twapOrder","data":{"status":{"running":{"twapId":2}}}}`))
 	require.NoError(t, err, "parseActionStatus must not error")
-	assert.Equal(t, &TWAPOrderStatus{Running: &TWAPRunningStatus{TWAPID: 2}}, status, "parseActionStatus should decode the status")
+	assert.Equal(t, &TWAPOrderStatusResponse{Running: &TWAPRunningStatus{TWAPID: 2}}, status, "parseActionStatus should decode the status")
 }
 
 func TestOrderActionStatusUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for data, exp := range map[string]OrderActionStatus{
+	for data, exp := range map[string]OrderActionStatusResponse{
 		`"waitingForFill"`:    {Waiting: orderStatusWaitingForFill},
 		`"waitingForTrigger"`: {Waiting: orderStatusWaitingForTrigger},
 		`{"resting":{"oid":1,"cloid":"` + testClientOrderID + `"}}`:                                  {Resting: &RestingOrderStatus{OrderID: 1, ClientOrderID: testClientOrderID}},
 		`{"filled":{"totalSz":"0.02","avgPx":"1891.4","oid":2,"cloid":"` + testClientOrderID + `"}}`: {Filled: &FilledOrderStatus{TotalSize: 0.02, AveragePrice: 1891.4, OrderID: 2, ClientOrderID: testClientOrderID}},
 		`{"error":"Order must have minimum value of $10."}`:                                          {Error: "Order must have minimum value of $10."},
 	} {
-		var status OrderActionStatus
+		var status OrderActionStatusResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
 		assert.Equalf(t, exp, status, "OrderActionStatus should decode %s", data)
 	}
 	for _, data := range []string{`"unknown"`, `{}`, `{"resting":{"oid":0}}`, `{"filled":{"oid":0}}`, `{"resting":{"oid":1},"error":"e"}`} {
-		var status OrderActionStatus
+		var status OrderActionStatusResponse
 		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "OrderActionStatus should reject %s", data)
 	}
 	// Unmarshal rejects an unterminated string before calling the method, so the method is called directly
-	assert.Error(t, new(OrderActionStatus).UnmarshalJSON([]byte(`"`)), "OrderActionStatus should reject an unterminated status string")
-	var status OrderActionStatus
+	assert.Error(t, new(OrderActionStatusResponse).UnmarshalJSON([]byte(`"`)), "OrderActionStatus should reject an unterminated status string")
+	var status OrderActionStatusResponse
 	assert.Error(t, json.Unmarshal([]byte(`{"resting":1}`), &status), "OrderActionStatus should reject a mistyped resting status")
 }
 
 func TestCancelActionStatusUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var status CancelActionStatus
+	var status CancelActionStatusResponse
 	require.NoError(t, json.Unmarshal([]byte(`"success"`), &status), "Unmarshal must not error for success")
-	assert.Equal(t, CancelActionStatus{}, status, "CancelActionStatus should decode success without an error")
+	assert.Equal(t, CancelActionStatusResponse{}, status, "CancelActionStatus should decode success without an error")
 	require.NoError(t, json.Unmarshal([]byte(`{"error":"Order was never placed, already canceled, or filled."}`), &status), "Unmarshal must not error for an error")
-	assert.Equal(t, CancelActionStatus{Error: "Order was never placed, already canceled, or filled."}, status, "CancelActionStatus should decode the error")
+	assert.Equal(t, CancelActionStatusResponse{Error: "Order was never placed, already canceled, or filled."}, status, "CancelActionStatus should decode the error")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`"unknown"`), &status), errUnknownCancelStatus, "CancelActionStatus should reject an unknown status")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`{}`), &status), errActionStatusMalformed, "CancelActionStatus should reject an object without an error")
 	assert.Error(t, json.Unmarshal([]byte(`{"error":1}`), &status), "CancelActionStatus should reject a mistyped error")
 	// Unmarshal rejects an unterminated string before calling the method, so the method is called directly
-	assert.Error(t, new(CancelActionStatus).UnmarshalJSON([]byte(`"`)), "CancelActionStatus should reject an unterminated string")
+	assert.Error(t, new(CancelActionStatusResponse).UnmarshalJSON([]byte(`"`)), "CancelActionStatus should reject an unterminated string")
 }
 
 func TestTWAPOrderStatusUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for data, exp := range map[string]TWAPOrderStatus{
+	for data, exp := range map[string]TWAPOrderStatusResponse{
 		`{"running":{"twapId":77738308}}`:             {Running: &TWAPRunningStatus{TWAPID: 77738308}},
 		`{"error":"Invalid TWAP duration: 1 min(s)"}`: {Error: "Invalid TWAP duration: 1 min(s)"},
 	} {
-		var status TWAPOrderStatus
+		var status TWAPOrderStatusResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
 		assert.Equalf(t, exp, status, "TWAPOrderStatus should decode %s", data)
 	}
 	for _, data := range []string{`{}`, `{"running":{"twapId":0}}`, `{"running":{"twapId":1},"error":"e"}`} {
-		var status TWAPOrderStatus
+		var status TWAPOrderStatusResponse
 		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "TWAPOrderStatus should reject %s", data)
 	}
-	var status TWAPOrderStatus
+	var status TWAPOrderStatusResponse
 	assert.Error(t, json.Unmarshal([]byte(`[]`), &status), "TWAPOrderStatus should reject an array")
 }
 

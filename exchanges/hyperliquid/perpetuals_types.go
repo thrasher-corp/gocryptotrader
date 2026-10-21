@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// PerpetualDEX describes one builder-deployed perpetual DEX
-type PerpetualDEX struct {
+// PerpetualDEXResponse describes one builder-deployed perpetual DEX
+type PerpetualDEXResponse struct {
 	Name                            string        `json:"name"`
 	FullName                        string        `json:"fullName"`
 	Deployer                        string        `json:"deployer"`
@@ -23,6 +23,7 @@ type PerpetualDEX struct {
 
 // AssetValue contains a numeric setting for one coin
 type AssetValue struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin  string
 	Value types.Number
 }
@@ -140,6 +141,7 @@ type AssetPosition struct {
 
 // Position contains one perpetual market position
 type Position struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin string `json:"coin"`
 	// SignedSize is positive for a long position and negative for a short position
 	SignedSize        types.Number      `json:"szi"`
@@ -176,9 +178,9 @@ type UserFundingRequest struct {
 	EndTime   time.Time
 }
 
-// UserFundingUpdate contains one funding payment, or one day of a market's payments once Hyperliquid has compacted older
+// UserFundingUpdateResponse contains one funding payment, or one day of a market's payments once Hyperliquid has compacted older
 // history into daily aggregates
-type UserFundingUpdate struct {
+type UserFundingUpdateResponse struct {
 	Time  types.Time       `json:"time"`
 	Hash  string           `json:"hash"`
 	Delta UserFundingDelta `json:"delta"`
@@ -186,7 +188,8 @@ type UserFundingUpdate struct {
 
 // UserFundingDelta contains a funding payment; USDC is negative when the account paid funding
 type UserFundingDelta struct {
-	Type string       `json:"type"`
+	Type string `json:"type"`
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin string       `json:"coin"`
 	USDC types.Number `json:"usdc"`
 	// SignedSize is positive for a long position and negative for a short position, and is the day's average size in a
@@ -205,8 +208,8 @@ type UserNonFundingLedgerUpdatesRequest struct {
 	EndTime   time.Time
 }
 
-// UserLedgerUpdate contains one non-funding ledger update, such as a deposit, transfer, withdrawal or liquidation
-type UserLedgerUpdate struct {
+// UserLedgerUpdateResponse contains one non-funding ledger update, such as a deposit, transfer, withdrawal or liquidation
+type UserLedgerUpdateResponse struct {
 	Delta UserLedgerDelta `json:"delta"`
 	Hash  string          `json:"hash"`
 	Time  types.Time      `json:"time"`
@@ -249,6 +252,7 @@ type UserLedgerDelta struct {
 
 // LiquidatedPosition contains one position closed by a liquidation
 type LiquidatedPosition struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin       string       `json:"coin"`
 	SignedSize types.Number `json:"szi"`
 }
@@ -256,27 +260,30 @@ type LiquidatedPosition struct {
 // FundingHistoryRequest contains the coin and inclusive time range of a funding history request; a zero EndTime ends
 // the range now
 type FundingHistoryRequest struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin      string
 	StartTime time.Time
 	EndTime   time.Time
 }
 
-// FundingRateHistory contains one hourly perpetual funding rate
-type FundingRateHistory struct {
+// FundingRateHistoryResponse contains one hourly perpetual funding rate
+type FundingRateHistoryResponse struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin        string       `json:"coin"`
 	FundingRate types.Number `json:"fundingRate"`
 	Premium     types.Number `json:"premium"`
 	Time        types.Time   `json:"time"`
 }
 
-// PredictedFunding contains a coin's predicted funding on each venue
-type PredictedFunding struct {
+// PredictedFundingResponse contains a coin's predicted funding on each venue
+type PredictedFundingResponse struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin   string
 	Venues []PredictedFundingVenue
 }
 
 // UnmarshalJSON decodes a [coin, venues] tuple
-func (p *PredictedFunding) UnmarshalJSON(data []byte) error {
+func (p *PredictedFundingResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &p.Coin, &p.Venues)
 }
 
@@ -301,7 +308,8 @@ type PredictedFundingRate struct {
 
 // ActiveAssetDataResponse contains an account's leverage and trading capacity for one perpetual market
 type ActiveAssetDataResponse struct {
-	User     string   `json:"user"`
+	User string `json:"user"`
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin     string   `json:"coin"`
 	Leverage Leverage `json:"leverage"`
 	// MaxTradeSizes and AvailableToTrade contain the buy then the sell values
@@ -334,26 +342,28 @@ type PerpetualAnnotationResponse struct {
 	Keywords    []string `json:"keywords"`
 }
 
-// PerpetualCategory contains a builder-deployed perpetual market's category
-type PerpetualCategory struct {
+// PerpetualCategoryResponse contains a builder-deployed perpetual market's category
+type PerpetualCategoryResponse struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin     string
 	Category string
 }
 
 // UnmarshalJSON decodes a [coin, category] tuple
-func (p *PerpetualCategory) UnmarshalJSON(data []byte) error {
+func (p *PerpetualCategoryResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &p.Coin, &p.Category)
 }
 
-// PerpetualConciseAnnotation contains a builder-deployed perpetual market's annotation, whose Description is never
+// PerpetualConciseAnnotationResponse contains a builder-deployed perpetual market's annotation, whose Description is never
 // populated
-type PerpetualConciseAnnotation struct {
+type PerpetualConciseAnnotationResponse struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin       string
 	Annotation PerpetualAnnotationResponse
 }
 
 // UnmarshalJSON decodes a [coin, annotation] tuple
-func (p *PerpetualConciseAnnotation) UnmarshalJSON(data []byte) error {
+func (p *PerpetualConciseAnnotationResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &p.Coin, &p.Annotation)
 }
 

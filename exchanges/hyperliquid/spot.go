@@ -143,8 +143,8 @@ func (e *Exchange) GetOutcomeDeployerLimits(ctx context.Context, venue string) (
 
 // GetOutcomeTemplates returns the templates that every deployer-created outcome market and question is instantiated
 // from
-func (e *Exchange) GetOutcomeTemplates(ctx context.Context) ([]OutcomeTemplate, error) {
-	var resp []OutcomeTemplate
+func (e *Exchange) GetOutcomeTemplates(ctx context.Context) ([]OutcomeTemplateResponse, error) {
+	var resp []OutcomeTemplateResponse
 	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "outcomeTemplates"}, &resp)
 }
 

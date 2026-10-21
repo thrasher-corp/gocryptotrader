@@ -258,7 +258,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if string(raw) == websocketConnectionEstablished {
 		return nil
 	}
-	var envelope WebsocketResponse
+	var envelope WebsocketMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return fmt.Errorf("%s decoding websocket message: %w", e.Name, err)
 	}
@@ -269,16 +269,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // wsHandleChannel passes a message to its channel's handler, relaying a message of an unknown channel as unhandled
-func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *WebsocketResponse, raw []byte) error {
+func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *WebsocketMessage, raw []byte) error {
 	switch envelope.Channel {
 	case wsChannelSubscriptionResponse:
-		return e.wsHandleSubscriptionResponse(conn, envelope.Data)
+		return e.wsHandleSubscriptionResponse(ctx, conn, envelope.Data)
 	case wsChannelPost:
 		return e.wsHandlePostResponse(conn, envelope.Data)
 	case wsChannelPong:
 		return nil
 	case wsChannelError:
-		return e.wsHandleError(conn, envelope.Data)
+		return e.wsHandleError(ctx, conn, envelope.Data)
 	case wsChannelAllMids:
 		return wsRelay[WebsocketAllMids](ctx, e, envelope.Data)
 	case wsChannelNotification:
@@ -346,10 +346,13 @@ func wsRelay[T any](ctx context.Context, e *Exchange, raw []byte) error {
 }
 
 // wsHandleSubscriptionResponse completes the subscription operation an acknowledgement matches
-func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, raw []byte) error {
-	var response WebsocketSubscriptionResponse
+func (e *Exchange) wsHandleSubscriptionResponse(ctx context.Context, conn websocket.Connection, raw []byte) error {
+	var response *WebsocketSubscriptionResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return fmt.Errorf("%w: %w", errWebsocketSubscription, err)
+	}
+	if response == nil {
+		return fmt.Errorf("%w: %w", errWebsocketSubscription, common.ErrNoResponse)
 	}
 	if (response.Method != wsMethodSubscribe && response.Method != wsMethodUnsubscribe) || strings.TrimSpace(response.Subscription.Type) == "" {
 		return fmt.Errorf("%w: invalid response method %q or subscription", errWebsocketSubscription, response.Method)
@@ -370,13 +373,13 @@ func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, raw [
 			e.clearTradeReplay(response.Subscription.Coin)
 		}
 	}
-	_, err := e.completeWebsocketPending(conn, response.Method, &response.Subscription)
+	_, err := e.completeWebsocketPending(ctx, conn, response.Method, &response.Subscription)
 	return err
 }
 
 // completeWebsocketPending applies the server's completion of a pending operation to the subscription store; it reports
 // whether an operation was pending, as a late or unknown completion is ignored
-func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
+func (e *Exchange) completeWebsocketPending(ctx context.Context, conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
 	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
@@ -384,9 +387,12 @@ func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method st
 		e.websocketPendingMu.Unlock()
 		return false, nil
 	}
-	if pending.method != method {
+	if awaited := pending.awaitedMethod(); awaited != method {
 		e.websocketPendingMu.Unlock()
-		return true, fmt.Errorf("%w: expected %s, got %s", errWebsocketSubscription, pending.method, method)
+		return true, fmt.Errorf("%w: expected %s, got %s", errWebsocketSubscription, awaited, method)
+	}
+	if pending.abandoned {
+		return true, e.completeAbandonedWebsocketPending(ctx, &key, pending)
 	}
 	delete(e.websocketPending, key)
 	e.websocketPendingMu.Unlock()
@@ -405,18 +411,44 @@ func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method st
 	return true, err
 }
 
-// failWebsocketPendingOperation fails and rolls back one pending operation; it reports whether the operation was pending
+// completeAbandonedWebsocketPending settles an abandoned subscribe that Hyperliquid has now answered, releasing
+// websocketPendingMu, which the caller holds. Its acknowledgement means the feed is active, so the feed is unsubscribed
+// and the operation stays pending until that is acknowledged too, which then frees the feed's slot. An unsubscribe that
+// cannot be sent leaves the feed active, so it keeps the slot until the connection drops
+func (e *Exchange) completeAbandonedWebsocketPending(ctx context.Context, key *websocketPendingKey, pending *websocketPendingOperation) error {
+	if pending.cleanup {
+		delete(e.websocketPending, *key)
+		e.websocketPendingMu.Unlock()
+		return nil
+	}
+	pending.cleanup = true
+	e.websocketPendingMu.Unlock()
+	if err := key.connection.SendJSONMessage(ctx, request.Unset, &WebsocketSubscriptionRequest{Method: wsMethodUnsubscribe, Subscription: key.subscription}); err != nil {
+		return fmt.Errorf("unsubscribing %s, acknowledged after its subscribe was abandoned: %w", key.subscription.Type, err)
+	}
+	return nil
+}
+
+// failWebsocketPendingOperation fails and rolls back one pending operation; it reports whether the operation was pending.
+// A refused cleanup of an abandoned subscribe leaves its feed active, so the operation keeps the feed's slot
 func (e *Exchange) failWebsocketPendingOperation(conn websocket.Connection, method string, sub *WebsocketSubscription, cause error) bool {
 	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
-	if pending == nil || pending.method != method {
+	if pending == nil || pending.awaitedMethod() != method {
 		e.websocketPendingMu.Unlock()
 		return false
 	}
+	if pending.cleanup {
+		e.websocketPendingMu.Unlock()
+		return true
+	}
 	delete(e.websocketPending, key)
+	abandoned := pending.abandoned
 	e.websocketPendingMu.Unlock()
-	pending.done <- common.AppendError(cause, e.rollbackWebsocketPending(pending))
+	if !abandoned {
+		pending.done <- common.AppendError(cause, e.rollbackWebsocketPending(pending))
+	}
 	return true
 }
 
@@ -438,14 +470,21 @@ func (e *Exchange) rollbackWebsocketPending(pending *websocketPendingOperation) 
 	}
 }
 
-// failWebsocketPending fails and rolls back every operation outstanding on a connection
+// failWebsocketPending fails and rolls back every operation outstanding on a connection. Abandoned subscribes, already
+// rolled back, are dropped only when the connection is lost, as until then their feeds may be active
 func (e *Exchange) failWebsocketPending(conn websocket.Connection, cause error) error {
+	lost := errors.Is(cause, websocket.ErrNotConnected)
 	e.websocketPendingMu.Lock()
 	pending := make([]*websocketPendingOperation, 0, len(e.websocketPending))
 	for key, operation := range e.websocketPending {
 		if key.connection == conn {
+			if operation.abandoned && !lost {
+				continue
+			}
 			delete(e.websocketPending, key)
-			pending = append(pending, operation)
+			if !operation.abandoned {
+				pending = append(pending, operation)
+			}
 		}
 	}
 	e.websocketPendingMu.Unlock()
@@ -472,9 +511,41 @@ func (e *Exchange) abortWebsocketPending(key *websocketPendingKey, pending *webs
 	return common.AppendError(cause, e.rollbackWebsocketPending(pending))
 }
 
+// abandonWebsocketPending fails a sent operation the server has not settled in time; if the acknowledgement handler
+// already took the operation, its outcome is returned instead. Hyperliquid may still acknowledge a subscribe and keep
+// sending its feed, so an abandoned subscribe stays pending, holding the feed's slot and refusing other operations on
+// it, until Hyperliquid answers it or the connection drops; an acknowledgement then unsubscribes the feed
+func (e *Exchange) abandonWebsocketPending(key *websocketPendingKey, pending *websocketPendingOperation, cause error) error {
+	if pending.method != wsMethodSubscribe {
+		return e.abortWebsocketPending(key, pending, cause)
+	}
+	e.websocketPendingMu.Lock()
+	if e.websocketPending[*key] != pending {
+		e.websocketPendingMu.Unlock()
+		return <-pending.done
+	}
+	pending.abandoned = true
+	e.websocketPendingMu.Unlock()
+	return common.AppendError(cause, e.rollbackWebsocketPending(pending))
+}
+
+// abandonedWebsocketSubscriptions returns the subscriptions of the abandoned subscribes still pending, each holding a
+// slot its feed may take
+func (e *Exchange) abandonedWebsocketSubscriptions() subscription.List {
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	var abandoned subscription.List
+	for _, pending := range e.websocketPending {
+		if pending.abandoned {
+			abandoned = append(abandoned, pending.subscription)
+		}
+	}
+	return abandoned
+}
+
 // wsHandleError settles the operation an error message answers, which the message identifies by quoting its
 // subscription or request; any other error fails every operation pending on the connection
-func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
+func (e *Exchange) wsHandleError(ctx context.Context, conn websocket.Connection, raw []byte) error {
 	var message string
 	if err := json.Unmarshal(raw, &message); err != nil {
 		message = strings.TrimSpace(string(raw))
@@ -486,7 +557,7 @@ func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadySubscribed); ok {
 		// The feed is active, so the subscribe succeeded, though without replaying recent trades
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(conn, wsMethodSubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(ctx, conn, wsMethodSubscribe, &sub); settled {
 				return err
 			}
 		}
@@ -495,7 +566,7 @@ func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadyUnsubscribed); ok {
 		// The feed is inactive, so the unsubscribe succeeded
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(conn, wsMethodUnsubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(ctx, conn, wsMethodUnsubscribe, &sub); settled {
 				return err
 			}
 		}
@@ -538,15 +609,18 @@ func decodeWebsocketSubscription(quoted string) (WebsocketSubscription, error) {
 
 // wsHandlePostResponse delivers a post response to the request awaiting its ID
 func (e *Exchange) wsHandlePostResponse(conn websocket.Connection, raw []byte) error {
-	var response WebsocketPostResponse
+	var response *WebsocketPostResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return err
+	}
+	if response == nil {
+		return fmt.Errorf("decoding post response: %w", common.ErrNoResponse)
 	}
 	return conn.RequireMatchWithData(response.ID, raw)
 }
 
 func (e *Exchange) wsHandleCandle(ctx context.Context, raw []byte) error {
-	var update Candle
+	var update CandleResponse
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -587,7 +661,7 @@ func (e *Exchange) wsHandleOrderbook(ctx context.Context, raw []byte) error {
 // wsHandleTrades relays the trades that convert and reports the rest; of the batch of recent trades Hyperliquid replays
 // on subscribing, it relays only the trades a reconnect missed
 func (e *Exchange) wsHandleTrades(raw []byte) error {
-	var updates []RecentTrade
+	var updates []RecentTradeResponse
 	if err := json.Unmarshal(raw, &updates); err != nil {
 		return err
 	}
@@ -644,9 +718,19 @@ func (e *Exchange) consumeTradeReplay(coin string) bool {
 func (e *Exchange) consumeEmptyTradeReplay() {
 	e.websocketPendingMu.Lock()
 	defer e.websocketPendingMu.Unlock()
-	if len(e.websocketTradeReplays) == 1 {
-		clear(e.websocketTradeReplays)
+	if len(e.websocketTradeReplays) != 1 {
+		return
 	}
+	for coin := range e.websocketTradeReplays {
+		// The replay ends the coin's history, so a replay after a reconnection relays every trade it holds
+		if _, ok := e.websocketWatermarks.trades[coin]; !ok {
+			if e.websocketWatermarks.trades == nil {
+				e.websocketWatermarks.trades = make(map[string]websocketPosition)
+			}
+			e.websocketWatermarks.trades[coin] = websocketPosition{}
+		}
+	}
+	clear(e.websocketTradeReplays)
 }
 
 // clearTradeReplay removes a coin's replay mark when its subscription is removed
@@ -664,7 +748,7 @@ func (e *Exchange) clearTradeReplays() {
 }
 
 // unrelayedTrades returns the trades of a coin's message that were not relayed before, consuming the coin's replay mark
-func (e *Exchange) unrelayedTrades(updates []RecentTrade) []RecentTrade {
+func (e *Exchange) unrelayedTrades(updates []RecentTradeResponse) []RecentTradeResponse {
 	coin := updates[0].Coin
 	replay := e.consumeTradeReplay(coin)
 	e.websocketPendingMu.Lock()
@@ -672,7 +756,7 @@ func (e *Exchange) unrelayedTrades(updates []RecentTrade) []RecentTrade {
 	if e.websocketWatermarks.trades == nil {
 		e.websocketWatermarks.trades = make(map[string]websocketPosition)
 	}
-	return unrelayedEntries(e.websocketWatermarks.trades, coin, updates, replay, func(update *RecentTrade) websocketPosition {
+	return unrelayedEntries(e.websocketWatermarks.trades, coin, updates, replay, func(update *RecentTradeResponse) websocketPosition {
 		return websocketPosition{time: update.Time.Time(), tradeID: update.TradeID}
 	})
 }
@@ -790,7 +874,7 @@ func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, 
 // false for a fill already relayed. The update reports the order's cumulative execution only when the order's fills are
 // known to include every execution and no final row awaits more of them, and otherwise only the trade, so it never
 // lowers an executed size the engine learnt elsewhere
-func (e *Exchange) applyWebsocketOrderFill(source *Fill, mapping *pairMapping, a asset.Item, side order.Side, now time.Time) (order.Detail, bool) {
+func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMapping, a asset.Item, side order.Side, now time.Time) (order.Detail, bool) {
 	price, size, fee := source.Price.Float64(), source.Size.Float64(), source.Fee.Float64()
 	filled := source.Time.Time().UTC()
 	// An order not seen in a row yet is dated by its fill, which is when it was placed if its fill preceded its placement
@@ -981,7 +1065,7 @@ func (e *Exchange) wsHandleUserFills(ctx context.Context, raw []byte) error {
 		return err
 	}
 	feed := websocketFillsFeed{channel: wsChannelUserFills, user: strings.ToLower(update.User)}
-	fills := unrelayedFills(e, feed, update.Fills, update.IsSnapshot, func(f *Fill) websocketPosition {
+	fills := unrelayedFills(e, feed, update.Fills, update.IsSnapshot, func(f *FillResponse) websocketPosition {
 		return websocketPosition{time: f.Time.Time(), tradeID: f.TradeID}
 	})
 	return e.relayFills(ctx, fills, nil, !e.aggregatesUserFills(feed.user))
@@ -1011,7 +1095,7 @@ func unrelayedFills[T any](e *Exchange, feed websocketFillsFeed, fills []T, snap
 // relayFills relays fills and TWAP slice fills as trades of their orders to the order stream, when toOrders is set, and
 // to the fills feed, when it is enabled, reporting those whose coin or side cannot convert; outcome fills are skipped, as
 // no supported asset holds them
-func (e *Exchange) relayFills(ctx context.Context, fills []Fill, sliceFills []TWAPSliceFill, toOrders bool) error {
+func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFills []TWAPSliceFillResponse, toOrders bool) error {
 	toFillsFeed := e.IsFillsFeedEnabled()
 	if !toOrders && !toFillsFeed {
 		return nil
@@ -1019,7 +1103,7 @@ func (e *Exchange) relayFills(ctx context.Context, fills []Fill, sliceFills []TW
 	orders := make([]order.Detail, 0, len(fills)+len(sliceFills))
 	data := make([]fill.Data, 0, len(fills)+len(sliceFills))
 	now := time.Now()
-	relay := func(source *Fill) error {
+	relay := func(source *FillResponse) error {
 		if isOutcomeCoin(source.Coin) {
 			return nil
 		}
@@ -1062,7 +1146,7 @@ func (e *Exchange) relayFills(ctx context.Context, fills []Fill, sliceFills []TW
 }
 
 // convertFill converts a fill of a market, identified by its trade ID
-func (e *Exchange) convertFill(source *Fill, p currency.Pair, a asset.Item, side order.Side) fill.Data {
+func (e *Exchange) convertFill(source *FillResponse, p currency.Pair, a asset.Item, side order.Side) fill.Data {
 	tradeID := strconv.FormatUint(source.TradeID, 10)
 	return fill.Data{
 		ID:            tradeID,
@@ -1150,7 +1234,7 @@ func (e *Exchange) wsHandleUserTWAPSliceFills(ctx context.Context, raw []byte) e
 		return err
 	}
 	feed := websocketFillsFeed{channel: wsChannelUserTWAPSliceFills, user: strings.ToLower(update.User)}
-	sliceFills := unrelayedFills(e, feed, update.TWAPSliceFills, update.IsSnapshot, func(f *TWAPSliceFill) websocketPosition {
+	sliceFills := unrelayedFills(e, feed, update.TWAPSliceFills, update.IsSnapshot, func(f *TWAPSliceFillResponse) websocketPosition {
 		return websocketPosition{time: f.Fill.Time.Time(), tradeID: f.Fill.TradeID}
 	})
 	return e.relayFills(ctx, nil, sliceFills, true)
@@ -1228,9 +1312,12 @@ func (w WebsocketAPI) PostInfo(ctx context.Context, payload, result any) error {
 	if err != nil {
 		return err
 	}
-	var info WebsocketPostInfoPayload
+	var info *WebsocketPostInfoResponse
 	if err := json.Unmarshal(response, &info); err != nil {
 		return fmt.Errorf("decoding info post payload: %w", err)
+	}
+	if info == nil {
+		return fmt.Errorf("decoding info post payload: %w", common.ErrNoResponse)
 	}
 	if err := json.Unmarshal(info.Data, result); err != nil {
 		return fmt.Errorf("decoding %s info response: %w", info.Type, err)
@@ -1239,19 +1326,19 @@ func (w WebsocketAPI) PostInfo(ctx context.Context, payload, result any) error {
 }
 
 // PlaceOrders places a batch of orders as Exchange.PlaceOrders does, posting the order action over the websocket
-func (w WebsocketAPI) PlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
+func (w WebsocketAPI) PlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatusResponse, error) {
 	return w.e.placeOrders(ctx, arg, true)
 }
 
 // CancelOrders cancels a batch of orders by order ID as Exchange.CancelOrders does, posting the cancel action over the
 // websocket
-func (w WebsocketAPI) CancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
+func (w WebsocketAPI) CancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatusResponse, error) {
 	return w.e.cancelOrders(ctx, arg, true)
 }
 
 // CancelOrdersByClientOrderID cancels a batch of orders by client order ID as Exchange.CancelOrdersByClientOrderID
 // does, posting the cancel action over the websocket
-func (w WebsocketAPI) CancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
+func (w WebsocketAPI) CancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatusResponse, error) {
 	return w.e.cancelOrdersByClientOrderID(ctx, arg, true)
 }
 
@@ -1262,7 +1349,7 @@ func (w WebsocketAPI) ModifySingleOrder(ctx context.Context, arg *ModifyOrderReq
 
 // ModifyOrders replaces a batch of orders as Exchange.ModifyOrders does, posting the batch modify action over the
 // websocket
-func (w WebsocketAPI) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
+func (w WebsocketAPI) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatusResponse, error) {
 	return w.e.modifyOrders(ctx, arg, true)
 }
 
@@ -1297,9 +1384,12 @@ func (e *Exchange) sendWebsocketPost(ctx context.Context, requestType string, pa
 	if err != nil {
 		return nil, fmt.Errorf("posting %s request: %w", requestType, err)
 	}
-	var response WebsocketPostResponse
+	var response *WebsocketPostResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return nil, fmt.Errorf("decoding post response: %w", err)
+	}
+	if response == nil {
+		return nil, fmt.Errorf("decoding post response: %w", common.ErrNoResponse)
 	}
 	switch response.Response.Type {
 	case requestType:
@@ -1571,13 +1661,14 @@ func newWebsocketSubscriptionKey(sub *subscription.Subscription) *websocketSubsc
 
 // ValidateSubscriptions refuses two variants of a feed whose messages do not say which variant sent them: two l2Book
 // variants of one market would replace each other's book in the shared store, and two userFills variants would relay
-// every fill twice, once combined with the order's other fills of its block
+// every fill twice, once combined with the order's other fills of its block. An aggregated userFills is refused beside
+// userEvents for the same reason, as userEvents relays every fill too
 func (e *Exchange) ValidateSubscriptions(subs subscription.List) error {
 	var books []*websocketSubscriptionKey
-	var userFills *websocketSubscriptionKey
+	var userFills, userEvents *websocketSubscriptionKey
 	for _, sub := range subs {
 		variant := newWebsocketSubscriptionKey(sub)
-		if !variant.valid {
+		if !variant.valid || sub.Authenticated != websocketFeeds[variant.options.Type].user {
 			// Subscribing reports the subscription's error
 			continue
 		}
@@ -1593,7 +1684,15 @@ func (e *Exchange) ValidateSubscriptions(subs subscription.List) error {
 			if userFills != nil && userFills.options != variant.options {
 				return fmt.Errorf("%w: %s and %s", subscription.ErrExclusiveSubscription, userFills, variant)
 			}
+			if userEvents != nil && variant.options.AggregateByTime {
+				return fmt.Errorf("%w: %s and %s", subscription.ErrExclusiveSubscription, userEvents, variant)
+			}
 			userFills = variant
+		case wsSubscriptionUserEvents:
+			if userFills != nil && userFills.options.AggregateByTime {
+				return fmt.Errorf("%w: %s and %s", subscription.ErrExclusiveSubscription, userFills, variant)
+			}
+			userEvents = variant
 		}
 	}
 	return nil
@@ -1601,6 +1700,12 @@ func (e *Exchange) ValidateSubscriptions(subs subscription.List) error {
 
 // websocketSubscribe subscribes to feeds on a connection, completing only once the server acknowledges each one
 func (e *Exchange) websocketSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	// Feeds validated before others were subscribed reach here too, as when the manager reconnects the account
+	// connection with its configured feeds before a runtime subscription's, so they are validated against those held,
+	// and against those of abandoned subscribes, which may still be active
+	if err := e.ValidateSubscriptions(slices.Concat(subs, e.Websocket.GetSubscriptions(), e.abandonedWebsocketSubscriptions())); err != nil {
+		return err
+	}
 	var errs error
 	for _, sub := range subs {
 		errs = common.AppendError(errs, e.manageWebsocketSubscription(ctx, conn, wsMethodSubscribe, sub))
@@ -1653,13 +1758,20 @@ func (e *Exchange) manageWebsocketSubscription(ctx context.Context, connection w
 		// Held subscriptions include those awaiting their acknowledgement, so both connections' count against the limit;
 		// a market feed also leaves room for the account feeds not yet held, which the account connection subscribes
 		// when it connects
+		// An abandoned subscribe's feed may be active, so it counts as held, and as an account feed it takes the room kept
+		// for that feed unless it was subscribed for an address no longer watched
 		held := e.Websocket.GetSubscriptions()
+		abandoned := e.abandonedWebsocketSubscriptions()
 		var reserved int
 		if !sub.Authenticated {
-			reserved = e.awaitedAccountFeeds(ctx, held)
+			watched, _ := e.getWatchAddress(ctx) // awaitedAccountFeeds keeps no room without a watched address
+			reserved = e.awaitedAccountFeeds(ctx, slices.Concat(held, slices.DeleteFunc(slices.Clone(abandoned), func(s *subscription.Subscription) bool {
+				key, ok := s.EnsureKeyed().(*websocketSubscriptionKey)
+				return ok && key.feed.User != "" && key.feed.User != watched
+			})))
 		}
-		if len(held)+reserved >= maximumWebsocketSubscriptions {
-			return fmt.Errorf("%w: %d held and %d kept for account feeds", errWebsocketSubscriptionsLimit, len(held), reserved)
+		if occupied := len(held) + len(abandoned); occupied+reserved >= maximumWebsocketSubscriptions {
+			return fmt.Errorf("%w: %d held and %d kept for account feeds", errWebsocketSubscriptionsLimit, occupied, reserved)
 		}
 		sub.SetKey(feed)
 		if err := e.Websocket.AddSubscriptions(connection, sub); err != nil {
@@ -1705,9 +1817,9 @@ func (e *Exchange) awaitWebsocketPending(ctx context.Context, connection websock
 	case err := <-pending.done:
 		return err
 	case <-ctx.Done():
-		return e.abortWebsocketPending(key, pending, ctx.Err())
+		return e.abandonWebsocketPending(key, pending, ctx.Err())
 	case <-timer.C:
-		return e.abortWebsocketPending(key, pending, fmt.Errorf("%w: %s", websocket.ErrSignatureTimeout, pending.subscription))
+		return e.abandonWebsocketPending(key, pending, fmt.Errorf("%w: %s", websocket.ErrSignatureTimeout, pending.subscription))
 	}
 }
 

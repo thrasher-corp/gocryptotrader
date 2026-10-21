@@ -55,7 +55,7 @@ func TestGetPerpetualDEXs(t *testing.T) {
 	result, err := e.GetPerpetualDEXs(t.Context())
 	require.NoError(t, err, "GetPerpetualDEXs must not error")
 	if mockTests {
-		exp := []*PerpetualDEX{
+		exp := []*PerpetualDEXResponse{
 			nil,
 			{
 				Name:                            "xyz",
@@ -229,7 +229,7 @@ func TestGetUserFunding(t *testing.T) {
 	result, err := e.GetUserFunding(t.Context(), &UserFundingRequest{User: testTraderAddress, StartTime: start, EndTime: end})
 	require.NoError(t, err, "GetUserFunding must not error")
 	if mockTests {
-		exp := []UserFundingUpdate{
+		exp := []UserFundingUpdateResponse{
 			{Time: milli(1791255600066), Hash: zeroHash, Delta: UserFundingDelta{Type: "funding", Coin: "BTC", USDC: -0.583273, SignedSize: 0.54241, FundingRate: 0.0000125}},
 			{Time: milli(1791259200066), Hash: zeroHash, Delta: UserFundingDelta{Type: "funding", Coin: "xyz:XYZ100", USDC: -0.044393, SignedSize: 0.2284, FundingRate: 0.00000625}},
 		}
@@ -248,7 +248,7 @@ func TestGetUserFunding(t *testing.T) {
 	result, err = e.GetUserFunding(t.Context(), &UserFundingRequest{User: testTraderAddress, StartTime: dailyStart, EndTime: dailyStart.Add(24 * time.Hour)})
 	require.NoError(t, err, "GetUserFunding must not error for compacted history")
 	if mockTests {
-		exp := []UserFundingUpdate{{
+		exp := []UserFundingUpdateResponse{{
 			Time:  milli(1788739200000),
 			Hash:  "0xa166e3fa63c25663024b03f2e0da011a00307e4017465df020210d3d432e7cb8",
 			Delta: UserFundingDelta{Type: "funding", Coin: "0G", USDC: -0.081144, SignedSize: 1395.2083333333, FundingRate: 0.0000125, NumberOfSamples: 24},
@@ -277,7 +277,7 @@ func TestGetUserNonFundingLedgerUpdates(t *testing.T) {
 	result, err := e.GetUserNonFundingLedgerUpdates(t.Context(), &UserNonFundingLedgerUpdatesRequest{User: testVaultAddress, StartTime: start, EndTime: end})
 	require.NoError(t, err, "GetUserNonFundingLedgerUpdates must not error")
 	if mockTests {
-		exp := []UserLedgerUpdate{
+		exp := []UserLedgerUpdateResponse{
 			{Time: milli(1791252100000), Hash: "0x6e5030418dccaafb6fc90445f45dbe0201de002728cfc9cd1218db944cc084e6", Delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 50099.8, ToPerpetual: true}},
 			{Time: milli(1791253000000), Hash: "0x31d548837f8c7791334f0445f45eaa0201be00691a8f9663d59df3d63e80517b", Delta: UserLedgerDelta{
 				Type:           "send",
@@ -346,7 +346,7 @@ func TestGetFundingHistory(t *testing.T) {
 	result, err := e.GetFundingHistory(t.Context(), &FundingHistoryRequest{Coin: "BTC", StartTime: start, EndTime: end})
 	require.NoError(t, err, "GetFundingHistory must not error")
 	if mockTests {
-		exp := []FundingRateHistory{
+		exp := []FundingRateHistoryResponse{
 			{Coin: "BTC", FundingRate: 0.0000125, Premium: -0.000226673, Time: milli(1791255600057)},
 			{Coin: "BTC", FundingRate: -0.0000032, Premium: -0.000525601, Time: milli(1791259200041)},
 		}
@@ -358,7 +358,7 @@ func TestGetFundingHistory(t *testing.T) {
 	rate := result[0]
 	result, err = e.GetFundingHistory(t.Context(), &FundingHistoryRequest{Coin: "BTC", StartTime: rate.Time.Time(), EndTime: rate.Time.Time()})
 	require.NoError(t, err, "GetFundingHistory must not error for a range of one instant")
-	assert.Equal(t, []FundingRateHistory{rate}, result, "GetFundingHistory should return the one rate at the instant")
+	assert.Equal(t, []FundingRateHistoryResponse{rate}, result, "GetFundingHistory should return the one rate at the instant")
 
 	_, err = newUnavailableServerExchange(t).GetFundingHistory(t.Context(), &FundingHistoryRequest{Coin: "BTC", StartTime: start, EndTime: end})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFundingHistory should return the request failure")
@@ -369,7 +369,7 @@ func TestGetPredictedFundings(t *testing.T) {
 	result, err := e.GetPredictedFundings(t.Context())
 	require.NoError(t, err, "GetPredictedFundings must not error")
 	if mockTests {
-		exp := []PredictedFunding{
+		exp := []PredictedFundingResponse{
 			{Coin: "BTC", Venues: []PredictedFundingVenue{
 				{Venue: "BinPerp", Funding: &PredictedFundingRate{FundingRate: -0.00004049, NextFundingTime: milli(1791302400000), FundingIntervalHours: 8}},
 				{Venue: "HlPerp", Funding: &PredictedFundingRate{FundingRate: 0.0000125, NextFundingTime: milli(1791277200000), FundingIntervalHours: 1}},
@@ -580,7 +580,7 @@ func TestGetPerpetualCategories(t *testing.T) {
 	result, err := e.GetPerpetualCategories(t.Context())
 	require.NoError(t, err, "GetPerpetualCategories must not error")
 	if mockTests {
-		assert.Equal(t, []PerpetualCategory{{Coin: "flx:BTC", Category: "crypto"}, {Coin: "io:OAI", Category: "preipo"}}, result, "GetPerpetualCategories should decode every category")
+		assert.Equal(t, []PerpetualCategoryResponse{{Coin: "flx:BTC", Category: "crypto"}, {Coin: "io:OAI", Category: "preipo"}}, result, "GetPerpetualCategories should decode every category")
 	} else {
 		assert.NotEmpty(t, result, "GetPerpetualCategories should return categories")
 	}
@@ -594,7 +594,7 @@ func TestGetPerpetualConciseAnnotations(t *testing.T) {
 	result, err := e.GetPerpetualConciseAnnotations(t.Context())
 	require.NoError(t, err, "GetPerpetualConciseAnnotations must not error")
 	if mockTests {
-		exp := []PerpetualConciseAnnotation{
+		exp := []PerpetualConciseAnnotationResponse{
 			{Coin: "io:OAI", Annotation: PerpetualAnnotationResponse{Category: "preipo", DisplayName: "OPENAI", Keywords: []string{"openai", "oai"}}},
 			{Coin: "mkts:USTECH", Annotation: PerpetualAnnotationResponse{Category: "indices", DisplayName: "QQQ", Keywords: []string{"USTECH", "NQ"}}},
 		}
@@ -692,9 +692,9 @@ func TestPerpetualMetadataAndAssetContextsResponseUnmarshalJSON(t *testing.T) {
 
 func TestPredictedFundingUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var funding PredictedFunding
+	var funding PredictedFundingResponse
 	require.NoError(t, json.Unmarshal([]byte(`["BTC",[["HlPerp",{"fundingRate":"0.0000125","nextFundingTime":1791277200000,"fundingIntervalHours":1}],["BybitPerp",null]]]`), &funding), "Unmarshal must not error")
-	exp := PredictedFunding{Coin: "BTC", Venues: []PredictedFundingVenue{
+	exp := PredictedFundingResponse{Coin: "BTC", Venues: []PredictedFundingVenue{
 		{Venue: "HlPerp", Funding: &PredictedFundingRate{FundingRate: 0.0000125, NextFundingTime: milli(1791277200000), FundingIntervalHours: 1}},
 		{Venue: "BybitPerp"},
 	}}
@@ -712,17 +712,17 @@ func TestPredictedFundingVenueUnmarshalJSON(t *testing.T) {
 
 func TestPerpetualCategoryUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var category PerpetualCategory
+	var category PerpetualCategoryResponse
 	require.NoError(t, json.Unmarshal([]byte(`["flx:BTC","crypto"]`), &category), "Unmarshal must not error")
-	assert.Equal(t, PerpetualCategory{Coin: "flx:BTC", Category: "crypto"}, category, "PerpetualCategory should decode its coin and category")
+	assert.Equal(t, PerpetualCategoryResponse{Coin: "flx:BTC", Category: "crypto"}, category, "PerpetualCategory should decode its coin and category")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`["flx:BTC"]`), &category), errInvalidTupleLength, "PerpetualCategory should reject a short tuple")
 }
 
 func TestPerpetualConciseAnnotationUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var annotation PerpetualConciseAnnotation
+	var annotation PerpetualConciseAnnotationResponse
 	require.NoError(t, json.Unmarshal([]byte(`["io:OAI",{"category":"preipo","keywords":["oai"]}]`), &annotation), "Unmarshal must not error")
-	exp := PerpetualConciseAnnotation{Coin: "io:OAI", Annotation: PerpetualAnnotationResponse{Category: "preipo", Keywords: []string{"oai"}}}
+	exp := PerpetualConciseAnnotationResponse{Coin: "io:OAI", Annotation: PerpetualAnnotationResponse{Category: "preipo", Keywords: []string{"oai"}}}
 	assert.Equal(t, exp, annotation, "PerpetualConciseAnnotation should decode its coin and annotation")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`["io:OAI"]`), &annotation), errInvalidTupleLength, "PerpetualConciseAnnotation should reject a short tuple")
 }

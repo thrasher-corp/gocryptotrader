@@ -23,7 +23,8 @@ type WebsocketSubscriptionRequest struct {
 // WebsocketSubscription identifies a feed; the server echoes it in a canonical form, with the user lower case and every
 // option present, and each option's zero value is its default, so the request and its echo decode to equal values
 type WebsocketSubscription struct {
-	Type     string `json:"type"`
+	Type string `json:"type"`
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin     string `json:"coin,omitempty"`
 	Interval string `json:"interval,omitempty"`
 	User     string `json:"user,omitempty"`
@@ -177,6 +178,18 @@ type websocketPendingOperation struct {
 	subscription  *subscription.Subscription
 	previousState subscription.State
 	done          chan error
+	// abandoned marks a subscribe whose caller gave up on it once sent, and whose subscription was rolled back; cleanup
+	// marks an abandoned subscribe Hyperliquid acknowledged, whose feed is being unsubscribed. websocketPendingMu guards
+	// both
+	abandoned, cleanup bool
+}
+
+// awaitedMethod returns the method whose acknowledgement settles the operation; the caller holds websocketPendingMu
+func (p *websocketPendingOperation) awaitedMethod() string {
+	if p.cleanup {
+		return wsMethodUnsubscribe
+	}
+	return p.method
 }
 
 // websocketPosition is where an entry of a replaying feed sits: its time, then its trade ID, which orders the entries of
@@ -238,8 +251,8 @@ type websocketOrder struct {
 	final *order.Detail
 }
 
-// WebsocketResponse is the outer frame of every server message
-type WebsocketResponse struct {
+// WebsocketMessage is the outer frame of every server message
+type WebsocketMessage struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
@@ -309,6 +322,7 @@ func (t *TWAPStateEntry) UnmarshalJSON(data []byte) error {
 
 // TWAPState contains a TWAP order's parameters and progress
 type TWAPState struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin             string       `json:"coin"`
 	User             string       `json:"user"`
 	Side             string       `json:"side"`
@@ -341,9 +355,9 @@ type WebsocketClearinghouseState struct {
 // WebsocketOpenOrders contains a user's open orders on one perpetual DEX, newest first; for an account with very many
 // open orders it can be limited to 100, as frontendOpenOrders is
 type WebsocketOpenOrders struct {
-	DEX    string              `json:"dex"`
-	User   string              `json:"user"`
-	Orders []FrontendOpenOrder `json:"orders"`
+	DEX    string                      `json:"dex"`
+	User   string                      `json:"user"`
+	Orders []FrontendOpenOrderResponse `json:"orders"`
 }
 
 // WebsocketL2Book contains an L2 book snapshot from the l2Book feed; Fast is set on the 5 level fast book
@@ -354,23 +368,24 @@ type WebsocketL2Book struct {
 
 // WebsocketOrder contains an order update from the orderUpdates feed, which omits the order type and time in force
 type WebsocketOrder struct {
-	Order           BasicOrder `json:"order"`
-	Status          string     `json:"status"`
-	StatusTimestamp types.Time `json:"statusTimestamp"`
+	Order           BasicOrderResponse `json:"order"`
+	Status          string             `json:"status"`
+	StatusTimestamp types.Time         `json:"statusTimestamp"`
 }
 
 // WebsocketUserEvent contains one event from the userEvents feed, sent on the user channel; exactly one field is set
 type WebsocketUserEvent struct {
-	Fills          []Fill                   `json:"fills"`
+	Fills          []FillResponse           `json:"fills"`
 	Funding        *WebsocketUserFunding    `json:"funding"`
 	Liquidation    *WebsocketLiquidation    `json:"liquidation"`
 	NonUserCancel  []WebsocketNonUserCancel `json:"nonUserCancel"`
-	TWAPSliceFills []TWAPSliceFill          `json:"twapSliceFills"`
+	TWAPSliceFills []TWAPSliceFillResponse  `json:"twapSliceFills"`
 }
 
 // WebsocketUserFunding contains one funding payment; USDC is negative when the user paid funding
 type WebsocketUserFunding struct {
-	Time        types.Time   `json:"time"`
+	Time types.Time `json:"time"`
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin        string       `json:"coin"`
 	USDC        types.Number `json:"usdc"`
 	SignedSize  types.Number `json:"szi"`
@@ -390,15 +405,16 @@ type WebsocketLiquidation struct {
 
 // WebsocketNonUserCancel identifies an order the exchange cancelled
 type WebsocketNonUserCancel struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin    string `json:"coin"`
 	OrderID uint64 `json:"oid"`
 }
 
 // WebsocketUserFills contains fills from the userFills feed; the first message is a snapshot of recent fills
 type WebsocketUserFills struct {
-	IsSnapshot bool   `json:"isSnapshot"`
-	User       string `json:"user"`
-	Fills      []Fill `json:"fills"`
+	IsSnapshot bool           `json:"isSnapshot"`
+	User       string         `json:"user"`
+	Fills      []FillResponse `json:"fills"`
 }
 
 // WebsocketUserFundings contains funding payments from the userFundings feed; the first message is a snapshot of recent
@@ -412,13 +428,14 @@ type WebsocketUserFundings struct {
 // WebsocketUserNonFundingLedgerUpdates contains ledger updates other than funding payments; the first message is a
 // snapshot of recent updates
 type WebsocketUserNonFundingLedgerUpdates struct {
-	IsSnapshot              bool               `json:"isSnapshot"`
-	User                    string             `json:"user"`
-	NonFundingLedgerUpdates []UserLedgerUpdate `json:"nonFundingLedgerUpdates"`
+	IsSnapshot              bool                       `json:"isSnapshot"`
+	User                    string                     `json:"user"`
+	NonFundingLedgerUpdates []UserLedgerUpdateResponse `json:"nonFundingLedgerUpdates"`
 }
 
 // WebsocketPerpetualAssetContext contains a perpetual market's context from the activeAssetCtx feed
 type WebsocketPerpetualAssetContext struct {
+	// Coin is the perpetual's case-sensitive market name, such as BTC, kPEPE or xyz:XYZ100, rather than a currency code
 	Coin    string                `json:"coin"`
 	Context PerpetualAssetContext `json:"ctx"`
 }
@@ -426,6 +443,7 @@ type WebsocketPerpetualAssetContext struct {
 // WebsocketSpotAssetContext contains a spot or outcome market's context from the activeAssetCtx feed, sent on the
 // activeSpotAssetCtx channel
 type WebsocketSpotAssetContext struct {
+	// Coin is the spot market's name, such as PURR/USDC or @107, rather than a currency code
 	Coin    string           `json:"coin"`
 	Context SpotAssetContext `json:"ctx"`
 }
@@ -433,21 +451,21 @@ type WebsocketSpotAssetContext struct {
 // WebsocketUserTWAPSliceFills contains TWAP slice fills from the userTwapSliceFills feed; the first message is a
 // snapshot of recent slice fills
 type WebsocketUserTWAPSliceFills struct {
-	IsSnapshot     bool            `json:"isSnapshot"`
-	User           string          `json:"user"`
-	TWAPSliceFills []TWAPSliceFill `json:"twapSliceFills"`
+	IsSnapshot     bool                    `json:"isSnapshot"`
+	User           string                  `json:"user"`
+	TWAPSliceFills []TWAPSliceFillResponse `json:"twapSliceFills"`
 }
 
 // WebsocketUserTWAPHistory contains TWAP status changes from the userTwapHistory feed; the first message is a snapshot
 // of recent changes
 type WebsocketUserTWAPHistory struct {
-	IsSnapshot bool               `json:"isSnapshot"`
-	User       string             `json:"user"`
-	History    []TWAPHistoryEntry `json:"history"`
+	IsSnapshot bool                       `json:"isSnapshot"`
+	User       string                     `json:"user"`
+	History    []TWAPHistoryEntryResponse `json:"history"`
 }
 
-// TWAPHistoryEntry contains a TWAP order's state when its status changed
-type TWAPHistoryEntry struct {
+// TWAPHistoryEntryResponse contains a TWAP order's state when its status changed
+type TWAPHistoryEntryResponse struct {
 	// Time is sent in seconds, unlike the state's millisecond timestamp
 	Time   types.Time `json:"time"`
 	State  TWAPState  `json:"state"`
@@ -464,6 +482,7 @@ type TWAPStatus struct {
 
 // WebsocketBestBidOffer contains a coin's best bid and ask; either is nil when its side of the book is empty
 type WebsocketBestBidOffer struct {
+	// Coin is the case-sensitive market name, such as BTC, kPEPE, xyz:XYZ100 or @107, rather than a currency code
 	Coin string     `json:"coin"`
 	Time types.Time `json:"time"`
 	// BestBidOffer contains the bid then the ask
@@ -576,8 +595,8 @@ type WebsocketPostResponseBody struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-// WebsocketPostInfoPayload contains an info request's type and its response, as the info endpoint returns it
-type WebsocketPostInfoPayload struct {
+// WebsocketPostInfoResponse contains an info request's type and its response, as the info endpoint returns it
+type WebsocketPostInfoResponse struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }

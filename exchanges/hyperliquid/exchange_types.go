@@ -54,8 +54,8 @@ var (
 	errUnknownCancelStatus   = errors.New("unknown cancel status")
 )
 
-// L1ActionOptions controls how SendSignedAction signs and sends an L1 action
-type L1ActionOptions struct {
+// L1ActionOptionsRequest controls how SendSignedAction signs and sends an L1 action
+type L1ActionOptionsRequest struct {
 	// BatchLength is the length of the action's order, cancel or modify array, which sets its rate limit weight
 	BatchLength uint64
 	// ActForVault signs and sends the action for the configured vault or subaccount; only trading actions accept one
@@ -214,8 +214,8 @@ type BuilderFeeWire struct {
 	Fee     TenthsOfABasisPoint `json:"f" msgpack:"f"`
 }
 
-// OrderActionStatus contains the outcome of one order in an order or batchModify action; exactly one field is set
-type OrderActionStatus struct {
+// OrderActionStatusResponse contains the outcome of one order in an order or batchModify action; exactly one field is set
+type OrderActionStatusResponse struct {
 	Resting *RestingOrderStatus `json:"resting"`
 	Filled  *FilledOrderStatus  `json:"filled"`
 	Error   string              `json:"error"`
@@ -224,7 +224,7 @@ type OrderActionStatus struct {
 }
 
 // UnmarshalJSON decodes either a waiting status string or a resting, filled or error object
-func (o *OrderActionStatus) UnmarshalJSON(data []byte) error {
+func (o *OrderActionStatusResponse) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '"' {
 		var waiting string
 		if err := json.Unmarshal(data, &waiting); err != nil {
@@ -232,13 +232,13 @@ func (o *OrderActionStatus) UnmarshalJSON(data []byte) error {
 		}
 		switch waiting {
 		case orderStatusWaitingForFill, orderStatusWaitingForTrigger:
-			*o = OrderActionStatus{Waiting: waiting}
+			*o = OrderActionStatusResponse{Waiting: waiting}
 			return nil
 		default:
 			return fmt.Errorf("%w: unknown status %q", errActionStatusMalformed, waiting)
 		}
 	}
-	type alias OrderActionStatus
+	type alias OrderActionStatusResponse
 	var status alias
 	if err := json.Unmarshal(data, &status); err != nil {
 		return err
@@ -262,7 +262,7 @@ func (o *OrderActionStatus) UnmarshalJSON(data []byte) error {
 	if variants != 1 {
 		return fmt.Errorf("%w: %s", errActionStatusMalformed, data)
 	}
-	*o = OrderActionStatus(status)
+	*o = OrderActionStatusResponse(status)
 	return nil
 }
 
@@ -302,13 +302,13 @@ type CancelAction struct {
 	Fast    bool            `json:"f,omitempty" msgpack:"f,omitempty"`
 }
 
-// CancelActionStatus contains the outcome of one cancel in a cancel action; Error is empty when it succeeded
-type CancelActionStatus struct {
+// CancelActionStatusResponse contains the outcome of one cancel in a cancel action; Error is empty when it succeeded
+type CancelActionStatusResponse struct {
 	Error string `json:"error"`
 }
 
 // UnmarshalJSON decodes either a success status string or an error object
-func (c *CancelActionStatus) UnmarshalJSON(data []byte) error {
+func (c *CancelActionStatusResponse) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '"' {
 		var status string
 		if err := json.Unmarshal(data, &status); err != nil {
@@ -317,10 +317,10 @@ func (c *CancelActionStatus) UnmarshalJSON(data []byte) error {
 		if status != "success" {
 			return fmt.Errorf("%w: %q", errUnknownCancelStatus, status)
 		}
-		*c = CancelActionStatus{}
+		*c = CancelActionStatusResponse{}
 		return nil
 	}
-	type alias CancelActionStatus
+	type alias CancelActionStatusResponse
 	var status alias
 	if err := json.Unmarshal(data, &status); err != nil {
 		return err
@@ -328,7 +328,7 @@ func (c *CancelActionStatus) UnmarshalJSON(data []byte) error {
 	if status.Error == "" {
 		return fmt.Errorf("%w: %s", errActionStatusMalformed, data)
 	}
-	*c = CancelActionStatus(status)
+	*c = CancelActionStatusResponse(status)
 	return nil
 }
 
@@ -453,8 +453,10 @@ type UpdateIsolatedMarginAction struct {
 	Type  string `json:"type"  msgpack:"type"`
 	Asset uint64 `json:"asset" msgpack:"asset"`
 	// IsBuy is always true, as Hyperliquid ignores it until hedge mode exists
-	IsBuy          bool  `json:"isBuy" msgpack:"isBuy"`
-	SignedNotional int64 `json:"ntli"  msgpack:"ntli"`
+	IsBuy bool `json:"isBuy" msgpack:"isBuy"`
+	// SignedNotional is the USDC margin change with 6 decimals, as in UpdateIsolatedMarginRequest; a negative value
+	// removes margin
+	SignedNotional int64 `json:"ntli" msgpack:"ntli"`
 }
 
 // TopUpIsolatedOnlyMarginRequest sets an isolated-only position's margin to reach a target leverage
@@ -896,15 +898,15 @@ type TWAPWire struct {
 	Randomise  bool   `json:"t" msgpack:"t"`
 }
 
-// TWAPOrderStatus contains the outcome of a TWAP order; exactly one field is set
-type TWAPOrderStatus struct {
+// TWAPOrderStatusResponse contains the outcome of a TWAP order; exactly one field is set
+type TWAPOrderStatusResponse struct {
 	Running *TWAPRunningStatus `json:"running"`
 	Error   string             `json:"error"`
 }
 
 // UnmarshalJSON decodes a running or error object, rejecting a status that sets neither or both
-func (t *TWAPOrderStatus) UnmarshalJSON(data []byte) error {
-	type alias TWAPOrderStatus
+func (t *TWAPOrderStatusResponse) UnmarshalJSON(data []byte) error {
+	type alias TWAPOrderStatusResponse
 	var status alias
 	if err := json.Unmarshal(data, &status); err != nil {
 		return err
@@ -915,7 +917,7 @@ func (t *TWAPOrderStatus) UnmarshalJSON(data []byte) error {
 	if (status.Running == nil) == (status.Error == "") {
 		return fmt.Errorf("%w: %s", errActionStatusMalformed, data)
 	}
-	*t = TWAPOrderStatus(status)
+	*t = TWAPOrderStatusResponse(status)
 	return nil
 }
 

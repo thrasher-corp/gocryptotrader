@@ -341,6 +341,10 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		if ws.setup.Optional && unconnected && time.Now().Before(ws.retryAt) {
 			continue // The connection monitor retries it when due
 		}
+		// A cancelled flush leaves the setups it has not reached as they are
+		if err := ctx.Err(); err != nil {
+			return common.AppendError(subscriptionError, err)
+		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
 		var fatalErr error
@@ -366,7 +370,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		err = m.scaleConnectionsToSubscriptions(ctx, ws, newSubs)
 		if !ws.setup.Optional {
 			// Subscriptions refused on one setup's connections leave the other setups to flush, as setups can share a
-			// venue's subscription limit; only a connection that cannot be made ends the flush
+			// venue's subscription limit; a fatal error, such as a connection that cannot be made, ends the flush
 			if errors.Is(err, common.ErrFatal) {
 				return common.AppendError(subscriptionError, err)
 			}
@@ -417,16 +421,34 @@ func (m *Manager) SubscribeToSetup(ctx context.Context, messageFilter any, subs 
 	if ws.setup.Optional && unconnected && time.Now().Before(ws.retryAt) {
 		return fmt.Errorf("%s websocket: %w: optional connection [URL:%s] is retried at %s", m.exchangeName, ErrNotConnected, ws.setup.URL, ws.retryAt)
 	}
+	i := slices.Index(m.snapshotConnectionManager(), ws)
+	var recoveryErr error
+	if ws.setup.Optional && unconnected && ws.retryFailures != 0 {
+		// A failed setup is reconnected with its generated subscriptions, as the connection monitor's retry would; the
+		// monitor retries only a setup without connections, so it would not add them once a connection is dialled here
+		var fatalErr error
+		if recoveryErr, fatalErr = m.connectSetup(ctx, i, ws); fatalErr != nil {
+			return common.AppendError(recoveryErr, m.optionalSetupFailed(i, ws, fatalErr))
+		}
+		if len(m.snapshotManagedConnections(ws)) != 0 {
+			ws.retryFailures, ws.retryAt = 0, time.Time{}
+		}
+		subs = slices.DeleteFunc(slices.Clone(subs), func(s *subscription.Subscription) bool { return ws.subscriptions.Get(s) != nil })
+		if len(subs) == 0 {
+			return recoveryErr
+		}
+		unconnected = len(m.snapshotManagedConnections(ws)) == 0
+	}
 	err = m.subscribeToSetup(ctx, ws, subs)
 	if ws.setup.Optional && unconnected {
 		if errors.Is(err, common.ErrFatal) {
-			return m.optionalSetupFailed(slices.Index(m.snapshotConnectionManager(), ws), ws, err)
+			return common.AppendError(recoveryErr, m.optionalSetupFailed(i, ws, err))
 		}
 		if len(m.snapshotManagedConnections(ws)) != 0 {
 			ws.retryFailures, ws.retryAt = 0, time.Time{}
 		}
 	}
-	return err
+	return common.AppendError(recoveryErr, err)
 }
 
 // UnsubscribeFromSetup unsubscribes from subscriptions held by the setup with the given message filter, closing any

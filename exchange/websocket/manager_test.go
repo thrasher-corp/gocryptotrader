@@ -2839,6 +2839,12 @@ func TestOnDisconnect(t *testing.T) {
 	})
 	setup.OnDisconnect = func(_ context.Context, conn Connection) { disconnected <- conn }
 	m = newLifecycleTestManager(t, setup)
+	shutdown := func() {
+		t.Helper()
+		err, ok := lifecycleWithin(t, m.Shutdown)
+		require.True(t, ok, "Shutdown must return within five seconds")
+		require.NoError(t, err, "Shutdown must not error")
+	}
 
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	connections := m.snapshotManagedConnections(m.connectionManager[0])
@@ -2851,7 +2857,7 @@ func TestOnDisconnect(t *testing.T) {
 		require.FailNow(t, "OnDisconnect must be called when a connection's reader stops")
 	}
 
-	require.NoError(t, m.Shutdown(), "Shutdown must not error")
+	shutdown()
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	connections = m.snapshotManagedConnections(m.connectionManager[0])
 	require.Len(t, connections, 1, "Connect must make one connection")
@@ -2863,16 +2869,28 @@ func TestOnDisconnect(t *testing.T) {
 		require.FailNow(t, "OnDisconnect must be called when the venue drops a connection")
 	}
 
-	require.NoError(t, m.Shutdown(), "Shutdown must not error")
+	shutdown()
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	connections = m.snapshotManagedConnections(m.connectionManager[0])
 	require.Len(t, connections, 1, "Connect must make one connection")
-	require.NoError(t, m.Shutdown(), "Shutdown must not error")
-	select {
-	case conn := <-disconnected:
-		assert.Equal(t, connections[0], conn, "OnDisconnect should be called with the shut down connection")
-	default:
+	type shutDown struct {
+		err  error
+		hook Connection
+	}
+	got, ok := lifecycleWithin(t, func() shutDown {
+		got := shutDown{err: m.Shutdown()}
+		select {
+		case got.hook = <-disconnected:
+		default:
+		}
+		return got
+	})
+	require.True(t, ok, "Shutdown must return within five seconds")
+	require.NoError(t, got.err, "Shutdown must not error")
+	if got.hook == nil {
 		assert.Fail(t, "OnDisconnect should be called before Shutdown returns")
+	} else {
+		assert.Equal(t, connections[0], got.hook, "OnDisconnect should be called with the shut down connection")
 	}
 	assert.Empty(t, disconnected, "OnDisconnect should be called once for each connection")
 }
@@ -3075,6 +3093,12 @@ func TestFlushChannelsContinuesPastRefusedSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, m.FlushChannels(t.Context()), errRefused, "FlushChannels should return a setup's refused subscriptions")
 	assert.NotNil(t, secondWs.subscriptions.Get(added), "FlushChannels should flush the setups after one whose subscriptions were refused")
 
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	secondSubs = subscription.List{{Channel: "second"}}
+	assert.ErrorIs(t, m.FlushChannels(cancelled), context.Canceled, "FlushChannels should return its context's error")
+	assert.NotNil(t, secondWs.subscriptions.Get(added), "FlushChannels should leave the setups it has not reached once its context is cancelled")
+
 	firstRefuses.Store(false)
 	firstDialFails.Store(true)
 	m.m.Lock()
@@ -3130,15 +3154,27 @@ func TestRetiredConnectionHookSeesRegisteredConnection(t *testing.T) {
 
 	generated = subscription.List{{Channel: "one"}}
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
-	require.NoError(t, m.Shutdown(), "Shutdown must not error")
-	select {
-	case state := <-states:
-		assert.True(t, state.managed, "Shutdown should keep a connection registered until its disconnect hook finishes")
-		assert.Equal(t, 1, state.held, "Shutdown should keep the subscriptions until the disconnect hook finishes")
-	default:
-		require.FailNow(t, "OnDisconnect must be called before Shutdown returns")
+	type shutDown struct {
+		err   error
+		state *hookState
+		held  int
 	}
-	assert.Empty(t, m.GetSubscriptions(), "Shutdown should clear the subscriptions once the readers finish")
+	closed, ok := lifecycleWithin(t, func() shutDown {
+		got := shutDown{err: m.Shutdown()}
+		select {
+		case state := <-states:
+			got.state = &state
+		default:
+		}
+		got.held = len(m.GetSubscriptions())
+		return got
+	})
+	require.True(t, ok, "Shutdown must return within five seconds")
+	require.NoError(t, closed.err, "Shutdown must not error")
+	require.NotNil(t, closed.state, "OnDisconnect must be called before Shutdown returns")
+	assert.True(t, closed.state.managed, "Shutdown should keep a connection registered until its disconnect hook finishes")
+	assert.Equal(t, 1, closed.state.held, "Shutdown should keep the subscriptions until the disconnect hook finishes")
+	assert.Zero(t, closed.held, "Shutdown should clear the subscriptions once the readers finish")
 
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	generated = nil
@@ -3273,4 +3309,99 @@ func TestSubscribeToSetupGuards(t *testing.T) {
 
 	require.NoError(t, m.Disable(), "Disable must not error")
 	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "feeds", subscription.List{{Channel: "late"}}), ErrWebsocketNotEnabled, "SubscribeToSetup should refuse a disabled manager")
+}
+
+// TestSubscribeToSetupReconnectsFailedOptionalSetup subscribes at runtime to an optional setup whose connection failed,
+// once its retry is due but before the connection monitor retries it
+func TestSubscribeToSetupReconnectsFailedOptionalSetup(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                            string
+		runtime                         string
+		empty, partial, refuse, offline bool
+		// overflow puts each subscription on its own connection and fails the runtime subscription's dial
+		overflow    bool
+		errs        []error
+		held        []string
+		connections int
+		failures    int
+		dials       int32
+	}{
+		{name: "runtime subscription", runtime: "runtime", held: []string{"configured", "runtime"}, connections: 1, dials: 2},
+		{name: "runtime subscription the setup generates", runtime: "configured", held: []string{"configured"}, connections: 1, dials: 2},
+		{name: "partly generated subscriptions", runtime: "runtime", partial: true, errs: []error{ErrSubscriptionPartial}, held: []string{"configured", "runtime"}, connections: 1, dials: 2},
+		{name: "partly generated subscriptions holding the runtime one", runtime: "configured", partial: true, errs: []error{ErrSubscriptionPartial}, held: []string{"configured"}, connections: 1, dials: 2},
+		{name: "refused runtime subscription", runtime: "runtime", refuse: true, errs: []error{errDastardlyReason}, held: []string{"configured"}, connections: 1, dials: 2},
+		{name: "failed dial for the runtime subscription", runtime: "runtime", overflow: true, errs: []error{errDastardlyReason}, held: []string{"configured"}, connections: 1, dials: 3},
+		{name: "failed reconnection", runtime: "runtime", offline: true, errs: []error{errDastardlyReason}, failures: 2, dials: 2},
+		{name: "partly generated subscriptions and a failed reconnection", runtime: "runtime", partial: true, offline: true, errs: []error{ErrSubscriptionPartial, errDastardlyReason}, failures: 2, dials: 2},
+		{name: "nothing generated and a failed dial for the runtime subscription", runtime: "runtime", empty: true, offline: true, errs: []error{errDastardlyReason}, failures: 2, dials: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			wsURL, dial := lifecycleTestServer(t)
+			var accountDials atomic.Int32
+			var accountUp, empty, partial atomic.Bool
+			var m *Manager
+			account := lifecycleTestSetup(&m, wsURL, "account", func(ctx context.Context, conn Connection) error {
+				if n := accountDials.Add(1); !accountUp.Load() || tc.overflow && n > 2 {
+					return errDastardlyReason
+				}
+				return dial(ctx, conn)
+			}, func() (subscription.List, error) {
+				switch {
+				case empty.Load():
+					return nil, nil
+				case partial.Load():
+					return subscription.List{{Channel: "configured"}}, fmt.Errorf("%w: one left out", ErrSubscriptionPartial)
+				}
+				return subscription.List{{Channel: "configured"}}, nil
+			})
+			account.Optional = true
+			account.Subscriber = func(_ context.Context, conn Connection, subs subscription.List) error {
+				for _, s := range subs {
+					if tc.refuse && s.Channel == "runtime" {
+						return errDastardlyReason
+					}
+				}
+				return m.AddSuccessfulSubscriptions(conn, subs...)
+			}
+			m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
+				return subscription.List{{Channel: "public"}}, nil
+			}), account)
+			if tc.overflow {
+				m.MaxSubscriptionsPerConnection = 1
+			}
+			optional := m.connectionManager[1]
+			require.NoError(t, m.Connect(t.Context()), "Connect must not error for an optional setup's failure")
+			require.Equal(t, 1, optional.retryFailures, "Connect must count the optional setup's failure")
+
+			accountUp.Store(!tc.offline)
+			empty.Store(tc.empty)
+			partial.Store(tc.partial)
+			m.m.Lock()
+			optional.retryAt = time.Now().Add(-time.Second)
+			m.m.Unlock()
+			err := m.SubscribeToSetup(t.Context(), "account", subscription.List{{Channel: tc.runtime}})
+			if len(tc.errs) == 0 {
+				assert.NoError(t, err, "SubscribeToSetup should not error")
+			}
+			for _, exp := range tc.errs {
+				assert.ErrorIs(t, err, exp, "SubscribeToSetup should return each failure")
+			}
+			// The connection monitor's next tick finds nothing left to retry
+			m.retryOptionalSetups(t.Context())
+			assert.Equal(t, tc.dials, accountDials.Load(), "SubscribeToSetup should dial the failed setup once more, which the connection monitor should not then dial again")
+			held := make([]string, 0, optional.subscriptions.Len())
+			for _, s := range optional.subscriptions.List() {
+				held = append(held, s.Channel)
+			}
+			assert.ElementsMatch(t, tc.held, held, "SubscribeToSetup should hold the setup's generated subscriptions beside the runtime ones it subscribed")
+			assert.Len(t, m.snapshotManagedConnections(optional), tc.connections, "SubscribeToSetup should keep a reconnected setup's connection")
+			assert.Equal(t, tc.failures, optional.retryFailures, "SubscribeToSetup should clear the setup's failures only once it connects")
+			if tc.offline {
+				assert.True(t, optional.retryAt.After(time.Now()), "SubscribeToSetup should schedule the next retry of a setup that fails again")
+			}
+		})
+	}
 }

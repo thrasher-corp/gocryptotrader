@@ -84,12 +84,12 @@ var (
 )
 
 // PlaceOrders places a batch of orders as one signed order action and returns each order's status, in request order
-func (e *Exchange) PlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatus, error) {
+func (e *Exchange) PlaceOrders(ctx context.Context, arg *PlaceOrdersRequest) ([]OrderActionStatusResponse, error) {
 	return e.placeOrders(ctx, arg, false)
 }
 
 // placeOrders places a batch of orders through the exchange endpoint, or over the websocket when overWebsocket is set
-func (e *Exchange) placeOrders(ctx context.Context, arg *PlaceOrdersRequest, overWebsocket bool) ([]OrderActionStatus, error) {
+func (e *Exchange) placeOrders(ctx context.Context, arg *PlaceOrdersRequest, overWebsocket bool) ([]OrderActionStatusResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -127,21 +127,21 @@ func (e *Exchange) placeOrders(ctx context.Context, arg *PlaceOrdersRequest, ove
 		}
 		action.Builder = &builder
 	}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: uint64(len(wires)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: uint64(len(wires)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
 	if err != nil {
 		return nil, err
 	}
-	return parseActionStatuses[OrderActionStatus](response, len(wires))
+	return parseActionStatuses[OrderActionStatusResponse](response, len(wires))
 }
 
 // CancelOrders cancels a batch of orders by order ID and returns each cancel's status, in request order
-func (e *Exchange) CancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatus, error) {
+func (e *Exchange) CancelOrders(ctx context.Context, arg *CancelOrdersRequest) ([]CancelActionStatusResponse, error) {
 	return e.cancelOrders(ctx, arg, false)
 }
 
 // cancelOrders cancels a batch of orders by order ID through the exchange endpoint, or over the websocket when
 // overWebsocket is set
-func (e *Exchange) cancelOrders(ctx context.Context, arg *CancelOrdersRequest, overWebsocket bool) ([]CancelActionStatus, error) {
+func (e *Exchange) cancelOrders(ctx context.Context, arg *CancelOrdersRequest, overWebsocket bool) ([]CancelActionStatusResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -154,22 +154,22 @@ func (e *Exchange) cancelOrders(ctx context.Context, arg *CancelOrdersRequest, o
 		}
 	}
 	action := CancelAction{Type: "cancel", Cancels: arg.Cancels, Fast: arg.Fast}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: uint64(len(arg.Cancels)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: uint64(len(arg.Cancels)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
 	if err != nil {
 		return nil, err
 	}
-	return parseActionStatuses[CancelActionStatus](response, len(arg.Cancels))
+	return parseActionStatuses[CancelActionStatusResponse](response, len(arg.Cancels))
 }
 
 // CancelOrdersByClientOrderID cancels a batch of orders by client order ID and returns each cancel's status, in request
 // order
-func (e *Exchange) CancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatus, error) {
+func (e *Exchange) CancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest) ([]CancelActionStatusResponse, error) {
 	return e.cancelOrdersByClientOrderID(ctx, arg, false)
 }
 
 // cancelOrdersByClientOrderID cancels a batch of orders by client order ID through the exchange endpoint, or over the
 // websocket when overWebsocket is set
-func (e *Exchange) cancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest, overWebsocket bool) ([]CancelActionStatus, error) {
+func (e *Exchange) cancelOrdersByClientOrderID(ctx context.Context, arg *CancelOrdersByClientOrderIDRequest, overWebsocket bool) ([]CancelActionStatusResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -184,11 +184,11 @@ func (e *Exchange) cancelOrdersByClientOrderID(ctx context.Context, arg *CancelO
 		normalised[i] = CancelByClientOrderIDRequest{Asset: arg.Cancels[i].Asset, ClientOrderID: strings.ToLower(arg.Cancels[i].ClientOrderID)}
 	}
 	action := CancelByClientOrderIDAction{Type: "cancelByCloid", Cancels: normalised, Fast: arg.Fast}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: uint64(len(normalised)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: uint64(len(normalised)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
 	if err != nil {
 		return nil, err
 	}
-	return parseActionStatuses[CancelActionStatus](response, len(normalised))
+	return parseActionStatuses[CancelActionStatusResponse](response, len(normalised))
 }
 
 // ScheduleCancel schedules a cancellation of every open order, or clears the schedule when the time is zero
@@ -204,7 +204,7 @@ func (e *Exchange) ScheduleCancel(ctx context.Context, arg *ScheduleCancelReques
 		}
 		action.Time = new(unixMilli(arg.Time))
 	}
-	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -228,17 +228,17 @@ func (e *Exchange) modifySingleOrder(ctx context.Context, arg *ModifyOrderReques
 		return err
 	}
 	action := ModifyAction{Type: "modify", OrderID: orderID, Order: wire, AlwaysPlace: arg.AlwaysPlace}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
 	return err
 }
 
 // ModifyOrders replaces a batch of orders and returns each replacement's status, in request order
-func (e *Exchange) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatus, error) {
+func (e *Exchange) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatusResponse, error) {
 	return e.modifyOrders(ctx, arg, false)
 }
 
 // modifyOrders replaces a batch of orders through the exchange endpoint, or over the websocket when overWebsocket is set
-func (e *Exchange) modifyOrders(ctx context.Context, arg *ModifyOrdersRequest, overWebsocket bool) ([]OrderActionStatus, error) {
+func (e *Exchange) modifyOrders(ctx context.Context, arg *ModifyOrdersRequest, overWebsocket bool) ([]OrderActionStatusResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -258,11 +258,11 @@ func (e *Exchange) modifyOrders(ctx context.Context, arg *ModifyOrdersRequest, o
 		wires[i] = ModifyWire{OrderID: orderID, Order: wire}
 	}
 	action := BatchModifyAction{Type: "batchModify", Modifies: wires, AlwaysPlace: arg.AlwaysPlace}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: uint64(len(wires)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: uint64(len(wires)), ActForVault: true, ExpiresAfter: arg.ExpiresAfter, Websocket: overWebsocket})
 	if err != nil {
 		return nil, err
 	}
-	return parseActionStatuses[OrderActionStatus](response, len(wires))
+	return parseActionStatuses[OrderActionStatusResponse](response, len(wires))
 }
 
 // UpdateLeverage sets a perpetual market's margin mode and leverage
@@ -274,7 +274,7 @@ func (e *Exchange) UpdateLeverage(ctx context.Context, arg *UpdateLeverageReques
 		return errInvalidLeverage
 	}
 	action := UpdateLeverageAction{Type: "updateLeverage", Asset: arg.Asset, IsCross: arg.IsCross, Leverage: arg.Leverage}
-	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -287,7 +287,7 @@ func (e *Exchange) UpdateIsolatedMargin(ctx context.Context, arg *UpdateIsolated
 		return errMarginChangeInvalid
 	}
 	action := UpdateIsolatedMarginAction{Type: "updateIsolatedMargin", Asset: arg.Asset, IsBuy: true, SignedNotional: arg.SignedNotional}
-	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -304,7 +304,7 @@ func (e *Exchange) TopUpIsolatedOnlyMargin(ctx context.Context, arg *TopUpIsolat
 		return fmt.Errorf("%w: %w", errTargetLeverageInvalid, err)
 	}
 	action := TopUpIsolatedOnlyMarginAction{Type: "topUpIsolatedOnlyMargin", Asset: arg.Asset, Leverage: leverage}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -379,7 +379,7 @@ func (e *Exchange) AgentSendAsset(ctx context.Context, arg *AgentSendAssetReques
 		Amount:         amount,
 		FromSubAccount: subAccount,
 	}
-	if _, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter, SetNonce: func(nonce uint64) { action.Nonce = nonce }}); err != nil {
+	if _, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter, SetNonce: func(nonce uint64) { action.Nonce = nonce }}); err != nil {
 		return 0, err
 	}
 	return action.Nonce, nil
@@ -545,7 +545,7 @@ func (e *Exchange) TransferVaultUSDC(ctx context.Context, arg *VaultTransferRequ
 		return errTransferAmountInvalid
 	}
 	action := VaultTransferAction{Type: "vaultTransfer", VaultAddress: vault, IsDeposit: arg.IsDeposit, AmountInMicroUSDC: arg.AmountInMicroUSDC}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -569,7 +569,7 @@ func (e *Exchange) TransferHIP3BackstopLiquidator(ctx context.Context, arg *HIP3
 		return err
 	}
 	action := HIP3LiquidatorTransferAction{Type: "hip3LiquidatorTransfer", DEX: dex, NotionalInMicroQuoteTokens: arg.NotionalInMicroQuoteTokens, IsDeposit: arg.IsDeposit}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -612,7 +612,7 @@ func (e *Exchange) ApproveBuilderFee(ctx context.Context, arg *ApproveBuilderFee
 }
 
 // PlaceTWAPOrder places a time-weighted average price order and returns its running status
-func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *TWAPOrderRequest) (*TWAPOrderStatus, error) {
+func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *TWAPOrderRequest) (*TWAPOrderStatusResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -630,11 +630,11 @@ func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *TWAPOrderRequest) (*
 		Type: "twapOrder",
 		TWAP: TWAPWire{Asset: arg.Asset, IsBuy: arg.IsBuy, Size: size, ReduceOnly: arg.ReduceOnly, Minutes: arg.Minutes, Randomise: arg.Randomise},
 	}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	if err != nil {
 		return nil, err
 	}
-	status, err := parseActionStatus[TWAPOrderStatus](response)
+	status, err := parseActionStatus[TWAPOrderStatusResponse](response)
 	if err != nil {
 		return nil, err
 	}
@@ -653,11 +653,11 @@ func (e *Exchange) CancelTWAPOrder(ctx context.Context, arg *TWAPCancelRequest) 
 		return errTWAPIDRequired
 	}
 	action := TWAPCancelAction{Type: "twapCancel", Asset: arg.Asset, TWAPID: arg.TWAPID}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	if err != nil {
 		return err
 	}
-	status, err := parseActionStatus[CancelActionStatus](response)
+	status, err := parseActionStatus[CancelActionStatusResponse](response)
 	if err != nil {
 		return err
 	}
@@ -705,7 +705,7 @@ func (e *Exchange) PlaceTrailingStopOrder(ctx context.Context, arg *TrailingStop
 		}
 		action.ActivationPrice = &activation
 	}
-	response, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
+	response, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ActForVault: true, ExpiresAfter: arg.ExpiresAfter})
 	if err != nil {
 		return 0, err
 	}
@@ -734,7 +734,7 @@ func (e *Exchange) ReserveRequestWeight(ctx context.Context, arg *ReserveRequest
 			return err
 		}
 	}
-	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -747,7 +747,7 @@ func (e *Exchange) InvalidatePendingNonce(ctx context.Context, arg *InvalidatePe
 	if arg.Nonce == 0 {
 		return errNonceRequired
 	}
-	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "noop"}, &L1ActionOptions{BatchLength: 1, Nonce: arg.Nonce, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "noop"}, &L1ActionOptionsRequest{BatchLength: 1, Nonce: arg.Nonce, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -771,7 +771,7 @@ func (e *Exchange) SetUserDEXAbstraction(ctx context.Context, arg *UserDEXAbstra
 // AgentEnableDEXAbstraction enables HIP-3 DEX abstraction for an account that has never set it, as an L1 action that an
 // approved API wallet can sign; AgentSetUserAbstraction supersedes it
 func (e *Exchange) AgentEnableDEXAbstraction(ctx context.Context) error {
-	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "agentEnableDexAbstraction"}, &L1ActionOptions{BatchLength: 1})
+	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "agentEnableDexAbstraction"}, &L1ActionOptionsRequest{BatchLength: 1})
 	return err
 }
 
@@ -811,7 +811,7 @@ func (e *Exchange) AgentSetUserAbstraction(ctx context.Context, abstraction Acco
 	default:
 		return fmt.Errorf("%w: %q", errAccountAbstractionInvalid, abstraction)
 	}
-	_, err := e.SendSignedAction(ctx, AgentSetAbstractionAction{Type: "agentSetAbstraction", Abstraction: code}, &L1ActionOptions{BatchLength: 1})
+	_, err := e.SendSignedAction(ctx, AgentSetAbstractionAction{Type: "agentSetAbstraction", Abstraction: code}, &L1ActionOptionsRequest{BatchLength: 1})
 	return err
 }
 
@@ -825,7 +825,7 @@ func (e *Exchange) SplitOutcome(ctx context.Context, arg *SplitOutcomeRequest) e
 		return err
 	}
 	action := UserOutcomeAction{Type: "userOutcome", SplitOutcome: &SplitOutcomeWire{Outcome: arg.Outcome, Amount: amount}}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -839,7 +839,7 @@ func (e *Exchange) MergeOutcome(ctx context.Context, arg *MergeOutcomeRequest) e
 		return err
 	}
 	action := UserOutcomeAction{Type: "userOutcome", MergeOutcome: &MergeOutcomeWire{Outcome: arg.Outcome, Amount: amount}}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -853,7 +853,7 @@ func (e *Exchange) MergeQuestion(ctx context.Context, arg *MergeQuestionRequest)
 		return err
 	}
 	action := UserOutcomeAction{Type: "userOutcome", MergeQuestion: &MergeQuestionWire{Question: arg.Question, Amount: amount}}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -867,13 +867,13 @@ func (e *Exchange) NegateOutcome(ctx context.Context, arg *NegateOutcomeRequest)
 		return err
 	}
 	action := UserOutcomeAction{Type: "userOutcome", NegateOutcome: &NegateOutcomeWire{Question: arg.Question, Outcome: arg.Outcome, Amount: amount}}
-	_, err = e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
 // ClaimRewards claims the account's accrued referral and builder rewards
 func (e *Exchange) ClaimRewards(ctx context.Context) error {
-	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "claimRewards"}, &L1ActionOptions{BatchLength: 1})
+	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "claimRewards"}, &L1ActionOptionsRequest{BatchLength: 1})
 	return err
 }
 
@@ -892,7 +892,7 @@ func (e *Exchange) BidGossipPriority(ctx context.Context, arg *GossipPriorityBid
 		return errMaxGasInvalid
 	}
 	action := GossipPriorityBidAction{Type: "gossipPriorityBid", SlotID: arg.SlotID, IP: arg.IP.Unmap().String(), MaxGasInWei: arg.MaxGasInWei}
-	_, err := e.SendSignedAction(ctx, action, &L1ActionOptions{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
+	_, err := e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
 	return err
 }
 
@@ -1272,7 +1272,7 @@ func (e *Exchange) resolveTransferDEX(ctx context.Context, dex string) (string, 
 	if err != nil {
 		return "", err
 	}
-	if slices.ContainsFunc(dexes[1:], func(d *PerpetualDEX) bool { return d != nil && d.Name == dex }) {
+	if slices.ContainsFunc(dexes[1:], func(d *PerpetualDEXResponse) bool { return d != nil && d.Name == dex }) {
 		return dex, nil
 	}
 	return "", fmt.Errorf("%w: %q", errTransferDEXInvalid, dex)
