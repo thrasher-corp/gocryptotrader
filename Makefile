@@ -15,7 +15,7 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal bench bench_update bench_apply bench_pkg check_bench_pkgs check_bench_env check_bench_goflags
+.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal bench bench_update bench_apply bench_pkg bench_compare check_bench_pkgs check_bench_env check_bench_goflags
 
 # Edit benchmarks/packages.txt to change which packages are benchmarked.
 BENCH_PKGS = $(shell $(BENCH_ENV) go run ./cmd/benchcheck -list)
@@ -118,6 +118,16 @@ bench_apply: check_bench_goflags
 	@test -n "$(BENCH_OUT)" || { echo "set BENCH_OUT, e.g. make bench_apply BENCH_OUT=bench-output.txt"; exit 1; }
 	out="$(BENCH_OUT)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
 		$(BENCH_ENV) go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < "$$out"
+
+# Measures BASE and the working tree in alternating rounds, one sample per process, and reports their
+# timings and allocations side by side, saving each revision's raw output and the report in
+# BENCH_COMPARE_OUT. It is advisory: only a failure to measure fails it.
+# Usage: make bench_compare BASE=upstream/master
+BENCH_COMPARE_OUT ?= .bench-compare
+bench_compare: check_bench_pkgs
+	@test -n "$(BASE)" || { echo "set BASE to the commit to compare with, e.g. make bench_compare BASE=upstream/master"; exit 1; }
+	out="$(BENCH_COMPARE_OUT)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
+		$(BENCH_ENV) go run ./cmd/benchcheck -compare "$(BASE)" -samples $(BENCH_SAMPLES) -out "$$out" -- $(BENCH_FLAGS)
 
 test:
 	go test $(RACE_FLAG) -count=1 -coverprofile=coverage.txt -covermode=atomic  ./...

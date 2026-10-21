@@ -43,13 +43,16 @@ func TestParse(t *testing.T) {
 
 	exp := map[string]*Samples{
 		"exchanges/orderbook.BenchmarkProcess": {
-			Pkg: "exchanges/orderbook", Name: "BenchmarkProcess", Bytes: []float64{0, 0, 0}, Allocs: []float64{0, 0, 0},
+			Pkg: "exchanges/orderbook", Name: "BenchmarkProcess", NS: []float64{210.9, 213.1, 211.4},
+			Bytes: []float64{0, 0, 0}, Allocs: []float64{0, 0, 0},
 		},
 		"exchanges/orderbook.BenchmarkSortAsksDescending": {
-			Pkg: "exchanges/orderbook", Name: "BenchmarkSortAsksDescending", Bytes: []float64{24, 24, 24}, Allocs: []float64{1, 1, 1},
+			Pkg: "exchanges/orderbook", Name: "BenchmarkSortAsksDescending", NS: []float64{3556, 3561, 3550},
+			Bytes: []float64{24, 24, 24}, Allocs: []float64{1, 1, 1},
 		},
 		"currency.BenchmarkNewCode": {
-			Pkg: "currency", Name: "BenchmarkNewCode", Bytes: []float64{16, 16, 16}, Allocs: []float64{2, 2, 2},
+			Pkg: "currency", Name: "BenchmarkNewCode", NS: []float64{1050, 1049, 1052},
+			Bytes: []float64{16, 16, 16}, Allocs: []float64{2, 2, 2},
 		},
 	}
 	assert.Equal(t, exp, run.Samples,
@@ -656,7 +659,7 @@ func TestParseAcceptsNegativeCustomMetrics(t *testing.T) {
 	} {
 		run, err := Parse(strings.NewReader("pkg: github.com/thrasher-corp/gocryptotrader/currency\n" + line))
 		require.NoErrorf(t, err, "a negative or non-finite custom metric must not fail the run, since b.ReportMetric allows one: %q", line)
-		assert.Equalf(t, &Samples{Pkg: "currency", Name: "BenchmarkNewCode", Bytes: []float64{16}, Allocs: []float64{2}},
+		assert.Equalf(t, &Samples{Pkg: "currency", Name: "BenchmarkNewCode", NS: []float64{1050}, Bytes: []float64{16}, Allocs: []float64{2}},
 			run.Samples["currency.BenchmarkNewCode"], "the gated metrics should still be recorded: %q", line)
 	}
 }

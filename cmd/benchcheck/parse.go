@@ -45,10 +45,12 @@ type Run struct {
 	SkipRecords map[string]string
 }
 
-// Samples holds every measurement recorded for one benchmark across all -count runs
+// Samples holds every measurement recorded for one benchmark across all -count runs. NS is only read by
+// -compare, which validates it; the gate never reads it, so a bad value cannot fail a check.
 type Samples struct {
 	Pkg    string
 	Name   string
+	NS     []float64
 	Bytes  []float64
 	Allocs []float64
 }
@@ -219,6 +221,10 @@ func Parse(r io.Reader) (*Run, error) {
 			if math.IsNaN(m.value) {
 				return nil, fmt.Errorf("%w: %s.%s has a non-finite or negative %s", errBadMeasurement, pkg, name, m.unit)
 			}
+		}
+		// b.ReportMetric(0, "ns/op") removes the timing, so a result can lack one
+		if ns, ok := metrics["ns/op"]; ok {
+			s.NS = append(s.NS, ns)
 		}
 		s.Bytes = append(s.Bytes, b)
 		s.Allocs = append(s.Allocs, a)

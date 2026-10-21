@@ -6,10 +6,11 @@ GoCryptoTrader cannot drift up unnoticed.
 ## Usage
 
 ```bash
-make bench                      # check the current tree against benchmarks/baseline.json
-make bench_update               # fold the current measurements back in
-make bench_apply BENCH_OUT=f    # fold in output measured elsewhere, such as CI's bench-output artifact
-make bench_pkg PKG=./currency/  # measure one package with the gate's exact flags
+make bench                                # check the current tree against benchmarks/baseline.json
+make bench_update                         # fold the current measurements back in
+make bench_apply BENCH_OUT=f              # fold in output measured elsewhere, such as CI's bench-output artifact
+make bench_pkg PKG=./currency/            # measure one package with the gate's exact flags
+make bench_compare BASE=upstream/master   # compare timings and allocations with another commit
 ```
 
 `make bench` fails when a benchmark allocates **more** than its recorded budget. One that allocates
@@ -28,7 +29,7 @@ below it.
 | --- | --- | --- |
 | `allocs/op` | Reproducible on one platform and toolchain | Hard gate; any increase in the median fails, unless the entry carries a tolerance |
 | `B/op` | Near-reproducible | Hard gate with a 1% default tolerance |
-| `ns/op` | Depends on the host and its current load | **Never gated or recorded**; it stays in the raw output CI uploads |
+| `ns/op` | Depends on the host and its current load | **Never gated or recorded**; compared with the base in an advisory report, see [Timings](#timings) |
 
 Timings are not gated because they move substantially between runs on a shared CI runner, in a way
 that has nothing to do with the code under test. A gate on `ns/op` would either flap constantly or
@@ -224,11 +225,42 @@ other name to be output a benchmark printed, which fails the run.
 
 ## Timings
 
-`ns/op` is neither gated nor stored. The raw output each CI run uploads carries it, together with the
-`cpu:` line naming the runner's processor, and stays available for the artifact retention period.
+`ns/op` is neither gated nor stored. A stored timing says nothing about a run on another machine, and
+two runs of the same code on one machine still report different timings. What a timing can answer is
+whether a change made something faster or slower, and that takes both revisions measured on one
+machine at one time:
 
-A question about whether a change made something slower is best answered on one machine: run the
-benchmarks at the base and the head, interleaved, and compare them with
-[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat). A long-run history is only worth
-storing once something reads it, and once it records enough of the environment - processor,
-toolchain and runner image - to tell a change in the code from a change in the machine.
+```bash
+make bench_compare BASE=upstream/master
+```
+
+It builds the test binaries of `BASE` and of the working tree first, then measures them in
+`BENCH_SAMPLES` rounds of one sample each, swapping which revision runs first every round so that
+drift in the machine's load falls on both. Each sample is a process of its own: some benchmarks
+settle into a faster or a slower state for the life of a process, so samples from one process agree
+with each other more closely than with another process of the same binary, and a comparison of two
+single processes reads that difference as a change. `BENCH_FLAGS` is translated into the test
+binaries' flags, and a flag `benchcheck` cannot translate is refused rather than dropped.
+
+The report puts each benchmark's medians at both revisions, `ns/op`, `B/op` and `allocs/op`, on one
+row, and leads with the benchmarks that moved: allocations whose medians differ by more than the
+baseline's tolerance, and timings that changed significantly by 5% or more. A timing's significance
+is benchstat's default test, a Mann-Whitney U test at p < 0.05, and `~` marks a timing without a
+significant change. With this many benchmarks a few pass that test by chance alone, so a small
+timing change is a reason to look again rather than a result. The report is saved as `summary.md`,
+beside each revision's raw output for
+[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) to read.
+
+Both revisions are built with the running toolchain and `-trimpath`, which shares the build cache
+between them and builds a package whose code and dependencies are unchanged into the same binary at
+both, so a Go upgrade's own effect does not show. A benchmark whose body changed measures different
+work at each revision, and a base without `benchmarks/packages.txt` has nothing to compare.
+
+Pull requests get the same report from the `benchmark comparison` workflow, which compares the merge
+commit with the base it merges into and writes the report to the job's summary. The workflow is
+advisory: it is not a required check, holds no write permission, and fails only when it cannot
+measure.
+
+A long-run history is only worth storing once something reads it, and once it records enough of the
+environment - processor, toolchain and runner image - to tell a change in the code from a change in
+the machine.

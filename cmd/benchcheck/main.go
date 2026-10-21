@@ -3,9 +3,10 @@
 //
 // The Makefile owns the measurement flags:
 //
-//	make bench          # check
-//	make bench_update   # record, pruning entries with no result
-//	make bench_apply    # record from output already measured, such as CI's
+//	make bench                         # check
+//	make bench_update                  # record, pruning entries with no result
+//	make bench_apply                   # record from output already measured, such as CI's
+//	make bench_compare BASE=<commit>   # compare timings and allocations with another commit
 //
 // Called directly, give it go test's output in a file, and only once go test has succeeded, since
 // output cut short can still pass a check:
@@ -54,17 +55,23 @@ type options struct {
 	update       bool
 	prune        bool
 	list         bool
+	compare      string
+	out          string
+	progress     io.Writer
 	args         []string
 }
 
 func main() {
-	o := options{root: "."}
+	o := options{root: ".", progress: os.Stderr}
 	flag.StringVar(&o.baselinePath, "baseline", "benchmarks/baseline.json", "path to the baseline file")
 	flag.StringVar(&o.packagesPath, "packages", "benchmarks/packages.txt", "path to the benchmarked package list")
 	flag.IntVar(&o.samples, "samples", 0, "the -count passed to go test, which must be odd; every benchmark must report exactly this many samples")
 	flag.BoolVar(&o.update, "update", false, "fold the results into the baseline instead of checking them")
 	flag.BoolVar(&o.prune, "prune", false, "with -update, delete baseline entries with no result; refused unless every listed package reported")
 	flag.BoolVar(&o.list, "list", false, "check the package list against the packages declaring benchmarks, then print it as go test arguments")
+	flag.StringVar(&o.compare, "compare", "", "measure this commit and the working tree in alternating rounds, one sample per process, "+
+		"and report their timings and allocations side by side; give go test's flags after --. No difference fails it")
+	flag.StringVar(&o.out, "out", ".bench-compare", "with -compare, the directory for each revision's raw output and summary.md")
 	flag.Parse()
 	o.args = flag.Args()
 
@@ -75,6 +82,10 @@ func main() {
 }
 
 func run(in io.Reader, out io.Writer, o *options) error {
+	// Its arguments are go test's flags, and it reads no stdin
+	if o.compare != "" {
+		return runComparison(out, o)
+	}
 	// A file named as an argument would be ignored while benchcheck waited on stdin
 	if len(o.args) > 0 {
 		return fmt.Errorf("%w %q: pass go test's output on stdin", errUnexpectedArgument, o.args[0])

@@ -52,3 +52,4 @@ wrapperconfig.json
 .codex
 .bench-output*.txt
 /bench-output.txt
+/.bench-compare/
