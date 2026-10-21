@@ -79,8 +79,14 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, orderID string,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	var resp WebsocketOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}, &resp, 1)
+	var resp *WebsocketOrderResponse
+	if err := e.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}, &resp, 1); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
 // WebsocketSpotCancelAllOrdersByIDs cancels multiple orders via the websocket
@@ -115,7 +121,7 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair 
 	}
 
 	var resp []*WebsocketOrderResponse
-	return resp, e.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, &WebsocketCancelParam{
+	return resp, e.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, &WebsocketCancelRequest{
 		Pair:    pair,
 		Side:    sideStr,
 		Account: account,
@@ -123,7 +129,7 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair 
 }
 
 // WebsocketSpotAmendOrder amends an order via the websocket connection
-func (e *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *WebsocketAmendOrder) (*WebsocketOrderResponse, error) {
+func (e *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *WebsocketAmendOrderRequest) (*WebsocketOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
@@ -172,10 +178,10 @@ func (e *Exchange) WebsocketSpotListOrders(ctx context.Context, arg *WebsocketSp
 		params.Pair = arg.Pair.String()
 	}
 	if !arg.StartTime.IsZero() {
-		params.From = arg.StartTime.Unix()
+		params.From = unixSeconds(arg.StartTime)
 	}
 	if !arg.EndTime.IsZero() {
-		params.To = arg.EndTime.Unix()
+		params.To = unixSeconds(arg.EndTime)
 	}
 	var resp []*WebsocketOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_list", asset.Spot, params, &resp, 1)

@@ -80,7 +80,7 @@ func TestGetAnnouncementArticlesRequest(t *testing.T) {
 
 	result, err := ex.GetAnnouncementArticles(t.Context(), &AnnouncementArticlesRequest{Page: 1})
 	require.NoError(t, err, "GetAnnouncementArticles must not error")
-	assert.Equal(t, &AnnouncementArticleList{Total: 1, List: []*AnnouncementArticle{}}, result, "GetAnnouncementArticles should decode the response")
+	assert.Equal(t, &AnnouncementArticleListResponse{Total: 1, List: []*AnnouncementArticle{}}, result, "GetAnnouncementArticles should decode the response")
 
 	_, err = ex.GetAnnouncementArticles(t.Context(), &AnnouncementArticlesRequest{Page: 2})
 	assert.ErrorContains(t, err, "invalid page", "GetAnnouncementArticles should surface an error in the response envelope")

@@ -98,7 +98,7 @@ func TestGetIsolatedMarginAccounts(t *testing.T) {
 	result, err := e.GetIsolatedMarginAccounts(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetIsolatedMarginAccounts must not error")
 	if mockTests {
-		exp := []MarginAccountItem{{
+		exp := []MarginAccountItemResponse{{
 			CurrencyPair:          BTCUSDT,
 			AccountType:           "mmr",
 			Leverage:              20,
@@ -128,7 +128,7 @@ func TestGetIsolatedMarginAccountBalanceChangeHistory(t *testing.T) {
 	result, err := e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 0, "margin_out")
 	require.NoError(t, err, "GetIsolatedMarginAccountBalanceChangeHistory must not error")
 	if mockTests {
-		exp := []IsolatedMarginAccountBalanceChangeInfo{{
+		exp := []IsolatedMarginAccountBalanceChangeInfoResponse{{
 			ID:            "123456",
 			Time:          types.Time(time.UnixMilli(1744150000123)),
 			Currency:      currency.USDT,
@@ -151,7 +151,7 @@ func TestGetIsolatedMarginFundingAccountList(t *testing.T) {
 	result, err := e.GetIsolatedMarginFundingAccountList(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetIsolatedMarginFundingAccountList must not error")
 	if mockTests {
-		exp := []MarginFundingAccountItem{{Currency: currency.BTC, Available: 1.238, Lent: 3.32, TotalLent: 3.32}}
+		exp := []MarginFundingAccountItemResponse{{Currency: currency.BTC, Available: 1.238, Lent: 3.32, TotalLent: 3.32}}
 		assert.Equal(t, exp, result, "GetIsolatedMarginFundingAccountList should decode every field")
 		return
 	}
@@ -165,7 +165,7 @@ func TestUpdateIsolatedMarginUsersAutoRepaymentSetting(t *testing.T) {
 	}
 	result, err := e.UpdateIsolatedMarginUsersAutoRepaymentSetting(t.Context(), false)
 	require.NoError(t, err, "UpdateIsolatedMarginUsersAutoRepaymentSetting must not error")
-	assert.Equal(t, &OnOffStatus{Status: "off"}, result, "UpdateIsolatedMarginUsersAutoRepaymentSetting should return the updated setting")
+	assert.Equal(t, &OnOffStatusResponse{Status: "off"}, result, "UpdateIsolatedMarginUsersAutoRepaymentSetting should return the updated setting")
 }
 
 func TestGetIsolatedMarginUserAutoRepaymentSetting(t *testing.T) {
@@ -176,7 +176,7 @@ func TestGetIsolatedMarginUserAutoRepaymentSetting(t *testing.T) {
 	result, err := e.GetIsolatedMarginUserAutoRepaymentSetting(t.Context())
 	require.NoError(t, err, "GetIsolatedMarginUserAutoRepaymentSetting must not error")
 	if mockTests {
-		assert.Equal(t, &OnOffStatus{Status: "on"}, result, "GetIsolatedMarginUserAutoRepaymentSetting should decode the setting")
+		assert.Equal(t, &OnOffStatusResponse{Status: "on"}, result, "GetIsolatedMarginUserAutoRepaymentSetting should decode the setting")
 		return
 	}
 	assert.Contains(t, []string{"on", "off"}, result.Status, "GetIsolatedMarginUserAutoRepaymentSetting should return on or off")
@@ -205,7 +205,7 @@ func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	result, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, pair)
 	require.NoError(t, err, "GetIsolatedMarginMaxTransferableAmount must not error")
 	if mockTests {
-		exp := &MaxTransferAndLoanAmount{Currency: currency.USDT, CurrencyPair: BTCUSDT, Amount: 10000}
+		exp := &MaxTransferAndLoanAmountResponse{Currency: currency.USDT, CurrencyPair: BTCUSDT, Amount: 10000}
 		assert.Equal(t, exp, result, "GetIsolatedMarginMaxTransferableAmount should decode every field")
 		return
 	}
@@ -230,7 +230,7 @@ func TestIsolatedMarginLendingMarketIsTradable(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			market := IsolatedMarginLendingMarket{Status: tc.status, DelistedTime: types.Time(tc.delistedTime)}
+			market := IsolatedMarginLendingMarketResponse{Status: tc.status, DelistedTime: types.Time(tc.delistedTime)}
 			assert.Equal(t, tc.expected, market.IsTradable(now), "tradability should match the market status and delisting time")
 		})
 	}
@@ -242,7 +242,7 @@ func TestGetIsolatedMarginLendingMarkets(t *testing.T) {
 	require.NoError(t, err, "GetIsolatedMarginLendingMarkets must not error")
 	if mockTests {
 		require.Len(t, markets, 7, "GetIsolatedMarginLendingMarkets must return every recorded market")
-		exp := IsolatedMarginLendingMarket{
+		exp := IsolatedMarginLendingMarketResponse{
 			Pair:                     BTCUSDT,
 			BaseMinimumBorrowAmount:  0.00001,
 			QuoteMinimumBorrowAmount: 1,
@@ -264,7 +264,7 @@ func TestGetIsolatedMarginLendingMarketDetails(t *testing.T) {
 	market, err := e.GetIsolatedMarginLendingMarketDetails(t.Context(), pair)
 	require.NoError(t, err, "GetIsolatedMarginLendingMarketDetails must not error")
 	if mockTests {
-		exp := &IsolatedMarginLendingMarket{
+		exp := &IsolatedMarginLendingMarketResponse{
 			Pair:                     BTCUSDT,
 			BaseMinimumBorrowAmount:  0.00001,
 			QuoteMinimumBorrowAmount: 1,
@@ -411,7 +411,7 @@ func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	result, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetIsolatedMarginInterestDeductionRecords must not error")
 	if mockTests {
-		exp := []InterestDeductionRecord{{
+		exp := []InterestDeductionRecordResponse{{
 			Status:       1,
 			CurrencyPair: BTCUSDT,
 			Currency:     currency.USDT,
@@ -441,7 +441,7 @@ func TestGetIsolatedMarginMaxBorrowableAmount(t *testing.T) {
 	result, err := e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), pair.Base, pair)
 	require.NoError(t, err, "GetIsolatedMarginMaxBorrowableAmount must not error")
 	if mockTests {
-		exp := &MaxBorrowableAmount{Currency: currency.BTC, Borrowable: 1123.344, Pair: BTCUSDT}
+		exp := &MaxBorrowableAmountResponse{Currency: currency.BTC, Borrowable: 1123.344, Pair: BTCUSDT}
 		assert.Equal(t, exp, result, "GetIsolatedMarginMaxBorrowableAmount should decode every field")
 		return
 	}
@@ -459,7 +459,7 @@ func TestGetIsolatedMarginUserLeverageTiers(t *testing.T) {
 	tiers, err := e.GetIsolatedMarginUserLeverageTiers(t.Context(), getPair(t, asset.Margin))
 	require.NoError(t, err, "GetIsolatedMarginUserLeverageTiers must not error")
 	if mockTests {
-		exp := []IsolatedMarginLendingTier{
+		exp := []IsolatedMarginLendingTierResponse{
 			{MaximumBorrowingLimit: 100000, MaintenanceMarginRate: 0.03, MaximumPermissibleLeverage: 10},
 			{MaximumBorrowingLimit: 500000, MaintenanceMarginRate: 0.05, MaximumPermissibleLeverage: 9},
 		}
@@ -478,7 +478,7 @@ func TestGetIsolatedMarginMarketLeverageTiers(t *testing.T) {
 	require.NoError(t, err, "GetIsolatedMarginMarketLeverageTiers must not error")
 	if mockTests {
 		require.Len(t, tiers, 8, "GetIsolatedMarginMarketLeverageTiers must return every recorded tier")
-		exp := IsolatedMarginLendingTier{MaximumBorrowingLimit: 100000, MaintenanceMarginRate: 0.03, MaximumPermissibleLeverage: 11}
+		exp := IsolatedMarginLendingTierResponse{MaximumBorrowingLimit: 100000, MaintenanceMarginRate: 0.03, MaximumPermissibleLeverage: 11}
 		assert.Equal(t, exp, tiers[1], "GetIsolatedMarginMarketLeverageTiers should decode every field")
 		return
 	}
@@ -506,7 +506,7 @@ func TestGetIsolatedMarginAccountList(t *testing.T) {
 	result, err := e.GetIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetIsolatedMarginAccountList must not error")
 	if mockTests {
-		exp := []MarginAccountItem{{
+		exp := []MarginAccountItemResponse{{
 			CurrencyPair:          BTCUSDT,
 			AccountType:           "margin",
 			Leverage:              3,

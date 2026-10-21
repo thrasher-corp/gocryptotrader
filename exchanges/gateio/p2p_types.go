@@ -29,8 +29,8 @@ const (
 	P2PLimitBasisFiat   uint8 = 1
 )
 
-// P2PMerchantInfo holds P2P merchant account information.
-type P2PMerchantInfo struct {
+// P2PMerchantInfoResponse holds P2P merchant account information.
+type P2PMerchantInfoResponse struct {
 	IsSelf                    bool                   `json:"is_self"`
 	UserRegistrationTime      string                 `json:"user_timest"` // Formatted date, such as 2025/11/19
 	CounterpartiesNumber      uint64                 `json:"counterparties_num"`
@@ -75,8 +75,8 @@ type GetCounterpartyInfoRequest struct {
 	BizUID string `json:"biz_uid"`
 }
 
-// P2PCounterpartyInfo holds P2P counterparty user information.
-type P2PCounterpartyInfo struct {
+// P2PCounterpartyInfoResponse holds P2P counterparty user information.
+type P2PCounterpartyInfoResponse struct {
 	UserRegistrationTime      string        `json:"user_timest"` // Formatted date, such as 2025/11/19
 	EmailVerified             types.Boolean `json:"email_verified"`
 	Verified                  types.Boolean `json:"verified"`
@@ -103,8 +103,8 @@ type GetP2PPaymentMethodsRequest struct {
 	Fiat currency.Code // Optional; all payment methods are returned when empty
 }
 
-// P2PPaymentMethodGroup holds a group of payment methods of the same type.
-type P2PPaymentMethodGroup struct {
+// P2PPaymentMethodGroupResponse holds a group of payment methods of the same type.
+type P2PPaymentMethodGroupResponse struct {
 	PayType string              `json:"pay_type"`
 	PayName string              `json:"pay_name"`
 	IDs     []uint64            `json:"ids"`
@@ -223,8 +223,8 @@ func unixSecondsOrZero(t time.Time) int64 {
 	return t.Unix()
 }
 
-// P2POrderList represents a P2P transactions detail list
-type P2POrderList struct {
+// P2POrderListResponse represents a P2P transactions detail list
+type P2POrderListResponse struct {
 	List            []*P2POrderInfo             `json:"list"`
 	TransactionTime []*P2PTransactionTimeMarker `json:"trans_time"`
 	Count           uint64                      `json:"count"`
@@ -233,14 +233,14 @@ type P2POrderList struct {
 
 // P2PTransactionTimeMarker represents an order countdown
 type P2PTransactionTimeMarker struct {
-	OrderTime int64 `json:"od_time"`
+	OrderCountdownSeconds uint64 `json:"od_time"`
 }
 
 // P2POrderInfo represents a P2P order list item
 type P2POrderInfo struct {
-	IsBuy                types.Boolean            `json:"type_buy"` // From the current user's view
-	CreationTime         string                   `json:"timest"`   // Display time, as Timestamp carries the same moment
-	ExpiryTime           string                   `json:"timest_expire"`
+	IsBuy                types.Boolean            `json:"type_buy"`      // From the current user's view
+	CreationTime         string                   `json:"timest"`        // Display time, as Timestamp carries the same moment
+	ExpiryTime           string                   `json:"timest_expire"` // Display time, like CreationTime
 	Timestamp            types.Time               `json:"timestamp"`
 	Rate                 types.Number             `json:"rate"`
 	Amount               types.Number             `json:"amount"`
@@ -258,20 +258,20 @@ type P2POrderInfo struct {
 	HidePayment          types.Boolean            `json:"hide_payment"`
 	SelectedPayType      string                   `json:"sel_paytype"`
 	PayOthers            []*P2POtherPaymentMethod `json:"pay_others"`
-	CountdownSeconds     int64                    `json:"cd_time"`
+	CountdownSeconds     uint64                   `json:"cd_time"`
 	OrderType            uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
 	OrderTags            []string                 `json:"order_tag"`
 	ConvertInfo          *P2PConvertInfo          `json:"convert_info"`
 }
 
-// P2POrderDetail represents a P2P order detail
-type P2POrderDetail struct {
+// P2POrderDetailResponse represents a P2P order detail
+type P2POrderDetailResponse struct {
 	IsSell                  types.Boolean            `json:"is_sell"`
 	TransactionID           uint64                   `json:"txid"`
 	OrderID                 uint64                   `json:"orderid"`
 	CreationTime            types.Time               `json:"timest"`
 	PaymentDeadline         types.Time               `json:"last_pay_time"`
-	RemainingPaymentSeconds int64                    `json:"remain_pay_time"`
+	RemainingPaymentSeconds int64                    `json:"remain_pay_time"` // Zero or negative once payment is overdue
 	CurrencyType            currency.Code            `json:"currency_type"`
 	WantType                currency.Code            `json:"want_type"`
 	FiatSymbol              string                   `json:"symbol"`
@@ -409,7 +409,7 @@ type PublishP2PAdRequest struct {
 // P2PPublishAdResponse holds the risk control details returned when an advertisement's trade tips or auto reply
 // are rejected; it is empty when the advertisement is accepted
 type P2PPublishAdResponse struct {
-	RiskCode  int64         `json:"risk_code"`
+	RiskCode  uint64        `json:"risk_code"`
 	RiskEvent *P2PRiskEvent `json:"risk_event"`
 }
 
@@ -438,8 +438,8 @@ type UpdateP2PAdStatusRequest struct {
 	Status          uint8  `json:"adv_status"` // 1 listed, 3 delisted or 4 closed
 }
 
-// P2PUpdateAdStatusResult holds the result of updating a P2P ad status.
-type P2PUpdateAdStatusResult struct {
+// P2PUpdateAdStatusResponse holds the result of updating a P2P ad status.
+type P2PUpdateAdStatusResponse struct {
 	Status uint8 `json:"status"`
 }
 
@@ -448,8 +448,8 @@ type GetP2PAdDetailsRequest struct {
 	AdvertisementID string `json:"adv_no"`
 }
 
-// P2PAdDetail holds detailed P2P advertisement information.
-type P2PAdDetail struct {
+// P2PAdDetailResponse holds detailed P2P advertisement information.
+type P2PAdDetailResponse struct {
 	Rate                  types.Number  `json:"rate"`
 	Type                  string        `json:"type"`
 	Amount                types.Number  `json:"amount"`
@@ -484,9 +484,9 @@ type P2PAdDetail struct {
 	RegistrationTimeLimit uint64        `json:"reg_time_limit"`
 	AdvertisersLimit      types.Boolean `json:"advertisers_limit"`
 	PolymarketLimit       types.Boolean `json:"polymarket_limit"`
-	MinCompletedLimit     int64         `json:"min_completed_limit"`
-	MaxCompletedLimit     int64         `json:"max_completed_limit"`
-	UserOrdersLimit       int64         `json:"user_orders_limit"`
+	MinCompletedLimit     int64         `json:"min_completed_limit"` // -1 for no limit
+	MaxCompletedLimit     int64         `json:"max_completed_limit"` // -1 for no limit
+	UserOrdersLimit       int64         `json:"user_orders_limit"`   // -1 for no limit
 	CompletedRateLimit    types.Number  `json:"completed_rate_limit"`
 	LimitCountryCN        string        `json:"limit_country_cn"`
 	LimitCountryEN        string        `json:"limit_country_en"`
@@ -501,8 +501,8 @@ type GetMyP2PAdsRequest struct {
 	TradeType string // buy or sell
 }
 
-// P2PMyAdsData wraps the list of the user's own P2P ads.
-type P2PMyAdsData struct {
+// P2PMyAdsResponse wraps the list of the user's own P2P ads.
+type P2PMyAdsResponse struct {
 	Lists []*P2PMyAdItem `json:"lists"`
 }
 
@@ -524,11 +524,11 @@ type P2PMyAdItem struct {
 	AdvertisersLimit      types.Boolean `json:"advertisers_limit"`
 	RegistrationTimeLimit uint64        `json:"reg_time_limit"`
 	VerifiedLimit         uint64        `json:"verified_limit"`
-	MinCompletedLimit     int64         `json:"min_completed_limit"`
-	MaxCompletedLimit     int64         `json:"max_completed_limit"`
-	UserCountryLimit      int64         `json:"user_country_limit"`
+	MinCompletedLimit     int64         `json:"min_completed_limit"` // -1 for no limit
+	MaxCompletedLimit     int64         `json:"max_completed_limit"` // -1 for no limit
+	UserCountryLimit      int64         `json:"user_country_limit"`  // -1 for no restriction
 	CompletedRateLimit    types.Number  `json:"completed_rate_limit"`
-	UserOrdersLimit       int64         `json:"user_orders_limit"`
+	UserOrdersLimit       int64         `json:"user_orders_limit"` // -1 for no limit
 	HidePayment           types.Boolean `json:"hide_payment"`
 	CurrencyType          currency.Code `json:"currencyType"`
 	WantType              currency.Code `json:"want_type"`
@@ -556,8 +556,8 @@ type GetP2PAdsListRequest struct {
 	TradeType string        `json:"trade_type"` // buy or sell
 }
 
-// P2PAdListItem holds a single item from the public P2P ads list.
-type P2PAdListItem struct {
+// P2PAdListItemResponse holds a single item from the public P2P ads list.
+type P2PAdListItemResponse struct {
 	Index                   uint64               `json:"index"`
 	Asset                   currency.Code        `json:"asset"`
 	FiatUnit                currency.Code        `json:"fiat_unit"`
@@ -663,8 +663,8 @@ type SendP2PChatMessageRequest struct {
 	Message       string `json:"message"`
 }
 
-// P2PSendMessageResult holds the result of sending a P2P chat message.
-type P2PSendMessageResult struct {
+// P2PSendMessageResponse holds the result of sending a P2P chat message.
+type P2PSendMessageResponse struct {
 	SentTime       types.Time `json:"SRVTM"`
 	TransactionID  uint64     `json:"txid"`
 	ConversationID string     `json:"conversation_id"`
@@ -679,7 +679,7 @@ type UploadP2PChatFileRequest struct {
 	Base64Img        string `json:"base64_img"`
 }
 
-// P2PUploadFileResult holds the result of uploading a P2P chat file.
-type P2PUploadFileResult struct {
+// P2PUploadFileResponse holds the result of uploading a P2P chat file.
+type P2PUploadFileResponse struct {
 	FileKey string `json:"file_key"`
 }

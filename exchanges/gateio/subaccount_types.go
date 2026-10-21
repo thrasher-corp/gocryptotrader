@@ -10,8 +10,8 @@ type CreateSubAccountRequest struct {
 	Email     string `json:"email,omitempty"`
 }
 
-// SubAccount holds sub-account detail information.
-type SubAccount struct {
+// SubAccountResponse holds sub-account detail information.
+type SubAccountResponse struct {
 	Remark     string     `json:"remark"`
 	LoginName  string     `json:"login_name"`
 	Password   string     `json:"password"`
@@ -36,8 +36,8 @@ type SubAccountKeyPerm struct {
 	ReadOnly bool   `json:"read_only,omitempty"`
 }
 
-// SubAccountAPIKey holds detailed information about a sub-account API key.
-type SubAccountAPIKey struct {
+// SubAccountAPIKeyResponse holds detailed information about a sub-account API key.
+type SubAccountAPIKeyResponse struct {
 	UserID      uint64               `json:"user_id"`
 	Mode        uint64               `json:"mode"` // 1 - Classic, 2 - Portfolio account
 	Name        string               `json:"name"`
@@ -53,8 +53,8 @@ type SubAccountAPIKey struct {
 	LastAccess types.Time `json:"last_access"`
 }
 
-// SubAccountMode holds unified account mode information for a sub-account.
-type SubAccountMode struct {
+// SubAccountModeResponse holds unified account mode information for a sub-account.
+type SubAccountModeResponse struct {
 	UserID    uint64 `json:"user_id"`
 	IsUnified bool   `json:"is_unified"`
 	Mode      string `json:"mode"`

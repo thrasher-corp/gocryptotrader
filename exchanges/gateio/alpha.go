@@ -22,13 +22,13 @@ var (
 )
 
 // GetAlphaAccounts retrieves accounts position assets
-func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]*AlphaAccount, error) {
-	var resp []*AlphaAccount
+func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]*AlphaAccountResponse, error) {
+	var resp []*AlphaAccountResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, alphaAccountsEPL, http.MethodGet, "alpha/accounts", nil, nil, &resp)
 }
 
 // GetAlphaAccountTransactionHistory retrieves alpha account asset transactions
-func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]*AlphaAccountTransactionItem, error) {
+func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]*AlphaAccountTransactionItemResponse, error) {
 	if from.IsZero() {
 		return nil, errStartTimeRequired
 	}
@@ -48,13 +48,13 @@ func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []*AlphaAccountTransactionItem
+	var resp []*AlphaAccountTransactionItemResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, alphaAccountBookEPL, http.MethodGet, "alpha/account_book", params, nil, &resp)
 }
 
 // CreateAlphaCurrencyQuoteID returns quote information for a currency.
 // The quote_id returned by the price inquiry interface is valid for one minute; an order must be placed within this minute.
-func (e *Exchange) CreateAlphaCurrencyQuoteID(ctx context.Context, arg *AlphaCurrencyQuoteInfoRequest) (*AlphaCurrencyQuoteDetail, error) {
+func (e *Exchange) CreateAlphaCurrencyQuoteID(ctx context.Context, arg *AlphaCurrencyQuoteInfoRequest) (*AlphaCurrencyQuoteDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (e *Exchange) CreateAlphaCurrencyQuoteID(ctx context.Context, arg *AlphaCur
 	if arg.GasMode == "" {
 		return nil, errGasModeRequired
 	}
-	var resp *AlphaCurrencyQuoteDetail
+	var resp *AlphaCurrencyQuoteDetailResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, alphaCreateQuoteEPL, http.MethodPost, "alpha/quote", nil, arg, &resp)
 }
 
@@ -99,7 +99,7 @@ func (e *Exchange) PlaceAlphaTradeOrder(ctx context.Context, arg *AlphaCurrencyQ
 }
 
 // GetAlphaOrders retrieves alpha orders
-func (e *Exchange) GetAlphaOrders(ctx context.Context, arg *GetAlphaOrdersRequest) ([]*AlphaOrderDetail, error) {
+func (e *Exchange) GetAlphaOrders(ctx context.Context, arg *GetAlphaOrdersRequest) ([]*AlphaOrderDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -130,24 +130,24 @@ func (e *Exchange) GetAlphaOrders(ctx context.Context, arg *GetAlphaOrdersReques
 	if arg.Page > 0 {
 		params.Set("page", strconv.FormatUint(arg.Page, 10))
 	}
-	var resp []*AlphaOrderDetail
+	var resp []*AlphaOrderDetailResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, alphaListOrdersEPL, http.MethodGet, "alpha/orders", params, nil, &resp)
 }
 
 // GetAlphaOrderByID retrieves a single alpha order detail by ID
-func (e *Exchange) GetAlphaOrderByID(ctx context.Context, orderID string) (*AlphaOrderDetail, error) {
+func (e *Exchange) GetAlphaOrderByID(ctx context.Context, orderID string) (*AlphaOrderDetailResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("order_id", orderID)
-	var resp *AlphaOrderDetail
+	var resp *AlphaOrderDetailResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, alphaGetOrderEPL, http.MethodGet, "alpha/order", params, nil, &resp)
 }
 
-// GetAlphaCurrenciesDetail retrieves currency details, for every currency or for a single case sensitive alpha
-// currency symbol such as memeboxTUT
-func (e *Exchange) GetAlphaCurrenciesDetail(ctx context.Context, alphaCurrency string, limit, page uint64) ([]*AlphaCurrencyDetail, error) {
+// GetAlphaCurrenciesDetail retrieves currency details, for every currency or for the one alphaCurrency names. It stays a
+// string, as alpha symbols such as memeboxTUT are case sensitive
+func (e *Exchange) GetAlphaCurrenciesDetail(ctx context.Context, alphaCurrency string, limit, page uint64) ([]*AlphaCurrencyDetailResponse, error) {
 	params := url.Values{}
 	if alphaCurrency != "" {
 		params.Set("currency", alphaCurrency)
@@ -158,13 +158,13 @@ func (e *Exchange) GetAlphaCurrenciesDetail(ctx context.Context, alphaCurrency s
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []*AlphaCurrencyDetail
+	var resp []*AlphaCurrencyDetailResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaCurrenciesEPL, common.EncodeURLValues("alpha/currencies", params), &resp)
 }
 
-// GetAlphaCurrencyTicker retrieves currency ticker information, for every currency or for a single case sensitive
-// alpha currency symbol such as memeboxTUT
-func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, alphaCurrency string, limit, page uint64) ([]*AlphaCurrencyTickerInfo, error) {
+// GetAlphaCurrencyTicker retrieves currency ticker information, for every currency or for the one alphaCurrency names. It
+// stays a string, as alpha symbols such as memeboxTUT are case sensitive
+func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, alphaCurrency string, limit, page uint64) ([]*AlphaCurrencyTickerInfoResponse, error) {
 	params := url.Values{}
 	if alphaCurrency != "" {
 		params.Set("currency", alphaCurrency)
@@ -175,12 +175,12 @@ func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, alphaCurrency str
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []*AlphaCurrencyTickerInfo
+	var resp []*AlphaCurrencyTickerInfoResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTickersEPL, common.EncodeURLValues("alpha/tickers", params), &resp)
 }
 
 // GetAlphaTokens retrieves token information, optionally filtered by chain, launch platform and contract address
-func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform, address string, page uint64) ([]*AlphaCurrencyDetail, error) {
+func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform, address string, page uint64) ([]*AlphaCurrencyDetailResponse, error) {
 	params := url.Values{}
 	if chain != "" {
 		params.Set("chain", chain)
@@ -194,6 +194,6 @@ func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform, ad
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
-	var resp []*AlphaCurrencyDetail
+	var resp []*AlphaCurrencyDetailResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTokensEPL, common.EncodeURLValues("alpha/tokens", params), &resp)
 }

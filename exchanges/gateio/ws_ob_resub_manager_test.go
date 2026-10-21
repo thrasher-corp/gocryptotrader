@@ -181,7 +181,7 @@ func TestFuturesV2GapRecovery(t *testing.T) {
 		require.NoError(t, exchange.processOrderbookUpdateWithSnapshot(t.Context(), conn, snapshot, time.Now(), assetType), "initial snapshot must load")
 	}
 	gap := fmt.Appendf(nil, `{"time":1757377580,"channel":"futures.obu","event":"update","result":{"t":1757377580073,"s":%q,"U":102,"u":103}}`, qualifiedChannel)
-	require.NoError(t, exchange.WsHandleFuturesData(t.Context(), conn, gap, asset.USDTMarginedFutures), "futures gap must find its generated subscription")
+	require.NoError(t, exchange.WebsocketHandleFuturesData(t.Context(), conn, gap, asset.USDTMarginedFutures), "futures gap must find its generated subscription")
 	assert.True(t, exchange.wsOBResubMgr.IsResubscribing(pair, asset.USDTMarginedFutures), "futures should await a replacement snapshot")
 	assert.False(t, exchange.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "spot should not enter recovery")
 	assert.Equal(t, subscription.SubscribedState, spot.State(), "spot subscription should remain subscribed")

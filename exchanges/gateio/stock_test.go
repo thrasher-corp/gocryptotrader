@@ -248,7 +248,7 @@ func TestGetStockOpenOrders(t *testing.T) {
 	result, err := e.GetStockOpenOrders(t.Context(), "AAPL")
 	require.NoError(t, err, "GetStockOpenOrders must not error")
 	if mockTests {
-		exp := []*StockOpenOrder{{
+		exp := []*StockOpenOrderResponse{{
 			OrderID:             "123456",
 			Symbol:              "AAPL",
 			Exchange:            "us",
@@ -386,7 +386,7 @@ func TestGetStockPositions(t *testing.T) {
 	result, err := e.GetStockPositions(t.Context(), &GetStockPositionsRequest{PNLCalculationCostType: 1, PNLCalculationPriceType: 2, Symbol: "AAPL", Exchange: "us"})
 	require.NoError(t, err, "GetStockPositions must not error")
 	if mockTests {
-		exp := []*StockPosition{{
+		exp := []*StockPositionResponse{{
 			Symbol:                 "AAPL",
 			Exchange:               "us",
 			QuoteCurrency:          currency.USD,
@@ -518,7 +518,7 @@ func TestGetStockExchanges(t *testing.T) {
 	result, err := e.GetStockExchanges(t.Context())
 	require.NoError(t, err, "GetStockExchanges must not error")
 	if mockTests {
-		exp := []*StockExchange{
+		exp := []*StockExchangeResponse{
 			{Exchange: "us", ExchangeDescription: "US Stocks", IconLink: "https://gimg.staticimgs.com/image/us_20260625_112846_9544f214f56243347961335c9a589a03.png", SupportsStockTransfer: true},
 			{Exchange: "hk", ExchangeDescription: "HK Stocks", IconLink: "https://gimg.staticimgs.com/image/hk_20260625_112846_a95ac38da6606a88c4dbc74053724860.png", SupportsStockTransfer: true},
 			{Exchange: "kr", ExchangeDescription: "KR Stocks"},
@@ -536,7 +536,7 @@ func TestGetStockFeeRates(t *testing.T) {
 	require.NoError(t, err, "GetStockFeeRates must not error")
 	if mockTests {
 		require.Len(t, result, 17, "GetStockFeeRates must return every recorded VIP level")
-		assert.Equal(t, &StockFeeRate{VIPLevel: 4, MakerFee: 0.00095, TakerFee: 0.00096}, result[4], "GetStockFeeRates should decode every field")
+		assert.Equal(t, &StockFeeRateResponse{VIPLevel: 4, MakerFee: 0.00095, TakerFee: 0.00096}, result[4], "GetStockFeeRates should decode every field")
 		return
 	}
 	assert.NotEmpty(t, result, "GetStockFeeRates should return fee rates")

@@ -32,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -57,6 +56,7 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+	finishEvent      = "finish" // The last spot.orders push of an order, sent when it fills or is cancelled
 )
 
 var defaultSubscriptions = subscription.List{
@@ -86,8 +86,8 @@ var (
 
 var errInvalidPingChannel = errors.New("invalid ping channel")
 
-// WsConnectSpot initiates a websocket connection
-func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnectSpot initiates a websocket connection
+func (e *Exchange) WebsocketConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
@@ -117,8 +117,8 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 		return err
 	}
 
-	tn := time.Now().Unix()
-	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
+	tn := unixSeconds(time.Now())
+	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatUint(tn, 10)
 	mac := hmac.New(sha512.New, []byte(creds.Secret))
 	if _, err = mac.Write([]byte(msg)); err != nil {
 		return err
@@ -129,7 +129,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 		RequestID: e.MessageID(),
 		APIKey:    creds.Key,
 		Signature: signature,
-		Timestamp: strconv.FormatInt(tn, 10),
+		Timestamp: strconv.FormatUint(tn, 10),
 	}
 
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, &WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload})
@@ -137,33 +137,42 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 		return err
 	}
 
-	var inbound WebsocketAPIResponse
-	if err := json.Unmarshal(resp, &inbound); err != nil {
-		return err
-	}
-
-	if inbound.Header.Status == http.StatusOK {
-		return nil
-	}
-
-	var wsErr WebsocketErrors
-	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-		return err
-	}
-
-	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	_, err = parseWebsocketAPIResponse(resp)
+	return err
 }
 
-func (e *Exchange) generateWsSignature(secret, event, channel string, t int64) (string, error) {
+// parseWebsocketAPIResponse decodes a WebSocket API reply, returning the error a failed one carries under data's errs
+func parseWebsocketAPIResponse(raw []byte) (*WebsocketAPIResponse, error) {
+	var inbound *WebsocketAPIResponse
+	if err := json.Unmarshal(raw, &inbound); err != nil {
+		return nil, err
+	}
+	if inbound == nil {
+		return nil, common.ErrNoResponse
+	}
+	if inbound.Header.Status == http.StatusOK {
+		return inbound, nil
+	}
+	var wsErr *WebsocketErrorsResponse
+	if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
+		return nil, err
+	}
+	if wsErr == nil || wsErr.Errors == (WebsocketAPIError{}) {
+		return nil, fmt.Errorf("%w: status %d", common.ErrNoResponse, inbound.Header.Status)
+	}
+	return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+}
+
+func (e *Exchange) generateWsSignature(secret, event, channel string, t uint64) (string, error) {
 	mac := hmac.New(sha512.New, []byte(secret))
-	if _, err := mac.Write([]byte("channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10))); err != nil {
+	if _, err := mac.Write([]byte("channel=" + channel + "&event=" + event + "&time=" + strconv.FormatUint(t, 10))); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// WsHandleSpotData handles spot data
-func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+// WebsocketHandleSpotData handles spot data
+func (e *Exchange) WebsocketHandleSpotData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -215,8 +224,8 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	return nil
 }
 
-func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
-	r = &WSResponse{}
+func parseWSHeader(msg []byte) (r *WebsocketMessage, errs error) {
+	r = &WebsocketMessage{}
 	paths := [][]string{{"time_ms"}, {"time"}, {"channel"}, {"event"}, {"request_id"}, {"id"}, {"result"}}
 	jsonparser.EachKey(msg, func(idx int, v []byte, _ jsonparser.ValueType, _ error) {
 		switch idx {
@@ -255,7 +264,7 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 }
 
 func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime time.Time) error {
-	var data WsTicker
+	var data WebsocketTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -290,7 +299,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 		return nil
 	}
 
-	var data WsTrade
+	var data WebsocketTrade
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -310,7 +319,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 				Price:        data.Price.Float64(),
 				Amount:       data.Amount.Float64(),
 				Side:         side,
-				TID:          strconv.FormatInt(data.ID, 10),
+				TID:          strconv.FormatUint(data.ID, 10),
 			}); err != nil {
 				return err
 			}
@@ -321,7 +330,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 }
 
 func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) error {
-	var data WsCandlesticks
+	var data WebsocketCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -361,7 +370,7 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 }
 
 func (e *Exchange) processOrderbookTicker(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookTickerData
+	var data WebsocketOrderbookTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -377,7 +386,7 @@ func (e *Exchange) processOrderbookTicker(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookUpdate
+	var data WebsocketOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -394,7 +403,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookSnapshot(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookSnapshot
+	var data WebsocketOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -418,7 +427,7 @@ func (e *Exchange) processOrderbookSnapshot(ctx context.Context, incoming []byte
 }
 
 func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {
-	var data WsOrderbookUpdateWithSnapshot
+	var data WebsocketOrderbookUpdateWithSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -470,43 +479,59 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 }
 
 func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
-	var resp struct {
-		Time    types.Time     `json:"time"`
-		Channel string         `json:"channel"`
-		Event   string         `json:"event"`
-		Result  []*WsSpotOrder `json:"result"`
-	}
+	var resp WebsocketPush[[]*WebsocketSpotOrder]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
-	for x := range resp.Result {
-		side, err := order.StringToOrderSide(resp.Result[x].Side)
+	for x, o := range resp.Result {
+		side, err := order.StringToOrderSide(o.Side)
 		if err != nil {
 			return err
 		}
-		orderType, err := order.StringToOrderType(resp.Result[x].Type)
+		orderType, err := spotOrderType(o.Type)
 		if err != nil {
 			return err
 		}
-		a, err := spotOrderAsset(resp.Result[x].Account)
+		a, err := spotOrderAsset(o.Account)
 		if err != nil {
 			return err
 		}
 		details[x] = order.Detail{
-			Amount:         resp.Result[x].Amount.Float64(),
+			Amount:         o.Amount.Float64(),
 			Exchange:       e.Name,
-			OrderID:        resp.Result[x].ID,
+			OrderID:        o.ID,
+			ClientOrderID:  getClientOrderIDFromText(o.Text),
 			Side:           side,
 			Type:           orderType,
-			Pair:           resp.Result[x].CurrencyPair,
-			Cost:           resp.Result[x].Fee.Float64(),
+			Pair:           o.CurrencyPair,
 			AssetType:      a,
-			Price:          resp.Result[x].Price.Float64(),
-			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),
-			Date:           resp.Result[x].CreateTime.Time(),
-			LastUpdated:    resp.Result[x].UpdateTime.Time(),
+			Price:          o.Price.Float64(),
+			ExecutedAmount: o.Amount.Float64() - o.Left.Float64(),
+			Date:           o.CreateTime.Time(),
+			LastUpdated:    o.UpdateTime.Time(),
 		}
+		// The order store keeps the last status, fee and cost it is given, so only a finish event's are relayed: a delayed
+		// earlier push would otherwise reopen a finished order or put back an older fee. The remaining amount is left out
+		// as the store ignores a zero, so a filled order would keep the remainder of its last partial fill
+		if o.Event != finishEvent {
+			continue
+		}
+		if o.FinishAs != "" {
+			if details[x].Status, err = orderStatusFromFinishAs(o.FinishAs); err != nil {
+				return err
+			}
+		}
+		details[x].Cost = o.FilledTotal.Float64()
+		details[x].CostAsset = o.TradeQuote
+		if details[x].CostAsset.IsEmpty() {
+			details[x].CostAsset = o.CurrencyPair.Quote
+		}
+		details[x].Fee = o.Fee.Float64()
+		if details[x].Fee > 0 { // The store keeps a stored fee when given none, so a lone currency would relabel it
+			details[x].FeeAsset = o.FeeCurrency
+		}
+		details[x].AverageExecutedPrice = o.AverageFillPrice.Float64()
 	}
 	return e.Websocket.DataHandler.Send(ctx, details)
 }
@@ -516,12 +541,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 		return nil
 	}
 
-	var resp struct {
-		Time    types.Time             `json:"time"`
-		Channel string                 `json:"channel"`
-		Event   string                 `json:"event"`
-		Result  []*WsUserPersonalTrade `json:"result"`
-	}
+	var resp WebsocketPush[[]*WebsocketUserPersonalTrade]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -537,7 +557,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
-			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),
+			TradeID:      strconv.FormatUint(resp.Result[x].ID, 10),
 			Price:        resp.Result[x].Price.Float64(),
 			Amount:       resp.Result[x].Amount.Float64(),
 		}
@@ -546,7 +566,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 }
 
 func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
-	var resp []*WsSpotBalance
+	var resp []*WebsocketSpotBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -569,12 +589,7 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 }
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
-	var resp struct {
-		Time    types.Time         `json:"time"`
-		Channel string             `json:"channel"`
-		Event   string             `json:"event"`
-		Result  []*WsMarginBalance `json:"result"`
-	}
+	var resp WebsocketPush[[]*WebsocketMarginBalance]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -596,12 +611,7 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 }
 
 func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) error {
-	var resp struct {
-		Time    types.Time          `json:"time"`
-		Channel string              `json:"channel"`
-		Event   string              `json:"event"`
-		Result  []*WsFundingBalance `json:"result"`
-	}
+	var resp WebsocketPush[[]*WebsocketFundingBalance]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -609,12 +619,7 @@ func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) erro
 }
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
-	var resp struct {
-		Time    types.Time              `json:"time"`
-		Channel string                  `json:"channel"`
-		Event   string                  `json:"event"`
-		Result  []*WsCrossMarginBalance `json:"result"`
-	}
+	var resp WebsocketPush[[]*WebsocketCrossMarginBalance]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -635,12 +640,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 }
 
 func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) error {
-	var resp struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  WsCrossMarginLoan `json:"result"`
-	}
+	var resp WebsocketPush[WebsocketCrossMarginLoan]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -684,9 +684,12 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 				if err != nil {
 					return err
 				}
-				var resp WsEventResponse
+				var resp *WebsocketEventResponse
 				if err := json.Unmarshal(result, &resp); err != nil {
 					return err
+				}
+				if resp == nil {
+					return common.ErrNoResponse
 				}
 				if resp.Error != nil && resp.Error.Code != 0 {
 					return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
@@ -704,12 +707,12 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
-	req := &WsInput{
+func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WebsocketChannelRequest, error) {
+	req := &WebsocketChannelRequest{
 		ID:      e.MessageSequence(),
 		Event:   event,
 		Channel: channelName(s),
-		Time:    time.Now().Unix(),
+		Time:    unixSeconds(time.Now()),
 		Payload: strings.Split(s.QualifiedChannel, ","),
 	}
 	if s.Authenticated {
@@ -721,7 +724,7 @@ func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscripti
 		if err != nil {
 			return nil, err
 		}
-		req.Auth = &WsAuthInput{
+		req.Auth = &WebsocketAuthInput{
 			Method: "api_key",
 			Key:    creds.Key,
 			Sign:   sig,
@@ -937,7 +940,7 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error)
+type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WebsocketChannelRequest, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
@@ -960,9 +963,12 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 				if err != nil {
 					return err
 				}
-				var resp WsEventResponse
+				var resp *WebsocketEventResponse
 				if err := json.Unmarshal(result, &resp); err != nil {
 					return err
+				}
+				if resp == nil {
+					return common.ErrNoResponse
 				}
 				if resp.Error != nil && resp.Error.Code != 0 {
 					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
@@ -995,7 +1001,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		return err
 	}
 
-	tn := time.Now().Unix()
+	tn := unixSeconds(time.Now())
 	req := &WebsocketRequest{
 		Time:    tn,
 		Channel: channel,
@@ -1003,7 +1009,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		Payload: WebsocketPayload{
 			RequestID:    e.MessageID(),
 			RequestParam: paramPayload,
-			Timestamp:    strconv.FormatInt(tn, 10),
+			Timestamp:    strconv.FormatUint(tn, 10),
 		},
 	}
 
@@ -1019,17 +1025,9 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 	// responses may include an ack resp, which we skip
 	endResponse := responses[len(responses)-1]
 
-	var inbound WebsocketAPIResponse
-	if err := json.Unmarshal(endResponse, &inbound); err != nil {
+	inbound, err := parseWebsocketAPIResponse(endResponse)
+	if err != nil {
 		return err
-	}
-
-	if inbound.Header.Status != http.StatusOK {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
 	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
@@ -1048,7 +1046,7 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 	if !slices.Contains(validPingChannels, channel) {
 		return websocket.PingHandler{}, fmt.Errorf("%w: %q", errInvalidPingChannel, channel)
 	}
-	pingMessage, err := json.Marshal(WsInput{Channel: channel})
+	pingMessage, err := json.Marshal(WebsocketChannelRequest{Channel: channel})
 	if err != nil {
 		return websocket.PingHandler{}, err
 	}

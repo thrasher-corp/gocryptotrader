@@ -65,7 +65,7 @@ type BotDiscoverData struct {
 
 // BotDiscoverResponse is the unified response for the strategy recommendation endpoint.
 type BotDiscoverResponse struct {
-	Code    int64            `json:"code"`
+	Code    uint64           `json:"code"`
 	Message string           `json:"message"`
 	Data    *BotDiscoverData `json:"data"`
 	TraceID string           `json:"trace_id"`
@@ -85,7 +85,7 @@ type BotCreateData struct {
 
 // BotCreateResponse is the unified response returned when a strategy is created.
 type BotCreateResponse struct {
-	Code    int64         `json:"code"`
+	Code    uint64        `json:"code"`
 	Message string        `json:"message"`
 	Data    BotCreateData `json:"data"`
 	TraceID string        `json:"trace_id"`
@@ -242,7 +242,7 @@ type BotPortfolioRunningData struct {
 
 // BotPortfolioRunningResponse is the unified response for querying the running policy list.
 type BotPortfolioRunningResponse struct {
-	Code    int64                   `json:"code"`
+	Code    uint64                  `json:"code"`
 	Message string                  `json:"message"`
 	Data    BotPortfolioRunningData `json:"data"`
 	TraceID string                  `json:"trace_id"`
@@ -290,8 +290,8 @@ type BotPortfolioPosition struct {
 	Side          string       `json:"side"`
 }
 
-// BotPortfolioDetailData holds the detail of a single running strategy.
-type BotPortfolioDetailData struct {
+// BotPortfolioDetail holds the detail of a single running strategy.
+type BotPortfolioDetail struct {
 	StrategyID    string                `json:"strategy_id"`
 	StrategyType  string                `json:"strategy_type"`
 	Market        string                `json:"market"`
@@ -304,10 +304,10 @@ type BotPortfolioDetailData struct {
 
 // BotPortfolioDetailResponse is the unified response for querying strategy details.
 type BotPortfolioDetailResponse struct {
-	Code    int64                  `json:"code"`
-	Message string                 `json:"message"`
-	Data    BotPortfolioDetailData `json:"data"`
-	TraceID string                 `json:"trace_id"`
+	Code    uint64             `json:"code"`
+	Message string             `json:"message"`
+	Data    BotPortfolioDetail `json:"data"`
+	TraceID string             `json:"trace_id"`
 }
 
 // AsError returns the response status as an error, or nil when the request succeeded
@@ -331,7 +331,7 @@ type BotPortfolioStopData struct {
 
 // BotPortfolioStopResponse is the unified response for terminating a running strategy.
 type BotPortfolioStopResponse struct {
-	Code    int64                 `json:"code"`
+	Code    uint64                `json:"code"`
 	Message string                `json:"message"`
 	Data    *BotPortfolioStopData `json:"data"`
 	TraceID string                `json:"trace_id"`

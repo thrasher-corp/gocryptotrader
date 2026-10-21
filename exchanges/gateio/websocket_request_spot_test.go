@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,8 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -60,6 +64,47 @@ func TestWebsocketLogin(t *testing.T) {
 	require.ErrorIs(t, err, errChannelEmpty)
 
 	require.NoError(t, ex.websocketLogin(t.Context(), c, "spot.login"), "websocketLogin must not error")
+}
+
+// replyConnection answers every request with the reply it holds
+type replyConnection struct {
+	websocket.Connection
+	reply []byte
+}
+
+func (c *replyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return c.reply, nil
+}
+
+func TestWebsocketLoginFailure(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+
+	// Gate's documented reply to a login with an invalid key
+	reply := `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api","client_id":"::1-0x14002ba2300"},"data":{"errs":{"label":"INVALID_KEY","message":"Invalid key provided"}}}`
+	err := ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
+	assert.EqualError(t, err, "INVALID_KEY: Invalid key provided", "websocketLogin should return Gate's error label and message")
+
+	err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(`null`)}, "spot.login")
+	assert.ErrorIs(t, err, common.ErrNoResponse, "websocketLogin should reject a null reply")
+
+	for data, exp := range map[string]string{
+		`{"errs":{"label":"INVALID_KEY"}}`:            "INVALID_KEY",
+		`{"errs":{"message":"Invalid key provided"}}`: "Invalid key provided",
+	} {
+		reply = `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + data + `}`
+		err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
+		assert.ErrorContainsf(t, err, exp, "websocketLogin should return what Gate sends of its error for data %s", data)
+	}
+	for _, data := range []string{`null`, `{}`, `{"errs":null}`, `{"errs":{}}`} {
+		reply = `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + data + `}`
+		err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
+		assert.ErrorIsf(t, err, common.ErrNoResponse, "websocketLogin should reject a failed reply whose data is %s", data)
+	}
 }
 
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
@@ -154,6 +199,9 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 			o.UpdateTime, o.UpdateTimeMs = types.Time(time.Unix(1681986206, 0)), types.Time(time.UnixMilli(1681986206330))
 		})
 		assert.Equal(t, exp, got, "WebsocketSpotCancelOrder should decode every field")
+
+		_, err = ex.WebsocketSpotCancelOrder(t.Context(), "1700664331", BTCUSDT, "")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "WebsocketSpotCancelOrder should reject a null result")
 		return
 	}
 	assert.NotEmpty(t, got, "WebsocketSpotCancelOrder should return the cancelled order")
@@ -216,7 +264,7 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 	_, err := e.WebsocketSpotAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	amend := &WebsocketAmendOrder{}
+	amend := &WebsocketAmendOrderRequest{}
 	_, err = e.WebsocketSpotAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -229,7 +277,7 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	ex := newWsAPITestExchange(t, asset.Spot, canManipulateRealOrders)
-	got, err := ex.WebsocketSpotAmendOrder(t.Context(), &WebsocketAmendOrder{OrderID: "1700664330", Pair: BTCUSDT, Amount: "0.0004"})
+	got, err := ex.WebsocketSpotAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "1700664330", Pair: BTCUSDT, Amount: "0.0004"})
 	require.NoError(t, err, "WebsocketSpotAmendOrder must not error")
 	if mockTests {
 		exp := wsAPISpotOrder(func(o *WebsocketOrderResponse) {

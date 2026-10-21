@@ -103,12 +103,12 @@ func (e *Exchange) CreateStockOrder(ctx context.Context, arg *StockOrderRequest)
 }
 
 // GetStockOpenOrders retrieves open stock orders, optionally for a single symbol
-func (e *Exchange) GetStockOpenOrders(ctx context.Context, symbol string) ([]*StockOpenOrder, error) {
+func (e *Exchange) GetStockOpenOrders(ctx context.Context, symbol string) ([]*StockOpenOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp tradFiResponse[tradFiList[*StockOpenOrder]]
+	var resp tradFiResponse[tradFiList[*StockOpenOrderResponse]]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, stockOpenOrdersEPL, http.MethodGet, "stock/orders", params, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (e *Exchange) CancelStockOrder(ctx context.Context, orderID string) error {
 }
 
 // GetStockPositions retrieves the stock positions
-func (e *Exchange) GetStockPositions(ctx context.Context, arg *GetStockPositionsRequest) ([]*StockPosition, error) {
+func (e *Exchange) GetStockPositions(ctx context.Context, arg *GetStockPositionsRequest) ([]*StockPositionResponse, error) {
 	params := url.Values{}
 	if arg != nil {
 		setStockPNLParams(params, arg.PNLCalculationCostType, arg.PNLCalculationPriceType)
@@ -186,7 +186,7 @@ func (e *Exchange) GetStockPositions(ctx context.Context, arg *GetStockPositions
 			params.Set("exchange", arg.Exchange)
 		}
 	}
-	var resp tradFiResponse[tradFiList[*StockPosition]]
+	var resp tradFiResponse[tradFiList[*StockPositionResponse]]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, stockPositionsEPL, http.MethodGet, "stock/positions", params, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -250,8 +250,8 @@ func (e *Exchange) GetStockTransactions(ctx context.Context, arg *GetStockTransa
 }
 
 // GetStockExchanges retrieves the supported stock markets and whether each supports stock transfers
-func (e *Exchange) GetStockExchanges(ctx context.Context) ([]*StockExchange, error) {
-	var resp tradFiResponse[tradFiList[*StockExchange]]
+func (e *Exchange) GetStockExchanges(ctx context.Context) ([]*StockExchangeResponse, error) {
+	var resp tradFiResponse[tradFiList[*StockExchangeResponse]]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, stockExchangesEPL, "stock/exchanges", &resp); err != nil {
 		return nil, err
 	}
@@ -259,8 +259,8 @@ func (e *Exchange) GetStockExchanges(ctx context.Context) ([]*StockExchange, err
 }
 
 // GetStockFeeRates retrieves the Japanese and Korean stock fee rates for each VIP level
-func (e *Exchange) GetStockFeeRates(ctx context.Context) ([]*StockFeeRate, error) {
-	var resp tradFiResponse[tradFiList[*StockFeeRate]]
+func (e *Exchange) GetStockFeeRates(ctx context.Context) ([]*StockFeeRateResponse, error) {
+	var resp tradFiResponse[tradFiList[*StockFeeRateResponse]]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, stockFeeRateEPL, "stock/fee-rate", &resp); err != nil {
 		return nil, err
 	}

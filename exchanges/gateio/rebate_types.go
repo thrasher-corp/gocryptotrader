@@ -45,6 +45,11 @@ type PartnerSubordinateListRequest struct {
 	Offset uint64
 }
 
+// rebateUserInfoReply holds the UID of the user who invited the authenticated user
+type rebateUserInfoReply struct {
+	InviteUID uint64 `json:"invite_uid"`
+}
+
 // RebateTransaction holds a single transaction history record for a recommended user.
 type RebateTransaction struct {
 	TransactionTime types.Time    `json:"transaction_time"`
@@ -172,8 +177,8 @@ type UserSubordinateRelationResponse struct {
 	List []*UserSubordinateRelation `json:"list"`
 }
 
-// PartnerApplicationRecord holds a partner application record
-type PartnerApplicationRecord struct {
+// PartnerApplicationRecordResponse holds a partner application record
+type PartnerApplicationRecordResponse struct {
 	ID                 uint64                    `json:"id"`
 	UserID             uint64                    `json:"uid"`
 	Language           string                    `json:"language"`

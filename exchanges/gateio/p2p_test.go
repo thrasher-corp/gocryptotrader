@@ -29,7 +29,7 @@ func TestGetP2PAccountInfo(t *testing.T) {
 	result, err := e.GetP2PAccountInfo(t.Context())
 	require.NoError(t, err, "GetP2PAccountInfo must not error")
 	if mockTests {
-		exp := &P2PMerchantInfo{
+		exp := &P2PMerchantInfoResponse{
 			IsSelf:                    true,
 			UserRegistrationTime:      "2025/11/19",
 			CounterpartiesNumber:      12,
@@ -77,7 +77,7 @@ func TestGetP2PCounterpartyInfo(t *testing.T) {
 	result, err := e.GetP2PCounterpartyInfo(t.Context(), &GetCounterpartyInfoRequest{BizUID: p2pTestCounterpartyUID})
 	require.NoError(t, err, "GetP2PCounterpartyInfo must not error")
 	if mockTests {
-		exp := &P2PCounterpartyInfo{
+		exp := &P2PCounterpartyInfoResponse{
 			UserRegistrationTime:      "2025/11/19",
 			EmailVerified:             true,
 			Verified:                  true,
@@ -115,7 +115,7 @@ func TestGetP2PPaymentMethods(t *testing.T) {
 		assert.NotNil(t, result, "GetP2PPaymentMethods should return payment methods")
 		return
 	}
-	exp := []*P2PPaymentMethodGroup{
+	exp := []*P2PPaymentMethodGroupResponse{
 		{
 			PayType: "bank",
 			PayName: "Bank Transfer",
@@ -221,7 +221,7 @@ func TestGetPendingP2POrders(t *testing.T) {
 	})
 	require.NoError(t, err, "GetPendingP2POrders must not error")
 	if mockTests {
-		exp := &P2POrderList{
+		exp := &P2POrderListResponse{
 			List: []*P2POrderInfo{{
 				IsBuy:                true,
 				CreationTime:         "2025-12-15 08:27:09",
@@ -257,7 +257,7 @@ func TestGetPendingP2POrders(t *testing.T) {
 					Status:              "finished",
 				},
 			}},
-			TransactionTime: []*P2PTransactionTimeMarker{{OrderTime: 600}},
+			TransactionTime: []*P2PTransactionTimeMarker{{OrderCountdownSeconds: 600}},
 			Count:           1,
 		}
 		assert.Equal(t, exp, result, "GetPendingP2POrders should decode every field")
@@ -311,7 +311,7 @@ func TestGetHistoricalP2POrders(t *testing.T) {
 	})
 	require.NoError(t, err, "GetHistoricalP2POrders must not error")
 	if mockTests {
-		exp := &P2POrderList{
+		exp := &P2POrderListResponse{
 			List: []*P2POrderInfo{{
 				CreationTime:         "2025-12-15 08:27:09",
 				ExpiryTime:           "2025-12-15 10:27:09",
@@ -368,7 +368,7 @@ func TestGetP2POrderDetails(t *testing.T) {
 	result, err := e.GetP2POrderDetails(t.Context(), &GetP2POrderDetailsRequest{TransactionID: p2pTestTransactionID})
 	require.NoError(t, err, "GetP2POrderDetails must not error")
 	if mockTests {
-		exp := &P2POrderDetail{
+		exp := &P2POrderDetailResponse{
 			IsSell:                  true,
 			TransactionID:           p2pTestTransactionID,
 			OrderID:                 p2pTestAdvertisementID,
@@ -565,7 +565,7 @@ func TestUpdateP2PAdStatus(t *testing.T) {
 	result, err := e.UpdateP2PAdStatus(t.Context(), &UpdateP2PAdStatusRequest{AdvertisementID: p2pTestAdvertisementID, Status: 3})
 	require.NoError(t, err, "UpdateP2PAdStatus must not error")
 	if mockTests {
-		assert.Equal(t, &P2PUpdateAdStatusResult{Status: 3}, result, "UpdateP2PAdStatus should decode every field")
+		assert.Equal(t, &P2PUpdateAdStatusResponse{Status: 3}, result, "UpdateP2PAdStatus should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "UpdateP2PAdStatus should return the ad status")
@@ -584,7 +584,7 @@ func TestGetP2PAdDetails(t *testing.T) {
 	result, err := e.GetP2PAdDetails(t.Context(), &GetP2PAdDetailsRequest{AdvertisementID: "2124000001"})
 	require.NoError(t, err, "GetP2PAdDetails must not error")
 	if mockTests {
-		exp := &P2PAdDetail{
+		exp := &P2PAdDetailResponse{
 			Rate:                  0.908,
 			Type:                  "sell",
 			Amount:                100,
@@ -638,7 +638,7 @@ func TestGetMyP2PAds(t *testing.T) {
 		assert.NotNil(t, result, "GetMyP2PAds should return the user's ads")
 		return
 	}
-	exp := &P2PMyAdsData{Lists: []*P2PMyAdItem{{
+	exp := &P2PMyAdsResponse{Lists: []*P2PMyAdItem{{
 		Type:                  "sell",
 		Rate:                  1.27,
 		OriginalRate:          1.27,
@@ -695,7 +695,7 @@ func TestGetP2PAdList(t *testing.T) {
 	result, err := e.GetP2PAdList(t.Context(), &GetP2PAdsListRequest{Asset: currency.USDT, FiatUnit: currency.USD, TradeType: "sell"})
 	require.NoError(t, err, "GetP2PAdList must not error")
 	if mockTests {
-		exp := []*P2PAdListItem{
+		exp := []*P2PAdListItemResponse{
 			{
 				Index:                   1,
 				Asset:                   currency.USDT,
@@ -859,7 +859,7 @@ func TestSendP2PChatMessage(t *testing.T) {
 	result, err := e.SendP2PChatMessage(t.Context(), &SendP2PChatMessageRequest{TransactionID: p2pTestTransactionID, Message: "Payment completed, please check"})
 	require.NoError(t, err, "SendP2PChatMessage must not error")
 	if mockTests {
-		exp := &P2PSendMessageResult{
+		exp := &P2PSendMessageResponse{
 			SentTime:       types.Time(time.UnixMilli(1767009886638)),
 			TransactionID:  p2pTestTransactionID,
 			ConversationID: "1000001_1000002",
@@ -890,7 +890,7 @@ func TestUploadP2PChatFile(t *testing.T) {
 	})
 	require.NoError(t, err, "UploadP2PChatFile must not error")
 	if mockTests {
-		assert.Equal(t, &P2PUploadFileResult{FileKey: p2pTestChatFileKey}, result, "UploadP2PChatFile should decode every field")
+		assert.Equal(t, &P2PUploadFileResponse{FileKey: p2pTestChatFileKey}, result, "UploadP2PChatFile should decode every field")
 		return
 	}
 	assert.NotEmpty(t, result.FileKey, "UploadP2PChatFile should return a file key")

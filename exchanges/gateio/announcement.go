@@ -8,8 +8,8 @@ import (
 )
 
 // GetAnnouncementArticles retrieves Gate's announcement articles, filtered and paged by arg when it is set
-func (e *Exchange) GetAnnouncementArticles(ctx context.Context, arg *AnnouncementArticlesRequest) (*AnnouncementArticleList, error) {
-	var resp gateioAPIResponse[*AnnouncementArticleList]
+func (e *Exchange) GetAnnouncementArticles(ctx context.Context, arg *AnnouncementArticlesRequest) (*AnnouncementArticleListResponse, error) {
+	var resp gateioAPIResponse[*AnnouncementArticleListResponse]
 	if err := e.sendPublicPostRequest(ctx, publicAnnouncementArticlesEPL, "ann/list_article", announcementArticlesBody(arg), &resp); err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func announcementArticlesBody(arg *AnnouncementArticlesRequest) *announcementArt
 		body.Pinned = new(uint8)
 	}
 	if !arg.UpdatedAfter.IsZero() {
-		body.UpdateAfter = arg.UpdatedAfter.Unix()
+		body.UpdateAfter = unixSeconds(arg.UpdatedAfter)
 	}
 	if arg.IncludeEmptyContent {
 		body.FilterEmptyContent = new(uint8)

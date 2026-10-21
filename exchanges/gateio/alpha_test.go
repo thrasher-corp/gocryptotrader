@@ -34,7 +34,7 @@ func TestGetAlphaAccounts(t *testing.T) {
 	result, err := e.GetAlphaAccounts(t.Context())
 	require.NoError(t, err, "GetAlphaAccounts must not error")
 	if mockTests {
-		exp := []*AlphaAccount{{Currency: alphaTestCurrency, Available: 1, TokenAddress: "0x6952c5408b", Chain: "SOL"}}
+		exp := []*AlphaAccountResponse{{Currency: alphaTestCurrency, Available: 1, TokenAddress: "0x6952c5408b", Chain: "SOL"}}
 		assert.Equal(t, exp, result, "GetAlphaAccounts should decode every field")
 		return
 	}
@@ -55,7 +55,7 @@ func TestGetAlphaAccountTransactionHistory(t *testing.T) {
 	result, err := e.GetAlphaAccountTransactionHistory(t.Context(), startTime, endTime, 1, 10)
 	require.NoError(t, err, "GetAlphaAccountTransactionHistory must not error")
 	if mockTests {
-		exp := []*AlphaAccountTransactionItem{{
+		exp := []*AlphaAccountTransactionItemResponse{{
 			ID:       "123456",
 			Time:     types.Time(time.Unix(1747827868, 0)),
 			Currency: alphaTestCurrency,
@@ -96,7 +96,7 @@ func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 		assert.NotEmpty(t, result.QuoteID, "CreateAlphaCurrencyQuoteID should return a quote ID")
 		return
 	}
-	exp := &AlphaCurrencyQuoteDetail{
+	exp := &AlphaCurrencyQuoteDetailResponse{
 		QuoteID:                  "12345678",
 		MinAmount:                0.1,
 		MaxAmount:                "1000:0.0",
@@ -179,7 +179,7 @@ func TestGetAlphaOrders(t *testing.T) {
 	})
 	require.NoError(t, err, "GetAlphaOrders must not error")
 	if mockTests {
-		exp := []*AlphaOrderDetail{{
+		exp := []*AlphaOrderDetailResponse{{
 			OrderID:         "12345678",
 			TransactionHash: "0xaaaaaaa",
 			Side:            "buy",
@@ -210,7 +210,7 @@ func TestGetAlphaOrderByID(t *testing.T) {
 	result, err := e.GetAlphaOrderByID(t.Context(), "12345678")
 	require.NoError(t, err, "GetAlphaOrderByID must not error")
 	if mockTests {
-		exp := &AlphaOrderDetail{
+		exp := &AlphaOrderDetailResponse{
 			OrderID:         "12345678",
 			TransactionHash: "0xaaaaaaa",
 			Side:            "sell",
@@ -236,7 +236,7 @@ func TestGetAlphaCurrenciesDetail(t *testing.T) {
 	require.NotEmpty(t, result, "GetAlphaCurrenciesDetail must return currencies")
 	if mockTests {
 		require.Len(t, result, 5, "GetAlphaCurrenciesDetail must return every recorded currency")
-		exp := &AlphaCurrencyDetail{Currency: "memeboxacs", Name: "ACS", Chain: "SOLANA", Address: "5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y", Status: 1, Precision: 7, AmountPrecision: 2}
+		exp := &AlphaCurrencyDetailResponse{Currency: "memeboxacs", Name: "ACS", Chain: "SOLANA", Address: "5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y", Status: 1, Precision: 7, AmountPrecision: 2}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrenciesDetail should decode every field")
 	}
 
@@ -246,7 +246,7 @@ func TestGetAlphaCurrenciesDetail(t *testing.T) {
 	require.Len(t, result, 1, "GetAlphaCurrenciesDetail must return the requested currency")
 	assert.Equal(t, "memeboxTUT", result[0].Currency, "currency symbol should keep its case")
 	if mockTests {
-		exp := &AlphaCurrencyDetail{Currency: "memeboxTUT", Name: "TUT", Chain: "BSC", Address: "0xcaae2a2f939f51d97cdfa9a86e79e3f085b799f3", Status: 1, Precision: 5, AmountPrecision: 4}
+		exp := &AlphaCurrencyDetailResponse{Currency: "memeboxTUT", Name: "TUT", Chain: "BSC", Address: "0xcaae2a2f939f51d97cdfa9a86e79e3f085b799f3", Status: 1, Precision: 5, AmountPrecision: 4}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrenciesDetail should decode every field")
 	}
 }
@@ -258,7 +258,7 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	require.NotEmpty(t, result, "GetAlphaCurrencyTicker must return tickers")
 	if mockTests {
 		require.Len(t, result, 5, "GetAlphaCurrencyTicker must return every recorded ticker")
-		exp := &AlphaCurrencyTickerInfo{Currency: "memeboxnura", Change: 0.27, Last: 0.00001617, Volume: 2379.22, MarketCap: 144024.57}
+		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxnura", Change: 0.27, Last: 0.00001617, Volume: 2379.22, MarketCap: 144024.57}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrencyTicker should decode every field")
 	}
 
@@ -268,7 +268,7 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	require.Len(t, result, 1, "GetAlphaCurrencyTicker must return the requested ticker")
 	assert.Equal(t, "memeboxTUT", result[0].Currency, "currency symbol should keep its case")
 	if mockTests {
-		exp := &AlphaCurrencyTickerInfo{Currency: "memeboxTUT", Change: -6.5, Last: 0.02047, Volume: 108404.86, MarketCap: 17010203.55}
+		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxTUT", Change: -6.5, Last: 0.02047, Volume: 108404.86, MarketCap: 17010203.55}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrencyTicker should decode every field")
 	}
 }
@@ -282,11 +282,11 @@ func TestGetAlphaTokens(t *testing.T) {
 		launchPlatform string
 		address        string
 		page           uint64
-		expected       *AlphaCurrencyDetail
+		expected       *AlphaCurrencyDetailResponse
 	}{
 		{
 			name:     "without filters",
-			expected: &AlphaCurrencyDetail{Currency: "memeboxtrump", Name: "TRUMP", Chain: "SOLANA", Address: "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN", Status: 1, Precision: 4, AmountPrecision: 4},
+			expected: &AlphaCurrencyDetailResponse{Currency: "memeboxtrump", Name: "TRUMP", Chain: "SOLANA", Address: "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN", Status: 1, Precision: 4, AmountPrecision: 4},
 		},
 		{
 			name:           "with filters",
@@ -294,7 +294,7 @@ func TestGetAlphaTokens(t *testing.T) {
 			launchPlatform: "pump",
 			address:        contractAddress,
 			page:           1,
-			expected:       &AlphaCurrencyDetail{Currency: "memeboxretard", Name: "retard", Chain: "SOLANA", Address: contractAddress, Status: 1, Precision: 8, AmountPrecision: 1},
+			expected:       &AlphaCurrencyDetailResponse{Currency: "memeboxretard", Name: "retard", Chain: "SOLANA", Address: contractAddress, Status: 1, Precision: 8, AmountPrecision: 1},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

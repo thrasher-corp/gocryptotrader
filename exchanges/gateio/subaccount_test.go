@@ -12,7 +12,7 @@ import (
 )
 
 // recordedSubAccount is the sub-account the recorded sub-account fixtures return
-var recordedSubAccount = &SubAccount{
+var recordedSubAccount = &SubAccountResponse{
 	Remark:     "test sub account",
 	LoginName:  "test_sub_account_001",
 	Email:      "test@example.com",
@@ -23,7 +23,7 @@ var recordedSubAccount = &SubAccount{
 }
 
 // recordedSubAccountAPIKey is the API key the recorded sub-account key fixtures return
-var recordedSubAccountAPIKey = &SubAccountAPIKey{
+var recordedSubAccountAPIKey = &SubAccountAPIKeyResponse{
 	UserID: 12345678,
 	Mode:   1,
 	Name:   "test_api_key",
@@ -46,7 +46,7 @@ func TestListSubAccounts(t *testing.T) {
 		result, err := e.ListSubAccounts(t.Context(), subAccountType)
 		require.NoErrorf(t, err, "ListSubAccounts must not error for type %d", subAccountType)
 		if mockTests {
-			assert.Equalf(t, []*SubAccount{recordedSubAccount}, result, "ListSubAccounts should decode every field for type %d", subAccountType)
+			assert.Equalf(t, []*SubAccountResponse{recordedSubAccount}, result, "ListSubAccounts should decode every field for type %d", subAccountType)
 			continue
 		}
 		assert.NotNilf(t, result, "ListSubAccounts should return sub-accounts for type %d", subAccountType)
@@ -103,7 +103,7 @@ func TestListSubAccountAPIKeys(t *testing.T) {
 	result, err := e.ListSubAccountAPIKeys(t.Context(), 12345678)
 	require.NoError(t, err, "ListSubAccountAPIKeys must not error")
 	if mockTests {
-		assert.Equal(t, []*SubAccountAPIKey{recordedSubAccountAPIKey}, result, "ListSubAccountAPIKeys should decode every field")
+		assert.Equal(t, []*SubAccountAPIKeyResponse{recordedSubAccountAPIKey}, result, "ListSubAccountAPIKeys should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "ListSubAccountAPIKeys should return keys")
@@ -125,7 +125,7 @@ func TestCreateSubAccountAPIKey(t *testing.T) {
 	})
 	require.NoError(t, err, "CreateSubAccountAPIKey must not error")
 	if mockTests {
-		exp := &SubAccountAPIKey{
+		exp := &SubAccountAPIKeyResponse{
 			UserID:      12345678,
 			Mode:        1,
 			Name:        "test_key",
@@ -233,7 +233,7 @@ func TestGetSubAccountMode(t *testing.T) {
 	result, err := e.GetSubAccountMode(t.Context())
 	require.NoError(t, err, "GetSubAccountMode must not error")
 	if mockTests {
-		assert.Equal(t, []*SubAccountMode{{UserID: 12345678, IsUnified: true, Mode: "multi_currency"}}, result, "GetSubAccountMode should decode every field")
+		assert.Equal(t, []*SubAccountModeResponse{{UserID: 12345678, IsUnified: true, Mode: "multi_currency"}}, result, "GetSubAccountMode should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetSubAccountMode should return modes")

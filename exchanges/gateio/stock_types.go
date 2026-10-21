@@ -185,8 +185,8 @@ type StockCreateOrderResponse struct {
 	OrderID string `json:"id"`
 }
 
-// StockOpenOrder holds an open stock order
-type StockOpenOrder struct {
+// StockOpenOrderResponse holds an open stock order
+type StockOpenOrderResponse struct {
 	OrderID             string        `json:"order_id"`
 	Symbol              string        `json:"symbol"`
 	Exchange            string        `json:"exchange"`
@@ -281,8 +281,8 @@ type GetStockPositionsRequest struct {
 	Exchange                string // us, hk, kr or jp
 }
 
-// StockPosition holds a stock position
-type StockPosition struct {
+// StockPositionResponse holds a stock position
+type StockPositionResponse struct {
 	Symbol                     string        `json:"symbol"`
 	Exchange                   string        `json:"exchange"`
 	QuoteCurrency              currency.Code `json:"quote_currency"`
@@ -363,16 +363,16 @@ type StockTransactionsResponse struct {
 	List       []*StockTransaction `json:"list"`
 }
 
-// StockExchange holds a stock market the API supports
-type StockExchange struct {
+// StockExchangeResponse holds a stock market the API supports
+type StockExchangeResponse struct {
 	Exchange              string `json:"exchange"`
 	ExchangeDescription   string `json:"exchange_desc"`
 	IconLink              string `json:"icon_link"`
 	SupportsStockTransfer bool   `json:"support_transfer"`
 }
 
-// StockFeeRate holds the Japanese and Korean stock fee rates for a VIP level
-type StockFeeRate struct {
+// StockFeeRateResponse holds the Japanese and Korean stock fee rates for a VIP level
+type StockFeeRateResponse struct {
 	VIPLevel uint64       `json:"vip_level"`
 	MakerFee types.Number `json:"maker_fee"`
 	TakerFee types.Number `json:"taker_fee"`

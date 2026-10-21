@@ -22,7 +22,7 @@ func TestGetStakingCoins(t *testing.T) {
 	result, err := e.GetStakingCoins(t.Context(), "")
 	require.NoError(t, err, "GetStakingCoins must not error")
 	if mockTests {
-		exp := []*StakingCoin{{
+		exp := []*StakingCoinResponse{{
 			ProductID:           1,
 			Currency:            "GT",
 			EstimatedAPR:        36,
@@ -176,7 +176,7 @@ func TestGetStakingAssets(t *testing.T) {
 	result, err := e.GetStakingAssets(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetStakingAssets must not error")
 	if mockTests {
-		exp := []*StakingAssetItem{{
+		exp := []*StakingAssetItemResponse{{
 			ProductID:            64,
 			MortgageCoin:         "USDT",
 			MortgageAmount:       1,

@@ -189,9 +189,7 @@ func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, arg *RebateB
 
 // GetUserRebateInformation retrieves the authenticated user's rebate information, returning the inviter's UID.
 func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error) {
-	var resp struct {
-		InviteUID uint64 `json:"invite_uid"`
-	}
+	var resp rebateUserInfoReply
 	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserInfoEPL, http.MethodGet, "rebate/user/info", nil, nil, &resp)
 }
 
@@ -213,8 +211,8 @@ func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDs [
 
 // GetRecentPartnerApplicationRecords retrieves the current user's most recent partner application within the last 30
 // days
-func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*PartnerApplicationRecord, error) {
-	var resp gateioAPIResponse[*PartnerApplicationRecord]
+func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*PartnerApplicationRecordResponse, error) {
+	var resp gateioAPIResponse[*PartnerApplicationRecordResponse]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerApplicationsRecentEPL, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp); err != nil {
 		return nil, err
 	}

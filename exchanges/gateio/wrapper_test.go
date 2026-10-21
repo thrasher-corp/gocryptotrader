@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -104,30 +105,30 @@ func TestContractOpenInterest(t *testing.T) {
 			// Gate reports quanto_multiplier "0" here, so multiplying by the index price gave
 			// $515bn against the $13m the contract stats report for the same contract
 			name:     "inverse futures contract is one unit of its quote currency",
-			contract: &FuturesContract{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
+			contract: &FuturesContractResponse{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
 			exp:      6542499,
 		},
 		{
 			name:     "direct futures contract is scaled by its multiplier and index price",
-			contract: &FuturesContract{Type: "direct", PositionSize: 1000, QuantoMultiplier: 0.0001, IndexPrice: 50000},
+			contract: &FuturesContractResponse{Type: "direct", PositionSize: 1000, QuantoMultiplier: 0.0001, IndexPrice: 50000},
 			exp:      5000,
 		},
 		{
 			// nothing to size the position with, rather than a figure invented from the index price
 			name:     "direct futures contract reporting no multiplier sizes no position",
-			contract: &FuturesContract{Type: "direct", PositionSize: 1000, IndexPrice: 50000},
+			contract: &FuturesContractResponse{Type: "direct", PositionSize: 1000, IndexPrice: 50000},
 			exp:      0,
 		},
 		{
 			name:     "delivery contract is scaled by its multiplier and index price",
-			contract: &DeliveryContract{QuantoMultiplier: 1, PositionSize: 45, IndexPrice: 6.7608},
+			contract: &DeliveryContractResponse{QuantoMultiplier: 1, PositionSize: 45, IndexPrice: 6.7608},
 			exp:      304.236,
 		},
 		{
 			// Gate lists no inverse delivery contract today, so this pins the shape rather than a
 			// live response
 			name:     "inverse delivery contract is one unit of its quote currency",
-			contract: &DeliveryContract{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
+			contract: &DeliveryContractResponse{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
 			exp:      6542499,
 		},
 	} {
@@ -138,6 +139,12 @@ func TestContractOpenInterest(t *testing.T) {
 	}
 }
 
+func TestFuturesContractFundingInterval(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 8*time.Hour, (&FuturesContractResponse{FundingInterval: 28800}).fundingInterval(), "fundingInterval should convert Gate's seconds")
+	assert.Equal(t, time.Duration(math.MaxInt64).Truncate(time.Second), (&FuturesContractResponse{FundingInterval: math.MaxUint64}).fundingInterval(), "fundingInterval should cap a value a duration cannot hold")
+}
+
 // TestFuturesContractOpenInterestFromResponse pins contractTypeInverse and the type tag against a
 // real Gate response, which the table above cannot do while it builds the contract in Go
 func TestFuturesContractOpenInterestFromResponse(t *testing.T) {
@@ -146,7 +153,7 @@ func TestFuturesContractOpenInterestFromResponse(t *testing.T) {
 	// trimmed from GET /api/v4/futures/btc/contracts/BTC_USD
 	const resp = `{"name":"BTC_USD","type":"inverse","quanto_multiplier":"0","index_price":"78827.15","position_size":6542499}`
 
-	var c FuturesContract
+	var c FuturesContractResponse
 	require.NoError(t, json.Unmarshal([]byte(resp), &c), "Unmarshal must not error")
 	require.Equal(t, contractTypeInverse, c.Type, "the contract must decode as the inverse type the constant names")
 	assert.Equal(t, 6542499.0, c.openInterest(), "openInterest should report the position size for an inverse contract")
@@ -209,7 +216,7 @@ func TestGetOpenInterestIndependentOfRequestShape(t *testing.T) {
 func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
 	t.Parallel()
 
-	var stats []ContractStat
+	var stats []ContractStatResponse
 	require.NoError(t, json.Unmarshal([]byte(`[{"last_funding_rate":"0.00125"}]`), &stats))
 	require.Len(t, stats, 1)
 	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
@@ -236,7 +243,7 @@ func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
 
 	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
 	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
-	exp := []*FlashSwapCurrencyPair{{
+	exp := []*FlashSwapCurrencyPairResponse{{
 		CurrencyPair:  currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
 		SellCurrency:  currency.BTC,
 		BuyCurrency:   currency.USDT,
@@ -586,7 +593,7 @@ func TestSetCrossMarginAccountBalances(t *testing.T) {
 	balances := accounts.CurrencyBalances{}
 	setCrossMarginAccountBalances(&balances, nil)
 
-	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccountResponse{
 		Balances: map[string]CrossMarginCurrencyBalance{
 			"BTC": {
 				Available: types.Number(2),
@@ -608,21 +615,21 @@ func TestSetCrossMarginAccountBalances(t *testing.T) {
 func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 	t.Parallel()
 
-	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItemResponse{{}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItemResponse{{
 		Base: AccountBalanceInformation{Currency: currency.BTC},
 	}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItemResponse{{
 		AccountType: "inactive",
 	}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	balances := accounts.CurrencyBalances{}
-	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItemResponse{
 		{
 			Base: AccountBalanceInformation{
 				Currency:     currency.BTC,
@@ -876,16 +883,24 @@ func TestGetSpotOrderRequest(t *testing.T) {
 		name   string
 		submit *order.Submit
 		amount types.Number
+		price  types.Number
+		tif    string
 		err    error
 	}{
-		{name: "spot market buy", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50},
-		{name: "margin market buy", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50},
-		{name: "cross margin market buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Market, Side: order.Bid, QuoteAmount: 60}, amount: 60},
+		{name: "spot market buy", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50, tif: iocTIF},
+		{name: "margin market buy", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 50}, amount: 50, tif: iocTIF},
+		{name: "cross margin market buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Market, Side: order.Bid, QuoteAmount: 60}, amount: 60, tif: iocTIF},
 		{name: "margin market buy without quote amount", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Buy, Amount: 0.001}, err: order.ErrAmountMustBeSet},
-		{name: "margin market sell", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Sell, Amount: 0.001, QuoteAmount: 50}, amount: 0.001},
-		{name: "cross margin limit buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, QuoteAmount: 50}, amount: 0.001},
+		{name: "margin market sell", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Sell, Amount: 0.001, QuoteAmount: 50}, amount: 0.001, tif: iocTIF},
+		{name: "cross margin limit buy", submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, QuoteAmount: 50}, amount: 0.001, price: 10000, tif: gtcTIF},
 		{name: "invalid side", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.UnknownSide, QuoteAmount: 50}, err: order.ErrSideIsInvalid},
 		{name: "unsupported time in force", submit: &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime}, err: order.ErrUnsupportedTimeInForce},
+		{name: "spot market sell with a price", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Price: 10000, Amount: 0.001}, amount: 0.001, tif: iocTIF},
+		{name: "margin fill or kill market sell", submit: &order.Submit{AssetType: asset.Margin, Type: order.Market, Side: order.Sell, Price: 10000, Amount: 0.001, TimeInForce: order.FillOrKill}, amount: 0.001, tif: fokTIF},
+		{name: "spot post only limit sell", submit: &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 10000, Amount: 0.001, TimeInForce: order.PostOnly}, amount: 0.001, price: 10000, tif: pocTIF},
+		{name: "spot good till cancel market sell", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Price: 10000, Amount: 0.001, TimeInForce: order.GoodTillCancel}, err: order.ErrUnsupportedTimeInForce},
+		{name: "spot post only market sell", submit: &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Amount: 0.001, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+		{name: "spot stop limit sell", submit: &order.Submit{AssetType: asset.Spot, Type: order.StopLimit, Side: order.Sell, Price: 10000, TriggerPrice: 9900, Amount: 0.001}, err: order.ErrUnsupportedOrderType},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -897,11 +912,33 @@ func TestGetSpotOrderRequest(t *testing.T) {
 			}
 			assert.Equal(t, tc.amount, req.Amount, "getSpotOrderRequest should send the amount in the currency Gate sizes it by")
 			assert.Equal(t, tc.submit.AssetType, req.Account, "getSpotOrderRequest should send the account")
+			assert.Equal(t, tc.price, req.Price, "getSpotOrderRequest should send a price only for a limit order")
+			assert.Equal(t, tc.tif, req.TimeInForce, "getSpotOrderRequest should send a time in force Gate accepts for the order type")
 		})
 	}
 }
 
-func TestContractOrderPriceAndTIF(t *testing.T) {
+func TestSpotOrderType(t *testing.T) {
+	t.Parallel()
+	for in, exp := range map[string]order.Type{
+		"limit":               order.Limit,
+		"market":              order.Market,
+		"limit_repay":         order.Limit,
+		"limit_borrow":        order.Limit,
+		"limit_borrow_repay":  order.Limit,
+		"market_repay":        order.Market,
+		"market_borrow":       order.Market,
+		"market_borrow_repay": order.Market,
+	} {
+		got, err := spotOrderType(in)
+		require.NoErrorf(t, err, "spotOrderType must not error for %q", in)
+		assert.Equalf(t, exp, got, "spotOrderType should read %q as a %s order", in, exp)
+	}
+	_, err := spotOrderType("iceberg")
+	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "spotOrderType should reject an unknown type")
+}
+
+func TestOrderPriceAndTIF(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name      string
@@ -924,10 +961,10 @@ func TestContractOrderPriceAndTIF(t *testing.T) {
 		{name: "take profit", orderType: order.TakeProfit, err: order.ErrUnsupportedOrderType},
 		{name: "trailing stop", orderType: order.TrailingStop, err: order.ErrUnsupportedOrderType},
 	} {
-		price, tif, err := contractOrderPriceAndTIF(&order.Submit{Type: tc.orderType, TimeInForce: tc.tif, Price: 3000, TriggerPrice: 2900})
-		require.ErrorIsf(t, err, tc.err, "contractOrderPriceAndTIF must return the expected error for a %s order", tc.name)
-		assert.Equalf(t, tc.price, price, "contractOrderPriceAndTIF should return the price to send for a %s order", tc.name)
-		assert.Equalf(t, tc.exchTIF, tif, "contractOrderPriceAndTIF should return the time in force to send for a %s order", tc.name)
+		price, tif, err := orderPriceAndTIF(&order.Submit{Type: tc.orderType, TimeInForce: tc.tif, Price: 3000, TriggerPrice: 2900})
+		require.ErrorIsf(t, err, tc.err, "orderPriceAndTIF must return the expected error for a %s order", tc.name)
+		assert.Equalf(t, tc.price, price, "orderPriceAndTIF should return the price to send for a %s order", tc.name)
+		assert.Equalf(t, tc.exchTIF, tif, "orderPriceAndTIF should return the time in force to send for a %s order", tc.name)
 	}
 }
 
@@ -940,7 +977,7 @@ func TestGetFuturesOrderRequest(t *testing.T) {
 
 	req, err := getFuturesOrderRequest(&order.Submit{Pair: currency.NewBTCUSDT(), Type: order.Market, Side: order.Sell, Price: 3000, Amount: 2, ClientOrderID: "t-market"})
 	require.NoError(t, err, "getFuturesOrderRequest must not error for a market order")
-	exp := &FuturesOrderCreateParams{Contract: currency.NewBTCUSDT(), Size: -2, TimeInForce: iocTIF, Text: "t-market"}
+	exp := &FuturesOrderCreateRequest{Contract: currency.NewBTCUSDT(), Size: -2, TimeInForce: iocTIF, Text: "t-market"}
 	assert.Equal(t, exp, req, "getFuturesOrderRequest should send a market order at price 0 with IOC")
 }
 
@@ -955,7 +992,7 @@ func TestGetDeliveryOrderRequest(t *testing.T) {
 
 	req, err := getDeliveryOrderRequest(&order.Submit{Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 3000, Amount: 2, ReduceOnly: true})
 	require.NoError(t, err, "getDeliveryOrderRequest must not error for a limit order")
-	exp := &DeliveryOrderCreateParams{Contract: currency.NewBTCUSDT(), Size: 2, Price: 3000, ReduceOnly: true, TimeInForce: gtcTIF}
+	exp := &DeliveryOrderCreateRequest{Contract: currency.NewBTCUSDT(), Size: 2, Price: 3000, ReduceOnly: true, TimeInForce: gtcTIF}
 	assert.Equal(t, exp, req, "getDeliveryOrderRequest should send a limit order at its price with GTC")
 }
 

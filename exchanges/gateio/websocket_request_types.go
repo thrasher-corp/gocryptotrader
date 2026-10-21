@@ -18,7 +18,7 @@ type WebsocketAPIResponse struct {
 // Header defines a websocket header
 type Header struct {
 	ResponseTime types.Time `json:"response_time"`
-	Status       int64      `json:"status,string"`
+	Status       uint64     `json:"status,string"`
 	Channel      string     `json:"channel"`
 	Event        string     `json:"event"`
 	ClientID     string     `json:"client_id"`
@@ -28,8 +28,8 @@ type Header struct {
 
 // WebsocketRequest defines a websocket request
 type WebsocketRequest struct {
-	Time    int64            `json:"time,omitempty"`
-	ID      int64            `json:"id,omitempty"`
+	Time    uint64           `json:"time,omitempty"`
+	ID      int64            `json:"id,omitempty"` // int64, the type MessageSequence returns and replies are matched by
 	Channel string           `json:"channel"`
 	Event   string           `json:"event"`
 	Payload WebsocketPayload `json:"payload"`
@@ -46,12 +46,15 @@ type WebsocketPayload struct {
 	RequestParam json.RawMessage `json:"req_param,omitempty"`
 }
 
-// WebsocketErrors defines a websocket error
-type WebsocketErrors struct {
-	Errors struct {
-		Label   string `json:"label"`
-		Message string `json:"message"`
-	} `json:"errs"`
+// WebsocketErrorsResponse defines a websocket error
+type WebsocketErrorsResponse struct {
+	Errors WebsocketAPIError `json:"errs"`
+}
+
+// WebsocketAPIError holds the label and message of a failed WebSocket API request
+type WebsocketAPIError struct {
+	Label   string `json:"label"`
+	Message string `json:"message"`
 }
 
 // WebsocketOrderResponse defines a websocket order response
@@ -71,6 +74,7 @@ type WebsocketOrderResponse struct {
 	Text                      string        `json:"text"`
 	Status                    string        `json:"status"`
 	Iceberg                   types.Number  `json:"iceberg"`
+	FilledAmount              types.Number  `json:"filled_amount"`
 	FilledTotal               types.Number  `json:"filled_total"`
 	ID                        string        `json:"id"`
 	FillPrice                 types.Number  `json:"fill_price"`
@@ -94,8 +98,8 @@ type WebsocketOrderResponse struct {
 
 // WebsocketFuturesOrderResponse defines a websocket futures order response
 type WebsocketFuturesOrderResponse struct {
-	ID                        int64         `json:"id"`
-	User                      int64         `json:"user"`
+	ID                        uint64        `json:"id"`
+	User                      uint64        `json:"user"`
 	CreateTime                types.Time    `json:"create_time"`
 	FinishTime                types.Time    `json:"finish_time"`
 	FinishAs                  string        `json:"finish_as"`
@@ -113,7 +117,7 @@ type WebsocketFuturesOrderResponse struct {
 	Text                      string        `json:"text"`
 	TakerFee                  types.Number  `json:"tkfr"`
 	MakerFee                  types.Number  `json:"mkfr"`
-	ReferenceUserID           int64         `json:"refu"`
+	ReferenceUserID           uint64        `json:"refu"`
 	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
@@ -149,15 +153,15 @@ type WebsocketCancellAllResponse struct {
 	Succeeded bool          `json:"succeeded"`
 }
 
-// WebsocketCancelParam is a struct to hold the parameters for cancelling orders
-type WebsocketCancelParam struct {
+// WebsocketCancelRequest is a struct to hold the parameters for cancelling orders
+type WebsocketCancelRequest struct {
 	Pair    currency.Pair `json:"currency_pair,omitzero"`
 	Side    string        `json:"side,omitempty"`
 	Account string        `json:"account,omitempty"`
 }
 
-// WebsocketAmendOrder defines a websocket amend order
-type WebsocketAmendOrder struct {
+// WebsocketAmendOrderRequest defines a websocket amend order
+type WebsocketAmendOrderRequest struct {
 	OrderID   string        `json:"order_id"`
 	Pair      currency.Pair `json:"currency_pair"`
 	Account   string        `json:"account,omitempty"`
@@ -166,14 +170,14 @@ type WebsocketAmendOrder struct {
 	Amount    string        `json:"amount,omitempty"`
 }
 
-// WebsocketFuturesAmendOrder defines a websocket amend order
-type WebsocketFuturesAmendOrder struct {
+// WebsocketFuturesAmendOrderRequest defines a websocket amend order
+type WebsocketFuturesAmendOrderRequest struct {
 	OrderID   string        `json:"order_id"`
 	Contract  currency.Pair `json:"-"` // Only used internally for routing
 	Asset     asset.Item    `json:"-"` // Only used internally for routing
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
-	Size      int64         `json:"size,omitempty"`
+	Size      int64         `json:"size,omitempty"` // Negative for a sell order, as the size keeps the order's side
 }
 
 // WebsocketSpotListOrdersRequest holds the filters for listing spot orders over the websocket API
@@ -195,8 +199,8 @@ type websocketSpotListOrdersParams struct {
 	Page    uint64 `json:"page,omitempty"`
 	Limit   uint64 `json:"limit,omitempty"`
 	Account string `json:"account,omitempty"`
-	From    int64  `json:"from,omitempty"`
-	To      int64  `json:"to,omitempty"`
+	From    uint64 `json:"from,omitempty"`
+	To      uint64 `json:"to,omitempty"`
 	Side    string `json:"side,omitempty"`
 }
 
@@ -208,12 +212,23 @@ type WebsocketFuturesCancelOrderByIDResponse struct {
 	Message   string `json:"message"`
 }
 
-// WebsocketFutureOrdersList defines a websocket future orders list
-type WebsocketFutureOrdersList struct {
+// WebsocketFutureOrdersListRequest defines a websocket future orders list
+type WebsocketFutureOrdersListRequest struct {
 	Contract currency.Pair `json:"contract,omitzero"`
 	Asset    asset.Item    `json:"-"` // Only used internally for routing
 	Status   string        `json:"status"`
-	Limit    int64         `json:"limit,omitempty"`
-	Offset   int64         `json:"offset,omitempty"`
+	Limit    uint64        `json:"limit,omitempty"`
+	Offset   uint64        `json:"offset,omitempty"`
 	LastID   string        `json:"last_id,omitempty"`
+}
+
+// websocketOrderIDParams selects a futures order by its ID
+type websocketOrderIDParams struct {
+	OrderID string `json:"order_id"`
+}
+
+// websocketCancelOpenOrdersParams selects the open futures orders to cancel on a contract, on one side when Side is set
+type websocketCancelOpenOrdersParams struct {
+	Contract currency.Pair `json:"contract"`
+	Side     string        `json:"side,omitempty"`
 }

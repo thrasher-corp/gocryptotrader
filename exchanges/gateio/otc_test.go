@@ -75,7 +75,7 @@ func TestGetFiatStablecoinQuote(t *testing.T) {
 	result, err := e.GetFiatStablecoinQuote(t.Context(), &OTCQuoteRequest{Side: "PAY", PayCoin: currency.USD, GetCoin: currency.USDT, PayAmount: 30000, CreateQuoteToken: "1"})
 	require.NoError(t, err, "GetFiatStablecoinQuote must not error")
 	if mockTests {
-		exp := &OTCQuoteData{
+		exp := &OTCQuoteResponse{
 			Type:                   "BUY",
 			PayCoin:                currency.USD,
 			GetCoin:                currency.USDT,
@@ -308,7 +308,7 @@ func TestGetCheckListOfMaterialsToSupplementForBankCard(t *testing.T) {
 	result, err := e.GetCheckListOfMaterialsToSupplementForBankCard(t.Context(), otcTestBankID)
 	require.NoError(t, err, "GetCheckListOfMaterialsToSupplementForBankCard must not error")
 	if mockTests {
-		exp := &OTCBankSupplementChecklist{
+		exp := &OTCBankSupplementChecklistResponse{
 			UserType: "personal",
 			Items: []OTCBankSupplementChecklistItem{
 				{Description: "Front of a government issued ID document"},
@@ -447,7 +447,7 @@ func TestGetFiatOrderList(t *testing.T) {
 		assert.NotNil(t, result, "GetFiatOrderList should return an order list")
 		return
 	}
-	exp := &OTCOrderListData{
+	exp := &OTCOrderListResponse{
 		PageNumber:      1,
 		PageSize:        10,
 		TotalPageNumber: 1,
@@ -481,17 +481,17 @@ func TestGetFiatOrderList(t *testing.T) {
 		PageSize:       10,
 	})
 	require.NoError(t, err, "GetFiatOrderList must not error")
-	assert.Equal(t, &OTCOrderListData{PageNumber: 1, PageSize: 10, List: []*OTCOrderListItem{}}, result, "GetFiatOrderList should decode the recorded live response")
+	assert.Equal(t, &OTCOrderListResponse{PageNumber: 1, PageSize: 10, List: []*OTCOrderListItem{}}, result, "GetFiatOrderList should decode the recorded live response")
 }
 
 func TestOTCOrderListDataUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, key := range []string{"list", "lists"} {
-		var got OTCOrderListData
+		var got OTCOrderListResponse
 		require.NoErrorf(t, got.UnmarshalJSON([]byte(`{"pn":2,"`+key+`":[{"order_id":"41"}]}`)), "UnmarshalJSON must not error for %s", key)
-		assert.Equalf(t, OTCOrderListData{PageNumber: 2, List: []*OTCOrderListItem{{OrderID: "41"}}}, got, "orders should decode from %s", key)
+		assert.Equalf(t, OTCOrderListResponse{PageNumber: 2, List: []*OTCOrderListItem{{OrderID: "41"}}}, got, "orders should decode from %s", key)
 	}
-	var got OTCOrderListData
+	var got OTCOrderListResponse
 	assert.Error(t, got.UnmarshalJSON([]byte(`{"pn":"x"}`)), "UnmarshalJSON should error on an invalid page number")
 }
 
@@ -516,7 +516,7 @@ func TestGetStablecoinOrderList(t *testing.T) {
 	})
 	require.NoError(t, err, "GetStablecoinOrderList must not error")
 	if mockTests {
-		exp := &OTCStablecoinOrderListData{
+		exp := &OTCStablecoinOrderListResponse{
 			Total:      1,
 			PageSize:   10,
 			PageNumber: 1,
@@ -554,7 +554,7 @@ func TestGetFiatOrderDetail(t *testing.T) {
 	result, err := e.GetFiatOrderDetail(t.Context(), "265")
 	require.NoError(t, err, "GetFiatOrderDetail must not error")
 	if mockTests {
-		exp := &OTCOrderDetailData{
+		exp := &OTCOrderDetailResponse{
 			OrderID:                       "265",
 			UID:                           "2124269088",
 			Type:                          "BUY",

@@ -19,7 +19,7 @@ import (
 
 func TestTradFiResponseAsError(t *testing.T) {
 	t.Parallel()
-	var resp tradFiResponse[*TradFiTicker]
+	var resp tradFiResponse[*TradFiTickerResponse]
 	require.NoError(t, json.Unmarshal([]byte(`{"label":"","data":{"last_price":"1.1"}}`), &resp), "Unmarshal must not error")
 	assert.NoError(t, resp.AsError(), "AsError should not error without a label")
 
@@ -118,7 +118,7 @@ func TestGetTradFiMT5Account(t *testing.T) {
 	result, err := e.GetTradFiMT5Account(t.Context())
 	require.NoError(t, err, "GetTradFiMT5Account must not error")
 	if mockTests {
-		exp := &TradFiMT5Account{Leverage: 100, StopOutLevel: "50%", Status: 3}
+		exp := &TradFiMT5AccountResponse{Leverage: 100, StopOutLevel: "50%", Status: 3}
 		assert.Equal(t, exp, result, "GetTradFiMT5Account should decode every field")
 		return
 	}
@@ -130,7 +130,7 @@ func TestGetTradFiSymbolCategories(t *testing.T) {
 	result, err := e.GetTradFiSymbolCategories(t.Context())
 	require.NoError(t, err, "GetTradFiSymbolCategories must not error")
 	if mockTests {
-		exp := []*TradFiCategory{
+		exp := []*TradFiCategoryResponse{
 			{CategoryID: 0, CategoryName: "Favorites", IsFavourite: true},
 			{CategoryID: 1, CategoryName: "Metals"},
 			{CategoryID: 2, CategoryName: "Stocks"},
@@ -154,7 +154,7 @@ func TestGetTradFiSymbolCommissions(t *testing.T) {
 	result, err := e.GetTradFiSymbolCommissions(t.Context(), []string{"AUDUSD", "XAUUSD"}, []string{"forex", "metal"})
 	require.NoError(t, err, "GetTradFiSymbolCommissions must not error")
 	if mockTests {
-		exp := []*TradFiSymbolCommission{
+		exp := []*TradFiSymbolCommissionResponse{
 			{CategoryCode: "forex", Symbol: "AUDUSD", FeePerLot: 6},
 			{CategoryCode: "metal", Symbol: "XAUUSD", FeePerLot: 6.5},
 		}
@@ -170,7 +170,7 @@ func TestGetTradFiSymbols(t *testing.T) {
 	require.NoError(t, err, "GetTradFiSymbols must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetTradFiSymbols must return every recorded symbol")
-		exp := &TradFiSymbol{
+		exp := &TradFiSymbolResponse{
 			Symbol:                   "XAUUSD",
 			SymbolDescription:        "Gold",
 			CategoryID:               1,
@@ -202,7 +202,7 @@ func TestGetTradFiSymbolDetails(t *testing.T) {
 	result, err := e.GetTradFiSymbolDetails(t.Context(), []string{"EURUSD"})
 	require.NoError(t, err, "GetTradFiSymbolDetails must not error")
 	if mockTests {
-		exp := []*TradFiSymbolDetail{{
+		exp := []*TradFiSymbolDetailResponse{{
 			Symbol:             "EURUSD",
 			SymbolDescription:  "Euro vs United States Dollar",
 			CategoryName:       "Forex",
@@ -246,7 +246,7 @@ func TestGetTradFiKlines(t *testing.T) {
 	require.NoError(t, err, "GetTradFiKlines must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetTradFiKlines must return every recorded kline")
-		exp := &TradFiKline{Open: 1.16068, Close: 1.16068, Low: 1.16066, High: 1.16102, Timestamp: types.Time(time.Unix(1781644140, 0))}
+		exp := &TradFiKlineResponse{Open: 1.16068, Close: 1.16068, Low: 1.16066, High: 1.16102, Timestamp: types.Time(time.Unix(1781644140, 0))}
 		assert.Equal(t, exp, result[0], "GetTradFiKlines should decode every field")
 	} else {
 		assert.NotEmpty(t, result, "GetTradFiKlines should return klines")
@@ -255,7 +255,7 @@ func TestGetTradFiKlines(t *testing.T) {
 	result, err = e.GetTradFiKlines(t.Context(), "EURUSD", &GetTradFiKlinesRequest{Interval: kline.OneHour, BeginTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetTradFiKlines must not error with a time range")
 	if mockTests {
-		exp := []*TradFiKline{
+		exp := []*TradFiKlineResponse{
 			{Open: 1.17198, Close: 1.17213, Low: 1.1718, High: 1.17268, Timestamp: types.Time(time.Unix(1744106400, 0))},
 			{Open: 1.17208, Close: 1.16092, Low: 1.16023, High: 1.17263, Timestamp: types.Time(time.Unix(1744110000, 0))},
 		}
@@ -265,7 +265,7 @@ func TestGetTradFiKlines(t *testing.T) {
 	result, err = e.GetTradFiKlines(t.Context(), "EURUSD", &GetTradFiKlinesRequest{Interval: kline.OneHour, EndTime: endTime, Limit: 2})
 	require.NoError(t, err, "GetTradFiKlines must not error with an end time and limit")
 	if mockTests {
-		exp := []*TradFiKline{
+		exp := []*TradFiKlineResponse{
 			{Open: 1.17221, Close: 1.17246, Low: 1.17202, High: 1.17289, Timestamp: types.Time(time.Unix(1744182000, 0))},
 			{Open: 1.17246, Close: 1.17191, Low: 1.17175, High: 1.17258, Timestamp: types.Time(time.Unix(1744185600, 0))},
 		}
@@ -283,7 +283,7 @@ func TestGetTradFiSymbolTicker(t *testing.T) {
 	result, err := e.GetTradFiSymbolTicker(t.Context(), "EURUSD")
 	require.NoError(t, err, "GetTradFiSymbolTicker must not error")
 	if mockTests {
-		exp := &TradFiTicker{
+		exp := &TradFiTickerResponse{
 			HighestPrice:          1.16129,
 			LowestPrice:           1.16046,
 			PriceChangePercentage: 0.03,
@@ -313,7 +313,7 @@ func TestActivateTradFiUser(t *testing.T) {
 	result, err := e.ActivateTradFiUser(t.Context())
 	require.NoError(t, err, "ActivateTradFiUser must not error")
 	if mockTests {
-		assert.Equal(t, &TradFiUserInfo{Status: 3, Leverage: 1}, result, "ActivateTradFiUser should decode every field")
+		assert.Equal(t, &TradFiUserInfoResponse{Status: 3, Leverage: 1}, result, "ActivateTradFiUser should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "ActivateTradFiUser should return the account state")
@@ -327,7 +327,7 @@ func TestGetTradFiUserAssets(t *testing.T) {
 	result, err := e.GetTradFiUserAssets(t.Context())
 	require.NoError(t, err, "GetTradFiUserAssets must not error")
 	if mockTests {
-		exp := &TradFiUserAssets{Equity: 1012.55, MarginLevel: 4299.58, Balance: 1000, Margin: 23.55, MarginFree: 989, UnrealisedPNL: 12.55}
+		exp := &TradFiUserAssetsResponse{Equity: 1012.55, MarginLevel: 4299.58, Balance: 1000, Margin: 23.55, MarginFree: 989, UnrealisedPNL: 12.55}
 		assert.Equal(t, exp, result, "GetTradFiUserAssets should decode every field")
 		return
 	}
@@ -367,7 +367,7 @@ func TestGetTradFiTransactions(t *testing.T) {
 	result, err := e.GetTradFiTransactions(t.Context(), nil)
 	require.NoError(t, err, "GetTradFiTransactions must not error")
 	if mockTests {
-		exp := &TradFiTransactionListData{
+		exp := &TradFiTransactionListResponse{
 			Total:      2,
 			TotalPages: 1,
 			List: []*TradFiTransaction{
@@ -389,7 +389,7 @@ func TestGetTradFiTransactions(t *testing.T) {
 	})
 	require.NoError(t, err, "GetTradFiTransactions must not error with filters")
 	if mockTests {
-		exp := &TradFiTransactionListData{
+		exp := &TradFiTransactionListResponse{
 			Total:      1,
 			TotalPages: 1,
 			List: []*TradFiTransaction{
@@ -453,7 +453,7 @@ func TestCreateTradFiOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "CreateTradFiOrder must not error")
 	if mockTests {
-		assert.Equal(t, &TradFiCreateOrderResult{ID: "117"}, result, "CreateTradFiOrder should decode every field")
+		assert.Equal(t, &TradFiCreateOrderResponse{ID: "117"}, result, "CreateTradFiOrder should decode every field")
 		return
 	}
 	assert.NotEmpty(t, result.ID, "CreateTradFiOrder should return a queue task ID")
@@ -467,7 +467,7 @@ func TestGetTradFiActiveOrders(t *testing.T) {
 	result, err := e.GetTradFiActiveOrders(t.Context())
 	require.NoError(t, err, "GetTradFiActiveOrders must not error")
 	if mockTests {
-		exp := []*TradFiOrder{
+		exp := []*TradFiOrderResponse{
 			{
 				OrderID:           2630591,
 				Symbol:            "USDCHF",
@@ -518,7 +518,7 @@ func TestUpdateTradFiOrder(t *testing.T) {
 	result, err := e.UpdateTradFiOrder(t.Context(), 1223, &TradFiOrderUpdateRequest{Price: 1.091, PriceTakeProfit: 1.1, PriceStopLoss: 1.08})
 	require.NoError(t, err, "UpdateTradFiOrder must not error")
 	if mockTests {
-		exp := &TradFiUpdatedOrder{OrderID: 1223, Symbol: "EURUSD", State: "1", Volume: 0.1, Price: 1.091, PriceTakeProfit: 1.1, PriceStopLoss: 1.08}
+		exp := &TradFiUpdatedOrderResponse{OrderID: 1223, Symbol: "EURUSD", State: "1", Volume: 0.1, Price: 1.091, PriceTakeProfit: 1.1, PriceStopLoss: 1.08}
 		assert.Equal(t, exp, result, "UpdateTradFiOrder should decode every field")
 		return
 	}
@@ -552,7 +552,7 @@ func TestGetTradFiOrderHistory(t *testing.T) {
 	result, err := e.GetTradFiOrderHistory(t.Context(), nil)
 	require.NoError(t, err, "GetTradFiOrderHistory must not error")
 	if mockTests {
-		exp := []*TradFiHistoricalOrder{{
+		exp := []*TradFiHistoricalOrderResponse{{
 			OrderID:           2648991,
 			Symbol:            "USDCAD",
 			SymbolDescription: "USD VS CAD;",
@@ -580,7 +580,7 @@ func TestGetTradFiOrderHistory(t *testing.T) {
 	})
 	require.NoError(t, err, "GetTradFiOrderHistory must not error with filters")
 	if mockTests {
-		exp := []*TradFiHistoricalOrder{{
+		exp := []*TradFiHistoricalOrderResponse{{
 			OrderID:           2648980,
 			Symbol:            "EURUSD",
 			SymbolDescription: "Euro vs United States Dollar",
@@ -637,7 +637,7 @@ func TestGetTradFiActivePositions(t *testing.T) {
 	result, err := e.GetTradFiActivePositions(t.Context())
 	require.NoError(t, err, "GetTradFiActivePositions must not error")
 	if mockTests {
-		exp := []*TradFiPosition{{
+		exp := []*TradFiPositionResponse{{
 			PositionID:        2648925,
 			Symbol:            "EURUSD",
 			SymbolDescription: "Euro vs United States Dollar",
@@ -707,7 +707,7 @@ func TestGetTradFiPositionHistory(t *testing.T) {
 	result, err := e.GetTradFiPositionHistory(t.Context(), nil)
 	require.NoError(t, err, "GetTradFiPositionHistory must not error")
 	if mockTests {
-		exp := &TradFiHistoricalPositionListData{
+		exp := &TradFiHistoricalPositionListResponse{
 			Total:      2,
 			TotalPages: 1,
 			List: []*TradFiHistoricalPosition{
@@ -756,7 +756,7 @@ func TestGetTradFiPositionHistory(t *testing.T) {
 	})
 	require.NoError(t, err, "GetTradFiPositionHistory must not error with filters")
 	if mockTests {
-		exp := &TradFiHistoricalPositionListData{
+		exp := &TradFiHistoricalPositionListResponse{
 			Total:      1,
 			TotalPages: 1,
 			List: []*TradFiHistoricalPosition{{

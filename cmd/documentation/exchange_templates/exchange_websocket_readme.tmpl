@@ -105,11 +105,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
         ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
         // Custom handlers for the specific connection:
-        Handler:                  e.WsHandleSpotData,
+        Handler:                  e.WebsocketHandleSpotData,
         Subscriber:               e.SpotSubscribe,
         Unsubscriber:             e.SpotUnsubscribe,
         GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
-        Connector:                e.WsConnectSpot,
+        Connector:                e.WebsocketConnectSpot,
     }); err != nil {
         return err
     }
@@ -121,12 +121,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
         // Custom handlers for the specific connection:
         Handler: func(ctx context.Context, incoming []byte) error {
-            return e.WsHandleFuturesData(ctx, incoming, asset.Futures)
+            return e.WebsocketHandleFuturesData(ctx, incoming, asset.Futures)
         },
         Subscriber:               e.FuturesSubscribe,
         Unsubscriber:             e.FuturesUnsubscribe,
         GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
-        Connector:                e.WsFuturesConnect,
+        Connector:                e.WebsocketFuturesConnect,
     }); err != nil {
         return err
     }

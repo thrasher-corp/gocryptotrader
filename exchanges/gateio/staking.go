@@ -14,12 +14,12 @@ import (
 
 // GetStakingCoins retrieves on-chain staking products; coinType is swap for vouchers, lock for locked positions or
 // debt for US Treasury bonds, and all products are returned when empty
-func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*StakingCoin, error) {
+func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*StakingCoinResponse, error) {
 	params := url.Values{}
 	if coinType != "" {
 		params.Set("cointype", coinType)
 	}
-	var resp []*StakingCoin
+	var resp []*StakingCoinResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnStakingCoinsEPL, http.MethodGet, "earn/staking/coins", params, nil, &resp)
 }
 
@@ -78,11 +78,11 @@ func (e *Exchange) GetStakingDividendRecords(ctx context.Context, ccy currency.C
 }
 
 // GetStakingAssets retrieves on-chain staking positions
-func (e *Exchange) GetStakingAssets(ctx context.Context, ccy currency.Code) ([]*StakingAssetItem, error) {
+func (e *Exchange) GetStakingAssets(ctx context.Context, ccy currency.Code) ([]*StakingAssetItemResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("coin", ccy.String())
 	}
-	var resp []*StakingAssetItem
+	var resp []*StakingAssetItemResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnStakingAssetsEPL, http.MethodGet, "earn/staking/assets", params, nil, &resp)
 }

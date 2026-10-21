@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -80,8 +79,8 @@ const (
 	invalidUserID                = "invalidUserID"
 )
 
-// WsFuturesConnect initiates a websocket connection for a perpetual futures asset
-func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection, a asset.Item) error {
+// WebsocketFuturesConnect initiates a websocket connection for a perpetual futures asset
+func (e *Exchange) WebsocketFuturesConnect(ctx context.Context, conn websocket.Connection, a asset.Item) error {
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
@@ -274,7 +273,7 @@ func (e *Exchange) cacheFuturesUserID(ctx context.Context, credentialKey string,
 	if account == nil || account.User == 0 {
 		return fmt.Errorf("futures account user ID missing for %s", settlementCurrency)
 	}
-	e.setFuturesUserID(credentialKey, settlementCurrency, strconv.FormatInt(account.User, 10))
+	e.setFuturesUserID(credentialKey, settlementCurrency, strconv.FormatUint(account.User, 10))
 	return nil
 }
 
@@ -288,8 +287,8 @@ func (e *Exchange) FuturesUnsubscribe(ctx context.Context, conn websocket.Connec
 	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateFuturesPayload)
 }
 
-// WsHandleFuturesData handles futures websocket data
-func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte, a asset.Item) error {
+// WebsocketHandleFuturesData handles futures websocket data
+func (e *Exchange) WebsocketHandleFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte, a asset.Item) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -311,7 +310,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresOrderbookChannel:
 		return e.processFuturesOrderbookSnapshot(ctx, push.Event, push.Result, a, push.Time)
 	case futuresOrderbookTickerChannel:
-		var data WsFuturesOrderbookTicker
+		var data WebsocketFuturesOrderbookTicker
 		return e.processResponse(ctx, push.Result, &data)
 	case futuresOrderbookUpdateChannel:
 		return e.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
@@ -328,22 +327,22 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresUserTradesChannel:
 		return e.processFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
-		var data websocketResponse[[]*WsFuturesLiquidationNotification]
+		var data websocketResponse[[]*WebsocketFuturesLiquidationNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoDeleveragesChannel:
-		var data websocketResponse[[]*WsFuturesAutoDeleveragesNotification]
+		var data websocketResponse[[]*WebsocketFuturesAutoDeleveragesNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoPositionCloseChannel:
 		return e.processPositionCloseData(ctx, respRaw, a)
 	case futuresBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
-		var data websocketResponse[[]*WsFuturesReduceRiskLimitNotification]
+		var data websocketResponse[[]*WebsocketFuturesReduceRiskLimitNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresPositionsChannel:
 		return e.processFuturesPositionsNotification(ctx, respRaw, a)
 	case futuresAutoOrdersChannel:
-		var data websocketResponse[[]*WsFuturesAutoOrder]
+		var data websocketResponse[[]*WebsocketFuturesAutoOrder]
 		return e.processResponse(ctx, respRaw, &data)
 	case "futures.pong":
 		return nil
@@ -354,7 +353,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
+func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WebsocketChannelRequest, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errNoChannelsSupplied
 	}
@@ -368,12 +367,12 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		}
 	}
 
-	outbound := make([]*WsInput, len(channelsToSubscribe))
+	outbound := make([]*WebsocketChannelRequest, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
 		}
-		var auth *WsAuthInput
+		var auth *WebsocketAuthInput
 		timestamp := time.Now()
 		params := []string{channelsToSubscribe[i].Pairs[0].String()}
 		if omitContract, _ := channelsToSubscribe[i].Params[omitContractParam].(bool); omitContract {
@@ -398,11 +397,11 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 					params = append([]string{userID}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
 				if err != nil {
 					return nil, err
 				}
-				auth = &WsAuthInput{
+				auth = &WebsocketAuthInput{
 					Method: "api_key",
 					Key:    creds.Key,
 					Sign:   sigTemp,
@@ -460,25 +459,20 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 			}
 			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}
-		outbound[i] = &WsInput{
+		outbound[i] = &WebsocketChannelRequest{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
 			Auth:    auth,
-			Time:    timestamp.Unix(),
+			Time:    unixSeconds(timestamp),
 		}
 	}
 	return outbound, nil
 }
 
 func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, assetType asset.Item) error {
-	var resp struct {
-		Time    types.Time       `json:"time"`
-		Channel string           `json:"channel"`
-		Event   string           `json:"event"`
-		Result  []WsFutureTicker `json:"result"`
-	}
+	var resp WebsocketPush[[]WebsocketFutureTicker]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -511,12 +505,7 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 		return nil
 	}
 
-	var resp struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  []WsFuturesTrades `json:"result"`
-	}
+	var resp WebsocketPush[[]WebsocketFuturesTrades]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -532,19 +521,14 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 			Price:        resp.Result[x].Price.Float64(),
 			Amount:       amount,
 			Side:         side,
-			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
+			TID:          strconv.FormatUint(resp.Result[x].ID, 10),
 		}
 	}
 	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
 func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, assetType asset.Item) error {
-	var resp struct {
-		Time    types.Time            `json:"time"`
-		Channel string                `json:"channel"`
-		Event   string                `json:"event"`
-		Result  []*FuturesCandlestick `json:"result"`
-	}
+	var resp WebsocketPush[[]*FuturesCandlestickResponse]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -581,7 +565,7 @@ func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, 
 }
 
 func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
-	var data WsFuturesAndOptionsOrderbookUpdate
+	var data WebsocketFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -610,7 +594,7 @@ func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 
 func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
-		var data WsFuturesOrderbookSnapshot
+		var data WebsocketFuturesOrderbookSnapshot
 		if err := json.Unmarshal(incoming, &data); err != nil {
 			return err
 		}
@@ -634,7 +618,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event st
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(ctx, &base)
 	}
-	var data []*WsFuturesOrderbookUpdateEvent
+	var data []*WebsocketFuturesOrderbookUpdateEvent
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -679,12 +663,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event st
 }
 
 func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
-	var resp struct {
-		Time    types.Time     `json:"time"`
-		Channel string         `json:"channel"`
-		Event   string         `json:"event"`
-		Result  []FuturesOrder `json:"result"`
-	}
+	var resp WebsocketPush[[]FuturesOrderResponse]
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return nil, err
@@ -712,7 +691,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			Amount:               amount,
 			ContractAmount:       amount,
 			Exchange:             e.Name,
-			OrderID:              strconv.FormatInt(resp.Result[x].ID, 10),
+			OrderID:              strconv.FormatUint(resp.Result[x].ID, 10),
 			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
 			Status:               status,
 			Pair:                 resp.Result[x].Contract,
@@ -738,12 +717,7 @@ func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) e
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
-	var resp struct {
-		Time    types.Time           `json:"time"`
-		Channel string               `json:"channel"`
-		Event   string               `json:"event"`
-		Result  []WsFuturesUserTrade `json:"result"`
-	}
+	var resp WebsocketPush[[]WebsocketFuturesUserTrade]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -767,7 +741,7 @@ func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) e
 
 // processPositionCloseData emits zero-size canonical futures positions
 func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a asset.Item) error {
-	var resp websocketResponse[[]WsPositionClose]
+	var resp websocketResponse[[]WebsocketPositionClose]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -817,7 +791,7 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	var resp []*WsBalance
+	var resp []*WebsocketBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -849,7 +823,7 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 // processFuturesPositionsNotification emits canonical positions with Gate's
 // signed contract size represented as absolute size plus direction.
 func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte, a asset.Item) error {
-	var resp websocketResponse[[]WsFuturesPosition]
+	var resp websocketResponse[[]WebsocketFuturesPosition]
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -902,7 +876,7 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 			Leverage:                  leverage,
 			PositionMargin:            resp.Result[i].Margin.Decimal(),
 			MaintenanceMarginFraction: resp.Result[i].MaintenanceRate.Decimal(),
-			EstimatedLiquidationPrice: resp.Result[i].LiqPrice.Decimal(),
+			EstimatedLiquidationPrice: resp.Result[i].LiquidationPrice.Decimal(),
 			UpdateID:                  resp.Result[i].UpdateID,
 			RealisedPNL:               resp.Result[i].RealisedPNL.Decimal(),
 			OpeningPrice:              resp.Result[i].EntryPrice.Decimal(),

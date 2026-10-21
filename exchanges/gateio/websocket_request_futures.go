@@ -24,7 +24,7 @@ func (e *Exchange) authenticateFutures(ctx context.Context, conn websocket.Conne
 }
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
-func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, o *FuturesOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, o *FuturesOrderCreateRequest) (*WebsocketFuturesOrderResponse, error) {
 	resps, err := e.WebsocketFuturesSubmitOrders(ctx, a, o)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
-func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*FuturesOrderCreateParams) ([]*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*FuturesOrderCreateRequest) ([]*WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -66,12 +66,16 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, orderID stri
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}
-	params := &struct {
-		OrderID string `json:"order_id"`
-	}{OrderID: orderID}
+	params := &websocketOrderIDParams{OrderID: orderID}
 
-	var resp WebsocketFuturesOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, perpetualCancelOrderEPL, "futures.order_cancel", a, params, &resp, 1)
+	var resp *WebsocketFuturesOrderResponse
+	if err := e.SendWebsocketRequest(ctx, perpetualCancelOrderEPL, "futures.order_cancel", a, params, &resp, 1); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
 // WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
@@ -82,10 +86,7 @@ func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Contex
 	if side != "" && side != order.Ask.Lower() && side != order.Bid.Lower() {
 		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
-	params := &struct {
-		Contract currency.Pair `json:"contract"`
-		Side     string        `json:"side,omitempty"`
-	}{Contract: contract, Side: side}
+	params := &websocketCancelOpenOrdersParams{Contract: contract, Side: side}
 
 	var resp []*WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
@@ -111,7 +112,7 @@ func (e *Exchange) WebsocketFuturesCancelOrdersByIDs(ctx context.Context, a asse
 }
 
 // WebsocketFuturesAmendOrder amends an order via the websocket connection
-func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *WebsocketFuturesAmendOrder) (*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *WebsocketFuturesAmendOrderRequest) (*WebsocketFuturesOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
@@ -129,7 +130,7 @@ func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websoc
 }
 
 // WebsocketFuturesOrderList fetches a list of orders via the websocket connection
-func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersListRequest) ([]*WebsocketFuturesOrderResponse, error) {
 	if list == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
@@ -154,9 +155,7 @@ func (e *Exchange) WebsocketFuturesGetOrderStatus(ctx context.Context, contract 
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	params := &struct {
-		OrderID string `json:"order_id"`
-	}{OrderID: orderID}
+	params := &websocketOrderIDParams{OrderID: orderID}
 
 	var resp *WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)

@@ -232,11 +232,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsSpotURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               e.WsHandleSpotData,
+		Handler:               e.WebsocketHandleSpotData,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptionsSpot,
-		Connector:             e.WsConnectSpot,
+		Connector:             e.WebsocketConnectSpot,
 		Authenticate:          e.authenticateSpot,
 		MessageFilter:         asset.Spot,
 	}); err != nil {
@@ -252,7 +252,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, conn, incoming, asset.USDTMarginedFutures)
+			return e.WebsocketHandleFuturesData(ctx, conn, incoming, asset.USDTMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
@@ -260,7 +260,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.USDTMarginedFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return e.WsFuturesConnect(ctx, conn, asset.USDTMarginedFutures)
+			return e.WebsocketFuturesConnect(ctx, conn, asset.USDTMarginedFutures)
 		},
 		Authenticate:  e.authenticateFutures,
 		MessageFilter: asset.USDTMarginedFutures,
@@ -278,7 +278,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, conn, incoming, asset.CoinMarginedFutures)
+			return e.WebsocketHandleFuturesData(ctx, conn, incoming, asset.CoinMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
@@ -286,7 +286,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.CoinMarginedFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return e.WsFuturesConnect(ctx, conn, asset.CoinMarginedFutures)
+			return e.WebsocketFuturesConnect(ctx, conn, asset.CoinMarginedFutures)
 		},
 		MessageFilter: asset.CoinMarginedFutures,
 	}); err != nil {
@@ -303,7 +303,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
+			return e.WebsocketHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
 		Subscriber:   e.DeliveryFuturesSubscribe,
 		Unsubscriber: e.DeliveryFuturesUnsubscribe,
@@ -311,7 +311,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateDeliveryFuturesDefaultSubscriptions(asset.DeliveryFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return e.WsDeliveryFuturesConnect(ctx, conn, asset.DeliveryFutures)
+			return e.WebsocketDeliveryFuturesConnect(ctx, conn, asset.DeliveryFutures)
 		},
 		MessageFilter: asset.DeliveryFutures,
 	}); err != nil {
@@ -327,11 +327,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsOptionsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               e.WsHandleOptionsData,
+		Handler:               e.WebsocketHandleOptionsData,
 		Subscriber:            e.OptionsSubscribe,
 		Unsubscriber:          e.OptionsUnsubscribe,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
-		Connector:             e.WsOptionsConnect,
+		Connector:             e.WebsocketOptionsConnect,
 		MessageFilter:         asset.Options,
 	})
 }
@@ -344,7 +344,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // futures omit quanto_multiplier and coin-margined reports 0, which zeroes the product and leaves
 // the explicit field standing on its own, as it would too if Gate stopped serving the multiplier
 // here: the live ticker carries it, but Gate documents it only on the contract
-func futuresBaseVolume(t *FuturesTicker) float64 {
+func futuresBaseVolume(t *FuturesTickerResponse) float64 {
 	return max(t.Volume24Hour.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HourBase.Float64())
 }
 
@@ -389,7 +389,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		var tickers []*FuturesTicker
+		var tickers []*FuturesTickerResponse
 		if a == asset.DeliveryFutures {
 			tickers, err = e.GetDeliveryFutureTickers(ctx, settle, fPair)
 		} else {
@@ -630,7 +630,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if errs != nil {
 			return errs
 		}
-		var tickers []*FuturesTicker
+		var tickers []*FuturesTickerResponse
 		if a == asset.DeliveryFutures {
 			tickers, errs = e.GetDeliveryFutureTickers(ctx, settle, currency.EMPTYPAIR)
 		} else {
@@ -719,7 +719,7 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 	if err != nil {
 		return nil, err
 	}
-	var o *Orderbook
+	var o *OrderbookResponse
 	switch a {
 	case asset.Margin, asset.CrossMargin:
 		if available, err := e.checkInstrumentAvailabilityInSpot(p); err != nil {
@@ -796,7 +796,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		var acc *FuturesAccount
+		var acc *FuturesAccountResponse
 		if a == asset.DeliveryFutures {
 			acc, err = e.GetDeliveryFuturesAccounts(ctx, settle)
 		} else {
@@ -826,7 +826,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
+func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItemResponse) error {
 	for i := range response {
 		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
 			return err
@@ -852,7 +852,7 @@ func addIsolatedMarginAccountBalance(balances *accounts.CurrencyBalances, balanc
 	})
 }
 
-func setCrossMarginAccountBalances(balances *accounts.CurrencyBalances, account *CrossMarginAccount) {
+func setCrossMarginAccountBalances(balances *accounts.CurrencyBalances, account *CrossMarginAccountResponse) {
 	if account == nil {
 		return
 	}
@@ -980,7 +980,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		if err != nil {
 			return nil, err
 		}
-		var futuresTrades []*TradingHistoryItem
+		var futuresTrades []*TradingHistoryItemResponse
 		if a == asset.DeliveryFutures {
 			futuresTrades, err = e.GetDeliveryTradingHistory(ctx, settle, "", p.Upper(), 0, time.Time{}, time.Time{})
 		} else {
@@ -993,7 +993,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		for i, tradeH := range futuresTrades {
 			side, amount := tradeSideAndAmount(tradeH.Size.Float64())
 			resp[i] = trade.Data{
-				TID:          strconv.FormatInt(tradeH.ID, 10),
+				TID:          strconv.FormatUint(tradeH.ID, 10),
 				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    a,
@@ -1012,7 +1012,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		for i, td := range trades {
 			side, amount := tradeSideAndAmount(td.Size.Float64())
 			resp[i] = trade.Data{
-				TID:          strconv.FormatInt(td.ID, 10),
+				TID:          strconv.FormatUint(td.ID, 10),
 				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    a,
@@ -1072,7 +1072,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		response.Status = status
 		response.Fee = sOrder.FeeDeducted.Float64()
-		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
+		response.FeeAsset = sOrder.FeeCurrency
 		response.Pair = s.Pair
 		response.ClientOrderID = getClientOrderIDFromText(sOrder.Text)
 		response.Date = sOrder.CreateTime.Time()
@@ -1116,7 +1116,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		price, tif, err := contractOrderPriceAndTIF(s)
+		price, tif, err := orderPriceAndTIF(s)
 		if err != nil {
 			return nil, err
 		}
@@ -1134,7 +1134,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		response, err := s.DeriveSubmitResponse(strconv.FormatInt(optionOrder.OptionOrderID, 10))
+		response, err := s.DeriveSubmitResponse(strconv.FormatUint(optionOrder.OptionOrderID, 10))
 		if err != nil {
 			return nil, err
 		}
@@ -1154,8 +1154,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 }
 
 // deriveFuturesSubmitResponse returns the submit response for a placed perpetual or delivery futures order
-func deriveFuturesSubmitResponse(s *order.Submit, o *FuturesOrder) (*order.SubmitResponse, error) {
-	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(o.ID, 10))
+func deriveFuturesSubmitResponse(s *order.Submit, o *FuturesOrderResponse) (*order.SubmitResponse, error) {
+	resp, err := s.DeriveSubmitResponse(strconv.FormatUint(o.ID, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -1182,14 +1182,20 @@ func futuresOrderStatus(status, finishAs string) (order.Status, error) {
 
 // orderStatusFromFinishAs returns the status of an order that finished as Gate reports. Gate also finishes an order
 // when it cancels the unfilled remainder for a reason the order package has no status for, such as an unmet time in
-// force or a reduce-only conflict, so those report as cancelled
+// force or a reduce-only conflict, so those report as cancelled. Gate's default futures websocket page spells two
+// finish values auto_deleveraging and position_close, where its /en/ page and websocket SDK give auto_deleveraged and
+// position_closed, so both spellings are accepted
 func orderStatusFromFinishAs(finishAs string) (order.Status, error) {
 	switch finishAs {
 	case "", statusOpen:
 		return order.Open, nil
-	case "ioc", "poc", "fok", "small", "depth_not_enough", "trader_not_enough", "liquidate_cancelled", "price_protect_cancelled", "reduce_only", "reduce_out", "mmp_cancelled":
+	case "ioc", "poc", "fok", "small", "depth_not_enough", "trader_not_enough", "liquidate_cancelled", "price_protect_cancelled", "reduce_only", "reduce_out", "mmp_cancelled", "unified_check_failed":
 		return order.Cancelled, nil
-	case "unknown":
+	case "auto_deleveraging":
+		return order.AutoDeleverage, nil
+	case "position_close":
+		return order.Closed, nil
+	case "unknown", "-":
 		return order.UnknownStatus, nil
 	}
 	return order.StringToOrderStatus(finishAs)
@@ -1281,9 +1287,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		for start := 0; start < len(o); start += cancelBatchOrderLimit {
 			batch := o[start:min(start+cancelBatchOrderLimit, len(o))]
-			params := make([]CancelOrderByIDParam, len(batch))
+			params := make([]CancelOrderByIDRequest, len(batch))
 			for i := range batch {
-				params[i] = CancelOrderByIDParam{CurrencyPair: pairs[start+i], ID: batch[i].OrderID}
+				params[i] = CancelOrderByIDRequest{CurrencyPair: pairs[start+i], ID: batch[i].OrderID}
 			}
 			results, err := e.CancelBatchOrdersWithIDList(ctx, params)
 			outcomes := make([]cancelOutcome, len(results))
@@ -1414,7 +1420,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		if err != nil {
 			return resp, err
 		}
-		var cancel []*FuturesOrder
+		var cancel []*FuturesOrderResponse
 		if o.AssetType == asset.DeliveryFutures {
 			cancel, err = e.CancelMultipleDeliveryOrders(ctx, fmtPair, futuresSide, settle)
 		} else {
@@ -1424,7 +1430,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			return resp, err
 		}
 		for _, cancelResp := range cancel {
-			resp.Add(strconv.FormatInt(cancelResp.ID, 10), cancelResp.FinishAs)
+			resp.Add(strconv.FormatUint(cancelResp.ID, 10), cancelResp.FinishAs)
 		}
 	case asset.Options:
 		var underlying currency.Pair
@@ -1439,7 +1445,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			return resp, err
 		}
 		for _, oResp := range optionOrderResponse {
-			resp.Add(strconv.FormatInt(oResp.OptionOrderID, 10), oResp.FinishAs)
+			resp.Add(strconv.FormatUint(oResp.OptionOrderID, 10), oResp.FinishAs)
 		}
 	default:
 		return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
@@ -1470,7 +1476,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		var fOrder *FuturesOrder
+		var fOrder *FuturesOrderResponse
 		if a == asset.DeliveryFutures {
 			fOrder, err = e.GetSingleDeliveryOrder(ctx, settle, orderID)
 		} else {
@@ -1495,6 +1501,18 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 }
 
+// spotOrderType returns the type of a spot order, reading a unified account's borrow and repay variants as the limit or
+// market order they place
+func spotOrderType(t string) (order.Type, error) {
+	switch t {
+	case "limit_repay", "limit_borrow", "limit_borrow_repay":
+		return order.Limit, nil
+	case "market_repay", "market_borrow", "market_borrow_repay":
+		return order.Market, nil
+	}
+	return order.StringToOrderType(t)
+}
+
 // spotOrderAsset returns the asset of a spot market order from its account label. Gate labels a unified account's
 // orders unified, and an empty label means spot
 func spotOrderAsset(account string) (asset.Item, error) {
@@ -1505,7 +1523,7 @@ func spotOrderAsset(account string) (asset.Item, error) {
 }
 
 // spotOrderDetail returns the order detail of a spot, margin or cross margin order
-func (e *Exchange) spotOrderDetail(o *SpotOrder, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+func (e *Exchange) spotOrderDetail(o *SpotOrderResponse, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	side, err := order.StringToOrderSide(o.Side)
 	if err != nil {
 		return nil, err
@@ -1540,14 +1558,14 @@ func (e *Exchange) spotOrderDetail(o *SpotOrder, pair currency.Pair, a asset.Ite
 		Cost:                 o.FilledTotal.Float64(),
 		CostAsset:            costAsset,
 		Fee:                  o.FeeDeducted.Float64(),
-		FeeAsset:             currency.NewCode(o.FeeCurrency),
+		FeeAsset:             o.FeeCurrency,
 		Date:                 o.CreateTime.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
 	}, nil
 }
 
 // futuresOrderDetail returns the order detail of a perpetual or delivery futures order, whose size Gate signs by side
-func (e *Exchange) futuresOrderDetail(o *FuturesOrder, a asset.Item, settle currency.Code, format currency.PairFormat) (*order.Detail, error) {
+func (e *Exchange) futuresOrderDetail(o *FuturesOrderResponse, a asset.Item, settle currency.Code, format currency.PairFormat) (*order.Detail, error) {
 	status, err := futuresOrderStatus(o.Status, o.FinishAs)
 	if err != nil {
 		return nil, err
@@ -1559,7 +1577,7 @@ func (e *Exchange) futuresOrderDetail(o *FuturesOrder, a asset.Item, settle curr
 	side, amount, remaining := getSideAndAmountFromSize(o.Size.Float64(), o.RemainingAmount.Float64())
 	return &order.Detail{
 		Exchange:             e.Name,
-		OrderID:              strconv.FormatInt(o.ID, 10),
+		OrderID:              strconv.FormatUint(o.ID, 10),
 		ClientOrderID:        getClientOrderIDFromText(o.Text),
 		Side:                 side,
 		Type:                 getTypeFromTimeInForce(o.TimeInForce, o.Price.Float64()),
@@ -1597,7 +1615,7 @@ func (e *Exchange) optionsOrderDetail(o *OptionOrderResponse) (*order.Detail, er
 	side, amount, remaining := getSideAndAmountFromSize(o.Size.Float64(), o.RemainingAmount.Float64())
 	return &order.Detail{
 		Exchange:             e.Name,
-		OrderID:              strconv.FormatInt(o.OptionOrderID, 10),
+		OrderID:              strconv.FormatUint(o.OptionOrderID, 10),
 		ClientOrderID:        getClientOrderIDFromText(o.Text),
 		Side:                 side,
 		Type:                 getTypeFromTimeInForce(o.TimeInForce, o.Price.Float64()),
@@ -1732,7 +1750,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		var futuresOrders []*FuturesOrder
+		var futuresOrders []*FuturesOrderResponse
 		if req.AssetType == asset.DeliveryFutures {
 			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settle, "", 0, 0, false)
 		} else {
@@ -1857,7 +1875,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			var o []*TradingHistoryItem
+			var o []*TradingHistoryItemResponse
 			if req.AssetType == asset.DeliveryFutures {
 				o, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fp, 0, 0, 0, "")
 			} else {
@@ -1884,7 +1902,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					// Costs are kept in the settlement currency, as a delivery contract's quote names the contract
 					CostAsset: settle,
 					Trades: []order.TradeHistory{{
-						TID:       strconv.FormatInt(fill.ID, 10),
+						TID:       strconv.FormatUint(fill.ID, 10),
 						Price:     fill.Price.Float64(),
 						Amount:    amount,
 						Fee:       fill.Fee.Float64(),
@@ -1974,7 +1992,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				High:   sCandle.HighestPrice.Float64(),
 				Low:    sCandle.LowestPrice.Float64(),
 				Close:  sCandle.ClosePrice.Float64(),
-				Volume: sCandle.BaseCcyAmount.Float64(),
+				Volume: sCandle.BaseCurrencyAmount.Float64(),
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
@@ -1982,7 +2000,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		if err != nil {
 			return nil, err
 		}
-		var candles []*FuturesCandlestick
+		var candles []*FuturesCandlestickResponse
 		if a == asset.DeliveryFutures {
 			candles, err = e.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper(), req.Start, req.End, 0, req.ExchangeInterval)
 		} else {
@@ -2029,7 +2047,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 					High:   sCandle.HighestPrice.Float64(),
 					Low:    sCandle.LowestPrice.Float64(),
 					Close:  sCandle.ClosePrice.Float64(),
-					Volume: sCandle.BaseCcyAmount.Float64(),
+					Volume: sCandle.BaseCurrencyAmount.Float64(),
 				})
 			}
 		case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
@@ -2037,7 +2055,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if err != nil {
 				return nil, err
 			}
-			var candles []*FuturesCandlestick
+			var candles []*FuturesCandlestickResponse
 			if a == asset.DeliveryFutures {
 				candles, err = e.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper(), r.Start.Time, r.End.Time, 0, req.ExchangeInterval)
 			} else {
@@ -2133,7 +2151,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Multiplier:         fContract.QuantoMultiplier.Float64(),
 				MaxLeverage:        fContract.LeverageMax.Float64(),
 				LatestRate: fundingrate.Rate{
-					Time: fContract.FundingNextApply.Time().Add(-time.Duration(fContract.FundingInterval) * time.Second),
+					Time: fContract.FundingNextApply.Time().Add(-fContract.fundingInterval()),
 					Rate: fContract.FundingRate.Decimal(),
 				},
 			}
@@ -2239,7 +2257,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 
-		supported := make(map[currency.Pair]*IsolatedMarginLendingMarket, len(marginPairs))
+		supported := make(map[currency.Pair]*IsolatedMarginLendingMarketResponse, len(marginPairs))
 		now := time.Now()
 		for i := range marginPairs {
 			if !marginPairs[i].IsTradable(now) {
@@ -2580,13 +2598,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	return slices.Clip(resp), nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContractResponse, includeUpcomingRate bool) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
 		Pair:     fPair,
 		LatestRate: fundingrate.Rate{
-			Time: contract.FundingNextApply.Time().Add(-time.Duration(contract.FundingInterval) * time.Second),
+			Time: contract.FundingNextApply.Time().Add(-contract.fundingInterval()),
 			Rate: contract.FundingRate.Decimal(),
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
@@ -2726,7 +2744,7 @@ type openInterestContract interface {
 // worth one unit of that currency, which is why Gate reports quanto_multiplier "0" for it: the
 // position size is already the figure, and scaling it by the index price would restate a total
 // that is already in USD, inflating it by the whole index price
-func (c *FuturesContract) openInterest() float64 {
+func (c *FuturesContractResponse) openInterest() float64 {
 	if c.Type == contractTypeInverse {
 		return c.PositionSize.Float64()
 	}
@@ -2734,20 +2752,26 @@ func (c *FuturesContract) openInterest() float64 {
 	return c.PositionSize.Float64() * c.IndexPrice.Float64() * c.QuantoMultiplier.Float64()
 }
 
-func (c *FuturesContract) contractName() string {
+// fundingInterval returns the contract's funding interval, which Gate gives in seconds; the cap keeps an out of range
+// value from overflowing the duration
+func (c *FuturesContractResponse) fundingInterval() time.Duration {
+	return time.Duration(min(c.FundingInterval, uint64(math.MaxInt64/time.Second))) * time.Second
+}
+
+func (c *FuturesContractResponse) contractName() string {
 	return c.Name.String()
 }
 
-// openInterest matches FuturesContract's, so an inverse delivery contract could not be inflated by
+// openInterest matches FuturesContractResponse's, so an inverse delivery contract could not be inflated by
 // the index price were Gate to list one
-func (c *DeliveryContract) openInterest() float64 {
+func (c *DeliveryContractResponse) openInterest() float64 {
 	if c.Type == contractTypeInverse {
 		return c.PositionSize.Float64()
 	}
 	return c.PositionSize.Float64() * c.IndexPrice.Float64() * c.QuantoMultiplier.Float64()
 }
 
-func (c *DeliveryContract) contractName() string {
+func (c *DeliveryContractResponse) contractName() string {
 	return c.Name
 }
 
@@ -2919,10 +2943,11 @@ func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
 	return nil
 }
 
-// contractOrderPriceAndTIF returns the price and time in force to send for a perpetual futures, delivery or options
-// order. Gate takes a zero price as a market order, which must be IOC or FOK, and has no order type field, so any other
-// type would go out as a plain limit order; conditional orders go through the price triggered order endpoints instead
-func contractOrderPriceAndTIF(s *order.Submit) (price float64, tif string, err error) {
+// orderPriceAndTIF returns the price and time in force to send for an order. Gate takes a market order without a price
+// and only as IOC or FOK. A contract order has no order type field, so a zero price is what makes it a market order and
+// any other type would go out as a plain limit order; spot and margin orders are only limit or market orders.
+// Conditional orders go through the price triggered order endpoints instead
+func orderPriceAndTIF(s *order.Submit) (price float64, tif string, err error) {
 	switch s.Type {
 	case order.Limit:
 		price = s.Price
@@ -2939,16 +2964,16 @@ func contractOrderPriceAndTIF(s *order.Submit) (price float64, tif string, err e
 	return price, tif, nil
 }
 
-func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) {
+func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateRequest, error) {
 	amountWithDirection, err := getFutureOrderSize(s)
 	if err != nil {
 		return nil, err
 	}
-	price, tif, err := contractOrderPriceAndTIF(s)
+	price, tif, err := orderPriceAndTIF(s)
 	if err != nil {
 		return nil, err
 	}
-	return &FuturesOrderCreateParams{
+	return &FuturesOrderCreateRequest{
 		Contract:    s.Pair,
 		Size:        types.Number(amountWithDirection),
 		Price:       types.Number(price),
@@ -2958,16 +2983,16 @@ func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) 
 	}, nil
 }
 
-func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error) {
+func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateRequest, error) {
 	amountWithDirection, err := getFutureOrderSize(s)
 	if err != nil {
 		return nil, err
 	}
-	price, tif, err := contractOrderPriceAndTIF(s)
+	price, tif, err := orderPriceAndTIF(s)
 	if err != nil {
 		return nil, err
 	}
-	return &DeliveryOrderCreateParams{
+	return &DeliveryOrderCreateRequest{
 		Contract:    s.Pair,
 		Size:        types.Number(amountWithDirection),
 		Price:       types.Number(price),
@@ -3055,6 +3080,9 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
+		if side.IsLong() && resp.FilledAmount != 0 {
+			purchased = resp.FilledAmount.Float64() // Exact, where dividing by the rounded average price is not
+		}
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
@@ -3126,7 +3154,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             e.Name,
-			OrderID:              strconv.FormatInt(resp.ID, 10),
+			OrderID:              strconv.FormatUint(resp.ID, 10),
 			AssetType:            a,
 			Pair:                 resp.Contract,
 			ClientOrderID:        getClientOrderIDFromText(resp.Text),
@@ -3157,7 +3185,9 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, s.Side)
 	}
 
-	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+	// A market order that carries a price, as the backtester's live market orders do, would otherwise go out as GTC,
+	// which Gate refuses for market orders
+	price, tif, err := orderPriceAndTIF(s)
 	if err != nil {
 		return nil, err
 	}
@@ -3177,7 +3207,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Type:         s.Type.Lower(),
 		Account:      s.AssetType,
 		Amount:       types.Number(amount),
-		Price:        types.Number(s.Price),
+		Price:        types.Number(price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
@@ -3257,7 +3287,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		}
 		return e.deriveSpotWebsocketOrderResponses(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		reqs := make([]*FuturesOrderCreateParams, len(orders))
+		reqs := make([]*FuturesOrderCreateRequest, len(orders))
 		for i, s := range orders {
 			if err := e.formatOrderClientIDAndPair(s); err != nil {
 				return nil, err

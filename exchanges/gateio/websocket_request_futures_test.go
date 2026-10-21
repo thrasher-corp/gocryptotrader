@@ -67,9 +67,9 @@ func wsAPIOpenFuturesOrder(o *WebsocketFuturesOrderResponse) {
 
 func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &FuturesOrderCreateParams{})
+	_, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &FuturesOrderCreateRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := &FuturesOrderCreateParams{Contract: BTCUSDT}
+	out := &FuturesOrderCreateRequest{Contract: BTCUSDT}
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
@@ -87,11 +87,11 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
-	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.Spot, &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, Price: 40000, TimeInForce: gtcTIF})
+	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.Spot, &FuturesOrderCreateRequest{Contract: BTCUSDT, Size: 1, Price: 40000, TimeInForce: gtcTIF})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	ex := newWsAPITestExchange(t, asset.USDTMarginedFutures, canManipulateRealOrders)
-	got, err := ex.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 10, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-my-custom-id"})
+	got, err := ex.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &FuturesOrderCreateRequest{Contract: BTCUSDT, Size: 10, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-my-custom-id"})
 	require.NoError(t, err, "WebsocketFuturesSubmitOrder must not error")
 	if mockTests {
 		assert.Equal(t, wsAPIPlacedFuturesOrder(nil), got, "WebsocketFuturesSubmitOrder should decode every field")
@@ -105,7 +105,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	_, err := e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, errOrdersEmpty)
 
-	out := &FuturesOrderCreateParams{}
+	out := &FuturesOrderCreateRequest{}
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -131,8 +131,8 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	ex := newWsAPITestExchange(t, asset.USDTMarginedFutures, canManipulateRealOrders)
-	first := &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 10, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-my-custom-id"}
-	second := &FuturesOrderCreateParams{Contract: BTCUSDT, Size: -5, Price: 31600, TimeInForce: gtcTIF, Text: "t-my-other-id"}
+	first := &FuturesOrderCreateRequest{Contract: BTCUSDT, Size: 10, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-my-custom-id"}
+	second := &FuturesOrderCreateRequest{Contract: BTCUSDT, Size: -5, Price: 31600, TimeInForce: gtcTIF, Text: "t-my-other-id"}
 	got, err := ex.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, first, second)
 	require.NoError(t, err, "WebsocketFuturesSubmitOrders must not error")
 	if mockTests {
@@ -165,6 +165,9 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	require.NoError(t, err, "WebsocketFuturesCancelOrder must not error")
 	if mockTests {
 		assert.Equal(t, wsAPIFuturesOrder(nil), got, "WebsocketFuturesCancelOrder should decode every field")
+
+		_, err = ex.WebsocketFuturesCancelOrder(t.Context(), "74046544", BTCUSDT, asset.USDTMarginedFutures)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "WebsocketFuturesCancelOrder should reject a null result")
 		return
 	}
 	assert.NotEmpty(t, got, "WebsocketFuturesCancelOrder should return the cancelled order")
@@ -225,7 +228,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	_, err := e.WebsocketFuturesAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	amend := &WebsocketFuturesAmendOrder{}
+	amend := &WebsocketFuturesAmendOrderRequest{}
 	_, err = e.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -263,7 +266,7 @@ func TestWebsocketFuturesOrderList(t *testing.T) {
 	_, err := e.WebsocketFuturesOrderList(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	list := &WebsocketFutureOrdersList{}
+	list := &WebsocketFutureOrdersListRequest{}
 	_, err = e.WebsocketFuturesOrderList(t.Context(), list)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 

@@ -54,29 +54,29 @@ type tradFiList[T any] struct {
 	List []T `json:"list"`
 }
 
-// TradFiMT5Account holds MT5 account information
-type TradFiMT5Account struct {
+// TradFiMT5AccountResponse holds MT5 account information
+type TradFiMT5AccountResponse struct {
 	Leverage     uint64 `json:"leverage"`
 	StopOutLevel string `json:"stop_out_level"` // A percentage, such as 50%
 	Status       uint64 `json:"status"`         // 1: not opened, 2: pending review, 3: active
 }
 
-// TradFiCategory holds a trading symbol category
-type TradFiCategory struct {
+// TradFiCategoryResponse holds a trading symbol category
+type TradFiCategoryResponse struct {
 	CategoryID   uint64 `json:"category_id"`
 	IsFavourite  bool   `json:"is_favorite"`
 	CategoryName string `json:"category_name"`
 }
 
-// TradFiSymbolCommission holds the commission charged per lot when trading a symbol
-type TradFiSymbolCommission struct {
+// TradFiSymbolCommissionResponse holds the commission charged per lot when trading a symbol
+type TradFiSymbolCommissionResponse struct {
 	CategoryCode string       `json:"category_code"`
 	Symbol       string       `json:"symbol"`
 	FeePerLot    types.Number `json:"fee_per_lot"`
 }
 
-// TradFiSymbol holds trading symbol information
-type TradFiSymbol struct {
+// TradFiSymbolResponse holds trading symbol information
+type TradFiSymbolResponse struct {
 	Symbol                   string        `json:"symbol"`
 	SymbolDescription        string        `json:"symbol_desc"`
 	CategoryID               uint64        `json:"category_id"`
@@ -95,8 +95,8 @@ type TradFiSymbol struct {
 	Leverages []types.Number `json:"leverages"`
 }
 
-// TradFiSymbolDetail holds detailed contract information for a trading symbol
-type TradFiSymbolDetail struct {
+// TradFiSymbolDetailResponse holds detailed contract information for a trading symbol
+type TradFiSymbolDetailResponse struct {
 	Symbol             string        `json:"symbol"`
 	SymbolDescription  string        `json:"symbol_desc"`
 	CategoryName       string        `json:"category_name"`
@@ -126,8 +126,8 @@ type GetTradFiKlinesRequest struct {
 	Limit     uint64 // Up to 500
 }
 
-// TradFiKline holds a single candlestick
-type TradFiKline struct {
+// TradFiKlineResponse holds a single candlestick
+type TradFiKlineResponse struct {
 	Open      types.Number `json:"o"`
 	Close     types.Number `json:"c"`
 	Low       types.Number `json:"l"`
@@ -135,8 +135,8 @@ type TradFiKline struct {
 	Timestamp types.Time   `json:"t"`
 }
 
-// TradFiTicker holds ticker information for a trading symbol
-type TradFiTicker struct {
+// TradFiTickerResponse holds ticker information for a trading symbol
+type TradFiTickerResponse struct {
 	HighestPrice          types.Number `json:"highest_price"`
 	LowestPrice           types.Number `json:"lowest_price"`
 	PriceChangePercentage types.Number `json:"price_change"`
@@ -158,14 +158,14 @@ type TradFiTicker struct {
 	SettlementCurrency currency.Code `json:"settlement_currency"`
 }
 
-// TradFiUserInfo holds the TradFi account state returned after activation
-type TradFiUserInfo struct {
+// TradFiUserInfoResponse holds the TradFi account state returned after activation
+type TradFiUserInfoResponse struct {
 	Status   uint64 `json:"status"` // 1: not opened, 2: pending review, 3: opened
 	Leverage uint64 `json:"leverage"`
 }
 
-// TradFiUserAssets holds TradFi account balance and margin information
-type TradFiUserAssets struct {
+// TradFiUserAssetsResponse holds TradFi account balance and margin information
+type TradFiUserAssetsResponse struct {
 	Equity        types.Number `json:"equity"`
 	MarginLevel   types.Number `json:"margin_level"` // Percentage
 	Balance       types.Number `json:"balance"`
@@ -200,8 +200,8 @@ type TradFiTransaction struct {
 	Time            types.Time    `json:"time"`
 }
 
-// TradFiTransactionListData holds a page of fund transfer records
-type TradFiTransactionListData struct {
+// TradFiTransactionListResponse holds a page of fund transfer records
+type TradFiTransactionListResponse struct {
 	Total      uint64               `json:"total"`
 	TotalPages uint64               `json:"total_page"`
 	List       []*TradFiTransaction `json:"list"`
@@ -237,14 +237,14 @@ func (r *TradFiOrderRequest) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// TradFiCreateOrderResult holds the queue task ID returned after placing an order, which is the log ID that
+// TradFiCreateOrderResponse holds the queue task ID returned after placing an order, which is the log ID that
 // GetTradFiOrderLog takes rather than an order ID
-type TradFiCreateOrderResult struct {
+type TradFiCreateOrderResponse struct {
 	ID string `json:"id"`
 }
 
-// TradFiOrder holds an active order
-type TradFiOrder struct {
+// TradFiOrderResponse holds an active order
+type TradFiOrderResponse struct {
 	OrderID           uint64       `json:"order_id"`
 	Symbol            string       `json:"symbol"`
 	SymbolDescription string       `json:"symbol_desc"`
@@ -268,8 +268,8 @@ type TradFiOrderUpdateRequest struct {
 	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
 }
 
-// TradFiUpdatedOrder holds the order state after modification
-type TradFiUpdatedOrder struct {
+// TradFiUpdatedOrderResponse holds the order state after modification
+type TradFiUpdatedOrderResponse struct {
 	OrderID         uint64       `json:"order_id"`
 	Symbol          string       `json:"symbol"`
 	State           string       `json:"state"`
@@ -287,8 +287,8 @@ type GetTradFiOrderHistoryRequest struct {
 	Side      order.Side // Buy or Sell; UnknownSide returns both
 }
 
-// TradFiHistoricalOrder holds a completed order
-type TradFiHistoricalOrder struct {
+// TradFiHistoricalOrderResponse holds a completed order
+type TradFiHistoricalOrderResponse struct {
 	OrderID           uint64       `json:"order_id"`
 	Symbol            string       `json:"symbol"`
 	SymbolDescription string       `json:"symbol_desc"`
@@ -320,8 +320,8 @@ type TradFiOrderLogResponse struct {
 	Price     types.Number `json:"price"` // Average fill price
 }
 
-// TradFiPosition holds an open position
-type TradFiPosition struct {
+// TradFiPositionResponse holds an open position
+type TradFiPositionResponse struct {
 	PositionID        uint64       `json:"position_id"`
 	Symbol            string       `json:"symbol"`
 	SymbolDescription string       `json:"symbol_desc"`
@@ -396,8 +396,8 @@ type TradFiHistoricalPosition struct {
 	RealisedPNLDetail TradFiRealisedPNLDetail  `json:"realized_pnl_detail"`
 }
 
-// TradFiHistoricalPositionListData holds a page of closed positions
-type TradFiHistoricalPositionListData struct {
+// TradFiHistoricalPositionListResponse holds a page of closed positions
+type TradFiHistoricalPositionListResponse struct {
 	Total      uint64                      `json:"total"`
 	TotalPages uint64                      `json:"total_page"`
 	List       []*TradFiHistoricalPosition `json:"list"`

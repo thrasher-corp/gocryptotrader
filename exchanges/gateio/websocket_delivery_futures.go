@@ -33,8 +33,8 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-// WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection, assetType asset.Item) error {
+// WebsocketDeliveryFuturesConnect initiates a websocket connection for delivery futures account
+func (e *Exchange) WebsocketDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection, assetType asset.Item) error {
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocke
 	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WebsocketChannelRequest, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errNoChannelsSupplied
 	}
@@ -122,12 +122,12 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	outbound := make([]*WsInput, len(channelsToSubscribe))
+	outbound := make([]*WebsocketChannelRequest, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
 		}
-		var auth *WsAuthInput
+		var auth *WebsocketAuthInput
 		timestamp := time.Now()
 		var params []string
 		params = []string{channelsToSubscribe[i].Pairs[0].String()}
@@ -143,11 +143,11 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 					params = append([]string{value}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
 				if err != nil {
 					return nil, err
 				}
-				auth = &WsAuthInput{
+				auth = &WebsocketAuthInput{
 					Method: "api_key",
 					Key:    creds.Key,
 					Sign:   sigTemp,
@@ -192,13 +192,13 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 				params = append(params, intervalString)
 			}
 		}
-		outbound[i] = &WsInput{
+		outbound[i] = &WebsocketChannelRequest{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
 			Auth:    auth,
-			Time:    timestamp.Unix(),
+			Time:    unixSeconds(timestamp),
 		}
 	}
 	return outbound, nil

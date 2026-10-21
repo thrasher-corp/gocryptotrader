@@ -1,14 +1,19 @@
 package gateio
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestBotResponseError(t *testing.T) {
@@ -34,6 +39,52 @@ func TestBotResponsesAsError(t *testing.T) {
 	} {
 		assert.NoErrorf(t, tc.ok(), "%s should not error on success", name)
 		assert.ErrorContainsf(t, tc.failed(), "trace-1", "%s should error with the trace ID on failure", name)
+	}
+}
+
+func TestBotNullReplies(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`null`))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	spotGrid := &SpotGridCreateRequest{Market: "BTC_USDT"}
+	spotGrid.CreateParams.Money = 1000
+	spotGrid.CreateParams.LowPrice = 90000
+	spotGrid.CreateParams.HighPrice = 110000
+	spotGrid.CreateParams.GridNumber = 20
+	spotGrid.CreateParams.PriceType = BotPriceTypeGeometric
+	for name, call := range map[string]func() error{
+		"GetBotStrategyRecommendations": func() error {
+			_, err := ex.GetBotStrategyRecommendations(t.Context(), nil)
+			return err
+		},
+		"CreateSpotGridBot": func() error {
+			_, err := ex.CreateSpotGridBot(t.Context(), spotGrid)
+			return err
+		},
+		"GetBotRunningStrategies": func() error {
+			_, err := ex.GetBotRunningStrategies(t.Context(), BotStrategySpotGrid, "BTC_USDT", 1, 10)
+			return err
+		},
+		"GetBotStrategyDetail": func() error {
+			_, err := ex.GetBotStrategyDetail(t.Context(), "sg_001", BotStrategySpotGrid)
+			return err
+		},
+		"StopBotStrategy": func() error {
+			_, err := ex.StopBotStrategy(t.Context(), "sg_001", BotStrategySpotGrid)
+			return err
+		},
+	} {
+		assert.ErrorIsf(t, call(), common.ErrNoResponse, "%s should report a null reply", name)
 	}
 }
 
@@ -389,7 +440,7 @@ func TestGetBotStrategyDetail(t *testing.T) {
 	result, err := e.GetBotStrategyDetail(t.Context(), "sg_001", BotStrategySpotGrid)
 	require.NoError(t, err, "GetBotStrategyDetail must not error")
 	if mockTests {
-		exp := &BotPortfolioDetailData{
+		exp := &BotPortfolioDetail{
 			StrategyID:   "sg_001",
 			StrategyType: BotStrategySpotGrid,
 			Market:       "BTC_USDT",

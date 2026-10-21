@@ -19,7 +19,7 @@ func TestGetUnifiedUserRiskUnitDetails(t *testing.T) {
 	got, err := e.GetUnifiedUserRiskUnitDetails(t.Context())
 	require.NoError(t, err, "GetUnifiedUserRiskUnitDetails must not error")
 	if mockTests {
-		exp := &UserRiskUnitDetails{
+		exp := &UserRiskUnitDetailsResponse{
 			UserID:    10001,
 			SpotHedge: true,
 			RiskUnits: []RiskUnits{{
@@ -47,7 +47,7 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	_, err = e.GetFuturesRiskTable(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, errTableIDEmpty, "GetFuturesRiskTable must reject an empty table ID")
 
-	// A risk limit table ID is only exposed on a Position; no public endpoint returns one.
+	// A risk limit table ID is only exposed on a position; no public endpoint returns one.
 	// Mock runs use the recorded fixture ID; live runs source it from an open USDT futures position.
 	tableID := "BTC_USDT_20260626" // matches the recorded mock fixture's table_id query
 	if !mockTests {
@@ -69,7 +69,7 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, tableID)
 	require.NoError(t, err, "GetFuturesRiskTable must not error")
 	if mockTests {
-		exp := []*RiskTable{
+		exp := []*RiskTableResponse{
 			{
 				Tier:            1,
 				RiskLimit:       10000,
@@ -117,7 +117,7 @@ func TestGetFuturesRiskLimitTiers(t *testing.T) {
 	got, err = e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, avail[0], 0, 0)
 	require.NoError(t, err, "GetFuturesRiskLimitTiers must not error for a contract")
 	if mockTests {
-		exp := []*RiskTable{
+		exp := []*RiskTableResponse{
 			{
 				Tier:            1,
 				RiskLimit:       200000,
@@ -147,7 +147,7 @@ func TestGetDeliveryRiskLimitTiers(t *testing.T) {
 	require.NoError(t, err, "GetDeliveryRiskLimitTiers must not error for a page of markets")
 	require.NotEmpty(t, got, "GetDeliveryRiskLimitTiers must return tiers for a page of markets")
 	// The recorded tiers are the documentation's example, which lists a ZTX_USDT market
-	exp := &RiskTable{
+	exp := &RiskTableResponse{
 		Tier:            1,
 		RiskLimit:       20000,
 		InitialRate:     0.02,
@@ -168,7 +168,7 @@ func TestGetDeliveryRiskLimitTiers(t *testing.T) {
 	got, err = e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, avail[0], 0, 0)
 	require.NoError(t, err, "GetDeliveryRiskLimitTiers must not error for a contract")
 	if mockTests {
-		assert.Equal(t, []*RiskTable{exp}, got, "GetDeliveryRiskLimitTiers should decode a contract's tiers")
+		assert.Equal(t, []*RiskTableResponse{exp}, got, "GetDeliveryRiskLimitTiers should decode a contract's tiers")
 		return
 	}
 	assert.NotEmpty(t, got, "GetDeliveryRiskLimitTiers should return a contract's tiers")

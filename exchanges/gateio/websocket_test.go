@@ -31,7 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestGetWSPingHandler(t *testing.T) {
+func TestGetWebsocketPingHandler(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -545,10 +545,10 @@ func TestProcessSpotOrders(t *testing.T) {
 			Amount:         1,
 			Exchange:       ex.Name,
 			OrderID:        "30784435",
+			ClientOrderID:  "t-abc",
 			Side:           order.Sell,
 			Type:           order.Limit,
 			Pair:           currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
-			Cost:           0.5,
 			AssetType:      a,
 			Price:          10001,
 			ExecutedAmount: 0.75,
@@ -561,10 +561,164 @@ func TestProcessSpotOrders(t *testing.T) {
 	assert.Error(t, ex.processSpotOrders(t.Context(), []byte(`{`)), "processSpotOrders should reject malformed JSON")
 	assert.ErrorIs(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","side":"bogus","type":"limit","account":"spot"}]}`)), order.ErrSideIsInvalid, "processSpotOrders should reject an unknown side")
 	assert.ErrorIs(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","side":"sell","type":"iceberg","account":"spot"}]}`)), order.ErrUnrecognisedOrderType, "processSpotOrders should reject an unknown order type")
+	assert.ErrorContains(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1605175506,"channel":"spot.orders","event":"finish","result":[{"id":"1","event":"finish","side":"sell","type":"limit","account":"spot","finish_as":"bogus"}]}`)), "unrecognised order status", "processSpotOrders should reject an unknown finish reason")
 	require.Empty(t, ex.Websocket.DataHandler.C, "processSpotOrders must not relay a rejected push")
 }
 
-func TestWsHandleSpotDataNullResult(t *testing.T) {
+func TestProcessSpotOrdersLifecycle(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	created, updated := time.UnixMilli(1694655225315), time.UnixMilli(1694655226315)
+	const times = `"create_time_ms":"1694655225315","update_time_ms":"1694655226315"`
+	for _, tc := range []struct {
+		name  string
+		order string
+		exp   order.Detail
+	}{
+		{
+			name:  "open limit sell",
+			order: `{"id":"11","text":"t-open","event":"put","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"0.5","price":"70000","left":"0.5","filled_total":"0","filled_amount":"0","avg_deal_price":"0","fee":"0","fee_currency":"USDT",` + times + `}`,
+			exp:   order.Detail{OrderID: "11", ClientOrderID: "t-open", Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 70000, Amount: 0.5},
+		},
+		{
+			name:  "partly filled limit buy",
+			order: `{"id":"12","text":"apiv4","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"margin","side":"buy","amount":"0.5","price":"60000","left":"0.125","filled_total":"22500","filled_amount":"0.375","avg_deal_price":"60000","fee":"0.000375","fee_currency":"BTC",` + times + `}`,
+			exp:   order.Detail{OrderID: "12", Side: order.Buy, Type: order.Limit, AssetType: asset.Margin, Price: 60000, Amount: 0.5, ExecutedAmount: 0.375},
+		},
+		{
+			name:  "filled market buy",
+			order: `{"id":"13","text":"t-mb","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"100","price":"0","left":"0.25","filled_total":"99.75","filled_amount":"0.0015","avg_deal_price":"66500","fee":"0.0000015","fee_currency":"BTC",` + times + `}`,
+			exp:   order.Detail{OrderID: "13", ClientOrderID: "t-mb", Status: order.Filled, Side: order.Buy, Type: order.Market, AssetType: asset.Spot, Amount: 100, ExecutedAmount: 99.75, AverageExecutedPrice: 66500, Cost: 99.75, CostAsset: currency.USDT, Fee: 0.0000015, FeeAsset: currency.BTC},
+		},
+		{
+			name:  "filled market sell sized in the base currency",
+			order: `{"id":"14","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"market","account":"cross_margin","side":"sell","amount":"0.25","price":"0","left":"0","filled_total":"16662.5","filled_amount":"0.25","avg_deal_price":"66650","fee":"16.66","fee_currency":"USDT",` + times + `}`,
+			exp:   order.Detail{OrderID: "14", Status: order.Filled, Side: order.Sell, Type: order.Market, AssetType: asset.CrossMargin, Amount: 0.25, ExecutedAmount: 0.25, AverageExecutedPrice: 66650, Cost: 16662.5, CostAsset: currency.USDT, Fee: 16.66, FeeAsset: currency.USDT},
+		},
+		{
+			name:  "cancelled limit sell",
+			order: `{"id":"15","event":"finish","finish_as":"cancelled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"1",` + times + `}`,
+			exp:   order.Detail{OrderID: "15", Status: order.Cancelled, Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 80000, Amount: 1, CostAsset: currency.USDT},
+		},
+		{
+			name:  "unified limit borrow on a unified order book",
+			order: `{"id":"16","event":"put","finish_as":"open","currency_pair":"BTC_USDT","money":"USDC","type":"limit_borrow","account":"unified","side":"buy","amount":"0.5","price":"60000","left":"0.5",` + times + `}`,
+			exp:   order.Detail{OrderID: "16", Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5},
+		},
+		{
+			name:  "unified limit borrow filled on a unified order book",
+			order: `{"id":"18","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","money":"USDC","type":"limit_borrow","account":"unified","side":"buy","amount":"0.5","price":"60000","left":"0","filled_total":"30000","filled_amount":"0.5","avg_deal_price":"60000",` + times + `}`,
+			exp:   order.Detail{OrderID: "18", Status: order.Filled, Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5, ExecutedAmount: 0.5, AverageExecutedPrice: 60000, Cost: 30000, CostAsset: currency.USDC},
+		},
+		{
+			name:  "unified market borrow and repay sell finished by its time in force",
+			order: `{"id":"17","event":"finish","finish_as":"ioc","currency_pair":"BTC_USDT","type":"market_borrow_repay","account":"unified","side":"sell","amount":"0.5","left":"0.25","filled_amount":"0.25",` + times + `}`,
+			exp:   order.Detail{OrderID: "17", Status: order.Cancelled, Side: order.Sell, Type: order.Market, AssetType: asset.Spot, Amount: 0.5, ExecutedAmount: 0.25, CostAsset: currency.USDT},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			push := `{"time":1694655226,"channel":"spot.orders","event":"update","result":[` + tc.order + `]}`
+			require.NoError(t, ex.processSpotOrders(t.Context(), []byte(push)), "processSpotOrders must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must relay the push")
+			tc.exp.Exchange, tc.exp.Pair, tc.exp.Date, tc.exp.LastUpdated = ex.Name, pair, created, updated
+			assert.Equal(t, []order.Detail{tc.exp}, (<-ex.Websocket.DataHandler.C).Data, "processSpotOrders should relay every field of the order")
+		})
+	}
+}
+
+func TestProcessSpotOrdersMixedEvents(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	push := `{"time":1694655226,"channel":"spot.orders","event":"update","result":[` +
+		`{"id":"31","event":"put","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"60000","left":"1"},` +
+		`{"id":"32","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"60000","left":"0","filled_total":"60000","avg_deal_price":"60000","fee":"0.001","fee_currency":"BTC"},` +
+		`{"id":"33","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"60000","left":"0.5"}]}`
+	require.NoError(t, ex.processSpotOrders(t.Context(), []byte(push)), "processSpotOrders must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must relay the push")
+	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "processSpotOrders must relay order details")
+	require.Len(t, details, 3, "processSpotOrders must relay every order of the push")
+	assert.Equal(t, "31", details[0].OrderID, "processSpotOrders should relay the put order")
+	assert.Equal(t, order.UnknownStatus, details[0].Status, "a put order should carry no status")
+	assert.Equal(t, "32", details[1].OrderID, "processSpotOrders should relay the finished order after the put")
+	assert.Equal(t, order.Filled, details[1].Status, "the finished order should carry its status")
+	assert.Equal(t, 0.001, details[1].Fee, "the finished order should carry its fee")
+	assert.Equal(t, "33", details[2].OrderID, "processSpotOrders should relay the update after the finished order")
+	assert.Equal(t, 0.5, details[2].ExecutedAmount, "the updated order should carry what it executed")
+	assert.Zero(t, details[2].Fee, "the updated order should carry no fee")
+}
+
+// TestProcessSpotOrdersMerge relays successive pushes into a stored order, merging each as the order manager does
+func TestProcessSpotOrdersMerge(t *testing.T) {
+	t.Parallel()
+	const times = `"create_time_ms":"1694655225315","update_time_ms":"1694655226315"`
+	relay := func(t *testing.T, ex *Exchange, o string) *order.Detail {
+		t.Helper()
+		require.NoError(t, ex.processSpotOrders(t.Context(), []byte(`{"time":1694655226,"channel":"spot.orders","event":"update","result":[`+o+`]}`)), "processSpotOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must relay the push")
+		details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+		require.True(t, ok, "processSpotOrders must relay order details")
+		require.Len(t, details, 1, "processSpotOrders must relay one order")
+		return &details[0]
+	}
+	newExchange := func(t *testing.T) *Exchange {
+		t.Helper()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		return ex
+	}
+
+	t.Run("a delayed earlier push does not reopen a finished order", func(t *testing.T) {
+		t.Parallel()
+		ex := newExchange(t)
+		stored := relay(t, ex, `{"id":"21","event":"finish","finish_as":"cancelled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"0.5","filled_amount":"0.5","fee":"0.001","fee_currency":"USDT",`+times+`}`)
+		late := relay(t, ex, `{"id":"21","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"0.5","filled_amount":"0.5","fee":"0.001","fee_currency":"USDT",`+times+`}`)
+		require.NoError(t, stored.UpdateOrderFromDetail(late), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, order.Cancelled, stored.Status, "a delayed open push should not reopen a cancelled order")
+	})
+
+	t.Run("a filled order keeps no remainder from its partial fills", func(t *testing.T) {
+		t.Parallel()
+		ex := newExchange(t)
+		stored := relay(t, ex, `{"id":"22","event":"put","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"1",`+times+`}`)
+		for _, o := range []string{
+			`{"id":"22","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"0.5","filled_amount":"0.5",` + times + `}`,
+			`{"id":"22","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"0","filled_amount":"1",` + times + `}`,
+		} {
+			require.NoError(t, stored.UpdateOrderFromDetail(relay(t, ex, o)), "UpdateOrderFromDetail must not error")
+		}
+		assert.Equal(t, order.Filled, stored.Status, "the finish push should leave the order filled")
+		assert.Equal(t, 1.0, stored.ExecutedAmount, "the order should be fully executed")
+		assert.Zero(t, stored.RemainingAmount, "a filled order should keep no remainder from a partial fill")
+	})
+
+	t.Run("a finish without a fee does not relabel a stored fee", func(t *testing.T) {
+		t.Parallel()
+		ex := newExchange(t)
+		stored := &order.Detail{Exchange: ex.Name, OrderID: "24", Fee: 0.001, FeeAsset: currency.BTC}
+		finished := relay(t, ex, `{"id":"24","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"60000","left":"0","filled_total":"60000","filled_amount":"1","avg_deal_price":"60000","fee":"0","fee_currency":"GT",`+times+`}`)
+		require.NoError(t, stored.UpdateOrderFromDetail(finished), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, 0.001, stored.Fee, "a finish without a fee should keep the stored fee")
+		assert.Equal(t, currency.BTC, stored.FeeAsset, "a finish without a fee should keep the stored fee's currency")
+	})
+
+	t.Run("a delayed earlier push does not put back an older fee, cost or average price", func(t *testing.T) {
+		t.Parallel()
+		ex := newExchange(t)
+		stored := relay(t, ex, `{"id":"23","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"65000","left":"0","filled_total":"65000","filled_amount":"1","avg_deal_price":"65000","fee":"0.001","fee_currency":"BTC",`+times+`}`)
+		late := relay(t, ex, `{"id":"23","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"65000","left":"0.5","filled_total":"30000","filled_amount":"0.5","avg_deal_price":"60000","fee":"0.0005","fee_currency":"BTC",`+times+`}`)
+		require.NoError(t, stored.UpdateOrderFromDetail(late), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, 0.001, stored.Fee, "a delayed push should not put back an older fee")
+		assert.Equal(t, 65000.0, stored.Cost, "a delayed push should not put back an older cost")
+		assert.Equal(t, 65000.0, stored.AverageExecutedPrice, "a delayed push should not put back an older average price")
+	})
+}
+
+func TestWebsocketHandleSpotDataNullResult(t *testing.T) {
 	t.Parallel()
 	// Gate sends a null result alongside an error; these channels decode one object, which must not dereference nil
 	for _, tc := range []struct {
@@ -583,13 +737,13 @@ func TestWsHandleSpotDataNullResult(t *testing.T) {
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			var err error
 			require.NotPanics(t, func() {
-				err = ex.WsHandleSpotData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"update","result":null}`))
-			}, "WsHandleSpotData must not panic on a null result")
+				err = ex.WebsocketHandleSpotData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"update","result":null}`))
+			}, "WebsocketHandleSpotData must not panic on a null result")
 			if tc.errContains != "" {
-				assert.ErrorContains(t, err, tc.errContains, "WsHandleSpotData should reject a null result")
+				assert.ErrorContains(t, err, tc.errContains, "WebsocketHandleSpotData should reject a null result")
 				return
 			}
-			assert.ErrorIs(t, err, tc.err, "WsHandleSpotData should return the expected error for a null result")
+			assert.ErrorIs(t, err, tc.err, "WebsocketHandleSpotData should return the expected error for a null result")
 		})
 	}
 }

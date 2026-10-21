@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -281,7 +282,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 	})
 }
 
-func TestWsHandleFuturesDataRelaysResult(t *testing.T) {
+func TestWebsocketHandleFuturesDataRelaysResult(t *testing.T) {
 	t.Parallel()
 	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
 	for _, tc := range []struct {
@@ -292,14 +293,14 @@ func TestWsHandleFuturesDataRelaysResult(t *testing.T) {
 		{
 			channel: futuresOrderbookTickerChannel,
 			result:  `{"t":1615366379123,"u":2517661076,"s":"BTC_USDT","b":"54696.6","B":"37000.5","a":"54696.7","A":"47061.25"}`,
-			exp:     &WsFuturesOrderbookTicker{Timestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, CurrencyPair: "BTC_USDT", BestBidPrice: 54696.6, BestBidAmount: 37000.5, BestAskPrice: 54696.7, BestAskAmount: 47061.25},
+			exp:     &WebsocketFuturesOrderbookTicker{Timestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, CurrencyPair: "BTC_USDT", BestBidPrice: 54696.6, BestBidAmount: 37000.5, BestAskPrice: 54696.7, BestAskAmount: 47061.25},
 		},
 		{
 			channel: futuresLiquidatesChannel,
 			result:  `[{"entry_price":209,"fill_price":215.1,"left":"3.5","leverage":"10","liq_price":213,"margin":0.007816722941,"mark_price":213.5,"order_id":4093362,"order_price":215.2,"size":"-124.5","time":1541486601,"time_ms":1541486601123,"contract":"BTC_USDT","user":"1040"}]`,
-			exp: &websocketResponse[[]*WsFuturesLiquidationNotification]{
+			exp: &websocketResponse[[]*WebsocketFuturesLiquidationNotification]{
 				Time: types.Time(time.Unix(1630576300, 0)), Channel: futuresLiquidatesChannel, Event: "update",
-				Result: []*WsFuturesLiquidationNotification{{
+				Result: []*WebsocketFuturesLiquidationNotification{{
 					EntryPrice: 209, FillPrice: 215.1, RemainingAmount: 3.5, Leverage: 10, LiquidationPrice: 213, Margin: 0.007816722941,
 					MarkPrice: 213.5, OrderID: 4093362, OrderPrice: 215.2, Size: -124.5, Time: types.Time(time.UnixMilli(1541486601123)),
 					Contract: contract, User: "1040",
@@ -310,9 +311,9 @@ func TestWsHandleFuturesDataRelaysResult(t *testing.T) {
 			// Gate documents the sizes as strings or integers
 			channel: futuresAutoDeleveragesChannel + " integers",
 			result:  `[{"entry_price":209,"fill_price":215.1,"position_size":10,"trade_size":-2,"time":1541486601,"time_ms":1541486601123,"contract":"BTC_USDT","user":"1040"}]`,
-			exp: &websocketResponse[[]*WsFuturesAutoDeleveragesNotification]{
+			exp: &websocketResponse[[]*WebsocketFuturesAutoDeleveragesNotification]{
 				Time: types.Time(time.Unix(1630576300, 0)), Channel: futuresAutoDeleveragesChannel, Event: "update",
-				Result: []*WsFuturesAutoDeleveragesNotification{{
+				Result: []*WebsocketFuturesAutoDeleveragesNotification{{
 					EntryPrice: 209, FillPrice: 215.1, PositionSize: 10, TradeSize: -2, Time: types.Time(time.UnixMilli(1541486601123)),
 					Contract: contract, User: "1040",
 				}},
@@ -322,9 +323,9 @@ func TestWsHandleFuturesDataRelaysResult(t *testing.T) {
 			// Size decimal connections receive both sizes as strings
 			channel: futuresAutoDeleveragesChannel,
 			result:  `[{"entry_price":209,"fill_price":215.1,"position_size":"10.5","trade_size":"-2.25","time":1541486601,"time_ms":1541486601123,"contract":"BTC_USDT","user":"1040"}]`,
-			exp: &websocketResponse[[]*WsFuturesAutoDeleveragesNotification]{
+			exp: &websocketResponse[[]*WebsocketFuturesAutoDeleveragesNotification]{
 				Time: types.Time(time.Unix(1630576300, 0)), Channel: futuresAutoDeleveragesChannel, Event: "update",
-				Result: []*WsFuturesAutoDeleveragesNotification{{
+				Result: []*WebsocketFuturesAutoDeleveragesNotification{{
 					EntryPrice: 209, FillPrice: 215.1, PositionSize: 10.5, TradeSize: -2.25, Time: types.Time(time.UnixMilli(1541486601123)),
 					Contract: contract, User: "1040",
 				}},
@@ -336,22 +337,22 @@ func TestWsHandleFuturesDataRelaysResult(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			push := `{"time":1630576300,"time_ms":1630576300123,"channel":"` + strings.Fields(tc.channel)[0] + `","event":"update","result":` + tc.result + `}`
-			require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, []byte(push), asset.USDTMarginedFutures), "WsHandleFuturesData must not error")
-			require.Len(t, ex.Websocket.DataHandler.C, 1, "WsHandleFuturesData must relay the push")
-			assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WsHandleFuturesData should relay the decoded push")
+			require.NoError(t, ex.WebsocketHandleFuturesData(t.Context(), nil, []byte(push), asset.USDTMarginedFutures), "WebsocketHandleFuturesData must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleFuturesData must relay the push")
+			assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WebsocketHandleFuturesData should relay the decoded push")
 		})
 	}
 }
 
-func TestWsHandleFuturesDataNullResult(t *testing.T) {
+func TestWebsocketHandleFuturesDataNullResult(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	var err error
 	require.NotPanics(t, func() {
-		err = ex.WsHandleFuturesData(t.Context(), nil, []byte(`{"time":1,"channel":"futures.order_book","event":"all","result":null}`), asset.USDTMarginedFutures)
-	}, "WsHandleFuturesData must not panic on a null orderbook snapshot")
-	assert.ErrorContains(t, err, "currency pair not set", "WsHandleFuturesData should reject a null orderbook snapshot")
+		err = ex.WebsocketHandleFuturesData(t.Context(), nil, []byte(`{"time":1,"channel":"futures.order_book","event":"all","result":null}`), asset.USDTMarginedFutures)
+	}, "WebsocketHandleFuturesData must not panic on a null orderbook snapshot")
+	assert.ErrorContains(t, err, "currency pair not set", "WebsocketHandleFuturesData should reject a null orderbook snapshot")
 }
 
 // dialRecorderConnection records a dial in place of connecting
@@ -376,7 +377,7 @@ func (c *dialRecorderConnection) SetupPingHandler(request.EndpointLimit, websock
 	c.pinged = true
 }
 
-func TestWsFuturesConnect(t *testing.T) {
+func TestWebsocketFuturesConnect(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
@@ -384,19 +385,19 @@ func TestWsFuturesConnect(t *testing.T) {
 
 	// A configured coin margined URL no longer decides which asset the connection checks
 	conn := &dialRecorderConnection{url: "wss://proxy.example/v4/ws/btc"}
-	require.NoError(t, ex.WsFuturesConnect(t.Context(), conn, asset.CoinMarginedFutures), "WsFuturesConnect must dial an enabled coin margined connection")
-	assert.True(t, conn.dialled, "WsFuturesConnect should dial")
-	assert.Equal(t, "1", conn.header.Get(sizeDecimalHeader), "WsFuturesConnect should request decimal sizes")
-	assert.True(t, conn.pinged, "WsFuturesConnect should set up the ping handler")
+	require.NoError(t, ex.WebsocketFuturesConnect(t.Context(), conn, asset.CoinMarginedFutures), "WebsocketFuturesConnect must dial an enabled coin margined connection")
+	assert.True(t, conn.dialled, "WebsocketFuturesConnect should dial")
+	assert.Equal(t, "1", conn.header.Get(sizeDecimalHeader), "WebsocketFuturesConnect should request decimal sizes")
+	assert.True(t, conn.pinged, "WebsocketFuturesConnect should set up the ping handler")
 
 	conn = &dialRecorderConnection{url: usdtFuturesWebsocketURL}
-	assert.ErrorIs(t, ex.WsFuturesConnect(t.Context(), conn, asset.USDTMarginedFutures), asset.ErrNotEnabled, "WsFuturesConnect should reject a disabled asset")
-	assert.False(t, conn.dialled, "WsFuturesConnect should not dial for a disabled asset")
+	assert.ErrorIs(t, ex.WebsocketFuturesConnect(t.Context(), conn, asset.USDTMarginedFutures), asset.ErrNotEnabled, "WebsocketFuturesConnect should reject a disabled asset")
+	assert.False(t, conn.dialled, "WebsocketFuturesConnect should not dial for a disabled asset")
 
 	errDial := errors.New("dial failed")
 	conn = &dialRecorderConnection{url: btcFuturesWebsocketURL, dialErr: errDial}
-	assert.ErrorIs(t, ex.WsFuturesConnect(t.Context(), conn, asset.CoinMarginedFutures), errDial, "WsFuturesConnect should return a dial error")
-	assert.False(t, conn.pinged, "WsFuturesConnect should not set up the ping handler after a failed dial")
+	assert.ErrorIs(t, ex.WebsocketFuturesConnect(t.Context(), conn, asset.CoinMarginedFutures), errDial, "WebsocketFuturesConnect should return a dial error")
+	assert.False(t, conn.pinged, "WebsocketFuturesConnect should not set up the ping handler after a failed dial")
 }
 
 func TestProcessFuturesTrades(t *testing.T) {
@@ -453,16 +454,33 @@ func TestProcessFuturesOrderbookSnapshot(t *testing.T) {
 	assert.ErrorIs(t, ex.processFuturesOrderbookSnapshot(t.Context(), "update", []byte(`[{"p":"0","s":1,"c":"BTC_USDT"}]`), asset.USDTMarginedFutures, time.Now()), orderbook.ErrPriceZero, "processFuturesOrderbookSnapshot should return a failure to load the book")
 }
 
-func TestWsHandleFuturesDataErrors(t *testing.T) {
+func TestWebsocketHandleFuturesDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	assert.ErrorIs(t, ex.WsHandleFuturesData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"futures.tickers"}`), asset.USDTMarginedFutures), strconv.ErrSyntax, "WsHandleFuturesData should reject an invalid header")
-	assert.ErrorContains(t, ex.WsHandleFuturesData(t.Context(), nil, []byte(`{"time":1541505434,"channel":"futures.orders","event":"update","result":[{"status":"bogus"}]}`), asset.USDTMarginedFutures), "unrecognised order status", "WsHandleFuturesData should return an orders push failure")
-	require.Empty(t, ex.Websocket.DataHandler.C, "WsHandleFuturesData must not relay a failed push")
+	assert.ErrorIs(t, ex.WebsocketHandleFuturesData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"futures.tickers"}`), asset.USDTMarginedFutures), strconv.ErrSyntax, "WebsocketHandleFuturesData should reject an invalid header")
+	assert.ErrorContains(t, ex.WebsocketHandleFuturesData(t.Context(), nil, []byte(`{"time":1541505434,"channel":"futures.orders","event":"update","result":[{"status":"bogus"}]}`), asset.USDTMarginedFutures), "unrecognised order status", "WebsocketHandleFuturesData should return an orders push failure")
+	require.Empty(t, ex.Websocket.DataHandler.C, "WebsocketHandleFuturesData must not relay a failed push")
 
-	require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, []byte(`{"time":1541505434,"channel":"futures.unknown","event":"update","result":[]}`), asset.USDTMarginedFutures), "WsHandleFuturesData must not error on an unknown channel")
-	require.Len(t, ex.Websocket.DataHandler.C, 1, "WsHandleFuturesData must relay an unhandled message warning")
+	require.NoError(t, ex.WebsocketHandleFuturesData(t.Context(), nil, []byte(`{"time":1541505434,"channel":"futures.unknown","event":"update","result":[]}`), asset.USDTMarginedFutures), "WebsocketHandleFuturesData must not error on an unknown channel")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleFuturesData must relay an unhandled message warning")
 	_, ok := (<-ex.Websocket.DataHandler.C).Data.(websocket.UnhandledMessageWarning)
-	assert.True(t, ok, "WsHandleFuturesData should relay an unknown channel as an unhandled message")
+	assert.True(t, ok, "WebsocketHandleFuturesData should relay an unknown channel as an unhandled message")
+}
+
+func TestWebsocketFuturesPointNumbers(t *testing.T) {
+	t.Parallel()
+	for name, value := range map[string]string{"number": `0.25`, "string": `"0.25"`} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var tradeUpdate WebsocketFuturesUserTrade
+			require.NoError(t, json.Unmarshal([]byte(`{"point_fee":`+value+`}`), &tradeUpdate), "fractional point_fee must decode")
+			assert.Equal(t, types.Number(0.25), tradeUpdate.PointFee, "point_fee should retain the fraction")
+
+			var position WebsocketFuturesPosition
+			loss := strings.ReplaceAll(value, "0.25", "-0.25")
+			require.NoError(t, json.Unmarshal([]byte(`{"history_point":`+loss+`}`), &position), "fractional history_point must decode")
+			assert.Equal(t, types.Number(-0.25), position.HistoryPoint, "history_point should retain the negative fraction")
+		})
+	}
 }

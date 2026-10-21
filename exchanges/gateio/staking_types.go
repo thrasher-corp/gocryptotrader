@@ -6,8 +6,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// StakingCoin holds an on-chain staking product
-type StakingCoin struct {
+// StakingCoinResponse holds an on-chain staking product
+type StakingCoinResponse struct {
 	ProductID           uint64                   `json:"pid"`
 	ProductType         uint8                    `json:"productType"` // 0 voucher, 1 locked position, 2 US Treasury bond
 	IsDeFi              types.Boolean            `json:"isDefi"`
@@ -118,8 +118,8 @@ type StakingDividendRecordsResponse struct {
 	List       []*StakingDividendRecord `json:"list"`
 }
 
-// StakingAssetItem holds an on-chain staking position
-type StakingAssetItem struct {
+// StakingAssetItemResponse holds an on-chain staking position
+type StakingAssetItemResponse struct {
 	ProductID      uint64       `json:"pid"`
 	MortgageCoin   string       `json:"mortgage_coin"` // Comma separated when the product stakes several currencies
 	MortgageAmount types.Number `json:"mortgage_amount"`
@@ -139,7 +139,7 @@ type StakingAssetItem struct {
 // StakingRewardCoin holds an on-chain staking position's reward currency
 type StakingRewardCoin struct {
 	RewardCoin        currency.Code `json:"reward_coin"`
-	InterestDelayDays int64         `json:"interest_delay_days"`
+	InterestDelayDays uint64        `json:"interest_delay_days"`
 	RewardDelayDays   int64         `json:"reward_delay_days"` // -1 when dividends are only paid on redemption
 }
 

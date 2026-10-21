@@ -37,13 +37,13 @@ type announcementArticlesRequestBody struct {
 	CategoryLevel      string `json:"cate_level,omitempty"`
 	SubWebsiteID       string `json:"sub_website_id,omitempty"`
 	Pinned             *uint8 `json:"pinned,omitempty"`
-	UpdateAfter        int64  `json:"update_after,omitempty"`
+	UpdateAfter        uint64 `json:"update_after,omitempty"`
 	Language           string `json:"lang,omitempty"`
 	FilterEmptyContent *uint8 `json:"filter_empty_content,omitempty"`
 }
 
-// AnnouncementArticleList holds a page of announcement articles
-type AnnouncementArticleList struct {
+// AnnouncementArticleListResponse holds a page of announcement articles
+type AnnouncementArticleListResponse struct {
 	Total uint64                 `json:"total"`
 	List  []*AnnouncementArticle `json:"list"`
 }

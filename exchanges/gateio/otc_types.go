@@ -11,7 +11,7 @@ import (
 
 // OTCActionResponse holds the response for OTC action operations such as cancel or mark paid.
 type OTCActionResponse struct {
-	Code      int64      `json:"code"`
+	Code      uint64     `json:"code"`
 	Message   string     `json:"message"`
 	Timestamp types.Time `json:"timestamp"`
 }
@@ -35,8 +35,8 @@ type OTCQuoteRequest struct {
 	PromotionCode    string        `json:"promotion_code,omitempty"`
 }
 
-// OTCQuoteData holds the quote data returned by the OTC quote API.
-type OTCQuoteData struct {
+// OTCQuoteResponse holds the quote data returned by the OTC quote API.
+type OTCQuoteResponse struct {
 	Type                   string        `json:"type"`
 	PayCoin                currency.Code `json:"pay_coin"`
 	GetCoin                currency.Code `json:"get_coin"`
@@ -97,8 +97,8 @@ type OTCBankCard struct {
 	IsDefault  types.Boolean `json:"is_default"`
 }
 
-// OTCBankCardListData holds the bank card list response data.
-type OTCBankCardListData struct {
+// OTCBankCardListResponse holds the bank card list response data.
+type OTCBankCardListResponse struct {
 	Lists []*OTCBankCard `json:"lists"`
 }
 
@@ -125,8 +125,8 @@ type OTCBankCardRequestResponse struct {
 	Status uint64 `json:"status"`
 }
 
-// OTCBankSupplementChecklist holds the supplementary materials Gate requires for a bank card
-type OTCBankSupplementChecklist struct {
+// OTCBankSupplementChecklistResponse holds the supplementary materials Gate requires for a bank card
+type OTCBankSupplementChecklistResponse struct {
 	UserType string                           `json:"user_type"`
 	Items    []OTCBankSupplementChecklistItem `json:"items"`
 }
@@ -184,7 +184,7 @@ type OTCPreUploadPolicyFields struct {
 	ContentType string `json:"Content-Type"`
 	Credential  string `json:"X-Amz-Credential"`
 	Algorithm   string `json:"X-Amz-Algorithm"`
-	Date        string `json:"X-Amz-Date"`
+	Date        string `json:"X-Amz-Date"` // Sent back unchanged in the upload form, so kept as Gate formats it
 	Policy      string `json:"Policy"`
 	Signature   string `json:"X-Amz-Signature"`
 }
@@ -233,8 +233,8 @@ type NameAndIconURL struct {
 	Icon string `json:"icon"`
 }
 
-// OTCOrderListData holds the fiat order list response data.
-type OTCOrderListData struct {
+// OTCOrderListResponse holds the fiat order list response data.
+type OTCOrderListResponse struct {
 	PageNumber      uint64              `json:"pn"`
 	PageSize        uint64              `json:"ps"`
 	TotalPageNumber uint64              `json:"total_pn"`
@@ -243,8 +243,8 @@ type OTCOrderListData struct {
 }
 
 // UnmarshalJSON decodes the order list from either "list", as documented, or "lists", as the live API has returned it
-func (o *OTCOrderListData) UnmarshalJSON(data []byte) error {
-	type Alias OTCOrderListData
+func (o *OTCOrderListResponse) UnmarshalJSON(data []byte) error {
+	type Alias OTCOrderListResponse
 	aux := &struct {
 		Lists []*OTCOrderListItem `json:"lists"`
 		*Alias
@@ -285,8 +285,8 @@ type OTCStableCoinOrder struct {
 	CreateTime             string        `json:"create_time"` // Display time, as CreateTimestamp carries the same moment
 }
 
-// OTCStablecoinOrderListData holds the stablecoin order list response data.
-type OTCStablecoinOrderListData struct {
+// OTCStablecoinOrderListResponse holds the stablecoin order list response data.
+type OTCStablecoinOrderListResponse struct {
 	Total      uint64                `json:"total"`
 	PageSize   uint64                `json:"page_size"`
 	PageNumber uint64                `json:"page_number"`
@@ -294,8 +294,8 @@ type OTCStablecoinOrderListData struct {
 	List       []*OTCStableCoinOrder `json:"list"`
 }
 
-// OTCOrderDetailData holds the fiat order detail data. The Gate beneficiary fields are only set for BUY orders.
-type OTCOrderDetailData struct {
+// OTCOrderDetailResponse holds the fiat order detail data. The Gate beneficiary fields are only set for BUY orders.
+type OTCOrderDetailResponse struct {
 	OrderID                       string         `json:"order_id"`
 	UID                           string         `json:"uid"`
 	Type                          string         `json:"type"`

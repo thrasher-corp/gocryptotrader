@@ -33,25 +33,25 @@ var (
 )
 
 // GetP2PAccountInfo retrieves the current user's P2P merchant account information.
-func (e *Exchange) GetP2PAccountInfo(ctx context.Context) (*P2PMerchantInfo, error) {
-	var resp gateioAPIResponse[*P2PMerchantInfo]
+func (e *Exchange) GetP2PAccountInfo(ctx context.Context) (*P2PMerchantInfoResponse, error) {
+	var resp gateioAPIResponse[*P2PMerchantInfoResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAccountInfoEPL, http.MethodPost, "p2p/merchant/account/get_user_info", nil, nil, &resp)
 }
 
 // GetP2PCounterpartyInfo retrieves P2P user information for a counterparty by their biz_uid.
-func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpartyInfoRequest) (*P2PCounterpartyInfo, error) {
+func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpartyInfoRequest) (*P2PCounterpartyInfoResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.BizUID == "" {
 		return nil, errBizUIDRequired
 	}
-	var resp gateioAPIResponse[*P2PCounterpartyInfo]
+	var resp gateioAPIResponse[*P2PCounterpartyInfoResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCounterpartyInfoEPL, http.MethodPost, "p2p/merchant/account/get_counterparty_user_info", nil, arg, &resp)
 }
 
 // GetP2PPaymentMethods retrieves the current user's bound P2P payment methods.
-func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentMethodsRequest) ([]*P2PPaymentMethodGroup, error) {
+func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentMethodsRequest) ([]*P2PPaymentMethodGroupResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentM
 	if !arg.Fiat.IsEmpty() {
 		body["fiat"] = arg.Fiat.String()
 	}
-	var resp gateioAPIResponse[[]*P2PPaymentMethodGroup]
+	var resp gateioAPIResponse[[]*P2PPaymentMethodGroupResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPaymentMethodsEPL, http.MethodPost, "p2p/merchant/account/get_myself_payment", nil, &body, &resp)
 }
 
@@ -91,7 +91,7 @@ func (e *Exchange) SetMerchantWorkingStatusAndCustomWorking(ctx context.Context,
 }
 
 // GetPendingP2POrders retrieves a list of pending P2P orders.
-func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrderRequest) (*P2POrderList, error) {
+func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrderRequest) (*P2POrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -106,12 +106,12 @@ func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrder
 			return nil, err
 		}
 	}
-	var resp gateioAPIResponse[*P2POrderList]
+	var resp gateioAPIResponse[*P2POrderListResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPendingTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_pending_transaction_list", nil, arg, &resp)
 }
 
 // GetHistoricalP2POrders retrieves a list of all or historical P2P orders
-func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompletedOrderRequest) (*P2POrderList, error) {
+func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompletedOrderRequest) (*P2POrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -126,19 +126,19 @@ func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompleted
 			return nil, err
 		}
 	}
-	var resp gateioAPIResponse[*P2POrderList]
+	var resp gateioAPIResponse[*P2POrderListResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCompletedTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_completed_transaction_list", nil, arg, &resp)
 }
 
 // GetP2POrderDetails retrieves detailed information for a specific P2P order.
-func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetailsRequest) (*P2POrderDetail, error) {
+func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetailsRequest) (*P2POrderDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.TransactionID == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp gateioAPIResponse[*P2POrderDetail]
+	var resp gateioAPIResponse[*P2POrderDetailResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pTransactionDetailsEPL, http.MethodPost, "p2p/merchant/transaction/get_transaction_details", nil, arg, &resp)
 }
 
@@ -223,7 +223,7 @@ func (e *Exchange) PublishP2PAdOrder(ctx context.Context, arg *PublishP2PAdReque
 }
 
 // UpdateP2PAdStatus updates the status of a P2P advertisement to 1 (listed), 3 (delisted) or 4 (closed).
-func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatusRequest) (*P2PUpdateAdStatusResult, error) {
+func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatusRequest) (*P2PUpdateAdStatusResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -233,24 +233,24 @@ func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatus
 	if arg.Status != 1 && arg.Status != 3 && arg.Status != 4 {
 		return nil, errP2PAdStatusInvalid
 	}
-	var resp gateioAPIResponse[*P2PUpdateAdStatusResult]
+	var resp gateioAPIResponse[*P2PUpdateAdStatusResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pUpdateAdStatusEPL, http.MethodPost, "p2p/merchant/books/ads_update_status", nil, arg, &resp)
 }
 
 // GetP2PAdDetails retrieves detailed information for a specific P2P advertisement.
-func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequest) (*P2PAdDetail, error) {
+func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequest) (*P2PAdDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.AdvertisementID == "" {
 		return nil, errP2PAdIDRequired
 	}
-	var resp gateioAPIResponse[*P2PAdDetail]
+	var resp gateioAPIResponse[*P2PAdDetailResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAdDetailEPL, http.MethodPost, "p2p/merchant/books/ads_detail", nil, arg, &resp)
 }
 
 // GetMyP2PAds retrieves the current user's P2P advertisements.
-func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P2PMyAdsData, error) {
+func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P2PMyAdsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -264,12 +264,12 @@ func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P
 	if arg.TradeType != "" {
 		body["trade_type"] = arg.TradeType
 	}
-	var resp gateioAPIResponse[*P2PMyAdsData]
+	var resp gateioAPIResponse[*P2PMyAdsResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pMyAdsListEPL, http.MethodPost, "p2p/merchant/books/my_ads_list", nil, &body, &resp)
 }
 
 // GetP2PAdList retrieves the P2P advertisement list for a given asset/fiat pair and trade side.
-func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) ([]*P2PAdListItem, error) {
+func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) ([]*P2PAdListItemResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) 
 	if arg.TradeType == "" {
 		return nil, errP2PTradeTypeRequired
 	}
-	var resp gateioAPIResponse[[]*P2PAdListItem]
+	var resp gateioAPIResponse[[]*P2PAdListItemResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAdsListEPL, http.MethodPost, "p2p/merchant/books/ads_list", nil, arg, &resp)
 }
 
@@ -297,7 +297,7 @@ func (e *Exchange) GetP2PChatHistory(ctx context.Context, arg *GetP2PChatHistory
 
 // SendP2PChatMessage sends a chat message for a P2P order. A message hitting off-platform traffic diversion risk
 // control is still accepted, with the result's RiskType and ToastMessage set.
-func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessageRequest) (*P2PSendMessageResult, error) {
+func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessageRequest) (*P2PSendMessageResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -307,12 +307,12 @@ func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessa
 	if arg.Message == "" {
 		return nil, errP2PMessageRequired
 	}
-	var resp gateioAPIResponse[*P2PSendMessageResult]
+	var resp gateioAPIResponse[*P2PSendMessageResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pSendChatMessageEPL, http.MethodPost, "p2p/merchant/chat/send_chat_message", nil, arg, &resp)
 }
 
 // UploadP2PChatFile uploads a file for use in P2P chat.
-func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFileRequest) (*P2PUploadFileResult, error) {
+func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFileRequest) (*P2PUploadFileResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -322,6 +322,6 @@ func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFile
 	if arg.Base64Img == "" {
 		return nil, errP2PImageDataRequired
 	}
-	var resp gateioAPIResponse[*P2PUploadFileResult]
+	var resp gateioAPIResponse[*P2PUploadFileResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pUploadChatFileEPL, http.MethodPost, "p2p/merchant/chat/upload_chat_file", nil, arg, &resp)
 }

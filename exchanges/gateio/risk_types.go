@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// UserRiskUnitDetails represents the risk unit details for a user
-type UserRiskUnitDetails struct {
+// UserRiskUnitDetailsResponse represents the risk unit details for a user
+type UserRiskUnitDetailsResponse struct {
 	UserID    uint64      `json:"user_id"`
 	SpotHedge bool        `json:"spot_hedge"`
 	RiskUnits []RiskUnits `json:"risk_units"`
@@ -24,8 +24,8 @@ type RiskUnits struct {
 	Vega           types.Number  `json:"vega"`
 }
 
-// RiskTable represents the risk table information
-type RiskTable struct {
+// RiskTableResponse represents the risk table information
+type RiskTableResponse struct {
 	Tier            uint8         `json:"tier"`
 	RiskLimit       types.Number  `json:"risk_limit"`
 	InitialRate     types.Number  `json:"initial_rate"`

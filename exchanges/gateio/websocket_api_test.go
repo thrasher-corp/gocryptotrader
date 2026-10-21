@@ -171,7 +171,7 @@ func newWsAPITestExchange(tb testing.TB, a asset.Item, canManipulateOrders ...bo
 	return ex
 }
 
-func TestWsRespAckInspector(t *testing.T) {
+func TestWebsocketResponseAckInspector(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name    string

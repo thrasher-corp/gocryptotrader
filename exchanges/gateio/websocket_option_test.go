@@ -72,18 +72,18 @@ func TestProcessResponse(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
-	var malformed websocketResponse[[]*WsPositionClose]
+	var malformed websocketResponse[[]*WebsocketPositionClose]
 	require.Error(t, ex.processResponse(t.Context(), []byte(`{`), &malformed), "processResponse must error on malformed JSON")
 
-	var data websocketResponse[[]*WsPositionClose]
+	var data websocketResponse[[]*WebsocketPositionClose]
 	require.NoError(t, ex.processResponse(t.Context(), []byte(`{"time":1541505434,"channel":"options.position_closes","event":"update","result":[{"contract":"BTC_USDT-20211130-65000-C","pnl":-0.0001,"side":"long","text":"web","time_ms":1547198562123,"user":"9xxx","settle_size":"1","underlying":"BTC_USDT"}]}`), &data), "processResponse must not error")
 	select {
 	case msg := <-ex.Websocket.DataHandler.C:
-		exp := &websocketResponse[[]*WsPositionClose]{
+		exp := &websocketResponse[[]*WebsocketPositionClose]{
 			Time:    types.Time(time.Unix(1541505434, 0)),
 			Channel: "options.position_closes",
 			Event:   "update",
-			Result: []*WsPositionClose{{
+			Result: []*WebsocketPositionClose{{
 				Contract:      currency.NewPairWithDelimiter("BTC", "USDT-20211130-65000-C", currency.UnderscoreDelimiter),
 				ProfitAndLoss: -0.0001,
 				Side:          "long",
@@ -100,7 +100,7 @@ func TestProcessResponse(t *testing.T) {
 	}
 }
 
-func TestWsHandleOptionsDataRelaysResult(t *testing.T) {
+func TestWebsocketHandleOptionsDataRelaysResult(t *testing.T) {
 	t.Parallel()
 	contract := currency.NewPairWithDelimiter("BTC", "USDT-20211130-50000-P", currency.UnderscoreDelimiter)
 	// The envelope's times differ from the result's, so relaying the envelope instead of the result shows
@@ -112,27 +112,27 @@ func TestWsHandleOptionsDataRelaysResult(t *testing.T) {
 		{
 			channel: optionsUnderlyingTickersChannel,
 			result:  `{"trade_put":800,"trade_call":41700,"index_price":"50695.43","name":"BTC_USDT"}`,
-			exp:     &WsOptionUnderlyingTicker{TradePut: 800, TradeCall: 41700, IndexPrice: 50695.43, Name: "BTC_USDT"},
+			exp:     &WebsocketOptionUnderlyingTicker{TradePut: 800, TradeCall: 41700, IndexPrice: 50695.43, Name: "BTC_USDT"},
 		},
 		{
 			channel: optionsUnderlyingPriceChannel,
 			result:  `{"underlying":"BTC_USDT","price":49653.24,"time":1639143988,"time_ms":1639143988931}`,
-			exp:     &WsOptionsUnderlyingPrice{Underlying: "BTC_USDT", Price: 49653.24, UpdateTime: types.Time(time.UnixMilli(1639143988931))},
+			exp:     &WebsocketOptionsUnderlyingPrice{Underlying: "BTC_USDT", Price: 49653.24, UpdateTime: types.Time(time.UnixMilli(1639143988931))},
 		},
 		{
 			channel: optionsMarkPriceChannel,
 			result:  `{"contract":"BTC_USDT-20211130-50000-P","price":11021.27,"time":1639143401,"time_ms":1639143401676}`,
-			exp:     &WsOptionsMarkPrice{Contract: contract, Price: 11021.27, UpdateTime: types.Time(time.UnixMilli(1639143401676))},
+			exp:     &WebsocketOptionsMarkPrice{Contract: contract, Price: 11021.27, UpdateTime: types.Time(time.UnixMilli(1639143401676))},
 		},
 		{
 			channel: optionsSettlementChannel,
 			result:  `{"contract":"BTC_USDT-20211130-50000-P","orderbook_id":2,"position_size":1,"profit":0.5,"settle_price":70000,"strike_price":65000,"tag":"WEEK","trade_id":3,"trade_size":4,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
-			exp:     &WsOptionsSettlement{Contract: contract, OrderbookID: 2, PositionSize: 1, Profit: 0.5, SettlePrice: 70000, StrikePrice: 65000, Tag: "WEEK", TradeID: 3, TradeSize: 4, Underlying: "BTC_USDT", UpdateTime: types.Time(time.UnixMilli(1639051907000))},
+			exp:     &WebsocketOptionsSettlement{Contract: contract, OrderbookID: 2, PositionSize: 1, Profit: 0.5, SettlePrice: 70000, StrikePrice: 65000, Tag: "WEEK", TradeID: 3, TradeSize: 4, Underlying: "BTC_USDT", UpdateTime: types.Time(time.UnixMilli(1639051907000))},
 		},
 		{
 			channel: optionsContractsChannel,
 			result:  `{"contract":"BTC_USDT-20211130-50000-P","create_time":1637917026,"expiration_time":1638230400,"init_margin_high":0.15,"init_margin_low":0.1,"is_call":true,"maint_margin_base":0.075,"maker_fee_rate":0.0004,"mark_price_round":0.1,"min_balance_short":0.5,"min_order_margin":0.1,"multiplier":0.0001,"order_price_deviate":0.2,"order_price_round":0.1,"order_size_max":1,"order_size_min":10,"orders_limit":100000,"ref_discount_rate":0.1,"ref_rebate_rate":0.3,"strike_price":50000,"tag":"WEEK","taker_fee_rate":0.0004,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
-			exp: &WsOptionsContract{
+			exp: &WebsocketOptionsContract{
 				Contract: contract, CreateTime: types.Time(time.Unix(1637917026, 0)), ExpirationTime: types.Time(time.Unix(1638230400, 0)),
 				InitMarginHigh: 0.15, InitMarginLow: 0.1, IsCall: true, MaintMarginBase: 0.075, MakerFeeRate: 0.0004, MarkPriceRound: 0.1,
 				MinBalanceShort: 0.5, MinOrderMargin: 0.1, Multiplier: 0.0001, OrderPriceDeviate: 0.2, OrderPriceRound: 0.1, OrderSizeMax: 1,
@@ -143,7 +143,7 @@ func TestWsHandleOptionsDataRelaysResult(t *testing.T) {
 		{
 			channel: optionsOrderbookTickerChannel,
 			result:  `{"t":1615366379123,"u":2517661076,"s":"BTC_USDT-20211130-50000-C","b":"54696.6","B":37000,"a":"54696.7","A":47061}`,
-			exp:     &WsOptionsOrderbookTicker{UpdateTimestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, ContractName: "BTC_USDT-20211130-50000-C", BidPrice: 54696.6, BidSize: 37000, AskPrice: 54696.7, AskSize: 47061},
+			exp:     &WebsocketOptionsOrderbookTicker{UpdateTimestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, ContractName: "BTC_USDT-20211130-50000-C", BidPrice: 54696.6, BidSize: 37000, AskPrice: 54696.7, AskSize: 47061},
 		},
 	} {
 		t.Run(tc.channel, func(t *testing.T) {
@@ -151,9 +151,9 @@ func TestWsHandleOptionsDataRelaysResult(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			push := `{"time":1630576300,"time_ms":1630576300123,"channel":"` + tc.channel + `","event":"update","result":` + tc.result + `}`
-			require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(push)), "WsHandleOptionsData must not error")
-			require.Len(t, ex.Websocket.DataHandler.C, 1, "WsHandleOptionsData must relay the push")
-			assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WsHandleOptionsData should relay the decoded result")
+			require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(push)), "WebsocketHandleOptionsData must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleOptionsData must relay the push")
+			assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WebsocketHandleOptionsData should relay the decoded result")
 		})
 	}
 }
@@ -184,8 +184,8 @@ func TestGenerateOptionsPayload(t *testing.T) {
 		{name: "contract channel", channel: optionsTradesChannel, pair: contract, payload: []string{"BTC_USDT-20211130-65000-C"}},
 		{name: "underlying channel", channel: optionsUnderlyingTickersChannel, pair: contract, payload: []string{"BTC_USDT"}},
 		{name: "underlying channel without an underlying", channel: optionsUnderlyingPriceChannel, pair: currency.Pair{Base: currency.BTC}, errText: "invalid currency pair"},
-		{name: "balances", channel: optionsBalancesChannel, pair: contract, params: map[string]any{"user_id": int64(666)}, payload: []string{"666"}, auth: true},
-		{name: "user channel", channel: optionsOrdersChannel, pair: contract, params: map[string]any{"user_id": int64(666)}, payload: []string{"666", "BTC_USDT-20211130-65000-C"}, auth: true},
+		{name: "balances", channel: optionsBalancesChannel, pair: contract, params: map[string]any{"user_id": uint64(666)}, payload: []string{"666"}, auth: true},
+		{name: "user channel", channel: optionsOrdersChannel, pair: contract, params: map[string]any{"user_id": uint64(666)}, payload: []string{"666", "BTC_USDT-20211130-65000-C"}, auth: true},
 		{name: "user channel without a user ID", channel: optionsOrdersChannel, pair: contract, err: errUserIDRequired},
 		{name: "balances without a user ID", channel: optionsBalancesChannel, pair: contract, err: errUserIDRequired},
 		{name: "user trades with a mistyped user ID", channel: optionsUserTradesChannel, pair: contract, params: map[string]any{"user_id": "666"}, err: errUserIDRequired},
@@ -233,7 +233,7 @@ func TestGenerateOptionsPayload(t *testing.T) {
 
 	noCredentials := new(Exchange)
 	require.NoError(t, testexch.Setup(noCredentials), "Setup must not error")
-	_, err = noCredentials.generateOptionsPayload(t.Context(), subscribeEvent, subscription.List{{Channel: optionsOrdersChannel, Pairs: currency.Pairs{contract}, Asset: asset.Options, Params: map[string]any{"user_id": int64(666)}}})
+	_, err = noCredentials.generateOptionsPayload(t.Context(), subscribeEvent, subscription.List{{Channel: optionsOrdersChannel, Pairs: currency.Pairs{contract}, Asset: asset.Options, Params: map[string]any{"user_id": uint64(666)}}})
 	assert.Error(t, err, "generateOptionsPayload should need credentials to sign a user channel")
 }
 
@@ -252,16 +252,16 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 			continue
 		}
 		userChannels++
-		userID, ok := s.Params["user_id"].(int64)
+		userID, ok := s.Params["user_id"].(uint64)
 		require.Truef(t, ok, "GenerateOptionsDefaultSubscriptions must set a user ID for %s", s.Channel)
 		if mockTests {
-			assert.Equalf(t, int64(666), userID, "GenerateOptionsDefaultSubscriptions should use the options account's user ID for %s", s.Channel)
+			assert.Equalf(t, uint64(666), userID, "GenerateOptionsDefaultSubscriptions should use the options account's user ID for %s", s.Channel)
 		}
 	}
 	assert.NotZero(t, userChannels, "GenerateOptionsDefaultSubscriptions should add the authenticated channels")
 }
 
-func TestWsHandleOptionsDataNullResult(t *testing.T) {
+func TestWebsocketHandleOptionsDataNullResult(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		channel     string
@@ -279,13 +279,13 @@ func TestWsHandleOptionsDataNullResult(t *testing.T) {
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			var err error
 			require.NotPanics(t, func() {
-				err = ex.WsHandleOptionsData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"`+tc.event+`","result":null}`))
-			}, "WsHandleOptionsData must not panic on a null result")
+				err = ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"`+tc.event+`","result":null}`))
+			}, "WebsocketHandleOptionsData must not panic on a null result")
 			if tc.errContains != "" {
-				assert.ErrorContains(t, err, tc.errContains, "WsHandleOptionsData should reject a null result")
+				assert.ErrorContains(t, err, tc.errContains, "WebsocketHandleOptionsData should reject a null result")
 				return
 			}
-			assert.ErrorIs(t, err, tc.err, "WsHandleOptionsData should return the expected error for a null result")
+			assert.ErrorIs(t, err, tc.err, "WebsocketHandleOptionsData should return the expected error for a null result")
 		})
 	}
 }
@@ -389,17 +389,17 @@ func (c *matchRecorderConnection) RequireMatchWithData(signature any, data []byt
 	return nil
 }
 
-func TestWsHandleOptionsDataErrors(t *testing.T) {
+func TestWebsocketHandleOptionsDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	assert.ErrorIs(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"options.ul_price"}`)), strconv.ErrSyntax, "WsHandleOptionsData should reject an invalid header")
+	assert.ErrorIs(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"options.ul_price"}`)), strconv.ErrSyntax, "WebsocketHandleOptionsData should reject an invalid header")
 
 	conn := &matchRecorderConnection{}
 	reply := []byte(`{"time":1630576352,"id":7,"channel":"options.ul_price","event":"subscribe","result":{"status":"success"}}`)
-	require.NoError(t, ex.WsHandleOptionsData(t.Context(), conn, reply), "WsHandleOptionsData must route a subscription reply")
-	assert.Equal(t, int64(7), conn.signature, "WsHandleOptionsData should route the reply by its ID")
-	assert.Equal(t, reply, conn.data, "WsHandleOptionsData should route the whole reply")
+	require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), conn, reply), "WebsocketHandleOptionsData must route a subscription reply")
+	assert.Equal(t, int64(7), conn.signature, "WebsocketHandleOptionsData should route the reply by its ID")
+	assert.Equal(t, reply, conn.data, "WebsocketHandleOptionsData should route the whole reply")
 }
 
 func TestProcessOptionsOrderbookSnapshotPushData(t *testing.T) {

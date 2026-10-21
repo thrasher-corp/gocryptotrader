@@ -353,7 +353,7 @@ func TestGetRecentPartnerApplicationRecords(t *testing.T) {
 	result, err := e.GetRecentPartnerApplicationRecords(t.Context())
 	require.NoError(t, err, "GetRecentPartnerApplicationRecords must not error")
 	if mockTests {
-		exp := &PartnerApplicationRecord{
+		exp := &PartnerApplicationRecordResponse{
 			ID:                 64779,
 			UserID:             19669134,
 			Language:           "en",

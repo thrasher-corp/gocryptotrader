@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// IsolatedMarginAccountBalanceChangeInfo represents margin account balance
-type IsolatedMarginAccountBalanceChangeInfo struct {
+// IsolatedMarginAccountBalanceChangeInfoResponse represents margin account balance
+type IsolatedMarginAccountBalanceChangeInfoResponse struct {
 	ID            string        `json:"id"`
 	Time          types.Time    `json:"time_ms"`
 	Currency      currency.Code `json:"currency"`
@@ -18,8 +18,8 @@ type IsolatedMarginAccountBalanceChangeInfo struct {
 	Type          string        `json:"type"`
 }
 
-// MarginFundingAccountItem represents funding account list item.
-type MarginFundingAccountItem struct {
+// MarginFundingAccountItemResponse represents funding account list item.
+type MarginFundingAccountItemResponse struct {
 	Currency     currency.Code `json:"currency"`
 	Available    types.Number  `json:"available"`
 	LockedAmount types.Number  `json:"locked"`
@@ -27,20 +27,20 @@ type MarginFundingAccountItem struct {
 	TotalLent    types.Number  `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
 }
 
-// OnOffStatus represents on or off status response status
-type OnOffStatus struct {
+// OnOffStatusResponse represents on or off status response status
+type OnOffStatusResponse struct {
 	Status string `json:"status"`
 }
 
-// MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
-type MaxTransferAndLoanAmount struct {
+// MaxTransferAndLoanAmountResponse represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
+type MaxTransferAndLoanAmountResponse struct {
 	Currency     currency.Code `json:"currency"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Amount       types.Number  `json:"amount"`
 }
 
-// IsolatedMarginLendingMarket represents an isolated margin lending market
-type IsolatedMarginLendingMarket struct {
+// IsolatedMarginLendingMarketResponse represents an isolated margin lending market
+type IsolatedMarginLendingMarketResponse struct {
 	Pair                     currency.Pair `json:"currency_pair"`
 	BaseMinimumBorrowAmount  types.Number  `json:"base_min_borrow_amount"`
 	QuoteMinimumBorrowAmount types.Number  `json:"quote_min_borrow_amount"`
@@ -50,13 +50,13 @@ type IsolatedMarginLendingMarket struct {
 }
 
 // IsTradable returns whether the market is enabled and has not completed delisting.
-func (m *IsolatedMarginLendingMarket) IsTradable(now time.Time) bool {
+func (m *IsolatedMarginLendingMarketResponse) IsTradable(now time.Time) bool {
 	delisted := m.DelistedTime.Time()
 	return m.Status == "enabled" && (delisted.IsZero() || !delisted.Before(now))
 }
 
-// IsolatedMarginLendingTier represents the lending tier information for isolated margin accounts.
-type IsolatedMarginLendingTier struct {
+// IsolatedMarginLendingTierResponse represents the lending tier information for isolated margin accounts.
+type IsolatedMarginLendingTierResponse struct {
 	MaximumBorrowingLimit      types.Number `json:"upper_limit"`
 	MaintenanceMarginRate      types.Number `json:"mmr"`
 	MaximumPermissibleLeverage types.Number `json:"leverage"`
@@ -87,8 +87,8 @@ type IsolatedMarginLoanResponse struct {
 	UpdateTime   types.Time    `json:"update_time"`
 }
 
-// MaxBorrowableAmount represents the max borrowable amount for specific margin currency
-type MaxBorrowableAmount struct {
+// MaxBorrowableAmountResponse represents the max borrowable amount for specific margin currency
+type MaxBorrowableAmountResponse struct {
 	Currency   currency.Code `json:"currency"`
 	Borrowable types.Number  `json:"borrowable"`
 	Pair       currency.Pair `json:"currency_pair"`
@@ -105,8 +105,8 @@ type AccountBalanceInformation struct {
 	LockedAmount types.Number  `json:"locked"` // Funds reserved by active orders.
 }
 
-// MarginAccountItem margin account item.
-type MarginAccountItem struct {
+// MarginAccountItemResponse margin account item.
+type MarginAccountItemResponse struct {
 	CurrencyPair          currency.Pair             `json:"currency_pair"`
 	AccountType           string                    `json:"account_type"` // "mmr" (maintenance margin rate account) or "inactive" (market not activated)
 	Leverage              types.Number              `json:"leverage"`

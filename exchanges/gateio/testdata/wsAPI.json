@@ -343,6 +343,13 @@
     "stp_act": "cn",
     "finish_as": "cancelled"
    }
+  },
+  {
+   "params": {
+    "order_id": "1700664331",
+    "currency_pair": "BTC_USDT"
+   },
+   "result": null
   }
  ],
  "spot.order_cancel_ids": [
@@ -796,6 +803,12 @@
     "amend_text": "-",
     "update_time": 1681196536.343
    }
+  },
+  {
+   "params": {
+    "order_id": "74046544"
+   },
+   "result": null
   }
  ],
  "futures.order_cancel_cp": [

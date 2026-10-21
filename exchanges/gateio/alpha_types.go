@@ -23,21 +23,20 @@ func (a *alphaStatusError) AsError() error {
 	return nil
 }
 
-// AlphaAccount represents an alpha account information. Alpha currency symbols are case sensitive, such as
-// memeboxTUT, so they are kept as strings rather than currency codes.
-type AlphaAccount struct {
-	Currency     string       `json:"currency"`
+// AlphaAccountResponse represents an alpha account information
+type AlphaAccountResponse struct {
+	Currency     string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
 	Available    types.Number `json:"available"`
 	Locked       types.Number `json:"locked"`
 	TokenAddress string       `json:"token_address"`
 	Chain        string       `json:"chain"`
 }
 
-// AlphaAccountTransactionItem holds alpha account transaction item
-type AlphaAccountTransactionItem struct {
+// AlphaAccountTransactionItemResponse holds alpha account transaction item
+type AlphaAccountTransactionItemResponse struct {
 	ID       string       `json:"id"`
 	Time     types.Time   `json:"time"`
-	Currency string       `json:"currency"`
+	Currency string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
 	Change   types.Number `json:"change"`
 	Balance  types.Number `json:"balance"`
 }
@@ -65,8 +64,8 @@ func (a *AlphaCurrencyQuoteInfoRequest) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// AlphaCurrencyQuoteDetail holds a currency quote information detail
-type AlphaCurrencyQuoteDetail struct {
+// AlphaCurrencyQuoteDetailResponse holds a currency quote information detail
+type AlphaCurrencyQuoteDetailResponse struct {
 	alphaStatusError
 	QuoteID              string       `json:"quote_id"`
 	MinAmount            types.Number `json:"min_amount"`
@@ -107,14 +106,14 @@ type GetAlphaOrdersRequest struct {
 	Limit     uint64
 }
 
-// AlphaOrderDetail holds a alpha order details
-type AlphaOrderDetail struct {
+// AlphaOrderDetailResponse holds a alpha order details
+type AlphaOrderDetailResponse struct {
 	alphaStatusError
 	OrderID         string       `json:"order_id"`
 	TransactionHash string       `json:"tx_hash"`
 	Side            string       `json:"side"`
 	USDTAmount      types.Number `json:"usdt_amount"`
-	Currency        string       `json:"currency"`
+	Currency        string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
 	CurrencyAmount  types.Number `json:"currency_amount"`
 	Status          uint8        `json:"status"`
 	GasMode         string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
@@ -125,9 +124,9 @@ type AlphaOrderDetail struct {
 	FailedReason    string       `json:"failed_reason"`
 }
 
-// AlphaCurrencyDetail holds an alpha currency detail
-type AlphaCurrencyDetail struct {
-	Currency        string `json:"currency"`
+// AlphaCurrencyDetailResponse holds an alpha currency detail
+type AlphaCurrencyDetailResponse struct {
+	Currency        string `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
 	Name            string `json:"name"`
 	Chain           string `json:"chain"`
 	Address         string `json:"address"`
@@ -136,10 +135,10 @@ type AlphaCurrencyDetail struct {
 	AmountPrecision uint8  `json:"amount_precision"`
 }
 
-// AlphaCurrencyTickerInfo represents an alpha currency ticker detail
-type AlphaCurrencyTickerInfo struct {
-	Currency  string       `json:"currency"`
-	Change    types.Number `json:"change"` // 24 hour percentage change
+// AlphaCurrencyTickerInfoResponse represents an alpha currency ticker detail
+type AlphaCurrencyTickerInfoResponse struct {
+	Currency  string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
+	Change    types.Number `json:"change"`   // 24 hour percentage change
 	Last      types.Number `json:"last"`
 	Volume    types.Number `json:"volume"` // 24 hour USDT volume
 	MarketCap types.Number `json:"market_cap"`

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -188,6 +189,14 @@ func TestSetUnixTimeRangeParams(t *testing.T) {
 	}
 }
 
+func TestUnixSeconds(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, uint64(1767153378), unixSeconds(time.Unix(1767153378, 999999999)), "unixSeconds should return whole Unix seconds")
+	assert.Zero(t, unixSeconds(time.Unix(0, 0)), "unixSeconds should return 0 at the Unix epoch")
+	assert.Zero(t, unixSeconds(time.Unix(-1, 0)), "unixSeconds should return 0 for a time before 1970")
+	assert.Zero(t, unixSeconds(time.Time{}), "unixSeconds should return 0 for a zero time")
+}
+
 func TestSendUnversionedHTTPRequest(t *testing.T) {
 	t.Parallel()
 
@@ -287,8 +296,8 @@ func TestSendPublicPostRequest(t *testing.T) {
 
 func TestGateioAPIResponseAsError(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, (&gateioAPIResponse[*OTCQuoteData]{Message: "success"}).AsError(), "a zero code should not error")
-	err := (&gateioAPIResponse[*OTCQuoteData]{Code: 1001, Message: "quote expired"}).AsError()
+	assert.NoError(t, (&gateioAPIResponse[*OTCQuoteResponse]{Message: "success"}).AsError(), "a zero code should not error")
+	err := (&gateioAPIResponse[*OTCQuoteResponse]{Code: 1001, Message: "quote expired"}).AsError()
 	require.Error(t, err, "a non-zero code must error")
 	assert.Equal(t, "error code: 1001 message: quote expired", err.Error(), "error should carry the code and message")
 }
@@ -927,11 +936,11 @@ func TestUpdateTicker(t *testing.T) {
 	require.NotEmpty(t, spotTicks, "GetTickers must return tickers")
 	// a pair quoting near parity reports both volumes alike and cannot tell a correct mapping from
 	// a swapped one, so those are filtered out before picking rather than asserted against
-	spotTicks = slices.DeleteFunc(spotTicks, func(tk *Ticker) bool {
+	spotTicks = slices.DeleteFunc(spotTicks, func(tk *TickerResponse) bool {
 		return tk.BaseVolume.Float64() == 0 || tk.BaseVolume.Float64() == tk.QuoteVolume.Float64()
 	})
 	require.NotEmpty(t, spotTicks, "at least one spot pair must report base and quote volumes that differ")
-	busiestSpot := slices.MaxFunc(spotTicks, func(a, b *Ticker) int {
+	busiestSpot := slices.MaxFunc(spotTicks, func(a, b *TickerResponse) int {
 		return cmp.Compare(a.QuoteVolume.Float64(), b.QuoteVolume.Float64())
 	})
 	p := busiestSpot.CurrencyPair
@@ -945,11 +954,11 @@ func TestUpdateTicker(t *testing.T) {
 	require.NotEmpty(t, futuresTicks, "GetFuturesTickers must return tickers")
 	// a multiplier of 1 reports the contract count and the base volume identically, so those
 	// contracts are filtered out before picking the busiest rather than asserted against
-	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk *FuturesTicker) bool {
+	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk *FuturesTickerResponse) bool {
 		return tk.Volume24HourBase.Float64() == 0 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64()
 	})
 	require.NotEmpty(t, futuresTicks, "at least one futures contract must report a base volume that differs from its contract count")
-	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b *FuturesTicker) int {
+	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b *FuturesTickerResponse) int {
 		return cmp.Compare(a.Volume24HourQuote.Float64(), b.Volume24HourQuote.Float64())
 	})
 	fp := busiestFutures.Contract
@@ -965,14 +974,14 @@ func TestFuturesBaseVolume(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name string
-		tick FuturesTicker
+		tick FuturesTickerResponse
 		exp  float64
 	}{
-		{"base truncated a whole unit off the product", FuturesTicker{Volume24HourBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
-		{"base truncated the contract away entirely", FuturesTicker{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
-		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HourBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
-		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HourBase: 30, Volume24Hour: 2352026}, 30},
-		{"nothing traded", FuturesTicker{}, 0},
+		{"base truncated a whole unit off the product", FuturesTickerResponse{Volume24HourBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
+		{"base truncated the contract away entirely", FuturesTickerResponse{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
+		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTickerResponse{Volume24HourBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
+		{"no contract size, as coin margined and delivery report it", FuturesTickerResponse{Volume24HourBase: 30, Volume24Hour: 2352026}, 30},
+		{"nothing traded", FuturesTickerResponse{}, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -985,7 +994,7 @@ func TestFuturesBaseVolume(t *testing.T) {
 // directly cannot catch one of them being renamed on the wire
 func TestFuturesTickerUnmarshal(t *testing.T) {
 	t.Parallel()
-	var tk FuturesTicker
+	var tk FuturesTickerResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"contract":"UB_USDT","volume_24h":"8819","volume_24h_base":"8819700","volume_24h_quote":"1234","quanto_multiplier":"1000"}`), &tk), "Unmarshal must not error")
 	assert.Equal(t, "UB_USDT", tk.Contract.String(), "Contract should unmarshal")
 	assert.Equal(t, 8819.0, tk.Volume24Hour.Float64(), "volume_24h should unmarshal")
@@ -1000,8 +1009,8 @@ func TestListSpotCurrencies(t *testing.T) {
 	require.NoError(t, err, "ListSpotCurrencies must not error")
 	if mockTests {
 		require.Len(t, result, 5, "ListSpotCurrencies must return every recorded currency")
-		exp := &CurrencyInfo{
-			Currency:        "STPT",
+		exp := &CurrencyInfoResponse{
+			Currency:        currency.NewCode("STPT"),
 			Name:            "StandardTokenizationProtocol",
 			Delisted:        true,
 			DepositDisabled: true,
@@ -1024,8 +1033,8 @@ func TestGetCurrencyDetail(t *testing.T) {
 	result, err := e.GetCurrencyDetail(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetCurrencyDetail must not error")
 	if mockTests {
-		exp := &CurrencyInfo{
-			Currency:    "BTC",
+		exp := &CurrencyInfoResponse{
+			Currency:    currency.BTC,
 			Name:        "Bitcoin",
 			Chain:       "BTC",
 			Chains:      []*SpotCurrencyChain{{Name: "BTC"}, {Name: "BSC", Address: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c"}},
@@ -1045,7 +1054,7 @@ func TestListSpotCurrencyPairs(t *testing.T) {
 	require.NoError(t, err, "ListSpotCurrencyPairs must not error")
 	if mockTests {
 		require.Len(t, result, 6, "ListSpotCurrencyPairs must return every recorded currency pair")
-		exp := &CurrencyPairDetail{
+		exp := &CurrencyPairDetailResponse{
 			ID:                            getPair(t, asset.Spot),
 			Base:                          currency.BTC,
 			BaseName:                      "Aleph.im",
@@ -1082,11 +1091,11 @@ func TestGetCurrencyPairDetail(t *testing.T) {
 	unifiedMarket := currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter})
 	for _, tc := range []struct {
 		pair currency.Pair
-		exp  *CurrencyPairDetail
+		exp  *CurrencyPairDetailResponse
 	}{
 		{
 			pair: getPair(t, asset.Spot),
-			exp: &CurrencyPairDetail{
+			exp: &CurrencyPairDetailResponse{
 				ID:                            getPair(t, asset.Spot),
 				Base:                          currency.BTC,
 				BaseName:                      "Bitcoin",
@@ -1112,7 +1121,7 @@ func TestGetCurrencyPairDetail(t *testing.T) {
 		{
 			// Unified markets list the quote currencies they accept in trade_quotes
 			pair: unifiedMarket,
-			exp: &CurrencyPairDetail{
+			exp: &CurrencyPairDetailResponse{
 				ID:                            unifiedMarket,
 				Base:                          currency.BTC,
 				BaseName:                      "Bitcoin",
@@ -1157,10 +1166,10 @@ func TestGetTickers(t *testing.T) {
 
 	for _, tc := range []struct {
 		timezone string
-		exp      *Ticker
+		exp      *TickerResponse
 	}{
 		{
-			exp: &Ticker{
+			exp: &TickerResponse{
 				CurrencyPair:     getPair(t, asset.Spot),
 				Last:             67502.7,
 				LowestAsk:        67502.7,
@@ -1177,7 +1186,7 @@ func TestGetTickers(t *testing.T) {
 		{
 			// Only the all timezone returns both the UTC+0 and UTC+8 changes
 			timezone: allTimeZones,
-			exp: &Ticker{
+			exp: &TickerResponse{
 				CurrencyPair:     getPair(t, asset.Spot),
 				Last:             82177.8,
 				LowestAsk:        82170.4,
@@ -1211,7 +1220,7 @@ func TestGetTickers(t *testing.T) {
 	require.NoError(t, err, "GetTickers must not error for every currency pair")
 	if mockTests {
 		require.Len(t, result, 5, "GetTickers must return every recorded ticker")
-		exp := &Ticker{
+		exp := &TickerResponse{
 			CurrencyPair:     currency.NewPairWithDelimiter("SUSHI3L", "USDT", currency.UnderscoreDelimiter),
 			Last:             0.00113,
 			LowestAsk:        0.001127,
@@ -1243,7 +1252,7 @@ func TestGetTicker(t *testing.T) {
 	result, err := e.GetTicker(t.Context(), getPair(t, asset.Spot), utc8TimeZone)
 	require.NoError(t, err, "GetTicker must not error")
 	if mockTests {
-		exp := &Ticker{
+		exp := &TickerResponse{
 			CurrencyPair:     getPair(t, asset.Spot),
 			Last:             67197,
 			LowestAsk:        67198.1,
@@ -1270,7 +1279,7 @@ func TestGetOrderbook(t *testing.T) {
 	result, err := e.GetOrderbook(t.Context(), getPair(t, asset.Spot), "0.1", 10, false)
 	require.NoError(t, err, "GetOrderbook must not error")
 	if mockTests {
-		exp := &Orderbook{
+		exp := &OrderbookResponse{
 			Current: types.Time(time.UnixMilli(1774968317360)),
 			Update:  types.Time(time.UnixMilli(1774968317359)),
 			Asks: OrderbookLevels{
@@ -1317,7 +1326,7 @@ func TestGetMarketTrades(t *testing.T) {
 			require.NoError(t, err, "GetMarketTrades must not error")
 			if mockTests {
 				require.Len(t, result, 5, "GetMarketTrades must return every recorded trade")
-				exp := &Trade{
+				exp := &TradeResponse{
 					ID:                "192742010",
 					CreateTimeSeconds: types.Time(time.Unix(1775423972, 0)),
 					CreateTime:        types.Time(time.Unix(0, 1775423972061432000)),
@@ -1338,19 +1347,19 @@ func TestGetMarketTrades(t *testing.T) {
 func TestCandlestickUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	data := []byte(`[["1738108800","229534412.73508700","103734.3","104779.9","101336.6","101343.8","2232.94510000","true"],["1738195200","178316032.62306100","104718.6","106467.1","103286.4","103734.4","1695.00787000","true"],["1738281600","231315376.16747100","102431","106042.7","101555.9","104718.6","2228.03609000","true"]]`)
-	var targets []Candlestick
+	var targets []CandlestickResponse
 	err := json.Unmarshal(data, &targets)
 	require.NoError(t, err)
 	require.Len(t, targets, 3)
-	assert.Equal(t, Candlestick{
-		Timestamp:      types.Time(time.Unix(1738108800, 0)),
-		QuoteCcyVolume: 229534412.73508700,
-		ClosePrice:     103734.3,
-		HighestPrice:   104779.9,
-		LowestPrice:    101336.6,
-		OpenPrice:      101343.8,
-		BaseCcyAmount:  2232.94510000,
-		WindowClosed:   true,
+	assert.Equal(t, CandlestickResponse{
+		Timestamp:           types.Time(time.Unix(1738108800, 0)),
+		QuoteCurrencyVolume: 229534412.73508700,
+		ClosePrice:          103734.3,
+		HighestPrice:        104779.9,
+		LowestPrice:         101336.6,
+		OpenPrice:           101343.8,
+		BaseCurrencyAmount:  2232.94510000,
+		WindowClosed:        true,
 	}, targets[0])
 }
 
@@ -1366,15 +1375,15 @@ func TestGetCandlesticks(t *testing.T) {
 	require.NoError(t, err, "GetCandlesticks must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetCandlesticks must return every recorded candle")
-		exp := &Candlestick{
-			Timestamp:      types.Time(time.Unix(1766361600, 0)),
-			QuoteCcyVolume: 901846017.17068550,
-			ClosePrice:     88622.1,
-			HighestPrice:   90586.3,
-			LowestPrice:    87899.6,
-			OpenPrice:      88655.4,
-			BaseCcyAmount:  10108.46374900,
-			WindowClosed:   true,
+		exp := &CandlestickResponse{
+			Timestamp:           types.Time(time.Unix(1766361600, 0)),
+			QuoteCurrencyVolume: 901846017.17068550,
+			ClosePrice:          88622.1,
+			HighestPrice:        90586.3,
+			LowestPrice:         87899.6,
+			OpenPrice:           88655.4,
+			BaseCurrencyAmount:  10108.46374900,
+			WindowClosed:        true,
 		}
 		assert.Equal(t, exp, result[0], "GetCandlesticks should decode every field")
 		return
@@ -1396,7 +1405,7 @@ func TestGetAccountBatchFeeRates(t *testing.T) {
 	result, err := e.GetAccountBatchFeeRates(t.Context(), []string{"BTC_USDT", "ETH_USDT"})
 	require.NoError(t, err, "GetAccountBatchFeeRates must not error")
 	if mockTests {
-		exp := map[string]*SpotTradingFeeRate{
+		exp := map[string]*SpotTradingFeeRateResponse{
 			"BTC_USDT": {
 				CurrencyPair: getPair(t, asset.Spot),
 				UserID:       10001,
@@ -1436,7 +1445,7 @@ func TestGetSpotAccounts(t *testing.T) {
 	result, err := e.GetSpotAccounts(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetSpotAccounts must not error")
 	if mockTests {
-		exp := []*SpotAccount{{Currency: currency.BTC, Available: 968.8, Locked: 0.5, UpdateID: 98}}
+		exp := []*SpotAccountResponse{{Currency: currency.BTC, Available: 968.8, Locked: 0.5, UpdateID: 98}}
 		assert.Equal(t, exp, result, "GetSpotAccounts should decode every field")
 		return
 	}
@@ -1560,7 +1569,7 @@ func TestCreateBatchOrders(t *testing.T) {
 	})
 	require.NoError(t, err, "CreateBatchOrders must not error")
 	if mockTests {
-		exp := []*SpotOrder{
+		exp := []*SpotOrderResponse{
 			{
 				OrderID:            "12332324",
 				BatchOrderID:       "12332324",
@@ -1580,7 +1589,7 @@ func TestCreateBatchOrders(t *testing.T) {
 				Price:              12349,
 				TimeInForce:        gtcTIF,
 				RemainingAmount:    0.001,
-				FeeCurrency:        "USDT",
+				FeeCurrency:        currency.USDT,
 				RebatedFeeCurrency: currency.BTC,
 				STPID:              10240,
 				STPAction:          "cn",
@@ -1628,10 +1637,10 @@ func TestGetSpotOpenOrders(t *testing.T) {
 	result, err := e.GetSpotOpenOrders(t.Context(), 0, 0, "")
 	require.NoError(t, err, "GetSpotOpenOrders must not error")
 	if mockTests {
-		exp := []*SpotOrdersDetail{{
+		exp := []*SpotOrdersDetailResponse{{
 			CurrencyPair: getPair(t, asset.Spot),
 			Total:        1,
-			Orders: []*SpotOrder{{
+			Orders: []*SpotOrderResponse{{
 				OrderID:            "12332324",
 				Text:               "t-123456",
 				AmendText:          "-",
@@ -1651,7 +1660,7 @@ func TestGetSpotOpenOrders(t *testing.T) {
 				FilledAmount:       0.5,
 				AverageFillPrice:   5.00032,
 				FeeDeducted:        0.005,
-				FeeCurrency:        "BTC",
+				FeeCurrency:        currency.BTC,
 				FilledTotal:        2.50016,
 				RebatedFeeCurrency: currency.USDT,
 				STPAction:          "-",
@@ -1669,26 +1678,26 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	_, err := e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SpotClosePositionWhenCrossCurrencyDisabled must reject a nil request")
 
-	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{})
+	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SpotClosePositionWhenCrossCurrencyDisabled must reject an empty currency pair")
 
-	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{CurrencyPair: getPair(t, asset.Spot)})
+	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequest{CurrencyPair: getPair(t, asset.Spot)})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "SpotClosePositionWhenCrossCurrencyDisabled must reject an empty amount")
 
-	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{Amount: 0.1, CurrencyPair: getPair(t, asset.Spot)})
+	_, err = e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequest{Amount: 0.1, CurrencyPair: getPair(t, asset.Spot)})
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "SpotClosePositionWhenCrossCurrencyDisabled must reject an empty price")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{
+	result, err := e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequest{
 		Amount:       0.1,
 		Price:        1234567384,
 		CurrencyPair: getPair(t, asset.Spot),
 	})
 	require.NoError(t, err, "SpotClosePositionWhenCrossCurrencyDisabled must not error")
 	if mockTests {
-		exp := &SpotOrder{
+		exp := &SpotOrderResponse{
 			OrderID:            "1852454420",
 			Text:               "apiv4",
 			AmendText:          "-",
@@ -1706,7 +1715,7 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 			TimeInForce:        gtcTIF,
 			AutoRepay:          true,
 			RemainingAmount:    0.1,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			STPAction:          "-",
 			FinishAs:           "open",
@@ -1756,7 +1765,7 @@ func TestPlaceSpotOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "PlaceSpotOrder must not error")
 	if mockTests {
-		exp := &SpotOrder{
+		exp := &SpotOrderResponse{
 			OrderID:            "1852454420",
 			Text:               "apiv4",
 			AmendText:          "-",
@@ -1773,7 +1782,7 @@ func TestPlaceSpotOrder(t *testing.T) {
 			Price:              900000,
 			TimeInForce:        gtcTIF,
 			RemainingAmount:    1,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			STPAction:          "-",
 			FinishAs:           "open",
@@ -1809,7 +1818,7 @@ func TestGetSpotOrders(t *testing.T) {
 	result, err := e.GetSpotOrders(t.Context(), &GetSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Status: statusOpen, Page: 100, Limit: 100})
 	require.NoError(t, err, "GetSpotOrders must not error")
 	if mockTests {
-		exp := []*SpotOrder{{
+		exp := []*SpotOrderResponse{{
 			OrderID:            "1852454420",
 			Text:               "t-abc123",
 			AmendText:          "-",
@@ -1827,7 +1836,7 @@ func TestGetSpotOrders(t *testing.T) {
 			Price:              65000,
 			TimeInForce:        gtcTIF,
 			RemainingAmount:    0.001,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "open",
 			StopProfit:         &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
@@ -1850,7 +1859,7 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	cancelledBuy := []*SpotOrder{{
+	cancelledBuy := []*SpotOrderResponse{{
 		OrderID:            "1852454420",
 		Text:               "t-abc123",
 		AmendText:          "-",
@@ -1868,7 +1877,7 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 		Price:              65000,
 		TimeInForce:        gtcTIF,
 		RemainingAmount:    0.001,
-		FeeCurrency:        "BTC",
+		FeeCurrency:        currency.BTC,
 		RebatedFeeCurrency: currency.USDT,
 		FinishAs:           "cancelled",
 	}}
@@ -1876,17 +1885,17 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		arg  *CancelAllSpotOrdersRequest
-		exp  []*SpotOrder
+		exp  []*SpotOrderResponse
 	}{
 		{name: "buy", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Side: order.Buy, Account: "spot"}, exp: cancelledBuy},
-		{name: "sell", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Side: order.Sell, Account: "spot"}, exp: []*SpotOrder{}},
+		{name: "sell", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Side: order.Sell, Account: "spot"}, exp: []*SpotOrderResponse{}},
 		// UnknownSide and AnySide omit the optional side filter so Gate cancels both bids and asks
-		{name: "unknown side", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Account: "spot"}, exp: []*SpotOrder{}},
-		{name: "any side", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Side: order.AnySide, Account: "spot"}, exp: []*SpotOrder{}},
+		{name: "unknown side", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Account: "spot"}, exp: []*SpotOrderResponse{}},
+		{name: "any side", arg: &CancelAllSpotOrdersRequest{CurrencyPair: getPair(t, asset.Spot), Side: order.AnySide, Account: "spot"}, exp: []*SpotOrderResponse{}},
 		{
 			name: "unified market quote",
 			arg:  &CancelAllSpotOrdersRequest{CurrencyPair: unifiedMarket, Account: "unified", TradeQuote: currency.USDC, ActionMode: "ACK"},
-			exp:  []*SpotOrder{{OrderID: "1852454421", Text: "t-abc124", AmendText: "-", Succeeded: true}},
+			exp:  []*SpotOrderResponse{{OrderID: "1852454421", Text: "t-abc124", AmendText: "-", Succeeded: true}},
 		},
 	} {
 		result, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(t.Context(), tc.arg)
@@ -1899,22 +1908,22 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 
 func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDParam{})
+	_, err := e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDRequest{})
 	require.ErrorIs(t, err, errNoValidParameterPassed, "CancelBatchOrdersWithIDList must reject an empty batch")
 
-	_, err = e.CancelBatchOrdersWithIDList(t.Context(), make([]CancelOrderByIDParam, 21))
+	_, err = e.CancelBatchOrdersWithIDList(t.Context(), make([]CancelOrderByIDRequest, 21))
 	require.ErrorIs(t, err, errInvalidOrderSize, "CancelBatchOrdersWithIDList must reject more than 20 orders")
 
-	_, err = e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDParam{{ID: "1234567"}})
+	_, err = e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDRequest{{ID: "1234567"}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelBatchOrdersWithIDList must reject an empty currency pair")
 
-	_, err = e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDParam{{CurrencyPair: getPair(t, asset.Spot)}})
+	_, err = e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDRequest{{CurrencyPair: getPair(t, asset.Spot)}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrdersWithIDList must reject an empty order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDParam{
+	result, err := e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDRequest{
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			ID:           "1234567",
@@ -1950,7 +1959,7 @@ func TestGetSpotOrder(t *testing.T) {
 	result, err := e.GetSpotOrder(t.Context(), "1234", getPair(t, asset.Spot), asset.Spot)
 	require.NoError(t, err, "GetSpotOrder must not error")
 	if mockTests {
-		exp := &SpotOrder{
+		exp := &SpotOrderResponse{
 			OrderID:            "1234",
 			Text:               "t-abc123",
 			AmendText:          "-",
@@ -1970,7 +1979,7 @@ func TestGetSpotOrder(t *testing.T) {
 			FilledAmount:       0.001,
 			AverageFillPrice:   63469.3,
 			FeeDeducted:        0.00000022,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			FillPrice:          63.4693,
 			FilledTotal:        63.4693,
 			RebatedFeeCurrency: currency.USDT,
@@ -2011,7 +2020,7 @@ func TestAmendSpotOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "AmendSpotOrder must not error")
 	if mockTests {
-		exp := &SpotOrder{
+		exp := &SpotOrderResponse{
 			OrderID:            "123",
 			Text:               "t-abc123",
 			AmendText:          "-",
@@ -2028,7 +2037,7 @@ func TestAmendSpotOrder(t *testing.T) {
 			Price:              1000,
 			TimeInForce:        gtcTIF,
 			RemainingAmount:    0.001,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "open",
 			StopProfit:         &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
@@ -2066,7 +2075,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	result, err := e.CancelSingleSpotOrder(t.Context(), "1234", getPair(t, asset.Spot), false)
 	require.NoError(t, err, "CancelSingleSpotOrder must not error")
 	if mockTests {
-		exp := &SpotOrder{
+		exp := &SpotOrderResponse{
 			OrderID:            "1234",
 			Text:               "t-abc123",
 			AmendText:          "-",
@@ -2083,7 +2092,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 			Price:              65000,
 			TimeInForce:        gtcTIF,
 			RemainingAmount:    0.001,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "cancelled",
 		}
@@ -2121,7 +2130,7 @@ func TestGetMySpotTradingHistory(t *testing.T) {
 	})
 	require.NoError(t, err, "GetMySpotTradingHistory must not error")
 	if mockTests {
-		exp := []*SpotPersonalTradeHistory{{
+		exp := []*SpotPersonalTradeHistoryResponse{{
 			TradeID:           "1232893232",
 			CreateTimeSeconds: types.Time(time.Unix(1744150000, 0)),
 			CreateTime:        types.Time(time.UnixMicro(1744150000123456)),
@@ -2161,7 +2170,7 @@ func TestCountdownCancelSpotOrders(t *testing.T) {
 	_, err := e.CountdownCancelSpotOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CountdownCancelSpotOrders must reject a nil request")
 
-	_, err = e.CountdownCancelSpotOrders(t.Context(), &CountdownCancelOrderParam{Timeout: 4, CurrencyPair: getPair(t, asset.Spot)})
+	_, err = e.CountdownCancelSpotOrders(t.Context(), &CountdownCancelOrderRequest{Timeout: 4, CurrencyPair: getPair(t, asset.Spot)})
 	require.ErrorIs(t, err, errInvalidCountdown, "CountdownCancelSpotOrders must reject a countdown shorter than 5 seconds")
 
 	if !mockTests {
@@ -2169,18 +2178,18 @@ func TestCountdownCancelSpotOrders(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *CountdownCancelOrderParam
+		arg  *CountdownCancelOrderRequest
 		exp  *TriggerTimeResponse
 	}{
 		{
 			name: "start countdown",
-			arg:  &CountdownCancelOrderParam{Timeout: 10, CurrencyPair: getPair(t, asset.Spot)},
+			arg:  &CountdownCancelOrderRequest{Timeout: 10, CurrencyPair: getPair(t, asset.Spot)},
 			exp:  &TriggerTimeResponse{TriggerTime: types.Time(time.UnixMilli(1744190264000))},
 		},
 		{
 			// A timeout of 0 stops the countdown, which Gate documents as valid
 			name: "stop countdown",
-			arg:  &CountdownCancelOrderParam{},
+			arg:  &CountdownCancelOrderRequest{},
 			exp:  &TriggerTimeResponse{},
 		},
 	} {
@@ -2219,7 +2228,7 @@ func TestAmendBatchSpotOrders(t *testing.T) {
 	result, err := e.AmendBatchSpotOrders(t.Context(), []*BatchAmendSpotOrderRequest{valid})
 	require.NoError(t, err, "AmendBatchSpotOrders must not error")
 	if mockTests {
-		exp := []*SpotOrder{{
+		exp := []*SpotOrderResponse{{
 			OrderID:            "121212",
 			BatchOrderID:       "121212",
 			Text:               "t-123456",
@@ -2238,7 +2247,7 @@ func TestAmendBatchSpotOrders(t *testing.T) {
 			Price:              5.00032,
 			TimeInForce:        gtcTIF,
 			RemainingAmount:    1,
-			FeeCurrency:        "BTC",
+			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			STPID:              10240,
 			STPAction:          "cn",
@@ -2290,10 +2299,10 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	_, err := e.CreatePriceTriggeredOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreatePriceTriggeredOrder must reject a nil request")
 
-	_, err = e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderParam{})
+	_, err = e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CreatePriceTriggeredOrder must reject an empty market")
 
-	arg := &PriceTriggeredOrderParam{Market: getPair(t, asset.Spot), Trigger: TriggerPriceInfo{Price: -1}}
+	arg := &PriceTriggeredOrderRequest{Market: getPair(t, asset.Spot), Trigger: TriggerPriceInfo{Price: -1}}
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "CreatePriceTriggeredOrder must reject a non-positive trigger price")
 
@@ -2322,13 +2331,13 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderParam{
+	result, err := e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderRequest{
 		Trigger: TriggerPriceInfo{
 			Price:      123,
 			Rule:       ">=",
 			Expiration: 3600,
 		},
-		Put: PutOrderData{
+		Put: PutOrder{
 			Type:        "limit",
 			Side:        "sell",
 			Price:       2312312,
@@ -2339,7 +2348,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "CreatePriceTriggeredOrder must not error")
 	if mockTests {
-		assert.Equal(t, &OrderID{ID: 1432329, IDString: "1432329"}, result, "CreatePriceTriggeredOrder should decode every field")
+		assert.Equal(t, &TriggerOrderIDResponse{ID: 1432329, IDString: "1432329"}, result, "CreatePriceTriggeredOrder should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "CreatePriceTriggeredOrder should return a result")
@@ -2356,9 +2365,9 @@ func TestGetPriceTriggeredOrderList(t *testing.T) {
 	result, err := e.GetPriceTriggeredOrderList(t.Context(), statusOpen, currency.EMPTYPAIR, "", 0, 0)
 	require.NoError(t, err, "GetPriceTriggeredOrderList must not error")
 	if mockTests {
-		exp := []*SpotPriceTriggeredOrder{{
+		exp := []*SpotPriceTriggeredOrderResponse{{
 			Trigger:      TriggerPriceInfo{Price: 100, Rule: ">=", Expiration: 3600},
-			Put:          PutOrderData{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
+			Put:          PutOrder{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
 			AutoOrderID:  1283293,
 			UserID:       1234,
 			CreationTime: types.Time(time.Unix(1744150000, 0)),
@@ -2379,9 +2388,9 @@ func TestCancelMultipleSpotOpenOrders(t *testing.T) {
 	result, err := e.CancelMultipleSpotOpenOrders(t.Context(), getPair(t, asset.Spot), "normal")
 	require.NoError(t, err, "CancelMultipleSpotOpenOrders must not error")
 	if mockTests {
-		exp := []*SpotPriceTriggeredOrder{{
+		exp := []*SpotPriceTriggeredOrderResponse{{
 			Trigger:      TriggerPriceInfo{Price: 100, Rule: "<=", Expiration: 3600},
-			Put:          PutOrderData{Type: "market", Side: "sell", Price: 99, Amount: 2, Account: "normal", TimeInForce: iocTIF, Text: "api"},
+			Put:          PutOrder{Type: "market", Side: "sell", Price: 99, Amount: 2, Account: "normal", TimeInForce: iocTIF, Text: "api"},
 			AutoOrderID:  1283294,
 			UserID:       1234,
 			CreationTime: types.Time(time.Unix(1744150000, 0)),
@@ -2407,9 +2416,9 @@ func TestGetSinglePriceTriggeredOrder(t *testing.T) {
 	result, err := e.GetSinglePriceTriggeredOrder(t.Context(), "1234")
 	require.NoError(t, err, "GetSinglePriceTriggeredOrder must not error")
 	if mockTests {
-		exp := &SpotPriceTriggeredOrder{
+		exp := &SpotPriceTriggeredOrderResponse{
 			Trigger:      TriggerPriceInfo{Price: 100, Rule: ">=", Expiration: 3600},
-			Put:          PutOrderData{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
+			Put:          PutOrder{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
 			AutoOrderID:  1234,
 			UserID:       1234,
 			CreationTime: types.Time(time.Unix(1744150000, 0)),
@@ -2435,9 +2444,9 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 	result, err := e.CancelPriceTriggeredOrder(t.Context(), "1234")
 	require.NoError(t, err, "CancelPriceTriggeredOrder must not error")
 	if mockTests {
-		exp := &SpotPriceTriggeredOrder{
+		exp := &SpotPriceTriggeredOrderResponse{
 			Trigger:      TriggerPriceInfo{Price: 100, Rule: ">=", Expiration: 3600},
-			Put:          PutOrderData{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
+			Put:          PutOrder{Type: "limit", Side: "buy", Price: 2.15, Amount: 2, Account: "normal", TimeInForce: gtcTIF, Text: "api"},
 			AutoOrderID:  1234,
 			UserID:       1234,
 			CreationTime: types.Time(time.Unix(1744150000, 0)),
@@ -2683,7 +2692,7 @@ func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	require.NoError(t, err, "CurrencySupportedByCrossMargin must not error")
 	if mockTests {
 		require.Len(t, result, 7, "CurrencySupportedByCrossMargin must return every recorded currency")
-		exp := &CrossMarginCurrencies{
+		exp := &CrossMarginCurrenciesResponse{
 			Name:                 currency.BTC,
 			Rate:                 0.0002,
 			CurrencyPrecision:    0.000001,
@@ -2709,7 +2718,7 @@ func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
 	result, err := e.GetCrossMarginSupportedCurrencyDetail(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetCrossMarginSupportedCurrencyDetail must not error")
 	if mockTests {
-		exp := &CrossMarginCurrencies{
+		exp := &CrossMarginCurrenciesResponse{
 			Name:                 currency.BTC,
 			CurrencyPrecision:    0.000001,
 			Discount:             1,
@@ -2734,7 +2743,7 @@ func TestGetCrossMarginAccounts(t *testing.T) {
 	result, err := e.GetCrossMarginAccounts(t.Context())
 	require.NoError(t, err, "GetCrossMarginAccounts must not error")
 	if mockTests {
-		exp := &CrossMarginAccount{
+		exp := &CrossMarginAccountResponse{
 			UserID: 10001,
 			Balances: map[string]CrossMarginCurrencyBalance{
 				"BTC": {Available: 0.5, Freeze: 0.1, Borrowed: 0.02, Interest: 0.0001},
@@ -2769,7 +2778,7 @@ func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	result, err := e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, startTime, endTime, 1, 6, "in")
 	require.NoError(t, err, "GetCrossMarginAccountChangeHistory must not error")
 	if mockTests {
-		exp := []*CrossMarginAccountHistoryItem{{
+		exp := []*CrossMarginAccountHistoryItemResponse{{
 			ID:       "123456",
 			Time:     types.Time(time.UnixMilli(1744150000000)),
 			Currency: currency.BTC,
@@ -2783,18 +2792,40 @@ func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	assert.NotNil(t, result, "GetCrossMarginAccountChangeHistory should return a result")
 }
 
+func TestCreateCrossMarginBorrowLoanNullReply(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v4/margin/cross/loans", r.URL.Path, "request path should be the cross margin loans")
+		_, err := w.Write([]byte(`null`))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	_, err := ex.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.BTC, Amount: 3})
+	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateCrossMarginBorrowLoan should reject a null reply")
+}
+
 func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{Currency: currency.EMPTYCODE, Amount: 3})
+	_, err := e.CreateCrossMarginBorrowLoan(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CreateCrossMarginBorrowLoan must reject a nil request")
+
+	_, err = e.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.EMPTYCODE, Amount: 3})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "CreateCrossMarginBorrowLoan must reject an empty currency")
 
-	_, err = e.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{Currency: currency.BTC, Amount: 0})
+	_, err = e.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.BTC, Amount: 0})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "CreateCrossMarginBorrowLoan must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{Currency: currency.BTC, Amount: 3})
+	result, err := e.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.BTC, Amount: 3})
 	require.NoError(t, err, "CreateCrossMarginBorrowLoan must not error")
 	if mockTests {
 		exp := &CrossMarginLoanResponse{
@@ -2869,16 +2900,16 @@ func TestGetSingleBorrowLoanDetail(t *testing.T) {
 
 func TestExecuteRepayment(t *testing.T) {
 	t.Parallel()
-	_, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmount{})
+	_, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmountResponse{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "ExecuteRepayment must reject an empty currency")
 
-	_, err = e.ExecuteRepayment(t.Context(), CurrencyAndAmount{Currency: currency.BTC})
+	_, err = e.ExecuteRepayment(t.Context(), CurrencyAndAmountResponse{Currency: currency.BTC})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "ExecuteRepayment must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmount{Currency: currency.USDT, Amount: 1234.55})
+	result, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmountResponse{Currency: currency.USDT, Amount: 1234.55})
 	require.NoError(t, err, "ExecuteRepayment must not error")
 	if mockTests {
 		exp := []*CrossMarginLoanResponse{{
@@ -2934,7 +2965,7 @@ func TestGetMaxTransferableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	result, err := e.GetMaxTransferableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetMaxTransferableAmountForSpecificCrossMarginCurrency must not error")
 	if mockTests {
-		exp := &CurrencyAndAmount{Currency: currency.BTC, Amount: 1.5}
+		exp := &CurrencyAndAmountResponse{Currency: currency.BTC, Amount: 1.5}
 		assert.Equal(t, exp, result, "GetMaxTransferableAmountForSpecificCrossMarginCurrency should decode every field")
 		return
 	}
@@ -2952,7 +2983,7 @@ func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	result, err := e.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetMaxBorrowableAmountForSpecificCrossMarginCurrency must not error")
 	if mockTests {
-		exp := &CurrencyAndAmount{Currency: currency.BTC, Amount: 0.8}
+		exp := &CurrencyAndAmountResponse{Currency: currency.BTC, Amount: 0.8}
 		assert.Equal(t, exp, result, "GetMaxBorrowableAmountForSpecificCrossMarginCurrency should decode every field")
 		return
 	}
@@ -2967,7 +2998,7 @@ func TestListCurrencyChain(t *testing.T) {
 	result, err := e.ListCurrencyChain(t.Context(), currency.BTC)
 	require.NoError(t, err, "ListCurrencyChain must not error")
 	if mockTests {
-		exp := []*CurrencyChain{
+		exp := []*CurrencyChainResponse{
 			{Chain: "BTC", ChineseChainName: "Bitcoin", ChainName: "Bitcoin", WithdrawalPrecision: 8},
 			{Chain: "BSC", ChineseChainName: "BNB Smart Chain（BEP20）", ChainName: "BNB Smart Chain(BEP20)", ContractAddress: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", WithdrawalPrecision: 8},
 		}
@@ -2988,7 +3019,7 @@ func TestGenerateCurrencyDepositAddress(t *testing.T) {
 	result, err := e.GenerateCurrencyDepositAddress(t.Context(), currency.BTC)
 	require.NoError(t, err, "GenerateCurrencyDepositAddress must not error")
 	if mockTests {
-		exp := &CurrencyDepositAddressInfo{
+		exp := &CurrencyDepositAddressInfoResponse{
 			Currency:         currency.BTC,
 			Address:          "1HkxtBAMrA3tP5ENnYY2CZortjZvFDH5Cs",
 			MinDepositAmount: 0.000006,
@@ -3049,7 +3080,7 @@ func TestGetDepositRecords(t *testing.T) {
 	result, err := e.GetDepositRecords(t.Context(), currency.BTC, startTime, endTime, 10, 100)
 	require.NoError(t, err, "GetDepositRecords must not error")
 	if mockTests {
-		exp := []*DepositRecord{
+		exp := []*DepositRecordResponse{
 			{
 				ID:            "d123456",
 				Timestamp:     types.Time(time.Unix(1744150000, 0)),
@@ -3106,7 +3137,7 @@ func TestWalletAccountType(t *testing.T) {
 
 func TestTransferCurrencyParamMarshalJSON(t *testing.T) {
 	t.Parallel()
-	payload, err := json.Marshal(&TransferCurrencyParam{
+	payload, err := json.Marshal(&TransferCurrencyRequest{
 		Currency: currency.USDT,
 		From:     asset.CoinMarginedFutures,
 		To:       asset.DeliveryFutures,
@@ -3114,10 +3145,10 @@ func TestTransferCurrencyParamMarshalJSON(t *testing.T) {
 		Settle:   currency.USDT,
 	})
 	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"currency":"USDT","from":"futures","to":"delivery","amount":"12.5","currency_pair":"","settle":"usdt"}`, string(payload), "TransferCurrencyParam should send Gate account names")
+	assert.JSONEq(t, `{"currency":"USDT","from":"futures","to":"delivery","amount":"12.5","currency_pair":"","settle":"usdt"}`, string(payload), "TransferCurrencyRequest should send Gate account names")
 
-	_, err = json.Marshal(&TransferCurrencyParam{From: asset.Spot, To: asset.CrossMargin})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "TransferCurrencyParam should reject an account Gate does not support")
+	_, err = json.Marshal(&TransferCurrencyRequest{From: asset.Spot, To: asset.CrossMargin})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "TransferCurrencyRequest should reject an account Gate does not support")
 }
 
 func TestTransferCurrency(t *testing.T) {
@@ -3125,7 +3156,7 @@ func TestTransferCurrency(t *testing.T) {
 	_, err := e.TransferCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "TransferCurrency must reject a nil request")
 
-	arg := &TransferCurrencyParam{}
+	arg := &TransferCurrencyRequest{}
 	_, err = e.TransferCurrency(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "TransferCurrency must reject an empty currency")
 
@@ -3160,7 +3191,7 @@ func TestTransferCurrency(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.TransferCurrency(t.Context(), &TransferCurrencyParam{
+	result, err := e.TransferCurrency(t.Context(), &TransferCurrencyRequest{
 		Currency:     currency.BTC,
 		From:         asset.Spot,
 		To:           asset.Margin,
@@ -3173,7 +3204,7 @@ func TestTransferCurrency(t *testing.T) {
 	}
 
 	// Perpetual futures assets must be sent as Gate's futures account rather than their asset names
-	result, err = e.TransferCurrency(t.Context(), &TransferCurrencyParam{
+	result, err = e.TransferCurrency(t.Context(), &TransferCurrencyRequest{
 		Currency: currency.USDT,
 		Settle:   currency.USDT,
 		From:     asset.Spot,
@@ -3217,7 +3248,7 @@ func TestSubAccountTransfer(t *testing.T) {
 	ctx := t.Context()
 	_, err := e.SubAccountTransfer(ctx, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubAccountTransfer must reject a nil request")
-	req := &SubAccountTransferParam{SubAccountType: "index"}
+	req := &SubAccountTransferRequest{SubAccountType: "index"}
 	_, err = e.SubAccountTransfer(ctx, req)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SubAccountTransfer must reject an empty currency")
 	req.Currency = currency.BTC
@@ -3376,7 +3407,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 				MainAccountUserID: "10001",
 				Timestamp:         types.Time(time.Unix(1709251200, 0)),
 				Source:            "web",
-				Currency:          "BTC",
+				Currency:          currency.BTC,
 				SubAccount:        "1337",
 				TransferDirection: "to",
 				Amount:            1.5,
@@ -3396,7 +3427,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 				MainAccountUserID: "10001",
 				Timestamp:         types.Time(time.Unix(1592809000, 0)),
 				Source:            "web",
-				Currency:          "BTC",
+				Currency:          currency.BTC,
 				SubAccount:        "10002",
 				TransferDirection: "to",
 				Amount:            1,
@@ -3413,7 +3444,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 
 func TestInterSubAccountTransferParamsMarshalJSON(t *testing.T) {
 	t.Parallel()
-	payload, err := json.Marshal(&InterSubAccountTransferParams{
+	payload, err := json.Marshal(&InterSubAccountTransferRequest{
 		Currency:                currency.USDT,
 		SubAccountFromUserID:    "1234",
 		SubAccountFromAssetType: asset.USDTMarginedFutures,
@@ -3422,10 +3453,10 @@ func TestInterSubAccountTransferParamsMarshalJSON(t *testing.T) {
 		Amount:                  3,
 	})
 	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"currency":"USDT","sub_account_from":"1234","sub_account_from_type":"futures","sub_account_to":"4567","sub_account_to_type":"delivery","amount":"3"}`, string(payload), "InterSubAccountTransferParams should send Gate account names")
+	assert.JSONEq(t, `{"currency":"USDT","sub_account_from":"1234","sub_account_from_type":"futures","sub_account_to":"4567","sub_account_to_type":"delivery","amount":"3"}`, string(payload), "InterSubAccountTransferRequest should send Gate account names")
 
-	_, err = json.Marshal(&InterSubAccountTransferParams{SubAccountFromAssetType: asset.Spot})
-	assert.ErrorIs(t, err, asset.ErrInvalidAsset, "InterSubAccountTransferParams should reject an empty account type")
+	_, err = json.Marshal(&InterSubAccountTransferRequest{SubAccountFromAssetType: asset.Spot})
+	assert.ErrorIs(t, err, asset.ErrInvalidAsset, "InterSubAccountTransferRequest should reject an empty account type")
 }
 
 func TestCheckSubAccountTransferAccountType(t *testing.T) {
@@ -3452,7 +3483,7 @@ func TestSubAccountTransferToSubAccount(t *testing.T) {
 	_, err := e.SubAccountTransferToSubAccount(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubAccountTransferToSubAccount must reject a nil request")
 
-	arg := &InterSubAccountTransferParams{}
+	arg := &InterSubAccountTransferRequest{}
 	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SubAccountTransferToSubAccount must reject an empty currency")
 
@@ -3483,7 +3514,7 @@ func TestSubAccountTransferToSubAccount(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{
+	result, err := e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferRequest{
 		Currency:                currency.BTC,
 		SubAccountFromUserID:    "1234",
 		SubAccountFromAssetType: asset.Spot,
@@ -3508,7 +3539,7 @@ func TestGetTransferOrderStatus(t *testing.T) {
 	result, err := e.GetTransferOrderStatus(t.Context(), "12345678", "abcdefg")
 	require.NoError(t, err, "GetTransferOrderStatus must not error")
 	if mockTests {
-		assert.Equal(t, &TransferStatus{TransactionID: "abcdefg", Status: "SUCCESS"}, result, "GetTransferOrderStatus should decode every field")
+		assert.Equal(t, &TransferStatusResponse{TransactionID: "abcdefg", Status: "SUCCESS"}, result, "GetTransferOrderStatus should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetTransferOrderStatus should return a status")
@@ -3522,7 +3553,7 @@ func TestGetWithdrawalStatus(t *testing.T) {
 	result, err := e.GetWithdrawalStatus(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetWithdrawalStatus must not error")
 	if mockTests {
-		exp := []*WithdrawalStatus{{
+		exp := []*WithdrawalStatusResponse{{
 			Currency:                currency.GT,
 			CurrencyName:            "GateToken",
 			CurrencyNameChinese:     "GateToken",
@@ -3550,7 +3581,7 @@ func TestGetSubAccountBalances(t *testing.T) {
 	result, err := e.GetSubAccountBalances(t.Context(), "", 0, 0)
 	require.NoError(t, err, "GetSubAccountBalances must not error")
 	if mockTests {
-		exp := []*SubAccountBalances{{
+		exp := []*SubAccountBalancesResponse{{
 			UserID:    "10003",
 			Available: map[currency.Code]types.Number{currency.BTC: 0.1, currency.GT: 2000, currency.USDT: 10},
 			Locking:   map[currency.Code]types.Number{currency.BTC: 0, currency.GT: 0.5, currency.USDT: 0},
@@ -3569,7 +3600,7 @@ func TestGetSubAccountMarginBalances(t *testing.T) {
 	result, err := e.GetSubAccountMarginBalances(t.Context(), "")
 	require.NoError(t, err, "GetSubAccountMarginBalances must not error")
 	if mockTests {
-		exp := []*SubAccountMarginBalance{{
+		exp := []*SubAccountMarginBalanceResponse{{
 			UserID: "10000",
 			Available: []*SubAccountMarginPairBalance{{
 				CurrencyPair:          currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
@@ -3595,7 +3626,7 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 	result, err := e.GetSubAccountFuturesBalances(t.Context(), "", currency.EMPTYCODE)
 	require.NoError(t, err, "GetSubAccountFuturesBalances must not error")
 	if mockTests {
-		exp := []*FuturesSubAccountBalance{{
+		exp := []*FuturesSubAccountBalanceResponse{{
 			UserID: "10003",
 			Available: map[string]*AccountMargin{
 				"usd": {},
@@ -3661,7 +3692,7 @@ func TestGetSubAccountCrossMarginBalances(t *testing.T) {
 	result, err := e.GetSubAccountCrossMarginBalances(t.Context(), "")
 	require.NoError(t, err, "GetSubAccountCrossMarginBalances must not error")
 	if mockTests {
-		exp := []*SubAccountCrossMarginInfo{{
+		exp := []*SubAccountCrossMarginInfoResponse{{
 			UserID: "100000",
 			Available: &SubAccountCrossMarginDetail{
 				UserID:                     100003,
@@ -3695,7 +3726,7 @@ func TestGetSavedAddresses(t *testing.T) {
 	result, err := e.GetSavedAddresses(t.Context(), &SavedAddressesRequest{Currency: currency.BTC, Verified: "1", Page: 10})
 	require.NoError(t, err, "GetSavedAddresses must not error")
 	if mockTests {
-		exp := []*WalletSavedAddress{{Currency: "BTC", Chain: "BTC", Address: "1HkxtBAMrA3tP5ENnYY2CZortjZvFDH5Cs", Name: "gate", Verified: "1"}}
+		exp := []*WalletSavedAddressResponse{{Currency: currency.BTC, Chain: "BTC", Address: "1HkxtBAMrA3tP5ENnYY2CZortjZvFDH5Cs", Name: "gate", Verified: "1"}}
 		assert.Equal(t, exp, result, "GetSavedAddresses should decode every field")
 		return
 	}
@@ -3710,7 +3741,7 @@ func TestGetPersonalTradingFee(t *testing.T) {
 	result, err := e.GetPersonalTradingFee(t.Context(), getPair(t, asset.Spot), currency.EMPTYCODE)
 	require.NoError(t, err, "GetPersonalTradingFee must not error")
 	if mockTests {
-		exp := &PersonalTradingFee{
+		exp := &PersonalTradingFeeResponse{
 			UserID:              10001,
 			TakerFee:            0.002,
 			MakerFee:            0.002,
@@ -3746,7 +3777,7 @@ func TestGetUsersTotalBalance(t *testing.T) {
 	result, err := e.GetUsersTotalBalance(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetUsersTotalBalance must not error")
 	if mockTests {
-		exp := &UsersAllAccountBalance{
+		exp := &UsersAllAccountBalanceResponse{
 			Details: map[string]CurrencyBalanceAmount{
 				"spot":         {Currency: currency.BTC, Amount: 1.5},
 				"margin":       {Currency: currency.BTC, Amount: 0.25, Borrowed: 0.1},
@@ -3778,8 +3809,8 @@ func futuresLocalServerExchange(t *testing.T, handler http.HandlerFunc) *Exchang
 }
 
 // futuresFixturePosition returns the position the futures fixtures record for a contract, position mode and size
-func futuresFixturePosition(contract currency.Pair, mode string, size types.Number) *Position {
-	return &Position{
+func futuresFixturePosition(contract currency.Pair, mode string, size types.Number) *PositionResponse {
+	return &PositionResponse{
 		User:                       10000,
 		Contract:                   contract,
 		Size:                       size,
@@ -3822,8 +3853,8 @@ func futuresFixturePosition(contract currency.Pair, mode string, size types.Numb
 }
 
 // futuresFixtureAccount returns the account the futures fixtures record for a settlement currency
-func futuresFixtureAccount(settle currency.Code) *FuturesAccount {
-	return &FuturesAccount{
+func futuresFixtureAccount(settle currency.Code) *FuturesAccountResponse {
+	return &FuturesAccountResponse{
 		User:                          1666,
 		Currency:                      settle,
 		Total:                         9707.803567115145,
@@ -3869,8 +3900,8 @@ func futuresFixtureAccount(settle currency.Code) *FuturesAccount {
 }
 
 // futuresFixtureOrder returns the order the futures fixtures record for a contract
-func futuresFixtureOrder(contract currency.Pair) *FuturesOrder {
-	return &FuturesOrder{
+func futuresFixtureOrder(contract currency.Pair) *FuturesOrderResponse {
+	return &FuturesOrderResponse{
 		ID:                        15675394,
 		User:                      "100000",
 		Contract:                  contract,
@@ -3899,8 +3930,8 @@ func futuresFixtureOrder(contract currency.Pair) *FuturesOrder {
 }
 
 // futuresFixtureTrailOrder returns the trail order the futures fixtures record
-func futuresFixtureTrailOrder() *TrailOrder {
-	return &TrailOrder{
+func futuresFixtureTrailOrder() *TrailOrderResponse {
+	return &TrailOrderResponse{
 		ID:                 "63585",
 		UserID:             "2124438083",
 		User:               "2124438083",
@@ -3943,8 +3974,8 @@ func futuresFixtureTrailOrder() *TrailOrder {
 }
 
 // futuresFixtureChaseOrder returns the chase order the futures fixtures record
-func futuresFixtureChaseOrder() *ChaseOrder {
-	return &ChaseOrder{
+func futuresFixtureChaseOrder() *ChaseOrderResponse {
+	return &ChaseOrderResponse{
 		ID:                 "1001",
 		User:               "2124438083",
 		Contract:           currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
@@ -3982,8 +4013,8 @@ func futuresFixtureChaseOrder() *ChaseOrder {
 }
 
 // futuresFixturePriceTriggeredOrder returns the price triggered order the futures fixtures record
-func futuresFixturePriceTriggeredOrder() *PriceTriggeredOrder {
-	return &PriceTriggeredOrder{
+func futuresFixturePriceTriggeredOrder() *PriceTriggeredOrderResponse {
+	return &PriceTriggeredOrderResponse{
 		Initial: PriceTriggeredOrderInitial{
 			Contract:     currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
 			Size:         2,
@@ -4031,7 +4062,7 @@ func TestGetAllFutureContracts(t *testing.T) {
 	require.NoError(t, err, "GetAllFutureContracts must not error with a limit and offset")
 	require.Len(t, result, 1, "GetAllFutureContracts must honour the limit")
 	if mockTests {
-		exp := &FuturesContract{
+		exp := &FuturesContractResponse{
 			Name:                  currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 			Type:                  "direct",
 			QuantoMultiplier:      0.0001,
@@ -4098,7 +4129,7 @@ func TestGetAllFutureContractsIncludingDelisted(t *testing.T) {
 	require.NoError(t, err, "GetAllFutureContractsIncludingDelisted must not error")
 	require.Len(t, result, 1, "GetAllFutureContractsIncludingDelisted must honour the limit")
 	if mockTests {
-		exp := &FuturesContract{
+		exp := &FuturesContractResponse{
 			Name:                  currency.NewPairWithDelimiter("LUNA", "USDT", "_"),
 			Type:                  "direct",
 			QuantoMultiplier:      0.0001,
@@ -4167,7 +4198,7 @@ func TestGetFuturesContract(t *testing.T) {
 	result, err = e.GetFuturesContract(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String())
 	require.NoError(t, err, "GetFuturesContract must not error for a BTC contract")
 	if mockTests {
-		exp := &FuturesContract{
+		exp := &FuturesContractResponse{
 			Name:                  currency.NewPairWithDelimiter("BTC", "USD", "_"),
 			Type:                  "inverse",
 			OrderPriceDeviate:     0.5,
@@ -4261,7 +4292,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	result, err = e.GetFuturesOrderbook(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), "", 10, false)
 	require.NoError(t, err, "GetFuturesOrderbook must not error for a BTC contract")
 	if mockTests {
-		exp := &Orderbook{
+		exp := &OrderbookResponse{
 			ID:      123456,
 			Current: types.Time(time.UnixMilli(1623898993123)),
 			Update:  types.Time(time.UnixMilli(1623898993121)),
@@ -4308,7 +4339,7 @@ func TestGetFuturesTradingHistory(t *testing.T) {
 	require.NotEmpty(t, result, "GetFuturesTradingHistory must return trades")
 	if mockTests {
 		require.Len(t, result, 5, "GetFuturesTradingHistory must return every recorded trade")
-		exp := &TradingHistoryItem{
+		exp := &TradingHistoryItemResponse{
 			ID:                     724267229,
 			CreateTime:             types.Time(time.UnixMilli(1775423970950)),
 			CreateTimeMilliseconds: types.Time(time.UnixMilli(1775423970950)),
@@ -4343,7 +4374,7 @@ func TestGetFuturesCandlesticks(t *testing.T) {
 	require.NotEmpty(t, result, "GetFuturesCandlesticks must return candles")
 	if mockTests {
 		require.Len(t, result, 5, "GetFuturesCandlesticks must return every recorded candle")
-		exp := &FuturesCandlestick{
+		exp := &FuturesCandlestickResponse{
 			Timestamp:    types.Time(time.Unix(1715212800, 0)),
 			Volume:       1035191038,
 			ClosePrice:   66173.3,
@@ -4410,7 +4441,7 @@ func TestGetFutureTickers(t *testing.T) {
 	require.NoError(t, err, "GetFuturesTickers must not error for a USDT contract")
 	require.Len(t, result, 1, "GetFuturesTickers must return the USDT contract's ticker")
 	if mockTests {
-		exp := &FuturesTicker{
+		exp := &FuturesTickerResponse{
 			Contract:              currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 			ChangePercentage:      0.37,
 			Last:                  67477.9,
@@ -4454,7 +4485,7 @@ func TestGetFutureFundingRates(t *testing.T) {
 	result, err := e.GetFutureFundingRates(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10, startTime, endTime)
 	require.NoError(t, err, "GetFutureFundingRates must not error for a USDT contract within a time range")
 	if mockTests {
-		exp := []*FuturesFundingRate{
+		exp := []*FuturesFundingRateResponse{
 			{
 				Timestamp: types.Time(time.Unix(1744185600, 0)),
 				Rate:      0.000157,
@@ -4500,7 +4531,7 @@ func TestGetBatchFuturesFundingRates(t *testing.T) {
 		exp := []*BatchFundingRatesResponse{
 			{
 				Contract: "BTC_USDT",
-				Data: []*FuturesFundingRate{
+				Data: []*FuturesFundingRateResponse{
 					{
 						Timestamp: types.Time(time.Unix(1543968000, 0)),
 						Rate:      0.000157,
@@ -4529,7 +4560,7 @@ func TestGetFuturesInsuranceBalanceHistory(t *testing.T) {
 	require.NotEmpty(t, result, "GetFuturesInsuranceBalanceHistory must return balances")
 	if mockTests {
 		require.Len(t, result, 5, "GetFuturesInsuranceBalanceHistory must return every recorded balance")
-		exp := &InsuranceBalance{
+		exp := &InsuranceBalanceResponse{
 			Timestamp: types.Time(time.Unix(1775347200, 0)),
 			Balance:   132672449.967292,
 		}
@@ -4555,7 +4586,7 @@ func TestGetFutureStats(t *testing.T) {
 	require.NoError(t, err, "GetFutureStats must not error for a USDT contract")
 	if mockTests {
 		require.Len(t, result, 5, "GetFutureStats must return every recorded stat")
-		exp := &ContractStat{
+		exp := &ContractStatResponse{
 			Time:                types.Time(time.Unix(1780847040, 0)),
 			LongShortTaker:      0.4883055642879598,
 			LongShortAccount:    1.5497060395510422,
@@ -4588,7 +4619,7 @@ func TestGetIndexConstituent(t *testing.T) {
 	result, err := e.GetIndexConstituent(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
 	require.NoError(t, err, "GetIndexConstituent must not error")
 	if mockTests {
-		exp := &IndexConstituent{
+		exp := &IndexConstituentResponse{
 			Index: "BTC_USDT",
 			Constituents: []*IndexConstituentSources{
 				{
@@ -4648,7 +4679,7 @@ func TestGetLiquidationHistory(t *testing.T) {
 	result, err := e.GetLiquidationHistory(t.Context(), currency.USDT, currency.EMPTYPAIR, startTime, endTime, 10)
 	require.NoError(t, err, "GetLiquidationHistory must not error without a contract")
 	if mockTests {
-		exp := []*LiquidationHistory{
+		exp := []*LiquidationHistoryResponse{
 			{
 				Time:       types.Time(time.Unix(1744104000, 0)),
 				Contract:   "BTC_USDT",
@@ -4695,7 +4726,7 @@ func TestGetFuturesAccountBooks(t *testing.T) {
 	result, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10, 1, startTime, endTime, "fee")
 	require.NoError(t, err, "GetFuturesAccountBooks must not error")
 	if mockTests {
-		exp := []*AccountBookItem{
+		exp := []*AccountBookItemResponse{
 			{
 				Time:     types.Time(time.UnixMicro(1682294400123456)),
 				Change:   0.000010152188,
@@ -4725,7 +4756,7 @@ func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
 	result, err := e.GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true, 10, 0)
 	require.NoError(t, err, "GetAllFuturesPositionsOfUsers must not error")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "single", -9440)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "single", -9440)}
 		assert.Equal(t, exp, result, "GetAllFuturesPositionsOfUsers should decode every field")
 	}
 }
@@ -4876,7 +4907,7 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 
 func TestPositionReplyUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	exp := &Position{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Size: 5, Mode: "single"}
+	exp := &PositionResponse{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Size: 5, Mode: "single"}
 	for _, payload := range []string{
 		`{"contract":"BTC_USDT","size":"5","mode":"single"}`,
 		`[{"contract":"BTC_USDT","size":"5","mode":"single"}]`,
@@ -4968,7 +4999,7 @@ func TestSwitchFuturesDualModePositionMarginMode(t *testing.T) {
 	result, err := e.SwitchFuturesDualModePositionMarginMode(t.Context(), currency.USDT, &FuturesPositionMarginModeRequest{Mode: "CROSS", Contract: contract})
 	require.NoError(t, err, "SwitchFuturesDualModePositionMarginMode must not error")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
 		assert.Equal(t, exp, result, "SwitchFuturesDualModePositionMarginMode should decode every field")
 	}
 }
@@ -5071,17 +5102,17 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 	_, err := e.PlaceDeliveryOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceDeliveryOrder must reject a nil request")
 
-	_, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{Size: 1, Price: 1, Settle: currency.USDT})
+	_, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateRequest{Size: 1, Price: 1, Settle: currency.USDT})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceDeliveryOrder must reject an empty contract")
 
 	pair := getPair(t, asset.DeliveryFutures)
-	_, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{Contract: pair, Size: 1, Price: 1})
+	_, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateRequest{Contract: pair, Size: 1, Price: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PlaceDeliveryOrder must reject an empty settlement currency")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{
+	result, err := e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateRequest{
 		Contract:    pair,
 		Size:        6024,
 		Iceberg:     0,
@@ -5098,7 +5129,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 	assert.Equal(t, deliveryOpenOrderFixture(pair, 15675394), result, "PlaceDeliveryOrder should decode every field")
 
 	// The recorded request body only matches a market order sending its zero price as "0"
-	result, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{
+	result, err = e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateRequest{
 		Contract:    pair,
 		Size:        -1,
 		Text:        "t-market-order",
@@ -5106,7 +5137,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 		TimeInForce: iocTIF,
 	})
 	require.NoError(t, err, "PlaceDeliveryOrder must not error for a market order")
-	exp := &FuturesOrder{
+	exp := &FuturesOrderResponse{
 		ID:                        15675395,
 		Contract:                  pair,
 		CreateTime:                types.Time(time.Unix(1546569968, 0)),
@@ -5130,27 +5161,27 @@ func TestDeliveryOrderCreateParamsMarshalJSON(t *testing.T) {
 	pair := currency.NewPairWithDelimiter("BTC", "USDT_20260626", currency.UnderscoreDelimiter)
 	for _, tc := range []struct {
 		name   string
-		params *DeliveryOrderCreateParams
+		params *DeliveryOrderCreateRequest
 		exp    string
 	}{
 		{
 			name:   "market order",
-			params: &DeliveryOrderCreateParams{Contract: pair, Size: -1, TimeInForce: iocTIF, Settle: currency.USDT},
+			params: &DeliveryOrderCreateRequest{Contract: pair, Size: -1, TimeInForce: iocTIF, Settle: currency.USDT},
 			exp:    `{"contract":"BTC_USDT_20260626","size":-1,"iceberg":0,"price":"0","tif":"ioc"}`,
 		},
 		{
 			name:   "close position",
-			params: &DeliveryOrderCreateParams{Contract: pair, ClosePosition: true, TimeInForce: iocTIF, Settle: currency.USDT},
+			params: &DeliveryOrderCreateRequest{Contract: pair, ClosePosition: true, TimeInForce: iocTIF, Settle: currency.USDT},
 			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","close":true}`,
 		},
 		{
 			name:   "close hedge mode side",
-			params: &DeliveryOrderCreateParams{Contract: pair, AutoSize: "close_long", TimeInForce: iocTIF, Settle: currency.USDT},
+			params: &DeliveryOrderCreateRequest{Contract: pair, AutoSize: "close_long", TimeInForce: iocTIF, Settle: currency.USDT},
 			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","auto_size":"close_long"}`,
 		},
 		{
 			name: "limit order",
-			params: &DeliveryOrderCreateParams{
+			params: &DeliveryOrderCreateRequest{
 				Contract:                  pair,
 				Size:                      6024,
 				Iceberg:                   10,
@@ -5188,7 +5219,7 @@ func TestGetDeliveryOrders(t *testing.T) {
 	result, err := e.GetDeliveryOrders(t.Context(), pair, statusOpen, currency.USDT, "", 0, 0, true)
 	require.NoError(t, err, "GetDeliveryOrders must not error")
 	if mockTests {
-		assert.Equal(t, []*FuturesOrder{deliveryOpenOrderFixture(pair, 15675394)}, result, "GetDeliveryOrders should decode every field")
+		assert.Equal(t, []*FuturesOrderResponse{deliveryOpenOrderFixture(pair, 15675394)}, result, "GetDeliveryOrders should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetDeliveryOrders should return a list")
@@ -5212,7 +5243,7 @@ func TestCancelMultipleDeliveryOrders(t *testing.T) {
 	result, err := e.CancelMultipleDeliveryOrders(t.Context(), pair, "ask", currency.USDT)
 	require.NoError(t, err, "CancelMultipleDeliveryOrders must not error")
 	if mockTests {
-		assert.Equal(t, []*FuturesOrder{deliveryCancelledOrderFixture(pair)}, result, "CancelMultipleDeliveryOrders should decode every field")
+		assert.Equal(t, []*FuturesOrderResponse{deliveryCancelledOrderFixture(pair)}, result, "CancelMultipleDeliveryOrders should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "CancelMultipleDeliveryOrders should return a list")
@@ -5259,8 +5290,8 @@ func TestCancelSingleDeliveryOrder(t *testing.T) {
 }
 
 // deliveryOpenOrderFixture returns the open delivery order recorded in testdata/http.json
-func deliveryOpenOrderFixture(contract currency.Pair, id int64) *FuturesOrder {
-	return &FuturesOrder{
+func deliveryOpenOrderFixture(contract currency.Pair, id uint64) *FuturesOrderResponse {
+	return &FuturesOrderResponse{
 		ID:                        id,
 		Contract:                  contract,
 		CreateTime:                types.Time(time.Unix(1546569968, 0)),
@@ -5278,8 +5309,8 @@ func deliveryOpenOrderFixture(contract currency.Pair, id int64) *FuturesOrder {
 }
 
 // deliveryCancelledOrderFixture returns the cancelled delivery order recorded in testdata/http.json
-func deliveryCancelledOrderFixture(contract currency.Pair) *FuturesOrder {
-	return &FuturesOrder{
+func deliveryCancelledOrderFixture(contract currency.Pair) *FuturesOrderResponse {
+	return &FuturesOrderResponse{
 		ID:                        123456,
 		Contract:                  contract,
 		CreateTime:                types.Time(time.Unix(1546569968, 0)),
@@ -5312,7 +5343,7 @@ func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	result, err := e.GetMyDeliveryTradingHistory(t.Context(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
 	require.NoError(t, err, "GetMyDeliveryTradingHistory must not error")
 	if mockTests {
-		exp := []*TradingHistoryItem{{
+		exp := []*TradingHistoryItemResponse{{
 			ID:       121234231,
 			Contract: "BTC_USDT_20260626",
 			Text:     "t-123456",
@@ -5365,19 +5396,19 @@ func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	result, err := e.GetDeliveryLiquidationHistory(t.Context(), currency.USDT, pair, 0, at)
 	require.NoError(t, err, "GetDeliveryLiquidationHistory must not error")
 	if mockTests {
-		exp := []*LiquidationHistoryItem{{
-			Time:            types.Time(time.Unix(1744103854, 0)),
-			Contract:        pair,
-			Size:            600,
-			Leverage:        25,
-			Margin:          0.006705256878,
-			EntryPrice:      3536.123,
-			MarkPrice:       3420.27,
-			OrderPrice:      3405,
-			FillPrice:       3424,
-			LiqPrice:        3421.54,
-			OrderID:         317393847,
-			RemainingAmount: 4,
+		exp := []*LiquidationHistoryItemResponse{{
+			Time:             types.Time(time.Unix(1744103854, 0)),
+			Contract:         pair,
+			Size:             600,
+			Leverage:         25,
+			Margin:           0.006705256878,
+			EntryPrice:       3536.123,
+			MarkPrice:        3420.27,
+			OrderPrice:       3405,
+			FillPrice:        3424,
+			LiquidationPrice: 3421.54,
+			OrderID:          317393847,
+			RemainingAmount:  4,
 		}}
 		assert.Equal(t, exp, result, "GetDeliveryLiquidationHistory should decode every field")
 		return
@@ -5398,7 +5429,7 @@ func TestGetDeliverySettlementHistory(t *testing.T) {
 	result, err := e.GetDeliverySettlementHistory(t.Context(), currency.USDT, pair, 0, at)
 	require.NoError(t, err, "GetDeliverySettlementHistory must not error")
 	if mockTests {
-		exp := []*SettlementHistoryItem{{
+		exp := []*SettlementHistoryItemResponse{{
 			Time:        types.Time(time.Unix(1744103854, 0)),
 			Contract:    pair,
 			Size:        600,
@@ -5421,8 +5452,8 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreatePriceTriggeredDeliveryOrder must reject a nil request")
 
 	pair := getPair(t, asset.DeliveryFutures)
-	newRequest := func() *FuturesPriceTriggeredOrderParam {
-		return &FuturesPriceTriggeredOrderParam{
+	newRequest := func() *FuturesPriceTriggeredOrderRequest {
+		return &FuturesPriceTriggeredOrderRequest{
 			Initial:   FuturesInitial{Contract: pair, Size: 12, Price: 1234},
 			Trigger:   FuturesTrigger{Rule: 1, Price: 123400},
 			OrderType: "close-short-position",
@@ -5431,19 +5462,18 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		settle currency.Code
-		modify func(*FuturesPriceTriggeredOrderParam)
+		modify func(*FuturesPriceTriggeredOrderRequest)
 		err    error
 	}{
-		{name: "settlement currency", settle: currency.EMPTYCODE, modify: func(*FuturesPriceTriggeredOrderParam) {}, err: currency.ErrCurrencyCodeEmpty},
-		{name: "contract", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Contract = currency.EMPTYPAIR }, err: currency.ErrCurrencyPairEmpty},
-		{name: "price", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Price = -1 }, err: limits.ErrPriceBelowMin},
-		{name: "time in force", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Initial.TimeInForce = pocTIF }, err: order.ErrUnsupportedTimeInForce},
-		{name: "strategy type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.StrategyType = 2 }, err: errInvalidTriggerStrategyType},
-		{name: "negative price type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = -1 }, err: errInvalidTriggerPriceType},
-		{name: "price type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = 3 }, err: errInvalidTriggerPriceType},
-		{name: "rule", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Rule = 0 }, err: errInvalidTriggerRule},
-		{name: "trigger price", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Price = 0 }, err: limits.ErrPriceBelowMin},
-		{name: "read only order type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-long-order" }, err: errInvalidAutoOrderType},
+		{name: "settlement currency", settle: currency.EMPTYCODE, modify: func(*FuturesPriceTriggeredOrderRequest) {}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "contract", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Contract = currency.EMPTYPAIR }, err: currency.ErrCurrencyPairEmpty},
+		{name: "price", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Price = -1 }, err: limits.ErrPriceBelowMin},
+		{name: "time in force", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.TimeInForce = pocTIF }, err: order.ErrUnsupportedTimeInForce},
+		{name: "strategy type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.StrategyType = 2 }, err: errInvalidTriggerStrategyType},
+		{name: "price type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.PriceType = 3 }, err: errInvalidTriggerPriceType},
+		{name: "rule", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 0 }, err: errInvalidTriggerRule},
+		{name: "trigger price", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Price = 0 }, err: limits.ErrPriceBelowMin},
+		{name: "read only order type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-long-order" }, err: errInvalidAutoOrderType},
 	} {
 		arg := newRequest()
 		tc.modify(arg)
@@ -5489,7 +5519,7 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	result, err := ex.CreatePriceTriggeredDeliveryOrder(t.Context(), currency.USDT, newRequest())
 	require.NoError(t, err, "CreatePriceTriggeredDeliveryOrder must not error")
-	assert.Equal(t, &OrderID{ID: 1432329}, result, "CreatePriceTriggeredDeliveryOrder should decode the order ID")
+	assert.Equal(t, &TriggerOrderIDResponse{ID: 1432329}, result, "CreatePriceTriggeredDeliveryOrder should decode the order ID")
 	assert.Equal(t, int64(1), requests.Load(), "CreatePriceTriggeredDeliveryOrder should send one request")
 }
 
@@ -5508,7 +5538,7 @@ func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	result, err := e.GetDeliveryAllAutoOrder(t.Context(), statusOpen, currency.USDT, pair, 0, 1)
 	require.NoError(t, err, "GetDeliveryAllAutoOrder must not error")
 	if mockTests {
-		assert.Equal(t, []*PriceTriggeredOrder{deliveryOpenAutoOrderFixture(pair, 1283293)}, result, "GetDeliveryAllAutoOrder should decode every field")
+		assert.Equal(t, []*PriceTriggeredOrderResponse{deliveryOpenAutoOrderFixture(pair, 1283293)}, result, "GetDeliveryAllAutoOrder should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetDeliveryAllAutoOrder should return a list")
@@ -5529,7 +5559,7 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	result, err := e.CancelAllDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, pair)
 	require.NoError(t, err, "CancelAllDeliveryPriceTriggeredOrder must not error")
 	if mockTests {
-		assert.Equal(t, []*PriceTriggeredOrder{deliveryCancelledAutoOrderFixture(pair)}, result, "CancelAllDeliveryPriceTriggeredOrder should decode every field")
+		assert.Equal(t, []*PriceTriggeredOrderResponse{deliveryCancelledAutoOrderFixture(pair)}, result, "CancelAllDeliveryPriceTriggeredOrder should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "CancelAllDeliveryPriceTriggeredOrder should return a list")
@@ -5576,8 +5606,8 @@ func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 }
 
 // deliveryOpenAutoOrderFixture returns the open delivery price-triggered order recorded in testdata/http.json
-func deliveryOpenAutoOrderFixture(contract currency.Pair, id int64) *PriceTriggeredOrder {
-	o := &PriceTriggeredOrder{
+func deliveryOpenAutoOrderFixture(contract currency.Pair, id uint64) *PriceTriggeredOrderResponse {
+	o := &PriceTriggeredOrderResponse{
 		ID:         id,
 		User:       1234,
 		CreateTime: types.Time(time.Unix(1514764800, 0)),
@@ -5595,7 +5625,7 @@ func deliveryOpenAutoOrderFixture(contract currency.Pair, id int64) *PriceTrigge
 }
 
 // deliveryCancelledAutoOrderFixture returns the cancelled delivery price-triggered order recorded in testdata/http.json
-func deliveryCancelledAutoOrderFixture(contract currency.Pair) *PriceTriggeredOrder {
+func deliveryCancelledAutoOrderFixture(contract currency.Pair) *PriceTriggeredOrderResponse {
 	o := deliveryOpenAutoOrderFixture(contract, 12345)
 	o.FinishTime = types.Time(time.Unix(1514764900, 0))
 	o.TradeID = 13566
@@ -5661,7 +5691,7 @@ func TestGetPositionDetailInDualMode(t *testing.T) {
 	result, err := e.GetPositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
 	require.NoError(t, err, "GetPositionDetailInDualMode must not error for a USDT contract")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
 		assert.Equal(t, exp, result, "GetPositionDetailInDualMode should decode every field")
 	}
 }
@@ -5689,7 +5719,7 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	result, err := e.UpdatePositionMarginInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0.001, "dual_long")
 	require.NoError(t, err, "UpdatePositionMarginInDualMode must not error for a USDT contract")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10)}
 		assert.Equal(t, exp, result, "UpdatePositionMarginInDualMode should decode every field")
 	}
 }
@@ -5714,7 +5744,7 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	result, err := e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10, 0.001)
 	require.NoError(t, err, "UpdatePositionLeverageInDualMode must not error for a USDT contract")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
 		assert.Equal(t, exp, result, "UpdatePositionLeverageInDualMode should decode every field")
 	}
 }
@@ -5739,7 +5769,7 @@ func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
 	result, err := e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 20000)
 	require.NoError(t, err, "UpdatePositionRiskLimitInDualMode must not error for a USDT contract")
 	if mockTests {
-		exp := []*Position{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
+		exp := []*PositionResponse{futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_long", 10), futuresFixturePosition(getPair(t, asset.USDTMarginedFutures), "dual_short", -10)}
 		assert.Equal(t, exp, result, "UpdatePositionRiskLimitInDualMode should decode every field")
 	}
 }
@@ -5749,7 +5779,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err := e.PlaceFuturesOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceFuturesOrder must reject a nil order")
 
-	arg := &FuturesOrderCreateParams{}
+	arg := &FuturesOrderCreateRequest{}
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceFuturesOrder must reject an empty contract")
 
@@ -5782,7 +5812,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderCreateParams{
+	result, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderCreateRequest{
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Price:       3765,
@@ -5804,22 +5834,22 @@ func TestFuturesOrderCreateParamsMarshalJSON(t *testing.T) {
 	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
 	for _, tc := range []struct {
 		name string
-		arg  FuturesOrderCreateParams
+		arg  FuturesOrderCreateRequest
 		exp  string
 	}{
 		{
 			name: "market order sends a zero price and iceberg",
-			arg:  FuturesOrderCreateParams{Contract: contract, Size: 10, TimeInForce: iocTIF, Text: "t-x"},
+			arg:  FuturesOrderCreateRequest{Contract: contract, Size: 10, TimeInForce: iocTIF, Text: "t-x"},
 			exp:  `{"contract":"BTC_USDT","size":"10","iceberg":"0","price":"0","tif":"ioc","text":"t-x"}`,
 		},
 		{
 			name: "close order sends a zero size",
-			arg:  FuturesOrderCreateParams{Contract: contract, TimeInForce: iocTIF, ClosePosition: true, ReduceOnly: true},
+			arg:  FuturesOrderCreateRequest{Contract: contract, TimeInForce: iocTIF, ClosePosition: true, ReduceOnly: true},
 			exp:  `{"contract":"BTC_USDT","size":"0","iceberg":"0","price":"0","tif":"ioc","close":true,"reduce_only":true}`,
 		},
 		{
 			name: "limit order sends every optional field",
-			arg: FuturesOrderCreateParams{
+			arg: FuturesOrderCreateRequest{
 				Contract: contract, Size: -1.5, Iceberg: 0.5, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-y", AutoSize: "close_long",
 				Settle: currency.USDT, SelfTradePreventionAction: "cn", PositionID: 7, MarketOrderSlipRatio: 0.03, PositionMarginMode: "isolated",
 				ActionMode: "ACK", TakeProfitTriggerPrice: 32000, StopLossTriggerPrice: 31000,
@@ -5831,10 +5861,10 @@ func TestFuturesOrderCreateParamsMarshalJSON(t *testing.T) {
 			t.Parallel()
 			payload, err := json.Marshal(tc.arg)
 			require.NoError(t, err, "Marshal must not error")
-			assert.Equal(t, tc.exp, string(payload), "FuturesOrderCreateParams should marshal to the documented body")
+			assert.Equal(t, tc.exp, string(payload), "FuturesOrderCreateRequest should marshal to the documented body")
 			pointerPayload, err := json.Marshal(&tc.arg)
 			require.NoError(t, err, "Marshal must not error for a pointer")
-			assert.Equal(t, tc.exp, string(pointerPayload), "a FuturesOrderCreateParams pointer should marshal like a value")
+			assert.Equal(t, tc.exp, string(pointerPayload), "a FuturesOrderCreateRequest pointer should marshal like a value")
 		})
 	}
 }
@@ -5878,7 +5908,7 @@ func TestGetFuturesOrders(t *testing.T) {
 	if mockTests {
 		openOrder := futuresFixtureOrder(getPair(t, asset.CoinMarginedFutures))
 		openOrder.Status = statusOpen
-		exp := []*FuturesOrder{openOrder}
+		exp := []*FuturesOrderResponse{openOrder}
 		assert.Equal(t, exp, result, "GetFuturesOrders should decode every field")
 	}
 }
@@ -5901,7 +5931,7 @@ func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 	result, err := e.CancelMultipleFuturesOpenOrders(t.Context(), currency.USDT, &CancelFuturesOrdersRequest{Contract: contract, Side: "ask"})
 	require.NoError(t, err, "CancelMultipleFuturesOpenOrders must not error")
 	if mockTests {
-		exp := []*FuturesOrder{futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))}
+		exp := []*FuturesOrderResponse{futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))}
 		assert.Equal(t, exp, result, "CancelMultipleFuturesOpenOrders should decode every field")
 	}
 }
@@ -5921,52 +5951,52 @@ func TestGetFuturesOrdersByTimeRange(t *testing.T) {
 	result, err := e.GetFuturesOrdersByTimeRange(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10, 0, startTime, endTime)
 	require.NoError(t, err, "GetFuturesOrdersByTimeRange must not error")
 	if mockTests {
-		exp := []*FuturesOrder{futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))}
+		exp := []*FuturesOrderResponse{futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))}
 		assert.Equal(t, exp, result, "GetFuturesOrdersByTimeRange should decode every field")
 	}
 }
 
 func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.EMPTYCODE, []FuturesOrderCreateParams{{}})
+	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.EMPTYCODE, []FuturesOrderCreateRequest{{}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PlaceBatchFuturesOrders must reject an empty settlement currency")
 
 	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, nil)
 	require.ErrorIs(t, err, errOrdersEmpty, "PlaceBatchFuturesOrders must reject an empty batch")
 
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, make([]FuturesOrderCreateParams, 11))
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, make([]FuturesOrderCreateRequest, 11))
 	require.ErrorIs(t, err, errTooManyOrderRequest, "PlaceBatchFuturesOrders must reject more than 10 orders")
 
-	arg := FuturesOrderCreateParams{}
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	arg := FuturesOrderCreateRequest{}
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceBatchFuturesOrders must reject an empty contract")
 
 	arg.Contract = getPair(t, asset.USDTMarginedFutures)
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, errInvalidOrderSize, "PlaceBatchFuturesOrders must reject an empty size")
 
 	arg.Size = 1
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "PlaceBatchFuturesOrders must reject a market order without an ioc or fok time in force")
 
 	arg.TimeInForce = order.GoodTillCancel.Lower()
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "PlaceBatchFuturesOrders must reject a market order with a gtc time in force")
 
 	arg.Price = 123
 	arg.Text = "client-order-id"
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, errInvalidTextPrefix, "PlaceBatchFuturesOrders must reject text without the t- prefix")
 
 	arg.Text = "t-client-order-id"
 	arg.AutoSize = "long"
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, errInvalidAutoSize, "PlaceBatchFuturesOrders must reject an unknown auto size")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []FuturesOrderCreateParams{
+	result, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []FuturesOrderCreateRequest{
 		{
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
@@ -5987,7 +6017,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 	require.NoError(t, err, "PlaceBatchFuturesOrders must not error")
 	if mockTests {
 		exp := []*BatchFuturesOrderResponse{
-			{Succeeded: true, FuturesOrder: *futuresFixtureOrder(getPair(t, asset.CoinMarginedFutures))},
+			{Succeeded: true, FuturesOrderResponse: *futuresFixtureOrder(getPair(t, asset.CoinMarginedFutures))},
 			{Label: "INSUFFICIENT_AVAILABLE", Detail: "available balance not enough"},
 		}
 		assert.Equal(t, exp, result, "PlaceBatchFuturesOrders should decode every field")
@@ -6040,25 +6070,25 @@ func TestCancelSingleFuturesOrder(t *testing.T) {
 
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.AmendFuturesOrder(t.Context(), currency.EMPTYCODE, "1234", &AmendFuturesOrderParam{Price: 12345.990})
+	_, err := e.AmendFuturesOrder(t.Context(), currency.EMPTYCODE, "1234", &AmendFuturesOrderRequest{Price: 12345.990})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AmendFuturesOrder must reject an empty settlement currency")
 
-	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "", &AmendFuturesOrderParam{Price: 12345.990})
+	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "", &AmendFuturesOrderRequest{Price: 12345.990})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "AmendFuturesOrder must reject an empty order ID")
 
 	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "AmendFuturesOrder must reject a nil amendment")
 
-	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderParam{AmendText: "no change"})
+	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderRequest{AmendText: "no change"})
 	require.ErrorIs(t, err, errNoOrderAmendment, "AmendFuturesOrder must reject an amendment without a size or price")
 
-	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderParam{Price: -1})
+	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderRequest{Price: -1})
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "AmendFuturesOrder must reject a negative price")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderParam{Price: 12345.990})
+	result, err := e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderRequest{Price: 12345.990})
 	require.NoError(t, err, "AmendFuturesOrder must not error")
 	if mockTests {
 		exp := futuresFixtureOrder(getPair(t, asset.CoinMarginedFutures))
@@ -6080,7 +6110,7 @@ func TestGetMyFuturesTradingHistory(t *testing.T) {
 	result, err := e.GetMyFuturesTradingHistory(t.Context(), currency.BTC, "", "", getPair(t, asset.CoinMarginedFutures), 0, 0)
 	require.NoError(t, err, "GetMyFuturesTradingHistory must not error")
 	if mockTests {
-		exp := []*TradingHistoryItem{
+		exp := []*TradingHistoryItemResponse{
 			{
 				ID:         121234231,
 				CreateTime: types.Time(time.UnixMilli(1514764800123)),
@@ -6188,19 +6218,19 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 	result, err := e.GetFuturesLiquidationHistory(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0, 0, time.Time{}, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetFuturesLiquidationHistory must not error")
 	if mockTests {
-		exp := []*LiquidationHistoryItem{
+		exp := []*LiquidationHistoryItemResponse{
 			{
-				Time:       types.Time(time.Unix(1548654951, 0)),
-				Contract:   currency.NewPairWithDelimiter("BTC", "USD", "_"),
-				Size:       600,
-				Leverage:   25,
-				Margin:     0.006705256878,
-				EntryPrice: 3536.123,
-				MarkPrice:  3420.27,
-				OrderPrice: 3405,
-				FillPrice:  3424,
-				LiqPrice:   3421.54,
-				OrderID:    317393847,
+				Time:             types.Time(time.Unix(1548654951, 0)),
+				Contract:         currency.NewPairWithDelimiter("BTC", "USD", "_"),
+				Size:             600,
+				Leverage:         25,
+				Margin:           0.006705256878,
+				EntryPrice:       3536.123,
+				MarkPrice:        3420.27,
+				OrderPrice:       3405,
+				FillPrice:        3424,
+				LiquidationPrice: 3421.54,
+				OrderID:          317393847,
 			},
 		}
 		assert.Equal(t, exp, result, "GetFuturesLiquidationHistory should decode every field")
@@ -6241,21 +6271,21 @@ func TestGetFuturesAutoDeleverages(t *testing.T) {
 
 func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.EMPTYCODE, &CountdownParams{Timeout: 8})
+	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.EMPTYCODE, &CountdownRequest{Timeout: 8})
 	require.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "CountdownCancelFuturesOrders must reject an empty settlement currency")
 
 	_, err = e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CountdownCancelFuturesOrders must reject a nil request")
 
 	for _, timeout := range []int64{-1, 1, 4} {
-		_, err = e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, &CountdownParams{Timeout: timeout})
+		_, err = e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, &CountdownRequest{Timeout: timeout})
 		require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelFuturesOrders must reject a timeout of %d seconds", timeout)
 	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, &CountdownParams{Timeout: 8})
+	result, err := e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, &CountdownRequest{Timeout: 8})
 	require.NoError(t, err, "CountdownCancelFuturesOrders must not error")
 	if mockTests {
 		exp := &TriggerTimeResponse{
@@ -6367,7 +6397,7 @@ func TestAmendBatchFuturesOrders(t *testing.T) {
 	if mockTests {
 		amendedOrder := futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))
 		amendedOrder.Size, amendedOrder.Price, amendedOrder.AmendText = 100, 54321, "batch amend text"
-		exp := []*BatchFuturesOrderResponse{{Succeeded: true, FuturesOrder: *amendedOrder}}
+		exp := []*BatchFuturesOrderResponse{{Succeeded: true, FuturesOrderResponse: *amendedOrder}}
 		assert.Equal(t, exp, result, "AmendBatchFuturesOrders should decode every field")
 		return
 	}
@@ -6497,7 +6527,7 @@ func TestStopAllTrailOrders(t *testing.T) {
 	result, err := e.StopAllTrailOrders(t.Context(), currency.USDT, &StopAllTrailOrdersRequest{Contract: contract})
 	require.NoError(t, err, "StopAllTrailOrders must not error")
 	if mockTests {
-		exp := []*TrailOrder{futuresFixtureTrailOrder()}
+		exp := []*TrailOrderResponse{futuresFixtureTrailOrder()}
 		assert.Equal(t, exp, result, "StopAllTrailOrders should decode every field")
 	}
 }
@@ -6526,7 +6556,7 @@ func TestGetTrailOrders(t *testing.T) {
 	result, err := e.GetTrailOrders(t.Context(), currency.USDT, &GetTrailOrdersRequest{Contract: contract, IsFinished: true, PageNumber: 1, PageSize: 10, SortBy: 1})
 	require.NoError(t, err, "GetTrailOrders must not error")
 	if mockTests {
-		exp := []*TrailOrder{futuresFixtureTrailOrder()}
+		exp := []*TrailOrderResponse{futuresFixtureTrailOrder()}
 		assert.Equal(t, exp, result, "GetTrailOrders should decode every field")
 	}
 }
@@ -6599,7 +6629,7 @@ func TestGetTrailOrderChangeLog(t *testing.T) {
 	result, err := e.GetTrailOrderChangeLog(t.Context(), currency.USDT, 63585, 1, 10)
 	require.NoError(t, err, "GetTrailOrderChangeLog must not error")
 	if mockTests {
-		exp := []*TrailOrderChange{
+		exp := []*TrailOrderChangeResponse{
 			{
 				UpdatedAt:          types.Time(time.Unix(1546569968, 0)),
 				Amount:             10,
@@ -6623,7 +6653,7 @@ func TestGetTrailOrderChangeLog(t *testing.T) {
 
 func TestTrailOrderReplyUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	exp := &TrailOrder{ID: "63585", Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Amount: 10}
+	exp := &TrailOrderResponse{ID: "63585", Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Amount: 10}
 	for _, payload := range []string{
 		`{"order":{"id":"63585","contract":"BTC_USDT","amount":"10"}}`,
 		`{"id":63585,"contract":"BTC_USDT","amount":"10"}`,
@@ -6750,7 +6780,7 @@ func TestStopAllChaseOrders(t *testing.T) {
 	result, err := e.StopAllChaseOrders(t.Context(), currency.USDT, &StopAllChaseOrdersRequest{Contract: contract})
 	require.NoError(t, err, "StopAllChaseOrders must not error")
 	if mockTests {
-		exp := []*ChaseOrder{futuresFixtureChaseOrder()}
+		exp := []*ChaseOrderResponse{futuresFixtureChaseOrder()}
 		assert.Equal(t, exp, result, "StopAllChaseOrders should decode every field")
 	}
 }
@@ -6804,7 +6834,7 @@ func TestGetChaseOrders(t *testing.T) {
 	result, err := e.GetChaseOrders(t.Context(), currency.USDT, &GetChaseOrdersRequest{Contract: contract, IsFinished: true, StartAt: startTime, EndAt: endTime, PageNumber: 1, PageSize: 100, SortBy: 1})
 	require.NoError(t, err, "GetChaseOrders must not error")
 	if mockTests {
-		exp := []*ChaseOrder{futuresFixtureChaseOrder()}
+		exp := []*ChaseOrderResponse{futuresFixtureChaseOrder()}
 		assert.Equal(t, exp, result, "GetChaseOrders should decode every field")
 	}
 }
@@ -6832,7 +6862,7 @@ func TestGetChaseOrderDetail(t *testing.T) {
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	t.Parallel()
-	arg := &FuturesPriceTriggeredOrderParam{
+	arg := &FuturesPriceTriggeredOrderRequest{
 		Initial: FuturesInitial{Price: 1234, Size: 2, Contract: getPair(t, asset.USDTMarginedFutures)},
 		Trigger: FuturesTrigger{Rule: 1, Price: 3000},
 	}
@@ -6844,17 +6874,17 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 
 	for _, tc := range []struct {
 		name        string
-		mutate      func(*FuturesPriceTriggeredOrderParam)
+		mutate      func(*FuturesPriceTriggeredOrderRequest)
 		expectedErr error
 	}{
-		{"empty contract", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Contract = currency.EMPTYPAIR }, currency.ErrCurrencyPairEmpty},
-		{"negative price", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Price = -1 }, limits.ErrPriceBelowMin},
-		{"fok time in force", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.TimeInForce = fokTIF }, order.ErrInvalidTimeInForce},
-		{"unknown strategy type", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.StrategyType = 2 }, errInvalidTriggerStrategyType},
-		{"unknown price type", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = 3 }, errInvalidTriggerPriceType},
-		{"missing trigger price", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Price = 0 }, limits.ErrPriceBelowMin},
-		{"unknown rule", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
-		{"unknown order type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
+		{"empty contract", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Contract = currency.EMPTYPAIR }, currency.ErrCurrencyPairEmpty},
+		{"negative price", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Price = -1 }, limits.ErrPriceBelowMin},
+		{"fok time in force", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.TimeInForce = fokTIF }, order.ErrInvalidTimeInForce},
+		{"unknown strategy type", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.StrategyType = 2 }, errInvalidTriggerStrategyType},
+		{"unknown price type", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.PriceType = 3 }, errInvalidTriggerPriceType},
+		{"missing trigger price", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Price = 0 }, limits.ErrPriceBelowMin},
+		{"unknown rule", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
+		{"unknown order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
 	} {
 		invalid := *arg
 		tc.mutate(&invalid)
@@ -6882,14 +6912,14 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	} else {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	_, err = ex.CreatePriceTriggeredFuturesOrder(t.Context(), currency.BTC, &FuturesPriceTriggeredOrderParam{
+	_, err = ex.CreatePriceTriggeredFuturesOrder(t.Context(), currency.BTC, &FuturesPriceTriggeredOrderRequest{
 		Initial:   FuturesInitial{Price: 1234, Size: 2, Contract: getPair(t, asset.CoinMarginedFutures)},
 		Trigger:   FuturesTrigger{Rule: 1, Price: 3000},
 		OrderType: "close-short-position",
 	})
 	require.NoError(t, err, "CreatePriceTriggeredFuturesOrder must not error for a BTC contract")
 
-	result, err := ex.CreatePriceTriggeredFuturesOrder(t.Context(), currency.USDT, &FuturesPriceTriggeredOrderParam{
+	result, err := ex.CreatePriceTriggeredFuturesOrder(t.Context(), currency.USDT, &FuturesPriceTriggeredOrderRequest{
 		Initial:            FuturesInitial{Contract: getPair(t, asset.USDTMarginedFutures), TimeInForce: iocTIF, ReduceOnly: true, AutoSize: "close_long"},
 		Trigger:            FuturesTrigger{PriceType: 1, Price: 3000, Rule: 2, Expiration: 86400},
 		OrderType:          "plan-close-long-position",
@@ -6897,7 +6927,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "CreatePriceTriggeredFuturesOrder must not error for a market close")
 	if mockTests {
-		exp := &OrderID{
+		exp := &TriggerOrderIDResponse{
 			ID:       1432329,
 			IDString: "1432329",
 		}
@@ -6909,38 +6939,38 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 
 func TestFuturesPriceTriggeredOrderParamValidate(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, (*FuturesPriceTriggeredOrderParam)(nil).validate(), common.ErrNilPointer, "validate should reject a nil order")
+	assert.ErrorIs(t, (*FuturesPriceTriggeredOrderRequest)(nil).validate(), common.ErrNilPointer, "validate should reject a nil order")
 
-	valid := FuturesPriceTriggeredOrderParam{
+	valid := FuturesPriceTriggeredOrderRequest{
 		Initial: FuturesInitial{Price: 1234, Size: 2, Contract: currency.NewBTCUSDT()},
 		Trigger: FuturesTrigger{Rule: 1, Price: 3000},
 	}
 	for _, tc := range []struct {
 		name   string
-		mutate func(*FuturesPriceTriggeredOrderParam)
+		mutate func(*FuturesPriceTriggeredOrderRequest)
 		err    error
 	}{
-		{"zero price for a market order", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Price = 0 }, nil},
-		{"gtc time in force", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.TimeInForce = gtcTIF }, nil},
-		{"ioc time in force", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.TimeInForce = iocTIF }, nil},
-		{"price gap strategy", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.StrategyType = 1 }, nil},
-		{"mark price trigger", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = 1 }, nil},
-		{"index price trigger", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = 2 }, nil},
-		{"at or below rule", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Rule = 2 }, nil},
-		{"read only close long order type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-long-order" }, errInvalidAutoOrderType},
-		{"read only close short order type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-short-order" }, errInvalidAutoOrderType},
-		{"close long position type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-long-position" }, nil},
-		{"close short position type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-short-position" }, nil},
-		{"plan close long position type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "plan-close-long-position" }, nil},
-		{"plan close short position type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "plan-close-short-position" }, nil},
-		{"empty contract", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Contract = currency.EMPTYPAIR }, currency.ErrCurrencyPairEmpty},
-		{"negative price", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.Price = -1 }, limits.ErrPriceBelowMin},
-		{"fok time in force", func(p *FuturesPriceTriggeredOrderParam) { p.Initial.TimeInForce = fokTIF }, order.ErrInvalidTimeInForce},
-		{"unknown strategy type", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.StrategyType = 2 }, errInvalidTriggerStrategyType},
-		{"unknown price type", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.PriceType = 3 }, errInvalidTriggerPriceType},
-		{"missing trigger price", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Price = 0 }, limits.ErrPriceBelowMin},
-		{"unknown rule", func(p *FuturesPriceTriggeredOrderParam) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
-		{"unknown order type", func(p *FuturesPriceTriggeredOrderParam) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
+		{"zero price for a market order", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Price = 0 }, nil},
+		{"gtc time in force", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.TimeInForce = gtcTIF }, nil},
+		{"ioc time in force", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.TimeInForce = iocTIF }, nil},
+		{"price gap strategy", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.StrategyType = 1 }, nil},
+		{"mark price trigger", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.PriceType = 1 }, nil},
+		{"index price trigger", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.PriceType = 2 }, nil},
+		{"at or below rule", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 2 }, nil},
+		{"read only close long order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-long-order" }, errInvalidAutoOrderType},
+		{"read only close short order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-short-order" }, errInvalidAutoOrderType},
+		{"close long position type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-long-position" }, nil},
+		{"close short position type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-short-position" }, nil},
+		{"plan close long position type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "plan-close-long-position" }, nil},
+		{"plan close short position type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "plan-close-short-position" }, nil},
+		{"empty contract", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Contract = currency.EMPTYPAIR }, currency.ErrCurrencyPairEmpty},
+		{"negative price", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.Price = -1 }, limits.ErrPriceBelowMin},
+		{"fok time in force", func(p *FuturesPriceTriggeredOrderRequest) { p.Initial.TimeInForce = fokTIF }, order.ErrInvalidTimeInForce},
+		{"unknown strategy type", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.StrategyType = 2 }, errInvalidTriggerStrategyType},
+		{"unknown price type", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.PriceType = 3 }, errInvalidTriggerPriceType},
+		{"missing trigger price", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Price = 0 }, limits.ErrPriceBelowMin},
+		{"unknown rule", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
+		{"unknown order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -6965,7 +6995,7 @@ func TestListAllFuturesAutoOrders(t *testing.T) {
 	result, err := e.ListAllFuturesAutoOrders(t.Context(), statusOpen, currency.BTC, currency.EMPTYPAIR, 0, 0)
 	require.NoError(t, err, "ListAllFuturesAutoOrders must not error")
 	if mockTests {
-		exp := []*PriceTriggeredOrder{futuresFixturePriceTriggeredOrder()}
+		exp := []*PriceTriggeredOrderResponse{futuresFixturePriceTriggeredOrder()}
 		assert.Equal(t, exp, result, "ListAllFuturesAutoOrders should decode every field")
 	}
 }
@@ -6984,7 +7014,7 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	result, err := e.CancelAllFuturesOpenOrders(t.Context(), currency.USDT, currency.EMPTYPAIR)
 	require.NoError(t, err, "CancelAllFuturesOpenOrders must not error for every contract")
 	if mockTests {
-		exp := []*PriceTriggeredOrder{futuresFixturePriceTriggeredOrder()}
+		exp := []*PriceTriggeredOrderResponse{futuresFixturePriceTriggeredOrder()}
 		assert.Equal(t, exp, result, "CancelAllFuturesOpenOrders should decode every field")
 	}
 }
@@ -7059,7 +7089,7 @@ func TestAmendFuturesPriceTriggeredOrder(t *testing.T) {
 	result, err := e.AmendFuturesPriceTriggeredOrder(t.Context(), currency.USDT, &AmendFuturesPriceTriggeredOrderRequest{OrderID: 1432329, Size: &zeroSize, Price: &marketPrice, TriggerPrice: 3100})
 	require.NoError(t, err, "AmendFuturesPriceTriggeredOrder must not error")
 	if mockTests {
-		exp := &OrderID{
+		exp := &TriggerOrderIDResponse{
 			ID:       1432329,
 			IDString: "1432329",
 		}
@@ -7102,7 +7132,7 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	require.NoError(t, err, "GetAllDeliveryContracts must not error")
 	if mockTests {
 		require.Len(t, r, 6, "GetAllDeliveryContracts must return every recorded contract")
-		exp := &DeliveryContract{
+		exp := &DeliveryContractResponse{
 			Name:                "BTC_USDT_20260626",
 			Underlying:          "BTC_USDT",
 			Cycle:               "BI-WEEKLY",
@@ -7163,7 +7193,7 @@ func TestGetDeliveryContract(t *testing.T) {
 	result, err := e.GetDeliveryContract(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "GetDeliveryContract must not error")
 	if mockTests {
-		exp := &DeliveryContract{
+		exp := &DeliveryContractResponse{
 			Name:                "BTC_USDT_20260626",
 			Underlying:          "BTC_USDT",
 			Cycle:               "BI-QUARTERLY",
@@ -7218,7 +7248,7 @@ func TestGetDeliveryOrderbook(t *testing.T) {
 	result, err := e.GetDeliveryOrderbook(t.Context(), currency.USDT, "0", getPair(t, asset.DeliveryFutures), 0, false)
 	require.NoError(t, err, "GetDeliveryOrderbook must not error")
 	if mockTests {
-		exp := &Orderbook{
+		exp := &OrderbookResponse{
 			Current: types.Time(time.UnixMilli(1775423963401)),
 			Update:  types.Time(time.UnixMilli(1775423963338)),
 			Bids:    OrderbookLevels{{Price: 67853.9, Amount: 1}, {Price: 67848.6, Amount: 3}, {Price: 67848.1, Amount: 1007}, {Price: 67837.9, Amount: 2706}, {Price: 67828.2, Amount: 3}},
@@ -7242,7 +7272,7 @@ func TestGetDeliveryTradingHistory(t *testing.T) {
 	require.NoError(t, err, "GetDeliveryTradingHistory must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetDeliveryTradingHistory must return every recorded trade")
-		exp := &TradingHistoryItem{
+		exp := &TradingHistoryItemResponse{
 			ID:                     1017843,
 			CreateTime:             types.Time(time.UnixMilli(1775423963713)),
 			CreateTimeMilliseconds: types.Time(time.UnixMilli(1775423963713)),
@@ -7286,7 +7316,7 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	require.NoError(t, err, "GetDeliveryFuturesCandlesticks must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetDeliveryFuturesCandlesticks must return every recorded candle")
-		exp := &FuturesCandlestick{
+		exp := &FuturesCandlestickResponse{
 			Timestamp:    types.Time(time.Unix(1744103820, 0)),
 			Volume:       42,
 			ClosePrice:   79897.8,
@@ -7309,7 +7339,7 @@ func TestGetDeliveryFutureTickers(t *testing.T) {
 	require.NoError(t, err, "GetDeliveryFutureTickers must not error")
 	if mockTests {
 		require.Len(t, results, 5, "GetDeliveryFutureTickers must return every recorded ticker")
-		exp := &FuturesTicker{
+		exp := &FuturesTickerResponse{
 			Contract:           currency.NewPairWithDelimiter("ARB", "USDT_20260410", currency.UnderscoreDelimiter),
 			ChangePercentage:   -2.36,
 			Last:               0.091,
@@ -7339,7 +7369,7 @@ func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
 	result, err := e.GetDeliveryInsuranceBalanceHistory(t.Context(), currency.USDT, 2)
 	require.NoError(t, err, "GetDeliveryInsuranceBalanceHistory must not error")
 	if mockTests {
-		exp := []*InsuranceBalance{
+		exp := []*InsuranceBalanceResponse{
 			{Timestamp: types.Time(time.Unix(1791849600, 0)), Balance: 103102.59316754},
 			{Timestamp: types.Time(time.Unix(1791763200, 0)), Balance: 103102.41956754},
 		}
@@ -7360,7 +7390,7 @@ func TestGetDeliveryFuturesAccounts(t *testing.T) {
 	result, err := e.GetDeliveryFuturesAccounts(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetDeliveryFuturesAccounts must not error")
 	if mockTests {
-		exp := &FuturesAccount{
+		exp := &FuturesAccountResponse{
 			User:                   1666,
 			Currency:               currency.USDT,
 			Total:                  9707.803567115145,
@@ -7395,7 +7425,7 @@ func TestGetDeliveryAccountBooks(t *testing.T) {
 	result, err := e.GetDeliveryAccountBooks(t.Context(), currency.USDT, 0, startTime, endTime, "dnw")
 	require.NoError(t, err, "GetDeliveryAccountBooks must not error")
 	if mockTests {
-		exp := []*AccountBookItem{{
+		exp := []*AccountBookItemResponse{{
 			Time:    types.Time(time.UnixMicro(1744110000123456)),
 			Change:  10000,
 			Balance: 10004.59316525194,
@@ -7419,7 +7449,7 @@ func TestGetAllDeliveryPositionsOfUser(t *testing.T) {
 	result, err := e.GetAllDeliveryPositionsOfUser(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetAllDeliveryPositionsOfUser must not error")
 	if mockTests {
-		assert.Equal(t, []*Position{deliveryPositionFixture(getPair(t, asset.DeliveryFutures))}, result, "GetAllDeliveryPositionsOfUser should decode every position")
+		assert.Equal(t, []*PositionResponse{deliveryPositionFixture(getPair(t, asset.DeliveryFutures))}, result, "GetAllDeliveryPositionsOfUser should decode every position")
 		return
 	}
 	assert.NotNil(t, result, "GetAllDeliveryPositionsOfUser should return a list")
@@ -7500,8 +7530,8 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 }
 
 // deliveryPositionFixture returns the delivery position recorded in testdata/http.json
-func deliveryPositionFixture(contract currency.Pair) *Position {
-	return &Position{
+func deliveryPositionFixture(contract currency.Pair) *PositionResponse {
+	return &PositionResponse{
 		User:                       10000,
 		Contract:                   contract,
 		Size:                       -9440,
@@ -7541,7 +7571,7 @@ func TestGetAllOptionsUnderlyings(t *testing.T) {
 	require.NoError(t, err, "GetAllOptionsUnderlyings must not error")
 	if mockTests {
 		require.Len(t, underlyings, 5, "GetAllOptionsUnderlyings must return every recorded underlying")
-		exp := &OptionUnderlying{Name: "BTC_USDT", IndexPrice: 67504.01, IndexTime: types.Time(time.Unix(1775423976, 0))}
+		exp := &OptionUnderlyingResponse{Name: "BTC_USDT", IndexPrice: 67504.01, IndexTime: types.Time(time.Unix(1775423976, 0))}
 		assert.Equal(t, exp, underlyings[0], "GetAllOptionsUnderlyings should decode every field")
 		return
 	}
@@ -7574,7 +7604,7 @@ func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 	result, err := e.GetAllContractOfUnderlyingWithinExpiryDate(t.Context(), "BTC_USDT", time.Time{})
 	require.NoError(t, err, "GetAllContractOfUnderlyingWithinExpiryDate must not error")
 	require.NotEmpty(t, result, "GetAllContractOfUnderlyingWithinExpiryDate must return contracts")
-	exp := &OptionContract{
+	exp := &OptionContractResponse{
 		Name:              "BTC_USDT-20260408-73000-P",
 		Tag:               "day",
 		StrikePrice:       73000,
@@ -7607,7 +7637,7 @@ func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 	require.NoError(t, err, "GetAllContractOfUnderlyingWithinExpiryDate must not error for an expiration")
 	if mockTests {
 		exp.IndexPrice = 67503.71
-		assert.Equal(t, []*OptionContract{exp}, result, "GetAllContractOfUnderlyingWithinExpiryDate should decode every field")
+		assert.Equal(t, []*OptionContractResponse{exp}, result, "GetAllContractOfUnderlyingWithinExpiryDate should decode every field")
 		return
 	}
 	require.NotEmpty(t, result, "GetAllContractOfUnderlyingWithinExpiryDate must return contracts for an expiration")
@@ -7624,7 +7654,7 @@ func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	result, err := e.GetOptionsSpecifiedContractDetail(t.Context(), getPair(t, asset.Options))
 	require.NoError(t, err, "GetOptionsSpecifiedContractDetail must not error")
 	if mockTests {
-		exp := &OptionContract{
+		exp := &OptionContractResponse{
 			Name:              "BTC_USDT-20260925-75000-P",
 			Tag:               "month",
 			StrikePrice:       75000,
@@ -7668,7 +7698,7 @@ func TestGetSettlementHistory(t *testing.T) {
 	require.NoError(t, err, "GetSettlementHistory must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetSettlementHistory must return every recorded settlement")
-		exp := &OptionSettlement{
+		exp := &OptionSettlementResponse{
 			Timestamp:   types.Time(time.Unix(1775376000, 0)),
 			SettlePrice: 66774.71479977753,
 			Contract:    "BTC_USDT-20260405-60000-P",
@@ -7703,7 +7733,7 @@ func TestGetOptionsSpecifiedContractsSettlement(t *testing.T) {
 	result, err := e.GetOptionsSpecifiedContractsSettlement(t.Context(), cp, underlying, optionsSettlement[0].Timestamp.Time())
 	require.NoError(t, err, "GetOptionsSpecifiedContractsSettlement must not error")
 	if mockTests {
-		exp := &OptionSettlement{
+		exp := &OptionSettlementResponse{
 			Timestamp:   types.Time(time.Unix(1774944000, 0)),
 			Profit:      73.431430405781,
 			SettlePrice: 67343.1430405781,
@@ -7721,12 +7751,12 @@ func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 	for _, tc := range []struct {
 		ccy         currency.Code
 		limit, page uint64
-		exp         *FlashSwapCurrencyPair
+		exp         *FlashSwapCurrencyPairResponse
 	}{
 		{
 			ccy:   currency.BTC,
 			limit: 10,
-			exp: &FlashSwapCurrencyPair{
+			exp: &FlashSwapCurrencyPairResponse{
 				CurrencyPair:  getPair(t, asset.Spot),
 				SellCurrency:  currency.BTC,
 				BuyCurrency:   currency.USDT,
@@ -7739,7 +7769,7 @@ func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 		{
 			limit: 10,
 			page:  1,
-			exp: &FlashSwapCurrencyPair{
+			exp: &FlashSwapCurrencyPairResponse{
 				CurrencyPair:  currency.NewPairWithDelimiter("PIRATE", "USDT", currency.UnderscoreDelimiter),
 				SellCurrency:  currency.NewCode("PIRATE"),
 				BuyCurrency:   currency.USDT,
@@ -7766,7 +7796,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	_, err := e.CreateFlashSwapOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFlashSwapOrder must reject a nil request")
 
-	arg := &FlashSwapOrderParams{}
+	arg := &FlashSwapOrderRequest{}
 	_, err = e.CreateFlashSwapOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errMissingPreviewID, "CreateFlashSwapOrder must reject an empty preview ID")
 
@@ -7789,7 +7819,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CreateFlashSwapOrder(t.Context(), &FlashSwapOrderParams{
+	result, err := e.CreateFlashSwapOrder(t.Context(), &FlashSwapOrderRequest{
 		PreviewID:    "1234",
 		SellCurrency: currency.USDT,
 		BuyCurrency:  currency.BTC,
@@ -7803,9 +7833,9 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 			CreateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UpdateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UserID:       11135567,
-			SellCurrency: "USDT",
+			SellCurrency: currency.USDT,
 			SellAmount:   34234,
-			BuyCurrency:  "BTC",
+			BuyCurrency:  currency.BTC,
 			BuyAmount:    34234,
 			Price:        1,
 			Status:       1,
@@ -7829,9 +7859,9 @@ func TestGetAllFlashSwapOrders(t *testing.T) {
 			CreateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UpdateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UserID:       11135567,
-			SellCurrency: "BTC",
+			SellCurrency: currency.BTC,
 			SellAmount:   0.01,
-			BuyCurrency:  "USDT",
+			BuyCurrency:  currency.USDT,
 			BuyAmount:    650,
 			Price:        65000,
 			Status:       1,
@@ -7858,9 +7888,9 @@ func TestGetSingleFlashSwapOrder(t *testing.T) {
 			CreateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UpdateTime:   types.Time(time.UnixMilli(1744150000378)),
 			UserID:       11135567,
-			SellCurrency: "BTC",
+			SellCurrency: currency.BTC,
 			SellAmount:   0.01,
-			BuyCurrency:  "USDT",
+			BuyCurrency:  currency.USDT,
 			BuyAmount:    650,
 			Price:        65000,
 			Status:       2,
@@ -7918,7 +7948,7 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 	_, err := e.GetDualInvestmentProductList(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetDualInvestmentProductList must reject a nil request")
 
-	putPlan := &DualInvestmentPlan{
+	putPlan := &DualInvestmentPlanResponse{
 		ID:               123123412341,
 		InstrumentName:   "BTC 81,000",
 		Type:             "put",
@@ -7941,7 +7971,7 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 	callPlan.MinAmount = 0.00002435
 	for _, tc := range []struct {
 		request *DualInvestmentProductListRequest
-		exp     *DualInvestmentPlan
+		exp     *DualInvestmentPlanResponse
 	}{
 		{&DualInvestmentProductListRequest{Sort: "apy", Type: "put", QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
 		{&DualInvestmentProductListRequest{Sort: "short-period", Type: "put", Coin: currency.BTC, QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
@@ -7950,7 +7980,7 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 		result, err := e.GetDualInvestmentProductList(t.Context(), tc.request)
 		require.NoErrorf(t, err, "GetDualInvestmentProductList must not error for sort %s type %s", tc.request.Sort, tc.request.Type)
 		if mockTests {
-			assert.Equalf(t, []*DualInvestmentPlan{tc.exp}, result, "GetDualInvestmentProductList should decode every field for sort %s type %s", tc.request.Sort, tc.request.Type)
+			assert.Equalf(t, []*DualInvestmentPlanResponse{tc.exp}, result, "GetDualInvestmentProductList should decode every field for sort %s type %s", tc.request.Sort, tc.request.Type)
 			continue
 		}
 		assert.NotNilf(t, result, "GetDualInvestmentProductList should return a result for sort %s type %s", tc.request.Sort, tc.request.Type)
@@ -8004,7 +8034,7 @@ func TestGetDualInvestmentOrderList(t *testing.T) {
 	result, err := e.GetDualInvestmentOrderList(t.Context(), &DualInvestmentOrderListRequest{From: startTime, To: endTime, Type: "call", Status: "HOLD", Coin: currency.ETH, Limit: 100})
 	require.NoError(t, err, "GetDualInvestmentOrderList must not error")
 	if mockTests {
-		exp := []*DualInvestmentOrderDetail{{
+		exp := []*DualInvestmentOrderDetailResponse{{
 			ID:               373,
 			PlanID:           176,
 			InvestAmount:     1.5,
@@ -8044,7 +8074,7 @@ func TestPlaceDualInvestmentOrder(t *testing.T) {
 	result, err := e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderRequest{PlanID: "12321", Amount: 1223.213})
 	require.NoError(t, err, "PlaceDualInvestmentOrder must not error")
 	if mockTests {
-		exp := &DualInvestmentOrderDetail{
+		exp := &DualInvestmentOrderDetailResponse{
 			ID:               374,
 			PlanID:           12321,
 			InvestAmount:     1223.213,
@@ -8070,7 +8100,7 @@ func TestGetDualCurrencyEarningAssets(t *testing.T) {
 	result, err := e.GetDualCurrencyEarningAssets(t.Context())
 	require.NoError(t, err, "GetDualCurrencyEarningAssets must not error")
 	if mockTests {
-		exp := &DualCurrencyEarningAsset{
+		exp := &DualCurrencyEarningAssetResponse{
 			UserAssetUSDT:         30.13,
 			UserAssetBTC:          0.00032798,
 			UserTotalInterestUSDT: 581.19003892,
@@ -8093,7 +8123,7 @@ func TestGetDualCurrencyEarlyRedemptionPreview(t *testing.T) {
 	result, err := e.GetDualCurrencyEarlyRedemptionPreview(t.Context(), "12345678")
 	require.NoError(t, err, "GetDualCurrencyEarlyRedemptionPreview must not error")
 	if mockTests {
-		exp := &DualCurrencyEarlyRedemption{
+		exp := &DualCurrencyEarlyRedemptionResponse{
 			CreateTime:          types.Time(time.Unix(1775027285, 0)),
 			DeliveryTime:        types.Time(time.Unix(1775289600, 0)),
 			ExercisePrice:       71303.44279,
@@ -8156,7 +8186,7 @@ func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	project := &DualRecommendedProject{
+	project := &DualRecommendedProjectResponse{
 		ID:               110669,
 		Category:         1,
 		Type:             "call",
@@ -8175,7 +8205,7 @@ func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	result, err := e.GetDualCurrencyRecommendedProjects(t.Context(), "senior", currency.EMPTYCODE, "", nil)
 	require.NoError(t, err, "GetDualCurrencyRecommendedProjects must not error")
 	if mockTests {
-		assert.Equal(t, []*DualRecommendedProject{project}, result, "GetDualCurrencyRecommendedProjects should decode every field")
+		assert.Equal(t, []*DualRecommendedProjectResponse{project}, result, "GetDualCurrencyRecommendedProjects should decode every field")
 	} else {
 		assert.NotNil(t, result, "GetDualCurrencyRecommendedProjects should return a result")
 	}
@@ -8185,7 +8215,7 @@ func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	if mockTests {
 		exp := *project
 		exp.ID = 110671
-		assert.Equal(t, []*DualRecommendedProject{&exp}, result, "GetDualCurrencyRecommendedProjects should decode every field when excluding products")
+		assert.Equal(t, []*DualRecommendedProjectResponse{&exp}, result, "GetDualCurrencyRecommendedProjects should decode every field when excluding products")
 		return
 	}
 	assert.NotNil(t, result, "GetDualCurrencyRecommendedProjects should return a result when excluding products")
@@ -8329,7 +8359,7 @@ func TestGetAutoInvestSupportedCoins(t *testing.T) {
 	result, err := e.GetAutoInvestSupportedCoins(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetAutoInvestSupportedCoins must not error")
 	if mockTests {
-		exp := []*AutoInvestCoinItem{
+		exp := []*AutoInvestCoinItemResponse{
 			{Key: currency.BTC, Value: "BTC", AssetIconURL: "https://icon.staticimgs.com/images/coin_icon/64/btc.png?v=1743408000"},
 			{Key: currency.ETH, Value: "ETH", AssetIconURL: "https://icon.staticimgs.com/images/coin_icon/64/eth.png?v=1743408000", Sort: 1},
 		}
@@ -8423,7 +8453,7 @@ func TestGetAutoInvestPlanOrderDetails(t *testing.T) {
 	result, err := e.GetAutoInvestPlanOrderDetails(t.Context(), 12345, 67890)
 	require.NoError(t, err, "GetAutoInvestPlanOrderDetails must not error")
 	if mockTests {
-		exp := []*AutoInvestOrderItem{{
+		exp := []*AutoInvestOrderItemResponse{{
 			ID:         6787627,
 			Type:       "Buy",
 			Amount:     0.031,
@@ -8453,7 +8483,7 @@ func TestGetAutoInvestCurrencyConfig(t *testing.T) {
 	result, err := e.GetAutoInvestCurrencyConfig(t.Context())
 	require.NoError(t, err, "GetAutoInvestCurrencyConfig must not error")
 	if mockTests {
-		exp := []*AutoInvestConfigItem{{Coin: currency.BTC, MaxLimit: 10}, {Coin: currency.USDT, MaxLimit: 100000}}
+		exp := []*AutoInvestConfigItemResponse{{Coin: currency.BTC, MaxLimit: 10}, {Coin: currency.USDT, MaxLimit: 100000}}
 		assert.Equal(t, exp, result, "GetAutoInvestCurrencyConfig should decode every field")
 		return
 	}
@@ -8461,8 +8491,8 @@ func TestGetAutoInvestCurrencyConfig(t *testing.T) {
 }
 
 // autoInvestPlanDetailsFixture returns the auto invest plan recorded for the plan detail and plan list fixtures
-func autoInvestPlanDetailsFixture() *AutoInvestPlanDetails {
-	return &AutoInvestPlanDetails{
+func autoInvestPlanDetailsFixture() *AutoInvestPlanDetailsResponse {
+	return &AutoInvestPlanDetailsResponse{
 		ID:         12345,
 		Version:    1,
 		Name:       "Auto Invest BTC",
@@ -8518,7 +8548,7 @@ func TestGetAutoInvestPlanList(t *testing.T) {
 			PageSize:   100,
 			PageCount:  1,
 			TotalCount: 1,
-			List:       []*AutoInvestPlanDetails{autoInvestPlanDetailsFixture()},
+			List:       []*AutoInvestPlanDetailsResponse{autoInvestPlanDetailsFixture()},
 		}
 		assert.Equal(t, exp, result, "GetAutoInvestPlanList should decode every field")
 		return
@@ -8850,7 +8880,7 @@ func TestGetFixedTermSubscriptionHistory(t *testing.T) {
 		Asset:          currency.USDT,
 		StartTime:      startTime,
 		EndTime:        endTime,
-		BusinessFilter: []FixedTermBusinessFilter{{Business: 1}},
+		BusinessFilter: []FixedTermBusinessFilterRequest{{Business: 1}},
 	})
 	require.NoError(t, err, "GetFixedTermSubscriptionHistory must not error with filters")
 	if mockTests {
@@ -8876,7 +8906,7 @@ func TestSetFixedTermBusinessFilter(t *testing.T) {
 	require.NoError(t, setFixedTermBusinessFilter(params, nil), "setFixedTermBusinessFilter must not error without filters")
 	assert.Empty(t, params, "setFixedTermBusinessFilter should not set a parameter without filters")
 
-	require.NoError(t, setFixedTermBusinessFilter(params, []FixedTermBusinessFilter{{Business: 1}, {Business: 2, SubBusiness: 13}}), "setFixedTermBusinessFilter must not error")
+	require.NoError(t, setFixedTermBusinessFilter(params, []FixedTermBusinessFilterRequest{{Business: 1}, {Business: 2, SubBusiness: 13}}), "setFixedTermBusinessFilter must not error")
 	assert.Equal(t, `[{"business":1,"sub_business":0},{"business":2,"sub_business":13}]`, params.Get("business_filter"), "setFixedTermBusinessFilter should encode the filters as a JSON array")
 }
 
@@ -8895,7 +8925,7 @@ func TestGetMyOptionsSettlements(t *testing.T) {
 	result, err := e.GetMyOptionsSettlements(t.Context(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetMyOptionsSettlements must not error")
 	if mockTests {
-		exp := []*MyOptionSettlement{{
+		exp := []*MyOptionSettlementResponse{{
 			Size:        -1,
 			Contract:    currency.NewPairWithDelimiter("BTC", "USDT-20220624-26000-C", currency.UnderscoreDelimiter),
 			StrikePrice: 26000,
@@ -8919,7 +8949,7 @@ func TestGetOptionAccount(t *testing.T) {
 	result, err := e.GetOptionAccount(t.Context())
 	require.NoError(t, err, "GetOptionAccount must not error")
 	if mockTests {
-		exp := &OptionAccount{
+		exp := &OptionAccountResponse{
 			UserID:                       666,
 			Total:                        1650.443022,
 			PositionValue:                -40.1136,
@@ -8957,7 +8987,7 @@ func TestGetAccountChangingHistory(t *testing.T) {
 	result, err := e.GetAccountChangingHistory(t.Context(), 1, 100, startTime, endTime, "prem")
 	require.NoError(t, err, "GetAccountChangingHistory must not error")
 	if mockTests {
-		exp := []*AccountBook{{
+		exp := []*AccountBookResponse{{
 			ChangeTime:    types.Time(time.Unix(1744110000, 0)),
 			AccountChange: -0.16,
 			Balance:       7378.189,
@@ -8982,14 +9012,14 @@ func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 		withoutCloseOrder.Size = -2
 		withoutCloseOrder.PendingOrders = 0
 		withoutCloseOrder.CloseOrder = CloseOrder{}
-		exp := []*UsersPositionForUnderlying{optionsPositionFixture(getPair(t, asset.Options)), withoutCloseOrder}
+		exp := []*UsersPositionForUnderlyingResponse{optionsPositionFixture(getPair(t, asset.Options)), withoutCloseOrder}
 		assert.Equal(t, exp, result, "GetUsersPositionSpecifiedUnderlying should decode every position, including one without a close order")
 	}
 
 	result, err = e.GetUsersPositionSpecifiedUnderlying(t.Context(), "BTC_USDT")
 	require.NoError(t, err, "GetUsersPositionSpecifiedUnderlying must not error")
 	if mockTests {
-		assert.Equal(t, []*UsersPositionForUnderlying{optionsPositionFixture(getPair(t, asset.Options))}, result, "GetUsersPositionSpecifiedUnderlying should decode every field")
+		assert.Equal(t, []*UsersPositionForUnderlyingResponse{optionsPositionFixture(getPair(t, asset.Options))}, result, "GetUsersPositionSpecifiedUnderlying should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetUsersPositionSpecifiedUnderlying should return a list")
@@ -9013,8 +9043,8 @@ func TestGetSpecifiedContractPosition(t *testing.T) {
 }
 
 // optionsPositionFixture returns the options position recorded in testdata/http.json
-func optionsPositionFixture(contract currency.Pair) *UsersPositionForUnderlying {
-	return &UsersPositionForUnderlying{
+func optionsPositionFixture(contract currency.Pair) *UsersPositionForUnderlyingResponse {
+	return &UsersPositionForUnderlyingResponse{
 		User:                  11027586,
 		Underlying:            "BTC_USDT",
 		UnderlyingPrice:       70000,
@@ -9045,7 +9075,7 @@ func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 	result, err := e.GetUsersLiquidationHistoryForSpecifiedUnderlying(t.Context(), "BTC_USDT", currency.EMPTYPAIR)
 	require.NoError(t, err, "GetUsersLiquidationHistoryForSpecifiedUnderlying must not error")
 	if mockTests {
-		exp := []*ContractClosePosition{{
+		exp := []*ContractClosePositionResponse{{
 			PositionCloseTime: types.Time(time.Unix(1631764800, 0)),
 			Contract:          "BTC_USDT-20210916-5000-C",
 			Side:              "short",
@@ -9278,7 +9308,7 @@ func TestCancelOptionSingleOrder(t *testing.T) {
 }
 
 // optionsOrderFixture returns the open options order recorded in testdata/http.json
-func optionsOrderFixture(contract currency.Pair, id int64) *OptionOrderResponse {
+func optionsOrderFixture(contract currency.Pair, id uint64) *OptionOrderResponse {
 	return &OptionOrderResponse{
 		OptionOrderID:   id,
 		User:            666,
@@ -9395,7 +9425,7 @@ func TestGetMyOptionsTradingHistory(t *testing.T) {
 	result, err := e.GetMyOptionsTradingHistory(t.Context(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetMyOptionsTradingHistory must not error")
 	if mockTests {
-		exp := []*OptionTradingHistory{{
+		exp := []*OptionTradingHistoryResponse{{
 			ID:              1,
 			UnderlyingPrice: 48000,
 			Size:            1,
@@ -9629,7 +9659,7 @@ func TestGetOptionsOrderbook(t *testing.T) {
 	result, err := e.GetOptionsOrderbook(t.Context(), getPair(t, asset.Options), "0.1", 9, true)
 	require.NoError(t, err, "GetOptionsOrderbook must not error")
 	if mockTests {
-		exp := &Orderbook{
+		exp := &OrderbookResponse{
 			ID:      2836984,
 			Current: types.Time(time.UnixMilli(1774970474039)),
 			Update:  types.Time(time.UnixMilli(1774970470308)),
@@ -9651,7 +9681,7 @@ func TestGetOptionsTickers(t *testing.T) {
 	require.NoError(t, err, "GetOptionsTickers must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetOptionsTickers must return every recorded ticker")
-		exp := &OptionsTicker{
+		exp := &OptionsTickerResponse{
 			Name:                  currency.NewPairWithDelimiter("BTC", "USDT-20260408-73000-P", currency.UnderscoreDelimiter),
 			MarkPrice:             5532.7,
 			IndexPrice:            67503.71,
@@ -9681,7 +9711,7 @@ func TestGetOptionUnderlyingTickers(t *testing.T) {
 	result, err := e.GetOptionUnderlyingTickers(t.Context(), "BTC_USDT")
 	require.NoError(t, err, "GetOptionUnderlyingTickers must not error")
 	if mockTests {
-		assert.Equal(t, &OptionsUnderlyingTicker{TradePut: 278, TradeCall: 1345, IndexPrice: 67503.71}, result, "GetOptionUnderlyingTickers should decode every field")
+		assert.Equal(t, &OptionsUnderlyingTickerResponse{TradePut: 278, TradeCall: 1345, IndexPrice: 67503.71}, result, "GetOptionUnderlyingTickers should decode every field")
 		return
 	}
 	assert.Positive(t, result.IndexPrice.Float64(), "GetOptionUnderlyingTickers should return an index price")
@@ -9720,7 +9750,7 @@ func TestGetOptionFuturesMarkPriceCandlesticks(t *testing.T) {
 	result, err := e.GetOptionFuturesMarkPriceCandlesticks(t.Context(), "BTC_USDT", 0, time.Time{}, time.Time{}, kline.OneMonth)
 	require.NoError(t, err, "GetOptionFuturesMarkPriceCandlesticks must not error")
 	if mockTests {
-		exp := []*FuturesCandlestick{
+		exp := []*FuturesCandlestickResponse{
 			{Timestamp: types.Time(time.Unix(1770336000, 0)), ClosePrice: 67264.82, HighestPrice: 74027.87, LowestPrice: 65056.81, OpenPrice: 67126.36},
 			{Timestamp: types.Time(time.Unix(1772928000, 0)), ClosePrice: 67116.1, HighestPrice: 75991.85, LowestPrice: 65005.28, OpenPrice: 67264.15},
 		}
@@ -10024,20 +10054,21 @@ func TestUpdateOrderbook(t *testing.T) {
 	} {
 		t.Run(tc.a.String(), func(t *testing.T) {
 			t.Parallel()
+			marketEx, pair := getMarketDataPair(t, ex, tc.a, hasTwoSidedDeliveryBook)
 			started := time.Now()
-			result, err := ex.UpdateOrderbook(t.Context(), getPair(t, tc.a), tc.a)
-			require.NoError(t, err, "UpdateOrderbook must not error")
+			result, err := marketEx.UpdateOrderbook(t.Context(), pair, tc.a)
+			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
 			if !mockTests {
 				if tc.a != asset.Options { // Options orderbooks can be empty
-					assert.NotEmpty(t, result.Bids, "UpdateOrderbook should return bids")
-					assert.NotEmpty(t, result.Asks, "UpdateOrderbook should return asks")
+					assert.NotEmptyf(t, result.Bids, "UpdateOrderbook should return bids for %s", pair)
+					assert.NotEmptyf(t, result.Asks, "UpdateOrderbook should return asks for %s", pair)
 				}
 				return
 			}
 			assert.WithinRange(t, result.InsertedAt, started, time.Now(), "UpdateOrderbook should stamp the book when storing it")
 			tc.exp.InsertedAt = result.InsertedAt
 			tc.exp.Exchange = ex.Name
-			tc.exp.Pair = getPair(t, tc.a)
+			tc.exp.Pair = pair
 			tc.exp.Asset = tc.a
 			tc.exp.ValidateOrderbook = true
 			tc.exp.RestSnapshot = true
@@ -11018,10 +11049,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	} {
 		t.Run(tc.a.String(), func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetHistoricCandles(t.Context(), getPair(t, tc.a), tc.a, kline.OneDay, startTime, endTime)
-			require.NoError(t, err, "GetHistoricCandles must not error")
+			marketEx, pair := getMarketDataPair(t, e, tc.a, hasDeliveryCandles(kline.OneDay, startTime, endTime))
+			result, err := marketEx.GetHistoricCandles(t.Context(), pair, tc.a, kline.OneDay, startTime, endTime)
+			require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", pair)
 			if !mockTests {
-				assert.NotEmpty(t, result.Candles, "GetHistoricCandles should return candles")
+				assert.NotEmptyf(t, result.Candles, "GetHistoricCandles should return candles for %s", pair)
 				return
 			}
 			// The fixtures only match a request spanning whole days, and the candle opening at its end, which Gate also
@@ -11089,10 +11121,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	} {
 		t.Run(tc.a.String(), func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, tc.a), tc.a, kline.FourHour, startTime, endTime)
-			require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+			marketEx, pair := getMarketDataPair(t, e, tc.a, hasDeliveryCandles(kline.FourHour, startTime, endTime))
+			result, err := marketEx.GetHistoricCandlesExtended(t.Context(), pair, tc.a, kline.FourHour, startTime, endTime)
+			require.NoErrorf(t, err, "GetHistoricCandlesExtended must not error for %s", pair)
 			if !mockTests {
-				assert.NotEmpty(t, result.Candles, "GetHistoricCandlesExtended should return candles")
+				assert.NotEmptyf(t, result.Candles, "GetHistoricCandlesExtended should return candles for %s", pair)
 				return
 			}
 			// Spot volumes are the base amounts, as GetHistoricCandles reports them
@@ -11209,12 +11242,12 @@ var mapSpotPublicPushData = map[string]string{
 	"spot.cross_loan":        `{"time":1658289372,	"channel":"spot.cross_loan",	"event":"update",	"result":{	  "timestamp":1658289372338,	  "user":"1000001",	  "currency":"BTC",	  "change":"0.01",	  "total":"4.992341029566",	  "available":"0.078054772536",	  "borrowed":"0.01",	  "interest":"0.00001375"	}}`,
 }
 
-func TestWsHandleSpotData(t *testing.T) {
+func TestWebsocketHandleSpotData(t *testing.T) {
 	t.Parallel()
 	for k, v := range mapSpotPublicPushData {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.WsHandleSpotData(t.Context(), nil, []byte(v))
+			err := e.WebsocketHandleSpotData(t.Context(), nil, []byte(v))
 			require.NoError(t, err)
 		})
 	}
@@ -11226,11 +11259,11 @@ var mapSpotPrivatePushData = map[string]string{
 	"spot.cross_balances":   `{"time": 1605248616,"channel": "spot.cross_balances","event": "update",	"result": [{"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}]}`,
 }
 
-func TestWsHandleSpotDataPrivate(t *testing.T) {
+func TestWebsocketHandleSpotDataPrivate(t *testing.T) {
 	t.Parallel()
 	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	for x := range mapSpotPrivatePushData {
-		err := e.WsHandleSpotData(ctx, nil, []byte(mapSpotPrivatePushData[x]))
+		err := e.WebsocketHandleSpotData(ctx, nil, []byte(mapSpotPrivatePushData[x]))
 		require.NoError(t, err)
 	}
 }
@@ -11244,7 +11277,7 @@ func TestFuturesDataHandler(t *testing.T) {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
-		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
+		return e.WebsocketHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
@@ -11299,11 +11332,11 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 		"StorePairs must register the captured contract")
 	for i := range payloads {
 		response := struct {
-			Time      types.Time          `json:"time"`
-			TimeMilli types.Time          `json:"time_ms"`
-			Channel   string              `json:"channel"`
-			Event     string              `json:"event"`
-			Result    []WsFuturesPosition `json:"result"`
+			Time      types.Time                 `json:"time"`
+			TimeMilli types.Time                 `json:"time_ms"`
+			Channel   string                     `json:"channel"`
+			Event     string                     `json:"event"`
+			Result    []WebsocketFuturesPosition `json:"result"`
 		}{}
 		decoder := json.NewDecoder(bytes.NewReader(payloads[i]))
 		decoder.DisallowUnknownFields()
@@ -11311,8 +11344,8 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 		require.Len(t, response.Result, 1, "captured BOB payload must contain one position")
 		assert.Equal(t, "BOB_USDT", response.Result[0].Contract, "captured contract should be preserved")
 
-		require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
-			"WsHandleFuturesData must process the captured position update")
+		require.NoError(t, ex.WebsocketHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
+			"WebsocketHandleFuturesData must process the captured position update")
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "captured payload must emit canonical futures positions")
@@ -11371,11 +11404,11 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"time":1787206135,"time_ms":1787206135040,"channel":"futures.positions","event":"update","result":[{"time":1787206135,"time_ms":1787206135038,"size":"-55","user":"12870774","leverage_max":25,"mode":"single","update_id":267,"cross_leverage_limit":40,"liq_price":0.023554,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.802254544,"entry_price":0.012071295652,"leverage":1,"realised_pnl":0.079661896,"contract":"GPS_USDT","history_point":0,"margin":66.491714276087,"realised_point":0,"history_pnl":17.1379873471,"pos_margin_mode":"isolated","lever":"1"}]}`)
 	response := struct {
-		Time      types.Time          `json:"time"`
-		TimeMilli types.Time          `json:"time_ms"`
-		Channel   string              `json:"channel"`
-		Event     string              `json:"event"`
-		Result    []WsFuturesPosition `json:"result"`
+		Time      types.Time                 `json:"time"`
+		TimeMilli types.Time                 `json:"time_ms"`
+		Channel   string                     `json:"channel"`
+		Event     string                     `json:"event"`
+		Result    []WebsocketFuturesPosition `json:"result"`
 	}{}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
@@ -11531,12 +11564,12 @@ var wsOptionsPushDataHandler = map[string]string{
 	"options.pong":                  `{"time":1756700469,"channel":"options.pong","event":"","result":null}`,
 }
 
-func TestWsHandleOptionsData(t *testing.T) {
+func TestWebsocketHandleOptionsData(t *testing.T) {
 	t.Parallel()
 	for k, v := range wsOptionsPushDataHandler {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.WsHandleOptionsData(t.Context(), nil, []byte(v))
+			err := e.WebsocketHandleOptionsData(t.Context(), nil, []byte(v))
 			require.NoError(t, err)
 		})
 	}
@@ -11550,13 +11583,13 @@ var wsOptionsAuthenticatedDataHandler = map[string]string{
 	"options.balances":         `{"channel": "options.balances",	"event": "update",	"time": 1630654851,	"result": [{"balance": 60.79009,"change": -0.5,"text": "BTC_USDT-20211130-55000-P","type": "set","user": "11xxxx","time": 1639051907,"time_ms": 1639051907000}]}`,
 }
 
-func TestPrivateWsHandleOptionsData(t *testing.T) {
+func TestPrivateWebsocketHandleOptionsData(t *testing.T) {
 	t.Parallel()
 	for k, v := range wsOptionsAuthenticatedDataHandler {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
 			ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
-			err := e.WsHandleOptionsData(ctx, nil, []byte(v))
+			err := e.WebsocketHandleOptionsData(ctx, nil, []byte(v))
 			require.NoError(t, err)
 		})
 	}
@@ -12518,7 +12551,13 @@ func TestGetOpenInterest(t *testing.T) {
 	var resp []futures.OpenInterest
 	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		pair, response := getPairWithOpenInterest(t, a)
+		pairs := getPairs(t, a)
+		if a == asset.DeliveryFutures {
+			// The enabled delivery contract is picked at random and may have no open positions
+			pairs, err = e.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+		}
+		pair, response := getPairWithOpenInterest(t, a, pairs)
 		validPairs[a] = pair
 		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
@@ -12672,6 +12711,20 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		require.Len(t, processed, 2, "processFuturesOrdersPushData must keep every order of the push")
 		assert.Equal(t, order.Cancelled, processed[0].Status, "an order finished as reduce_out should be cancelled")
 		assert.Equal(t, order.Open, processed[1].Status, "an open order should stay open")
+	})
+
+	t.Run("finish_as spellings Gate's futures websocket page lists", func(t *testing.T) {
+		t.Parallel()
+		order1 := `{"contract":"BTC_USD","create_time":1628736847,"finish_as":"position_close","finish_time":1628736848,"id":4872463,"left":2,"price":40000.4,"size":-2,"status":"finished","text":"-","tif":"gtc","user":"110xxxxx"}`
+		order2 := `{"contract":"BTC_USD","create_time":1628736847,"finish_as":"auto_deleveraging","finish_time":1628736848,"id":4872464,"left":0,"price":40000.4,"size":3,"status":"finished","text":"auto_deleveraging","tif":"gtc","user":"110xxxxx"}`
+		order3 := `{"contract":"BTC_USD","create_time":1628736847,"finish_as":"filled","finish_time":1628736848,"id":4872465,"left":0,"price":39000,"size":1,"status":"finished","text":"-","tif":"gtc","user":"110xxxxx"}`
+		incoming := `{"channel":"futures.orders","event":"update","time":1541505434,"result":[` + order1 + `,` + order2 + `,` + order3 + `]}`
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.CoinMarginedFutures)
+		require.NoError(t, err, "processFuturesOrdersPushData must accept both spellings Gate documents for each finish_as value")
+		require.Len(t, processed, 3, "processFuturesOrdersPushData must keep every order of the push")
+		assert.Equal(t, order.Closed, processed[0].Status, "an order finished as position_close should be closed")
+		assert.Equal(t, order.AutoDeleverage, processed[1].Status, "an order finished as auto_deleveraging should be auto-deleveraged")
+		assert.Equal(t, order.Filled, processed[2].Status, "a filled order in the same push should be filled")
 	})
 
 	t.Run("malformed push", func(t *testing.T) {
@@ -12871,7 +12924,7 @@ func TestGetUnifiedAccount(t *testing.T) {
 	result, err := e.GetUnifiedAccount(t.Context(), currency.EMPTYCODE, "")
 	require.NoError(t, err, "GetUnifiedAccount must not error")
 	if mockTests {
-		exp := &UnifiedUserAccount{
+		exp := &UnifiedUserAccountResponse{
 			Mode:        "multi_currency",
 			UserID:      10001,
 			RefreshTime: types.Time(time.UnixMilli(1744190254944)),
@@ -12924,7 +12977,7 @@ func TestGetMaximumBorrowableAmountUnifiedAccount(t *testing.T) {
 	result, err := e.GetMaximumBorrowableAmountUnifiedAccount(t.Context(), currency.ETH)
 	require.NoError(t, err, "GetMaximumBorrowableAmountUnifiedAccount must not error")
 	if mockTests {
-		exp := &CurrencyAndAmount{Currency: currency.ETH, Amount: 10000}
+		exp := &CurrencyAndAmountResponse{Currency: currency.ETH, Amount: 10000}
 		assert.Equal(t, exp, result, "GetMaximumBorrowableAmountUnifiedAccount should decode every field")
 		return
 	}
@@ -12942,7 +12995,7 @@ func TestGetUnifiedAccountMaximumTransferableAmount(t *testing.T) {
 	result, err := e.GetUnifiedAccountMaximumTransferableAmount(t.Context(), currency.ETH)
 	require.NoError(t, err, "GetUnifiedAccountMaximumTransferableAmount must not error")
 	if mockTests {
-		exp := &CurrencyAndAmount{Currency: currency.ETH, Amount: 250.5}
+		exp := &CurrencyAndAmountResponse{Currency: currency.ETH, Amount: 250.5}
 		assert.Equal(t, exp, result, "GetUnifiedAccountMaximumTransferableAmount should decode every field")
 		return
 	}
@@ -12982,7 +13035,7 @@ func TestGetMultipleTransferableAmountForUnifiedAccounts(t *testing.T) {
 	result, err := e.GetMultipleTransferableAmountForUnifiedAccounts(t.Context(), currency.BTC, currency.ETH)
 	require.NoError(t, err, "GetMultipleTransferableAmountForUnifiedAccounts must not error")
 	if mockTests {
-		exp := []*CurrencyAndAmount{{Currency: currency.BTC, Amount: 1.25}, {Currency: currency.ETH, Amount: 250.5}}
+		exp := []*CurrencyAndAmountResponse{{Currency: currency.BTC, Amount: 1.25}, {Currency: currency.ETH, Amount: 250.5}}
 		assert.Equal(t, exp, result, "GetMultipleTransferableAmountForUnifiedAccounts should decode every field")
 		return
 	}
@@ -13006,7 +13059,7 @@ func TestGetBatchUnifiedAccountMaximumBorrowableAmount(t *testing.T) {
 	result, err := e.GetBatchUnifiedAccountMaximumBorrowableAmount(t.Context(), currency.BTC, currency.ETH)
 	require.NoError(t, err, "GetBatchUnifiedAccountMaximumBorrowableAmount must not error")
 	if mockTests {
-		exp := []*CurrencyAndAmount{{Currency: currency.BTC, Amount: 0.5}, {Currency: currency.ETH, Amount: 12}}
+		exp := []*CurrencyAndAmountResponse{{Currency: currency.BTC, Amount: 0.5}, {Currency: currency.ETH, Amount: 12}}
 		assert.Equal(t, exp, result, "GetBatchUnifiedAccountMaximumBorrowableAmount should decode every field")
 		return
 	}
@@ -13151,7 +13204,7 @@ func TestGetInterestDeductionRecords(t *testing.T) {
 	result, err := e.GetInterestDeductionRecords(t.Context(), &UnifiedInterestRecordsRequest{Currency: currency.BTC, Type: "platform", StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetInterestDeductionRecords must not error")
 	if mockTests {
-		exp := []*InterestDeductionRecord{{
+		exp := []*InterestDeductionRecordResponse{{
 			Status:       1,
 			CurrencyPair: BTCUSDT,
 			Currency:     currency.BTC,
@@ -13261,7 +13314,7 @@ func TestGetUnifiedAccountTiered(t *testing.T) {
 	result, err := e.GetUnifiedAccountTiered(t.Context())
 	require.NoError(t, err, "GetUnifiedAccountTiered must not error")
 	if mockTests {
-		exp := []*UnifiedAccountTieredDetail{
+		exp := []*UnifiedAccountTieredDetailResponse{
 			{
 				Currency:      currency.USDT,
 				DiscountTiers: []*UnifiedDiscountTier{{Tier: "1", Discount: 1, UpperLimit: TierUpperLimit(math.Inf(1))}},
@@ -13289,7 +13342,7 @@ func TestGetUnifiedAccountTieredLoanMargin(t *testing.T) {
 	result, err := e.GetUnifiedAccountTieredLoanMargin(t.Context())
 	require.NoError(t, err, "GetUnifiedAccountTieredLoanMargin must not error")
 	if mockTests {
-		exp := []*UnifiedAccountLoanMargin{{
+		exp := []*UnifiedAccountLoanMarginResponse{{
 			Currency: currency.USDT,
 			MarginTiers: []*UnifiedMarginTier{
 				{Tier: "1", MarginRate: 0.01, UpperLimit: 100000, Leverage: 20},
@@ -13313,39 +13366,39 @@ func TestCalculatePortfolioMargin(t *testing.T) {
 	spotPair, futuresPair, optionsPair := getPair(t, asset.Spot), getPair(t, asset.USDTMarginedFutures), getPair(t, asset.Options)
 	for _, tc := range []struct {
 		name string
-		arg  *PortfolioMarginCalculatorParams
+		arg  *PortfolioMarginCalculatorRequest
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "nil spot balance", arg: &PortfolioMarginCalculatorParams{SpotBalances: []*SpotBalanceParams{nil}}, err: common.ErrNilPointer},
-		{name: "spot balance without currency", arg: &PortfolioMarginCalculatorParams{SpotBalances: []*SpotBalanceParams{{Equity: 1000}}}, err: currency.ErrCurrencyCodeEmpty},
-		{name: "spot balance without equity", arg: &PortfolioMarginCalculatorParams{SpotBalances: []*SpotBalanceParams{{Currency: currency.BTC}}}, err: errInvalidEquity},
-		{name: "nil spot order", arg: &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{nil}}, err: common.ErrNilPointer},
-		{name: "spot order without pair", arg: &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{OrderPrice: 60000, Left: 0.1, Side: order.Buy}}}, err: currency.ErrCurrencyPairEmpty},
-		{name: "spot order without price", arg: &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, Left: 0.1, Side: order.Buy}}}, err: limits.ErrPriceBelowMin},
-		{name: "spot order without unfilled quantity", arg: &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, OrderPrice: 60000, Side: order.Buy}}}, err: errInvalidOrderSize},
-		{name: "spot order without side", arg: &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, OrderPrice: 60000, Left: 0.1}}}, err: order.ErrSideIsInvalid},
-		{name: "nil futures position", arg: &PortfolioMarginCalculatorParams{FuturesPositions: []*FuturesOrderInfo{nil}}, err: common.ErrNilPointer},
-		{name: "futures position without contract", arg: &PortfolioMarginCalculatorParams{FuturesPositions: []*FuturesOrderInfo{{Size: -1}}}, err: currency.ErrCurrencyPairEmpty},
-		{name: "futures position without size", arg: &PortfolioMarginCalculatorParams{FuturesPositions: []*FuturesOrderInfo{{Contract: futuresPair}}}, err: errInvalidOrderSize},
-		{name: "nil futures order", arg: &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{nil}}, err: common.ErrNilPointer},
-		{name: "futures order without contract", arg: &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Size: 1, Left: 0.5}}}, err: currency.ErrCurrencyPairEmpty},
-		{name: "futures order without size", arg: &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: futuresPair, Left: 0.5}}}, err: errInvalidOrderSize},
-		{name: "futures order without unfilled quantity", arg: &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: futuresPair, Size: 1}}}, err: errInvalidOrderSize},
-		{name: "nil options position", arg: &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{nil}}, err: common.ErrNilPointer},
-		{name: "options position without name", arg: &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{Size: 1}}}, err: currency.ErrCurrencyPairEmpty},
-		{name: "options position without size", arg: &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{OptionsName: optionsPair}}}, err: errInvalidOrderSize},
-		{name: "nil options order", arg: &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{nil}}, err: common.ErrNilPointer},
-		{name: "options order without name", arg: &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{Size: 1, Left: 0.5}}}, err: currency.ErrCurrencyPairEmpty},
-		{name: "options order without size", arg: &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Left: 0.5}}}, err: errInvalidOrderSize},
-		{name: "options order without unfilled quantity", arg: &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Size: 1}}}, err: errInvalidOrderSize},
+		{name: "nil spot balance", arg: &PortfolioMarginCalculatorRequest{SpotBalances: []*SpotBalanceParams{nil}}, err: common.ErrNilPointer},
+		{name: "spot balance without currency", arg: &PortfolioMarginCalculatorRequest{SpotBalances: []*SpotBalanceParams{{Equity: 1000}}}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "spot balance without equity", arg: &PortfolioMarginCalculatorRequest{SpotBalances: []*SpotBalanceParams{{Currency: currency.BTC}}}, err: errInvalidEquity},
+		{name: "nil spot order", arg: &PortfolioMarginCalculatorRequest{SpotOrders: []*SpotOrderParams{nil}}, err: common.ErrNilPointer},
+		{name: "spot order without pair", arg: &PortfolioMarginCalculatorRequest{SpotOrders: []*SpotOrderParams{{OrderPrice: 60000, Left: 0.1, Side: order.Buy}}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "spot order without price", arg: &PortfolioMarginCalculatorRequest{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, Left: 0.1, Side: order.Buy}}}, err: limits.ErrPriceBelowMin},
+		{name: "spot order without unfilled quantity", arg: &PortfolioMarginCalculatorRequest{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, OrderPrice: 60000, Side: order.Buy}}}, err: errInvalidOrderSize},
+		{name: "spot order without side", arg: &PortfolioMarginCalculatorRequest{SpotOrders: []*SpotOrderParams{{CurrencyPair: spotPair, OrderPrice: 60000, Left: 0.1}}}, err: order.ErrSideIsInvalid},
+		{name: "nil futures position", arg: &PortfolioMarginCalculatorRequest{FuturesPositions: []*FuturesOrderInfo{nil}}, err: common.ErrNilPointer},
+		{name: "futures position without contract", arg: &PortfolioMarginCalculatorRequest{FuturesPositions: []*FuturesOrderInfo{{Size: -1}}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "futures position without size", arg: &PortfolioMarginCalculatorRequest{FuturesPositions: []*FuturesOrderInfo{{Contract: futuresPair}}}, err: errInvalidOrderSize},
+		{name: "nil futures order", arg: &PortfolioMarginCalculatorRequest{FuturesOrders: []*FuturesOrderInfo{nil}}, err: common.ErrNilPointer},
+		{name: "futures order without contract", arg: &PortfolioMarginCalculatorRequest{FuturesOrders: []*FuturesOrderInfo{{Size: 1, Left: 0.5}}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "futures order without size", arg: &PortfolioMarginCalculatorRequest{FuturesOrders: []*FuturesOrderInfo{{Contract: futuresPair, Left: 0.5}}}, err: errInvalidOrderSize},
+		{name: "futures order without unfilled quantity", arg: &PortfolioMarginCalculatorRequest{FuturesOrders: []*FuturesOrderInfo{{Contract: futuresPair, Size: 1}}}, err: errInvalidOrderSize},
+		{name: "nil options position", arg: &PortfolioMarginCalculatorRequest{OptionsPositions: []*OptionsOrderInfo{nil}}, err: common.ErrNilPointer},
+		{name: "options position without name", arg: &PortfolioMarginCalculatorRequest{OptionsPositions: []*OptionsOrderInfo{{Size: 1}}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "options position without size", arg: &PortfolioMarginCalculatorRequest{OptionsPositions: []*OptionsOrderInfo{{OptionsName: optionsPair}}}, err: errInvalidOrderSize},
+		{name: "nil options order", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{nil}}, err: common.ErrNilPointer},
+		{name: "options order without name", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{{Size: 1, Left: 0.5}}}, err: currency.ErrCurrencyPairEmpty},
+		{name: "options order without size", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Left: 0.5}}}, err: errInvalidOrderSize},
+		{name: "options order without unfilled quantity", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Size: 1}}}, err: errInvalidOrderSize},
 	} {
 		_, err := e.CalculatePortfolioMargin(t.Context(), tc.arg)
 		require.ErrorIsf(t, err, tc.err, "CalculatePortfolioMargin must reject a request with a %s", tc.name)
 	}
 
 	// Short positions and sell orders carry negative sizes
-	arg := &PortfolioMarginCalculatorParams{
+	arg := &PortfolioMarginCalculatorRequest{
 		SpotBalances:     []*SpotBalanceParams{{Currency: currency.BTC, Equity: -1}},
 		SpotOrders:       []*SpotOrderParams{{CurrencyPair: spotPair, OrderPrice: 60000, Count: 1, Left: 1, Side: order.Sell}},
 		FuturesPositions: []*FuturesOrderInfo{{Contract: futuresPair, Size: -100}},
@@ -13419,7 +13472,7 @@ func TestGetMaxMinCurrencyLeverage(t *testing.T) {
 	result, err := e.GetMaxMinCurrencyLeverage(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetMaxMinCurrencyLeverage must not error")
 	if mockTests {
-		exp := &UnifiedCurrencyLeverageConfig{CurrentLeverage: 2, MaxLeverage: 8}
+		exp := &UnifiedCurrencyLeverageConfigResponse{CurrentLeverage: 2, MaxLeverage: 8}
 		assert.Equal(t, exp, result, "GetMaxMinCurrencyLeverage should decode every field")
 		return
 	}
@@ -13434,7 +13487,7 @@ func TestGetUserCurrencyLeverage(t *testing.T) {
 	result, err := e.GetUserCurrencyLeverage(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetUserCurrencyLeverage must not error")
 	if mockTests {
-		exp := []*UnifiedLeverageSetting{{Currency: currency.BTC, Leverage: 3}, {Currency: currency.ETH, Leverage: 2}}
+		exp := []*UnifiedLeverageSettingResponse{{Currency: currency.BTC, Leverage: 3}, {Currency: currency.ETH, Leverage: 2}}
 		assert.Equal(t, exp, result, "GetUserCurrencyLeverage should decode every field")
 		return
 	}
@@ -13446,16 +13499,16 @@ func TestSetLoanCurrencyLeverage(t *testing.T) {
 	err := e.SetLoanCurrencyLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetLoanCurrencyLeverage must reject a nil request")
 
-	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{})
+	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSettingResponse{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SetLoanCurrencyLeverage must reject an empty currency")
 
-	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{Currency: currency.BTC})
+	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSettingResponse{Currency: currency.BTC})
 	require.ErrorIs(t, err, errInvalidLeverage, "SetLoanCurrencyLeverage must reject a zero leverage")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{Currency: currency.BTC, Leverage: 3}), "SetLoanCurrencyLeverage should not error")
+	assert.NoError(t, e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSettingResponse{Currency: currency.BTC, Leverage: 3}), "SetLoanCurrencyLeverage should not error")
 }
 
 func TestGetUnifiedLoanCurrencies(t *testing.T) {
@@ -13463,7 +13516,7 @@ func TestGetUnifiedLoanCurrencies(t *testing.T) {
 	result, err := e.GetUnifiedLoanCurrencies(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetUnifiedLoanCurrencies must not error")
 	if mockTests {
-		exp := []*UnifiedLoanCurrency{{
+		exp := []*UnifiedLoanCurrencyResponse{{
 			Name:                 currency.BTC,
 			Precision:            0.000001,
 			MinBorrowAmount:      0.01,
@@ -13491,7 +13544,7 @@ func TestGetUnifiedHistoricalLendingRates(t *testing.T) {
 	result, err := e.GetUnifiedHistoricalLendingRates(t.Context(), &UnifiedHistoricalLendingRatesRequest{Currency: currency.USDT})
 	require.NoError(t, err, "GetUnifiedHistoricalLendingRates must not error")
 	if mockTests {
-		exp := &UnifiedHistoricalLendingRate{
+		exp := &UnifiedHistoricalLendingRateResponse{
 			Currency:   currency.USDT,
 			Tier:       "1",
 			TierUpRate: 1.18,
@@ -13535,7 +13588,7 @@ func TestEstimateQuickRepaymentDetails(t *testing.T) {
 	result, err := e.EstimateQuickRepaymentDetails(t.Context())
 	require.NoError(t, err, "EstimateQuickRepaymentDetails must not error")
 	if mockTests {
-		exp := &UnifiedQuickEstimateRepayment{
+		exp := &UnifiedQuickEstimateRepaymentResponse{
 			DebtCurrencies:      []*UnifiedDebtCurrency{{Currency: currency.ETH, DebtAmount: 1.5, EstimatedUSD: 4500, Borrowed: 1.5}},
 			AvailableCurrencies: []*UnifiedAvailableCurrency{{Currency: currency.USDT, Available: 5000, EstimatedUSD: 5000}},
 		}
@@ -13648,18 +13701,30 @@ func (d *FixtureConnection) GetURL() string { return "wss://test" }
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WsInput, error) {
-		return []*WsInput{{}}, nil
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WsInput, error) {
-		return []*WsInput{{}}, nil
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
 	})
 	require.NoError(t, err)
+
+	err = e.handleSubscription(t.Context(), &replyConnection{reply: []byte(`null`)}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
+	})
+	assert.ErrorIs(t, err, common.ErrNoResponse, "handleSubscription should reject a null reply")
 }
 
-func TestParseWSHeader(t *testing.T) {
+func TestManageSubsNullReply(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{getPair(t, asset.Spot)}}}
+	err := e.manageSubs(t.Context(), subscribeEvent, &replyConnection{reply: []byte(`null`)}, subs)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "manageSubs should reject a null reply")
+}
+
+func TestParseWebsocketHeader(t *testing.T) {
 	in := []string{
 		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
 		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
@@ -13817,6 +13882,57 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Side:            order.Sell,
 					Status:          order.Open,
 					TimeInForce:     order.GoodTillCancel,
+				},
+			},
+		},
+		{
+			// Gate's documented market buy reply, which gives the BTC bought as filled_amount, and a sell
+			name: "orders with their filled amounts",
+			orders: [][]byte{
+				[]byte(`{"id":"12332324","text":"t-123456","amend_text":"-","create_time":"1734081653","update_time":"1734081653","create_time_ms":1734081653247,"update_time_ms":1734081653249,"status":"closed","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"70.0","price":"0.0","time_in_force":"ioc","iceberg":"0.0","left":"0.143511","filled_amount":"0.00299","fill_price":"69.856489","filled_total":"69.856489","avg_deal_price":"23363.3742475","fee":"0.0000028704","fee_currency":"BTC","finish_as":"filled"}`),
+				[]byte(`{"id":"12332325","text":"t-123457","create_time_ms":1734081653250,"update_time_ms":1734081653251,"status":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"60000","time_in_force":"gtc","left":"0.4","filled_amount":"0.6","filled_total":"36000","avg_deal_price":"60000","fee":"36","fee_currency":"USDT","finish_as":"open"}`),
+			},
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             e.Name,
+					OrderID:              "12332324",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-123456",
+					Date:                 time.UnixMilli(1734081653247),
+					LastUpdated:          time.UnixMilli(1734081653249),
+					RemainingAmount:      0.143511,
+					Amount:               70,
+					AverageExecutedPrice: 23363.3742475,
+					Type:                 order.Market,
+					Side:                 order.Buy,
+					Status:               order.Filled,
+					TimeInForce:          order.ImmediateOrCancel,
+					Fee:                  0.0000028704,
+					FeeAsset:             currency.BTC,
+					Cost:                 69.856489,
+					Purchased:            0.00299,
+				},
+				{
+					Exchange:             e.Name,
+					OrderID:              "12332325",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-123457",
+					Date:                 time.UnixMilli(1734081653250),
+					LastUpdated:          time.UnixMilli(1734081653251),
+					RemainingAmount:      0.4,
+					Amount:               1,
+					Price:                60000,
+					AverageExecutedPrice: 60000,
+					Type:                 order.Limit,
+					Side:                 order.Sell,
+					Status:               order.Open,
+					TimeInForce:          order.GoodTillCancel,
+					Fee:                  36,
+					FeeAsset:             currency.USDT,
+					Cost:                 1,
+					Purchased:            36000, // A sell's purchase is in the quote currency, so filled_amount does not apply
 				},
 			},
 		},
@@ -14107,7 +14223,7 @@ func TestGetConvertibleSmallBalanceCurrencies(t *testing.T) {
 	result, err := e.GetConvertibleSmallBalanceCurrencies(t.Context())
 	require.NoError(t, err, "GetConvertibleSmallBalanceCurrencies must not error")
 	if mockTests {
-		exp := []*ConvertibleSmallBalance{
+		exp := []*ConvertibleSmallBalanceResponse{
 			{Currency: currency.FLOKI, AvailableBalance: 182.294, EstimatedAsBTC: 0.00000012, ConvertibleToGT: 0.00108},
 			{Currency: currency.NewCode("MBLK"), AvailableBalance: 0.91723337, EstimatedAsBTC: 0.00000102, ConvertibleToGT: 0.009188},
 		}
@@ -14137,7 +14253,7 @@ func TestGetConvertibleSmallBalanceCurrencyHistory(t *testing.T) {
 	result, err := e.GetConvertibleSmallBalanceCurrencyHistory(t.Context(), currency.ETH, 1, 10)
 	require.NoError(t, err, "GetConvertibleSmallBalanceCurrencyHistory must not error")
 	if mockTests {
-		exp := []*SmallCurrencyBalance{{ID: "28583810", CreateTime: types.Time(time.Unix(1706670777, 0)), Currency: currency.ETH, Amount: 0.00182294, GTAmount: 0.001079}}
+		exp := []*SmallCurrencyBalanceResponse{{ID: "28583810", CreateTime: types.Time(time.Unix(1706670777, 0)), Currency: currency.ETH, Amount: 0.00182294, GTAmount: 0.001079}}
 		assert.Equal(t, exp, result, "GetConvertibleSmallBalanceCurrencyHistory should decode every field")
 		return
 	}
@@ -14156,7 +14272,7 @@ func TestGetUIDTransferHistory(t *testing.T) {
 	result, err := e.GetUIDTransferHistory(t.Context(), &UIDTransferHistoryRequest{ID: 111, From: startTime, To: endTime, Limit: 10, TransactionType: "withdraw"})
 	require.NoError(t, err, "GetUIDTransferHistory must not error")
 	if mockTests {
-		exp := []*UIDTransferRecord{{
+		exp := []*UIDTransferRecordResponse{{
 			ID:              111,
 			InitiatorUserID: 1132,
 			RecipientUserID: 12324,
@@ -14196,7 +14312,7 @@ func TestGetAccountDetails(t *testing.T) {
 	result, err := e.GetAccountDetails(t.Context())
 	require.NoError(t, err, "GetAccountDetails must not error")
 	if mockTests {
-		exp := &AccountDetails{
+		exp := &AccountDetailsResponse{
 			IPWhitelist:     []string{"127.0.0.1"},
 			CurrencyPairs:   []currency.Pair{currency.NewPairWithDelimiter("USDT", "BTC", currency.UnderscoreDelimiter)},
 			UserID:          1667201533,
@@ -14218,7 +14334,7 @@ func TestGetAccountMainKeys(t *testing.T) {
 	result, err := e.GetAccountMainKeys(t.Context())
 	require.NoError(t, err, "GetAccountMainKeys must not error")
 	if mockTests {
-		exp := []*AccountMainKey{{
+		exp := []*AccountMainKeyResponse{{
 			State:         1,
 			Mode:          1,
 			Name:          "test1",
@@ -14245,7 +14361,7 @@ func TestGetUserTransactionRateLimitInfo(t *testing.T) {
 	result, err := e.GetUserTransactionRateLimitInfo(t.Context())
 	require.NoError(t, err, "GetUserTransactionRateLimitInfo must not error")
 	if mockTests {
-		exp := []*UserTransactionRateLimitInfo{
+		exp := []*UserTransactionRateLimitInfoResponse{
 			{Type: "spot", Tier: 1, Ratio: 0.5, MainRatio: 0.25, UpdatedAt: types.Time(time.Unix(1728230400, 0))},
 			{Type: "futures", Tier: 2, Ratio: 0, MainRatio: 0, UpdatedAt: types.Time(time.Unix(1728230400, 0))},
 		}
@@ -14266,7 +14382,7 @@ func TestCreateSelfTradePreventionUserGroup(t *testing.T) {
 	result, err := e.CreateSelfTradePreventionUserGroup(t.Context(), "stp_groups")
 	require.NoError(t, err, "CreateSelfTradePreventionUserGroup must not error")
 	if mockTests {
-		exp := &STPUserGroup{ID: 123435, Name: "stp_groups", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}
+		exp := &STPUserGroupResponse{ID: 123435, Name: "stp_groups", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}
 		assert.Equal(t, exp, result, "CreateSelfTradePreventionUserGroup should decode every field")
 	}
 }
@@ -14279,7 +14395,7 @@ func TestGetUserSelfTradePreventionGroups(t *testing.T) {
 	result, err := e.GetUserSelfTradePreventionGroups(t.Context(), "thrasher")
 	require.NoError(t, err, "GetUserSelfTradePreventionGroups must not error")
 	if mockTests {
-		exp := []*STPUserGroup{{ID: 123435, Name: "thrasher", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		exp := []*STPUserGroupResponse{{ID: 123435, Name: "thrasher", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}}
 		assert.Equal(t, exp, result, "GetUserSelfTradePreventionGroups should decode every field")
 		return
 	}
@@ -14297,7 +14413,7 @@ func TestGetUsersInSTPUserGroup(t *testing.T) {
 	result, err := e.GetUsersInSTPUserGroup(t.Context(), 1)
 	require.NoError(t, err, "GetUsersInSTPUserGroup must not error")
 	if mockTests {
-		exp := []*STPUserGroupMember{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		exp := []*STPUserGroupMemberResponse{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
 		assert.Equal(t, exp, result, "GetUsersInSTPUserGroup should decode every field")
 		return
 	}
@@ -14342,7 +14458,7 @@ func TestAddUsersToSTPUserGroup(t *testing.T) {
 
 	result, err := ex.AddUsersToSTPUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
 	require.NoError(t, err, "AddUsersToSTPUserGroup must not error")
-	exp := []*STPUserGroupMember{
+	exp := []*STPUserGroupMemberResponse{
 		{UserID: 12312312, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))},
 		{UserID: 2132234232, STPID: 1, CreateTime: types.Time(time.Unix(1548000001, 0))},
 	}
@@ -14366,7 +14482,7 @@ func TestDeleteUserFromSTPUserGroup(t *testing.T) {
 	result, err := e.DeleteUserFromSTPUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
 	require.NoError(t, err, "DeleteUserFromSTPUserGroup must not error")
 	if mockTests {
-		exp := []*STPUserGroupMember{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		exp := []*STPUserGroupMemberResponse{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
 		assert.Equal(t, exp, result, "DeleteUserFromSTPUserGroup should decode every field")
 	}
 }
@@ -14426,8 +14542,8 @@ func TestPlaceMultiCollateralLoanOrder(t *testing.T) {
 }
 
 // multiCollateralLoanOrderFixture returns the multi-collateral loan order recorded for the order list and detail fixtures
-func multiCollateralLoanOrderFixture() *MultiCollateralLoanOrderDetail {
-	return &MultiCollateralLoanOrderDetail{
+func multiCollateralLoanOrderFixture() *MultiCollateralLoanOrderDetailResponse {
+	return &MultiCollateralLoanOrderDetailResponse{
 		OrderID:                 "10005578",
 		OrderType:               "fixed",
 		FixedType:               "7d",
@@ -14459,7 +14575,7 @@ func TestGetMultiCollateralLoanOrders(t *testing.T) {
 		result, err := e.GetMultiCollateralLoanOrders(t.Context(), 1, 100, tc.sortType, tc.orderType)
 		require.NoErrorf(t, err, "GetMultiCollateralLoanOrders must not error for sort %q and order type %q", tc.sortType, tc.orderType)
 		if mockTests {
-			assert.Equalf(t, []*MultiCollateralLoanOrderDetail{multiCollateralLoanOrderFixture()}, result, "GetMultiCollateralLoanOrders should decode every field for sort %q and order type %q", tc.sortType, tc.orderType)
+			assert.Equalf(t, []*MultiCollateralLoanOrderDetailResponse{multiCollateralLoanOrderFixture()}, result, "GetMultiCollateralLoanOrders should decode every field for sort %q and order type %q", tc.sortType, tc.orderType)
 			continue
 		}
 		assert.NotNilf(t, result, "GetMultiCollateralLoanOrders should return a result for sort %q and order type %q", tc.sortType, tc.orderType)
@@ -14477,11 +14593,11 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	return enabledAssetPair[a]
 }
 
-func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+func getPairWithOpenInterest(t *testing.T, a asset.Item, pairs currency.Pairs) (key.PairAsset, []futures.OpenInterest) {
 	t.Helper()
 	var lastErr error
 	var receivedResponse bool
-	for _, pair := range getPairs(t, a) {
+	for _, pair := range pairs {
 		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
 		response, err := e.GetOpenInterest(t.Context(), pairAsset)
 		if err != nil {
@@ -14502,6 +14618,77 @@ func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futur
 		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no request errored, but no pair returned positive open interest", a)
 	}
 	return key.PairAsset{}, nil
+}
+
+// getMarketDataPair returns the instance and pair a market data test reads. Live delivery tests use the most active
+// contract with the data the test asserts on, rather than the enabled one, because most of Gate's delivery contracts can
+// go hours without a trade, often with one side of the book empty, and the enabled contract is picked at random once the
+// configured one expires. That contract gets an instance of its own because candle requests need it enabled, and
+// enabling it on e would not last: testexch.UpdatePairsOnce reloads e's cached pairs. Mock tests read the recorded pair
+func getMarketDataPair(t *testing.T, ex *Exchange, a asset.Item, hasData deliveryDataCheck) (*Exchange, currency.Pair) {
+	t.Helper()
+	if mockTests || a != asset.DeliveryFutures {
+		return ex, getPair(t, a)
+	}
+	pair := getActiveDeliveryPair(t, hasData)
+	deliveryEx := new(Exchange)
+	require.NoError(t, testexch.Setup(deliveryEx), "Setup must not error")
+	deliveryEx.Name = t.Name()
+	require.NoError(t, deliveryEx.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, deliveryEx.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for enabled pairs")
+	return deliveryEx, pair
+}
+
+// deliveryDataCheck returns why a delivery contract lacks the data a test asserts on, or nil if it has it. Each test
+// checks only its own need, because a contract with a two-sided book can go hours without a trade while another trades
+// with one side of its book empty
+type deliveryDataCheck func(context.Context, currency.Pair) error
+
+func hasTwoSidedDeliveryBook(ctx context.Context, p currency.Pair) error {
+	book, err := e.GetDeliveryOrderbook(ctx, currency.USDT, "", p, 1, false)
+	switch {
+	case err != nil:
+		return err
+	case book == nil || len(book.Bids) == 0:
+		return errors.New("no bids")
+	case len(book.Asks) == 0:
+		return errors.New("no asks")
+	}
+	return nil
+}
+
+// hasDeliveryCandles checks with the test's own interval and window, because Gate returns no candles unless a trade
+// falls in a candle the window overlaps, and a contract's 24-hour volume does not show when it traded
+func hasDeliveryCandles(interval kline.Interval, start, end time.Time) deliveryDataCheck {
+	return func(ctx context.Context, p currency.Pair) error {
+		candles, err := e.GetDeliveryFuturesCandlesticks(ctx, currency.USDT, p, start, end, 0, interval)
+		if err == nil && len(candles) == 0 {
+			return errors.New("no candles")
+		}
+		return err
+	}
+}
+
+// getActiveDeliveryPair returns the contract with the most 24-hour volume that passes hasData. It selects afresh on
+// each call, as each test checks for different data and a contract's book and recent trades can change between tests
+func getActiveDeliveryPair(tb testing.TB, hasData deliveryDataCheck) currency.Pair {
+	tb.Helper()
+	tickers, err := e.GetDeliveryFutureTickers(tb.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(tb, err, "GetDeliveryFutureTickers must not error")
+	slices.SortFunc(tickers, func(a, b *FuturesTickerResponse) int {
+		return cmp.Compare(b.Volume24HourQuote.Float64(), a.Volume24HourQuote.Float64())
+	})
+	// A contract can expire mid-selection, so a failed request moves on to the next one
+	var errs error
+	for i := range tickers {
+		if err := hasData(tb.Context(), tickers[i].Contract); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", tickers[i].Contract, err))
+			continue
+		}
+		return tickers[i].Contract
+	}
+	require.FailNowf(tb, "must find a delivery contract with the data this test asserts on", "%d contracts checked: %v", len(tickers), errs)
+	return currency.EMPTYPAIR
 }
 
 func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
@@ -14584,7 +14771,11 @@ func TestOrderStatusFromFinishAs(t *testing.T) {
 		"liquidated":              order.Liquidated,
 		"liquidate_cancelled":     order.Cancelled,
 		"auto_deleveraged":        order.AutoDeleverage,
+		"auto_deleveraging":       order.AutoDeleverage,
 		"position_closed":         order.Closed,
+		"position_close":          order.Closed,
+		"unified_check_failed":    order.Cancelled,
+		"-":                       order.UnknownStatus,
 		"stp":                     order.STP,
 		"ioc":                     order.Cancelled,
 		"poc":                     order.Cancelled,
@@ -14630,8 +14821,8 @@ func TestSpotOrderDetail(t *testing.T) {
 	t.Parallel()
 	created, updated := time.UnixMilli(1744103854944), time.UnixMilli(1744103855944)
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
-	newOrder := func() *SpotOrder {
-		return &SpotOrder{
+	newOrder := func() *SpotOrderResponse {
+		return &SpotOrderResponse{
 			OrderID:          "1852454420",
 			Text:             "t-1852454420",
 			Side:             "buy",
@@ -14643,7 +14834,7 @@ func TestSpotOrderDetail(t *testing.T) {
 			AverageFillPrice: 64990,
 			FilledTotal:      32495,
 			FeeDeducted:      0.0005,
-			FeeCurrency:      "BTC",
+			FeeCurrency:      currency.BTC,
 			CreateTime:       types.Time(created),
 			UpdateTime:       types.Time(updated),
 		}
@@ -14705,14 +14896,14 @@ func TestFuturesOrderDetail(t *testing.T) {
 		name   string
 		a      asset.Item
 		settle currency.Code
-		order  *FuturesOrder
+		order  *FuturesOrderResponse
 		exp    *order.Detail
 	}{
 		{
 			name:   "cancelled short limit",
 			a:      asset.USDTMarginedFutures,
 			settle: currency.USDT,
-			order: &FuturesOrder{
+			order: &FuturesOrderResponse{
 				ID:              15675394,
 				Contract:        contract,
 				CreateTime:      types.Time(created),
@@ -14753,7 +14944,7 @@ func TestFuturesOrderDetail(t *testing.T) {
 			name:   "open long market",
 			a:      asset.DeliveryFutures,
 			settle: currency.USDT,
-			order: &FuturesOrder{
+			order: &FuturesOrderResponse{
 				ID:              15675395,
 				Contract:        contract,
 				CreateTime:      types.Time(created),
@@ -14790,10 +14981,10 @@ func TestFuturesOrderDetail(t *testing.T) {
 		})
 	}
 
-	_, err := e.futuresOrderDetail(&FuturesOrder{Status: statusFinished, FinishAs: "stopped"}, asset.USDTMarginedFutures, currency.USDT, format)
+	_, err := e.futuresOrderDetail(&FuturesOrderResponse{Status: statusFinished, FinishAs: "stopped"}, asset.USDTMarginedFutures, currency.USDT, format)
 	assert.ErrorContains(t, err, "STOPPED", "futuresOrderDetail should reject an unknown finish_as")
 
-	_, err = e.futuresOrderDetail(&FuturesOrder{Status: statusOpen, TimeInForce: "gtd"}, asset.USDTMarginedFutures, currency.USDT, format)
+	_, err = e.futuresOrderDetail(&FuturesOrderResponse{Status: statusOpen, TimeInForce: "gtd"}, asset.USDTMarginedFutures, currency.USDT, format)
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "futuresOrderDetail should reject an unknown time in force")
 }
 
@@ -14860,7 +15051,7 @@ func TestDeriveFuturesSubmitResponse(t *testing.T) {
 		Amount:        100,
 		ClientOrderID: "t-15675394",
 	}
-	placed := &FuturesOrder{
+	placed := &FuturesOrderResponse{
 		ID:              15675394,
 		Contract:        pair,
 		CreateTime:      types.Time(created),
@@ -14894,7 +15085,7 @@ func TestDeriveFuturesSubmitResponse(t *testing.T) {
 	}
 	assert.Equal(t, exp, got, "deriveFuturesSubmitResponse should report the placed order")
 
-	_, err = deriveFuturesSubmitResponse(s, &FuturesOrder{ID: 15675394, Status: statusFinished, FinishAs: "stopped"})
+	_, err = deriveFuturesSubmitResponse(s, &FuturesOrderResponse{ID: 15675394, Status: statusFinished, FinishAs: "stopped"})
 	assert.ErrorContains(t, err, "STOPPED", "deriveFuturesSubmitResponse should reject an unknown finish_as")
 }
 
@@ -14953,8 +15144,8 @@ func TestIsSingleOrderbookChannel(t *testing.T) {
 
 func TestOrderCreateParamsValidateNilGuard(t *testing.T) {
 	t.Parallel()
-	require.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(true), common.ErrNilPointer)
-	require.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(true), common.ErrNilPointer)
+	require.ErrorIs(t, (*FuturesOrderCreateRequest)(nil).validate(true), common.ErrNilPointer)
+	require.ErrorIs(t, (*DeliveryOrderCreateRequest)(nil).validate(true), common.ErrNilPointer)
 }
 
 // TestOrderCreateParamsValidateClosePosition checks that a futures order may close a position with a zero size,
@@ -14978,9 +15169,9 @@ func TestOrderCreateParamsValidateClosePosition(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			for _, isRest := range []bool{true, false} {
-				perpetual := &FuturesOrderCreateParams{Contract: futuresContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
+				perpetual := &FuturesOrderCreateRequest{Contract: futuresContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
 				assert.ErrorIsf(t, perpetual.validate(isRest), tc.expectErr, "futures validate should return the expected error when isRest is %t", isRest)
-				delivery := &DeliveryOrderCreateParams{Contract: deliveryContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
+				delivery := &DeliveryOrderCreateRequest{Contract: deliveryContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
 				assert.ErrorIsf(t, delivery.validate(isRest), tc.expectErr, "delivery validate should return the expected error when isRest is %t", isRest)
 			}
 		})
@@ -15302,7 +15493,7 @@ func TestRepayMultiCollateralLoan(t *testing.T) {
 	result, err := e.RepayMultiCollateralLoan(t.Context(), arg)
 	require.NoError(t, err, "RepayMultiCollateralLoan must not error")
 	if mockTests {
-		exp := &MultiCollateralLoanRepayment{
+		exp := &MultiCollateralLoanRepaymentResponse{
 			OrderID: 1234,
 			RepaidCurrencies: []*MultiCollateralRepaidCurrency{
 				{Succeeded: true, Currency: currency.USDT, RepaidPrincipal: 10, RepaidInterest: 0.0001},
@@ -15333,7 +15524,7 @@ func TestGetMultiCurrencyCollateralRepaymentRecords(t *testing.T) {
 	result, err := e.GetMultiCurrencyCollateralRepaymentRecords(t.Context(), &MultiCollateralRepaymentRecordsRequest{Type: "repay", BorrowCurrency: currency.USDT, Limit: 10})
 	require.NoError(t, err, "GetMultiCurrencyCollateralRepaymentRecords must not error")
 	if mockTests {
-		exp := []*MultiCurrencyCollateralRepayment{{
+		exp := []*MultiCurrencyCollateralRepaymentResponse{{
 			OrderID:    10005679,
 			RecordID:   1348,
 			InitLTV:    0.2141,
@@ -15380,7 +15571,7 @@ func TestAddOrWithdrawCollateral(t *testing.T) {
 	result, err := e.AddOrWithdrawCollateral(t.Context(), &AddOrWithdrawCollateralRequest{
 		OrderID:       12344,
 		OperationType: "redeem",
-		Collaterals:   []CurrencyAndAmount{{Currency: currency.BTC, Amount: 0.5}},
+		Collaterals:   []CurrencyAndAmountResponse{{Currency: currency.BTC, Amount: 0.5}},
 	})
 	require.NoError(t, err, "AddOrWithdrawCollateral must not error")
 	if mockTests {
@@ -15409,7 +15600,7 @@ func TestGetMultiCollateralAdjustmentRecords(t *testing.T) {
 	result, err := e.GetMultiCollateralAdjustmentRecords(t.Context(), &MultiCollateralAdjustmentRecordsRequest{Page: 1, Limit: 10, From: startTime, To: endTime, CollateralCurrency: currency.ETH})
 	require.NoError(t, err, "GetMultiCollateralAdjustmentRecords must not error")
 	if mockTests {
-		exp := []*MultiCollateralAdjustmentRecord{{
+		exp := []*MultiCollateralAdjustmentRecordResponse{{
 			OrderID:     10000417,
 			RecordID:    10000452,
 			BeforeLTV:   0.0003934555562148,
@@ -15445,7 +15636,7 @@ func TestGetMultiCollateralCurrencyQuota(t *testing.T) {
 	result, err := e.GetMultiCollateralCurrencyQuota(t.Context(), "collateral", []currency.Code{currency.BTC})
 	require.NoError(t, err, "GetMultiCollateralCurrencyQuota must not error")
 	if mockTests {
-		exp := []*MultiCollateralCurrencyQuota{{
+		exp := []*MultiCollateralCurrencyQuotaResponse{{
 			Currency:           currency.BTC,
 			IndexPrice:         35306.1,
 			LeftQuota:          2768152.4958445218723677,
@@ -15464,7 +15655,7 @@ func TestGetMultiCollateralSupportedCurrencies(t *testing.T) {
 	result, err := e.GetMultiCollateralSupportedCurrencies(t.Context())
 	require.NoError(t, err, "GetMultiCollateralSupportedCurrencies must not error")
 	if mockTests {
-		exp := &MultiCollateralSupportedCurrencies{
+		exp := &MultiCollateralSupportedCurrenciesResponse{
 			LoanCurrencies:       []*MultiLoanItem{{Currency: currency.BTC, Price: 1212}, {Currency: currency.GT, Price: 12}},
 			CollateralCurrencies: []*MultiCollateralItem{{Currency: currency.BTC, IndexPrice: 1212, Discount: 0.7}},
 		}
@@ -15480,7 +15671,7 @@ func TestGetMultiCollateralisationRatio(t *testing.T) {
 	result, err := e.GetMultiCollateralisationRatio(t.Context())
 	require.NoError(t, err, "GetMultiCollateralisationRatio must not error")
 	if mockTests {
-		assert.Equal(t, &MultiCollateralisationRatio{InitLTV: 0.7, AlertLTV: 0.8, LiquidateLTV: 0.9}, result, "GetMultiCollateralisationRatio should decode every field")
+		assert.Equal(t, &MultiCollateralisationRatioResponse{InitLTV: 0.7, AlertLTV: 0.8, LiquidateLTV: 0.9}, result, "GetMultiCollateralisationRatio should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetMultiCollateralisationRatio should return a result")
@@ -15491,7 +15682,7 @@ func TestGetMultiCollateralFixedRates(t *testing.T) {
 	result, err := e.GetMultiCollateralFixedRates(t.Context())
 	require.NoError(t, err, "GetMultiCollateralFixedRates must not error")
 	if mockTests {
-		exp := []*CollateralFixRate{{Currency: currency.BTC, Rate7Day: 0.000023, Rate30Day: 0.1, UpdateTime: types.Time(time.Unix(1703820105, 0))}}
+		exp := []*CollateralFixRateResponse{{Currency: currency.BTC, Rate7Day: 0.000023, Rate30Day: 0.1, UpdateTime: types.Time(time.Unix(1703820105, 0))}}
 		assert.Equal(t, exp, result, "GetMultiCollateralFixedRates should decode every field")
 		return
 	}
@@ -15509,7 +15700,7 @@ func TestGetMultiCollateralCurrentRates(t *testing.T) {
 	result, err := e.GetMultiCollateralCurrentRates(t.Context(), []currency.Code{currency.BTC, currency.GT}, "")
 	require.NoError(t, err, "GetMultiCollateralCurrentRates must not error")
 	if mockTests {
-		exp := []*CollateralCurrentRate{{Currency: currency.BTC, CurrentRate: 0.000023}, {Currency: currency.GT, CurrentRate: 0.000015}}
+		exp := []*CollateralCurrentRateResponse{{Currency: currency.BTC, CurrentRate: 0.000023}, {Currency: currency.GT, CurrentRate: 0.000015}}
 		assert.Equal(t, exp, result, "GetMultiCollateralCurrentRates should decode every field")
 		return
 	}
@@ -15746,7 +15937,7 @@ func TestGetLendingCurrencyList(t *testing.T) {
 	require.NoError(t, err, "GetLendingCurrencyList must not error")
 	if mockTests {
 		require.Len(t, result, 5, "GetLendingCurrencyList must return every recorded currency")
-		exp := &LendingCurrencyDetail{Currency: currency.USDT, MinLendAmount: 1, MaxLendAmount: 100000000, MaxRate: 0.00057, MinRate: 0.00000011}
+		exp := &LendingCurrencyDetailResponse{Currency: currency.USDT, MinLendAmount: 1, MaxLendAmount: 100000000, MaxRate: 0.00057, MinRate: 0.00000011}
 		assert.Equal(t, exp, result[0], "GetLendingCurrencyList should decode every field")
 		return
 	}
@@ -15761,7 +15952,7 @@ func TestGetLendingCurrencyDetail(t *testing.T) {
 	result, err := e.GetLendingCurrencyDetail(t.Context(), currency.ETH)
 	require.NoError(t, err, "GetLendingCurrencyDetail must not error")
 	if mockTests {
-		exp := &LendingCurrencyDetail{Currency: currency.ETH, MinLendAmount: 0.001, MaxLendAmount: 500000000, MaxRate: 0.00057, MinRate: 0.00000011}
+		exp := &LendingCurrencyDetailResponse{Currency: currency.ETH, MinLendAmount: 0.001, MaxLendAmount: 500000000, MaxRate: 0.00057, MinRate: 0.00000011}
 		assert.Equal(t, exp, result, "GetLendingCurrencyDetail should decode every field")
 		return
 	}
@@ -15809,7 +16000,7 @@ func TestGetUserLendingOrderList(t *testing.T) {
 	result, err := e.GetUserLendingOrderList(t.Context(), currency.USDT, 10, 100)
 	require.NoError(t, err, "GetUserLendingOrderList must not error")
 	if mockTests {
-		exp := []*LendOrderDetail{{
+		exp := []*LendOrderDetailResponse{{
 			Currency:       currency.USDT,
 			CurrentAmount:  20.999992,
 			Amount:         20.999992,
@@ -15854,7 +16045,7 @@ func TestGetLendingTransactionRecords(t *testing.T) {
 	result, err := e.GetLendingTransactionRecords(t.Context(), &LendingTransactionRecordsRequest{Currency: currency.USDT, Page: 10, Limit: 100, From: startTime, To: endTime, Type: "redeem"})
 	require.NoError(t, err, "GetLendingTransactionRecords must not error")
 	if mockTests {
-		exp := []*LendingTransactionRecord{{
+		exp := []*LendingTransactionRecordResponse{{
 			Type:             "redeem",
 			Currency:         currency.USDT,
 			Amount:           1,
@@ -15878,7 +16069,7 @@ func TestGetUserTotalInterestIncomePerCurrency(t *testing.T) {
 	result, err := e.GetUserTotalInterestIncomePerCurrency(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetUserTotalInterestIncomePerCurrency must not error")
 	if mockTests {
-		assert.Equal(t, &CurrencyAndInterestIncome{Currency: currency.USDT, Interest: 123.345}, result, "GetUserTotalInterestIncomePerCurrency should decode every field")
+		assert.Equal(t, &CurrencyAndInterestIncomeResponse{Currency: currency.USDT, Interest: 123.345}, result, "GetUserTotalInterestIncomePerCurrency should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetUserTotalInterestIncomePerCurrency should return a result")
@@ -15899,7 +16090,7 @@ func TestGetUserDividendRecords(t *testing.T) {
 	result, err := e.GetUserDividendRecords(t.Context(), &UserDividendRecordsRequest{Currency: currency.AE, From: startTime, To: endTime})
 	require.NoError(t, err, "GetUserDividendRecords must not error")
 	if mockTests {
-		exp := []*UserDividendRecords{{
+		exp := []*UserDividendRecordsResponse{{
 			Status:         1,
 			Currency:       currency.AE,
 			ActualRate:     0.0005,
@@ -15924,7 +16115,7 @@ func TestGetCurrencyInterestCompoundingStatus(t *testing.T) {
 	result, err := e.GetCurrencyInterestCompoundingStatus(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetCurrencyInterestCompoundingStatus must not error")
 	if mockTests {
-		assert.Equal(t, &CurrencyInterestStatus{Currency: currency.USDT, InterestStatus: "interest_dividend"}, result, "GetCurrencyInterestCompoundingStatus should decode every field")
+		assert.Equal(t, &CurrencyInterestStatusResponse{Currency: currency.USDT, InterestStatus: "interest_dividend"}, result, "GetCurrencyInterestCompoundingStatus should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetCurrencyInterestCompoundingStatus should return a result")
@@ -15951,7 +16142,7 @@ func TestGetUniLoanCurrencyAnnualisedTrendChart(t *testing.T) {
 	result, err := e.GetUniLoanCurrencyAnnualisedTrendChart(t.Context(), startTime, endTime, currency.AE)
 	require.NoError(t, err, "GetUniLoanCurrencyAnnualisedTrendChart must not error")
 	if mockTests {
-		assert.Equal(t, []*UniLoanAssetData{{Time: types.Time(time.Unix(1744156800, 0)), Value: 0.01}}, result, "GetUniLoanCurrencyAnnualisedTrendChart should decode every field")
+		assert.Equal(t, []*UniLoanAssetResponse{{Time: types.Time(time.Unix(1744156800, 0)), Value: 0.01}}, result, "GetUniLoanCurrencyAnnualisedTrendChart should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetUniLoanCurrencyAnnualisedTrendChart should return a result")
@@ -15965,7 +16156,7 @@ func TestGetCurrencyEstimatedAnnualisedInterestRate(t *testing.T) {
 	result, err := e.GetCurrencyEstimatedAnnualisedInterestRate(t.Context())
 	require.NoError(t, err, "GetCurrencyEstimatedAnnualisedInterestRate must not error")
 	if mockTests {
-		assert.Equal(t, []*CurrencyEstimatedAnnualInterestRate{{Currency: currency.USDT, EstimatedRate: 0.0226}}, result, "GetCurrencyEstimatedAnnualisedInterestRate should decode every field")
+		assert.Equal(t, []*CurrencyEstimatedAnnualInterestRateResponse{{Currency: currency.USDT, EstimatedRate: 0.0226}}, result, "GetCurrencyEstimatedAnnualisedInterestRate should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetCurrencyEstimatedAnnualisedInterestRate should return a result")
@@ -16009,7 +16200,7 @@ func TestResponseError(t *testing.T) {
 	assert.Contains(t, err.Error(), "trace-1", "error should carry the trace ID")
 
 	// Results are commonly unmarshalled into a pointer to a pointer, whose method set is empty
-	doubled := &AlphaCurrencyQuoteDetail{Label: "BALANCE_NOT_ENOUGH", Message: "insufficient"}
+	doubled := &AlphaCurrencyQuoteDetailResponse{Label: "BALANCE_NOT_ENOUGH", Message: "insufficient"}
 	err = responseError(&doubled)
 	require.Error(t, err, "double pointer result must still surface the embedded error")
 	assert.Contains(t, err.Error(), "BALANCE_NOT_ENOUGH", "error should carry the alpha label")
