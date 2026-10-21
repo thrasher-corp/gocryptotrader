@@ -228,7 +228,7 @@ func TestFuturesGetKline(t *testing.T) {
 
 func TestFuturesGetMarketOverview(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, futuresMarketOverview, `{"status":"ok","tick":{"id":123}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/market/detail/merged", `{"status":"ok","tick":{"id":123}}`, nil)
 	resp, err := h.FuturesGetMarketOverview(t.Context(), btccwPair)
 	require.NoError(t, err, "FGetMarketOverviewData must not error")
 	assert.Equal(t, uint64(123), resp.Tick.ID, "market overview ID should decode")
@@ -298,7 +298,7 @@ func TestFuturesLiquidationOrders(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, futuresLiquidationOrders, emptySuccessResponse, func(r *http.Request) {
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/api/v3/contract_liquidation_orders", emptySuccessResponse, func(r *http.Request) {
 				for key, timestamp := range map[string]uint64{"start_time": tc.start, "end_time": tc.end} {
 					if timestamp == 0 {
 						assert.NotContains(t, r.URL.Query(), key, "unset timestamps should be omitted")
@@ -327,43 +327,42 @@ func TestFuturesGetBasis(t *testing.T) {
 
 func TestFuturesGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresAccount, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetAccountInfo(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetAccountInfo must not error")
 }
 
 func TestFuturesGetPositionsInfo(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresPositionInformation, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetPositionsInfo(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetPositionsInfo must not error")
 }
 
 func TestFuturesGetAllSubAccountAssets(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresAllSubAccountAssets, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_list", emptySuccessResponse, nil)
 	_, err := h.FuturesGetAllSubAccountAssets(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetAllSubAccountAssets must not error")
 }
 
 func TestFuturesGetSingleSubAccountInfo(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresSingleSubAccountAssets, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetSingleSubAccountInfo(t.Context(), "BTC", "154263566")
 	require.NoError(t, err, "FGetSingleSubAccountInfo must not error")
 }
 
 func TestFuturesGetSingleSubPositions(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresSingleSubAccountPositions, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_position_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetSingleSubPositions(t.Context(), "BTC", "154263566")
 	require.NoError(t, err, "FGetSingleSubPositions must not error")
 }
 
 func TestFuturesGetFinancialRecords(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "/api/v3/contract_financial_record", futuresFinancialRecords, "delivery futures financial records endpoint should match HTX docs")
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresFinancialRecords, emptySuccessResponse, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v3/contract_financial_record", emptySuccessResponse, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err, "request body must be readable")
 		var requestBody map[string]any
@@ -378,7 +377,7 @@ func TestFuturesGetFinancialRecords(t *testing.T) {
 
 func TestFuturesGetSettlementRecords(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresSettlementRecords, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_user_settlement_records", emptySuccessResponse, nil)
 	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	_, err := h.FuturesGetSettlementRecords(t.Context(), currency.BTC, 1, 20, start, start.Add(time.Hour))
 	require.NoError(t, err, "FGetSettlementRecords must not error")
@@ -397,7 +396,7 @@ func TestFuturesGetOrderLimits(t *testing.T) {
 	})
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresOrderLimitInfo, emptySuccessResponse, nil)
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_limit", emptySuccessResponse, nil)
 		_, err := h.FuturesGetOrderLimits(t.Context(), "BTC", "limit")
 		require.NoError(t, err, "FGetOrderLimits must not error")
 	})
@@ -405,49 +404,49 @@ func TestFuturesGetOrderLimits(t *testing.T) {
 
 func TestFuturesContractTradingFee(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresContractTradingFee, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_fee", emptySuccessResponse, nil)
 	_, err := h.FuturesContractTradingFee(t.Context(), currency.BTC)
 	require.NoError(t, err, "FuturesContractTradingFee must not error")
 }
 
 func TestFuturesGetTransferLimits(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTransferLimitInfo, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_transfer_limit", emptySuccessResponse, nil)
 	_, err := h.FuturesGetTransferLimits(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetTransferLimits must not error")
 }
 
 func TestFuturesGetPositionLimits(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresPositionLimitInfo, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_limit", emptySuccessResponse, nil)
 	_, err := h.FuturesGetPositionLimits(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetPositionLimits must not error")
 }
 
 func TestFuturesGetAssetsAndPositions(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresQueryAssetsAndPositions, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_position_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetAssetsAndPositions(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetAssetsAndPositions must not error")
 }
 
 func TestFuturesTransfer(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTransfer, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer", emptySuccessResponse, nil)
 	_, err := h.FuturesTransfer(t.Context(), "154263566", "BTC", "sub_to_master", 5)
 	require.NoError(t, err, "FTransfer must not error")
 }
 
 func TestFuturesGetTransferRecords(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTransferRecords, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer_record", emptySuccessResponse, nil)
 	_, err := h.FuturesGetTransferRecords(t.Context(), "BTC", "master_to_sub", 2, 1, 20)
 	require.NoError(t, err, "FGetTransferRecords must not error")
 }
 
 func TestFuturesGetAvailableLeverage(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresAvailableLeverage, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_available_level_rate", emptySuccessResponse, nil)
 	_, err := h.FuturesGetAvailableLeverage(t.Context(), currency.BTC)
 	require.NoError(t, err, "FGetAvailableLeverage must not error")
 }
@@ -473,7 +472,7 @@ func TestFuturesOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresOrder, emptySuccessResponse, func(r *http.Request) {
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order", emptySuccessResponse, func(r *http.Request) {
 				assert.NoError(t, tc.expectedErr, "invalid client IDs should not reach the endpoint")
 				var body map[string]json.RawMessage
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&body), "order request must decode")
@@ -497,8 +496,13 @@ func TestFuturesOrder(t *testing.T) {
 
 func TestFuturesPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresBatchOrder, emptySuccessResponse, nil)
-	_, err := h.FuturesPlaceBatchOrder(t.Context(), []FuturesBatchOrderRequest{{
+	t.Run("nil order", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.FuturesPlaceBatchOrder(t.Context(), []*FuturesBatchOrderRequest{nil})
+		require.ErrorIs(t, err, common.ErrNilPointer, "batch placement must reject a nil order")
+	})
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_batchorder", emptySuccessResponse, nil)
+	_, err := h.FuturesPlaceBatchOrder(t.Context(), []*FuturesBatchOrderRequest{{
 		Symbol:         "BTC",
 		ContractType:   "quarter",
 		Price:          5,
@@ -530,7 +534,7 @@ func TestFuturesCancelOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresCancelOrder, emptySuccessResponse, func(r *http.Request) {
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancel", emptySuccessResponse, func(r *http.Request) {
 				require.NoError(t, tc.expectedErr, "invalid cancellation must not send a request")
 				var request map[string]any
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&request), "cancellation request must decode")
@@ -555,42 +559,41 @@ func TestFuturesCancelOrder(t *testing.T) {
 
 func TestFuturesCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresCancelAllOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancelall", emptySuccessResponse, nil)
 	_, err := h.FuturesCancelAllOrders(t.Context(), currency.EMPTYPAIR, "BTC", "quarter")
 	require.NoError(t, err, "FCancelAllOrders must not error")
 }
 
 func TestFuturesFlashCloseOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresFlashCloseOrder, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/lightning_close_position", emptySuccessResponse, nil)
 	_, err := h.FuturesFlashCloseOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "buy", "lightning", "", 1)
 	require.NoError(t, err, "FFlashCloseOrder must not error")
 }
 
 func TestFuturesGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresOrderInfo, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_info", emptySuccessResponse, nil)
 	_, err := h.FuturesGetOrderInfo(t.Context(), "BTC", "", "123")
 	require.NoError(t, err, "FGetOrderInfo must not error")
 }
 
 func TestFuturesOrderDetails(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresOrderDetails, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_detail", emptySuccessResponse, nil)
 	_, err := h.FuturesOrderDetails(t.Context(), "BTC", "123", "quotation", time.Now().Add(-time.Hour), 1, 20)
 	require.NoError(t, err, "FuturesOrderDetails must not error")
 }
 
 func TestFuturesGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresQueryOpenOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_openorders", emptySuccessResponse, nil)
 	_, err := h.FuturesGetOpenOrders(t.Context(), currency.BTC, 1, 20)
 	require.NoError(t, err, "FGetOpenOrders must not error")
 }
 
 func TestFuturesGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "/api/v3/contract_hisorders", futuresOrderHistory, "delivery futures order history endpoint should match HTX docs")
 	_, err := e.FuturesGetOrderHistory(t.Context(),
 		currency.EMPTYPAIR, "BTC",
 		"all", "all", "limit",
@@ -602,7 +605,7 @@ func TestFuturesGetOrderHistory(t *testing.T) {
 func TestFuturesGetOrderHistoryByTimeRange(t *testing.T) {
 	t.Parallel()
 	body := make(chan []byte, 1)
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresOrderHistory, `{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v3/contract_hisorders", `{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6}]}`, func(r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		body <- payload
@@ -630,8 +633,7 @@ func TestFuturesGetOrderHistoryByTimeRange(t *testing.T) {
 
 func TestFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "/api/v3/contract_matchresults", futuresMatchResult, "delivery futures trade history endpoint should match HTX docs")
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresMatchResult, emptySuccessResponse, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v3/contract_matchresults", emptySuccessResponse, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err, "request body must be readable")
 		var requestBody map[string]any
@@ -644,35 +646,35 @@ func TestFuturesTradeHistory(t *testing.T) {
 
 func TestFuturesPlaceTriggerOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTriggerOrder, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_order", emptySuccessResponse, nil)
 	_, err := h.FuturesPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "greaterOrEqual", "limit", "buy", "close", 1.1, 1.05, 5, 2)
 	require.NoError(t, err, "FPlaceTriggerOrder must not error")
 }
 
 func TestFuturesCancelTriggerOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresCancelTriggerOrder, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancel", emptySuccessResponse, nil)
 	_, err := h.FuturesCancelTriggerOrder(t.Context(), "BTC", "123")
 	require.NoError(t, err, "FCancelTriggerOrder must not error")
 }
 
 func TestFuturesCancelAllTriggerOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresCancelAllTriggerOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancelall", emptySuccessResponse, nil)
 	_, err := h.FuturesCancelAllTriggerOrders(t.Context(), currency.EMPTYPAIR, "BTC", "this_week")
 	require.NoError(t, err, "FCancelAllTriggerOrders must not error")
 }
 
 func TestFuturesQueryTriggerOpenOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTriggerOpenOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_openorders", emptySuccessResponse, nil)
 	_, err := h.FuturesQueryTriggerOpenOrders(t.Context(), currency.EMPTYPAIR, "BTC", 1, 20)
 	require.NoError(t, err, "FQueryTriggerOpenOrders must not error")
 }
 
 func TestFuturesQueryTriggerOrderHistory(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresTriggerOrderHistory, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_hisorders", emptySuccessResponse, nil)
 	_, err := h.FuturesQueryTriggerOrderHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", 10, 1, 20)
 	require.NoError(t, err, "FQueryTriggerOrderHistory must not error")
 }
@@ -760,7 +762,7 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 
 func TestFuturesSwitchLeverage(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresSwitchLeverage, `{"status":"ok","data":{"symbol":"BTC","lever_rate":5}}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_switch_lever_rate", `{"status":"ok","data":{"symbol":"BTC","lever_rate":5}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		assert.JSONEq(t, `{"symbol":"BTC","lever_rate":5}`, string(body), "delivery leverage body should match")

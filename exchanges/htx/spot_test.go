@@ -372,7 +372,14 @@ func TestUnmarshalResponse(t *testing.T) {
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, htxCurrenciesReference,
+	t.Run("API failure", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/reference/currencies", `{"status":"error","err-msg":"invalid currency"}`, nil)
+		response, err := h.GetCurrenciesIncludingChains(t.Context(), currency.USDT)
+		require.ErrorIs(t, err, errAPIResponse, "GetCurrenciesIncludingChains must propagate the API failure")
+		assert.Nil(t, response, "failed currency query should not return data")
+	})
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/reference/currencies",
 		`{"code":200,"data":[{"currency":"usdt","chains":[{"chain":"trc20usdt","maxWithdrawAmt":"280000.00000000"}]}]}`,
 		func(r *http.Request) {
 			assert.Equal(t, "usdt", r.URL.Query().Get("currency"), "currency query should match")
@@ -386,14 +393,39 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 
 func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxMarginRates, emptySuccessResponse, nil)
-	_, err := h.GetMarginRates(t.Context(), btcusdtPair)
-	require.NoError(t, err, "GetMarginRates must not error")
+	for _, tc := range []struct {
+		name, body string
+		wantErr    error
+	}{
+		{name: "margin rates", body: `{"status":"ok","data":[{"symbol":"btcusdt","currencies":[{"currency":"btc","interest-rate":"0.001"}]}]}`},
+		{name: "API failure", body: `{"status":"error","err-code":"invalid-symbol","err-msg":"invalid symbol"}`, wantErr: request.ErrAuthRequestFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/margin/loan-info", tc.body, nil)
+			response, err := h.GetMarginRates(t.Context(), btcusdtPair)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "GetMarginRates must retain the API failure")
+				return
+			}
+			require.NoError(t, err, "GetMarginRates must decode margin rates")
+			require.NotNil(t, response, "margin response must be returned as a pointer")
+			require.Len(t, response.Data, 1, "margin response must retain its symbol")
+			assert.Equal(t, "btcusdt", response.Data[0].Symbol, "margin symbol should decode")
+			require.Len(t, response.Data[0].Currencies, 1, "margin response must retain its borrowing currency")
+			assert.Equal(t, 0.001, response.Data[0].Currencies[0].InterestRate.Float64(), "quoted interest rate should decode")
+		})
+	}
 }
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSpotKline(t.Context(), KlinesRequest{Symbol: btcusdtPair, Period: "1min"})
+	t.Run("nil request", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetSpotKline(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotKline must reject a nil request")
+	})
+	_, err := e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: btcusdtPair, Period: "1min"})
 	require.NoError(t, err)
 }
 
@@ -434,7 +466,7 @@ func TestGetTradeHistory(t *testing.T) {
 	})
 	t.Run("response data", func(t *testing.T) {
 		t.Parallel()
-		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, htxMarketTradeHistory, `{"status":"ok","data":[{"id":123}]}`, nil)
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/market/history/trade", `{"status":"ok","data":[{"id":123}]}`, nil)
 		got, err := h.GetTradeHistory(t.Context(), btcusdtPair, 50)
 		require.NoError(t, err, "GetTradeHistory must not error")
 		require.Len(t, got, 1, "GetTradeHistory must return the decoded trade history")
@@ -460,15 +492,15 @@ func TestGetCurrencies(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGet24HrMarketSummary(t *testing.T) {
+func TestGet24HourMarketSummary(t *testing.T) {
 	t.Parallel()
-	_, err := e.Get24HrMarketSummary(t.Context(), btcusdtPair)
+	_, err := e.Get24HourMarketSummary(t.Context(), btcusdtPair)
 	require.NoError(t, err)
 }
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxAccounts, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/account/accounts", emptySuccessResponse, nil)
 	_, err := h.GetAccounts(t.Context())
 	require.NoError(t, err, "GetAccounts must not error")
 }
@@ -483,21 +515,21 @@ func TestGetAccountBalance(t *testing.T) {
 		_, err := h.GetAccountBalance(t.Context(), "1")
 		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetAccountBalance must return credentials error")
 	})
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf(htxAccountBalance, "123"), emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf("/account/accounts/%s/balance", "123"), emptySuccessResponse, nil)
 	_, err := h.GetAccountBalance(t.Context(), "123")
 	require.NoError(t, err, "GetAccountBalance must not error")
 }
 
 func TestGetAggregatedBalance(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxAggregatedBalance, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/subuser/aggregate-balance", emptySuccessResponse, nil)
 	_, err := h.GetAggregatedBalance(t.Context())
 	require.NoError(t, err, "GetAggregatedBalance must not error")
 }
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderPlace, `{"status":"ok","data":"123"}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/place", `{"status":"ok","data":"123"}`, nil)
 	arg := SpotOrderRequest{
 		Symbol:    btcusdtPair,
 		AccountID: 123,
@@ -515,7 +547,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("mock", func(t *testing.T) {
 		t.Parallel()
-		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxOrderCancel, "123"), `{"status":"ok","data":"123"}`, nil)
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf("/order/orders/%s/submitcancel", "123"), `{"status":"ok","data":"123"}`, nil)
 		orderID, err := h.CancelExistingOrder(t.Context(), 123)
 		require.NoError(t, err, "CancelExistingOrder must not error")
 		assert.Equal(t, uint64(123), orderID, "CancelExistingOrder should return the decoded order ID")
@@ -538,43 +570,42 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetOrderMatchResults(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf(htxGetOrderMatch, "1337"), emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf("/order/orders/%s/matchresults", "1337"), emptySuccessResponse, nil)
 	_, err := h.GetOrderMatchResults(t.Context(), 1337)
 	require.NoError(t, err, "GetOrderMatchResults must not error")
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxGetOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", emptySuccessResponse, nil)
 	_, err := h.GetOrders(t.Context(), btcusdtPair, "buy-limit", "", "", "submitted", "", "", "10")
 	require.NoError(t, err, "GetOrders must not error")
 }
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxGetOpenOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/openOrders", emptySuccessResponse, nil)
 	_, err := h.GetOpenOrders(t.Context(), btcusdtPair, "100009", "buy", 10)
 	require.NoError(t, err, "GetOpenOrders must not error")
 }
 
 func TestGetOrdersMatch(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "/order/matchresults", htxGetOrdersMatch, "spot match results endpoint should match HTX docs")
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxGetOrdersMatch, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/matchresults", emptySuccessResponse, nil)
 	_, err := h.GetOrdersMatch(t.Context(), btcusdtPair, "buy-limit", "", "", "", "", "10")
 	require.NoError(t, err, "GetOrdersMatch must not error")
 }
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxMarginLoanOrders, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/margin/loan-orders", emptySuccessResponse, nil)
 	_, err := h.GetMarginLoanOrders(t.Context(), btcusdtPair, "usdt", "", "", "", "", "", "10")
 	require.NoError(t, err, "GetMarginLoanOrders must not error")
 }
 
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxMarginAccountBalance, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/margin/accounts/balance", emptySuccessResponse, nil)
 	_, err := h.GetMarginAccountBalance(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetMarginAccountBalance must not error")
 }
@@ -590,9 +621,9 @@ func TestMarginTransfer(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			path := "/v1" + htxMarginTransferOut
+			path := "/v1" + "/dw/transfer-out/margin"
 			if tt.in {
-				path = "/v1" + htxMarginTransferIn
+				path = "/v1" + "/dw/transfer-in/margin"
 			}
 			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, path, `{"status":"ok","data":123}`, nil)
 			_, err := h.MarginTransfer(t.Context(), btcusdtPair, "usdt", 1.25, tt.in)
@@ -603,14 +634,14 @@ func TestMarginTransfer(t *testing.T) {
 
 func TestMarginOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxMarginOrders, `{"status":"ok","data":123}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/margin/orders", `{"status":"ok","data":123}`, nil)
 	_, err := h.MarginOrder(t.Context(), btcusdtPair, "usdt", 1.25)
 	require.NoError(t, err, "MarginOrder must not error")
 }
 
 func TestMarginRepayment(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxMarginRepay, "1"), `{"status":"ok","data":123}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf("/margin/orders/%s/repay", "1"), `{"status":"ok","data":123}`, nil)
 	_, err := h.MarginRepayment(t.Context(), 1, 1.25)
 	require.NoError(t, err, "MarginRepayment must not error")
 }
@@ -636,7 +667,7 @@ func TestWithdraw(t *testing.T) {
 				require.ErrorIs(t, err, tt.wantErr, "Withdraw must return expected error")
 				return
 			}
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxWithdrawCreate, `{"status":"ok","data":123}`, nil)
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/dw/withdraw/api/create", `{"status":"ok","data":123}`, nil)
 			_, err := h.Withdraw(t.Context(), tt.code, tt.address, "", "trc20usdt", tt.amount, 0.1)
 			require.NoError(t, err, "Withdraw must not error")
 		})
@@ -645,7 +676,7 @@ func TestWithdraw(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxWithdrawCancel, "1337"), `{"status":"ok","data":123}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf("/dw/withdraw-virtual/%s/cancel", "1337"), `{"status":"ok","data":123}`, nil)
 	_, err := h.CancelWithdraw(t.Context(), 1337)
 	require.NoError(t, err, "CancelWithdraw must not error")
 }
@@ -665,21 +696,63 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestQueryDepositAddress(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2"+htxAccountDepositAddress, `{"code":200,"data":[{"currency":"usdt","address":"address","addressTag":"","chain":"trc20usdt"}]}`, nil)
-	_, err := h.QueryDepositAddress(t.Context(), currency.USDT)
-	require.NoError(t, err, "QueryDepositAddress must not error")
+	for _, tc := range []struct {
+		name, body string
+		wantErr    error
+	}{
+		{name: "deposit address", body: `{"code":200,"data":[{"currency":"usdt","address":"address","addressTag":"","chain":"trc20usdt"}]}`},
+		{name: "no address", body: `{"code":200,"data":[]}`, wantErr: errDepositAddressMissing},
+		{name: "API failure", body: `{"code":400,"message":"invalid currency"}`, wantErr: request.ErrAuthRequestFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/account/deposit/address", tc.body, func(r *http.Request) {
+				assert.Equal(t, "usdt", r.URL.Query().Get("currency"), "deposit currency should be lower case")
+			})
+			response, err := h.QueryDepositAddress(t.Context(), currency.USDT)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "QueryDepositAddress must return the expected error")
+				assert.Nil(t, response, "failed address query should not return data")
+				return
+			}
+			require.NoError(t, err, "QueryDepositAddress must decode the deposit address")
+			require.Len(t, response, 1, "deposit result must retain its address")
+			assert.Equal(t, "address", response[0].Address, "deposit address should decode")
+			assert.Equal(t, "trc20usdt", response[0].Chain, "deposit network should decode")
+		})
+	}
 }
 
 func TestQueryWithdrawQuotas(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2"+htxAccountWithdrawQuota, emptySuccessResponse, nil)
-	_, err := h.QueryWithdrawQuotas(t.Context(), currency.BTC.Lower().String())
-	require.NoError(t, err, "QueryWithdrawQuotas must not error")
+	for _, tc := range []struct {
+		name, body string
+		wantErr    error
+	}{
+		{name: "withdrawal quota", body: `{"code":200,"data":{"currency":"btc","chains":[]}}`},
+		{name: "API failure", body: `{"code":400,"message":"invalid currency"}`, wantErr: request.ErrAuthRequestFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/account/withdraw/quota", tc.body, func(r *http.Request) {
+				assert.Equal(t, "btc", r.URL.Query().Get("currency"), "quota currency should be forwarded")
+			})
+			response, err := h.QueryWithdrawQuotas(t.Context(), currency.BTC.Lower().String())
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "QueryWithdrawQuotas must propagate the API failure")
+				assert.Nil(t, response, "failed quota query should not return data")
+				return
+			}
+			require.NoError(t, err, "QueryWithdrawQuotas must decode its response")
+			require.NotNil(t, response, "withdrawal quota must be returned")
+			assert.Equal(t, "btc", response.Currency, "quota currency should decode")
+		})
+	}
 }
 
 func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxWithdrawHistory, emptySuccessResponse, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw", emptySuccessResponse, func(r *http.Request) {
 		assert.Equal(t, "next", r.URL.Query().Get("direct"), "direct query parameter should match")
 		assert.Empty(t, r.URL.Query().Get("direction"), "undocumented direction query parameter should not be sent")
 	})
@@ -722,7 +795,7 @@ func TestCancelOrderBatch(t *testing.T) {
 				response = `{"status":"ok","data":{"success":["ack"],"failed":[]}}`
 			}
 			calls := 0
-			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxOrderCancelBatch, response, func(r *http.Request) {
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchcancel", response, func(r *http.Request) {
 				calls++
 				var payload map[string][]string
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "request body must decode")
@@ -753,13 +826,14 @@ func TestCancelOrderBatch(t *testing.T) {
 
 func TestCancelOpenOrdersBatch(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+htxBatchCancelOpenOrders, `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":-1}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchCancelOpenOrders", `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":-1}}`, nil)
 	_, err := h.CancelOpenOrdersBatch(t.Context(), "1", btcusdtPair)
 	require.NoError(t, err, "CancelOpenOrdersBatch must not error")
 }
 
 func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	t.Parallel()
+	require.ErrorIs(t, validateCancelOpenOrdersBatchResponse(nil), common.ErrNilPointer, "validation must reject a nil response")
 	for _, tc := range []struct {
 		name        string
 		failedCount uint64
@@ -775,10 +849,10 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := CancelOpenOrdersBatch{Status: tc.status, ErrorMessage: tc.errorMsg}
+			result := CancelOpenOrdersBatchResponse{Status: tc.status, ErrorMessage: tc.errorMsg}
 			result.Data.FailedCount = tc.failedCount
 			result.Data.NextID = tc.nextID
-			err := validateCancelOpenOrdersBatchResponse(result)
+			err := validateCancelOpenOrdersBatchResponse(&result)
 			if tc.want == nil {
 				assert.NoError(t, err, "successful response should not error")
 				return

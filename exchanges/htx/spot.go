@@ -33,47 +33,8 @@ const (
 	tradeFutures      = "futures/linear_swap/exchange#contract_code="
 	tradeCoinMargined = "futures/swap/exchange/#symbol="
 
-	// Spot endpoints
-	htxMarketHistoryKline           = "/market/history/kline"
-	htxMarketDetail                 = "/market/detail"
-	htxMarketDetailMerged           = "/market/detail/merged"
-	htx24HrMarketSummary            = "/market/detail?"
-	htxMarketDepth                  = "/market/depth"
-	htxMarketTrade                  = "/market/trade"
-	htxMarketTickers                = "/market/tickers"
-	htxMarketTradeHistory           = "/market/history/trade"
-	htxSymbols                      = "/v1/common/symbols"
-	htxCurrencies                   = "/v1/common/currencys"
-	htxTimestamp                    = "/common/timestamp"
-	htxAccounts                     = "/account/accounts"
-	htxAccountBalance               = "/account/accounts/%s/balance"
-	htxAccountDepositAddress        = "/account/deposit/address"
-	htxAccountWithdrawQuota         = "/account/withdraw/quota"
-	htxAggregatedBalance            = "/subuser/aggregate-balance"
-	htxOrderPlace                   = "/order/orders/place"
-	htxOrderCancel                  = "/order/orders/%s/submitcancel"
-	htxOrderCancelBatch             = "/order/orders/batchcancel"
-	htxBatchCancelOpenOrders        = "/order/orders/batchCancelOpenOrders"
-	htxGetOrderMatch                = "/order/orders/%s/matchresults"
-	htxGetOrders                    = "/order/orders"
-	htxGetOpenOrders                = "/order/openOrders"
-	htxGetOrdersMatch               = "/order/matchresults"
-	htxMarginTransferIn             = "/dw/transfer-in/margin"
-	htxMarginTransferOut            = "/dw/transfer-out/margin"
-	htxMarginOrders                 = "/margin/orders"
-	htxMarginRepay                  = "/margin/orders/%s/repay"
-	htxMarginLoanOrders             = "/margin/loan-orders"
-	htxMarginAccountBalance         = "/margin/accounts/balance"
-	htxWithdrawCreate               = "/dw/withdraw/api/create"
-	htxWithdrawCancel               = "/dw/withdraw-virtual/%s/cancel"
-	htxStatusSuccess                = "success"
-	htxStatusError                  = "error"
-	htxMarginRates                  = "/margin/loan-info"
-	htxCurrenciesReference          = "/v2/reference/currencies"
-	htxWithdrawHistory              = "/query/deposit-withdraw"
-	htxBatchCoinMarginSwapContracts = "/v2/swap-ex/market/detail/batch_merged"
-	htxBatchLinearSwapContracts     = "/v2/linear-swap-ex/market/detail/batch_merged"
-	htxBatchContracts               = "/v2/market/detail/batch_merged"
+	htxStatusSuccess = "success"
+	htxStatusError   = "error"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional API methods for interacting with HTX.
@@ -96,23 +57,25 @@ func getSignatureHost(endpoint string) (string, error) {
 }
 
 // GetMarginRates gets margin rates
-func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesResponse, error) {
+func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (*MarginRatesResponse, error) {
 	resp := new(MarginRatesResponse)
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return *resp, err
+			return resp, err
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginRates, vals, nil, resp, false)
-	return *resp, err
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/loan-info", vals, nil, resp, false)
+	return resp, err
 }
 
-// GetSpotKline returns kline data
-// KlinesRequest contains symbol currency.Pair, period and size
-func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequest) ([]KlineItem, error) {
+// GetSpotKline returns spot candles for the requested symbol, interval and optional size.
+func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequest) ([]KlineItem, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -127,66 +90,66 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequest) ([]Kline
 
 	result := new(SpotKlineResponse)
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/history/kline", vals), result)
 	return result.Data, err
 }
 
-// Get24HrMarketSummary returns 24hr market summary for a given market symbol
-func (e *Exchange) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) (MarketSummary24Hr, error) {
-	var result MarketSummary24Hr
+// Get24HourMarketSummary returns the rolling 24-hour summary for a spot symbol
+func (e *Exchange) Get24HourMarketSummary(ctx context.Context, symbol currency.Pair) (*MarketSummary24HourResponse, error) {
+	result := new(MarketSummary24HourResponse)
 	params := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return result, err
 	}
 	params.Set("symbol", symbolValue)
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, htx24HrMarketSummary+params.Encode(), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail", params), result)
 	return result, err
 }
 
 // GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
 func (e *Exchange) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchCoinMarginSwapContracts, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/swap-ex/market/detail/batch_merged", result)
 	return result.Data, err
 }
 
 // GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
 func (e *Exchange) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchLinearSwapContracts, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/linear-swap-ex/market/detail/batch_merged", result)
 	return result.Data, err
 }
 
 // GetBatchFuturesContracts returns the tickers for futures contracts
 func (e *Exchange) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchContracts, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/market/detail/batch_merged", result)
 	return result.Data, err
 }
 
 // GetTickers returns the ticker for the specified symbol
-func (e *Exchange) GetTickers(ctx context.Context) (Tickers, error) {
-	var result Tickers
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxMarketTickers, &result)
+func (e *Exchange) GetTickers(ctx context.Context) (*TickersResponse, error) {
+	result := new(TickersResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/market/tickers", result)
 	return result, err
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
-func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair) (DetailMerged, error) {
+func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair) (*DetailMerged, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return DetailMerged{}, err
+		return nil, err
 	}
 	vals.Set("symbol", symbolValue)
 
 	result := new(MarketDetailMergedResponse)
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail/merged", vals), result)
 	// the tick carries no time of its own on this endpoint, only the envelope does
 	result.Tick.Timestamp = result.Timestamp
-	return result.Tick, err
+	return &result.Tick, err
 }
 
 // GetDepth returns the depth for the specified symbol
@@ -203,8 +166,7 @@ func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookRequest) (*Orderb
 	}
 
 	result := new(OrderBookResponse)
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), result)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/depth", vals), result); err != nil {
 		return nil, err
 	}
 	return &result.Depth, nil
@@ -221,7 +183,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 
 	result := new(TradesResponse)
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/trade", vals), result)
 	return result.Tick.Data, err
 }
 
@@ -255,30 +217,30 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 
 	result := new(TradeHistoryResponse)
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/history/trade", vals), result)
 	return result.TradeHistory, err
 }
 
 // GetMarketDetail returns the ticker for the specified symbol
-func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (Detail, error) {
+func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (*Detail, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return Detail{}, err
+		return nil, err
 	}
 	vals.Set("symbol", symbolValue)
 
 	result := new(MarketDetailResponse)
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), result)
-	return result.Tick, err
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail", vals), result)
+	return &result.Tick, err
 }
 
 // GetSymbols returns an array of symbols supported by HTX
 func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 	result := new(SymbolsResponse)
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v1/common/symbols", result)
 	return result.Symbols, err
 }
 
@@ -286,7 +248,7 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 	result := new(CurrenciesResponse)
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v1/common/currencys", result)
 	return result.Currencies, err
 }
 
@@ -298,9 +260,8 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 	if !curr.IsEmpty() {
 		vals.Set("currency", curr.Lower().String())
 	}
-	path := common.EncodeURLValues(htxCurrenciesReference, vals)
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp)
-	if err != nil {
+	path := common.EncodeURLValues("/v2/reference/currencies", vals)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
@@ -309,21 +270,21 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 // GetCurrentServerTime returns the HTX server time
 func (e *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	result := new(CurrentServerTimeResponse)
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"//common/timestamp", result)
 	return result.Timestamp.Time(), err
 }
 
 // GetAccounts returns the HTX user accounts
 func (e *Exchange) GetAccounts(ctx context.Context) ([]Account, error) {
 	result := new(AccountsResponse)
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccounts, url.Values{}, nil, result, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/account/accounts", url.Values{}, nil, result, false)
 	return result.Accounts, err
 }
 
 // GetAccountBalance returns the users HTX account balance
 func (e *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
 	result := new(AccountBalanceResponse)
-	endpoint := fmt.Sprintf(htxAccountBalance, accountID)
+	endpoint := "/account/accounts/" + accountID + "/balance"
 	v := url.Values{}
 	v.Set("account-id", accountID)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, result, false)
@@ -335,7 +296,7 @@ func (e *Exchange) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalanc
 	result := new(AggregatedBalanceResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
 		http.MethodGet,
-		htxAggregatedBalance,
+		"/subuser/aggregate-balance",
 		nil,
 		nil,
 		result,
@@ -372,7 +333,7 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotOrderRequest) (uin
 	err = e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
-		htxOrderPlace,
+		"/order/orders/place",
 		nil,
 		data,
 		result,
@@ -384,7 +345,7 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotOrderRequest) (uin
 // CancelExistingOrder cancels an order on HTX
 func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID uint64) (uint64, error) {
 	resp := new(SpotOrderIDResponse)
-	endpoint := fmt.Sprintf(htxOrderCancel, strconv.FormatUint(orderID, 10))
+	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10) + "/submitcancel"
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, url.Values{}, nil, resp, false)
 	return resp.OrderID, err
 }
@@ -402,7 +363,7 @@ func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderID
 	}
 	resp := new(CancelOrderBatchResponse)
 	data := &cancelOrderBatchRequest{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs}
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, resp, false); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/order/orders/batchcancel", nil, data, resp, false); err != nil {
 		return nil, err
 	}
 	if resp.Data == nil {
@@ -411,28 +372,31 @@ func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderID
 	return resp.Data, nil
 }
 
-// CancelOpenOrdersBatch cancels a batch of orders -- to-do
-func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, symbol currency.Pair) (CancelOpenOrdersBatch, error) {
+// CancelOpenOrdersBatch cancels open spot orders for an account and symbol in one request.
+func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, symbol currency.Pair) (*CancelOpenOrdersBatchResponse, error) {
 	params := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return CancelOpenOrdersBatch{}, err
+		return nil, err
 	}
 	params.Set("account-id", accountID)
-	var result CancelOpenOrdersBatch
+	result := new(CancelOpenOrdersBatchResponse)
 
 	data := &cancelOpenOrdersBatchRequest{
 		AccountID: accountID,
 		Symbol:    symbolValue,
 	}
 
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxBatchCancelOpenOrders, url.Values{}, data, &result, false); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/order/orders/batchCancelOpenOrders", url.Values{}, data, result, false); err != nil {
 		return result, err
 	}
 	return result, validateCancelOpenOrdersBatchResponse(result)
 }
 
-func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
+func validateCancelOpenOrdersBatchResponse(result *CancelOpenOrdersBatchResponse) error {
+	if result == nil {
+		return common.ErrNilPointer
+	}
 	if result.Data.FailedCount > 0 {
 		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Data.FailedCount)
 	}
@@ -443,7 +407,7 @@ func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
 }
 
 // GetOrder returns order information for the specified order
-func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (OrderInfo, error) {
+func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (*OrderInfo, error) {
 	resp := new(OrderResponse)
 	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -452,13 +416,13 @@ func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (OrderInfo, err
 		nil,
 		resp,
 		false)
-	return resp.Order, err
+	return &resp.Order, err
 }
 
 // GetOrderMatchResults returns matched order info for the specified order
 func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID uint64) ([]OrderMatchInfo, error) {
 	resp := new(OrderMatchResultsResponse)
-	endpoint := fmt.Sprintf(htxGetOrderMatch, strconv.FormatUint(orderID, 10))
+	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10) + "/matchresults"
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, url.Values{}, nil, resp, false)
 	return resp.Orders, err
 }
@@ -499,7 +463,7 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTyp
 		vals.Set("size", size)
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrders, vals, nil, resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/orders", vals, nil, resp, false)
 	return resp.Orders, err
 }
 
@@ -519,7 +483,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 	}
 	vals.Set("size", strconv.FormatUint(size, 10))
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOpenOrders, vals, nil, resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/openOrders", vals, nil, resp, false)
 	return resp.Orders, err
 }
 
@@ -558,7 +522,7 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, ord
 		vals.Set("size", size)
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrdersMatch, vals, nil, resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/matchresults", vals, nil, resp, false)
 	return resp.Orders, err
 }
 
@@ -574,9 +538,9 @@ func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	path := htxMarginTransferIn
+	path := "/dw/transfer-in/margin"
 	if !in {
-		path = htxMarginTransferOut
+		path = "/dw/transfer-out/margin"
 	}
 
 	resp := new(MarginTransferResponse)
@@ -597,7 +561,7 @@ func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, ccy st
 	}
 
 	resp := new(MarginOrderResponse)
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxMarginOrders, nil, data, resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/margin/orders", nil, data, resp, false)
 	return resp.MarginOrderID, err
 }
 
@@ -609,7 +573,7 @@ func (e *Exchange) MarginRepayment(ctx context.Context, orderID uint64, amount f
 
 	resp := new(MarginOrderResponse)
 
-	endpoint := fmt.Sprintf(htxMarginRepay, strconv.FormatUint(orderID, 10))
+	endpoint := "/margin/orders/" + strconv.FormatUint(orderID, 10) + "/repay"
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, nil, data, resp, false)
 	return resp.MarginOrderID, err
 }
@@ -649,7 +613,7 @@ func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair
 	}
 
 	resp := new(MarginLoanOrdersResponse)
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginLoanOrders, vals, nil, resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/loan-orders", vals, nil, resp, false)
 	return resp.MarginLoanOrders, err
 }
 
@@ -664,7 +628,7 @@ func (e *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginAccountBalance, vals, nil, resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/accounts/balance", vals, nil, resp, false)
 	return resp.Balances, err
 }
 
@@ -694,7 +658,7 @@ func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrT
 		data.Chain = strings.ToLower(chain)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxWithdrawCreate, nil, data, resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/dw/withdraw/api/create", nil, data, resp, false)
 	return resp.WithdrawID, err
 }
 
@@ -704,7 +668,7 @@ func (e *Exchange) CancelWithdraw(ctx context.Context, withdrawID uint64) (uint6
 	vals := url.Values{}
 	vals.Set("withdraw-id", strconv.FormatUint(withdrawID, 10))
 
-	endpoint := fmt.Sprintf(htxWithdrawCancel, strconv.FormatUint(withdrawID, 10))
+	endpoint := "/dw/withdraw-virtual/" + strconv.FormatUint(withdrawID, 10) + "/cancel"
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, vals, nil, resp, false)
 	return resp.WithdrawID, err
 }
@@ -716,8 +680,7 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency.Lower().String())
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountDepositAddress, vals, nil, resp, true)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/account/deposit/address", vals, nil, resp, true); err != nil {
 		return nil, err
 	}
 	if len(resp.DepositAddress) == 0 {
@@ -727,22 +690,21 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 }
 
 // QueryWithdrawQuotas returns the users cryptocurrency withdraw quotas
-func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (WithdrawQuota, error) {
+func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (*WithdrawQuota, error) {
 	resp := new(WithdrawQuotasResponse)
 
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountWithdrawQuota, vals, nil, resp, true)
-	if err != nil {
-		return WithdrawQuota{}, err
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/account/withdraw/quota", vals, nil, resp, true); err != nil {
+		return nil, err
 	}
-	return resp.WithdrawQuota, nil
+	return &resp.WithdrawQuota, nil
 }
 
 // SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
-func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit uint64) (WithdrawalHistory, error) {
-	var resp WithdrawalHistory
+func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit uint64) (*WithdrawalHistoryResponse, error) {
+	resp := new(WithdrawalHistoryResponse)
 	vals := url.Values{}
 	vals.Set("type", transferType)
 	if !c.IsEmpty() {
@@ -757,7 +719,7 @@ func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c c
 	if limit > 0 {
 		vals.Set("size", strconv.FormatUint(limit, 10))
 	}
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxWithdrawHistory, vals, nil, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/query/deposit-withdraw", vals, nil, resp, false)
 	return resp, err
 }
 
@@ -884,8 +846,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}, nil
 	}
 
-	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, method, true), newRequest, request.AuthenticatedRequest)
-	if err != nil {
+	if err := e.SendPayload(ctx, getRateLimitID(ep, endpoint, method, true), newRequest, request.AuthenticatedRequest); err != nil {
 		return err
 	}
 
@@ -904,8 +865,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			}
 		}
 	}
-	err = unmarshalResponse(interim, result)
-	if err != nil {
+	if err := unmarshalResponse(interim, result); err != nil {
 		return common.AppendError(err, request.ErrAuthRequestFailed)
 	}
 	return nil

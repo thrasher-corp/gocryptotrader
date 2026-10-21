@@ -51,7 +51,7 @@ type V5PositionModeResponse struct {
 	Data V5PositionMode `json:"data"`
 }
 
-// V5LeverageSetting contains data fields from V5SetLeverageResponse.
+// V5LeverageSetting identifies leverage by contract, margin mode and position side.
 type V5LeverageSetting struct {
 	ContractCode string       `json:"contract_code"`
 	MarginMode   string       `json:"margin_mode"`
@@ -59,7 +59,7 @@ type V5LeverageSetting struct {
 	LeverageRate types.Number `json:"lever_rate"`
 }
 
-// V5PositionMode contains data fields from V5PositionModeResponse.
+// V5PositionMode distinguishes one-way positions from independently held long and short positions.
 type V5PositionMode struct {
 	PositionMode string `json:"position_mode"`
 }

@@ -577,8 +577,8 @@ type PositionLimit struct {
 
 // SwapInternalTransferResponse stores transfer data between subaccounts and main account
 type SwapInternalTransferResponse struct {
-	TS   uint64                      `json:"ts"`
-	Data InternalAccountTransferInfo `json:"data"`
+	Timestamp types.Time                  `json:"ts"`
+	Data      InternalAccountTransferInfo `json:"data"`
 }
 
 // InternalAccountTransferInfo contains an internal transfer identifier.
@@ -638,8 +638,8 @@ type SwapBatchOrder struct {
 	Volume         float64 `json:"volume"`
 	Direction      string  `json:"direction"`
 	Offset         string  `json:"offset"`
-	LeverageRate   float64 `json:"leverRate"`
-	OrderPriceType string  `json:"orderPriceType"`
+	LeverageRate   float64 `json:"lever_rate"`
+	OrderPriceType string  `json:"order_price_type"`
 }
 
 // SwapCancelOrdersResponse stores order cancellation data
@@ -753,8 +753,8 @@ type SwapOrderHistoryEntry struct {
 	OrderID           uint64               `json:"order_id"`
 	OrderIDString     string               `json:"order_id_str"`
 	OrderSource       string               `json:"order_source"`
-	CreateDate        uint64               `json:"create_date"`
-	UpdateTime        uint64               `json:"update_time"`
+	CreateDate        types.Time           `json:"create_date"`
+	UpdateTime        types.Time           `json:"update_time"`
 	TradeVolume       float64              `json:"trade_volume"`
 	TradeTurnover     float64              `json:"trade_turnover"`
 	Fee               float64              `json:"fee"`
@@ -797,7 +797,7 @@ type AccountTradeHistoryEntry struct {
 	QueryID          uint64        `json:"query_id"`
 	ID               string        `json:"id"`
 	ContractCode     string        `json:"contract_code"`
-	CreateDate       string        `json:"create_date"`
+	CreateDate       types.Time    `json:"create_date"`
 	Direction        string        `json:"direction"`
 	MatchID          uint64        `json:"match_id"`
 	Offset           string        `json:"offset"`
@@ -883,7 +883,7 @@ type TriggerOrder struct {
 	Offset          string     `json:"offset"`
 	LeverageRate    uint64     `json:"lever_rate"`
 	OrderID         uint64     `json:"order_id"`
-	OrderIDString   string     `json:"order_id_string"`
+	OrderIDString   string     `json:"order_id_str"`
 	RelationOrderID string     `json:"relation_order_id"`
 	OrderPriceType  string     `json:"order_price_type"`
 	Status          uint64     `json:"status"`
@@ -892,9 +892,21 @@ type TriggerOrder struct {
 	TriggeredPrice  float64    `json:"triggered_price"`
 	OrderPrice      float64    `json:"order_price"`
 	CreatedAt       types.Time `json:"created_at"`
-	TriggeredAt     uint64     `json:"triggered_at"`
-	OrderInsertAt   float64    `json:"order_insert_at"`
-	CancelledAt     types.Time `json:"cancelled_at"`
+	TriggeredAt     types.Time `json:"triggered_at"`
+	OrderInsertAt   types.Time `json:"order_insert_at"`
+	CancelledAt     types.Time `json:"canceled_at"`
 	FailCode        int64      `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
+}
+
+// SwapMarketsResponse lists the coin-margined contracts currently known to HTX.
+type SwapMarketsResponse struct {
+	Response
+	Data []SwapMarket `json:"data"`
+}
+
+// SwapFundingRateResponse reports the current and estimated funding for one contract.
+type SwapFundingRateResponse struct {
+	Response
+	Data SwapFundingRate `json:"data"`
 }

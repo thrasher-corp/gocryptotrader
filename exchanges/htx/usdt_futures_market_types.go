@@ -178,12 +178,12 @@ type V5Settlement struct {
 	SettlementPrice types.Number `json:"settlement_price"`
 }
 
-// V5DeductionCurrencies contains data fields from V5AssetsDeductionCurrenciesResponse.
+// V5DeductionCurrencies lists the assets eligible for fee deductions.
 type V5DeductionCurrencies struct {
 	Currencies []string `json:"currency"`
 }
 
-// V5MarginCurrencies contains data fields from V5MultiAssetsMarginCurrenciesResponse.
+// V5MarginCurrencies lists the assets accepted as collateral in multi-asset mode.
 type V5MarginCurrencies struct {
 	Currencies []string `json:"multi_assets"`
 }

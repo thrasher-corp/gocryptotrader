@@ -18,8 +18,8 @@ import (
 )
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
-func (e *Exchange) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (SwapIndexPriceResponse, error) {
-	var resp SwapIndexPriceResponse
+func (e *Exchange) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (*SwapIndexPriceResponse, error) {
+	resp := new(SwapIndexPriceResponse)
 	path := "/swap-api/v1/swap_index"
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -30,15 +30,15 @@ func (e *Exchange) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pa
 		params.Set("contract_code", codeValue)
 		path = common.EncodeURLValues(path, params)
 	}
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapPriceLimits gets price caps for perpetual futures
-func (e *Exchange) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (SwapPriceLimitsResponse, error) {
-	var resp SwapPriceLimitsResponse
+func (e *Exchange) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (*SwapPriceLimitsResponse, error) {
+	resp := new(SwapPriceLimitsResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -46,15 +46,15 @@ func (e *Exchange) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues("/swap-api/v1/swap_price_limit", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // SwapOpenInterestInformation gets open interest data for perpetual futures
-func (e *Exchange) SwapOpenInterestInformation(ctx context.Context, code currency.Pair) (SwapOpenInterestResponse, error) {
-	var resp SwapOpenInterestResponse
+func (e *Exchange) SwapOpenInterestInformation(ctx context.Context, code currency.Pair) (*SwapOpenInterestResponse, error) {
+	resp := new(SwapOpenInterestResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -64,15 +64,15 @@ func (e *Exchange) SwapOpenInterestInformation(ctx context.Context, code currenc
 		params.Set("contract_code", codeValue)
 	}
 	path := common.EncodeURLValues("/swap-api/v1/swap_open_interest", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapMarketDepth gets market depth for perpetual futures
-func (e *Exchange) GetSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (SwapMarketDepthResponse, error) {
-	var resp SwapMarketDepthResponse
+func (e *Exchange) GetSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (*SwapMarketDepthResponse, error) {
+	resp := new(SwapMarketDepthResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -81,15 +81,15 @@ func (e *Exchange) GetSwapMarketDepth(ctx context.Context, code currency.Pair, d
 	params.Set("contract_code", codeValue)
 	params.Set("type", dataType)
 	path := common.EncodeURLValues("/swap-ex/market/depth", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapKlineData gets kline data for perpetual futures
-func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, period string, size uint64, startTime, endTime time.Time) (SwapKlineResponse, error) {
-	var resp SwapKlineResponse
+func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, period string, size uint64, startTime, endTime time.Time) (*SwapKlineResponse, error) {
+	resp := new(SwapKlineResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -111,15 +111,15 @@ func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, per
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues("/swap-ex/market/history/kline", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapMarketOverview gets market data overview for perpetual futures
-func (e *Exchange) GetSwapMarketOverview(ctx context.Context, code currency.Pair) (SwapMarketOverviewResponse, error) {
-	var resp SwapMarketOverviewResponse
+func (e *Exchange) GetSwapMarketOverview(ctx context.Context, code currency.Pair) (*SwapMarketOverviewResponse, error) {
+	resp := new(SwapMarketOverviewResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -127,15 +127,15 @@ func (e *Exchange) GetSwapMarketOverview(ctx context.Context, code currency.Pair
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues("/swap-ex/market/detail/merged", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetLastTrade gets the last trade for a given perpetual contract
-func (e *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (SwapLastTradeResponse, error) {
-	var resp SwapLastTradeResponse
+func (e *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (*SwapLastTradeResponse, error) {
+	resp := new(SwapLastTradeResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -143,15 +143,15 @@ func (e *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (SwapLa
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues("/swap-ex/market/trade", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetBatchTrades gets batch trades for a specified contract (fetching size cannot be bigger than 2000)
-func (e *Exchange) GetBatchTrades(ctx context.Context, code currency.Pair, size uint64) (SwapTradesResponse, error) {
-	var resp SwapTradesResponse
+func (e *Exchange) GetBatchTrades(ctx context.Context, code currency.Pair, size uint64) (*SwapTradesResponse, error) {
+	resp := new(SwapTradesResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -160,15 +160,15 @@ func (e *Exchange) GetBatchTrades(ctx context.Context, code currency.Pair, size 
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatUint(size, 10))
 	path := common.EncodeURLValues("/swap-ex/market/history/trade", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetTieredAjustmentFactorInfo gets tiered adjustment factor data
-func (e *Exchange) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.Pair) (SwapTieredAdjustmentFactorsResponse, error) {
-	var resp SwapTieredAdjustmentFactorsResponse
+func (e *Exchange) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.Pair) (*SwapTieredAdjustmentFactorsResponse, error) {
+	resp := new(SwapTieredAdjustmentFactorsResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -176,15 +176,15 @@ func (e *Exchange) GetTieredAjustmentFactorInfo(ctx context.Context, code curren
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues("/swap-api/v1/swap_adjustfactor", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetOpenInterestInfo gets open interest data
-func (e *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, period, amountType string, size uint64) (SwapHistoricalOpenInterestResponse, error) {
-	var resp SwapHistoricalOpenInterestResponse
+func (e *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, period, amountType string, size uint64) (*SwapHistoricalOpenInterestResponse, error) {
+	resp := new(SwapHistoricalOpenInterestResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -205,15 +205,15 @@ func (e *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, 
 	params.Set("size", strconv.FormatUint(size, 10))
 	params.Set("amount_type", strconv.FormatUint(aType, 10))
 	path := common.EncodeURLValues("/swap-api/v1/swap_his_open_interest", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSystemStatusInfo gets system status data
-func (e *Exchange) GetSystemStatusInfo(ctx context.Context, code currency.Pair) (SwapSystemStatusResponse, error) {
-	var resp SwapSystemStatusResponse
+func (e *Exchange) GetSystemStatusInfo(ctx context.Context, code currency.Pair) (*SwapSystemStatusResponse, error) {
+	resp := new(SwapSystemStatusResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -221,15 +221,15 @@ func (e *Exchange) GetSystemStatusInfo(ctx context.Context, code currency.Pair) 
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues("/swap-api/v1/swap_api_state", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetTraderSentimentIndexAccount gets top trader sentiment function-account
-func (e *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code currency.Pair, period string) (SwapAccountSentimentResponse, error) {
-	var resp SwapAccountSentimentResponse
+func (e *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code currency.Pair, period string) (*SwapAccountSentimentResponse, error) {
+	resp := new(SwapAccountSentimentResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -241,15 +241,15 @@ func (e *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code curr
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	path := common.EncodeURLValues("/swap-api/v1/swap_elite_account_ratio", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetTraderSentimentIndexPosition gets top trader sentiment function-position
-func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code currency.Pair, period string) (SwapPositionSentimentResponse, error) {
-	var resp SwapPositionSentimentResponse
+func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code currency.Pair, period string) (*SwapPositionSentimentResponse, error) {
+	resp := new(SwapPositionSentimentResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -262,15 +262,15 @@ func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code cur
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	path := common.EncodeURLValues("/swap-api/v1/swap_elite_position_ratio", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetLiquidationOrders gets liquidation orders for a given perp
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime time.Time, direction string, fromID uint64) (SwapLiquidationOrdersResponse, error) {
-	var resp SwapLiquidationOrdersResponse
+func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime time.Time, direction string, fromID uint64) (*SwapLiquidationOrdersResponse, error) {
+	resp := new(SwapLiquidationOrdersResponse)
 	formattedContract, err := e.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -296,15 +296,15 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.P
 		params.Set("from_id", strconv.FormatUint(fromID, 10))
 	}
 	path := common.EncodeURLValues("/swap-api/v3/swap_liquidation_orders", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetHistoricalFundingRatesForPair gets historical funding rates for perpetual futures
-func (e *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code currency.Pair, pageSize, pageIndex uint64) (SwapHistoricalFundingRatesResponse, error) {
-	var resp SwapHistoricalFundingRatesResponse
+func (e *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code currency.Pair, pageSize, pageIndex uint64) (*SwapHistoricalFundingRatesResponse, error) {
+	resp := new(SwapHistoricalFundingRatesResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -318,15 +318,15 @@ func (e *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code cu
 		params.Set("page_size", strconv.FormatUint(pageSize, 10))
 	}
 	path := common.EncodeURLValues("/swap-api/v1/swap_historical_funding_rate", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetPremiumIndexKlineData gets kline data for premium index
-func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair, period string, size uint64) (SwapPremiumIndexKlineResponse, error) {
-	var resp SwapPremiumIndexKlineResponse
+func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair, period string, size uint64) (*SwapPremiumIndexKlineResponse, error) {
+	resp := new(SwapPremiumIndexKlineResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -342,15 +342,15 @@ func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.P
 	params.Set("size", strconv.FormatUint(size, 10))
 	params.Set("period", period)
 	path := common.EncodeURLValues("/index/market/history/swap_premium_index_kline", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetEstimatedFundingRates gets estimated funding rates for perpetual futures
-func (e *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.Pair, period string, size uint64) (SwapEstimatedFundingRateResponse, error) {
-	var resp SwapEstimatedFundingRateResponse
+func (e *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.Pair, period string, size uint64) (*SwapEstimatedFundingRateResponse, error) {
+	resp := new(SwapEstimatedFundingRateResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -366,15 +366,15 @@ func (e *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.P
 	params.Set("period", period)
 	params.Set("size", strconv.FormatUint(size, 10))
 	path := common.EncodeURLValues("/index/market/history/swap_estimated_rate_kline", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetBasisData gets basis data for perpetual futures
-func (e *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period, basisPriceType string, size uint64) (SwapBasisResponse, error) {
-	var resp SwapBasisResponse
+func (e *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period, basisPriceType string, size uint64) (*SwapBasisResponse, error) {
+	resp := new(SwapBasisResponse)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -394,15 +394,15 @@ func (e *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period,
 	params.Set("basis_price_type", basisPriceType)
 	params.Set("size", strconv.FormatUint(size, 10))
 	path := common.EncodeURLValues("/index/market/history/swap_basis", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapAccountInfo gets swap account info
-func (e *Exchange) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (SwapAccountResponse, error) {
-	var resp SwapAccountResponse
+func (e *Exchange) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (*SwapAccountResponse, error) {
+	resp := new(SwapAccountResponse)
 	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -411,45 +411,45 @@ func (e *Exchange) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (
 		}
 		req["contract_code"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapPositionsInfo gets swap positions' info
-func (e *Exchange) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (SwapPositionsResponse, error) {
-	var resp SwapPositionsResponse
+func (e *Exchange) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (*SwapPositionsResponse, error) {
+	resp := new(SwapPositionsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapAssetsAndPositions gets swap positions and asset info
-func (e *Exchange) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pair) (SwapAssetsAndPositionsResponse, error) {
-	var resp SwapAssetsAndPositionsResponse
+func (e *Exchange) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pair) (*SwapAssetsAndPositionsResponse, error) {
+	resp := new(SwapAssetsAndPositionsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_position_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_position_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
-func (e *Exchange) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (SwapSubaccountAssetsResponse, error) {
-	var resp SwapSubaccountAssetsResponse
+func (e *Exchange) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (*SwapSubaccountAssetsResponse, error) {
+	resp := new(SwapSubaccountAssetsResponse)
 	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -458,15 +458,15 @@ func (e *Exchange) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pai
 		}
 		req["contract_code"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // SwapSingleSubAccAssets gets a subaccount's assets info
-func (e *Exchange) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, subUID uint64) (SwapSingleSubaccountAssetsResponse, error) {
-	var resp SwapSingleSubaccountAssetsResponse
+func (e *Exchange) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, subUID uint64) (*SwapSingleSubaccountAssetsResponse, error) {
+	resp := new(SwapSingleSubaccountAssetsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -474,15 +474,15 @@ func (e *Exchange) SwapSingleSubAccAssets(ctx context.Context, code currency.Pai
 	}
 	req["contract_code"] = codeValue
 	req["sub_uid"] = subUID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSubAccPositionInfo gets a subaccount's positions info
-func (e *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, subUID uint64) (SwapSubaccountPositionsResponse, error) {
-	var resp SwapSubaccountPositionsResponse
+func (e *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, subUID uint64) (*SwapSubaccountPositionsResponse, error) {
+	resp := new(SwapSubaccountPositionsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -490,15 +490,15 @@ func (e *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair
 	}
 	req["contract_code"] = codeValue
 	req["sub_uid"] = subUID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_position_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_position_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetAccountFinancialRecords gets the account's financial records
-func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, lookbackDays, fromID, limit uint64) (SwapFinancialRecordsResponse, error) {
-	var resp SwapFinancialRecordsResponse
+func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, lookbackDays, fromID, limit uint64) (*SwapFinancialRecordsResponse, error) {
+	resp := new(SwapFinancialRecordsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -520,15 +520,15 @@ func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency
 		req[orderPriceTypeLimit] = limit
 	}
 	req["direct"] = v3HistoryDirectionNext
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapSettlementRecords gets the swap account's settlement records
-func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.Pair, startTime, endTime time.Time, pageIndex, pageSize uint64) (SwapFinancialRecordsResponse, error) {
-	var resp SwapFinancialRecordsResponse
+func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.Pair, startTime, endTime time.Time, pageIndex, pageSize uint64) (*SwapFinancialRecordsResponse, error) {
+	resp := new(SwapFinancialRecordsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -548,15 +548,15 @@ func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.P
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_user_settlement_records", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_user_settlement_records", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetAvailableLeverage gets user's available leverage data
-func (e *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair) (SwapAvailableLeverageResponse, error) {
-	var resp SwapAvailableLeverageResponse
+func (e *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair) (*SwapAvailableLeverageResponse, error) {
+	resp := new(SwapAvailableLeverageResponse)
 	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -565,7 +565,7 @@ func (e *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair)
 		}
 		req["contract_code"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_available_level_rate", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_available_level_rate", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -586,8 +586,8 @@ func (e *Exchange) SwitchCoinMarginedLeverage(ctx context.Context, code currency
 }
 
 // GetSwapOrderLimitInfo gets order limit info for swaps
-func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (SwapOrderLimitsResponse, error) {
-	var resp SwapOrderLimitsResponse
+func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (*SwapOrderLimitsResponse, error) {
+	resp := new(SwapOrderLimitsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -598,60 +598,60 @@ func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair
 		return resp, errInvalidOrderType
 	}
 	req["order_price_type"] = orderType
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_limit", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_limit", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapTradingFeeInfo gets trading fee info for swaps
-func (e *Exchange) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (SwapTradingFeesResponse, error) {
-	var resp SwapTradingFeesResponse
+func (e *Exchange) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (*SwapTradingFeesResponse, error) {
+	resp := new(SwapTradingFeesResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_fee", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_fee", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapTransferLimitInfo gets transfer limit info for swaps
-func (e *Exchange) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair) (SwapTransferLimitsResponse, error) {
-	var resp SwapTransferLimitsResponse
+func (e *Exchange) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair) (*SwapTransferLimitsResponse, error) {
+	resp := new(SwapTransferLimitsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_transfer_limit", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_transfer_limit", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
-func (e *Exchange) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair) (SwapPositionLimitsResponse, error) {
-	var resp SwapPositionLimitsResponse
+func (e *Exchange) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair) (*SwapPositionLimitsResponse, error) {
+	resp := new(SwapPositionLimitsResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_limit", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_limit", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // AccountTransferData gets asset transfer data between master and subaccounts
-func (e *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, subUID, transferType string, amount float64) (SwapInternalTransferResponse, error) {
-	var resp SwapInternalTransferResponse
+func (e *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, subUID, transferType string, amount float64) (*SwapInternalTransferResponse, error) {
+	resp := new(SwapInternalTransferResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -664,15 +664,15 @@ func (e *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, 
 		return resp, errInvalidTransferType
 	}
 	req["type"] = transferType
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // AccountTransferRecords gets asset transfer records between master and subaccounts
-func (e *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pair, transferType string, createDate, pageIndex, pageSize uint64) (SwapInternalTransferResponse, error) {
-	var resp SwapInternalTransferResponse
+func (e *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pair, transferType string, createDate, pageIndex, pageSize uint64) (*SwapInternalTransferResponse, error) {
+	resp := new(SwapInternalTransferResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -693,15 +693,15 @@ func (e *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pai
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer_record", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer_record", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // PlaceSwapOrders places orders for swaps
-func (e *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (SwapOrderResponse, error) {
-	var resp SwapOrderResponse
+func (e *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (*SwapOrderResponse, error) {
+	resp := new(SwapOrderResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -720,15 +720,18 @@ func (e *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clie
 	req["price"] = price
 	req["volume"] = volume
 	req["lever_rate"] = leverage
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // PlaceSwapBatchOrders places a batch of orders for swaps
-func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data SwapBatchOrderRequest) (SwapBatchOrderResponse, error) {
-	var resp SwapBatchOrderResponse
+func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data *SwapBatchOrderRequest) (*SwapBatchOrderResponse, error) {
+	if data == nil {
+		return nil, common.ErrNilPointer
+	}
+	resp := new(SwapBatchOrderResponse)
 	req := make(map[string]any)
 	if len(data.Data) > 10 || len(data.Data) == 0 {
 		return resp, errBatchOrderLimitExceeded
@@ -748,15 +751,15 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data SwapBatchOrder
 		data.Data[x].ContractCode = codeValue
 	}
 	req["orders_data"] = data.Data
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // CancelSwapOrder sends a request to cancel an order
-func (e *Exchange) CancelSwapOrder(ctx context.Context, orderID, clientOrderID string, contractCode currency.Pair) (SwapCancelOrdersResponse, error) {
-	var resp SwapCancelOrdersResponse
+func (e *Exchange) CancelSwapOrder(ctx context.Context, orderID, clientOrderID string, contractCode currency.Pair) (*SwapCancelOrdersResponse, error) {
+	resp := new(SwapCancelOrdersResponse)
 	if orderID == "" && clientOrderID == "" {
 		return resp, order.ErrOrderIDNotSet
 	}
@@ -782,30 +785,30 @@ func (e *Exchange) CancelSwapOrder(ctx context.Context, orderID, clientOrderID s
 		req["client_order_id"] = clientOrderID
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // CancelAllSwapOrders sends a request to cancel an order
-func (e *Exchange) CancelAllSwapOrders(ctx context.Context, contractCode currency.Pair) (SwapCancelOrdersResponse, error) {
-	var resp SwapCancelOrdersResponse
+func (e *Exchange) CancelAllSwapOrders(ctx context.Context, contractCode currency.Pair) (*SwapCancelOrdersResponse, error) {
+	resp := new(SwapCancelOrdersResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancelall", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancelall", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // PlaceLightningCloseOrder places a lightning close order
-func (e *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode currency.Pair, direction, orderPriceType string, volume float64, clientOrderID uint64) (SwapLightningCloseOrderResponse, error) {
-	var resp SwapLightningCloseOrderResponse
+func (e *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode currency.Pair, direction, orderPriceType string, volume float64, clientOrderID uint64) (*SwapLightningCloseOrderResponse, error) {
+	resp := new(SwapLightningCloseOrderResponse)
 	if clientOrderID > math.MaxInt64 {
 		return resp, errInvalidClientOrderID
 	}
@@ -826,15 +829,15 @@ func (e *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode cu
 		}
 		req["order_price_type"] = orderPriceType
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapOrderDetails gets order info
-func (e *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currency.Pair, orderID, createdAt, orderType string, pageIndex, pageSize uint64) (SwapOrderResponse, error) {
-	var resp SwapOrderResponse
+func (e *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currency.Pair, orderID, createdAt, orderType string, pageIndex, pageSize uint64) (*SwapOrderResponse, error) {
+	resp := new(SwapOrderResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -854,15 +857,15 @@ func (e *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currenc
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_detail", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_detail", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapOrderInfo gets info on a swap order
-func (e *Exchange) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (SwapOrderInfoResponse, error) {
-	var resp SwapOrderInfoResponse
+func (e *Exchange) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (*SwapOrderInfoResponse, error) {
+	resp := new(SwapOrderInfoResponse)
 	req := make(map[string]any)
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -877,15 +880,15 @@ func (e *Exchange) GetSwapOrderInfo(ctx context.Context, contractCode currency.P
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_info", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_info", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapOpenOrders gets open orders for swap
-func (e *Exchange) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pair, pageIndex, pageSize uint64) (SwapOpenOrdersResponse, error) {
-	var resp SwapOpenOrdersResponse
+func (e *Exchange) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pair, pageIndex, pageSize uint64) (*SwapOpenOrdersResponse, error) {
+	resp := new(SwapOpenOrdersResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -898,16 +901,16 @@ func (e *Exchange) GetSwapOpenOrders(ctx context.Context, contractCode currency.
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_openorders", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_openorders", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapOrderHistory gets swap order history using a lookback of at most two days.
-func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, lookbackDays, fromID, limit uint64) (SwapOrderHistoryResponse, error) {
+func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, lookbackDays, fromID, limit uint64) (*SwapOrderHistoryResponse, error) {
 	if lookbackDays > 2 {
-		return SwapOrderHistoryResponse{}, errInvalidLookbackDays
+		return nil, errInvalidLookbackDays
 	}
 	var startTime, endTime time.Time
 	if lookbackDays != 0 {
@@ -918,8 +921,8 @@ func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currenc
 }
 
 // GetSwapOrderHistoryByTimeRange gets swap order history for an explicit interval.
-func (e *Exchange) GetSwapOrderHistoryByTimeRange(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, startTime, endTime time.Time, fromID, limit uint64) (SwapOrderHistoryResponse, error) {
-	var resp SwapOrderHistoryResponse
+func (e *Exchange) GetSwapOrderHistoryByTimeRange(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, startTime, endTime time.Time, fromID, limit uint64) (*SwapOrderHistoryResponse, error) {
+	resp := new(SwapOrderHistoryResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -961,15 +964,15 @@ func (e *Exchange) GetSwapOrderHistoryByTimeRange(ctx context.Context, contractC
 	if limit != 0 {
 		req[orderPriceTypeLimit] = limit
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_hisorders", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_hisorders", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapTradeHistory gets swap trade history
-func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, lookbackDays, fromID, limit uint64) (SwapTradeHistoryResponse, error) {
-	var resp SwapTradeHistoryResponse
+func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, lookbackDays, fromID, limit uint64) (*SwapTradeHistoryResponse, error) {
+	resp := new(SwapTradeHistoryResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -991,15 +994,15 @@ func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currenc
 	if limit != 0 {
 		req[orderPriceTypeLimit] = limit
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // PlaceSwapTriggerOrder places a trigger order for a swap
-func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, triggerType, direction, offset, orderPriceType string, triggerPrice, orderPrice, volume, leverageRate float64) (SwapTradeHistoryResponse, error) {
-	var resp SwapTradeHistoryResponse
+func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, triggerType, direction, offset, orderPriceType string, triggerPrice, orderPrice, volume, leverageRate float64) (*SwapTradeHistoryResponse, error) {
+	resp := new(SwapTradeHistoryResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1021,15 +1024,15 @@ func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode curre
 		return resp, errInvalidOrderPriceType
 	}
 	req["order_price_type"] = orderPriceType
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_order", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_order", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // CancelSwapTriggerOrder cancels swap trigger order
-func (e *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (SwapCancelTriggerOrdersResponse, error) {
-	var resp SwapCancelTriggerOrdersResponse
+func (e *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (*SwapCancelTriggerOrdersResponse, error) {
+	resp := new(SwapCancelTriggerOrdersResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1037,30 +1040,30 @@ func (e *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode curr
 	}
 	req["contract_code"] = codeValue
 	req["order_id"] = orderID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancel", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancel", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // CancelAllSwapTriggerOrders cancels all swap trigger orders
-func (e *Exchange) CancelAllSwapTriggerOrders(ctx context.Context, contractCode currency.Pair) (SwapCancelTriggerOrdersResponse, error) {
-	var resp SwapCancelTriggerOrdersResponse
+func (e *Exchange) CancelAllSwapTriggerOrders(ctx context.Context, contractCode currency.Pair) (*SwapCancelTriggerOrdersResponse, error) {
+	resp := new(SwapCancelTriggerOrdersResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancelall", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancelall", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
-func (e *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, status, tradeType string, createDate, pageIndex, pageSize uint64) (SwapTriggerOrderHistoryResponse, error) {
-	var resp SwapTriggerOrderHistoryResponse
+func (e *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, status, tradeType string, createDate, pageIndex, pageSize uint64) (*SwapTriggerOrderHistoryResponse, error) {
+	resp := new(SwapTriggerOrderHistoryResponse)
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1083,7 +1086,7 @@ func (e *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode 
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_hisorders", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_hisorders", nil, req, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -1099,32 +1102,30 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 		}
 		vals.Set("contract_code", codeValue)
 	}
-	type response struct {
-		Response
-		Data []SwapMarket `json:"data"`
+	result := new(SwapMarketsResponse)
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("/swap-api/v1/swap_contract_info", vals), result); err != nil {
+		return nil, err
 	}
-	var result response
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_contract_info"+"?"+vals.Encode(), &result)
+	return result.Data, nil
 }
 
 // GetSwapFundingRate gets funding rate data for one currency
-func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pair) (SwapFundingRate, error) {
+func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pair) (*SwapFundingRate, error) {
 	vals := url.Values{}
 	codeValue, err := e.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
-		return SwapFundingRate{}, err
+		return nil, err
 	}
 	vals.Set("contract_code", codeValue)
-	type response struct {
-		Response
-		Data SwapFundingRate `json:"data"`
+	result := new(SwapFundingRateResponse)
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("/swap-api/v1/swap_funding_rate", vals), result); err != nil {
+		return nil, err
 	}
-	var result response
-	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_funding_rate"+"?"+vals.Encode(), &result)
+	return &result.Data, nil
 }
 
 // GetSwapFundingRates gets funding rates data
-func (e *Exchange) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
-	var result SwapFundingRatesResponse
-	return result, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_batch_funding_rate", &result)
+func (e *Exchange) GetSwapFundingRates(ctx context.Context) (*SwapFundingRatesResponse, error) {
+	result := new(SwapFundingRatesResponse)
+	return result, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_batch_funding_rate", result)
 }

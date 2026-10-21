@@ -168,7 +168,8 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 	if pair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	if amount <= 0 || amount != math.Trunc(amount) || amount > math.MaxUint64 {
+	// MaxUint64 rounds up to 2^64 as a float64, so the upper bound must be exclusive.
+	if amount <= 0 || amount != math.Trunc(amount) || amount >= math.Exp2(64) {
 		return fmt.Errorf("%w: %v", errInvalidLeverage, amount)
 	}
 	leverage := uint64(amount)

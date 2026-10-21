@@ -831,7 +831,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		}
 
 	case asset.CoinMarginedFutures:
-		var orderbookNew SwapMarketDepthResponse
+		var orderbookNew *SwapMarketDepthResponse
 		orderbookNew, err = e.GetSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
 			return book, err
@@ -853,7 +853,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 			}
 		}
 	case asset.USDTMarginedFutures:
-		var orderbookNew SwapMarketDepthResponse
+		var orderbookNew *SwapMarketDepthResponse
 		orderbookNew, err = e.GetLinearSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
 			return book, err
@@ -1123,7 +1123,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			}
 		}
 	case asset.Futures:
-		var fTrades FuturesBatchTradesForContractResponse
+		var fTrades *FuturesBatchTradesForContractResponse
 		fTrades, err = e.FuturesRequestPublicBatchTrades(ctx, p, 2000)
 		if err != nil {
 			return nil, err
@@ -1150,7 +1150,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		var batches SwapTradesResponse
+		var batches *SwapTradesResponse
 		if a == asset.CoinMarginedFutures {
 			batches, err = e.GetBatchTrades(ctx, p, 2000)
 		} else {
@@ -2083,59 +2083,58 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		respData := &resp
-		if respData.ID == 0 {
+		if resp.ID == 0 {
 			return nil, fmt.Errorf("%s - order not found for orderid %s", e.Name, orderID)
 		}
-		responseID := strconv.FormatUint(respData.ID, 10)
+		responseID := strconv.FormatUint(resp.ID, 10)
 		if responseID != orderID {
 			return nil, fmt.Errorf("%s - GetOrderInfo order ID mismatch; expected %s, received %s", e.Name, orderID, responseID)
 		}
-		if !strings.Contains(respData.Type, "-") {
-			return nil, fmt.Errorf("%w %q", errInvalidOrderPriceType, respData.Type)
+		if !strings.Contains(resp.Type, "-") {
+			return nil, fmt.Errorf("%w %q", errInvalidOrderPriceType, resp.Type)
 		}
-		orderSide, err := stringToOrderSide(respData.Type)
+		orderSide, err := stringToOrderSide(resp.Type)
 		if err != nil {
 			return nil, err
 		}
-		orderType, err := stringToOrderType(respData.Type)
+		orderType, err := stringToOrderType(resp.Type)
 		if err != nil {
 			return nil, err
 		}
 		timeInForce := order.UnknownTIF
 		switch {
-		case strings.Contains(respData.Type, "maker"):
+		case strings.Contains(resp.Type, "maker"):
 			timeInForce = order.PostOnly
-		case strings.HasSuffix(respData.Type, "-fok"):
+		case strings.HasSuffix(resp.Type, "-fok"):
 			timeInForce = order.FillOrKill
-		case strings.HasSuffix(respData.Type, "-ioc"):
+		case strings.HasSuffix(resp.Type, "-ioc"):
 			timeInForce = order.ImmediateOrCancel
 		}
-		orderStatus, err := order.StringToOrderStatus(respData.State)
+		orderStatus, err := order.StringToOrderStatus(resp.State)
 		if err != nil {
 			return nil, err
 		}
 		var p currency.Pair
 		var a asset.Item
-		p, a, err = e.GetRequestFormattedPairAndAssetType(respData.Symbol)
+		p, a, err = e.GetRequestFormattedPairAndAssetType(resp.Symbol)
 		if err != nil {
 			return nil, err
 		}
 		orderDetail = order.Detail{
 			Exchange:       e.Name,
 			OrderID:        orderID,
-			AccountID:      strconv.FormatUint(respData.AccountID, 10),
+			AccountID:      strconv.FormatUint(resp.AccountID, 10),
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
 			TimeInForce:    timeInForce,
-			Date:           respData.CreatedAt.Time(),
+			Date:           resp.CreatedAt.Time(),
 			Status:         orderStatus,
-			Price:          respData.Price.Float64(),
-			Amount:         respData.Amount.Float64(),
-			ExecutedAmount: firstNonZero(respData.FieldAmount, respData.FilledAmount),
-			Cost:           firstNonZero(respData.FieldCashAmount, respData.FilledCashAmount),
-			Fee:            firstNonZero(respData.FieldFees, respData.FilledFees),
+			Price:          resp.Price.Float64(),
+			Amount:         resp.Amount.Float64(),
+			ExecutedAmount: firstNonZero(resp.FieldAmount, resp.FilledAmount),
+			Cost:           firstNonZero(resp.FieldCashAmount, resp.FilledCashAmount),
+			Fee:            firstNonZero(resp.FieldFees, resp.FilledFees),
 			AssetType:      a,
 		}
 	case asset.CoinMarginedFutures:
@@ -2922,7 +2921,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
 	case asset.Spot:
-		candles, err := e.GetSpotKline(ctx, KlinesRequest{
+		candles, err := e.GetSpotKline(ctx, &KlinesRequest{
 			Period: e.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol: req.Pair,
 			Size:   req.RequestLimit,
@@ -2991,7 +2990,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		for i := range req.RangeHolder.Ranges {
 			// if size, from, to are all populated, only size is considered
 			var size uint64
-			var candles FuturesKlineResponse
+			var candles *FuturesKlineResponse
 			candles, err = e.FuturesGetKline(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time.Add(-time.Second))
 			if err != nil {
 				return nil, err
@@ -3002,7 +3001,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		for i := range req.RangeHolder.Ranges {
 			// if size, from, to are all populated, only size is considered
 			var size uint64
-			var candles SwapKlineResponse
+			var candles *SwapKlineResponse
 			candles, err = e.GetSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time.Add(-time.Second))
 			if err != nil {
 				return nil, err
@@ -3012,7 +3011,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	case asset.USDTMarginedFutures:
 		for i := range req.RangeHolder.Ranges {
 			var size uint64
-			var candles SwapKlineResponse
+			var candles *SwapKlineResponse
 			candles, err = e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time.Add(-time.Second))
 			if err != nil {
 				return nil, err
@@ -3256,7 +3255,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			if err != nil {
 				return nil, err
 			}
-			rates = append(rates, rateResp)
+			rates = append(rates, *rateResp)
 		}
 	case asset.USDTMarginedFutures:
 		var pairs currency.Pairs

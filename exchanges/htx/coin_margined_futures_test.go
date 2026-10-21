@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -258,9 +259,12 @@ func TestGetSwapPositionLimitInfo(t *testing.T) {
 
 func TestAccountTransferData(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", emptySuccessResponse, nil)
-	_, err := h.AccountTransferData(t.Context(), ethusdPair, "123", "master_to_sub", 15)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", `{"status":"ok","ts":1603872000000,"data":{"order_id":"123"}}`, nil)
+	response, err := h.AccountTransferData(t.Context(), ethusdPair, "123", "master_to_sub", 15)
 	require.NoError(t, err, "AccountTransferData must not error")
+	require.NotNil(t, response, "transfer response must be returned as a pointer")
+	assert.Equal(t, time.UnixMilli(1603872000000), response.Timestamp.Time(), "transfer timestamp should retain milliseconds")
+	assert.Equal(t, "123", response.Data.OrderID, "transfer identifier should decode")
 	_, err = h.AccountTransferData(t.Context(), ethusdPair, "123", "invalid", 15)
 	require.ErrorIs(t, err, errInvalidTransferType, "AccountTransferData must reject an invalid transfer type")
 }
@@ -289,22 +293,61 @@ func TestPlaceSwapOrders(t *testing.T) {
 
 func TestPlaceSwapBatchOrders(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", emptySuccessResponse, nil)
-	req := SwapBatchOrderRequest{Data: []SwapBatchOrder{{
-		ContractCode:   "ETH-USD",
-		Price:          5,
-		Volume:         1,
-		Direction:      "buy",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}}}
-	_, err := h.PlaceSwapBatchOrders(t.Context(), req)
-	require.NoError(t, err, "PlaceSwapBatchOrders must not error")
-	_, err = h.PlaceSwapBatchOrders(t.Context(), SwapBatchOrderRequest{})
-	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject an empty batch")
-	_, err = h.PlaceSwapBatchOrders(t.Context(), SwapBatchOrderRequest{Data: make([]SwapBatchOrder, 11)})
-	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject more than ten orders")
+	for _, tc := range []struct {
+		name       string
+		count      int
+		nilRequest bool
+		priceType  string
+		wantErr    error
+	}{
+		{name: "nil request", nilRequest: true, wantErr: common.ErrNilPointer},
+		{name: "empty batch", wantErr: errBatchOrderLimitExceeded},
+		{name: "too many orders", count: 11, wantErr: errBatchOrderLimitExceeded},
+		{name: "limit order", count: 1, priceType: "limit"},
+		{name: "post-only order", count: 1, priceType: "post_only"},
+		{name: "maximum batch", count: 10, priceType: "limit"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", emptySuccessResponse, func(r *http.Request) {
+				calls.Add(1)
+				var payload struct {
+					Orders []map[string]any `json:"orders_data"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "batch payload should decode") {
+					return
+				}
+				assert.Len(t, payload.Orders, tc.count, "batch payload should retain every order")
+				for _, row := range payload.Orders {
+					assert.Equal(t, "ETH-USD", row["contract_code"], "contract code should retain its exchange format")
+					assert.Equal(t, float64(1), row["lever_rate"], "leverage should use the documented key")
+					assert.Equal(t, tc.priceType, row["order_price_type"], "price instruction should use the documented key")
+					assert.Equal(t, float64(5), row["price"], "order price should be retained")
+					assert.Equal(t, float64(1), row["volume"], "order volume should be retained")
+					assert.Equal(t, "buy", row["direction"], "order direction should be retained")
+					assert.Equal(t, "open", row["offset"], "order offset should be retained")
+					assert.NotContains(t, row, "leverRate", "undocumented leverage key should not be sent")
+					assert.NotContains(t, row, "orderPriceType", "undocumented price instruction key should not be sent")
+				}
+			})
+			var req *SwapBatchOrderRequest
+			if !tc.nilRequest {
+				req = &SwapBatchOrderRequest{Data: make([]SwapBatchOrder, tc.count)}
+				for i := range req.Data {
+					req.Data[i] = SwapBatchOrder{ContractCode: "ETH-USD", Price: 5, Volume: 1, Direction: "buy", Offset: "open", LeverageRate: 1, OrderPriceType: tc.priceType}
+				}
+			}
+			_, err := h.PlaceSwapBatchOrders(t.Context(), req)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid batch must return the expected validation error")
+				assert.Zero(t, calls.Load(), "invalid batch should not send a request")
+				return
+			}
+			require.NoError(t, err, "valid batch must be accepted")
+			assert.Equal(t, int32(1), calls.Load(), "one batch should send exactly one request")
+		})
+	}
 }
 
 func TestCancelSwapOrder(t *testing.T) {
@@ -530,8 +573,12 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 
 func TestGetSwapMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSwapMarkets(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/swap-api/v1/swap_contract_info", `{"status":"ok","data":[{"contract_code":"BTC-USD","create_date":"20200325"}]}`, nil)
+	response, err := h.GetSwapMarkets(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetSwapMarkets must decode market metadata")
+	require.Len(t, response, 1, "decoded response must retain its contract")
+	assert.Equal(t, "BTC-USD", response[0].ContractCode, "contract code should decode")
+	assert.Equal(t, time.Date(2020, time.March, 25, 0, 0, 0, 0, time.UTC), response[0].CreateDate.Time(), "contract listing date should decode")
 }
 
 func TestGetSwapFundingRates(t *testing.T) {
@@ -542,8 +589,13 @@ func TestGetSwapFundingRates(t *testing.T) {
 
 func TestGetSwapFundingRate(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSwapFundingRate(t.Context(), btcusdPair)
-	require.NoError(t, err, "GetSwapFundingRate must not error")
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/swap-api/v1/swap_funding_rate", `{"status":"ok","data":{"contract_code":"BTC-USD","funding_rate":"0.001","funding_time":"1603872000000"}}`, nil)
+	response, err := h.GetSwapFundingRate(t.Context(), btcusdPair)
+	require.NoError(t, err, "GetSwapFundingRate must decode the funding response")
+	require.NotNil(t, response, "funding result must be returned as a pointer")
+	assert.Equal(t, "BTC-USD", response.ContractCode, "funding contract code should decode")
+	assert.Equal(t, 0.001, response.FundingRate.Float64(), "quoted funding rate should decode")
+	assert.Equal(t, time.UnixMilli(1603872000000), response.FundingTime.Time(), "funding time should retain milliseconds")
 }
 
 func TestGetHistoricalFundingRatesForPair(t *testing.T) {

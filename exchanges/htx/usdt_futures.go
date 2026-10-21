@@ -12,18 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-const (
-	// USDT-margined futures endpoints.
-	linearSwapMarkets        = "/linear-swap-api/v1/swap_contract_info"
-	linearSwapMarketDepth    = "/linear-swap-ex/market/depth"
-	linearSwapMarketOverview = "/linear-swap-ex/market/detail/merged"
-	linearSwapKline          = "/linear-swap-ex/market/history/kline"
-	linearSwapBatchTrades    = "/linear-swap-ex/market/history/trade"
-)
-
 // GetLinearSwapMarkets gets current USDT-margined contract metadata.
 func (e *Exchange) GetLinearSwapMarkets(ctx context.Context, code currency.Pair, supportMarginMode, contractType, businessType string) ([]LinearSwapMarket, error) {
-	var resp LinearSwapMarketsResponse
+	resp := new(LinearSwapMarketsResponse)
 	params := url.Values{}
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
@@ -41,15 +32,15 @@ func (e *Exchange) GetLinearSwapMarkets(ctx context.Context, code currency.Pair,
 	if businessType != "" {
 		params.Set("business_type", businessType)
 	}
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarkets, params), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-api/v1/swap_contract_info", params), resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
 }
 
 // GetLinearSwapMarketDepth gets current USDT-margined market depth.
-func (e *Exchange) GetLinearSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (SwapMarketDepthResponse, error) {
-	var resp SwapMarketDepthResponse
+func (e *Exchange) GetLinearSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (*SwapMarketDepthResponse, error) {
+	resp := new(SwapMarketDepthResponse)
 	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -57,30 +48,30 @@ func (e *Exchange) GetLinearSwapMarketDepth(ctx context.Context, code currency.P
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("type", dataType)
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketDepth, params), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-ex/market/depth", params), resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetLinearSwapMarketOverview gets current USDT-margined market overview.
-func (e *Exchange) GetLinearSwapMarketOverview(ctx context.Context, code currency.Pair) (SwapMarketOverviewResponse, error) {
-	var resp SwapMarketOverviewResponse
+func (e *Exchange) GetLinearSwapMarketOverview(ctx context.Context, code currency.Pair) (*SwapMarketOverviewResponse, error) {
+	resp := new(SwapMarketOverviewResponse)
 	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketOverview, params), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-ex/market/detail/merged", params), resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetLinearSwapKlineData gets USDT-margined contract candlesticks.
-func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pair, period string, size uint64, startTime, endTime time.Time) (SwapKlineResponse, error) {
-	var resp SwapKlineResponse
+func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pair, period string, size uint64, startTime, endTime time.Time) (*SwapKlineResponse, error) {
+	resp := new(SwapKlineResponse)
 	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -101,15 +92,15 @@ func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pai
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapKline, params), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-ex/market/history/kline", params), resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
 // GetLinearSwapBatchTrades gets recent trades for a USDT-margined contract.
-func (e *Exchange) GetLinearSwapBatchTrades(ctx context.Context, code currency.Pair, size uint64) (SwapTradesResponse, error) {
-	var resp SwapTradesResponse
+func (e *Exchange) GetLinearSwapBatchTrades(ctx context.Context, code currency.Pair, size uint64) (*SwapTradesResponse, error) {
+	resp := new(SwapTradesResponse)
 	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -117,7 +108,7 @@ func (e *Exchange) GetLinearSwapBatchTrades(ctx context.Context, code currency.P
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatUint(size, 10))
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapBatchTrades, params), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-ex/market/history/trade", params), resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

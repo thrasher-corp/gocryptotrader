@@ -198,11 +198,12 @@ func TestFuturesSettlementRecordUnmarshalJSON(t *testing.T) {
 func TestFuturesTriggerOrderHistoryEntryUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var response FuturesTriggerOrderHistoryEntry
-	require.NoError(t, json.Unmarshal([]byte(`{"order_id":9007199254740993,"trigger_price":0.0895,"created_at":1604390110565,"triggered_at":0,"canceled_at":1604390110566,"fail_code":1001}`), &response), "documented trigger order must decode")
+	require.NoError(t, json.Unmarshal([]byte(`{"order_id":9007199254740993,"trigger_price":0.0895,"created_at":1604390110565,"triggered_at":0,"order_insert_at":1604390110567,"canceled_at":1604390110566,"fail_code":1001}`), &response), "documented trigger order must decode")
 	assert.Equal(t, uint64(9007199254740993), response.OrderID, "trigger order ID should retain precision")
 	assert.InDelta(t, 0.0895, response.TriggerPrice, 0, "trigger price should retain its decimal part")
 	assert.Equal(t, time.UnixMilli(1604390110565), response.CreatedAt.Time(), "trigger creation time should retain milliseconds")
 	assert.Equal(t, time.UnixMilli(1604390110566), response.CancelledAt.Time(), "trigger cancellation time should retain milliseconds")
 	assert.True(t, response.TriggeredAt.Time().IsZero(), "zero trigger time should remain unset")
+	assert.Equal(t, time.UnixMilli(1604390110567), response.OrderInsertAt.Time(), "order insertion time should retain milliseconds")
 	assert.Equal(t, int64(1001), response.FailCode, "failure codes should decode without changing their signed type")
 }

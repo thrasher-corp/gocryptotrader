@@ -75,7 +75,7 @@ type WebsocketTrade struct {
 	Tick      WebsocketTradeTick `json:"tick"`
 }
 
-// WebsocketDepthTick defines the nested API object.
+// WebsocketDepthTick is a spot depth snapshot with its exchange timestamp and version.
 type WebsocketDepthTick struct {
 	Bids      [][]any    `json:"bids"`
 	Asks      [][]any    `json:"asks"`
@@ -83,7 +83,7 @@ type WebsocketDepthTick struct {
 	Version   uint64     `json:"version"`
 }
 
-// WebsocketKlineTick defines the nested API object.
+// WebsocketKlineTick is a spot candle; ID is the start time in Unix seconds.
 type WebsocketKlineTick struct {
 	ID     uint64  `json:"id"`
 	Open   float64 `json:"open"`
@@ -95,7 +95,7 @@ type WebsocketKlineTick struct {
 	Count  uint64  `json:"count"`
 }
 
-// WebsocketTickerTick defines the nested API object.
+// WebsocketTickerTick is a rolling market summary that also carries the best bid and ask.
 type WebsocketTickerTick struct {
 	Bid           []float64  `json:"bid"`
 	Ask           []float64  `json:"ask"`
@@ -111,14 +111,14 @@ type WebsocketTickerTick struct {
 	TradeTurnover float64    `json:"trade_turnover"`
 }
 
-// WebsocketTradeTick defines the nested API object.
+// WebsocketTradeTick groups executions published together under one exchange update ID.
 type WebsocketTradeTick struct {
 	ID        uint64                    `json:"id"`
 	Timestamp types.Time                `json:"ts"`
 	Data      []WebsocketTradeExecution `json:"data"`
 }
 
-// WebsocketTradeExecution defines the nested API object.
+// WebsocketTradeExecution accepts either id or tradeId so execution identifiers retain their exact digits.
 type WebsocketTradeExecution struct {
 	Amount    float64          `json:"amount"`
 	Timestamp types.Time       `json:"ts"`

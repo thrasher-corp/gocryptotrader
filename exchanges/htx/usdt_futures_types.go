@@ -76,9 +76,9 @@ type LinearSwapMarket struct {
 	ContractCode      string       `json:"contract_code"`
 	ContractSize      types.Number `json:"contract_size"`
 	PriceTick         types.Number `json:"price_tick"`
-	SettlementDate    string       `json:"settlement_date"`
+	SettlementDate    types.Time   `json:"settlement_date"`
 	SettlementPeriod  string       `json:"settlement_period"`
-	DeliveryTime      string       `json:"delivery_time"`
+	DeliveryTime      types.Time   `json:"delivery_time"`
 	CreateDate        types.Time   `json:"create_date"`
 	ContractStatus    uint64       `json:"contract_status"`
 	SupportMarginMode string       `json:"support_margin_mode"`
@@ -281,7 +281,7 @@ type V5Order struct {
 	SelfMatchPrevent    string       `json:"self_match_prevent"`
 }
 
-// V5AccountBalanceDetails contains details fields from V5AccountBalance.
+// V5AccountBalanceDetails breaks an account balance down by collateral currency.
 type V5AccountBalanceDetails struct {
 	Currency              string       `json:"currency"`
 	Equity                types.Number `json:"equity"`

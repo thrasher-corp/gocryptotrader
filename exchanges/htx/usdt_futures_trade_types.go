@@ -133,7 +133,7 @@ type V5OpenPosition struct {
 	UpdatedTime       types.Time   `json:"updated_time"`
 }
 
-// V5CancellationSchedule contains data fields from V5CancelAfterResponse.
+// V5CancellationSchedule reports the server time and deadline for automatic order cancellation.
 type V5CancellationSchedule struct {
 	CurrentTime types.Time `json:"current_time"`
 	TriggerTime types.Time `json:"trigger_time"`

@@ -182,7 +182,7 @@ type LegacyFuturesWSTrade struct {
 	FeeAsset      currency.Code `json:"fee_asset"`
 }
 
-// FuturesWebsocketEquity contains the documented delivery-futures websocket fields.
+// FuturesWebsocketEquity reports balance, margin and profit changes for a delivery settlement currency.
 type FuturesWebsocketEquity struct {
 	Symbol            string  `json:"symbol"`
 	MarginBalance     float64 `json:"margin_balance"`
@@ -199,7 +199,7 @@ type FuturesWebsocketEquity struct {
 	AdjustFactor      float64 `json:"adjust_factor"`
 }
 
-// FuturesWebsocketPosition contains the documented delivery-futures websocket fields.
+// FuturesWebsocketPosition reports the held and available delivery contracts for one position direction.
 type FuturesWebsocketPosition struct {
 	Symbol         string  `json:"symbol"`
 	ContractCode   string  `json:"contract_code"`
@@ -218,7 +218,7 @@ type FuturesWebsocketPosition struct {
 	LastPrice      float64 `json:"last_price"`
 }
 
-// FuturesWebsocketTriggerOrder contains the documented delivery-futures websocket fields.
+// FuturesWebsocketTriggerOrder reports trigger execution or cancellation, including any resulting order identifier.
 type FuturesWebsocketTriggerOrder struct {
 	Symbol          string     `json:"symbol"`
 	ContractCode    string     `json:"contract_code"`

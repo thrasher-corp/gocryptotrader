@@ -35,9 +35,9 @@ type errorCapture struct {
 	Timestamp   types.Time `json:"ts"`
 }
 
-// MarketSummary24Hr stores past 24hr market summary data of a given symbol
-type MarketSummary24Hr struct {
-	Tick MarketSummary24HrTick `json:"tick"`
+// MarketSummary24HourResponse contains the rolling 24-hour market summary for one spot symbol
+type MarketSummary24HourResponse struct {
+	Tick MarketSummary24HourTick `json:"tick"`
 }
 
 // CurrencyChains stores currency and chain info
@@ -136,8 +136,8 @@ type KlineItem struct {
 	Count       uint64     `json:"count"`
 }
 
-// CancelOpenOrdersBatch stores open order batch response data
-type CancelOpenOrdersBatch struct {
+// CancelOpenOrdersBatchResponse retains cancellation counts and any remaining-order cursor.
+type CancelOpenOrdersBatchResponse struct {
 	Data         OpenOrderCancellationResult `json:"data"`
 	Status       string                      `json:"status"`
 	ErrorMessage string                      `json:"err-msg"`
@@ -151,8 +151,8 @@ type DetailMerged struct {
 	Bid     []float64 `json:"bid"`
 }
 
-// Tickers contain all tickers
-type Tickers struct {
+// TickersResponse contains the rolling summaries for all spot symbols.
+type TickersResponse struct {
 	Data []Ticker `json:"data"`
 }
 
@@ -612,8 +612,8 @@ var (
 	}
 )
 
-// WithdrawalHistory holds withdrawal history data
-type WithdrawalHistory struct {
+// WithdrawalHistoryResponse lists deposits or withdrawals matching the requested filters.
+type WithdrawalHistoryResponse struct {
 	Status string       `json:"status"`
 	Data   []Withdrawal `json:"data"`
 }
@@ -645,86 +645,86 @@ func isEmptyHTXData(data []byte) bool {
 		bytes.Equal(trimmed, []byte("null"))
 }
 
-// SpotKlineResponse defines the API response.
+// SpotKlineResponse contains spot candles ordered as supplied by the history endpoint.
 type SpotKlineResponse struct {
 	Response
 	Data []KlineItem `json:"data"`
 }
 
-// MarketDetailMergedResponse defines the API response.
+// MarketDetailMergedResponse wraps a rolling spot summary and the best bid and ask.
 type MarketDetailMergedResponse struct {
 	Response
 	Tick DetailMerged `json:"tick"`
 }
 
-// OrderBookResponse defines the API response.
+// OrderBookResponse wraps a depth snapshot and the exchange response status.
 type OrderBookResponse struct {
 	Response
 	Depth Orderbook `json:"tick"`
 }
 
-// TradesResponse defines the API response.
+// TradesResponse groups the latest executions under one exchange update.
 type TradesResponse struct {
 	Response
 	Tick TradesTick `json:"tick"`
 }
 
-// TradeHistoryResponse defines the API response.
+// TradeHistoryResponse contains batches of recent spot executions.
 type TradeHistoryResponse struct {
 	Response
 	TradeHistory []TradeHistory `json:"data"`
 }
 
-// MarketDetailResponse defines the API response.
+// MarketDetailResponse wraps the rolling spot summary for one symbol.
 type MarketDetailResponse struct {
 	Response
 	Tick Detail `json:"tick"`
 }
 
-// SymbolsResponse defines the API response.
+// SymbolsResponse lists the spot symbols and their trading rules.
 type SymbolsResponse struct {
 	Response
 	Symbols []Symbol `json:"data"`
 }
 
-// CurrenciesResponse defines the API response.
+// CurrenciesResponse lists the currency codes recognised by the spot API.
 type CurrenciesResponse struct {
 	Response
 	Currencies []string `json:"data"`
 }
 
-// FuturesBatchTickersResponse defines the API response.
+// FuturesBatchTickersResponse uses ticks for the list of derivative market summaries.
 type FuturesBatchTickersResponse struct {
 	Data []FuturesBatchTicker `json:"ticks"`
 }
 
-// CurrenciesIncludingChainsResponse defines the API response.
+// CurrenciesIncludingChainsResponse lists supported networks and transfer rules for each currency.
 type CurrenciesIncludingChainsResponse struct {
 	Data []CurrencyChains `json:"data"`
 }
 
-// CurrentServerTimeResponse defines the API response.
+// CurrentServerTimeResponse places the server Unix timestamp in data rather than ts.
 type CurrentServerTimeResponse struct {
 	Response
 	Timestamp types.Time `json:"data"`
 }
 
-// AccountsResponse defines the API response.
+// AccountsResponse lists the user accounts that can be selected for spot requests.
 type AccountsResponse struct {
 	Accounts []Account `json:"data"`
 }
 
-// AccountBalanceResponse defines the API response.
+// AccountBalanceResponse groups the balances belonging to the requested account.
 type AccountBalanceResponse struct {
 	AccountBalanceData AccountBalance `json:"data"`
 }
 
-// AggregatedBalanceResponse defines the API response.
+// AggregatedBalanceResponse groups balances across the requested subaccounts.
 type AggregatedBalanceResponse struct {
 	AggregatedBalances []AggregatedBalance `json:"data"`
 }
 
-// spotOrderSubmissionRequest defines the request payload.
+// spotOrderSubmissionRequest serialises spot order quantities and identifiers using HTX wire formats.
 type spotOrderSubmissionRequest struct {
 	AccountID     uint64 `json:"account-id,string"`
 	ClientOrderID string `json:"client-order-id,omitempty"`
@@ -735,70 +735,70 @@ type spotOrderSubmissionRequest struct {
 	Type          string `json:"type"`
 }
 
-// SpotOrderIDResponse defines the API response.
+// SpotOrderIDResponse decodes the quoted order ID returned by spot placement and cancellation.
 type SpotOrderIDResponse struct {
 	OrderID uint64 `json:"data,string"`
 }
 
-// cancelOpenOrdersBatchRequest defines the request payload.
+// cancelOpenOrdersBatchRequest scopes cancellation to a spot account and symbol.
 type cancelOpenOrdersBatchRequest struct {
 	AccountID string `json:"account-id"`
 	Symbol    string `json:"symbol"`
 }
 
-// OrderResponse defines the API response.
+// OrderResponse wraps a spot order with its cumulative execution totals.
 type OrderResponse struct {
 	Order OrderInfo `json:"data"`
 }
 
-// OrderMatchResultsResponse defines the API response.
+// OrderMatchResultsResponse contains the individual fills belonging to a spot order.
 type OrderMatchResultsResponse struct {
 	Orders []OrderMatchInfo `json:"data"`
 }
 
-// OrdersResponse defines the API response.
+// OrdersResponse contains spot orders matching the supplied filters.
 type OrdersResponse struct {
 	Orders []OrderInfo `json:"data"`
 }
 
-// marginAmountRequest defines the request payload.
+// marginAmountRequest specifies an amount in the borrowing or transfer currency.
 type marginAmountRequest struct {
 	Symbol   string `json:"symbol"`
 	Currency string `json:"currency"`
 	Amount   string `json:"amount"`
 }
 
-// MarginTransferResponse defines the API response.
+// MarginTransferResponse identifies an accepted transfer to or from a margin account.
 type MarginTransferResponse struct {
 	TransferID uint64 `json:"data"`
 }
 
-// MarginOrderResponse defines the API response.
+// MarginOrderResponse identifies a newly accepted margin loan.
 type MarginOrderResponse struct {
 	MarginOrderID uint64 `json:"data"`
 }
 
-// marginRepaymentRequest defines the request payload.
+// marginRepaymentRequest serialises the loan repayment amount as a decimal string.
 type marginRepaymentRequest struct {
 	Amount string `json:"amount"`
 }
 
-// MarginLoanOrdersResponse defines the API response.
+// MarginLoanOrdersResponse lists margin loans matching the supplied filters.
 type MarginLoanOrdersResponse struct {
 	MarginLoanOrders []MarginOrder `json:"data"`
 }
 
-// MarginAccountBalanceResponse defines the API response.
+// MarginAccountBalanceResponse groups balances and borrowing liabilities by margin account.
 type MarginAccountBalanceResponse struct {
 	Balances []MarginAccountBalance `json:"data"`
 }
 
-// WithdrawResponse defines the API response.
+// WithdrawResponse identifies the withdrawal accepted or cancelled by HTX.
 type WithdrawResponse struct {
 	WithdrawID uint64 `json:"data"`
 }
 
-// withdrawalRequest defines the request payload.
+// withdrawalRequest selects a withdrawal network and optional destination tag.
 type withdrawalRequest struct {
 	Address  string `json:"address"`
 	Amount   string `json:"amount"`
@@ -808,18 +808,18 @@ type withdrawalRequest struct {
 	AddrTag  string `json:"addr-tag,omitempty"`
 }
 
-// DepositAddressResponse defines the API response.
+// DepositAddressResponse lists deposit addresses for the requested currency.
 type DepositAddressResponse struct {
 	DepositAddress []DepositAddress `json:"data"`
 }
 
-// WithdrawQuotasResponse defines the API response.
+// WithdrawQuotasResponse reports the remaining withdrawal allowance for one currency.
 type WithdrawQuotasResponse struct {
 	WithdrawQuota WithdrawQuota `json:"data"`
 }
 
-// MarketSummary24HrTick defines the nested API object.
-type MarketSummary24HrTick struct {
+// MarketSummary24HourTick is the rolling 24-hour market summary returned by the spot detail endpoint.
+type MarketSummary24HourTick struct {
 	Amount  float64 `json:"amount"`
 	Open    float64 `json:"open"`
 	Close   float64 `json:"close"`
@@ -831,7 +831,7 @@ type MarketSummary24HrTick struct {
 	Volume  float64 `json:"vol"`
 }
 
-// CurrencyChain defines the nested API object.
+// CurrencyChain describes deposits, withdrawals and confirmation requirements for one supported network.
 type CurrencyChain struct {
 	Chain                     string       `json:"chain"`
 	DisplayName               string       `json:"displayName"`
@@ -855,7 +855,7 @@ type CurrencyChain struct {
 	AddressDepositTag         bool         `json:"addrDepositTag"`
 }
 
-// WebsocketFuturesKlineTick defines the nested API object.
+// WebsocketFuturesKlineTick is a delivery candle whose volume is measured in contracts and amount in coins.
 type WebsocketFuturesKlineTick struct {
 	ID     uint64  `json:"id"`
 	MRID   uint64  `json:"mrid"`
@@ -868,7 +868,7 @@ type WebsocketFuturesKlineTick struct {
 	Amount float64 `json:"amount"`
 }
 
-// WebsocketMarketDepthTick defines the nested API object.
+// WebsocketMarketDepthTick is a complete depth snapshot; each level is a price and quantity pair.
 type WebsocketMarketDepthTick struct {
 	MRID      uint64       `json:"mrid"`
 	ID        uint64       `json:"id"`
@@ -879,7 +879,7 @@ type WebsocketMarketDepthTick struct {
 	Channel   string       `json:"ch"`
 }
 
-// WebsocketIncrementalMarketDepthTick defines the nested API object.
+// WebsocketIncrementalMarketDepthTick carries depth changes; Event distinguishes snapshots from subsequent updates.
 type WebsocketIncrementalMarketDepthTick struct {
 	MRID      uint64       `json:"mrid"`
 	ID        uint64       `json:"id"`
@@ -891,7 +891,7 @@ type WebsocketIncrementalMarketDepthTick struct {
 	Event     string       `json:"event"`
 }
 
-// WebsocketMarketDetailTick defines the nested API object.
+// WebsocketMarketDetailTick is the rolling market summary carried by a detail subscription.
 type WebsocketMarketDetailTick struct {
 	ID     uint64  `json:"id"`
 	MRID   uint64  `json:"mrid"`
@@ -904,7 +904,7 @@ type WebsocketMarketDetailTick struct {
 	Count  float64 `json:"count"`
 }
 
-// WebsocketMarketBBOTick defines the nested API object.
+// WebsocketMarketBBOTick carries the best bid and ask as price and quantity pairs.
 type WebsocketMarketBBOTick struct {
 	Channel   string     `json:"ch"`
 	MRID      uint64     `json:"mrid"`
@@ -915,27 +915,27 @@ type WebsocketMarketBBOTick struct {
 	Version   uint64     `json:"version"`
 }
 
-// WebsocketSubTradeDetailTick defines the nested API object.
+// WebsocketSubTradeDetailTick groups executions published in one trade notification.
 type WebsocketSubTradeDetailTick struct {
 	ID        uint64                  `json:"id"`
 	Timestamp types.Time              `json:"ts"`
 	Data      []WebsocketFuturesTrade `json:"data"`
 }
 
-// MarginRate defines the nested API object.
+// MarginRate groups the borrowing currencies available for a margin trading symbol.
 type MarginRate struct {
 	Symbol     string               `json:"symbol"`
 	Currencies []MarginRateCurrency `json:"currencies"`
 }
 
-// OpenOrderCancellationResult defines the nested API object.
+// OpenOrderCancellationResult reports cancellation counts and a cursor for orders still awaiting cancellation.
 type OpenOrderCancellationResult struct {
 	FailedCount  uint64 `json:"failed-count"`
 	NextID       int64  `json:"next-id"` // Signed because the API sends -1 when no open orders remain
 	SuccessCount uint64 `json:"success-count"`
 }
 
-// OrderCancellationFailure defines the nested API object.
+// OrderCancellationFailure identifies an individual rejected cancellation within an otherwise successful batch request.
 type OrderCancellationFailure struct {
 	OrderID       string `json:"order-id"`
 	ClientOrderID string `json:"client-order-id"`
@@ -943,12 +943,12 @@ type OrderCancellationFailure struct {
 	ErrorMessage  string `json:"err-msg"`
 }
 
-// TradesTick defines the nested API object.
+// TradesTick groups executions returned by the latest-trade endpoint.
 type TradesTick struct {
 	Data []Trade `json:"data"`
 }
 
-// WebsocketFuturesTrade defines the nested API object.
+// WebsocketFuturesTrade is one execution with its taker direction and exchange timestamp.
 type WebsocketFuturesTrade struct {
 	Amount    float64    `json:"amount"`
 	Timestamp types.Time `json:"ts"`
@@ -957,7 +957,7 @@ type WebsocketFuturesTrade struct {
 	Direction string     `json:"direction"`
 }
 
-// MarginRateCurrency defines the nested API object.
+// MarginRateCurrency describes the borrowing limits and interest rates for one margin currency.
 type MarginRateCurrency struct {
 	Currency       string       `json:"currency"`
 	InterestRate   types.Number `json:"interest-rate"`

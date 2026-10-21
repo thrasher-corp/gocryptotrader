@@ -10,13 +10,13 @@ type SwapWebsocketKlineResponse struct {
 	Rep         string                `json:"rep"`
 	ID          string                `json:"id"`
 	WebsocketID uint64                `json:"wsid"`
-	Tick        []SwapWebsocketCandle `json:"tick"`
+	Data        []SwapWebsocketCandle `json:"data"`
 }
 
 // SwapWebsocketTradesResponse stores requested trade detail data for swap websocket
 type SwapWebsocketTradesResponse struct {
 	Rep       string               `json:"rep"`
-	ID        uint64               `json:"id"`
+	ID        string               `json:"id"`
 	Timestamp types.Time           `json:"ts"`
 	Data      []SwapWebsocketTrade `json:"data"`
 }
@@ -108,11 +108,11 @@ type SwapWebsocketCandle struct {
 
 // SwapWebsocketTrade contains a perpetual swap trade execution.
 type SwapWebsocketTrade struct {
-	ID        uint64     `json:"id"`
-	Price     float64    `json:"price"`
-	Amount    float64    `json:"amount"`
-	Direction string     `json:"direction"`
-	Timestamp types.Time `json:"ts"`
+	ID        uint64       `json:"id"`
+	Price     types.Number `json:"price"`
+	Amount    types.Number `json:"amount"`
+	Direction string       `json:"direction"`
+	Timestamp types.Time   `json:"ts"`
 }
 
 // SwapWebsocketPremiumCandle contains a premium index kline, whose prices may be negative.
@@ -181,11 +181,11 @@ type SwapWebsocketFundingRate struct {
 
 // SwapWebsocketContract contains a perpetual swap contract definition.
 type SwapWebsocketContract struct {
-	Symbol         string  `json:"symbol"`
-	ContractCode   string  `json:"contract_code"`
-	ContractSize   float64 `json:"contract_size"`
-	PriceTick      float64 `json:"price_tick"`
-	SettlementDate string  `json:"settlement_date"`
-	CreateDate     string  `json:"create_date"`
-	ContractStatus uint64  `json:"contract_status"`
+	Symbol         string     `json:"symbol"`
+	ContractCode   string     `json:"contract_code"`
+	ContractSize   float64    `json:"contract_size"`
+	PriceTick      float64    `json:"price_tick"`
+	SettlementDate types.Time `json:"settlement_date"`
+	CreateDate     types.Time `json:"create_date"`
+	ContractStatus uint64     `json:"contract_status"`
 }

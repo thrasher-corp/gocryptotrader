@@ -470,7 +470,7 @@ type FuturesTriggerOrderHistoryResponse struct {
 	Timestamp types.Time                 `json:"ts"`
 }
 
-// FuturesContractInfo contains data fields from FuturesContractInfoResponse.
+// FuturesContractInfo describes the size, price tick and lifecycle of a delivery contract.
 type FuturesContractInfo struct {
 	Symbol         string     `json:"symbol"`
 	ContractCode   string     `json:"contract_code"`
@@ -484,18 +484,18 @@ type FuturesContractInfo struct {
 	SettlementTime types.Time `json:"settlement_time"`
 }
 
-// FuturesContractIndexPriceInfo contains data fields from FuturesContractIndexPriceInfoResponse.
+// FuturesContractIndexPriceInfo pairs an underlying symbol with its current index price.
 type FuturesContractIndexPriceInfo struct {
 	Symbol     string  `json:"symbol"`
 	IndexPrice float64 `json:"index_price"`
 }
 
-// FuturesEstimatedDeliveryPrice contains data fields from FuturesEstimatedDeliveryPriceResponse.
+// FuturesEstimatedDeliveryPrice is the estimated settlement price as a contract approaches delivery.
 type FuturesEstimatedDeliveryPrice struct {
 	DeliveryPrice float64 `json:"delivery_price"`
 }
 
-// FuturesMarketDepthTick contains tick fields from FuturesMarketDepthResponse.
+// FuturesMarketDepthTick is a depth snapshot whose levels contain price and contract quantity.
 type FuturesMarketDepthTick struct {
 	MRID      uint64       `json:"mrid"`
 	ID        uint64       `json:"id"`
@@ -506,7 +506,7 @@ type FuturesMarketDepthTick struct {
 	Channel   string       `json:"ch"`
 }
 
-// FuturesMarketOverviewTick contains tick fields from FuturesMarketOverviewResponse.
+// FuturesMarketOverviewTick combines the rolling delivery summary with the best bid and ask.
 type FuturesMarketOverviewTick struct {
 	Vol       types.Number `json:"vol"`
 	Ask       []float64    `json:"ask"`
@@ -521,7 +521,7 @@ type FuturesMarketOverviewTick struct {
 	Amount    types.Number `json:"amount"`
 }
 
-// FuturesLastTrade contains data fields from FuturesLastTradeResponse.
+// FuturesLastTrade is a recent delivery execution; quoted and bare prices are both accepted.
 type FuturesLastTrade struct {
 	Amount    types.Number `json:"amount"`
 	Direction string       `json:"direction"`
@@ -530,21 +530,21 @@ type FuturesLastTrade struct {
 	Timestamp types.Time   `json:"ts"`
 }
 
-// FuturesLastTradeTick contains tick fields from FuturesLastTradeResponse.
+// FuturesLastTradeTick groups recent executions under their exchange update ID.
 type FuturesLastTradeTick struct {
 	Data      []FuturesLastTrade `json:"data"`
 	ID        uint64             `json:"id"`
 	Timestamp types.Time         `json:"ts"`
 }
 
-// FuturesBatchTradesForContract contains data fields from FuturesBatchTradesForContractResponse.
+// FuturesBatchTradesForContract groups the delivery executions published at one exchange timestamp.
 type FuturesBatchTradesForContract struct {
 	ID        uint64         `json:"id"`
 	Timestamp types.Time     `json:"ts"`
 	Data      []FuturesTrade `json:"data"`
 }
 
-// FuturesTieredAdjustmentFactorInfoLadders contains ladders fields from FuturesTieredAdjustmentFactorInfoResponse.
+// FuturesTieredAdjustmentFactorInfoLadders defines the position-size interval for one margin adjustment factor.
 type FuturesTieredAdjustmentFactorInfoLadders struct {
 	Ladder       uint64  `json:"ladder"`
 	MinSize      float64 `json:"min_size"`
@@ -552,33 +552,33 @@ type FuturesTieredAdjustmentFactorInfoLadders struct {
 	AdjustFactor float64 `json:"adjust_factor"`
 }
 
-// FuturesTieredAdjustmentFactorInfoList contains list fields from FuturesTieredAdjustmentFactorInfoResponse.
+// FuturesTieredAdjustmentFactorInfoList groups margin adjustment tiers by leverage.
 type FuturesTieredAdjustmentFactorInfoList struct {
 	LeverageRate float64                                    `json:"lever_rate"`
 	Ladders      []FuturesTieredAdjustmentFactorInfoLadders `json:"ladders"`
 }
 
-// FuturesTieredAdjustmentFactorInfo contains data fields from FuturesTieredAdjustmentFactorInfoResponse.
+// FuturesTieredAdjustmentFactorInfo groups the available margin adjustment tiers for an underlying symbol.
 type FuturesTieredAdjustmentFactorInfo struct {
 	Symbol string                                  `json:"symbol"`
 	List   []FuturesTieredAdjustmentFactorInfoList `json:"list"`
 }
 
-// FuturesOpenInterestTick contains tick fields from FuturesOpenInterestResponse.
+// FuturesOpenInterestTick records outstanding contract volume at an exchange timestamp.
 type FuturesOpenInterestTick struct {
 	Volume     types.Number `json:"volume"`
 	AmountType uint64       `json:"amount_type"`
 	Timestamp  types.Time   `json:"ts"`
 }
 
-// FuturesOpenInterest contains data fields from FuturesOpenInterestResponse.
+// FuturesOpenInterest groups historical open interest by symbol and expiry type.
 type FuturesOpenInterest struct {
 	Symbol       string                    `json:"symbol"`
 	ContractType string                    `json:"contract_type"`
 	Tick         []FuturesOpenInterestTick `json:"tick"`
 }
 
-// FuturesTopAccountsLongShortRatioList contains list fields from FuturesTopAccountsLongShortRatioResponse.
+// FuturesTopAccountsLongShortRatioList records the proportions of long, short and locked accounts at a sample time.
 type FuturesTopAccountsLongShortRatioList struct {
 	BuyRatio    float64    `json:"buy_ratio"`
 	SellRatio   float64    `json:"sell_ratio"`
@@ -586,26 +586,26 @@ type FuturesTopAccountsLongShortRatioList struct {
 	Timestamp   types.Time `json:"ts"`
 }
 
-// FuturesTopAccountsLongShortRatio contains data fields from FuturesTopAccountsLongShortRatioResponse.
+// FuturesTopAccountsLongShortRatio groups account sentiment samples for an underlying symbol.
 type FuturesTopAccountsLongShortRatio struct {
 	List   []FuturesTopAccountsLongShortRatioList `json:"list"`
 	Symbol string                                 `json:"symbol"`
 }
 
-// FuturesTopPositionsLongShortRatioList contains list fields from FuturesTopPositionsLongShortRatioResponse.
+// FuturesTopPositionsLongShortRatioList records long and short position proportions at a sample time.
 type FuturesTopPositionsLongShortRatioList struct {
 	BuyRatio  float64    `json:"buy_ratio"`
 	SellRatio float64    `json:"sell_ratio"`
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// FuturesTopPositionsLongShortRatio contains data fields from FuturesTopPositionsLongShortRatioResponse.
+// FuturesTopPositionsLongShortRatio groups position sentiment samples for an underlying symbol.
 type FuturesTopPositionsLongShortRatio struct {
 	Symbol string                                  `json:"symbol"`
 	List   []FuturesTopPositionsLongShortRatioList `json:"list"`
 }
 
-// FuturesIndexKline contains data fields from FuturesIndexKlineResponse.
+// FuturesIndexKline is an index-price candle whose ID is its start time in Unix seconds.
 type FuturesIndexKline struct {
 	Vol    float64 `json:"vol"`
 	Close  float64 `json:"close"`
@@ -617,7 +617,7 @@ type FuturesIndexKline struct {
 	Amount float64 `json:"amount"`
 }
 
-// FuturesBasis contains data fields from FuturesBasisResponse.
+// FuturesBasis compares the delivery contract price with its index; basis values may be negative.
 type FuturesBasis struct {
 	Basis         types.Number `json:"basis"`
 	BasisRate     types.Number `json:"basis_rate"`
@@ -626,7 +626,7 @@ type FuturesBasis struct {
 	IndexPrice    types.Number `json:"index_price"`
 }
 
-// FuturesUserAccount contains accdata fields from FuturesUserAccountResponse.
+// FuturesUserAccount reports margin, available collateral and profit for a delivery settlement currency.
 type FuturesUserAccount struct {
 	Symbol            currency.Code `json:"symbol"`
 	MarginBalance     float64       `json:"margin_balance"`
@@ -643,7 +643,7 @@ type FuturesUserAccount struct {
 	MarginStatic      float64       `json:"margin_static"`
 }
 
-// FuturesPosition contains posinfo fields from FuturesUsersPositionsInfoResponse.
+// FuturesPosition describes a delivery position with its entry costs, margin and available contracts.
 type FuturesPosition struct {
 	Symbol         string  `json:"symbol"`
 	ContractCode   string  `json:"contract_code"`
@@ -662,7 +662,7 @@ type FuturesPosition struct {
 	LastPrice      float64 `json:"last_price"`
 }
 
-// FuturesSubAccountAsset contains list fields from FuturesSubAccountAssetsInfoResponse.
+// FuturesSubAccountAsset reports a subaccount balance and liquidation risk for one settlement currency.
 type FuturesSubAccountAsset struct {
 	Symbol           string  `json:"symbol"`
 	MarginBalance    float64 `json:"margin_balance"`
@@ -670,13 +670,13 @@ type FuturesSubAccountAsset struct {
 	RiskRate         float64 `json:"risk_rate"`
 }
 
-// FuturesSubAccountAssetsInfo contains data fields from FuturesSubAccountAssetsInfoResponse.
+// FuturesSubAccountAssetsInfo groups balances by subaccount identifier.
 type FuturesSubAccountAssetsInfo struct {
 	SubUID uint64                   `json:"sub_uid"`
 	List   []FuturesSubAccountAsset `json:"list"`
 }
 
-// FuturesSingleSubAccountAsset contains assetsdata fields from FuturesSingleSubAccountAssetsInfoResponse.
+// FuturesSingleSubAccountAsset reports the collateral and profit components of a subaccount balance.
 type FuturesSingleSubAccountAsset struct {
 	Symbol            currency.Code `json:"symbol"`
 	MarginBalance     float64       `json:"margin_balance"`
@@ -693,7 +693,7 @@ type FuturesSingleSubAccountAsset struct {
 	MarginStatic      float64       `json:"margin_static"`
 }
 
-// FuturesSingleSubAccountPosition contains positionsdata fields from FuturesSingleSubAccountPositionsInfoResponse.
+// FuturesSingleSubAccountPosition describes one subaccount delivery position.
 type FuturesSingleSubAccountPosition struct {
 	Symbol         string  `json:"symbol"`
 	ContractCode   string  `json:"contract_code"`
@@ -712,7 +712,7 @@ type FuturesSingleSubAccountPosition struct {
 	LastPrice      float64 `json:"last_price"`
 }
 
-// FuturesSettlementPosition contains positions fields from FuturesSettlementRecordsResponse.
+// FuturesSettlementPosition records position costs and profit at an account settlement.
 type FuturesSettlementPosition struct {
 	Symbol                 string  `json:"symbol"`
 	ContractCode           string  `json:"contract_code"`
@@ -726,7 +726,7 @@ type FuturesSettlementPosition struct {
 	SettlmentType          string  `json:"settlement_type"`
 }
 
-// FuturesSettlementRecord contains settlementrecords fields from FuturesSettlementRecordsResponse.
+// FuturesSettlementRecord records the balance and position values used for one account settlement.
 type FuturesSettlementRecord struct {
 	Symbol               string                      `json:"symbol"`
 	MarginBalanceInit    float64                     `json:"margin_balance_init"`
@@ -741,7 +741,7 @@ type FuturesSettlementRecord struct {
 	Positions            []FuturesSettlementPosition `json:"positions"`
 }
 
-// FuturesSettlementRecords contains data fields from FuturesSettlementRecordsResponse.
+// FuturesSettlementRecords is a page of account settlements with the server pagination totals.
 type FuturesSettlementRecords struct {
 	SettlementRecords []FuturesSettlementRecord `json:"settlement_records"`
 	CurrentPage       uint64                    `json:"current_page"`
@@ -749,26 +749,26 @@ type FuturesSettlementRecords struct {
 	TotalSize         uint64                    `json:"total_size"`
 }
 
-// FuturesContractTypeOrderLimit contains contracttypes fields from FuturesContractOrderLimitResponse.
+// FuturesContractTypeOrderLimit sets opening and closing order limits for an expiry type.
 type FuturesContractTypeOrderLimit struct {
 	ContractType string `json:"contract_type"`
 	OpenLimit    uint64 `json:"open_limit"`
 	CloseLimit   uint64 `json:"close_limit"`
 }
 
-// FuturesSymbolOrderLimit contains list fields from FuturesContractOrderLimitResponse.
+// FuturesSymbolOrderLimit groups expiry-specific order limits for an underlying symbol.
 type FuturesSymbolOrderLimit struct {
 	Symbol        string                          `json:"symbol"`
 	ContractTypes []FuturesContractTypeOrderLimit `json:"types"`
 }
 
-// FuturesContractOrderLimit contains contractdata fields from FuturesContractOrderLimitResponse.
+// FuturesContractOrderLimit groups order limits by price instruction.
 type FuturesContractOrderLimit struct {
 	OrderPriceType string                    `json:"order_price_type"`
 	List           []FuturesSymbolOrderLimit `json:"list"`
 }
 
-// FuturesContractTradingFee contains contracttradingfeedata fields from FuturesContractTradingFeeResponse.
+// FuturesContractTradingFee lists maker, taker and delivery fees in their settlement currency.
 type FuturesContractTradingFee struct {
 	Symbol        string        `json:"symbol"`
 	OpenMakerFee  types.Number  `json:"open_maker_fee"`
@@ -779,7 +779,7 @@ type FuturesContractTradingFee struct {
 	FeeAsset      currency.Code `json:"fee_asset"`
 }
 
-// FuturesTransferLimit contains data fields from FuturesTransferLimitResponse.
+// FuturesTransferLimit sets per-transfer and daily limits for moving delivery collateral.
 type FuturesTransferLimit struct {
 	Symbol                 string  `json:"symbol"`
 	MaxTransferIn          float64 `json:"transfer_in_max_each"`
@@ -792,20 +792,20 @@ type FuturesTransferLimit struct {
 	NetTransferOutMaxDaily float64 `json:"net_transfer_out_max_daily"`
 }
 
-// FuturesContractPositionLimit contains list fields from FuturesPositionLimitResponse.
+// FuturesContractPositionLimit sets long and short position limits for an expiry type.
 type FuturesContractPositionLimit struct {
 	ContractType string  `json:"contract_type"`
 	BuyLimit     float64 `json:"buy_limit"`
 	SellLimit    float64 `json:"sell_limit"`
 }
 
-// FuturesPositionLimit contains data fields from FuturesPositionLimitResponse.
+// FuturesPositionLimit groups expiry-specific position limits for an underlying symbol.
 type FuturesPositionLimit struct {
 	Symbol string                         `json:"symbol"`
 	List   []FuturesContractPositionLimit `json:"list"`
 }
 
-// FuturesAssetsAndPositions contains data fields from FuturesAssetsAndPositionsResponse.
+// FuturesAssetsAndPositions reports collateral, margin and profit totals for a delivery account.
 type FuturesAssetsAndPositions struct {
 	Symbol            string  `json:"symbol"`
 	MarginBalance     float64 `json:"margin_balance"`
@@ -818,12 +818,12 @@ type FuturesAssetsAndPositions struct {
 	WithdrawAvailable float64 `json:"withdraw_available"`
 }
 
-// FuturesAccountTransfer contains data fields from FuturesAccountTransferResponse.
+// FuturesAccountTransfer identifies a transfer between a master account and subaccount.
 type FuturesAccountTransfer struct {
 	OrderID string `json:"order_id"`
 }
 
-// FuturesTransferRecord contains transferrecord fields from FuturesTransferRecordsResponse.
+// FuturesTransferRecord records a collateral transfer and its participating subaccount.
 type FuturesTransferRecord struct {
 	ID             uint64     `json:"id"`
 	Timestamp      types.Time `json:"ts"`
@@ -834,7 +834,7 @@ type FuturesTransferRecord struct {
 	Amount         float64    `json:"amount"`
 }
 
-// FuturesTransferRecords contains data fields from FuturesTransferRecordsResponse.
+// FuturesTransferRecords is a page of collateral transfers with the server pagination totals.
 type FuturesTransferRecords struct {
 	TransferRecord []FuturesTransferRecord `json:"transfer_record"`
 	TotalPage      uint64                  `json:"total_page"`
@@ -842,39 +842,39 @@ type FuturesTransferRecords struct {
 	TotalSize      uint64                  `json:"total_size"`
 }
 
-// FuturesAvailableLeverage contains data fields from FuturesAvailableLeverageResponse.
+// FuturesAvailableLeverage lists the leverage levels available for an underlying symbol.
 type FuturesAvailableLeverage struct {
 	Symbol                string `json:"symbol"`
 	AvailableLeverageRate string `json:"available_level_rate"`
 }
 
-// FuturesLeverage contains data fields from FuturesSwitchLeverageResponse.
+// FuturesLeverage reports the leverage selected for an underlying symbol.
 type FuturesLeverage struct {
 	Symbol       string `json:"symbol"`
 	LeverageRate uint64 `json:"lever_rate"`
 }
 
-// FuturesOrder contains data fields from FuturesOrderResponse.
+// FuturesOrder identifies an accepted delivery order using exchange and client identifiers.
 type FuturesOrder struct {
 	OrderID       uint64 `json:"order_id"`
 	OrderIDStr    string `json:"order_id_str"`
 	ClientOrderID uint64 `json:"client_order_id"`
 }
 
-// FuturesCancelOrderError contains errors fields from FuturesCancelOrderResponse.
+// FuturesCancelOrderError identifies an order rejected within a cancellation request.
 type FuturesCancelOrderError struct {
 	OrderID uint64 `json:"order_id,string"`
 	ErrCode int64  `json:"err_code"`
 	ErrMsg  string `json:"err_msg"`
 }
 
-// FuturesCancelOrder contains data fields from FuturesCancelOrderResponse.
+// FuturesCancelOrder retains successful identifiers and individual failures from a cancellation request.
 type FuturesCancelOrder struct {
 	Errors    []FuturesCancelOrderError `json:"errors"`
 	Successes string                    `json:"successes"`
 }
 
-// FuturesOrderInfo contains data fields from FuturesOrderInfoResponse.
+// FuturesOrderInfo combines delivery order state with its execution and fee totals.
 type FuturesOrderInfo struct {
 	ClientOrderID   uint64        `json:"client_order_id"`
 	ContractCode    string        `json:"contract_code"`
@@ -903,7 +903,7 @@ type FuturesOrderInfo struct {
 	LiquidationType types.Number  `json:"liquidation_type"`
 }
 
-// FuturesOrderTrade contains trades fields from FuturesOrderDetailsResponse.
+// FuturesOrderTrade records an individual fill and its fee within a delivery order.
 type FuturesOrderTrade struct {
 	ID            string     `json:"id"`
 	TradeID       uint64     `json:"trade_id"`
@@ -915,7 +915,7 @@ type FuturesOrderTrade struct {
 	CreatedAt     types.Time `json:"created_at"`
 }
 
-// FuturesOrderDetails contains data fields from FuturesOrderDetailsResponse.
+// FuturesOrderDetails combines a delivery order with its individual fills and pagination totals.
 type FuturesOrderDetails struct {
 	Symbol         string              `json:"symbol"`
 	ContractType   string              `json:"contract_type"`
@@ -949,7 +949,7 @@ type FuturesOrderDetails struct {
 	CurrentPage    uint64              `json:"current_page"`
 }
 
-// FuturesOpenOrder contains orders fields from FuturesOpenOrdersResponse.
+// FuturesOpenOrder describes an unfilled or partially filled delivery order.
 type FuturesOpenOrder struct {
 	Symbol         string        `json:"symbol"`
 	ContractType   string        `json:"contract_type"`
@@ -975,7 +975,7 @@ type FuturesOpenOrder struct {
 	FeeAsset       currency.Code `json:"fee_asset"`
 }
 
-// FuturesOpenOrders contains data fields from FuturesOpenOrdersResponse.
+// FuturesOpenOrders is a page of unfilled or partially filled delivery orders.
 type FuturesOpenOrders struct {
 	Orders      []FuturesOpenOrder `json:"orders"`
 	TotalPage   uint64             `json:"total_page"`
@@ -983,13 +983,13 @@ type FuturesOpenOrders struct {
 	TotalSize   uint64             `json:"total_size"`
 }
 
-// FuturesTriggerOrder contains data fields from FuturesTriggerOrderResponse.
+// FuturesTriggerOrder identifies an accepted trigger order before it creates a regular order.
 type FuturesTriggerOrder struct {
 	OrderID    uint64 `json:"order_id"`
 	OrderIDStr string `json:"order_id_str"`
 }
 
-// FuturesOpenTriggerOrder contains orders fields from FuturesTriggerOpenOrdersResponse.
+// FuturesOpenTriggerOrder describes a trigger order still awaiting its price condition.
 type FuturesOpenTriggerOrder struct {
 	Symbol         string     `json:"symbol"`
 	ContractCode   string     `json:"contract_code"`
@@ -1010,7 +1010,7 @@ type FuturesOpenTriggerOrder struct {
 	Status         uint64     `json:"status"`
 }
 
-// FuturesTriggerOpenOrders contains data fields from FuturesTriggerOpenOrdersResponse.
+// FuturesTriggerOpenOrders is a page of trigger orders still awaiting their price conditions.
 type FuturesTriggerOpenOrders struct {
 	Orders      []FuturesOpenTriggerOrder `json:"orders"`
 	TotalPage   uint64                    `json:"total_page"`
@@ -1018,7 +1018,7 @@ type FuturesTriggerOpenOrders struct {
 	TotalSize   uint64                    `json:"total_size"`
 }
 
-// FuturesTriggerOrderHistoryEntry contains orders fields from FuturesTriggerOrderHistoryResponse.
+// FuturesTriggerOrderHistoryEntry records a trigger lifecycle and any resulting order or failure.
 type FuturesTriggerOrderHistoryEntry struct {
 	Symbol          string     `json:"symbol"`
 	ContractCode    string     `json:"contract_code"`
@@ -1040,13 +1040,13 @@ type FuturesTriggerOrderHistoryEntry struct {
 	OrderPrice      float64    `json:"order_price"`
 	CreatedAt       types.Time `json:"created_at"`
 	TriggeredAt     types.Time `json:"triggered_at"`
-	OrderInsertAt   float64    `json:"order_insert_at"`
+	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
 	FailCode        int64      `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
 }
 
-// FuturesTriggerOrderHistory contains data fields from FuturesTriggerOrderHistoryResponse.
+// FuturesTriggerOrderHistory is a page of completed or cancelled trigger orders.
 type FuturesTriggerOrderHistory struct {
 	Orders      []FuturesTriggerOrderHistoryEntry `json:"orders"`
 	TotalPage   uint64                            `json:"total_page"`

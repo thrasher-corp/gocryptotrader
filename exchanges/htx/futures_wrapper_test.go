@@ -2,6 +2,7 @@ package htx
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -181,6 +182,18 @@ func TestSetLeverage(t *testing.T) {
 			require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, tc.mode, 5, order.UnknownSide), "leverage change must succeed")
 		})
 	}
+	t.Run("largest representable float below uint64 boundary", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_switch_lever_rate", `{"status":"ok","data":{}}`, func(r *http.Request) {
+			var req struct {
+				Leverage uint64 `json:"lever_rate"`
+			}
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req), "leverage payload must decode")
+			assert.Equal(t, uint64(18446744073709549568), req.Leverage, "representable leverage should reach the API without wrapping")
+		})
+		require.NoError(t, h.SetLeverage(t.Context(), asset.Futures, btcusdPair, margin.Isolated, math.Nextafter(math.Exp2(64), 0), order.UnknownSide), "representable leverage must pass local conversion validation")
+	})
+
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 
@@ -194,6 +207,12 @@ func TestSetLeverage(t *testing.T) {
 	}{
 		{name: "empty pair", item: asset.Futures, marginType: margin.Isolated, amount: 5, expected: currency.ErrCurrencyPairEmpty},
 		{name: "zero leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, expected: errInvalidLeverage},
+		{name: "negative leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: -5, expected: errInvalidLeverage},
+		{name: "NaN leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: math.NaN(), expected: errInvalidLeverage},
+		{name: "positive infinity", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: math.Inf(1), expected: errInvalidLeverage},
+		{name: "negative infinity", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: math.Inf(-1), expected: errInvalidLeverage},
+		{name: "uint64 upper boundary", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: math.Exp2(64), expected: errInvalidLeverage},
+		{name: "above uint64 boundary", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: math.Nextafter(math.Exp2(64), math.Inf(1)), expected: errInvalidLeverage},
 		{name: "fractional leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: 1.5, expected: errInvalidLeverage},
 		{name: "unsupported asset", item: asset.Spot, pair: btcusdPair, marginType: margin.Isolated, amount: 5, expected: asset.ErrNotSupported},
 		{name: "delivery cross margin", item: asset.Futures, pair: btcusdPair, marginType: margin.Multi, amount: 5, expected: margin.ErrMarginTypeUnsupported},
@@ -353,7 +372,7 @@ func TestGetLeverage(t *testing.T) {
 	}{
 		{
 			name: "delivery futures", item: asset.Futures, pair: btccwPair, marginType: margin.Isolated,
-			endpoint: exchange.RestFutures, method: http.MethodPost, path: futuresAccount,
+			endpoint: exchange.RestFutures, method: http.MethodPost, path: "/api/v1/contract_account_info",
 			response: `{"status":"ok","data":[{"symbol":"BTC","lever_rate":5}]}`,
 		},
 		{
@@ -427,7 +446,7 @@ func TestGetLeverage(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetLeverage must reject unsupported assets")
 	_, err = h.GetLeverage(t.Context(), asset.Futures, currency.EMPTYPAIR, margin.Unset, order.UnknownSide)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage must reject empty pairs")
-	_, err = newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresAccount, `{"status":"ok","data":[]}`, nil).
+	_, err = newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_info", `{"status":"ok","data":[]}`, nil).
 		GetLeverage(t.Context(), asset.Futures, btccwPair, margin.Isolated, order.UnknownSide)
 	require.ErrorIs(t, err, futures.ErrPositionNotFound, "GetLeverage must report missing leverage data")
 }

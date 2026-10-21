@@ -372,7 +372,7 @@ func TestGetOrderHistory(t *testing.T) {
 		pair           currency.Pair
 		path, contract string
 	}{
-		{asset.Futures, btccwPair, futuresOrderHistory, "BTC_CW"},
+		{asset.Futures, btccwPair, "/api/v3/contract_hisorders", "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v3/swap_hisorders", "BTC-USD"},
 	} {
 		t.Run(tc.item.String()+" window overlap", func(t *testing.T) {
@@ -541,7 +541,7 @@ func TestGetOrderHistory(t *testing.T) {
 			name:     "delivery futures",
 			item:     asset.Futures,
 			pair:     btccwPair,
-			path:     futuresOrderHistory,
+			path:     "/api/v3/contract_hisorders",
 			contract: "BTC_CW",
 			extraEntry: map[string]any{
 				"create_date": time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -774,7 +774,7 @@ func TestCancelAllOrders(t *testing.T) {
 			want:     map[string]string{"8": htxStatusSuccess, "9": "fail: not found"},
 		},
 		{
-			name: "delivery", item: asset.Futures, pair: currency.NewPair(currency.BTC, currency.NewCode("261016")), endpoint: exchange.RestFutures, path: futuresCancelAllOrders,
+			name: "delivery", item: asset.Futures, pair: currency.NewPair(currency.BTC, currency.NewCode("261016")), endpoint: exchange.RestFutures, path: "/api/v1/contract_cancelall",
 			response: `{"status":"ok","data":{"errors":[{"order_id":"9","err_code":1061,"err_msg":"not found"}],"successes":"8"},"ts":1700000000000}`,
 			want:     map[string]string{"8": htxStatusSuccess, "9": "fail: not found"},
 		},
@@ -862,7 +862,7 @@ func TestCancelAllOrders(t *testing.T) {
 			response: `{"code":200,"data":[{"order_id":"1"}]}`,
 		},
 		{
-			name: "delivery futures", endpoint: exchange.RestFutures, path: futuresCancelAllOrders,
+			name: "delivery futures", endpoint: exchange.RestFutures, path: "/api/v1/contract_cancelall",
 			cancel:   order.Cancel{Pair: btccwPair, AssetType: asset.Futures},
 			response: `{"status":"ok","data":{"successes":"1","errors":[]}}`,
 		},
@@ -899,7 +899,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Parallel()
 		now := time.Now().UTC().Truncate(time.Minute)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
+			assert.Equal(t, "/linear-swap-ex/market/history/kline", r.URL.Path, "USDT-margined kline path should match")
 			_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
 		}))
 		t.Cleanup(server.Close)
@@ -981,7 +981,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Parallel()
 		now := time.Now().UTC().Truncate(time.Minute)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
+			assert.Equal(t, "/linear-swap-ex/market/history/kline", r.URL.Path, "USDT-margined kline path should match")
 			_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
 		}))
 		t.Cleanup(server.Close)
@@ -1155,7 +1155,7 @@ func TestGetActiveOrders(t *testing.T) {
 		contract string
 	}{
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
-		{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), futuresQueryOpenOrders, "BTC261016"},
+		{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), "/api/v1/contract_openorders", "BTC261016"},
 	} {
 		t.Run(tc.item.String(), func(t *testing.T) {
 			t.Parallel()
@@ -1256,7 +1256,7 @@ func TestGetActiveOrders(t *testing.T) {
 		pair           currency.Pair
 		path, contract string
 	}{
-		{asset.Futures, btccwPair, futuresQueryOpenOrders, "BTC_CW"},
+		{asset.Futures, btccwPair, "/api/v1/contract_openorders", "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
 	} {
 		for _, fee := range []float64{-0.1, 0, 0.02} {
@@ -1282,7 +1282,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Run("delivery contracts share base", func(t *testing.T) {
 		t.Parallel()
 		var calls atomic.Int32
-		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, futuresQueryOpenOrders, `{"status":"ok","data":{"total_page":1,"orders":[{"order_id_str":"1","contract_code":"BTC261009","direction":"buy","order_price_type":"limit","status":3},{"order_id_str":"2","contract_code":"BTC261016","direction":"buy","order_price_type":"limit","status":3}]}}`, func(_ *http.Request) { calls.Add(1) })
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_openorders", `{"status":"ok","data":{"total_page":1,"orders":[{"order_id_str":"1","contract_code":"BTC261009","direction":"buy","order_price_type":"limit","status":3},{"order_id_str":"2","contract_code":"BTC261016","direction":"buy","order_price_type":"limit","status":3}]}}`, func(_ *http.Request) { calls.Add(1) })
 		pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("261009")), currency.NewPair(currency.BTC, currency.NewCode("261016"))}
 		orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Type: order.AnyType, Side: order.AnySide, Pairs: pairs})
 		require.NoError(t, err, "delivery orders must decode")
@@ -1456,7 +1456,7 @@ func TestSubmitOrder(t *testing.T) {
 			additional     []httpTestResponse
 		}{
 			{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC-USD", nil},
-			{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), exchange.RestFutures, futuresOrder, `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC261016", nil},
+			{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), exchange.RestFutures, "/api/v1/contract_order", `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC261016", nil},
 			{asset.USDTMarginedFutures, btcusdtPair, exchange.RestUSDTMargined, "/v5/trade/order", `{"code":200,"data":{"order_id":"1"}}`, "BTC-USDT", []httpTestResponse{{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1}}},
 		} {
 			for _, side := range []order.Side{order.Buy, order.Sell} {
@@ -1508,7 +1508,7 @@ func TestSubmitOrder(t *testing.T) {
 	}{
 		{asset.Spot, btcusdtPair, exchange.RestSpot, "/v1/order/orders/place", `{"status":"ok","data":"1"}`},
 		{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
-		{asset.Futures, btccwPair, exchange.RestFutures, futuresOrder, `{"status":"ok","data":{"order_id_str":"1"}}`},
+		{asset.Futures, btccwPair, exchange.RestFutures, "/api/v1/contract_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
 	} {
 		for _, side := range []order.Side{order.Buy, order.Sell} {
 			for _, tc := range []struct {
@@ -1677,7 +1677,7 @@ func TestSubmitOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "delivery futures", endpoint: exchange.RestFutures, path: futuresOrder,
+			name: "delivery futures", endpoint: exchange.RestFutures, path: "/api/v1/contract_order",
 			submission: order.Submit{Pair: btccwPair, AssetType: asset.Futures, Side: order.Buy, Type: order.Limit, Price: 5, Amount: 1, Leverage: 5},
 			response:   `{"status":"ok","data":{"order_id":1,"order_id_str":"1"}}`,
 			status:     order.New,
@@ -1781,7 +1781,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedField: "client_order_id", expectedValue: "client-42",
 		},
 		{
-			name: "delivery futures order ID", endpoint: exchange.RestFutures, path: futuresCancelOrder,
+			name: "delivery futures order ID", endpoint: exchange.RestFutures, path: "/api/v1/contract_cancel",
 			cancel:        order.Cancel{OrderID: "42", Pair: btccwPair, AssetType: asset.Futures},
 			expectedField: "order_id", expectedValue: "42",
 			response: `{"status":"ok","data":{"successes":"42","errors":[]}}`,
@@ -1832,7 +1832,7 @@ func TestCancelOrder(t *testing.T) {
 					t.Parallel()
 					path := "/swap-api/v1/swap_cancel"
 					if a == asset.Futures {
-						path = futuresCancelOrder
+						path = "/api/v1/contract_cancel"
 					}
 					h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, path, `{"status":"ok","data":`+tc.data+`}`, func(r *http.Request) {
 						var body map[string]any
@@ -2170,7 +2170,7 @@ func TestGetOrderInfo(t *testing.T) {
 			data      string
 			costAsset currency.Code
 		}{
-			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo, data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
+			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info", data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
 			{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), path: "/swap-api/v1/swap_order_info", data: `{"symbol":"ADA","contract_code":"ADA-USD",` + fields + `}`, costAsset: currency.USD},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2219,13 +2219,13 @@ func TestGetOrderInfo(t *testing.T) {
 	}{
 		{
 			name: "delivery filled", asset: asset.Futures,
-			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info",
 			data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":1,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":6,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":0}`,
 			cost: 10,
 		},
 		{
 			name: "delivery partially cancelled", asset: asset.Futures,
-			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: futuresOrderInfo,
+			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info",
 			data:      `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter","volume":2,"price":0.0933,"order_price_type":"post_only","direction":"sell","offset":"open","lever_rate":10,"order_id_str":"1","created_at":1604367611263,"trade_volume":1,"trade_turnover":10,"trade_avg_price":0.0933,"status":5,"fee_asset":"ADA","liquidation_type":LIQUIDATION_TYPE,"canceled_at":1604367700000}`,
 			closeTime: time.UnixMilli(1604367700000), cost: 10,
 		},
@@ -2329,7 +2329,7 @@ func TestGetOrderInfo(t *testing.T) {
 			expectedMarginMode: "cross",
 		},
 		{
-			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: futuresOrderInfo, pair: btccwPair, asset: asset.Futures,
+			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: "/api/v1/contract_order_info", pair: btccwPair, asset: asset.Futures,
 			response: `{"status":"ok","data":[{"contract_code":"BTC_CW","volume":2,"price":100,"order_price_type":"limit","direction":"buy","offset":"close","lever_rate":5,"order_id":1,"order_id_str":"1","client_order_id":2,"trade_volume":1,"trade_turnover":100,"fee":-0.1,"trade_avg_price":100,"status":6,"fee_asset":"BTC"}]}`,
 		},
 	} {
@@ -3031,19 +3031,19 @@ func TestUpdateTickers(t *testing.T) {
 		response string
 	}{
 		{
-			name: "spot", item: asset.Spot, pair: btcusdtPair, endpoint: exchange.RestSpot, path: htxMarketTickers,
+			name: "spot", item: asset.Spot, pair: btcusdtPair, endpoint: exchange.RestSpot, path: "/market/tickers",
 			response: `{"status":"ok","data":[{"symbol":"btcusdt","open":1,"high":3,"low":1,"close":2,"amount":4,"vol":8,"bid":1.9,"bidSize":2,"ask":2.1,"askSize":3}]}`,
 		},
 		{
-			name: "coin margined futures", item: asset.CoinMarginedFutures, pair: btcusdPair, endpoint: exchange.RestFutures, path: htxBatchCoinMarginSwapContracts,
+			name: "coin margined futures", item: asset.CoinMarginedFutures, pair: btcusdPair, endpoint: exchange.RestFutures, path: "/v2/swap-ex/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC-USD","open":"1","high":"3","low":"1","close":"2","amount":"4","vol":"8","bid":[1.9,2],"ask":[2.1,3]}]}`,
 		},
 		{
-			name: "USDT margined futures", item: asset.USDTMarginedFutures, pair: btcusdtPair, endpoint: exchange.RestFutures, path: htxBatchLinearSwapContracts,
+			name: "USDT margined futures", item: asset.USDTMarginedFutures, pair: btcusdtPair, endpoint: exchange.RestFutures, path: "/v2/linear-swap-ex/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC-USDT","open":"1","high":"3","low":"1","close":"2","amount":"4","vol":"8","bid":[1.9,2],"ask":[2.1,3]}]}`,
 		},
 		{
-			name: "delivery futures", item: asset.Futures, pair: btccwPair, endpoint: exchange.RestFutures, path: htxBatchContracts,
+			name: "delivery futures", item: asset.Futures, pair: btccwPair, endpoint: exchange.RestFutures, path: "/v2/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC_CW","open":"1","high":"3","low":"1","close":"2","amount":"4","vol":"8","bid":[1.9,2],"ask":[2.1,3]}]}`,
 		},
 	} {
@@ -3068,15 +3068,15 @@ func TestUpdateTickers(t *testing.T) {
 		response string
 	}{
 		{
-			name: "coin margined empty bid", item: asset.CoinMarginedFutures, pair: btcusdPair, path: htxBatchCoinMarginSwapContracts,
+			name: "coin margined empty bid", item: asset.CoinMarginedFutures, pair: btcusdPair, path: "/v2/swap-ex/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC-USD","bid":[],"ask":[2.1,3]}]}`,
 		},
 		{
-			name: "USDT margined empty ask", item: asset.USDTMarginedFutures, pair: btcusdtPair, path: htxBatchLinearSwapContracts,
+			name: "USDT margined empty ask", item: asset.USDTMarginedFutures, pair: btcusdtPair, path: "/v2/linear-swap-ex/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC-USDT","bid":[1.9,2],"ask":[]}]}`,
 		},
 		{
-			name: "delivery futures empty bid", item: asset.Futures, pair: btccwPair, path: htxBatchContracts,
+			name: "delivery futures empty bid", item: asset.Futures, pair: btccwPair, path: "/v2/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC_CW","bid":[],"ask":[2.1,3]}]}`,
 		},
 	} {
@@ -3221,7 +3221,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		response  string
 	}{
 		{assetType: asset.Spot, endpoint: exchange.RestSpot, path: "/v1/order/orders/batchcancel", pair: btcusdtPair, limit: 50, response: `{"status":"ok","data":{"success":[],"failed":[]}}`},
-		{assetType: asset.Futures, endpoint: exchange.RestFutures, path: futuresCancelOrder, pair: btccwPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
+		{assetType: asset.Futures, endpoint: exchange.RestFutures, path: "/api/v1/contract_cancel", pair: btccwPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
 		{assetType: asset.CoinMarginedFutures, endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel", pair: btcusdPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
 		{assetType: asset.USDTMarginedFutures, endpoint: exchange.RestUSDTMargined, path: "/v5/trade/cancel_batch_orders", pair: btcusdtPair, limit: 10, response: `{"code":200,"data":[]}`},
 	}

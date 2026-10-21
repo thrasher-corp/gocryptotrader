@@ -9,7 +9,7 @@ type FuturesWebsocketKlineResponse struct {
 	Rep         string                  `json:"rep"`
 	ID          string                  `json:"id"`
 	WebsocketID uint64                  `json:"wsid"`
-	Tick        []FuturesWebsocketKline `json:"tick"`
+	Data        []FuturesWebsocketKline `json:"data"`
 }
 
 // FuturesWebsocketTradeDetailResponse stores requested trade detail data for futures websocket
@@ -69,7 +69,7 @@ type FuturesWebsocketSubContractInfo struct {
 	ContractData []FuturesWebsocketContractInfo `json:"data"`
 }
 
-// FuturesWebsocketKline contains the documented delivery-futures websocket fields.
+// FuturesWebsocketKline is a delivery candle; ID is the start time in Unix seconds.
 type FuturesWebsocketKline struct {
 	Volume float64 `json:"vol"`
 	Count  float64 `json:"count"`
@@ -81,16 +81,16 @@ type FuturesWebsocketKline struct {
 	Amount float64 `json:"amount"`
 }
 
-// FuturesWebsocketTrade contains the documented delivery-futures websocket fields.
+// FuturesWebsocketTrade is a delivery execution with the taker direction and exchange timestamp.
 type FuturesWebsocketTrade struct {
-	ID        uint64     `json:"id"`
-	Price     float64    `json:"price"`
-	Amount    float64    `json:"amount"`
-	Direction string     `json:"direction"`
-	Timestamp types.Time `json:"ts"`
+	ID        uint64       `json:"id"`
+	Price     types.Number `json:"price"`
+	Amount    types.Number `json:"amount"`
+	Direction string       `json:"direction"`
+	Timestamp types.Time   `json:"ts"`
 }
 
-// FuturesWebsocketIndexKlineTick contains the documented delivery-futures websocket fields.
+// FuturesWebsocketIndexKlineTick accepts quoted index prices supplied by delivery index subscriptions.
 type FuturesWebsocketIndexKlineTick struct {
 	ID     string       `json:"id"`
 	Open   types.Number `json:"open"`
@@ -102,7 +102,7 @@ type FuturesWebsocketIndexKlineTick struct {
 	Count  types.Number `json:"count"`
 }
 
-// FuturesWebsocketIndexKline contains the documented delivery-futures websocket fields.
+// FuturesWebsocketIndexKline is a delivery index candle returned by an explicit websocket request.
 type FuturesWebsocketIndexKline struct {
 	ID     uint64  `json:"id"`
 	Open   float64 `json:"open"`
@@ -114,7 +114,7 @@ type FuturesWebsocketIndexKline struct {
 	Count  float64 `json:"count"`
 }
 
-// FuturesWebsocketBasis contains the documented delivery-futures websocket fields.
+// FuturesWebsocketBasis compares the delivery contract price with its underlying index price.
 type FuturesWebsocketBasis struct {
 	ID            uint64       `json:"id"`
 	IndexPrice    types.Number `json:"index_price"`
@@ -123,7 +123,7 @@ type FuturesWebsocketBasis struct {
 	BasisRate     types.Number `json:"basis_rate"`
 }
 
-// FuturesWebsocketLiquidationOrder contains the documented delivery-futures websocket fields.
+// FuturesWebsocketLiquidationOrder describes a forced liquidation published on the public notification connection.
 type FuturesWebsocketLiquidationOrder struct {
 	Symbol       string     `json:"symbol"`
 	ContractCode string     `json:"contract_code"`
@@ -134,7 +134,7 @@ type FuturesWebsocketLiquidationOrder struct {
 	CreatedAt    types.Time `json:"created_at"`
 }
 
-// FuturesWebsocketContractInfo contains the documented delivery-futures websocket fields.
+// FuturesWebsocketContractInfo describes contract lifecycle changes published on the public notification connection.
 type FuturesWebsocketContractInfo struct {
 	Symbol         string     `json:"symbol"`
 	ContractCode   string     `json:"contract_code"`
@@ -142,6 +142,6 @@ type FuturesWebsocketContractInfo struct {
 	ContractSize   float64    `json:"contract_size"`
 	PriceTick      float64    `json:"price_tick"`
 	DeliveryDate   types.Time `json:"delivery_date"`
-	CreateDate     string     `json:"create_date"`
+	CreateDate     types.Time `json:"create_date"`
 	ContractStatus uint64     `json:"contract_status"`
 }

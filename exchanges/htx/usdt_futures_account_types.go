@@ -112,18 +112,18 @@ type V5UniversalTransferRecord struct {
 	TransferTime    types.Time   `json:"transfer_time"`
 }
 
-// V5AssetMode contains data fields from V5AssetModeResponse.
+// V5AssetMode identifies whether a V5 account uses single-asset or multi-asset collateral.
 type V5AssetMode struct {
 	AssetMode uint64 `json:"asset_mode"`
 }
 
-// V5FeeDeductionCurrency contains data fields from V5FeeDeductionCurrencyResponse.
+// V5FeeDeductionCurrency describes the account setting for paying fees in a deduction currency.
 type V5FeeDeductionCurrency struct {
 	FeeOption         uint64 `json:"fee_option"`
 	DeductionCurrency string `json:"deduction_currency"`
 }
 
-// V5TransferAcknowledgement contains data fields from V5UniversalTransferResponse.
+// V5TransferAcknowledgement identifies an accepted universal transfer for later reconciliation.
 type V5TransferAcknowledgement struct {
 	TransferID uint64 `json:"transfer_id"`
 }

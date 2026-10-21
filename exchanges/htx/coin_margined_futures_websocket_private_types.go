@@ -196,8 +196,8 @@ type SwapWebsocketTriggerOrder struct {
 	TriggeredPrice  float64    `json:"triggered_price"`
 	OrderPrice      float64    `json:"order_price"`
 	CreatedAt       types.Time `json:"created_at"`
-	TriggeredAt     uint64     `json:"triggered_at"`
-	OrderInsertAt   uint64     `json:"order_insert_at"`
+	TriggeredAt     types.Time `json:"triggered_at"`
+	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
 	FailCode        int64      `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
