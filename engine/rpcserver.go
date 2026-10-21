@@ -556,11 +556,11 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 		return nil, err
 	}
 	obResponse := make([]*gctrpc.Orderbooks, 0, len(exchanges))
-	var obs []*gctrpc.OrderbookResponse
 	for _, e := range exchanges {
 		if !e.IsEnabled() {
 			continue
 		}
+		var obs []*gctrpc.OrderbookResponse
 		for _, a := range e.GetAssetTypes(true) {
 			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
@@ -1130,7 +1130,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 			Price:        result.Trades[i].Price,
 			Amount:       result.Trades[i].Amount,
 			Exchange:     result.Trades[i].Exchange,
-			AssetType:    result.Trades[i].Type.String(),
+			AssetType:    result.AssetType.String(),
 			OrderSide:    result.Trades[i].Side.String(),
 			Fee:          result.Trades[i].Fee,
 			Total:        result.Trades[i].Total,
