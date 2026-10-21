@@ -14,8 +14,8 @@ type UTAPositionListRequest struct {
 	PageSize   uint64
 }
 
-// UTAPosition holds an open futures position of the unified trading account
-type UTAPosition struct {
+// UTAPositionResponse holds an open futures position of the unified trading account
+type UTAPositionResponse struct {
 	Symbol     string `json:"symbol"`
 	ID         string `json:"id"`
 	MarginMode string `json:"marginMode"`

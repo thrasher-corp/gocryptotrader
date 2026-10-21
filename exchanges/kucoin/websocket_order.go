@@ -38,15 +38,16 @@ func (e *Exchange) newOrderConnectionSetup(exch *config.Exchange, wsURL string) 
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		URL:                      wsURL,
-		Connector:                e.WsConnectOrderAPI,
+		Connector:                e.WebsocketConnectOrderAPI,
 		Handler:                  e.wsHandleOrderData,
 		MessageFilter:            orderConnection,
 		SubscriptionsNotRequired: true,
+		Optional:                 true,
 	}
 }
 
-// WsConnectOrderAPI connects to the websocket order API and authenticates the session
-func (e *Exchange) WsConnectOrderAPI(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnectOrderAPI connects to the websocket order API and authenticates the session
+func (e *Exchange) WebsocketConnectOrderAPI(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -57,14 +58,10 @@ func (e *Exchange) WsConnectOrderAPI(ctx context.Context, conn websocket.Connect
 	}
 	welcome, err := e.authenticateOrderSession(ctx, conn, creds.Secret)
 	if err != nil {
-		return common.AppendError(err, conn.Shutdown())
-	}
-	delay := time.Duration(welcome.PingInterval) * time.Millisecond / 2
-	if delay <= 0 {
-		delay = defaultPingDelay
+		return err
 	}
 	// The order API takes websocket ping frames as heartbeats
-	conn.SetupPingHandler(request.Unset, websocket.PingHandler{MessageType: gws.PingMessage, Delay: delay})
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{MessageType: gws.PingMessage, Delay: pingDelay(welcome.PingInterval)})
 	return nil
 }
 
@@ -82,14 +79,17 @@ func orderAPIQuery(creds *accounts.Credentials, now time.Time) url.Values {
 
 // authenticateOrderSession signs the session message the order API sends on connecting and waits for its welcome,
 // before the connection's reader starts
-func (e *Exchange) authenticateOrderSession(ctx context.Context, conn websocket.Connection, secret string) (*WsOrderWelcome, error) {
+func (e *Exchange) authenticateOrderSession(ctx context.Context, conn websocket.Connection, secret string) (*WebsocketOrderWelcome, error) {
 	session, err := readWebsocketMessage(ctx, conn, e.WebsocketResponseMaxLimit)
 	if err != nil {
 		return nil, err
 	}
-	var s WsOrderSession
+	var s *WebsocketOrderSession
 	if err := json.Unmarshal(session, &s); err != nil {
 		return nil, err
+	}
+	if s == nil {
+		return nil, common.ErrNoResponse
 	}
 	if s.SessionID == "" {
 		return nil, fmt.Errorf("%w: %s", errOrderSessionNotWelcomed, session)
@@ -101,23 +101,28 @@ func (e *Exchange) authenticateOrderSession(ctx context.Context, conn websocket.
 	if err != nil {
 		return nil, err
 	}
-	var welcome WsOrderWelcome
+	var welcome *WebsocketOrderWelcome
 	if err := json.Unmarshal(data, &welcome); err != nil {
 		return nil, err
+	}
+	if welcome == nil {
+		return nil, common.ErrNoResponse
 	}
 	if welcome.Data != "welcome" || welcome.SessionID != s.SessionID {
 		return nil, fmt.Errorf("%w: %s", errOrderSessionNotWelcomed, data)
 	}
-	return &welcome, nil
+	return welcome, nil
 }
 
 // wsHandleOrderData routes a message from the websocket order API connection to the request it answers
 func (e *Exchange) wsHandleOrderData(_ context.Context, conn websocket.Connection, respData []byte) error {
-	var resp WsOrderResponse
+	var resp *WebsocketOrderResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 	switch {
+	case resp == nil:
+		return common.ErrNoResponse
 	case resp.Operation == "pong":
 		return nil
 	case resp.ID != "":
@@ -127,92 +132,92 @@ func (e *Exchange) wsHandleOrderData(_ context.Context, conn websocket.Connectio
 	return fmt.Errorf("%w: %s %s", errWsOrderRequestFailed, resp.Code, resp.Message)
 }
 
-// WsAddSpotOrder places a spot order through the websocket order API (Add Order, op spot.order)
-func (e *Exchange) WsAddSpotOrder(ctx context.Context, req *PlaceHFOrderRequest) (*WsAddOrderResponse, error) {
+// WebsocketAddSpotOrder places a spot order through the websocket order API (Add Order, op spot.order)
+func (e *Exchange) WebsocketAddSpotOrder(ctx context.Context, req *PlaceHFOrderRequest) (*WebsocketAddOrderResponse, error) {
 	args, err := req.Payload()
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsAddOrderResponse
+	var resp *WebsocketAddOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, placeHFOrderEPL, "spot.order", args, &resp)
 }
 
-// WsAddSpotOrderSync places a spot order through the websocket order API and returns the order's state once placed
+// WebsocketAddSpotOrderSync places a spot order through the websocket order API and returns the order's state once placed
 // (Add Order, op spot.sync_order)
-func (e *Exchange) WsAddSpotOrderSync(ctx context.Context, req *PlaceHFOrderRequest) (*WsAddSpotOrderSyncResponse, error) {
+func (e *Exchange) WebsocketAddSpotOrderSync(ctx context.Context, req *PlaceHFOrderRequest) (*WebsocketAddSpotOrderSyncResponse, error) {
 	args, err := req.Payload()
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsAddSpotOrderSyncResponse
+	var resp *WebsocketAddSpotOrderSyncResponse
 	return resp, e.sendWsOrderRequest(ctx, placeHFOrderSyncEPL, "spot.sync_order", args, &resp)
 }
 
-// WsAddMarginOrder places a margin order through the websocket order API (Add Order, op margin.order)
-func (e *Exchange) WsAddMarginOrder(ctx context.Context, req *PlaceMarginHFOrderRequest) (*WsAddMarginOrderResponse, error) {
+// WebsocketAddMarginOrder places a margin order through the websocket order API (Add Order, op margin.order)
+func (e *Exchange) WebsocketAddMarginOrder(ctx context.Context, req *PlaceMarginHFOrderRequest) (*WebsocketAddMarginOrderResponse, error) {
 	args, err := req.Payload()
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsAddMarginOrderResponse
+	var resp *WebsocketAddMarginOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, placeMarginHFOrderEPL, "margin.order", args, &resp)
 }
 
-// WsAddFuturesOrder places a futures order through the websocket order API (Add Order, op futures.order)
-func (e *Exchange) WsAddFuturesOrder(ctx context.Context, req *FuturesOrderRequest) (*WsAddOrderResponse, error) {
+// WebsocketAddFuturesOrder places a futures order through the websocket order API (Add Order, op futures.order)
+func (e *Exchange) WebsocketAddFuturesOrder(ctx context.Context, req *FuturesOrderRequest) (*WebsocketAddOrderResponse, error) {
 	args, err := req.Payload()
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsAddOrderResponse
+	var resp *WebsocketAddOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, postFuturesOrderEPL, "futures.order", args, &resp)
 }
 
-// WsBatchAddFuturesOrders places futures orders through the websocket order API and returns each order's result (Add
+// WebsocketBatchAddFuturesOrders places futures orders through the websocket order API and returns each order's result (Add
 // Order, op futures.multi_order)
-func (e *Exchange) WsBatchAddFuturesOrders(ctx context.Context, reqs []FuturesOrderRequest) ([]WsFuturesOrderResult, error) {
+func (e *Exchange) WebsocketBatchAddFuturesOrders(ctx context.Context, reqs []FuturesOrderRequest) ([]WebsocketFuturesOrderResponse, error) {
 	args, err := futuresOrderListBody(reqs)
 	if err != nil {
 		return nil, err
 	}
-	var resp []WsFuturesOrderResult
+	var resp []WebsocketFuturesOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, placeMultipleFuturesOrdersEPL, "futures.multi_order", args, &resp)
 }
 
-// WsCancelSpotOrder cancels a spot order through the websocket order API (Cancel Order, op spot.cancel)
-func (e *Exchange) WsCancelSpotOrder(ctx context.Context, req *WsCancelOrderRequest) (*WsCancelOrderResponse, error) {
+// WebsocketCancelSpotOrder cancels a spot order through the websocket order API (Cancel Order, op spot.cancel)
+func (e *Exchange) WebsocketCancelSpotOrder(ctx context.Context, req *WebsocketCancelOrderRequest) (*WebsocketCancelOrderResponse, error) {
 	args, err := req.args(true)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsCancelOrderResponse
+	var resp *WebsocketCancelOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, cancelHFOrderByOrderIDEPL, "spot.cancel", args, &resp)
 }
 
-// WsCancelSpotOrderSync cancels a spot order through the websocket order API and returns the order's state once
+// WebsocketCancelSpotOrderSync cancels a spot order through the websocket order API and returns the order's state once
 // cancelled (Cancel Order, op spot.sync_cancel)
-func (e *Exchange) WsCancelSpotOrderSync(ctx context.Context, req *WsCancelOrderRequest) (*WsCancelSpotOrderSyncResponse, error) {
+func (e *Exchange) WebsocketCancelSpotOrderSync(ctx context.Context, req *WebsocketCancelOrderRequest) (*WebsocketCancelSpotOrderSyncResponse, error) {
 	args, err := req.args(true)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsCancelSpotOrderSyncResponse
+	var resp *WebsocketCancelSpotOrderSyncResponse
 	return resp, e.sendWsOrderRequest(ctx, cancelHFOrderByOrderIDSyncEPL, "spot.sync_cancel", args, &resp)
 }
 
-// WsCancelMarginOrder cancels a margin order through the websocket order API (Cancel Order, op margin.cancel)
-func (e *Exchange) WsCancelMarginOrder(ctx context.Context, req *WsCancelOrderRequest) (*WsCancelOrderResponse, error) {
+// WebsocketCancelMarginOrder cancels a margin order through the websocket order API (Cancel Order, op margin.cancel)
+func (e *Exchange) WebsocketCancelMarginOrder(ctx context.Context, req *WebsocketCancelOrderRequest) (*WebsocketCancelOrderResponse, error) {
 	args, err := req.args(true)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsCancelOrderResponse
+	var resp *WebsocketCancelOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, cancelMarginHFOrderByOrderIDEPL, "margin.cancel", args, &resp)
 }
 
-// WsCancelFuturesOrder cancels a futures order through the websocket order API (Cancel Order, op futures.cancel). The
+// WebsocketCancelFuturesOrder cancels a futures order through the websocket order API (Cancel Order, op futures.cancel). The
 // symbol is only required with a client order ID
-func (e *Exchange) WsCancelFuturesOrder(ctx context.Context, req *WsCancelOrderRequest) (*WsCancelFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketCancelFuturesOrder(ctx context.Context, req *WebsocketCancelOrderRequest) (*WebsocketCancelFuturesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -220,12 +225,12 @@ func (e *Exchange) WsCancelFuturesOrder(ctx context.Context, req *WsCancelOrderR
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsCancelFuturesOrderResponse
+	var resp *WebsocketCancelFuturesOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, cancelFuturesOrderByOrderIDEPL, "futures.cancel", args, &resp)
 }
 
 // args returns the arguments of a cancel request, requiring the symbol when told to
-func (r *WsCancelOrderRequest) args(symbolRequired bool) (map[string]any, error) {
+func (r *WebsocketCancelOrderRequest) args(symbolRequired bool) (map[string]any, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -248,19 +253,19 @@ func (r *WsCancelOrderRequest) args(symbolRequired bool) (map[string]any, error)
 	return args, nil
 }
 
-// WsBatchCancelFuturesOrders cancels futures orders through the websocket order API and returns each order's result
+// WebsocketBatchCancelFuturesOrders cancels futures orders through the websocket order API and returns each order's result
 // (Cancel Order, op futures.multi_cancel)
-func (e *Exchange) WsBatchCancelFuturesOrders(ctx context.Context, req *WsBatchCancelFuturesOrdersRequest) ([]WsFuturesOrderResult, error) {
+func (e *Exchange) WebsocketBatchCancelFuturesOrders(ctx context.Context, req *WebsocketBatchCancelFuturesOrdersRequest) ([]WebsocketFuturesOrderResponse, error) {
 	args, err := req.args()
 	if err != nil {
 		return nil, err
 	}
-	var resp []WsFuturesOrderResult
+	var resp []WebsocketFuturesOrderResponse
 	return resp, e.sendWsOrderRequest(ctx, batchCancelFuturesOrdersEPL, "futures.multi_cancel", args, &resp)
 }
 
 // args returns the arguments of a batch cancel request
-func (r *WsBatchCancelFuturesOrdersRequest) args() (map[string]any, error) {
+func (r *WebsocketBatchCancelFuturesOrdersRequest) args() (map[string]any, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -302,14 +307,17 @@ func (e *Exchange) sendWsOrderRequest(ctx context.Context, epl request.EndpointL
 
 // sendWsOrderRequestOnConnection sends a request on a websocket order API connection and decodes its result
 func (e *Exchange) sendWsOrderRequestOnConnection(ctx context.Context, conn websocket.Connection, op string, args, result any) error {
-	req := &WsOrderMessage{ID: e.MessageID(), Operation: op, Args: args}
+	req := &WebsocketOrderRequest{ID: e.MessageID(), Operation: op, Args: args}
 	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return err
 	}
-	var resp WsOrderResponse
+	var resp *WebsocketOrderResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %s", common.ErrNoResponse, op)
 	}
 	if resp.Code != "200000" {
 		return fmt.Errorf("%w: %s code %s: %s", errWsOrderRequestFailed, op, resp.Code, resp.Message)

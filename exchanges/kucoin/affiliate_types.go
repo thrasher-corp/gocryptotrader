@@ -123,11 +123,11 @@ type AffiliateTrade struct {
 	TradeType     string        `json:"tradeType"`
 	TradeCurrency currency.Code `json:"tradeCurrency"`
 	TradeAmount   types.Number  `json:"tradeAmount"`
-	// TradeAmountU and FeeU are converted into Currency, USDT or USDC
-	TradeAmountU types.Number  `json:"tradeAmountU"`
-	FeeU         types.Number  `json:"feeU"`
-	Commission   types.Number  `json:"commission"`
-	Currency     currency.Code `json:"currency"`
+	// ConvertedTradeAmount and ConvertedFee are in Currency, USDT or USDC
+	ConvertedTradeAmount types.Number  `json:"tradeAmountU"`
+	ConvertedFee         types.Number  `json:"feeU"`
+	Commission           types.Number  `json:"commission"`
+	Currency             currency.Code `json:"currency"`
 }
 
 // AffiliateTransactionsRequest holds the filters of GetAffiliateTransactions
@@ -146,19 +146,19 @@ type AffiliateTransactionsRequest struct {
 	PageSize  uint64
 }
 
-// AffiliateTransaction is a trade of an invitee
-type AffiliateTransaction struct {
+// AffiliateTransactionResponse is a trade of an invitee
+type AffiliateTransactionResponse struct {
 	UID           string        `json:"uid"`
 	TradeTime     types.Time    `json:"tradeTime"`
 	TradeType     string        `json:"tradeType"`
 	TradeCurrency currency.Code `json:"tradeCurrency"`
 	TradeAmount   types.Number  `json:"tradeAmount"`
-	// TradeAmountU and FeeU are converted into Currency, USDT or USDC
-	TradeAmountU types.Number  `json:"tradeAmountU"`
-	FeeU         types.Number  `json:"feeU"`
-	Commission   types.Number  `json:"commission"`
-	Currency     currency.Code `json:"currency"`
-	LastID       string        `json:"lastId"`
+	// ConvertedTradeAmount and ConvertedFee are in Currency, USDT or USDC
+	ConvertedTradeAmount types.Number  `json:"tradeAmountU"`
+	ConvertedFee         types.Number  `json:"feeU"`
+	Commission           types.Number  `json:"commission"`
+	Currency             currency.Code `json:"currency"`
+	LastID               string        `json:"lastId"`
 }
 
 // AffiliateKuminingRequest holds the filters of GetAffiliateKumining
@@ -173,8 +173,8 @@ type AffiliateKuminingRequest struct {
 	PageSize  uint64
 }
 
-// AffiliateKumining is a KuMining purchase record
-type AffiliateKumining struct {
+// AffiliateKuminingResponse is a KuMining purchase record
+type AffiliateKuminingResponse struct {
 	UID       string        `json:"uid"`
 	GoodsName string        `json:"goodsName"`
 	Amount    types.Number  `json:"amount"`

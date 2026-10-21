@@ -129,6 +129,7 @@ func (e *Exchange) newUTASpotPublicConnection(exch *config.Exchange, wsURL strin
 		Unsubscriber:          e.UTAUnsubscribe,
 		Handler:               e.wsHandleUTAData,
 		MessageFilter:         utaSpotPublicConnection,
+		Optional:              true,
 	}
 }
 
@@ -145,6 +146,7 @@ func (e *Exchange) newUTAFuturesPublicConnection(exch *config.Exchange, wsURL st
 		Unsubscriber:          e.UTAUnsubscribe,
 		Handler:               e.wsHandleUTAData,
 		MessageFilter:         utaFuturesPublicConnection,
+		Optional:              true,
 	}
 }
 
@@ -162,6 +164,7 @@ func (e *Exchange) newUTAPrivateConnection(exch *config.Exchange, wsURL string) 
 		Unsubscriber:          e.UTAUnsubscribe,
 		Handler:               e.wsHandleUTAData,
 		MessageFilter:         utaPrivateConnection,
+		Optional:              true,
 	}
 }
 
@@ -177,6 +180,7 @@ func (e *Exchange) newUTATradeConnection(exch *config.Exchange, wsURL string) *w
 		Handler:                  e.wsHandleUTATradeData,
 		MessageFilter:            utaTradeConnection,
 		SubscriptionsNotRequired: true,
+		Optional:                 true,
 	}
 }
 
@@ -212,12 +216,12 @@ func (e *Exchange) utaAuthRequest(ctx context.Context) (*UTAWebsocketAuthRequest
 	if err != nil {
 		return nil, err
 	}
-	timestamp := time.Now().UnixMilli()
+	timestamp := uint64(time.Now().UnixMilli())
 	return &UTAWebsocketAuthRequest{
 		Operation:  "auth",
 		APIKey:     creds.Key,
 		Timestamp:  timestamp,
-		Signature:  hmacSign(strconv.FormatInt(timestamp, 10)+"POST/api/websocket/users/verify", creds.Secret),
+		Signature:  hmacSign(strconv.FormatUint(timestamp, 10)+"POST/api/websocket/users/verify", creds.Secret),
 		Passphrase: hmacSign(creds.ClientID, creds.Secret),
 	}, nil
 }
@@ -234,9 +238,12 @@ func (e *Exchange) AuthenticateUTAPrivateWebsocket(ctx context.Context, conn web
 	if err != nil {
 		return err
 	}
-	var resp UTAWebsocketAckResponse
+	var resp *UTAWebsocketAckResponse
 	if err := json.Unmarshal(reply, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %w", errUTAAuthenticationFailed, common.ErrNoResponse)
 	}
 	if !resp.Result.Bool() {
 		return fmt.Errorf("%w: %s", errUTAAuthenticationFailed, cmp.Or(resp.Message, resp.Reason))
@@ -264,9 +271,11 @@ type utaTopic struct {
 // generateUTASubscriptions expands the configured UTA channels the given connection serves. Nothing is generated unless
 // the configuration lists UTA channels, so the manager leaves UTA connections down by default. Each KuCoin topic is
 // subscribed to once: spot and margin share the spot market's topics, so unsubscribing one would end the other, and
-// the orderbook store holds one book per pair and asset, so the first orderbook depth configured for a symbol is kept
+// the orderbook store holds one book per pair and asset, so the first orderbook depth configured for a symbol is kept.
+// A subscription whose interval or orderbook depth KuCoin does not offer for an asset is left out as a partial failure
 func (e *Exchange) generateUTASubscriptions(connection string) (subscription.List, error) {
 	var subs subscription.List
+	var errs error
 	topics := make(map[utaTopic]struct{})
 	for _, s := range e.Features.Subscriptions {
 		ch, ok := utaChannels[s.Channel]
@@ -285,6 +294,11 @@ func (e *Exchange) generateUTASubscriptions(connection string) (subscription.Lis
 				continue
 			}
 			expanded, err := e.expandUTASubscription(s, ch, a)
+			if errors.Is(err, subscription.ErrInvalidInterval) || errors.Is(err, subscription.ErrInvalidLevel) {
+				// An interval or depth KuCoin does not offer for the asset leaves out that subscription alone
+				errs = common.AppendError(errs, fmt.Errorf("%w: %w", websocket.ErrSubscriptionPartial, err))
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -298,7 +312,7 @@ func (e *Exchange) generateUTASubscriptions(connection string) (subscription.Lis
 			}
 		}
 	}
-	return subs, nil
+	return subs, errs
 }
 
 // utaSubscriptionAssets returns the assets a configured UTA channel stands for. An account channel stands for its
@@ -376,12 +390,16 @@ func (e *Exchange) expandUTASubscription(s *subscription.Subscription, ch utaCha
 	if err != nil {
 		return nil, err
 	}
+	// Each pair's subscription is cloned from one without the configured pairs, as cloning those for every pair would
+	// make expansion quadratic in them
+	base := s.Clone()
+	base.Asset = a
+	base.Pairs = nil
+	base.Authenticated = ch.private
 	subs := make(subscription.List, 0, len(pairs))
 	for _, p := range pairs {
-		sub := s.Clone()
-		sub.Asset = a
+		sub := base.Clone()
 		sub.Pairs = currency.Pairs{p}
-		sub.Authenticated = ch.private
 		sub.QualifiedChannel = ch.name + ":" + pairFmt.Format(p)
 		subs = append(subs, sub)
 	}
@@ -459,9 +477,12 @@ func (e *Exchange) manageUTASubscription(ctx context.Context, conn websocket.Con
 	if err != nil {
 		return err
 	}
-	var resp UTAWebsocketAckResponse
+	var resp *UTAWebsocketAckResponse
 	if err := json.Unmarshal(reply, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %s %s: %w", errUTARequestRejected, action, s.QualifiedChannel, common.ErrNoResponse)
 	}
 	if !resp.Result.Bool() {
 		return fmt.Errorf("%w: %s %s: %s", errUTARequestRejected, action, s.QualifiedChannel, cmp.Or(resp.Message, resp.Reason))
@@ -507,6 +528,9 @@ func (e *Exchange) utaSubscriptionRequest(s *subscription.Subscription, action s
 		req.Interval, err = utaKlineInterval(s.Interval, s.Asset)
 	case UTAOrderbookChannel:
 		req.Depth, err = utaOrderbookDepth(s.Levels)
+		if rpi, _ := s.Params["rpiFilter"].(bool); rpi && s.Asset == asset.Futures && (s.Levels == 5 || s.Levels == 50) {
+			req.RPIFilter = 1
+		}
 	}
 	if err != nil {
 		return nil, err

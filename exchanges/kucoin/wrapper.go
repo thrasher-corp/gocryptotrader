@@ -128,6 +128,8 @@ func (e *Exchange) SetDefaults() {
 				WithdrawalHistory:     true,
 				MultiChainDeposits:    true,
 				MultiChainWithdrawals: true,
+				// GetDepositAddress cannot choose among addresses on several chains, so the engine names the chain
+				MultiChainDepositRequiresChainSet: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -247,7 +249,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	// The UTA connections generate subscriptions only from configured UTA channels, so they stay down by default
+	// The UTA connections generate subscriptions only from configured UTA channels, so they stay down by default. Every
+	// connection but spot's is optional: one that fails to connect or drops leaves the others up while the manager
+	// retries it
 	setups := []*websocket.ConnectionSetup{
 		e.newSpotConnectionSetup(exch, wsSpotURL),
 		e.newFuturesConnectionSetup(exch, wsFuturesURL),
@@ -256,9 +260,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		e.newUTAPrivateConnection(exch, kucoinUTAPrivateWebsocketURL),
 	}
 	// The order connections carry no subscriptions, so the manager always dials them, and they sign in with the
-	// account's keys, which a failed sign-in would make fatal to every connection. They are set up only for
-	// authenticated websocket use with credentials, and the UTA one only for an account a configured UTA channel shows
-	// to be unified
+	// account's keys. They are set up only for authenticated websocket use with credentials, and the UTA one only for an
+	// account a configured UTA channel shows to be unified
 	if e.Websocket.CanUseAuthenticatedEndpoints() && e.AreCredentialsValid(context.Background()) {
 		setups = append(setups, e.newOrderConnectionSetup(exch, kucoinOrderWebsocketURL))
 		if e.hasUTASubscriptions() {
@@ -279,7 +282,7 @@ var errContractSymbolMismatch = errors.New("contract symbol does not start with 
 
 // futuresContractPair returns a futures contract's pair: its base currency, and the rest of its symbol as the quote,
 // such as XBT and USDTM for XBTUSDTM or XBT and MZ26 for the dated XBTMZ26
-func futuresContractPair(c *Contract) (currency.Pair, error) {
+func futuresContractPair(c *ContractResponse) (currency.Pair, error) {
 	base := c.BaseCurrency.String()
 	if base == "" || len(c.Symbol) <= len(base) || !strings.EqualFold(c.Symbol[:len(base)], base) {
 		return currency.EMPTYPAIR, fmt.Errorf("%w: %q %q", errContractSymbolMismatch, c.Symbol, base)
@@ -361,12 +364,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 // contractVolumes maps a futures contract's two volume figures onto base and quote. KuCoin reports
 // volumeOf24h in the base currency and turnoverOf24h in the quote, except on an inverse contract,
-// which is worth one unit of its quote currency, where the two swap over
-func contractVolumes(c *Contract) (baseVolume, quoteVolume float64) {
+// which is worth one unit of its quote currency, where the two swap over. Both count the maker and taker
+// sides of each trade, so they are halved to the one-sided volume the symbol snapshot push and the klines
+// report
+func contractVolumes(c *ContractResponse) (baseVolume, quoteVolume float64) {
 	if c.IsInverse {
-		return c.TurnoverOf24Hour, c.VolumeOf24Hour
+		return c.TurnoverOf24Hour / 2, c.VolumeOf24Hour / 2
 	}
-	return c.VolumeOf24Hour, c.TurnoverOf24Hour
+	return c.VolumeOf24Hour / 2, c.TurnoverOf24Hour / 2
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
@@ -492,7 +497,8 @@ func mergeRoundedOrderbookLevels(levels []orderbook.Level) []orderbook.Level {
 // as Get All Symbols listed them on 2026-10-14
 var futuresSettlementCurrencies = []currency.Code{currency.USDT, currency.USDC, currency.XBT, currency.ETH, currency.SOL, currency.XRP}
 
-// UpdateAccountBalances retrieves currency balances
+// UpdateAccountBalances retrieves currency balances. For margin it returns the cross margin account, and saves each
+// isolated margin account beside it as the margin sub-account of its symbol
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
@@ -524,35 +530,149 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			return nil, common.ErrNoResponse
 		}
 		for i := range resp.Accounts {
-			subAccts[0].Balances.Set(resp.Accounts[i].Currency, accounts.Balance{
-				Total:    resp.Accounts[i].Total.Float64(),
-				Hold:     resp.Accounts[i].Hold.Float64(),
-				Free:     resp.Accounts[i].Available.Float64(),
-				Borrowed: resp.Accounts[i].Liability.Float64(),
-			})
+			subAccts[0].Balances.Set(resp.Accounts[i].Currency, marginAssetBalance(&resp.Accounts[i]))
 		}
+		isolated, err := e.GetIsolatedMarginAccountDetail(ctx, &IsolatedMarginAccountDetailRequest{QueryType: "ISOLATED"})
+		if err != nil {
+			return nil, err
+		}
+		if isolated == nil {
+			return nil, common.ErrNoResponse
+		}
+		snapshot := slices.Clone(subAccts)
+		for i := range isolated.Assets {
+			// The cross margin account is sub-account "", which a symbol must not overwrite
+			if isolated.Assets[i].Symbol == "" {
+				return nil, currency.ErrSymbolStringEmpty
+			}
+			s := accounts.NewSubAccount(asset.Margin, isolated.Assets[i].Symbol)
+			s.Balances.Set(isolated.Assets[i].BaseAsset.Currency, marginAssetBalance(&isolated.Assets[i].BaseAsset))
+			s.Balances.Set(isolated.Assets[i].QuoteAsset.Currency, marginAssetBalance(&isolated.Assets[i].QuoteAsset))
+			snapshot = append(snapshot, s)
+		}
+		// The isolated margin accounts are saved beside the cross margin account, which alone is returned, as callers
+		// such as the backtester's live funding set each currency from one returned sub-account after another
+		return subAccts, e.saveMarginSnapshot(ctx, snapshot)
 	case asset.Spot:
+		// Stamped before the request, so that a push arriving while it is answered keeps its account's share
+		listedAt := time.Now()
 		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
 			return nil, err
 		}
+		shares := make(spotAccountShares)
 		for i := range resp {
 			// The account list's margin and isolated types are abandoned; the main and trade accounts both hold spot funds
 			if resp[i].AccountType == "margin" || resp[i].AccountType == "isolated" {
 				continue
 			}
-			if err := subAccts[0].Balances.Add(resp[i].Currency, accounts.Balance{
-				Total: resp[i].Balance.Float64(),
-				Hold:  resp[i].Holds.Float64(),
-				Free:  resp[i].Available.Float64(),
-			}); err != nil {
-				return nil, err
+			if resp[i].Currency.IsEmpty() {
+				return nil, currency.ErrCurrencyCodeEmpty
 			}
+			// Balance pushes count the HF trade account, trade_hf, which an account trading at high frequency since before
+			// 2024 uses in place of trade, as the trade account
+			account := resp[i].AccountType
+			if account == "trade_hf" {
+				account = "trade"
+			}
+			if shares[account] == nil {
+				shares[account] = make(map[*currency.Item]accounts.Balance)
+			}
+			b := accounts.Balance{
+				Total:     resp[i].Balance.Float64(),
+				Hold:      resp[i].Holds.Float64(),
+				Free:      resp[i].Available.Float64(),
+				UpdatedAt: listedAt,
+			}
+			if listed, ok := shares[account][resp[i].Currency.Item]; ok {
+				b = b.Add(listed)
+			}
+			b.Currency = resp[i].Currency
+			shares[account][resp[i].Currency.Item] = b
 		}
+		return e.saveSpotAccountShares(ctx, shares, listedAt)
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+// marginAssetBalance returns the balance of a cross or isolated margin account's currency
+func marginAssetBalance(a *MarginAssetDetail) accounts.Balance {
+	return accounts.Balance{
+		Total:    a.Total.Float64(),
+		Hold:     a.Hold.Float64(),
+		Free:     a.Available.Float64(),
+		Borrowed: a.Liability.Float64(),
+	}
+}
+
+// saveMarginSnapshot saves the cross margin account and each isolated margin account REST listed as the margin
+// sub-accounts, and empties the sub-account of an isolated margin symbol the account no longer lists
+func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.SubAccounts) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	e.marginBalanceMu.Lock()
+	defer e.marginBalanceMu.Unlock()
+	saved, err := e.Accounts.SubAccounts(creds, asset.Margin)
+	if err != nil && !errors.Is(err, accounts.ErrNoSubAccounts) {
+		return err
+	}
+	snapshot := slices.Clone(subAccts)
+	for _, s := range saved {
+		if !slices.ContainsFunc(subAccts, func(listed *accounts.SubAccount) bool { return listed.ID == s.ID }) {
+			snapshot = append(snapshot, accounts.NewSubAccount(asset.Margin, s.ID))
+		}
+	}
+	return e.Accounts.Save(ctx, snapshot, true)
+}
+
+// spotAccountShares holds each account's balance of each currency, keyed by account type: main and trade
+type spotAccountShares map[string]map[*currency.Item]accounts.Balance
+
+// saveSpotAccountShares saves the account balances REST listed as the spot balance, each currency the accounts'
+// balances together as of the latest of their times. A balance push newer than the listing keeps its account's share
+func (e *Exchange) saveSpotAccountShares(ctx context.Context, shares spotAccountShares, listedAt time.Time) (accounts.SubAccounts, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.spotAccountBalancesMu.Lock()
+	defer e.spotAccountBalancesMu.Unlock()
+	for account, saved := range e.spotAccountBalances[*creds] {
+		for item, b := range saved {
+			if b.UpdatedAt.After(listedAt) {
+				if shares[account] == nil {
+					shares[account] = make(map[*currency.Item]accounts.Balance)
+				}
+				shares[account][item] = b
+			}
+		}
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	for _, accountShares := range shares {
+		for _, b := range accountShares {
+			if err := subAccts[0].Balances.Add(b.Currency, b); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return nil, err
+	}
+	if e.spotAccountBalances == nil {
+		e.spotAccountBalances = make(map[accounts.Credentials]spotAccountShares)
+	}
+	e.spotAccountBalances[*creds] = shares
+	if e.spotAccountsListedAt == nil {
+		e.spotAccountsListedAt = make(map[accounts.Credentials]time.Time)
+	}
+	if listedAt.After(e.spotAccountsListedAt[*creds]) {
+		e.spotAccountsListedAt[*creds] = listedAt
+	}
+	return subAccts, nil
 }
 
 // fundingHistoryPageSize is the most records Get Deposit History and Get Withdrawal History return per page
@@ -755,6 +875,8 @@ var (
 	errTakeProfitPriceRequired   = errors.New("take profit price is required")
 	errStopLossPriceRequired     = errors.New("stop loss price is required")
 	errOCOPricesInverted         = errors.New("stop loss price is on the wrong side of the take profit price")
+	errOCOPriceMismatch          = errors.New("order price differs from the take profit price")
+	errRiskModeUnsupported       = errors.New("risk management mode not supported")
 	errOrderNotCancelled         = errors.New("order was not cancelled")
 	errOrderPairMismatch         = errors.New("order belongs to another pair")
 	errLeverageNotModified       = errors.New("leverage was not modified")
@@ -772,9 +894,10 @@ func (e *Exchange) requestFormat(a asset.Item) (currency.PairFormat, error) {
 
 // SubmitOrder submits an order over REST. Spot and margin stop orders take their trigger from RiskManagementModes:
 // StopLoss triggers as the price falls to its price and StopEntry as the price rises to it. An OCO order places a
-// limit order at Price and a stop order, which the StopLoss price triggers, placing a limit order at the TakeProfit
-// price. Futures orders are sized in whole lots by Amount, or in the quote currency by QuoteAmount, and a futures
-// stop or take profit order triggers at TriggerPrice
+// limit order at the TakeProfit price and a stop order, which the StopLoss price triggers, placing a limit order at
+// the StopLoss LimitPrice. Futures orders are sized in whole lots by Amount, or in the quote currency by QuoteAmount,
+// and a futures stop or take profit order triggers at TriggerPrice; a futures limit or market buy can carry TakeProfit
+// and StopLoss triggers
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -794,7 +917,16 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		resp, err := e.PostFuturesOrder(ctx, r)
+		var resp *FuturesOrderResponse
+		if s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.StopLoss.Enabled {
+			var tpsl *FuturesTakeProfitStopLossOrderRequest
+			if tpsl, err = futuresTakeProfitStopLossRequest(r, &s.RiskManagementModes); err != nil {
+				return nil, err
+			}
+			resp, err = e.PostFuturesTakeProfitStopLossOrder(ctx, tpsl)
+		} else {
+			resp, err = e.PostFuturesOrder(ctx, r)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -812,6 +944,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // futuresOrderRequest returns the futures order a submission describes. A stop order triggers as the price moves
 // against its side, and a take profit order as the price moves in its favour
 func futuresOrderRequest(s *order.Submit, symbol, side string) (*FuturesOrderRequest, error) {
+	if s.RiskManagementModes.StopEntry.Enabled {
+		return nil, fmt.Errorf("%w: a futures order has no stop entry, and a futures stop order triggers at TriggerPrice", errRiskModeUnsupported)
+	}
 	if s.Amount != math.Trunc(s.Amount) {
 		return nil, fmt.Errorf("%w: %v", errFuturesSizeNotWholeLots, s.Amount)
 	}
@@ -859,15 +994,82 @@ func futuresOrderRequest(s *order.Submit, symbol, side string) (*FuturesOrderReq
 		r.Stop = "up"
 	}
 	r.StopPrice = s.TriggerPrice
-	switch s.TriggerPriceType {
-	case order.IndexPrice:
-		r.StopPriceType = "IP"
-	case order.MarkPrice:
-		r.StopPriceType = "MP"
-	default:
-		r.StopPriceType = "TP"
-	}
+	r.StopPriceType = futuresStopPriceType(s.TriggerPriceType)
 	return r, nil
+}
+
+// futuresStopPriceType returns KuCoin's futures trigger price type of a price type: the index or mark price, or the
+// last traded price otherwise
+func futuresStopPriceType(pt order.PriceType) string {
+	switch pt {
+	case order.IndexPrice:
+		return "IP"
+	case order.MarkPrice:
+		return "MP"
+	default:
+		return "TP"
+	}
+}
+
+// futuresTakeProfitStopLossRequest returns the Add Take Profit And Stop Loss Order request of the futures limit or market
+// order r with the TakeProfit and StopLoss triggers of modes. KuCoin names the triggers by the way the price moves to
+// reach them, yet documents triggerStopUpPrice as the take profit price and triggerStopDownPrice as the stop loss price
+// for either side. The two readings agree for a buy, whose take profit is above its stop loss, and conflict for a sell;
+// until KuCoin's own reading is known, a sell's triggers are refused rather than guessed, as the wrong guess sends both
+// triggers already reached
+func futuresTakeProfitStopLossRequest(r *FuturesOrderRequest, modes *order.RiskManagementModes) (*FuturesTakeProfitStopLossOrderRequest, error) {
+	switch {
+	case r.Stop != "":
+		return nil, fmt.Errorf("%w: a futures stop order takes no take profit or stop loss triggers", errRiskModeUnsupported)
+	case r.Side != order.Buy.Lower():
+		return nil, fmt.Errorf("%w: a sell's take profit and stop loss triggers, for which KuCoin's trigger names and their descriptions disagree", errRiskModeUnsupported)
+	case r.TimeInForce == order.FillOrKill.String():
+		return nil, fmt.Errorf("%w: an order with take profit and stop loss triggers is good till cancelled or immediate or cancel", order.ErrUnsupportedTimeInForce)
+	}
+	tpsl := &FuturesTakeProfitStopLossOrderRequest{
+		ClientOrderID: r.ClientOrderID,
+		Side:          r.Side,
+		Symbol:        r.Symbol,
+		Leverage:      r.Leverage,
+		Type:          r.Type,
+		ReduceOnly:    r.ReduceOnly,
+		MarginMode:    r.MarginMode,
+		Price:         r.Price,
+		Size:          r.Size,
+		TimeInForce:   r.TimeInForce,
+		PostOnly:      r.PostOnly,
+		ValueQuantity: r.ValueQuantity,
+	}
+	var err error
+	if modes.TakeProfit.Enabled {
+		if tpsl.TriggerStopUpPrice, err = takeProfitStopLossTrigger(&modes.TakeProfit, errTakeProfitPriceRequired); err != nil {
+			return nil, err
+		}
+		tpsl.StopPriceType = futuresStopPriceType(modes.TakeProfit.TriggerPriceType)
+	}
+	if modes.StopLoss.Enabled {
+		if tpsl.TriggerStopDownPrice, err = takeProfitStopLossTrigger(&modes.StopLoss, errStopLossPriceRequired); err != nil {
+			return nil, err
+		}
+		stopPriceType := futuresStopPriceType(modes.StopLoss.TriggerPriceType)
+		if tpsl.StopPriceType != "" && tpsl.StopPriceType != stopPriceType {
+			return nil, fmt.Errorf("%w: a take profit and a stop loss trigger on one price type", errRiskModeUnsupported)
+		}
+		tpsl.StopPriceType = stopPriceType
+	}
+	return tpsl, nil
+}
+
+// takeProfitStopLossTrigger returns the trigger price of a take profit or stop loss of an Add Take Profit And Stop Loss
+// Order, refusing a limit price or limit order type, for which the order has no field
+func takeProfitStopLossTrigger(m *order.RiskManagement, errPriceRequired error) (float64, error) {
+	switch {
+	case m.Price <= 0:
+		return 0, errPriceRequired
+	case m.LimitPrice != 0 || (m.OrderType != order.UnknownType && m.OrderType != order.Market):
+		return 0, fmt.Errorf("%w: a take profit or stop loss trigger takes no limit price", errRiskModeUnsupported)
+	}
+	return m.Price, nil
 }
 
 // timeInForceString returns the time in force KuCoin takes for a limit order, or an empty string for its default, good
@@ -901,7 +1103,7 @@ func futuresMarginMode(m margin.Type) (string, error) {
 // replacement for the abandoned stop and OCO order endpoints, so those orders still go through them
 func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit, symbol, side string) (*order.SubmitResponse, error) {
 	if s.Type == order.OCO {
-		stopPrice, limitPrice, err := ocoPrices(s.Side, &s.RiskManagementModes)
+		price, stopPrice, limitPrice, err := ocoPrices(s)
 		if err != nil {
 			return nil, err
 		}
@@ -909,7 +1111,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit, symbol,
 			ClientOrderID: s.ClientOrderID,
 			Side:          side,
 			Symbol:        symbol,
-			Price:         s.Price,
+			Price:         price,
 			Size:          s.Amount,
 			StopPrice:     stopPrice,
 			LimitPrice:    limitPrice,
@@ -920,7 +1122,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit, symbol,
 		if resp == nil {
 			return nil, common.ErrNoResponse
 		}
-		return s.DeriveSubmitResponse(resp.OrderID)
+		return ocoSubmitResponse(s, resp.OrderID, price)
 	}
 	r, stop, stopPrice, err := hfOrderRequest(s, symbol, side)
 	if err != nil {
@@ -947,7 +1149,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit, symbol,
 		if resp == nil {
 			return nil, common.ErrNoResponse
 		}
-		return s.DeriveSubmitResponse(resp.OrderID)
+		return stopSubmitResponse(s, resp.OrderID, r.Type, stopPrice)
 	}
 	resp, err := e.PlaceHFOrder(ctx, r)
 	if err != nil {
@@ -964,7 +1166,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit, symbol,
 func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbol, side string) (*order.SubmitResponse, error) {
 	isolated := s.MarginType == margin.Isolated
 	if s.Type == order.OCO {
-		stopPrice, limitPrice, err := ocoPrices(s.Side, &s.RiskManagementModes)
+		price, stopPrice, limitPrice, err := ocoPrices(s)
 		if err != nil {
 			return nil, err
 		}
@@ -972,7 +1174,7 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbo
 			ClientOrderID: s.ClientOrderID,
 			Side:          side,
 			Symbol:        symbol,
-			Price:         s.Price,
+			Price:         price,
 			Size:          s.Amount,
 			StopPrice:     stopPrice,
 			LimitPrice:    limitPrice,
@@ -986,7 +1188,7 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbo
 		if resp == nil {
 			return nil, common.ErrNoResponse
 		}
-		return s.DeriveSubmitResponse(resp.OrderID)
+		return ocoSubmitResponse(s, resp.OrderID, price)
 	}
 	r, stop, stopPrice, err := hfOrderRequest(s, symbol, side)
 	if err != nil {
@@ -1015,7 +1217,7 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbo
 		if resp == nil {
 			return nil, common.ErrNoResponse
 		}
-		return s.DeriveSubmitResponse(resp.OrderID)
+		return stopSubmitResponse(s, resp.OrderID, r.Type, stopPrice)
 	}
 	resp, err := e.PlaceMarginHFOrder(ctx, &PlaceMarginHFOrderRequest{
 		ClientOrderID: r.ClientOrderID,
@@ -1041,6 +1243,7 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbo
 	if err != nil {
 		return nil, err
 	}
+	e.marginOrderIDs.Store(resp.OrderID, struct{}{})
 	submitted.BorrowSize = resp.BorrowSize.Float64()
 	submitted.LoanApplyID = resp.LoanApplyID
 	return submitted, nil
@@ -1087,24 +1290,60 @@ func hfOrderRequest(s *order.Submit, symbol, side string) (r *PlaceHFOrderReques
 	return r, stop, stopPrice, nil
 }
 
-// ocoPrices returns the trigger and limit prices of the stop order of an OCO order: the StopLoss price triggers it and
-// it places a limit order at the TakeProfit price, which must be on the order's favourable side of the StopLoss price
-func ocoPrices(side order.Side, r *order.RiskManagementModes) (stopPrice, limitPrice float64, err error) {
+// stopSubmitResponse returns the response to a submission placed as a stop order, of KuCoin order type orderType,
+// which triggers at stopPrice, taken from the submission's risk management modes. Until it triggers it is a stop limit
+// or stop market order, whatever type the submission named, and has not filled
+func stopSubmitResponse(s *order.Submit, orderID, orderType string, stopPrice float64) (*order.SubmitResponse, error) {
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Type, resp.Status, resp.TriggerPrice = order.StopLimit, order.New, stopPrice
+	if orderType == order.Market.Lower() {
+		resp.Type = order.StopMarket
+	}
+	return resp, nil
+}
+
+// ocoSubmitResponse returns the response to a submission placed as an OCO order whose limit order is at price, which
+// the submission's Price may leave unset
+func ocoSubmitResponse(s *order.Submit, orderID string, price float64) (*order.SubmitResponse, error) {
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Price = price
+	return resp, nil
+}
+
+// ocoPrices returns the prices of the OCO order a submission describes: its limit order's price, the TakeProfit price,
+// and its stop order's trigger and limit prices, the StopLoss price and LimitPrice. The take profit must be on the
+// order's favourable side of the stop loss. KuCoin's OCO stop order is always a limit order, and the limit order holds
+// the order's only other price, so a Price that differs from the TakeProfit price is refused rather than dropped
+func ocoPrices(s *order.Submit) (price, stopPrice, limitPrice float64, err error) {
+	r := &s.RiskManagementModes
 	switch {
 	case !r.TakeProfit.Enabled || r.TakeProfit.Price <= 0:
-		return 0, 0, errTakeProfitPriceRequired
+		return 0, 0, 0, errTakeProfitPriceRequired
+	case s.Price != 0 && s.Price != r.TakeProfit.Price:
+		return 0, 0, 0, fmt.Errorf("%w: price %v, take profit price %v", errOCOPriceMismatch, s.Price, r.TakeProfit.Price)
 	case !r.StopLoss.Enabled || r.StopLoss.Price <= 0:
-		return 0, 0, errStopLossPriceRequired
-	case side.IsShort() && r.TakeProfit.Price <= r.StopLoss.Price:
-		return 0, 0, fmt.Errorf("%w: a sell order's stop loss price must be below its take profit price", errOCOPricesInverted)
-	case side.IsLong() && r.TakeProfit.Price >= r.StopLoss.Price:
-		return 0, 0, fmt.Errorf("%w: a buy order's stop loss price must be above its take profit price", errOCOPricesInverted)
+		return 0, 0, 0, errStopLossPriceRequired
+	case r.StopLoss.LimitPrice <= 0:
+		return 0, 0, 0, fmt.Errorf("%w: an OCO order's stop order is a limit order at the StopLoss LimitPrice", errLimitPriceRequired)
+	case s.Side.IsShort() && r.TakeProfit.Price <= r.StopLoss.Price:
+		return 0, 0, 0, fmt.Errorf("%w: a sell order's stop loss price must be below its take profit price", errOCOPricesInverted)
+	case s.Side.IsLong() && r.TakeProfit.Price >= r.StopLoss.Price:
+		return 0, 0, 0, fmt.Errorf("%w: a buy order's stop loss price must be above its take profit price", errOCOPricesInverted)
 	}
-	return r.StopLoss.Price, r.TakeProfit.Price, nil
+	return r.TakeProfit.Price, r.StopLoss.Price, r.StopLoss.LimitPrice, nil
 }
 
 // ModifyOrder changes the price or amount of a spot order over REST. KuCoin cancels the order and places a new one,
-// whose order ID the response carries; it cannot modify margin or futures orders
+// whose order ID the response carries, with its price, remaining size and status as KuCoin reports them or, when the
+// new order cannot be read back, its price as requested; it cannot modify margin or futures orders. The amount is the
+// one requested, as KuCoin sizes the new order by what the requested amount leaves after the original order's fills,
+// which the order's executed amount still holds
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -1134,11 +1373,18 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 		return nil, common.ErrNoResponse
 	}
 	modified, err := m.DeriveModifyResponse()
-	if modified != nil {
-		modified.OrderID = resp.NewOrderID
-		modified.ClientOrderID = resp.ClientOrderID
+	if err != nil {
+		return nil, err
 	}
-	return modified, err
+	modified.OrderID = resp.NewOrderID
+	modified.ClientOrderID = resp.ClientOrderID
+	// KuCoin has replaced the order by now, so failing to read the new order back must not hide its order ID
+	if placed, err := e.GetHFOrderByOrderID(ctx, resp.NewOrderID, r.Symbol); err == nil {
+		modified.Price = placed.Price.Float64()
+		modified.RemainingAmount = placed.RemainSize.Float64()
+		modified.Status = orderStatus(placed.Active, placed.CancelExist, placed.DealSize.Float64())
+	}
+	return modified, nil
 }
 
 // CancelOrder cancels an order over REST by its order ID, or by its client order ID when it has none. Futures orders
@@ -1259,9 +1505,10 @@ func (e *Exchange) cancelSpotStopOrders(ctx context.Context, orderIDs []string) 
 }
 
 // CancelBatchOrders cancels futures orders over REST through Batch Cancel Orders, ten orders a request, each by its
-// order ID or, when it has none, by its pair and client order ID. Each order's status is order.Cancelled or KuCoin's
-// reason for not cancelling it, keyed by the order ID or client order ID KuCoin echoes. KuCoin has no batch cancel for
-// spot or margin orders
+// order ID or, when it has none, by its pair and client order ID, sending an order listed twice once. Each order's status is order.Cancelled or KuCoin's
+// reason for not cancelling it, keyed by the order ID or client order ID KuCoin echoes, or the error of its request
+// when that request failed, keyed by the ID the request sent. A failed request does not stop the later ones; the
+// statuses are returned with the failed requests' errors joined. KuCoin has no batch cancel for spot or margin orders
 func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(cancels) == 0 {
 		return nil, order.ErrCancelOrderIsNil
@@ -1277,13 +1524,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		case cancels[i].AssetType != asset.Futures:
 			return nil, fmt.Errorf("%w: KuCoin batch cancels futures orders only, not %s orders", asset.ErrNotSupported, cancels[i].AssetType)
 		case cancels[i].OrderID != "":
-			orderIDs = append(orderIDs, cancels[i].OrderID)
+			// An order listed twice would go in two requests, and a later failure would overwrite its cancellation
+			if !slices.Contains(orderIDs, cancels[i].OrderID) {
+				orderIDs = append(orderIDs, cancels[i].OrderID)
+			}
 		case cancels[i].ClientOrderID == "":
 			return nil, order.ErrOrderIDNotSet
 		case cancels[i].Pair.IsEmpty():
 			return nil, currency.ErrCurrencyPairEmpty
 		default:
-			clientOrders = append(clientOrders, BatchCancelFuturesClientOrder{Symbol: pFmt.Format(cancels[i].Pair), ClientOrderID: cancels[i].ClientOrderID})
+			clientOrder := BatchCancelFuturesClientOrder{Symbol: pFmt.Format(cancels[i].Pair), ClientOrderID: cancels[i].ClientOrderID}
+			if !slices.Contains(clientOrders, clientOrder) {
+				clientOrders = append(clientOrders, clientOrder)
+			}
 		}
 	}
 	// KuCoin ignores the client orders of a request that lists order IDs, so each kind is cancelled in requests of its own
@@ -1295,10 +1548,18 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		requests = append(requests, &BatchCancelFuturesOrdersRequest{ClientOrders: batch})
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
+	var errs error
 	for _, r := range requests {
 		results, err := e.BatchCancelFuturesOrders(ctx, r)
 		if err != nil {
-			return nil, err
+			errs = common.AppendError(errs, err)
+			for _, orderID := range r.OrderIDs {
+				resp.Status[orderID] = err.Error()
+			}
+			for i := range r.ClientOrders {
+				resp.Status[r.ClientOrders[i].ClientOrderID] = err.Error()
+			}
+			continue
 		}
 		for i := range results {
 			id := results[i].OrderID
@@ -1312,7 +1573,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 			resp.Status[id] = status
 		}
 	}
-	return resp, nil
+	return resp, errs
 }
 
 // batchCancelFuturesOrdersLimit is the most orders a Batch Cancel Orders request takes
@@ -1322,8 +1583,9 @@ const batchCancelFuturesOrdersLimit = 10
 // stop orders are cancelled together. Spot and margin stop or OCO orders are cancelled for a stop or OCO request, only
 // its order when it names one. KuCoin returns no order IDs for the other spot and margin orders it cancels, so their
 // statuses are keyed by symbol. KuCoin cancels margin and futures limit orders by symbol, so without a pair those of
-// each symbol with open orders are cancelled. Margin orders are those of the request's margin type, cross margin
-// unless it is isolated
+// each symbol with open orders are cancelled, and when a later request fails the statuses of the orders earlier ones
+// cancelled are returned with its error. Margin orders are those of the request's margin type, cross margin unless it
+// is isolated
 func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := c.Validate(); err != nil {
@@ -1359,10 +1621,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 				}
 			}
 		}
+		// Orders earlier requests cancelled stay cancelled when a later request fails, so their statuses go with its error
 		for _, s := range symbols {
 			limitOrders, err := e.CancelAllFuturesOrders(ctx, s)
 			if err != nil {
-				return resp, err
+				return addCancelledOrders(resp, cancelledIDs), err
 			}
 			if limitOrders != nil {
 				cancelledIDs = append(cancelledIDs, limitOrders.CancelledOrderIDs...)
@@ -1370,7 +1633,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 		}
 		stopOrders, err := e.CancelAllFuturesStopOrders(ctx, symbol)
 		if err != nil {
-			return resp, err
+			return addCancelledOrders(resp, cancelledIDs), err
 		}
 		if stopOrders != nil {
 			cancelledIDs = append(cancelledIDs, stopOrders.CancelledOrderIDs...)
@@ -1445,10 +1708,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 			}
 		}
 	}
-	for _, orderID := range cancelledIDs {
-		resp.Add(orderID, cancelled)
+	return addCancelledOrders(resp, cancelledIDs), nil
+}
+
+// addCancelledOrders adds the orders KuCoin reported cancelled to a CancelAllOrders response
+func addCancelledOrders(resp order.CancelAllResponse, orderIDs []string) order.CancelAllResponse {
+	for _, orderID := range orderIDs {
+		resp.Add(orderID, order.Cancelled.String())
 	}
-	return resp, nil
+	return resp
 }
 
 // openOrderSymbols returns the symbols KuCoin reports open spot orders for, or open margin orders of a trade type
@@ -1468,7 +1736,8 @@ func (e *Exchange) openOrderSymbols(ctx context.Context, a asset.Item, tradeType
 }
 
 // GetOrderInfo returns an order by its order ID over REST. Spot and margin orders need their pair, by which KuCoin
-// looks them up; KuCoin keeps cancelled spot orders for two days and filled ones for seven
+// looks them up; KuCoin keeps cancelled spot orders for two days and filled ones for seven. KuCoin looks up spot and
+// margin stop and OCO orders apart from the others, so an order the order lookup does not find is looked up as one
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -1487,7 +1756,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp == nil {
 			return nil, fmt.Errorf("%w: %s", order.ErrOrderNotFound, orderID)
 		}
-		if d, err = e.futuresOrderDetail((*FuturesOrder)(resp)); err != nil {
+		if d, err = e.futuresOrderDetail(resp); err != nil {
 			return nil, err
 		}
 	case asset.Margin:
@@ -1496,9 +1765,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		resp, err := e.GetMarginHFOrderDetailByOrderID(ctx, orderID, pFmt.Format(pair))
 		if err != nil {
-			return nil, err
+			if d, err = e.conditionalOrderInfo(ctx, orderID, a, err); err != nil {
+				return nil, err
+			}
+			break
 		}
-		if d, err = e.marginHFOrderDetail(&resp.MarginHFOrder); err != nil {
+		if d, err = e.marginHFOrderDetail(&resp.MarginHFOrderResponse); err != nil {
 			return nil, err
 		}
 	default: // Spot, the only other asset requestFormat accepts
@@ -1507,9 +1779,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		resp, err := e.GetHFOrderByOrderID(ctx, orderID, pFmt.Format(pair))
 		if err != nil {
-			return nil, err
+			if d, err = e.conditionalOrderInfo(ctx, orderID, a, err); err != nil {
+				return nil, err
+			}
+			break
 		}
-		if d, err = e.hfOrderDetail(&resp.HFOrder); err != nil {
+		if d, err = e.hfOrderDetail(&resp.HFOrderResponse); err != nil {
 			return nil, err
 		}
 	}
@@ -1519,8 +1794,66 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	return &d, nil
 }
 
+// conditionalOrderInfo returns the spot or margin stop or OCO order an order ID names, after the order lookup failed
+// with lookupErr. KuCoin answers an order ID it does not hold with no data or with an error response, so either sends
+// the ID to the stop order lookup and then the OCO order lookup, and lookupErr is returned when neither holds it
+func (e *Exchange) conditionalOrderInfo(ctx context.Context, orderID string, a asset.Item, lookupErr error) (order.Detail, error) {
+	if !lookupMissed(lookupErr) {
+		return order.Detail{}, lookupErr
+	}
+	var stop *StopOrderResponse
+	var err error
+	if a == asset.Margin {
+		var resp *MarginStopOrderResponse
+		resp, err = e.GetMarginStopOrderByOrderID(ctx, orderID)
+		// Margin and spot stop orders hold the same fields
+		stop = (*StopOrderResponse)(resp)
+	} else {
+		stop, err = e.GetStopOrderByOrderID(ctx, orderID)
+	}
+	switch {
+	case err != nil && !lookupMissed(err):
+		return order.Detail{}, err
+	case err == nil && stop != nil:
+		return e.stopOrderDetail(stop, a, strings.EqualFold(stop.Stop, "oco"))
+	}
+	var oco *OCOOrder
+	if a == asset.Margin {
+		var resp *MarginOCOOrderResponse
+		if resp, err = e.GetMarginOCOOrderByOrderID(ctx, orderID); resp != nil {
+			oco = &OCOOrder{OrderID: resp.OrderID, Symbol: resp.Symbol, ClientOrderID: resp.ClientOrderID, OrderTime: resp.OrderTime, Status: resp.Status}
+		}
+	} else {
+		// KuCoin abandoned its spot OCO order lookups along with the order endpoints the spot OCO orders still use, and the
+		// list, which the package already uses for them, finds an order by its ID as well
+		var resp *OCOOrderListResponse
+		if resp, err = e.GetOCOOrderList(ctx, &OCOOrderListRequest{OrderIDs: []string{orderID}}); resp != nil {
+			for i := range resp.Items {
+				if resp.Items[i].OrderID == orderID {
+					oco = &resp.Items[i]
+					break
+				}
+			}
+		}
+	}
+	switch {
+	case err != nil && !lookupMissed(err):
+		return order.Detail{}, err
+	case err == nil && oco != nil:
+		return e.ocoOrderDetail(oco, a)
+	}
+	return order.Detail{}, lookupErr
+}
+
+// lookupMissed returns whether an order lookup's error may mean KuCoin holds no order of the ID it looked up: it
+// returned no data, or KuCoin answered with an error, as it does for an order ID it does not know
+func lookupMissed(err error) bool {
+	var respErr *responseError
+	return errors.Is(err, order.ErrOrderNotFound) || errors.As(err, &respErr)
+}
+
 // hfOrderDetail converts a spot order
-func (e *Exchange) hfOrderDetail(o *HFOrder) (order.Detail, error) {
+func (e *Exchange) hfOrderDetail(o *HFOrderResponse) (order.Detail, error) {
 	pair, err := currency.NewPairFromString(o.Symbol)
 	if err != nil {
 		return order.Detail{}, err
@@ -1566,7 +1899,7 @@ func (e *Exchange) hfOrderDetail(o *HFOrder) (order.Detail, error) {
 }
 
 // marginHFOrderDetail converts a margin order
-func (e *Exchange) marginHFOrderDetail(o *MarginHFOrder) (order.Detail, error) {
+func (e *Exchange) marginHFOrderDetail(o *MarginHFOrderResponse) (order.Detail, error) {
 	pair, err := currency.NewPairFromString(o.Symbol)
 	if err != nil {
 		return order.Detail{}, err
@@ -1604,7 +1937,10 @@ func (e *Exchange) marginHFOrderDetail(o *MarginHFOrder) (order.Detail, error) {
 		Date:            o.CreatedAt.Time(),
 		LastUpdated:     o.LastUpdatedAt.Time(),
 	}
-	if !o.Active {
+	if o.Active {
+		e.marginOrderIDs.Store(o.ID, struct{}{})
+	} else {
+		e.marginOrderIDs.Delete(o.ID)
 		d.CloseTime = d.LastUpdated
 	}
 	if d.ExecutedAmount > 0 {
@@ -1613,8 +1949,23 @@ func (e *Exchange) marginHFOrderDetail(o *MarginHFOrder) (order.Detail, error) {
 	return d, nil
 }
 
+// takeProfitType returns the take profit type of a futures stop order that triggers as the price moves in its favour, up
+// for a sell and down for a buy, as futuresOrderRequest places a take profit order; a stop order triggering as the price
+// moves against it keeps its type
+func takeProfitType(oType order.Type, stop string, side order.Side) order.Type {
+	if (stop == "up" && side.IsShort()) || (stop == "down" && side.IsLong()) {
+		switch oType {
+		case order.StopLimit:
+			return order.TakeProfit
+		case order.StopMarket:
+			return order.TakeProfitMarket
+		}
+	}
+	return oType
+}
+
 // futuresOrderDetail converts a futures order, whose amounts are in lots
-func (e *Exchange) futuresOrderDetail(o *FuturesOrder) (order.Detail, error) {
+func (e *Exchange) futuresOrderDetail(o *FuturesOrderDetailResponse) (order.Detail, error) {
 	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, asset.Futures, false)
 	if err != nil {
 		return order.Detail{}, err
@@ -1627,6 +1978,7 @@ func (e *Exchange) futuresOrderDetail(o *FuturesOrder) (order.Detail, error) {
 	if err != nil {
 		return order.Detail{}, err
 	}
+	oType = takeProfitType(oType, o.Stop, side)
 	marginType := margin.Isolated
 	if o.MarginMode == "CROSS" {
 		marginType = margin.Multi
@@ -1661,8 +2013,9 @@ func (e *Exchange) futuresOrderDetail(o *FuturesOrder) (order.Detail, error) {
 	}, nil
 }
 
-// stopOrderDetail converts an untriggered spot or margin stop order, or an OCO order, which KuCoin lists with them
-func (e *Exchange) stopOrderDetail(o *StopOrder, a asset.Item, oco bool) (order.Detail, error) {
+// stopOrderDetail converts a spot or margin stop order, or an OCO order, which KuCoin lists with them. A triggered stop
+// order, which only a lookup by its order ID returns, has placed its order and is closed
+func (e *Exchange) stopOrderDetail(o *StopOrderResponse, a asset.Item, oco bool) (order.Detail, error) {
 	pair, err := currency.NewPairFromString(o.Symbol)
 	if err != nil {
 		return order.Detail{}, err
@@ -1677,6 +2030,10 @@ func (e *Exchange) stopOrderDetail(o *StopOrder, a asset.Item, oco bool) (order.
 	if err != nil {
 		return order.Detail{}, err
 	}
+	status := order.New
+	if strings.EqualFold(o.Status, "TRIGGERED") {
+		status = order.Closed
+	}
 	return order.Detail{
 		Exchange:      e.Name,
 		OrderID:       o.ID,
@@ -1686,7 +2043,7 @@ func (e *Exchange) stopOrderDetail(o *StopOrder, a asset.Item, oco bool) (order.
 		MarginType:    tradeTypeMarginType(o.TradeType),
 		Type:          oType,
 		Side:          side,
-		Status:        order.New,
+		Status:        status,
 		Price:         o.Price.Float64(),
 		TriggerPrice:  o.StopPrice.Float64(),
 		Amount:        o.Size.Float64(),
@@ -1898,9 +2255,9 @@ func collectByLastID[T any](fetch func(lastID uint64) (items []T, nextLastID uin
 }
 
 // allFuturesOrders returns the futures orders of every page a Get Order List request matches, setting its paging
-func (e *Exchange) allFuturesOrders(ctx context.Context, r *GetFuturesOrdersRequest) ([]FuturesOrder, error) {
+func (e *Exchange) allFuturesOrders(ctx context.Context, r *GetFuturesOrdersRequest) ([]FuturesOrderDetailResponse, error) {
 	r.PageSize = futuresOrdersPageSize
-	return collectPages(func(page uint64) ([]FuturesOrder, uint64, error) {
+	return collectPages(func(page uint64) ([]FuturesOrderDetailResponse, uint64, error) {
 		r.CurrentPage = page
 		resp, err := e.GetFuturesOrders(ctx, r)
 		if err != nil || resp == nil {
@@ -1937,10 +2294,59 @@ func (e *Exchange) futuresOrders(ctx context.Context, req *order.MultiOrderReque
 	return details, nil
 }
 
+// activeFuturesOrders returns the active futures orders a request matches, with the untriggered stop orders KuCoin lists
+// apart from them. A stop order that triggers between the two lists moves from one to the other, so the stop orders are
+// listed first and one the active orders hold already is left out
+func (e *Exchange) activeFuturesOrders(ctx context.Context, req *order.MultiOrderRequest, symbol, side string) ([]order.Detail, error) {
+	var stopType string
+	switch req.Type {
+	case order.StopLimit:
+		stopType = order.Limit.Lower()
+	case order.StopMarket:
+		stopType = order.Market.Lower()
+	case order.AnyType, order.UnknownType:
+	default:
+		// Limit and market orders are no stop orders, and futuresOrders refuses the types KuCoin does not list
+		return e.futuresOrders(ctx, req, "active", symbol, side)
+	}
+	r := &GetUntriggeredFuturesStopOrdersRequest{Symbol: symbol, Side: side, Type: stopType, StartAt: req.StartTime, EndAt: req.EndTime, PageSize: futuresOrdersPageSize}
+	stops, err := collectPages(func(page uint64) ([]FuturesOrderDetailResponse, uint64, error) {
+		r.CurrentPage = page
+		resp, err := e.GetUntriggeredFuturesStopOrders(ctx, r)
+		if err != nil || resp == nil {
+			return nil, 0, err
+		}
+		return resp.Items, resp.TotalPage, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	orders, err := e.futuresOrders(ctx, req, "active", symbol, side)
+	if err != nil {
+		return nil, err
+	}
+	listed := make(map[string]struct{}, len(orders))
+	for i := range orders {
+		listed[orders[i].OrderID] = struct{}{}
+	}
+	for i := range stops {
+		if _, ok := listed[stops[i].ID]; ok {
+			continue
+		}
+		d, err := e.futuresOrderDetail(&stops[i])
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, d)
+	}
+	return orders, nil
+}
+
 // GetActiveOrders returns open orders over REST. KuCoin lists open spot and margin orders by symbol, so they are listed
-// for the request's pair, or for each symbol with open orders, among the request's pairs when it has several. Stop and
-// OCO orders come from KuCoin's lists of untriggered stop orders. Margin orders are those of the request's margin type,
-// cross margin unless it is isolated
+// for the request's pair, or for each symbol with open orders, among the request's pairs when it has several. Spot and
+// margin stop and OCO orders come from KuCoin's lists of untriggered stop orders, and futures orders are listed with the
+// untriggered futures stop orders unless the request is for limit or market orders. Margin orders are those of the
+// request's margin type, cross margin unless it is isolated
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1960,7 +2366,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	var orders []order.Detail
 	switch {
 	case req.AssetType == asset.Futures:
-		orders, err = e.futuresOrders(ctx, req, "active", symbol, side)
+		orders, err = e.activeFuturesOrders(ctx, req, symbol, side)
 	case req.Type == order.OCO || isStopOrderType(req.Type):
 		orders, err = e.untriggeredStopOrders(ctx, req, symbol, side)
 	default:
@@ -2036,10 +2442,10 @@ func (e *Exchange) untriggeredStopOrders(ctx context.Context, req *order.MultiOr
 		stop = "oco"
 	}
 	tradeType := e.AccountToTradeTypeString(req.AssetType, req.MarginType)
-	var stops []StopOrder
+	var stops []StopOrderResponse
 	var err error
 	if req.AssetType == asset.Margin {
-		stops, err = collectPages(func(page uint64) ([]StopOrder, uint64, error) {
+		stops, err = collectPages(func(page uint64) ([]StopOrderResponse, uint64, error) {
 			resp, err := e.GetMarginStopOrders(ctx, &GetMarginStopOrdersRequest{
 				Symbol:      symbol,
 				Side:        side,
@@ -2053,15 +2459,15 @@ func (e *Exchange) untriggeredStopOrders(ctx context.Context, req *order.MultiOr
 			if err != nil || resp == nil {
 				return nil, 0, err
 			}
-			items := make([]StopOrder, len(resp.Items))
+			items := make([]StopOrderResponse, len(resp.Items))
 			for i := range resp.Items {
 				// Margin and spot stop orders hold the same fields
-				items[i] = StopOrder(resp.Items[i].MarginStopOrderResponse)
+				items[i] = StopOrderResponse(resp.Items[i].MarginStopOrderResponse)
 			}
 			return items, resp.TotalPage, nil
 		})
 	} else {
-		stops, err = collectPages(func(page uint64) ([]StopOrder, uint64, error) {
+		stops, err = collectPages(func(page uint64) ([]StopOrderResponse, uint64, error) {
 			resp, err := e.GetStopOrderList(ctx, &StopOrderListRequest{
 				Symbol:      symbol,
 				Side:        side,
@@ -2075,9 +2481,9 @@ func (e *Exchange) untriggeredStopOrders(ctx context.Context, req *order.MultiOr
 			if err != nil || resp == nil {
 				return nil, 0, err
 			}
-			items := make([]StopOrder, len(resp.Items))
+			items := make([]StopOrderResponse, len(resp.Items))
 			for i := range resp.Items {
-				items[i] = resp.Items[i].StopOrder
+				items[i] = resp.Items[i].StopOrderResponse
 			}
 			return items, resp.TotalPage, nil
 		})
@@ -2167,7 +2573,7 @@ func (e *Exchange) closedHFOrders(ctx context.Context, req *order.MultiOrderRequ
 	for i := range req.Pairs {
 		symbol := pFmt.Format(req.Pairs[i])
 		if req.AssetType == asset.Margin {
-			closed, err := collectByLastID(func(lastID uint64) ([]MarginHFOrderResponse, uint64, error) {
+			closed, err := collectByLastID(func(lastID uint64) ([]MarginHFOrderDetailResponse, uint64, error) {
 				resp, err := e.GetClosedMarginHFOrders(ctx, &GetClosedMarginHFOrdersRequest{
 					Symbol:    symbol,
 					TradeType: tradeType,
@@ -2187,7 +2593,7 @@ func (e *Exchange) closedHFOrders(ctx context.Context, req *order.MultiOrderRequ
 				return nil, err
 			}
 			for j := range closed {
-				d, err := e.marginHFOrderDetail(&closed[j].MarginHFOrder)
+				d, err := e.marginHFOrderDetail(&closed[j].MarginHFOrderResponse)
 				if err != nil {
 					return nil, err
 				}
@@ -2195,7 +2601,7 @@ func (e *Exchange) closedHFOrders(ctx context.Context, req *order.MultiOrderRequ
 			}
 			continue
 		}
-		closed, err := collectByLastID(func(lastID uint64) ([]HFOrderDetail, uint64, error) {
+		closed, err := collectByLastID(func(lastID uint64) ([]HFOrderDetailResponse, uint64, error) {
 			resp, err := e.GetClosedHFOrders(ctx, &ClosedHFOrdersRequest{
 				Symbol:  symbol,
 				Side:    side,
@@ -2214,7 +2620,7 @@ func (e *Exchange) closedHFOrders(ctx context.Context, req *order.MultiOrderRequ
 			return nil, err
 		}
 		for j := range closed {
-			d, err := e.hfOrderDetail(&closed[j].HFOrder)
+			d, err := e.hfOrderDetail(&closed[j].HFOrderResponse)
 			if err != nil {
 				return nil, err
 			}
@@ -2332,19 +2738,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	case exchange.CryptocurrencyDepositFee:
 		return 0, nil
 	default:
-		if !feeBuilder.FiatCurrency.IsEmpty() {
-			fee, err := e.GetBasicFee(ctx, 1)
-			if err != nil {
-				return 0, err
-			}
-			if fee == nil {
-				return 0, common.ErrNoResponse
-			}
-			if feeBuilder.IsMaker {
-				return feeBuilder.Amount * fee.MakerFeeRate.Float64(), nil
-			}
-			return feeBuilder.Amount * fee.TakerFeeRate.Float64(), nil
-		}
+		// KuCoin's API offers no bank deposits or withdrawals, so their fees cannot be estimated
 		return 0, fmt.Errorf("%w: %v", errFeeTypeNotSupported, feeBuilder.FeeType)
 	}
 }
@@ -2483,7 +2877,7 @@ const perpetualContractType = "FFWCSX"
 
 // contractFundingRate returns a contract's current funding rate, timed at the start of its funding period. KuCoin
 // leaves the current funding interval null on some contracts, which then follow their configured interval
-func contractFundingRate(c *Contract) fundingrate.Rate {
+func contractFundingRate(c *ContractResponse) fundingrate.Rate {
 	interval := c.CurrentFundingRateGranularity
 	if interval == 0 {
 		interval = c.FundingRateGranularity
@@ -2620,7 +3014,8 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bo
 	return a == asset.Futures && isPerpetualPair(cp), nil
 }
 
-// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+// GetHistoricalFundingRates returns a perpetual contract's funding rates over a window, newest first. KuCoin returns
+// the newest hundred rates of a window a request, so a longer window is read back from its end a hundred at a time
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -2645,9 +3040,34 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, err
 	}
 
-	records, err := e.GetPublicFundingRate(ctx, r.Pair.String(), r.StartDate, r.EndDate)
-	if err != nil {
-		return nil, err
+	// KuCoin returns the newest rates of a window, at most publicFundingRatesLimit, so each later request asks for the
+	// rates before the oldest one the last returned. Both edges of a window are inclusive
+	var records []FuturesPublicFundingHistoryResponse
+	for end := r.EndDate; ; {
+		page, err := e.GetPublicFundingRate(ctx, r.Pair.String(), r.StartDate, end)
+		if err != nil {
+			return nil, err
+		}
+		// A rate after the window's end is none of its rates, so it neither counts nor moves the window back
+		var oldest time.Time
+		for i := range page {
+			t := page[i].Timepoint.Time()
+			if t.After(end) {
+				continue
+			}
+			records = append(records, page[i])
+			if oldest.IsZero() || t.Before(oldest) {
+				oldest = t
+			}
+		}
+		// A short page holds the window's last rates. The next window ends before the oldest rate this one held, which
+		// leaves none once that is at the window's start; a page of no rate in the window leaves oldest unset, which is
+		// before any start, as such a page cannot move the window back
+		next := oldest.Add(-time.Millisecond)
+		if len(page) < publicFundingRatesLimit || !next.After(r.StartDate) {
+			break
+		}
+		end = next
 	}
 
 	if len(records) == 0 {
@@ -2776,8 +3196,8 @@ func (e *Exchange) GetCollateralMode(_ context.Context, _ asset.Item) (collatera
 }
 
 // ChangePositionMargin moves an isolated margin futures position's margin from OriginalAllocatedMargin to
-// NewAllocatedMargin, adding or withdrawing the difference. In hedge mode, MarginSide is the position side, LONG or
-// SHORT
+// NewAllocatedMargin, adding or withdrawing the difference. MarginSide is the position side: both, or in hedge mode
+// buy or long for the long position and sell or short for the short one
 func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -2794,6 +3214,9 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	if r.NewAllocatedMargin <= 0 {
 		return nil, margin.ErrNewAllocatedMarginRequired
 	}
+	if r.OriginalAllocatedMargin <= 0 {
+		return nil, margin.ErrOriginalPositionMarginRequired
+	}
 	change := decimal.MustFromFloat(r.NewAllocatedMargin).Sub(decimal.MustFromFloat(r.OriginalAllocatedMargin))
 	if change.IsZero() {
 		return nil, errMarginUnchanged
@@ -2803,7 +3226,18 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 		return nil, err
 	}
 	symbol := pFmt.Format(r.Pair)
-	positionSide := strings.ToUpper(r.MarginSide)
+	var positionSide string
+	switch strings.ToLower(r.MarginSide) {
+	case "": // KuCoin defaults to BOTH, the one-way mode position
+	case "both":
+		positionSide = "BOTH"
+	case "buy", "long":
+		positionSide = "LONG"
+	case "sell", "short":
+		positionSide = "SHORT"
+	default:
+		return nil, fmt.Errorf("%w: margin side %q", order.ErrSideIsInvalid, r.MarginSide)
+	}
 	resp := &margin.PositionChangeResponse{Exchange: e.Name, Pair: r.Pair, Asset: r.Asset, MarginType: r.MarginType}
 	if change.IsPositive() {
 		// The business number makes KuCoin add the margin once, however often the request is sent
@@ -2826,7 +3260,8 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 }
 
 // GetFuturesPositionSummary returns a summary of a futures position and its settlement currency's account. In hedge
-// mode, Direction chooses the long or short position
+// mode, Direction chooses the long or short position. ContractSize is in what the position's lots are worth: the base
+// currency for a linear contract and USD for an inverse one
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -2885,14 +3320,14 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		MarginBalance:                decimal.MustFromFloat(account.MarginBalance),
 		NotionalSize:                 pos.MarkValue.Decimal(),
 		Leverage:                     pos.Leverage.Decimal(),
-		MaintenanceMarginRequirement: pos.MaintenanceMarginRequirement.Decimal(),
+		MaintenanceMarginRequirement: pos.PositionMaintenanceMargin.Decimal(),
 		InitialMarginRequirement:     pos.PositionInitialMargin.Decimal(),
 		EstimatedLiquidationPrice:    pos.LiquidationPrice.Decimal(),
-		CollateralUsed:               pos.PositionCost.Decimal(),
+		CollateralUsed:               pos.PositionMargin.Decimal(),
 		MarkPrice:                    pos.MarkPrice.Decimal(),
 		CurrentSize:                  size,
-		ContractSize:                 size.Mul(decimal.MustFromFloat(multiplier)),
-		ContractMultiplier:           decimal.MustFromFloat(multiplier),
+		ContractSize:                 size.Mul(lotValue(multiplier)),
+		ContractMultiplier:           lotValue(multiplier),
 		ContractSettlementType:       settlementType,
 		AverageOpenPrice:             pos.AverageEntryPrice.Decimal(),
 		UnrealisedPNL:                pos.UnrealisedPNL.Decimal(),
@@ -2906,8 +3341,8 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 
 // futuresPosition returns a contract's position of a direction: the position in one-way mode, and in hedge mode the
 // long or short one, which an unset direction leaves ambiguous
-func futuresPosition(positions []FuturesPositionDetail, direction order.Side) (*FuturesPositionDetail, error) {
-	var found *FuturesPositionDetail
+func futuresPosition(positions []FuturesPositionDetailResponse, direction order.Side) (*FuturesPositionDetailResponse, error) {
+	var found *FuturesPositionDetailResponse
 	for i := range positions {
 		switch {
 		case direction.IsLong() && positions[i].PositionSide == "SHORT", direction.IsShort() && positions[i].PositionSide == "LONG":
@@ -2923,9 +3358,17 @@ func futuresPosition(positions []FuturesPositionDetail, direction order.Side) (*
 	return found, nil
 }
 
+// lotValue returns what one lot of a futures contract is worth: its multiplier of the base currency for a linear
+// contract, and 1 USD for an inverse one, whose multiplier KuCoin reports as -1
+func lotValue(multiplier float64) decimal.Decimal {
+	return decimal.MustFromFloat(multiplier).Abs()
+}
+
 // GetFuturesPositionOrders returns each pair's closed futures orders over REST, in a window of at most seven days, which
 // RespectOrderHistoryLimits shortens from its start rather than erroring. The window ends now when EndDate is unset.
-// Amount is in the base currency and ContractAmount in lots
+// ContractAmount is in lots, and Amount, ExecutedAmount and RemainingAmount are in what the lots are worth: the base
+// currency for a linear contract and USD for an inverse one. They are zero for a contract the list of active contracts
+// no longer holds, such as a settled one, whose lot is unknown
 func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -2961,10 +3404,10 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 	for x := range r.Pairs {
 		resp[x].Pair = r.Pairs[x]
 		resp[x].Asset = r.Asset
-		var multiplier float64
+		var worth decimal.Decimal
 		for i := range contracts {
 			if contracts[i].Name.Equal(r.Pairs[x]) {
-				multiplier = contracts[i].Multiplier
+				worth = lotValue(contracts[i].Multiplier)
 				resp[x].ContractSettlementType = contracts[i].SettlementType
 				break
 			}
@@ -2978,7 +3421,11 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 			if resp[x].Orders[i], err = e.futuresOrderDetail(&orders[i]); err != nil {
 				return nil, err
 			}
-			resp[x].Orders[i].Amount = resp[x].Orders[i].ContractAmount * multiplier
+			// futuresOrderDetail reports lots, which a decimal product converts without float rounding
+			o := &resp[x].Orders[i]
+			o.Amount = decimal.MustFromFloat(o.ContractAmount).Mul(worth).InexactFloat64()
+			o.ExecutedAmount = decimal.MustFromFloat(o.ExecutedAmount).Mul(worth).InexactFloat64()
+			o.RemainingAmount = decimal.MustFromFloat(o.RemainingAmount).Mul(worth).InexactFloat64()
 		}
 	}
 	return resp, nil
@@ -3015,7 +3462,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MaximumBaseAmount:       symbols[x].BaseMaxSize.Float64(),
 				MinimumQuoteAmount:      symbols[x].QuoteMinSize.Float64(),
 				MaximumQuoteAmount:      symbols[x].QuoteMaxSize.Float64(),
-				Listed:                  symbols[x].TradingStartTime.Time(),
+				// minFunds is the least an order may be worth, its amount times its price for a limit order
+				MinNotional: symbols[x].MinFunds.Float64(),
+				Listed:      symbols[x].TradingStartTime.Time(),
 			})
 		}
 	case asset.Futures:

@@ -210,7 +210,7 @@ func (e *Exchange) GetUTATrades(ctx context.Context, tradeType, symbol string) (
 
 // GetUTAPositionTiers returns the unified account's margin borrowing tiers or futures risk limit tiers (Get Position
 // Tiers)
-func (e *Exchange) GetUTAPositionTiers(ctx context.Context, req *UTAPositionTiersRequest) ([]UTAPositionTier, error) {
+func (e *Exchange) GetUTAPositionTiers(ctx context.Context, req *UTAPositionTiersRequest) ([]UTAPositionTierResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -247,25 +247,25 @@ func (e *Exchange) GetUTAPositionTiers(ctx context.Context, req *UTAPositionTier
 	if len(req.Symbols) != 0 {
 		params.Set("symbol", strings.Join(req.Symbols, ","))
 	}
-	var resp []UTAPositionTier
+	var resp []UTAPositionTierResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTAPositionTiersEPL, common.EncodeURLValues("/ua/v2/market/position-tiers", params), &resp)
 }
 
 // GetUTACollateralRatio returns each currency's collateral discount tiers in the unified account (Get Collateral Ratio)
-func (e *Exchange) GetUTACollateralRatio(ctx context.Context) ([]UTACollateralRatio, error) {
-	var resp []UTACollateralRatio
+func (e *Exchange) GetUTACollateralRatio(ctx context.Context) ([]UTACollateralRatioResponse, error) {
+	var resp []UTACollateralRatioResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTACollateralRatioEPL, "/ua/v2/market/collateral-discount-ratio", &resp)
 }
 
 // GetUTABorrowableCurrencies returns the currencies the unified account can borrow (Get Borrowable Currencies)
-func (e *Exchange) GetUTABorrowableCurrencies(ctx context.Context) ([]UTABorrowableCurrency, error) {
-	var resp []UTABorrowableCurrency
+func (e *Exchange) GetUTABorrowableCurrencies(ctx context.Context) ([]UTABorrowableCurrencyResponse, error) {
+	var resp []UTABorrowableCurrencyResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTABorrowableCurrenciesEPL, "/ua/v2/market/borrowable-currency", &resp)
 }
 
 // GetUTACurrentFundingRate returns the current funding rate of a futures contract, or of every contract of a product
 // type, or of every contract when both are empty; the symbol takes precedence (Get Current Funding Rate)
-func (e *Exchange) GetUTACurrentFundingRate(ctx context.Context, symbol, productType string) ([]UTACurrentFundingRate, error) {
+func (e *Exchange) GetUTACurrentFundingRate(ctx context.Context, symbol, productType string) ([]UTACurrentFundingRateResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -273,7 +273,7 @@ func (e *Exchange) GetUTACurrentFundingRate(ctx context.Context, symbol, product
 	if productType != "" {
 		params.Set("productType", productType)
 	}
-	var resp []UTACurrentFundingRate
+	var resp []UTACurrentFundingRateResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTACurrentFundingRateEPL, common.EncodeURLValues("/ua/v2/market/funding-rate", params), &resp)
 }
 
@@ -296,7 +296,7 @@ func (e *Exchange) GetUTAFundingRateHistory(ctx context.Context, symbol string, 
 
 // GetUTAFuturesOpenInterest returns the real time open interest of futures contracts, or, with an interval, a
 // contract's historic open interest, newest first (Get Futures Open Interest)
-func (e *Exchange) GetUTAFuturesOpenInterest(ctx context.Context, req *UTAFuturesOpenInterestRequest) ([]UTAFuturesOpenInterest, error) {
+func (e *Exchange) GetUTAFuturesOpenInterest(ctx context.Context, req *UTAFuturesOpenInterestRequest) ([]UTAFuturesOpenInterestResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (e *Exchange) GetUTAFuturesOpenInterest(ctx context.Context, req *UTAFuture
 	if req.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(req.PageSize, 10))
 	}
-	var resp []UTAFuturesOpenInterest
+	var resp []UTAFuturesOpenInterestResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTAFuturesOpenInterestEPL, common.EncodeURLValues("/ua/v2/market/open-interest", params), &resp)
 }
 
@@ -379,7 +379,7 @@ func (e *Exchange) GetUTAFiatPrice(ctx context.Context, base currency.Code, curr
 
 // GetUTAThirdPartyCustodyCurrencies returns the settlement currencies of a custodian, or of every custodian (Get
 // Third-Party Custody Currencies)
-func (e *Exchange) GetUTAThirdPartyCustodyCurrencies(ctx context.Context, custodian string, ccy currency.Code) ([]UTAThirdPartyCustodyCurrency, error) {
+func (e *Exchange) GetUTAThirdPartyCustodyCurrencies(ctx context.Context, custodian string, ccy currency.Code) ([]UTAThirdPartyCustodyCurrencyResponse, error) {
 	params := url.Values{}
 	if custodian != "" {
 		params.Set("custodian", custodian)
@@ -387,7 +387,7 @@ func (e *Exchange) GetUTAThirdPartyCustodyCurrencies(ctx context.Context, custod
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []UTAThirdPartyCustodyCurrency
+	var resp []UTAThirdPartyCustodyCurrencyResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTAThirdPartyCustodyCurrenciesEPL, common.EncodeURLValues("/ua/v2/oes/currency", params), &resp)
 }
 
@@ -403,8 +403,8 @@ func (e *Exchange) GetUTAServiceStatus(ctx context.Context, tradeType string) (*
 }
 
 // GetUTAKYCRegions returns the regions KuCoin accepts KYC from (Get KYC Regions)
-func (e *Exchange) GetUTAKYCRegions(ctx context.Context) ([]UTAKYCRegion, error) {
-	var resp []UTAKYCRegion
+func (e *Exchange) GetUTAKYCRegions(ctx context.Context) ([]UTAKYCRegionResponse, error) {
+	var resp []UTAKYCRegionResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUTAKYCRegionsEPL, "/ua/v2/user/kyc-region", &resp)
 }
 

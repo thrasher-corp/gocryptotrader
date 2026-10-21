@@ -241,15 +241,15 @@ func TestGetUTALeverage(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		req *UTALeverageRequest
-		exp []UTALeverage
+		exp []UTALeverageResponse
 	}{
 		{
 			req: &UTALeverageRequest{Currency: currency.BTC, TradeType: "MARGIN", MarginMode: "CROSS"},
-			exp: []UTALeverage{{Currency: currency.BTC, Leverage: 5, MarginMode: "CROSS"}},
+			exp: []UTALeverageResponse{{Currency: currency.BTC, Leverage: 5, MarginMode: "CROSS"}},
 		},
 		{
 			req: &UTALeverageRequest{Symbol: "XBTUSDTM", TradeType: "FUTURES"},
-			exp: []UTALeverage{{Leverage: 80, MarginMode: "ISOLATE", Symbol: "XBTUSDTM"}},
+			exp: []UTALeverageResponse{{Leverage: 80, MarginMode: "ISOLATE", Symbol: "XBTUSDTM"}},
 		},
 	} {
 		t.Run(tc.req.TradeType, func(t *testing.T) {
@@ -272,6 +272,12 @@ func TestModifyUTAFuturesLeverage(t *testing.T) {
 	_, err = e.ModifyUTAFuturesLeverage(t.Context(), "XBTUSDTM", 0)
 	require.ErrorIs(t, err, errInvalidLeverage, "ModifyUTAFuturesLeverage must reject a zero leverage")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.ModifyUTAFuturesLeverage(t.Context(), "XBTUSDTM", 80)
+		return err
+	})
+	assert.JSONEq(t, `{"symbol":"XBTUSDTM","leverage":"80"}`, sent.body, "ModifyUTAFuturesLeverage should send the leverage as the string KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -292,6 +298,12 @@ func TestModifyUTACrossMarginLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyUTACrossMarginLeverage(t.Context(), currency.BTC, 0)
 	require.ErrorIs(t, err, errInvalidLeverage, "ModifyUTACrossMarginLeverage must reject a zero leverage")
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.ModifyUTACrossMarginLeverage(t.Context(), currency.BTC, 5)
+		return err
+	})
+	assert.JSONEq(t, `{"currency":"BTC","leverage":"5"}`, sent.body, "ModifyUTACrossMarginLeverage should send the leverage as the string KuCoin documents")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -612,7 +624,7 @@ func TestGetUTAThirdPartyCustodyAccountCurrencyLimits(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []UTAThirdPartyCustodyCurrencyLimit{
+	exp := []UTAThirdPartyCustodyCurrencyLimitResponse{
 		{
 			Custodian:    "BITGO_SG",
 			Currency:     currency.BTC,

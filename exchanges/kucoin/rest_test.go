@@ -21,7 +21,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -44,30 +43,6 @@ func BenchmarkIntervalToString(b *testing.B) {
 	for b.Loop() {
 		_, err := IntervalToString(kline.OneWeek)
 		require.NoError(b, err, "IntervalToString must not error")
-	}
-}
-
-func TestStringToOrderStatus(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		input  string
-		exp    order.Status
-		hasErr bool
-	}{
-		{input: "match", exp: order.Filled},
-		{input: "open", exp: order.Open},
-		{input: "done", exp: order.Closed},
-		{input: "accepted", exp: order.New},
-		{input: "PLaced", exp: order.New},
-		{input: "something", exp: order.UnknownStatus, hasErr: true},
-	} {
-		got, err := e.StringToOrderStatus(tc.input)
-		if tc.hasErr {
-			assert.Errorf(t, err, "StringToOrderStatus should reject %q", tc.input)
-		} else {
-			assert.NoErrorf(t, err, "StringToOrderStatus should not error for %q", tc.input)
-		}
-		assert.Equalf(t, tc.exp, got, "StringToOrderStatus should map %q", tc.input)
 	}
 }
 
@@ -219,6 +194,13 @@ func TestSendHTTPRequest(t *testing.T) {
 
 	ex, _ = newSigningTestInstance(t, `{"code":"400100","msg":"Parameter error"}`)
 	assert.ErrorContains(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, getCurrentServerTimeEPL, "/v1/timestamp", &resp), "400100", "SendHTTPRequest should return KuCoin's error code")
+
+	ex, _ = newSigningTestInstance(t, `null`)
+	var err error
+	require.NotPanics(t, func() {
+		err = ex.SendHTTPRequest(t.Context(), exchange.RestSpot, getCurrentServerTimeEPL, "/v1/timestamp", &resp)
+	}, "SendHTTPRequest must not panic on a null body")
+	assert.Error(t, err, "SendHTTPRequest should reject a null body, which carries no code")
 }
 
 func TestSendAuthHTTPRequest(t *testing.T) {
@@ -266,4 +248,14 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 
 	ex, _ = newSigningTestInstance(t, `{"code":"400100","msg":"Parameter error"}`)
 	assert.ErrorContains(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, getAccountSummaryInformationEPL, http.MethodGet, "/v2/user-info", nil, &resp), "400100", "SendAuthHTTPRequest should return KuCoin's error code")
+
+	// A null body carries no code, so it is an error, whether the result is decoded from data or from the whole reply
+	ex, _ = newSigningTestInstance(t, `null`)
+	for name, result := range map[string]any{"data": &resp, "whole reply": &Response{Data: &resp}} {
+		var err error
+		require.NotPanicsf(t, func() {
+			err = ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, getAccountSummaryInformationEPL, http.MethodGet, "/v2/user-info", nil, result)
+		}, "SendAuthHTTPRequest must not panic on a null body decoded into %s", name)
+		assert.Errorf(t, err, "SendAuthHTTPRequest should reject a null body decoded into %s", name)
+	}
 }

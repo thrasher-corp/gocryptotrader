@@ -14,10 +14,10 @@ type MarginRiskLimitRequest struct {
 	Symbol string
 }
 
-// MarginRiskLimit is a currency's cross margin, or a symbol's isolated margin, risk limits and configuration. Cross
+// MarginRiskLimitResponse is a currency's cross margin, or a symbol's isolated margin, risk limits and configuration. Cross
 // margin fills Currency and the fields without a base or quote prefix; isolated margin fills Symbol and the base and
 // quote fields
-type MarginRiskLimit struct {
+type MarginRiskLimitResponse struct {
 	Timestamp types.Time    `json:"timestamp"`
 	Currency  currency.Code `json:"currency"`
 	// BorrowMaxAmount is the account's borrowing limit, shown even when the platform has nothing left to lend

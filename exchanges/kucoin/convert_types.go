@@ -88,7 +88,7 @@ type AddConvertOrderResponse struct {
 }
 
 // ConvertOrderDetailResponse is a convert market order (Get Convert Order Detail)
-type ConvertOrderDetailResponse ConvertOrder
+type ConvertOrderDetailResponse ConvertOrderResponse
 
 // ConvertOrdersRequest holds the Get Convert Order History and Get Convert Limit Orders parameters, all optional
 type ConvertOrdersRequest struct {
@@ -103,15 +103,15 @@ type ConvertOrdersRequest struct {
 
 // ConvertOrderHistoryResponse is a page of convert market orders
 type ConvertOrderHistoryResponse struct {
-	CurrentPage uint64         `json:"currentPage"`
-	PageSize    uint64         `json:"pageSize"`
-	TotalNumber uint64         `json:"totalNum"`
-	TotalPage   uint64         `json:"totalPage"`
-	Items       []ConvertOrder `json:"items"`
+	CurrentPage uint64                 `json:"currentPage"`
+	PageSize    uint64                 `json:"pageSize"`
+	TotalNumber uint64                 `json:"totalNum"`
+	TotalPage   uint64                 `json:"totalPage"`
+	Items       []ConvertOrderResponse `json:"items"`
 }
 
-// ConvertOrder is a convert market order (Get Convert Order Detail, Get Convert Order History)
-type ConvertOrder struct {
+// ConvertOrderResponse is a convert market order (Get Convert Order Detail, Get Convert Order History)
+type ConvertOrderResponse struct {
 	OrderID       uint64 `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	// Status is OPEN, SUCCESS or FAIL
@@ -148,19 +148,19 @@ type ConvertLimitQuoteResponse struct {
 }
 
 // ConvertLimitOrderDetailResponse is a convert limit order (Get Convert Limit Order Detail)
-type ConvertLimitOrderDetailResponse ConvertLimitOrder
+type ConvertLimitOrderDetailResponse ConvertLimitOrderResponse
 
 // ConvertLimitOrdersResponse is a page of active and historical convert limit orders
 type ConvertLimitOrdersResponse struct {
-	CurrentPage uint64              `json:"currentPage"`
-	PageSize    uint64              `json:"pageSize"`
-	TotalNumber uint64              `json:"totalNum"`
-	TotalPage   uint64              `json:"totalPage"`
-	Items       []ConvertLimitOrder `json:"items"`
+	CurrentPage uint64                      `json:"currentPage"`
+	PageSize    uint64                      `json:"pageSize"`
+	TotalNumber uint64                      `json:"totalNum"`
+	TotalPage   uint64                      `json:"totalPage"`
+	Items       []ConvertLimitOrderResponse `json:"items"`
 }
 
-// ConvertLimitOrder is a convert limit order (Get Convert Limit Order Detail, Get Convert Limit Orders)
-type ConvertLimitOrder struct {
+// ConvertLimitOrderResponse is a convert limit order (Get Convert Limit Order Detail, Get Convert Limit Orders)
+type ConvertLimitOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	// Status is OPEN, SUCCESS, FAIL or CANCELLED

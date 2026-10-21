@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,11 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-)
-
-// Margin order validation errors
-var (
-	errSizeAndFundsExclusive = errors.New("size and funds cannot both be set")
 )
 
 // PlaceMarginHFOrder places a cross or isolated margin order (Add Order)
@@ -101,7 +95,7 @@ func (e *Exchange) GetActiveMarginHFOrderSymbols(ctx context.Context, tradeType 
 
 // GetActiveMarginHFOrders returns the open margin orders of a symbol and trade type, MARGIN_TRADE for cross margin or
 // MARGIN_ISOLATED_TRADE for isolated margin, latest update first (Get Open Orders)
-func (e *Exchange) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType string) ([]MarginHFOrder, error) {
+func (e *Exchange) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType string) ([]MarginHFOrderResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -111,7 +105,7 @@ func (e *Exchange) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeTyp
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("tradeType", tradeType)
-	var resp []MarginHFOrder
+	var resp []MarginHFOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getActiveMarginHFOrdersEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/active", params), nil, &resp)
 }
 
@@ -187,7 +181,7 @@ func (e *Exchange) GetMarginHFTradeFills(ctx context.Context, r *GetMarginHFTrad
 
 // GetMarginHFOrderDetailByOrderID returns a margin order; KuCoin keeps closed orders for seven days (Get Order By
 // OrderId)
-func (e *Exchange) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID, symbol string) (*MarginHFOrderResponse, error) {
+func (e *Exchange) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID, symbol string) (*MarginHFOrderDetailResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -196,7 +190,7 @@ func (e *Exchange) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID,
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp *MarginHFOrderResponse
+	var resp *MarginHFOrderDetailResponse
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFOrderDetailByOrderIDEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/"+orderID, params), nil, &resp); err != nil {
 		return nil, err
 	}
@@ -208,7 +202,7 @@ func (e *Exchange) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID,
 
 // GetMarginHFOrderDetailByClientOrderID returns a margin order by its client order ID; KuCoin keeps closed orders for
 // seven days (Get Order By ClientOid)
-func (e *Exchange) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*MarginHFOrderResponse, error) {
+func (e *Exchange) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*MarginHFOrderDetailResponse, error) {
 	if clientOrderID == "" {
 		return nil, order.ErrClientOrderIDMustBeSet
 	}
@@ -217,7 +211,7 @@ func (e *Exchange) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, cl
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp *MarginHFOrderResponse
+	var resp *MarginHFOrderDetailResponse
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFOrderDetailByClientOrderIDEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/client-order/"+clientOrderID, params), nil, &resp); err != nil {
 		return nil, err
 	}
@@ -587,11 +581,11 @@ func validateMarginOrderAmounts(orderType string, price, size, funds float64) er
 			return limits.ErrAmountBelowMin
 		}
 	case "market":
-		if size == 0 && funds == 0 {
-			return errSizeOrFundIsRequired
-		}
 		if size != 0 && funds != 0 {
-			return errSizeAndFundsExclusive
+			return errSizeAndFundsBothSet
+		}
+		if size <= 0 && funds <= 0 {
+			return errSizeOrFundIsRequired
 		}
 	}
 	return nil

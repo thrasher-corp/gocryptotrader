@@ -21,9 +21,13 @@ func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol stri
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getFuturesCurrentFundingRateEPL, "/v1/funding-rate/"+symbol+"/current", &resp)
 }
 
-// GetPublicFundingRate returns the funding rate a contract settled at each funding time between from and to (Get
-// Public Funding History)
-func (e *Exchange) GetPublicFundingRate(ctx context.Context, symbol string, from, to time.Time) ([]FuturesPublicFundingHistory, error) {
+// publicFundingRatesLimit is the most funding rates Get Public Funding History returns, the newest of its window, which
+// KuCoin's docs leave out
+const publicFundingRatesLimit = 100
+
+// GetPublicFundingRate returns the funding rate a contract settled at each funding time between from and to, the
+// newest publicFundingRatesLimit of them, newest first (Get Public Funding History)
+func (e *Exchange) GetPublicFundingRate(ctx context.Context, symbol string, from, to time.Time) ([]FuturesPublicFundingHistoryResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -34,7 +38,7 @@ func (e *Exchange) GetPublicFundingRate(ctx context.Context, symbol string, from
 	params.Set("symbol", symbol)
 	params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 	params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
-	var resp []FuturesPublicFundingHistory
+	var resp []FuturesPublicFundingHistoryResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getPublicFundingRateEPL, common.EncodeURLValues("/v1/contract/funding-rates", params), &resp)
 }
 

@@ -57,7 +57,7 @@ func (e *Exchange) GetUTASubAccountList(ctx context.Context, currentPage, pageSi
 
 // GetUTASubAccountAPIList returns a sub-account's API keys, or the one apiKey names; it must be signed with the master
 // account's key and does not cover ND broker sub-accounts (Get Sub Account API List)
-func (e *Exchange) GetUTASubAccountAPIList(ctx context.Context, apiKey, subName string) ([]UTASubAccountAPI, error) {
+func (e *Exchange) GetUTASubAccountAPIList(ctx context.Context, apiKey, subName string) ([]UTASubAccountAPIResponse, error) {
 	if subName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -66,20 +66,20 @@ func (e *Exchange) GetUTASubAccountAPIList(ctx context.Context, apiKey, subName 
 		params.Set("apiKey", apiKey)
 	}
 	params.Set("subName", subName)
-	var resp []UTASubAccountAPI
+	var resp []UTASubAccountAPIResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTASubAccountAPIListEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/user/sub-api-key", params), nil, &resp)
 }
 
 // SetUTASubAccountTransferPermission sets whether sub-accounts' API keys can initiate SUB_TO_SUB transfers (Set Sub
 // Account Transfer Permission)
-func (e *Exchange) SetUTASubAccountTransferPermission(ctx context.Context, subUIDs []string, subToSub bool) ([]UTASubAccountTransferPermission, error) {
+func (e *Exchange) SetUTASubAccountTransferPermission(ctx context.Context, subUIDs []string, subToSub bool) ([]UTASubAccountTransferPermissionResponse, error) {
 	if len(subUIDs) == 0 {
 		return nil, errSubUserIDRequired
 	}
 	body := make(map[string]any)
 	body["subUids"] = strings.Join(subUIDs, ",")
 	body["subToSub"] = subToSub
-	var resp []UTASubAccountTransferPermission
+	var resp []UTASubAccountTransferPermissionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, setUTASubAccountTransferPermissionEPL, http.MethodPost, "/ua/v2/sub-account/canTransferOut", body, &resp)
 }
 
@@ -176,21 +176,24 @@ func (e *Exchange) ModifyUTASubAccountAPI(ctx context.Context, req *ModifyUTASub
 
 // SetUTASubAccountsAPIRateLimit sets sub-accounts' API rate limits out of the master account's quota. Each limit is set
 // or rejected on its own, so every result's Code must be checked (Set Sub Accounts API Rate Limit)
-func (e *Exchange) SetUTASubAccountsAPIRateLimit(ctx context.Context, limits []SetUTASubAccountAPIRateLimitRequest) (*SetUTASubAccountsAPIRateLimitResponse, error) {
-	if len(limits) == 0 {
+func (e *Exchange) SetUTASubAccountsAPIRateLimit(ctx context.Context, req *SetUTASubAccountsAPIRateLimitRequest) (*SetUTASubAccountsAPIRateLimitResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if len(req.Limits) == 0 {
 		return nil, errNoRateLimits
 	}
-	list := make([]map[string]any, len(limits))
-	for i := range limits {
-		if limits[i].UID == "" {
+	list := make([]map[string]any, len(req.Limits))
+	for i := range req.Limits {
+		if req.Limits[i].UID == "" {
 			return nil, fmt.Errorf("%w: limit %d", errUIDRequired, i)
 		}
-		if limits[i].Rate == 0 {
+		if req.Limits[i].Rate == 0 {
 			return nil, fmt.Errorf("%w: limit %d", errRateRequired, i)
 		}
 		list[i] = map[string]any{
-			"uid":  limits[i].UID,
-			"rate": limits[i].Rate,
+			"uid":  req.Limits[i].UID,
+			"rate": req.Limits[i].Rate,
 		}
 	}
 	var resp *SetUTASubAccountsAPIRateLimitResponse

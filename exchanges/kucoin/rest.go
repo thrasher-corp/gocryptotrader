@@ -14,14 +14,15 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -29,6 +30,22 @@ import (
 type Exchange struct {
 	exchange.Base
 	wsOBUpdateMgr *orderbookmanager.UpdateManager
+	// marginOrderIDs holds the IDs of the live margin orders this exchange placed or listed, as spot and margin order
+	// pushes share one topic and do not say which asset an order is
+	marginOrderIDs sync.Map
+	// spotAccountBalances holds each set of credentials' main and trade account balances. The spot balance is the two
+	// together, while REST lists them apart and a balance push carries one account's figures alone
+	spotAccountBalances map[accounts.Credentials]spotAccountShares
+	// spotAccountsListedAt holds when each set of credentials' accounts were last listed, as a listing that leaves a
+	// currency out of an account leaves no share of it to tell a later push from an earlier one by
+	spotAccountsListedAt  map[accounts.Credentials]time.Time
+	spotAccountBalancesMu sync.Mutex
+	// marginBalanceMu makes saving REST's cross margin snapshot and a margin balance push, which keeps the saved
+	// liability, one step each
+	marginBalanceMu sync.Mutex
+	// tickerMergeMu serialises websocket ticker merges, which load the stored ticker and store it back, as the pushes
+	// of one pair can arrive on several connections at once
+	tickerMergeMu sync.Mutex
 }
 
 // KuCoin's REST hosts, and the parts of its trade page URLs the wrapper builds links from
@@ -124,7 +141,7 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 			Path:                   endpointPath + path,
 			Headers:                headers,
 			Body:                   body,
-			Result:                 &resp,
+			Result:                 resp,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -187,20 +204,6 @@ func IntervalToString(interval kline.Interval) (string, error) {
 		return intervalString, nil
 	}
 	return "", fmt.Errorf("%w interval: %v", kline.ErrUnsupportedInterval, interval)
-}
-
-// StringToOrderStatus returns an order.Status instance from string.
-func (e *Exchange) StringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "match":
-		return order.Filled, nil
-	case "open":
-		return order.Open, nil
-	case "done":
-		return order.Closed, nil
-	default:
-		return order.StringToOrderStatus(status)
-	}
 }
 
 // Request validation and response handling errors shared by the package's endpoints

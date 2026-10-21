@@ -2143,7 +2143,8 @@
          "12",
          "0"
         ]
-       ]
+       ],
+       "ts": 1768802285598000000
       }
      },
      "queryString": "limit=20\u0026rpiFilter=1\u0026symbol=XBTUSDTM\u0026tradeType=FUTURES",
@@ -15310,7 +15311,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "{\"autoBorrow\":true,\"clientOid\":\"gct-margin-oco\",\"isIsolated\":true,\"limitPrice\":\"50000\",\"price\":\"51000\",\"side\":\"buy\",\"size\":\"0.001\",\"stopPrice\":\"70000\",\"symbol\":\"BTC-USDT\"}",
+     "bodyParams": "{\"autoBorrow\":true,\"clientOid\":\"gct-margin-oco\",\"isIsolated\":true,\"limitPrice\":\"70100\",\"price\":\"50000\",\"side\":\"buy\",\"size\":\"0.001\",\"stopPrice\":\"70000\",\"symbol\":\"BTC-USDT\"}",
      "headers": {}
     },
     {
@@ -15319,7 +15320,7 @@
       "data": null
      },
      "queryString": "",
-     "bodyParams": "{\"clientOid\":\"gct-margin-oco-null\",\"isIsolated\":false,\"limitPrice\":\"50000\",\"price\":\"51000\",\"side\":\"buy\",\"size\":\"0.001\",\"stopPrice\":\"70000\",\"symbol\":\"BTC-USDT\"}",
+     "bodyParams": "{\"clientOid\":\"gct-margin-oco-null\",\"isIsolated\":false,\"limitPrice\":\"70100\",\"price\":\"50000\",\"side\":\"buy\",\"size\":\"0.001\",\"stopPrice\":\"70000\",\"symbol\":\"BTC-USDT\"}",
      "headers": {}
     }
    ]
@@ -17615,7 +17616,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "{\"clientOid\":\"gct-spot-oco\",\"limitPrice\":\"70000\",\"price\":\"69000\",\"side\":\"sell\",\"size\":\"0.001\",\"stopPrice\":\"50000\",\"symbol\":\"BTC-USDT\"}",
+     "bodyParams": "{\"clientOid\":\"gct-spot-oco\",\"limitPrice\":\"49900\",\"price\":\"70000\",\"side\":\"sell\",\"size\":\"0.001\",\"stopPrice\":\"50000\",\"symbol\":\"BTC-USDT\"}",
      "headers": {}
     },
     {
@@ -17624,7 +17625,7 @@
       "data": null
      },
      "queryString": "",
-     "bodyParams": "{\"clientOid\":\"gct-spot-oco-null\",\"limitPrice\":\"70000\",\"price\":\"69000\",\"side\":\"sell\",\"size\":\"0.001\",\"stopPrice\":\"50000\",\"symbol\":\"BTC-USDT\"}",
+     "bodyParams": "{\"clientOid\":\"gct-spot-oco-null\",\"limitPrice\":\"49900\",\"price\":\"70000\",\"side\":\"sell\",\"size\":\"0.001\",\"stopPrice\":\"50000\",\"symbol\":\"BTC-USDT\"}",
      "headers": {}
     }
    ]

@@ -384,8 +384,8 @@ type CopyTradingCrossMarginRequirementRequest struct {
 	PositionValue float64
 }
 
-// CopyTradingCrossMarginRequirement holds the cross margin rates of a copy trading futures symbol at a position value
-type CopyTradingCrossMarginRequirement struct {
+// CopyTradingCrossMarginRequirementResponse holds the cross margin rates of a copy trading futures symbol at a position value
+type CopyTradingCrossMarginRequirementResponse struct {
 	Symbol string `json:"symbol"`
 	// Size is the position size in lots; the copy trading example quotes it and the futures one does not
 	Size          types.Number `json:"size"`
@@ -533,8 +533,8 @@ type CopyTradingFill struct {
 	IsTrialFunds bool       `json:"isTrialFunds"`
 }
 
-// CopyTradingPosition holds a copy trading futures position
-type CopyTradingPosition struct {
+// CopyTradingPositionResponse holds a copy trading futures position
+type CopyTradingPositionResponse struct {
 	ID                           string       `json:"id"`
 	Symbol                       string       `json:"symbol"`
 	AutoDeposit                  bool         `json:"autoDeposit"`

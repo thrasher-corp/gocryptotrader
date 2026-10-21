@@ -154,8 +154,8 @@ type TickerInfo struct {
 	PriceChangePercent types.Number `json:"priceChangePercent"`
 }
 
-// Trade holds a public trade
-type Trade struct {
+// TradeResponse holds a public trade
+type TradeResponse struct {
 	Sequence string       `json:"sequence"` // Kept as a string, since it exceeds the integers a float64 holds exactly
 	TradeID  string       `json:"tradeId"`
 	Price    types.Number `json:"price"`
@@ -172,8 +172,8 @@ type KlinesRequest struct {
 	EndAt   time.Time
 }
 
-// Kline holds a candle
-type Kline struct {
+// KlineResponse holds a candle
+type KlineResponse struct {
 	StartTime types.Time
 	Open      types.Number
 	Close     types.Number
@@ -184,7 +184,7 @@ type Kline struct {
 }
 
 // UnmarshalJSON decodes a candle from its array form
-func (k *Kline) UnmarshalJSON(data []byte) error {
+func (k *KlineResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
 }
 
@@ -234,8 +234,8 @@ type ServiceStatusResponse struct {
 	Message string `json:"msg"`
 }
 
-// KYCRegion holds a region users can verify their identity in
-type KYCRegion struct {
+// KYCRegionResponse holds a region users can verify their identity in
+type KYCRegionResponse struct {
 	Code        string `json:"code"`
 	EnglishName string `json:"enName"`
 }

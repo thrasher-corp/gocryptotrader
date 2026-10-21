@@ -297,7 +297,7 @@ func TestGetFuturesOpenContracts(t *testing.T) {
 	result, err := e.GetFuturesOpenContracts(t.Context())
 	require.NoError(t, err, "GetFuturesOpenContracts must not error")
 	if mockTests {
-		exp := []Contract{
+		exp := []ContractResponse{
 			{
 				Symbol:                             "XBTUSDTM",
 				DisplaySymbol:                      "XBTUSDTM",
@@ -581,7 +581,7 @@ func TestGetLatestTickersForAllContracts(t *testing.T) {
 	result, err := e.GetLatestTickersForAllContracts(t.Context())
 	require.NoError(t, err, "GetLatestTickersForAllContracts must not error")
 	if mockTests {
-		exp := []FuturesTicker{
+		exp := []FuturesTickerResponse{
 			{
 				Sequence:     1748391351604,
 				Symbol:       "XBTUSDTM",
@@ -684,6 +684,12 @@ func TestGetFuturesPartOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetFuturesPartOrderbook must reject an empty symbol")
 	_, err = e.GetFuturesPartOrderbook(t.Context(), "XBTUSDTM", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetFuturesPartOrderbook must reject a zero size")
+	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
+	for _, size := range []uint64{1, 21, 50} {
+		_, err = ex.GetFuturesPartOrderbook(t.Context(), "XBTUSDTM", size)
+		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetFuturesPartOrderbook must reject size %d, which KuCoin does not serve", size)
+	}
+	assert.Empty(t, *sent, "GetFuturesPartOrderbook should not send a request for a size KuCoin does not serve")
 
 	for size, exp := range map[uint64]*FuturesOrderbookResponse{
 		20: {
@@ -762,7 +768,7 @@ func TestGetFuturesTradeHistory(t *testing.T) {
 	result, err := e.GetFuturesTradeHistory(t.Context(), "XBTUSDTM")
 	require.NoError(t, err, "GetFuturesTradeHistory must not error")
 	if mockTests {
-		exp := []FuturesTrade{
+		exp := []FuturesTradeResponse{
 			{
 				Sequence:     1947309222386,
 				ContractID:   101,
@@ -821,7 +827,7 @@ func TestGetFuturesKline(t *testing.T) {
 	result, err := e.GetFuturesKline(t.Context(), &FuturesKlineRequest{Symbol: "XBTUSDTM", Granularity: kline.ThirtyMin, From: time.UnixMilli(1791849600000), To: time.UnixMilli(1791853200000)})
 	require.NoError(t, err, "GetFuturesKline must not error")
 	if mockTests {
-		exp := []FuturesKline{
+		exp := []FuturesKlineResponse{
 			{
 				StartTime: types.Time(time.Unix(1791849600, 0)),
 				Open:      81797.9,
@@ -858,9 +864,9 @@ func TestGetFuturesKline(t *testing.T) {
 
 func TestFuturesKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result FuturesKline
+	var result FuturesKlineResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1757659080000,115328.4,115328.5,115284.2,115284.3,602,69424.9528]`), &result), "Unmarshal must not error")
-	exp := FuturesKline{
+	exp := FuturesKlineResponse{
 		StartTime: types.Time(time.UnixMilli(1757659080000)),
 		Open:      115328.4,
 		High:      115328.5,
@@ -1163,8 +1169,8 @@ func TestGetFuturesTickers(t *testing.T) {
 		BidSize:      337,
 		Ask:          83083.7,
 		AskSize:      328,
-		BaseVolume:   32.7393, // An inverse contract's turnover is in its base currency
-		QuoteVolume:  2564398,
+		BaseVolume:   16.36965, // An inverse contract's turnover is in its base currency
+		QuoteVolume:  1282199,
 		OpenInterest: 6874401,
 		MarkPrice:    83079.33,
 		IndexPrice:   83093.28,
@@ -1189,8 +1195,8 @@ func TestGetFuturesTickers(t *testing.T) {
 			BidSize:      3742,
 			Ask:          83396.2,
 			AskSize:      1,
-			BaseVolume:   5016.614,
-			QuoteVolume:  414990992.737,
+			BaseVolume:   2508.307,
+			QuoteVolume:  207495496.3685,
 			OpenInterest: 9510596,
 			MarkPrice:    83403.06,
 			IndexPrice:   83437.84,
@@ -1217,18 +1223,18 @@ func TestGetFuturesTickers(t *testing.T) {
 // there while turnoverOf24h carries the base, the reverse of a linear contract
 func TestContractVolumes(t *testing.T) {
 	t.Parallel()
-	t.Run("inverse reports the quote currency in volumeOf24h", func(t *testing.T) {
+	t.Run("inverse reports the quote currency, counting both sides, in volumeOf24h", func(t *testing.T) {
 		t.Parallel()
 		// XBTUSDM: 2,564,398 USD against 32.7393 XBT at 79,118
-		baseVolume, quoteVolume := contractVolumes(&Contract{IsInverse: true, VolumeOf24Hour: 2564398, TurnoverOf24Hour: 32.7393})
-		assert.Equal(t, 32.7393, baseVolume, "contractVolumes should return the base currency volume")
-		assert.Equal(t, 2564398.0, quoteVolume, "contractVolumes should return the quote currency volume")
+		baseVolume, quoteVolume := contractVolumes(&ContractResponse{IsInverse: true, VolumeOf24Hour: 2564398, TurnoverOf24Hour: 32.7393})
+		assert.Equal(t, 16.36965, baseVolume, "contractVolumes should return the base currency volume")
+		assert.Equal(t, 1282199.0, quoteVolume, "contractVolumes should return the quote currency volume")
 	})
-	t.Run("linear reports the base currency in volumeOf24h", func(t *testing.T) {
+	t.Run("linear reports the base currency, counting both sides, in volumeOf24h", func(t *testing.T) {
 		t.Parallel()
 		// XBTUSDTM: 4,837.85 XBT against 379,665,862.5284 USDT
-		baseVolume, quoteVolume := contractVolumes(&Contract{VolumeOf24Hour: 4837.85, TurnoverOf24Hour: 379665862.5284})
-		assert.Equal(t, 4837.85, baseVolume, "contractVolumes should return the base currency volume")
-		assert.Equal(t, 379665862.5284, quoteVolume, "contractVolumes should return the quote currency volume")
+		baseVolume, quoteVolume := contractVolumes(&ContractResponse{VolumeOf24Hour: 4837.85, TurnoverOf24Hour: 379665862.5284})
+		assert.Equal(t, 2418.925, baseVolume, "contractVolumes should return the base currency volume")
+		assert.Equal(t, 189832931.2642, quoteVolume, "contractVolumes should return the quote currency volume")
 	})
 }

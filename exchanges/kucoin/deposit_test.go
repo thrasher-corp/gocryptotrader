@@ -81,12 +81,12 @@ func TestGetDepositAddressV3(t *testing.T) {
 		name  string
 		ccy   currency.Code
 		chain string
-		exp   []DepositAddress
+		exp   []DepositAddressResponse
 	}{
 		{
 			name: "every chain",
 			ccy:  currency.USDT,
-			exp: []DepositAddress{
+			exp: []DepositAddressResponse{
 				{
 					Address:         "***",
 					ChainID:         "trx",
@@ -111,7 +111,7 @@ func TestGetDepositAddressV3(t *testing.T) {
 			name:  "one chain",
 			ccy:   currency.BTC,
 			chain: "btcln",
-			exp: []DepositAddress{
+			exp: []DepositAddressResponse{
 				{
 					Address:        "ln***",
 					ChainID:        "btcln",

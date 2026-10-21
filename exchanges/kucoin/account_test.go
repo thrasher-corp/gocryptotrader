@@ -101,11 +101,11 @@ func TestGetAllAccounts(t *testing.T) {
 		name        string
 		ccy         currency.Code
 		accountType string
-		exp         []AccountInfo
+		exp         []AccountInfoResponse
 	}{
 		{
 			name: "all",
-			exp: []AccountInfo{
+			exp: []AccountInfoResponse{
 				{ID: "548674591753", Currency: currency.USDT, AccountType: "trade", Balance: 26.66759503, Available: 20.66759503, Holds: 6},
 				{ID: "63355cd156298d0001b66e61", Currency: currency.BTC, AccountType: "main", Balance: 0.01, Available: 0.01},
 			},
@@ -114,7 +114,7 @@ func TestGetAllAccounts(t *testing.T) {
 			name:        "main USDT",
 			ccy:         currency.USDT,
 			accountType: "main",
-			exp: []AccountInfo{
+			exp: []AccountInfoResponse{
 				{ID: "63355cd156298d0001b66e61", Currency: currency.USDT, AccountType: "main", Balance: 0.01, Available: 0.005, Holds: 0.005},
 			},
 		},
@@ -467,7 +467,7 @@ func TestGetAccountLedgersHFTrade(t *testing.T) {
 	})
 	require.NoError(t, err, "GetAccountLedgersHFTrade must not error")
 	if mockTests {
-		exp := []HFAccountLedger{
+		exp := []HFAccountLedgerResponse{
 			{
 				ID:           "254062248624417",
 				Currency:     currency.BTC,
@@ -499,7 +499,7 @@ func TestGetAccountLedgerHFMargin(t *testing.T) {
 	result, err := e.GetAccountLedgerHFMargin(t.Context(), &HFAccountLedgersRequest{Currencies: []currency.Code{currency.BTC}})
 	require.NoError(t, err, "GetAccountLedgerHFMargin must not error")
 	if mockTests {
-		exp := []HFMarginAccountLedger{
+		exp := []HFMarginAccountLedgerResponse{
 			{
 				ID:           1949641706720,
 				Currency:     currency.BTC,

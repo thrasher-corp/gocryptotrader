@@ -11,8 +11,8 @@ import (
 
 // GetUTAVIPLendingCollateralRatio returns each collateral currency's discount rate tiers. The account type is UNIFIED
 // for the unified account, or empty for the classic account (Get Collateral Ratio)
-func (e *Exchange) GetUTAVIPLendingCollateralRatio(ctx context.Context, accountType string) ([]UTAVIPLendingCollateralRatio, error) {
-	var resp []UTAVIPLendingCollateralRatio
+func (e *Exchange) GetUTAVIPLendingCollateralRatio(ctx context.Context, accountType string) ([]UTAVIPLendingCollateralRatioResponse, error) {
+	var resp []UTAVIPLendingCollateralRatioResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAVIPLendingCollateralRatioEPL, http.MethodGet, utaVIPLendingPath("/ua/v2/otc-loan/discount-rate", accountType), nil, &resp)
 }
 
@@ -25,8 +25,8 @@ func (e *Exchange) GetUTAVIPLendingLoanInfo(ctx context.Context, accountType str
 
 // GetUTAVIPLendingAccounts returns the accounts in an off-exchange loan and their margin. The account type is UNIFIED
 // for the unified account, or empty for the classic account (Get Accounts)
-func (e *Exchange) GetUTAVIPLendingAccounts(ctx context.Context, accountType string) ([]UTAVIPLendingAccount, error) {
-	var resp []UTAVIPLendingAccount
+func (e *Exchange) GetUTAVIPLendingAccounts(ctx context.Context, accountType string) ([]UTAVIPLendingAccountResponse, error) {
+	var resp []UTAVIPLendingAccountResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAVIPLendingAccountsEPL, http.MethodGet, utaVIPLendingPath("/ua/v2/otc-loan/account", accountType), nil, &resp)
 }
 

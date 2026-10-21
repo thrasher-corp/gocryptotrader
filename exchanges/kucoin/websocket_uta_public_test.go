@@ -122,6 +122,44 @@ func TestProcessUTATicker(t *testing.T) {
 	err = ex.processUTATicker(t.Context(), utaMessage(t, `{"T":"ticker.FUTURES", "P":1791899402317469972, "d":{"s":"NOTACONTRACTM"}}`), "FUTURES")
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "processUTATicker should error for an unknown futures contract")
 	assert.Error(t, ex.processUTATicker(t.Context(), utaMessage(t, `{"T":"ticker.SPOT", "P":1791899343343102882, "d":[]}`), "SPOT"), "processUTATicker should error for malformed data")
+
+	// A pair's pushes can arrive on several connections at once, so a push must not undo the merges made meanwhile; the
+	// fixtures' pair is left alone, as a rerun checks its stored ticker
+	xbtusdcm := currency.NewPairWithDelimiter("XBT", "USDCM", currency.UnderscoreDelimiter)
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: xbtusdcm, AssetType: asset.Futures}), "seeding the stored ticker must not error")
+	tickerPush := utaMessage(t, `{"T":"ticker.FUTURES","d":{"s":"XBTUSDCM","l":"1","b":"1","a":"2"}}`)
+	markPricePush := utaMessage(t, `{"T":"mark-price","d":{"s":"XBTUSDCM","p":"1"}}`)
+	const writers, pushes = 4, 250
+	ex.Websocket.DataHandler = stream.NewRelay(3 * writers * pushes)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range writers {
+		wg.Go(func() {
+			<-start
+			for range pushes {
+				assert.NoError(t, ex.processUTATicker(t.Context(), tickerPush, "FUTURES"), "processUTATicker should not error")
+			}
+		})
+		wg.Go(func() {
+			<-start
+			for range pushes {
+				assert.NoError(t, ex.processUTAMarkPrice(t.Context(), markPricePush), "processUTAMarkPrice should not error")
+			}
+		})
+		wg.Go(func() {
+			<-start
+			for range pushes {
+				assert.NoError(t, ex.processMergedTicker(t.Context(), xbtusdcm, asset.Futures, func(p *ticker.Price) { p.High++ }), "processMergedTicker should not error")
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+	got, err = ticker.GetTicker(ex.Name, xbtusdcm, asset.Futures)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, float64(writers*pushes), got.High, "UTA ticker and mark price pushes should keep every concurrent merge")
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+
 	ex.Name = ""
 	err = ex.processUTATicker(t.Context(), utaMessage(t, `{"T":"ticker.SPOT", "P":1791899343343102882, "d":{"s":"BTC-USDT"}}`), "SPOT")
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "processUTATicker should return the stored ticker's lookup error")

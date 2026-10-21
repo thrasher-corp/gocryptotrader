@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -94,6 +95,7 @@ var (
 	errUnhandledMessageType      = errors.New("unhandled websocket message type")
 	errSubscriptionRejected      = errors.New("websocket subscription rejected")
 	errUnsupportedCandleInterval = errors.New("candle interval not supported by the futures websocket")
+	errOrderbookFedByUTA         = errors.New("orderbook depth channel left out for a pair a UTA orderbook feeds")
 )
 
 var intervalMapReverseLookup = func() map[string]kline.Interval {
@@ -103,6 +105,16 @@ var intervalMapReverseLookup = func() map[string]kline.Interval {
 	}
 	return m
 }()
+
+// pingDelay returns the delay between pings for a server's ping interval in milliseconds. The server only needs a ping
+// every interval, so pinging twice as often allows for network delay; an interval of zero, or one too long for a
+// time.Duration, leaves the default
+func pingDelay(intervalMilliseconds uint64) time.Duration {
+	if intervalMilliseconds == 0 || intervalMilliseconds > math.MaxInt64/uint64(time.Millisecond) {
+		return defaultPingDelay
+	}
+	return time.Duration(intervalMilliseconds) * time.Millisecond / 2
+}
 
 // IntervalFromString returns a kline.Interval from string input.
 func IntervalFromString(interval string) (kline.Interval, error) {
@@ -126,6 +138,58 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		subscription.CandlesChannel:   marketCandlesChannel,
 		subscription.AllTradesChannel: marketMatchChannel,
 	},
+}
+
+// leaveExplicitFuturesTickers leaves each futures pair an explicit tickerV2 subscription feeds to that subscription. A
+// generic futures ticker subscribes the same topic, and KuCoin keeps one subscription per topic, so removing either
+// would silence the other; the generic ticker keeps its companion topics. Expansion gives each generic ticker a pair of
+// its own, but a pre-expanded one can name several, so each of its symbols gives way alone
+func (e *Exchange) leaveExplicitFuturesTickers(subs subscription.List) (subscription.List, error) {
+	explicit := make(map[string]struct{})
+	for _, s := range subs {
+		if s.Channel != futuresTickerV2Channel {
+			continue
+		}
+		_, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+		for symbol := range strings.SplitSeq(symbols, ",") {
+			explicit[symbol] = struct{}{}
+		}
+	}
+	if len(explicit) == 0 {
+		return subs, nil
+	}
+	kept := subs[:0]
+	for _, s := range subs {
+		channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+		if s.Channel != subscription.TickerChannel || s.Asset != asset.Futures || channel != futuresTickerV2Channel {
+			kept = append(kept, s)
+			continue
+		}
+		var remaining []string
+		var symbolCount int
+		for symbol := range strings.SplitSeq(symbols, ",") {
+			symbolCount++
+			if _, fed := explicit[symbol]; !fed {
+				remaining = append(remaining, symbol)
+			}
+		}
+		switch {
+		case len(remaining) == 0:
+			continue
+		case len(remaining) < symbolCount:
+			format, err := e.GetPairFormat(asset.Futures, true)
+			if err != nil {
+				return nil, err
+			}
+			s = s.Clone()
+			s.QualifiedChannel = channel + ":" + strings.Join(remaining, ",")
+			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+				return !slices.Contains(remaining, pair.Format(format).String())
+			})
+		}
+		kept = append(kept, s)
+	}
+	return kept, nil
 }
 
 // futuresTickerCompanions are the topics a futures ticker subscription also carries: tickerV2 pushes only the best bid
@@ -201,7 +265,7 @@ func (e *Exchange) newSpotConnectionSetup(exch *config.Exchange, wsURL string) *
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
 		URL:                   wsURL,
-		Connector:             e.WsConnectSpot,
+		Connector:             e.WebsocketConnectSpot,
 		GenerateSubscriptions: e.generateSpotSubscriptions,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
@@ -211,24 +275,25 @@ func (e *Exchange) newSpotConnectionSetup(exch *config.Exchange, wsURL string) *
 }
 
 // newFuturesConnectionSetup returns the setup of the Classic futures websocket connection, which has its own host and
-// tokens
+// tokens. It is optional, so a futures outage leaves the spot connection up while the manager retries it
 func (e *Exchange) newFuturesConnectionSetup(exch *config.Exchange, wsURL string) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
 		URL:                   wsURL,
-		Connector:             e.WsConnectFutures,
+		Connector:             e.WebsocketConnectFutures,
 		GenerateSubscriptions: e.generateFuturesSubscriptions,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
 		MessageFilter:         futuresConnection,
+		Optional:              true,
 	}
 }
 
-// WsConnectSpot connects to the Classic spot and margin websocket, with a private token when authenticated
-func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnectSpot connects to the Classic spot and margin websocket, with a private token when authenticated
+func (e *Exchange) WebsocketConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	getToken := e.GetPublicToken
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		getToken = e.GetPrivateToken
@@ -240,8 +305,8 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 	return e.connectWebsocket(ctx, conn, token, e.websocketDialer())
 }
 
-// WsConnectFutures connects to the Classic futures websocket, with a private token when authenticated
-func (e *Exchange) WsConnectFutures(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnectFutures connects to the Classic futures websocket, with a private token when authenticated
+func (e *Exchange) WebsocketConnectFutures(ctx context.Context, conn websocket.Connection) error {
 	getToken := e.GetFuturesPublicToken
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		getToken = e.GetFuturesPrivateToken
@@ -280,17 +345,12 @@ func (e *Exchange) connectWebsocket(ctx context.Context, conn websocket.Connecti
 		err = checkWelcome(welcome, connectID)
 	}
 	if err != nil {
-		return common.AppendError(err, conn.Shutdown())
+		return err
 	}
 	// The connect ID is a UUID, which needs no JSON escaping
 	ping := []byte(`{"id":"` + connectID + `","type":"ping"}`)
-	// The server only needs a ping every pingInterval; pinging twice as often allows for network delay
-	delay := time.Duration(server.PingInterval) * time.Millisecond / 2
-	if delay <= 0 {
-		delay = defaultPingDelay
-	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Delay:       delay,
+		Delay:       pingDelay(server.PingInterval),
 		Message:     ping,
 		MessageType: gws.TextMessage,
 	})
@@ -319,7 +379,7 @@ func readWebsocketMessage(ctx context.Context, conn websocket.Connection, timeou
 
 // checkWelcome returns an error unless the message is the welcome for the connect ID
 func checkWelcome(data []byte, connectID string) error {
-	var msg WsMessage
+	var msg WebsocketMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
@@ -331,7 +391,7 @@ func checkWelcome(data []byte, connectID string) error {
 
 // wsHandleData routes a message from a Classic websocket connection
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respData []byte) error {
-	var msg WsMessage
+	var msg WebsocketMessage
 	if err := json.Unmarshal(respData, &msg); err != nil {
 		return err
 	}
@@ -350,7 +410,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // processPush sends a topic push to the handler for its channel
-func (e *Exchange) processPush(ctx context.Context, msg *WsMessage) error {
+func (e *Exchange) processPush(ctx context.Context, msg *WebsocketMessage) error {
 	channel, symbols, _ := strings.Cut(msg.Topic, ":")
 	switch channel {
 	case marketTickerChannel:
@@ -382,9 +442,9 @@ func (e *Exchange) processPush(ctx context.Context, msg *WsMessage) error {
 	case spotMarketAdvancedChannel:
 		return e.processStopOrder(ctx, msg.Data)
 	case indexPriceIndicatorChannel:
-		return processPayload[WsMarginIndexPrice](ctx, e, msg.Data)
+		return processPayload[WebsocketMarginIndexPrice](ctx, e, msg.Data)
 	case markPriceIndicatorChannel:
-		return processPayload[WsMarginMarkPrice](ctx, e, msg.Data)
+		return processPayload[WebsocketMarginMarkPrice](ctx, e, msg.Data)
 	case marginPositionChannel:
 		return e.processCrossMarginPosition(ctx, msg)
 	case isolatedMarginPositionChannel:
@@ -414,9 +474,9 @@ func (e *Exchange) processPush(ctx context.Context, msg *WsMessage) error {
 	case futuresPositionAllChannel, futuresPositionChannel:
 		return e.processFuturesPosition(ctx, msg)
 	case futuresMarginModeChannel:
-		return processPayload[WsFuturesMarginMode](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesMarginMode](ctx, e, msg.Data)
 	case futuresCrossLeverageChannel:
-		return processPayload[WsFuturesCrossLeverage](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesCrossLeverage](ctx, e, msg.Data)
 	case futuresStopOrdersLifecycleEventChannel:
 		return e.processFuturesStopOrder(ctx, msg.Data)
 	}
@@ -433,7 +493,7 @@ func processPayload[T any](ctx context.Context, e *Exchange, data []byte) error 
 }
 
 // unhandledSubject returns the error for a push whose subject its topic does not document
-func unhandledSubject(msg *WsMessage) error {
+func unhandledSubject(msg *WebsocketMessage) error {
 	return fmt.Errorf("%w %q on topic %q", errUnhandledSubject, msg.Subject, msg.Topic)
 }
 
@@ -453,11 +513,13 @@ func (e *Exchange) mergeTicker(pair currency.Pair, a asset.Item, apply func(*tic
 
 // processMergedTicker merges a push onto the stored ticker of a pair, stores it and relays it
 func (e *Exchange) processMergedTicker(ctx context.Context, pair currency.Pair, a asset.Item, apply func(*ticker.Price)) error {
+	e.tickerMergeMu.Lock()
 	t, err := e.mergeTicker(pair, a, apply)
-	if err != nil {
-		return err
+	if err == nil {
+		err = ticker.ProcessTicker(t)
 	}
-	if err := ticker.ProcessTicker(t); err != nil {
+	e.tickerMergeMu.Unlock()
+	if err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)
@@ -483,7 +545,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 
 	var errs error
 	for assoc, s := range outbound {
-		req := &WsSubscriptionMessage{
+		req := &WebsocketSubscriptionRequest{
 			ID:             e.MessageID(),
 			Type:           operation,
 			Topic:          s.QualifiedChannel,
@@ -495,9 +557,12 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 			return err
 		}
 
-		var resp WsSubscriptionResponse
+		var resp *WebsocketSubscriptionResponse
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
 			return err
+		}
+		if resp == nil {
+			return fmt.Errorf("%w: %s %s", common.ErrNoResponse, operation, s.QualifiedChannel)
 		}
 
 		switch resp.Type {
@@ -567,16 +632,96 @@ func (e *Exchange) generateSpotSubscriptions() (subscription.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	return slices.DeleteFunc(subs, isFuturesSubscription), nil
+	return e.leaveUTAOrderbookPairs(slices.DeleteFunc(subs, isFuturesSubscription), utaSpotPublicConnection)
 }
 
-// generateFuturesSubscriptions returns the subscriptions the futures connection carries
+// generateFuturesSubscriptions returns the subscriptions the futures connection carries. The futures websocket pushes no
+// six hour candles, so a configuration asking for them loses only those subscriptions, reported as a partial failure
 func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return nil, err
 	}
-	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return !isFuturesSubscription(s) }), nil
+	var errs error
+	subs = slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
+		if !isFuturesSubscription(s) {
+			return true
+		}
+		if s.Interval == kline.SixHour && channelName(s, s.Asset) == futuresLimitCandleChannel {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %w: %s", websocket.ErrSubscriptionPartial, errUnsupportedCandleInterval, s))
+			return true
+		}
+		return false
+	})
+	subs, err = e.leaveUTAOrderbookPairs(subs, utaFuturesPublicConnection)
+	return subs, common.AppendError(errs, err)
+}
+
+// leaveUTAOrderbookPairs leaves the pairs a UTA orderbook on utaConnection feeds out of the explicit Classic depth
+// channel subscriptions of the same market. Both would write one book, and each depth channel push, a snapshot, would
+// reset the UTA orderbook's sequence; the UTA orderbook carries the book whole, so the depth channel gives way, reported
+// as a partial failure, as the configuration asked for both
+func (e *Exchange) leaveUTAOrderbookPairs(subs subscription.List, utaConnection string) (subscription.List, error) {
+	// UTA subscriptions that cannot be generated feed no books, and their own connection reports the error
+	utaSubs, _ := e.generateUTASubscriptions(utaConnection)
+	fed := make(map[string]struct{})
+	for _, s := range utaSubs {
+		if s.Channel == UTAOrderbookChannel {
+			_, symbol, _ := strings.Cut(s.QualifiedChannel, ":")
+			fed[symbol] = struct{}{}
+		}
+	}
+	if len(fed) == 0 {
+		return subs, nil
+	}
+	var errs error
+	kept := subs[:0]
+	for _, s := range subs {
+		switch s.Channel {
+		case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+		default:
+			kept = append(kept, s)
+			continue
+		}
+		channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+		var remaining, given []string
+		for symbol := range strings.SplitSeq(symbols, ",") {
+			if _, ok := fed[symbol]; ok {
+				given = append(given, symbol)
+				continue
+			}
+			remaining = append(remaining, symbol)
+		}
+		if len(given) == 0 {
+			kept = append(kept, s)
+			continue
+		}
+		errs = common.AppendError(errs, fmt.Errorf("%w: %w: %s %s", websocket.ErrSubscriptionPartial, errOrderbookFedByUTA, channel, strings.Join(given, ",")))
+		if len(remaining) == 0 {
+			continue
+		}
+		s = s.Clone()
+		s.QualifiedChannel = channel + ":" + strings.Join(remaining, ",")
+		if len(s.Pairs) != 0 {
+			formatAsset := s.Asset
+			if formatAsset == asset.All || formatAsset == asset.Empty {
+				// A pre-expanded subscription can name no single asset, so its channel's market gives the format
+				formatAsset = asset.Spot
+				if strings.HasPrefix(channel, "/contract") {
+					formatAsset = asset.Futures
+				}
+			}
+			format, err := e.GetPairFormat(formatAsset, true)
+			if err != nil {
+				return nil, err
+			}
+			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+				return !slices.Contains(remaining, pair.Format(format).String())
+			})
+		}
+		kept = append(kept, s)
+	}
+	return kept, errs
 }
 
 // isFuturesSubscription returns whether a subscription belongs on the futures connection
@@ -598,12 +743,9 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	if err != nil {
 		return subs, err
 	}
-	for _, s := range subs {
-		if s.Asset == asset.Futures && s.Interval == kline.SixHour && channelName(s, s.Asset) == futuresLimitCandleChannel {
-			return nil, fmt.Errorf("%w: %s", errUnsupportedCandleInterval, s.Interval)
-		}
+	if subs, err = e.leaveExplicitFuturesTickers(addFuturesTickerCompanions(subs)); err != nil {
+		return nil, err
 	}
-	subs = addFuturesTickerCompanions(subs)
 	// Depth channels reload the whole book on every push, which would clobber a realtime book for the same pair, so
 	// the realtime upgrade leaves pairs an explicit depth channel already feeds to that channel. Symbols are matched as
 	// the depth topic spells them, so a topic KuCoin will not serve, such as a config-format pair or a candle suffix,
@@ -624,13 +766,69 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 			}
 		}
 	}
+	// A UTA orderbook writes the same book as the Classic channels for its pair and asset, so the generic orderbook
+	// leaves its pairs to it too. UTA subscriptions that cannot be generated feed no books, and their own connection
+	// reports the error; one left out as a partial failure leaves the others generated
+	for _, connection := range []string{utaSpotPublicConnection, utaFuturesPublicConnection} {
+		utaSubs, _ := e.generateUTASubscriptions(connection)
+		for _, s := range utaSubs {
+			if s.Channel != UTAOrderbookChannel {
+				continue
+			}
+			isFutures := s.Asset == asset.Futures
+			if depthFed[isFutures] == nil {
+				depthFed[isFutures] = make(map[string]struct{})
+			}
+			_, symbol, _ := strings.Cut(s.QualifiedChannel, ":")
+			depthFed[isFutures][symbol] = struct{}{}
+		}
+	}
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		// KuCoin keeps one subscription per topic, so a generic orderbook on an explicit depth channel's topic would
 		// silence it when the realtime upgrade unsubscribes the generic; the explicit channel carries that topic alone.
-		return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
-			_, shared := depthTopics[s.QualifiedChannel]
-			return shared && s.Channel == subscription.OrderbookChannel
-		}), nil
+		// A generic orderbook on another depth of a pair another channel feeds would load the same book, so it gives
+		// way to that channel too. Expansion gives each pair a topic of its own, but a pre-expanded orderbook can name
+		// several, so each of its symbols gives way alone
+		kept := subs[:0]
+		for _, s := range subs {
+			if s.Channel != subscription.OrderbookChannel {
+				kept = append(kept, s)
+				continue
+			}
+			channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+			var remaining []string
+			var symbolCount int
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				symbolCount++
+				_, shared := depthTopics[channel+":"+symbol]
+				_, fed := depthFed[s.Asset == asset.Futures][symbol]
+				if !shared && !fed {
+					remaining = append(remaining, symbol)
+				}
+			}
+			switch {
+			case len(remaining) == 0:
+				continue
+			case len(remaining) < symbolCount:
+				s = s.Clone()
+				s.QualifiedChannel = channel + ":" + strings.Join(remaining, ",")
+				if len(s.Pairs) != 0 {
+					formatAsset := s.Asset
+					if formatAsset == asset.All || formatAsset == asset.Empty {
+						formatAsset = asset.Spot
+					}
+					format, err := e.GetPairFormat(formatAsset, true)
+					if err != nil {
+						return nil, err
+					}
+					s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+						return !slices.Contains(remaining, pair.Format(format).String())
+					})
+				}
+			}
+			kept = append(kept, s)
+		}
+		return kept, nil
 	}
 	// Resolve authenticated orderbooks after expansion so the realtime feed is reflected in
 	// subscription reconciliation keys and does not retain the public depth feed interval.
@@ -804,10 +1002,12 @@ func (e *Exchange) checkSubscriptions() error {
 				}
 			}
 			return true
-		case "/contractMarket/level2Depth50", // Replaced by subsctiption.Orderbook for asset.All
-			"/contractMarket/tickerV2", // Replaced by subscription.Ticker for asset.All
-			"/margin/fundingBook",      // Deprecated and removed
-			"/margin/loan":             // Retired with margin lending V1, whose lend orders it reported
+		case futuresOrderbookDepth50Channel, futuresTickerV2Channel:
+			// The legacy defaults carried these without an asset, and the generic orderbook and ticker for asset.All
+			// replaced them; a futures entry subscribes to the channel itself
+			return s.Asset != asset.Futures
+		case "/margin/fundingBook", // Deprecated and removed
+			"/margin/loan": // Retired with margin lending V1, whose lend orders it reported
 			return true
 		case subscription.AllTradesChannel:
 			return s.Asset == asset.Empty

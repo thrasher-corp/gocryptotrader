@@ -22,17 +22,18 @@ import (
 )
 
 var (
-	errMalformedCandleTopic   = errors.New("malformed candle topic")
-	errUnknownOrderChangeType = errors.New("unknown order change type")
-	errUnknownStopOrderType   = errors.New("unknown stop order type")
-	errUnknownBalanceRelation = errors.New("unknown balance relation event")
-	errUnknownMarginTradeType = errors.New("unknown trade type")
-	errEmptyOrderbookLevelOne = errors.New("level 1 push carries no price")
+	errMalformedCandleTopic     = errors.New("malformed candle topic")
+	errUnknownOrderChangeType   = errors.New("unknown order change type")
+	errUnknownStopOrderType     = errors.New("unknown stop order type")
+	errUnknownBalanceRelation   = errors.New("unknown balance relation event")
+	errBalancePushOutOfSequence = errors.New("balance push older than its account's last balance")
+	errUnknownMarginTradeType   = errors.New("unknown trade type")
+	errEmptyOrderbookLevelOne   = errors.New("level 1 push carries no price")
 )
 
 // processTicker merges a Ticker or All Tickers push onto the stored ticker of each asset the pair is enabled on
 func (e *Exchange) processTicker(ctx context.Context, data []byte, symbol string) error {
-	var resp WsTicker
+	var resp WebsocketTicker
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -59,17 +60,20 @@ func (e *Exchange) processSpotTickers(ctx context.Context, pair currency.Pair, c
 		return err
 	}
 	tickers := make([]ticker.Price, 0, len(assets))
+	e.tickerMergeMu.Lock()
 	for _, a := range assets {
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(a) {
 			continue
 		}
 		t, err := e.mergeTicker(pair, a, apply)
 		if err != nil {
+			e.tickerMergeMu.Unlock()
 			return err
 		}
 		tickers = append(tickers, *t)
 	}
 	processed, err := ticker.ProcessBatch(tickers)
+	e.tickerMergeMu.Unlock()
 	if len(processed) == 0 {
 		return err
 	}
@@ -78,7 +82,7 @@ func (e *Exchange) processSpotTickers(ctx context.Context, pair currency.Pair, c
 
 // processOrderbookLevel1 loads an Orderbook - Level 1 push as a one level book for each asset the pair is enabled on
 func (e *Exchange) processOrderbookLevel1(ctx context.Context, data []byte, symbol string) error {
-	var resp WsOrderbookLevel1
+	var resp WebsocketOrderbookLevel1
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -116,7 +120,7 @@ func (e *Exchange) processOrderbookLevel1(ctx context.Context, data []byte, symb
 
 // processOrderbook loads an Orderbook - Level 5 or Level 50 push for each asset the pair is enabled on
 func (e *Exchange) processOrderbook(ctx context.Context, data []byte, symbol, channel string) error {
-	var resp WsOrderbookDepth
+	var resp WebsocketOrderbookDepth
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -155,7 +159,7 @@ func (e *Exchange) processSpotOrderbookIncrement(ctx context.Context, data []byt
 	if err != nil {
 		return err
 	}
-	var resp WsOrderbookIncrement
+	var resp WebsocketOrderbookIncrement
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -185,8 +189,8 @@ func (e *Exchange) processSpotOrderbookIncrement(ctx context.Context, data []byt
 	}
 	// Each asset gets its own level slices to prevent sharing mutable state.
 	for _, a := range assets {
-		if err := e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.SequenceStart, &orderbook.Update{
-			UpdateID:   resp.SequenceEnd,
+		if err := e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, orderbookUpdateID(resp.SequenceStart), &orderbook.Update{
+			UpdateID:   orderbookUpdateID(resp.SequenceEnd),
 			UpdateTime: resp.Time.Time(),
 			LastPushed: resp.Time.Time(), // Realtime so this is pushed when a change occurs
 			Asset:      a,
@@ -203,7 +207,7 @@ func (e *Exchange) processSpotOrderbookIncrement(ctx context.Context, data []byt
 // processCallAuctionOrderbook relays a Call Auction Orderbook - Level 50 push; the indicative book of an auction is
 // not a book the store can hold
 func (e *Exchange) processCallAuctionOrderbook(ctx context.Context, data []byte, symbol string) error {
-	resp := &WsCallAuctionOrderbook{Symbol: symbol}
+	resp := &WebsocketCallAuctionOrderbook{Symbol: symbol}
 	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
@@ -212,7 +216,7 @@ func (e *Exchange) processCallAuctionOrderbook(ctx context.Context, data []byte,
 
 // processCallAuctionData relays a Call Auction Data push
 func (e *Exchange) processCallAuctionData(ctx context.Context, data []byte) error {
-	return processPayload[WsCallAuctionInfo](ctx, e, data)
+	return processPayload[WebsocketCallAuctionInfo](ctx, e, data)
 }
 
 // processCandlesticks relays a spot Klines push as a candle for each asset the pair is enabled on
@@ -229,7 +233,7 @@ func (e *Exchange) processCandlesticks(ctx context.Context, data []byte, symbolA
 	if err != nil {
 		return err
 	}
-	var resp WsCandlestick
+	var resp WebsocketCandlestick
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -263,7 +267,7 @@ func (e *Exchange) processCandlesticks(ctx context.Context, data []byte, symbolA
 
 // processTradeData saves a spot Trade push for each asset the pair is enabled on
 func (e *Exchange) processTradeData(data []byte, symbol string) error {
-	var resp WsTrade
+	var resp WebsocketTrade
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -303,7 +307,7 @@ func (e *Exchange) processTradeData(data []byte, symbol string) error {
 // processMarketSnapshot merges a Symbol Snapshot or Market Snapshot push onto the stored ticker of each asset the pair
 // is enabled on
 func (e *Exchange) processMarketSnapshot(ctx context.Context, data []byte) error {
-	var resp WsSnapshot
+	var resp WebsocketSnapshot
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -330,7 +334,7 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, data []byte) error
 
 // processOrderChange relays an Order V2 or Order V1 push as an order update
 func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
-	var resp WsSpotOrderChange
+	var resp WebsocketSpotOrderChange
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -366,7 +370,7 @@ func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
 		Type:            oType,
 		Side:            side,
 		Status:          status,
-		AssetType:       e.spotOrderAsset(pair),
+		AssetType:       e.spotOrderAsset(pair, resp.OrderID),
 		Date:            resp.OrderTime.Time(),
 		LastUpdated:     resp.Timestamp.Time(),
 		Pair:            pair,
@@ -383,12 +387,21 @@ func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
 			IsMaker:   resp.Liquidity == "maker",
 		}}
 	}
+	if resp.Status == "done" {
+		e.marginOrderIDs.Delete(resp.OrderID)
+	}
 	return e.Websocket.DataHandler.Send(ctx, detail)
 }
 
 // spotOrderAsset returns the asset of a spot or margin order push, which shares one topic and does not say which it
-// is: spot when the pair is enabled for spot, else margin when enabled for margin
-func (e *Exchange) spotOrderAsset(pair currency.Pair) asset.Item {
+// is: margin for a margin order this exchange placed or listed while the pair is enabled for margin, otherwise spot
+// when the pair is enabled for spot, else margin when enabled for margin
+func (e *Exchange) spotOrderAsset(pair currency.Pair, orderID string) asset.Item {
+	if _, ok := e.marginOrderIDs.Load(orderID); ok {
+		if enabled, err := e.IsPairEnabled(pair, asset.Margin); err == nil && enabled {
+			return asset.Margin
+		}
+	}
 	if enabled, err := e.IsPairEnabled(pair, asset.Spot); err == nil && enabled {
 		return asset.Spot
 	}
@@ -399,12 +412,16 @@ func (e *Exchange) spotOrderAsset(pair currency.Pair) asset.Item {
 }
 
 // orderChangeStatus returns the status of an order change push. The message type says whether a done order filled or
-// was cancelled, so it is read with the status, and partial fills follow from the filled and remaining sizes
+// was cancelled, so it is read with the status, and partial fills follow from the filled and remaining sizes. A taker
+// order that fills in part opens on the book with what it filled, as REST reports it
 func orderChangeStatus(status, messageType string, filled, remaining float64) (order.Status, error) {
 	switch messageType {
 	case "received":
 		return order.New, nil
 	case "open":
+		if filled > 0 {
+			return order.PartiallyFilled, nil
+		}
 		return order.Open, nil
 	case "match":
 		if remaining == 0 {
@@ -433,51 +450,133 @@ func orderChangeStatus(status, messageType string, filled, remaining float64) (o
 	return order.UnknownStatus, fmt.Errorf("%w: %q", errUnknownOrderChangeType, messageType)
 }
 
-// processAccountBalance saves a Balance push of the spot (trade, trade_hf) or cross margin (margin, marginV2) account and
-// relays it; changes to other accounts, which have no sub-account here, are relayed as they come
+// processAccountBalance saves a Balance push of the trade (trade, trade_hf) or main account as that account's share of
+// the spot balance, or of a cross (margin, marginV2) or isolated (isolated_<symbol>, isolatedV2_<symbol>) margin
+// account as that margin sub-account's balance, and relays it; changes to other accounts, which have no sub-account
+// here, are relayed as they come. A margin push carries no liability, so the one saved is kept
 func (e *Exchange) processAccountBalance(ctx context.Context, data []byte) error {
-	var resp WsAccountBalance
+	var resp WebsocketAccountBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	a, err := balanceAsset(resp.RelationEvent)
+	a, account, err := balanceAccount(resp.RelationEvent)
 	if err != nil {
 		return err
 	}
-	if a == asset.Empty {
-		return e.Websocket.DataHandler.Send(ctx, &resp)
-	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
-	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
+	b := accounts.Balance{
+		Currency:  resp.Currency,
 		Total:     resp.Total.Float64(),
 		Hold:      resp.Hold.Float64(),
 		Free:      resp.Available.Float64(),
 		UpdatedAt: resp.Time.Time(),
-	})
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
+	}
+	var subAccts accounts.SubAccounts
+	switch a {
+	case asset.Empty:
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	case asset.Spot:
+		if subAccts, err = e.saveSpotAccountBalance(ctx, account, &b); err != nil {
+			return err
+		}
+	default: // Margin, the only other asset balanceAccount returns
+		if subAccts, err = e.saveMarginBalance(ctx, account, &b); err != nil {
+			return err
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
-// balanceAsset returns the asset of the account a balance relation event belongs to, or no asset for the main,
-// isolated margin and other accounts. The account is the event's prefix: trade.hold, isolated_BTC-USDT.hold
-func balanceAsset(relationEvent string) (asset.Item, error) {
+// saveMarginBalance saves a balance push of a margin sub-account, "" for the cross margin account or an isolated margin
+// account's symbol, keeping the liability saved, as the push carries none. The read and the save are one step against
+// REST's margin snapshots, so a snapshot saved between them cannot be undone
+func (e *Exchange) saveMarginBalance(ctx context.Context, subAccount string, b *accounts.Balance) (accounts.SubAccounts, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.marginBalanceMu.Lock()
+	defer e.marginBalanceMu.Unlock()
+	saved, err := e.Accounts.GetBalance(subAccount, creds, asset.Margin, b.Currency)
+	if err != nil && !errors.Is(err, accounts.ErrNoBalances) {
+		return nil, err
+	}
+	b.Borrowed = saved.Borrowed
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, subAccount)}
+	subAccts[0].Balances.Set(b.Currency, *b)
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return nil, err
+	}
+	return subAccts, nil
+}
+
+// saveSpotAccountBalance saves an account's balance of a currency as its share of the spot balance, which is every
+// account's share together as of the latest of their times, and returns the spot balance saved
+func (e *Exchange) saveSpotAccountBalance(ctx context.Context, account string, b *accounts.Balance) (accounts.SubAccounts, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.spotAccountBalancesMu.Lock()
+	defer e.spotAccountBalancesMu.Unlock()
+	shares := e.spotAccountBalances[*creds]
+	saved, ok := shares[account][b.Currency.Item]
+	// A listing holds each account's balances as of when it was asked for, so a push older than the listing is out of
+	// date for a currency the listing left out of its account too
+	if (ok && saved.UpdatedAt.After(b.UpdatedAt)) || (!ok && e.spotAccountsListedAt[*creds].After(b.UpdatedAt)) {
+		return nil, fmt.Errorf("%w: %s %s at %s", errBalancePushOutOfSequence, account, b.Currency, b.UpdatedAt)
+	}
+	spot := *b
+	for other, saved := range shares {
+		if share, ok := saved[b.Currency.Item]; ok && other != account {
+			spot = spot.Add(share)
+		}
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	subAccts[0].Balances.Set(b.Currency, spot)
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return nil, err
+	}
+	if shares == nil {
+		if e.spotAccountBalances == nil {
+			e.spotAccountBalances = make(map[accounts.Credentials]spotAccountShares)
+		}
+		shares = make(spotAccountShares)
+		e.spotAccountBalances[*creds] = shares
+	}
+	if shares[account] == nil {
+		shares[account] = make(map[*currency.Item]accounts.Balance)
+	}
+	shares[account][b.Currency.Item] = *b
+	return subAccts, nil
+}
+
+// balanceAccount returns the asset a balance relation event's account is saved under and which account it is: trade or
+// main for spot, and for margin "" for the cross margin account or the symbol of an isolated margin account; other
+// accounts have no asset here. The account is the event's prefix: trade.hold, isolated_BTC-USDT.hold
+func balanceAccount(relationEvent string) (a asset.Item, subAccount string, err error) {
 	account, _, ok := strings.Cut(relationEvent, ".")
 	switch {
 	case account == "trade", account == "trade_hf":
-		return asset.Spot, nil
+		return asset.Spot, "trade", nil
+	case account == "main":
+		return asset.Spot, "main", nil
 	case account == "margin", account == "marginV2":
-		return asset.Margin, nil
-	case account == "main", account == "other" && !ok, strings.HasPrefix(account, "isolated_"), strings.HasPrefix(account, "isolatedV2_"):
-		return asset.Empty, nil
+		return asset.Margin, "", nil
+	case account == "other" && !ok:
+		return asset.Empty, "", nil
 	}
-	return asset.Empty, fmt.Errorf("%w: %q", errUnknownBalanceRelation, relationEvent)
+	for _, prefix := range []string{"isolated_", "isolatedV2_"} {
+		// A symbol is required, as the cross margin account is sub-account ""
+		if symbol, isolated := strings.CutPrefix(account, prefix); isolated && symbol != "" {
+			return asset.Margin, symbol, nil
+		}
+	}
+	return asset.Empty, "", fmt.Errorf("%w: %q", errUnknownBalanceRelation, relationEvent)
 }
 
 // processStopOrder relays a spot or margin Stop Order push as an order update
 func (e *Exchange) processStopOrder(ctx context.Context, data []byte) error {
-	var resp WsStopOrder
+	var resp WebsocketStopOrder
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -485,7 +584,7 @@ func (e *Exchange) processStopOrder(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
+	oType, err := stopPushOrderType(resp.OrderType, resp.OrderPrice.Float64())
 	if err != nil {
 		return err
 	}
@@ -524,6 +623,20 @@ func (e *Exchange) processStopOrder(ctx context.Context, data []byte) error {
 		LastUpdated:  resp.Timestamp.Time(),
 		Pair:         pair,
 	})
+}
+
+// stopPushOrderType returns the order type of a stop order push. The order type stop, which the docs' examples show, is
+// read as a stop limit order when the push carries an order price and as a stop market order when not, matching the
+// types REST reports for stop orders; any other order type is read as named
+func stopPushOrderType(orderType string, orderPrice float64) (order.Type, error) {
+	oType, err := order.StringToOrderType(orderType)
+	if err != nil || oType != order.Stop {
+		return oType, err
+	}
+	if orderPrice > 0 {
+		return order.StopLimit, nil
+	}
+	return order.StopMarket, nil
 }
 
 // stopOrderStatus returns the status of a stop order push: a triggered stop order is done, and the order it places is

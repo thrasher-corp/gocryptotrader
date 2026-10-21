@@ -55,10 +55,10 @@ type SubAccountDetailBalanceRequest struct {
 }
 
 // SubAccountDetailBalanceResponse holds the funding, spot and margin balances of a sub-account
-type SubAccountDetailBalanceResponse SubAccountBalance
+type SubAccountDetailBalanceResponse SubAccountBalanceResponse
 
-// SubAccountBalance holds the funding, spot and margin balances of a sub-account
-type SubAccountBalance struct {
+// SubAccountBalanceResponse holds the funding, spot and margin balances of a sub-account
+type SubAccountBalanceResponse struct {
 	SubUserID       string                      `json:"subUserId"`
 	SubName         string                      `json:"subName"`
 	MainAccounts    []SubAccountCurrencyBalance `json:"mainAccounts"`   // Funding account
@@ -81,11 +81,11 @@ type SubAccountCurrencyBalance struct {
 
 // AllSubAccountsBalanceV2Response holds a page of sub-account balances
 type AllSubAccountsBalanceV2Response struct {
-	CurrentPage uint64              `json:"currentPage"`
-	PageSize    uint64              `json:"pageSize"`
-	TotalNumber uint64              `json:"totalNum"`
-	TotalPage   uint64              `json:"totalPage"`
-	Items       []SubAccountBalance `json:"items"`
+	CurrentPage uint64                      `json:"currentPage"`
+	PageSize    uint64                      `json:"pageSize"`
+	TotalNumber uint64                      `json:"totalNum"`
+	TotalPage   uint64                      `json:"totalPage"`
+	Items       []SubAccountBalanceResponse `json:"items"`
 }
 
 // AllFuturesSubAccountBalancesResponse holds the futures accounts of the master and sub-accounts
@@ -119,8 +119,8 @@ type FuturesSubAccountBalance struct {
 	Currency         currency.Code `json:"currency"`
 }
 
-// SubAccountAPIKey holds a sub-account API key
-type SubAccountAPIKey struct {
+// SubAccountAPIKeyResponse holds a sub-account API key
+type SubAccountAPIKeyResponse struct {
 	SubName     string     `json:"subName"`
 	Remark      string     `json:"remark"`
 	APIKey      string     `json:"apiKey"`

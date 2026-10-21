@@ -47,8 +47,8 @@ type SubmitExchangeBrokerKYCRequest struct {
 	FacePhoto    string
 }
 
-// ExchangeBrokerKYCStatus is the KYC status of an Exchange Broker sub-account
-type ExchangeBrokerKYCStatus struct {
+// ExchangeBrokerKYCStatusResponse is the KYC status of an Exchange Broker sub-account
+type ExchangeBrokerKYCStatusResponse struct {
 	ClientUID uint64 `json:"clientUid"`
 	// Status is NONE (not submitted), PROCESS (in progress), PASS or REJECT
 	Status       string `json:"status"`
@@ -57,11 +57,11 @@ type ExchangeBrokerKYCStatus struct {
 
 // ExchangeBrokerKYCStatusListResponse holds a page of the KYC statuses of Exchange Broker sub-accounts
 type ExchangeBrokerKYCStatusListResponse struct {
-	CurrentPage uint64                    `json:"currentPage"`
-	PageSize    uint64                    `json:"pageSize"`
-	TotalNumber uint64                    `json:"totalNum"`
-	TotalPage   uint64                    `json:"totalPage"`
-	Items       []ExchangeBrokerKYCStatus `json:"items"`
+	CurrentPage uint64                            `json:"currentPage"`
+	PageSize    uint64                            `json:"pageSize"`
+	TotalNumber uint64                            `json:"totalNum"`
+	TotalPage   uint64                            `json:"totalPage"`
+	Items       []ExchangeBrokerKYCStatusResponse `json:"items"`
 }
 
 // GetExchangeBrokerInfoRequest holds the Get Broker Info parameters, all of them required
@@ -82,7 +82,7 @@ type ExchangeBrokerInfoResponse struct {
 }
 
 // AddExchangeBrokerSubAccountResponse is the sub-account Add sub-account created
-type AddExchangeBrokerSubAccountResponse ExchangeBrokerSubAccount
+type AddExchangeBrokerSubAccountResponse ExchangeBrokerSubAccountResponse
 
 // GetExchangeBrokerSubAccountsRequest holds the optional Get sub-account parameters
 type GetExchangeBrokerSubAccountsRequest struct {
@@ -94,15 +94,15 @@ type GetExchangeBrokerSubAccountsRequest struct {
 
 // ExchangeBrokerSubAccountsResponse holds a page of the sub-accounts an Exchange Broker created
 type ExchangeBrokerSubAccountsResponse struct {
-	CurrentPage uint64                     `json:"currentPage"`
-	PageSize    uint64                     `json:"pageSize"`
-	TotalNumber uint64                     `json:"totalNum"`
-	TotalPage   uint64                     `json:"totalPage"`
-	Items       []ExchangeBrokerSubAccount `json:"items"`
+	CurrentPage uint64                             `json:"currentPage"`
+	PageSize    uint64                             `json:"pageSize"`
+	TotalNumber uint64                             `json:"totalNum"`
+	TotalPage   uint64                             `json:"totalPage"`
+	Items       []ExchangeBrokerSubAccountResponse `json:"items"`
 }
 
-// ExchangeBrokerSubAccount is a sub-account an Exchange Broker created
-type ExchangeBrokerSubAccount struct {
+// ExchangeBrokerSubAccountResponse is a sub-account an Exchange Broker created
+type ExchangeBrokerSubAccountResponse struct {
 	AccountName string     `json:"accountName"`
 	UID         string     `json:"uid"`
 	CreatedAt   types.Time `json:"createdAt"`
@@ -135,8 +135,8 @@ type AddExchangeBrokerSubAccountAPIResponse struct {
 	CreatedAt   types.Time `json:"createdAt"`
 }
 
-// ExchangeBrokerSubAccountAPI is an API key of an Exchange Broker sub-account
-type ExchangeBrokerSubAccountAPI struct {
+// ExchangeBrokerSubAccountAPIResponse is an API key of an Exchange Broker sub-account
+type ExchangeBrokerSubAccountAPIResponse struct {
 	UID         string     `json:"uid"`
 	Label       string     `json:"label"`
 	APIKey      string     `json:"apiKey"`
@@ -160,7 +160,7 @@ type ModifyExchangeBrokerSubAccountAPIRequest struct {
 }
 
 // ModifyExchangeBrokerSubAccountAPIResponse is the API key Modify sub-account API changed
-type ModifyExchangeBrokerSubAccountAPIResponse ExchangeBrokerSubAccountAPI
+type ModifyExchangeBrokerSubAccountAPIResponse ExchangeBrokerSubAccountAPIResponse
 
 // ExchangeBrokerTransferRequest holds the Exchange Broker Transfer parameters, all of them required
 type ExchangeBrokerTransferRequest struct {
@@ -216,8 +216,8 @@ type GetExchangeBrokerDepositListRequest struct {
 	Limit uint64
 }
 
-// ExchangeBrokerDeposit is a deposit to an Exchange Broker sub-account
-type ExchangeBrokerDeposit struct {
+// ExchangeBrokerDepositResponse is a deposit to an Exchange Broker sub-account
+type ExchangeBrokerDepositResponse struct {
 	// UID is typed as a number in the Get Deposit List schema and as an integer in the Get Deposit Detail schema; both
 	// examples are integers
 	UID     uint64 `json:"uid"`
@@ -245,7 +245,7 @@ type ExchangeBrokerDeposit struct {
 }
 
 // ExchangeBrokerDepositDetailResponse is a deposit to an Exchange Broker sub-account
-type ExchangeBrokerDepositDetailResponse ExchangeBrokerDeposit
+type ExchangeBrokerDepositDetailResponse ExchangeBrokerDepositResponse
 
 // ExchangeBrokerWithdrawDetailResponse is a withdrawal from an Exchange Broker sub-account
 type ExchangeBrokerWithdrawDetailResponse struct {

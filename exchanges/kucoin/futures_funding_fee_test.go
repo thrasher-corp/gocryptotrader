@@ -54,7 +54,7 @@ func TestGetPublicFundingRate(t *testing.T) {
 	result, err := e.GetPublicFundingRate(t.Context(), "XBTUSDTM", from, to)
 	require.NoError(t, err, "GetPublicFundingRate must not error")
 	if mockTests {
-		exp := []FuturesPublicFundingHistory{
+		exp := []FuturesPublicFundingHistoryResponse{
 			{
 				Symbol:      "XBTUSDTM",
 				FundingRate: 0.000067,

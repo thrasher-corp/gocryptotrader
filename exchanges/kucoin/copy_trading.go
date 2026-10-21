@@ -289,7 +289,7 @@ func (e *Exchange) ModifyCopyTradingCrossMarginLeverage(ctx context.Context, r *
 
 // GetCopyTradingCrossMarginRequirement returns the cross margin rates of copy trading futures symbols at a position
 // value (Get Cross Margin Requirement)
-func (e *Exchange) GetCopyTradingCrossMarginRequirement(ctx context.Context, r *CopyTradingCrossMarginRequirementRequest) ([]CopyTradingCrossMarginRequirement, error) {
+func (e *Exchange) GetCopyTradingCrossMarginRequirement(ctx context.Context, r *CopyTradingCrossMarginRequirementRequest) ([]CopyTradingCrossMarginRequirementResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func (e *Exchange) GetCopyTradingCrossMarginRequirement(ctx context.Context, r *
 	body["symbol"] = strings.Join(r.Symbols, ",")
 	body["leverage"] = strconv.FormatUint(r.Leverage, 10)
 	body["positionValue"] = strconv.FormatFloat(r.PositionValue, 'f', -1, 64)
-	var resp []CopyTradingCrossMarginRequirement
+	var resp []CopyTradingCrossMarginRequirementResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getCopyTradingCrossMarginRequirementEPL, http.MethodPost, "/v2/copy-trade/getCrossModeMarginRequirement", body, &resp)
 }
 
@@ -348,12 +348,12 @@ func (e *Exchange) GetCopyTradingFills(ctx context.Context, r *CopyTradingPageRe
 
 // GetCopyTradingPositions returns a lead trader's copy trading futures positions, of one funds type or, when fundsType
 // is empty or all, of both (Get copy trading futures positions)
-func (e *Exchange) GetCopyTradingPositions(ctx context.Context, fundsType string) ([]CopyTradingPosition, error) {
+func (e *Exchange) GetCopyTradingPositions(ctx context.Context, fundsType string) ([]CopyTradingPositionResponse, error) {
 	params := url.Values{}
 	if fundsType != "" {
 		params.Set("fundsType", fundsType)
 	}
-	var resp []CopyTradingPosition
+	var resp []CopyTradingPositionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getCopyTradingPositionsEPL, http.MethodGet, common.EncodeURLValues("/v1/copy-trade/futures/positions", params), nil, &resp)
 }
 

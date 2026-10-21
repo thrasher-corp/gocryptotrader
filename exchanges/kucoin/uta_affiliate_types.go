@@ -125,11 +125,11 @@ type UTAAffiliateTrade struct {
 	TradeType string     `json:"tradeType"`
 	// TradeCurrency is the traded currency, which the docs call the trading pair symbol
 	TradeCurrency currency.Code `json:"tradeCurrency"`
-	// TradeAmount is in TradeCurrency, and TradeAmountU and FeeU in Currency
-	TradeAmount  types.Number `json:"tradeAmount"`
-	TradeAmountU types.Number `json:"tradeAmountU"`
-	FeeU         types.Number `json:"feeU"`
-	Commission   types.Number `json:"commission"`
+	// TradeAmount is in TradeCurrency, and ConvertedTradeAmount and ConvertedFee in Currency
+	TradeAmount          types.Number `json:"tradeAmount"`
+	ConvertedTradeAmount types.Number `json:"tradeAmountU"`
+	ConvertedFee         types.Number `json:"feeU"`
+	Commission           types.Number `json:"commission"`
 	// Currency is USDT or USDC
 	Currency currency.Code `json:"currency"`
 }
@@ -149,18 +149,18 @@ type UTAAffiliateTransactionsRequest struct {
 	PageSize  uint64
 }
 
-// UTAAffiliateTransaction holds an invitee's trade and the commission it earned
-type UTAAffiliateTransaction struct {
+// UTAAffiliateTransactionResponse holds an invitee's trade and the commission it earned
+type UTAAffiliateTransactionResponse struct {
 	UID       string     `json:"uid"`
 	TradeTime types.Time `json:"tradeTime"`
 	TradeType string     `json:"tradeType"`
 	// TradeCurrency is the traded currency
 	TradeCurrency currency.Code `json:"tradeCurrency"`
-	// TradeAmount is in TradeCurrency, and TradeAmountU and FeeU in Currency
-	TradeAmount  types.Number `json:"tradeAmount"`
-	TradeAmountU types.Number `json:"tradeAmountU"`
-	FeeU         types.Number `json:"feeU"`
-	Commission   types.Number `json:"commission"`
+	// TradeAmount is in TradeCurrency, and ConvertedTradeAmount and ConvertedFee in Currency
+	TradeAmount          types.Number `json:"tradeAmount"`
+	ConvertedTradeAmount types.Number `json:"tradeAmountU"`
+	ConvertedFee         types.Number `json:"feeU"`
+	Commission           types.Number `json:"commission"`
 	// Currency is USDT or USDC
 	Currency currency.Code `json:"currency"`
 	// LastID pages on from this transaction
@@ -179,8 +179,8 @@ type UTAAffiliateKuminingRequest struct {
 	PageSize  uint64
 }
 
-// UTAAffiliateKumining holds an invitee's KuMining purchase
-type UTAAffiliateKumining struct {
+// UTAAffiliateKuminingResponse holds an invitee's KuMining purchase
+type UTAAffiliateKuminingResponse struct {
 	UID string `json:"uid"`
 	// PayTime is the trade time
 	PayTime   types.Time    `json:"payTime"`

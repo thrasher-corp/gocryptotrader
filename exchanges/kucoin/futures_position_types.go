@@ -46,9 +46,9 @@ type FuturesMaxOpenSizeResponse struct {
 	MaxSellOpenSize uint64 `json:"maxSellOpenSize"`
 }
 
-// FuturesPositionDetail holds a position, as Get Position Details returns it. Fields documented as cross margin only
+// FuturesPositionDetailResponse holds a position, as Get Position Details returns it. Fields documented as cross margin only
 // or isolated margin only are absent for positions of the other margin mode
-type FuturesPositionDetail struct {
+type FuturesPositionDetailResponse struct {
 	ID                           string       `json:"id"`
 	Symbol                       string       `json:"symbol"`
 	MaintenanceMarginRequirement types.Number `json:"maintMarginReq"`
@@ -127,9 +127,9 @@ type FuturesPositionDetail struct {
 	AggregateRate types.Number `json:"aggRate"`
 }
 
-// FuturesPosition holds a position, as Get Position List returns it. Fields documented as isolated margin only are
+// FuturesPositionResponse holds a position, as Get Position List returns it. Fields documented as isolated margin only are
 // absent for cross margin positions
-type FuturesPosition struct {
+type FuturesPositionResponse struct {
 	ID        string `json:"id"`
 	Symbol    string `json:"symbol"`
 	CrossMode bool   `json:"crossMode"`
@@ -337,8 +337,8 @@ type GetFuturesCrossMarginRiskLimitRequest struct {
 	Leverage uint64
 }
 
-// FuturesCrossMarginRiskLimit holds the largest cross margin position a contract can open with a margin and leverage
-type FuturesCrossMarginRiskLimit struct {
+// FuturesCrossMarginRiskLimitResponse holds the largest cross margin position a contract can open with a margin and leverage
+type FuturesCrossMarginRiskLimitResponse struct {
 	Symbol string `json:"symbol"`
 	// MaxOpenSize is in lots
 	MaxOpenSize uint64 `json:"maxOpenSize"`
@@ -364,8 +364,8 @@ type GetFuturesCrossMarginRequirementRequest struct {
 	Leverage float64
 }
 
-// FuturesCrossMarginRequirement holds the cross margin rates of a contract's position of a value
-type FuturesCrossMarginRequirement struct {
+// FuturesCrossMarginRequirementResponse holds the cross margin rates of a contract's position of a value
+type FuturesCrossMarginRequirementResponse struct {
 	Symbol string `json:"symbol"`
 	// Size is in lots. It is documented as a number, and the copy trading twin of the endpoint sends it as a string
 	Size          types.Number `json:"size"`
@@ -376,8 +376,8 @@ type FuturesCrossMarginRequirement struct {
 	MaintenanceMarginRate types.Number `json:"mmr"`
 }
 
-// FuturesRiskLimitLevel holds an isolated margin risk limit level of a contract
-type FuturesRiskLimitLevel struct {
+// FuturesRiskLimitLevelResponse holds an isolated margin risk limit level of a contract
+type FuturesRiskLimitLevelResponse struct {
 	Symbol string `json:"symbol"`
 	Level  uint64 `json:"level"`
 	// MaxRiskLimit and MinRiskLimit bound the level's position value in the contract's settlement currency, MaxRiskLimit

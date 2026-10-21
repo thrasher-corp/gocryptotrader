@@ -197,7 +197,7 @@ func TestPlaceMultipleFuturesOrders(t *testing.T) {
 	})
 	require.NoError(t, err, "PlaceMultipleFuturesOrders must not error")
 	if mockTests {
-		exp := []FuturesBatchOrderResult{
+		exp := []FuturesBatchOrderResponse{
 			{
 				ClientOrderID: "5c52e11203aa677f33e491",
 				Symbol:        "XBTUSDTM",
@@ -382,7 +382,7 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 	result, err := e.BatchCancelFuturesOrders(t.Context(), &BatchCancelFuturesOrdersRequest{OrderIDs: []string{"250445104152670209", "250445181751463936"}})
 	require.NoError(t, err, "BatchCancelFuturesOrders must not error")
 	if mockTests {
-		exp := []FuturesBatchCancelResult{
+		exp := []FuturesBatchCancelResponse{
 			{
 				OrderID: "250445104152670209",
 				Code:    "200",
@@ -427,7 +427,7 @@ func TestBatchCancelFuturesOrdersByClientOrderID(t *testing.T) {
 		{Symbol: "ETHUSDTM", ClientOrderID: "5c52214e112"},
 	}})
 	require.NoError(t, err, "BatchCancelFuturesOrders must not error")
-	exp := []FuturesBatchCancelResult{
+	exp := []FuturesBatchCancelResponse{
 		{ClientOrderID: "5c52e11203aa1677f133e493fb", Code: "200", Message: "success"},
 		{ClientOrderID: "5c52214e112", Code: "200", Message: "success"},
 	}
@@ -633,7 +633,7 @@ func TestGetFuturesOrders(t *testing.T) {
 			PageSize:    50,
 			TotalNumber: 2,
 			TotalPage:   1,
-			Items: []FuturesOrder{
+			Items: []FuturesOrderDetailResponse{
 				{
 					ID:               "230181737576050688",
 					Symbol:           "XBTUSDTM",
@@ -709,7 +709,7 @@ func TestGetFuturesRecentCompletedOrders(t *testing.T) {
 	result, err := e.GetFuturesRecentCompletedOrders(t.Context(), "XBTUSDTM")
 	require.NoError(t, err, "GetFuturesRecentCompletedOrders must not error")
 	if mockTests {
-		exp := []FuturesOrder{
+		exp := []FuturesOrderDetailResponse{
 			{
 				ID:               "236387137732231168",
 				Symbol:           "XBTUSDTM",
@@ -797,7 +797,7 @@ func TestGetUntriggeredFuturesStopOrders(t *testing.T) {
 			PageSize:    50,
 			TotalNumber: 1,
 			TotalPage:   1,
-			Items: []FuturesOrder{
+			Items: []FuturesOrderDetailResponse{
 				{
 					ID:                  "230181737576050690",
 					Symbol:              "XBTUSDTM",
@@ -867,7 +867,7 @@ func TestGetFuturesRecentFills(t *testing.T) {
 	result, err := e.GetFuturesRecentFills(t.Context(), "XBTUSDTM")
 	require.NoError(t, err, "GetFuturesRecentFills must not error")
 	if mockTests {
-		exp := []FuturesRecentFill{
+		exp := []FuturesRecentFillResponse{
 			{
 				Symbol:         "XBTUSDTM",
 				TradeID:        "1784277229880",

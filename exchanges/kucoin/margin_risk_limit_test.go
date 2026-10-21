@@ -23,12 +23,12 @@ func TestGetMarginRiskLimit(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *MarginRiskLimitRequest
-		exp  []MarginRiskLimit
+		exp  []MarginRiskLimitResponse
 	}{
 		{
 			name: "cross",
 			req:  &MarginRiskLimitRequest{Currency: currency.BTC},
-			exp: []MarginRiskLimit{
+			exp: []MarginRiskLimitResponse{
 				{
 					Timestamp:         types.Time(time.UnixMilli(1729678659275)),
 					Currency:          currency.BTC,
@@ -47,7 +47,7 @@ func TestGetMarginRiskLimit(t *testing.T) {
 		{
 			name: "isolated",
 			req:  &MarginRiskLimitRequest{IsIsolated: true, Symbol: "BTC-USDT"},
-			exp: []MarginRiskLimit{
+			exp: []MarginRiskLimitResponse{
 				{
 					Timestamp:              types.Time(time.UnixMilli(1729685173576)),
 					Symbol:                 "BTC-USDT",

@@ -57,9 +57,9 @@ type EarnRedeemResponse struct {
 	Amount types.Number `json:"amount"`
 }
 
-// EarnProduct is an Earn product, as listed by the savings, promotion, staking, KCS staking and ETH staking product
+// EarnProductResponse is an Earn product, as listed by the savings, promotion, staking, KCS staking and ETH staking product
 // endpoints
-type EarnProduct struct {
+type EarnProductResponse struct {
 	ID                string        `json:"id"`
 	Currency          currency.Code `json:"currency"`
 	Category          string        `json:"category"`
@@ -158,8 +158,8 @@ type DualInvestmentProductsRequest struct {
 	Side string
 }
 
-// DualInvestmentProduct is a dual investment product
-type DualInvestmentProduct struct {
+// DualInvestmentProductResponse is a dual investment product
+type DualInvestmentProductResponse struct {
 	Category  string `json:"category"`
 	ProductID string `json:"productId"`
 	// SeriesNames, ProductName and UserAvailableBalance are in the docs' response example but not in its schema

@@ -122,7 +122,7 @@ func (e *Exchange) GetAffiliateTradeHistory(ctx context.Context, req *AffiliateT
 
 // GetAffiliateTransactions returns the invitees' trades in a time window, paged by the last record's ID (Get
 // Transaction)
-func (e *Exchange) GetAffiliateTransactions(ctx context.Context, req *AffiliateTransactionsRequest) ([]AffiliateTransaction, error) {
+func (e *Exchange) GetAffiliateTransactions(ctx context.Context, req *AffiliateTransactionsRequest) ([]AffiliateTransactionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -147,12 +147,12 @@ func (e *Exchange) GetAffiliateTransactions(ctx context.Context, req *AffiliateT
 	if req.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(req.PageSize, 10))
 	}
-	var resp []AffiliateTransaction
+	var resp []AffiliateTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getAffiliateTransactionsEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/queryTransactionByTime", params), nil, &resp)
 }
 
 // GetAffiliateKumining returns KuMining purchase records, paged by the last record's ID (Get Kumining)
-func (e *Exchange) GetAffiliateKumining(ctx context.Context, req *AffiliateKuminingRequest) ([]AffiliateKumining, error) {
+func (e *Exchange) GetAffiliateKumining(ctx context.Context, req *AffiliateKuminingRequest) ([]AffiliateKuminingResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -180,6 +180,6 @@ func (e *Exchange) GetAffiliateKumining(ctx context.Context, req *AffiliateKumin
 	if req.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(req.PageSize, 10))
 	}
-	var resp []AffiliateKumining
+	var resp []AffiliateKuminingResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getAffiliateKuminingEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/queryKumining", params), nil, &resp)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -23,9 +24,12 @@ func (e *Exchange) AuthenticateUTATradeWebsocket(ctx context.Context, conn webso
 	if err != nil {
 		return err
 	}
-	var resp UTAWebsocketTradeAuthResponse
+	var resp *UTAWebsocketTradeAuthResponse
 	if err := json.Unmarshal(reply, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %w", errUTAAuthenticationFailed, common.ErrNoResponse)
 	}
 	if resp.Data != "welcome" {
 		return fmt.Errorf("%w: code %s: %s", errUTAAuthenticationFailed, resp.Code, resp.Message)
@@ -49,9 +53,9 @@ func (e *Exchange) wsHandleUTATradeData(_ context.Context, conn websocket.Connec
 	return conn.RequireMatchWithData(utaTradeAuthSignature, respData)
 }
 
-// WSAddUTAOrder places a spot, margin or futures order from the unified trading account over the UTA trade connection
+// WebsocketAddUTAOrder places a spot, margin or futures order from the unified trading account over the UTA trade connection
 // (Add Order)
-func (e *Exchange) WSAddUTAOrder(ctx context.Context, r *PlaceUTAOrderRequest) (*UTAWebsocketOrderResponse, error) {
+func (e *Exchange) WebsocketAddUTAOrder(ctx context.Context, r *PlaceUTAOrderRequest) (*UTAWebsocketOrderResponse, error) {
 	args, err := r.Payload()
 	if err != nil {
 		return nil, err
@@ -63,8 +67,8 @@ func (e *Exchange) WSAddUTAOrder(ctx context.Context, r *PlaceUTAOrderRequest) (
 	return resp, nil
 }
 
-// WSCancelUTAOrder cancels a unified trading account order over the UTA trade connection (Cancel Order)
-func (e *Exchange) WSCancelUTAOrder(ctx context.Context, r *CancelUTAOrderRequest) (*UTAWebsocketOrderResponse, error) {
+// WebsocketCancelUTAOrder cancels a unified trading account order over the UTA trade connection (Cancel Order)
+func (e *Exchange) WebsocketCancelUTAOrder(ctx context.Context, r *CancelUTAOrderRequest) (*UTAWebsocketOrderResponse, error) {
 	args, err := r.Payload()
 	if err != nil {
 		return nil, err
@@ -76,9 +80,9 @@ func (e *Exchange) WSCancelUTAOrder(ctx context.Context, r *CancelUTAOrderReques
 	return resp, nil
 }
 
-// WSAmendUTAOrder changes the price, size or take profit and stop loss trigger prices of a unified trading account
+// WebsocketAmendUTAOrder changes the price, size or take profit and stop loss trigger prices of a unified trading account
 // futures order over the UTA trade connection (Amend Order)
-func (e *Exchange) WSAmendUTAOrder(ctx context.Context, r *AmendUTAOrderRequest) (*UTAWebsocketAmendOrderResponse, error) {
+func (e *Exchange) WebsocketAmendUTAOrder(ctx context.Context, r *AmendUTAOrderRequest) (*UTAWebsocketAmendOrderResponse, error) {
 	args, err := r.Payload()
 	if err != nil {
 		return nil, err

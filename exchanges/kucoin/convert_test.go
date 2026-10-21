@@ -275,7 +275,7 @@ func TestGetConvertOrderHistory(t *testing.T) {
 		PageSize:    20,
 		TotalNumber: 1,
 		TotalPage:   1,
-		Items: []ConvertOrder{
+		Items: []ConvertOrderResponse{
 			{
 				OrderID:          10721315,
 				ClientOrderID:    "d0k3k4519cplvqk8um80",
@@ -485,7 +485,7 @@ func TestGetConvertLimitOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	filled := ConvertLimitOrder{
+	filled := ConvertLimitOrderResponse{
 		OrderID:          "683ff9f39f47d70006dacb0f",
 		ClientOrderID:    "8dbfc2f1-f37e-4346-83be-b63ad11dc012",
 		Status:           "SUCCESS",
@@ -499,7 +499,7 @@ func TestGetConvertLimitOrders(t *testing.T) {
 		ExpiryTime:       types.Time(time.UnixMilli(1749628020000)),
 		FilledTime:       types.Time(time.UnixMilli(1749045700000)),
 	}
-	cancelled := ConvertLimitOrder{
+	cancelled := ConvertLimitOrderResponse{
 		OrderID:          "683ff823e66ccd0007ed881b",
 		ClientOrderID:    "8dbfc2f1-f37e-4346-83be-b63ad11dc0d9",
 		Status:           "CANCELLED",
@@ -522,7 +522,7 @@ func TestGetConvertLimitOrders(t *testing.T) {
 		{
 			name: "no filter",
 			req:  &ConvertOrdersRequest{},
-			exp:  &ConvertLimitOrdersResponse{CurrentPage: 1, PageSize: 20, TotalNumber: 2, TotalPage: 1, Items: []ConvertLimitOrder{filled, cancelled}},
+			exp:  &ConvertLimitOrdersResponse{CurrentPage: 1, PageSize: 20, TotalNumber: 2, TotalPage: 1, Items: []ConvertLimitOrderResponse{filled, cancelled}},
 		},
 		{
 			name: "every filter",
@@ -533,7 +533,7 @@ func TestGetConvertLimitOrders(t *testing.T) {
 				PageSize: 20,
 				Status:   "CANCELLED",
 			},
-			exp: &ConvertLimitOrdersResponse{CurrentPage: 1, PageSize: 20, TotalNumber: 1, TotalPage: 1, Items: []ConvertLimitOrder{cancelled}},
+			exp: &ConvertLimitOrdersResponse{CurrentPage: 1, PageSize: 20, TotalNumber: 1, TotalPage: 1, Items: []ConvertLimitOrderResponse{cancelled}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

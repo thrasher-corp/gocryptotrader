@@ -417,19 +417,42 @@ func TestProcessUTABalance(t *testing.T) {
 	btc := accounts.Balance{Currency: currency.BTC, Total: 0.0000517, Free: 0.0000517, UpdatedAt: time.Unix(0, 1770116995058000000)}
 	usdt := accounts.Balance{Currency: currency.USDT, Total: 1200.32433692, Hold: 215.88, Free: 969.10453692, Borrowed: 50.2, UpdatedAt: time.Unix(0, 1770117071740000000)}
 	exp := []any{
-		accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: btc}}},
-		accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USDT: usdt}}},
+		accounts.SubAccounts{{ID: utaUnifiedAccountType, AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: btc}}},
+		accounts.SubAccounts{{ID: utaUnifiedAccountType, AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USDT: usdt}}},
 	}
-	assert.Equal(t, exp, drainUTARelay(ex), "processUTABalance should save and relay unified account balances under spot")
+	assert.Equal(t, exp, drainUTARelay(ex), "processUTABalance should save and relay unified account balances under spot in the unified sub-account")
 	// The docs' funding account example, which the unified account's subscription never receives
 	err := ex.processUTABalance(t.Context(), utaMessage(t, `{"T":"balance.FUNDING","P":1780543242950333125,"d":{"U":"1780543242933","a":"531.42853547","b":"531.42853547","c":"USDT","h":"0"}}`), "FUNDING")
 	assert.ErrorIs(t, err, errUTAUnknownTopic, "processUTABalance should reject another account's balance")
 	assert.Empty(t, drainUTARelay(ex), "processUTABalance should not relay another account's balance")
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
-	stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+	stored, err := ex.Accounts.SubAccounts(creds, asset.Spot)
+	require.NoError(t, err, "SubAccounts must not error")
+	assert.Equal(t, accounts.SubAccounts{{ID: utaUnifiedAccountType, AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: btc, currency.USDT: usdt}}}, stored, "processUTABalance should save the unified account balances in the unified sub-account")
+
+	classic := marketTestServerExchange(t, map[string]string{"/api/v1/accounts": `{"code":"200000","data":[{"id":"548674591753","currency":"USDT","type":"trade","balance":"26.66759503","available":"20.66759503","holds":"6"}]}`})
+	for i, msg := range msgs {
+		require.NoErrorf(t, classic.processUTABalance(t.Context(), msg, "UNIFIED"), "processUTABalance must not error for fixture line %d", i+1)
+	}
+	_, err = classic.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	creds, err = classic.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	held, err := classic.Accounts.CurrencyBalances(creds, asset.Spot)
 	require.NoError(t, err, "CurrencyBalances must not error")
-	assert.Equal(t, accounts.CurrencyBalances{currency.BTC: btc, currency.USDT: usdt}, stored, "processUTABalance should save the unified account balances")
+	assert.Equal(t, btc.Total, held[currency.BTC].Total, "a Classic spot snapshot should not remove the unified account's BTC")
+	for _, b := range []accounts.Balance{btc, usdt} {
+		got, err := classic.Accounts.GetBalance(utaUnifiedAccountType, creds, asset.Spot, b.Currency)
+		require.NoErrorf(t, err, "the unified %s balance must outlast a Classic spot snapshot", b.Currency)
+		assert.Equalf(t, b, got, "a Classic spot snapshot should leave the unified %s balance as pushed", b.Currency)
+	}
+	got, err := classic.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "the Classic spot USDT balance must be stored")
+	got.UpdatedAt = time.Time{}
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 26.66759503, Hold: 6, Free: 20.66759503}, got, "unified account pushes should leave the Classic spot balance as REST saved it")
+	_, err = classic.Accounts.GetBalance("", creds, asset.Spot, currency.BTC)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "the unified account's balances should not appear among the Classic spot balances")
 
 	assert.Error(t, ex.processUTABalance(t.Context(), utaMessage(t, `{"T":"balance.UNIFIED","P":1770116995060810093,"d":[]}`), "UNIFIED"), "processUTABalance should error for malformed data")
 	ex.SkipAuthCheck = false // The mock instance skips credential checks

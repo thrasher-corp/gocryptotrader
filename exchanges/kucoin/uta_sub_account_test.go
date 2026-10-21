@@ -161,7 +161,7 @@ func TestGetUTASubAccountAPIList(t *testing.T) {
 		}
 		return
 	}
-	keys := []UTASubAccountAPI{
+	keys := []UTASubAccountAPIResponse{
 		{
 			SubName:     "test6662134",
 			Remark:      "TheRemark3",
@@ -197,7 +197,7 @@ func TestGetUTASubAccountAPIList(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		apiKey string
-		exp    []UTASubAccountAPI
+		exp    []UTASubAccountAPIResponse
 	}{
 		{name: "every key", exp: keys},
 		{name: "one key", apiKey: "670621e3a25958000159c82f", exp: keys[:1]},
@@ -216,13 +216,19 @@ func TestSetUTASubAccountTransferPermission(t *testing.T) {
 	_, err := e.SetUTASubAccountTransferPermission(t.Context(), nil, true)
 	require.ErrorIs(t, err, errSubUserIDRequired, "SetUTASubAccountTransferPermission must reject no sub-account UIDs")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.SetUTASubAccountTransferPermission(t.Context(), []string{"100000003", "100000004"}, true)
+		return err
+	})
+	assert.JSONEq(t, `{"subUids":"100000003,100000004","subToSub":true}`, sent.body, "SetUTASubAccountTransferPermission should send the permission as the boolean KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.SetUTASubAccountTransferPermission(t.Context(), []string{"100000003", "100000004"}, true)
 	require.NoError(t, err, "SetUTASubAccountTransferPermission must not error")
 	if mockTests {
-		exp := []UTASubAccountTransferPermission{
+		exp := []UTASubAccountTransferPermissionResponse{
 			{SubUID: "100000003", SubToSub: true},
 			{SubUID: "100000004", SubToSub: true},
 		}
@@ -402,19 +408,27 @@ func TestModifyUTASubAccountAPI(t *testing.T) {
 func TestSetUTASubAccountsAPIRateLimit(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetUTASubAccountsAPIRateLimit(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "SetUTASubAccountsAPIRateLimit must reject a nil request")
+	_, err = e.SetUTASubAccountsAPIRateLimit(t.Context(), &SetUTASubAccountsAPIRateLimitRequest{})
 	require.ErrorIs(t, err, errNoRateLimits, "SetUTASubAccountsAPIRateLimit must reject no limits")
-	_, err = e.SetUTASubAccountsAPIRateLimit(t.Context(), []SetUTASubAccountAPIRateLimitRequest{{Rate: 50}})
+	_, err = e.SetUTASubAccountsAPIRateLimit(t.Context(), &SetUTASubAccountsAPIRateLimitRequest{Limits: []UTASubAccountAPIRateLimit{{Rate: 50}}})
 	require.ErrorIs(t, err, errUIDRequired, "SetUTASubAccountsAPIRateLimit must reject an empty UID")
-	_, err = e.SetUTASubAccountsAPIRateLimit(t.Context(), []SetUTASubAccountAPIRateLimitRequest{{UID: "100000003"}})
+	_, err = e.SetUTASubAccountsAPIRateLimit(t.Context(), &SetUTASubAccountsAPIRateLimitRequest{Limits: []UTASubAccountAPIRateLimit{{UID: "100000003"}}})
 	require.ErrorIs(t, err, errRateRequired, "SetUTASubAccountsAPIRateLimit must reject a zero rate")
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.SetUTASubAccountsAPIRateLimit(t.Context(), &SetUTASubAccountsAPIRateLimitRequest{Limits: []UTASubAccountAPIRateLimit{{UID: "100000003", Rate: 50}, {UID: "100000004", Rate: 300}}})
+		return err
+	})
+	assert.JSONEq(t, `{"list":[{"uid":"100000003","rate":50},{"uid":"100000004","rate":300}]}`, sent.body, "SetUTASubAccountsAPIRateLimit should send each rate as the integer KuCoin documents")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.SetUTASubAccountsAPIRateLimit(t.Context(), []SetUTASubAccountAPIRateLimitRequest{
+	result, err := e.SetUTASubAccountsAPIRateLimit(t.Context(), &SetUTASubAccountsAPIRateLimitRequest{Limits: []UTASubAccountAPIRateLimit{
 		{UID: "100000003", Rate: 50},
 		{UID: "100000004", Rate: 300},
-	})
+	}})
 	require.NoError(t, err, "SetUTASubAccountsAPIRateLimit must not error")
 	if mockTests {
 		exp := &SetUTASubAccountsAPIRateLimitResponse{

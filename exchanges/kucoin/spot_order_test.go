@@ -183,7 +183,7 @@ func TestBatchPlaceHFOrders(t *testing.T) {
 	result, err := e.BatchPlaceHFOrders(t.Context(), testBatchHFOrders)
 	require.NoError(t, err, "BatchPlaceHFOrders must not error")
 	if mockTests {
-		exp := []BatchPlacedHFOrder{
+		exp := []BatchPlacedHFOrderResponse{
 			{
 				OrderID:       "6710d8336afcdb0007319c27",
 				ClientOrderID: "5c52e11203aa677f33e493fd",
@@ -212,7 +212,7 @@ func TestBatchPlaceHFOrdersSync(t *testing.T) {
 	result, err := e.BatchPlaceHFOrdersSync(t.Context(), testBatchHFOrders)
 	require.NoError(t, err, "BatchPlaceHFOrdersSync must not error")
 	if mockTests {
-		exp := []BatchPlacedHFOrderSync{
+		exp := []BatchPlacedHFOrderSyncResponse{
 			{
 				OrderID:       "6711195e5584bc0007bd5aef",
 				ClientOrderID: "5c52e11203aa677f33e493fd",
@@ -429,6 +429,12 @@ func TestModifyHFOrder(t *testing.T) {
 		require.ErrorIsf(t, err, tc.err, "ModifyHFOrder must reject a request with %s", tc.name)
 	}
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.ModifyHFOrder(t.Context(), &ModifyHFOrderRequest{Symbol: "BTC-USDT", OrderID: "670fd33bf9406e0007ab3945", NewPrice: 30000, NewSize: 0.0001})
+		return err
+	})
+	assert.JSONEq(t, `{"symbol":"BTC-USDT","orderId":"670fd33bf9406e0007ab3945","newPrice":"30000","newSize":"0.0001"}`, sent.body, "ModifyHFOrder should send the new price and size as the strings KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -626,7 +632,7 @@ func TestGetOpenHFOrders(t *testing.T) {
 	result, err := e.GetOpenHFOrders(t.Context(), "BTC-USDT")
 	require.NoError(t, err, "GetOpenHFOrders must not error")
 	if mockTests {
-		exp := []HFOrder{
+		exp := []HFOrderResponse{
 			{
 				ID:                  "67120bbef094e200070976f6",
 				Symbol:              "BTC-USDT",
@@ -685,7 +691,7 @@ func TestGetOpenHFOrdersByPage(t *testing.T) {
 			PageSize:    20,
 			TotalNumber: 1,
 			TotalPage:   1,
-			Items: []HFOrder{
+			Items: []HFOrderResponse{
 				{
 					ID:                  "67c1437ea5226600071cc080",
 					Symbol:              "BTC-USDT",
@@ -747,7 +753,7 @@ func TestGetClosedHFOrders(t *testing.T) {
 	if mockTests {
 		exp := &ClosedHFOrdersResponse{
 			LastID: 19814995255305,
-			Items: []HFOrderDetail{
+			Items: []HFOrderDetailResponse{
 				{
 					ID:                  "6717422bd51c29000775ea03",
 					Symbol:              "BTC-USDT",
@@ -858,6 +864,12 @@ func TestSetDCP(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetDCP(t.Context(), 0, nil)
 	require.ErrorIs(t, err, errTimeoutRequired, "SetDCP must reject a zero timeout")
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.SetDCP(t.Context(), 5, []string{"BTC-USDT", "ETH-USDT"})
+		return err
+	})
+	assert.JSONEq(t, `{"timeout":5,"symbols":"BTC-USDT,ETH-USDT"}`, sent.body, "SetDCP should send the timeout as the integer KuCoin documents")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1076,7 +1088,7 @@ func TestGetStopOrderByClientOrderID(t *testing.T) {
 	result, err := e.GetStopOrderByClientOrderID(t.Context(), "2b700942b5db41cebe578cff48960e09", "KCS-USDT")
 	require.NoError(t, err, "GetStopOrderByClientOrderID must not error")
 	if mockTests {
-		exp := []StopOrder{
+		exp := []StopOrderResponse{
 			{
 				ID:                  "vs8hoo8os561f5np0032vngj",
 				Symbol:              "KCS-USDT",
@@ -1138,6 +1150,12 @@ func TestPlaceOCOOrder(t *testing.T) {
 	}
 	_, err := e.PlaceOCOOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceOCOOrder must reject a nil request")
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.PlaceOCOOrder(t.Context(), &valid)
+		return err
+	})
+	assert.JSONEq(t, `{"clientOid":"5c52e11203aa67f1e493fb","side":"buy","symbol":"BTC-USDT","price":"94000","size":"0.1","stopPrice":"98000","limitPrice":"96000","remark":"this is remark","tradeType":"TRADE"}`, sent.body, "PlaceOCOOrder should send the prices and size as the strings KuCoin documents")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

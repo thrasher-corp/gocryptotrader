@@ -28,6 +28,7 @@ func TestPlaceMarginHFOrderRequestValidate(t *testing.T) {
 		{name: "no side", req: &PlaceMarginHFOrderRequest{ClientOrderID: "5c52e11203aa677f33e493fb"}, err: order.ErrSideIsInvalid},
 		{name: "no symbol", req: &PlaceMarginHFOrderRequest{ClientOrderID: "5c52e11203aa677f33e493fb", Side: "buy"}, err: currency.ErrSymbolStringEmpty},
 		{name: "limit order without a price", req: &PlaceMarginHFOrderRequest{ClientOrderID: "5c52e11203aa677f33e493fb", Side: "buy", Symbol: "BTC-USDT", Size: 0.00001}, err: limits.ErrPriceBelowMin},
+		{name: "market order with a negative size", req: &PlaceMarginHFOrderRequest{ClientOrderID: "5c52e11203aa677f33e493fb", Side: "buy", Symbol: "BTC-USDT", Type: "market", Size: -0.00001}, err: errSizeOrFundIsRequired},
 		{name: "valid", req: &PlaceMarginHFOrderRequest{ClientOrderID: "5c52e11203aa677f33e493fb", Side: "buy", Symbol: "BTC-USDT", Price: 50000, Size: 0.00001}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -242,7 +243,7 @@ func TestGetActiveMarginHFOrders(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	exp := []MarginHFOrder{
+	exp := []MarginHFOrderResponse{
 		{
 			ID:                  "671667306afcdb000723107f",
 			Symbol:              "BTC-USDT",
@@ -333,7 +334,7 @@ func TestGetClosedMarginHFOrders(t *testing.T) {
 	}
 	exp := &ClosedMarginHFOrdersResponse{
 		LastID: 136112949351,
-		Items: []MarginHFOrderResponse{
+		Items: []MarginHFOrderDetailResponse{
 			{
 				ID:                  "6716491f6afcdb00078365c8",
 				Symbol:              "BTC-USDT",
@@ -446,7 +447,7 @@ func TestGetMarginHFTradeFills(t *testing.T) {
 }
 
 // expMarginHFOrder is the margin order the Get Order By OrderId and Get Order By ClientOid fixtures return
-var expMarginHFOrder = &MarginHFOrderResponse{
+var expMarginHFOrder = &MarginHFOrderDetailResponse{
 	ID:                  "671667306afcdb000723107f",
 	Symbol:              "BTC-USDT",
 	OperationType:       "DEAL",
@@ -567,6 +568,16 @@ func TestPlaceMarginStopOrder(t *testing.T) {
 		require.ErrorIsf(t, err, tc.err, "PlaceMarginStopOrder must reject a request with %s", tc.name)
 	}
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.PlaceMarginStopOrder(t.Context(), &PlaceMarginStopOrderRequest{
+			ClientOrderID: "9e64g33505cc899h55g615hd", Side: "buy", Symbol: "BTC-USDT", Type: "limit", SelfTradePrevention: "CB",
+			Price: 60500, Size: 0.00001, TimeInForce: "GTT", PostOnly: true, CancelAfter: 3600, IsIsolated: true,
+			AutoBorrow: true, AutoRepay: true, Remark: "Test order", Stop: "entry", StopPrice: 60000,
+		})
+		return err
+	})
+	assert.JSONEq(t, `{"clientOid":"9e64g33505cc899h55g615hd","side":"buy","symbol":"BTC-USDT","type":"limit","stp":"CB","price":"60500","size":"0.00001","timeInForce":"GTT","postOnly":true,"cancelAfter":3600,"isIsolated":true,"autoBorrow":true,"autoRepay":true,"remark":"Test order","stop":"entry","stopPrice":"60000"}`, sent.body, "PlaceMarginStopOrder should send each field as the JSON type KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -681,7 +692,7 @@ func TestGetMarginStopOrders(t *testing.T) {
 	exp := &MarginStopOrderListResponse{
 		CurrentPage: 1,
 		PageSize:    50,
-		TotalNum:    2,
+		TotalNumber: 2,
 		TotalPage:   1,
 		Items: []MarginStopOrderListItem{
 			{
@@ -887,6 +898,15 @@ func TestPlaceMarginOCOOrder(t *testing.T) {
 		_, err := e.PlaceMarginOCOOrder(t.Context(), tc.req)
 		require.ErrorIsf(t, err, tc.err, "PlaceMarginOCOOrder must reject a request with %s", tc.name)
 	}
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.PlaceMarginOCOOrder(t.Context(), &PlaceMarginOCOOrderRequest{
+			ClientOrderID: "5c52e11203aa677f33e493fb", Side: "buy", Symbol: "BTC-USDT", Price: 50000, Size: 0.00001,
+			StopPrice: 70000, LimitPrice: 70100, IsIsolated: true, AutoRepay: true, AutoBorrow: true,
+		})
+		return err
+	})
+	assert.JSONEq(t, `{"clientOid":"5c52e11203aa677f33e493fb","side":"buy","symbol":"BTC-USDT","price":"50000","size":"0.00001","stopPrice":"70000","limitPrice":"70100","isIsolated":true,"autoRepay":true,"autoBorrow":true}`, sent.body, "PlaceMarginOCOOrder should send each field as the JSON type KuCoin documents")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1134,7 +1154,7 @@ func TestGetMarginOCOOrders(t *testing.T) {
 	exp := &MarginOCOOrderListResponse{
 		CurrentPage: 1,
 		PageSize:    10,
-		TotalNum:    2,
+		TotalNumber: 2,
 		TotalPage:   1,
 		Items: []MarginOCOOrderResponse{
 			{
@@ -1169,7 +1189,11 @@ func TestValidateMarginOrderAmounts(t *testing.T) {
 		{name: "limit without a size", orderType: "limit", price: 50000, err: limits.ErrAmountBelowMin},
 		{name: "limit", orderType: "limit", price: 50000, size: 0.00001},
 		{name: "market without a size or funds", orderType: "market", err: errSizeOrFundIsRequired},
-		{name: "market with a size and funds", orderType: "market", size: 0.00001, funds: 1, err: errSizeAndFundsExclusive},
+		{name: "market with a negative size", orderType: "market", size: -0.00001, err: errSizeOrFundIsRequired},
+		{name: "market with negative funds", orderType: "market", funds: -1, err: errSizeOrFundIsRequired},
+		{name: "market with a size and funds", orderType: "market", size: 0.00001, funds: 1, err: errSizeAndFundsBothSet},
+		{name: "market with a negative size and funds", orderType: "market", size: -1, funds: 1, err: errSizeAndFundsBothSet},
+		{name: "market with a size and negative funds", orderType: "market", size: 1, funds: -1, err: errSizeAndFundsBothSet},
 		{name: "market by size", orderType: "market", size: 0.00001},
 		{name: "market by funds", orderType: "market", funds: 1},
 		{name: "type KuCoin validates", orderType: "stop"},

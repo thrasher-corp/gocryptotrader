@@ -18,7 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var errOrderbookSizeRequired = errors.New("orderbook size is required")
+var (
+	errOrderbookSizeRequired = errors.New("orderbook size is required")
+	errInvalidOrderbookSize  = errors.New("orderbook size must be 20 or 100")
+)
 
 // GetFuturesContract returns a tradable contract's specification and market state (Get Symbol)
 func (e *Exchange) GetFuturesContract(ctx context.Context, symbol string) (*FuturesContractResponse, error) {
@@ -30,8 +33,8 @@ func (e *Exchange) GetFuturesContract(ctx context.Context, symbol string) (*Futu
 }
 
 // GetFuturesOpenContracts returns every tradable contract's specification and market state (Get All Symbols)
-func (e *Exchange) GetFuturesOpenContracts(ctx context.Context) ([]Contract, error) {
-	var resp []Contract
+func (e *Exchange) GetFuturesOpenContracts(ctx context.Context) ([]ContractResponse, error) {
+	var resp []ContractResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getFuturesOpenContractsEPL, "/v1/contracts/active", &resp)
 }
 
@@ -47,8 +50,8 @@ func (e *Exchange) GetFuturesTicker(ctx context.Context, symbol string) (*Future
 }
 
 // GetLatestTickersForAllContracts returns every contract's last fill and best bid and ask (Get All Tickers)
-func (e *Exchange) GetLatestTickersForAllContracts(ctx context.Context) ([]FuturesTicker, error) {
-	var resp []FuturesTicker
+func (e *Exchange) GetLatestTickersForAllContracts(ctx context.Context) ([]FuturesTickerResponse, error) {
+	var resp []FuturesTickerResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getLatestTickersForAllContractsEPL, "/v1/allTickers", &resp)
 }
 
@@ -73,6 +76,9 @@ func (e *Exchange) GetFuturesPartOrderbook(ctx context.Context, symbol string, s
 	if size == 0 {
 		return nil, errOrderbookSizeRequired
 	}
+	if size != 20 && size != 100 {
+		return nil, fmt.Errorf("%w, not %d", errInvalidOrderbookSize, size)
+	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *FuturesOrderbookResponse
@@ -80,19 +86,19 @@ func (e *Exchange) GetFuturesPartOrderbook(ctx context.Context, symbol string, s
 }
 
 // GetFuturesTradeHistory returns a contract's last 100 fills (Get Trade History)
-func (e *Exchange) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]FuturesTrade, error) {
+func (e *Exchange) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]FuturesTradeResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []FuturesTrade
+	var resp []FuturesTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getFuturesTradeHistoryEPL, common.EncodeURLValues("/v1/trade/history", params), &resp)
 }
 
 // GetFuturesKline returns up to 200 candles of a contract, index or premium index symbol; the docs say 500, but the
 // server stops at 200 (Get Klines)
-func (e *Exchange) GetFuturesKline(ctx context.Context, r *FuturesKlineRequest) ([]FuturesKline, error) {
+func (e *Exchange) GetFuturesKline(ctx context.Context, r *FuturesKlineRequest) ([]FuturesKlineResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -119,7 +125,7 @@ func (e *Exchange) GetFuturesKline(ctx context.Context, r *FuturesKlineRequest) 
 	if !r.To.IsZero() {
 		params.Set("to", strconv.FormatInt(r.To.UnixMilli(), 10))
 	}
-	var resp []FuturesKline
+	var resp []FuturesKlineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getFuturesKlineEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
 }
 
@@ -242,7 +248,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 	if err != nil {
 		return nil, err
 	}
-	contractsBySymbol := make(map[string]*Contract, len(contracts))
+	contractsBySymbol := make(map[string]*ContractResponse, len(contracts))
 	for i := range contracts {
 		contractsBySymbol[contracts[i].Symbol] = &contracts[i]
 	}

@@ -263,6 +263,8 @@ type UTAOrderbookResponse struct {
 	Sequence  uint64              `json:"sequence"`
 	Bids      []UTAOrderbookLevel `json:"bids"`
 	Asks      []UTAOrderbookLevel `json:"asks"`
+	// Timestamp is not in the schema; the docs' FUTURES example carries it, in nanoseconds
+	Timestamp types.Time `json:"ts"`
 }
 
 // UTAOrderbookLevel holds a price level, which KuCoin sends as [price, size], or as [price, non-RPI size, RPI size] when
@@ -361,8 +363,8 @@ type UTAPositionTiersRequest struct {
 	Symbols []string
 }
 
-// UTAPositionTier holds a margin borrowing tier or a futures risk limit tier
-type UTAPositionTier struct {
+// UTAPositionTierResponse holds a margin borrowing tier or a futures risk limit tier
+type UTAPositionTierResponse struct {
 	// Currency is set for margin tiers and Symbol for futures tiers
 	Currency    currency.Code `json:"currency"`
 	Symbol      string        `json:"symbol"`
@@ -378,8 +380,8 @@ type UTAPositionTier struct {
 	QuickCalculationOffset types.Number `json:"quickCalOffset"`
 }
 
-// UTACollateralRatio holds a currency's collateral discount tiers
-type UTACollateralRatio struct {
+// UTACollateralRatioResponse holds a currency's collateral discount tiers
+type UTACollateralRatioResponse struct {
 	Currency          currency.Code            `json:"currency"`
 	CDRConfigurations []UTACollateralRatioTier `json:"cdrConfigs"`
 }
@@ -396,13 +398,13 @@ type UTACollateralRatioTier struct {
 	CDREquity types.Number `json:"cdrEquity"`
 }
 
-// UTABorrowableCurrency holds a currency the unified account can borrow
-type UTABorrowableCurrency struct {
+// UTABorrowableCurrencyResponse holds a currency the unified account can borrow
+type UTABorrowableCurrencyResponse struct {
 	Currency currency.Code `json:"currency"`
 }
 
-// UTACurrentFundingRate holds a futures contract's current funding rate
-type UTACurrentFundingRate struct {
+// UTACurrentFundingRateResponse holds a futures contract's current funding rate
+type UTACurrentFundingRateResponse struct {
 	Symbol          string       `json:"symbol"`
 	NextFundingRate types.Number `json:"nextFundingRate"`
 	// FundingTime is the next settlement time
@@ -441,8 +443,8 @@ type UTAFuturesOpenInterestRequest struct {
 	PageSize uint64
 }
 
-// UTAFuturesOpenInterest holds a futures contract's open interest
-type UTAFuturesOpenInterest struct {
+// UTAFuturesOpenInterestResponse holds a futures contract's open interest
+type UTAFuturesOpenInterestResponse struct {
 	// Symbol is undocumented and sent for real time open interest only
 	Symbol string `json:"symbol"`
 	// OpenInterest is in contracts
@@ -501,8 +503,8 @@ type UTACallAuctionInfoResponse struct {
 	Time types.Time `json:"time"`
 }
 
-// UTAThirdPartyCustodyCurrency holds a settlement currency a custodian supports
-type UTAThirdPartyCustodyCurrency struct {
+// UTAThirdPartyCustodyCurrencyResponse holds a settlement currency a custodian supports
+type UTAThirdPartyCustodyCurrencyResponse struct {
 	Custodian string        `json:"custodian"`
 	Currency  currency.Code `json:"currency"`
 	Precision uint64        `json:"precision"`
@@ -516,8 +518,8 @@ type UTAServiceStatusResponse struct {
 	Message      string `json:"msg"`
 }
 
-// UTAKYCRegion holds a KYC region
-type UTAKYCRegion struct {
+// UTAKYCRegionResponse holds a KYC region
+type UTAKYCRegionResponse struct {
 	Code        string `json:"code"`
 	EnglishName string `json:"enName"`
 }

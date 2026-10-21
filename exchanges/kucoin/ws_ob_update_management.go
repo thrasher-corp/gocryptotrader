@@ -53,12 +53,17 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 			return nil, err
 		}
 		book.Bids, book.Asks = ob.Bids.Levels(), ob.Asks.Levels()
-		book.LastUpdateID = int64(ob.Sequence) //nolint:gosec // KuCoin's sequences stay far below the int64 limit
+		book.LastUpdateID = orderbookUpdateID(ob.Sequence)
 		book.LastUpdated, book.LastPushed = ob.Timestamp.Time(), ob.Timestamp.Time()
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return book, nil
+}
+
+// orderbookUpdateID returns a KuCoin sequence as the signed update ID GoCryptoTrader's orderbooks keep
+func orderbookUpdateID(sequence uint64) int64 {
+	return int64(sequence) //nolint:gosec // KuCoin's sequences stay far below the int64 limit
 }
 
 // From docs: sequenceStart(new) <= sequenceEnd(old) + 1 sequenceEnd(new) > sequenceEnd(old)

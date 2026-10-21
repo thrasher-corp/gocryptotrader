@@ -10,8 +10,8 @@ type BasicFeeResponse struct {
 	MakerFeeRate types.Number `json:"makerFeeRate"`
 }
 
-// TradingPairActualFee holds the actual fee and tax rates of a spot or margin symbol
-type TradingPairActualFee struct {
+// TradingPairActualFeeResponse holds the actual fee and tax rates of a spot or margin symbol
+type TradingPairActualFeeResponse struct {
 	Symbol       string       `json:"symbol"`
 	TakerFeeRate types.Number `json:"takerFeeRate"`
 	MakerFeeRate types.Number `json:"makerFeeRate"`

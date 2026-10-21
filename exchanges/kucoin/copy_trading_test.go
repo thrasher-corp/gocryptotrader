@@ -546,7 +546,7 @@ func TestGetCopyTradingCrossMarginRequirement(t *testing.T) {
 	result, err := e.GetCopyTradingCrossMarginRequirement(t.Context(), &CopyTradingCrossMarginRequirementRequest{Symbols: []string{"XBTUSDTM", "ETHUSDTM"}, Leverage: 15, PositionValue: 10000})
 	require.NoError(t, err, "GetCopyTradingCrossMarginRequirement must not error")
 	if mockTests {
-		exp := []CopyTradingCrossMarginRequirement{
+		exp := []CopyTradingCrossMarginRequirementResponse{
 			{Symbol: "XBTUSDTM", Size: 87, PositionValue: 10000, Price: 113876.3, InitialMarginRate: 0.06666667, MaintenanceMarginRate: 0.00400117},
 			{Symbol: "ETHUSDTM", Size: 249, PositionValue: 10000, Price: 4012.35, InitialMarginRate: 0.06666667, MaintenanceMarginRate: 0.005},
 		}
@@ -777,7 +777,7 @@ func TestGetCopyTradingPositions(t *testing.T) {
 	result, err := e.GetCopyTradingPositions(t.Context(), "all")
 	require.NoError(t, err, "GetCopyTradingPositions must not error")
 	if mockTests {
-		exp := []CopyTradingPosition{
+		exp := []CopyTradingPositionResponse{
 			{
 				ID:                           "500000000002517039",
 				Symbol:                       "XBTUSDTM",

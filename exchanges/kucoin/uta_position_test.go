@@ -27,12 +27,12 @@ func TestGetUTAPositionList(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *UTAPositionListRequest
-		exp  []UTAPosition
+		exp  []UTAPositionResponse
 	}{
 		{
 			name: "one symbol",
 			req:  &UTAPositionListRequest{Symbol: "XRPUSDTM", PageNumber: 1, PageSize: 50},
-			exp: []UTAPosition{
+			exp: []UTAPositionResponse{
 				{
 					Symbol:                "XRPUSDTM",
 					ID:                    "10000000000904102",
@@ -59,7 +59,7 @@ func TestGetUTAPositionList(t *testing.T) {
 		{
 			name: "every position",
 			req:  &UTAPositionListRequest{},
-			exp: []UTAPosition{
+			exp: []UTAPositionResponse{
 				{
 					Symbol:                "XRPUSDTM",
 					ID:                    "10000000000904102",
@@ -295,7 +295,7 @@ func TestModifyUTAPositionMargin(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		positions, err := e.GetUTAPositionList(t.Context(), &UTAPositionListRequest{})
 		require.NoError(t, err, "GetUTAPositionList must not error")
-		i := slices.IndexFunc(positions, func(p UTAPosition) bool {
+		i := slices.IndexFunc(positions, func(p UTAPositionResponse) bool {
 			return p.MarginMode == "ISOLATED" && strings.HasSuffix(p.Symbol, "USDTM")
 		})
 		if i < 0 {

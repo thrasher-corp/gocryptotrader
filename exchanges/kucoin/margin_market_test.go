@@ -110,7 +110,7 @@ func TestGetIsolatedMarginSymbols(t *testing.T) {
 	result, err := e.GetIsolatedMarginSymbols(t.Context())
 	require.NoError(t, err, "GetIsolatedMarginSymbols must not error")
 	if mockTests {
-		exp := []IsolatedMarginSymbol{
+		exp := []IsolatedMarginSymbolResponse{
 			{
 				Symbol:                     "KCS-USDT",
 				SymbolName:                 "KCS-USDT",
@@ -194,7 +194,7 @@ func TestGetAllMarginTradingPairsMarkPrices(t *testing.T) {
 	result, err := e.GetAllMarginTradingPairsMarkPrices(t.Context())
 	require.NoError(t, err, "GetAllMarginTradingPairsMarkPrices must not error")
 	if mockTests {
-		exp := []MarginMarkPrice{
+		exp := []MarginMarkPriceResponse{
 			{
 				Symbol:      "ETH-BTC",
 				Granularity: 1000,
@@ -223,11 +223,11 @@ func TestGetMarginCollateralRatio(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		currencies []currency.Code
-		exp        []MarginCollateralRatio
+		exp        []MarginCollateralRatioResponse
 	}{
 		{
 			name: "all currencies",
-			exp: []MarginCollateralRatio{
+			exp: []MarginCollateralRatioResponse{
 				{
 					CurrencyList: []currency.Code{currency.TIA, currency.KCS, currency.NewCode("NXPC")},
 					Items: []MarginCollateralRatioItem{
@@ -249,7 +249,7 @@ func TestGetMarginCollateralRatio(t *testing.T) {
 		{
 			name:       "some currencies",
 			currencies: []currency.Code{currency.BTC, currency.USDT},
-			exp: []MarginCollateralRatio{
+			exp: []MarginCollateralRatioResponse{
 				{
 					CurrencyList: []currency.Code{currency.BTC},
 					Items: []MarginCollateralRatioItem{
@@ -287,11 +287,11 @@ func TestGetMarketAvailableInventory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		ccy  currency.Code
-		exp  []MarketAvailableInventory
+		exp  []MarketAvailableInventoryResponse
 	}{
 		{
 			name: "all currencies",
-			exp: []MarketAvailableInventory{
+			exp: []MarketAvailableInventoryResponse{
 				{Currency: currency.USDT, BorrowableAmount: 9066139.89392282214},
 				{Currency: currency.USDC, BorrowableAmount: 269973.07992858573},
 			},
@@ -299,7 +299,7 @@ func TestGetMarketAvailableInventory(t *testing.T) {
 		{
 			name: "one currency",
 			ccy:  currency.BTC,
-			exp:  []MarketAvailableInventory{{Currency: currency.BTC, BorrowableAmount: 10.47245668039}},
+			exp:  []MarketAvailableInventoryResponse{{Currency: currency.BTC, BorrowableAmount: 10.47245668039}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -107,13 +107,13 @@ func (e *Exchange) SubmitExchangeBrokerKYC(ctx context.Context, arg *SubmitExcha
 }
 
 // GetExchangeBrokerKYCStatus returns the KYC status of Exchange Broker sub-accounts (Get KYC Status)
-func (e *Exchange) GetExchangeBrokerKYCStatus(ctx context.Context, clientUIDs []string) ([]ExchangeBrokerKYCStatus, error) {
+func (e *Exchange) GetExchangeBrokerKYCStatus(ctx context.Context, clientUIDs []string) ([]ExchangeBrokerKYCStatusResponse, error) {
 	if len(clientUIDs) == 0 || slices.Contains(clientUIDs, "") {
 		return nil, errBrokerClientUIDRequired
 	}
 	params := url.Values{}
 	params.Set("clientUids", strings.Join(clientUIDs, ","))
-	var resp []ExchangeBrokerKYCStatus
+	var resp []ExchangeBrokerKYCStatusResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, getExchangeBrokerKYCStatusEPL, http.MethodGet, common.EncodeURLValues("/kyc/ndBroker/proxyClient/status/list", params), nil, &resp)
 }
 
@@ -204,7 +204,7 @@ func (e *Exchange) AddExchangeBrokerSubAccountAPI(ctx context.Context, arg *AddE
 
 // GetExchangeBrokerSubAccountAPIs returns the API keys of an Exchange Broker sub-account, filtered to apiKey when it is
 // set (Get sub-account API)
-func (e *Exchange) GetExchangeBrokerSubAccountAPIs(ctx context.Context, uid, apiKey string) ([]ExchangeBrokerSubAccountAPI, error) {
+func (e *Exchange) GetExchangeBrokerSubAccountAPIs(ctx context.Context, uid, apiKey string) ([]ExchangeBrokerSubAccountAPIResponse, error) {
 	if uid == "" {
 		return nil, errSubUserIDRequired
 	}
@@ -213,7 +213,7 @@ func (e *Exchange) GetExchangeBrokerSubAccountAPIs(ctx context.Context, uid, api
 	if apiKey != "" {
 		params.Set("apiKey", apiKey)
 	}
-	var resp []ExchangeBrokerSubAccountAPI
+	var resp []ExchangeBrokerSubAccountAPIResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, getExchangeBrokerSubAccountAPIsEPL, http.MethodGet, common.EncodeURLValues("/v1/broker/nd/account/apikey", params), nil, &resp)
 }
 
@@ -310,7 +310,7 @@ func (e *Exchange) GetExchangeBrokerTransferHistory(ctx context.Context, orderID
 
 // GetExchangeBrokerDepositList returns the deposits to the Exchange Broker's sub-accounts, newest first (Get Deposit
 // List)
-func (e *Exchange) GetExchangeBrokerDepositList(ctx context.Context, arg *GetExchangeBrokerDepositListRequest) ([]ExchangeBrokerDeposit, error) {
+func (e *Exchange) GetExchangeBrokerDepositList(ctx context.Context, arg *GetExchangeBrokerDepositListRequest) ([]ExchangeBrokerDepositResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (e *Exchange) GetExchangeBrokerDepositList(ctx context.Context, arg *GetExc
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []ExchangeBrokerDeposit
+	var resp []ExchangeBrokerDepositResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, getExchangeBrokerDepositListEPL, http.MethodGet, common.EncodeURLValues("/v1/asset/ndbroker/deposit/list", params), nil, &resp)
 }
 

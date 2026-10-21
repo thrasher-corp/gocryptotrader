@@ -14,7 +14,7 @@ import (
 // GetUTADepositAddress returns a currency's deposit addresses. With a chain, that chain's address is returned, and
 // created when it does not exist yet; without one, the list is empty when the currency has no address (Get Deposit
 // Address)
-func (e *Exchange) GetUTADepositAddress(ctx context.Context, ccy currency.Code, chain string) ([]UTADepositAddress, error) {
+func (e *Exchange) GetUTADepositAddress(ctx context.Context, ccy currency.Code, chain string) ([]UTADepositAddressResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -23,7 +23,7 @@ func (e *Exchange) GetUTADepositAddress(ctx context.Context, ccy currency.Code, 
 		params.Set("chain", chain)
 	}
 	params.Set("currency", ccy.Upper().String())
-	var resp []UTADepositAddress
+	var resp []UTADepositAddressResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTADepositAddressEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/asset/deposit/address", params), nil, &resp)
 }
 

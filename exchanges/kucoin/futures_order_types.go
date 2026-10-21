@@ -153,9 +153,9 @@ type FuturesOrderResponse struct {
 	ClientOrderID string `json:"clientOid"`
 }
 
-// FuturesBatchOrderResult is the outcome of one order of a Batch Add Orders request. Code 200000 means KuCoin accepted
+// FuturesBatchOrderResponse is the outcome of one order of a Batch Add Orders request. Code 200000 means KuCoin accepted
 // the order; any other Code means it rejected it, for the reason in Message
-type FuturesBatchOrderResult struct {
+type FuturesBatchOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOid"`
 	Symbol        string `json:"symbol"`
@@ -354,18 +354,18 @@ func (r *BatchCancelFuturesOrdersRequest) Payload() (map[string]any, error) {
 	return body, nil
 }
 
-// FuturesBatchCancelResult is the outcome of one order of a Batch Cancel Orders request, which echoes the order ID
+// FuturesBatchCancelResponse is the outcome of one order of a Batch Cancel Orders request, which echoes the order ID
 // or the client order ID the request gave. Code 200 means KuCoin cancelled the order; any other Code means it did
 // not, for the reason in Message
-type FuturesBatchCancelResult struct {
+type FuturesBatchCancelResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOid"`
 	Code          string `json:"code"`
 	Message       string `json:"msg"`
 }
 
-// FuturesOrder holds the details of a futures order, as the order and order list endpoints return them
-type FuturesOrder struct {
+// FuturesOrderDetailResponse holds the details of a futures order, as the order and order list endpoints return them
+type FuturesOrderDetailResponse struct {
 	ID     string       `json:"id"`
 	Symbol string       `json:"symbol"`
 	Type   string       `json:"type"`
@@ -416,9 +416,6 @@ type FuturesOrder struct {
 	PositionSide string       `json:"positionSide"`
 }
 
-// FuturesOrderDetailResponse holds the details of a futures order (Get Order By OrderId, Get Order By ClientOid)
-type FuturesOrderDetailResponse FuturesOrder
-
 // GetFuturesOrdersRequest holds the parameters of Get Order List. Done orders can be listed for a window of up to
 // seven days
 type GetFuturesOrdersRequest struct {
@@ -437,11 +434,11 @@ type GetFuturesOrdersRequest struct {
 
 // FuturesOrdersResponse holds a page of futures orders
 type FuturesOrdersResponse struct {
-	CurrentPage uint64         `json:"currentPage"`
-	PageSize    uint64         `json:"pageSize"`
-	TotalNumber uint64         `json:"totalNum"`
-	TotalPage   uint64         `json:"totalPage"`
-	Items       []FuturesOrder `json:"items"`
+	CurrentPage uint64                       `json:"currentPage"`
+	PageSize    uint64                       `json:"pageSize"`
+	TotalNumber uint64                       `json:"totalNum"`
+	TotalPage   uint64                       `json:"totalPage"`
+	Items       []FuturesOrderDetailResponse `json:"items"`
 }
 
 // GetUntriggeredFuturesStopOrdersRequest holds the parameters of Get Stop Order List
@@ -467,8 +464,8 @@ type FuturesOpenOrderStatsResponse struct {
 	SettleCurrency    currency.Code `json:"settleCurrency"`
 }
 
-// FuturesRecentFill holds a fill of the last 24 hours, as Get Recent Trade History returns it
-type FuturesRecentFill struct {
+// FuturesRecentFillResponse holds a fill of the last 24 hours, as Get Recent Trade History returns it
+type FuturesRecentFillResponse struct {
 	Symbol  string `json:"symbol"`
 	TradeID string `json:"tradeId"`
 	OrderID string `json:"orderId"`

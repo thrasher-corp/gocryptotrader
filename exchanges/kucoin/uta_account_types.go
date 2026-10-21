@@ -153,8 +153,8 @@ type UTALeverageRequest struct {
 	MarginMode string
 }
 
-// UTALeverage holds the leverage of a cross margin currency or a futures symbol
-type UTALeverage struct {
+// UTALeverageResponse holds the leverage of a cross margin currency or a futures symbol
+type UTALeverageResponse struct {
 	// Currency is returned for cross margin
 	Currency currency.Code `json:"currency"`
 	Leverage types.Number  `json:"leverage"`
@@ -333,8 +333,8 @@ type SetUTAKCSFeeDeductionResponse struct {
 	Enabled bool `json:"enabled"`
 }
 
-// UTAThirdPartyCustodyCurrencyLimit holds the remaining custody quota of a settlement currency at a custodian
-type UTAThirdPartyCustodyCurrencyLimit struct {
+// UTAThirdPartyCustodyCurrencyLimitResponse holds the remaining custody quota of a settlement currency at a custodian
+type UTAThirdPartyCustodyCurrencyLimitResponse struct {
 	Custodian string        `json:"custodian"`
 	Currency  currency.Code `json:"currency"`
 	// CustodyQuota is shared by every custodian sub-account under the master account

@@ -132,7 +132,7 @@ func (e *Exchange) GetAllFuturesSubAccountBalances(ctx context.Context, ccy curr
 
 // GetSubAccountAPIList returns the API keys of a sub-account, or only apiKey when it is given (Get sub-account API
 // List). The request must be signed with a master account key
-func (e *Exchange) GetSubAccountAPIList(ctx context.Context, subName, apiKey string) ([]SubAccountAPIKey, error) {
+func (e *Exchange) GetSubAccountAPIList(ctx context.Context, subName, apiKey string) ([]SubAccountAPIKeyResponse, error) {
 	if subName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -141,7 +141,7 @@ func (e *Exchange) GetSubAccountAPIList(ctx context.Context, subName, apiKey str
 	if apiKey != "" {
 		params.Set("apiKey", apiKey)
 	}
-	var resp []SubAccountAPIKey
+	var resp []SubAccountAPIKeyResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getSubAccountAPIListEPL, http.MethodGet, common.EncodeURLValues("/v1/sub/api-key", params), nil, &resp)
 }
 

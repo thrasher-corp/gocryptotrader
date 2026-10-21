@@ -208,9 +208,9 @@ type GetBrokerProUserTransactionsRequest struct {
 	PageSize  uint64
 }
 
-// BrokerProUserTransaction is a user's trading through a Broker Pro, with the volume, fees and commission it
+// BrokerProUserTransactionResponse is a user's trading through a Broker Pro, with the volume, fees and commission it
 // contributed
-type BrokerProUserTransaction struct {
+type BrokerProUserTransactionResponse struct {
 	TradeTime types.Time `json:"tradeTime"`
 	UID       string     `json:"uid"`
 	// NickName defaults to the user's phone number or email

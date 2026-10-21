@@ -108,24 +108,24 @@ func (e *Exchange) GetMaximumOpenPositionSize(ctx context.Context, symbol string
 
 // GetFuturesPositionDetails returns a contract's positions: one in one-way mode, and up to one per side in hedge mode
 // (Get Position Details)
-func (e *Exchange) GetFuturesPositionDetails(ctx context.Context, symbol string) ([]FuturesPositionDetail, error) {
+func (e *Exchange) GetFuturesPositionDetails(ctx context.Context, symbol string) ([]FuturesPositionDetailResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []FuturesPositionDetail
+	var resp []FuturesPositionDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesPositionDetailsEPL, http.MethodGet, common.EncodeURLValues("/v2/position", params), nil, &resp)
 }
 
 // GetFuturesPositionList returns the positions settled in a currency, such as USDT or XBT, or every position when
 // settleCurrency is empty (Get Position List)
-func (e *Exchange) GetFuturesPositionList(ctx context.Context, settleCurrency currency.Code) ([]FuturesPosition, error) {
+func (e *Exchange) GetFuturesPositionList(ctx context.Context, settleCurrency currency.Code) ([]FuturesPositionResponse, error) {
 	params := url.Values{}
 	if !settleCurrency.IsEmpty() {
 		params.Set("currency", settleCurrency.Upper().String())
 	}
-	var resp []FuturesPosition
+	var resp []FuturesPositionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesPositionListEPL, http.MethodGet, common.EncodeURLValues("/v1/positions", params), nil, &resp)
 }
 
@@ -256,7 +256,7 @@ func (e *Exchange) RemoveMarginManually(ctx context.Context, r *RemoveMarginManu
 
 // GetFuturesCrossMarginRiskLimit returns the largest cross margin positions contracts can open with a margin and
 // leverage. Cross margin risk limits follow a smooth curve rather than fixed levels (Get Cross Margin Risk Limit)
-func (e *Exchange) GetFuturesCrossMarginRiskLimit(ctx context.Context, r *GetFuturesCrossMarginRiskLimitRequest) ([]FuturesCrossMarginRiskLimit, error) {
+func (e *Exchange) GetFuturesCrossMarginRiskLimit(ctx context.Context, r *GetFuturesCrossMarginRiskLimitRequest) ([]FuturesCrossMarginRiskLimitResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -271,13 +271,13 @@ func (e *Exchange) GetFuturesCrossMarginRiskLimit(ctx context.Context, r *GetFut
 	if r.Leverage != 0 {
 		params.Set("leverage", strconv.FormatUint(r.Leverage, 10))
 	}
-	var resp []FuturesCrossMarginRiskLimit
+	var resp []FuturesCrossMarginRiskLimitResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesCrossMarginRiskLimitEPL, http.MethodGet, common.EncodeURLValues("/v2/batchGetCrossOrderLimit", params), nil, &resp)
 }
 
 // GetFuturesCrossMarginRequirement returns the size and cross margin rates of a position of a value in each contract
 // (Get Cross Margin Requirement)
-func (e *Exchange) GetFuturesCrossMarginRequirement(ctx context.Context, r *GetFuturesCrossMarginRequirementRequest) ([]FuturesCrossMarginRequirement, error) {
+func (e *Exchange) GetFuturesCrossMarginRequirement(ctx context.Context, r *GetFuturesCrossMarginRequirementRequest) ([]FuturesCrossMarginRequirementResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (e *Exchange) GetFuturesCrossMarginRequirement(ctx context.Context, r *GetF
 	if r.Leverage != 0 {
 		body["leverage"] = strconv.FormatFloat(r.Leverage, 'f', -1, 64)
 	}
-	var resp []FuturesCrossMarginRequirement
+	var resp []FuturesCrossMarginRequirementResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesCrossMarginRequirementEPL, http.MethodPost, "/v2/getCrossModeMarginRequirement", body, &resp)
 }
 
@@ -311,11 +311,11 @@ func checkSymbols(symbols []string) error {
 }
 
 // GetFuturesRiskLimitLevel returns a contract's isolated margin risk limit levels (Get Isolated Margin Risk Limit)
-func (e *Exchange) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) ([]FuturesRiskLimitLevel, error) {
+func (e *Exchange) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) ([]FuturesRiskLimitLevelResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp []FuturesRiskLimitLevel
+	var resp []FuturesRiskLimitLevelResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getFuturesRiskLimitLevelEPL, "/v1/contracts/risk-limit/"+symbol, &resp)
 }
 

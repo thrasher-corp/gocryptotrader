@@ -192,7 +192,7 @@ func (e *Exchange) GetBrokerProUserList(ctx context.Context, arg *GetBrokerProUs
 // GetBrokerProUserTransactions returns the transactions of the users trading through the Broker Pro, with the volume,
 // fees and commission each contributed; a page continues from the LastID of the previous page's last transaction (Get
 // User Transactions)
-func (e *Exchange) GetBrokerProUserTransactions(ctx context.Context, arg *GetBrokerProUserTransactionsRequest) ([]BrokerProUserTransaction, error) {
+func (e *Exchange) GetBrokerProUserTransactions(ctx context.Context, arg *GetBrokerProUserTransactionsRequest) ([]BrokerProUserTransactionResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (e *Exchange) GetBrokerProUserTransactions(ctx context.Context, arg *GetBro
 	if arg.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(arg.PageSize, 10))
 	}
-	var resp []BrokerProUserTransaction
+	var resp []BrokerProUserTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getBrokerProUserTransactionsEPL, http.MethodGet, common.EncodeURLValues("/v2/broker/queryDetailByUid", params), nil, &resp)
 }
 

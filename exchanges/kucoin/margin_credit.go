@@ -18,24 +18,24 @@ var errInvalidLoanMarketInterestRateTime = errors.New("invalid loan market inter
 
 // GetLendingCurrencyInformation returns the margin lending market configuration of every currency, or of the
 // currency given (Get Loan Market)
-func (e *Exchange) GetLendingCurrencyInformation(ctx context.Context, ccy currency.Code) ([]LendingCurrencyInfo, error) {
+func (e *Exchange) GetLendingCurrencyInformation(ctx context.Context, ccy currency.Code) ([]LendingCurrencyInfoResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []LendingCurrencyInfo
+	var resp []LendingCurrencyInfoResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getLendingCurrencyInformationEPL, http.MethodGet, common.EncodeURLValues("/v3/project/list", params), nil, &resp)
 }
 
 // GetLoanMarketInterestRate returns a currency's hourly margin lending market interest rate over the past 7 days (Get
 // Loan Market Interest Rate)
-func (e *Exchange) GetLoanMarketInterestRate(ctx context.Context, ccy currency.Code) ([]LoanMarketInterestRate, error) {
+func (e *Exchange) GetLoanMarketInterestRate(ctx context.Context, ccy currency.Code) ([]LoanMarketInterestRateResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.Upper().String())
-	var resp []LoanMarketInterestRate
+	var resp []LoanMarketInterestRateResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLoanMarketInterestRateEPL, common.EncodeURLValues("/v3/project/marketInterestRate", params), &resp)
 }
 

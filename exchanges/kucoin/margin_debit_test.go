@@ -430,11 +430,17 @@ func TestModifyLeverageMultiplier(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "ModifyLeverageMultiplier must reject an isolated change without a symbol")
 	err = e.ModifyLeverageMultiplier(t.Context(), &ModifyLeverageMultiplierRequest{})
 	require.ErrorIs(t, err, errInvalidLeverage, "ModifyLeverageMultiplier must reject a zero leverage")
+	err = e.ModifyLeverageMultiplier(t.Context(), &ModifyLeverageMultiplierRequest{Leverage: 2.555})
+	require.ErrorIs(t, err, errInvalidLeverage, "ModifyLeverageMultiplier must reject a leverage with more than two decimal places")
 
 	sent := sentRequest(t, func(ex *Exchange) error {
 		return ex.ModifyLeverageMultiplier(t.Context(), &ModifyLeverageMultiplierRequest{Symbol: "BTC-USDT", IsIsolated: true, Leverage: 3.5})
 	})
 	assert.JSONEq(t, `{"leverage":"3.5","symbol":"BTC-USDT","isIsolated":true}`, sent.body, "ModifyLeverageMultiplier should send the leverage as the string KuCoin documents")
+	sent = sentRequest(t, func(ex *Exchange) error {
+		return ex.ModifyLeverageMultiplier(t.Context(), &ModifyLeverageMultiplierRequest{Leverage: 2.55})
+	})
+	assert.JSONEq(t, `{"leverage":"2.55"}`, sent.body, "ModifyLeverageMultiplier should send a leverage with two decimal places as given")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

@@ -168,24 +168,24 @@ func TestGetAffiliateTradeHistory(t *testing.T) {
 			TotalPage:   1,
 			Items: []AffiliateTrade{
 				{
-					TradeTime:     types.Time(time.UnixMilli(1752560532000)),
-					TradeType:     "SPOT",
-					TradeCurrency: currency.TRUMP,
-					TradeAmount:   4.96,
-					TradeAmountU:  4.96,
-					FeeU:          0.00496,
-					Commission:    0.0014384,
-					Currency:      currency.USDT,
+					TradeTime:            types.Time(time.UnixMilli(1752560532000)),
+					TradeType:            "SPOT",
+					TradeCurrency:        currency.TRUMP,
+					TradeAmount:          4.96,
+					ConvertedTradeAmount: 4.96,
+					ConvertedFee:         0.00496,
+					Commission:           0.0014384,
+					Currency:             currency.USDT,
 				},
 				{
-					TradeTime:     types.Time(time.UnixMilli(1752204768000)),
-					TradeType:     "SPOT",
-					TradeCurrency: currency.DOGE,
-					TradeAmount:   1.98,
-					TradeAmountU:  1.98,
-					FeeU:          0.00198,
-					Commission:    0.0005742,
-					Currency:      currency.USDT,
+					TradeTime:            types.Time(time.UnixMilli(1752204768000)),
+					TradeType:            "SPOT",
+					TradeCurrency:        currency.DOGE,
+					TradeAmount:          1.98,
+					ConvertedTradeAmount: 1.98,
+					ConvertedFee:         0.00198,
+					Commission:           0.0005742,
+					Currency:             currency.USDT,
 				},
 			},
 		}
@@ -211,18 +211,18 @@ func TestGetAffiliateTransactions(t *testing.T) {
 	result, err := e.GetAffiliateTransactions(t.Context(), &AffiliateTransactionsRequest{UID: "100000011", TradeType: "SPOT", TradeStartAt: start, TradeEndAt: end, LastID: "6498040334d4050001b0aa7b", Direction: "NEXT", PageSize: 10})
 	require.NoError(t, err, "GetAffiliateTransactions must not error")
 	if mockTests {
-		exp := []AffiliateTransaction{
+		exp := []AffiliateTransactionResponse{
 			{
-				UID:           "100000011",
-				TradeTime:     types.Time(time.UnixMilli(1609516800000)),
-				TradeType:     "SPOT",
-				TradeCurrency: currency.BTC,
-				TradeAmount:   0.1,
-				TradeAmountU:  10000,
-				FeeU:          2.82,
-				Commission:    1.41,
-				Currency:      currency.USDT,
-				LastID:        "6498040334d4050001b0aa7c",
+				UID:                  "100000011",
+				TradeTime:            types.Time(time.UnixMilli(1609516800000)),
+				TradeType:            "SPOT",
+				TradeCurrency:        currency.BTC,
+				TradeAmount:          0.1,
+				ConvertedTradeAmount: 10000,
+				ConvertedFee:         2.82,
+				Commission:           1.41,
+				Currency:             currency.USDT,
+				LastID:               "6498040334d4050001b0aa7c",
 			},
 		}
 		assert.Equal(t, exp, result, "GetAffiliateTransactions should decode every field")
@@ -245,7 +245,7 @@ func TestGetAffiliateKumining(t *testing.T) {
 	result, err := e.GetAffiliateKumining(t.Context(), &AffiliateKuminingRequest{UID: "100000011", StartAt: start, EndAt: end, LastID: "123lk4jh1234lkhj1234lkjg", Direction: "NEXT", PageSize: 10})
 	require.NoError(t, err, "GetAffiliateKumining must not error")
 	if mockTests {
-		exp := []AffiliateKumining{
+		exp := []AffiliateKuminingResponse{
 			{
 				UID:       "100000011",
 				GoodsName: "BTC-10TH",

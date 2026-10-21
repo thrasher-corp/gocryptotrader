@@ -28,7 +28,7 @@ type APIKeyInfoResponse struct {
 	UID                   uint64     `json:"uid"`
 	ParentUID             uint64     `json:"parentUid"` // Zero for a master account key
 	Region                string     `json:"region"`    // KYC region as a two-letter country code
-	KYCStatus             int64      `json:"kycStatus"` // 1 passed, 0 not passed
+	KYCStatus             uint64     `json:"kycStatus"` // 1 passed, 0 not passed
 	SubName               string     `json:"subName"`
 	Remark                string     `json:"remark"`
 	APIKey                string     `json:"apiKey"`
@@ -157,8 +157,8 @@ type HFAccountLedgersRequest struct {
 	EndAt        time.Time
 }
 
-// HFAccountLedger holds a high-frequency trading account ledger entry
-type HFAccountLedger struct {
+// HFAccountLedgerResponse holds a high-frequency trading account ledger entry
+type HFAccountLedgerResponse struct {
 	ID           string        `json:"id"`
 	Currency     currency.Code `json:"currency"`
 	Amount       types.Number  `json:"amount"`
@@ -172,8 +172,8 @@ type HFAccountLedger struct {
 	Context      string        `json:"context"` // JSON with the order ID, trade ID and symbol of trades
 }
 
-// HFMarginAccountLedger holds a high-frequency margin account ledger entry
-type HFMarginAccountLedger struct {
+// HFMarginAccountLedgerResponse holds a high-frequency margin account ledger entry
+type HFMarginAccountLedgerResponse struct {
 	ID           uint64        `json:"id"`
 	Currency     currency.Code `json:"currency"`
 	Amount       types.Number  `json:"amount"`

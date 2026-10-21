@@ -41,7 +41,7 @@ func (e *Exchange) AddDepositAddressV3(ctx context.Context, arg *AddDepositAddre
 
 // GetDepositAddressV3 returns every deposit address of a currency, optionally on one chain; an empty list means no
 // address has been added yet (Get Deposit Address (V3))
-func (e *Exchange) GetDepositAddressV3(ctx context.Context, ccy currency.Code, chain string) ([]DepositAddress, error) {
+func (e *Exchange) GetDepositAddressV3(ctx context.Context, ccy currency.Code, chain string) ([]DepositAddressResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -50,7 +50,7 @@ func (e *Exchange) GetDepositAddressV3(ctx context.Context, ccy currency.Code, c
 	if chain != "" {
 		params.Set("chain", chain)
 	}
-	var resp []DepositAddress
+	var resp []DepositAddressResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getDepositAddressV3EPL, http.MethodGet, common.EncodeURLValues("/v3/deposit-addresses", params), nil, &resp)
 }
 

@@ -2,9 +2,11 @@ package kucoin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -235,7 +237,11 @@ func (e *Exchange) ModifyLeverageMultiplier(ctx context.Context, req *ModifyLeve
 	if req.Leverage <= 0 {
 		return errInvalidLeverage
 	}
-	body := map[string]any{"leverage": strconv.FormatFloat(req.Leverage, 'f', -1, 64)}
+	leverage := strconv.FormatFloat(req.Leverage, 'f', -1, 64)
+	if _, decimals, ok := strings.Cut(leverage, "."); ok && len(decimals) > 2 {
+		return fmt.Errorf("%w: %s has more than the two decimal places KuCoin takes", errInvalidLeverage, leverage)
+	}
+	body := map[string]any{"leverage": leverage}
 	if req.Symbol != "" {
 		body["symbol"] = req.Symbol
 	}

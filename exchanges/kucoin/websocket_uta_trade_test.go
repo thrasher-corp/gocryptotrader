@@ -90,10 +90,10 @@ func newUTATradeTestConnection(t *testing.T, ex *Exchange) *utaTradeServer {
 func wsPlaceUTALiveOrder(t *testing.T, ex *Exchange, r *PlaceUTAOrderRequest) *UTAWebsocketOrderResponse {
 	t.Helper()
 	cancelUTALiveOrderOnFailure(t, r)
-	resp, err := ex.WSAddUTAOrder(t.Context(), r)
-	require.NoError(t, err, "WSAddUTAOrder must not error")
-	require.NotNil(t, resp, "WSAddUTAOrder must return a response")
-	require.NotEmpty(t, resp.Data.OrderID, "WSAddUTAOrder must return the order ID")
+	resp, err := ex.WebsocketAddUTAOrder(t.Context(), r)
+	require.NoError(t, err, "WebsocketAddUTAOrder must not error")
+	require.NotNil(t, resp, "WebsocketAddUTAOrder must return a response")
+	require.NotEmpty(t, resp.Data.OrderID, "WebsocketAddUTAOrder must return the order ID")
 	return resp
 }
 
@@ -117,6 +117,7 @@ func TestAuthenticateUTATradeWebsocket(t *testing.T) {
 	err = ex.AuthenticateUTATradeWebsocket(t.Context(), &utaFakeConnection{sendErr: websocket.ErrSignatureTimeout})
 	assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "AuthenticateUTATradeWebsocket should return a send error")
 	assert.Error(t, ex.AuthenticateUTATradeWebsocket(t.Context(), &utaFakeConnection{reply: []byte(`{`)}), "AuthenticateUTATradeWebsocket should error on a malformed reply")
+	assert.ErrorIs(t, ex.AuthenticateUTATradeWebsocket(t.Context(), &utaFakeConnection{reply: []byte(`null`)}), common.ErrNoResponse, "AuthenticateUTATradeWebsocket should error on a null reply")
 
 	ex.SkipAuthCheck = false // The mock instance skips credential checks
 	ex.SetCredentials(&accounts.Credentials{})
@@ -137,7 +138,7 @@ func TestUTAWebsocketTradeAuthResponseDecoding(t *testing.T) {
 	assert.Equal(t, exp, got, "the welcome and rejection replies should decode every field")
 }
 
-func TestWsHandleUTATradeData(t *testing.T) {
+func TestWebsocketHandleUTATradeData(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	conn := &utaFakeConnection{}
@@ -180,11 +181,11 @@ func TestUTAWebsocketTradeStatusTradeStatus(t *testing.T) {
 	assert.Same(t, &resp.UTAWebsocketTradeStatus, resp.tradeStatus(), "tradeStatus should return the reply's own status")
 }
 
-func TestWSAddUTAOrder(t *testing.T) {
+func TestWebsocketAddUTAOrder(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	_, err := ex.WSAddUTAOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WSAddUTAOrder must reject a nil request")
+	_, err := ex.WebsocketAddUTAOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAddUTAOrder must reject a nil request")
 	req := &PlaceUTAOrderRequest{
 		TradeType:     "FUTURES",
 		ClientOrderID: "313e793a-a88b-4311-a590-a3b3bac00d2f-8df",
@@ -197,22 +198,22 @@ func TestWSAddUTAOrder(t *testing.T) {
 		TimeInForce:   "GTC",
 		Tags:          "KuCoin API Service",
 	}
-	_, err = ex.WSAddUTAOrder(t.Context(), req)
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WSAddUTAOrder must error without a trade connection")
+	_, err = ex.WebsocketAddUTAOrder(t.Context(), req)
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAddUTAOrder must error without a trade connection")
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex.SetCredentials(apiCredentials)
 		newUTATradeTestConnection(t, ex)
 		live := newUTALiveFuturesOrder(t)
 		placed := wsPlaceUTALiveOrder(t, ex, live)
-		_, err = ex.WSCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: placed.Data.OrderID})
-		require.NoError(t, err, "WSCancelUTAOrder must cancel the test's order")
+		_, err = ex.WebsocketCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: placed.Data.OrderID})
+		require.NoError(t, err, "WebsocketCancelUTAOrder must cancel the test's order")
 		return
 	}
 	server := newUTATradeTestConnection(t, ex)
-	resp, err := ex.WSAddUTAOrder(t.Context(), req)
-	require.NoError(t, err, "WSAddUTAOrder must not error")
-	require.NotNil(t, resp, "WSAddUTAOrder must return a response")
+	resp, err := ex.WebsocketAddUTAOrder(t.Context(), req)
+	require.NoError(t, err, "WebsocketAddUTAOrder must not error")
+	require.NotNil(t, resp, "WebsocketAddUTAOrder must return a response")
 	received := server.messages()
 	require.Len(t, received, 2, "the mock server must receive the authentication and order messages")
 	exp := map[string]any{
@@ -231,8 +232,8 @@ func TestWSAddUTAOrder(t *testing.T) {
 			"tradeType":   "FUTURES",
 		},
 	}
-	assert.Equal(t, exp, received[1], "WSAddUTAOrder should send the Place Order body as the Add Order arguments")
-	assert.Len(t, resp.ID, 32, "WSAddUTAOrder's request ID should fit KuCoin's 32 byte limit")
+	assert.Equal(t, exp, received[1], "WebsocketAddUTAOrder should send the Place Order body as the Add Order arguments")
+	assert.Len(t, resp.ID, 32, "WebsocketAddUTAOrder's request ID should fit KuCoin's 32 byte limit")
 	expResp := &UTAWebsocketOrderResponse{
 		ID:            resp.ID,
 		Operation:     "uta.order",
@@ -242,33 +243,33 @@ func TestWSAddUTAOrder(t *testing.T) {
 		UserRateLimit: UTAWebsocketRateLimit{Limit: 2000, Remaining: 1999, Reset: 14406},
 		Data:          UTAOrderResponse{ClientOrderID: "313e793a-a88b-4311-a590-a3b3bac00d2f-8df", OrderID: "420781761635647489", TradeType: "FUTURES", Timestamp: types.Time(time.Unix(0, 1773135391743000000))},
 	}
-	assert.Equal(t, expResp, resp, "WSAddUTAOrder should decode every field of the reply")
+	assert.Equal(t, expResp, resp, "WebsocketAddUTAOrder should decode every field of the reply")
 }
 
-func TestWSCancelUTAOrder(t *testing.T) {
+func TestWebsocketCancelUTAOrder(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	_, err := ex.WSCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: "FUTURES", Symbol: "XBTUSDTM"})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WSCancelUTAOrder must reject a request identifying no order")
+	_, err := ex.WebsocketCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: "FUTURES", Symbol: "XBTUSDTM"})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketCancelUTAOrder must reject a request identifying no order")
 	req := &CancelUTAOrderRequest{TradeType: "FUTURES", Symbol: "XBTUSDTM", OrderID: "420781761635647489"}
-	_, err = ex.WSCancelUTAOrder(t.Context(), req)
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WSCancelUTAOrder must error without a trade connection")
+	_, err = ex.WebsocketCancelUTAOrder(t.Context(), req)
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketCancelUTAOrder must error without a trade connection")
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex.SetCredentials(apiCredentials)
 		newUTATradeTestConnection(t, ex)
 		live := newUTALiveFuturesOrder(t)
 		placed := wsPlaceUTALiveOrder(t, ex, live)
-		resp, err := ex.WSCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: placed.Data.OrderID})
-		require.NoError(t, err, "WSCancelUTAOrder must not error")
-		require.NotNil(t, resp, "WSCancelUTAOrder must return a response")
-		assert.Equal(t, placed.Data.OrderID, resp.Data.OrderID, "WSCancelUTAOrder should return the cancelled order's ID")
+		resp, err := ex.WebsocketCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: placed.Data.OrderID})
+		require.NoError(t, err, "WebsocketCancelUTAOrder must not error")
+		require.NotNil(t, resp, "WebsocketCancelUTAOrder must return a response")
+		assert.Equal(t, placed.Data.OrderID, resp.Data.OrderID, "WebsocketCancelUTAOrder should return the cancelled order's ID")
 		return
 	}
 	server := newUTATradeTestConnection(t, ex)
-	resp, err := ex.WSCancelUTAOrder(t.Context(), req)
-	require.NoError(t, err, "WSCancelUTAOrder must not error")
-	require.NotNil(t, resp, "WSCancelUTAOrder must return a response")
+	resp, err := ex.WebsocketCancelUTAOrder(t.Context(), req)
+	require.NoError(t, err, "WebsocketCancelUTAOrder must not error")
+	require.NotNil(t, resp, "WebsocketCancelUTAOrder must return a response")
 	received := server.messages()
 	require.Len(t, received, 2, "the mock server must receive the authentication and cancel messages")
 	exp := map[string]any{
@@ -276,7 +277,7 @@ func TestWSCancelUTAOrder(t *testing.T) {
 		"op":   "uta.cancel",
 		"args": map[string]any{"orderId": "420781761635647489", "symbol": "XBTUSDTM", "tradeType": "FUTURES"},
 	}
-	assert.Equal(t, exp, received[1], "WSCancelUTAOrder should send the Cancel Order body as the operation's arguments")
+	assert.Equal(t, exp, received[1], "WebsocketCancelUTAOrder should send the Cancel Order body as the operation's arguments")
 	expResp := &UTAWebsocketOrderResponse{
 		ID:            resp.ID,
 		Operation:     "uta.cancel",
@@ -286,36 +287,36 @@ func TestWSCancelUTAOrder(t *testing.T) {
 		UserRateLimit: UTAWebsocketRateLimit{Limit: 2000, Remaining: 1998, Reset: 14363},
 		Data:          UTAOrderResponse{ClientOrderID: "313e793a-a88b-4311-a590-a3b3bac00d2f-8df", OrderID: "420781761635647489", TradeType: "FUTURES", Timestamp: types.Time(time.Unix(0, 1773135434166000000))},
 	}
-	assert.Equal(t, expResp, resp, "WSCancelUTAOrder should decode every field of the reply")
+	assert.Equal(t, expResp, resp, "WebsocketCancelUTAOrder should decode every field of the reply")
 }
 
-func TestWSAmendUTAOrder(t *testing.T) {
+func TestWebsocketAmendUTAOrder(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	_, err := ex.WSAmendUTAOrder(t.Context(), &AmendUTAOrderRequest{OrderID: "454538143408951297"})
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "WSAmendUTAOrder must reject a request without a symbol")
+	_, err := ex.WebsocketAmendUTAOrder(t.Context(), &AmendUTAOrderRequest{OrderID: "454538143408951297"})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "WebsocketAmendUTAOrder must reject a request without a symbol")
 	req := &AmendUTAOrderRequest{Symbol: "DOGSUSDTM", OrderID: "454538143408951297", ClientOrderID: "11", NewSize: 9, NewPrice: 0.0000433, SizeUnit: "UNIT"}
-	_, err = ex.WSAmendUTAOrder(t.Context(), req)
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WSAmendUTAOrder must error without a trade connection")
+	_, err = ex.WebsocketAmendUTAOrder(t.Context(), req)
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAmendUTAOrder must error without a trade connection")
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex.SetCredentials(apiCredentials)
 		newUTATradeTestConnection(t, ex)
 		live := newUTALiveFuturesOrder(t)
 		placed := wsPlaceUTALiveOrder(t, ex, live)
-		resp, err := ex.WSAmendUTAOrder(t.Context(), &AmendUTAOrderRequest{Symbol: live.Symbol, OrderID: placed.Data.OrderID, NewPrice: utaLiveFuturesPrice(t, 0.75)})
-		require.NoError(t, err, "WSAmendUTAOrder must not error")
-		require.NotNil(t, resp, "WSAmendUTAOrder must return a response")
-		assert.NotEmpty(t, resp.Data.OrderID, "WSAmendUTAOrder should return the order ID")
+		resp, err := ex.WebsocketAmendUTAOrder(t.Context(), &AmendUTAOrderRequest{Symbol: live.Symbol, OrderID: placed.Data.OrderID, NewPrice: utaLiveFuturesPrice(t, 0.75)})
+		require.NoError(t, err, "WebsocketAmendUTAOrder must not error")
+		require.NotNil(t, resp, "WebsocketAmendUTAOrder must return a response")
+		assert.NotEmpty(t, resp.Data.OrderID, "WebsocketAmendUTAOrder should return the order ID")
 		// The client order ID finds the order whether or not the amendment gave it a new order ID
-		_, err = ex.WSCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, ClientOrderID: live.ClientOrderID})
-		require.NoError(t, err, "WSCancelUTAOrder must cancel the test's order")
+		_, err = ex.WebsocketCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, ClientOrderID: live.ClientOrderID})
+		require.NoError(t, err, "WebsocketCancelUTAOrder must cancel the test's order")
 		return
 	}
 	server := newUTATradeTestConnection(t, ex)
-	resp, err := ex.WSAmendUTAOrder(t.Context(), req)
-	require.NoError(t, err, "WSAmendUTAOrder must not error")
-	require.NotNil(t, resp, "WSAmendUTAOrder must return a response")
+	resp, err := ex.WebsocketAmendUTAOrder(t.Context(), req)
+	require.NoError(t, err, "WebsocketAmendUTAOrder must not error")
+	require.NotNil(t, resp, "WebsocketAmendUTAOrder must return a response")
 	received := server.messages()
 	require.Len(t, received, 2, "the mock server must receive the authentication and amend messages")
 	exp := map[string]any{
@@ -323,7 +324,7 @@ func TestWSAmendUTAOrder(t *testing.T) {
 		"op":   "uta.amend",
 		"args": map[string]any{"clientOid": "11", "newPrice": 0.0000433, "newSize": 9.0, "orderId": "454538143408951297", "sizeUnit": "UNIT", "symbol": "DOGSUSDTM"},
 	}
-	assert.Equal(t, exp, received[1], "WSAmendUTAOrder should send the Amend Order body as the operation's arguments, the decimals as bare numbers")
+	assert.Equal(t, exp, received[1], "WebsocketAmendUTAOrder should send the Amend Order body as the operation's arguments, the decimals as bare numbers")
 	expResp := &UTAWebsocketAmendOrderResponse{
 		ID:            resp.ID,
 		Operation:     "uta.amend",
@@ -333,7 +334,7 @@ func TestWSAmendUTAOrder(t *testing.T) {
 		UserRateLimit: UTAWebsocketRateLimit{Limit: 2000, Remaining: 1997, Reset: 21361},
 		Data:          AmendUTAOrderResponse{ClientOrderID: "11", OrderID: "454538143408951297"},
 	}
-	assert.Equal(t, expResp, resp, "WSAmendUTAOrder should decode every field of the reply")
+	assert.Equal(t, expResp, resp, "WebsocketAmendUTAOrder should decode every field of the reply")
 }
 
 func TestSendUTATradeRequest(t *testing.T) {
@@ -353,8 +354,8 @@ func TestSendUTATradeRequest(t *testing.T) {
 		resp := new(UTAWebsocketOrderResponse)
 		require.NoError(t, ex.sendUTATradeRequest(t.Context(), placeUTAOrderEPL, "uta.order", args, resp), "sendUTATradeRequest must not error")
 		require.NotEmpty(t, resp.Data.OrderID, "sendUTATradeRequest must decode the reply into the result")
-		_, err = ex.WSCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: resp.Data.OrderID})
-		require.NoError(t, err, "WSCancelUTAOrder must cancel the test's order")
+		_, err = ex.WebsocketCancelUTAOrder(t.Context(), &CancelUTAOrderRequest{TradeType: live.TradeType, Symbol: live.Symbol, OrderID: resp.Data.OrderID})
+		require.NoError(t, err, "WebsocketCancelUTAOrder must cancel the test's order")
 		return
 	}
 	server := newUTATradeTestConnection(t, ex)

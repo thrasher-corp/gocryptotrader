@@ -26,13 +26,13 @@ func (e *Exchange) GetBasicFee(ctx context.Context, currencyType uint64) (*Basic
 
 // GetTradingPairActualFees returns the actual fee rates of up to 10 spot or margin symbols (Get Actual Fee -
 // Spot/Margin). Sub-accounts pay the master account's rates
-func (e *Exchange) GetTradingPairActualFees(ctx context.Context, symbols []string) ([]TradingPairActualFee, error) {
+func (e *Exchange) GetTradingPairActualFees(ctx context.Context, symbols []string) ([]TradingPairActualFeeResponse, error) {
 	if len(symbols) == 0 || slices.Contains(symbols, "") {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbols", strings.Join(symbols, ","))
-	var resp []TradingPairActualFee
+	var resp []TradingPairActualFeeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getTradingPairActualFeesEPL, http.MethodGet, common.EncodeURLValues("/v1/trade-fees", params), nil, &resp)
 }
 

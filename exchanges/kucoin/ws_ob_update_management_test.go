@@ -18,7 +18,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestFetchWSOrderbookSnapshot(t *testing.T) {
+func TestFetchWebsocketOrderbookSnapshot(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.EMPTYPAIR, asset.Futures)

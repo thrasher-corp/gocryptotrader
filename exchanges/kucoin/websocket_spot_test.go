@@ -1,8 +1,11 @@
 package kucoin
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -29,15 +33,15 @@ import (
 // spotTestPair is the pair the spot fixtures record, enabled for spot in the test config
 var spotTestPair = currency.NewPairWithDelimiter("BTC", "USDT", "-")
 
-// TestWsSpotPayloads decodes the recorded spot pushes whose fields the handlers map onto shared types
-func TestWsSpotPayloads(t *testing.T) {
+// TestWebsocketSpotPayloads decodes the recorded spot pushes whose fields the handlers map onto shared types
+func TestWebsocketSpotPayloads(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		key string
 		got any
 		exp any
 	}{
-		{key: "ticker", got: new(WsTicker), exp: &WsTicker{
+		{key: "ticker", got: new(WebsocketTicker), exp: &WebsocketTicker{
 			Sequence:    38626076751,
 			Price:       83296.2,
 			Size:        0.00002779,
@@ -47,18 +51,18 @@ func TestWsSpotPayloads(t *testing.T) {
 			BestBidSize: 0.83775345,
 			Time:        types.Time(time.UnixMilli(1791899504669)),
 		}},
-		{key: "level1", got: new(WsOrderbookLevel1), exp: &WsOrderbookLevel1{
+		{key: "level1", got: new(WebsocketOrderbookLevel1), exp: &WebsocketOrderbookLevel1{
 			Asks:      [2]types.Number{83296.2, 0.17744259},
 			Bids:      [2]types.Number{83296.1, 0.83775345},
 			Timestamp: types.Time(time.UnixMilli(1791899505902)),
 		}},
-		{key: "level50", got: new(WsOrderbookDepth), exp: &WsOrderbookDepth{
+		{key: "level50", got: new(WebsocketOrderbookDepth), exp: &WebsocketOrderbookDepth{
 			Asks:      orderbook.LevelsArrayPriceAmount{{Amount: 0.00874259, Price: 83296.2}, {Amount: 0.0085, Price: 83296.3}, {Amount: 0.0085, Price: 83296.4}},
 			Bids:      orderbook.LevelsArrayPriceAmount{{Amount: 0.83775345, Price: 83296.1}, {Amount: 0.07352707, Price: 83296}, {Amount: 0.0005, Price: 83295.9}},
 			Timestamp: types.Time(time.UnixMilli(1791899505798)),
 		}},
-		{key: "increment", got: new(WsOrderbookIncrement), exp: &WsOrderbookIncrement{
-			Changes: WsOrderbookChanges{
+		{key: "increment", got: new(WebsocketOrderbookIncrement), exp: &WebsocketOrderbookIncrement{
+			Changes: WebsocketOrderbookChanges{
 				Asks: [][3]types.Number{{83708.9, 0.07939911, 38627404122}},
 				Bids: [][3]types.Number{{83692.5, 0.04827727, 38627404123}},
 			},
@@ -67,9 +71,9 @@ func TestWsSpotPayloads(t *testing.T) {
 			Symbol:        "BTC-USDT",
 			Time:          types.Time(time.UnixMilli(1791901473976)),
 		}},
-		{key: "klines", got: new(WsCandlestick), exp: &WsCandlestick{
+		{key: "klines", got: new(WebsocketCandlestick), exp: &WebsocketCandlestick{
 			Symbol: "BTC-USDT",
-			Candles: WsCandle{
+			Candles: WebsocketCandle{
 				StartTime:         types.Time(time.Unix(1791899460, 0)),
 				OpenPrice:         83310.5,
 				ClosePrice:        83296.2,
@@ -80,7 +84,7 @@ func TestWsSpotPayloads(t *testing.T) {
 			},
 			Time: types.Time(time.Unix(0, 1791899507203818046)),
 		}},
-		{key: "trade", got: new(WsTrade), exp: &WsTrade{
+		{key: "trade", got: new(WebsocketTrade), exp: &WebsocketTrade{
 			MakerOrderID: "6ace375c8dd1990007ab3d6d",
 			Price:        83296.2,
 			Sequence:     "24806846522605568",
@@ -92,9 +96,9 @@ func TestWsSpotPayloads(t *testing.T) {
 			TradeID:      "24806846522605568",
 			Type:         "match",
 		}},
-		{key: "symbolSnapshot", got: new(WsSnapshot), exp: &WsSnapshot{
+		{key: "symbolSnapshot", got: new(WebsocketSnapshot), exp: &WebsocketSnapshot{
 			Sequence: 38626078076,
-			Data: WsSnapshotData{
+			Data: WebsocketSnapshotData{
 				AskSize:          0.0055,
 				AveragePrice:     83541.67284915,
 				BaseCurrency:     currency.BTC,
@@ -114,7 +118,7 @@ func TestWsSpotPayloads(t *testing.T) {
 				MarginTrade:      true,
 				Mark:             1,
 				Market:           "USDS",
-				MarketChange1Hour: WsSnapshotMarketChange{
+				MarketChange1Hour: WebsocketSnapshotMarketChange{
 					ChangePrice: -42.2,
 					ChangeRate:  -0.0005,
 					High:        83678.3,
@@ -123,7 +127,7 @@ func TestWsSpotPayloads(t *testing.T) {
 					Volume:      396.39534308,
 					VolumeValue: 33057188.091801945,
 				},
-				MarketChange24Hour: WsSnapshotMarketChange{
+				MarketChange24Hour: WebsocketSnapshotMarketChange{
 					ChangePrice: 520.3,
 					ChangeRate:  0.0062,
 					High:        84149,
@@ -132,7 +136,7 @@ func TestWsSpotPayloads(t *testing.T) {
 					Volume:      6381.269114425228,
 					VolumeValue: 529005967.528381,
 				},
-				MarketChange4Hour: WsSnapshotMarketChange{
+				MarketChange4Hour: WebsocketSnapshotMarketChange{
 					ChangePrice: -316.6,
 					ChangeRate:  -0.0037,
 					High:        83738.4,
@@ -157,7 +161,7 @@ func TestWsSpotPayloads(t *testing.T) {
 				VolumeValue:      529005967.528381,
 			},
 		}},
-		{key: "orderV2Match", got: new(WsSpotOrderChange), exp: &WsSpotOrderChange{
+		{key: "orderV2Match", got: new(WebsocketSpotOrderChange), exp: &WebsocketSpotOrderChange{
 			ClientOrderID: "5c52e11203aa677f33e493fc",
 			FeeType:       "takerFee",
 			FilledSize:    0.00001,
@@ -176,7 +180,7 @@ func TestWsSpotPayloads(t *testing.T) {
 			Timestamp:     types.Time(time.UnixMilli(1730206271616)),
 			Type:          "match",
 		}},
-		{key: "orderV2Update", got: new(WsSpotOrderChange), exp: &WsSpotOrderChange{
+		{key: "orderV2Update", got: new(WebsocketSpotOrderChange), exp: &WebsocketSpotOrderChange{
 			CanceledSize:  0.00001,
 			ClientOrderID: "5c52e11203aa677f33e493fb",
 			OldSize:       0.00002,
@@ -193,7 +197,7 @@ func TestWsSpotPayloads(t *testing.T) {
 			Timestamp:     types.Time(time.UnixMilli(1730207616617)),
 			Type:          "update",
 		}},
-		{key: "orderV2Filled", got: new(WsSpotOrderChange), exp: &WsSpotOrderChange{
+		{key: "orderV2Filled", got: new(WebsocketSpotOrderChange), exp: &WebsocketSpotOrderChange{
 			ClientOrderID: "5c52e11203aa677f33e493fc",
 			FilledSize:    0.00001,
 			OrderID:       "6720da3fa30a360007f5f832",
@@ -208,7 +212,7 @@ func TestWsSpotPayloads(t *testing.T) {
 			Timestamp:     types.Time(time.UnixMilli(1730206271616)),
 			Type:          "filled",
 		}},
-		{key: "balanceTrade", got: new(WsAccountBalance), exp: &WsAccountBalance{
+		{key: "balanceTrade", got: new(WebsocketAccountBalance), exp: &WebsocketAccountBalance{
 			AccountID:       "548674591753",
 			Currency:        currency.USDT,
 			Total:           21.133773386762,
@@ -216,12 +220,12 @@ func TestWsSpotPayloads(t *testing.T) {
 			Hold:            1.001,
 			AvailableChange: -0.5005,
 			HoldChange:      0.5005,
-			RelationContext: WsBalanceRelationContext{Symbol: "BTC-USDT", OrderID: "6721d0632db25b0007071fdc", TradeID: "11116472408358913"},
+			RelationContext: WebsocketBalanceRelationContext{Symbol: "BTC-USDT", OrderID: "6721d0632db25b0007071fdc", TradeID: "11116472408358913"},
 			RelationEvent:   "trade.hold",
 			RelationEventID: "354689988084000",
 			Time:            types.Time(time.UnixMilli(1730269283892)),
 		}},
-		{key: "stopOrder", got: new(WsStopOrder), exp: &WsStopOrder{
+		{key: "stopOrder", got: new(WebsocketStopOrder), exp: &WebsocketStopOrder{
 			OrderID:    "vs93gpupfa48anof003u85mb",
 			OrderPrice: 70000,
 			OrderType:  "stop",
@@ -236,18 +240,18 @@ func TestWsSpotPayloads(t *testing.T) {
 			Timestamp:  types.Time(time.Unix(0, 1742305928091268493)),
 		}},
 	} {
-		var msg WsMessage
+		var msg WebsocketMessage
 		require.NoErrorf(t, json.Unmarshal(wsFixture(t, "wsSpot.json", tc.key), &msg), "%s must decode", tc.key)
 		require.NoErrorf(t, json.Unmarshal(msg.Data, tc.got), "%s data must decode", tc.key)
 		assert.Equalf(t, tc.exp, tc.got, "%s should decode every field", tc.key)
 	}
 }
 
-func TestWsCandleUnmarshalJSON(t *testing.T) {
+func TestWebsocketCandleUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got WsCandle
+	var got WebsocketCandle
 	require.NoError(t, json.Unmarshal([]byte(`["1791899460","83310.5","83296.2","83310.5","83281.5","3.86976157","322303.932634086"]`), &got), "UnmarshalJSON must not error")
-	exp := WsCandle{
+	exp := WebsocketCandle{
 		StartTime:         types.Time(time.Unix(1791899460, 0)),
 		OpenPrice:         83310.5,
 		ClosePrice:        83296.2,
@@ -317,6 +321,35 @@ func TestProcessSpotTickers(t *testing.T) {
 	require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "processSpotTickers must return the tickers the store rejects")
 	assert.Empty(t, ex.Websocket.DataHandler.C, "processSpotTickers should not relay an empty batch")
 
+	// A pair's pushes can arrive on several connections at once, so a merge must not undo another
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		require.NoErrorf(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: pair, AssetType: a, Bid: 1, Ask: 2}), "seeding the stored %s ticker must not error", a)
+	}
+	const writers, merges = 4, 250
+	ex.Websocket.DataHandler = stream.NewRelay(2 * writers * merges)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range writers {
+		wg.Go(func() {
+			<-start
+			for range merges {
+				assert.NoError(t, ex.processSpotTickers(t.Context(), pair, marketTickerChannel, func(p *ticker.Price) { p.Last++ }), "processSpotTickers should not error")
+			}
+		})
+		wg.Go(func() {
+			<-start
+			for range merges {
+				assert.NoError(t, ex.processMergedTicker(t.Context(), pair, asset.Spot, func(p *ticker.Price) { p.Last++ }), "processMergedTicker should not error")
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+	stored, err := ticker.GetTicker(ex.Name, pair, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, float64(2*writers*merges), stored.Last, "every merge of processSpotTickers and processMergedTicker should be kept")
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+
 	require.NoError(t, ex.DisableAssetWebsocketSupport(asset.Margin), "DisableAssetWebsocketSupport must not error")
 	require.NoError(t, ex.processSpotTickers(t.Context(), pair, marketTickerChannel, func(p *ticker.Price) { p.Bid, p.Ask = 1, 2 }), "processSpotTickers must not error")
 	got, ok = (<-ex.Websocket.DataHandler.C).Data.([]ticker.Price)
@@ -371,7 +404,7 @@ func TestProcessOrderbookLevel1(t *testing.T) {
 // wsFixtureData returns the data of a recorded frame
 func wsFixtureData(tb testing.TB, file, key string) []byte {
 	tb.Helper()
-	var msg WsMessage
+	var msg WebsocketMessage
 	require.NoErrorf(tb, json.Unmarshal(wsFixture(tb, file, key), &msg), "%s must decode", key)
 	return msg.Data
 }
@@ -525,7 +558,7 @@ func TestProcessCallAuctionOrderbook(t *testing.T) {
 		return
 	}
 	ex := wsTestInstance(t)
-	exp := &WsCallAuctionOrderbook{
+	exp := &WebsocketCallAuctionOrderbook{
 		Symbol:    "BTC-USDT",
 		Asks:      orderbook.LevelsArrayPriceAmount{{Amount: 0.08168874, Price: 95964.3}, {Amount: 0.00985094, Price: 95967.9}},
 		Bids:      orderbook.LevelsArrayPriceAmount{{Amount: 1.35483359, Price: 95964.2}, {Amount: 0.01117492, Price: 95964.1}},
@@ -542,7 +575,7 @@ func TestProcessCallAuctionData(t *testing.T) {
 		return
 	}
 	ex := wsTestInstance(t)
-	exp := &WsCallAuctionInfo{
+	exp := &WebsocketCallAuctionInfo{
 		Symbol:                  "BTC-USDT",
 		EstimatedPrice:          0.17,
 		EstimatedSize:           0.03715004,
@@ -740,6 +773,53 @@ func TestProcessOrderChange(t *testing.T) {
 		assert.Equalf(t, tc.exp, wsPush(t, ex, "wsSpot.json", tc.key), "processOrderChange should relay %s as an order update", tc.key)
 	}
 
+	// The fixtures' pair is enabled for spot and margin, so only the order ID tells a margin order from a spot one
+	submitted, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Margin, Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 0.001, MarginType: margin.Isolated, TimeInForce: order.PostOnly, AutoBorrow: true, AutoRepay: true, ClientOrderID: "gct-margin-limit"})
+	require.NoError(t, err, "SubmitOrder must not error")
+	crossSubmitted, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Margin, Side: order.Buy, Type: order.Market, QuoteAmount: 1, ClientOrderID: "5c52e11203aa677f33e493fc"})
+	require.NoError(t, err, "SubmitOrder must not error for a cross margin order")
+	listed, err := ex.GetOrderInfo(t.Context(), "671667306afcdb000723107f", spotTestPair, asset.Margin)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	pushAsset := func(key, orderID string) asset.Item {
+		t.Helper()
+		data := bytes.Replace(wsFixtureData(t, "wsSpot.json", key), []byte("6720da3fa30a360007f5f832"), []byte(orderID), 1)
+		require.NoErrorf(t, ex.processOrderChange(t.Context(), data), "processOrderChange must not error for %s", key)
+		d, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+		require.Truef(t, ok, "%s must relay an order detail", key)
+		return d.AssetType
+	}
+	for _, orderID := range []string{submitted.OrderID, crossSubmitted.OrderID, listed.OrderID} {
+		assert.Equalf(t, asset.Margin, pushAsset("orderV2Received", orderID), "a push for margin order %s should be a margin order update", orderID)
+		assert.Equalf(t, asset.Margin, pushAsset("orderV2Filled", orderID), "the push finishing margin order %s should be a margin order update", orderID)
+		assert.Equalf(t, asset.Spot, pushAsset("orderV2Received", orderID), "a push for finished margin order %s should be read as for an order placed elsewhere", orderID)
+	}
+
+	// REST reporting a margin order finished forgets it, as its last push may have been missed
+	_, err = ex.marginHFOrderDetail(&MarginHFOrderResponse{ID: "gct-margin-live", Symbol: "BTC-USDT", Type: "limit", Side: "buy", Active: true})
+	require.NoError(t, err, "marginHFOrderDetail must not error")
+	for _, active := range []bool{true, false} {
+		_, err = ex.marginHFOrderDetail(&MarginHFOrderResponse{ID: "gct-margin-finished", Symbol: "BTC-USDT", Type: "limit", Side: "buy", Active: active})
+		require.NoError(t, err, "marginHFOrderDetail must not error")
+	}
+	assert.Equal(t, asset.Spot, pushAsset("orderV2Received", "gct-margin-finished"), "a push for a margin order REST reported finished should be read as for an order placed elsewhere")
+	assert.Equal(t, asset.Margin, pushAsset("orderV2Received", "gct-margin-live"), "a push for a margin order still live should be a margin order update")
+
+	// Orders are placed and listed while their pushes arrive
+	ex.Websocket.DataHandler = stream.NewRelay(100)
+	var wg sync.WaitGroup
+	for i := range 50 {
+		orderID := "gct-concurrent-" + strconv.Itoa(i)
+		wg.Go(func() {
+			_, err := ex.marginHFOrderDetail(&MarginHFOrderResponse{ID: orderID, Symbol: "BTC-USDT", Type: "limit", Side: "buy", Active: true})
+			assert.NoError(t, err, "marginHFOrderDetail should not error")
+		})
+		wg.Go(func() {
+			data := bytes.Replace(wsFixtureData(t, "wsSpot.json", "orderV2Filled"), []byte("6720da3fa30a360007f5f832"), []byte(orderID), 1)
+			assert.NoError(t, ex.processOrderChange(t.Context(), data), "processOrderChange should not error")
+		})
+	}
+	wg.Wait()
+
 	require.Error(t, ex.processOrderChange(t.Context(), []byte(`{"size":[]}`)), "processOrderChange must reject an undecodable push")
 	require.ErrorIs(t, ex.processOrderChange(t.Context(), []byte(`{"symbol":"a"}`)), currency.ErrCreatingPair, "processOrderChange must reject a symbol that is not a pair")
 	require.ErrorIs(t, ex.processOrderChange(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"iceberg"}`)), order.ErrUnrecognisedOrderType, "processOrderChange must reject an unknown order type")
@@ -750,9 +830,21 @@ func TestProcessOrderChange(t *testing.T) {
 func TestSpotOrderAsset(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
-	assert.Equal(t, asset.Spot, ex.spotOrderAsset(spotTestPair), "a pair enabled for spot should be a spot order")
-	assert.Equal(t, asset.Margin, ex.spotOrderAsset(currency.NewPairWithDelimiter("TRX", "BTC", "-")), "a pair enabled for margin alone should be a margin order")
-	assert.Equal(t, asset.Spot, ex.spotOrderAsset(currency.NewPairWithDelimiter("DOGE", "USDT", "-")), "a pair enabled for neither should be a spot order")
+	ex.marginOrderIDs.Store("gct-margin", struct{}{})
+	for _, tc := range []struct {
+		name    string
+		pair    currency.Pair
+		orderID string
+		exp     asset.Item
+	}{
+		{name: "an order placed elsewhere on a pair enabled for spot and margin", pair: spotTestPair, orderID: "gct-spot", exp: asset.Spot},
+		{name: "a known margin order on a pair enabled for spot and margin", pair: spotTestPair, orderID: "gct-margin", exp: asset.Margin},
+		{name: "a known margin order on a pair enabled for spot alone", pair: currency.NewPairWithDelimiter("ETH", "USDT", "-"), orderID: "gct-margin", exp: asset.Spot},
+		{name: "an order on a pair enabled for margin alone", pair: currency.NewPairWithDelimiter("TRX", "BTC", "-"), orderID: "gct-spot", exp: asset.Margin},
+		{name: "a known margin order on a pair enabled for neither", pair: currency.NewPairWithDelimiter("DOGE", "USDT", "-"), orderID: "gct-margin", exp: asset.Spot},
+	} {
+		assert.Equalf(t, tc.exp, ex.spotOrderAsset(tc.pair, tc.orderID), "spotOrderAsset should read %s as a %s order", tc.name, tc.exp)
+	}
 }
 
 func TestOrderChangeStatus(t *testing.T) {
@@ -764,6 +856,7 @@ func TestOrderChangeStatus(t *testing.T) {
 	}{
 		{status: "new", messageType: "received", exp: order.New},
 		{status: "open", messageType: "open", remaining: 1, exp: order.Open},
+		{status: "open", messageType: "open", filled: 1, remaining: 1, exp: order.PartiallyFilled},
 		{status: "open", messageType: "match", filled: 1, remaining: 1, exp: order.PartiallyFilled},
 		{status: "match", messageType: "match", filled: 2, exp: order.Filled},
 		{status: "done", messageType: "filled", filled: 2, exp: order.Filled},
@@ -809,46 +902,198 @@ func TestProcessAccountBalance(t *testing.T) {
 		assert.Equalf(t, 20.132773386762, stored.Free, "the stored %s balance should be the pushed one", tc.a)
 	}
 
-	exp := &WsAccountBalance{
-		AccountID:       "548674591755",
-		Currency:        currency.USDT,
-		Total:           21.133773386762,
-		Available:       20.132773386762,
-		Hold:            1.001,
-		AvailableChange: -0.5005,
-		HoldChange:      0.5005,
-		RelationContext: WsBalanceRelationContext{Symbol: "BTC-USDT", OrderID: "6721d0632db25b0007071fdc", TradeID: "11116472408358913"},
-		RelationEvent:   "main.deposit",
-		RelationEventID: "354689988084000",
-		Time:            types.Time(time.UnixMilli(1730269283892)),
-	}
-	assert.Equal(t, exp, wsPush(t, ex, "wsSpot.json", "balanceMain"), "a main account change should be relayed as it comes")
+	// The main account's push adds its share to the trade account's, as REST saves the spot balance
+	got, ok := wsPush(t, ex, "wsSpot.json", "balanceMain").(accounts.SubAccounts)
+	require.True(t, ok, "balanceMain must relay sub-accounts")
+	spot := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	spot[0].Balances.Set(currency.USDT, accounts.Balance{Total: 42.267546773524, Hold: 2.002, Free: 40.265546773524, UpdatedAt: time.UnixMilli(1730269283892)})
+	assert.Equal(t, spot, got, "a main account push should relay the spot balance with the trade account's share")
+
+	// An isolated margin account is the margin sub-account of its symbol
+	isolated := bytes.Replace(wsFixtureData(t, "wsSpot.json", "balanceMain"), []byte("main.deposit"), []byte("isolated_BTC-USDT.hold"), 1)
+	require.NoError(t, ex.processAccountBalance(t.Context(), isolated), "processAccountBalance must not error for an isolated margin account change")
+	isolatedExp := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, "BTC-USDT")}
+	isolatedExp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 21.133773386762, Hold: 1.001, Free: 20.132773386762, UpdatedAt: time.UnixMilli(1730269283892)})
+	assert.Equal(t, isolatedExp, (<-ex.Websocket.DataHandler.C).Data, "an isolated margin account change should be relayed as its symbol's margin balance")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	isolatedStored, err := ex.Accounts.GetBalance("BTC-USDT", creds, asset.Margin, currency.USDT)
+	require.NoError(t, err, "the isolated margin balance must be stored")
+	assert.Equal(t, 20.132773386762, isolatedStored.Free, "the stored isolated margin balance should be the pushed one")
+	otherAccount := bytes.Replace(wsFixtureData(t, "wsSpot.json", "balanceMain"), []byte(`"main.deposit"`), []byte(`"other"`), 1)
+	require.NoError(t, ex.processAccountBalance(t.Context(), otherAccount), "processAccountBalance must not error for an account without a sub-account")
+	otherPush, ok := (<-ex.Websocket.DataHandler.C).Data.(*WebsocketAccountBalance)
+	require.True(t, ok, "an account without a sub-account must be relayed as it comes")
+	assert.Equal(t, "other", otherPush.RelationEvent, "an account without a sub-account should be relayed as it comes")
 
 	require.Error(t, ex.processAccountBalance(t.Context(), []byte(`{"total":[]}`)), "processAccountBalance must reject an undecodable push")
 	require.ErrorIs(t, ex.processAccountBalance(t.Context(), []byte(`{"relationEvent":"vault.hold"}`)), errUnknownBalanceRelation, "processAccountBalance must reject an unknown account")
 	ex.Accounts = nil
 	require.ErrorIs(t, ex.processAccountBalance(t.Context(), wsFixtureData(t, "wsSpot.json", "balanceTrade")), common.ErrNilPointer, "processAccountBalance must return a save error")
+	require.ErrorIs(t, ex.processAccountBalance(t.Context(), wsFixtureData(t, "wsSpot.json", "balanceMargin")), common.ErrNilPointer, "processAccountBalance must return the error reading the saved margin balance")
+	ex.SkipAuthCheck = false // The mock instance skips credential checks
+	ex.SetCredentials(&accounts.Credentials{})
+	require.ErrorIs(t, ex.processAccountBalance(t.Context(), wsFixtureData(t, "wsSpot.json", "balanceMargin")), exchange.ErrCredentialsAreEmpty, "processAccountBalance must return a credentials error")
+
+	// REST saves the main and trade accounts together and the cross margin liability; the pushes that follow keep to both
+	ex = marketTestServerExchange(t, map[string]string{
+		"/api/v1/accounts": `{"code":"200000","data":[
+			{"id":"548674591753","currency":"USDT","type":"trade","balance":"21.5","available":"20.5","holds":"1"},
+			{"id":"548674591753","currency":"BTC","type":"trade","balance":"0.5","available":"0.4","holds":"0.1"},
+			{"id":"63355cd156298d0001b66e61","currency":"USDT","type":"main","balance":"10.75","available":"9.5","holds":"1.25"}]}`,
+		"/api/v3/margin/accounts":   `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"38.5","available":"20","hold":"18.5","liability":"12.5"}]}}`,
+		"/api/v3/isolated/accounts": `{"code":"200000","data":{"assets":[]}}`,
+	})
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := ex.UpdateAccountBalances(t.Context(), a)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+	}
+	creds, err = ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	stored := func(a asset.Item, c currency.Code) accounts.Balance {
+		t.Helper()
+		b, err := ex.Accounts.GetBalance("", creds, a, c)
+		require.NoErrorf(t, err, "the %s %s balance must be stored", a, c)
+		return b
+	}
+	restBTC, restMargin := stored(asset.Spot, currency.BTC), stored(asset.Margin, currency.USDT)
+	// REST stamps the balances it saves with their arrival time, so the pushes that follow its snapshot carry later times
+	pushed := time.UnixMilli(time.Now().Add(time.Minute).UnixMilli())
+	frame := func(fields string, at time.Time) []byte {
+		return []byte(`{"currency":"USDT",` + fields + `,"relationEventId":"354689988084000","time":"` + strconv.FormatInt(at.UnixMilli(), 10) + `"}`)
+	}
+	for _, tc := range []struct {
+		name, fields string
+		at           time.Time
+		exp          accounts.Balance
+	}{
+		{name: "a trade account push", fields: `"total":"21.5","available":"20","hold":"1.5","relationEvent":"trade.hold"`, at: pushed, exp: accounts.Balance{Currency: currency.USDT, Total: 32.25, Hold: 2.75, Free: 29.5, UpdatedAt: pushed}},
+		{name: "a main account push", fields: `"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, at: pushed.Add(time.Second), exp: accounts.Balance{Currency: currency.USDT, Total: 37.25, Hold: 2.75, Free: 34.5, UpdatedAt: pushed.Add(time.Second)}},
+		{name: "the same main account push again", fields: `"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, at: pushed.Add(time.Second), exp: accounts.Balance{Currency: currency.USDT, Total: 37.25, Hold: 2.75, Free: 34.5, UpdatedAt: pushed.Add(time.Second)}},
+		{name: "an HF trade account push", fields: `"total":"20.5","available":"19.5","hold":"1","relationEvent":"trade_hf.setted"`, at: pushed.Add(2 * time.Second), exp: accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(2 * time.Second)}}, // codespell:ignore setted
+	} {
+		require.NoErrorf(t, ex.processAccountBalance(t.Context(), frame(tc.fields, tc.at)), "processAccountBalance must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, stored(asset.Spot, currency.USDT), "%s should replace its account's share of the spot balance alone", tc.name)
+		assert.Equalf(t, restBTC, stored(asset.Spot, currency.BTC), "%s should leave the other currencies", tc.name)
+	}
+
+	err = ex.processAccountBalance(t.Context(), frame(`"total":"1","available":"1","hold":"0","relationEvent":"trade.hold"`, pushed.Add(-time.Second)))
+	require.ErrorIs(t, err, errBalancePushOutOfSequence, "processAccountBalance must reject a push older than its account's last balance")
+	// A push for one account older than the other account's last is still its own account's newest balance
+	require.NoError(t, ex.processAccountBalance(t.Context(), frame(`"total":"16.75","available":"15.5","hold":"1.25","relationEvent":"main.deposit"`, pushed.Add(1500*time.Millisecond))), "processAccountBalance must not error for a main account push older than the trade account's")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 37.25, Hold: 2.25, Free: 35, UpdatedAt: pushed.Add(2 * time.Second)}, stored(asset.Spot, currency.USDT), "a main account push older than the trade account's last should still replace the main account's share")
+	require.NoError(t, ex.processAccountBalance(t.Context(), frame(`"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, pushed.Add(3*time.Second))), "processAccountBalance must not error for a main account push")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(3 * time.Second)}, stored(asset.Spot, currency.USDT), "a rejected push should not change its account's share")
+
+	// A REST listing older than the pushes keeps the shares they left, and refreshes the currencies no push is newer for
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error when pushes are newer than its listing")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(3 * time.Second)}, stored(asset.Spot, currency.USDT), "a REST listing older than the pushes should keep their shares")
+	btc := stored(asset.Spot, currency.BTC)
+	assert.True(t, btc.UpdatedAt.After(restBTC.UpdatedAt), "a REST listing should refresh the currencies no push is newer for")
+	restBTC.UpdatedAt = btc.UpdatedAt
+	assert.Equal(t, restBTC, btc, "a REST listing should save the balances it lists for the currencies no push is newer for")
+	require.NoError(t, ex.processAccountBalance(t.Context(), frame(`"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, pushed.Add(4*time.Second))), "processAccountBalance must not error for a main account push")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(4 * time.Second)}, stored(asset.Spot, currency.USDT), "a push after an older REST listing should add the pushed trade share, not the listed one")
+
+	// Each set of credentials has balances of its own
+	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret", ClientID: "other-passphrase"})
+	require.NoError(t, ex.processAccountBalance(other, frame(`"total":"100","available":"100","hold":"0","relationEvent":"trade.hold"`, pushed.Add(5*time.Second))), "processAccountBalance must not error for other credentials")
+	require.NoError(t, ex.processAccountBalance(t.Context(), frame(`"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, pushed.Add(6*time.Second))), "processAccountBalance must not error for a main account push")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(6 * time.Second)}, stored(asset.Spot, currency.USDT), "a push should add the shares of its own credentials alone")
+	otherCreds, err := ex.GetCredentials(other)
+	require.NoError(t, err, "GetCredentials must not error for other credentials")
+	otherSpot, err := ex.Accounts.GetBalance("", otherCreds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "the other credentials' spot balance must be stored")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: pushed.Add(5 * time.Second)}, otherSpot, "the other credentials' spot balance should be their own push alone")
+
+	marginHold := `"total":"38.5","available":"19.5","hold":"19","relationEvent":"marginV2.hold"`
+	err = ex.processAccountBalance(t.Context(), frame(marginHold, time.Now().Add(-time.Minute)))
+	assert.ErrorContains(t, err, "out of sequence", "processAccountBalance should reject a margin push older than the REST snapshot")
+	assert.Equal(t, restMargin, stored(asset.Margin, currency.USDT), "a margin push older than the REST snapshot should not replace its balance")
+	require.NoError(t, ex.processAccountBalance(t.Context(), frame(marginHold, pushed)), "processAccountBalance must not error for a margin push")
+	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 38.5, Hold: 19, Free: 19.5, Borrowed: 12.5, UpdatedAt: pushed}, stored(asset.Margin, currency.USDT), "a margin push should replace the margin balance and keep the liability REST saved")
+
+	// REST polls while pushes arrive, which can land older than one already saved for their account
+	var wg sync.WaitGroup
+	for i := range 20 {
+		wg.Go(func() {
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+			assert.NoError(t, err, "UpdateAccountBalances should not error")
+		})
+		wg.Go(func() {
+			if err := ex.processAccountBalance(t.Context(), frame(`"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, time.Now().Add(time.Hour+time.Duration(i)*time.Millisecond))); err != nil {
+				assert.ErrorIs(t, err, errBalancePushOutOfSequence, "processAccountBalance should only refuse a push older than its account's last balance")
+			}
+		})
+	}
+	wg.Wait()
 }
 
-func TestBalanceAsset(t *testing.T) {
+// TestMarginBalanceSavesWaitForEachOther covers a margin push reading the saved liability and saving it back, which REST's
+// margin snapshot must not land between, or the snapshot's liability is undone: both wait for marginBalanceMu
+func TestMarginBalanceSavesWaitForEachOther(t *testing.T) {
 	t.Parallel()
-	for event, exp := range map[string]asset.Item{
-		"trade.hold":                 asset.Spot,
-		"trade_hf.setted":            asset.Spot, // codespell:ignore setted
-		"margin.transfer":            asset.Margin,
-		"marginV2.other":             asset.Margin,
-		"main.deposit":               asset.Empty,
-		"isolated_BTC-USDT.hold":     asset.Empty,
-		"isolatedV2_BTC-USDT.setted": asset.Empty, // codespell:ignore setted
-		"other":                      asset.Empty,
+	ex := marketTestServerExchange(t, map[string]string{
+		"/api/v3/margin/accounts":   `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"38.5","available":"20","hold":"18.5","liability":"12.5"}]}}`,
+		"/api/v3/isolated/accounts": `{"code":"200000","data":{"assets":[]}}`,
+	})
+	push := []byte(`{"currency":"USDT","total":"38.5","available":"19.5","hold":"19","relationEvent":"marginV2.hold","time":"` + strconv.FormatInt(time.Now().Add(time.Minute).UnixMilli(), 10) + `"}`)
+	for _, tc := range []struct {
+		name string
+		save func() error
+	}{
+		{name: "REST margin snapshot", save: func() error { _, err := ex.UpdateAccountBalances(t.Context(), asset.Margin); return err }},
+		{name: "margin balance push", save: func() error { return ex.processAccountBalance(t.Context(), push) }},
 	} {
-		got, err := balanceAsset(event)
-		require.NoErrorf(t, err, "balanceAsset must not error for %s", event)
-		assert.Equalf(t, exp, got, "balanceAsset should map %s", event)
+		ex.marginBalanceMu.Lock()
+		done := make(chan error, 1)
+		go func() { done <- tc.save() }()
+		select {
+		case err := <-done:
+			ex.marginBalanceMu.Unlock()
+			require.FailNowf(t, "save did not wait", "the %s must wait for the margin balance lock, but returned %v", tc.name, err)
+		case <-time.After(100 * time.Millisecond):
+		}
+		ex.marginBalanceMu.Unlock()
+		select {
+		case err := <-done:
+			require.NoErrorf(t, err, "the %s must not error once the margin balance lock is free", tc.name)
+		case <-time.After(5 * time.Second):
+			require.FailNowf(t, "save never finished", "the %s must finish once the margin balance lock is free", tc.name)
+		}
 	}
-	for _, event := range []string{"vault.hold", "other.hold", ""} {
-		_, err := balanceAsset(event)
-		require.ErrorIsf(t, err, errUnknownBalanceRelation, "balanceAsset must reject %q", event)
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	b, err := ex.Accounts.GetBalance("", creds, asset.Margin, currency.USDT)
+	require.NoError(t, err, "the margin balance must be stored")
+	assert.Equal(t, 12.5, b.Borrowed, "the margin push should keep the liability the REST snapshot saved")
+}
+
+func TestBalanceAccount(t *testing.T) {
+	t.Parallel()
+	for event, exp := range map[string]struct {
+		a       asset.Item
+		account string
+	}{
+		"trade.hold":                 {a: asset.Spot, account: "trade"},
+		"trade_hf.setted":            {a: asset.Spot, account: "trade"}, // codespell:ignore setted
+		"main.deposit":               {a: asset.Spot, account: "main"},
+		"margin.transfer":            {a: asset.Margin},
+		"marginV2.other":             {a: asset.Margin},
+		"isolated_BTC-USDT.hold":     {a: asset.Margin, account: "BTC-USDT"},
+		"isolatedV2_ETH-USDT.setted": {a: asset.Margin, account: "ETH-USDT"}, // codespell:ignore setted
+		"other":                      {a: asset.Empty},
+	} {
+		a, account, err := balanceAccount(event)
+		require.NoErrorf(t, err, "balanceAccount must not error for %s", event)
+		assert.Equalf(t, exp.a, a, "balanceAccount should map %s to its account's asset", event)
+		assert.Equalf(t, exp.account, account, "balanceAccount should map %s to its sub-account", event)
+	}
+	// An isolated margin account without a symbol would be saved over the cross margin account, sub-account ""
+	for _, event := range []string{"vault.hold", "other.hold", "", "isolated_.hold", "isolatedV2_.hold"} {
+		_, _, err := balanceAccount(event)
+		require.ErrorIsf(t, err, errUnknownBalanceRelation, "balanceAccount must reject %q", event)
 	}
 }
 
@@ -876,7 +1121,7 @@ func TestProcessStopOrder(t *testing.T) {
 			Amount:       0.00007142,
 			Exchange:     ex.Name,
 			OrderID:      "vs93gpupfa48anof003u85mb",
-			Type:         order.Stop,
+			Type:         order.StopLimit,
 			Side:         order.Buy,
 			Status:       tc.status,
 			AssetType:    tc.a,
@@ -887,6 +1132,30 @@ func TestProcessStopOrder(t *testing.T) {
 		}
 		assert.Equalf(t, exp, wsPush(t, ex, "wsSpot.json", tc.key), "processStopOrder should relay %s as an order update", tc.key)
 	}
+	for _, tc := range []struct {
+		name, orderPrice string
+	}{
+		{name: "without an order price"},
+		{name: "with an empty order price", orderPrice: `"orderPrice":"",`},
+		{name: "with a zero order price", orderPrice: `"orderPrice":"0",`},
+	} {
+		push := `{"orderId":"vs93gpupfa48anof003u85mb",` + tc.orderPrice + `"orderType":"stop","side":"buy","size":"0.00007142","stop":"loss","stopPrice":"71000","symbol":"BTC-USDT","tradeType":"TRADE","type":"open","createdAt":1742305928064,"ts":1742305928091268493}`
+		require.NoErrorf(t, ex.processStopOrder(t.Context(), []byte(push)), "processStopOrder must not error for a stop order push %s", tc.name)
+		exp := &order.Detail{
+			TriggerPrice: 71000,
+			Amount:       0.00007142,
+			Exchange:     ex.Name,
+			OrderID:      "vs93gpupfa48anof003u85mb",
+			Type:         order.StopMarket,
+			Side:         order.Buy,
+			Status:       order.Open,
+			AssetType:    asset.Spot,
+			Date:         time.UnixMilli(1742305928064),
+			LastUpdated:  time.Unix(0, 1742305928091268493),
+			Pair:         spotTestPair,
+		}
+		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processStopOrder should relay a stop order push %s as a stop market order", tc.name)
+	}
 
 	require.Error(t, ex.processStopOrder(t.Context(), []byte(`{"size":[]}`)), "processStopOrder must reject an undecodable push")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"a"}`)), currency.ErrCreatingPair, "processStopOrder must reject a symbol that is not a pair")
@@ -894,6 +1163,26 @@ func TestProcessStopOrder(t *testing.T) {
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"sideways"}`)), order.ErrSideIsInvalid, "processStopOrder must reject an unknown side")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"buy","type":"expired"}`)), errUnknownStopOrderType, "processStopOrder must reject an unknown message type")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"buy","type":"open","tradeType":"OTC"}`)), errUnknownMarginTradeType, "processStopOrder must reject an unknown trade type")
+}
+
+func TestStopPushOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType  string
+		orderPrice float64
+		exp        order.Type
+	}{
+		{orderType: "stop", orderPrice: 70000, exp: order.StopLimit},
+		{orderType: "stop", exp: order.StopMarket},
+		{orderType: "limit", orderPrice: 70000, exp: order.Limit},
+		{orderType: "market", exp: order.Market},
+	} {
+		got, err := stopPushOrderType(tc.orderType, tc.orderPrice)
+		require.NoErrorf(t, err, "stopPushOrderType must not error for %s", tc.orderType)
+		assert.Equalf(t, tc.exp, got, "stopPushOrderType should map %s with order price %v", tc.orderType, tc.orderPrice)
+	}
+	_, err := stopPushOrderType("iceberg", 0)
+	require.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "stopPushOrderType must reject an unknown order type")
 }
 
 func TestStopOrderStatus(t *testing.T) {

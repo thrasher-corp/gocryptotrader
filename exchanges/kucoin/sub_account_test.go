@@ -266,7 +266,7 @@ func TestGetAllSubAccountsBalanceV2(t *testing.T) {
 				PageSize:    10,
 				TotalNumber: 2,
 				TotalPage:   1,
-				Items: []SubAccountBalance{
+				Items: []SubAccountBalanceResponse{
 					{
 						SubUserID: "63743f07e0c5230001761d08",
 						SubName:   "testapi6",
@@ -328,7 +328,7 @@ func TestGetAllSubAccountsBalanceV2(t *testing.T) {
 				PageSize:    10,
 				TotalNumber: 11,
 				TotalPage:   2,
-				Items: []SubAccountBalance{
+				Items: []SubAccountBalanceResponse{
 					{
 						SubUserID:       "66b0c0905fc1480001c14c36",
 						SubName:         "LTkucoin1491",
@@ -426,7 +426,7 @@ func TestGetSubAccountAPIList(t *testing.T) {
 		return
 	}
 	// Every key of a sub-account has IsMaster false
-	tradingKey := SubAccountAPIKey{
+	tradingKey := SubAccountAPIKeyResponse{
 		SubName:     "Sam",
 		Remark:      "trading",
 		APIKey:      "673eab2a955ebf000195d7e5",
@@ -439,11 +439,11 @@ func TestGetSubAccountAPIList(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		apiKey string
-		exp    []SubAccountAPIKey
+		exp    []SubAccountAPIKeyResponse
 	}{
 		{
 			name: "every key",
-			exp: []SubAccountAPIKey{
+			exp: []SubAccountAPIKeyResponse{
 				{
 					SubName:     "Sam",
 					Remark:      "sdk_test_integration",
@@ -457,7 +457,7 @@ func TestGetSubAccountAPIList(t *testing.T) {
 				tradingKey,
 			},
 		},
-		{name: "one key", apiKey: "673eab2a955ebf000195d7e5", exp: []SubAccountAPIKey{tradingKey}},
+		{name: "one key", apiKey: "673eab2a955ebf000195d7e5", exp: []SubAccountAPIKeyResponse{tradingKey}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

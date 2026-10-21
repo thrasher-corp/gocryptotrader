@@ -50,12 +50,12 @@ func (e *Exchange) PostFuturesOrderTest(ctx context.Context, r *FuturesOrderRequ
 
 // PlaceMultipleFuturesOrders places up to 20 futures orders, returning KuCoin's verdict on each in request order
 // (Batch Add Orders)
-func (e *Exchange) PlaceMultipleFuturesOrders(ctx context.Context, orders []FuturesOrderRequest) ([]FuturesBatchOrderResult, error) {
+func (e *Exchange) PlaceMultipleFuturesOrders(ctx context.Context, orders []FuturesOrderRequest) ([]FuturesBatchOrderResponse, error) {
 	body, err := futuresOrderListBody(orders)
 	if err != nil {
 		return nil, err
 	}
-	var resp []FuturesBatchOrderResult
+	var resp []FuturesBatchOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, placeMultipleFuturesOrdersEPL, http.MethodPost, "/v1/orders/multi", body, &resp)
 }
 
@@ -114,12 +114,12 @@ func (e *Exchange) CancelFuturesOrderByClientOrderID(ctx context.Context, symbol
 
 // BatchCancelFuturesOrders cancels up to 10 futures orders by order ID or by symbol and client order ID, returning
 // KuCoin's verdict on each (Batch Cancel Orders)
-func (e *Exchange) BatchCancelFuturesOrders(ctx context.Context, r *BatchCancelFuturesOrdersRequest) ([]FuturesBatchCancelResult, error) {
+func (e *Exchange) BatchCancelFuturesOrders(ctx context.Context, r *BatchCancelFuturesOrdersRequest) ([]FuturesBatchCancelResponse, error) {
 	body, err := r.Payload()
 	if err != nil {
 		return nil, err
 	}
-	var resp []FuturesBatchCancelResult
+	var resp []FuturesBatchCancelResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, batchCancelFuturesOrdersEPL, http.MethodDelete, "/v1/orders/multi-cancel", body, &resp)
 }
 
@@ -186,12 +186,12 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, r *GetFuturesOrdersRequ
 
 // GetFuturesRecentCompletedOrders returns up to 1000 futures orders closed in the last 24 hours, for one contract or
 // all of them when symbol is empty (Get Recent Closed Orders)
-func (e *Exchange) GetFuturesRecentCompletedOrders(ctx context.Context, symbol string) ([]FuturesOrder, error) {
+func (e *Exchange) GetFuturesRecentCompletedOrders(ctx context.Context, symbol string) ([]FuturesOrderDetailResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []FuturesOrder
+	var resp []FuturesOrderDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesRecentCompletedOrdersEPL, http.MethodGet, common.EncodeURLValues("/v1/recentDoneOrders", params), nil, &resp)
 }
 
@@ -222,12 +222,12 @@ func (e *Exchange) GetFuturesOpenOrderStats(ctx context.Context, symbol string) 
 
 // GetFuturesRecentFills returns up to 1000 futures fills of the last 24 hours, for one contract or all of them when
 // symbol is empty (Get Recent Trade History)
-func (e *Exchange) GetFuturesRecentFills(ctx context.Context, symbol string) ([]FuturesRecentFill, error) {
+func (e *Exchange) GetFuturesRecentFills(ctx context.Context, symbol string) ([]FuturesRecentFillResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []FuturesRecentFill
+	var resp []FuturesRecentFillResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getFuturesRecentFillsEPL, http.MethodGet, common.EncodeURLValues("/v1/recentFills", params), nil, &resp)
 }
 

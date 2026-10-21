@@ -23,7 +23,7 @@ func TestGetUTAVIPLendingCollateralRatio(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []UTAVIPLendingCollateralRatio{
+	exp := []UTAVIPLendingCollateralRatioResponse{
 		{
 			Currency: currency.NewCode("VET"),
 			USDTLevels: []UTAVIPLendingCollateralLevel{
@@ -113,7 +113,7 @@ func TestGetUTAVIPLendingAccounts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []UTAVIPLendingAccount{
+	exp := []UTAVIPLendingAccountResponse{
 		{
 			UID:            "100000001",
 			MarginCurrency: currency.USDT,

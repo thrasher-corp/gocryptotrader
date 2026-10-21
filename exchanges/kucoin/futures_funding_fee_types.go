@@ -27,8 +27,8 @@ type FuturesFundingRateResponse struct {
 	LastTimeFundingRate float64 `json:"lastTimeFundingRate"`
 }
 
-// FuturesPublicFundingHistory holds the funding rate a contract settled at one time point (Get Public Funding History)
-type FuturesPublicFundingHistory struct {
+// FuturesPublicFundingHistoryResponse holds the funding rate a contract settled at one time point (Get Public Funding History)
+type FuturesPublicFundingHistoryResponse struct {
 	Symbol      string     `json:"symbol"`
 	FundingRate float64    `json:"fundingRate"`
 	Timepoint   types.Time `json:"timepoint"` // lower case p, unlike the other funding endpoints

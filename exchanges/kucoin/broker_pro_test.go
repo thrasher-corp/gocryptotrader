@@ -302,7 +302,7 @@ func TestGetBrokerProUserTransactions(t *testing.T) {
 	})
 	require.NoError(t, err, "GetBrokerProUserTransactions must not error")
 	if mockTests {
-		exp := []BrokerProUserTransaction{
+		exp := []BrokerProUserTransactionResponse{
 			{
 				TradeTime:                      types.Time(time.UnixMilli(1758729060000)),
 				UID:                            "100000002",

@@ -34,9 +34,11 @@ func (e *Exchange) processUTATicker(ctx context.Context, msg *UTAWebsocketMessag
 		return err
 	}
 	tickers := make([]ticker.Price, 0, len(assets))
+	e.tickerMergeMu.Lock()
 	for _, a := range assets {
 		t, err := e.storedUTATicker(pair, a)
 		if err != nil {
+			e.tickerMergeMu.Unlock()
 			return err
 		}
 		t.Last = resp.LastTradedPrice.Float64()
@@ -49,6 +51,7 @@ func (e *Exchange) processUTATicker(ctx context.Context, msg *UTAWebsocketMessag
 		tickers = append(tickers, *t)
 	}
 	processed, err := ticker.ProcessBatch(tickers)
+	e.tickerMergeMu.Unlock()
 	if len(processed) == 0 {
 		return err
 	}
@@ -171,7 +174,7 @@ func (e *Exchange) processUTAOrderbook(ctx context.Context, conn websocket.Conne
 				Asks:              utaOrderbookLevels(resp.Asks, true),
 				LastUpdated:       resp.MatchTimestamp.Time(),
 				LastPushed:        msg.PushTimestamp.Time(),
-				LastUpdateID:      resp.SequenceEnd,
+				LastUpdateID:      orderbookUpdateID(resp.SequenceEnd),
 				ValidateOrderbook: e.ValidateOrderbook,
 			})
 		case "delta":
@@ -201,12 +204,12 @@ func (e *Exchange) applyUTAOrderbookDelta(ctx context.Context, msg *UTAWebsocket
 	if err != nil {
 		return false, err
 	}
-	if resp.SequenceStart > lastUpdateID+1 {
+	if orderbookUpdateID(resp.SequenceStart) > lastUpdateID+1 {
 		gapErr := fmt.Errorf("%w: %s %s stored sequence %d, delta starts at %d", errUTAOrderbookSequenceGap, pair, a, lastUpdateID, resp.SequenceStart)
 		return true, common.AppendError(gapErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, a))
 	}
 	err = e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
-		UpdateID:   resp.SequenceEnd,
+		UpdateID:   orderbookUpdateID(resp.SequenceEnd),
 		UpdateTime: resp.MatchTimestamp.Time(),
 		LastPushed: msg.PushTimestamp.Time(),
 		Asset:      a,
@@ -265,15 +268,17 @@ func (e *Exchange) processUTAMarkPrice(ctx context.Context, msg *UTAWebsocketMes
 	if err != nil {
 		return err
 	}
+	e.tickerMergeMu.Lock()
 	t, err := e.storedUTATicker(pair, asset.Futures)
-	if err != nil {
-		return err
+	if err == nil {
+		t.MarkPrice = resp.MarkPrice.Float64()
+		t.IndexPrice = resp.IndexPrice.Float64()
+		t.OpenInterest = resp.OpenInterest.Float64()
+		t.LastUpdated = resp.Timestamp.Time()
+		err = ticker.ProcessTicker(t)
 	}
-	t.MarkPrice = resp.MarkPrice.Float64()
-	t.IndexPrice = resp.IndexPrice.Float64()
-	t.OpenInterest = resp.OpenInterest.Float64()
-	t.LastUpdated = resp.Timestamp.Time()
-	if err := ticker.ProcessTicker(t); err != nil {
+	e.tickerMergeMu.Unlock()
+	if err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)

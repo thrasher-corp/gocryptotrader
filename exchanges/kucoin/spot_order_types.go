@@ -145,18 +145,18 @@ type PlaceHFOrderSyncResponse struct {
 	MatchTime     types.Time   `json:"matchTime"`
 }
 
-// BatchPlacedHFOrder is the outcome of one order of a Batch Add Orders request. KuCoin rejected the order when
+// BatchPlacedHFOrderResponse is the outcome of one order of a Batch Add Orders request. KuCoin rejected the order when
 // Success is false, and FailMessage says why
-type BatchPlacedHFOrder struct {
+type BatchPlacedHFOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOid"`
 	Success       bool   `json:"success"`
 	FailMessage   string `json:"failMsg"`
 }
 
-// BatchPlacedHFOrderSync is the outcome of one order of a Batch Add Orders Sync request, with the order's state once
+// BatchPlacedHFOrderSyncResponse is the outcome of one order of a Batch Add Orders Sync request, with the order's state once
 // matching has finished. KuCoin rejected the order when Success is false, and FailMessage says why
-type BatchPlacedHFOrderSync struct {
+type BatchPlacedHFOrderSyncResponse struct {
 	OrderID       string       `json:"orderId"`
 	ClientOrderID string       `json:"clientOid"`
 	OrderTime     types.Time   `json:"orderTime"`
@@ -238,19 +238,16 @@ type ModifyHFOrderResponse struct {
 	ClientOrderID string `json:"clientOid"`
 }
 
-// HFOrderDetail holds a spot order and why it was cancelled (Get Order By OrderId, Get Order By ClientOid,
+// HFOrderDetailResponse holds a spot order and why it was cancelled (Get Order By OrderId, Get Order By ClientOid,
 // Get Closed Orders)
-type HFOrderDetail struct {
-	HFOrder
+type HFOrderDetailResponse struct {
+	HFOrderResponse
 	// CancelReason is KuCoin's cancellation reason code; 0 means the user cancelled the order
 	CancelReason uint64 `json:"cancelReason"`
 }
 
-// HFOrderDetailResponse holds a spot order and why it was cancelled (Get Order By OrderId, Get Order By ClientOid)
-type HFOrderDetailResponse HFOrderDetail
-
-// HFOrder holds a spot order (Get Open Orders, Get Open Orders By Page)
-type HFOrder struct {
+// HFOrderResponse holds a spot order (Get Open Orders, Get Open Orders By Page)
+type HFOrderResponse struct {
 	ID                  string        `json:"id"`
 	Symbol              string        `json:"symbol"`
 	OperationType       string        `json:"opType"`
@@ -295,11 +292,11 @@ type SymbolsWithOpenHFOrderResponse struct {
 
 // OpenHFOrdersPageResponse holds a page of open spot orders (Get Open Orders By Page)
 type OpenHFOrdersPageResponse struct {
-	CurrentPage uint64    `json:"currentPage"`
-	PageSize    uint64    `json:"pageSize"`
-	TotalNumber uint64    `json:"totalNum"`
-	TotalPage   uint64    `json:"totalPage"`
-	Items       []HFOrder `json:"items"`
+	CurrentPage uint64            `json:"currentPage"`
+	PageSize    uint64            `json:"pageSize"`
+	TotalNumber uint64            `json:"totalNum"`
+	TotalPage   uint64            `json:"totalPage"`
+	Items       []HFOrderResponse `json:"items"`
 }
 
 // ClosedHFOrdersRequest holds the parameters of Get Closed Orders
@@ -317,8 +314,8 @@ type ClosedHFOrdersRequest struct {
 // ClosedHFOrdersResponse holds closed spot orders (Get Closed Orders)
 type ClosedHFOrdersResponse struct {
 	// LastID is passed as ClosedHFOrdersRequest.LastID to fetch the next page
-	LastID uint64          `json:"lastId"`
-	Items  []HFOrderDetail `json:"items"`
+	LastID uint64                  `json:"lastId"`
+	Items  []HFOrderDetailResponse `json:"items"`
 }
 
 // HFTradeHistoryRequest holds the parameters of Get Trade History
@@ -448,15 +445,15 @@ type StopOrderListResponse struct {
 // StopOrderListItem holds a stop order of Get Stop Orders List, which returns fields Get Stop Order By OrderId does
 // not
 type StopOrderListItem struct {
-	StopOrder
+	StopOrderResponse
 	RelatedNumber     string       `json:"relatedNo"`
 	LimitPrice        types.Number `json:"limitPrice"`
 	Pop               string       `json:"pop"`
 	ActivateCondition string       `json:"activateCondition"`
 }
 
-// StopOrder holds a stop order (Get Stop Order By OrderId, Get Stop Order By ClientOid)
-type StopOrder struct {
+// StopOrderResponse holds a stop order (Get Stop Order By OrderId, Get Stop Order By ClientOid)
+type StopOrderResponse struct {
 	ID                  string       `json:"id"`
 	Symbol              string       `json:"symbol"`
 	UserID              string       `json:"userId"`
@@ -491,9 +488,6 @@ type StopOrder struct {
 	StopPrice       types.Number `json:"stopPrice"`
 	OrderTime       types.Time   `json:"orderTime"`
 }
-
-// StopOrderResponse holds a stop order (Get Stop Order By OrderId)
-type StopOrderResponse StopOrder
 
 // PlaceOCOOrderRequest holds the parameters of Add OCO Order: a limit order at Price, and a limit order at LimitPrice
 // that StopPrice triggers; whichever executes first cancels the other

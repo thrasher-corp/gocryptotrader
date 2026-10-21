@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// UTAVIPLendingCollateralRatio holds a collateral currency's discount rate tiers
-type UTAVIPLendingCollateralRatio struct {
+// UTAVIPLendingCollateralRatioResponse holds a collateral currency's discount rate tiers
+type UTAVIPLendingCollateralRatioResponse struct {
 	Currency currency.Code `json:"currency"`
 	// USDTLevels are the tiers, by the collateral's value in USDT
 	USDTLevels []UTAVIPLendingCollateralLevel `json:"usdtLevels"`
@@ -58,8 +58,8 @@ type UTAVIPLendingMargin struct {
 	MarginFactor   types.Number `json:"marginFactor"`
 }
 
-// UTAVIPLendingAccount holds an account in an off-exchange loan and its margin
-type UTAVIPLendingAccount struct {
+// UTAVIPLendingAccountResponse holds an account in an off-exchange loan and its margin
+type UTAVIPLendingAccountResponse struct {
 	UID            string        `json:"uid"`
 	MarginCurrency currency.Code `json:"marginCcy"`
 	// MarginQuantity is the quantity after MarginFactor

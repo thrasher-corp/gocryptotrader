@@ -131,8 +131,8 @@ type ActiveMarginHFOrderSymbolsResponse struct {
 	Symbols    []string `json:"symbols"`
 }
 
-// MarginHFOrder holds a margin HF order as Get Open Orders lists it
-type MarginHFOrder struct {
+// MarginHFOrderResponse holds a margin HF order as Get Open Orders lists it
+type MarginHFOrderResponse struct {
 	ID                  string        `json:"id"`
 	Symbol              string        `json:"symbol"`
 	OperationType       string        `json:"opType"`
@@ -190,18 +190,18 @@ type GetClosedMarginHFOrdersRequest struct {
 	EndAt   time.Time
 }
 
-// MarginHFOrderResponse holds a margin HF order as Get Closed Orders, Get Order By OrderId and Get Order By ClientOid
+// MarginHFOrderDetailResponse holds a margin HF order as Get Closed Orders, Get Order By OrderId and Get Order By ClientOid
 // return it
-type MarginHFOrderResponse struct {
-	MarginHFOrder
+type MarginHFOrderDetailResponse struct {
+	MarginHFOrderResponse
 	// CancelReason is the vendor's cancellation reason code, 0 for a cancellation the user requested
 	CancelReason uint64 `json:"cancelReason"`
 }
 
 // ClosedMarginHFOrdersResponse holds the reply of Get Closed Orders
 type ClosedMarginHFOrdersResponse struct {
-	LastID uint64                  `json:"lastId"`
-	Items  []MarginHFOrderResponse `json:"items"`
+	LastID uint64                        `json:"lastId"`
+	Items  []MarginHFOrderDetailResponse `json:"items"`
 }
 
 // GetMarginHFTradeFillsRequest holds the parameters of Get Trade History
@@ -371,7 +371,7 @@ type MarginStopOrderListItem struct {
 type MarginStopOrderListResponse struct {
 	CurrentPage uint64                    `json:"currentPage"`
 	PageSize    uint64                    `json:"pageSize"`
-	TotalNum    uint64                    `json:"totalNum"`
+	TotalNumber uint64                    `json:"totalNum"`
 	TotalPage   uint64                    `json:"totalPage"`
 	Items       []MarginStopOrderListItem `json:"items"`
 }
@@ -472,7 +472,7 @@ type GetMarginOCOOrdersRequest struct {
 type MarginOCOOrderListResponse struct {
 	CurrentPage uint64                   `json:"currentPage"`
 	PageSize    uint64                   `json:"pageSize"`
-	TotalNum    uint64                   `json:"totalNum"`
+	TotalNumber uint64                   `json:"totalNum"`
 	TotalPage   uint64                   `json:"totalPage"`
 	Items       []MarginOCOOrderResponse `json:"items"`
 }

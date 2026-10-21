@@ -83,56 +83,56 @@ func (e *Exchange) RedeemByEarnHoldingID(ctx context.Context, req *EarnRedeemReq
 
 // GetEarnSavingsProducts returns the savings products available, of every currency when ccy is empty (Get Savings
 // Products)
-func (e *Exchange) GetEarnSavingsProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+func (e *Exchange) GetEarnSavingsProducts(ctx context.Context, ccy currency.Code) ([]EarnProductResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []EarnProduct
+	var resp []EarnProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getEarnSavingsProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/saving/products", params), nil, &resp)
 }
 
 // GetLimitedTimePromotionProducts returns the limited-time promotion products available, of every currency when ccy
 // is empty (Get Promotion Products)
-func (e *Exchange) GetLimitedTimePromotionProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+func (e *Exchange) GetLimitedTimePromotionProducts(ctx context.Context, ccy currency.Code) ([]EarnProductResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []EarnProduct
+	var resp []EarnProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getLimitedTimePromotionProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/promotion/products", params), nil, &resp)
 }
 
 // GetEarnStakingProducts returns the staking products available, of every currency when ccy is empty (Get Staking
 // Products)
-func (e *Exchange) GetEarnStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+func (e *Exchange) GetEarnStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProductResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []EarnProduct
+	var resp []EarnProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getEarnStakingProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/staking/products", params), nil, &resp)
 }
 
 // GetEarnKCSStakingProducts returns the KCS staking products available, of every currency when ccy is empty (Get KCS
 // Staking Products)
-func (e *Exchange) GetEarnKCSStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+func (e *Exchange) GetEarnKCSStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProductResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []EarnProduct
+	var resp []EarnProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getEarnKCSStakingProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/kcs-staking/products", params), nil, &resp)
 }
 
 // GetEarnETHStakingProducts returns the ETH staking products available, of every currency when ccy is empty (Get ETH
 // Staking Products)
-func (e *Exchange) GetEarnETHStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+func (e *Exchange) GetEarnETHStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProductResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []EarnProduct
+	var resp []EarnProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getEarnETHStakingProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/eth-staking/products", params), nil, &resp)
 }
 
@@ -190,7 +190,7 @@ func (e *Exchange) PurchaseStructuredProduct(ctx context.Context, req *Structure
 
 // GetDualInvestmentProducts returns the dual investment products available in a category (Get Dual Investment
 // Products). The docs list it as public, but without an API key it answers code 400001, so it is signed
-func (e *Exchange) GetDualInvestmentProducts(ctx context.Context, req *DualInvestmentProductsRequest) ([]DualInvestmentProduct, error) {
+func (e *Exchange) GetDualInvestmentProducts(ctx context.Context, req *DualInvestmentProductsRequest) ([]DualInvestmentProductResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (e *Exchange) GetDualInvestmentProducts(ctx context.Context, req *DualInves
 	if req.Side != "" {
 		params.Set("side", req.Side)
 	}
-	var resp []DualInvestmentProduct
+	var resp []DualInvestmentProductResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getDualInvestmentProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/struct-earn/dual/products", params), nil, &resp)
 }
 

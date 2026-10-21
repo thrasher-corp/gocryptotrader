@@ -99,7 +99,7 @@ func (e *Exchange) GetUTAAffiliateTradeHistory(ctx context.Context, req *UTAAffi
 
 // GetUTAAffiliateTransactions returns the invitees' trades between two times and the commission each earned (Get
 // Transaction)
-func (e *Exchange) GetUTAAffiliateTransactions(ctx context.Context, req *UTAAffiliateTransactionsRequest) ([]UTAAffiliateTransaction, error) {
+func (e *Exchange) GetUTAAffiliateTransactions(ctx context.Context, req *UTAAffiliateTransactionsRequest) ([]UTAAffiliateTransactionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -124,12 +124,12 @@ func (e *Exchange) GetUTAAffiliateTransactions(ctx context.Context, req *UTAAffi
 	if req.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(req.PageSize, 10))
 	}
-	var resp []UTAAffiliateTransaction
+	var resp []UTAAffiliateTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAAffiliateTransactionsEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/affiliate/queryTransactionByTime", params), nil, &resp)
 }
 
 // GetUTAAffiliateKumining returns the invitees' KuMining purchases (Get Kumining)
-func (e *Exchange) GetUTAAffiliateKumining(ctx context.Context, req *UTAAffiliateKuminingRequest) ([]UTAAffiliateKumining, error) {
+func (e *Exchange) GetUTAAffiliateKumining(ctx context.Context, req *UTAAffiliateKuminingRequest) ([]UTAAffiliateKuminingResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -149,6 +149,6 @@ func (e *Exchange) GetUTAAffiliateKumining(ctx context.Context, req *UTAAffiliat
 	if req.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(req.PageSize, 10))
 	}
-	var resp []UTAAffiliateKumining
+	var resp []UTAAffiliateKuminingResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAAffiliateKuminingEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/affiliate/queryKumining", params), nil, &resp)
 }

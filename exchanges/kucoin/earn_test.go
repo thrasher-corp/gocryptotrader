@@ -17,7 +17,7 @@ import (
 // earnProductsTestCase is the currency filter of an Earn product listing and the products it should return
 type earnProductsTestCase struct {
 	ccy currency.Code
-	exp []EarnProduct
+	exp []EarnProductResponse
 }
 
 func TestSubscribeToEarnFixedIncomeProduct(t *testing.T) {
@@ -30,6 +30,12 @@ func TestSubscribeToEarnFixedIncomeProduct(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "SubscribeToEarnFixedIncomeProduct must reject a zero amount")
 	_, err = e.SubscribeToEarnFixedIncomeProduct(t.Context(), &EarnPurchaseRequest{ProductID: "1232412", Amount: 12.2})
 	require.ErrorIs(t, err, errAccountTypeMissing, "SubscribeToEarnFixedIncomeProduct must reject an empty account type")
+
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.SubscribeToEarnFixedIncomeProduct(t.Context(), &EarnPurchaseRequest{ProductID: "1232412", AccountType: "MAIN", Amount: 12.2})
+		return err
+	})
+	assert.JSONEq(t, `{"productId":"1232412","amount":"12.2","accountType":"MAIN"}`, sent.body, "SubscribeToEarnFixedIncomeProduct should send the amount as the string KuCoin documents")
 
 	if !mockTests {
 		t.Skip("the product ID is the docs' example, and subscribing to a real product locks the account's funds")
@@ -106,7 +112,7 @@ func TestGetEarnSavingsProducts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []EarnProduct{
+	exp := []EarnProductResponse{
 		{
 			ID:                  "2172",
 			Currency:            currency.BTC,
@@ -174,7 +180,7 @@ func TestGetLimitedTimePromotionProducts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []EarnProduct{
+	exp := []EarnProductResponse{
 		{
 			ID:                  "2685",
 			Currency:            currency.BTC,
@@ -244,7 +250,7 @@ func TestGetEarnStakingProducts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []EarnProduct{
+	exp := []EarnProductResponse{
 		{
 			ID:                  "2535",
 			Currency:            currency.STX,
@@ -313,7 +319,7 @@ func TestGetEarnKCSStakingProducts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []EarnProduct{
+	exp := []EarnProductResponse{
 		{
 			ID:                  "2611",
 			Currency:            currency.KCS,
@@ -382,7 +388,7 @@ func TestGetEarnETHStakingProducts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	exp := []EarnProduct{
+	exp := []EarnProductResponse{
 		{
 			ID:                   "ETH2",
 			Currency:             currency.ETH,
@@ -482,6 +488,12 @@ func TestPurchaseStructuredProduct(t *testing.T) {
 	_, err = e.PurchaseStructuredProduct(t.Context(), &StructuredProductPurchaseRequest{ProductID: "1234", InvestCurrency: currency.USDT, InvestAmount: 10})
 	require.ErrorIs(t, err, errAccountTypeMissing, "PurchaseStructuredProduct must reject an empty account type")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.PurchaseStructuredProduct(t.Context(), &StructuredProductPurchaseRequest{ProductID: "1234", InvestCurrency: currency.USDT, InvestAmount: 10, AccountType: "TRADE"})
+		return err
+	})
+	assert.JSONEq(t, `{"productId":"1234","investCurrency":"USDT","investAmount":"10","accountType":"TRADE"}`, sent.body, "PurchaseStructuredProduct should send the investment amount as the string KuCoin documents")
+
 	if !mockTests {
 		t.Skip("the product ID is an example, and buying a real structured product locks the account's funds until it settles")
 	}
@@ -506,7 +518,7 @@ func TestGetDualInvestmentProducts(t *testing.T) {
 	result, err := e.GetDualInvestmentProducts(t.Context(), &DualInvestmentProductsRequest{Category: "DUAL_CLASSIC", StrikeCurrency: currency.BTC, InvestCurrency: currency.USDT, Side: "PUT"})
 	require.NoError(t, err, "GetDualInvestmentProducts must not error")
 	if mockTests {
-		exp := []DualInvestmentProduct{
+		exp := []DualInvestmentProductResponse{
 			{
 				Category:         "DUAL_CLASSIC",
 				ProductID:        "87839",

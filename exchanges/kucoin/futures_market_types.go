@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Contract holds a futures contract's specification and market state (Get Symbol, Get All Symbols)
-type Contract struct {
+// ContractResponse holds a futures contract's specification and market state (Get Symbol, Get All Symbols)
+type ContractResponse struct {
 	Symbol        string        `json:"symbol"`
 	DisplaySymbol string        `json:"displaySymbol"`
 	RootSymbol    currency.Code `json:"rootSymbol"`
@@ -117,10 +117,10 @@ type Contract struct {
 }
 
 // FuturesContractResponse holds a futures contract's specification and market state (Get Symbol)
-type FuturesContractResponse Contract
+type FuturesContractResponse ContractResponse
 
-// FuturesTicker holds a contract's last fill and best bid and ask (Get Ticker, Get All Tickers)
-type FuturesTicker struct {
+// FuturesTickerResponse holds a contract's last fill and best bid and ask (Get Ticker, Get All Tickers)
+type FuturesTickerResponse struct {
 	Sequence     uint64       `json:"sequence"`
 	Symbol       string       `json:"symbol"`
 	Side         string       `json:"side"` // taker side of the last fill
@@ -134,9 +134,6 @@ type FuturesTicker struct {
 	Timestamp    types.Time   `json:"ts"` // time of the last fill
 }
 
-// FuturesTickerResponse holds a contract's last fill and best bid and ask (Get Ticker)
-type FuturesTickerResponse FuturesTicker
-
 // FuturesOrderbookResponse holds a contract's order book aggregated by price, bids from high to low and asks from low
 // to high (Get Full OrderBook, Get Part OrderBook)
 type FuturesOrderbookResponse struct {
@@ -147,8 +144,8 @@ type FuturesOrderbookResponse struct {
 	Timestamp types.Time                       `json:"ts"`
 }
 
-// FuturesTrade holds one of a contract's fills (Get Trade History)
-type FuturesTrade struct {
+// FuturesTradeResponse holds one of a contract's fills (Get Trade History)
+type FuturesTradeResponse struct {
 	Sequence     uint64       `json:"sequence"`
 	ContractID   uint64       `json:"contractId"` // deprecated
 	TradeID      string       `json:"tradeId"`
@@ -170,8 +167,8 @@ type FuturesKlineRequest struct {
 	To          time.Time
 }
 
-// FuturesKline holds one candle (Get Klines)
-type FuturesKline struct {
+// FuturesKlineResponse holds one candle (Get Klines)
+type FuturesKlineResponse struct {
 	StartTime types.Time
 	Open      float64
 	High      float64
@@ -182,7 +179,7 @@ type FuturesKline struct {
 }
 
 // UnmarshalJSON decodes a candle from KuCoin's array of start time, open, high, low, close, volume and turnover
-func (f *FuturesKline) UnmarshalJSON(data []byte) error {
+func (f *FuturesKlineResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&f.StartTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.Turnover})
 }
 

@@ -58,12 +58,11 @@ type UTAWebsocketTrade struct {
 	MatchTimestamp types.Time `json:"M"`
 }
 
-// UTAWebsocketOrderbook is a UTA orderbook push, a snapshot or a delta as its push's update type says. The sequences
-// are int64 to match GoCryptoTrader's orderbook update IDs
+// UTAWebsocketOrderbook is a UTA orderbook push, a snapshot or a delta as its push's update type says
 type UTAWebsocketOrderbook struct {
 	// SequenceStart and SequenceEnd bound the changes in the push; they are equal on snapshots
-	SequenceStart  int64                        `json:"O"`
-	SequenceEnd    int64                        `json:"C"`
+	SequenceStart  uint64                       `json:"O"`
+	SequenceEnd    uint64                       `json:"C"`
 	MatchTimestamp types.Time                   `json:"M"`
 	Symbol         string                       `json:"s"`
 	Bids           []UTAWebsocketOrderbookLevel `json:"b"`

@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// UTADepositAddress holds a currency's deposit address on a chain
-type UTADepositAddress struct {
+// UTADepositAddressResponse holds a currency's deposit address on a chain
+type UTADepositAddressResponse struct {
 	Currency currency.Code `json:"currency"`
 	// Chain is the chain's identifier used in requests, such as trx
 	Chain string `json:"chain"`

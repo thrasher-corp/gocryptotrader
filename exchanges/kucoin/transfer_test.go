@@ -88,6 +88,12 @@ func TestFlexTransfer(t *testing.T) {
 	_, err = e.FlexTransfer(t.Context(), arg)
 	require.ErrorIs(t, err, errAccountTypeMissing, "FlexTransfer must reject an empty to account type")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.FlexTransfer(t.Context(), &FlexTransferRequest{ClientOrderID: "64ccc0f164781800010d8c09", Currency: currency.BTC, Amount: 1, FromAccountType: "TRADE", Type: "INTERNAL", ToAccountType: "CONTRACT"})
+		return err
+	})
+	assert.JSONEq(t, `{"clientOid":"64ccc0f164781800010d8c09","currency":"BTC","amount":"1","fromAccountType":"TRADE","type":"INTERNAL","toAccountType":"CONTRACT"}`, sent.body, "FlexTransfer should send the amount as the string KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}

@@ -23,8 +23,8 @@ func (e *Exchange) GetCrossMarginSymbols(ctx context.Context, symbol string) (*C
 }
 
 // GetIsolatedMarginSymbols returns the configuration of every isolated margin symbol (Get Symbols - Isolated Margin)
-func (e *Exchange) GetIsolatedMarginSymbols(ctx context.Context) ([]IsolatedMarginSymbol, error) {
-	var resp []IsolatedMarginSymbol
+func (e *Exchange) GetIsolatedMarginSymbols(ctx context.Context) ([]IsolatedMarginSymbolResponse, error) {
+	var resp []IsolatedMarginSymbolResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getIsolatedMarginSymbolsEPL, "/v1/isolated/symbols", &resp)
 }
 
@@ -45,14 +45,14 @@ func (e *Exchange) GetMarginConfiguration(ctx context.Context) (*MarginConfigura
 }
 
 // GetAllMarginTradingPairsMarkPrices returns the current mark price of every margin symbol (Get Mark Price List)
-func (e *Exchange) GetAllMarginTradingPairsMarkPrices(ctx context.Context) ([]MarginMarkPrice, error) {
-	var resp []MarginMarkPrice
+func (e *Exchange) GetAllMarginTradingPairsMarkPrices(ctx context.Context) ([]MarginMarkPriceResponse, error) {
+	var resp []MarginMarkPriceResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAllMarginTradingPairsMarkPricesEPL, "/v3/mark-price/all-symbols", &resp)
 }
 
 // GetMarginCollateralRatio returns the margin collateral ratio tiers of every currency, or of the currencies given
 // (Get Margin Collateral Ratio)
-func (e *Exchange) GetMarginCollateralRatio(ctx context.Context, currencies []currency.Code) ([]MarginCollateralRatio, error) {
+func (e *Exchange) GetMarginCollateralRatio(ctx context.Context, currencies []currency.Code) ([]MarginCollateralRatioResponse, error) {
 	params := url.Values{}
 	if len(currencies) > 0 {
 		list, err := currencyListParam(currencies)
@@ -61,18 +61,18 @@ func (e *Exchange) GetMarginCollateralRatio(ctx context.Context, currencies []cu
 		}
 		params.Set("currencyList", list)
 	}
-	var resp []MarginCollateralRatio
+	var resp []MarginCollateralRatioResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMarginCollateralRatioEPL, common.EncodeURLValues("/v3/margin/collateralRatio", params), &resp)
 }
 
 // GetMarketAvailableInventory returns the amount the platform has available to lend of every currency, or of the
 // currency given (Get Market Available Inventory)
-func (e *Exchange) GetMarketAvailableInventory(ctx context.Context, ccy currency.Code) ([]MarketAvailableInventory, error) {
+func (e *Exchange) GetMarketAvailableInventory(ctx context.Context, ccy currency.Code) ([]MarketAvailableInventoryResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []MarketAvailableInventory
+	var resp []MarketAvailableInventoryResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMarketAvailableInventoryEPL, common.EncodeURLValues("/v3/margin/available-inventory", params), &resp)
 }
 

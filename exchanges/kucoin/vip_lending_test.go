@@ -17,7 +17,7 @@ func TestGetVIPLendingCollateralRatio(t *testing.T) {
 	result, err := e.GetVIPLendingCollateralRatio(t.Context())
 	require.NoError(t, err, "GetVIPLendingCollateralRatio must not error")
 	if mockTests {
-		exp := []VIPLendingCollateralRatio{
+		exp := []VIPLendingCollateralRatioResponse{
 			{
 				Currency: currency.BTC,
 				USDTLevels: []VIPLendingCollateralRatioLevel{
@@ -102,7 +102,7 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 	result, err := e.GetInformationOnAccountInvolvedInOffExchangeLoans(t.Context())
 	require.NoError(t, err, "GetInformationOnAccountInvolvedInOffExchangeLoans must not error")
 	if mockTests {
-		exp := []VIPLendingAccount{
+		exp := []VIPLendingAccountResponse{
 			{
 				UID:            "100000001",
 				MarginCurrency: currency.USDT,

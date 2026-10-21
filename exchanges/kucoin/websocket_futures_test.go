@@ -29,15 +29,15 @@ var (
 	futuresLivePair = currency.NewPairWithDelimiter("SOL", "USDTM", "_")
 )
 
-// TestWsFuturesPayloads decodes the recorded futures pushes whose fields the handlers map onto shared types
-func TestWsFuturesPayloads(t *testing.T) {
+// TestWebsocketFuturesPayloads decodes the recorded futures pushes whose fields the handlers map onto shared types
+func TestWebsocketFuturesPayloads(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		key string
 		got any
 		exp any
 	}{
-		{key: "tickerV2", got: new(WsFuturesTickerV2), exp: &WsFuturesTickerV2{
+		{key: "tickerV2", got: new(WebsocketFuturesTickerV2), exp: &WebsocketFuturesTickerV2{
 			Symbol:       "XBTUSDTM",
 			Sequence:     1748392084691,
 			BestBidSize:  284,
@@ -46,7 +46,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			BestAskSize:  629,
 			Timestamp:    types.Time(time.UnixMilli(1791899571611)),
 		}},
-		{key: "tickerV1", got: new(WsFuturesTickerV1), exp: &WsFuturesTickerV1{
+		{key: "tickerV1", got: new(WebsocketFuturesTickerV1), exp: &WebsocketFuturesTickerV1{
 			Symbol:       "XBTUSDTM",
 			Sequence:     1947310382240,
 			Side:         "buy",
@@ -59,21 +59,21 @@ func TestWsFuturesPayloads(t *testing.T) {
 			BestAskSize:  5,
 			Timestamp:    types.Time(time.UnixMilli(1791899571745)),
 		}},
-		{key: "level50", got: new(WsFuturesOrderbookDepth), exp: &WsFuturesOrderbookDepth{
+		{key: "level50", got: new(WebsocketFuturesOrderbookDepth), exp: &WebsocketFuturesOrderbookDepth{
 			Sequence:      1748392084690,
 			Asks:          orderbook.LevelsArrayPriceAmount{{Amount: 634, Price: 83258.3}, {Amount: 76, Price: 83258.4}, {Amount: 84, Price: 83259.4}},
 			Bids:          orderbook.LevelsArrayPriceAmount{{Amount: 284, Price: 83258.2}, {Amount: 45, Price: 83253.4}, {Amount: 100, Price: 83251.7}},
 			Timestamp:     types.Time(time.UnixMilli(1791899571610)),
 			PushTimestamp: types.Time(time.UnixMilli(1791899571610)),
 		}},
-		{key: "increment", got: new(WsFuturesOrderbookIncrement), exp: &WsFuturesOrderbookIncrement{
+		{key: "increment", got: new(WebsocketFuturesOrderbookIncrement), exp: &WebsocketFuturesOrderbookIncrement{
 			Sequence:  1748392084691,
 			Change:    "83258.3,sell,629",
 			Timestamp: types.Time(time.UnixMilli(1791899571611)),
 		}},
-		{key: "klines", got: new(WsCandlestick), exp: &WsCandlestick{
+		{key: "klines", got: new(WebsocketCandlestick), exp: &WebsocketCandlestick{
 			Symbol: "XBTUSDTM",
-			Candles: WsCandle{
+			Candles: WebsocketCandle{
 				StartTime:         types.Time(time.Unix(1791899520, 0)),
 				OpenPrice:         83259.3,
 				ClosePrice:        83258.3,
@@ -84,7 +84,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			},
 			Time: types.Time(time.UnixMilli(1791899571770)),
 		}},
-		{key: "trade", got: new(WsFuturesExecution), exp: &WsFuturesExecution{
+		{key: "trade", got: new(WebsocketFuturesExecution), exp: &WebsocketFuturesExecution{
 			Symbol:       "XBTUSDTM",
 			Sequence:     1947310382240,
 			Side:         "buy",
@@ -95,7 +95,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			TradeID:      "1947310382240",
 			Timestamp:    types.Time(time.UnixMilli(1791899571745)),
 		}},
-		{key: "snapshot", got: new(WsFuturesSnapshot), exp: &WsFuturesSnapshot{
+		{key: "snapshot", got: new(WebsocketFuturesSnapshot), exp: &WebsocketFuturesSnapshot{
 			FundingRate:           0.000055,
 			HighPrice:             84133.2,
 			LastPrice:             83276.5,
@@ -108,7 +108,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			Turnover:              204740196.2154,
 			Volume:                2474.442,
 		}},
-		{key: "orderMatch", got: new(WsFuturesOrderChange), exp: &WsFuturesOrderChange{
+		{key: "orderMatch", got: new(WebsocketFuturesOrderChange), exp: &WebsocketFuturesOrderChange{
 			Symbol:       "XBTUSDTM",
 			OrderType:    "limit",
 			Side:         "sell",
@@ -130,7 +130,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			TradeType:    "liquid",
 			PositionSide: "BOTH",
 		}},
-		{key: "orderUpdate", got: new(WsFuturesOrderChange), exp: &WsFuturesOrderChange{
+		{key: "orderUpdate", got: new(WebsocketFuturesOrderChange), exp: &WebsocketFuturesOrderChange{
 			Symbol:        "XBTUSDTM",
 			OrderType:     "limit",
 			Side:          "buy",
@@ -151,7 +151,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			TradeType:     "trade",
 			UserID:        "669a61642857ca000186f626",
 		}},
-		{key: "orderCanceled", got: new(WsFuturesOrderChange), exp: &WsFuturesOrderChange{
+		{key: "orderCanceled", got: new(WebsocketFuturesOrderChange), exp: &WebsocketFuturesOrderChange{
 			Symbol:          "XBTUSDTM",
 			OrderType:       "limit",
 			Side:            "buy",
@@ -167,7 +167,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			Timestamp:       types.Time(time.UnixMilli(1731917460806)),
 			TradeType:       "adl",
 		}},
-		{key: "walletBalance", got: new(WsFuturesWalletBalance), exp: &WsFuturesWalletBalance{
+		{key: "walletBalance", got: new(WebsocketFuturesWalletBalance), exp: &WebsocketFuturesWalletBalance{
 			CrossPositionMargin:      17.551016,
 			IsolatedOrderMargin:      1.2,
 			HoldBalance:              2.3,
@@ -185,13 +185,13 @@ func TestWsFuturesPayloads(t *testing.T) {
 			CrossOrderMargin:         10.06002012,
 			Timestamp:                types.Time(time.UnixMilli(1741164936624)),
 		}},
-		{key: "availableBalance", got: new(WsFuturesAvailableBalance), exp: &WsFuturesAvailableBalance{
+		{key: "availableBalance", got: new(WebsocketFuturesAvailableBalance), exp: &WebsocketFuturesAvailableBalance{
 			AvailableBalance: 5923,
 			HoldBalance:      2312,
 			Currency:         currency.XBT,
 			Timestamp:        types.Time(time.UnixMilli(1553842862614)),
 		}},
-		{key: "stopOrder", got: new(WsFuturesStopOrder), exp: &WsFuturesStopOrder{
+		{key: "stopOrder", got: new(WebsocketFuturesStopOrder), exp: &WebsocketFuturesStopOrder{
 			MarginMode:    "ISOLATED",
 			OrderID:       "240673378116083712",
 			OrderPrice:    0.1,
@@ -207,7 +207,7 @@ func TestWsFuturesPayloads(t *testing.T) {
 			Timestamp:     types.Time(time.UnixMicro(1730194206843133)),
 		}},
 	} {
-		var msg WsMessage
+		var msg WebsocketMessage
 		require.NoErrorf(t, json.Unmarshal(wsFixture(t, "wsFutures.json", tc.key), &msg), "%s must decode", tc.key)
 		require.NoErrorf(t, json.Unmarshal(msg.Data, tc.got), "%s data must decode", tc.key)
 		assert.Equalf(t, tc.exp, tc.got, "%s should decode every field", tc.key)
@@ -578,13 +578,13 @@ func TestProcessFuturesExecution(t *testing.T) {
 func TestProcessFuturesInstrument(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		got := liveWsData[*WsFuturesMarkIndexPrice](t, nil, &subscription.Subscription{Channel: futuresInstrumentChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresLivePair}})
+		got := liveWsData[*WebsocketFuturesMarkIndexPrice](t, nil, &subscription.Subscription{Channel: futuresInstrumentChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresLivePair}})
 		assert.Equal(t, "SOLUSDTM", got.Symbol, "the mark price should name the topic's symbol")
 		assert.Positive(t, got.MarkPrice, "the live mark price should be positive")
 		return
 	}
 	ex := wsTestInstance(t)
-	exp := &WsFuturesMarkIndexPrice{
+	exp := &WebsocketFuturesMarkIndexPrice{
 		Symbol:      "XBTUSDTM",
 		MarkPrice:   83262.36,
 		IndexPrice:  83300.44,
@@ -592,7 +592,7 @@ func TestProcessFuturesInstrument(t *testing.T) {
 		Timestamp:   types.Time(time.Unix(1791899572, 0)),
 	}
 	assert.Equal(t, exp, wsPush(t, ex, "wsFutures.json", "markIndexPrice"), "a mark.index.price push should be relayed with the topic's symbol")
-	expFunding := &WsFuturesFundingRate{
+	expFunding := &WebsocketFuturesFundingRate{
 		Symbol:      "XBTUSDTM",
 		Period:      1,
 		Granularity: 60000,
@@ -601,8 +601,8 @@ func TestProcessFuturesInstrument(t *testing.T) {
 	}
 	assert.Equal(t, expFunding, wsPush(t, ex, "wsFutures.json", "fundingRate"), "a funding.rate push should be relayed with the topic's symbol")
 
-	require.ErrorIs(t, ex.processFuturesInstrument(t.Context(), &WsMessage{Topic: futuresInstrumentChannel + ":XBTUSDTM", Subject: "premium.index"}, "XBTUSDTM"), errUnhandledSubject, "processFuturesInstrument must reject an unknown subject")
-	require.Error(t, ex.processFuturesInstrument(t.Context(), &WsMessage{Subject: "funding.rate", Data: []byte(`{"granularity":-1}`)}, "XBTUSDTM"), "processFuturesInstrument must reject an undecodable push")
+	require.ErrorIs(t, ex.processFuturesInstrument(t.Context(), &WebsocketMessage{Topic: futuresInstrumentChannel + ":XBTUSDTM", Subject: "premium.index"}, "XBTUSDTM"), errUnhandledSubject, "processFuturesInstrument must reject an unknown subject")
+	require.Error(t, ex.processFuturesInstrument(t.Context(), &WebsocketMessage{Subject: "funding.rate", Data: []byte(`{"granularity":-1}`)}, "XBTUSDTM"), "processFuturesInstrument must reject an undecodable push")
 }
 
 func TestProcessFuturesAnnouncement(t *testing.T) {
@@ -613,19 +613,19 @@ func TestProcessFuturesAnnouncement(t *testing.T) {
 		return
 	}
 	ex := wsTestInstance(t)
-	assert.Equal(t, &WsFuturesFundingBegin{
+	assert.Equal(t, &WebsocketFuturesFundingBegin{
 		Symbol:      "XBTUSDTM",
 		FundingTime: types.Time(time.Unix(1551770400, 0)),
 		FundingRate: -0.002966,
 		Timestamp:   types.Time(time.Unix(1551770400, 0)),
 	}, wsPush(t, ex, "wsFutures.json", "fundingBegin"), "a funding.begin push should be relayed as it comes")
-	assert.Equal(t, &WsFuturesFundingEnd{
+	assert.Equal(t, &WebsocketFuturesFundingEnd{
 		Symbol:      "XBTUSDTM",
 		FundingTime: types.Time(time.Unix(1551770400, 0)),
 		FundingRate: -0.002966,
 		Timestamp:   types.Time(time.Unix(1551770410, 0)),
 	}, wsPush(t, ex, "wsFutures.json", "fundingEnd"), "a funding.end push should be relayed as it comes")
-	require.ErrorIs(t, ex.processFuturesAnnouncement(t.Context(), &WsMessage{Topic: futuresAnnouncementChannel, Subject: "funding.delay"}), errUnhandledSubject, "processFuturesAnnouncement must reject an unknown subject")
+	require.ErrorIs(t, ex.processFuturesAnnouncement(t.Context(), &WebsocketMessage{Topic: futuresAnnouncementChannel, Subject: "funding.delay"}), errUnhandledSubject, "processFuturesAnnouncement must reject an unknown subject")
 }
 
 func TestProcessFuturesOrderChange(t *testing.T) {
@@ -670,6 +670,21 @@ func TestProcessFuturesOrderChange(t *testing.T) {
 		assert.Equalf(t, tc.exp, wsPush(t, ex, "wsFutures.json", tc.key), "processFuturesOrderChange should relay %s as an order update", tc.key)
 	}
 
+	// The docs' open push, of an order resting on the book, carries no order type; a stored order keeps the one it has
+	docsOpen := []byte(`{"symbol":"XBTUSDTM","side":"buy","canceledSize":"0","orderId":"247899236673269761","liquidity":"maker","marginMode":"ISOLATED","type":"open","orderTime":1731916985768138917,"size":"1","filledSize":"0","price":"91670","remainSize":"1","clientOid":"5c52e11203aa677f33e493fb","status":"open","ts":1731916985789000000}`)
+	require.NoError(t, ex.processFuturesOrderChange(t.Context(), docsOpen), "processFuturesOrderChange must not error for an open push without an order type")
+	got, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+	require.True(t, ok, "processFuturesOrderChange must relay an order detail")
+	exp := &order.Detail{
+		Price: 91670, Amount: 1, RemainingAmount: 1, Exchange: ex.Name, OrderID: "247899236673269761", ClientOrderID: "5c52e11203aa677f33e493fb",
+		Type: order.UnknownType, Side: order.Buy, Status: order.Open, AssetType: asset.Futures, MarginType: margin.Isolated,
+		Date: time.Unix(0, 1731916985768138917), LastUpdated: time.UnixMilli(1731916985789), Pair: futuresTestPair,
+	}
+	assert.Equal(t, exp, got, "processFuturesOrderChange should relay an open push without an order type with the type unknown")
+	stored := &order.Detail{Exchange: ex.Name, OrderID: "247899236673269761", Type: order.StopLimit, Side: order.Buy, Status: order.New, AssetType: asset.Futures, Pair: futuresTestPair, Amount: 1}
+	require.NoError(t, stored.UpdateOrderFromDetail(got), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, order.StopLimit, stored.Type, "an open push without an order type should leave the stored order's type")
+
 	require.Error(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"size":[]}`)), "processFuturesOrderChange must reject an undecodable push")
 	require.ErrorIs(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"symbol":"NOTACONTRACT"}`)), currency.ErrPairNotFound, "processFuturesOrderChange must reject an unknown contract")
 	require.ErrorIs(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"symbol":"XBTUSDTM","orderType":"iceberg"}`)), order.ErrUnrecognisedOrderType, "processFuturesOrderChange must reject an unknown order type")
@@ -698,31 +713,37 @@ func TestProcessFuturesWallet(t *testing.T) {
 	}
 	ex := wsTestInstance(t)
 	for _, tc := range []struct {
-		key             string
-		code            currency.Code
-		available, hold float64
-		updatedAt       time.Time
+		key                    string
+		code                   currency.Code
+		total, hold, available float64
+		updatedAt              time.Time
 	}{
-		{key: "walletBalance", code: currency.USDT, available: 285.652001096, hold: 2.3, updatedAt: time.UnixMilli(1741164936624)},
-		{key: "availableBalance", code: currency.XBT, available: 5923, hold: 2312, updatedAt: time.UnixMilli(1553842862614)},
+		{key: "walletBalance", code: currency.USDT, total: 387.224858816, hold: 17.551016 + 10.06002012 + 63.98342359 + 1.2 + 2.3, available: 285.652001096, updatedAt: time.UnixMilli(1741164936624)},
+		{key: "availableBalance", code: currency.XBT, total: 5923 + 2312, hold: 2312, available: 5923, updatedAt: time.UnixMilli(1553842862614)},
 	} {
 		exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
-		exp[0].Balances.Set(tc.code, accounts.Balance{Total: tc.available + tc.hold, Hold: tc.hold, Free: tc.available, UpdatedAt: tc.updatedAt})
+		exp[0].Balances.Set(tc.code, accounts.Balance{Total: tc.total, Hold: tc.hold, Free: tc.available, UpdatedAt: tc.updatedAt})
 		assert.Equalf(t, exp, wsPush(t, ex, "wsFutures.json", tc.key), "a %s push should be saved as the futures balance", tc.key)
 	}
-	assert.Equal(t, &WsFuturesOrderMargin{OrderMargin: 5923, Currency: currency.USDT, Timestamp: types.Time(time.UnixMilli(1553842862614))}, wsPush(t, ex, "wsFutures.json", "orderMargin"), "an orderMargin.change push should be relayed as it comes")
-	assert.Equal(t, &WsFuturesWithdrawHold{WithdrawHold: 5923, Currency: currency.USDT, Timestamp: types.Time(time.UnixMilli(1553842862614))}, wsPush(t, ex, "wsFutures.json", "withdrawHold"), "a withdrawHold.change push should be relayed as it comes")
+	// The docs' walletBalance.change example
+	docs := []byte(`{"topic":"/contractAccount/wallet","type":"message","subject":"walletBalance.change","id":"67c811885b87be0001a4880e","userId":"633559791e1cbc0001f319bc","channelType":"private","data":{"crossPosMargin":"17.551016","isolatedOrderMargin":"0","holdBalance":"0","equity":"387.224858816","version":"2118","availableBalance":"285.652001096","isolatedPosMargin":"63.98342359","maxWithdrawAmount":"285.645841096","walletBalance":"371.394298816","isolatedFundingFeeMargin":"2.89220199","crossUnPnl":"2.95996","totalCrossMargin":"310.370835226","currency":"USDT","isolatedUnPnl":"12.8706","crossOrderMargin":"10.06002012","timestamp":"1741164936624"}}`)
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, docs), "wsHandleData must not error for the docs' walletBalance.change example")
+	exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	exp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 387.224858816, Hold: 17.551016 + 10.06002012 + 63.98342359, Free: 285.652001096, UpdatedAt: time.UnixMilli(1741164936624)})
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "a walletBalance.change push should be saved with its equity as the total")
+	assert.Equal(t, &WebsocketFuturesOrderMargin{OrderMargin: 5923, Currency: currency.USDT, Timestamp: types.Time(time.UnixMilli(1553842862614))}, wsPush(t, ex, "wsFutures.json", "orderMargin"), "an orderMargin.change push should be relayed as it comes")
+	assert.Equal(t, &WebsocketFuturesWithdrawHold{WithdrawHold: 5923, Currency: currency.USDT, Timestamp: types.Time(time.UnixMilli(1553842862614))}, wsPush(t, ex, "wsFutures.json", "withdrawHold"), "a withdrawHold.change push should be relayed as it comes")
 
-	require.ErrorIs(t, ex.processFuturesWallet(t.Context(), &WsMessage{Topic: futuresAccountBalanceEventChannel, Subject: "bonus.change"}), errUnhandledSubject, "processFuturesWallet must reject an unknown subject")
+	require.ErrorIs(t, ex.processFuturesWallet(t.Context(), &WebsocketMessage{Topic: futuresAccountBalanceEventChannel, Subject: "bonus.change"}), errUnhandledSubject, "processFuturesWallet must reject an unknown subject")
 	for _, subject := range []string{"walletBalance.change", "availableBalance.change"} {
-		require.Errorf(t, ex.processFuturesWallet(t.Context(), &WsMessage{Subject: subject, Data: []byte(`{"currency":[]}`)}), "processFuturesWallet must reject an undecodable %s push", subject)
+		require.Errorf(t, ex.processFuturesWallet(t.Context(), &WebsocketMessage{Subject: subject, Data: []byte(`{"currency":[]}`)}), "processFuturesWallet must reject an undecodable %s push", subject)
 	}
 }
 
 func TestSaveFuturesBalance(t *testing.T) {
 	t.Parallel()
 	ex := accountTestInstance(t)
-	require.NoError(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 3, 1, time.UnixMilli(1741164936624)), "saveFuturesBalance must not error")
+	require.NoError(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 4, 1, 3, time.UnixMilli(1741164936624)), "saveFuturesBalance must not error")
 	exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
 	exp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 4, Hold: 1, Free: 3, UpdatedAt: time.UnixMilli(1741164936624)})
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "saveFuturesBalance should relay the balance it saves")
@@ -730,9 +751,9 @@ func TestSaveFuturesBalance(t *testing.T) {
 	require.NoError(t, err, "GetCredentials must not error")
 	stored, err := ex.Accounts.GetBalance("", creds, asset.Futures, currency.USDT)
 	require.NoError(t, err, "the futures balance must be stored")
-	assert.Equal(t, 4.0, stored.Total, "the stored total should be the available and the held balance")
+	assert.Equal(t, 4.0, stored.Total, "the stored total should be the one saved")
 	ex.Accounts = nil
-	require.ErrorIs(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 3, 1, time.Now()), common.ErrNilPointer, "saveFuturesBalance must return a save error")
+	require.ErrorIs(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 4, 1, 3, time.Now()), common.ErrNilPointer, "saveFuturesBalance must return a save error")
 }
 
 func TestProcessFuturesPosition(t *testing.T) {
@@ -743,7 +764,7 @@ func TestProcessFuturesPosition(t *testing.T) {
 		return
 	}
 	ex := wsTestInstance(t)
-	exp := &WsFuturesPosition{
+	exp := &WebsocketFuturesPosition{
 		Symbol:                       "XBTUSDTM",
 		MaintenanceMarginRequirement: 0.004,
 		RiskLimit:                    50000000,
@@ -787,10 +808,10 @@ func TestProcessFuturesPosition(t *testing.T) {
 		Tax:                          0.0001,
 		DealCommission:               -0.04085652,
 		FundingFee:                   -0.00291083,
-		AggRate:                      0.0046,
+		AggregateRate:                0.0046,
 	}
 	assert.Equal(t, exp, wsPush(t, ex, "wsFutures.json", "positionChange"), "a position.change push should be relayed as it comes")
-	exp = &WsFuturesPosition{
+	exp = &WebsocketFuturesPosition{
 		Symbol:                  "XBTUSDTM",
 		CrossMode:               true,
 		DeleveragePercentage:    0.06,
@@ -821,7 +842,7 @@ func TestProcessFuturesPosition(t *testing.T) {
 		PositionSide:            "BOTH",
 	}
 	assert.Equal(t, exp, wsPush(t, ex, "wsFutures.json", "positionChangeCross"), "a cross margin position.change push should be relayed as it comes")
-	assert.Equal(t, &WsFuturesPositionSettlement{
+	assert.Equal(t, &WebsocketFuturesPositionSettlement{
 		Symbol:         "XBTUSDTM",
 		MarkPrice:      67198.3,
 		Quantity:       -2,
@@ -833,8 +854,8 @@ func TestProcessFuturesPosition(t *testing.T) {
 		FundingRate:    -0.000023,
 		Timestamp:      types.Time(time.Unix(0, 1771488018495030863)),
 	}, wsPush(t, ex, "wsFutures.json", "positionSettlement"), "a position.settlement push should be relayed as it comes")
-	assert.Equal(t, &WsFuturesRiskLimitAdjustment{Message: "Insufficient balance. Cannot increase margin.", Success: true, RiskLimitLevel: 9}, wsPush(t, ex, "wsFutures.json", "positionAdjustRiskLimit"), "a position.adjustRiskLimit push should be relayed as it comes")
-	require.ErrorIs(t, ex.processFuturesPosition(t.Context(), &WsMessage{Topic: futuresPositionAllChannel, Subject: "position.unknown"}), errUnhandledSubject, "processFuturesPosition must reject an unknown subject")
+	assert.Equal(t, &WebsocketFuturesRiskLimitAdjustment{Message: "Insufficient balance. Cannot increase margin.", Success: true, RiskLimitLevel: 9}, wsPush(t, ex, "wsFutures.json", "positionAdjustRiskLimit"), "a position.adjustRiskLimit push should be relayed as it comes")
+	require.ErrorIs(t, ex.processFuturesPosition(t.Context(), &WebsocketMessage{Topic: futuresPositionAllChannel, Subject: "position.unknown"}), errUnhandledSubject, "processFuturesPosition must reject an unknown subject")
 }
 
 func TestProcessFuturesMarginMode(t *testing.T) {
@@ -844,7 +865,7 @@ func TestProcessFuturesMarginMode(t *testing.T) {
 		liveWsSubscribe(t, &subscription.Subscription{Channel: futuresMarginModeChannel, Asset: asset.Futures, Authenticated: true})
 		return
 	}
-	exp := &WsFuturesMarginMode{"XBTUSDTM": "CROSS", "ETHUSDTM": "ISOLATED"}
+	exp := &WebsocketFuturesMarginMode{"XBTUSDTM": "CROSS", "ETHUSDTM": "ISOLATED"}
 	assert.Equal(t, exp, wsPush(t, wsTestInstance(t), "wsFutures.json", "marginMode"), "a Margin Mode push should be relayed as it comes")
 }
 
@@ -855,7 +876,7 @@ func TestProcessFuturesCrossLeverage(t *testing.T) {
 		liveWsSubscribe(t, &subscription.Subscription{Channel: futuresCrossLeverageChannel, Asset: asset.Futures, Authenticated: true})
 		return
 	}
-	exp := &WsFuturesCrossLeverage{"XBTUSDTM": {Leverage: 51}}
+	exp := &WebsocketFuturesCrossLeverage{"XBTUSDTM": {Leverage: 51}}
 	assert.Equal(t, exp, wsPush(t, wsTestInstance(t), "wsFutures.json", "crossLeverage"), "a Cross Margin Leverage push should be relayed as it comes")
 }
 
@@ -873,7 +894,7 @@ func TestProcessFuturesStopOrder(t *testing.T) {
 		Amount:       1,
 		Exchange:     ex.Name,
 		OrderID:      "240673378116083712",
-		Type:         order.Stop,
+		Type:         order.TakeProfit,
 		Side:         order.Buy,
 		Status:       order.Open,
 		AssetType:    asset.Futures,
@@ -883,6 +904,69 @@ func TestProcessFuturesStopOrder(t *testing.T) {
 		Pair:         futuresTestPair,
 	}
 	assert.Equal(t, exp, wsPush(t, ex, "wsFutures.json", "stopOrder"), "processFuturesStopOrder should relay the push as an order update")
+	for _, tc := range []struct {
+		name, orderPrice string
+	}{
+		{name: "without an order price"},
+		{name: "with an empty order price", orderPrice: `"orderPrice":"",`},
+		{name: "with a zero order price", orderPrice: `"orderPrice":"0",`},
+	} {
+		push := `{"marginMode":"ISOLATED","orderId":"240673378116083712",` + tc.orderPrice + `"orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"open","createdAt":1730194206837,"ts":1730194206843133000}`
+		require.NoErrorf(t, ex.processFuturesStopOrder(t.Context(), []byte(push)), "processFuturesStopOrder must not error for a stop order push %s", tc.name)
+		got := *exp
+		got.Price, got.Type = 0, order.TakeProfitMarket
+		assert.Equalf(t, &got, (<-ex.Websocket.DataHandler.C).Data, "processFuturesStopOrder should relay a take profit order push %s as a take profit market order", tc.name)
+	}
+	// The docs' example is a buy triggered as the price falls, a take profit order; an order triggered as the price moves
+	// against its side is a stop order
+	for _, tc := range []struct {
+		name, event, side, stop, orderPrice string
+		oSide                               order.Side
+		price                               float64
+		exp                                 order.Type
+	}{
+		{name: "sell triggered as the price falls, with an order price", event: "open", side: "sell", stop: "down", orderPrice: `"orderPrice":"0.1",`, oSide: order.Sell, price: 0.1, exp: order.StopLimit},
+		{name: "sell triggered as the price falls, without an order price", event: "open", side: "sell", stop: "down", oSide: order.Sell, exp: order.StopMarket},
+		{name: "sell triggered as the price rises, with an order price", event: "open", side: "sell", stop: "up", orderPrice: `"orderPrice":"0.1",`, oSide: order.Sell, price: 0.1, exp: order.TakeProfit},
+		{name: "sell triggered as the price rises, without an order price", event: "open", side: "sell", stop: "up", oSide: order.Sell, exp: order.TakeProfitMarket},
+		{name: "buy triggered as the price rises, with an order price", event: "open", side: "buy", stop: "up", orderPrice: `"orderPrice":"0.1",`, oSide: order.Buy, price: 0.1, exp: order.StopLimit},
+		{name: "buy triggered as the price rises", event: "open", side: "buy", stop: "up", oSide: order.Buy, exp: order.StopMarket},
+		{name: "triggered sell taking profit as the price rises", event: "triggered", side: "sell", stop: "up", orderPrice: `"orderPrice":"0.1",`, oSide: order.Sell, price: 0.1, exp: order.TakeProfit},
+		{name: "cancelled buy taking profit as the price falls", event: "cancel", side: "buy", stop: "down", oSide: order.Buy, exp: order.TakeProfitMarket},
+	} {
+		push := `{"marginMode":"ISOLATED","orderId":"240673378116083712",` + tc.orderPrice + `"orderType":"stop","side":"` + tc.side + `","size":1,"stop":"` + tc.stop + `","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"` + tc.event + `","createdAt":1730194206837,"ts":1730194206843133000}`
+		require.NoErrorf(t, ex.processFuturesStopOrder(t.Context(), []byte(push)), "processFuturesStopOrder must not error for a %s", tc.name)
+		got, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+		require.Truef(t, ok, "processFuturesStopOrder must relay an order detail for a %s", tc.name)
+		assert.Equalf(t, tc.exp, got.Type, "processFuturesStopOrder should relay a %s as a %s order", tc.name, tc.exp)
+		assert.Equalf(t, tc.oSide, got.Side, "processFuturesStopOrder should relay a %s with its side", tc.name)
+		assert.Equalf(t, tc.price, got.Price, "processFuturesStopOrder should relay a %s with its order price", tc.name)
+	}
+	for _, tc := range []struct {
+		name       string
+		push       string
+		side       order.Side
+		status     order.Status
+		marginType margin.Type
+	}{
+		{name: "triggered isolated margin stop order", push: `{"marginMode":"ISOLATED","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Buy, status: order.Open, marginType: margin.Isolated},
+		{name: "triggered cross margin stop order", push: `{"marginMode":"CROSS","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Buy, status: order.Open, marginType: margin.Multi},
+		{name: "triggered stop order without a margin mode", push: `{"orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Buy, status: order.Open, marginType: margin.Unset},
+		{name: "cancelled isolated margin stop order", push: `{"marginMode":"ISOLATED","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"cancel","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Buy, status: order.Cancelled, marginType: margin.Isolated},
+		{name: "triggered sell stop order", push: `{"marginMode":"ISOLATED","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"sell","size":1,"stop":"up","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Sell, status: order.Open, marginType: margin.Isolated},
+		{name: "triggered sell stop loss order", push: `{"marginMode":"ISOLATED","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"sell","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Sell, status: order.Open, marginType: margin.Isolated},
+		{name: "triggered cross margin sell stop order", push: `{"marginMode":"CROSS","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"sell","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Sell, status: order.Open, marginType: margin.Multi},
+		{name: "triggered sell stop order without a margin mode", push: `{"orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"sell","size":1,"stop":"up","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Sell, status: order.Open, marginType: margin.Unset},
+		{name: "triggered market stop order", push: `{"marginMode":"ISOLATED","orderId":"240673378116083712","orderType":"stop","side":"buy","size":1,"stop":"down","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"triggered","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Buy, status: order.Open, marginType: margin.Isolated},
+		{name: "cancelled sell stop order", push: `{"marginMode":"CROSS","orderId":"240673378116083712","orderPrice":"0.1","orderType":"stop","side":"sell","size":1,"stop":"up","stopPrice":"1000","stopPriceType":"TP","symbol":"XBTUSDTM","type":"cancel","createdAt":1730194206837,"ts":1730194206843133000}`, side: order.Sell, status: order.Cancelled, marginType: margin.Multi},
+	} {
+		require.NoErrorf(t, ex.processFuturesStopOrder(t.Context(), []byte(tc.push)), "processFuturesStopOrder must not error for a %s", tc.name)
+		got, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+		require.Truef(t, ok, "processFuturesStopOrder must relay an order detail for a %s", tc.name)
+		assert.Equalf(t, tc.status, got.Status, "processFuturesStopOrder should relay a %s with status %s", tc.name, tc.status)
+		assert.Equalf(t, tc.side, got.Side, "processFuturesStopOrder should relay a %s with its side", tc.name)
+		assert.Equalf(t, tc.marginType, got.MarginType, "processFuturesStopOrder should relay a %s with its margin type", tc.name)
+	}
 
 	require.Error(t, ex.processFuturesStopOrder(t.Context(), []byte(`{"size":-1}`)), "processFuturesStopOrder must reject an undecodable push")
 	require.ErrorIs(t, ex.processFuturesStopOrder(t.Context(), []byte(`{"symbol":"NOTACONTRACT"}`)), currency.ErrPairNotFound, "processFuturesStopOrder must reject an unknown contract")

@@ -9,8 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// LendingCurrencyInfo is a currency's margin lending market configuration
-type LendingCurrencyInfo struct {
+// LendingCurrencyInfoResponse is a currency's margin lending market configuration
+type LendingCurrencyInfoResponse struct {
 	Currency       currency.Code `json:"currency"`
 	PurchaseEnable bool          `json:"purchaseEnable"`
 	RedeemEnable   bool          `json:"redeemEnable"`
@@ -25,8 +25,8 @@ type LendingCurrencyInfo struct {
 	AutoPurchaseEnable bool         `json:"autoPurchaseEnable"`
 }
 
-// LoanMarketInterestRate is the margin lending market's interest rate for an hour
-type LoanMarketInterestRate struct {
+// LoanMarketInterestRateResponse is the margin lending market's interest rate for an hour
+type LoanMarketInterestRateResponse struct {
 	Time               LoanMarketInterestRateTime `json:"time"`
 	MarketInterestRate types.Number               `json:"marketInterestRate"`
 }
@@ -34,6 +34,9 @@ type LoanMarketInterestRate struct {
 // LoanMarketInterestRateTime is the start of the hour a loan market interest rate applies to, which KuCoin sends as
 // YYYYMMDDHH00 in UTC+8
 type LoanMarketInterestRateTime time.Time
+
+// loanMarketInterestRateZone is the zone KuCoin sends loan market interest rate times in
+var loanMarketInterestRateZone = time.FixedZone("UTC+8", 8*60*60)
 
 // UnmarshalJSON decodes a YYYYMMDDHH00 time in UTC+8 into UTC
 func (t *LoanMarketInterestRateTime) UnmarshalJSON(data []byte) error {
@@ -45,12 +48,20 @@ func (t *LoanMarketInterestRateTime) UnmarshalJSON(data []byte) error {
 		*t = LoanMarketInterestRateTime{}
 		return nil
 	}
-	tm, err := time.ParseInLocation("200601021504", s, time.FixedZone("UTC+8", 8*60*60))
+	tm, err := time.ParseInLocation("200601021504", s, loanMarketInterestRateZone)
 	if err != nil {
 		return fmt.Errorf("%w %q: %w", errInvalidLoanMarketInterestRateTime, s, err)
 	}
 	*t = LoanMarketInterestRateTime(tm.UTC())
 	return nil
+}
+
+// MarshalJSON encodes the time as KuCoin sends it, YYYYMMDDHH00 in UTC+8, and the zero time as an empty string
+func (t LoanMarketInterestRateTime) MarshalJSON() ([]byte, error) {
+	if time.Time(t).IsZero() {
+		return []byte(`""`), nil
+	}
+	return []byte(`"` + time.Time(t).In(loanMarketInterestRateZone).Format("200601021504") + `"`), nil
 }
 
 // Time returns the time as a time.Time

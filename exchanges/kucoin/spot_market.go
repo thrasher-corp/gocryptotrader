@@ -111,19 +111,19 @@ func (e *Exchange) GetTickers(ctx context.Context) (*TickersResponse, error) {
 }
 
 // GetTradeHistory returns a symbol's last 100 trades (Get Trade History)
-func (e *Exchange) GetTradeHistory(ctx context.Context, symbol string) ([]Trade, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, symbol string) ([]TradeResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []Trade
+	var resp []TradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradeHistoryEPL, common.EncodeURLValues("/v1/market/histories", params), &resp)
 }
 
 // GetKlines returns at most 1500 of a symbol's candles, newest first; intervals without trades have no candle (Get
 // Klines)
-func (e *Exchange) GetKlines(ctx context.Context, req *KlinesRequest) ([]Kline, error) {
+func (e *Exchange) GetKlines(ctx context.Context, req *KlinesRequest) ([]KlineResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (e *Exchange) GetKlines(ctx context.Context, req *KlinesRequest) ([]Kline, 
 	if !req.EndAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(req.EndAt.Unix(), 10))
 	}
-	var resp []Kline
+	var resp []KlineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getKlinesEPL, common.EncodeURLValues("/v1/market/candles", params), &resp)
 }
 
@@ -158,6 +158,9 @@ func (e *Exchange) GetPartOrderbook(ctx context.Context, symbol string, size uin
 	}
 	if size == 0 {
 		return nil, errOrderbookSizeRequired
+	}
+	if size != 20 && size != 100 {
+		return nil, fmt.Errorf("%w, not %d", errInvalidOrderbookSize, size)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -197,6 +200,9 @@ func (e *Exchange) GetCallAuctionPartOrderbook(ctx context.Context, symbol strin
 	}
 	if size == 0 {
 		return nil, errOrderbookSizeRequired
+	}
+	if size != 20 && size != 100 {
+		return nil, fmt.Errorf("%w, not %d", errInvalidOrderbookSize, size)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -272,7 +278,7 @@ func (e *Exchange) GetServiceStatus(ctx context.Context) (*ServiceStatusResponse
 }
 
 // GetKYCRegions returns the regions users can verify their identity in (Get KYC Regions)
-func (e *Exchange) GetKYCRegions(ctx context.Context) ([]KYCRegion, error) {
-	var resp []KYCRegion
+func (e *Exchange) GetKYCRegions(ctx context.Context) ([]KYCRegionResponse, error) {
+	var resp []KYCRegionResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getKYCRegionsEPL, "/kyc/regions/v4", &resp)
 }

@@ -795,6 +795,7 @@ func TestGetUTAOrderbook(t *testing.T) {
 					Size:  12,
 				},
 			},
+			Timestamp: types.Time(time.Unix(0, 1768802285598000000)),
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1032,12 +1033,12 @@ func TestGetUTAPositionTiers(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *UTAPositionTiersRequest
-		exp  []UTAPositionTier
+		exp  []UTAPositionTierResponse
 	}{
 		{
 			name: "futures risk limit",
 			req:  &UTAPositionTiersRequest{TradeType: "FUTURES", MarginMode: "CROSS", Data: "RISK_LIMIT", AccountType: "UNIFIED", Symbols: []string{"XBTUSDTM"}},
-			exp: []UTAPositionTier{
+			exp: []UTAPositionTierResponse{
 				{
 					Symbol:             "XBTUSDTM",
 					Tier:               1,
@@ -1061,7 +1062,7 @@ func TestGetUTAPositionTiers(t *testing.T) {
 		{
 			name: "margin borrow",
 			req:  &UTAPositionTiersRequest{TradeType: "MARGIN", Currencies: []currency.Code{currency.BTC}, MarginMode: "CROSS", Data: "BORROW", AccountType: "UNIFIED"},
-			exp: []UTAPositionTier{
+			exp: []UTAPositionTierResponse{
 				{
 					Currency:           currency.BTC,
 					Tier:               1,
@@ -1098,7 +1099,7 @@ func TestGetUTACollateralRatio(t *testing.T) {
 	result, err := e.GetUTACollateralRatio(t.Context())
 	require.NoError(t, err, "GetUTACollateralRatio must not error")
 	if mockTests {
-		exp := []UTACollateralRatio{
+		exp := []UTACollateralRatioResponse{
 			{
 				Currency: currency.USDT,
 				CDRConfigurations: []UTACollateralRatioTier{
@@ -1147,7 +1148,7 @@ func TestGetUTABorrowableCurrencies(t *testing.T) {
 	result, err := e.GetUTABorrowableCurrencies(t.Context())
 	require.NoError(t, err, "GetUTABorrowableCurrencies must not error")
 	if mockTests {
-		exp := []UTABorrowableCurrency{
+		exp := []UTABorrowableCurrencyResponse{
 			{
 				Currency: currency.USDC,
 			},
@@ -1168,9 +1169,9 @@ func TestGetUTACurrentFundingRate(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name, symbol, productType string
-		exp                       []UTACurrentFundingRate
+		exp                       []UTACurrentFundingRateResponse
 	}{
-		{name: "symbol", symbol: "XBTUSDTM", exp: []UTACurrentFundingRate{
+		{name: "symbol", symbol: "XBTUSDTM", exp: []UTACurrentFundingRateResponse{
 			{
 				Symbol:                  "XBTUSDTM",
 				NextFundingRate:         0.000053,
@@ -1182,7 +1183,7 @@ func TestGetUTACurrentFundingRate(t *testing.T) {
 				NewGranularityStartTime: types.Time(time.Unix(1750147200, 0)),
 			},
 		}},
-		{name: "product type", productType: "COIN-FUTURES", exp: []UTACurrentFundingRate{
+		{name: "product type", productType: "COIN-FUTURES", exp: []UTACurrentFundingRateResponse{
 			{
 				Symbol:                  "XBTUSDM",
 				NextFundingRate:         -0.000624,
@@ -1265,9 +1266,9 @@ func TestGetUTAFuturesOpenInterest(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *UTAFuturesOpenInterestRequest
-		exp  []UTAFuturesOpenInterest
+		exp  []UTAFuturesOpenInterestResponse
 	}{
-		{name: "real time", req: &UTAFuturesOpenInterestRequest{Symbols: []string{"XBTUSDTM", "ETHUSDTM"}}, exp: []UTAFuturesOpenInterest{
+		{name: "real time", req: &UTAFuturesOpenInterestRequest{Symbols: []string{"XBTUSDTM", "ETHUSDTM"}}, exp: []UTAFuturesOpenInterestResponse{
 			{
 				Symbol:       "ETHUSDTM",
 				OpenInterest: 15305501,
@@ -1279,7 +1280,7 @@ func TestGetUTAFuturesOpenInterest(t *testing.T) {
 				Timestamp:    types.Time(time.UnixMilli(1791898386440)),
 			},
 		}},
-		{name: "historic", req: &UTAFuturesOpenInterestRequest{Symbols: []string{"XBTUSDTM"}, Interval: "1day", PageSize: 2}, exp: []UTAFuturesOpenInterest{
+		{name: "historic", req: &UTAFuturesOpenInterestRequest{Symbols: []string{"XBTUSDTM"}, Interval: "1day", PageSize: 2}, exp: []UTAFuturesOpenInterestResponse{
 			{
 				OpenInterest: 10045949,
 				Timestamp:    types.Time(time.Unix(1791849600, 0)),
@@ -1435,16 +1436,16 @@ func TestGetUTAThirdPartyCustodyCurrencies(t *testing.T) {
 		name      string
 		custodian string
 		ccy       currency.Code
-		exp       []UTAThirdPartyCustodyCurrency
+		exp       []UTAThirdPartyCustodyCurrencyResponse
 	}{
-		{name: "one currency", custodian: "BITGO_SG", ccy: currency.BTC, exp: []UTAThirdPartyCustodyCurrency{
+		{name: "one currency", custodian: "BITGO_SG", ccy: currency.BTC, exp: []UTAThirdPartyCustodyCurrencyResponse{
 			{
 				Custodian: "BITGO_SG",
 				Currency:  currency.BTC,
 				Precision: 8,
 			},
 		}},
-		{name: "every custodian", exp: []UTAThirdPartyCustodyCurrency{
+		{name: "every custodian", exp: []UTAThirdPartyCustodyCurrencyResponse{
 			{
 				Custodian: "BITGO_SG",
 				Currency:  currency.NewCode("XAUT"),
@@ -1508,7 +1509,7 @@ func TestGetUTAKYCRegions(t *testing.T) {
 	result, err := e.GetUTAKYCRegions(t.Context())
 	require.NoError(t, err, "GetUTAKYCRegions must not error")
 	if mockTests {
-		exp := []UTAKYCRegion{
+		exp := []UTAKYCRegionResponse{
 			{
 				Code:        "AD",
 				EnglishName: "Andorra",

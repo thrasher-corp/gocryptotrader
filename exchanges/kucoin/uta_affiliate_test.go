@@ -191,24 +191,24 @@ func TestGetUTAAffiliateTradeHistory(t *testing.T) {
 		TotalPage:   1,
 		Items: []UTAAffiliateTrade{
 			{
-				TradeTime:     types.Time(time.Unix(1788560532, 0)),
-				TradeType:     "SPOT",
-				TradeCurrency: currency.NewCode("TRUMP"),
-				TradeAmount:   0.62,
-				TradeAmountU:  4.96,
-				FeeU:          0.01,
-				Commission:    0.0029,
-				Currency:      currency.USDT,
+				TradeTime:            types.Time(time.Unix(1788560532, 0)),
+				TradeType:            "SPOT",
+				TradeCurrency:        currency.NewCode("TRUMP"),
+				TradeAmount:          0.62,
+				ConvertedTradeAmount: 4.96,
+				ConvertedFee:         0.01,
+				Commission:           0.0029,
+				Currency:             currency.USDT,
 			},
 			{
-				TradeTime:     types.Time(time.Unix(1788604768, 0)),
-				TradeType:     "SPOT",
-				TradeCurrency: currency.DOGE,
-				TradeAmount:   10,
-				TradeAmountU:  1.98,
-				FeeU:          0.002,
-				Commission:    0.0006,
-				Currency:      currency.USDT,
+				TradeTime:            types.Time(time.Unix(1788604768, 0)),
+				TradeType:            "SPOT",
+				TradeCurrency:        currency.DOGE,
+				TradeAmount:          10,
+				ConvertedTradeAmount: 1.98,
+				ConvertedFee:         0.002,
+				Commission:           0.0006,
+				Currency:             currency.USDT,
 			},
 		},
 	}
@@ -251,18 +251,18 @@ func TestGetUTAAffiliateTransactions(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	exp := []UTAAffiliateTransaction{
+	exp := []UTAAffiliateTransactionResponse{
 		{
-			UID:           "100000001",
-			TradeTime:     types.Time(time.Unix(1788516800, 0)),
-			TradeType:     "SPOT",
-			TradeCurrency: currency.BTC,
-			TradeAmount:   0.1,
-			TradeAmountU:  8350,
-			FeeU:          8.35,
-			Commission:    2.42,
-			Currency:      currency.USDT,
-			LastID:        "6498040334d4050001b0aa7c",
+			UID:                  "100000001",
+			TradeTime:            types.Time(time.Unix(1788516800, 0)),
+			TradeType:            "SPOT",
+			TradeCurrency:        currency.BTC,
+			TradeAmount:          0.1,
+			ConvertedTradeAmount: 8350,
+			ConvertedFee:         8.35,
+			Commission:           2.42,
+			Currency:             currency.USDT,
+			LastID:               "6498040334d4050001b0aa7c",
 		},
 	}
 	for _, tc := range []struct {
@@ -303,7 +303,7 @@ func TestGetUTAAffiliateKumining(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	exp := []UTAAffiliateKumining{
+	exp := []UTAAffiliateKuminingResponse{
 		{
 			UID:       "100000001",
 			PayTime:   types.Time(time.Unix(1788846542, 0)),

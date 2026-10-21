@@ -180,6 +180,12 @@ func TestUTAWithdraw(t *testing.T) {
 	_, err = e.UTAWithdraw(t.Context(), &UTAWithdrawRequest{Currency: currency.USDT, Amount: 3, ToAddress: "test@example.com"})
 	require.ErrorIs(t, err, errWithdrawTypeRequired, "UTAWithdraw must reject an empty withdraw type")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.UTAWithdraw(t.Context(), &UTAWithdrawRequest{Currency: currency.USDT, Amount: 3, ToAddress: "test@example.com", IsInner: true, WithdrawType: "MAIL"})
+		return err
+	})
+	assert.JSONEq(t, `{"currency":"USDT","amount":"3","toAddress":"test@example.com","isInner":true,"withdrawType":"MAIL"}`, sent.body, "UTAWithdraw should send the amount as a string and the internal flag as a boolean, as KuCoin documents")
+
 	if !mockTests {
 		t.Skip("UTAWithdraw sends funds out of the account, so it runs against the mock only")
 	}

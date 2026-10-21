@@ -33,8 +33,8 @@ type CrossMarginSymbol struct {
 	MinFunds       types.Number `json:"minFunds"`
 }
 
-// IsolatedMarginSymbol is an isolated margin symbol's configuration
-type IsolatedMarginSymbol struct {
+// IsolatedMarginSymbolResponse is an isolated margin symbol's configuration
+type IsolatedMarginSymbolResponse struct {
 	Symbol        string        `json:"symbol"`
 	SymbolName    string        `json:"symbolName"`
 	BaseCurrency  currency.Code `json:"baseCurrency"`
@@ -54,10 +54,7 @@ type IsolatedMarginSymbol struct {
 }
 
 // MarginMarkPriceResponse is a margin symbol's current mark price
-type MarginMarkPriceResponse MarginMarkPrice
-
-// MarginMarkPrice is a margin symbol's current mark price
-type MarginMarkPrice struct {
+type MarginMarkPriceResponse struct {
 	Symbol string `json:"symbol"`
 	// Granularity is the mark price's update interval in milliseconds; KuCoin sends it although the docs omit it
 	Granularity uint64     `json:"granularity"`
@@ -75,8 +72,8 @@ type MarginConfigurationResponse struct {
 	LiquidationDebtRatio types.Number `json:"liqDebtRatio"`
 }
 
-// MarginCollateralRatio holds the collateral ratio tiers shared by a group of currencies
-type MarginCollateralRatio struct {
+// MarginCollateralRatioResponse holds the collateral ratio tiers shared by a group of currencies
+type MarginCollateralRatioResponse struct {
 	CurrencyList []currency.Code             `json:"currencyList"`
 	Items        []MarginCollateralRatioItem `json:"items"`
 }
@@ -88,8 +85,8 @@ type MarginCollateralRatioItem struct {
 	CollateralRatio types.Number `json:"collateralRatio"`
 }
 
-// MarketAvailableInventory is the amount of a currency the platform has available to lend
-type MarketAvailableInventory struct {
+// MarketAvailableInventoryResponse is the amount of a currency the platform has available to lend
+type MarketAvailableInventoryResponse struct {
 	Currency         currency.Code `json:"currency"`
 	BorrowableAmount types.Number  `json:"borrowableAmount"`
 }

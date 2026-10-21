@@ -28,7 +28,7 @@ var (
 // processFuturesTickerV2 merges a Ticker V2 push onto the stored ticker. Ticker V2 carries only the best bid and ask,
 // and the ticker's other fields come from its companion topics
 func (e *Exchange) processFuturesTickerV2(ctx context.Context, data []byte) error {
-	var resp WsFuturesTickerV2
+	var resp WebsocketFuturesTickerV2
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, data []byte) erro
 // processFuturesTickerV1 merges the last fill of a Ticker V1 push onto the stored ticker. Its best bid and ask are
 // those at the fill and often older than Ticker V2's, so they are left to Ticker V2
 func (e *Exchange) processFuturesTickerV1(ctx context.Context, data []byte) error {
-	var resp WsFuturesTickerV1
+	var resp WebsocketFuturesTickerV1
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (e *Exchange) processFuturesTickerV1(ctx context.Context, data []byte) erro
 // processFuturesSnapshot merges the 24 hour statistics of a Symbol Snapshot push onto the stored ticker. Its last price
 // is up to 5 seconds old, so the last price is left to Ticker V1
 func (e *Exchange) processFuturesSnapshot(ctx context.Context, data []byte) error {
-	var resp WsFuturesSnapshot
+	var resp WebsocketFuturesSnapshot
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func isInverseContract(pair currency.Pair) bool {
 
 // processFuturesOrderbookSnapshot loads a futures Orderbook - Level 5 or Level 50 push
 func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, data []byte, symbol string) error {
-	var resp WsFuturesOrderbookDepth
+	var resp WebsocketFuturesOrderbookDepth
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, data []b
 	}
 	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 		Exchange:     e.Name,
-		LastUpdateID: resp.Sequence,
+		LastUpdateID: orderbookUpdateID(resp.Sequence),
 		LastUpdated:  resp.Timestamp.Time(),
 		LastPushed:   resp.PushTimestamp.Time(),
 		Asset:        asset.Futures,
@@ -123,7 +123,7 @@ func (e *Exchange) processFuturesOrderbookIncrement(ctx context.Context, data []
 	if err != nil {
 		return err
 	}
-	var resp WsFuturesOrderbookIncrement
+	var resp WebsocketFuturesOrderbookIncrement
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -139,19 +139,20 @@ func (e *Exchange) processFuturesOrderbookIncrement(ctx context.Context, data []
 	if err != nil {
 		return fmt.Errorf("%w: size %q: %w", errMalformedOrderbookChange, resp.Change, err)
 	}
+	sequence := orderbookUpdateID(resp.Sequence)
 	var bids, asks []orderbook.Level
 	switch parts[1] {
 	case "buy":
-		bids = []orderbook.Level{{Price: price, Amount: amount, ID: resp.Sequence}}
+		bids = []orderbook.Level{{Price: price, Amount: amount, ID: sequence}}
 	case "sell":
-		asks = []orderbook.Level{{Price: price, Amount: amount, ID: resp.Sequence}}
+		asks = []orderbook.Level{{Price: price, Amount: amount, ID: sequence}}
 	default:
 		return fmt.Errorf("%w: side %q", errMalformedOrderbookChange, resp.Change)
 	}
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Sequence, &orderbook.Update{
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, sequence, &orderbook.Update{
 		UpdateTime: resp.Timestamp.Time(),
 		LastPushed: resp.Timestamp.Time(),
-		UpdateID:   resp.Sequence,
+		UpdateID:   sequence,
 		Pair:       pair,
 		Asset:      asset.Futures,
 		Asks:       asks,
@@ -175,7 +176,7 @@ func (e *Exchange) processFuturesKline(ctx context.Context, data []byte, symbolA
 	if err != nil {
 		return err
 	}
-	var resp WsCandlestick
+	var resp WebsocketCandlestick
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -197,7 +198,7 @@ func (e *Exchange) processFuturesKline(ctx context.Context, data []byte, symbolA
 
 // processFuturesExecution saves a futures Trade push
 func (e *Exchange) processFuturesExecution(data []byte) error {
-	var resp WsFuturesExecution
+	var resp WebsocketFuturesExecution
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -226,13 +227,13 @@ func (e *Exchange) processFuturesExecution(data []byte) error {
 }
 
 // processFuturesInstrument relays an Instrument push, naming the symbol from the topic as the push does not carry it
-func (e *Exchange) processFuturesInstrument(ctx context.Context, msg *WsMessage, symbol string) error {
+func (e *Exchange) processFuturesInstrument(ctx context.Context, msg *WebsocketMessage, symbol string) error {
 	var resp any
 	switch msg.Subject {
 	case "mark.index.price":
-		resp = &WsFuturesMarkIndexPrice{Symbol: symbol}
+		resp = &WebsocketFuturesMarkIndexPrice{Symbol: symbol}
 	case "funding.rate":
-		resp = &WsFuturesFundingRate{Symbol: symbol}
+		resp = &WebsocketFuturesFundingRate{Symbol: symbol}
 	default:
 		return unhandledSubject(msg)
 	}
@@ -243,19 +244,19 @@ func (e *Exchange) processFuturesInstrument(ctx context.Context, msg *WsMessage,
 }
 
 // processFuturesAnnouncement relays a Funding Fee Settlement push
-func (e *Exchange) processFuturesAnnouncement(ctx context.Context, msg *WsMessage) error {
+func (e *Exchange) processFuturesAnnouncement(ctx context.Context, msg *WebsocketMessage) error {
 	switch msg.Subject {
 	case "funding.begin":
-		return processPayload[WsFuturesFundingBegin](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesFundingBegin](ctx, e, msg.Data)
 	case "funding.end":
-		return processPayload[WsFuturesFundingEnd](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesFundingEnd](ctx, e, msg.Data)
 	}
 	return unhandledSubject(msg)
 }
 
 // processFuturesOrderChange relays a futures Orders push as an order update
 func (e *Exchange) processFuturesOrderChange(ctx context.Context, data []byte) error {
-	var resp WsFuturesOrderChange
+	var resp WebsocketFuturesOrderChange
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -263,9 +264,12 @@ func (e *Exchange) processFuturesOrderChange(ctx context.Context, data []byte) e
 	if err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
+	// The open push of an order resting on the book carries no order type, so the order keeps the type it was given
+	oType := order.UnknownType
+	if resp.OrderType != "" {
+		if oType, err = order.StringToOrderType(resp.OrderType); err != nil {
+			return err
+		}
 	}
 	side, err := order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -326,34 +330,36 @@ func futuresMarginType(marginMode string) (margin.Type, error) {
 
 // processFuturesWallet saves the balance of a futures Balance push and relays it. The order margin and withdrawal hold
 // subjects, deprecated once an account first switches margin mode, are relayed as they come
-func (e *Exchange) processFuturesWallet(ctx context.Context, msg *WsMessage) error {
+func (e *Exchange) processFuturesWallet(ctx context.Context, msg *WebsocketMessage) error {
 	switch msg.Subject {
 	case "walletBalance.change":
-		var resp WsFuturesWalletBalance
+		var resp WebsocketFuturesWalletBalance
 		if err := json.Unmarshal(msg.Data, &resp); err != nil {
 			return err
 		}
-		return e.saveFuturesBalance(ctx, resp.Currency, resp.AvailableBalance.Float64(), resp.HoldBalance.Float64(), resp.Timestamp.Time())
+		// As REST saves it: the total is the equity, and the hold the position and order margins with the frozen balance
+		hold := resp.CrossPositionMargin.Float64() + resp.CrossOrderMargin.Float64() + resp.IsolatedPositionMargin.Float64() + resp.IsolatedOrderMargin.Float64() + resp.HoldBalance.Float64()
+		return e.saveFuturesBalance(ctx, resp.Currency, resp.Equity.Float64(), hold, resp.AvailableBalance.Float64(), resp.Timestamp.Time())
 	case "availableBalance.change":
-		var resp WsFuturesAvailableBalance
+		var resp WebsocketFuturesAvailableBalance
 		if err := json.Unmarshal(msg.Data, &resp); err != nil {
 			return err
 		}
-		return e.saveFuturesBalance(ctx, resp.Currency, resp.AvailableBalance, resp.HoldBalance, resp.Timestamp.Time())
+		// This subject's hold balance is the position margin, order margin and frozen funds together
+		return e.saveFuturesBalance(ctx, resp.Currency, resp.AvailableBalance+resp.HoldBalance, resp.HoldBalance, resp.AvailableBalance, resp.Timestamp.Time())
 	case "orderMargin.change":
-		return processPayload[WsFuturesOrderMargin](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesOrderMargin](ctx, e, msg.Data)
 	case "withdrawHold.change":
-		return processPayload[WsFuturesWithdrawHold](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesWithdrawHold](ctx, e, msg.Data)
 	}
 	return unhandledSubject(msg)
 }
 
-// saveFuturesBalance saves and relays a futures balance the way the REST balances store it: the total is the
-// available and the held balance
-func (e *Exchange) saveFuturesBalance(ctx context.Context, code currency.Code, available, hold float64, updatedAt time.Time) error {
+// saveFuturesBalance saves and relays a futures balance
+func (e *Exchange) saveFuturesBalance(ctx context.Context, code currency.Code, total, hold, available float64, updatedAt time.Time) error {
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
 	subAccts[0].Balances.Set(code, accounts.Balance{
-		Total:     available + hold,
+		Total:     total,
 		Hold:      hold,
 		Free:      available,
 		UpdatedAt: updatedAt,
@@ -365,21 +371,21 @@ func (e *Exchange) saveFuturesBalance(ctx context.Context, code currency.Code, a
 }
 
 // processFuturesPosition relays a Positions push
-func (e *Exchange) processFuturesPosition(ctx context.Context, msg *WsMessage) error {
+func (e *Exchange) processFuturesPosition(ctx context.Context, msg *WebsocketMessage) error {
 	switch msg.Subject {
 	case "position.change":
-		return processPayload[WsFuturesPosition](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesPosition](ctx, e, msg.Data)
 	case "position.settlement":
-		return processPayload[WsFuturesPositionSettlement](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesPositionSettlement](ctx, e, msg.Data)
 	case "position.adjustRiskLimit":
-		return processPayload[WsFuturesRiskLimitAdjustment](ctx, e, msg.Data)
+		return processPayload[WebsocketFuturesRiskLimitAdjustment](ctx, e, msg.Data)
 	}
 	return unhandledSubject(msg)
 }
 
 // processFuturesStopOrder relays a futures Stop Orders push as an order update
 func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) error {
-	var resp WsFuturesStopOrder
+	var resp WebsocketFuturesStopOrder
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -387,7 +393,7 @@ func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) err
 	if err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
+	oType, err := stopPushOrderType(resp.OrderType, resp.OrderPrice.Float64())
 	if err != nil {
 		return err
 	}
@@ -395,9 +401,14 @@ func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) err
 	if err != nil {
 		return err
 	}
+	oType = takeProfitType(oType, resp.Stop, side)
 	status, err := stopOrderStatus(resp.Type)
 	if err != nil {
 		return err
+	}
+	if resp.Type == "triggered" {
+		// A triggered futures stop order stays live under its order ID, and the Orders topic follows it from then on
+		status = order.Open
 	}
 	marginType, err := futuresMarginType(resp.MarginMode)
 	if err != nil {

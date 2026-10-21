@@ -4,14 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"maps"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -163,11 +169,11 @@ type ConnectionFixture struct {
 	messageResponse string
 	messageError    error
 	sendFn          func(any) ([]byte, error)
-	sentRequests    []WsSubscriptionMessage
+	sentRequests    []WebsocketSubscriptionRequest
 }
 
 func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
-	if input, ok := req.(*WsSubscriptionMessage); ok {
+	if input, ok := req.(*WebsocketSubscriptionRequest); ok {
 		c.sentRequests = append(c.sentRequests, *input)
 	}
 	if c.messageError != nil {
@@ -377,6 +383,7 @@ func TestNewSpotConnectionSetup(t *testing.T) {
 	s := e.newSpotConnectionSetup(exch, "wss://ws-api-spot.kucoin.com/")
 	assert.Equal(t, "wss://ws-api-spot.kucoin.com/", s.URL, "URL should be the configured spot URL")
 	assert.Equal(t, spotConnection, s.MessageFilter, "MessageFilter should name the spot connection")
+	assert.False(t, s.Optional, "the spot connection should be required, so its failure is the connect's")
 	assert.Equal(t, time.Second, s.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, 2*time.Second, s.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.NotNil(t, s.RateLimit, "RateLimit should be set")
@@ -393,6 +400,7 @@ func TestNewFuturesConnectionSetup(t *testing.T) {
 	s := e.newFuturesConnectionSetup(exch, kucoinFuturesWebsocketURL)
 	assert.Equal(t, kucoinFuturesWebsocketURL, s.URL, "URL should be the futures URL")
 	assert.Equal(t, futuresConnection, s.MessageFilter, "MessageFilter should name the futures connection")
+	assert.True(t, s.Optional, "the futures connection should be optional, so its failure leaves spot up")
 	assert.Equal(t, time.Second, s.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, 2*time.Second, s.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.NotNil(t, s.RateLimit, "RateLimit should be set")
@@ -403,6 +411,118 @@ func TestNewFuturesConnectionSetup(t *testing.T) {
 	assert.NotNil(t, s.Handler, "Handler should be set")
 }
 
+// newClassicWebsocketServer serves KuCoin's public token endpoints and the Classic websocket they name on loopback, for
+// a spot REST host at /spot/api and a futures one at /futures/api. The websocket welcomes each connection and
+// acknowledges each subscription; a token endpoint, or the order API at /order, answers with its given status instead
+func newClassicWebsocketServer(t *testing.T, spotStatus, futuresStatus int) *httptest.Server {
+	t.Helper()
+	upgrader := gws.Upgrader{}
+	// The token names the server's own websocket, which is known once the server starts
+	var endpoint atomic.Pointer[string]
+	token := func(status int) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) {
+			if status != http.StatusOK {
+				http.Error(w, http.StatusText(status), status)
+				return
+			}
+			_, err := io.WriteString(w, `{"code":"200000","data":{"token":"test-token","instanceServers":[{"endpoint":"`+*endpoint.Load()+`","protocol":"websocket","pingInterval":18000,"pingTimeout":10000}]}}`)
+			assert.NoError(t, err, "writing the token should not error")
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /spot/api/v1/bullet-public", token(spotStatus))
+	mux.HandleFunc("POST /futures/api/v1/bullet-public", token(futuresStatus))
+	mux.HandleFunc("/order", func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+	})
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if !assert.NoError(t, err, "Upgrade should not error") {
+			return
+		}
+		defer c.Close()
+		if err := c.WriteMessage(gws.TextMessage, []byte(`{"id":"`+r.URL.Query().Get("connectId")+`","type":"welcome"}`)); err != nil {
+			return
+		}
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			var req WebsocketSubscriptionRequest
+			if !assert.NoError(t, json.Unmarshal(data, &req), "a client message should decode") {
+				return
+			}
+			if req.Type == "subscribe" || req.Type == "unsubscribe" {
+				if err := c.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","type":"ack"}`)); err != nil {
+					return
+				}
+			}
+		}
+	})
+	s := httptest.NewTestServer(t, mux)
+	s.Start()
+	wsURL := "ws" + strings.TrimPrefix(s.URL, "http") + "/ws"
+	endpoint.Store(&wsURL)
+	return s
+}
+
+// TestOptionalConnectionsLeaveSpotUp connects the Classic spot, Classic futures and order API setups through the
+// websocket manager against a local KuCoin: the futures and order API connections are optional, so their failures leave
+// the spot connection up, while the spot connection is required, so its failure is the connect's
+func TestOptionalConnectionsLeaveSpotUp(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                    string
+		spotStatus, futuresCode int
+		spotUp                  bool
+	}{
+		{name: "futures token refused", spotStatus: http.StatusOK, futuresCode: http.StatusServiceUnavailable, spotUp: true},
+		{name: "spot token refused", spotStatus: http.StatusServiceUnavailable, futuresCode: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := newClassicWebsocketServer(t, tc.spotStatus, tc.futuresCode)
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret", ClientID: "test-passphrase"})
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			require.NoError(t, ex.SetHTTPClient(s.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), s.URL+"/spot/api"), "SetRunningURL must not error for spot")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), s.URL+"/futures/api"), "SetRunningURL must not error for futures")
+			ex.Features.Subscriptions = subscription.List{
+				{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}},
+				{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresTestPair}},
+			}
+			wsURL := "ws" + strings.TrimPrefix(s.URL, "http")
+			newUTAWebsocket(t, ex,
+				ex.newSpotConnectionSetup(ex.Config, wsURL+"/ws"),
+				ex.newFuturesConnectionSetup(ex.Config, wsURL+"/ws"),
+				ex.newOrderConnectionSetup(ex.Config, wsURL+"/order"),
+			)
+			err := ex.Websocket.Connect(t.Context())
+			if !tc.spotUp {
+				require.Error(t, err, "Connect must fail when the spot connection cannot be made")
+				assert.False(t, ex.Websocket.IsConnected(), "the websocket should not be connected without its spot connection")
+				return
+			}
+			require.NoError(t, err, "Connect must not error when only optional connections fail")
+			assert.True(t, ex.Websocket.IsConnected(), "the websocket should be connected")
+			_, err = ex.Websocket.GetConnection(spotConnection)
+			assert.NoError(t, err, "the spot connection should be up")
+			_, err = ex.Websocket.GetConnection(futuresConnection)
+			assert.Error(t, err, "the futures connection should be down while its token is refused")
+			_, err = ex.Websocket.GetConnection(orderConnection)
+			assert.Error(t, err, "the order API connection should be down while its sign-in is refused")
+			subs := ex.Websocket.GetSubscriptions()
+			assert.True(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool {
+				return s.QualifiedChannel == marketTickerChannel+":BTC-USDT"
+			}), "the spot ticker should be subscribed with the futures and order API connections down")
+		})
+	}
+}
+
 // testWsConnector runs a Classic connector against a fake connection, publicly and then with a private token
 func testWsConnector(t *testing.T, connect func(context.Context, *Exchange, websocket.Connection) error, publicEndpoint string) {
 	t.Helper()
@@ -411,7 +531,7 @@ func testWsConnector(t *testing.T, connect func(context.Context, *Exchange, webs
 	require.NoError(t, connect(t.Context(), ex, conn), "the connector must not error")
 	connectID := conn.dialValues.Get("connectId")
 	assert.NotEmpty(t, connectID, "the connector should dial with a connect ID")
-	ping, err := json.Marshal(&WsPingMessage{ID: connectID, Type: "ping"})
+	ping, err := json.Marshal(&WebsocketPingMessage{ID: connectID, Type: "ping"})
 	require.NoError(t, err, "the ping must encode")
 	assert.Equal(t, websocket.PingHandler{Delay: 9 * time.Second, Message: ping, MessageType: gws.TextMessage}, conn.pingHandler, "the connector should ping with the connect ID at half the ping interval")
 	if mockTests {
@@ -443,17 +563,17 @@ func testWsConnector(t *testing.T, connect func(context.Context, *Exchange, webs
 	}
 }
 
-func TestWsConnectSpot(t *testing.T) {
+func TestWebsocketConnectSpot(t *testing.T) {
 	t.Parallel()
 	testWsConnector(t, func(ctx context.Context, ex *Exchange, conn websocket.Connection) error {
-		return ex.WsConnectSpot(ctx, conn)
+		return ex.WebsocketConnectSpot(ctx, conn)
 	}, "wss://ws-api-spot.kucoin.com/")
 }
 
-func TestWsConnectFutures(t *testing.T) {
+func TestWebsocketConnectFutures(t *testing.T) {
 	t.Parallel()
 	testWsConnector(t, func(ctx context.Context, ex *Exchange, conn websocket.Connection) error {
-		return ex.WsConnectFutures(ctx, conn)
+		return ex.WebsocketConnectFutures(ctx, conn)
 	}, "wss://ws-api-futures.kucoin.com/")
 }
 
@@ -517,7 +637,7 @@ func TestConnectWebsocket(t *testing.T) {
 	t.Cleanup(func() { assert.NoError(t, connected.Shutdown(), "Shutdown should not error") })
 	select {
 	case ping := <-received:
-		var msg WsPingMessage
+		var msg WebsocketPingMessage
 		require.NoError(t, json.Unmarshal([]byte(ping), &msg), "the ping must decode")
 		assert.Equal(t, "ping", msg.Type, "the connection should ping")
 		assert.NotEmpty(t, msg.ID, "the ping should carry the connect ID")
@@ -539,6 +659,14 @@ func TestConnectWebsocket(t *testing.T) {
 	require.NoError(t, err, "CreateTestConnection must not error")
 	err = ex.connectWebsocket(t.Context(), conn, token, wrongDialer)
 	require.ErrorIs(t, err, errWelcomeNotReceived, "connectWebsocket must reject a welcome for another connection")
+	requireOpenUntilShutdown(t, conn)
+
+	// An interval too long for a time.Duration would wrap to a short delay, so it gets the default too
+	for interval, exp := range map[uint64]time.Duration{0: defaultPingDelay, 18000: 9 * time.Second, 9223372036854777808: defaultPingDelay} {
+		fake := newFakeConnection(`{"id":"{connectId}","type":"welcome"}`)
+		require.NoErrorf(t, ex.connectWebsocket(t.Context(), fake, &WebsocketTokenResponse{InstanceServers: []InstanceServer{{Endpoint: "wss://ws-api-spot.kucoin.com/", PingInterval: interval}}}, &gws.Dialer{}), "connectWebsocket must not error for a ping interval of %d", interval)
+		assert.Equalf(t, exp, fake.pingHandler.Delay, "a server with a ping interval of %d should be pinged every %s", interval, exp)
+	}
 
 	silent, silentDialer := welcomeServer(t, "", received)
 	token.InstanceServers[0].Endpoint = "ws" + strings.TrimPrefix(silent.URL, "http") + "/endpoint"
@@ -547,10 +675,17 @@ func TestConnectWebsocket(t *testing.T) {
 	require.NoError(t, err, "CreateTestConnection must not error")
 	err = ex.connectWebsocket(t.Context(), conn, token, silentDialer)
 	require.ErrorIs(t, err, context.DeadlineExceeded, "connectWebsocket must give up when no welcome arrives")
+	requireOpenUntilShutdown(t, conn)
+}
 
-	fake := newFakeConnection(`{"id":"{connectId}","type":"welcome"}`)
-	require.NoError(t, ex.connectWebsocket(t.Context(), fake, &WebsocketTokenResponse{InstanceServers: []InstanceServer{{Endpoint: "wss://ws-api-spot.kucoin.com/"}}}, &gws.Dialer{}), "connectWebsocket must not error without a ping interval")
-	assert.Equal(t, defaultPingDelay, fake.pingHandler.Delay, "a server without a ping interval should be pinged at the default delay")
+// requireOpenUntilShutdown checks a connector left open a connection it dialled but failed to set up, as the websocket
+// manager closes a connection that fails to connect, then shuts the connection down
+func requireOpenUntilShutdown(t *testing.T, conn websocket.Connection) {
+	t.Helper()
+	status, ok := conn.(interface{ IsConnected() bool })
+	require.True(t, ok, "the test connection must report whether it is connected")
+	assert.True(t, status.IsConnected(), "a connector should leave closing a connection it failed to set up to the manager")
+	require.NoError(t, conn.Shutdown(), "Shutdown must not error")
 }
 
 func TestReadWebsocketMessage(t *testing.T) {
@@ -575,7 +710,7 @@ func TestCheckWelcome(t *testing.T) {
 	require.Error(t, checkWelcome([]byte(`{"id":`), "abc"), "checkWelcome must reject an undecodable message")
 }
 
-func TestWsHandleData(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
 	conn := newFakeConnection()
@@ -592,7 +727,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.Empty(t, ex.Websocket.DataHandler.C, "welcome and pong frames should not be relayed")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, wsFixture(t, "wsFutures.json", "orderMargin")), "wsHandleData must route a push without a type")
-	assert.IsType(t, &WsFuturesOrderMargin{}, (<-ex.Websocket.DataHandler.C).Data, "a push without a type should reach its topic's handler")
+	assert.IsType(t, &WebsocketFuturesOrderMargin{}, (<-ex.Websocket.DataHandler.C).Data, "a push without a type should reach its topic's handler")
 
 	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"type":"message","data":{}}`)), errUnhandledMessageType, "wsHandleData must reject a push without a topic")
 	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"id":"1","type":"notice"}`)), errUnhandledMessageType, "wsHandleData must reject an unknown message type")
@@ -602,7 +737,7 @@ func TestWsHandleData(t *testing.T) {
 func TestProcessPush(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
-	err := ex.processPush(t.Context(), &WsMessage{Topic: "/market/unknown:BTC-USDT", Type: "message"})
+	err := ex.processPush(t.Context(), &WebsocketMessage{Topic: "/market/unknown:BTC-USDT", Type: "message"})
 	require.ErrorIs(t, err, errUnhandledTopic, "processPush must reject a topic it does not handle")
 	assert.ErrorContains(t, err, "/market/unknown:BTC-USDT", "processPush should name the topic")
 
@@ -615,14 +750,14 @@ func TestProcessPush(t *testing.T) {
 func TestProcessPayload(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
-	require.NoError(t, processPayload[WsFuturesLeverage](t.Context(), ex, []byte(`{"leverage":"5"}`)), "processPayload must not error")
-	assert.Equal(t, &WsFuturesLeverage{Leverage: 5}, (<-ex.Websocket.DataHandler.C).Data, "processPayload should relay the decoded push")
-	require.Error(t, processPayload[WsFuturesLeverage](t.Context(), ex, []byte(`{"leverage":[]}`)), "processPayload must reject an undecodable push")
+	require.NoError(t, processPayload[WebsocketFuturesLeverage](t.Context(), ex, []byte(`{"leverage":"5"}`)), "processPayload must not error")
+	assert.Equal(t, &WebsocketFuturesLeverage{Leverage: 5}, (<-ex.Websocket.DataHandler.C).Data, "processPayload should relay the decoded push")
+	require.Error(t, processPayload[WebsocketFuturesLeverage](t.Context(), ex, []byte(`{"leverage":[]}`)), "processPayload must reject an undecodable push")
 }
 
 func TestUnhandledSubject(t *testing.T) {
 	t.Parallel()
-	err := unhandledSubject(&WsMessage{Topic: "/contract/instrument:XBTUSDTM", Subject: "new.subject"})
+	err := unhandledSubject(&WebsocketMessage{Topic: "/contract/instrument:XBTUSDTM", Subject: "new.subject"})
 	require.ErrorIs(t, err, errUnhandledSubject, "unhandledSubject must return errUnhandledSubject")
 	assert.ErrorContains(t, err, `"new.subject" on topic "/contract/instrument:XBTUSDTM"`, "unhandledSubject should name the subject and topic")
 }
@@ -630,7 +765,7 @@ func TestUnhandledSubject(t *testing.T) {
 func TestMergeTicker(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
-	pair := currency.NewBTCUSDT()
+	pair := currency.NewPair(currency.NewCode("MERGE"+strconv.FormatInt(time.Now().UnixNano(), 36)), currency.USDT)
 	got, err := ex.mergeTicker(pair, asset.Spot, func(p *ticker.Price) { p.Bid = 1 })
 	require.NoError(t, err, "mergeTicker must not error without a stored ticker")
 	assert.Equal(t, &ticker.Price{ExchangeName: ex.Name, Pair: pair, AssetType: asset.Spot, Bid: 1}, got, "mergeTicker should start a new ticker when none is stored")
@@ -659,6 +794,27 @@ func TestProcessMergedTicker(t *testing.T) {
 
 	require.ErrorIs(t, ex.processMergedTicker(t.Context(), pair, asset.Spot, func(p *ticker.Price) { p.Bid, p.Ask = 2, 2 }), ticker.ErrBidEqualsAsk, "processMergedTicker must not relay a ticker the store rejects")
 	assert.Empty(t, ex.Websocket.DataHandler.C, "processMergedTicker should not relay a rejected ticker")
+
+	// A pair's pushes can arrive on several connections at once, so merges must not undo each other
+	futuresPair := currency.NewPair(currency.XBT, currency.USDTM)
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: futuresPair, AssetType: asset.Futures}), "seeding the stored ticker must not error")
+	const mergers, merges = 8, 250
+	ex.Websocket.DataHandler = stream.NewRelay(mergers * merges)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range mergers {
+		wg.Go(func() {
+			<-start
+			for range merges {
+				assert.NoError(t, ex.processMergedTicker(t.Context(), futuresPair, asset.Futures, func(p *ticker.Price) { p.Last++ }), "processMergedTicker should not error")
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+	stored, err = ticker.GetTicker(ex.Name, futuresPair, asset.Futures)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, float64(mergers*merges), stored.Last, "every concurrent merge should be kept")
 
 	ex.Name = ""
 	require.ErrorIs(t, ex.processMergedTicker(t.Context(), pair, asset.Spot, func(*ticker.Price) {}), common.ErrExchangeNameNotSet, "processMergedTicker must return a store error")
@@ -706,7 +862,11 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 	}
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.CandlesChannel, Asset: asset.Futures, Interval: kline.SixHour}}
 	_, err := ku.generateSpotSubscriptions()
-	require.ErrorIs(t, err, errUnsupportedCandleInterval, "generateSpotSubscriptions must return a generation error")
+	require.NoError(t, err, "generateSpotSubscriptions must not fail on a futures candle interval, which only the futures connection carries")
+	ku.CurrencyPairs.Pairs[asset.Spot].RequestFormat = nil
+	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}}
+	_, err = ku.generateSpotSubscriptions()
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateSpotSubscriptions must return a generation error")
 }
 
 func TestGenerateFuturesSubscriptions(t *testing.T) {
@@ -721,9 +881,10 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 			assert.Truef(t, isFuturesSubscription(s), "%s should be on the futures connection", s.QualifiedChannel)
 		}
 	}
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.CandlesChannel, Asset: asset.Futures, Interval: kline.SixHour}}
+	ku.CurrencyPairs.Pairs[asset.Futures].RequestFormat = nil
+	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Futures}}
 	_, err := ku.generateFuturesSubscriptions()
-	require.ErrorIs(t, err, errUnsupportedCandleInterval, "generateFuturesSubscriptions must return a generation error")
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateFuturesSubscriptions must return a generation error")
 }
 
 func TestIsFuturesSubscription(t *testing.T) {
@@ -856,16 +1017,35 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 func TestGenerateSubscriptionsFuturesCandleInterval(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.CandlesChannel, Asset: asset.Futures, Interval: kline.SixHour}}
-	_, err := ku.generateSubscriptions()
-	require.ErrorIs(t, err, errUnsupportedCandleInterval, "generateSubscriptions must reject a candle interval the futures websocket does not push")
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.CandlesChannel, Asset: asset.Futures, Interval: kline.FourHour}}
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.NotEmpty(t, subs, "generateSubscriptions must generate futures candles")
+	ku.Features.Subscriptions = subscription.List{
+		{Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.SixHour},
+		{Channel: subscription.TickerChannel, Asset: asset.Futures},
+	}
+	subs, err := ku.generateFuturesSubscriptions()
+	require.ErrorIs(t, err, errUnsupportedCandleInterval, "generateFuturesSubscriptions must report a candle interval the futures websocket does not push")
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateFuturesSubscriptions must report the dropped candles as a partial failure")
+	require.NotEmpty(t, subs, "generateFuturesSubscriptions must keep the other futures subscriptions")
 	for _, s := range subs {
-		assert.True(t, strings.HasPrefix(s.QualifiedChannel, futuresLimitCandleChannel+":"), "futures candles should use the futures candle topic")
-		assert.True(t, strings.HasSuffix(s.QualifiedChannel, "_4hour"), "futures candles should name the interval")
+		assert.NotEqual(t, subscription.CandlesChannel, s.Channel, "generateFuturesSubscriptions should leave out the six hour candles")
+	}
+	spotSubs, err := ku.generateSpotSubscriptions()
+	require.NoError(t, err, "generateSpotSubscriptions must not error for six hour candles, which spot pushes")
+	assert.True(t, slices.ContainsFunc(spotSubs, func(s *subscription.Subscription) bool { return strings.HasSuffix(s.QualifiedChannel, "_6hour") }), "spot six hour candles should be kept")
+	pairs, err := ku.GetEnabledPairs(asset.Futures)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	for _, channel := range []string{subscription.CandlesChannel, futuresLimitCandleChannel} {
+		ku.Features.Subscriptions = subscription.List{
+			{Channel: channel, Asset: asset.Futures, Interval: kline.FourHour},
+			{Channel: channel, Asset: asset.Futures, Interval: kline.SixHour},
+		}
+		subs, err = ku.generateFuturesSubscriptions()
+		require.ErrorIsf(t, err, errUnsupportedCandleInterval, "generateFuturesSubscriptions must report six hour candles on %s", channel)
+		require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "generateFuturesSubscriptions must report six hour candles on %s as a partial failure", channel)
+		require.Lenf(t, subs, len(pairs), "generateFuturesSubscriptions must keep the four hour candles of each futures pair on %s", channel)
+		for _, s := range subs {
+			assert.Truef(t, strings.HasPrefix(s.QualifiedChannel, futuresLimitCandleChannel+":"), "futures candles on %s should use the futures candle topic", channel)
+			assert.Truef(t, strings.HasSuffix(s.QualifiedChannel, "_4hour"), "only the four hour futures candles on %s should be kept", channel)
+		}
 	}
 }
 
@@ -1017,6 +1197,52 @@ func TestGenerateSubscriptions(t *testing.T) {
 		ku.CurrencyPairs.Pairs[asset.Spot].RequestFormat = nil
 		_, err := ku.generateSubscriptions()
 		require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateSubscriptions must return the error expanding its templates")
+	})
+
+	t.Run("UTA generation error", func(t *testing.T) {
+		t.Parallel()
+		ku := subscriptionTestInstance(t)
+		generic := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}
+		ku.Features.Subscriptions = subscription.List{generic}
+		exp, err := ku.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not error")
+		ku.Features.Subscriptions = subscription.List{
+			generic,
+			{Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 2},
+			{Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 2},
+		}
+		for _, connection := range []string{utaSpotPublicConnection, utaFuturesPublicConnection} {
+			_, err = ku.generateUTASubscriptions(connection)
+			require.ErrorIsf(t, err, subscription.ErrInvalidLevel, "generateUTASubscriptions must reject the orderbook depth for %s", connection)
+		}
+		subs, err := ku.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not return the errors the UTA connections report")
+		testsubs.EqualLists(t, exp, subs)
+	})
+
+	t.Run("UTA partial generation", func(t *testing.T) {
+		t.Parallel()
+		ku := subscriptionTestInstance(t)
+		ku.Features.Subscriptions = subscription.List{
+			{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+			{Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{spotTestPair}},
+			// Margin shares the spot connection, where this depth fails alone
+			{Channel: UTAOrderbookChannel, Asset: asset.Margin, Levels: 2},
+		}
+		_, err := ku.generateUTASubscriptions(utaSpotPublicConnection)
+		require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateUTASubscriptions must leave out the margin orderbook's depth as a partial failure")
+		subs, err := ku.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions must not return the errors the UTA connections report")
+		var spotBooks int
+		for _, sub := range subs {
+			if sub.Channel != subscription.OrderbookChannel || sub.Asset == asset.Futures {
+				continue
+			}
+			_, symbols, _ := strings.Cut(sub.QualifiedChannel, ":")
+			spotBooks++
+			assert.NotContainsf(t, strings.Split(symbols, ","), "BTC-USDT", "the generic orderbook %s should leave BTC-USDT to its UTA orderbook while another UTA orderbook fails", sub.QualifiedChannel)
+		}
+		assert.NotZero(t, spotBooks, "the generic orderbook should still feed the other spot pairs")
 	})
 
 	// Expansion leaves a pre-expanded orderbook's asset as configured, and every book but a futures one is fed by the spot
@@ -1574,6 +1800,254 @@ func TestGenerateRealtimeOrderbooksLeavesLevel1FedPairs(t *testing.T) {
 	assert.Contains(t, topics, marketOrderbookChannel+":ETH-USDT", "other pairs should keep their realtime feed")
 }
 
+// orderbookWriters returns the topics writing each book, keyed by market and symbol: every spot market topic loads
+// both the spot and the margin book of its symbol
+func orderbookWriters(t *testing.T, ex *Exchange) (writers map[string][]string, partial error) {
+	t.Helper()
+	writers = make(map[string][]string)
+	for _, generate := range []func() (subscription.List, error){ex.generateSpotSubscriptions, ex.generateFuturesSubscriptions} {
+		subs, err := generate()
+		if err != nil {
+			require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generating Classic subscriptions must not fail outright")
+			partial = common.AppendError(partial, err)
+		}
+		for _, s := range subs {
+			channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+			var market string
+			switch channel {
+			case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, marketOrderbookChannel:
+				market = "spot "
+			case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel, futuresOrderbookChannel:
+				market = "futures "
+			default:
+				continue
+			}
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				writers[market+symbol] = append(writers[market+symbol], s.QualifiedChannel)
+			}
+		}
+	}
+	for _, connection := range []string{utaSpotPublicConnection, utaFuturesPublicConnection} {
+		subs, err := ex.generateUTASubscriptions(connection)
+		require.NoError(t, err, "generating UTA subscriptions must not error")
+		for _, s := range subs {
+			if s.Channel != UTAOrderbookChannel {
+				continue
+			}
+			market := "spot "
+			if s.Asset == asset.Futures {
+				market = "futures "
+			}
+			_, symbol, _ := strings.Cut(s.QualifiedChannel, ":")
+			writers[market+symbol] = append(writers[market+symbol], s.QualifiedChannel)
+		}
+	}
+	return writers, partial
+}
+
+// TestGenerateOrderbooksOneWriterPerBook covers the generic orderbook giving way on every pair another orderbook channel
+// feeds, Classic or UTA, at any depth and with or without websocket authentication, as each would load the same book
+func TestGenerateOrderbooksOneWriterPerBook(t *testing.T) {
+	t.Parallel()
+	btc := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	xbt := currency.NewPairWithDelimiter("XBT", "USDCM", "_")
+	generic := &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}
+	for _, tc := range []struct {
+		name   string
+		sub    *subscription.Subscription
+		book   string
+		writer string
+	}{
+		{name: "level 1", sub: &subscription.Subscription{Enabled: true, Channel: marketOrderbookDepth1Channel, Asset: asset.Spot, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: marketOrderbookDepth1Channel + ":BTC-USDT"},
+		{name: "spot depth 50", sub: &subscription.Subscription{Enabled: true, Channel: marketOrderbookDepth50Channel, Asset: asset.Spot, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: marketOrderbookDepth50Channel + ":BTC-USDT"},
+		{name: "futures depth 50", sub: &subscription.Subscription{Enabled: true, Channel: futuresOrderbookDepth50Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}}, book: "futures XBTUSDCM", writer: futuresOrderbookDepth50Channel + ":XBTUSDCM"},
+		{name: "UTA spot", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 500, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: "obu:BTC-USDT"},
+		{name: "UTA margin", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Margin, Levels: 5}, book: "spot SOL-USDC", writer: "obu:SOL-USDC"},
+		{name: "UTA futures", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 500, Pairs: currency.Pairs{xbt}}, book: "futures XBTUSDCM", writer: "obu:XBTUSDCM"},
+		{name: "UTA spot depth 1", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 1, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: "obu:BTC-USDT"},
+		{name: "UTA futures depth 1", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 1, Pairs: currency.Pairs{xbt}}, book: "futures XBTUSDCM", writer: "obu:XBTUSDCM"},
+		{name: "UTA spot depth 5", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: "obu:BTC-USDT"},
+		{name: "UTA futures depth 5", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 5, Pairs: currency.Pairs{xbt}}, book: "futures XBTUSDCM", writer: "obu:XBTUSDCM"},
+		{name: "UTA spot depth 50", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 50, Pairs: currency.Pairs{btc}}, book: "spot BTC-USDT", writer: "obu:BTC-USDT"},
+		{name: "UTA futures depth 50", sub: &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 50, Pairs: currency.Pairs{xbt}}, book: "futures XBTUSDCM", writer: "obu:XBTUSDCM"},
+	} {
+		for _, authenticated := range []bool{false, true} {
+			ex := subscriptionTestInstance(t)
+			ex.Features.Subscriptions = subscription.List{generic, tc.sub}
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			writers, partial := orderbookWriters(t, ex)
+			require.NoErrorf(t, partial, "%s with authentication %t: generating subscriptions must leave nothing out", tc.name, authenticated)
+			assert.Equalf(t, enabledBooks(t, ex), slices.Sorted(maps.Keys(writers)), "%s with authentication %t: the book of every enabled pair should have a writer", tc.name, authenticated)
+			assert.Equalf(t, []string{tc.writer}, writers[tc.book], "%s with authentication %t: the %s book should be written by the channel configured for it alone", tc.name, authenticated, tc.book)
+			for book, topics := range writers {
+				assert.Lenf(t, topics, 1, "%s with authentication %t: the %s book should have one writer, got %v", tc.name, authenticated, book, topics)
+			}
+		}
+	}
+}
+
+// TestGenerateOrderbooksExplicitDepthGivesWayToUTA covers an explicit Classic depth channel and a UTA orderbook
+// configured for one book: the depth channel's snapshots would reset the UTA orderbook's sequence, so the depth channel
+// leaves the pair to the UTA orderbook, reported as a partial failure, and keeps the pairs it alone feeds
+func TestGenerateOrderbooksExplicitDepthGivesWayToUTA(t *testing.T) {
+	t.Parallel()
+	btc, eth := currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	sol := currency.NewPairWithDelimiter("SOL", "USDC", "-")
+	xbt := currency.NewPairWithDelimiter("XBT", "USDCM", "_")
+	for _, tc := range []struct {
+		name       string
+		depth, uta *subscription.Subscription
+		book       string
+		writer     string
+		kept       string
+	}{
+		{
+			name: "spot", book: "spot BTC-USDT", writer: "obu:BTC-USDT",
+			depth: &subscription.Subscription{Enabled: true, Channel: marketOrderbookDepth50Channel, Asset: asset.Spot, Pairs: currency.Pairs{btc}},
+			uta:   &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{btc}},
+		},
+		{
+			name: "margin", book: "spot SOL-USDC", writer: "obu:SOL-USDC",
+			depth: &subscription.Subscription{Enabled: true, Channel: marketOrderbookDepth5Channel, Asset: asset.Margin, Pairs: currency.Pairs{sol}},
+			uta:   &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Margin, Levels: 5},
+		},
+		{
+			name: "futures", book: "futures XBTUSDCM", writer: "obu:XBTUSDCM",
+			depth: &subscription.Subscription{Enabled: true, Channel: futuresOrderbookDepth50Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}},
+			uta:   &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Futures, Levels: 500, Pairs: currency.Pairs{xbt}},
+		},
+		{
+			// A pre-expanded depth channel naming several pairs keeps the pair the UTA orderbook does not feed
+			name: "pre-expanded spot batch", book: "spot BTC-USDT", writer: "obu:BTC-USDT", kept: marketOrderbookDepth5Channel + ":ETH-USDT",
+			depth: &subscription.Subscription{Enabled: true, Channel: marketOrderbookDepth5Channel, Asset: asset.All, Pairs: currency.Pairs{btc, eth}, QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,ETH-USDT"},
+			uta:   &subscription.Subscription{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{btc}},
+		},
+	} {
+		for _, authenticated := range []bool{false, true} {
+			ex := subscriptionTestInstance(t)
+			ex.Features.Subscriptions = subscription.List{tc.depth, tc.uta}
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			writers, partial := orderbookWriters(t, ex)
+			assert.ErrorIsf(t, partial, errOrderbookFedByUTA, "%s with authentication %t: leaving the pair out should be reported", tc.name, authenticated)
+			assert.Equalf(t, []string{tc.writer}, writers[tc.book], "%s with authentication %t: the %s book should be written by the UTA orderbook alone", tc.name, authenticated, tc.book)
+			if tc.kept == "" {
+				continue
+			}
+			subs, err := ex.generateSpotSubscriptions()
+			require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s with authentication %t: generateSpotSubscriptions must report a partial failure", tc.name, authenticated)
+			var depth subscription.List
+			for _, s := range subs {
+				if s.Channel == tc.depth.Channel {
+					depth = append(depth, s)
+				}
+			}
+			require.Lenf(t, depth, 1, "%s with authentication %t: the depth channel must keep its other pair", tc.name, authenticated)
+			assert.Equalf(t, tc.kept, depth[0].QualifiedChannel, "%s with authentication %t: the depth channel should keep the topic of its other pair", tc.name, authenticated)
+			assert.Equalf(t, currency.Pairs{eth}, depth[0].Pairs, "%s with authentication %t: the depth channel should keep the pair it still feeds", tc.name, authenticated)
+		}
+	}
+}
+
+// TestGenerateOrderbooksPreExpandedBatch covers a pre-expanded generic orderbook naming several pairs, of which only the
+// pair a UTA orderbook feeds gives way to it, with or without websocket authentication
+func TestGenerateOrderbooksPreExpandedBatch(t *testing.T) {
+	t.Parallel()
+	btc, eth := currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	for _, tc := range []struct {
+		authenticated bool
+		exp           string
+	}{
+		{exp: marketOrderbookDepth5Channel + ":ETH-USDT"},
+		{authenticated: true, exp: marketOrderbookChannel + ":ETH-USDT"},
+	} {
+		ex := subscriptionTestInstance(t)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
+		ex.Features.Subscriptions = subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc, eth}, QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,ETH-USDT"},
+			{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{btc}},
+		}
+		subs, err := ex.generateSpotSubscriptions()
+		require.NoErrorf(t, err, "generateSpotSubscriptions must not error with authentication %t", tc.authenticated)
+		var books subscription.List
+		for _, sub := range subs {
+			if channel, _, _ := strings.Cut(sub.QualifiedChannel, ":"); channel == marketOrderbookDepth5Channel || channel == marketOrderbookChannel {
+				books = append(books, sub)
+			}
+		}
+		require.Lenf(t, books, 1, "generateSpotSubscriptions must keep the generic orderbook for its other pair with authentication %t", tc.authenticated)
+		assert.Equalf(t, tc.exp, books[0].QualifiedChannel, "the generic orderbook should leave BTC-USDT to its UTA orderbook with authentication %t", tc.authenticated)
+		assert.Equalf(t, currency.Pairs{eth}, books[0].Pairs, "the generic orderbook should keep the pair it still feeds with authentication %t", tc.authenticated)
+	}
+}
+
+// TestGenerateSubscriptionsExplicitFuturesTicker covers an explicit tickerV2 subscription beside the generic futures
+// ticker: KuCoin keeps one subscription per topic, so the generic ticker leaves the explicit one's pairs to it, keeping
+// its companion topics, rather than subscribing the same topic twice, which removing either would silence
+func TestGenerateSubscriptionsExplicitFuturesTicker(t *testing.T) {
+	t.Parallel()
+	xbt, eth := currency.NewPair(currency.XBT, currency.USDCM), currency.NewPair(currency.ETH, currency.USDCM)
+	topics := func(subs subscription.List) map[string][]string {
+		byTopic := make(map[string][]string, len(subs))
+		for _, s := range subs {
+			byTopic[s.QualifiedChannel] = append(byTopic[s.QualifiedChannel], s.Channel)
+		}
+		return byTopic
+	}
+	ex := subscriptionTestInstance(t)
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures},
+		{Enabled: true, Channel: futuresTickerV2Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}},
+	}
+	subs, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	got := topics(subs)
+	assert.Equal(t, []string{futuresTickerV2Channel}, got[futuresTickerV2Channel+":XBTUSDCM"], "the explicit tickerV2 subscription should hold its topic alone")
+	assert.Equal(t, []string{futuresTickerV1Channel}, got[futuresTickerV1Channel+":XBTUSDCM"], "the generic ticker should keep its last fill companion of the pair")
+	assert.Equal(t, []string{futuresSnapshotChannel}, got[futuresSnapshotChannel+":XBTUSDCM"], "the generic ticker should keep its snapshot companion of the pair")
+	for _, symbol := range []string{"ETHUSDCM", "SOLUSDTM"} {
+		assert.Equalf(t, []string{subscription.TickerChannel}, got[futuresTickerV2Channel+":"+symbol], "the generic ticker should keep the tickerV2 topic of %s", symbol)
+	}
+
+	// A pre-expanded generic ticker naming several symbols gives way on the explicitly fed one alone
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{xbt, eth}, QualifiedChannel: futuresTickerV2Channel + ":XBTUSDCM,ETHUSDCM"},
+		{Enabled: true, Channel: futuresTickerV2Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}},
+	}
+	subs, err = ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error for a pre-expanded ticker")
+	var generic subscription.List
+	for _, s := range subs {
+		if s.Channel == subscription.TickerChannel {
+			generic = append(generic, s)
+		}
+	}
+	require.Len(t, generic, 1, "generateSubscriptions must keep the pre-expanded ticker for its other pair")
+	assert.Equal(t, futuresTickerV2Channel+":ETHUSDCM", generic[0].QualifiedChannel, "the pre-expanded ticker should leave XBTUSDCM to the explicit subscription")
+	assert.Equal(t, currency.Pairs{eth}, generic[0].Pairs, "the pre-expanded ticker should keep the pair it still feeds")
+	assert.Equal(t, []string{futuresTickerV2Channel}, topics(subs)[futuresTickerV2Channel+":XBTUSDCM"], "the explicit tickerV2 subscription should hold its topic alone")
+}
+
+// enabledBooks returns the book of every enabled pair, keyed by market and symbol as orderbookWriters keys them
+func enabledBooks(t *testing.T, ex *Exchange) []string {
+	t.Helper()
+	var books []string
+	for _, a := range ex.GetAssetTypes(true) {
+		pairs, err := ex.GetEnabledPairs(a)
+		require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+		format, err := ex.GetPairFormat(a, true)
+		require.NoErrorf(t, err, "GetPairFormat must not error for %s", a)
+		market := "spot "
+		if a == asset.Futures {
+			market = "futures "
+		}
+		for _, p := range pairs {
+			books = append(books, market+p.Format(format).String())
+		}
+	}
+	slices.Sort(books)
+	return slices.Compact(books)
+}
+
 func TestGenerateOrderbooksAuthFlipKeepsSharedTopics(t *testing.T) {
 	t.Parallel()
 	generic := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}
@@ -2051,6 +2525,23 @@ func TestSharedAssetPriority(t *testing.T) {
 	}
 }
 
+func TestPingDelay(t *testing.T) {
+	t.Parallel()
+	maxInterval := uint64(math.MaxInt64 / int64(time.Millisecond))
+	for interval, exp := range map[uint64]time.Duration{
+		0:     defaultPingDelay,
+		18000: 9 * time.Second,
+		1:     500 * time.Microsecond,
+		// The longest interval a time.Duration holds, and those past it, which would wrap to a short or negative delay
+		maxInterval:         time.Duration(maxInterval) * time.Millisecond / 2,
+		maxInterval + 1:     defaultPingDelay,
+		9223372036854777808: defaultPingDelay,
+		math.MaxUint64:      defaultPingDelay,
+	} {
+		assert.Equalf(t, exp, pingDelay(interval), "pingDelay should return %s for an interval of %d milliseconds", exp, interval)
+	}
+}
+
 // TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -2092,6 +2583,38 @@ func TestCheckSubscriptions(t *testing.T) {
 	require.NoError(t, ku.checkSubscriptions(), "checkSubscriptions must not error for UTA channels")
 	testsubs.EqualLists(t, uta, ku.Config.Features.Subscriptions)
 	assert.Empty(t, ku.Features.Subscriptions, "checkSubscriptions should not report an upgrade for UTA channels")
+}
+
+// TestCheckSubscriptionsKeepsExplicitFuturesChannels ensures the legacy cleanup removes only the entries the generic
+// ticker and orderbook replaced, so a futures subscription to the depth-50 or tickerV2 channel keeps its feed
+func TestCheckSubscriptionsKeepsExplicitFuturesChannels(t *testing.T) {
+	t.Parallel()
+	xbt := currency.NewPair(currency.XBT, currency.USDCM)
+	explicit := subscription.List{
+		{Enabled: true, Channel: futuresOrderbookDepth50Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}},
+		{Enabled: true, Channel: futuresTickerV2Channel, Asset: asset.Futures, Pairs: currency.Pairs{xbt}},
+	}
+	ku := subscriptionTestInstance(t)
+	ku.Config.Features.Subscriptions = explicit.Clone()
+	ku.Features.Subscriptions = explicit.Clone()
+	require.NoError(t, ku.checkSubscriptions(), "checkSubscriptions must not error for explicit futures channels")
+	testsubs.EqualLists(t, explicit, ku.Config.Features.Subscriptions)
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error for explicit futures channels")
+	exp := expectedPerPairSubscriptions(futuresOrderbookDepth50Channel, asset.Futures, currency.Pairs{xbt}, futuresOrderbookDepth50Channel, 0, nil)
+	exp = append(exp, expectedPerPairSubscriptions(futuresTickerV2Channel, asset.Futures, currency.Pairs{xbt}, futuresTickerV2Channel, 0, nil)...)
+	testsubs.EqualLists(t, exp, subs)
+
+	// Entries on the same channels for other assets carried no futures feed, so they are still removed
+	ku = &Exchange{Config: &config.Exchange{Features: &config.FeaturesConfig{Subscriptions: append(subscription.List{
+		{Enabled: true, Channel: futuresOrderbookDepth50Channel + ":%s"},
+		{Enabled: true, Channel: futuresTickerV2Channel, Asset: asset.All},
+		{Enabled: true, Channel: futuresOrderbookDepth50Channel, Asset: asset.Spot},
+	}, explicit.Clone()...)}}}
+	require.NoError(t, ku.checkSubscriptions(), "checkSubscriptions must not error for legacy futures channels")
+	testsubs.EqualLists(t, explicit, ku.Config.Features.Subscriptions)
+	testsubs.EqualLists(t, explicit, ku.Features.Subscriptions)
 }
 
 func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
@@ -2596,6 +3119,14 @@ func TestManageSubscriptions(t *testing.T) {
 
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":`}, subscription.List{baseSub()}, "subscribe")
 			require.Error(t, err)
+		})
+
+		t.Run("null_reply", func(t *testing.T) {
+			t.Parallel()
+			ku := subscriptionTestInstance(t)
+
+			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `null`}, subscription.List{baseSub()}, "subscribe")
+			require.ErrorIs(t, err, common.ErrNoResponse)
 		})
 
 		t.Run("error_payload_not_string", func(t *testing.T) {

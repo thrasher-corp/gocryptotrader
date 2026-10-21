@@ -18,6 +18,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -232,6 +233,7 @@ func TestNewUTASpotPublicConnection(t *testing.T) {
 	assert.Equal(t, time.Millisecond, c.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, time.Second, c.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.Equal(t, utaSpotPublicConnection, c.MessageFilter, "MessageFilter should name the spot public connection")
+	assert.True(t, c.Optional, "the UTA spot public connection should be optional, so its failure leaves the others up")
 	assert.Equal(t, newUTAPublicConnectionLimiter(), c.ConnectionRateLimiter(), "ConnectionRateLimiter should be the public limit")
 	assert.NotNil(t, c.Connector, "Connector should be set")
 	assert.NotNil(t, c.Subscriber, "Subscriber should be set")
@@ -259,6 +261,7 @@ func TestNewUTAFuturesPublicConnection(t *testing.T) {
 	assert.Equal(t, time.Millisecond, c.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, time.Second, c.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.Equal(t, utaFuturesPublicConnection, c.MessageFilter, "MessageFilter should name the futures public connection")
+	assert.True(t, c.Optional, "the UTA futures public connection should be optional, so its failure leaves the others up")
 	assert.Equal(t, newUTAPublicConnectionLimiter(), c.ConnectionRateLimiter(), "ConnectionRateLimiter should be the public limit")
 	assert.NotNil(t, c.Connector, "Connector should be set")
 	assert.NotNil(t, c.Subscriber, "Subscriber should be set")
@@ -286,6 +289,7 @@ func TestNewUTAPrivateConnection(t *testing.T) {
 	assert.Equal(t, time.Millisecond, c.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, time.Second, c.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.Equal(t, utaPrivateConnection, c.MessageFilter, "MessageFilter should name the private connection")
+	assert.True(t, c.Optional, "the UTA private connection should be optional, so its failure leaves the others up")
 	assert.Equal(t, newUTAPrivateConnectionLimiter(), c.ConnectionRateLimiter(), "ConnectionRateLimiter should be the private limit")
 	assert.NotNil(t, c.Connector, "Connector should be set")
 	assert.NotNil(t, c.Authenticate, "Authenticate should be set")
@@ -308,12 +312,15 @@ func TestNewUTATradeConnection(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	exch := &config.Exchange{WebsocketResponseCheckTimeout: time.Millisecond, WebsocketResponseMaxLimit: time.Second}
+	// KuCoin documents the UTA trade connection on the v2 path, apart from the Classic order API's v1
+	assert.Equal(t, "wss://wsapi.kucoin.com/v2/private", kucoinUTATradeWebsocketURL, "the UTA trade connection should use the documented v2 host")
 	c := ex.newUTATradeConnection(exch, kucoinUTATradeWebsocketURL)
 	require.NotNil(t, c, "newUTATradeConnection must return a setup")
 	assert.Equal(t, kucoinUTATradeWebsocketURL, c.URL, "URL should be the trade host")
 	assert.Equal(t, time.Millisecond, c.ResponseCheckTimeout, "ResponseCheckTimeout should come from the config")
 	assert.Equal(t, time.Second, c.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.Equal(t, utaTradeConnection, c.MessageFilter, "MessageFilter should name the trade connection")
+	assert.True(t, c.Optional, "the UTA trade connection should be optional, so its failure leaves the others up")
 	assert.Nil(t, c.ConnectionRateLimiter, "ConnectionRateLimiter should not be set, as orders share the REST limit")
 	assert.NotNil(t, c.Connector, "Connector should be set")
 	assert.NotNil(t, c.Authenticate, "Authenticate should be set")
@@ -408,8 +415,8 @@ func TestUTAAuthRequest(t *testing.T) {
 	req, err := ex.utaAuthRequest(t.Context())
 	require.NoError(t, err, "utaAuthRequest must not error")
 	require.NotNil(t, req, "utaAuthRequest must return a request")
-	assert.GreaterOrEqual(t, req.Timestamp, before, "utaAuthRequest should stamp the request with the current time")
-	sign, err := crypto.GetHMAC(crypto.HashSHA256, []byte(strconv.FormatInt(req.Timestamp, 10)+"POST/api/websocket/users/verify"), []byte("mock-api-secret"))
+	assert.GreaterOrEqual(t, req.Timestamp, uint64(before), "utaAuthRequest should stamp the request with the current time")
+	sign, err := crypto.GetHMAC(crypto.HashSHA256, []byte(strconv.FormatUint(req.Timestamp, 10)+"POST/api/websocket/users/verify"), []byte("mock-api-secret"))
 	require.NoError(t, err, "GetHMAC must not error")
 	passphrase, err := crypto.GetHMAC(crypto.HashSHA256, []byte("mock-passphrase"), []byte("mock-api-secret"))
 	require.NoError(t, err, "GetHMAC must not error")
@@ -452,6 +459,7 @@ func TestAuthenticateUTAPrivateWebsocket(t *testing.T) {
 		assert.ErrorIsf(t, err, tc.expIs, "AuthenticateUTAPrivateWebsocket should error for %s", tc.name)
 	}
 	assert.Error(t, ex.AuthenticateUTAPrivateWebsocket(t.Context(), &utaFakeConnection{reply: []byte(`{`)}), "AuthenticateUTAPrivateWebsocket should error on a malformed reply")
+	assert.ErrorIs(t, ex.AuthenticateUTAPrivateWebsocket(t.Context(), &utaFakeConnection{reply: []byte(`null`)}), common.ErrNoResponse, "AuthenticateUTAPrivateWebsocket should error on a null reply")
 
 	ex.SkipAuthCheck = false // The mock instance skips credential checks
 	ex.SetCredentials(&accounts.Credentials{})
@@ -512,6 +520,22 @@ func TestGenerateUTASubscriptions(t *testing.T) {
 
 // TestGenerateUTASubscriptionsAssets proves that UTA channels expand over the assets they stand for as the Classic
 // channels do, without failing the websocket for a disabled asset, and that each KuCoin topic is subscribed to once
+// TestGenerateUTASubscriptionsFatalErrors covers an error that is not about a subscription's interval or depth, which
+// leaves the connection's whole generation failed rather than one subscription out
+func TestGenerateUTASubscriptionsFatalErrors(t *testing.T) {
+	t.Parallel()
+	ex := newUTATestExchange(t)
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures},
+		{Enabled: true, Channel: UTAKlineChannel, Asset: asset.Futures, Interval: kline.OneMin},
+	}
+	ex.CurrencyPairs.Pairs[asset.Futures].RequestFormat = nil
+	subs, err := ex.generateUTASubscriptions(utaFuturesPublicConnection)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateUTASubscriptions must return the pair format error")
+	assert.NotErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateUTASubscriptions should not report a pair format error as a partial failure")
+	assert.Nil(t, subs, "generateUTASubscriptions should generate nothing when a subscription cannot be expanded")
+}
+
 func TestGenerateUTASubscriptionsAssets(t *testing.T) {
 	t.Parallel()
 	spotPairs, futuresPairs := currency.Pairs{utaSpotTestPair}, currency.Pairs{utaFuturesTestPair}
@@ -522,6 +546,8 @@ func TestGenerateUTASubscriptionsAssets(t *testing.T) {
 		connection string
 		exp        subscription.List
 		err        error
+		// partial is whether the error leaves out the failing subscriptions alone, a partial failure
+		partial bool
 	}{
 		{
 			name:       "disabled asset without pairs",
@@ -626,6 +652,29 @@ func TestGenerateUTASubscriptionsAssets(t *testing.T) {
 			subs:       subscription.List{{Enabled: true, Channel: UTAKlineChannel, Asset: asset.Futures, Interval: kline.SixHour}},
 			connection: utaFuturesPublicConnection,
 			err:        subscription.ErrInvalidInterval,
+			partial:    true,
+		},
+		{
+			// Futures klines have no 6 hour interval, which spot's have
+			name: "interval one of every asset's markets lacks",
+			subs: subscription.List{
+				{Enabled: true, Channel: UTAKlineChannel, Asset: asset.All, Interval: kline.SixHour},
+				{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures},
+			},
+			connection: utaFuturesPublicConnection,
+			exp:        subscription.List{{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures, Pairs: futuresPairs, QualifiedChannel: "ticker:XBTUSDTM"}},
+			err:        subscription.ErrInvalidInterval,
+			partial:    true,
+		},
+		{
+			name: "interval one of every asset's markets lacks, on the market that has it",
+			subs: subscription.List{
+				{Enabled: true, Channel: UTAKlineChannel, Asset: asset.All, Interval: kline.SixHour},
+				{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures},
+			},
+			connection: utaSpotPublicConnection,
+			// Margin shares spot's topic, which is subscribed to once
+			exp: subscription.List{{Enabled: true, Channel: UTAKlineChannel, Asset: asset.Spot, Pairs: spotPairs, Interval: kline.SixHour, QualifiedChannel: "kline:BTC-USDT"}},
 		},
 		{
 			name:       "unsupported interval on another market",
@@ -637,6 +686,18 @@ func TestGenerateUTASubscriptionsAssets(t *testing.T) {
 			subs:       subscription.List{{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.All, Levels: 20}},
 			connection: utaSpotPublicConnection,
 			err:        subscription.ErrInvalidLevel,
+			partial:    true,
+		},
+		{
+			name: "unsupported depth beside a supported one",
+			subs: subscription.List{
+				{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 20},
+				{Enabled: true, Channel: UTATickerChannel, Asset: asset.Spot},
+			},
+			connection: utaSpotPublicConnection,
+			exp:        subscription.List{{Enabled: true, Channel: UTATickerChannel, Asset: asset.Spot, Pairs: spotPairs, QualifiedChannel: "ticker:BTC-USDT"}},
+			err:        subscription.ErrInvalidLevel,
+			partial:    true,
 		},
 		{
 			name:       "asset the channel does not serve",
@@ -663,6 +724,11 @@ func TestGenerateUTASubscriptionsAssets(t *testing.T) {
 			ex.Features.Subscriptions = tc.subs
 			subs, err := ex.generateUTASubscriptions(tc.connection)
 			require.ErrorIs(t, err, tc.err, "generateUTASubscriptions must return the expected error")
+			if tc.partial {
+				require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateUTASubscriptions must report the subscriptions it leaves out as a partial failure")
+			} else if err != nil {
+				require.NotErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateUTASubscriptions must not report other errors as partial failures")
+			}
 			assert.Equal(t, tc.exp, subs, "generateUTASubscriptions should generate the expected subscriptions")
 		})
 	}
@@ -783,6 +849,23 @@ func TestExpandUTASubscription(t *testing.T) {
 	ex.CurrencyPairs.Delete(asset.Futures)
 	_, err = ex.expandUTASubscription(&subscription.Subscription{Channel: UTATickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}}, utaChannels[UTATickerChannel], asset.Futures)
 	assert.ErrorIs(t, err, currency.ErrAssetNotFound, "expandUTASubscription should error for an asset without a pair format")
+}
+
+// BenchmarkExpandUTASubscription expands a UTA subscription naming 1,000 pairs. Each pair's subscription is cloned
+// without the configured pairs, so the bytes allocated grow linearly with them; cloning the pairs for every pair would
+// allocate about 49 MB an expansion
+func BenchmarkExpandUTASubscription(b *testing.B) {
+	ex := testInstance(b)
+	pairs := make(currency.Pairs, 1000)
+	for i := range pairs {
+		pairs[i] = currency.NewPair(currency.NewCode("C"+strconv.Itoa(i)), currency.USDT)
+	}
+	s := &subscription.Subscription{Enabled: true, Channel: UTATradeChannel, Asset: asset.Spot, Pairs: pairs}
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err := ex.expandUTASubscription(s, utaChannels[UTATradeChannel], asset.Spot)
+		require.NoError(b, err, "expandUTASubscription must not error")
+	}
 }
 
 func TestValidateUTASubscription(t *testing.T) {
@@ -907,6 +990,7 @@ func TestManageUTASubscription(t *testing.T) {
 		assert.ErrorIsf(t, err, tc.expIs, "manageUTASubscription should error for %s", tc.name)
 	}
 	assert.Error(t, ex.manageUTASubscription(t.Context(), &utaFakeConnection{reply: []byte(`{`)}, newSub(), utaSubscribeAction), "manageUTASubscription should error on a malformed reply")
+	assert.ErrorIs(t, ex.manageUTASubscription(t.Context(), &utaFakeConnection{reply: []byte(`null`)}, newSub(), utaSubscribeAction), common.ErrNoResponse, "manageUTASubscription should error on a null reply")
 	assert.Error(t, ex.manageUTASubscription(t.Context(), conn, newSub(), utaUnsubscribeAction), "manageUTASubscription should error unsubscribing from a subscription it does not hold")
 }
 
@@ -952,6 +1036,56 @@ func TestUTASubscriptionRequest(t *testing.T) {
 		assert.Lenf(t, req.ID, 32, "utaSubscriptionRequest should give %s an ID", tc.sub.Channel)
 		tc.exp.ID = req.ID
 		assert.Equalf(t, tc.exp, req, "utaSubscriptionRequest should build the %s message", tc.sub.Channel)
+	}
+
+	rpi := map[string]any{"rpiFilter": true}
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		exp string
+	}{
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 5, Params: rpi},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"5","rpiFilter":1}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 50, Params: rpi},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"50","rpiFilter":1}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 1, Params: rpi},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"1"}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 500, Params: rpi},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"increment@10ms"}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{utaSpotTestPair}, Levels: 5, Params: rpi},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"SPOT","symbol":"BTC-USDT","depth":"5"}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 5},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"5"}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 5, Params: map[string]any{"rpiFilter": false}},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"5"}`,
+		},
+		{
+			sub: &subscription.Subscription{Channel: UTAOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}, Levels: 50, Params: map[string]any{"rpiFilter": nil}},
+			exp: `{"id":"","action":"SUBSCRIBE","channel":"obu","tradeType":"FUTURES","symbol":"XBTUSDTM","depth":"50"}`,
+		},
+	} {
+		// An unsubscribe without the filter is acknowledged, but KuCoin keeps sending the RPI book
+		for _, action := range []string{utaSubscribeAction, utaUnsubscribeAction} {
+			req, err := ex.utaSubscriptionRequest(tc.sub, action)
+			require.NoErrorf(t, err, "utaSubscriptionRequest must not error for %s depth %d", tc.sub.Asset, tc.sub.Levels)
+			req.ID = ""
+			msg, err := json.Marshal(req)
+			require.NoError(t, err, "Marshal must not error")
+			exp := strings.Replace(tc.exp, `"SUBSCRIBE"`, `"`+action+`"`, 1)
+			assert.JSONEqf(t, exp, string(msg), "utaSubscriptionRequest should ask for RPI orders only on a futures orderbook of depth 5 or 50 whose params ask for them, %s %s depth %d params %v", action, tc.sub.Asset, tc.sub.Levels, tc.sub.Params)
+		}
 	}
 
 	for _, tc := range []struct {
@@ -1022,7 +1156,7 @@ func TestUTAWebsocketMessageDecoding(t *testing.T) {
 	assert.Equal(t, exp, got, "frames should decode the fields that route them, telling the topic and update type apart")
 }
 
-func TestWsHandleUTAData(t *testing.T) {
+func TestWebsocketHandleUTAData(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	conn := &utaFakeConnection{}

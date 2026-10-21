@@ -11,7 +11,7 @@ import (
 
 // GetMarginRiskLimit returns the cross margin risk limits and configuration by currency, or the isolated margin ones
 // by symbol (Get Margin Risk Limit)
-func (e *Exchange) GetMarginRiskLimit(ctx context.Context, req *MarginRiskLimitRequest) ([]MarginRiskLimit, error) {
+func (e *Exchange) GetMarginRiskLimit(ctx context.Context, req *MarginRiskLimitRequest) ([]MarginRiskLimitResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -25,6 +25,6 @@ func (e *Exchange) GetMarginRiskLimit(ctx context.Context, req *MarginRiskLimitR
 	if req.Symbol != "" {
 		params.Set("symbol", req.Symbol)
 	}
-	var resp []MarginRiskLimit
+	var resp []MarginRiskLimitResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginRiskLimitEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/currencies", params), nil, &resp)
 }

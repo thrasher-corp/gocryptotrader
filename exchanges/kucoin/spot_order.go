@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Spot order validation errors
+// Spot and margin order validation errors
 var (
 	errSizeAndFundsBothSet       = errors.New("size and funds cannot both be set")
 	errClientTimestampRequired   = errors.New("client timestamp is required with a max time window")
@@ -57,24 +57,24 @@ func (e *Exchange) PlaceHFOrderTest(ctx context.Context, r *PlaceHFOrderRequest)
 
 // BatchPlaceHFOrders places up to 20 spot orders (Batch Add Orders). KuCoin accepts or rejects each order on its own,
 // so every result carries its order's outcome: Success is false and FailMessage says why for a rejected order
-func (e *Exchange) BatchPlaceHFOrders(ctx context.Context, orders []PlaceHFOrderRequest) ([]BatchPlacedHFOrder, error) {
+func (e *Exchange) BatchPlaceHFOrders(ctx context.Context, orders []PlaceHFOrderRequest) ([]BatchPlacedHFOrderResponse, error) {
 	body, err := hfOrderListBody(orders)
 	if err != nil {
 		return nil, err
 	}
-	var resp []BatchPlacedHFOrder
+	var resp []BatchPlacedHFOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, batchPlaceHFOrdersEPL, http.MethodPost, "/v1/hf/orders/multi", body, &resp)
 }
 
 // BatchPlaceHFOrdersSync places up to 20 spot orders and returns their states once matching has finished
 // (Batch Add Orders Sync). Every result carries its order's outcome: Success is false and FailMessage says why for a
 // rejected order
-func (e *Exchange) BatchPlaceHFOrdersSync(ctx context.Context, orders []PlaceHFOrderRequest) ([]BatchPlacedHFOrderSync, error) {
+func (e *Exchange) BatchPlaceHFOrdersSync(ctx context.Context, orders []PlaceHFOrderRequest) ([]BatchPlacedHFOrderSyncResponse, error) {
 	body, err := hfOrderListBody(orders)
 	if err != nil {
 		return nil, err
 	}
-	var resp []BatchPlacedHFOrderSync
+	var resp []BatchPlacedHFOrderSyncResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, batchPlaceHFOrdersSyncEPL, http.MethodPost, "/v1/hf/orders/multi/sync", body, &resp)
 }
 
@@ -276,13 +276,13 @@ func (e *Exchange) GetSymbolsWithOpenHFOrder(ctx context.Context) (*SymbolsWithO
 }
 
 // GetOpenHFOrders returns a symbol's open spot orders, latest update first (Get Open Orders)
-func (e *Exchange) GetOpenHFOrders(ctx context.Context, symbol string) ([]HFOrder, error) {
+func (e *Exchange) GetOpenHFOrders(ctx context.Context, symbol string) ([]HFOrderResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []HFOrder
+	var resp []HFOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getOpenHFOrdersEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/orders/active", params), nil, &resp)
 }
 
@@ -542,7 +542,7 @@ func (e *Exchange) GetStopOrderByOrderID(ctx context.Context, orderID string) (*
 }
 
 // GetStopOrderByClientOrderID returns the stop orders with a client order ID (Get Stop Order By ClientOid)
-func (e *Exchange) GetStopOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) ([]StopOrder, error) {
+func (e *Exchange) GetStopOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) ([]StopOrderResponse, error) {
 	if clientOrderID == "" {
 		return nil, order.ErrClientOrderIDMustBeSet
 	}
@@ -551,7 +551,7 @@ func (e *Exchange) GetStopOrderByClientOrderID(ctx context.Context, clientOrderI
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []StopOrder
+	var resp []StopOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getStopOrderByClientOrderIDEPL, http.MethodGet, common.EncodeURLValues("/v1/stop-order/queryOrderByClientOid", params), nil, &resp)
 }
 

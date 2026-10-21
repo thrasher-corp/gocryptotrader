@@ -156,7 +156,7 @@ func TestGetExchangeBrokerKYCStatus(t *testing.T) {
 	result, err := e.GetExchangeBrokerKYCStatus(t.Context(), clientUIDs)
 	require.NoError(t, err, "GetExchangeBrokerKYCStatus must not error")
 	if mockTests {
-		exp := []ExchangeBrokerKYCStatus{
+		exp := []ExchangeBrokerKYCStatusResponse{
 			{
 				ClientUID: 100000001,
 				Status:    "PROCESS",
@@ -186,7 +186,7 @@ func TestGetExchangeBrokerKYCStatusList(t *testing.T) {
 			PageSize:    100,
 			TotalNumber: 9,
 			TotalPage:   1,
-			Items: []ExchangeBrokerKYCStatus{
+			Items: []ExchangeBrokerKYCStatusResponse{
 				{
 					ClientUID: 100000001,
 					Status:    "PROCESS",
@@ -273,7 +273,7 @@ func TestGetExchangeBrokerSubAccounts(t *testing.T) {
 			PageSize:    20,
 			TotalNumber: 1,
 			TotalPage:   1,
-			Items: []ExchangeBrokerSubAccount{
+			Items: []ExchangeBrokerSubAccountResponse{
 				{
 					AccountName: "Account15",
 					UID:         "100000001",
@@ -290,7 +290,7 @@ func TestGetExchangeBrokerSubAccounts(t *testing.T) {
 
 // liveExchangeBrokerSubAccount returns the first of the broker's sub-accounts, so live tests look up one the broker
 // owns, and skips the test when there is none
-func liveExchangeBrokerSubAccount(t *testing.T) ExchangeBrokerSubAccount {
+func liveExchangeBrokerSubAccount(t *testing.T) ExchangeBrokerSubAccountResponse {
 	t.Helper()
 	page, err := e.GetExchangeBrokerSubAccounts(t.Context(), &GetExchangeBrokerSubAccountsRequest{CurrentPage: 1})
 	require.NoError(t, err, "GetExchangeBrokerSubAccounts must not error")
@@ -359,7 +359,7 @@ func TestGetExchangeBrokerSubAccountAPIs(t *testing.T) {
 	result, err := e.GetExchangeBrokerSubAccountAPIs(t.Context(), uid, apiKey)
 	require.NoError(t, err, "GetExchangeBrokerSubAccountAPIs must not error")
 	if mockTests {
-		exp := []ExchangeBrokerSubAccountAPI{
+		exp := []ExchangeBrokerSubAccountAPIResponse{
 			{
 				UID:         "100000001",
 				Label:       "This is remarks3",
@@ -532,7 +532,7 @@ func TestGetExchangeBrokerDepositList(t *testing.T) {
 	})
 	require.NoError(t, err, "GetExchangeBrokerDepositList must not error")
 	if mockTests {
-		exp := []ExchangeBrokerDeposit{
+		exp := []ExchangeBrokerDepositResponse{
 			{
 				UID:             100000001,
 				Hash:            "6724e363a492800007ec602b",

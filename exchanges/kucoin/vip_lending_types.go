@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// VIPLendingCollateralRatio holds a currency's gradient collateral ratios
-type VIPLendingCollateralRatio struct {
+// VIPLendingCollateralRatioResponse holds a currency's gradient collateral ratios
+type VIPLendingCollateralRatioResponse struct {
 	Currency   currency.Code                    `json:"currency"`
 	USDTLevels []VIPLendingCollateralRatioLevel `json:"usdtLevels"`
 }
@@ -61,8 +61,8 @@ type VIPLendingMargin struct {
 	MarginFactor types.Number `json:"marginFactor"`
 }
 
-// VIPLendingAccount is an account involved in off-exchange lending
-type VIPLendingAccount struct {
+// VIPLendingAccountResponse is an account involved in off-exchange lending
+type VIPLendingAccountResponse struct {
 	UID            string        `json:"uid"`
 	MarginCurrency currency.Code `json:"marginCcy"`
 	// MarginQuantity is the maintenance quantity, calculated with the margin factor

@@ -6,10 +6,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WsFuturesTickerV2 is a futures Ticker V2 push, which carries the best bid and ask
-type WsFuturesTickerV2 struct {
+// WebsocketFuturesTickerV2 is a futures Ticker V2 push, which carries the best bid and ask
+type WebsocketFuturesTickerV2 struct {
 	Symbol       string       `json:"symbol"`
-	Sequence     int64        `json:"sequence"`
+	Sequence     uint64       `json:"sequence"`
 	BestBidSize  uint64       `json:"bestBidSize"`
 	BestBidPrice types.Number `json:"bestBidPrice"`
 	BestAskPrice types.Number `json:"bestAskPrice"`
@@ -17,10 +17,10 @@ type WsFuturesTickerV2 struct {
 	Timestamp    types.Time   `json:"ts"`
 }
 
-// WsFuturesTickerV1 is a futures Ticker V1 push, which carries the last fill
-type WsFuturesTickerV1 struct {
+// WebsocketFuturesTickerV1 is a futures Ticker V1 push, which carries the last fill
+type WebsocketFuturesTickerV1 struct {
 	Symbol       string       `json:"symbol"`
-	Sequence     int64        `json:"sequence"`
+	Sequence     uint64       `json:"sequence"`
 	Side         string       `json:"side"`
 	Size         uint64       `json:"size"`
 	Price        types.Number `json:"price"`
@@ -32,26 +32,26 @@ type WsFuturesTickerV1 struct {
 	Timestamp    types.Time   `json:"ts"`
 }
 
-// WsFuturesOrderbookDepth is a futures Orderbook - Level 5 or Orderbook - Level 50 push
-type WsFuturesOrderbookDepth struct {
-	Sequence      int64                            `json:"sequence"`
+// WebsocketFuturesOrderbookDepth is a futures Orderbook - Level 5 or Orderbook - Level 50 push
+type WebsocketFuturesOrderbookDepth struct {
+	Sequence      uint64                           `json:"sequence"`
 	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
 	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Timestamp     types.Time                       `json:"timestamp"`
 	PushTimestamp types.Time                       `json:"ts"`
 }
 
-// WsFuturesOrderbookIncrement is a futures Orderbook - Increment push
-type WsFuturesOrderbookIncrement struct {
-	Sequence  int64      `json:"sequence"`
+// WebsocketFuturesOrderbookIncrement is a futures Orderbook - Increment push
+type WebsocketFuturesOrderbookIncrement struct {
+	Sequence  uint64     `json:"sequence"`
 	Change    string     `json:"change"` // Price, side, size
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// WsFuturesExecution is a futures Trade push
-type WsFuturesExecution struct {
+// WebsocketFuturesExecution is a futures Trade push
+type WebsocketFuturesExecution struct {
 	Symbol       string       `json:"symbol"`
-	Sequence     int64        `json:"sequence"`
+	Sequence     uint64       `json:"sequence"`
 	Side         string       `json:"side"`
 	Size         uint64       `json:"size"`
 	Price        types.Number `json:"price"`
@@ -61,8 +61,8 @@ type WsFuturesExecution struct {
 	Timestamp    types.Time   `json:"ts"`
 }
 
-// WsFuturesMarkIndexPrice is an Instrument push of the mark and index price
-type WsFuturesMarkIndexPrice struct {
+// WebsocketFuturesMarkIndexPrice is an Instrument push of the mark and index price
+type WebsocketFuturesMarkIndexPrice struct {
 	Symbol      string     `json:"symbol"` // From the topic; the push does not carry it
 	MarkPrice   float64    `json:"markPrice"`
 	IndexPrice  float64    `json:"indexPrice"`
@@ -70,8 +70,8 @@ type WsFuturesMarkIndexPrice struct {
 	Timestamp   types.Time `json:"timestamp"`
 }
 
-// WsFuturesFundingRate is an Instrument push of the funding rate
-type WsFuturesFundingRate struct {
+// WebsocketFuturesFundingRate is an Instrument push of the funding rate
+type WebsocketFuturesFundingRate struct {
 	Symbol      string     `json:"symbol"`      // From the topic; the push does not carry it
 	Period      uint64     `json:"period"`      // Undocumented
 	Granularity uint64     `json:"granularity"` // Milliseconds
@@ -79,19 +79,19 @@ type WsFuturesFundingRate struct {
 	Timestamp   types.Time `json:"timestamp"`
 }
 
-// WsFuturesFundingBegin is a Funding Fee Settlement push for the start of a settlement
-type WsFuturesFundingBegin struct {
+// WebsocketFuturesFundingBegin is a Funding Fee Settlement push for the start of a settlement
+type WebsocketFuturesFundingBegin struct {
 	Symbol      string     `json:"symbol"`
 	FundingTime types.Time `json:"fundingTime"`
 	FundingRate float64    `json:"fundingRate"`
 	Timestamp   types.Time `json:"timestamp"`
 }
 
-// WsFuturesFundingEnd is a Funding Fee Settlement push for the end of a settlement
-type WsFuturesFundingEnd WsFuturesFundingBegin
+// WebsocketFuturesFundingEnd is a Funding Fee Settlement push for the end of a settlement
+type WebsocketFuturesFundingEnd WebsocketFuturesFundingBegin
 
-// WsFuturesSnapshot is a futures Symbol Snapshot push, which carries the 24 hour statistics
-type WsFuturesSnapshot struct {
+// WebsocketFuturesSnapshot is a futures Symbol Snapshot push, which carries the 24 hour statistics
+type WebsocketFuturesSnapshot struct {
 	FundingRate           float64    `json:"fundingRate"`
 	HighPrice             float64    `json:"highPrice"`
 	LastPrice             float64    `json:"lastPrice"`
@@ -105,8 +105,8 @@ type WsFuturesSnapshot struct {
 	Volume                float64    `json:"volume"`
 }
 
-// WsFuturesOrderChange is a futures Orders push
-type WsFuturesOrderChange struct {
+// WebsocketFuturesOrderChange is a futures Orders push
+type WebsocketFuturesOrderChange struct {
 	Symbol          string       `json:"symbol"`
 	OrderType       string       `json:"orderType"`
 	Side            string       `json:"side"`
@@ -134,8 +134,8 @@ type WsFuturesOrderChange struct {
 	UserID          string       `json:"userId"`
 }
 
-// WsFuturesWalletBalance is a futures Balance push of the walletBalance.change subject
-type WsFuturesWalletBalance struct {
+// WebsocketFuturesWalletBalance is a futures Balance push of the walletBalance.change subject
+type WebsocketFuturesWalletBalance struct {
 	CrossPositionMargin      types.Number  `json:"crossPosMargin"`
 	IsolatedOrderMargin      types.Number  `json:"isolatedOrderMargin"`
 	HoldBalance              types.Number  `json:"holdBalance"`
@@ -154,30 +154,30 @@ type WsFuturesWalletBalance struct {
 	Timestamp                types.Time    `json:"timestamp"`
 }
 
-// WsFuturesOrderMargin is a futures Balance push of the deprecated orderMargin.change subject
-type WsFuturesOrderMargin struct {
+// WebsocketFuturesOrderMargin is a futures Balance push of the deprecated orderMargin.change subject
+type WebsocketFuturesOrderMargin struct {
 	OrderMargin float64       `json:"orderMargin"`
 	Currency    currency.Code `json:"currency"`
 	Timestamp   types.Time    `json:"timestamp"`
 }
 
-// WsFuturesAvailableBalance is a futures Balance push of the deprecated availableBalance.change subject
-type WsFuturesAvailableBalance struct {
+// WebsocketFuturesAvailableBalance is a futures Balance push of the deprecated availableBalance.change subject
+type WebsocketFuturesAvailableBalance struct {
 	AvailableBalance float64       `json:"availableBalance"`
 	HoldBalance      float64       `json:"holdBalance"`
 	Currency         currency.Code `json:"currency"`
 	Timestamp        types.Time    `json:"timestamp"`
 }
 
-// WsFuturesWithdrawHold is a futures Balance push of the deprecated withdrawHold.change subject
-type WsFuturesWithdrawHold struct {
+// WebsocketFuturesWithdrawHold is a futures Balance push of the deprecated withdrawHold.change subject
+type WebsocketFuturesWithdrawHold struct {
 	WithdrawHold float64       `json:"withdrawHold"`
 	Currency     currency.Code `json:"currency"`
 	Timestamp    types.Time    `json:"timestamp"`
 }
 
-// WsFuturesPosition is a Positions push of the position.change subject
-type WsFuturesPosition struct {
+// WebsocketFuturesPosition is a Positions push of the position.change subject
+type WebsocketFuturesPosition struct {
 	Symbol                       string        `json:"symbol"`
 	MaintenanceMarginRequirement float64       `json:"maintMarginReq"`
 	RiskLimit                    uint64        `json:"riskLimit"`
@@ -187,7 +187,7 @@ type WsFuturesPosition struct {
 	OpeningTimestamp             types.Time    `json:"openingTimestamp"`
 	AutoDeposit                  bool          `json:"autoDeposit"`
 	CurrentTimestamp             types.Time    `json:"currentTimestamp"`
-	CurrentQuantity              int64         `json:"currentQty"`
+	CurrentQuantity              int64         `json:"currentQty"` // Negative for a short position
 	CurrentCost                  float64       `json:"currentCost"`
 	CurrentCommission            float64       `json:"currentComm"`
 	UnrealisedCost               float64       `json:"unrealisedCost"`
@@ -222,14 +222,14 @@ type WsFuturesPosition struct {
 	Tax                          float64       `json:"tax"`
 	DealCommission               float64       `json:"dealComm"`
 	FundingFee                   float64       `json:"fundingFee"`
-	AggRate                      float64       `json:"aggRate"` // Undocumented
+	AggregateRate                float64       `json:"aggRate"` // Undocumented
 }
 
-// WsFuturesPositionSettlement is a Positions push of the position.settlement subject
-type WsFuturesPositionSettlement struct {
+// WebsocketFuturesPositionSettlement is a Positions push of the position.settlement subject
+type WebsocketFuturesPositionSettlement struct {
 	Symbol         string        `json:"symbol"`
 	MarkPrice      float64       `json:"markPrice"`
-	Quantity       int64         `json:"qty"`
+	Quantity       int64         `json:"qty"` // Negative for a short position
 	PositionSide   string        `json:"positionSide"`
 	SettleCurrency currency.Code `json:"settleCurrency"`
 	FundingTime    types.Time    `json:"fundingTime"`
@@ -239,26 +239,26 @@ type WsFuturesPositionSettlement struct {
 	Timestamp      types.Time    `json:"ts"`
 }
 
-// WsFuturesRiskLimitAdjustment is a Positions push of the position.adjustRiskLimit subject
-type WsFuturesRiskLimitAdjustment struct {
+// WebsocketFuturesRiskLimitAdjustment is a Positions push of the position.adjustRiskLimit subject
+type WebsocketFuturesRiskLimitAdjustment struct {
 	Message        string `json:"msg"`
 	Success        bool   `json:"success"`
 	RiskLimitLevel uint64 `json:"riskLimitLevel"`
 }
 
-// WsFuturesMarginMode is a Margin Mode push: the margin mode, CROSS or ISOLATED, by symbol
-type WsFuturesMarginMode map[string]string
+// WebsocketFuturesMarginMode is a Margin Mode push: the margin mode, CROSS or ISOLATED, by symbol
+type WebsocketFuturesMarginMode map[string]string
 
-// WsFuturesCrossLeverage is a Cross Margin Leverage push: the leverage by symbol
-type WsFuturesCrossLeverage map[string]WsFuturesLeverage
+// WebsocketFuturesCrossLeverage is a Cross Margin Leverage push: the leverage by symbol
+type WebsocketFuturesCrossLeverage map[string]WebsocketFuturesLeverage
 
-// WsFuturesLeverage is a symbol's leverage in a Cross Margin Leverage push
-type WsFuturesLeverage struct {
+// WebsocketFuturesLeverage is a symbol's leverage in a Cross Margin Leverage push
+type WebsocketFuturesLeverage struct {
 	Leverage types.Number `json:"leverage"`
 }
 
-// WsFuturesStopOrder is a futures Stop Orders push
-type WsFuturesStopOrder struct {
+// WebsocketFuturesStopOrder is a futures Stop Orders push
+type WebsocketFuturesStopOrder struct {
 	MarginMode    string       `json:"marginMode"`
 	OrderID       string       `json:"orderId"`
 	OrderPrice    types.Number `json:"orderPrice"`

@@ -20,7 +20,7 @@ func TestGetUTADepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	tron := UTADepositAddress{
+	tron := UTADepositAddressResponse{
 		Currency:        currency.USDT,
 		Chain:           "trx",
 		ChainName:       "TRC20",
@@ -30,10 +30,10 @@ func TestGetUTADepositAddress(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		chain string
-		exp   []UTADepositAddress
+		exp   []UTADepositAddressResponse
 	}{
 		{
-			exp: []UTADepositAddress{
+			exp: []UTADepositAddressResponse{
 				tron,
 				{
 					Currency:        currency.USDT,
@@ -48,7 +48,7 @@ func TestGetUTADepositAddress(t *testing.T) {
 				},
 			},
 		},
-		{chain: "trx", exp: []UTADepositAddress{tron}},
+		{chain: "trx", exp: []UTADepositAddressResponse{tron}},
 	} {
 		t.Run("chain "+tc.chain, func(t *testing.T) {
 			t.Parallel()

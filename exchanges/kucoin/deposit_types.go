@@ -33,8 +33,8 @@ type AddDepositAddressV3Response struct {
 	Remark         string        `json:"remark"`
 }
 
-// DepositAddress is a deposit address of a currency (Get Deposit Address (V3))
-type DepositAddress struct {
+// DepositAddressResponse is a deposit address of a currency (Get Deposit Address (V3))
+type DepositAddressResponse struct {
 	Address string `json:"address"`
 	// Memo is the address tag a deposit must carry when one is set
 	Memo    string `json:"memo"`

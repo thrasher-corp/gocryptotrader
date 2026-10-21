@@ -19,7 +19,7 @@ func TestGetLendingCurrencyInformation(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	eth := LendingCurrencyInfo{
+	eth := LendingCurrencyInfoResponse{
 		Currency:           currency.ETH,
 		PurchaseEnable:     true,
 		Increment:          0.0000001,
@@ -34,11 +34,11 @@ func TestGetLendingCurrencyInformation(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		ccy  currency.Code
-		exp  []LendingCurrencyInfo
+		exp  []LendingCurrencyInfoResponse
 	}{
 		{
 			name: "all currencies",
-			exp: []LendingCurrencyInfo{
+			exp: []LendingCurrencyInfoResponse{
 				{
 					Currency:           currency.BTC,
 					PurchaseEnable:     true,
@@ -54,7 +54,7 @@ func TestGetLendingCurrencyInformation(t *testing.T) {
 				eth,
 			},
 		},
-		{name: "one currency", ccy: currency.ETH, exp: []LendingCurrencyInfo{eth}},
+		{name: "one currency", ccy: currency.ETH, exp: []LendingCurrencyInfoResponse{eth}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -77,7 +77,7 @@ func TestGetLoanMarketInterestRate(t *testing.T) {
 	result, err := e.GetLoanMarketInterestRate(t.Context(), currency.ETH)
 	require.NoError(t, err, "GetLoanMarketInterestRate must not error")
 	if mockTests {
-		exp := []LoanMarketInterestRate{
+		exp := []LoanMarketInterestRateResponse{
 			{Time: LoanMarketInterestRateTime(time.Date(2026, 10, 13, 11, 0, 0, 0, time.UTC)), MarketInterestRate: 0.0001},
 			{Time: LoanMarketInterestRateTime(time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)), MarketInterestRate: 0.0001},
 			{Time: LoanMarketInterestRateTime(time.Date(2026, 10, 13, 13, 0, 0, 0, time.UTC)), MarketInterestRate: 0.0001},
@@ -102,6 +102,21 @@ func TestLoanMarketInterestRateTimeUnmarshalJSON(t *testing.T) {
 
 	assert.ErrorIs(t, json.Unmarshal([]byte(`"2026-10-13 21:00"`), &got), errInvalidLoanMarketInterestRateTime, "Unmarshal should reject another time format")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`202610132100`), &got), errInvalidLoanMarketInterestRateTime, "Unmarshal should reject a number")
+}
+
+func TestLoanMarketInterestRateTimeMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{`"202610132100"`, `"202601010000"`, `""`} {
+		var decoded LoanMarketInterestRateTime
+		require.NoErrorf(t, json.Unmarshal([]byte(wire), &decoded), "Unmarshal must not error for %s", wire)
+		got, err := json.Marshal(decoded)
+		require.NoErrorf(t, err, "Marshal must not error for %s", wire)
+		assert.Equalf(t, wire, string(got), "Marshal should encode %s as KuCoin sends it", wire)
+	}
+	// A time in any zone is encoded as the UTC+8 hour it is
+	got, err := json.Marshal(&LoanMarketInterestRateResponse{Time: LoanMarketInterestRateTime(time.Date(2026, 10, 13, 9, 0, 0, 0, time.FixedZone("UTC-4", -4*60*60)))})
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"time":"202610132100","marketInterestRate":""}`, string(got), "Marshal should encode a decoded rate's time as KuCoin sends it")
 }
 
 func TestMarginLendingSubscription(t *testing.T) {

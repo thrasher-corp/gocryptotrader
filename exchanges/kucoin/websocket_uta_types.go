@@ -11,7 +11,7 @@ type UTAWebsocketAuthRequest struct {
 	ID         string `json:"id,omitempty"`
 	Operation  string `json:"op"`
 	APIKey     string `json:"kc-api-key"`
-	Timestamp  int64  `json:"kc-api-timestamp"` // milliseconds
+	Timestamp  uint64 `json:"kc-api-timestamp"` // milliseconds
 	Signature  string `json:"kc-api-sign"`
 	Passphrase string `json:"kc-api-passphrase"`
 }
@@ -36,6 +36,9 @@ type UTAWebsocketSubscriptionRequest struct {
 	Symbol      string `json:"symbol,omitempty"`
 	Interval    string `json:"interval,omitempty"`
 	Depth       string `json:"depth,omitempty"`
+	// RPIFilter 1 adds retail price improvement orders to a futures orderbook of depth 5 or 50, as each level's third
+	// value; a subscription asks for it with the rpiFilter param set to true
+	RPIFilter uint64 `json:"rpiFilter,omitempty"`
 }
 
 // UTAWebsocketMessage holds the fields that identify an incoming UTA push connection frame: pushes carry a topic and

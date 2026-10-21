@@ -16,9 +16,9 @@ func TestErrorGetError(t *testing.T) {
 		exp  string
 	}{
 		{name: "success", resp: Error{Code: "200000"}},
-		{name: "success with a message", resp: Error{Code: "200000", Msg: "success"}},
+		{name: "success with a message", resp: Error{Code: "200000", Message: "success"}},
 		{name: "legacy success code", resp: Error{Code: "200"}},
-		{name: "failure", resp: Error{Code: "400100", Msg: "Parameter Error"}, exp: "code: 400100 message: Parameter Error"},
+		{name: "failure", resp: Error{Code: "400100", Message: "Parameter Error"}, exp: "code: 400100 message: Parameter Error"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -28,6 +28,8 @@ func TestErrorGetError(t *testing.T) {
 				return
 			}
 			assert.EqualError(t, err, tc.exp, "GetError should report the code and message")
+			var respErr *responseError
+			assert.ErrorAs(t, err, &respErr, "GetError should report a failure KuCoin answered as a response error")
 		})
 	}
 	err := Error{Code: "unknown"}.GetError()

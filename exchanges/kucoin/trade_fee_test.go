@@ -45,17 +45,17 @@ func TestGetTradingPairActualFees(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		symbols []string
-		exp     []TradingPairActualFee
+		exp     []TradingPairActualFeeResponse
 	}{
 		{
 			name:    "one symbol",
 			symbols: []string{"BTC-USDT"},
-			exp:     []TradingPairActualFee{{Symbol: "BTC-USDT", TakerFeeRate: 0.001, MakerFeeRate: 0.0008}},
+			exp:     []TradingPairActualFeeResponse{{Symbol: "BTC-USDT", TakerFeeRate: 0.001, MakerFeeRate: 0.0008}},
 		},
 		{
 			name:    "two symbols",
 			symbols: []string{"BTC-USDT", "ETH-USDT"},
-			exp: []TradingPairActualFee{
+			exp: []TradingPairActualFeeResponse{
 				{Symbol: "BTC-USDT", TakerFeeRate: 0.001, MakerFeeRate: 0.0008, SellTaxRate: 0.002, BuyTaxRate: 0.001},
 				{Symbol: "ETH-USDT", TakerFeeRate: 0.001, MakerFeeRate: 0.001},
 			},

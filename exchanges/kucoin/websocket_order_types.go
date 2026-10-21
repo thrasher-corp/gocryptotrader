@@ -5,57 +5,57 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WsOrderSession is the session message the websocket order API sends once connected, which the client signs to
-// authenticate
-type WsOrderSession struct {
+// WebsocketOrderSession is the session message the websocket order API sends once connected, which the client
+// signs to authenticate
+type WebsocketOrderSession struct {
 	SessionID string     `json:"sessionId"`
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// WsOrderWelcome is the message the websocket order API sends once a session is authenticated
-type WsOrderWelcome struct {
+// WebsocketOrderWelcome is the message the websocket order API sends once a session is authenticated
+type WebsocketOrderWelcome struct {
 	SessionID    string `json:"sessionId"`
 	Data         string `json:"data"`
-	PingInterval int64  `json:"pingInterval"` // Milliseconds
-	PingTimeout  int64  `json:"pingTimeout"`  // Milliseconds
+	PingInterval uint64 `json:"pingInterval"` // Milliseconds
+	PingTimeout  uint64 `json:"pingTimeout"`  // Milliseconds
 }
 
-// WsOrderMessage is a websocket order API request
-type WsOrderMessage struct {
+// WebsocketOrderRequest is a websocket order API request
+type WebsocketOrderRequest struct {
 	ID        string `json:"id"`
 	Operation string `json:"op"`
 	Args      any    `json:"args"`
 }
 
-// WsOrderResponse is a websocket order API reply: an operation's result, an error or a pong
-type WsOrderResponse struct {
-	Code          string           `json:"code"`
-	Message       string           `json:"msg"`
-	ID            string           `json:"id"`
-	Operation     string           `json:"op"`
-	InTime        types.Time       `json:"inTime"`
-	OutTime       types.Time       `json:"outTime"`
-	UserRateLimit WsOrderRateLimit `json:"userRateLimit"`
-	RateLimit     WsOrderRateLimit `json:"rateLimit"` // Sent on errors
-	Timestamp     types.Time       `json:"timestamp"` // Pong server time
-	Data          json.RawMessage  `json:"data"`
+// WebsocketOrderResponse is a websocket order API reply: an operation's result, an error or a pong
+type WebsocketOrderResponse struct {
+	Code          string                  `json:"code"`
+	Message       string                  `json:"msg"`
+	ID            string                  `json:"id"`
+	Operation     string                  `json:"op"`
+	InTime        types.Time              `json:"inTime"`
+	OutTime       types.Time              `json:"outTime"`
+	UserRateLimit WebsocketOrderRateLimit `json:"userRateLimit"`
+	RateLimit     WebsocketOrderRateLimit `json:"rateLimit"` // Sent on errors
+	Timestamp     types.Time              `json:"timestamp"` // Pong server time
+	Data          json.RawMessage         `json:"data"`
 }
 
-// WsOrderRateLimit is the rate limit state a websocket order API reply reports
-type WsOrderRateLimit struct {
+// WebsocketOrderRateLimit is the rate limit state a websocket order API reply reports
+type WebsocketOrderRateLimit struct {
 	Limit     uint64 `json:"limit"`
 	Remaining uint64 `json:"remaining"`
 	Reset     uint64 `json:"reset"` // Milliseconds
 }
 
-// WsAddOrderResponse is the result of a spot.order or futures.order request
-type WsAddOrderResponse struct {
+// WebsocketAddOrderResponse is the result of a spot.order or futures.order request
+type WebsocketAddOrderResponse struct {
 	ClientOrderID string `json:"clientOid"`
 	OrderID       string `json:"orderId"`
 }
 
-// WsAddSpotOrderSyncResponse is the result of a spot.sync_order request
-type WsAddSpotOrderSyncResponse struct {
+// WebsocketAddSpotOrderSyncResponse is the result of a spot.sync_order request
+type WebsocketAddSpotOrderSyncResponse struct {
 	CanceledSize  types.Number `json:"canceledSize"`
 	ClientOrderID string       `json:"clientOid"`
 	DealSize      types.Number `json:"dealSize"`
@@ -67,16 +67,16 @@ type WsAddSpotOrderSyncResponse struct {
 	Status        string       `json:"status"`
 }
 
-// WsAddMarginOrderResponse is the result of a margin.order request
-type WsAddMarginOrderResponse struct {
+// WebsocketAddMarginOrderResponse is the result of a margin.order request
+type WebsocketAddMarginOrderResponse struct {
 	BorrowSize    types.Number `json:"borrowSize"`
 	ClientOrderID string       `json:"clientOid"`
 	LoanApplyID   string       `json:"loanApplyId"`
 	OrderID       string       `json:"orderId"`
 }
 
-// WsFuturesOrderResult is the result of one order of a futures.multi_order or futures.multi_cancel request
-type WsFuturesOrderResult struct {
+// WebsocketFuturesOrderResponse is the result of one order of a futures.multi_order or futures.multi_cancel request
+type WebsocketFuturesOrderResponse struct {
 	ClientOrderID string `json:"clientOid"`
 	Code          string `json:"code"`
 	Message       string `json:"msg"`
@@ -84,22 +84,22 @@ type WsFuturesOrderResult struct {
 	Symbol        string `json:"symbol"`
 }
 
-// WsCancelOrderRequest names the order a spot.cancel, spot.sync_cancel, margin.cancel or futures.cancel request cancels;
+// WebsocketCancelOrderRequest names the order a spot.cancel, spot.sync_cancel, margin.cancel or futures.cancel request cancels;
 // when both IDs are given the client order ID takes effect
-type WsCancelOrderRequest struct {
+type WebsocketCancelOrderRequest struct {
 	Symbol        string
 	OrderID       string
 	ClientOrderID string
 }
 
-// WsCancelOrderResponse is the result of a spot.cancel or margin.cancel request: the ID the order was cancelled by
-type WsCancelOrderResponse struct {
+// WebsocketCancelOrderResponse is the result of a spot.cancel or margin.cancel request: the ID the order was cancelled by
+type WebsocketCancelOrderResponse struct {
 	ClientOrderID string `json:"clientOid"`
 	OrderID       string `json:"orderId"`
 }
 
-// WsCancelSpotOrderSyncResponse is the result of a spot.sync_cancel request
-type WsCancelSpotOrderSyncResponse struct {
+// WebsocketCancelSpotOrderSyncResponse is the result of a spot.sync_cancel request
+type WebsocketCancelSpotOrderSyncResponse struct {
 	CanceledSize  types.Number `json:"canceledSize"`
 	ClientOrderID string       `json:"clientOid"`
 	DealSize      types.Number `json:"dealSize"`
@@ -109,22 +109,22 @@ type WsCancelSpotOrderSyncResponse struct {
 	Status        string       `json:"status"`
 }
 
-// WsCancelFuturesOrderResponse is the result of a futures.cancel request: the cancelled order IDs when cancelled by
+// WebsocketCancelFuturesOrderResponse is the result of a futures.cancel request: the cancelled order IDs when cancelled by
 // order ID, or the client order ID
-type WsCancelFuturesOrderResponse struct {
+type WebsocketCancelFuturesOrderResponse struct {
 	CancelledOrderIDs []string `json:"cancelledOrderIds"`
 	ClientOrderID     string   `json:"clientOid"`
 }
 
-// WsBatchCancelFuturesOrdersRequest names the futures orders a futures.multi_cancel request cancels, by order ID or by
+// WebsocketBatchCancelFuturesOrdersRequest names the futures orders a futures.multi_cancel request cancels, by order ID or by
 // symbol and client order ID
-type WsBatchCancelFuturesOrdersRequest struct {
+type WebsocketBatchCancelFuturesOrdersRequest struct {
 	OrderIDs     []string
-	ClientOrders []WsFuturesClientOrder
+	ClientOrders []WebsocketFuturesClientOrder
 }
 
-// WsFuturesClientOrder names a futures order by its symbol and client order ID
-type WsFuturesClientOrder struct {
+// WebsocketFuturesClientOrder names a futures order by its symbol and client order ID
+type WebsocketFuturesClientOrder struct {
 	Symbol        string
 	ClientOrderID string
 }

@@ -70,7 +70,7 @@ func (e *Exchange) SetUTAAccountMode(ctx context.Context, accountType string) er
 }
 
 // GetUTALeverage returns the leverage of cross margin currencies or futures symbols (Get Leverage (UTA))
-func (e *Exchange) GetUTALeverage(ctx context.Context, req *UTALeverageRequest) ([]UTALeverage, error) {
+func (e *Exchange) GetUTALeverage(ctx context.Context, req *UTALeverageRequest) ([]UTALeverageResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (e *Exchange) GetUTALeverage(ctx context.Context, req *UTALeverageRequest) 
 	if req.MarginMode != "" {
 		params.Set("marginMode", req.MarginMode)
 	}
-	var resp []UTALeverage
+	var resp []UTALeverageResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTALeverageEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/unified/account/leverage", params), nil, &resp)
 }
 
@@ -243,7 +243,7 @@ func (e *Exchange) SetUTAKCSFeeDeduction(ctx context.Context, enabled bool) (*Se
 // GetUTAThirdPartyCustodyAccountCurrencyLimits returns the remaining third-party custody quota of settlement
 // currencies. Both filters are optional; a sub-account key's custodian is fixed, so custodian is ignored for it (Get
 // Third-Party Custody Account Currency Limits)
-func (e *Exchange) GetUTAThirdPartyCustodyAccountCurrencyLimits(ctx context.Context, custodian string, ccy currency.Code) ([]UTAThirdPartyCustodyCurrencyLimit, error) {
+func (e *Exchange) GetUTAThirdPartyCustodyAccountCurrencyLimits(ctx context.Context, custodian string, ccy currency.Code) ([]UTAThirdPartyCustodyCurrencyLimitResponse, error) {
 	params := url.Values{}
 	if custodian != "" {
 		params.Set("custodian", custodian)
@@ -251,6 +251,6 @@ func (e *Exchange) GetUTAThirdPartyCustodyAccountCurrencyLimits(ctx context.Cont
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
 	}
-	var resp []UTAThirdPartyCustodyCurrencyLimit
+	var resp []UTAThirdPartyCustodyCurrencyLimitResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAThirdPartyCustodyAccountCurrencyLimitsEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/oes/custody-quota", params), nil, &resp)
 }

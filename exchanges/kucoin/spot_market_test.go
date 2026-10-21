@@ -554,7 +554,7 @@ func TestGetTradeHistory(t *testing.T) {
 	result, err := e.GetTradeHistory(t.Context(), "BTC-USDT")
 	require.NoError(t, err, "GetTradeHistory must not error")
 	if mockTests {
-		exp := []Trade{
+		exp := []TradeResponse{
 			{
 				Sequence: "24806547213402117",
 				TradeID:  "24806547213402117",
@@ -593,9 +593,9 @@ func TestGetKlines(t *testing.T) {
 
 	for _, tc := range []struct {
 		req *KlinesRequest
-		exp []Kline
+		exp []KlineResponse
 	}{
-		{req: &KlinesRequest{Symbol: "BTC-USDT", Type: "1week"}, exp: []Kline{
+		{req: &KlinesRequest{Symbol: "BTC-USDT", Type: "1week"}, exp: []KlineResponse{
 			{
 				StartTime: types.Time(time.Unix(1791417600, 0)),
 				Open:      83321.7,
@@ -615,7 +615,7 @@ func TestGetKlines(t *testing.T) {
 				Amount:    1011375055.9435077,
 			},
 		}},
-		{req: &KlinesRequest{Symbol: "BTC-USDT", Type: "5min", StartAt: start, EndAt: end}, exp: []Kline{
+		{req: &KlinesRequest{Symbol: "BTC-USDT", Type: "5min", StartAt: start, EndAt: end}, exp: []KlineResponse{
 			{
 				StartTime: types.Time(time.Unix(1790813400, 0)),
 				Open:      83497.4,
@@ -660,9 +660,9 @@ func TestGetKlines(t *testing.T) {
 
 func TestKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var k Kline
+	var k KlineResponse
 	require.NoError(t, k.UnmarshalJSON([]byte(`["1746645900","96248.3","96060.4","96248.3","95991.1","7.30387554","701787.956631596"]`)), "UnmarshalJSON must not error")
-	exp := Kline{
+	exp := KlineResponse{
 		StartTime: types.Time(time.Unix(1746645900, 0)),
 		Open:      96248.3,
 		Close:     96060.4,
@@ -682,6 +682,12 @@ func TestGetPartOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetPartOrderbook must reject an empty symbol")
 	_, err = e.GetPartOrderbook(t.Context(), "BTC-USDT", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetPartOrderbook must reject a zero size")
+	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
+	for _, size := range []uint64{1, 21, 50} {
+		_, err = ex.GetPartOrderbook(t.Context(), "BTC-USDT", size)
+		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetPartOrderbook must reject size %d, which KuCoin does not serve", size)
+	}
+	assert.Empty(t, *sent, "GetPartOrderbook should not send a request for a size KuCoin does not serve")
 	_, err = e.GetPartOrderbook(t.Context(), "NOTLISTED-USDT", 20)
 	require.ErrorIs(t, err, common.ErrNoResponse, "GetPartOrderbook must reject the null data KuCoin sends for an unknown symbol")
 	ctx, cancel := context.WithCancel(t.Context())
@@ -758,6 +764,12 @@ func TestGetCallAuctionPartOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCallAuctionPartOrderbook must reject an empty symbol")
 	_, err = e.GetCallAuctionPartOrderbook(t.Context(), "BTC-USDT", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetCallAuctionPartOrderbook must reject a zero size")
+	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
+	for _, size := range []uint64{1, 21, 50} {
+		_, err = ex.GetCallAuctionPartOrderbook(t.Context(), "BTC-USDT", size)
+		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetCallAuctionPartOrderbook must reject size %d, which KuCoin does not serve", size)
+	}
+	assert.Empty(t, *sent, "GetCallAuctionPartOrderbook should not send a request for a size KuCoin does not serve")
 
 	for _, tc := range []struct {
 		size uint64
@@ -939,7 +951,7 @@ func TestGetKYCRegions(t *testing.T) {
 	result, err := e.GetKYCRegions(t.Context())
 	require.NoError(t, err, "GetKYCRegions must not error")
 	if mockTests {
-		exp := []KYCRegion{
+		exp := []KYCRegionResponse{
 			{Code: "AD", EnglishName: "Andorra"},
 			{Code: "CI", EnglishName: "Côte d'Ivoire"},
 			{Code: "GB", EnglishName: "United Kingdom of Great Britain and Northern Ireland"},

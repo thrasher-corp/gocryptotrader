@@ -15,8 +15,8 @@ type UnmarshalTo interface {
 
 // Error defines all error information for each request
 type Error struct {
-	Code string `json:"code"`
-	Msg  string `json:"msg"`
+	Code    string `json:"code"`
+	Message string `json:"msg"`
 }
 
 // GetError returns an error unless the response code reports success. KuCoin's success code is 200000, which newer
@@ -30,11 +30,21 @@ func (e Error) GetError() error {
 	if code == 200 || code == 200000 {
 		return nil
 	}
-	return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
+	return &responseError{code: e.Code, message: e.Message}
 }
 
-// AccountInfo represents account information
-type AccountInfo struct {
+// responseError is the error of a response in which KuCoin reports a failure, which callers tell apart from a request
+// that got no answer
+type responseError struct {
+	code, message string
+}
+
+func (e *responseError) Error() string {
+	return "code: " + e.code + " message: " + e.message
+}
+
+// AccountInfoResponse represents account information
+type AccountInfoResponse struct {
 	ID          string        `json:"id"`
 	Currency    currency.Code `json:"currency"`
 	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin

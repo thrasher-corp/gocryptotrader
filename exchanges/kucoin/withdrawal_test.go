@@ -97,6 +97,12 @@ func TestWithdrawV3(t *testing.T) {
 	_, err = e.WithdrawV3(t.Context(), arg)
 	require.ErrorIs(t, err, errWithdrawTypeRequired, "WithdrawV3 must reject an empty withdraw type")
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.WithdrawV3(t.Context(), &WithdrawV3Request{Currency: currency.USDT, Amount: 1, IsInner: true, ToAddress: "test@example.com", WithdrawType: "MAIL"})
+		return err
+	})
+	assert.JSONEq(t, `{"currency":"USDT","amount":"1","isInner":true,"toAddress":"test@example.com","withdrawType":"MAIL"}`, sent.body, "WithdrawV3 should send the amount as the string KuCoin documents")
+
 	if !mockTests {
 		t.Skip("a withdrawal sends funds to the docs' example destinations, which a test must not do")
 	}

@@ -171,9 +171,9 @@ func TestGetFuturesPositionDetails(t *testing.T) {
 	// Hedge mode isolated margin positions and an inverse cross margin position between them populate every field
 	for _, tc := range []struct {
 		symbol string
-		exp    []FuturesPositionDetail
+		exp    []FuturesPositionDetailResponse
 	}{
-		{symbol: "XBTUSDTM", exp: []FuturesPositionDetail{
+		{symbol: "XBTUSDTM", exp: []FuturesPositionDetailResponse{
 			{
 				ID:                           "500000000001478576",
 				Symbol:                       "XBTUSDTM",
@@ -266,7 +266,7 @@ func TestGetFuturesPositionDetails(t *testing.T) {
 				AggregateRate:                0.0046,
 			},
 		}},
-		{symbol: "XBTUSDM", exp: []FuturesPositionDetail{
+		{symbol: "XBTUSDM", exp: []FuturesPositionDetailResponse{
 			{
 				ID:                           "500000000001533743",
 				Symbol:                       "XBTUSDM",
@@ -329,9 +329,9 @@ func TestGetFuturesPositionList(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
 		settleCurrency currency.Code
-		exp            []FuturesPosition
+		exp            []FuturesPositionResponse
 	}{
-		{name: "all", exp: []FuturesPosition{
+		{name: "all", exp: []FuturesPositionResponse{
 			{
 				ID:                           "500000000001478576",
 				Symbol:                       "XBTUSDTM",
@@ -416,7 +416,7 @@ func TestGetFuturesPositionList(t *testing.T) {
 				DealCommission:               -0.00000051,
 			},
 		}},
-		{name: "USDT", settleCurrency: currency.USDT, exp: []FuturesPosition{
+		{name: "USDT", settleCurrency: currency.USDT, exp: []FuturesPositionResponse{
 			{
 				ID:                           "500000000001478576",
 				Symbol:                       "XBTUSDTM",
@@ -716,7 +716,7 @@ func TestGetFuturesCrossMarginRiskLimit(t *testing.T) {
 	result, err := e.GetFuturesCrossMarginRiskLimit(t.Context(), &GetFuturesCrossMarginRiskLimitRequest{Symbols: []string{"XBTUSDTM", "ETHUSDTM"}, TotalMargin: 10000, Leverage: 20})
 	require.NoError(t, err, "GetFuturesCrossMarginRiskLimit must not error")
 	if mockTests {
-		exp := []FuturesCrossMarginRiskLimit{
+		exp := []FuturesCrossMarginRiskLimitResponse{
 			{
 				Symbol:                "XBTUSDTM",
 				MaxOpenSize:           1960,
@@ -763,7 +763,7 @@ func TestGetFuturesCrossMarginRequirement(t *testing.T) {
 	result, err := e.GetFuturesCrossMarginRequirement(t.Context(), &GetFuturesCrossMarginRequirementRequest{Symbols: []string{"XBTUSDTM", "ETHUSDTM"}, PositionValue: 1000, Leverage: 10})
 	require.NoError(t, err, "GetFuturesCrossMarginRequirement must not error")
 	if mockTests {
-		exp := []FuturesCrossMarginRequirement{
+		exp := []FuturesCrossMarginRequirementResponse{
 			{
 				Symbol:                "XBTUSDTM",
 				Size:                  9,
@@ -802,7 +802,7 @@ func TestGetFuturesRiskLimitLevel(t *testing.T) {
 	result, err := e.GetFuturesRiskLimitLevel(t.Context(), "XBTUSDTM")
 	require.NoError(t, err, "GetFuturesRiskLimitLevel must not error")
 	if mockTests {
-		exp := []FuturesRiskLimitLevel{
+		exp := []FuturesRiskLimitLevelResponse{
 			{
 				Symbol:         "XBTUSDTM",
 				Level:          1,

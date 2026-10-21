@@ -213,7 +213,9 @@ func (e *Exchange) utaFill(x *UTAWebsocketExecutionLite) (fill.Data, error) {
 }
 
 // processUTABalance saves a unified account balance push under spot, as the unified account's funds back its spot,
-// margin and futures trading alike, and relays the saved balance. Only the unified account's balance is subscribed to
+// margin and futures trading alike, and relays the saved balance. The balance is saved in a sub-account of its own,
+// named for the unified account type, so the Classic spot balances REST saves neither overwrite nor remove it. Only the
+// unified account's balance is subscribed to
 func (e *Exchange) processUTABalance(ctx context.Context, msg *UTAWebsocketMessage, accountType string) error {
 	if accountType != utaUnifiedAccountType {
 		return fmt.Errorf("%w: %q", errUTAUnknownTopic, msg.Topic)
@@ -222,7 +224,7 @@ func (e *Exchange) processUTABalance(ctx context.Context, msg *UTAWebsocketMessa
 	if err := json.Unmarshal(msg.Data, &resp); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, utaUnifiedAccountType)}
 	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
 		Total:     resp.Balance.Float64(),
 		Hold:      resp.Hold.Float64(),

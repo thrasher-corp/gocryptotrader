@@ -36,7 +36,7 @@ func (e *Exchange) GetSpotAccountType(ctx context.Context) (bool, error) {
 
 // GetAllAccounts returns the spot accounts, optionally filtered by currency and by account type, main or trade (Get
 // Account List - Spot)
-func (e *Exchange) GetAllAccounts(ctx context.Context, ccy currency.Code, accountType string) ([]AccountInfo, error) {
+func (e *Exchange) GetAllAccounts(ctx context.Context, ccy currency.Code, accountType string) ([]AccountInfoResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.Upper().String())
@@ -44,7 +44,7 @@ func (e *Exchange) GetAllAccounts(ctx context.Context, ccy currency.Code, accoun
 	if accountType != "" {
 		params.Set("type", accountType)
 	}
-	var resp []AccountInfo
+	var resp []AccountInfoResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getAllAccountsEPL, http.MethodGet, common.EncodeURLValues("/v1/accounts", params), nil, &resp)
 }
 
@@ -146,23 +146,23 @@ func (e *Exchange) GetAccountLedgers(ctx context.Context, req *AccountLedgersReq
 
 // GetAccountLedgersHFTrade returns the ledger entries of the high-frequency trading account, newest first, from the
 // last seven days (Get Account Ledgers - Trade_hf). Entries before LastID are returned when it is set
-func (e *Exchange) GetAccountLedgersHFTrade(ctx context.Context, req *HFAccountLedgersRequest) ([]HFAccountLedger, error) {
+func (e *Exchange) GetAccountLedgersHFTrade(ctx context.Context, req *HFAccountLedgersRequest) ([]HFAccountLedgerResponse, error) {
 	params, err := hfAccountLedgersParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp []HFAccountLedger
+	var resp []HFAccountLedgerResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getAccountLedgersHFTradeEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/accounts/ledgers", params), nil, &resp)
 }
 
 // GetAccountLedgerHFMargin returns the ledger entries of the high-frequency cross and isolated margin accounts, newest
 // first, from the last three days (Get Account Ledgers - Margin_hf). Entries before LastID are returned when it is set
-func (e *Exchange) GetAccountLedgerHFMargin(ctx context.Context, req *HFAccountLedgersRequest) ([]HFMarginAccountLedger, error) {
+func (e *Exchange) GetAccountLedgerHFMargin(ctx context.Context, req *HFAccountLedgersRequest) ([]HFMarginAccountLedgerResponse, error) {
 	params, err := hfAccountLedgersParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp []HFMarginAccountLedger
+	var resp []HFMarginAccountLedgerResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getAccountLedgerHFMarginEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/account/ledgers", params), nil, &resp)
 }
 

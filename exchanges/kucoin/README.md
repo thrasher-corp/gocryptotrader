@@ -20,10 +20,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Current Features
 
 + REST Support: the Classic API and the Unified Trading Account (UTA) API V2
-+ Websocket Support: the Classic spot and margin, Classic futures and UTA V2 connections
++ Websocket Support: the Classic spot and margin, Classic futures and UTA V2 connections. The spot and margin connection
+  is required; the others are optional, so one that fails to connect or drops leaves the rest up while it is retried
 + Websocket order entry: the Classic order API (add and cancel for spot, margin and futures) and the UTA trade
   connection (add, cancel and amend). The standard order methods (`SubmitOrder`, `ModifyOrder`, `CancelOrder`,
-  `CancelBatchOrders`, `CancelAllOrders`) use REST only; websocket orders are placed through the `Ws` and `WS` methods
+  `CancelBatchOrders`, `CancelAllOrders`) use REST only; websocket orders are placed through the `Websocket` methods,
+  such as `WebsocketAddSpotOrder` and `WebsocketAddUTAOrder`
 
 ### Subscriptions
 
@@ -37,7 +39,7 @@ Futures ticker subscriptions also subscribe Ticker V1 and the symbol snapshot, w
 
 When authenticated websocket support is enabled, the default orderbook subscription uses the realtime spot and futures feeds, which are calibrated against Get Full OrderBook: the spot one needs authentication, the futures one is public. Without authenticated websocket support it uses the public depth-5 feeds, even when REST authentication is enabled; this includes configurations that had enabled the legacy realtime entries described below, which move from full depth to depth-5.
 
-Legacy `/market/level2` and `/contractMarket/level2` subscription entries are removed during setup, and so are `/margin/loan` entries, whose margin lending service KuCoin has retired. Existing generic orderbook subscriptions and their explicit pair restrictions are kept, except that when a legacy entry is replaced without websocket authentication, an unrestricted authenticated generic for the same asset is made public so migrated coverage remains active. Enabled legacy entries are replaced with generic subscriptions covering the same assets and pairs; unrestricted legacy entries remain dynamic wildcards. During expansion, wildcard subscriptions exclude pairs already carried by more specific subscriptions, and shared spot and margin feeds assign each pair to one effective subscription. Explicit depth-5 and depth-50 channel subscriptions remain available and are not upgraded by authentication; the realtime upgrade leaves the pairs they carry on those channels.
+Legacy `/market/level2` and `/contractMarket/level2` subscription entries are removed during setup, and so are `/margin/loan` entries, whose margin lending service KuCoin has retired. Existing generic orderbook subscriptions and their explicit pair restrictions are kept, except that when a legacy entry is replaced without websocket authentication, an unrestricted authenticated generic for the same asset is made public so migrated coverage remains active. Enabled legacy entries are replaced with generic subscriptions covering the same assets and pairs; unrestricted legacy entries remain dynamic wildcards. During expansion, wildcard subscriptions exclude pairs already carried by more specific subscriptions, and shared spot and margin feeds assign each pair to one effective subscription. Explicit depth-5 and depth-50 channel subscriptions remain available and are not upgraded by authentication; the realtime upgrade leaves the pairs they carry on those channels. A UTA orderbook writes the same book as the Classic channels, so an explicit depth channel leaves a pair a UTA orderbook feeds to it, reported as a partial subscription failure.
 
 Generic orderbook pairs are formatted for KuCoin requests during expansion, including explicitly configured pairs. Authenticated orderbooks that differ only in interval or depth are coalesced after those fields are cleared for the realtime feed. Duplicate orderbooks that already have the same key before normalisation remain invalid.
 

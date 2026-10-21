@@ -21,7 +21,7 @@ var errMarginChangeTypeRequired = errors.New("margin change type is required")
 
 // GetUTAPositionList returns the unified trading account's open futures positions, ordered by KuCoin's internal
 // symbol ID (Get Position List)
-func (e *Exchange) GetUTAPositionList(ctx context.Context, r *UTAPositionListRequest) ([]UTAPosition, error) {
+func (e *Exchange) GetUTAPositionList(ctx context.Context, r *UTAPositionListRequest) ([]UTAPositionResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (e *Exchange) GetUTAPositionList(ctx context.Context, r *UTAPositionListReq
 	if r.PageSize != 0 {
 		params.Set("pageSize", strconv.FormatUint(r.PageSize, 10))
 	}
-	var resp []UTAPosition
+	var resp []UTAPositionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getUTAPositionListEPL, http.MethodGet, common.EncodeURLValues("/ua/v2/unified/position/open-list", params), nil, &resp)
 }
 

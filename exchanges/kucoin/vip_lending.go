@@ -8,8 +8,8 @@ import (
 )
 
 // GetVIPLendingCollateralRatio returns each currency's gradient collateral ratios (Get Collateral Ratio)
-func (e *Exchange) GetVIPLendingCollateralRatio(ctx context.Context) ([]VIPLendingCollateralRatio, error) {
-	var resp []VIPLendingCollateralRatio
+func (e *Exchange) GetVIPLendingCollateralRatio(ctx context.Context) ([]VIPLendingCollateralRatioResponse, error) {
+	var resp []VIPLendingCollateralRatioResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getVIPLendingCollateralRatioEPL, http.MethodGet, "/v1/otc-loan/discount-rate-configs", nil, &resp)
 }
 
@@ -22,7 +22,7 @@ func (e *Exchange) GetInformationOnOffExchangeFundingAndLoans(ctx context.Contex
 
 // GetInformationOnAccountInvolvedInOffExchangeLoans returns the accounts currently involved in off-exchange (VIP)
 // lending (Get Accounts)
-func (e *Exchange) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context.Context) ([]VIPLendingAccount, error) {
-	var resp []VIPLendingAccount
+func (e *Exchange) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context.Context) ([]VIPLendingAccountResponse, error) {
+	var resp []VIPLendingAccountResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getInformationOnAccountInvolvedInOffExchangeLoansEPL, http.MethodGet, "/v1/otc-loan/accounts", nil, &resp)
 }

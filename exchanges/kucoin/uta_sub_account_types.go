@@ -79,8 +79,8 @@ type UTASubAccount struct {
 	HostedStatus uint64 `json:"hostedStatus"`
 }
 
-// UTASubAccountAPI holds the details of a sub-account API key
-type UTASubAccountAPI struct {
+// UTASubAccountAPIResponse holds the details of a sub-account API key
+type UTASubAccountAPIResponse struct {
 	SubName    string `json:"subName"`
 	Remark     string `json:"remark"`
 	APIKey     string `json:"apiKey"`
@@ -94,8 +94,8 @@ type UTASubAccountAPI struct {
 	IsMaster    bool       `json:"isMaster"`
 }
 
-// UTASubAccountTransferPermission holds whether a sub-account's API key can initiate SUB_TO_SUB transfers
-type UTASubAccountTransferPermission struct {
+// UTASubAccountTransferPermissionResponse holds whether a sub-account's API key can initiate SUB_TO_SUB transfers
+type UTASubAccountTransferPermissionResponse struct {
 	SubUID   string `json:"subUid"`
 	SubToSub bool   `json:"subToSub"`
 }
@@ -176,8 +176,13 @@ type ModifyUTASubAccountAPIResponse struct {
 	IPWhitelist string `json:"ipWhitelist"`
 }
 
-// SetUTASubAccountAPIRateLimitRequest holds the API rate limit to set for a sub-account
-type SetUTASubAccountAPIRateLimitRequest struct {
+// SetUTASubAccountsAPIRateLimitRequest holds the API rate limits to set for sub-accounts
+type SetUTASubAccountsAPIRateLimitRequest struct {
+	Limits []UTASubAccountAPIRateLimit
+}
+
+// UTASubAccountAPIRateLimit is the API rate limit to set for a sub-account
+type UTASubAccountAPIRateLimit struct {
 	UID string
 	// Rate is in requests per second
 	Rate uint64

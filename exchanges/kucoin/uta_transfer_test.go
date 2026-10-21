@@ -84,6 +84,12 @@ func TestUTAFlexTransfer(t *testing.T) {
 		require.ErrorIsf(t, err, tc.err, "UTAFlexTransfer must reject an empty %s", tc.name)
 	}
 
+	sent := sentRequest(t, func(ex *Exchange) error {
+		_, err := ex.UTAFlexTransfer(t.Context(), &valid)
+		return err
+	})
+	assert.JSONEq(t, `{"clientOid":"d50a79c0-b94c-4c3d-81b7-c08114021025","transferType":"INTERNAL","currency":"USDT","amount":"0.000001","fromAccountType":"FUNDING","fromAccountTag":"DEFAULT","toAccountType":"SPOT","toAccountTag":"DEFAULT"}`, sent.body, "UTAFlexTransfer should send the amount as the string KuCoin documents")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
