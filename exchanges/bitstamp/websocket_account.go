@@ -81,7 +81,8 @@ func (e *Exchange) handleKeyedOrderEvent(ctx context.Context, key string, cur *k
 	case ok && (checkpoint.pending || restart || preEventID != checkpoint.eventID):
 		failures := checkpoint.failures
 		checkpoint, errs = e.recoverOrderEvents(ctx, key, cur.pair, cur.asset, cur.orderSource, checkpoint, cur.eventID)
-		if errors.Is(errs, errOrderEventRecovery) {
+		gaveUp := errors.Is(errs, errOrderEventRecovery)
+		if gaveUp {
 			// The API refuses a recovery range when the event is not after the checkpoint, so it is dropped rather than
 			// relayed over the newer order state
 			if errors.Is(errs, errInvalidEventIDRange) {
@@ -97,27 +98,32 @@ func (e *Exchange) handleKeyedOrderEvent(ctx context.Context, key string, cur *k
 				return errs
 			}
 			errs = common.AppendError(errs, fmt.Errorf("%w for %s %s before event %s", errOrderEventsSkipped, cur.pair, cur.asset, cur.eventID))
-			// The kept events were received, so they are relayed in event order before the current one, and giving up
-			// only skips the events never received
-			done, last, err := e.flushKeptOrderEvents(ctx, key, cur.eventID)
-			errs = common.AppendError(errs, err)
-			if last != nil {
-				checkpoint = *last
-			}
-			if errors.Is(err, errOrderEventRecovery) {
-				// The rest stay kept, and the next attempt gives up at once rather than recovering again
+		}
+		// The kept events were received, so those a recovery did not return, or all of them when recovery gives up, are
+		// relayed in the order they were kept, before the current one; giving up skips the events never received and
+		// any dropped beyond maxKeptOrderEvents
+		done, last, err := e.flushKeptOrderEvents(ctx, key, cur.eventID)
+		errs = common.AppendError(errs, err)
+		if last != nil {
+			checkpoint = *last
+		}
+		if errors.Is(err, errOrderEventRecovery) {
+			// The rest stay kept. After giving up, the next recovery to fail gives up at once rather than after three more
+			// failures, whereas after a recovery which succeeded the count starts again
+			checkpoint.failures = 0
+			if gaveUp {
 				checkpoint.failures = maxOrderEventRecoveryFailures - 1
-				e.setOrderEventCheckpoint(key, checkpoint)
-				if !done {
-					e.keepOrderEvent(key, cur)
-				}
-				return errs
 			}
-			if done {
-				// The current event was kept before, and was relayed in its place among the kept events
-				e.setOrderEventCheckpoint(key, checkpoint)
-				return errs
+			e.setOrderEventCheckpoint(key, checkpoint)
+			if !done {
+				e.keepOrderEvent(key, cur)
 			}
+			return errs
+		}
+		if done {
+			// The current event was kept before, and was relayed in its place among the kept events
+			e.setOrderEventCheckpoint(key, checkpoint)
+			return errs
 		}
 	}
 	err := e.processOrderEvent(ctx, cur.event, &cur.data, cur.pair, cur.asset)
@@ -374,7 +380,14 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	}
 	if len(details) > 1 {
 		// Both orders are relayed in one payload, so a refused replacement is retried without repeating either of them
-		return e.Websocket.DataHandler.Send(ctx, details)
+		if err := e.Websocket.DataHandler.Send(ctx, details); err != nil {
+			return err
+		}
+		// The event holds only the replacement's amounts, so the replaced order's executions are read back too; a read
+		// which shows the replaced order no longer open is from after the replacement
+		replaced := details[1]
+		e.fetchOrderTotals(ctx, &replaced, decimal.Zero)
+		return nil
 	}
 	deleted := details[0]
 	if err := e.Websocket.DataHandler.Send(ctx, &details[0]); err != nil {
@@ -386,35 +399,41 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	return nil
 }
 
-// fetchOrderTotals relays a deleted order's detail again with the fee, cost and average price which its event does not
-// carry, and the status, executed amount and date the API reports for it, fetched off the read loop
+// fetchOrderTotals relays a deleted or replaced order's detail again with the fee, cost and average price which its
+// event does not carry, and the status, executed amount and date the API reports for it, fetched off the read loop
 // The order store takes an order's fee from its own fee field, not its trades, and the order manager never polls an
 // order which is no longer active, so a filled order would otherwise keep a fee of zero. A read which shows the order
 // still open, or less executed than its event, is older than the event and is not relayed
-func (e *Exchange) fetchOrderTotals(ctx context.Context, deleted *order.Detail, executed decimal.Decimal) {
+func (e *Exchange) fetchOrderTotals(ctx context.Context, closed *order.Detail, executed decimal.Decimal) {
 	e.orderTotalFetches.Go(func() {
-		fetched, err := e.GetOrderInfo(ctx, deleted.OrderID, deleted.Pair, deleted.AssetType)
+		e.orderTotalFetchMu.Lock()
+		defer e.orderTotalFetchMu.Unlock()
+		fetched, err := e.GetOrderInfo(ctx, closed.OrderID, closed.Pair, closed.AssetType)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of closed order %s: %v", e.Name, closed.OrderID, err)
 			return
 		}
 		fetchedExecuted, err := floatDecimal(fetched.ExecutedAmount)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of closed order %s: %v", e.Name, closed.OrderID, err)
 			return
 		}
 		switch fetched.Status {
 		case order.Filled, order.Cancelled, order.PartiallyCancelled, order.Expired:
 		default:
-			log.Warnf(log.WebsocketMgr, "%s deleted order %s is still %s, so its totals are not relayed", e.Name, deleted.OrderID, fetched.Status)
+			log.Warnf(log.WebsocketMgr, "%s closed order %s is still %s, so its totals are not relayed", e.Name, closed.OrderID, fetched.Status)
 			return
 		}
 		if fetchedExecuted.LessThan(executed) {
-			log.Warnf(log.WebsocketMgr, "%s deleted order %s has executed %s, less than its event's %s, so its totals are not relayed", e.Name, deleted.OrderID, fetchedExecuted, executed)
+			log.Warnf(log.WebsocketMgr, "%s closed order %s has executed %s, less than its event's %s, so its totals are not relayed", e.Name, closed.OrderID, fetchedExecuted, executed)
+			return
+		}
+		if fetchedExecuted.IsZero() {
+			// A replaced order which executed nothing has no totals to add
 			return
 		}
 		// The event's last update is kept, and its trades left out, as the API's trade times are rounded to seconds
-		d := *deleted
+		d := *closed
 		d.Status = fetched.Status
 		d.ExecutedAmount = fetched.ExecutedAmount
 		d.Date = fetched.Date
@@ -425,7 +444,7 @@ func (e *Exchange) fetchOrderTotals(ctx context.Context, deleted *order.Detail, 
 		d.AverageExecutedPrice = fetched.AverageExecutedPrice
 		d.Trades = nil
 		if err := e.Websocket.DataHandler.Send(ctx, &d); err != nil {
-			log.Errorf(log.WebsocketMgr, "%s unable to relay the totals of deleted order %s: %v", e.Name, deleted.OrderID, err)
+			log.Errorf(log.WebsocketMgr, "%s unable to relay the totals of closed order %s: %v", e.Name, closed.OrderID, err)
 		}
 	})
 }
@@ -464,10 +483,12 @@ func orderTypeFromSubtypeID(subtype uint8) (order.Type, order.TimeInForce) {
 	}
 }
 
-// handleWSMyTrade processes an execution of one of the account's orders
-// The execution is relayed as a fill when the fills feed is enabled and as an order update holding the trade, which
-// carries the trade's fee to the order
-func (e *Exchange) handleWSMyTrade(ctx context.Context, data []byte, pair currency.Pair, a asset.Item) error {
+// handleWSMyTrade relays an execution of one of the account's orders as a fill when the fills feed is enabled
+// It is not relayed as an order update, so a stored order's trades come only from reading the order over REST: an
+// execution which reaches the order store before its order's events, while a gap recovery holds them back or when it
+// beats a placement's reply, would store the order without a date, which no later update restores, and make the
+// placement report the order as not placed
+func (e *Exchange) handleWSMyTrade(data []byte, pair currency.Pair, a asset.Item) error {
 	var t WebsocketMyTrade
 	if err := json.Unmarshal(data, &t); err != nil {
 		return err
@@ -476,6 +497,9 @@ func (e *Exchange) handleWSMyTrade(ctx context.Context, data []byte, pair curren
 	if err != nil {
 		return err
 	}
+	if !e.IsFillsFeedEnabled() {
+		return nil
+	}
 	var orderID, tradeID string
 	if t.OrderID != 0 {
 		orderID = strconv.FormatUint(t.OrderID, 10)
@@ -483,51 +507,18 @@ func (e *Exchange) handleWSMyTrade(ctx context.Context, data []byte, pair curren
 	if t.ID != 0 {
 		tradeID = strconv.FormatUint(t.ID, 10)
 	}
-	if e.IsFillsFeedEnabled() {
-		if err := e.Websocket.Fills.Update(fill.Data{
-			Timestamp:     t.Microtimestamp.Time(),
-			Exchange:      e.Name,
-			AssetType:     a,
-			CurrencyPair:  pair,
-			Side:          side,
-			OrderID:       orderID,
-			ClientOrderID: t.ClientOrderID,
-			TradeID:       tradeID,
-			Price:         t.Price.Float64(),
-			Amount:        t.Amount.Float64(),
-		}); err != nil {
-			return err
-		}
-	}
-	// The order store matches trades by ID, so an execution without both IDs cannot be added to its order
-	if orderID == "" || tradeID == "" {
-		return nil
-	}
-	feeAsset := settlementCurrency(pair, a)
-	d := &order.Detail{
-		Exchange:        e.Name,
-		OrderID:         orderID,
-		ClientOrderID:   t.ClientOrderID,
-		AssetType:       a,
-		Pair:            pair,
-		Side:            side,
-		RemainingAmount: t.OrderRemainingAmount.Float64(),
-		LastUpdated:     t.Microtimestamp.Time(),
-		Trades: []order.TradeHistory{{
-			TID:       tradeID,
-			Price:     t.Price.Float64(),
-			Amount:    t.Amount.Float64(),
-			Fee:       t.Fee.Float64(),
-			Exchange:  e.Name,
-			Side:      side,
-			Timestamp: t.Microtimestamp.Time(),
-			FeeAsset:  feeAsset.String(),
-		}},
-	}
-	if t.TradeAccountID != 0 {
-		d.AccountID = strconv.FormatUint(t.TradeAccountID, 10)
-	}
-	return e.Websocket.DataHandler.Send(ctx, d)
+	return e.Websocket.Fills.Update(fill.Data{
+		Timestamp:     t.Microtimestamp.Time(),
+		Exchange:      e.Name,
+		AssetType:     a,
+		CurrencyPair:  pair,
+		Side:          side,
+		OrderID:       orderID,
+		ClientOrderID: t.ClientOrderID,
+		TradeID:       tradeID,
+		Price:         t.Price.Float64(),
+		Amount:        t.Amount.Float64(),
+	})
 }
 
 func (e *Exchange) handleWSSettlement(ctx context.Context, event string, data []byte) error {

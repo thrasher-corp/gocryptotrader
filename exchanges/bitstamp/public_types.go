@@ -152,7 +152,7 @@ type MarketResponse struct {
 	InstantAndMarketOrders      string        `json:"instant_and_market_orders"`
 	Description                 string        `json:"description"`
 	MarketType                  string        `json:"market_type"`
-	UnderlyingAsset             string        `json:"underlying_asset"`
+	UnderlyingAsset             string        `json:"underlying_asset"` // A reference index's name, not a currency
 	PayoffType                  string        `json:"payoff_type"`
 	ContractSize                types.Number  `json:"contract_size"`
 	MaxLeverage                 types.Number  `json:"max_leverage"`

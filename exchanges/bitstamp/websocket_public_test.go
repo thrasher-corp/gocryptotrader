@@ -62,7 +62,7 @@ func TestHandleWebsocketTrade(t *testing.T) {
 	data := []byte(`{"microtimestamp":"1580336751488517","amount":0.00598803,"buy_order_id":4621328909,"sell_order_id":4621329035,"amount_str":"0.00598803","price_str":"9334.73","timestamp":"1580336751","price":9334.73,"type":1,"id":104007706}`)
 	ex := newWebsocketTestInstance(t)
 	require.NoError(t, ex.handleWSTrade(data, wsSpotPair, asset.Spot), "handleWSTrade must not error with the trade feed disabled")
-	assert.Empty(t, dataHandlerPayloads(ex), "trades should not be sent with the trade feed disabled")
+	assert.Empty(t, dataHandlerPayloads(t, ex), "trades should not be sent with the trade feed disabled")
 
 	ex = newWebsocketTestInstance(t)
 	ex.SetTradeFeedStatus(true)
@@ -78,7 +78,7 @@ func TestHandleWebsocketTrade(t *testing.T) {
 		Price:        9334.73,
 		Amount:       0.00598803,
 		Timestamp:    time.UnixMicro(1580336751488517),
-	}}}, dataHandlerPayloads(ex), "trades should be sent to the data handler")
+	}}}, dataHandlerPayloads(t, ex), "trades should be sent to the data handler")
 }
 
 func TestHandleWebsocketFundingRate(t *testing.T) {
@@ -105,7 +105,7 @@ func TestHandleWebsocketFundingRate(t *testing.T) {
 			Timestamp:       types.Time(time.Unix(1790318552, 0)),
 			NextFundingTime: types.Time(time.Unix(1790323200, 0)),
 		},
-	}, dataHandlerPayloads(ex), "funding rates and updates should be sent to the data handler")
+	}, dataHandlerPayloads(t, ex), "funding rates and updates should be sent to the data handler")
 }
 
 func TestHandleWebsocketDetailOrderbook(t *testing.T) {
@@ -154,5 +154,5 @@ func TestHandleWebsocketAnnouncement(t *testing.T) {
 		ProductType:        "TOKENIZED_SECURITY",
 		Product:            []string{"TSLA/USD"},
 		TradingHaltDetails: &TradingHaltDetails{Reason: "circuit_breaker", StartTime: haltStart},
-	}}, dataHandlerPayloads(ex), "announcements should be sent to the data handler")
+	}}, dataHandlerPayloads(t, ex), "announcements should be sent to the data handler")
 }

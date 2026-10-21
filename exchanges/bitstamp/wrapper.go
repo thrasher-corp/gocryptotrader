@@ -43,7 +43,7 @@ const (
 	// the next subscription
 	maxSubscriptionsPerConnection = 1024
 
-	// Order history, user transactions and settlement transactions are only retained for 30 days
+	// The time filters of user transactions, from which spot order history is aggregated, only reach back 30 days
 	maxHistoryAge = 30 * 24 * time.Hour
 	// historyAgeBuffer keeps requested start times inside the retention window despite clock differences
 	historyAgeBuffer = time.Minute
@@ -125,8 +125,7 @@ func (e *Exchange) SetDefaults() {
 			},
 			MaximumOrderHistory: maxHistoryAge,
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:              true,
-				MaximumFundingRateHistory: maxHistoryAge,
+				FundingRates: true,
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
 					kline.EightHour: true,
 				},
@@ -1371,8 +1370,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// GetOrderHistory retrieves the executed orders of the last 30 days, aggregated from their trades
-// Orders are only returned when they executed within the request's time range
+// GetOrderHistory retrieves executed orders, aggregated from their trades
+// An order is returned when the span from its first to its last trade overlaps the request's time range, and a spot
+// start more than 30 days ago is moved to 30 days ago, as far back as the transactions' time filters reach
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1483,15 +1483,15 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 	return aggregatedOrders(aggregated)
 }
 
-// allUserTransactions returns every page of user transactions matching a request, oldest first
+// allUserTransactions returns every page of user transactions matching a request sorted oldest first
+// The API skips at most 200000 transactions, so the pages after that continue from the last transaction's ID, as the
+// API documents for older history, which takes transaction IDs to rise with the dates the pages are sorted by
 func (e *Exchange) allUserTransactions(ctx context.Context, params *UserTransactionsRequest) ([]UserTransactionResponse, error) {
 	var txs []UserTransactionResponse
 	seen := make(map[uint64]bool)
-	for offset := uint64(0); ; offset += maxResultLimit {
-		if offset > maxResultOffset {
-			return nil, fmt.Errorf("%w: more than %d transactions", errInvalidOffset, maxResultOffset)
-		}
-		params.Offset = offset
+	params.Offset = 0
+	var bySinceID bool
+	for {
 		page, err := e.GetUserTransactions(ctx, params)
 		if err != nil {
 			return nil, err
@@ -1504,10 +1504,24 @@ func (e *Exchange) allUserTransactions(ctx context.Context, params *UserTransact
 				added = true
 			}
 		}
-		// A page of only known transactions means the offset was not applied, so further pages would repeat it
-		if len(page) < maxResultLimit || !added {
+		if len(page) < maxResultLimit {
 			return txs, nil
 		}
+		if !added {
+			// A page of only known transactions means the offset or ID was not applied, so further pages would repeat
+			// it. Past the maximum offset that leaves later transactions out, so the history is refused, not cut short
+			if bySinceID {
+				return nil, fmt.Errorf("%w: more than %d transactions, and none after ID %d were returned", errInvalidOffset, maxResultOffset, params.SinceID)
+			}
+			return txs, nil
+		}
+		if !bySinceID && params.Offset+maxResultLimit <= maxResultOffset {
+			params.Offset += maxResultLimit
+			continue
+		}
+		bySinceID = true
+		params.Offset = 0
+		params.SinceID = page[len(page)-1].ID
 	}
 }
 
@@ -1921,7 +1935,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	return resp, nil
 }
 
-// GetHistoricalFundingRates returns funding rates for a perpetual market from up to 30 days ago
+// GetHistoricalFundingRates returns the settled funding rates of a perpetual market within a time range, or the latest
+// 100 without a start date
+// The current rate is settled at the next funding time, so it is returned as the predicted rate when requested
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -1940,42 +1956,18 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			return nil, err
 		}
 	}
-	if earliest := time.Now().Add(-maxHistoryAge + historyAgeBuffer); !r.StartDate.IsZero() && r.StartDate.Before(earliest) {
-		if !r.RespectHistoryLimits {
-			return nil, fmt.Errorf("%w: start date %s is more than %s ago", fundingrate.ErrFundingRateOutsideLimits, r.StartDate, maxHistoryAge)
-		}
-		if !r.EndDate.IsZero() && r.EndDate.Before(earliest) {
-			return nil, fundingrate.ErrNoFundingRatesFound
-		}
-		r.StartDate = earliest
-	}
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
 	}
-	history, err := e.GetFundingRateHistory(ctx, &FundingRateHistoryRequest{
-		Pair:  fPair,
-		Limit: maxFundingRateHistoryLimit,
-		Since: r.StartDate,
-		Until: r.EndDate,
-	})
+	rates, err := e.fundingRatesInRange(ctx, fPair, r.StartDate, r.EndDate)
 	if err != nil {
 		return nil, err
-	}
-	rates := make([]fundingrate.Rate, 0, len(history.FundingRateHistory))
-	for i := range history.FundingRateHistory {
-		rates = append(rates, fundingrate.Rate{
-			Time: history.FundingRateHistory[i].Timestamp.Time(),
-			Rate: history.FundingRateHistory[i].FundingRate.Decimal(),
-		})
 	}
 	if len(rates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
-	slices.SortFunc(rates, func(a, b fundingrate.Rate) int {
-		return a.Time.Compare(b.Time)
-	})
-	return &fundingrate.HistoricalRates{
+	resp := &fundingrate.HistoricalRates{
 		Exchange:     e.Name,
 		Asset:        r.Asset,
 		Pair:         fPair,
@@ -1983,7 +1975,70 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		EndDate:      rates[len(rates)-1].Time,
 		LatestRate:   rates[len(rates)-1],
 		FundingRates: rates,
-	}, nil
+	}
+	if r.IncludePredictedRate {
+		rate, err := e.GetFundingRate(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		resp.TimeOfNextRate = rate.NextFundingTime.Time()
+		resp.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.NextFundingTime.Time(),
+			Rate: rate.FundingRate.Decimal(),
+		}
+	}
+	return resp, nil
+}
+
+// fundingRatesInRange returns the funding rates of a perpetual market within a time range, oldest first
+// The API returns the latest 100 rates up to a range's end, both bounds inclusive, and refuses a range which holds no
+// rate, so after a full page the range ends at the page's oldest rate, which is returned again. A range without a start
+// is only the latest page
+func (e *Exchange) fundingRatesInRange(ctx context.Context, pair currency.Pair, start, end time.Time) ([]fundingrate.Rate, error) {
+	req := &FundingRateHistoryRequest{
+		Pair:  pair,
+		Limit: maxFundingRateHistoryLimit,
+		Since: start,
+		Until: end,
+	}
+	var rates []fundingrate.Rate
+	seen := make(map[int64]bool)
+	for {
+		history, err := e.GetFundingRateHistory(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		var oldest time.Time
+		var added bool
+		for i := range history.FundingRateHistory {
+			settled := history.FundingRateHistory[i].Timestamp.Time()
+			if oldest.IsZero() || settled.Before(oldest) {
+				oldest = settled
+			}
+			if seen[settled.Unix()] {
+				continue
+			}
+			seen[settled.Unix()] = true
+			added = true
+			// The API's bounds are whole seconds, so a rate in the second before a fractional start is returned too
+			if (!start.IsZero() && settled.Before(start)) || (!end.IsZero() && settled.After(end)) {
+				continue
+			}
+			rates = append(rates, fundingrate.Rate{
+				Time: settled,
+				Rate: history.FundingRateHistory[i].FundingRate.Decimal(),
+			})
+		}
+		// A page of only known rates means the end was not applied, so further pages would repeat it
+		if start.IsZero() || len(history.FundingRateHistory) < maxFundingRateHistoryLimit || !added || !oldest.After(start) {
+			break
+		}
+		req.Until = oldest
+	}
+	slices.SortFunc(rates, func(a, b fundingrate.Rate) int {
+		return a.Time.Compare(b.Time)
+	})
+	return rates, nil
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
@@ -2168,12 +2223,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 	}
 	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
 		return nil, err
-	}
-	if earliest := time.Now().Add(-maxHistoryAge + historyAgeBuffer); r.StartDate.Before(earliest) {
-		if !r.RespectOrderHistoryLimits {
-			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, earliest)
-		}
-		r.StartDate = earliest
 	}
 	resp := make([]futures.PositionResponse, len(r.Pairs))
 	for i, p := range r.Pairs {

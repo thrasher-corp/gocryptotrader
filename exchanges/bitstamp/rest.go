@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -62,9 +63,12 @@ type Exchange struct {
 	// market and order source
 	orderEventsKept map[string][]keptOrderEvent
 	orderEventMu    sync.Mutex
-	// orderTotalFetches tracks the fetches of deleted orders' totals, which run off the websocket's read loop and its
-	// wait group, so a reconnection does not wait for them
+	// orderTotalFetches tracks the fetches of deleted and replaced orders' totals, which run off the websocket's read loop
+	// and its wait group, so a reconnection does not wait for them
 	orderTotalFetches sync.WaitGroup
+	// orderTotalFetchMu runs the fetches one at a time, so that a burst of them holds at most one place in the request
+	// rate limiter ahead of order placements, cancellations and the read loop's own recovery requests
+	orderTotalFetchMu sync.Mutex
 }
 
 var (
@@ -252,7 +256,8 @@ func processResponse(data json.RawMessage, requestErr error, result any, authent
 
 // checkResponseError returns an error describing an error response body
 // Successful responses may contain status, code and message fields, so they are only treated as errors when they match
-// a documented error shape, whereas any recognised field is reported for responses with an unsuccessful HTTP status
+// a documented error shape, such as the 400.043 response code which closing positions returns with HTTP 200, whereas any
+// recognised field is reported for responses with an unsuccessful HTTP status
 func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	data = bytes.TrimSpace(data)
 	if len(data) == 0 || data[0] != '{' {
@@ -265,12 +270,13 @@ func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	code := formatErrorDetail(resp.Code)
 	message := formatErrorDetail(resp.Message)
 	errorDetail := formatErrorDetail(resp.Error)
-	if !unsuccessfulStatus && formatErrorDetail(resp.Status) != "error" && errorDetail == "" && (code == "" || message == "") && formatErrorDetail(resp.Errors) == "" {
+	responseCode := formatErrorDetail(resp.ResponseCode)
+	if !unsuccessfulStatus && formatErrorDetail(resp.Status) != "error" && errorDetail == "" && (code == "" || message == "") && formatErrorDetail(resp.Errors) == "" && !isErrorResponseCode(responseCode) {
 		return nil
 	}
 
 	var codes, details []string
-	for _, c := range []string{code, formatErrorDetail(resp.ResponseCode)} {
+	for _, c := range []string{code, responseCode} {
 		if c != "" {
 			codes = append(codes, c)
 		}
@@ -283,14 +289,20 @@ func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	if field := formatErrorDetail(resp.Field); field != "" {
 		details = append(details, "field: "+field)
 	}
+	if orderID := formatErrorDetail(resp.OrderID); orderID != "" {
+		details = append(details, "order ID: "+orderID)
+	}
 	apiErr := errAPIResponse
 	switch {
 	case code == "API0003":
 		// The API documents API0003 as an API key without permission for the endpoint, which retrying cannot fix
 		apiErr = fmt.Errorf("%w: %w", errAPIResponse, errNoPermission)
-	case formatErrorDetail(resp.ResponseCode) == "400.085":
+	case responseCode == "400.085":
 		// The API documents 400.085 as an event ID range whose until ID is not after its since ID
 		apiErr = fmt.Errorf("%w: %w", errAPIResponse, errInvalidEventIDRange)
+	case responseCode == "400.043":
+		// The API documents 400.043 as there being no positions to close
+		apiErr = fmt.Errorf("%w: %w", errAPIResponse, futures.ErrNoPositionsFound)
 	}
 	switch {
 	case len(codes) == 0 && len(details) == 0:
@@ -305,6 +317,13 @@ func checkResponseError(data json.RawMessage, unsuccessfulStatus bool) error {
 	default:
 		return fmt.Errorf("%w: %s %s", apiErr, strings.Join(codes, " "), strings.Join(details, "; "))
 	}
+}
+
+// isErrorResponseCode returns whether a response code reports a failed request, as the API's codes of the form 400.043
+// and 500.016 begin with the HTTP status class of the failure
+func isErrorResponseCode(responseCode string) bool {
+	class, _, ok := strings.Cut(responseCode, ".")
+	return ok && len(class) == 3 && (class[0] == '4' || class[0] == '5')
 }
 
 // formatErrorDetail flattens an error detail which may be a string, a number, a list or an object of field errors

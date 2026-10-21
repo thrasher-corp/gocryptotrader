@@ -74,6 +74,8 @@ type errorResponse struct {
 	ResponseCode        json.RawMessage `json:"response_code"`
 	ResponseExplanation json.RawMessage `json:"response_explanation"`
 	Errors              json.RawMessage `json:"errors"`
+	// OrderID names the order to check when an order request timed out before the order was confirmed
+	OrderID json.RawMessage `json:"order_id"`
 }
 
 // OrderSide decodes an order side sent as 0 for buy or 1 for sell, either quoted or bare

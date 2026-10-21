@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -59,8 +60,8 @@ func skipIfLiveWithoutCredentials(t *testing.T, canManipulateOrders ...bool) {
 	}
 }
 
-// maxTestServerRequests caps the requests a test server answers. It is above the 201 requests the offset pagers make to
-// reach their limit, so a pager which never stops fails its test instead of hanging it
+// maxTestServerRequests caps the requests a test server answers. It is above the 231 requests the longest pager test
+// makes, so a pager which never stops fails its test instead of hanging it
 const maxTestServerRequests = 250
 
 // newTestExchange returns an exchange whose REST requests are served by handler
@@ -255,11 +256,16 @@ func TestCheckResponseError(t *testing.T) {
 		{name: "numeric code", data: `{"code":4009,"message":"Connection is unauthorized."}`, err: errAPIResponse, contains: "4009 Connection is unauthorized."},
 		{name: "error object", data: `{"error":{"amount":["Required"]}}`, err: errAPIResponse, contains: "amount: Required"},
 		{name: "field", data: `{"status":"error","reason":"Invalid amount","field":"amount"}`, err: errAPIResponse, contains: "Invalid amount; field: amount"},
+		{name: "order timeout", data: `{"status":"error","reason":"Your request timed out before order confirmation. Please check order status with id in \"order_id\" field.","response_code":"500.016","order_id":"1458532827766784"}`, unsuccessfulStatus: true, err: errAPIResponse, contains: "order ID: 1458532827766784"},
+		{name: "order timeout numeric ID", data: `{"status":"error","reason":"Your request timed out before order confirmation.","response_code":"500.016","order_id":1458532827766784}`, err: errAPIResponse, contains: "order ID: 1458532827766784"},
 		{name: "code only on failure", data: `{"code":"API0001"}`, unsuccessfulStatus: true, err: errAPIResponse, contains: "API0001"},
 		{name: "no permission", data: `{"status":"error","reason":"No permission found","code":"API0003"}`, unsuccessfulStatus: true, err: errNoPermission, contains: "API0003 No permission found"},
 		{name: "no permission code only", data: `{"code":"API0003"}`, unsuccessfulStatus: true, err: errNoPermission, contains: "API0003"},
 		{name: "invalid event ID range", data: `{"status":"error","reason":"Invalid event ID range: until_id must be greater than since_id.","response_code":"400.085"}`, unsuccessfulStatus: true, err: errInvalidEventIDRange, contains: "400.085 Invalid event ID range"},
 		{name: "invalid event ID range code only", data: `{"response_code":"400.085"}`, unsuccessfulStatus: true, err: errInvalidEventIDRange, contains: "400.085"},
+		{name: "no positions", data: `{"response_code":"400.043","response_explanation":"No positions present."}`, err: futures.ErrNoPositionsFound, contains: "400.043 No positions present."},
+		{name: "error response code", data: `{"response_code":"500.016","response_explanation":"Your request timed out before order confirmation."}`, err: errAPIResponse, contains: "500.016 Your request timed out before order confirmation."},
+		{name: "response code without an error class", data: `{"response_code":"API5504"}`},
 		{name: "unrecognised failure", data: `{"detail":"nope"}`, unsuccessfulStatus: true},
 		{name: "mismatched types", data: `{"status":["error"],"reason":1}`, unsuccessfulStatus: true, err: errAPIResponse, contains: "API returned an error: 1"},
 	} {
@@ -275,11 +281,30 @@ func TestCheckResponseError(t *testing.T) {
 			assert.ErrorContains(t, err, tc.contains, "checkResponseError should include the details")
 		})
 	}
-	for _, data := range []string{`{"code":"API0001"}`, `{"code":"API0004"}`, `{"code":"API00030"}`, `{"response_code":"API0003"}`, `{"code":"400.085"}`, `{"response_code":"400.084"}`, `{"response_code":"400.0850"}`} {
+	for _, data := range []string{`{"code":"API0001"}`, `{"code":"API0004"}`, `{"code":"API00030"}`, `{"response_code":"API0003"}`, `{"code":"400.085"}`, `{"response_code":"400.084"}`, `{"response_code":"400.0850"}`, `{"code":"400.043"}`, `{"response_code":"400.042"}`, `{"response_code":"400.0430"}`} {
 		err := checkResponseError(json.RawMessage(data), true)
 		require.ErrorIsf(t, err, errAPIResponse, "checkResponseError must report %s as an API error", data)
 		assert.NotErrorIsf(t, err, errNoPermission, "checkResponseError should not report %s as a permission error", data)
 		assert.NotErrorIsf(t, err, errInvalidEventIDRange, "checkResponseError should not report %s as an invalid event ID range", data)
+		assert.NotErrorIsf(t, err, futures.ErrNoPositionsFound, "checkResponseError should not report %s as no positions", data)
+	}
+}
+
+func TestIsErrorResponseCode(t *testing.T) {
+	t.Parallel()
+	for code, exp := range map[string]bool{
+		"400.043": true,
+		"404.001": true,
+		"500.016": true,
+		"":        false,
+		"200.000": false,
+		"300.001": false,
+		"400":     false,
+		"40.043":  false,
+		"4000.43": false,
+		"API0003": false,
+	} {
+		assert.Equalf(t, exp, isErrorResponseCode(code), "isErrorResponseCode should return %t for %q", exp, code)
 	}
 }
 

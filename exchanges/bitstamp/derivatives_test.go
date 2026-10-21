@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -201,6 +203,18 @@ func TestClosePosition(t *testing.T) {
 	}
 	require.NoError(t, err, "ClosePosition must not error")
 	assert.Equal(t, &testClosedPosition, resp, "ClosePosition should decode the closed position")
+}
+
+func TestClosePositionsWithoutPositions(t *testing.T) {
+	t.Parallel()
+	// The API answers HTTP 200 with response code 400.043 when there is no position to close
+	ex := newResponseTestExchange(t, http.StatusOK, `{"response_code":"400.043","response_explanation":"No positions present."}`)
+	closed, err := ex.ClosePosition(t.Context(), "1234567890")
+	assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePosition should report that there is no position to close")
+	assert.Nil(t, closed, "ClosePosition should not return a closed position")
+	closedAll, err := ex.ClosePositions(t.Context(), &ClosePositionsRequest{Pair: perpetualPair})
+	assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePositions should report that there are no positions to close")
+	assert.Nil(t, closedAll, "ClosePositions should not return closed positions")
 }
 
 func TestGetPositionSettlementTransactions(t *testing.T) {

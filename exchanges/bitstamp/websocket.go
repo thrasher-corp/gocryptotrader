@@ -14,6 +14,7 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -72,6 +73,7 @@ var (
 	errOrderEventsSkipped  = errors.New("missed order events skipped")
 	errStaleOrderEvent     = errors.New("order event is not after the last one handled")
 	errOrderIDOverflow     = errors.New("order ID exceeds the maximum orderbook level ID")
+	errOrderbookSeed       = errors.New("unable to load the REST orderbook")
 
 	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
 )
@@ -225,7 +227,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case name == channelMyOrders && private:
 		return e.handleWSAccountOrder(ctx, respRaw, event, data, pair, a)
 	case (name == channelMyTrades || name == channelLiveOrderTrades) && private:
-		return e.handleWSMyTrade(ctx, data, pair, a)
+		return e.handleWSMyTrade(data, pair, a)
 	}
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 }
@@ -288,6 +290,28 @@ func normaliseSubscriptions(l subscription.List) subscription.List {
 	return normalised
 }
 
+// ValidateSubscriptions implements subscription.ListValidator
+// The order book and detail order book channels both load the order book of their market, one aggregated by price and
+// the other holding each order, so the subscriptions generated for a market must not include both
+func (e *Exchange) ValidateSubscriptions(l subscription.List) error {
+	books := make(map[key.PairAsset]string)
+	for _, s := range l {
+		// A disabled subscription is never subscribed to, so it cannot conflict
+		if !s.Enabled || !isOrderbookSubscription(s) {
+			continue
+		}
+		name := subscriptionNames[s.Channel]
+		for _, p := range s.Pairs {
+			k := key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: s.Asset}
+			if existing, ok := books[k]; ok && existing != name {
+				return fmt.Errorf("%w for %s %s between %s and %s", subscription.ErrExclusiveSubscription, p, s.Asset, existing, name)
+			}
+			books[k] = name
+		}
+	}
+	return nil
+}
+
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
@@ -341,6 +365,14 @@ func isPrivateSubscription(s *subscription.Subscription) bool {
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketTokenResponse) error {
 	subs, errs := subs.ExpandTemplates(e)
 	for _, s := range subs {
+		if op == "sub" && isOrderbookSubscription(s) {
+			// A market whose REST orderbook cannot be loaded gets its book when it next changes, so it is still subscribed
+			if err := e.seedOrderbook(ctx, s); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
+			}
+		}
 		req := WebsocketEventRequest{
 			Event: "bts:" + op + "scribe",
 			Data: WebsocketEventData{

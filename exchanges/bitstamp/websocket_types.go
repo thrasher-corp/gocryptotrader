@@ -117,21 +117,21 @@ type WebsocketFundingRate struct {
 // Insurance fund events only populate the position ID for isolated positions, and use Amount instead of the
 // settlement amount fields
 type WebsocketSettlement struct {
-	Event                     string       `json:"-"`
-	PositionID                string       `json:"id"`
-	TransactionID             string       `json:"tnx_id"`
-	Timestamp                 types.Time   `json:"ts"`
-	Price                     types.Number `json:"price"`
-	Currency                  string       `json:"ccy"`
-	AmountSettled             types.Number `json:"as"`
-	AmountFromPrice           types.Number `json:"ap"`
-	AmountFromTradingFees     types.Number `json:"atf"`
-	AmountFromLiquidationFees types.Number `json:"alf"`
-	AmountFromFunding         types.Number `json:"afu"`
-	AmountFromSocialisedLoss  types.Number `json:"asl"`
-	StrikePrice               types.Number `json:"sp"`
-	SettlementType            string       `json:"typ"`
-	Amount                    types.Number `json:"amount"`
+	Event                     string        `json:"-"`
+	PositionID                string        `json:"id"`
+	TransactionID             string        `json:"tnx_id"`
+	Timestamp                 types.Time    `json:"ts"`
+	Price                     types.Number  `json:"price"`
+	Currency                  currency.Code `json:"ccy"`
+	AmountSettled             types.Number  `json:"as"`
+	AmountFromPrice           types.Number  `json:"ap"`
+	AmountFromTradingFees     types.Number  `json:"atf"`
+	AmountFromLiquidationFees types.Number  `json:"alf"`
+	AmountFromFunding         types.Number  `json:"afu"`
+	AmountFromSocialisedLoss  types.Number  `json:"asl"`
+	StrikePrice               types.Number  `json:"sp"`
+	SettlementType            string        `json:"typ"`
+	Amount                    types.Number  `json:"amount"`
 }
 
 // WebsocketLiquidationAlert holds a margin or liquidation alert from the private liquidations channel
@@ -147,12 +147,12 @@ type WebsocketLiquidationAlert struct {
 
 // WebsocketTokenSettlement holds a notification that the tokens bought by a tokenised security order are withdrawable
 type WebsocketTokenSettlement struct {
-	Action                string       `json:"action"`
-	OrderID               uint64       `json:"order_id"`
-	Instrument            string       `json:"instrument"`
-	TokenSecurityCurrency string       `json:"token_security_currency"`
-	TokensQuantity        types.Number `json:"tokens_quantity"`
-	DateTime              time.Time    `json:"datetime"`
+	Action                string        `json:"action"`
+	OrderID               uint64        `json:"order_id"`
+	Instrument            string        `json:"instrument"`
+	TokenSecurityCurrency currency.Code `json:"token_security_currency"`
+	TokensQuantity        types.Number  `json:"tokens_quantity"`
+	DateTime              time.Time     `json:"datetime"`
 }
 
 // WebsocketAnnouncement holds a tokenised security lifecycle announcement such as a trading halt or corporate action

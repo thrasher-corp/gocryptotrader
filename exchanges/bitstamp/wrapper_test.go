@@ -226,7 +226,6 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, maxHistoryAge, ex.Features.Supports.MaximumOrderHistory, "MaximumOrderHistory should be the retention period")
 	expFutures := exchange.FuturesCapabilities{
 		FundingRates:                    true,
-		MaximumFundingRateHistory:       maxHistoryAge,
 		SupportedFundingRateFrequencies: map[kline.Interval]bool{kline.EightHour: true},
 		Positions:                       true,
 		Leverage:                        true,
@@ -848,6 +847,23 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	}
 }
 
+func TestGetAccountFundingHistoryWithdrawalTransaction(t *testing.T) {
+	t.Parallel()
+	ex := newResponseTestExchange(t, http.StatusOK, `{"deposits":[],"withdrawals":[{"currency":"BTC","network":"bitcoin","destinationAddress":"3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF","txid":"8d3c0a2e1d","amount":0.00012,"datetime":1642665114}],"ripple_iou_transactions":[]}`)
+	history, err := ex.GetAccountFundingHistory(t.Context())
+	require.NoError(t, err, "GetAccountFundingHistory must not error")
+	assert.Equal(t, []exchange.FundingHistory{{
+		ExchangeName:    ex.Name,
+		Timestamp:       time.Unix(1642665114, 0),
+		Currency:        "BTC",
+		Amount:          0.00012,
+		TransferType:    "withdrawal",
+		CryptoToAddress: "3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF",
+		CryptoTxID:      "8d3c0a2e1d",
+		CryptoChain:     "bitcoin",
+	}}, history, "GetAccountFundingHistory should return a processed withdrawal's transaction hash")
+}
+
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	skipIfLiveWithoutCredentials(t)
@@ -994,6 +1010,51 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+func TestSubmitOrderRequests(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		s    *order.Submit
+		path string
+		exp  url.Values
+	}{
+		{
+			name: "market sell sized by a quote amount",
+			s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, QuoteAmount: 100},
+			path: "/api/v2/sell/instant/btcusd/",
+			exp:  url.Values{"amount": {"100"}, "amount_in_counter": {"True"}},
+		},
+		{
+			name: "perpetual take profit",
+			s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Type: order.TakeProfitMarket, Amount: 0.01, TriggerPrice: 21000, Leverage: 2},
+			path: "/api/v2/sell/market/btcusd-perp/",
+			exp:  url.Values{"amount": {"0.01"}, "subtype": {"TAKE_PROFIT"}, "stop_price": {"21000"}, "margin_mode": {"CROSS"}, "leverage": {"2"}, "trigger": {"LAST_TRADED_PRICE"}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			requests := make(chan url.Values, 1)
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.path, r.URL.Path, "path should be correct")
+				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+				select {
+				case requests <- r.PostForm:
+				default:
+					assert.Fail(t, "SubmitOrder should send only one request")
+				}
+				_, err := w.Write([]byte(`{"id":"1"}`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			tc.s.Exchange = ex.Name
+			resp, err := ex.SubmitOrder(t.Context(), tc.s)
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, "1", resp.OrderID, "OrderID should be correct")
+			require.Len(t, requests, 1, "SubmitOrder must send a request")
+			assert.Equal(t, tc.exp, <-requests, "SubmitOrder should send the order's parameters")
+		})
+	}
+}
+
 func TestSubmitConditionalOrder(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -1063,7 +1124,7 @@ func TestValidateOrderSubmission(t *testing.T) {
 
 func TestTrailingDeltaBasisPoints(t *testing.T) {
 	t.Parallel()
-	for percentage, exp := range map[float64]uint64{0.01: 1, 0.123: 12, 2.5: 250, 5: 500, 20: 2000} {
+	for percentage, exp := range map[float64]uint64{0.01: 1, 0.123: 12, 0.29: 29, 2.5: 250, 5: 500, 20: 2000} {
 		assert.Equalf(t, exp, trailingDeltaBasisPoints(percentage), "trailingDeltaBasisPoints should convert %v percent", percentage)
 	}
 }
@@ -1200,6 +1261,40 @@ func TestCancelAllOrders(t *testing.T) {
 	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errCancelAllOrdersFailed, "CancelAllOrders should error when not all orders are cancelled")
 	assert.Equal(t, map[string]string{"1234123412341235": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the cancelled perpetual orders")
+}
+
+func TestCancelAllOrdersOpenOrderMarkets(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var cancelled []string
+	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		body := `{"canceled":[],"success":true}`
+		switch {
+		case r.URL.Path == "/api/v2/open_orders/":
+			// ZRX/EUR is not enabled, as for an order placed outside GoCryptoTrader
+			body = `[{"id":"5","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ZRX/EUR"},{"id":"6","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ETH/USD-PERP"}]`
+		case strings.HasPrefix(r.URL.Path, "/api/v2/cancel_all_orders/"):
+			mu.Lock()
+			cancelled = append(cancelled, r.URL.Path)
+			mu.Unlock()
+		default:
+			assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Write should not error")
+	})
+	_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.ElementsMatch(t, []string{
+		"/api/v2/cancel_all_orders/btcusd/",
+		"/api/v2/cancel_all_orders/btceur/",
+		"/api/v2/cancel_all_orders/eurusd/",
+		"/api/v2/cancel_all_orders/xrpusd/",
+		"/api/v2/cancel_all_orders/xrpeur/",
+		"/api/v2/cancel_all_orders/zrxeur/",
+	}, cancelled, "CancelAllOrders should cancel the enabled markets and the spot markets of the open orders")
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -1370,6 +1465,18 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+func TestGetDepositAddressTransferID(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v2/cspr_address/", r.URL.Path, "path should be the Casper deposit address")
+		_, err := w.Write([]byte(`{"address":"01abc","transfer_id":12345}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	addr, err := ex.GetDepositAddress(t.Context(), currency.CSPR, "", "casper")
+	require.NoError(t, err, "GetDepositAddress must not error")
+	assert.Equal(t, &deposit.Address{Address: "01abc", Tag: "12345", Chain: "casper"}, addr, "GetDepositAddress should return a Casper address's transfer ID as its tag")
+}
+
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
@@ -1380,6 +1487,11 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	chains, err := e.GetAvailableTransferChains(t.Context(), currency.ETH)
 	require.NoError(t, err, "GetAvailableTransferChains must not error")
 	assert.Contains(t, chains, "ethereum", "GetAvailableTransferChains should return the currency's networks")
+
+	ex := newResponseTestExchange(t, http.StatusOK, `[{"currency":"TIA","networks":[{"network":"tia","deposit":"Disabled","withdrawal":"Enabled"},{"network":"celestia","deposit":"Enabled","withdrawal":"Disabled"},{"network":"cosmos","deposit":"Disabled","withdrawal":"Disabled"}]}]`)
+	chains, err = ex.GetAvailableTransferChains(t.Context(), currency.NewCode("TIA"))
+	require.NoError(t, err, "GetAvailableTransferChains must not error")
+	assert.ElementsMatch(t, []string{"tia", "celestia"}, chains, "GetAvailableTransferChains should return the networks open for deposits or withdrawals")
 }
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
@@ -1470,6 +1582,49 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	resp, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), testBankWithdrawalRequest(currency.USD, 50))
 	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
 	assert.Equal(t, "2", resp.ID, "ID should be correct")
+}
+
+func TestWithdrawFiatFundsToInternationalBankRequest(t *testing.T) {
+	t.Parallel()
+	requests := make(chan url.Values, 1)
+	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v2/withdrawal/open/", r.URL.Path, "path should be the bank withdrawal")
+		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+		select {
+		case requests <- r.PostForm:
+		default:
+			assert.Fail(t, "WithdrawFiatFundsToInternationalBank should send only one request")
+		}
+		_, err := w.Write([]byte(`{"withdrawal_id":2}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	req := testBankWithdrawalRequest(currency.USD, 50)
+	req.Exchange, req.Fiat.Bank.SupportedExchanges = ex.Name, ex.Name
+	req.Fiat.IntermediarySwiftCode = "CHASUS33"
+	resp, err := ex.WithdrawFiatFundsToInternationalBank(t.Context(), req)
+	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
+	assert.Equal(t, "2", resp.ID, "ID should be correct")
+	require.Len(t, requests, 1, "WithdrawFiatFundsToInternationalBank must send a request")
+	assert.Equal(t, url.Values{
+		"amount":                      {"50"},
+		"account_currency":            {"USD"},
+		"name":                        {"Satoshi Nakamoto"},
+		"iban":                        {"IT60X0542811101000000123456"},
+		"bic":                         {"CTBAAU2S"},
+		"address":                     {"123 Fake St"},
+		"postal_code":                 {"2088"},
+		"city":                        {"Tarry Town"},
+		"country":                     {"AU"},
+		"type":                        {"international"},
+		"comment":                     {"WITHDRAW IT ALL"},
+		"bank_name":                   {"Federal Reserve Bank"},
+		"bank_address":                {"123 Fake St"},
+		"bank_postal_code":            {"2088"},
+		"bank_city":                   {"Tarry Town"},
+		"bank_country":                {"AU"},
+		"currency":                    {"USD"},
+		"intermed_routing_num_or_bic": {"CHASUS33"},
+	}, <-requests, "WithdrawFiatFundsToInternationalBank should send the beneficiary, bank and intermediary bank details")
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -2021,7 +2176,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
 		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePayments: true}, err: common.ErrFunctionNotSupported},
 		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Now(), EndDate: time.Now().Add(-time.Hour)}, err: common.ErrStartAfterEnd},
-		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Now().Add(-maxHistoryAge)}, err: fundingrate.ErrFundingRateOutsideLimits},
 	} {
 		_, err := e.GetHistoricalFundingRates(t.Context(), tc.req)
 		assert.ErrorIs(t, err, tc.err, "GetHistoricalFundingRates should return the correct error")
@@ -2053,6 +2207,127 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	assert.Equal(t, rates.FundingRates[len(rates.FundingRates)-1], rates.LatestRate, "LatestRate should be the last rate")
 	for i := 1; i < len(rates.FundingRates); i++ {
 		assert.Equal(t, 8*time.Hour, rates.FundingRates[i].Time.Sub(rates.FundingRates[i-1].Time), "rates should be eight hours apart")
+	}
+}
+
+func TestGetHistoricalFundingRatesRange(t *testing.T) {
+	t.Parallel()
+	// The test venue settles a rate every 8 hours for 433 days and, as the API does, returns the latest 100 rates of a
+	// range whose bounds are both inclusive, oldest first, and refuses a range which holds no rate
+	const first, settlements = int64(1756684800), 1300
+	settled := func(i int64) time.Time { return time.Unix(first+i*28800, 0) }
+	rate := func(i int64) float64 { return float64(i) / 1e6 }
+	unix := func(t time.Time) string { return strconv.FormatInt(t.Unix(), 10) }
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		ignoreEnd  bool
+		predicted  bool
+		from, to   int64
+		pageEnds   []string
+	}{
+		{name: "three pages", start: settled(1000), end: settled(1200), from: 1000, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+		{name: "start after a settlement", start: settled(1000).Add(time.Second), end: settled(1199), from: 1001, to: 1199, pageEnds: []string{unix(settled(1199)), unix(settled(1100)), unix(settled(1001))}},
+		// A full page whose oldest rate is the first one after the start leaves a range without a rate before it
+		{name: "start before a full page", start: settled(1001).Add(-time.Hour), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+		{name: "one page from the start", start: settled(1101), end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
+		{name: "no end", start: settled(1250), from: 1250, to: settlements - 1, pageEnds: []string{""}},
+		{name: "no start", from: settlements - 100, to: settlements - 1, pageEnds: []string{""}},
+		// The API takes whole seconds, so it returns the rate settled in the second the start falls in
+		{name: "fractional start", start: settled(1250).Add(500 * time.Millisecond), from: 1251, to: settlements - 1, pageEnds: []string{""}},
+		{name: "end ignored by the venue", start: settled(1000), end: settled(1250), ignoreEnd: true, from: settlements - 100, to: 1250, pageEnds: []string{unix(settled(1250)), unix(settled(settlements - 100))}},
+		{name: "predicted rate", start: settled(1250), predicted: true, from: 1250, to: settlements - 1, pageEnds: []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var requests []url.Values
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v2/funding_rate/btcusd-perp/" {
+					_, err := fmt.Fprintf(w, `{"funding_rate":"0.0001","timestamp":"%d","market":"BTC/USD-PERP","next_funding_time":"%d"}`, settled(settlements-1).Unix()+600, settled(settlements).Unix())
+					assert.NoError(t, err, "Write should not error")
+					return
+				}
+				if !assert.Equal(t, "/api/v2/funding_rate_history/btcusd-perp/", r.URL.Path, "path should be the funding rate history") {
+					http.Error(w, "unexpected path", http.StatusNotFound)
+					return
+				}
+				q := r.URL.Query()
+				mu.Lock()
+				// A repeated range would be served again for ever, so it fails the request rather than hanging the test
+				repeated := slices.ContainsFunc(requests, func(v url.Values) bool { return v.Encode() == q.Encode() })
+				requests = append(requests, q)
+				mu.Unlock()
+				if !assert.False(t, repeated, "a range should not be requested twice") {
+					http.Error(w, "repeated range", http.StatusBadRequest)
+					return
+				}
+				limit, err := strconv.ParseInt(q.Get("limit"), 10, 64)
+				if !assert.NoError(t, err, "limit should be a number") || limit > 100 {
+					http.Error(w, "invalid limit", http.StatusBadRequest)
+					return
+				}
+				since, until := int64(math.MinInt64), int64(math.MaxInt64)
+				if v := q.Get("since_timestamp"); v != "" {
+					since, err = strconv.ParseInt(v, 10, 64)
+					assert.NoError(t, err, "since_timestamp should be a number")
+				}
+				if v := q.Get("until_timestamp"); v != "" && !tc.ignoreEnd {
+					until, err = strconv.ParseInt(v, 10, 64)
+					assert.NoError(t, err, "until_timestamp should be a number")
+				}
+				var page []string
+				for i := int64(settlements - 1); i >= 0 && int64(len(page)) < limit; i-- {
+					if ts := settled(i).Unix(); ts >= since && ts <= until {
+						page = append(page, fmt.Sprintf(`{"funding_rate":%q,"timestamp":"%d"}`, strconv.FormatFloat(rate(i), 'f', -1, 64), ts))
+					}
+				}
+				if len(page) == 0 {
+					http.Error(w, `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`, http.StatusBadRequest)
+					return
+				}
+				slices.Reverse(page)
+				_, err = fmt.Fprintf(w, `{"market":"BTC/USD-PERP","funding_rate_history":[%s]}`, strings.Join(page, ","))
+				assert.NoError(t, err, "Write should not error")
+			})
+			resp, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+				Asset:                asset.PerpetualContract,
+				Pair:                 perpetualPair,
+				StartDate:            tc.start,
+				EndDate:              tc.end,
+				IncludePredictedRate: tc.predicted,
+			})
+			require.NoError(t, err, "GetHistoricalFundingRates must not error")
+			exp := &fundingrate.HistoricalRates{
+				Exchange:  ex.Name,
+				Asset:     asset.PerpetualContract,
+				Pair:      currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
+				StartDate: settled(tc.from),
+				EndDate:   settled(tc.to),
+			}
+			for i := tc.from; i <= tc.to; i++ {
+				exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate(i))})
+			}
+			exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
+			if tc.predicted {
+				exp.TimeOfNextRate = settled(settlements)
+				exp.PredictedUpcomingRate = fundingrate.Rate{Time: settled(settlements), Rate: decimal.MustFromFloat(0.0001)}
+			}
+			assert.Equal(t, exp, resp, "GetHistoricalFundingRates should return every rate in the range, oldest first")
+			mu.Lock()
+			defer mu.Unlock()
+			since := ""
+			if !tc.start.IsZero() {
+				since = unix(tc.start)
+			}
+			pageEnds := make([]string, len(requests))
+			for i, q := range requests {
+				pageEnds[i] = q.Get("until_timestamp")
+				assert.Equalf(t, "100", q.Get("limit"), "request %d should ask for the most rates a page holds", i)
+				assert.Equalf(t, since, q.Get("since_timestamp"), "request %d should start at the start date", i)
+			}
+			assert.Equal(t, tc.pageEnds, pageEnds, "each page should end at the oldest rate of the page before")
+		})
 	}
 }
 
@@ -2213,48 +2488,62 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		{req: &futures.PositionsRequest{Asset: asset.Spot}, err: futures.ErrNotPerpetualFuture},
 		{req: &futures.PositionsRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairsEmpty},
 		{req: &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}}, err: common.ErrDateUnset},
-		{req: &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: time.Now().Add(-maxHistoryAge), EndDate: end}, err: futures.ErrOrderHistoryTooLarge},
 	} {
 		_, err := e.GetFuturesPositionOrders(t.Context(), tc.req)
 		assert.ErrorIs(t, err, tc.err, "GetFuturesPositionOrders should return the correct error")
 	}
 
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/trade_history/btcusd-perp/", r.URL.Path, "path should be correct")
-		assert.Equal(t, strconv.FormatInt(start.Unix(), 10), r.URL.Query().Get("since_timestamp"), "since_timestamp should be the start date")
-		assert.Equal(t, strconv.FormatInt(end.Unix(), 10), r.URL.Query().Get("until_timestamp"), "until_timestamp should be the end date")
-		_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: end})
-	require.NoError(t, err, "GetFuturesPositionOrders must not error")
-	traded := time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC)
-	exp := []futures.PositionResponse{{
-		Pair:                   perpetualPair,
-		Asset:                  asset.PerpetualContract,
-		ContractSettlementType: futures.Linear,
-		Orders: []order.Detail{{
-			Exchange:             ex.Name,
-			OrderID:              "2",
-			Side:                 order.Buy,
-			AssetType:            asset.PerpetualContract,
-			Pair:                 currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
-			MarginType:           margin.Multi,
-			Leverage:             2,
-			Date:                 traded,
-			LastUpdated:          traded,
-			Price:                84000,
-			Amount:               0.01,
-			ExecutedAmount:       0.01,
-			AverageExecutedPrice: 84000,
-			Cost:                 840,
-			CostAsset:            currency.USD,
-			Fee:                  0.1,
-			FeeAsset:             currency.USD,
-			Trades:               []order.TradeHistory{{TID: "1", Price: 84000, Amount: 0.01, Fee: 0.1, Exchange: ex.Name, Side: order.Buy, Timestamp: traded, FeeAsset: "USD"}},
-		}},
-	}}
-	assert.Equal(t, exp, resp, "GetFuturesPositionOrders should aggregate the pair's trades into orders")
+	old := time.Now().Add(-45 * 24 * time.Hour).Truncate(time.Second)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		respect    bool
+	}{
+		{name: "recent", start: start, end: end},
+		// The trade history documents no retention limit, so an older start is sent as GetOrderHistory sends it
+		{name: "older than 30 days", start: old, end: old.Add(12 * time.Hour)},
+		{name: "older than 30 days respecting history limits", start: old, end: old.Add(12 * time.Hour), respect: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v2/trade_history/btcusd-perp/", r.URL.Path, "path should be correct")
+				assert.Equal(t, strconv.FormatInt(tc.start.Unix(), 10), r.URL.Query().Get("since_timestamp"), "since_timestamp should be the start date")
+				assert.Equal(t, strconv.FormatInt(tc.end.Unix(), 10), r.URL.Query().Get("until_timestamp"), "until_timestamp should be the end date")
+				_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: tc.start, EndDate: tc.end, RespectOrderHistoryLimits: tc.respect})
+			require.NoError(t, err, "GetFuturesPositionOrders must not error")
+			traded := time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC)
+			exp := []futures.PositionResponse{{
+				Pair:                   perpetualPair,
+				Asset:                  asset.PerpetualContract,
+				ContractSettlementType: futures.Linear,
+				Orders: []order.Detail{{
+					Exchange:             ex.Name,
+					OrderID:              "2",
+					Side:                 order.Buy,
+					AssetType:            asset.PerpetualContract,
+					Pair:                 currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
+					MarginType:           margin.Multi,
+					Leverage:             2,
+					Date:                 traded,
+					LastUpdated:          traded,
+					Price:                84000,
+					Amount:               0.01,
+					ExecutedAmount:       0.01,
+					AverageExecutedPrice: 84000,
+					Cost:                 840,
+					CostAsset:            currency.USD,
+					Fee:                  0.1,
+					FeeAsset:             currency.USD,
+					Trades:               []order.TradeHistory{{TID: "1", Price: 84000, Amount: 0.01, Fee: 0.1, Exchange: ex.Name, Side: order.Buy, Timestamp: traded, FeeAsset: "USD"}},
+				}},
+			}}
+			assert.Equal(t, exp, resp, "GetFuturesPositionOrders should aggregate the pair's trades into orders")
+		})
+	}
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -2449,12 +2738,49 @@ func TestAllUserTransactions(t *testing.T) {
 	assert.Len(t, txs, maxResultLimit, "allUserTransactions should not repeat transactions")
 	assert.Len(t, requests(), 2, "allUserTransactions should stop at a page without new transactions")
 
-	ex, _ = pagedTestExchange(t, "/api/v2/user_transactions/", func(params url.Values) string {
+	// Past the maximum offset the pages continue from the last transaction's ID, which this venue ignores
+	ex, requests = pagedTestExchange(t, "/api/v2/user_transactions/", func(params url.Values) string {
 		offset := pageOffset(t, params)
 		return idList(`{"id":%d}`, offset+1, offset+maxResultLimit)
 	})
 	_, err = ex.allUserTransactions(t.Context(), &UserTransactionsRequest{Limit: maxResultLimit, Sort: SortAscending})
-	assert.ErrorIs(t, err, errInvalidOffset, "allUserTransactions should error when the transactions exceed the maximum offset")
+	assert.ErrorIs(t, err, errInvalidOffset, "allUserTransactions should error when the transactions after the maximum offset are not returned")
+	received := requests()
+	require.Len(t, received, maxResultOffset/maxResultLimit+2, "allUserTransactions must stop at a page from a transaction ID without new transactions")
+	assert.Equal(t, url.Values{"limit": {"1000"}, "offset": {"200000"}, "sort": {"asc"}}, received[len(received)-2], "allUserTransactions should page by offset up to the maximum offset")
+	assert.Equal(t, url.Values{"limit": {"1000"}, "since_id": {"201000"}, "sort": {"asc"}}, received[len(received)-1], "allUserTransactions should continue from the last transaction's ID")
+
+	// How the API applies since_id is not documented, so both an inclusive and an exclusive ID are paged through
+	const transactions = 230500
+	for _, inclusive := range []bool{true, false} {
+		t.Run("since ID inclusive "+strconv.FormatBool(inclusive), func(t *testing.T) {
+			t.Parallel()
+			ex, requests := pagedTestExchange(t, "/api/v2/user_transactions/", func(params url.Values) string {
+				offset := pageOffset(t, params)
+				assert.LessOrEqual(t, offset, uint64(maxResultOffset), "offset should not exceed the maximum")
+				first := offset + 1
+				if sinceID := params.Get("since_id"); sinceID != "" {
+					assert.Zero(t, offset, "a page from a transaction ID should not skip transactions")
+					id, err := strconv.ParseUint(sinceID, 10, 64)
+					assert.NoError(t, err, "since_id should be a number")
+					first = id
+					if !inclusive {
+						first++
+					}
+				}
+				return idList(`{"id":%d}`, first, min(first+maxResultLimit-1, transactions))
+			})
+			txs, err := ex.allUserTransactions(t.Context(), &UserTransactionsRequest{Limit: maxResultLimit, Sort: SortAscending})
+			require.NoError(t, err, "allUserTransactions must not error past the maximum offset")
+			require.Len(t, txs, transactions, "allUserTransactions must return every transaction once")
+			for i := range txs {
+				if !assert.Equalf(t, uint64(i+1), txs[i].ID, "transaction %d should be in ID order", i) {
+					break
+				}
+			}
+			assert.Len(t, requests(), 231, "allUserTransactions should request each transaction's page once")
+		})
+	}
 }
 
 func TestGetWithdrawalsHistoryPaging(t *testing.T) {

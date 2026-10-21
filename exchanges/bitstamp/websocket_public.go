@@ -6,11 +6,13 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
@@ -59,6 +61,66 @@ func (e *Exchange) handleWSDetailOrderbook(ctx context.Context, data []byte, pai
 	}
 	filterOrderbookZeroBidPrice(book)
 	return e.Websocket.Orderbook.LoadSnapshot(ctx, book)
+}
+
+// seedOrderbook loads the REST orderbook of each of an orderbook subscription's markets, before the subscription is sent
+// The orderbook channels only send a book when it changes, so a quiet market would otherwise have no book until it next
+// changes. Loading the book before subscribing lets the books the channel sends afterwards replace it
+func (e *Exchange) seedOrderbook(ctx context.Context, s *subscription.Subscription) error {
+	detail := subscriptionNames[s.Channel] == channelDetailOrderbook
+	grouping := OrderbookGroupedByPrice
+	if detail {
+		grouping = OrderbookUngroupedWithOrderIDs
+	}
+	var errs error
+	for _, p := range s.Pairs {
+		if err := e.seedMarketOrderbook(ctx, formatMarketSymbol(p), grouping, detail); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s %s: %w", errOrderbookSeed, p, s.Asset, err))
+		}
+	}
+	return errs
+}
+
+// seedMarketOrderbook loads the REST orderbook of a market under the pair its channel's books are loaded under
+func (e *Exchange) seedMarketOrderbook(ctx context.Context, market string, grouping OrderbookGrouping, detail bool) error {
+	pair, a, err := e.marketPair(market)
+	if err != nil {
+		return err
+	}
+	fPair, err := e.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return err
+	}
+	ob, err := e.GetOrderbook(ctx, fPair, grouping)
+	if err != nil {
+		return err
+	}
+	book := &orderbook.Book{
+		Pair:              pair,
+		LastUpdated:       ob.Microtimestamp.Time(),
+		Asset:             a,
+		Exchange:          e.Name,
+		PriceDuplication:  detail,
+		ValidateOrderbook: e.ValidateOrderbook,
+	}
+	if detail {
+		if book.Bids, err = orderLevels(ob.Bids); err != nil {
+			return err
+		}
+		if book.Asks, err = orderLevels(ob.Asks); err != nil {
+			return err
+		}
+	} else {
+		book.Bids, book.Asks = orderbookLevels(ob.Bids), orderbookLevels(ob.Asks)
+	}
+	filterOrderbookZeroBidPrice(book)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, book)
+}
+
+// isOrderbookSubscription returns whether a subscription is to one of the orderbook channels
+func isOrderbookSubscription(s *subscription.Subscription) bool {
+	name := subscriptionNames[s.Channel]
+	return name == channelOrderbook || name == channelDetailOrderbook
 }
 
 // orderLevels returns orderbook levels which each hold an order

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -113,9 +114,11 @@ func newFeedTestInstance(t *testing.T) *Exchange {
 }
 
 // dataHandlerPayloads closes the data handler and returns everything sent to it
-func dataHandlerPayloads(ex *Exchange) []any {
-	// The totals of deleted orders are relayed off the read loop, so they must be waited for before the relay is closed
-	ex.orderTotalFetches.Wait()
+func dataHandlerPayloads(t *testing.T, ex *Exchange) []any {
+	t.Helper()
+	// The totals of deleted and replaced orders are relayed off the read loop, so they must be waited for before the relay
+	// is closed
+	waitForOrderTotalFetches(t, ex)
 	ex.Websocket.DataHandler.Close()
 	var payloads []any
 	for p := range ex.Websocket.DataHandler.C {
@@ -159,6 +162,22 @@ func receiveError(t *testing.T, ex *Exchange) error {
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "the data handler must receive an error")
 		return nil
+	}
+}
+
+// waitForOrderTotalFetches waits for the fetches of closed orders' totals, failing rather than hanging when one does not
+// finish
+func waitForOrderTotalFetches(t *testing.T, ex *Exchange) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		ex.orderTotalFetches.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the fetches of closed orders' totals must finish")
 	}
 }
 
@@ -246,7 +265,7 @@ func TestWebsocketHandleDataIgnoredEvents(t *testing.T) {
 	} {
 		assert.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(msg)), "wsHandleData should not error for %s", msg)
 	}
-	assert.Empty(t, dataHandlerPayloads(ex), "heartbeats should not be sent to the data handler")
+	assert.Empty(t, dataHandlerPayloads(t, ex), "heartbeats should not be sent to the data handler")
 }
 
 func TestWebsocketHandleDataUnhandled(t *testing.T) {
@@ -259,7 +278,7 @@ func TestWebsocketHandleDataUnhandled(t *testing.T) {
 	} {
 		assert.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(msg)), "wsHandleData should not error for %s", msg)
 	}
-	payloads := dataHandlerPayloads(ex)
+	payloads := dataHandlerPayloads(t, ex)
 	require.Len(t, payloads, 3, "each unhandled message must be sent to the data handler")
 	for _, p := range payloads {
 		assert.IsType(t, websocket.UnhandledMessageWarning{}, p, "unhandled messages should be sent as warnings")
@@ -290,8 +309,8 @@ func TestWebsocketHandleDataRouting(t *testing.T) {
 	require.NoError(t, err, "orderbooks must be stored for their channel's market")
 	assert.Equal(t, orderbook.Levels{{Price: 84010, Amount: 0.0119}}, ob.Bids, "Bids should be correct")
 
-	payloads := dataHandlerPayloads(ex)
-	require.Len(t, payloads, 15, "every channel must send its payloads to the data handler")
+	payloads := dataHandlerPayloads(t, ex)
+	require.Len(t, payloads, 13, "every channel must send its payloads to the data handler")
 	assert.IsType(t, &orderbook.Depth{}, payloads[0], "orderbooks should be sent to the data handler")
 	trades, ok := payloads[1].([]trade.Data)
 	require.True(t, ok, "trades must be sent to the data handler")
@@ -309,10 +328,7 @@ func TestWebsocketHandleDataRouting(t *testing.T) {
 	require.True(t, ok, "fills must be sent to the data handler")
 	assert.Equal(t, wsPerpetualPair, fills[0].CurrencyPair, "fills should be for their channel's market")
 	assert.Equal(t, asset.PerpetualContract, fills[0].AssetType, "fills should be for their channel's asset")
-	d, ok = payloads[6].(*order.Detail)
-	require.True(t, ok, "executions must be sent to the data handler as order updates")
-	require.Len(t, d.Trades, 1, "executions must update their order's trades")
-	assert.IsType(t, &WebsocketSettlement{}, payloads[7], "settlements should be sent to the data handler")
+	assert.IsType(t, &WebsocketSettlement{}, payloads[6], "settlements should be sent to the data handler")
 	assert.Equal(t, &WebsocketLiquidationAlert{
 		PositionID:             "1234567890",
 		Microtimestamp:         types.Time(time.UnixMicro(1712131200000000)),
@@ -320,24 +336,21 @@ func TestWebsocketHandleDataRouting(t *testing.T) {
 		MarginMode:             MarginModeIsolated,
 		InitialMarginRatio:     1.2,
 		MaintenanceMarginRatio: 0.9,
-	}, payloads[8], "liquidation alerts should be sent to the data handler")
+	}, payloads[7], "liquidation alerts should be sent to the data handler")
 	assert.Equal(t, &WebsocketTokenSettlement{
 		Action:                "credit",
 		OrderID:               2046687597465600,
 		Instrument:            "TSLA/USD",
-		TokenSecurityCurrency: "TSLA",
+		TokenSecurityCurrency: currency.NewCode("TSLA"),
 		TokensQuantity:        1,
 		DateTime:              parseRFC3339(t, "2026-08-25T10:35:09+00:00"),
-	}, payloads[9], "token settlements should be sent to the data handler")
-	assert.IsType(t, &WebsocketAnnouncement{}, payloads[10], "announcements should be sent to the data handler")
-	assert.IsType(t, &orderbook.Depth{}, payloads[11], "detail orderbooks should be sent to the data handler")
-	assert.IsType(t, &WebsocketSelfTrade{}, payloads[12], "self trades should be sent to the data handler")
-	fills, ok = payloads[13].([]fill.Data)
+	}, payloads[8], "token settlements should be sent to the data handler")
+	assert.IsType(t, &WebsocketAnnouncement{}, payloads[9], "announcements should be sent to the data handler")
+	assert.IsType(t, &orderbook.Depth{}, payloads[10], "detail orderbooks should be sent to the data handler")
+	assert.IsType(t, &WebsocketSelfTrade{}, payloads[11], "self trades should be sent to the data handler")
+	fills, ok = payloads[12].([]fill.Data)
 	require.True(t, ok, "order trades must be sent to the data handler as fills")
 	assert.Equal(t, "296050734", fills[0].TradeID, "order trade fills should be correct")
-	d, ok = payloads[14].(*order.Detail)
-	require.True(t, ok, "order trades must be sent to the data handler as order updates")
-	assert.Equal(t, 0.4, d.RemainingAmount, "order trades should update the remaining amount")
 }
 
 func TestWebsocketRequestReconnect(t *testing.T) {
@@ -563,6 +576,40 @@ func TestExpandNamedPairs(t *testing.T) {
 	assert.Equal(t, []string{"order_book_btcusd", "funding_rate_btcusd-perp"}, channels, "subscriptions naming their pairs should subscribe to the pairs' market symbols")
 }
 
+func TestValidateSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestInstance(t)
+	for name, tc := range map[string]struct {
+		subs subscription.List
+		err  error
+	}{
+		"order book":        {subs: subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel}}},
+		"detail order book": {subs: subscription.List{{Enabled: true, Asset: asset.All, Channel: channelDetailOrderbook}}},
+		"disabled detail order book": {subs: subscription.List{
+			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
+			{Enabled: false, Asset: asset.All, Channel: channelDetailOrderbook},
+		}},
+		"both for other assets": {subs: subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+			{Enabled: true, Asset: asset.PerpetualContract, Channel: channelDetailOrderbook},
+		}},
+		"both for a market": {subs: subscription.List{
+			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
+			{Enabled: true, Asset: asset.Spot, Channel: channelDetailOrderbook, Pairs: currency.Pairs{wsSpotPair}},
+		}, err: subscription.ErrExclusiveSubscription},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.subs.ExpandTemplates(ex)
+			if tc.err == nil {
+				assert.NoError(t, err, "ExpandTemplates should not error")
+				return
+			}
+			assert.ErrorIs(t, err, tc.err, "ExpandTemplates should refuse both order book channels for one market")
+		})
+	}
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
@@ -711,6 +758,109 @@ func TestSubscribe(t *testing.T) {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "subscription %s should be unsubscribed", s)
 	}
 	assert.Empty(t, m.subscribed(), "the server should receive an unsubscription for every channel")
+}
+
+func TestSubscribeSeedsOrderbooks(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var sequence []string
+	record := func(event string) {
+		mu.Lock()
+		sequence = append(sequence, event)
+		mu.Unlock()
+	}
+	m := &mockWsSubscriptions{channels: make(map[string]string)}
+	wsHandler := mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, c *gws.Conn) error {
+		tb.Helper()
+		var req WebsocketEventRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		record(req.Event + " " + req.Data.Channel)
+		return m.handle(tb, msg, c)
+	})
+	ex := testexch.MockWsInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			wsHandler(w, r)
+			return
+		}
+		record(r.URL.Path + "?" + r.URL.RawQuery)
+		var body string
+		switch r.URL.Path {
+		case "/v2/order_book/btcusd/":
+			body = `{"timestamp":"1791848800","microtimestamp":"1791848800102345","bids":[["100","1"],["99","2"],["0","1"]],"asks":[["101","3"]]}`
+		case "/v2/order_book/btcusd-perp/":
+			body = `{"timestamp":"1791848800","microtimestamp":"1791848800102346","bids":[["100","1","11"],["100","2","12"]],"asks":[["101","3","13"]]}`
+		case "/v2/order_book/btceur/":
+			http.Error(w, `{"status":"error","reason":"Unavailable"}`, http.StatusInternalServerError)
+			return
+		default:
+			assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Write should not error")
+	})
+	// The orderbook store is global, so the books are stored under the test's own exchange name
+	ex.Name = t.Name()
+	subs, err := subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{spotPair, currency.NewPair(currency.BTC, currency.EUR)}},
+		{Enabled: true, Asset: asset.PerpetualContract, Channel: channelDetailOrderbook},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{spotPair}},
+	}.ExpandTemplates(ex)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error when a market's orderbook cannot be loaded")
+	assert.Equal(t, map[string]string{
+		"order_book_btcusd":             "",
+		"order_book_btceur":             "",
+		"detail_order_book_btcusd-perp": "",
+		"live_trades_btcusd":            "",
+	}, m.subscribed(), "every channel should be subscribed, including a market whose orderbook could not be loaded")
+
+	mu.Lock()
+	seeded := slices.Clone(sequence)
+	mu.Unlock()
+	// A book the channel sends after subscribing must be newer than the loaded book, so each book is loaded first
+	for book, channel := range map[string]string{
+		"/v2/order_book/btcusd/?group=1":      "bts:subscribe order_book_btcusd",
+		"/v2/order_book/btceur/?group=1":      "bts:subscribe order_book_btceur",
+		"/v2/order_book/btcusd-perp/?group=2": "bts:subscribe detail_order_book_btcusd-perp",
+	} {
+		loaded, subscribed := slices.Index(seeded, book), slices.Index(seeded, channel)
+		require.NotEqualf(t, -1, loaded, "%s must be requested", book)
+		require.NotEqualf(t, -1, subscribed, "%s must be sent", channel)
+		assert.Lessf(t, loaded, subscribed, "%s should be requested before %s is sent", book, channel)
+	}
+	assert.Len(t, seeded, 7, "only orderbook subscriptions should load a book")
+
+	spotBook, err := orderbook.Get(ex.Name, wsSpotPair, asset.Spot)
+	require.NoError(t, err, "the spot orderbook must be loaded")
+	assert.Equal(t, orderbook.Levels{{Price: 100, Amount: 1}, {Price: 99, Amount: 2}}, spotBook.Bids, "the spot bids should be loaded without the zero priced bid")
+	assert.Equal(t, orderbook.Levels{{Price: 101, Amount: 3}}, spotBook.Asks, "the spot asks should be loaded")
+	assert.Equal(t, time.UnixMicro(1791848800102345), spotBook.LastUpdated, "the spot orderbook should be dated by the REST orderbook")
+	assert.False(t, spotBook.PriceDuplication, "the spot orderbook should be aggregated by price")
+	assert.Equal(t, wsSpotPair, spotBook.Pair, "the spot orderbook should be stored under the pair its channel's books are")
+	detailBook, err := orderbook.Get(ex.Name, wsPerpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "the detail orderbook must be loaded")
+	assert.Equal(t, orderbook.Levels{{Price: 100, Amount: 1, ID: 11}, {Price: 100, Amount: 2, ID: 12}}, detailBook.Bids, "the detail bids should hold each order")
+	assert.Equal(t, orderbook.Levels{{Price: 101, Amount: 3, ID: 13}}, detailBook.Asks, "the detail asks should hold each order")
+	assert.True(t, detailBook.PriceDuplication, "the detail orderbook should repeat the price of each order at a level")
+	_, err = orderbook.Get(ex.Name, currency.NewPairWithDelimiter("BTC", "EUR", "/"), asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound, "an orderbook which could not be loaded should not be stored")
+
+	var seedErr error
+	for len(ex.Websocket.DataHandler.C) > 0 {
+		if err, ok := (<-ex.Websocket.DataHandler.C).Data.(error); ok {
+			seedErr = err
+		}
+	}
+	assert.ErrorIs(t, seedErr, errOrderbookSeed, "the data handler should receive the error of an orderbook which could not be loaded")
+
+	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not error")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Len(t, sequence, len(seeded)+len(subs), "unsubscribing should not load any orderbook")
 }
 
 // testSubscribeLive subscribes to every public channel on Bitstamp's websocket server, and to the private channels when

@@ -139,8 +139,9 @@ func (e *Exchange) GetFundingRate(ctx context.Context, pair currency.Pair) (*Fun
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/funding_rate/"+formatMarketSymbol(pair)+"/", nil, &resp)
 }
 
-// GetFundingRateHistory returns up to 100 funding rates for a perpetual market, oldest first, from up to 30 days ago
-// Limit keeps the most recent rates within the time range, so earlier rates are fetched by moving Until back
+// GetFundingRateHistory returns up to 100 funding rates for a perpetual market, oldest first
+// Limit keeps the most recent rates within the time range, so earlier rates are fetched by moving Until back. The API
+// documents rates from up to 30 days ago, but returns older rates for a time range which reaches them
 func (e *Exchange) GetFundingRateHistory(ctx context.Context, req *FundingRateHistoryRequest) (*FundingRateHistoryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
