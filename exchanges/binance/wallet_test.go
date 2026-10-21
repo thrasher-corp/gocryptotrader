@@ -241,11 +241,11 @@ func TestGetAssetDetail(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		ccy  currency.Code
-		exp  map[currency.Code]AssetDetail
+		exp  map[currency.Code]AssetDetailResponse
 	}{
 		{
 			name: "all",
-			exp: map[currency.Code]AssetDetail{
+			exp: map[currency.Code]AssetDetailResponse{
 				currency.NewCode("CTR"): {
 					MinimumWithdrawAmount: 70,
 					WithdrawFee:           35,
@@ -262,7 +262,7 @@ func TestGetAssetDetail(t *testing.T) {
 		},
 		{
 			name: "BTC", ccy: currency.BTC,
-			exp: map[currency.Code]AssetDetail{
+			exp: map[currency.Code]AssetDetailResponse{
 				currency.BTC: {
 					MinimumWithdrawAmount: 0.0001,
 					DepositStatus:         true,
@@ -408,7 +408,7 @@ func TestGetFundingAssets(t *testing.T) {
 	result, err := e.GetFundingAssets(t.Context(), currency.BTC, true)
 	require.NoError(t, err, "GetFundingAssets must not error")
 	if mockTests {
-		exp := []FundingAsset{
+		exp := []FundingAssetResponse{
 			{
 				Asset:        currency.BTC,
 				Free:         0.5,
@@ -614,7 +614,7 @@ func TestGetUserWalletBalance(t *testing.T) {
 	result, err := e.GetUserWalletBalance(t.Context(), currency.ETH, true)
 	require.NoError(t, err, "GetUserWalletBalance must not error")
 	if mockTests {
-		exp := []UserWalletBalance{
+		exp := []UserWalletBalanceResponse{
 			{
 				Activate:   true,
 				Balance:    0.0021,
@@ -688,11 +688,11 @@ func TestGetTradeFees(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
-		exp    []TradeFee
+		exp    []TradeFeeResponse
 	}{
 		{
 			name: "all",
-			exp: []TradeFee{
+			exp: []TradeFeeResponse{
 				{
 					Symbol:          "ADABNB",
 					MakerCommission: 0.001,
@@ -707,7 +707,7 @@ func TestGetTradeFees(t *testing.T) {
 		},
 		{
 			name: "symbol", symbol: spotTradablePair,
-			exp: []TradeFee{
+			exp: []TradeFeeResponse{
 				{
 					Symbol:          "BTCUSDT",
 					MakerCommission: 0.00075,
@@ -737,7 +737,7 @@ func TestGetUserAssets(t *testing.T) {
 	result, err := e.GetUserAssets(t.Context(), currency.BTC, true)
 	require.NoError(t, err, "GetUserAssets must not error")
 	if mockTests {
-		exp := []UserAsset{
+		exp := []UserAssetResponse{
 			{
 				Asset:        currency.BTC,
 				Free:         1,
@@ -943,12 +943,12 @@ func TestDepositHistory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *DepositHistoryRequest
-		exp  []DepositRecord
+		exp  []DepositRecordResponse
 	}{
 		{
 			name: "source",
 			req:  &DepositHistoryRequest{IncludeSource: true, Coin: currency.XRP, Status: new(uint64(1)), StartTime: startTime, EndTime: endTime, Limit: 1000},
-			exp: []DepositRecord{
+			exp: []DepositRecordResponse{
 				{
 					ID:            "769800519366885376",
 					Amount:        25,
@@ -985,7 +985,7 @@ func TestDepositHistory(t *testing.T) {
 		{
 			name: "transaction",
 			req:  &DepositHistoryRequest{Offset: 1, TxID: "D5D5D1DE4C5D2B9C4DCC8B0E6F2D9E1A6B0F7C3E2A1D4B5C6E7F8091A2B3C4D5"},
-			exp: []DepositRecord{
+			exp: []DepositRecordResponse{
 				{
 					ID:            "769800519366885378",
 					Amount:        0.5,
@@ -1027,11 +1027,11 @@ func TestGetDepositAddressListWithNetwork(t *testing.T) {
 		name    string
 		coin    currency.Code
 		network string
-		exp     []DepositAddressWithNetwork
+		exp     []DepositAddressWithNetworkResponse
 	}{
 		{
 			name: "default network", coin: currency.BTC,
-			exp: []DepositAddressWithNetwork{
+			exp: []DepositAddressWithNetworkResponse{
 				{
 					Coin:      currency.BTC,
 					Address:   "1HPn8Rx2y6nNSfagQBKy27GB99Vbzg89wv",
@@ -1045,7 +1045,7 @@ func TestGetDepositAddressListWithNetwork(t *testing.T) {
 		},
 		{
 			name: "network with tag", coin: currency.XRP, network: "XRP",
-			exp: []DepositAddressWithNetwork{
+			exp: []DepositAddressWithNetworkResponse{
 				{
 					Coin:      currency.XRP,
 					Address:   "rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh",
@@ -1076,7 +1076,7 @@ func TestGetWithdrawAddressList(t *testing.T) {
 	result, err := e.GetWithdrawAddressList(t.Context())
 	require.NoError(t, err, "GetWithdrawAddressList must not error")
 	if mockTests {
-		exp := []WithdrawAddress{
+		exp := []WithdrawAddressResponse{
 			{
 				Address:     "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
 				Coin:        currency.BTC,
@@ -1183,7 +1183,7 @@ func TestWithdrawHistory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *WithdrawHistoryRequest
-		exp  []WithdrawalRecord
+		exp  []WithdrawalRecordResponse
 	}{
 		{
 			name: "IDs",
@@ -1196,7 +1196,7 @@ func TestWithdrawHistory(t *testing.T) {
 				StartTime: startTime,
 				EndTime:   endTime,
 			},
-			exp: []WithdrawalRecord{
+			exp: []WithdrawalRecordResponse{
 				{
 					ID:              "b6ae22b3aa844210a7041aee7589627c",
 					Amount:          8.91,
@@ -1232,7 +1232,7 @@ func TestWithdrawHistory(t *testing.T) {
 		{
 			name: "withdraw order ID",
 			req:  &WithdrawHistoryRequest{WithdrawOrderID: "WITHDRAWtest123"},
-			exp: []WithdrawalRecord{
+			exp: []WithdrawalRecordResponse{
 				{
 					ID:              "b6ae22b3aa844210a7041aee7589627c",
 					Amount:          8.91,
@@ -1271,7 +1271,7 @@ func TestGetSymbolsDelistScheduleForSpot(t *testing.T) {
 	result, err := e.GetSymbolsDelistScheduleForSpot(t.Context())
 	require.NoError(t, err, "GetSymbolsDelistScheduleForSpot must not error")
 	if mockTests {
-		exp := []DelistSchedule{
+		exp := []DelistScheduleResponse{
 			{
 				DelistTime: types.Time(time.Unix(1744156800, 0)),
 				Symbols: []string{
@@ -1315,7 +1315,7 @@ func TestGetLocalEntitiesDepositHistory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *LocalEntityDepositHistoryRequest
-		exp  []LocalEntityDepositRecord
+		exp  []LocalEntityDepositRecordResponse
 	}{
 		{
 			name: "records",
@@ -1328,7 +1328,7 @@ func TestGetLocalEntitiesDepositHistory(t *testing.T) {
 				Offset:              1,
 				Limit:               10,
 			},
-			exp: []LocalEntityDepositRecord{
+			exp: []LocalEntityDepositRecordResponse{
 				{
 					TravelRuleRecordID:   123451123,
 					TransactionID:        17644346245865,
@@ -1373,7 +1373,7 @@ func TestGetLocalEntitiesDepositHistory(t *testing.T) {
 				EndTime:              endTime,
 				Limit:                10,
 			},
-			exp: []LocalEntityDepositRecord{
+			exp: []LocalEntityDepositRecordResponse{
 				{
 					TravelRuleRecordID:   123451125,
 					TransactionID:        17644346245867,
@@ -1446,7 +1446,7 @@ func TestGetOnboardedVASPList(t *testing.T) {
 	result, err := e.GetOnboardedVASPList(t.Context())
 	require.NoError(t, err, "GetOnboardedVASPList must not error")
 	if mockTests {
-		exp := []VASP{
+		exp := []VASPResponse{
 			{
 				VASPName:   "Binance",
 				VASPCode:   "BINANCE",
@@ -1469,7 +1469,7 @@ func TestWithdrawalHistoryV2(t *testing.T) {
 	testLocalEntityWithdrawHistory(t, e.WithdrawalHistoryV2)
 }
 
-func testLocalEntityWithdrawHistory(t *testing.T, withdrawalHistory func(context.Context, *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecord, error)) {
+func testLocalEntityWithdrawHistory(t *testing.T, withdrawalHistory func(context.Context, *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecordResponse, error)) {
 	t.Helper()
 	_, err := withdrawalHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "withdrawal history must reject a nil request")
@@ -1483,7 +1483,7 @@ func testLocalEntityWithdrawHistory(t *testing.T, withdrawalHistory func(context
 	for _, tc := range []struct {
 		name string
 		req  *LocalEntityWithdrawHistoryRequest
-		exp  []LocalEntityWithdrawalRecord
+		exp  []LocalEntityWithdrawalRecordResponse
 	}{
 		{
 			name: "records",
@@ -1495,7 +1495,7 @@ func testLocalEntityWithdrawHistory(t *testing.T, withdrawalHistory func(context
 				StartTime:           startTime,
 				EndTime:             endTime,
 			},
-			exp: []LocalEntityWithdrawalRecord{
+			exp: []LocalEntityWithdrawalRecordResponse{
 				{
 					ID:                 "b6ae22b3aa844210a7041aee7589627c",
 					TravelRuleRecordID: 1234,
@@ -1542,7 +1542,7 @@ func testLocalEntityWithdrawHistory(t *testing.T, withdrawalHistory func(context
 				StartTime:        startTime,
 				EndTime:          endTime,
 			},
-			exp: []LocalEntityWithdrawalRecord{
+			exp: []LocalEntityWithdrawalRecordResponse{
 				{
 					ID:                 "b6ae22b3aa844210a7041aee7589627c",
 					TravelRuleRecordID: 1234,

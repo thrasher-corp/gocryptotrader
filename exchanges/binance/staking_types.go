@@ -302,8 +302,8 @@ type SOLStakingQuotaResponse struct {
 	Calculating                 bool         `json:"calculating"`
 }
 
-// SOLStakingUnclaimedReward holds an unclaimed SOL staking boost reward
-type SOLStakingUnclaimedReward struct {
+// SOLStakingUnclaimedRewardResponse holds an unclaimed SOL staking boost reward
+type SOLStakingUnclaimedRewardResponse struct {
 	Amount       types.Number  `json:"amount"`
 	RewardsAsset currency.Code `json:"rewardsAsset"`
 }

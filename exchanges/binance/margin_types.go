@@ -75,8 +75,8 @@ type MarginCapitalFlowRequest struct {
 	Limit     uint64 // Default 500, maximum 1000
 }
 
-// MarginCapitalFlow holds one cross or isolated margin capital flow
-type MarginCapitalFlow struct {
+// MarginCapitalFlowResponse holds one cross or isolated margin capital flow
+type MarginCapitalFlowResponse struct {
 	ID            uint64        `json:"id"`
 	TransactionID uint64        `json:"tranId"`
 	Timestamp     types.Time    `json:"timestamp"`
@@ -114,8 +114,8 @@ type CrossMarginUserAsset struct {
 	NetAsset types.Number  `json:"netAsset"`
 }
 
-// CrossMarginFeeData holds the cross margin fee data of a coin at a VIP level
-type CrossMarginFeeData struct {
+// CrossMarginFeeResponse holds the cross margin fee data of a coin at a VIP level
+type CrossMarginFeeResponse struct {
 	VIPLevel        uint64        `json:"vipLevel"`
 	Coin            currency.Code `json:"coin"`
 	TransferIn      bool          `json:"transferIn"`
@@ -132,8 +132,8 @@ type IsolatedMarginAccountLimitResponse struct {
 	MaxAccount     uint64 `json:"maxAccount"`
 }
 
-// IsolatedMarginFeeData holds the isolated margin fee data of a symbol at a VIP level
-type IsolatedMarginFeeData struct {
+// IsolatedMarginFeeResponse holds the isolated margin fee data of a symbol at a VIP level
+type IsolatedMarginFeeResponse struct {
 	VIPLevel uint64                  `json:"vipLevel"`
 	Symbol   string                  `json:"symbol"`
 	Leverage types.Number            `json:"leverage"`
@@ -147,8 +147,8 @@ type IsolatedMarginFeeCoin struct {
 	BorrowLimit   types.Number  `json:"borrowLimit"`
 }
 
-// HourlyInterestRate holds the next hourly interest rate estimate of an asset
-type HourlyInterestRate struct {
+// HourlyInterestRateResponse holds the next hourly interest rate estimate of an asset
+type HourlyInterestRateResponse struct {
 	Asset                  currency.Code `json:"asset"`
 	NextHourlyInterestRate types.Number  `json:"nextHourlyInterestRate"`
 }
@@ -235,8 +235,8 @@ type MarginInterestRateHistoryRequest struct {
 	EndTime   time.Time
 }
 
-// MarginInterestRate holds the daily margin interest rate of an asset at a VIP level
-type MarginInterestRate struct {
+// MarginInterestRateResponse holds the daily margin interest rate of an asset at a VIP level
+type MarginInterestRateResponse struct {
 	Asset             currency.Code `json:"asset"`
 	DailyInterestRate types.Number  `json:"dailyInterestRate"`
 	Timestamp         types.Time    `json:"timestamp"`
@@ -249,8 +249,8 @@ type MarginMaxBorrowableResponse struct {
 	BorrowLimit types.Number `json:"borrowLimit"` // Limited by the account level only
 }
 
-// CrossMarginCollateralRatio holds the collateral discount rate tiers shared by a group of assets
-type CrossMarginCollateralRatio struct {
+// CrossMarginCollateralRatioResponse holds the collateral discount rate tiers shared by a group of assets
+type CrossMarginCollateralRatioResponse struct {
 	Collaterals []CrossMarginCollateral `json:"collaterals"`
 	AssetNames  []currency.Code         `json:"assetNames"`
 }
@@ -262,8 +262,8 @@ type CrossMarginCollateral struct {
 	DiscountRate types.Number `json:"discountRate"`
 }
 
-// CrossMarginPair holds a cross margin pair
-type CrossMarginPair struct {
+// CrossMarginPairResponse holds a cross margin pair
+type CrossMarginPairResponse struct {
 	Base          currency.Code `json:"base"`
 	ID            uint64        `json:"id"`
 	IsBuyAllowed  bool          `json:"isBuyAllowed"`
@@ -274,8 +274,8 @@ type CrossMarginPair struct {
 	DelistTime    types.Time    `json:"delistTime"`
 }
 
-// IsolatedMarginSymbol holds an isolated margin symbol
-type IsolatedMarginSymbol struct {
+// IsolatedMarginSymbolResponse holds an isolated margin symbol
+type IsolatedMarginSymbolResponse struct {
 	Base          currency.Code `json:"base"`
 	IsBuyAllowed  bool          `json:"isBuyAllowed"`
 	IsMarginTrade bool          `json:"isMarginTrade"`
@@ -284,8 +284,8 @@ type IsolatedMarginSymbol struct {
 	Symbol        string        `json:"symbol"`
 }
 
-// MarginAssetInfo holds a margin asset
-type MarginAssetInfo struct {
+// MarginAssetInfoResponse holds a margin asset
+type MarginAssetInfoResponse struct {
 	AssetFullName  string        `json:"assetFullName"`
 	AssetName      currency.Code `json:"assetName"`
 	IsBorrowable   bool          `json:"isBorrowable"`
@@ -295,15 +295,15 @@ type MarginAssetInfo struct {
 	DelistTime     types.Time    `json:"delistTime"`
 }
 
-// MarginDelistSchedule holds the cross margin assets and isolated margin symbols delisted at a time
-type MarginDelistSchedule struct {
+// MarginDelistScheduleResponse holds the cross margin assets and isolated margin symbols delisted at a time
+type MarginDelistScheduleResponse struct {
 	DelistTime            types.Time      `json:"delistTime"`
 	CrossMarginAssets     []currency.Code `json:"crossMarginAssets"`
 	IsolatedMarginSymbols []string        `json:"isolatedMarginSymbols"`
 }
 
-// IsolatedMarginTier holds one isolated margin tier of a symbol
-type IsolatedMarginTier struct {
+// IsolatedMarginTierResponse holds one isolated margin tier of a symbol
+type IsolatedMarginTierResponse struct {
 	Symbol                  string       `json:"symbol"`
 	Tier                    uint64       `json:"tier"`
 	EffectiveMultiple       types.Number `json:"effectiveMultiple"`
@@ -355,8 +355,8 @@ type ForceLiquidationRecord struct {
 	UpdatedTime      types.Time   `json:"updatedTime"`
 }
 
-// SmallLiabilityExchangeCoin holds a liability MarginSmallLiabilityExchange can exchange
-type SmallLiabilityExchangeCoin struct {
+// SmallLiabilityExchangeCoinResponse holds a liability MarginSmallLiabilityExchange can exchange
+type SmallLiabilityExchangeCoinResponse struct {
 	Asset             currency.Code `json:"asset"`
 	Interest          types.Number  `json:"interest"`
 	Principal         types.Number  `json:"principal"`
@@ -410,9 +410,9 @@ type MarginTradeOrderResponse struct {
 	UpdateTime              types.Time   `json:"updateTime"`
 }
 
-// MarginCancelledOrder holds an order, or an order list such as OCO, cancelled by
+// MarginCancelledOrderResponse holds an order, or an order list such as OCO, cancelled by
 // CancelAllOpenMarginAccountOrdersOnSymbol; the order list fields are set only for order lists
-type MarginCancelledOrder struct {
+type MarginCancelledOrderResponse struct {
 	Symbol                  string                       `json:"symbol"`
 	IsIsolated              bool                         `json:"isIsolated"`
 	OriginalClientOrderID   string                       `json:"origClientOrderId"`
@@ -661,8 +661,8 @@ type MarginManualLiquidationResponse struct {
 	LiabilityQuantity float64       `json:"liabilityQty"`
 }
 
-// MarginOrderCountUsage holds the margin account's order count against one rate limit interval
-type MarginOrderCountUsage struct {
+// MarginOrderCountUsageResponse holds the margin account's order count against one rate limit interval
+type MarginOrderCountUsageResponse struct {
 	RateLimitType  string `json:"rateLimitType"`
 	Interval       string `json:"interval"`
 	IntervalNumber uint64 `json:"intervalNum"`
@@ -701,8 +701,8 @@ type MarginAccountTradeListRequest struct {
 	Limit      uint64 // Default 500, maximum 1000
 }
 
-// MarginAccountTrade holds a margin account trade
-type MarginAccountTrade struct {
+// MarginAccountTradeResponse holds a margin account trade
+type MarginAccountTradeResponse struct {
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
 	ID              uint64        `json:"id"`

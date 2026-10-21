@@ -4,13 +4,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// AccountBalance holds a portfolio margin asset balance across the margin, UM and CM accounts
-type AccountBalance struct {
+// AccountBalanceResponse holds a portfolio margin asset balance across the margin, UM and CM accounts
+type AccountBalanceResponse struct {
 	Asset              currency.Code `json:"asset"`
 	TotalWalletBalance types.Number  `json:"totalWalletBalance"`
 	// CrossMarginAsset is crossMarginFree plus crossMarginLocked; it is only returned when no asset is requested
@@ -25,31 +24,6 @@ type AccountBalance struct {
 	CMUnrealisedPNL     types.Number `json:"cmUnrealizedPNL"`
 	UpdateTime          types.Time   `json:"updateTime"`
 	NegativeBalance     types.Number `json:"negativeBalance"`
-}
-
-// AccountBalanceResponse holds the balances returned by the account balance endpoint, which answers with a single
-// object when an asset is requested and an array otherwise
-type AccountBalanceResponse []AccountBalance
-
-// UnmarshalJSON decodes either response shape into a slice of balances
-func (a *AccountBalanceResponse) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		return nil
-	}
-	if len(data) != 0 && data[0] == '[' {
-		var balances []AccountBalance
-		if err := json.Unmarshal(data, &balances); err != nil {
-			return err
-		}
-		*a = balances
-		return nil
-	}
-	var balance AccountBalance
-	if err := json.Unmarshal(data, &balance); err != nil {
-		return err
-	}
-	*a = AccountBalanceResponse{balance}
-	return nil
 }
 
 // PMAccountInformationResponse holds portfolio margin account information, with amounts in USD
@@ -109,8 +83,8 @@ type UMInitialLeverageResponse struct {
 	Symbol           string       `json:"symbol"`
 }
 
-// CMNotionalAndLeverage holds a COIN-M symbol's notional and leverage brackets
-type CMNotionalAndLeverage struct {
+// CMNotionalAndLeverageResponse holds a COIN-M symbol's notional and leverage brackets
+type CMNotionalAndLeverageResponse struct {
 	Symbol   string              `json:"symbol"`
 	Brackets []CMNotionalBracket `json:"brackets"`
 }
@@ -169,8 +143,8 @@ type PMIncomeHistoryRequest struct {
 	Limit      uint64
 }
 
-// IncomeItem holds a UM or CM income history record
-type IncomeItem struct {
+// IncomeItemResponse holds a UM or CM income history record
+type IncomeItemResponse struct {
 	Symbol     string        `json:"symbol"`
 	IncomeType string        `json:"incomeType"`
 	Income     types.Number  `json:"income"`
@@ -268,8 +242,8 @@ type PMTradingIndicator struct {
 	TriggerValue       float64    `json:"triggerValue"`
 }
 
-// CMPositionInformation holds a CM position
-type CMPositionInformation struct {
+// CMPositionInformationResponse holds a CM position
+type CMPositionInformationResponse struct {
 	Symbol           string       `json:"symbol"`
 	PositionAmount   types.Number `json:"positionAmt"`
 	EntryPrice       types.Number `json:"entryPrice"`
@@ -342,8 +316,8 @@ type PMNegativeBalanceInterestHistoryRequest struct {
 	Size      uint64
 }
 
-// PortfolioMarginNegativeBalanceInterest holds a portfolio margin negative balance interest record
-type PortfolioMarginNegativeBalanceInterest struct {
+// PortfolioMarginNegativeBalanceInterestResponse holds a portfolio margin negative balance interest record
+type PortfolioMarginNegativeBalanceInterestResponse struct {
 	Asset               currency.Code `json:"asset"`
 	Interest            types.Number  `json:"interest"`
 	InterestAccuredTime types.Time    `json:"interestAccuredTime"`
@@ -351,8 +325,8 @@ type PortfolioMarginNegativeBalanceInterest struct {
 	Principal           types.Number  `json:"principal"`
 }
 
-// UMPositionInformation holds a UM position
-type UMPositionInformation struct {
+// UMPositionInformationResponse holds a UM position
+type UMPositionInformationResponse struct {
 	EntryPrice       types.Number `json:"entryPrice"`
 	Leverage         types.Number `json:"leverage"`
 	MarkPrice        types.Number `json:"markPrice"`
@@ -386,16 +360,16 @@ type PMNegativeBalanceExchangeDetail struct {
 	NegativeMaxThreshold uint64        `json:"negativeMaxThreshold"`
 }
 
-// PMRateLimit holds a portfolio margin order rate limit
-type PMRateLimit struct {
+// PMRateLimitResponse holds a portfolio margin order rate limit
+type PMRateLimitResponse struct {
 	RateLimitType  string `json:"rateLimitType"`
 	Interval       string `json:"interval"`
 	IntervalNumber uint64 `json:"intervalNum"`
 	Limit          uint64 `json:"limit"`
 }
 
-// UMNotionalAndLeverage holds a UM symbol's notional and leverage brackets
-type UMNotionalAndLeverage struct {
+// UMNotionalAndLeverageResponse holds a UM symbol's notional and leverage brackets
+type UMNotionalAndLeverageResponse struct {
 	Symbol string `json:"symbol"`
 	// NotionalCoefficient is the user's bracket multiplier, present when it differs from 1
 	NotionalCoefficient types.Number        `json:"notionalCoef"`
@@ -507,9 +481,9 @@ type CMOrderRequest struct {
 	ReduceOnly bool
 	Price      float64
 	// PriceMatch cannot be sent with Price
-	PriceMatch       string
-	NewClientOrderID string
-	NewOrderRespType string
+	PriceMatch           string
+	NewClientOrderID     string
+	NewOrderResponseType string
 }
 
 // CMOrderResponse holds a CM order returned when it is placed or cancelled
@@ -531,13 +505,13 @@ type CMOrderResponse struct {
 	UpdateTime         types.Time   `json:"updateTime"`
 }
 
-// PMCancelledMarginOrder holds an order or OCO order list cancelled by the cancel all margin open orders endpoint;
-// order lists carry the list fields, Orders and OrderReports, and plain orders carry an OrderListID of -1
-type PMCancelledMarginOrder struct {
+// PMCancelledMarginOrderResponse holds an order or OCO order list cancelled by the cancel all margin open orders
+// endpoint; order lists carry the list fields, Orders and OrderReports, and plain orders carry an OrderListID of -1
+type PMCancelledMarginOrderResponse struct {
 	Symbol                  string                         `json:"symbol"`
 	OriginalClientOrderID   string                         `json:"origClientOrderId"`
 	OrderID                 uint64                         `json:"orderId"`
-	OrderListID             int64                          `json:"orderListId"`
+	OrderListID             int64                          `json:"orderListId"` // -1 unless the entry is an order list
 	ClientOrderID           string                         `json:"clientOrderId"`
 	Price                   types.Number                   `json:"price"`
 	OriginalQuantity        types.Number                   `json:"origQty"`
@@ -571,7 +545,7 @@ type PMMarginOCOOrderLeg struct {
 
 // PMMarginOCOOrderResponse holds a margin OCO order list
 type PMMarginOCOOrderResponse struct {
-	OrderListID       int64                 `json:"orderListId"`
+	OrderListID       uint64                `json:"orderListId"`
 	ContingencyType   string                `json:"contingencyType"`
 	ListStatusType    string                `json:"listStatusType"`
 	ListOrderStatus   string                `json:"listOrderStatus"`
@@ -602,7 +576,7 @@ type PMCancelMarginOCOOrderReport struct {
 	Symbol                  string       `json:"symbol"`
 	OriginalClientOrderID   string       `json:"origClientOrderId"`
 	OrderID                 uint64       `json:"orderId"`
-	OrderListID             int64        `json:"orderListId"`
+	OrderListID             uint64       `json:"orderListId"`
 	ClientOrderID           string       `json:"clientOrderId"`
 	Price                   types.Number `json:"price"`
 	OriginalQuantity        types.Number `json:"origQty"`
@@ -651,9 +625,9 @@ type PMMarginOrderRequest struct {
 	QuoteOrderQuantity float64
 	Price              float64
 	// StopPrice is used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
-	StopPrice        float64
-	NewClientOrderID string
-	NewOrderRespType string
+	StopPrice            float64
+	NewClientOrderID     string
+	NewOrderResponseType string
 	// IcebergQuantity is used with LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
 	IcebergQuantity float64
 	// SideEffectType is NO_SIDE_EFFECT (default), MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
@@ -754,10 +728,10 @@ type UMOrderRequest struct {
 	TimeInForce string
 	Quantity    float64
 	// ReduceOnly cannot be sent in hedge mode
-	ReduceOnly       bool
-	Price            float64
-	NewClientOrderID string
-	NewOrderRespType string
+	ReduceOnly           bool
+	Price                float64
+	NewClientOrderID     string
+	NewOrderResponseType string
 	// PriceMatch cannot be sent with Price
 	PriceMatch string
 	// SelfTradePreventionMode is only effective with the IOC, GTC and GTD time in force values
@@ -799,8 +773,8 @@ type CMAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// CMAccountTrade holds a CM account trade
-type CMAccountTrade struct {
+// CMAccountTradeResponse holds a CM account trade
+type CMAccountTradeResponse struct {
 	Symbol          string        `json:"symbol"`
 	ID              uint64        `json:"id"`
 	OrderID         uint64        `json:"orderId"`
@@ -819,8 +793,8 @@ type CMAccountTrade struct {
 	Maker           bool          `json:"maker"`
 }
 
-// CMADLQuantileEstimation holds a CM symbol's auto-deleveraging quantiles
-type CMADLQuantileEstimation struct {
+// CMADLQuantileEstimationResponse holds a CM symbol's auto-deleveraging quantiles
+type CMADLQuantileEstimationResponse struct {
 	Symbol      string        `json:"symbol"`
 	ADLQuantile CMADLQuantile `json:"adlQuantile"`
 }
@@ -850,7 +824,7 @@ type PMMarginOCOOrderRequest struct {
 	StopLimitPrice       float64
 	StopIcebergQuantity  float64
 	StopLimitTimeInForce string
-	NewOrderRespType     string
+	NewOrderResponseType string
 	// SideEffectType is NO_SIDE_EFFECT (default), MARGIN_BUY or AUTO_REPAY
 	SideEffectType string
 }
@@ -868,7 +842,7 @@ type PMNewMarginOCOOrderResponse struct {
 type PMNewMarginOCOOrderReport struct {
 	Symbol                  string       `json:"symbol"`
 	OrderID                 uint64       `json:"orderId"`
-	OrderListID             int64        `json:"orderListId"`
+	OrderListID             uint64       `json:"orderListId"`
 	ClientOrderID           string       `json:"clientOrderId"`
 	TransactTime            types.Time   `json:"transactTime"`
 	Price                   types.Number `json:"price"`
@@ -892,8 +866,8 @@ type PMMarginTradeListRequest struct {
 	Limit     uint64
 }
 
-// PMMarginTrade holds a margin account trade
-type PMMarginTrade struct {
+// PMMarginTradeResponse holds a margin account trade
+type PMMarginTradeResponse struct {
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
 	ID              uint64        `json:"id"`
@@ -916,8 +890,8 @@ type CMConditionalOrdersRequest struct {
 	Limit      uint64
 }
 
-// CMConditionalOrderRecord holds a CM conditional order with the order it triggered, if any
-type CMConditionalOrderRecord struct {
+// CMConditionalOrderRecordResponse holds a CM conditional order with the order it triggered, if any
+type CMConditionalOrderRecordResponse struct {
 	CMConditionalOrderResponse
 	// OrderID, Status and Type describe the order placed when the strategy triggered
 	OrderID     uint64     `json:"orderId"`
@@ -960,7 +934,7 @@ type UMOrdersRequest struct {
 
 // CMConditionalOrderHistoryResponse holds a CM conditional order from the order history
 type CMConditionalOrderHistoryResponse struct {
-	CMConditionalOrderRecord
+	CMConditionalOrderRecordResponse
 	WorkingType  string `json:"workingType"`
 	PriceProtect bool   `json:"priceProtect"`
 	PriceMatch   string `json:"priceMatch"`
@@ -984,8 +958,8 @@ type PMForceOrdersRequest struct {
 	Limit         uint64
 }
 
-// CMForceOrder holds a CM liquidation or auto-deleveraging order
-type CMForceOrder struct {
+// CMForceOrderResponse holds a CM liquidation or auto-deleveraging order
+type CMForceOrderResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`
@@ -1033,8 +1007,8 @@ type PMMarginForceOrder struct {
 	UpdatedTime      types.Time   `json:"updatedTime"`
 }
 
-// UMForceOrder holds a UM liquidation or auto-deleveraging order
-type UMForceOrder struct {
+// UMForceOrderResponse holds a UM liquidation or auto-deleveraging order
+type UMForceOrderResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Status           string       `json:"status"`
@@ -1064,8 +1038,8 @@ type UMAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// UMAccountTrade holds a UM account trade
-type UMAccountTrade struct {
+// UMAccountTradeResponse holds a UM account trade
+type UMAccountTradeResponse struct {
 	Symbol          string        `json:"symbol"`
 	ID              uint64        `json:"id"`
 	OrderID         uint64        `json:"orderId"`
@@ -1082,8 +1056,8 @@ type UMAccountTrade struct {
 	PositionSide    string        `json:"positionSide"`
 }
 
-// UMADLQuantileEstimation holds a UM symbol's auto-deleveraging quantiles
-type UMADLQuantileEstimation struct {
+// UMADLQuantileEstimationResponse holds a UM symbol's auto-deleveraging quantiles
+type UMADLQuantileEstimationResponse struct {
 	Symbol      string        `json:"symbol"`
 	ADLQuantile UMADLQuantile `json:"adlQuantile"`
 }
@@ -1123,13 +1097,13 @@ type UMAlgoOrderRequest struct {
 	ActivatePrice           float64
 	CallbackRate            float64
 	ClientAlgoID            string
-	NewOrderRespType        string
+	NewOrderResponseType    string
 	SelfTradePreventionMode string
 	// GoodTillDate is required for GTD orders
 	GoodTillDate time.Time
 }
 
-// UMAlgoOrderResponse holds a new UM algo order
+// UMAlgoOrderResponse holds a UM algo order as placing one and the open algo orders query return it
 type UMAlgoOrderResponse struct {
 	AlgoID                  uint64       `json:"algoId"`
 	ClientAlgoID            string       `json:"clientAlgoId"`
@@ -1162,36 +1136,10 @@ type CancelUMAlgoOrderResponse struct {
 	Complete bool `json:"complete"`
 }
 
-// UMAlgoOrder holds an open UM algo order
-type UMAlgoOrder struct {
-	AlgoID                  uint64       `json:"algoId"`
-	ClientAlgoID            string       `json:"clientAlgoId"`
-	AlgoType                string       `json:"algoType"`
-	OrderType               string       `json:"orderType"`
-	Symbol                  string       `json:"symbol"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"positionSide"`
-	TimeInForce             string       `json:"timeInForce"`
-	Quantity                types.Number `json:"quantity"`
-	AlgoStatus              string       `json:"algoStatus"`
-	TriggerPrice            types.Number `json:"triggerPrice"`
-	Price                   types.Number `json:"price"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	WorkingType             string       `json:"workingType"`
-	PriceMatch              string       `json:"priceMatch"`
-	ClosePosition           bool         `json:"closePosition"`
-	PriceProtect            bool         `json:"priceProtect"`
-	ReduceOnly              bool         `json:"reduceOnly"`
-	CreateTime              types.Time   `json:"createTime"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	TriggerTime             types.Time   `json:"triggerTime"`
-	GoodTillDate            types.Time   `json:"goodTillDate"`
-}
-
 // UMAlgoOrderDetailResponse holds a UM algo order as the order and history queries return it, with the order its
 // trigger placed
 type UMAlgoOrderDetailResponse struct {
-	UMAlgoOrder
+	UMAlgoOrderResponse
 	ActualOrderID string       `json:"actualOrderId"` // empty until the algo order triggers
 	ActualPrice   types.Number `json:"actualPrice"`
 }

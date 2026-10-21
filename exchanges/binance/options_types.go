@@ -19,8 +19,8 @@ type OptionsAccountFundingFlowRequest struct {
 	Limit     uint64
 }
 
-// OptionsAccountFunding holds an options account funding flow
-type OptionsAccountFunding struct {
+// OptionsAccountFundingResponse holds an options account funding flow
+type OptionsAccountFundingResponse struct {
 	ID    uint64        `json:"id"`
 	Asset currency.Code `json:"asset"`
 	// Amount is positive for inflows and negative for outflows
@@ -89,12 +89,12 @@ type OptionsServerTimeResponse struct {
 
 // OptionsExchangeInformationResponse holds the options trading rules and symbol information
 type OptionsExchangeInformationResponse struct {
-	Timezone        string                `json:"timezone"`
-	ServerTime      types.Time            `json:"serverTime"`
-	OptionContracts []OptionsContract     `json:"optionContracts"`
-	OptionAssets    []OptionsAsset        `json:"optionAssets"`
-	OptionSymbols   []OptionsSymbolDetail `json:"optionSymbols"`
-	RateLimits      []RateLimitInfo       `json:"rateLimits"`
+	Timezone        string                  `json:"timezone"`
+	ServerTime      types.Time              `json:"serverTime"`
+	OptionContracts []OptionsContract       `json:"optionContracts"`
+	OptionAssets    []OptionsAsset          `json:"optionAssets"`
+	OptionSymbols   []OptionsSymbolDetail   `json:"optionSymbols"`
+	RateLimits      []RateLimitInfoResponse `json:"rateLimits"`
 }
 
 // OptionsContract holds an options contract underlying
@@ -159,9 +159,9 @@ type OptionsExerciseHistoryRequest struct {
 	Limit      uint64
 }
 
-// ExerciseHistoryItem holds an option's exercise record. StrikeResult is REALISTIC_VALUE_STRICKEN when the option was
-// exercised and EXTRINSIC_VALUE_EXPIRED when it expired out of the money
-type ExerciseHistoryItem struct {
+// ExerciseHistoryItemResponse holds an option's exercise record. StrikeResult is REALISTIC_VALUE_STRICKEN when the
+// option was exercised and EXTRINSIC_VALUE_EXPIRED when it expired out of the money
+type ExerciseHistoryItemResponse struct {
 	Symbol          string       `json:"symbol"`
 	StrikePrice     types.Number `json:"strikePrice"`
 	RealStrikePrice types.Number `json:"realStrikePrice"`
@@ -184,8 +184,8 @@ type OptionsKlineRequest struct {
 	Limit     uint64
 }
 
-// EOptionsCandlestick holds an option kline
-type EOptionsCandlestick struct {
+// EOptionsCandlestickResponse holds an option kline
+type EOptionsCandlestickResponse struct {
 	OpenTime                 types.Time
 	Open                     types.Number
 	High                     types.Number
@@ -200,12 +200,12 @@ type EOptionsCandlestick struct {
 }
 
 // UnmarshalJSON decodes an option kline from its array form
-func (c *EOptionsCandlestick) UnmarshalJSON(data []byte) error {
+func (c *EOptionsCandlestickResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.NumberOfTrades, &c.TakerBuyBaseAssetVolume, &c.TakerBuyQuoteAssetVolume, nil})
 }
 
-// OptionsOpenInterest holds the open interest of an option
-type OptionsOpenInterest struct {
+// OptionsOpenInterestResponse holds the open interest of an option
+type OptionsOpenInterestResponse struct {
 	Symbol             string       `json:"symbol"`
 	SumOpenInterest    types.Number `json:"sumOpenInterest"`
 	SumOpenInterestUSD types.Number `json:"sumOpenInterestUsd"`
@@ -213,8 +213,8 @@ type OptionsOpenInterest struct {
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// OptionMarkPrice holds an option's mark price and greeks
-type OptionMarkPrice struct {
+// OptionMarkPriceResponse holds an option's mark price and greeks
+type OptionMarkPriceResponse struct {
 	Symbol    string       `json:"symbol"`
 	MarkPrice types.Number `json:"markPrice"`
 	// BidIV, AskIV and MarkIV are implied volatilities
@@ -238,8 +238,8 @@ type OptionsOrderBookResponse struct {
 	LastUpdateID    uint64                           `json:"lastUpdateId"`
 }
 
-// OptionsTrade holds an option market trade
-type OptionsTrade struct {
+// OptionsTradeResponse holds an option market trade
+type OptionsTradeResponse struct {
 	ID            uint64       `json:"id"`
 	TradeID       uint64       `json:"tradeId"`
 	Symbol        string       `json:"symbol"`
@@ -251,8 +251,8 @@ type OptionsTrade struct {
 	Time types.Time `json:"time"`
 }
 
-// EOptionTicker holds an option's 24 hour price change statistics
-type EOptionTicker struct {
+// EOptionTickerResponse holds an option's 24 hour price change statistics
+type EOptionTickerResponse struct {
 	Symbol             string       `json:"symbol"`
 	PriceChange        types.Number `json:"priceChange"`
 	PriceChangePercent types.Number `json:"priceChangePercent"`
@@ -319,8 +319,8 @@ type OptionsAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// OptionsAccountTradeItem holds an options account trade
-type OptionsAccountTradeItem struct {
+// OptionsAccountTradeItemResponse holds an options account trade
+type OptionsAccountTradeItemResponse struct {
 	ID       uint64       `json:"id"`
 	TradeID  uint64       `json:"tradeId"`
 	OrderID  uint64       `json:"orderId"`
@@ -389,15 +389,16 @@ type OptionsOrderResponse struct {
 	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 }
 
-// OptionsCancelledOrder holds an entry of an options batch cancellation. Binance's options docs show no rejected entry,
-// so Code and Message read one the way the USDⓈ-M and COIN-M batch cancellations report it, in place of the order
-type OptionsCancelledOrder struct {
+// OptionsCancelledOrderResponse holds an entry of an options batch cancellation. Binance's options docs show no
+// rejected entry, so Code and Message read one the way the USDⓈ-M and COIN-M batch cancellations report it, in place of
+// the order
+type OptionsCancelledOrderResponse struct {
 	OptionsOrder
 	Fee                     types.Number `json:"fee"`
 	CreateTime              types.Time   `json:"createTime"`
 	Source                  string       `json:"source"`
 	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	Code                    int64        `json:"code"`
+	Code                    int64        `json:"code"` // negative when Binance rejected the entry
 	Message                 string       `json:"msg"`
 }
 
@@ -417,8 +418,8 @@ type OptionsCancelOrderResponse struct {
 	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
 
-// OptionPosition holds an options position
-type OptionPosition struct {
+// OptionPositionResponse holds an options position
+type OptionPositionResponse struct {
 	EntryPrice types.Number `json:"entryPrice"`
 	Symbol     string       `json:"symbol"`
 	Side       string       `json:"side"`
@@ -447,10 +448,10 @@ type OptionsOpenOrdersRequest struct {
 	EndTime   time.Time
 }
 
-// OptionsOpenOrder holds a current open options order
-type OptionsOpenOrder struct {
+// OptionsOpenOrderResponse holds a current open options order
+type OptionsOpenOrderResponse struct {
 	OptionsOrder
-	PostOnly                bool       `json:"postOnly"`
+	PostOnly                bool       `json:"postOnly"` // not in Binance's documented reply; read in case it is sent
 	CreateTime              types.Time `json:"createTime"`
 	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
@@ -464,10 +465,10 @@ type OptionsOrderHistoryRequest struct {
 	Limit     uint64
 }
 
-// OptionsOrderHistoryItem holds a finished options order
-type OptionsOrderHistoryItem struct {
+// OptionsOrderHistoryItemResponse holds a finished options order
+type OptionsOrderHistoryItemResponse struct {
 	OptionsOrder
-	PostOnly   bool       `json:"postOnly"`
+	PostOnly   bool       `json:"postOnly"` // not in Binance's documented reply; read in case it is sent
 	CreateTime types.Time `json:"createTime"`
 }
 
@@ -479,8 +480,8 @@ type OptionsUserExerciseRecordRequest struct {
 	Limit     uint64
 }
 
-// UserOptionsExerciseRecord holds an options exercise record of the account
-type UserOptionsExerciseRecord struct {
+// UserOptionsExerciseRecordResponse holds an options exercise record of the account
+type UserOptionsExerciseRecordResponse struct {
 	// ID is quoted on the wire and exceeds float64 precision
 	ID            string        `json:"id"`
 	Currency      currency.Code `json:"currency"`

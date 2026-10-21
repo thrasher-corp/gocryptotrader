@@ -66,12 +66,12 @@ func (e *Exchange) GetPMProBankruptcyLoanAmount(ctx context.Context) (*PMProBank
 }
 
 // GetPMProNegativeBalanceInterestHistory returns the interest charged on portfolio margin pro negative balances
-func (e *Exchange) GetPMProNegativeBalanceInterestHistory(ctx context.Context, arg *PMNegativeBalanceInterestHistoryRequest) ([]PMProNegativeBalanceInterest, error) {
+func (e *Exchange) GetPMProNegativeBalanceInterestHistory(ctx context.Context, arg *PMNegativeBalanceInterestHistoryRequest) ([]PMProNegativeBalanceInterestResponse, error) {
 	params, err := pmNegativeBalanceInterestHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []PMProNegativeBalanceInterest
+	var resp []PMProNegativeBalanceInterestResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/portfolio/interest-history", params, classicPMNegativeBalanceInterestHistoryRate, &resp)
 }
 
@@ -87,26 +87,26 @@ func (e *Exchange) RepayPMProFuturesNegativeBalance(ctx context.Context, from st
 }
 
 // GetPortfolioMarginAssetLeverage returns the leverage of every portfolio margin asset
-func (e *Exchange) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]PMAssetLeverage, error) {
-	var resp []PMAssetLeverage
+func (e *Exchange) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]PMAssetLeverageResponse, error) {
+	var resp []PMAssetLeverageResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/portfolio/margin-asset-leverage", nil, pmAssetLeverageRate, &resp)
 }
 
 // GetPortfolioMarginCollateralRate returns the collateral rate of every portfolio margin asset
-func (e *Exchange) GetPortfolioMarginCollateralRate(ctx context.Context) ([]PMCollateralRate, error) {
-	var resp []PMCollateralRate
+func (e *Exchange) GetPortfolioMarginCollateralRate(ctx context.Context) ([]PMCollateralRateResponse, error) {
+	var resp []PMCollateralRateResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/portfolio/collateralRate", classicPMCollateralRate, &resp)
 }
 
 // GetPortfolioMarginAssetIndexPrice returns the USD index price of one portfolio margin asset, or of every asset when
 // ccy is empty
-func (e *Exchange) GetPortfolioMarginAssetIndexPrice(ctx context.Context, ccy currency.Code) ([]PortfolioMarginAssetIndexPrice, error) {
+func (e *Exchange) GetPortfolioMarginAssetIndexPrice(ctx context.Context, ccy currency.Code) ([]PortfolioMarginAssetIndexPriceResponse, error) {
 	params := url.Values{}
 	f := pmAssetIndexPriceRate
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.Upper().String())
 		f = sapiDefaultRate
 	}
-	var resp []PortfolioMarginAssetIndexPrice
+	var resp []PortfolioMarginAssetIndexPriceResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, common.EncodeURLValues("/sapi/v1/portfolio/asset-index-price", params), f, &resp)
 }

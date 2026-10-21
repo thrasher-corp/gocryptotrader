@@ -52,7 +52,7 @@ func (e *Exchange) CustomiseSpotOwnClientID(ctx context.Context, customerID, api
 
 // GetSpotClientEmailCustomisedID calls Get Client Email Customized Id (USER_DATA), filtering by customer ID or email,
 // not both
-func (e *Exchange) GetSpotClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]ReferralCustomerEmail, error) {
+func (e *Exchange) GetSpotClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]ReferralCustomerEmailResponse, error) {
 	if customerID != "" && email != "" {
 		return nil, errCustomerIDAndEmailExclusive
 	}
@@ -63,7 +63,7 @@ func (e *Exchange) GetSpotClientEmailCustomisedID(ctx context.Context, customerI
 	if email != "" {
 		params.Set("email", email)
 	}
-	var resp []ReferralCustomerEmail
+	var resp []ReferralCustomerEmailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/apiReferral/customization", params, sapiDefaultRate, &resp)
 }
 
@@ -91,7 +91,7 @@ func (e *Exchange) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode
 
 // GetSpotOwnRebateRecentRecords calls Query Rebate Recent Record, covering the last 7 days; limit is at most 1000 and
 // defaults to 500
-func (e *Exchange) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, endTime time.Time, limit uint64) ([]ReferralRebateRecord, error) {
+func (e *Exchange) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, endTime time.Time, limit uint64) ([]ReferralRebateRecordResponse, error) {
 	params, err := brokerTimeWindowParams(startTime, endTime)
 	if err != nil {
 		return nil, err
@@ -99,13 +99,13 @@ func (e *Exchange) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []ReferralRebateRecord
+	var resp []ReferralRebateRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/apiReferral/kickback/recentRecord", params, sapiDefaultRate, &resp)
 }
 
 // GetSpotOthersRebateRecentRecord calls Query Partner Rebate Recent Record; the window, at most 7 days, needs both
 // bounds or neither, which returns the last 7 days
-func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, arg *PartnerRebateRecordRequest) ([]PartnerRebateRecord, error) {
+func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, arg *PartnerRebateRecordRequest) ([]PartnerRebateRecordResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, arg *Par
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	params.Set("limit", strconv.FormatUint(arg.Limit, 10))
-	var resp []PartnerRebateRecord
+	var resp []PartnerRebateRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/apiReferral/rebate/recentRecord", params, sapiDefaultRate, &resp)
 }
 
@@ -187,7 +187,7 @@ func (e *Exchange) CustomiseFuturesOwnClientID(ctx context.Context, customerID, 
 
 // GetFuturesClientEmailCustomisedID calls Get Futures Client Email Customized Id (USER_DATA), filtering by customer ID
 // or email, not both
-func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, arg *ReferralCustomerEmailRequest) ([]ReferralCustomerEmail, error) {
+func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, arg *ReferralCustomerEmailRequest) ([]ReferralCustomerEmailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, arg *R
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []ReferralCustomerEmail
+	var resp []ReferralCustomerEmailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/customization", params, uFuturesAPIReferralRate, &resp)
 }
 
@@ -234,18 +234,18 @@ func (e *Exchange) GetFuturesRebateDataOverview(ctx context.Context, coinMargine
 }
 
 // GetRebateVolume calls Get Rebate Volume (USER_DATA)
-func (e *Exchange) GetRebateVolume(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralRebateVolume, error) {
+func (e *Exchange) GetRebateVolume(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralRebateVolumeResponse, error) {
 	params, err := referralVolumeParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []ReferralRebateVolume
+	var resp []ReferralRebateVolumeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, uFuturesAPIReferralRate, &resp)
 }
 
 // GetTraderDetail calls Get Trader Detail (USER_DATA), returning the trade and rebate volume of referred traders, or
 // of the one customerID identifies
-func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, arg *ReferralVolumeRequest) ([]ReferralTraderDetail, error) {
+func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, arg *ReferralVolumeRequest) ([]ReferralTraderDetailResponse, error) {
 	params, err := referralVolumeParams(arg)
 	if err != nil {
 		return nil, err
@@ -253,28 +253,28 @@ func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, arg *
 	if customerID != "" {
 		params.Set("customerId", customerID)
 	}
-	var resp []ReferralTraderDetail
+	var resp []ReferralTraderDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, uFuturesAPIReferralRate, &resp)
 }
 
 // GetFuturesReferredTradersNumber calls Get Trader Number (USER_DATA), returning the number of new and existing
 // referred traders
-func (e *Exchange) GetFuturesReferredTradersNumber(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralTraderNumber, error) {
+func (e *Exchange) GetFuturesReferredTradersNumber(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralTraderNumberResponse, error) {
 	params, err := referralVolumeParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []ReferralTraderNumber
+	var resp []ReferralTraderNumberResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, uFuturesAPIReferralRate, &resp)
 }
 
 // GetUserTradeVolume calls Get User Trade Volume (USER_DATA), returning referred users' trade volume
-func (e *Exchange) GetUserTradeVolume(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralTradeVolume, error) {
+func (e *Exchange) GetUserTradeVolume(ctx context.Context, arg *ReferralVolumeRequest) ([]ReferralTradeVolumeResponse, error) {
 	params, err := referralVolumeParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []ReferralTradeVolume
+	var resp []ReferralTradeVolumeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, uFuturesAPIReferralRate, &resp)
 }
 

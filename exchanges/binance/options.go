@@ -26,7 +26,7 @@ var (
 )
 
 // GetAccountFundingFlow returns the options Account Funding Flow of a currency
-func (e *Exchange) GetAccountFundingFlow(ctx context.Context, req *OptionsAccountFundingFlowRequest) ([]OptionsAccountFunding, error) {
+func (e *Exchange) GetAccountFundingFlow(ctx context.Context, req *OptionsAccountFundingFlowRequest) ([]OptionsAccountFundingResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (e *Exchange) GetAccountFundingFlow(ctx context.Context, req *OptionsAccoun
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []OptionsAccountFunding
+	var resp []OptionsAccountFundingResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/bill", params, optionsDefaultRate, &resp)
 }
 
@@ -100,7 +100,7 @@ func (e *Exchange) GetOptionsExchangeInformation(ctx context.Context) (*OptionsE
 }
 
 // GetEOptionsHistoricalExerciseRecords returns the options Historical Exercise Records
-func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, req *OptionsExerciseHistoryRequest) ([]ExerciseHistoryItem, error) {
+func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, req *OptionsExerciseHistoryRequest) ([]ExerciseHistoryItemResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, req
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []ExerciseHistoryItem
+	var resp []ExerciseHistoryItemResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/exerciseHistory", params), optionsHistoricalExerciseRecordsRate, &resp)
 }
 
@@ -138,7 +138,7 @@ func (e *Exchange) GetOptionsIndexPrice(ctx context.Context, underlying string) 
 }
 
 // GetEOptionsCandlesticks returns the options Kline/Candlestick Data of a symbol
-func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, req *OptionsKlineRequest) ([]EOptionsCandlestick, error) {
+func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, req *OptionsKlineRequest) ([]EOptionsCandlestickResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -169,12 +169,12 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, req *OptionsKlin
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []EOptionsCandlestick
+	var resp []EOptionsCandlestickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), optionsDefaultRate, &resp)
 }
 
 // GetEOptionsOpenInterests returns the options Open Interest of an underlying asset for an expiry date
-func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset currency.Code, expiration time.Time) ([]OptionsOpenInterest, error) {
+func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset currency.Code, expiration time.Time) ([]OptionsOpenInterestResponse, error) {
 	if underlyingAsset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -185,12 +185,12 @@ func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset
 	params.Set("underlyingAsset", underlyingAsset.Upper().String())
 	// Expiry dates are written YYMMDD in UTC, as in option symbols such as BTC-261225-85000-C
 	params.Set("expiration", expiration.UTC().Format("060102"))
-	var resp []OptionsOpenInterest
+	var resp []OptionsOpenInterestResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), optionsDefaultRate, &resp)
 }
 
 // GetOptionMarkPrice returns the Option Mark Price and greeks of a symbol, or of every symbol when it is empty
-func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol currency.Pair) ([]OptionMarkPrice, error) {
+func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol currency.Pair) ([]OptionMarkPriceResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		s, err := e.FormatSymbol(symbol, asset.Options)
@@ -199,7 +199,7 @@ func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol currency.Pair)
 		}
 		params.Set("symbol", s)
 	}
-	var resp []OptionMarkPrice
+	var resp []OptionMarkPriceResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/mark", params), optionsMarkPriceRate, &resp)
 }
 
@@ -224,7 +224,7 @@ func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol currency.Pai
 }
 
 // GetEOptionsRecentTrades returns the options Recent Trades List of a symbol
-func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]OptionsTrade, error) {
+func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]OptionsTradeResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -237,13 +237,13 @@ func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol currency.
 	if limit != 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []OptionsTrade
+	var resp []OptionsTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/trades", params), optionsRecentTradesRate, &resp)
 }
 
-// GetEOptions24hrTickerPriceChangeStatistics returns the options 24hr Ticker Price Change Statistics of a symbol, or
+// GetEOptions24HourTickerPriceChangeStatistics returns the options 24hr Ticker Price Change Statistics of a symbol, or
 // of every symbol when it is empty
-func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol currency.Pair) ([]EOptionTicker, error) {
+func (e *Exchange) GetEOptions24HourTickerPriceChangeStatistics(ctx context.Context, symbol currency.Pair) ([]EOptionTickerResponse, error) {
 	params := url.Values{}
 	rateLimit := optionsAllTickerPriceStatisticsRate
 	if !symbol.IsEmpty() {
@@ -254,7 +254,7 @@ func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Contex
 		}
 		params.Set("symbol", s)
 	}
-	var resp []EOptionTicker
+	var resp []EOptionTickerResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/ticker", params), rateLimit, &resp)
 }
 
@@ -352,7 +352,7 @@ func (e *Exchange) SetOptionsMarketMakerProtectionConfig(ctx context.Context, re
 }
 
 // GetEOptionsAccountTradeList returns the options Account Trade List of a symbol
-func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, req *OptionsAccountTradeListRequest) ([]OptionsAccountTradeItem, error) {
+func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, req *OptionsAccountTradeListRequest) ([]OptionsAccountTradeItemResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -382,7 +382,7 @@ func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, req *Options
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []OptionsAccountTradeItem
+	var resp []OptionsAccountTradeItemResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, &resp)
 }
 
@@ -440,7 +440,7 @@ func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, orders []Options
 
 // CancelBatchOptionsOrders cancels options orders of a symbol by order ID or client order ID through Cancel Multiple
 // Option Orders
-func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, clientOrderIDs []string) ([]OptionsCancelledOrder, error) {
+func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, clientOrderIDs []string) ([]OptionsCancelledOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -467,7 +467,7 @@ func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol currency
 		}
 		params.Set("clientOrderIds", string(ids))
 	}
-	var resp []OptionsCancelledOrder
+	var resp []OptionsCancelledOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/batchOrders", params, optionsCancelBatchOrdersRate, &resp)
 }
 
@@ -584,7 +584,7 @@ func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol currency.Pair,
 
 // GetOptionPositionInformation returns the Option Position Information of a symbol, or of every symbol when it is
 // empty
-func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol currency.Pair) ([]OptionPosition, error) {
+func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol currency.Pair) ([]OptionPositionResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		s, err := e.FormatSymbol(symbol, asset.Options)
@@ -593,18 +593,18 @@ func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol curr
 		}
 		params.Set("symbol", s)
 	}
-	var resp []OptionPosition
+	var resp []OptionPositionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/position", params, optionsPositionInformationRate, &resp)
 }
 
 // GetCurrentOpenOptionsOrders returns the Current Open Option Orders of a symbol, or of every symbol when it is empty
-func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest) ([]OptionsOpenOrder, error) {
+func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest) ([]OptionsOpenOrderResponse, error) {
 	return e.getCurrentOpenOptionsOrders(ctx, req, optionsAllQueryOpenOrdersRate)
 }
 
 // getCurrentOpenOptionsOrders lists open options orders, drawing on allSymbols for a listing of every symbol's, so the
 // listing a cancellation of every symbol's orders makes can draw on the cancel pool
-func (e *Exchange) getCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest, allSymbols request.EndpointLimit) ([]OptionsOpenOrder, error) {
+func (e *Exchange) getCurrentOpenOptionsOrders(ctx context.Context, req *OptionsOpenOrdersRequest, allSymbols request.EndpointLimit) ([]OptionsOpenOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -632,13 +632,13 @@ func (e *Exchange) getCurrentOpenOptionsOrders(ctx context.Context, req *Options
 	if !req.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
-	var resp []OptionsOpenOrder
+	var resp []OptionsOpenOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/openOrders", params, rateLimit, &resp)
 }
 
 // GetOptionsOrdersHistory returns the Option Order History of a symbol, which only covers orders finished within
 // the last five days
-func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, req *OptionsOrderHistoryRequest) ([]OptionsOrderHistoryItem, error) {
+func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, req *OptionsOrderHistoryRequest) ([]OptionsOrderHistoryItemResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -668,12 +668,12 @@ func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, req *OptionsOrde
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []OptionsOrderHistoryItem
+	var resp []OptionsOrderHistoryItemResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/historyOrders", params, optionsGetOrderHistoryRate, &resp)
 }
 
 // GetUserOptionsExerciseRecord returns the options User Exercise Record
-func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, req *OptionsUserExerciseRecordRequest) ([]UserOptionsExerciseRecord, error) {
+func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, req *OptionsUserExerciseRecordRequest) ([]UserOptionsExerciseRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -699,7 +699,7 @@ func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, req *Option
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []UserOptionsExerciseRecord
+	var resp []UserOptionsExerciseRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/exerciseRecord", params, optionsUserExerciseRecordRate, &resp)
 }
 

@@ -211,7 +211,7 @@ func (e *Exchange) GetLockedRewardHistory(ctx context.Context, req *SimpleEarnLo
 }
 
 // GetLockedSubscriptionPreview returns the estimated rewards and schedule of a locked product subscription
-func (e *Exchange) GetLockedSubscriptionPreview(ctx context.Context, projectID string, amount float64, autoSubscribe bool) ([]SimpleEarnLockedSubscriptionPreview, error) {
+func (e *Exchange) GetLockedSubscriptionPreview(ctx context.Context, projectID string, amount float64, autoSubscribe bool) ([]SimpleEarnLockedSubscriptionPreviewResponse, error) {
 	if projectID == "" {
 		return nil, errProjectIDRequired
 	}
@@ -223,7 +223,7 @@ func (e *Exchange) GetLockedSubscriptionPreview(ctx context.Context, projectID s
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	// Always sent, as the endpoint previews auto-subscription when it is left out
 	params.Set("autoSubscribe", strconv.FormatBool(autoSubscribe))
-	var resp []SimpleEarnLockedSubscriptionPreview
+	var resp []SimpleEarnLockedSubscriptionPreviewResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/simple-earn/locked/subscriptionPreview", params, subscriptionPreviewRate, &resp)
 }
 

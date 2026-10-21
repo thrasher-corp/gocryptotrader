@@ -34,7 +34,7 @@ func TestGetAccountFundingFlow(t *testing.T) {
 	result, err := e.GetAccountFundingFlow(t.Context(), &OptionsAccountFundingFlowRequest{Currency: currency.USDT, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetAccountFundingFlow must not error")
 	if mockTests {
-		exp := []OptionsAccountFunding{
+		exp := []OptionsAccountFundingResponse{
 			{
 				ID:         1125899906842624000,
 				Asset:      currency.USDT,
@@ -261,24 +261,24 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 					Status:               "TRADING",
 				},
 			},
-			RateLimits: []RateLimitInfo{
+			RateLimits: []RateLimitInfoResponse{
 				{
-					RateLimitType: "REQUEST_WEIGHT",
-					Interval:      "MINUTE",
-					IntervalNum:   1,
-					Limit:         400,
+					RateLimitType:  "REQUEST_WEIGHT",
+					Interval:       "MINUTE",
+					IntervalNumber: 1,
+					Limit:          400,
 				},
 				{
-					RateLimitType: "ORDERS",
-					Interval:      "MINUTE",
-					IntervalNum:   1,
-					Limit:         100,
+					RateLimitType:  "ORDERS",
+					Interval:       "MINUTE",
+					IntervalNumber: 1,
+					Limit:          100,
 				},
 				{
-					RateLimitType: "ORDERS",
-					Interval:      "SECOND",
-					IntervalNum:   10,
-					Limit:         30,
+					RateLimitType:  "ORDERS",
+					Interval:       "SECOND",
+					IntervalNumber: 10,
+					Limit:          30,
 				},
 			},
 		}
@@ -300,7 +300,7 @@ func TestGetEOptionsHistoricalExerciseRecords(t *testing.T) {
 	result, err := e.GetEOptionsHistoricalExerciseRecords(t.Context(), &OptionsExerciseHistoryRequest{Underlying: "BTCUSDT", StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetEOptionsHistoricalExerciseRecords must not error")
 	if mockTests {
-		exp := []ExerciseHistoryItem{
+		exp := []ExerciseHistoryItemResponse{
 			{
 				Symbol:          "BTC-261006-90000-C",
 				StrikePrice:     90000,
@@ -358,7 +358,7 @@ func TestGetEOptionsCandlesticks(t *testing.T) {
 	result, err := e.GetEOptionsCandlesticks(t.Context(), &OptionsKlineRequest{Symbol: optionsTradablePair, Interval: kline.OneDay, StartTime: startTime, EndTime: endTime, Limit: 1000})
 	require.NoError(t, err, "GetEOptionsCandlesticks must not error")
 	if mockTests {
-		exp := []EOptionsCandlestick{
+		exp := []EOptionsCandlestickResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1791072000, 0)),
 				Open:                     380,
@@ -394,9 +394,9 @@ func TestGetEOptionsCandlesticks(t *testing.T) {
 
 func TestEOptionsCandlestickUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var c EOptionsCandlestick
+	var c EOptionsCandlestickResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1791158400000,"810.000","980.000","190.000","305.000","43.19",1791244799999,"18514.35000",137,"22.49","10575.20000","0"]`), &c), "Unmarshal must not error")
-	exp := EOptionsCandlestick{
+	exp := EOptionsCandlestickResponse{
 		OpenTime:                 types.Time(time.UnixMilli(1791158400000)),
 		Open:                     810,
 		High:                     980,
@@ -409,7 +409,7 @@ func TestEOptionsCandlestickUnmarshalJSON(t *testing.T) {
 		TakerBuyBaseAssetVolume:  22.49,
 		TakerBuyQuoteAssetVolume: 10575.2,
 	}
-	assert.Equal(t, exp, c, "EOptionsCandlestick should decode every element")
+	assert.Equal(t, exp, c, "EOptionsCandlestickResponse should decode every element")
 	assert.Error(t, json.Unmarshal([]byte(`{"open":"810.000"}`), &c), "Unmarshal should error on an object")
 	assert.Error(t, json.Unmarshal([]byte(`[1791158400000,"810.000","980.000","190.000","305.000","43.19",1791244799999,"18514.35000","many"]`), &c), "Unmarshal should error on a malformed trade count")
 }
@@ -428,7 +428,7 @@ func TestGetEOptionsOpenInterests(t *testing.T) {
 	result, err := e.GetEOptionsOpenInterests(t.Context(), optionsTradablePair.Base, expiration)
 	require.NoError(t, err, "GetEOptionsOpenInterests must not error")
 	if mockTests {
-		exp := []OptionsOpenInterest{
+		exp := []OptionsOpenInterestResponse{
 			{
 				Symbol:             "BTC-260410-87000-C",
 				SumOpenInterest:    134.21,
@@ -454,9 +454,9 @@ func TestGetOptionMarkPrice(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
-		exp    []OptionMarkPrice
+		exp    []OptionMarkPriceResponse
 	}{
-		{"every symbol", currency.EMPTYPAIR, []OptionMarkPrice{
+		{"every symbol", currency.EMPTYPAIR, []OptionMarkPriceResponse{
 			{
 				Symbol:           "BTC-261225-85000-C",
 				MarkPrice:        6935.765,
@@ -486,7 +486,7 @@ func TestGetOptionMarkPrice(t *testing.T) {
 				RiskFreeInterest: 0.0527,
 			},
 		}},
-		{"symbol", optionsTradablePair, []OptionMarkPrice{
+		{"symbol", optionsTradablePair, []OptionMarkPriceResponse{
 			{
 				Symbol:           "BTC-260410-72000-P",
 				MarkPrice:        4798.435,
@@ -572,7 +572,7 @@ func TestGetEOptionsRecentTrades(t *testing.T) {
 	result, err := e.GetEOptionsRecentTrades(t.Context(), optionsTradablePair, 10)
 	require.NoError(t, err, "GetEOptionsRecentTrades must not error")
 	if mockTests {
-		exp := []OptionsTrade{
+		exp := []OptionsTradeResponse{
 			{
 				ID:            2332864780648238564,
 				TradeID:       466,
@@ -600,15 +600,15 @@ func TestGetEOptionsRecentTrades(t *testing.T) {
 	assert.NotNil(t, result, "GetEOptionsRecentTrades should return trades")
 }
 
-func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
+func TestGetEOptions24HourTickerPriceChangeStatistics(t *testing.T) {
 	t.Parallel()
 	ensureTradablePairs(t)
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
-		exp    []EOptionTicker
+		exp    []EOptionTickerResponse
 	}{
-		{"every symbol", currency.EMPTYPAIR, []EOptionTicker{
+		{"every symbol", currency.EMPTYPAIR, []EOptionTickerResponse{
 			{
 				Symbol:             "BTC-261225-85000-C",
 				PriceChange:        255,
@@ -650,7 +650,7 @@ func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
 				ExercisePrice:      86162.79847826,
 			},
 		}},
-		{"symbol", optionsTradablePair, []EOptionTicker{
+		{"symbol", optionsTradablePair, []EOptionTickerResponse{
 			{
 				Symbol:             "BTC-260410-72000-P",
 				PriceChange:        345,
@@ -675,13 +675,13 @@ func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetEOptions24hrTickerPriceChangeStatistics(t.Context(), tc.symbol)
-			require.NoError(t, err, "GetEOptions24hrTickerPriceChangeStatistics must not error")
+			result, err := e.GetEOptions24HourTickerPriceChangeStatistics(t.Context(), tc.symbol)
+			require.NoError(t, err, "GetEOptions24HourTickerPriceChangeStatistics must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetEOptions24hrTickerPriceChangeStatistics should decode every field")
+				assert.Equal(t, tc.exp, result, "GetEOptions24HourTickerPriceChangeStatistics should decode every field")
 				return
 			}
-			assert.NotEmpty(t, result, "GetEOptions24hrTickerPriceChangeStatistics should return tickers")
+			assert.NotEmpty(t, result, "GetEOptions24HourTickerPriceChangeStatistics should return tickers")
 		})
 	}
 }
@@ -863,7 +863,7 @@ func TestGetEOptionsAccountTradeList(t *testing.T) {
 	result, err := e.GetEOptionsAccountTradeList(t.Context(), &OptionsAccountTradeListRequest{Symbol: optionsTradablePair, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetEOptionsAccountTradeList must not error")
 	if mockTests {
-		exp := []OptionsAccountTradeItem{
+		exp := []OptionsAccountTradeItemResponse{
 			{
 				ID:             4611875134427365000,
 				TradeID:        239,
@@ -1044,7 +1044,7 @@ func TestCancelBatchOptionsOrders(t *testing.T) {
 	result, err := e.CancelBatchOptionsOrders(t.Context(), optionsTradablePair, []uint64{4611875134427365377}, []string{"the-client-order-id-2"})
 	require.NoError(t, err, "CancelBatchOptionsOrders must not error")
 	if mockTests {
-		exp := []OptionsCancelledOrder{
+		exp := []OptionsCancelledOrderResponse{
 			{
 				OrderID:                 4611875134427365377,
 				Symbol:                  "BTC-260410-72000-P",
@@ -1245,7 +1245,7 @@ func TestGetOptionPositionInformation(t *testing.T) {
 	result, err := e.GetOptionPositionInformation(t.Context(), optionsTradablePair)
 	require.NoError(t, err, "GetOptionPositionInformation must not error")
 	if mockTests {
-		exp := []OptionPosition{
+		exp := []OptionPositionResponse{
 			{
 				EntryPrice:    1000,
 				Symbol:        "BTC-260410-72000-P",
@@ -1287,7 +1287,7 @@ func TestGetCurrentOpenOptionsOrders(t *testing.T) {
 	result, err := e.GetCurrentOpenOptionsOrders(t.Context(), &OptionsOpenOrdersRequest{Symbol: optionsTradablePair, OrderID: 4611875134427365377, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetCurrentOpenOptionsOrders must not error")
 	if mockTests {
-		exp := []OptionsOpenOrder{
+		exp := []OptionsOpenOrderResponse{
 			{
 				OrderID:                 4611875134427365377,
 				Symbol:                  "BTC-260410-72000-P",
@@ -1335,7 +1335,7 @@ func TestGetOptionsOrdersHistory(t *testing.T) {
 	result, err := e.GetOptionsOrdersHistory(t.Context(), &OptionsOrderHistoryRequest{Symbol: optionsTradablePair, OrderID: 4611875134427365377, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetOptionsOrdersHistory must not error")
 	if mockTests {
-		exp := []OptionsOrderHistoryItem{
+		exp := []OptionsOrderHistoryItemResponse{
 			{
 				OrderID:               4611875134427365377,
 				Symbol:                "BTC-260410-72000-P",
@@ -1380,7 +1380,7 @@ func TestGetUserOptionsExerciseRecord(t *testing.T) {
 	result, err := e.GetUserOptionsExerciseRecord(t.Context(), &OptionsUserExerciseRecordRequest{Symbol: optionsTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetUserOptionsExerciseRecord must not error")
 	if mockTests {
-		exp := []UserOptionsExerciseRecord{
+		exp := []UserOptionsExerciseRecordResponse{
 			{
 				ID:            "1125899906842624042",
 				Currency:      currency.USDT,

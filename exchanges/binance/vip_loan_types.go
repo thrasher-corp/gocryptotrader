@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// VIPLoanBorrowInterestRate holds the flexible borrow interest rate of a VIP loan coin
-type VIPLoanBorrowInterestRate struct {
+// VIPLoanBorrowInterestRateResponse holds the flexible borrow interest rate of a VIP loan coin
+type VIPLoanBorrowInterestRateResponse struct {
 	Asset                      currency.Code `json:"asset"`
 	FlexibleDailyInterestRate  types.Number  `json:"flexibleDailyInterestRate"`
 	FlexibleYearlyInterestRate types.Number  `json:"flexibleYearlyInterestRate"`

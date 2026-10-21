@@ -65,7 +65,7 @@ func TestGetTargetAssetROIData(t *testing.T) {
 	result, err := e.GetTargetAssetROIData(t.Context(), currency.ETH, "THREE_YEAR")
 	require.NoError(t, err, "GetTargetAssetROIData must not error")
 	if mockTests {
-		exp := []AutoInvestTargetAssetROI{
+		exp := []AutoInvestTargetAssetROIResponse{
 			{
 				Date:        types.Time(time.Unix(1648378800, 0)),
 				SimulateROI: 1.75,
@@ -395,7 +395,7 @@ func TestGetSubscriptionsTransactionHistory(t *testing.T) {
 	})
 	require.NoError(t, err, "GetSubscriptionsTransactionHistory must not error")
 	if mockTests {
-		exp := []AutoInvestSubscriptionTransaction{
+		exp := []AutoInvestSubscriptionTransactionResponse{
 			{
 				ID:                  1111,
 				TargetAsset:         currency.BTC,
@@ -605,7 +605,7 @@ func TestGetIndexLinkedPlanRedemption(t *testing.T) {
 	})
 	require.NoError(t, err, "GetIndexLinkedPlanRedemption must not error")
 	if mockTests {
-		exp := []IndexLinkedPlanRedemption{
+		exp := []IndexLinkedPlanRedemptionResponse{
 			{
 				IndexID:            1,
 				IndexName:          "BINANCE TOP 10 EW",
@@ -638,7 +638,7 @@ func TestGetIndexLinkedPlanRebalanceDetails(t *testing.T) {
 	result, err := e.GetIndexLinkedPlanRebalanceDetails(t.Context(), &EarnHistoryRequest{StartTime: startTime, EndTime: endTime, Current: 1, Size: 100})
 	require.NoError(t, err, "GetIndexLinkedPlanRebalanceDetails must not error")
 	if mockTests {
-		exp := []IndexLinkedPlanRebalance{
+		exp := []IndexLinkedPlanRebalanceResponse{
 			{
 				IndexID:          1,
 				IndexName:        "BINANCE TOP 10 EW",

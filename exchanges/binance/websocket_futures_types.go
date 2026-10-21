@@ -12,20 +12,20 @@ import (
 type DerivativesStreamRequest struct {
 	Method string `json:"method"`
 	Params []any  `json:"params,omitempty"`
-	ID     int64  `json:"id"`
+	ID     int64  `json:"id"` // int64, the type MessageSequence returns and replies are matched by
 }
 
 // DerivativesStreamResponse is the reply to a DerivativesStreamRequest
 type DerivativesStreamResponse struct {
 	Result json.RawMessage         `json:"result"`
 	Error  *DerivativesStreamError `json:"error"`
-	ID     int64                   `json:"id"`
+	ID     int64                   `json:"id"` // int64 like the request's ID
 }
 
 // DerivativesStreamError is the error a stream connection returns for a rejected request, before closing the
 // connection
 type DerivativesStreamError struct {
-	Code    int64  `json:"code"`
+	Code    uint64 `json:"code"`
 	Message string `json:"msg"`
 }
 
@@ -45,17 +45,16 @@ type FuturesBookTicker struct {
 	SymbolType      uint64       `json:"st"` // 1 USDⓈ-M, 2 COIN-M
 }
 
-// FuturesDepthUpdate is an order book update from the USDⓈ-M and COIN-M diff, partial and RPI book depth streams.
-// Update IDs are int64 to match the order book API they feed
+// FuturesDepthUpdate is an order book update from the USDⓈ-M and COIN-M diff, partial and RPI book depth streams
 type FuturesDepthUpdate struct {
 	EventType             string                           `json:"e"`
 	EventTime             types.Time                       `json:"E"`
 	TransactionTime       types.Time                       `json:"T"`
 	Symbol                string                           `json:"s"`
 	Pair                  string                           `json:"ps"`
-	FirstUpdateID         int64                            `json:"U"`
-	FinalUpdateID         int64                            `json:"u"`
-	PreviousFinalUpdateID int64                            `json:"pu"`
+	FirstUpdateID         int64                            `json:"U"`  // int64 to match the order book API it feeds
+	FinalUpdateID         int64                            `json:"u"`  // int64 to match the order book API it feeds
+	PreviousFinalUpdateID int64                            `json:"pu"` // int64 to match the order book API it feeds
 	Bids                  orderbook.LevelsArrayPriceAmount `json:"b"`
 	Asks                  orderbook.LevelsArrayPriceAmount `json:"a"`
 	SymbolType            uint64                           `json:"st"`
@@ -142,7 +141,7 @@ type FuturesTicker struct {
 	StatisticsOpenTime          types.Time   `json:"O"`
 	StatisticsCloseTime         types.Time   `json:"C"`
 	FirstTradeID                int64        `json:"F"` // -1 when no trade happened in the window
-	LastTradeID                 int64        `json:"L"`
+	LastTradeID                 int64        `json:"L"` // -1 when no trade happened in the window
 	TotalNumberOfTrades         uint64       `json:"n"`
 	SymbolType                  uint64       `json:"st"`
 }
@@ -170,20 +169,20 @@ type FuturesCompositeIndexComposition struct {
 // FuturesContinuousKline is a candle of a USDⓈ-M or COIN-M pair and contract type from the
 // <pair>_<contractType>@continuousKline_<interval> stream
 type FuturesContinuousKline struct {
-	EventType    string                     `json:"e"`
-	EventTime    types.Time                 `json:"E"`
-	Pair         string                     `json:"ps"`
-	ContractType string                     `json:"ct"`
-	Kline        FuturesContinuousKlineData `json:"k"`
+	EventType    string                  `json:"e"`
+	EventTime    types.Time              `json:"E"`
+	Pair         string                  `json:"ps"`
+	ContractType string                  `json:"ct"`
+	Kline        FuturesContinuousCandle `json:"k"`
 }
 
-// FuturesContinuousKlineData is the candle of a FuturesContinuousKline
-type FuturesContinuousKlineData struct {
+// FuturesContinuousCandle is the candle of a FuturesContinuousKline
+type FuturesContinuousCandle struct {
 	StartTime                types.Time   `json:"t"`
 	CloseTime                types.Time   `json:"T"`
 	Interval                 string       `json:"i"`
-	FirstUpdateID            int64        `json:"f"`
-	LastUpdateID             int64        `json:"L"`
+	FirstUpdateID            int64        `json:"f"` // -1 when the candle has no trades
+	LastUpdateID             int64        `json:"L"` // -1 when the candle has no trades
 	OpenPrice                types.Number `json:"o"`
 	ClosePrice               types.Number `json:"c"`
 	HighPrice                types.Number `json:"h"`
@@ -226,20 +225,20 @@ type FuturesContractInfoBracket struct {
 // FuturesKline is a candle from the USDⓈ-M and COIN-M <symbol>@kline_<interval> streams. COIN-M counts Volume and
 // TakerBuyBaseAssetVolume in contracts and sends its base asset volumes in the quote volume fields
 type FuturesKline struct {
-	EventType string           `json:"e"`
-	EventTime types.Time       `json:"E"`
-	Symbol    string           `json:"s"`
-	Kline     FuturesKlineData `json:"k"`
+	EventType string        `json:"e"`
+	EventTime types.Time    `json:"E"`
+	Symbol    string        `json:"s"`
+	Kline     FuturesCandle `json:"k"`
 }
 
-// FuturesKlineData is the candle of a FuturesKline
-type FuturesKlineData struct {
+// FuturesCandle is the candle of a FuturesKline
+type FuturesCandle struct {
 	StartTime                types.Time   `json:"t"`
 	CloseTime                types.Time   `json:"T"`
 	Symbol                   string       `json:"s"`
 	Interval                 string       `json:"i"`
 	FirstTradeID             int64        `json:"f"` // -1 when the candle has no trades
-	LastTradeID              int64        `json:"L"`
+	LastTradeID              int64        `json:"L"` // -1 when the candle has no trades
 	OpenPrice                types.Number `json:"o"`
 	ClosePrice               types.Number `json:"c"`
 	HighPrice                types.Number `json:"h"`
@@ -306,22 +305,22 @@ type CFuturesIndexPrice struct {
 // CFuturesPriceKline is an index or mark price candle from the COIN-M <pair>@indexPriceKline_<interval> and
 // <symbol>@markPriceKline_<interval> streams
 type CFuturesPriceKline struct {
-	EventType string                 `json:"e"`
-	EventTime types.Time             `json:"E"`
-	Pair      string                 `json:"ps"`
-	Kline     CFuturesPriceKlineData `json:"k"`
+	EventType string              `json:"e"`
+	EventTime types.Time          `json:"E"`
+	Pair      string              `json:"ps"`
+	Kline     CFuturesPriceCandle `json:"k"`
 }
 
-// CFuturesPriceKlineData is the candle of a CFuturesPriceKline. Binance documents f, L, v, q, V, Q and B as ignored
+// CFuturesPriceCandle is the candle of a CFuturesPriceKline. Binance documents f, L, v, q, V, Q and B as ignored
 // for price candles; they are decoded under their regular candle names so that, for example, L cannot be decoded
 // into l by case-insensitive matching
-type CFuturesPriceKlineData struct {
+type CFuturesPriceCandle struct {
 	StartTime                types.Time   `json:"t"`
 	CloseTime                types.Time   `json:"T"`
 	Symbol                   string       `json:"s"` // "0" for index price candles
 	Interval                 string       `json:"i"`
-	FirstTradeID             int64        `json:"f"`
-	LastTradeID              int64        `json:"L"`
+	FirstTradeID             int64        `json:"f"` // ignored; typed as a regular candle's trade ID, which is -1 without trades
+	LastTradeID              int64        `json:"L"` // ignored; typed as a regular candle's trade ID, which is -1 without trades
 	OpenPrice                types.Number `json:"o"`
 	ClosePrice               types.Number `json:"c"`
 	HighPrice                types.Number `json:"h"`
@@ -358,15 +357,15 @@ type FuturesMarginCallPosition struct {
 
 // FuturesAccountUpdate is a USDⓈ-M or COIN-M ACCOUNT_UPDATE user data event
 type FuturesAccountUpdate struct {
-	EventType       string                   `json:"e"`
-	EventTime       types.Time               `json:"E"`
-	TransactionTime types.Time               `json:"T"`
-	AccountAlias    string                   `json:"i"` // COIN-M only
-	UpdateData      FuturesAccountUpdateData `json:"a"`
+	EventType       string               `json:"e"`
+	EventTime       types.Time           `json:"E"`
+	TransactionTime types.Time           `json:"T"`
+	AccountAlias    string               `json:"i"` // COIN-M only
+	UpdateData      FuturesAccountChange `json:"a"`
 }
 
-// FuturesAccountUpdateData holds the changed balances and positions of a FuturesAccountUpdate
-type FuturesAccountUpdateData struct {
+// FuturesAccountChange holds the changed balances and positions of a FuturesAccountUpdate
+type FuturesAccountChange struct {
 	EventReasonType string                         `json:"m"`
 	Balances        []FuturesAccountUpdateBalance  `json:"B"`
 	Positions       []FuturesAccountUpdatePosition `json:"P"`
@@ -502,14 +501,14 @@ type FuturesConditionalOrderReject struct {
 
 // FuturesStrategyUpdate is a USDⓈ-M or COIN-M STRATEGY_UPDATE user data event
 type FuturesStrategyUpdate struct {
-	EventType       string                    `json:"e"`
-	TransactionTime types.Time                `json:"T"`
-	EventTime       types.Time                `json:"E"`
-	StrategyUpdate  FuturesStrategyUpdateData `json:"su"`
+	EventType       string          `json:"e"`
+	TransactionTime types.Time      `json:"T"`
+	EventTime       types.Time      `json:"E"`
+	StrategyUpdate  FuturesStrategy `json:"su"`
 }
 
-// FuturesStrategyUpdateData is the strategy of a FuturesStrategyUpdate
-type FuturesStrategyUpdateData struct {
+// FuturesStrategy is the strategy of a FuturesStrategyUpdate
+type FuturesStrategy struct {
 	StrategyID     uint64     `json:"si"`
 	StrategyType   string     `json:"st"`
 	StrategyStatus string     `json:"ss"`
@@ -520,14 +519,14 @@ type FuturesStrategyUpdateData struct {
 
 // FuturesGridUpdate is a USDⓈ-M or COIN-M GRID_UPDATE user data event, which Binance has deprecated
 type FuturesGridUpdate struct {
-	EventType       string                `json:"e"`
-	TransactionTime types.Time            `json:"T"`
-	EventTime       types.Time            `json:"E"`
-	GridUpdate      FuturesGridUpdateData `json:"gu"`
+	EventType       string              `json:"e"`
+	TransactionTime types.Time          `json:"T"`
+	EventTime       types.Time          `json:"E"`
+	GridUpdate      FuturesGridStrategy `json:"gu"`
 }
 
-// FuturesGridUpdateData is the grid strategy of a FuturesGridUpdate
-type FuturesGridUpdateData struct {
+// FuturesGridStrategy is the grid strategy of a FuturesGridUpdate
+type FuturesGridStrategy struct {
 	StrategyID            uint64       `json:"si"`
 	StrategyType          string       `json:"st"`
 	StrategyStatus        string       `json:"ss"`
@@ -587,16 +586,15 @@ type ListenKeyExpired struct {
 	ListenKey string     `json:"listenKey"`
 }
 
-// OptionsDepthUpdate is an order book update from the options diff and partial book depth streams. Update IDs are
-// int64 to match the order book API they feed
+// OptionsDepthUpdate is an order book update from the options diff and partial book depth streams
 type OptionsDepthUpdate struct {
 	EventType             string                           `json:"e"`
 	EventTime             types.Time                       `json:"E"`
 	TransactionTime       types.Time                       `json:"T"`
 	Symbol                string                           `json:"s"`
-	FirstUpdateID         int64                            `json:"U"`
-	FinalUpdateID         int64                            `json:"u"`
-	PreviousFinalUpdateID int64                            `json:"pu"`
+	FirstUpdateID         int64                            `json:"U"`  // int64 to match the order book API it feeds
+	FinalUpdateID         int64                            `json:"u"`  // int64 to match the order book API it feeds
+	PreviousFinalUpdateID int64                            `json:"pu"` // int64 to match the order book API it feeds
 	Bids                  orderbook.LevelsArrayPriceAmount `json:"b"`
 	Asks                  orderbook.LevelsArrayPriceAmount `json:"a"`
 }
@@ -632,13 +630,13 @@ type OptionsTicker struct {
 	TradeAmount          types.Number `json:"q"` // in the quote asset
 	StatisticsOpenTime   types.Time   `json:"O"`
 	StatisticsCloseTime  types.Time   `json:"C"`
-	FirstTradeID         int64        `json:"F"`
-	LastTradeID          int64        `json:"L"`
+	FirstTradeID         uint64       `json:"F"`
+	LastTradeID          uint64       `json:"L"`
 	TotalNumberOfTrades  uint64       `json:"n"`
 }
 
-// WsOptionsTrade is a trade from the options <symbol>@optionTrade stream
-type WsOptionsTrade struct {
+// WebsocketOptionsTrade is a trade from the options <symbol>@optionTrade stream
+type WebsocketOptionsTrade struct {
 	EventType          string       `json:"e"`
 	EventTime          types.Time   `json:"E"`
 	TradeCompletedTime types.Time   `json:"T"`
@@ -661,20 +659,20 @@ type OptionsIndexPrice struct {
 
 // OptionsKline is a candle from the options <symbol>@kline_<interval> stream
 type OptionsKline struct {
-	EventType string           `json:"e"`
-	EventTime types.Time       `json:"E"`
-	Symbol    string           `json:"s"`
-	Kline     OptionsKlineData `json:"k"`
+	EventType string        `json:"e"`
+	EventTime types.Time    `json:"E"`
+	Symbol    string        `json:"s"`
+	Kline     OptionsCandle `json:"k"`
 }
 
-// OptionsKlineData is the candle of an OptionsKline
-type OptionsKlineData struct {
+// OptionsCandle is the candle of an OptionsKline
+type OptionsCandle struct {
 	StartTime                 types.Time   `json:"t"`
 	EndTime                   types.Time   `json:"T"`
 	Symbol                    string       `json:"s"`
 	CandlePeriod              string       `json:"i"`
 	FirstTradeID              int64        `json:"f"` // -1 when the candle has no trades
-	LastTradeID               int64        `json:"L"`
+	LastTradeID               int64        `json:"L"` // -1 when the candle has no trades
 	Open                      types.Number `json:"o"`
 	Close                     types.Number `json:"c"`
 	High                      types.Number `json:"h"`
@@ -727,9 +725,9 @@ type OptionsNewSymbol struct {
 	ContractStatus   string        `json:"cs"`
 }
 
-// WsOptionsOpenInterest is the open interest of an option symbol from the options
+// WebsocketOptionsOpenInterest is the open interest of an option symbol from the options
 // <underlying>@openInterest@<expirationDate> stream
-type WsOptionsOpenInterest struct {
+type WebsocketOptionsOpenInterest struct {
 	EventType        string       `json:"e"`
 	EventTime        types.Time   `json:"E"`
 	Symbol           string       `json:"s"`

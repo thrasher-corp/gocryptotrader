@@ -27,7 +27,7 @@ func TestGetVIPBorrowInterestRate(t *testing.T) {
 	result, err := e.GetVIPBorrowInterestRate(t.Context(), []currency.Code{currency.ETH, currency.BTC})
 	require.NoError(t, err, "GetVIPBorrowInterestRate must not error")
 	if mockTests {
-		exp := []VIPLoanBorrowInterestRate{
+		exp := []VIPLoanBorrowInterestRateResponse{
 			{
 				Asset:                      currency.ETH,
 				FlexibleDailyInterestRate:  0.000127,

@@ -31,7 +31,7 @@ func (e *Exchange) GetTargetAssetList(ctx context.Context, targetAsset currency.
 }
 
 // GetTargetAssetROIData returns the simulated return history of a target asset over a period such as ONE_YEAR
-func (e *Exchange) GetTargetAssetROIData(ctx context.Context, targetAsset currency.Code, hisRoiType string) ([]AutoInvestTargetAssetROI, error) {
+func (e *Exchange) GetTargetAssetROIData(ctx context.Context, targetAsset currency.Code, hisRoiType string) ([]AutoInvestTargetAssetROIResponse, error) {
 	if targetAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: target asset", currency.ErrCurrencyCodeEmpty)
 	}
@@ -41,7 +41,7 @@ func (e *Exchange) GetTargetAssetROIData(ctx context.Context, targetAsset curren
 	params := url.Values{}
 	params.Set("targetAsset", targetAsset.Upper().String())
 	params.Set("hisRoiType", hisRoiType)
-	var resp []AutoInvestTargetAssetROI
+	var resp []AutoInvestTargetAssetROIResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/roi/list", params, sapiDefaultRate, &resp)
 }
 
@@ -161,7 +161,7 @@ func (e *Exchange) GetHoldingDetailsOfPlan(ctx context.Context, planID uint64, r
 }
 
 // GetSubscriptionsTransactionHistory returns Auto-Invest subscription transactions
-func (e *Exchange) GetSubscriptionsTransactionHistory(ctx context.Context, req *AutoInvestSubscriptionHistoryRequest) ([]AutoInvestSubscriptionTransaction, error) {
+func (e *Exchange) GetSubscriptionsTransactionHistory(ctx context.Context, req *AutoInvestSubscriptionHistoryRequest) ([]AutoInvestSubscriptionTransactionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (e *Exchange) GetSubscriptionsTransactionHistory(ctx context.Context, req *
 	if req.PlanType != "" {
 		params.Set("planType", req.PlanType)
 	}
-	var resp []AutoInvestSubscriptionTransaction
+	var resp []AutoInvestSubscriptionTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/history/list", params, sapiDefaultRate, &resp)
 }
 
@@ -280,7 +280,7 @@ func (e *Exchange) IndexLinkedPlanRedemption(ctx context.Context, indexID, redem
 }
 
 // GetIndexLinkedPlanRedemption returns the redemptions of an index-linked plan redemption request
-func (e *Exchange) GetIndexLinkedPlanRedemption(ctx context.Context, req *IndexLinkedPlanRedemptionHistoryRequest) ([]IndexLinkedPlanRedemption, error) {
+func (e *Exchange) GetIndexLinkedPlanRedemption(ctx context.Context, req *IndexLinkedPlanRedemptionHistoryRequest) ([]IndexLinkedPlanRedemptionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -295,12 +295,12 @@ func (e *Exchange) GetIndexLinkedPlanRedemption(ctx context.Context, req *IndexL
 	if !req.Asset.IsEmpty() {
 		params.Set("asset", req.Asset.Upper().String())
 	}
-	var resp []IndexLinkedPlanRedemption
+	var resp []IndexLinkedPlanRedemptionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/redeem/history", params, sapiDefaultRate, &resp)
 }
 
 // GetIndexLinkedPlanRebalanceDetails returns index-linked plan rebalances
-func (e *Exchange) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, req *EarnHistoryRequest) ([]IndexLinkedPlanRebalance, error) {
+func (e *Exchange) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, req *EarnHistoryRequest) ([]IndexLinkedPlanRebalanceResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -308,7 +308,7 @@ func (e *Exchange) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	var resp []IndexLinkedPlanRebalance
+	var resp []IndexLinkedPlanRebalanceResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/rebalance/history", params, sapiDefaultRate, &resp)
 }
 

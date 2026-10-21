@@ -67,12 +67,12 @@ func (e *Exchange) EnableOptionsForSubAccount(ctx context.Context, email string)
 
 // GetV1FuturesPositionRiskSubAccount returns the Futures Position-Risk of Sub-account (For Master Account): its USDⓈ-M
 // futures positions
-func (e *Exchange) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email string) ([]SubAccountFuturesPositionRisk, error) {
+func (e *Exchange) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email string) ([]SubAccountFuturesPositionRiskResponse, error) {
 	params, err := subAccountEmailParams(email)
 	if err != nil {
 		return nil, err
 	}
-	var resp []SubAccountFuturesPositionRisk
+	var resp []SubAccountFuturesPositionRiskResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sub-account/futures/positionRisk", params, getFuturesPositionRiskOfSubAccountV1Rate, &resp)
 }
 
@@ -93,12 +93,12 @@ func (e *Exchange) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email
 
 // GetSubAccountStatusOnMarginFutures returns the Sub-account's Status on Margin Or Futures (For Master Account) of email,
 // or of every sub-account when email is empty
-func (e *Exchange) GetSubAccountStatusOnMarginFutures(ctx context.Context, email string) ([]SubAccountStatus, error) {
+func (e *Exchange) GetSubAccountStatusOnMarginFutures(ctx context.Context, email string) ([]SubAccountStatusResponse, error) {
 	params := url.Values{}
 	if email != "" {
 		params.Set("email", email)
 	}
-	var resp []SubAccountStatus
+	var resp []SubAccountStatusResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sub-account/status", params, getSubAccountStatusOnMarginOrFuturesRate, &resp)
 }
 
@@ -295,7 +295,7 @@ func subAccountDepositAddressParams(req *SubAccountDepositAddressRequest) (url.V
 }
 
 // GetSubAccountDepositHistory returns the Sub-account Deposit History (For Master Account)
-func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, req *SubAccountDepositHistoryRequest) ([]SubAccountDepositRecord, error) {
+func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, req *SubAccountDepositHistoryRequest) ([]SubAccountDepositRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -324,7 +324,7 @@ func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, req *SubAcco
 	if req.TxID != "" {
 		params.Set("txId", req.TxID)
 	}
-	var resp []SubAccountDepositRecord
+	var resp []SubAccountDepositRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/subHisrec", params, sapiDefaultRate, &resp)
 }
 
@@ -471,7 +471,7 @@ func (e *Exchange) GetSubAccountSpotAssetsSummary(ctx context.Context, email str
 
 // GetSubAccountSpotAssetTransferHistory returns the Sub-account Spot Asset Transfer History (For Master Account). The
 // master account's transfers out are returned when neither email is set
-func (e *Exchange) GetSubAccountSpotAssetTransferHistory(ctx context.Context, req *SubAccountSpotAssetTransferHistoryRequest) ([]SubAccountSpotAssetTransfer, error) {
+func (e *Exchange) GetSubAccountSpotAssetTransferHistory(ctx context.Context, req *SubAccountSpotAssetTransferHistoryRequest) ([]SubAccountSpotAssetTransferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (e *Exchange) GetSubAccountSpotAssetTransferHistory(ctx context.Context, re
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []SubAccountSpotAssetTransfer
+	var resp []SubAccountSpotAssetTransferResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sub-account/sub/transfer/history", params, sapiDefaultRate, &resp)
 }
 
@@ -574,7 +574,7 @@ func (e *Exchange) UniversalTransferForMasterAccount(ctx context.Context, req *S
 }
 
 // SubAccountTransferHistoryForSubAccount returns the Sub-account Transfer History (For Sub-account)
-func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, req *SubAccountTransferHistoryRequest) ([]SubAccountTransferHistoryRecord, error) {
+func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, req *SubAccountTransferHistoryRequest) ([]SubAccountTransferHistoryRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -594,7 +594,7 @@ func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, r
 	if req.ReturnFailHistory {
 		params.Set("returnFailHistory", "true")
 	}
-	var resp []SubAccountTransferHistoryRecord
+	var resp []SubAccountTransferHistoryRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sub-account/transfer/subUserHistory", params, sapiDefaultRate, &resp)
 }
 
@@ -665,12 +665,12 @@ func (e *Exchange) GetManagedSubAccountDepositAddress(ctx context.Context, req *
 }
 
 // GetManagedSubAccountAssetsDetails returns the Managed Sub-account Asset Details (For Investor Master Account)
-func (e *Exchange) GetManagedSubAccountAssetsDetails(ctx context.Context, email string) ([]ManagedSubAccountAsset, error) {
+func (e *Exchange) GetManagedSubAccountAssetsDetails(ctx context.Context, email string) ([]ManagedSubAccountAssetResponse, error) {
 	params, err := subAccountEmailParams(email)
 	if err != nil {
 		return nil, err
 	}
-	var resp []ManagedSubAccountAsset
+	var resp []ManagedSubAccountAssetResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/managed-subaccount/asset", params, sapiDefaultRate, &resp)
 }
 

@@ -590,7 +590,7 @@ func TestGetUnclaimedRewards(t *testing.T) {
 	result, err := e.GetUnclaimedRewards(t.Context())
 	require.NoError(t, err, "GetUnclaimedRewards must not error")
 	if mockTests {
-		exp := []SOLStakingUnclaimedReward{
+		exp := []SOLStakingUnclaimedRewardResponse{
 			{
 				Amount:       1.00000011,
 				RewardsAsset: currency.SOL,

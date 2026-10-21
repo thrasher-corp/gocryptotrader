@@ -165,7 +165,7 @@ func userDataAssets(ex *Exchange) map[uint64]asset.Item {
 	return maps.Clone(ex.userData.subscriptions)
 }
 
-func TestSignWsAPIParams(t *testing.T) {
+func TestSignWebsocketAPIParams(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.SkipAuthCheck = true
@@ -203,7 +203,7 @@ func TestSignWsAPIParams(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "signaturePayload should reject a value JSON cannot encode")
 }
 
-func TestRateLimitAndSignWsAPIParams(t *testing.T) {
+func TestRateLimitAndSignWebsocketAPIParams(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.SkipAuthCheck = true
@@ -252,14 +252,14 @@ func useRateLimitedWsAPI(t *testing.T, ex *Exchange, mock mockws.WsMockFunc) {
 // orderPlacedMock answers order.place requests with a placed order
 func orderPlacedMock(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
-	var req WsAPIRequest
+	var req WebsocketAPIRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
 	}
 	return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":200,"result":{"symbol":"BTCUSDT","orderId":1,"orderListId":-1,"clientOrderId":"x","transactTime":1791284980615}}`, req.ID))
 }
 
-func TestSendSignedWsAPIRequestSignsAfterRateLimit(t *testing.T) {
+func TestSendSignedWebsocketAPIRequestSignsAfterRateLimit(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	// The order pool admits ten orders a second, so the queue of orders outlasts a one second recvWindow. Orders signed
@@ -272,7 +272,7 @@ func TestSendSignedWsAPIRequestSignsAfterRateLimit(t *testing.T) {
 	var signed []time.Time
 	useRateLimitedWsAPI(t, ex, func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
@@ -294,7 +294,7 @@ func TestSendSignedWsAPIRequestSignsAfterRateLimit(t *testing.T) {
 	start := time.Now()
 	for range orders {
 		wg.Go(func() {
-			_, err := ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+			_, err := ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
 			errs <- err
 		})
 	}
@@ -302,17 +302,17 @@ func TestSendSignedWsAPIRequestSignsAfterRateLimit(t *testing.T) {
 	queued := time.Since(start)
 	close(errs)
 	for err := range errs {
-		assert.NoError(t, err, "WsPlaceNewOrder should place each order")
+		assert.NoError(t, err, "WebsocketPlaceNewOrder should place each order")
 	}
 	assert.Greater(t, queued, recvWindow, "the orders should have queued for longer than the recvWindow")
 	mu.Lock()
 	defer mu.Unlock()
 	require.Len(t, signed, orders, "every order must reach the server")
 	earliest, latest := slices.MinFunc(signed, time.Time.Compare), slices.MaxFunc(signed, time.Time.Compare)
-	assert.Greater(t, latest.Sub(earliest), recvWindow, "WsPlaceNewOrder should sign each order after its wait, so the queued orders' timestamps should span the queue")
+	assert.Greater(t, latest.Sub(earliest), recvWindow, "WebsocketPlaceNewOrder should sign each order after its wait, so the queued orders' timestamps should span the queue")
 }
 
-func TestSendSignedWsAPIRequestChargesRateLimitOnce(t *testing.T) {
+func TestSendSignedWebsocketAPIRequestChargesRateLimitOnce(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	// An order pool refilling once an hour keeps the second order waiting however long the first takes to answer
@@ -325,13 +325,13 @@ func TestSendSignedWsAPIRequestChargesRateLimitOnce(t *testing.T) {
 	ex.SkipAuthCheck = true
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	// A fresh order pool admits one order at once, so charging an order twice would need a delay
-	_, err = ex.WsPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
-	require.NoError(t, err, "WsPlaceNewOrder must charge the order pool once")
-	_, err = ex.WsPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
-	assert.ErrorIs(t, err, request.ErrDelayNotAllowed, "WsPlaceNewOrder should wait for the order pool before a second order")
+	_, err = ex.WebsocketPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+	require.NoError(t, err, "WebsocketPlaceNewOrder must charge the order pool once")
+	_, err = ex.WebsocketPlaceNewOrder(request.WithDelayNotAllowed(t.Context()), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+	assert.ErrorIs(t, err, request.ErrDelayNotAllowed, "WebsocketPlaceNewOrder should wait for the order pool before a second order")
 }
 
-func TestSendSignedWsAPIRequestCancelled(t *testing.T) {
+func TestSendSignedWebsocketAPIRequestCancelled(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	var received atomic.Int32
@@ -344,11 +344,11 @@ func TestSendSignedWsAPIRequestCancelled(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err := ex.WsPlaceNewOrder(ctx, &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
-	assert.ErrorIs(t, err, context.Canceled, "WsPlaceNewOrder should return the cancellation of an order cancelled before it was sent")
+	_, err := ex.WebsocketPlaceNewOrder(ctx, &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+	assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceNewOrder should return the cancellation of an order cancelled before it was sent")
 	// The server answers requests in order, so a cancelled order sent before this one would be counted by its reply
-	_, err = ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
-	require.NoError(t, err, "WsPlaceNewOrder must not error")
+	_, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "LIMIT", TimeInForce: "GTC", Price: 1, Quantity: 1})
+	require.NoError(t, err, "WebsocketPlaceNewOrder must not error")
 	assert.Equal(t, int32(1), received.Load(), "an order cancelled before it was sent should not reach the server")
 }
 
@@ -362,7 +362,7 @@ func TestUserDataStreamSubscriptionLateResponse(t *testing.T) {
 	releaseResponse := func() { releaseOnce.Do(func() { close(release) }) }
 	useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
@@ -379,22 +379,22 @@ func TestUserDataStreamSubscriptionLateResponse(t *testing.T) {
 	defer cancel()
 	errs := make(chan error, 1)
 	go func() {
-		_, err := ex.WsSubscribeUserDataStream(ctx)
+		_, err := ex.WebsocketSubscribeUserDataStream(ctx)
 		errs <- err
 	}()
 	select {
 	case <-received:
 	case err := <-errs:
-		require.FailNowf(t, "WsSubscribeUserDataStream must send its request", "it returned first: %v", err)
+		require.FailNowf(t, "WebsocketSubscribeUserDataStream must send its request", "it returned first: %v", err)
 	case <-time.After(30 * time.Second):
-		require.FailNow(t, "WsSubscribeUserDataStream must send its request")
+		require.FailNow(t, "WebsocketSubscribeUserDataStream must send its request")
 	}
 	cancel()
 	select {
 	case err := <-errs:
-		assert.ErrorIs(t, err, context.Canceled, "WsSubscribeUserDataStream should return the cancellation")
+		assert.ErrorIs(t, err, context.Canceled, "WebsocketSubscribeUserDataStream should return the cancellation")
 	case <-time.After(30 * time.Second):
-		require.FailNow(t, "WsSubscribeUserDataStream must return once cancelled")
+		require.FailNow(t, "WebsocketSubscribeUserDataStream must return once cancelled")
 	}
 	// Binance made the subscription, so its events must still find their account
 	releaseResponse()
@@ -419,8 +419,8 @@ func TestUserDataStreamsEndWithConnection(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err := ex.WsSubscribeUserDataStreamWithListenToken(ctx, "listen-token")
-	require.ErrorIs(t, err, context.Canceled, "WsSubscribeUserDataStreamWithListenToken must return the cancellation")
+	_, err := ex.WebsocketSubscribeUserDataStreamWithListenToken(ctx, "listen-token")
+	require.ErrorIs(t, err, context.Canceled, "WebsocketSubscribeUserDataStreamWithListenToken must return the cancellation")
 	assert.Zero(t, pending(), "a subscription request cancelled before it was sent should not be pending")
 
 	// The connection reconnects without authenticating, so only the new connection can end the last one's state
@@ -433,12 +433,11 @@ func TestUserDataStreamsEndWithConnection(t *testing.T) {
 	assert.Empty(t, userDataAssets(ex), "a new connection should end the last one's subscriptions")
 }
 
-func TestWsParamsSetters(t *testing.T) {
+func TestWebsocketParamsSetters(t *testing.T) {
 	t.Parallel()
 	params := wsParams{}
 	params.setString("string", "")
 	params.setUint("uint", 0)
-	params.setInt("int", 0)
 	params.setFloat("float", 0)
 	params.setTime("time", time.Time{})
 	params.setBool("bool", false)
@@ -446,11 +445,10 @@ func TestWsParamsSetters(t *testing.T) {
 
 	params.setString("string", "GTC")
 	params.setUint("uint", 12569099453)
-	params.setInt("int", -1)
 	params.setFloat("float", 0.00000001)
 	params.setTime("time", time.UnixMilli(1744103854944))
 	params.setBool("bool", true)
-	exp := wsParams{"string": "GTC", "uint": uint64(12569099453), "int": int64(-1), "float": "0.00000001", "time": int64(1744103854944), "bool": true}
+	exp := wsParams{"string": "GTC", "uint": uint64(12569099453), "float": "0.00000001", "time": int64(1744103854944), "bool": true}
 	assert.Equal(t, exp, params, "set values should be sent as the documented JSON types, decimals without exponents")
 }
 
@@ -483,13 +481,13 @@ func TestUserDataStreams(t *testing.T) {
 	assert.Empty(t, u.pending, "reset should end requests still waiting for their responses")
 }
 
-func TestSendWsAPIRequest(t *testing.T) {
+func TestSendWebsocketAPIRequest(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	err := ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "session.status", nil, nil)
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWsAPIRequest should error without a connection")
-	err = ex.SendSignedWsAPIRequest(t.Context(), spotDefaultRate, "account.status", nil, nil)
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedWsAPIRequest should error without a connection")
+	err := ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "session.status", nil, nil)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWebsocketAPIRequest should error without a connection")
+	err = ex.SendSignedWebsocketAPIRequest(t.Context(), spotDefaultRate, "account.status", nil, nil)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedWebsocketAPIRequest should error without a connection")
 
 	responses := map[string]string{
 		"error":      `"status":400,"error":{"code":-1121,"msg":"Invalid symbol."}`,
@@ -500,121 +498,121 @@ func TestSendWsAPIRequest(t *testing.T) {
 	}
 	useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,%s}`, req.ID, responses[req.Method]))
 	})
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	for _, method := range []string{"error", "error.data", "status"} {
-		err = ex.SendWsAPIRequest(t.Context(), spotDefaultRate, method, nil, nil)
-		assert.ErrorIsf(t, err, errWebsocketAPIRequestFailed, "SendWsAPIRequest should return the %s response's error", method)
+		err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, method, nil, nil)
+		assert.ErrorIsf(t, err, errWebsocketAPIRequestFailed, "SendWebsocketAPIRequest should return the %s response's error", method)
 	}
-	err = ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "error", nil, nil)
-	assert.ErrorIs(t, err, currency.ErrPairNotFound, "SendWsAPIRequest should return the error the code maps to")
-	err = ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "error.data", nil, nil)
+	err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "error", nil, nil)
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "SendWebsocketAPIRequest should return the error the code maps to")
+	err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "error.data", nil, nil)
 	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "SendWsAPIRequest must return an APIError")
-	assert.Equal(t, &APIError{Code: -1003, Message: "Way too much request weight used; IP banned until 1659146400000.", Data: json.RawMessage(`{"serverTime":1659142907531,"retryAfter":1659146400000}`)}, apiErr, "SendWsAPIRequest should return the error's code, message and data")
-	var result WsUserDataStreamSubscriptionResponse
-	err = ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "null", nil, &result)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "SendWsAPIRequest should error on a null result")
-	require.NoError(t, ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "result", nil, nil), "SendWsAPIRequest must not error when the result is not wanted")
-	require.NoError(t, ex.SendWsAPIRequest(t.Context(), spotDefaultRate, "result", nil, &result), "SendWsAPIRequest must not error")
-	assert.Equal(t, WsUserDataStreamSubscriptionResponse{SubscriptionID: 4}, result, "SendWsAPIRequest should decode the result")
+	require.ErrorAs(t, err, &apiErr, "SendWebsocketAPIRequest must return an APIError")
+	assert.Equal(t, &APIError{Code: -1003, Message: "Way too much request weight used; IP banned until 1659146400000.", Data: json.RawMessage(`{"serverTime":1659142907531,"retryAfter":1659146400000}`)}, apiErr, "SendWebsocketAPIRequest should return the error's code, message and data")
+	var result WebsocketUserDataStreamSubscriptionResponse
+	err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "null", nil, &result)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "SendWebsocketAPIRequest should error on a null result")
+	require.NoError(t, ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "result", nil, nil), "SendWebsocketAPIRequest must not error when the result is not wanted")
+	require.NoError(t, ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "result", nil, &result), "SendWebsocketAPIRequest must not error")
+	assert.Equal(t, WebsocketUserDataStreamSubscriptionResponse{SubscriptionID: 4}, result, "SendWebsocketAPIRequest should decode the result")
 }
 
-func TestSendSignedWsAPIRequest(t *testing.T) {
+func TestSendSignedWebsocketAPIRequest(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, true)
-	var resp []WsRateLimit
-	require.NoError(t, ex.SendSignedWsAPIRequest(t.Context(), currentOrderCountUsageRate, "account.rateLimits.orders", nil, &resp), "SendSignedWsAPIRequest must sign a request without parameters")
-	assert.NotEmpty(t, resp, "SendSignedWsAPIRequest should decode the result")
+	var resp []WebsocketRateLimitResponse
+	require.NoError(t, ex.SendSignedWebsocketAPIRequest(t.Context(), currentOrderCountUsageRate, "account.rateLimits.orders", nil, &resp), "SendSignedWebsocketAPIRequest must sign a request without parameters")
+	assert.NotEmpty(t, resp, "SendSignedWebsocketAPIRequest should decode the result")
 }
 
-func TestGetWsAveragePrice(t *testing.T) {
+func TestGetWebsocketAveragePrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsAveragePrice(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsAveragePrice must reject an empty pair")
+	_, err := e.GetWebsocketAveragePrice(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketAveragePrice must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsAveragePrice(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "GetWsAveragePrice must not error")
+	got, err := ex.GetWebsocketAveragePrice(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "GetWebsocketAveragePrice must not error")
 	if mockTests {
-		exp := &WsAveragePriceResponse{
+		exp := &WebsocketAveragePriceResponse{
 			Minutes:   5,
 			Price:     86109.15045074,
 			CloseTime: types.Time(time.Unix(1791285061, 0)),
 		}
-		assert.Equal(t, exp, got, "GetWsAveragePrice should return the average price")
+		assert.Equal(t, exp, got, "GetWebsocketAveragePrice should return the average price")
 	} else {
-		assert.Positive(t, got.Price.Float64(), "GetWsAveragePrice should return a price")
+		assert.Positive(t, got.Price.Float64(), "GetWebsocketAveragePrice should return a price")
 	}
-	_, err = ex.GetWsAveragePrice(t.Context(), currency.NewPair(currency.BTC, currency.NewCode("XYZ")))
-	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "GetWsAveragePrice should return the API's error for an unknown symbol")
+	_, err = ex.GetWebsocketAveragePrice(t.Context(), currency.NewPair(currency.BTC, currency.NewCode("XYZ")))
+	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "GetWebsocketAveragePrice should return the API's error for an unknown symbol")
 }
 
-func TestGetWsOrderbook(t *testing.T) {
+func TestGetWebsocketOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsOrderbook(t.Context(), currency.EMPTYPAIR, 0, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsOrderbook must reject an empty pair")
+	_, err := e.GetWebsocketOrderbook(t.Context(), currency.EMPTYPAIR, 0, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketOrderbook must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsOrderbook(t.Context(), currency.NewBTCUSDT(), 5, "TRADING")
-	require.NoError(t, err, "GetWsOrderbook must not error")
+	got, err := ex.GetWebsocketOrderbook(t.Context(), currency.NewBTCUSDT(), 5, "TRADING")
+	require.NoError(t, err, "GetWebsocketOrderbook must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[*OrderBookResponse](t, "depth", 0), got, "GetWsOrderbook should return the order book")
+		assert.Equal(t, wsAPIFixtureResult[*OrderBookResponse](t, "depth", 0), got, "GetWebsocketOrderbook should return the order book")
 	} else {
-		assert.NotEmpty(t, got, "GetWsOrderbook should return an order book")
+		assert.NotEmpty(t, got, "GetWebsocketOrderbook should return an order book")
 	}
 }
 
-func TestGetWsCandlestick(t *testing.T) {
+func TestGetWebsocketCandlestick(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.GetWsCandlestick(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWsCandlestick must reject a nil request")
-	_, err = e.GetWsCandlestick(t.Context(), &WsKlinesRequest{Interval: kline.OneMin})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsCandlestick must reject an empty pair")
-	_, err = e.GetWsCandlestick(t.Context(), &WsKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.TenMin})
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "GetWsCandlestick must reject an unsupported interval")
-	_, err = e.GetWsCandlestick(t.Context(), &WsKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetWsCandlestick must reject a start time after the end time")
+	_, err := e.GetWebsocketCandlestick(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocketCandlestick must reject a nil request")
+	_, err = e.GetWebsocketCandlestick(t.Context(), &WebsocketKlinesRequest{Interval: kline.OneMin})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketCandlestick must reject an empty pair")
+	_, err = e.GetWebsocketCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.TenMin})
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "GetWebsocketCandlestick must reject an unsupported interval")
+	_, err = e.GetWebsocketCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetWebsocketCandlestick must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsCandlestick(t.Context(), &WsKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: start, EndTime: end, TimeZone: "8", Limit: 2})
-	require.NoError(t, err, "GetWsCandlestick must not error")
+	got, err := ex.GetWebsocketCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: start, EndTime: end, TimeZone: "8", Limit: 2})
+	require.NoError(t, err, "GetWebsocketCandlestick must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "klines", 0), got, "GetWsCandlestick should return the klines")
+		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "klines", 0), got, "GetWebsocketCandlestick should return the klines")
 	} else {
-		assert.Len(t, got, 2, "GetWsCandlestick should return the requested number of klines")
+		assert.Len(t, got, 2, "GetWebsocketCandlestick should return the requested number of klines")
 	}
 }
 
-func TestGetWsRollingWindowPriceChanges(t *testing.T) {
+func TestGetWebsocketRollingWindowPriceChanges(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsRollingWindowPriceChanges(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWsRollingWindowPriceChanges must reject a nil request")
-	_, err = e.GetWsRollingWindowPriceChanges(t.Context(), &WsRollingWindowTickerRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "GetWsRollingWindowPriceChanges must require symbols")
-	_, err = e.GetWsRollingWindowPriceChanges(t.Context(), &WsRollingWindowTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsRollingWindowPriceChanges must reject an empty pair")
-	_, err = e.GetWsRollingWindowPriceChanges(t.Context(), &WsRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 90 * time.Minute})
-	require.ErrorIs(t, err, errInvalidWindowSize, "GetWsRollingWindowPriceChanges must reject an unsupported window size")
+	_, err := e.GetWebsocketRollingWindowPriceChanges(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocketRollingWindowPriceChanges must reject a nil request")
+	_, err = e.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "GetWebsocketRollingWindowPriceChanges must require symbols")
+	_, err = e.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketRollingWindowPriceChanges must reject an empty pair")
+	_, err = e.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 90 * time.Minute})
+	require.ErrorIs(t, err, errInvalidWindowSize, "GetWebsocketRollingWindowPriceChanges must reject an unsupported window size")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsRollingWindowPriceChanges(t.Context(), &WsRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 2 * time.Hour, Type: "FULL", SymbolStatus: "TRADING"})
-	require.NoError(t, err, "GetWsRollingWindowPriceChanges must not error for a symbol")
+	got, err := ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 2 * time.Hour, Type: "FULL", SymbolStatus: "TRADING"})
+	require.NoError(t, err, "GetWebsocketRollingWindowPriceChanges must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker", 0)}, got, "GetWsRollingWindowPriceChanges should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker", 0)}, got, "GetWebsocketRollingWindowPriceChanges should return the symbol's statistics")
 	} else {
-		assert.Len(t, got, 1, "GetWsRollingWindowPriceChanges should return the symbol's statistics")
+		assert.Len(t, got, 1, "GetWebsocketRollingWindowPriceChanges should return the symbol's statistics")
 	}
-	got, err = ex.GetWsRollingWindowPriceChanges(t.Context(), &WsRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 7 * 24 * time.Hour, Type: "MINI"})
-	require.NoError(t, err, "GetWsRollingWindowPriceChanges must not error for several symbols")
+	got, err = ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 7 * 24 * time.Hour, Type: "MINI"})
+	require.NoError(t, err, "GetWebsocketRollingWindowPriceChanges must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker", 1), got, "GetWsRollingWindowPriceChanges should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker", 1), got, "GetWebsocketRollingWindowPriceChanges should return the symbols' statistics")
 	} else {
-		assert.Len(t, got, 2, "GetWsRollingWindowPriceChanges should return the symbols' statistics")
+		assert.Len(t, got, 2, "GetWebsocketRollingWindowPriceChanges should return the symbols' statistics")
 	}
 }
 
@@ -639,46 +637,46 @@ func TestWindowSizeToString(t *testing.T) {
 	}
 }
 
-func TestGetWs24HourPriceChanges(t *testing.T) {
+func TestGetWebsocket24HourPriceChanges(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWs24HourPriceChanges(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWs24HourPriceChanges must reject a nil request")
-	_, err = e.GetWs24HourPriceChanges(t.Context(), &WsTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWs24HourPriceChanges must reject an empty pair")
+	_, err := e.GetWebsocket24HourPriceChanges(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocket24HourPriceChanges must reject a nil request")
+	_, err = e.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocket24HourPriceChanges must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWs24HourPriceChanges(t.Context(), &WsTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}})
-	require.NoError(t, err, "GetWs24HourPriceChanges must not error for a symbol")
+	got, err := ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}})
+	require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.24hr", 0)}, got, "GetWs24HourPriceChanges should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.24hr", 0)}, got, "GetWebsocket24HourPriceChanges should return the symbol's statistics")
 	} else {
-		assert.Len(t, got, 1, "GetWs24HourPriceChanges should return the symbol's statistics")
+		assert.Len(t, got, 1, "GetWebsocket24HourPriceChanges should return the symbol's statistics")
 	}
-	got, err = ex.GetWs24HourPriceChanges(t.Context(), &WsTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, Type: "MINI", SymbolStatus: "TRADING"})
-	require.NoError(t, err, "GetWs24HourPriceChanges must not error for several symbols")
+	got, err = ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, Type: "MINI", SymbolStatus: "TRADING"})
+	require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 1), got, "GetWs24HourPriceChanges should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 1), got, "GetWebsocket24HourPriceChanges should return the symbols' statistics")
 	} else {
-		assert.Len(t, got, 2, "GetWs24HourPriceChanges should return the symbols' statistics")
+		assert.Len(t, got, 2, "GetWebsocket24HourPriceChanges should return the symbols' statistics")
 	}
 	if mockTests {
 		// Every symbol's statistics weigh 80, too much for live tests
-		got, err = ex.GetWs24HourPriceChanges(t.Context(), &WsTickerRequest{})
-		require.NoError(t, err, "GetWs24HourPriceChanges must not error for every symbol")
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 2), got, "GetWs24HourPriceChanges should return every symbol's statistics")
+		got, err = ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{})
+		require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for every symbol")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 2), got, "GetWebsocket24HourPriceChanges should return every symbol's statistics")
 	}
 }
 
-func TestGetWsSymbolOrderbookTicker(t *testing.T) {
+func TestGetWebsocketSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.EMPTYPAIR}, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsSymbolOrderbookTicker must reject an empty pair")
+	_, err := e.GetWebsocketSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.EMPTYPAIR}, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketSymbolOrderbookTicker must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT()}, "TRADING")
-	require.NoError(t, err, "GetWsSymbolOrderbookTicker must not error for a symbol")
+	got, err := ex.GetWebsocketSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT()}, "TRADING")
+	require.NoError(t, err, "GetWebsocketSymbolOrderbookTicker must not error for a symbol")
 	if mockTests {
-		exp := []WsBookTicker{
+		exp := []WebsocketBookTickerResponse{
 			{
 				Symbol:      "BTCUSDT",
 				BidPrice:    86102,
@@ -687,14 +685,14 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 				AskQuantity: 0.08287,
 			},
 		}
-		assert.Equal(t, exp, got, "GetWsSymbolOrderbookTicker should return the symbol's best bid and ask")
+		assert.Equal(t, exp, got, "GetWebsocketSymbolOrderbookTicker should return the symbol's best bid and ask")
 	} else {
-		assert.Len(t, got, 1, "GetWsSymbolOrderbookTicker should return the symbol's best bid and ask")
+		assert.Len(t, got, 1, "GetWebsocketSymbolOrderbookTicker should return the symbol's best bid and ask")
 	}
-	got, err = ex.GetWsSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
-	require.NoError(t, err, "GetWsSymbolOrderbookTicker must not error for several symbols")
+	got, err = ex.GetWebsocketSymbolOrderbookTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
+	require.NoError(t, err, "GetWebsocketSymbolOrderbookTicker must not error for several symbols")
 	if mockTests {
-		exp := []WsBookTicker{
+		exp := []WebsocketBookTickerResponse{
 			{
 				Symbol:      "BTCUSDT",
 				BidPrice:    86102,
@@ -710,35 +708,35 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 				AskQuantity: 6.6252,
 			},
 		}
-		assert.Equal(t, exp, got, "GetWsSymbolOrderbookTicker should return the symbols' best bids and asks")
+		assert.Equal(t, exp, got, "GetWebsocketSymbolOrderbookTicker should return the symbols' best bids and asks")
 	} else {
-		assert.Len(t, got, 2, "GetWsSymbolOrderbookTicker should return the symbols' best bids and asks")
+		assert.Len(t, got, 2, "GetWebsocketSymbolOrderbookTicker should return the symbols' best bids and asks")
 	}
 }
 
-func TestGetWsSymbolPriceTicker(t *testing.T) {
+func TestGetWebsocketSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsSymbolPriceTicker(t.Context(), currency.Pairs{currency.EMPTYPAIR}, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsSymbolPriceTicker must reject an empty pair")
+	_, err := e.GetWebsocketSymbolPriceTicker(t.Context(), currency.Pairs{currency.EMPTYPAIR}, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketSymbolPriceTicker must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsSymbolPriceTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT()}, "TRADING")
-	require.NoError(t, err, "GetWsSymbolPriceTicker must not error for a symbol")
+	got, err := ex.GetWebsocketSymbolPriceTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT()}, "TRADING")
+	require.NoError(t, err, "GetWebsocketSymbolPriceTicker must not error for a symbol")
 	if mockTests {
-		exp := []WsPriceTicker{
+		exp := []WebsocketPriceTickerResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  86100.06,
 			},
 		}
-		assert.Equal(t, exp, got, "GetWsSymbolPriceTicker should return the symbol's price")
+		assert.Equal(t, exp, got, "GetWebsocketSymbolPriceTicker should return the symbol's price")
 	} else {
-		assert.Len(t, got, 1, "GetWsSymbolPriceTicker should return the symbol's price")
+		assert.Len(t, got, 1, "GetWebsocketSymbolPriceTicker should return the symbol's price")
 	}
-	got, err = ex.GetWsSymbolPriceTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
-	require.NoError(t, err, "GetWsSymbolPriceTicker must not error for several symbols")
+	got, err = ex.GetWebsocketSymbolPriceTicker(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
+	require.NoError(t, err, "GetWebsocketSymbolPriceTicker must not error for several symbols")
 	if mockTests {
-		exp := []WsPriceTicker{
+		exp := []WebsocketPriceTickerResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  86102,
@@ -748,119 +746,119 @@ func TestGetWsSymbolPriceTicker(t *testing.T) {
 				Price:  2711.38,
 			},
 		}
-		assert.Equal(t, exp, got, "GetWsSymbolPriceTicker should return the symbols' prices")
+		assert.Equal(t, exp, got, "GetWebsocketSymbolPriceTicker should return the symbols' prices")
 	} else {
-		assert.Len(t, got, 2, "GetWsSymbolPriceTicker should return the symbols' prices")
+		assert.Len(t, got, 2, "GetWebsocketSymbolPriceTicker should return the symbols' prices")
 	}
 }
 
-func TestGetWsTradingDayTickers(t *testing.T) {
+func TestGetWebsocketTradingDayTickers(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsTradingDayTickers(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWsTradingDayTickers must reject a nil request")
-	_, err = e.GetWsTradingDayTickers(t.Context(), &WsTradingDayTickerRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "GetWsTradingDayTickers must require symbols")
-	_, err = e.GetWsTradingDayTickers(t.Context(), &WsTradingDayTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsTradingDayTickers must reject an empty pair")
+	_, err := e.GetWebsocketTradingDayTickers(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocketTradingDayTickers must reject a nil request")
+	_, err = e.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "GetWebsocketTradingDayTickers must require symbols")
+	_, err = e.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketTradingDayTickers must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsTradingDayTickers(t.Context(), &WsTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, TimeZone: "8", Type: "FULL", SymbolStatus: "TRADING"})
-	require.NoError(t, err, "GetWsTradingDayTickers must not error for a symbol")
+	got, err := ex.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, TimeZone: "8", Type: "FULL", SymbolStatus: "TRADING"})
+	require.NoError(t, err, "GetWebsocketTradingDayTickers must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.tradingDay", 0)}, got, "GetWsTradingDayTickers should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.tradingDay", 0)}, got, "GetWebsocketTradingDayTickers should return the symbol's statistics")
 	} else {
-		assert.Len(t, got, 1, "GetWsTradingDayTickers should return the symbol's statistics")
+		assert.Len(t, got, 1, "GetWebsocketTradingDayTickers should return the symbol's statistics")
 	}
-	got, err = ex.GetWsTradingDayTickers(t.Context(), &WsTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}})
-	require.NoError(t, err, "GetWsTradingDayTickers must not error for several symbols")
+	got, err = ex.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}})
+	require.NoError(t, err, "GetWebsocketTradingDayTickers must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.tradingDay", 1), got, "GetWsTradingDayTickers should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.tradingDay", 1), got, "GetWebsocketTradingDayTickers should return the symbols' statistics")
 	} else {
-		assert.Len(t, got, 2, "GetWsTradingDayTickers should return the symbols' statistics")
+		assert.Len(t, got, 2, "GetWebsocketTradingDayTickers should return the symbols' statistics")
 	}
 }
 
-func TestGetWsAggregatedTrades(t *testing.T) {
+func TestGetWebsocketAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.GetWsAggregatedTrades(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWsAggregatedTrades must reject a nil request")
-	_, err = e.GetWsAggregatedTrades(t.Context(), &WsAggregatedTradesRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsAggregatedTrades must reject an empty pair")
-	_, err = e.GetWsAggregatedTrades(t.Context(), &WsAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetWsAggregatedTrades must reject a start time after the end time")
+	_, err := e.GetWebsocketAggregatedTrades(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocketAggregatedTrades must reject a nil request")
+	_, err = e.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketAggregatedTrades must reject an empty pair")
+	_, err = e.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetWebsocketAggregatedTrades must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsAggregatedTrades(t.Context(), &WsAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: 4081866525, Limit: 2})
-	require.NoError(t, err, "GetWsAggregatedTrades must not error from a trade ID")
+	got, err := ex.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: 4081866525, Limit: 2})
+	require.NoError(t, err, "GetWebsocketAggregatedTrades must not error from a trade ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 0), got, "GetWsAggregatedTrades should return the trades from the ID")
+		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 0), got, "GetWebsocketAggregatedTrades should return the trades from the ID")
 	} else {
-		assert.Len(t, got, 2, "GetWsAggregatedTrades should return the requested number of trades")
+		assert.Len(t, got, 2, "GetWebsocketAggregatedTrades should return the requested number of trades")
 	}
-	got, err = ex.GetWsAggregatedTrades(t.Context(), &WsAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end, Limit: 1000})
-	require.NoError(t, err, "GetWsAggregatedTrades must not error for a time range")
+	got, err = ex.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end, Limit: 1000})
+	require.NoError(t, err, "GetWebsocketAggregatedTrades must not error for a time range")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 1), got, "GetWsAggregatedTrades should return the trades in the time range")
+		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 1), got, "GetWebsocketAggregatedTrades should return the trades in the time range")
 	} else {
-		assert.NotEmpty(t, got, "GetWsAggregatedTrades should return the trades in the time range")
-	}
-}
-
-func TestGetWsMostRecentTrades(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetWsMostRecentTrades(t.Context(), currency.EMPTYPAIR, 0)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWsMostRecentTrades must reject an empty pair")
-
-	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsMostRecentTrades(t.Context(), currency.NewBTCUSDT(), 2)
-	require.NoError(t, err, "GetWsMostRecentTrades must not error")
-	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]RecentTrade](t, "trades.recent", 0), got, "GetWsMostRecentTrades should return the trades")
-	} else {
-		assert.Len(t, got, 2, "GetWsMostRecentTrades should return the requested number of trades")
+		assert.NotEmpty(t, got, "GetWebsocketAggregatedTrades should return the trades in the time range")
 	}
 }
 
-func TestGetWsOptimisedCandlestick(t *testing.T) {
+func TestGetWebsocketMostRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsOptimisedCandlestick(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetWsOptimisedCandlestick must reject a nil request")
+	_, err := e.GetWebsocketMostRecentTrades(t.Context(), currency.EMPTYPAIR, 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetWebsocketMostRecentTrades must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsOptimisedCandlestick(t.Context(), &WsKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, Limit: 2})
-	require.NoError(t, err, "GetWsOptimisedCandlestick must not error")
+	got, err := ex.GetWebsocketMostRecentTrades(t.Context(), currency.NewBTCUSDT(), 2)
+	require.NoError(t, err, "GetWebsocketMostRecentTrades must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "uiKlines", 0), got, "GetWsOptimisedCandlestick should return the klines")
+		assert.Equal(t, wsAPIFixtureResult[[]RecentTrade](t, "trades.recent", 0), got, "GetWebsocketMostRecentTrades should return the trades")
 	} else {
-		assert.Len(t, got, 2, "GetWsOptimisedCandlestick should return the requested number of klines")
+		assert.Len(t, got, 2, "GetWebsocketMostRecentTrades should return the requested number of trades")
 	}
 }
 
-func TestWsLogOutOfSession(t *testing.T) {
+func TestGetWebsocketOptimisedCandlestick(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetWebsocketOptimisedCandlestick(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetWebsocketOptimisedCandlestick must reject a nil request")
+
+	ex := newWsAPITestExchange(t, false)
+	got, err := ex.GetWebsocketOptimisedCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, Limit: 2})
+	require.NoError(t, err, "GetWebsocketOptimisedCandlestick must not error")
+	if mockTests {
+		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "uiKlines", 0), got, "GetWebsocketOptimisedCandlestick should return the klines")
+	} else {
+		assert.Len(t, got, 2, "GetWebsocketOptimisedCandlestick should return the requested number of klines")
+	}
+}
+
+func TestWebsocketLogOutOfSession(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.WsLogOutOfSession(t.Context())
-	require.NoError(t, err, "WsLogOutOfSession must not error")
+	got, err := ex.WebsocketLogOutOfSession(t.Context())
+	require.NoError(t, err, "WebsocketLogOutOfSession must not error")
 	if mockTests {
-		exp := &WsSessionStatusResponse{
+		exp := &WebsocketSessionStatusResponse{
 			ConnectedSince: types.Time(time.UnixMilli(1649729873021)),
 			ServerTime:     types.Time(time.UnixMilli(1649730611671)),
 			UserDataStream: new(false),
 		}
-		assert.Equal(t, exp, got, "WsLogOutOfSession should return the session's status")
+		assert.Equal(t, exp, got, "WebsocketLogOutOfSession should return the session's status")
 	} else {
-		assert.Empty(t, got.APIKey, "WsLogOutOfSession should leave the session without an API key")
+		assert.Empty(t, got.APIKey, "WebsocketLogOutOfSession should leave the session without an API key")
 	}
 }
 
-func TestGetWsSessionStatus(t *testing.T) {
+func TestGetWebsocketSessionStatus(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, false)
-	got, err := ex.GetWsSessionStatus(t.Context())
-	require.NoError(t, err, "GetWsSessionStatus must not error")
+	got, err := ex.GetWebsocketSessionStatus(t.Context())
+	require.NoError(t, err, "GetWebsocketSessionStatus must not error")
 	if mockTests {
-		exp := &WsSessionStatusResponse{
+		exp := &WebsocketSessionStatusResponse{
 			APIKey:           "mock-api-key",
 			AuthorisedSince:  types.Time(time.UnixMilli(1649729878532)),
 			ConnectedSince:   types.Time(time.UnixMilli(1649729873021)),
@@ -868,13 +866,13 @@ func TestGetWsSessionStatus(t *testing.T) {
 			ServerTime:       types.Time(time.UnixMilli(1649730611671)),
 			UserDataStream:   new(true),
 		}
-		assert.Equal(t, exp, got, "GetWsSessionStatus should return the session's status")
+		assert.Equal(t, exp, got, "GetWebsocketSessionStatus should return the session's status")
 	} else {
-		assert.False(t, got.ConnectedSince.Time().IsZero(), "GetWsSessionStatus should return when the session connected")
+		assert.False(t, got.ConnectedSince.Time().IsZero(), "GetWebsocketSessionStatus should return when the session connected")
 	}
 }
 
-func TestWsSessionStatusUserDataStream(t *testing.T) {
+func TestWebsocketSessionStatusUserDataStream(t *testing.T) {
 	t.Parallel()
 	for raw, exp := range map[string]*bool{
 		`{"userDataStream":true}`:  new(true),
@@ -882,22 +880,22 @@ func TestWsSessionStatusUserDataStream(t *testing.T) {
 		`{"userDataStream":null}`:  nil,
 		`{}`:                       nil,
 	} {
-		var got WsSessionStatusResponse
+		var got WebsocketSessionStatusResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(raw), &got), "Unmarshal must not error for %s", raw)
 		assert.Equalf(t, exp, got.UserDataStream, "UserDataStream should tell %s apart from the other states", raw)
 	}
 }
 
-func TestWsCancelOpenOrders(t *testing.T) {
+func TestWebsocketCancelOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsCancelOpenOrders must reject an empty pair")
+	_, err := e.WebsocketCancelOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelOpenOrders must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsCancelOpenOrders(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "WsCancelOpenOrders must not error")
+	got, err := ex.WebsocketCancelOpenOrders(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "WebsocketCancelOpenOrders must not error")
 	if mockTests {
-		exp := []WsCancelOrderResponse{
+		exp := []WebsocketCancelOrderResponse{
 			{
 				Symbol:                     "BTCUSDT",
 				OriginalClientOrderID:      "4d96324ff9d44481926157",
@@ -939,7 +937,7 @@ func TestWsCancelOpenOrders(t *testing.T) {
 				ListOrderStatus:   "ALL_DONE",
 				ListClientOrderID: "iuVNVJYYrByz6C4yGOPPK0",
 				TransactionTime:   types.Time(time.UnixMilli(1660803702431)),
-				Orders: []WsOrderListOrder{
+				Orders: []WebsocketOrderListOrder{
 					{
 						Symbol:        "BTCUSDT",
 						OrderID:       12569099453,
@@ -951,7 +949,7 @@ func TestWsCancelOpenOrders(t *testing.T) {
 						ClientOrderID: "Tnu2IP0J5Y4mxw3IATBfmW",
 					},
 				},
-				OrderReports: []WsOrderReport{
+				OrderReports: []WebsocketOrderReport{
 					{
 						Symbol:                  "BTCUSDT",
 						OriginalClientOrderID:   "bX5wROblo6YeDwa9iTLeyY",
@@ -986,30 +984,30 @@ func TestWsCancelOpenOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WsCancelOpenOrders should return the cancelled orders and order lists")
+		assert.Equal(t, exp, got, "WebsocketCancelOpenOrders should return the cancelled orders and order lists")
 	}
 }
 
-func TestWsCancelOrder(t *testing.T) {
+func TestWebsocketCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOrder must reject a nil request")
-	_, err = e.WsCancelOrder(t.Context(), &WsCancelOrderRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsCancelOrder must require an order ID or client order ID")
-	_, err = e.WsCancelOrder(t.Context(), &WsCancelOrderRequest{OrderID: 12569099453})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsCancelOrder must reject an empty pair")
+	_, err := e.WebsocketCancelExistingOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelExistingOrder must reject a nil request")
+	_, err = e.WebsocketCancelExistingOrder(t.Context(), &WebsocketCancelOrderRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketCancelExistingOrder must require an order ID or client order ID")
+	_, err = e.WebsocketCancelExistingOrder(t.Context(), &WebsocketCancelOrderRequest{OrderID: 12569099453})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelExistingOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsCancelOrder(t.Context(), &WsCancelOrderRequest{
+	got, err := ex.WebsocketCancelExistingOrder(t.Context(), &WebsocketCancelOrderRequest{
 		Symbol:                currency.NewBTCUSDT(),
 		OrderID:               12569099453,
 		OriginalClientOrderID: "4d96324ff9d44481926157",
 		NewClientOrderID:      "91fe37ce9e69c90d6358c0",
 		CancelRestrictions:    "ONLY_NEW",
 	})
-	require.NoError(t, err, "WsCancelOrder must not error")
+	require.NoError(t, err, "WebsocketCancelExistingOrder must not error")
 	if mockTests {
-		exp := &WsCancelOrderResponse{
+		exp := &WebsocketCancelOrderResponse{
 			Symbol:                     "BTCUSDT",
 			OriginalClientOrderID:      "4d96324ff9d44481926157",
 			OrderID:                    12569099453,
@@ -1042,12 +1040,12 @@ func TestWsCancelOrder(t *testing.T) {
 			PeggedPrice:                23416.1,
 			ExpiryReason:               "INSUFFICIENT_LIQUIDITY",
 		}
-		assert.Equal(t, exp, got, "WsCancelOrder should return the cancelled order")
+		assert.Equal(t, exp, got, "WebsocketCancelExistingOrder should return the cancelled order")
 	}
-	got, err = ex.WsCancelOrder(t.Context(), &WsCancelOrderRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099454})
-	require.NoError(t, err, "WsCancelOrder must not error for an order list's leg")
+	got, err = ex.WebsocketCancelExistingOrder(t.Context(), &WebsocketCancelOrderRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099454})
+	require.NoError(t, err, "WebsocketCancelExistingOrder must not error for an order list's leg")
 	if mockTests {
-		exp := &WsCancelOrderResponse{
+		exp := &WebsocketCancelOrderResponse{
 			Symbol:            "BTCUSDT",
 			OrderListID:       19431,
 			ContingencyType:   "OCO",
@@ -1055,7 +1053,7 @@ func TestWsCancelOrder(t *testing.T) {
 			ListOrderStatus:   "ALL_DONE",
 			ListClientOrderID: "iuVNVJYYrByz6C4yGOPPK0",
 			TransactionTime:   types.Time(time.UnixMilli(1660803702431)),
-			Orders: []WsOrderListOrder{
+			Orders: []WebsocketOrderListOrder{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       12569099453,
@@ -1067,7 +1065,7 @@ func TestWsCancelOrder(t *testing.T) {
 					ClientOrderID: "Tnu2IP0J5Y4mxw3IATBfmW",
 				},
 			},
-			OrderReports: []WsOrderReport{
+			OrderReports: []WebsocketOrderReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OriginalClientOrderID:   "bX5wROblo6YeDwa9iTLeyY",
@@ -1101,32 +1099,32 @@ func TestWsCancelOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WsCancelOrder should return the cancelled order list")
+		assert.Equal(t, exp, got, "WebsocketCancelExistingOrder should return the cancelled order list")
 	}
 }
 
-func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
+func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelAndReplaceTradeOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsCancelAndReplaceTradeOrder must reject a nil request")
-	arg := &WsCancelReplaceOrderRequest{}
-	_, err = e.WsCancelAndReplaceTradeOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errCancelReplaceModeRequired, "WsCancelAndReplaceTradeOrder must require a cancel replace mode")
+	_, err := e.WebsocketCancelAndReplaceTradeOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelAndReplaceTradeOrder must reject a nil request")
+	arg := &WebsocketCancelReplaceOrderRequest{}
+	_, err = e.WebsocketCancelAndReplaceTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errCancelReplaceModeRequired, "WebsocketCancelAndReplaceTradeOrder must require a cancel replace mode")
 	arg.CancelReplaceMode = "ALLOW_FAILURE"
-	_, err = e.WsCancelAndReplaceTradeOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsCancelAndReplaceTradeOrder must require the order ID or client order ID to cancel")
+	_, err = e.WebsocketCancelAndReplaceTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketCancelAndReplaceTradeOrder must require the order ID or client order ID to cancel")
 	arg.CancelOrderID = 125690984230
-	_, err = e.WsCancelAndReplaceTradeOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WsCancelAndReplaceTradeOrder must require a side")
+	_, err = e.WebsocketCancelAndReplaceTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketCancelAndReplaceTradeOrder must require a side")
 	arg.Side = "SELL"
-	_, err = e.WsCancelAndReplaceTradeOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WsCancelAndReplaceTradeOrder must require an order type")
+	_, err = e.WebsocketCancelAndReplaceTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketCancelAndReplaceTradeOrder must require an order type")
 	arg.Type = "STOP_LOSS_LIMIT"
-	_, err = e.WsCancelAndReplaceTradeOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsCancelAndReplaceTradeOrder must reject an empty pair")
+	_, err = e.WebsocketCancelAndReplaceTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelAndReplaceTradeOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsCancelAndReplaceTradeOrder(t.Context(), &WsCancelReplaceOrderRequest{
+	got, err := ex.WebsocketCancelAndReplaceTradeOrder(t.Context(), &WebsocketCancelReplaceOrderRequest{
 		Symbol:                      currency.NewBTCUSDT(),
 		CancelReplaceMode:           "ALLOW_FAILURE",
 		CancelOrderID:               125690984230,
@@ -1152,12 +1150,12 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 		PegOffsetValue:              5,
 		PegOffsetType:               "PRICE_LEVEL",
 	})
-	require.NoError(t, err, "WsCancelAndReplaceTradeOrder must not error")
+	require.NoError(t, err, "WebsocketCancelAndReplaceTradeOrder must not error")
 	if mockTests {
-		exp := &WsCancelReplaceOrderResponse{
+		exp := &WebsocketCancelReplaceOrderResponse{
 			CancelResult:   "SUCCESS",
 			NewOrderResult: "SUCCESS",
-			CancelResponse: WsCancelReplaceCancelResponse{
+			CancelResponse: WebsocketCancelReplaceCancelResponse{
 				Symbol:                     "BTCUSDT",
 				OriginalClientOrderID:      "4d96324ff9d44481926157",
 				OrderID:                    12569099453,
@@ -1190,7 +1188,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 				PeggedPrice:                23416.1,
 				ExpiryReason:               "INSUFFICIENT_LIQUIDITY",
 			},
-			NewOrderResponse: WsCancelReplaceNewOrderResponse{
+			NewOrderResponse: WebsocketCancelReplaceNewOrderResponse{
 				Symbol:                     "BTCUSDT",
 				OrderID:                    12569099453,
 				OrderListID:                -1,
@@ -1207,7 +1205,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 				Side:                       "SELL",
 				WorkingTime:                1660801715793,
 				SelfTradePreventionMode:    "EXPIRE_MAKER",
-				Fills: []WsOrderFill{
+				Fills: []WebsocketOrderFill{
 					{
 						Price:           23416.1,
 						Quantity:        0.00635,
@@ -1240,50 +1238,50 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 				ExpiryReason:      "INSUFFICIENT_LIQUIDITY",
 			},
 		}
-		assert.Equal(t, exp, got, "WsCancelAndReplaceTradeOrder should return the cancellation and the new order")
+		assert.Equal(t, exp, got, "WebsocketCancelAndReplaceTradeOrder should return the cancellation and the new order")
 	}
 
 	partial := newTestExchange(t)
 	useMockWebsocket(t, partial, partial.spotWebsocketAPIConnectionSetup(partial.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":409,"error":{"code":-2021,"msg":"Order cancel-replace partially failed.","data":{"cancelResult":"SUCCESS","newOrderResult":"FAILURE","cancelResponse":{"symbol":"BTCUSDT","origClientOrderId":"4d96324ff9d44481926157","orderId":125690984230,"orderListId":-1,"clientOrderId":"91fe37ce9e69c90d6358c0","transactTime":1684804350068},"newOrderResponse":{"code":-2010,"msg":"Order would immediately match and take."}}}}`, req.ID))
 	})
 	require.NoError(t, partial.Websocket.Connect(t.Context()), "Connect must not error")
-	got, err = partial.WsCancelAndReplaceTradeOrder(t.Context(), &WsCancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 125690984230, Side: order.Sell.String(), Type: order.Limit.String(), TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847})
-	require.ErrorIs(t, err, errWebsocketAPIRequestFailed, "WsCancelAndReplaceTradeOrder must return the API's error")
+	got, err = partial.WebsocketCancelAndReplaceTradeOrder(t.Context(), &WebsocketCancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 125690984230, Side: order.Sell.String(), Type: order.Limit.String(), TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847})
+	require.ErrorIs(t, err, errWebsocketAPIRequestFailed, "WebsocketCancelAndReplaceTradeOrder must return the API's error")
 	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "WsCancelAndReplaceTradeOrder must return an APIError")
-	assert.Equal(t, int64(-2021), apiErr.Code, "WsCancelAndReplaceTradeOrder should return the API's error code")
-	exp := &WsCancelReplaceOrderResponse{
+	require.ErrorAs(t, err, &apiErr, "WebsocketCancelAndReplaceTradeOrder must return an APIError")
+	assert.Equal(t, int64(-2021), apiErr.Code, "WebsocketCancelAndReplaceTradeOrder should return the API's error code")
+	exp := &WebsocketCancelReplaceOrderResponse{
 		CancelResult:     "SUCCESS",
 		NewOrderResult:   "FAILURE",
-		CancelResponse:   WsCancelReplaceCancelResponse{Symbol: "BTCUSDT", OriginalClientOrderID: "4d96324ff9d44481926157", OrderID: 125690984230, OrderListID: -1, ClientOrderID: "91fe37ce9e69c90d6358c0", TransactTime: types.Time(time.UnixMilli(1684804350068))},
-		NewOrderResponse: WsCancelReplaceNewOrderResponse{Code: -2010, Message: "Order would immediately match and take."},
+		CancelResponse:   WebsocketCancelReplaceCancelResponse{Symbol: "BTCUSDT", OriginalClientOrderID: "4d96324ff9d44481926157", OrderID: 125690984230, OrderListID: -1, ClientOrderID: "91fe37ce9e69c90d6358c0", TransactTime: types.Time(time.UnixMilli(1684804350068))},
+		NewOrderResponse: WebsocketCancelReplaceNewOrderResponse{Code: -2010, Message: "Order would immediately match and take."},
 	}
-	assert.Equal(t, exp, got, "WsCancelAndReplaceTradeOrder should return the outcome of both halves")
+	assert.Equal(t, exp, got, "WebsocketCancelAndReplaceTradeOrder should return the outcome of both halves")
 }
 
-func TestWsCancelOCOOrder(t *testing.T) {
+func TestWebsocketCancelOCOOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsCancelOCOOrder must reject a nil request")
-	_, err = e.WsCancelOCOOrder(t.Context(), &WsCancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, errOrderListIDRequired, "WsCancelOCOOrder must require an order list ID or client order list ID")
-	_, err = e.WsCancelOCOOrder(t.Context(), &WsCancelOrderListRequest{OrderListID: 1274512})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsCancelOCOOrder must reject an empty pair")
+	_, err := e.WebsocketCancelOCOOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOCOOrder must reject a nil request")
+	_, err = e.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketCancelOCOOrder must require an order list ID or client order list ID")
+	_, err = e.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{OrderListID: 1274512})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelOCOOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsCancelOCOOrder(t.Context(), &WsCancelOrderListRequest{
+	got, err := ex.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{
 		Symbol:            currency.NewBTCUSDT(),
 		OrderListID:       1274512,
 		ListClientOrderID: "6023531d7edaad348f5aff",
 		NewClientOrderID:  "tTHrs4n3dWgqWQ1mXFZrzQ",
 	})
-	require.NoError(t, err, "WsCancelOCOOrder must not error")
+	require.NoError(t, err, "WebsocketCancelOCOOrder must not error")
 	if mockTests {
-		exp := &WsCancelOrderResponse{
+		exp := &WebsocketCancelOrderResponse{
 			Symbol:            "BTCUSDT",
 			OrderListID:       1274512,
 			ContingencyType:   "OCO",
@@ -1291,7 +1289,7 @@ func TestWsCancelOCOOrder(t *testing.T) {
 			ListOrderStatus:   "ALL_DONE",
 			ListClientOrderID: "6023531d7edaad348f5aff",
 			TransactionTime:   types.Time(time.UnixMilli(1660801720215)),
-			Orders: []WsOrderListOrder{
+			Orders: []WebsocketOrderListOrder{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       12569138901,
@@ -1303,7 +1301,7 @@ func TestWsCancelOCOOrder(t *testing.T) {
 					ClientOrderID: "jLnZpj5enfMXTuhKB1d0us",
 				},
 			},
-			OrderReports: []WsOrderReport{
+			OrderReports: []WebsocketOrderReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OriginalClientOrderID:   "BqtFCj5odMoWtSqGk2X9tU",
@@ -1337,32 +1335,32 @@ func TestWsCancelOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WsCancelOCOOrder should return the cancelled order list")
+		assert.Equal(t, exp, got, "WebsocketCancelOCOOrder should return the cancelled order list")
 	}
 }
 
-func TestWsPlaceOCOOrder(t *testing.T) {
+func TestWebsocketPlaceOCOOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsPlaceOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsPlaceOCOOrder must reject a nil request")
-	arg := &WsPlaceOCOOrderRequest{}
-	_, err = e.WsPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WsPlaceOCOOrder must require a side")
+	_, err := e.WebsocketPlaceOCOOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOCOOrder must reject a nil request")
+	arg := &WebsocketPlaceOCOOrderRequest{}
+	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOCOOrder must require a side")
 	arg.Side = "SELL"
-	_, err = e.WsPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "WsPlaceOCOOrder must require a price")
+	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "WebsocketPlaceOCOOrder must require a price")
 	arg.Price = 23420
-	_, err = e.WsPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WsPlaceOCOOrder must require a quantity")
+	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOCOOrder must require a quantity")
 	arg.Quantity = 0.0065
-	_, err = e.WsPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errStopPriceOrTrailingDeltaRequired, "WsPlaceOCOOrder must require a stop price or trailing delta")
+	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errStopPriceOrTrailingDeltaRequired, "WebsocketPlaceOCOOrder must require a stop price or trailing delta")
 	arg.StopPrice = 23410
-	_, err = e.WsPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsPlaceOCOOrder must reject an empty pair")
+	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOCOOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsPlaceOCOOrder(t.Context(), &WsPlaceOCOOrderRequest{
+	got, err := ex.WebsocketPlaceOCOOrder(t.Context(), &WebsocketPlaceOCOOrderRequest{
 		Symbol:                  currency.NewBTCUSDT(),
 		Side:                    "SELL",
 		Price:                   23420,
@@ -1383,9 +1381,9 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 		NewOrderResponseType:    "RESULT",
 		SelfTradePreventionMode: "EXPIRE_TAKER",
 	})
-	require.NoError(t, err, "WsPlaceOCOOrder must not error")
+	require.NoError(t, err, "WebsocketPlaceOCOOrder must not error")
 	if mockTests {
-		exp := &WsOrderListResponse{
+		exp := &WebsocketOrderListResponse{
 			OrderListID:       1274512,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -1393,7 +1391,7 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 			ListClientOrderID: "08985fedd9ea2cf6b28996",
 			TransactionTime:   types.Time(time.UnixMilli(1660801713793)),
 			Symbol:            "BTCUSDT",
-			Orders: []WsOrderListOrder{
+			Orders: []WebsocketOrderListOrder{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       12569138901,
@@ -1405,7 +1403,7 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 					ClientOrderID: "jLnZpj5enfMXTuhKB1d0us",
 				},
 			},
-			OrderReports: []WsOrderResponse{
+			OrderReports: []WebsocketOrderResponse{
 				{
 					Symbol:                  "BTCUSDT",
 					OrderID:                 12569138901,
@@ -1439,32 +1437,32 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WsPlaceOCOOrder should return the order list")
+		assert.Equal(t, exp, got, "WebsocketPlaceOCOOrder should return the order list")
 	}
 }
 
-func TestWsPlaceOCOOrderList(t *testing.T) {
+func TestWebsocketPlaceOCOOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsPlaceOCOOrderList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsPlaceOCOOrderList must reject a nil request")
+	_, err := e.WebsocketPlaceOCOOrderList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOCOOrderList must reject a nil request")
 	arg := &OCOOrderListRequest{}
-	_, err = e.WsPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WsPlaceOCOOrderList must reject a request without a side")
+	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without a side")
 	arg.Side = "SELL"
-	_, err = e.WsPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WsPlaceOCOOrderList must reject a request without a quantity")
+	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOCOOrderList must reject a request without a quantity")
 	arg.Quantity = 0.0065
-	_, err = e.WsPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WsPlaceOCOOrderList must reject a request without an above order type")
+	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without an above order type")
 	arg.Above.Type = "TAKE_PROFIT_LIMIT"
-	_, err = e.WsPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WsPlaceOCOOrderList must reject a request without a below order type")
+	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without a below order type")
 	arg.Below.Type = "STOP_LOSS"
-	_, err = e.WsPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsPlaceOCOOrderList must reject a request without a symbol")
+	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOCOOrderList must reject a request without a symbol")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsPlaceOCOOrderList(t.Context(), &OCOOrderListRequest{
+	got, err := ex.WebsocketPlaceOCOOrderList(t.Context(), &OCOOrderListRequest{
 		Symbol:            currency.NewBTCUSDT(),
 		ListClientOrderID: "08985fedd9ea2cf6b28996",
 		Side:              "SELL",
@@ -1493,9 +1491,9 @@ func TestWsPlaceOCOOrderList(t *testing.T) {
 		NewOrderResponseType:    "RESULT",
 		SelfTradePreventionMode: "EXPIRE_TAKER",
 	})
-	require.NoError(t, err, "WsPlaceOCOOrderList must not error")
+	require.NoError(t, err, "WebsocketPlaceOCOOrderList must not error")
 	if mockTests {
-		exp := &WsOrderListResponse{
+		exp := &WebsocketOrderListResponse{
 			OrderListID:       1274513,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -1503,11 +1501,11 @@ func TestWsPlaceOCOOrderList(t *testing.T) {
 			ListClientOrderID: "08985fedd9ea2cf6b28996",
 			TransactionTime:   types.Time(time.UnixMilli(1711062760648)),
 			Symbol:            "BTCUSDT",
-			Orders: []WsOrderListOrder{
+			Orders: []WebsocketOrderListOrder{
 				{Symbol: "BTCUSDT", OrderID: 12569138903, ClientOrderID: "BqtFCj5odMoWtSqGk2X9tU"},
 				{Symbol: "BTCUSDT", OrderID: 12569138904, ClientOrderID: "jLnZpj5enfMXTuhKB1d0us"},
 			},
-			OrderReports: []WsOrderResponse{
+			OrderReports: []WebsocketOrderResponse{
 				{
 					Symbol:                  "BTCUSDT",
 					OrderID:                 12569138903,
@@ -1552,26 +1550,26 @@ func TestWsPlaceOCOOrderList(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WsPlaceOCOOrderList should return the order list")
+		assert.Equal(t, exp, got, "WebsocketPlaceOCOOrderList should return the order list")
 	}
 }
 
-func TestWsPlaceNewOrder(t *testing.T) {
+func TestWebsocketPlaceNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsPlaceNewOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsPlaceNewOrder must reject a nil request")
-	arg := &WsPlaceOrderRequest{}
-	_, err = e.WsPlaceNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WsPlaceNewOrder must require a side")
+	_, err := e.WebsocketPlaceNewOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceNewOrder must reject a nil request")
+	arg := &WebsocketPlaceOrderRequest{}
+	_, err = e.WebsocketPlaceNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceNewOrder must require a side")
 	arg.Side = "SELL"
-	_, err = e.WsPlaceNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WsPlaceNewOrder must require an order type")
+	_, err = e.WebsocketPlaceNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceNewOrder must require an order type")
 	arg.Type = "LIMIT"
-	_, err = e.WsPlaceNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsPlaceNewOrder must reject an empty pair")
+	_, err = e.WebsocketPlaceNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceNewOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{
+	got, err := ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{
 		Symbol:                  currency.NewBTCUSDT(),
 		Side:                    "SELL",
 		Type:                    "LIMIT",
@@ -1588,9 +1586,9 @@ func TestWsPlaceNewOrder(t *testing.T) {
 		PegOffsetValue:          5,
 		PegOffsetType:           "PRICE_LEVEL",
 	})
-	require.NoError(t, err, "WsPlaceNewOrder must not error for a limit order")
+	require.NoError(t, err, "WebsocketPlaceNewOrder must not error for a limit order")
 	if mockTests {
-		exp := &WsOrderResponse{
+		exp := &WebsocketOrderResponse{
 			Symbol:                     "BTCUSDT",
 			OrderID:                    12569099453,
 			OrderListID:                -1,
@@ -1607,7 +1605,7 @@ func TestWsPlaceNewOrder(t *testing.T) {
 			Side:                       "SELL",
 			WorkingTime:                1660801715793,
 			SelfTradePreventionMode:    "EXPIRE_MAKER",
-			Fills: []WsOrderFill{
+			Fills: []WebsocketOrderFill{
 				{
 					Price:           23416.1,
 					Quantity:        0.00635,
@@ -1639,12 +1637,12 @@ func TestWsPlaceNewOrder(t *testing.T) {
 			PeggedPrice:       23416.1,
 			ExpiryReason:      "INSUFFICIENT_LIQUIDITY",
 		}
-		assert.Equal(t, exp, got, "WsPlaceNewOrder should return the order and its fills")
+		assert.Equal(t, exp, got, "WebsocketPlaceNewOrder should return the order and its fills")
 	}
 	if !mockTests {
 		return
 	}
-	got, err = ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{
+	got, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{
 		Symbol:               currency.NewBTCUSDT(),
 		Side:                 "BUY",
 		Type:                 "STOP_LOSS",
@@ -1653,78 +1651,78 @@ func TestWsPlaceNewOrder(t *testing.T) {
 		TrailingDelta:        10,
 		NewOrderResponseType: "ACK",
 	})
-	require.NoError(t, err, "WsPlaceNewOrder must not error for a stop order")
-	exp := &WsOrderResponse{
+	require.NoError(t, err, "WebsocketPlaceNewOrder must not error for a stop order")
+	exp := &WebsocketOrderResponse{
 		Symbol:        "BTCUSDT",
 		OrderID:       12569099455,
 		OrderListID:   -1,
 		ClientOrderID: "x4hXc0n8Fs3UXwQnFxIjGq",
 		TransactTime:  types.Time(time.UnixMilli(1660801715639)),
 	}
-	assert.Equal(t, exp, got, "WsPlaceNewOrder should return the acknowledgement")
-	got, err = ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "MARKET", QuoteOrderQuantity: 100})
-	require.NoError(t, err, "WsPlaceNewOrder must not error for a market order by quote quantity")
-	assert.Equal(t, uint64(12569099456), got.OrderID, "WsPlaceNewOrder should return the order's ID")
+	assert.Equal(t, exp, got, "WebsocketPlaceNewOrder should return the acknowledgement")
+	got, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "MARKET", QuoteOrderQuantity: 100})
+	require.NoError(t, err, "WebsocketPlaceNewOrder must not error for a market order by quote quantity")
+	assert.Equal(t, uint64(12569099456), got.OrderID, "WebsocketPlaceNewOrder should return the order's ID")
 }
 
-func TestWsTestNewOrder(t *testing.T) {
+func TestWebsocketTestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsTestNewOrder(t.Context(), nil, false)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsTestNewOrder must reject a nil request")
+	_, err := e.WebsocketTestNewOrder(t.Context(), nil, false)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketTestNewOrder must reject a nil request")
 
 	ex := newWsAPITestExchange(t, true)
-	arg := &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "SELL", Type: "LIMIT", TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847}
-	got, err := ex.WsTestNewOrder(t.Context(), arg, false)
-	require.NoError(t, err, "WsTestNewOrder must not error")
-	assert.Nil(t, got, "WsTestNewOrder should return no commission rates unless asked")
-	got, err = ex.WsTestNewOrder(t.Context(), arg, true)
-	require.NoError(t, err, "WsTestNewOrder must not error computing commission rates")
+	arg := &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "SELL", Type: "LIMIT", TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847}
+	got, err := ex.WebsocketTestNewOrder(t.Context(), arg, false)
+	require.NoError(t, err, "WebsocketTestNewOrder must not error")
+	assert.Nil(t, got, "WebsocketTestNewOrder should return no commission rates unless asked")
+	got, err = ex.WebsocketTestNewOrder(t.Context(), arg, true)
+	require.NoError(t, err, "WebsocketTestNewOrder must not error computing commission rates")
 	if mockTests {
-		exp := &WsOrderCommissionRatesResponse{
-			StandardCommissionForOrder: WsOrderCommissionRates{
+		exp := &WebsocketOrderCommissionRatesResponse{
+			StandardCommissionForOrder: WebsocketOrderCommissionRates{
 				Maker: 0.00000112,
 				Taker: 0.00000114,
 			},
-			SpecialCommissionForOrder: WsOrderCommissionRates{
+			SpecialCommissionForOrder: WebsocketOrderCommissionRates{
 				Maker: 0.05,
 				Taker: 0.06,
 			},
-			TaxCommissionForOrder: WsOrderCommissionRates{
+			TaxCommissionForOrder: WebsocketOrderCommissionRates{
 				Maker: 0.00000112,
 				Taker: 0.00000114,
 			},
-			Discount: WsCommissionDiscount{
+			Discount: WebsocketCommissionDiscount{
 				EnabledForAccount: true,
 				EnabledForSymbol:  true,
 				DiscountAsset:     currency.BNB,
 				Discount:          0.25,
 			},
 		}
-		assert.Equal(t, exp, got, "WsTestNewOrder should return the order's commission rates")
+		assert.Equal(t, exp, got, "WebsocketTestNewOrder should return the order's commission rates")
 	} else {
-		assert.NotNil(t, got, "WsTestNewOrder should return the order's commission rates")
+		assert.NotNil(t, got, "WebsocketTestNewOrder should return the order's commission rates")
 	}
 }
 
-func TestWsPlaceNewSOROrder(t *testing.T) {
+func TestWebsocketPlaceNewSOROrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsPlaceNewSOROrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsPlaceNewSOROrder must reject a nil request")
-	arg := &WsSOROrderRequest{}
-	_, err = e.WsPlaceNewSOROrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WsPlaceNewSOROrder must require a side")
+	_, err := e.WebsocketPlaceNewSOROrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceNewSOROrder must reject a nil request")
+	arg := &WebsocketSOROrderRequest{}
+	_, err = e.WebsocketPlaceNewSOROrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceNewSOROrder must require a side")
 	arg.Side = "BUY"
-	_, err = e.WsPlaceNewSOROrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WsPlaceNewSOROrder must require an order type")
+	_, err = e.WebsocketPlaceNewSOROrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceNewSOROrder must require an order type")
 	arg.Type = "LIMIT"
-	_, err = e.WsPlaceNewSOROrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WsPlaceNewSOROrder must require a quantity")
+	_, err = e.WebsocketPlaceNewSOROrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceNewSOROrder must require a quantity")
 	arg.Quantity = 0.5
-	_, err = e.WsPlaceNewSOROrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsPlaceNewSOROrder must reject an empty pair")
+	_, err = e.WebsocketPlaceNewSOROrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceNewSOROrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WsPlaceNewSOROrder(t.Context(), &WsSOROrderRequest{
+	got, err := ex.WebsocketPlaceNewSOROrder(t.Context(), &WebsocketSOROrderRequest{
 		Symbol:                  currency.NewBTCUSDT(),
 		Side:                    "BUY",
 		Type:                    "LIMIT",
@@ -1738,9 +1736,9 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 		StrategyType:            1000000,
 		SelfTradePreventionMode: "EXPIRE_MAKER",
 	})
-	require.NoError(t, err, "WsPlaceNewSOROrder must not error")
+	require.NoError(t, err, "WebsocketPlaceNewSOROrder must not error")
 	if mockTests {
-		exp := []WsSOROrderResponse{
+		exp := []WebsocketSOROrderResponse{
 			{
 				Symbol:                     "BTCUSDT",
 				OrderID:                    2,
@@ -1757,7 +1755,7 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 				Type:                       "LIMIT",
 				Side:                       "BUY",
 				WorkingTime:                1689149087774,
-				Fills: []WsSOROrderFill{
+				Fills: []WebsocketSOROrderFill{
 					{
 						MatchType:       "ONE_PARTY_TRADE_REPORT",
 						Price:           28000,
@@ -1786,94 +1784,94 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 				ExpiryReason:            "INSUFFICIENT_LIQUIDITY",
 			},
 		}
-		assert.Equal(t, exp, got, "WsPlaceNewSOROrder should return the order and its fills")
+		assert.Equal(t, exp, got, "WebsocketPlaceNewSOROrder should return the order and its fills")
 	}
 }
 
-func TestWsTestNewOrderUsingSOR(t *testing.T) {
+func TestWebsocketTestNewOrderUsingSOR(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsTestNewOrderUsingSOR(t.Context(), nil, false)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsTestNewOrderUsingSOR must reject a nil request")
+	_, err := e.WebsocketTestNewOrderUsingSOR(t.Context(), nil, false)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketTestNewOrderUsingSOR must reject a nil request")
 
 	ex := newWsAPITestExchange(t, true)
-	arg := &WsSOROrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "MARKET", Quantity: 0.5}
-	got, err := ex.WsTestNewOrderUsingSOR(t.Context(), arg, false)
-	require.NoError(t, err, "WsTestNewOrderUsingSOR must not error")
-	assert.Nil(t, got, "WsTestNewOrderUsingSOR should return no commission rates unless asked")
-	got, err = ex.WsTestNewOrderUsingSOR(t.Context(), arg, true)
-	require.NoError(t, err, "WsTestNewOrderUsingSOR must not error computing commission rates")
+	arg := &WebsocketSOROrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", Type: "MARKET", Quantity: 0.5}
+	got, err := ex.WebsocketTestNewOrderUsingSOR(t.Context(), arg, false)
+	require.NoError(t, err, "WebsocketTestNewOrderUsingSOR must not error")
+	assert.Nil(t, got, "WebsocketTestNewOrderUsingSOR should return no commission rates unless asked")
+	got, err = ex.WebsocketTestNewOrderUsingSOR(t.Context(), arg, true)
+	require.NoError(t, err, "WebsocketTestNewOrderUsingSOR must not error computing commission rates")
 	if mockTests {
-		exp := &WsSOROrderCommissionRatesResponse{
-			StandardCommissionForOrder: WsOrderCommissionRates{
+		exp := &WebsocketSOROrderCommissionRatesResponse{
+			StandardCommissionForOrder: WebsocketOrderCommissionRates{
 				Maker: 0.00000112,
 				Taker: 0.00000114,
 			},
-			TaxCommissionForOrder: WsOrderCommissionRates{
+			TaxCommissionForOrder: WebsocketOrderCommissionRates{
 				Maker: 0.00000112,
 				Taker: 0.00000114,
 			},
-			Discount: WsCommissionDiscount{
+			Discount: WebsocketCommissionDiscount{
 				EnabledForAccount: true,
 				EnabledForSymbol:  true,
 				DiscountAsset:     currency.BNB,
 				Discount:          0.25,
 			},
 		}
-		assert.Equal(t, exp, got, "WsTestNewOrderUsingSOR should return the order's commission rates")
+		assert.Equal(t, exp, got, "WebsocketTestNewOrderUsingSOR should return the order's commission rates")
 	} else {
-		assert.NotNil(t, got, "WsTestNewOrderUsingSOR should return the order's commission rates")
+		assert.NotNil(t, got, "WebsocketTestNewOrderUsingSOR should return the order's commission rates")
 	}
 }
 
-func TestWsAccountCommissionRates(t *testing.T) {
+func TestWebsocketAccountCommissionRates(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsAccountCommissionRates(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsAccountCommissionRates must reject an empty pair")
+	_, err := e.WebsocketAccountCommissionRates(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketAccountCommissionRates must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsAccountCommissionRates(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "WsAccountCommissionRates must not error")
+	got, err := ex.WebsocketAccountCommissionRates(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "WebsocketAccountCommissionRates must not error")
 	if mockTests {
-		exp := &WsAccountCommissionResponse{
+		exp := &WebsocketAccountCommissionResponse{
 			Symbol: "BTCUSDT",
-			StandardCommission: WsAccountCommissionRates{
+			StandardCommission: WebsocketAccountCommissionRates{
 				Maker:  0.0000001,
 				Taker:  0.0000002,
 				Buyer:  0.0000003,
 				Seller: 0.0000004,
 			},
-			SpecialCommission: WsAccountCommissionRates{
+			SpecialCommission: WebsocketAccountCommissionRates{
 				Maker:  0.01,
 				Taker:  0.02,
 				Buyer:  0.03,
 				Seller: 0.04,
 			},
-			TaxCommission: WsAccountCommissionRates{
+			TaxCommission: WebsocketAccountCommissionRates{
 				Maker:  0.00000112,
 				Taker:  0.00000114,
 				Buyer:  0.00000118,
 				Seller: 0.00000116,
 			},
-			Discount: WsCommissionDiscount{
+			Discount: WebsocketCommissionDiscount{
 				EnabledForAccount: true,
 				EnabledForSymbol:  true,
 				DiscountAsset:     currency.BNB,
 				Discount:          0.75,
 			},
 		}
-		assert.Equal(t, exp, got, "WsAccountCommissionRates should return the commission rates")
+		assert.Equal(t, exp, got, "WebsocketAccountCommissionRates should return the commission rates")
 	} else {
-		assert.Equal(t, "BTCUSDT", got.Symbol, "WsAccountCommissionRates should return the symbol's commission rates")
+		assert.Equal(t, "BTCUSDT", got.Symbol, "WebsocketAccountCommissionRates should return the symbol's commission rates")
 	}
 }
 
-func TestWsQueryAccountOrderRateLimits(t *testing.T) {
+func TestWebsocketQueryAccountOrderRateLimits(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsQueryAccountOrderRateLimits(t.Context())
-	require.NoError(t, err, "WsQueryAccountOrderRateLimits must not error")
+	got, err := ex.WebsocketQueryAccountOrderRateLimits(t.Context())
+	require.NoError(t, err, "WebsocketQueryAccountOrderRateLimits must not error")
 	if mockTests {
-		exp := []WsRateLimit{
+		exp := []WebsocketRateLimitResponse{
 			{
 				RateLimitType:  "ORDERS",
 				Interval:       "SECOND",
@@ -1889,83 +1887,83 @@ func TestWsQueryAccountOrderRateLimits(t *testing.T) {
 				Count:          4043,
 			},
 		}
-		assert.Equal(t, exp, got, "WsQueryAccountOrderRateLimits should return the unfilled order counts")
+		assert.Equal(t, exp, got, "WebsocketQueryAccountOrderRateLimits should return the unfilled order counts")
 	} else {
-		assert.NotEmpty(t, got, "WsQueryAccountOrderRateLimits should return the unfilled order counts")
+		assert.NotEmpty(t, got, "WebsocketQueryAccountOrderRateLimits should return the unfilled order counts")
 	}
 }
 
-func TestGetWsAccountInfo(t *testing.T) {
+func TestGetWebsocketAccountInfo(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.GetWsAccountInfo(t.Context(), true)
-	require.NoError(t, err, "GetWsAccountInfo must not error")
+	got, err := ex.GetWebsocketAccountInfo(t.Context(), true)
+	require.NoError(t, err, "GetWebsocketAccountInfo must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[*AccountResponse](t, "account.status", 0), got, "GetWsAccountInfo should return the account")
+		assert.Equal(t, wsAPIFixtureResult[*AccountResponse](t, "account.status", 0), got, "GetWebsocketAccountInfo should return the account")
 	} else {
-		assert.NotNil(t, got, "GetWsAccountInfo should return the account")
+		assert.NotNil(t, got, "GetWebsocketAccountInfo should return the account")
 	}
 }
 
-func TestWsQueryAccountOCOOrderHistory(t *testing.T) {
+func TestWebsocketQueryAccountOCOOrderHistory(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.WsQueryAccountOCOOrderHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsQueryAccountOCOOrderHistory must reject a nil request")
-	_, err = e.WsQueryAccountOCOOrderHistory(t.Context(), &WsOrderListHistoryRequest{StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WsQueryAccountOCOOrderHistory must reject a start time after the end time")
+	_, err := e.WebsocketQueryAccountOCOOrderHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketQueryAccountOCOOrderHistory must reject a nil request")
+	_, err = e.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketQueryAccountOCOOrderHistory must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsQueryAccountOCOOrderHistory(t.Context(), &WsOrderListHistoryRequest{StartTime: start, EndTime: end, Limit: 2})
-	require.NoError(t, err, "WsQueryAccountOCOOrderHistory must not error for a time range")
+	got, err := ex.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: start, EndTime: end, Limit: 2})
+	require.NoError(t, err, "WebsocketQueryAccountOCOOrderHistory must not error for a time range")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 0), got, "WsQueryAccountOCOOrderHistory should return the order lists in the time range")
+		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 0), got, "WebsocketQueryAccountOCOOrderHistory should return the order lists in the time range")
 	}
-	got, err = ex.WsQueryAccountOCOOrderHistory(t.Context(), &WsOrderListHistoryRequest{FromID: 1274512})
-	require.NoError(t, err, "WsQueryAccountOCOOrderHistory must not error from an order list ID")
+	got, err = ex.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{FromID: 1274512})
+	require.NoError(t, err, "WebsocketQueryAccountOCOOrderHistory must not error from an order list ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 1), got, "WsQueryAccountOCOOrderHistory should return the order lists from the ID")
+		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 1), got, "WebsocketQueryAccountOCOOrderHistory should return the order lists from the ID")
 	}
 }
 
-func TestWsQueryAccountOrderHistory(t *testing.T) {
+func TestWebsocketQueryAccountOrderHistory(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.WsQueryAccountOrderHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsQueryAccountOrderHistory must reject a nil request")
-	_, err = e.WsQueryAccountOrderHistory(t.Context(), &WsOrderHistoryRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsQueryAccountOrderHistory must reject an empty pair")
-	_, err = e.WsQueryAccountOrderHistory(t.Context(), &WsOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WsQueryAccountOrderHistory must reject a start time after the end time")
+	_, err := e.WebsocketQueryAccountOrderHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketQueryAccountOrderHistory must reject a nil request")
+	_, err = e.WebsocketQueryAccountOrderHistory(t.Context(), &WebsocketOrderHistoryRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketQueryAccountOrderHistory must reject an empty pair")
+	_, err = e.WebsocketQueryAccountOrderHistory(t.Context(), &WebsocketOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketQueryAccountOrderHistory must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsQueryAccountOrderHistory(t.Context(), &WsOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099453, Limit: 2})
-	require.NoError(t, err, "WsQueryAccountOrderHistory must not error from an order ID")
+	got, err := ex.WebsocketQueryAccountOrderHistory(t.Context(), &WebsocketOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099453, Limit: 2})
+	require.NoError(t, err, "WebsocketQueryAccountOrderHistory must not error from an order ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "allOrders", 0), got, "WsQueryAccountOrderHistory should return the orders from the ID")
+		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "allOrders", 0), got, "WebsocketQueryAccountOrderHistory should return the orders from the ID")
 	}
-	got, err = ex.WsQueryAccountOrderHistory(t.Context(), &WsOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end})
-	require.NoError(t, err, "WsQueryAccountOrderHistory must not error for a time range")
+	got, err = ex.WebsocketQueryAccountOrderHistory(t.Context(), &WebsocketOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end})
+	require.NoError(t, err, "WebsocketQueryAccountOrderHistory must not error for a time range")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "allOrders", 1), got, "WsQueryAccountOrderHistory should return the orders in the time range")
+		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "allOrders", 1), got, "WebsocketQueryAccountOrderHistory should return the orders in the time range")
 	}
 }
 
-func TestWsAccountAllocation(t *testing.T) {
+func TestWebsocketAccountAllocation(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.WsAccountAllocation(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsAccountAllocation must reject a nil request")
-	_, err = e.WsAccountAllocation(t.Context(), &WsAllocationsRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsAccountAllocation must reject an empty pair")
-	_, err = e.WsAccountAllocation(t.Context(), &WsAllocationsRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WsAccountAllocation must reject a start time after the end time")
+	_, err := e.WebsocketAccountAllocation(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAccountAllocation must reject a nil request")
+	_, err = e.WebsocketAccountAllocation(t.Context(), &WebsocketAllocationsRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketAccountAllocation must reject an empty pair")
+	_, err = e.WebsocketAccountAllocation(t.Context(), &WebsocketAllocationsRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketAccountAllocation must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsAccountAllocation(t.Context(), &WsAllocationsRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end, Limit: 2})
-	require.NoError(t, err, "WsAccountAllocation must not error for a time range")
+	got, err := ex.WebsocketAccountAllocation(t.Context(), &WebsocketAllocationsRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end, Limit: 2})
+	require.NoError(t, err, "WebsocketAccountAllocation must not error for a time range")
 	if mockTests {
-		exp := []WsAllocation{
+		exp := []WebsocketAllocationResponse{
 			{
 				Symbol:          "BTCUSDT",
 				AllocationID:    1,
@@ -1983,27 +1981,27 @@ func TestWsAccountAllocation(t *testing.T) {
 				IsAllocator:     true,
 			},
 		}
-		assert.Equal(t, exp, got, "WsAccountAllocation should return the allocations in the time range")
-		got, err = ex.WsAccountAllocation(t.Context(), &WsAllocationsRequest{Symbol: currency.NewBTCUSDT(), OrderID: 500, FromAllocationID: 1})
-		require.NoError(t, err, "WsAccountAllocation must not error for an order")
-		assert.Equal(t, exp, got, "WsAccountAllocation should return the order's allocations")
+		assert.Equal(t, exp, got, "WebsocketAccountAllocation should return the allocations in the time range")
+		got, err = ex.WebsocketAccountAllocation(t.Context(), &WebsocketAllocationsRequest{Symbol: currency.NewBTCUSDT(), OrderID: 500, FromAllocationID: 1})
+		require.NoError(t, err, "WebsocketAccountAllocation must not error for an order")
+		assert.Equal(t, exp, got, "WebsocketAccountAllocation should return the order's allocations")
 	}
 }
 
-func TestWsAccountPreventedMatches(t *testing.T) {
+func TestWebsocketAccountPreventedMatches(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsAccountPreventedMatches(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsAccountPreventedMatches must reject a nil request")
-	_, err = e.WsAccountPreventedMatches(t.Context(), &WsPreventedMatchesRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsAccountPreventedMatches must require a prevented match ID or an order ID")
-	_, err = e.WsAccountPreventedMatches(t.Context(), &WsPreventedMatchesRequest{PreventedMatchID: 1})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsAccountPreventedMatches must reject an empty pair")
+	_, err := e.WebsocketAccountPreventedMatches(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAccountPreventedMatches must reject a nil request")
+	_, err = e.WebsocketAccountPreventedMatches(t.Context(), &WebsocketPreventedMatchesRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketAccountPreventedMatches must require a prevented match ID or an order ID")
+	_, err = e.WebsocketAccountPreventedMatches(t.Context(), &WebsocketPreventedMatchesRequest{PreventedMatchID: 1})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketAccountPreventedMatches must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsAccountPreventedMatches(t.Context(), &WsPreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), PreventedMatchID: 1})
-	require.NoError(t, err, "WsAccountPreventedMatches must not error for a prevented match ID")
+	got, err := ex.WebsocketAccountPreventedMatches(t.Context(), &WebsocketPreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), PreventedMatchID: 1})
+	require.NoError(t, err, "WebsocketAccountPreventedMatches must not error for a prevented match ID")
 	if mockTests {
-		exp := []WsPreventedMatch{
+		exp := []WebsocketPreventedMatchResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				PreventedMatchID:        1,
@@ -2017,28 +2015,28 @@ func TestWsAccountPreventedMatches(t *testing.T) {
 				TransactTime:            types.Time(time.UnixMilli(1669101687094)),
 			},
 		}
-		assert.Equal(t, exp, got, "WsAccountPreventedMatches should return the prevented match")
-		got, err = ex.WsAccountPreventedMatches(t.Context(), &WsPreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), OrderID: 5, FromPreventedMatchID: 1, Limit: 2})
-		require.NoError(t, err, "WsAccountPreventedMatches must not error for an order")
-		assert.Equal(t, exp, got, "WsAccountPreventedMatches should return the order's prevented matches")
+		assert.Equal(t, exp, got, "WebsocketAccountPreventedMatches should return the prevented match")
+		got, err = ex.WebsocketAccountPreventedMatches(t.Context(), &WebsocketPreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), OrderID: 5, FromPreventedMatchID: 1, Limit: 2})
+		require.NoError(t, err, "WebsocketAccountPreventedMatches must not error for an order")
+		assert.Equal(t, exp, got, "WebsocketAccountPreventedMatches should return the order's prevented matches")
 	}
 }
 
-func TestWsAccountTradeHistory(t *testing.T) {
+func TestWebsocketAccountTradeHistory(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.WsAccountTradeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WsAccountTradeHistory must reject a nil request")
-	_, err = e.WsAccountTradeHistory(t.Context(), &WsAccountTradesRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsAccountTradeHistory must reject an empty pair")
-	_, err = e.WsAccountTradeHistory(t.Context(), &WsAccountTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WsAccountTradeHistory must reject a start time after the end time")
+	_, err := e.WebsocketAccountTradeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAccountTradeHistory must reject a nil request")
+	_, err = e.WebsocketAccountTradeHistory(t.Context(), &WebsocketAccountTradesRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketAccountTradeHistory must reject an empty pair")
+	_, err = e.WebsocketAccountTradeHistory(t.Context(), &WebsocketAccountTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketAccountTradeHistory must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsAccountTradeHistory(t.Context(), &WsAccountTradesRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099453, Limit: 2})
-	require.NoError(t, err, "WsAccountTradeHistory must not error for an order")
+	got, err := ex.WebsocketAccountTradeHistory(t.Context(), &WebsocketAccountTradesRequest{Symbol: currency.NewBTCUSDT(), OrderID: 12569099453, Limit: 2})
+	require.NoError(t, err, "WebsocketAccountTradeHistory must not error for an order")
 	if mockTests {
-		exp := []WsAccountTrade{
+		exp := []WebsocketAccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              1650422481,
@@ -2055,113 +2053,113 @@ func TestWsAccountTradeHistory(t *testing.T) {
 				IsBestMatch:     true,
 			},
 		}
-		assert.Equal(t, exp, got, "WsAccountTradeHistory should return the order's trades")
-		got, err = ex.WsAccountTradeHistory(t.Context(), &WsAccountTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: 1650422481})
-		require.NoError(t, err, "WsAccountTradeHistory must not error from a trade ID")
-		assert.Equal(t, exp, got, "WsAccountTradeHistory should return the trades from the ID")
+		assert.Equal(t, exp, got, "WebsocketAccountTradeHistory should return the order's trades")
+		got, err = ex.WebsocketAccountTradeHistory(t.Context(), &WebsocketAccountTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: 1650422481})
+		require.NoError(t, err, "WebsocketAccountTradeHistory must not error from a trade ID")
+		assert.Equal(t, exp, got, "WebsocketAccountTradeHistory should return the trades from the ID")
 	}
-	got, err = ex.WsAccountTradeHistory(t.Context(), &WsAccountTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end})
-	require.NoError(t, err, "WsAccountTradeHistory must not error for a time range")
+	got, err = ex.WebsocketAccountTradeHistory(t.Context(), &WebsocketAccountTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end})
+	require.NoError(t, err, "WebsocketAccountTradeHistory must not error for a time range")
 	if mockTests {
-		assert.Empty(t, got, "WsAccountTradeHistory should return no trades for a time range without any")
-	}
-}
-
-func TestWsCurrentOpenOCOOrders(t *testing.T) {
-	t.Parallel()
-	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsCurrentOpenOCOOrders(t.Context())
-	require.NoError(t, err, "WsCurrentOpenOCOOrders must not error")
-	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "openOrderLists.status", 0), got, "WsCurrentOpenOCOOrders should return the open order lists")
+		assert.Empty(t, got, "WebsocketAccountTradeHistory should return no trades for a time range without any")
 	}
 }
 
-func TestWsCurrentOpenOrders(t *testing.T) {
+func TestWebsocketCurrentOpenOCOOrders(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsCurrentOpenOrders(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "WsCurrentOpenOrders must not error for a symbol")
+	got, err := ex.WebsocketCurrentOpenOCOOrders(t.Context())
+	require.NoError(t, err, "WebsocketCurrentOpenOCOOrders must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "openOrders.status", 0), got, "WsCurrentOpenOrders should return the symbol's open orders")
-	}
-	got, err = ex.WsCurrentOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "WsCurrentOpenOrders must not error for every symbol")
-	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "openOrders.status", 1), got, "WsCurrentOpenOrders should return every open order")
+		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "openOrderLists.status", 0), got, "WebsocketCurrentOpenOCOOrders should return the open order lists")
 	}
 }
 
-func TestWsQueryOCOOrder(t *testing.T) {
+func TestWebsocketCurrentOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsQueryOCOOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, errOrderListIDRequired, "WsQueryOCOOrder must require an order list ID or client order list ID")
-
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsQueryOCOOrder(t.Context(), 1274512, "")
-	require.NoError(t, err, "WsQueryOCOOrder must not error for an order list ID")
+	got, err := ex.WebsocketCurrentOpenOrders(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "WebsocketCurrentOpenOrders must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 0), got, "WsQueryOCOOrder should return the order list")
-		got, err = ex.WsQueryOCOOrder(t.Context(), 0, "08985fedd9ea2cf6b28996")
-		require.NoError(t, err, "WsQueryOCOOrder must not error for a client order list ID")
-		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 1), got, "WsQueryOCOOrder should return the order list")
+		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "openOrders.status", 0), got, "WebsocketCurrentOpenOrders should return the symbol's open orders")
+	}
+	got, err = ex.WebsocketCurrentOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "WebsocketCurrentOpenOrders must not error for every symbol")
+	if mockTests {
+		assert.Equal(t, wsAPIFixtureResult[[]TradeOrderResponse](t, "openOrders.status", 1), got, "WebsocketCurrentOpenOrders should return every open order")
 	}
 }
 
-func TestWsQueryOrder(t *testing.T) {
+func TestWebsocketQueryOCOOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsQueryOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WsQueryOrder must require an order ID or client order ID")
-	_, err = e.WsQueryOrder(t.Context(), currency.EMPTYPAIR, 12569099453, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WsQueryOrder must reject an empty pair")
+	_, err := e.WebsocketQueryOCOOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketQueryOCOOrder must require an order list ID or client order list ID")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsQueryOrder(t.Context(), currency.NewBTCUSDT(), 12569099453, "4d96324ff9d44481926157")
-	require.NoError(t, err, "WsQueryOrder must not error")
+	got, err := ex.WebsocketQueryOCOOrder(t.Context(), 1274512, "")
+	require.NoError(t, err, "WebsocketQueryOCOOrder must not error for an order list ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[*TradeOrderResponse](t, "order.status", 0), got, "WsQueryOrder should return the order")
+		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 0), got, "WebsocketQueryOCOOrder should return the order list")
+		got, err = ex.WebsocketQueryOCOOrder(t.Context(), 0, "08985fedd9ea2cf6b28996")
+		require.NoError(t, err, "WebsocketQueryOCOOrder must not error for a client order list ID")
+		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 1), got, "WebsocketQueryOCOOrder should return the order list")
 	}
 }
 
-func TestWsSubscribeUserDataStream(t *testing.T) {
+func TestWebsocketQueryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsSubscribeUserDataStream(t.Context())
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WsSubscribeUserDataStream must error without a connection")
+	_, err := e.WebsocketQueryOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketQueryOrder must require an order ID or client order ID")
+	_, err = e.WebsocketQueryOrder(t.Context(), currency.EMPTYPAIR, 12569099453, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketQueryOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WsSubscribeUserDataStream(t.Context())
-	require.NoError(t, err, "WsSubscribeUserDataStream must not error")
+	got, err := ex.WebsocketQueryOrder(t.Context(), currency.NewBTCUSDT(), 12569099453, "4d96324ff9d44481926157")
+	require.NoError(t, err, "WebsocketQueryOrder must not error")
 	if mockTests {
-		exp := &WsUserDataStreamSubscriptionResponse{
+		assert.Equal(t, wsAPIFixtureResult[*TradeOrderResponse](t, "order.status", 0), got, "WebsocketQueryOrder should return the order")
+	}
+}
+
+func TestWebsocketSubscribeUserDataStream(t *testing.T) {
+	t.Parallel()
+	_, err := e.WebsocketSubscribeUserDataStream(t.Context())
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSubscribeUserDataStream must error without a connection")
+
+	ex := newWsAPITestExchange(t, true)
+	got, err := ex.WebsocketSubscribeUserDataStream(t.Context())
+	require.NoError(t, err, "WebsocketSubscribeUserDataStream must not error")
+	if mockTests {
+		exp := &WebsocketUserDataStreamSubscriptionResponse{
 			SubscriptionID: 1,
 		}
-		assert.Equal(t, exp, got, "WsSubscribeUserDataStream should return the subscription")
+		assert.Equal(t, exp, got, "WebsocketSubscribeUserDataStream should return the subscription")
 	}
 	assert.Equal(t, map[uint64]asset.Item{got.SubscriptionID: asset.Spot}, userDataAssets(ex), "the subscription should deliver the spot account's events")
 }
 
-func TestWsSubscribeUserDataStreamWithListenToken(t *testing.T) {
+func TestWebsocketSubscribeUserDataStreamWithListenToken(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsSubscribeUserDataStreamWithListenToken(t.Context(), "6xXxePXwZRjVSHKhzUCCGnmN3fkvMTXru+pYJS8RwijXk9Vcyr3rkwfVOTcP2OkONqciYA")
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "WsSubscribeUserDataStreamWithListenToken must error without a connection")
+	_, err := e.WebsocketSubscribeUserDataStreamWithListenToken(t.Context(), "6xXxePXwZRjVSHKhzUCCGnmN3fkvMTXru+pYJS8RwijXk9Vcyr3rkwfVOTcP2OkONqciYA")
+	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSubscribeUserDataStreamWithListenToken must error without a connection")
 
 	ex := newWsAPITestExchange(t, true)
-	_, err = ex.WsSubscribeUserDataStreamWithListenToken(t.Context(), "")
-	require.ErrorIs(t, err, errListenTokenRequired, "WsSubscribeUserDataStreamWithListenToken must require a listen token")
+	_, err = ex.WebsocketSubscribeUserDataStreamWithListenToken(t.Context(), "")
+	require.ErrorIs(t, err, errListenTokenRequired, "WebsocketSubscribeUserDataStreamWithListenToken must require a listen token")
 	listenToken := "6xXxePXwZRjVSHKhzUCCGnmN3fkvMTXru+pYJS8RwijXk9Vcyr3rkwfVOTcP2OkONqciYA"
 	if !mockTests {
 		token, err := ex.CreateMarginListenToken(t.Context(), &MarginListenTokenRequest{})
 		require.NoError(t, err, "CreateMarginListenToken must not error")
 		listenToken = token.Token
 	}
-	got, err := ex.WsSubscribeUserDataStreamWithListenToken(t.Context(), listenToken)
-	require.NoError(t, err, "WsSubscribeUserDataStreamWithListenToken must not error")
+	got, err := ex.WebsocketSubscribeUserDataStreamWithListenToken(t.Context(), listenToken)
+	require.NoError(t, err, "WebsocketSubscribeUserDataStreamWithListenToken must not error")
 	if mockTests {
-		exp := &WsListenTokenSubscriptionResponse{
+		exp := &WebsocketListenTokenSubscriptionResponse{
 			SubscriptionID: 2,
 			ExpirationTime: types.Time(time.UnixMicro(1749094553955907)),
 		}
-		assert.Equal(t, exp, got, "WsSubscribeUserDataStreamWithListenToken should return the subscription")
+		assert.Equal(t, exp, got, "WebsocketSubscribeUserDataStreamWithListenToken should return the subscription")
 	}
 	assert.Equal(t, map[uint64]asset.Item{got.SubscriptionID: asset.Margin}, userDataAssets(ex), "the subscription should deliver the margin account's events")
 }
@@ -2345,7 +2343,7 @@ func TestSpotWebsocketAPIConnectionSetup(t *testing.T) {
 	}
 }
 
-func TestWsAuthenticateAPI(t *testing.T) {
+func TestWebsocketAuthenticateAPI(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	if !mockTests {
@@ -2385,8 +2383,8 @@ func TestWsAuthenticateAPI(t *testing.T) {
 	ex = newTestExchange(t)
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
-	require.NoError(t, ex.WsAuthenticateAPI(t.Context(), nil), "WsAuthenticateAPI must not error with spot and margin disabled")
-	assert.Empty(t, userDataAssets(ex), "WsAuthenticateAPI should not subscribe for disabled assets")
+	require.NoError(t, ex.WebsocketAuthenticateAPI(t.Context(), nil), "WebsocketAuthenticateAPI must not error with spot and margin disabled")
+	assert.Empty(t, userDataAssets(ex), "WebsocketAuthenticateAPI should not subscribe for disabled assets")
 }
 
 func TestWebsocketAPIRuntimeChanges(t *testing.T) {
@@ -2421,7 +2419,7 @@ func TestWebsocketAPIRuntimeChanges(t *testing.T) {
 	assert.False(t, ex.canUseWebsocketAPIForOrders(), "spot orders should go over REST once authenticated websocket use is off")
 }
 
-func TestWsHandleSpotAPIData(t *testing.T) {
+func TestWebsocketHandleSpotAPIData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.SkipAuthCheck = true
@@ -2439,13 +2437,13 @@ func TestWsHandleSpotAPIData(t *testing.T) {
 			currency.BTC:  {Currency: currency.BTC, Total: 0.26, Hold: 0.01, Free: 0.25},
 			currency.USDT: {Currency: currency.USDT, Total: 1250, Hold: 250, Free: 1000},
 		}}},
-		&WsAccountPosition{
+		&WebsocketAccountPosition{
 			EventType:             "outboundAccountPosition",
 			EventTime:             types.Time(time.UnixMilli(1791285058231)),
 			LastAccountUpdateTime: types.Time(time.UnixMilli(1791285058230)),
-			Balances:              []WsAccountBalance{{Asset: currency.BTC, Free: 0.5, Locked: 0.02}},
+			Balances:              []WebsocketAccountBalance{{Asset: currency.BTC, Free: 0.5, Locked: 0.02}},
 		},
-		&WsBalanceUpdate{
+		&WebsocketBalanceUpdate{
 			EventType:    "balanceUpdate",
 			EventTime:    types.Time(time.UnixMilli(1791285058331)),
 			Asset:        currency.USDT,
@@ -2561,7 +2559,7 @@ func TestWsHandleSpotAPIData(t *testing.T) {
 			Pair:                 pair,
 			TimeInForce:          order.GoodTillCancel,
 		},
-		&WsListStatus{
+		&WebsocketListStatus{
 			EventType:         "listStatus",
 			EventTime:         types.Time(time.UnixMilli(1564035303637)),
 			Symbol:            "BTCUSDT",
@@ -2572,7 +2570,7 @@ func TestWsHandleSpotAPIData(t *testing.T) {
 			ListRejectReason:  "NONE",
 			ListClientOrderID: "F4QN4G8DlFATFlIUQ0cjdD",
 			TransactionTime:   types.Time(time.UnixMilli(1564035303625)),
-			Orders: []WsListStatusOrder{
+			Orders: []WebsocketListStatusOrder{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       17,
@@ -2596,7 +2594,7 @@ func TestWsHandleSpotAPIData(t *testing.T) {
 			LastUpdated:   time.UnixMilli(1564035303625),
 			Pair:          pair,
 		},
-		&WsExternalLockUpdate{
+		&WebsocketExternalLockUpdate{
 			EventType:       "externalLockUpdate",
 			EventTime:       types.Time(time.UnixMilli(1581557507324)),
 			Asset:           currency.BNB,
@@ -2764,11 +2762,11 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 func TestUserDataEventPayloads(t *testing.T) {
 	t.Parallel()
 	exp := []any{
-		&WsAccountPosition{
+		&WebsocketAccountPosition{
 			EventType:             "outboundAccountPosition",
 			EventTime:             types.Time(time.UnixMilli(1791285058131)),
 			LastAccountUpdateTime: types.Time(time.UnixMilli(1791285058130)),
-			Balances: []WsAccountBalance{
+			Balances: []WebsocketAccountBalance{
 				{
 					Asset:  currency.BTC,
 					Free:   0.25,
@@ -2781,11 +2779,11 @@ func TestUserDataEventPayloads(t *testing.T) {
 				},
 			},
 		},
-		&WsAccountPosition{
+		&WebsocketAccountPosition{
 			EventType:             "outboundAccountPosition",
 			EventTime:             types.Time(time.UnixMilli(1791285058231)),
 			LastAccountUpdateTime: types.Time(time.UnixMilli(1791285058230)),
-			Balances: []WsAccountBalance{
+			Balances: []WebsocketAccountBalance{
 				{
 					Asset:  currency.BTC,
 					Free:   0.5,
@@ -2793,14 +2791,14 @@ func TestUserDataEventPayloads(t *testing.T) {
 				},
 			},
 		},
-		&WsBalanceUpdate{
+		&WebsocketBalanceUpdate{
 			EventType:    "balanceUpdate",
 			EventTime:    types.Time(time.UnixMilli(1791285058331)),
 			Asset:        currency.USDT,
 			BalanceDelta: 100,
 			ClearTime:    types.Time(time.UnixMilli(1791285058329)),
 		},
-		&WsExecutionReport{
+		&WebsocketExecutionReport{
 			EventType:               "executionReport",
 			EventTime:               types.Time(time.Unix(1791285059, 0)),
 			Symbol:                  "BTCUSDT",
@@ -2823,7 +2821,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			WorkingTime:             types.Time(time.UnixMilli(1791285058999)),
 			SelfTradePreventionMode: "EXPIRE_MAKER",
 		},
-		&WsExecutionReport{
+		&WebsocketExecutionReport{
 			EventType:                              "executionReport",
 			EventTime:                              types.Time(time.Unix(1791285060, 0)),
 			Symbol:                                 "BTCUSDT",
@@ -2855,7 +2853,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			WorkingTime:                            types.Time(time.UnixMilli(1791285058999)),
 			SelfTradePreventionMode:                "EXPIRE_MAKER",
 		},
-		&WsExecutionReport{
+		&WebsocketExecutionReport{
 			EventType:               "executionReport",
 			EventTime:               types.Time(time.Unix(1791285061, 0)),
 			Symbol:                  "BTCUSDT",
@@ -2877,7 +2875,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			OrderCreationTime:       types.Time(time.Unix(1791285050, 0)),
 			SelfTradePreventionMode: "NONE",
 		},
-		&WsExecutionReport{
+		&WebsocketExecutionReport{
 			EventType:               "executionReport",
 			EventTime:               types.Time(time.Unix(1791285062, 0)),
 			Symbol:                  "BTCUSDT",
@@ -2899,7 +2897,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			OrderCreationTime:       types.Time(time.UnixMilli(1791285061999)),
 			SelfTradePreventionMode: "NONE",
 		},
-		&WsExecutionReport{
+		&WebsocketExecutionReport{
 			EventType:                              "executionReport",
 			EventTime:                              types.Time(time.UnixMilli(1499405658658)),
 			Symbol:                                 "BTCUSDT",
@@ -2957,7 +2955,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			PeggedPrice:                            1,
 			ExpiryReason:                           "INSUFFICIENT_LIQUIDITY",
 		},
-		&WsListStatus{
+		&WebsocketListStatus{
 			EventType:         "listStatus",
 			EventTime:         types.Time(time.UnixMilli(1564035303637)),
 			Symbol:            "BTCUSDT",
@@ -2968,7 +2966,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			ListRejectReason:  "NONE",
 			ListClientOrderID: "F4QN4G8DlFATFlIUQ0cjdD",
 			TransactionTime:   types.Time(time.UnixMilli(1564035303625)),
-			Orders: []WsListStatusOrder{
+			Orders: []WebsocketListStatusOrder{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       17,
@@ -2981,7 +2979,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 				},
 			},
 		},
-		&WsExternalLockUpdate{
+		&WebsocketExternalLockUpdate{
 			EventType:       "externalLockUpdate",
 			EventTime:       types.Time(time.UnixMilli(1581557507324)),
 			Asset:           currency.BNB,
@@ -3040,7 +3038,7 @@ func TestProcessExecutionReportAmounts(t *testing.T) {
 	assert.Equal(t, exp, relayedPayloads(ex), "processExecutionReport should relay the amounts REST reports")
 }
 
-func TestWsHandleSpotAPIDataErrors(t *testing.T) {
+func TestWebsocketHandleSpotAPIDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.SkipAuthCheck = true
@@ -3096,11 +3094,11 @@ func TestWsHandleSpotAPIDataErrors(t *testing.T) {
 	// reported to the order manager instead of the order list
 	err := ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCXYZ","g":3,"c":"OCO","L":"EXECUTING"}}`))
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleSpotAPIData should report a list status of an unknown symbol")
-	assert.Equal(t, []any{&WsListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
+	assert.Equal(t, []any{&WebsocketListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
 	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCUSDT","g":3,"c":"OCO","L":"UNKNOWN"}}`)), "wsHandleSpotAPIData must relay an unclassifiable list status")
 	relayed := relayedPayloads(ex)
 	require.Len(t, relayed, 2, "relay must hold the list status and its classification error")
-	assert.Equal(t, &WsListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
+	assert.Equal(t, &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
 	got, ok := relayed[1].(order.ClassificationError)
 	require.True(t, ok, "relay must hold a classification error")
 	assert.Equal(t, "3", got.OrderID, "the classification error should name the order list")
@@ -3145,7 +3143,7 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 	assert.Equal(t, exp, tracked, "the tracked order list should close with its list status")
 }
 
-func TestWsHandleSpotAPIDataServerShutdown(t *testing.T) {
+func TestWebsocketHandleSpotAPIDataServerShutdown(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsAPIMock))
@@ -3171,7 +3169,7 @@ func TestWsHandleSpotAPIDataServerShutdown(t *testing.T) {
 // keptConnection stands in for a WebSocket API connection whose identity alone matters
 type keptConnection struct{ websocket.Connection }
 
-func TestWsAPIConnectionRetire(t *testing.T) {
+func TestWebsocketAPIConnectionRetire(t *testing.T) {
 	t.Parallel()
 	var w wsAPIConnection
 	conn := &keptConnection{}
@@ -3225,7 +3223,7 @@ func newServerShutdownTestExchange(t *testing.T) (ex *Exchange, received <-chan 
 	answer = sync.OnceFunc(func() { close(answered) })
 	t.Cleanup(answer)
 	apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, w *gws.Conn) error {
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
@@ -3275,10 +3273,10 @@ func TestServerShutdownLetsRequestsReturn(t *testing.T) {
 			streams, err := ex.Websocket.GetConnection(asset.Spot)
 			require.NoError(t, err, "GetConnection must not error for the streams")
 			placed := make(chan error, 1)
-			var resp *WsOrderResponse
+			var resp *WebsocketOrderResponse
 			go func() {
 				var err error
-				resp, err = ex.WsPlaceNewOrder(t.Context(), &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+				resp, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
 				placed <- err
 			}()
 			select {
@@ -3294,10 +3292,10 @@ func TestServerShutdownLetsRequestsReturn(t *testing.T) {
 			answer()
 			select {
 			case err := <-placed:
-				require.NoError(t, err, "WsPlaceNewOrder must return the response to an order placed before the notice")
-				assert.Equal(t, "FILLED", resp.Status, "WsPlaceNewOrder should return the filled order")
+				require.NoError(t, err, "WebsocketPlaceNewOrder must return the response to an order placed before the notice")
+				assert.Equal(t, "FILLED", resp.Status, "WebsocketPlaceNewOrder should return the filled order")
 			case <-time.After(30 * time.Second):
-				require.FailNow(t, "WsPlaceNewOrder must return once its response arrives")
+				require.FailNow(t, "WebsocketPlaceNewOrder must return once its response arrives")
 			}
 			assert.Eventually(t, func() bool { return !isConnected(api) }, 30*time.Second, 5*time.Millisecond, "the WebSocket API connection should close once its requests have returned")
 			if tc.websocketStopped {
@@ -3318,7 +3316,7 @@ func TestServerShutdownLeavesReconnectedWebsocket(t *testing.T) {
 	defer cancel()
 	placed := make(chan error, 1)
 	go func() {
-		_, err := ex.WsPlaceNewOrder(ctx, &WsPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+		_, err := ex.WebsocketPlaceNewOrder(ctx, &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
 		placed <- err
 	}()
 	select {
@@ -3334,9 +3332,9 @@ func TestServerShutdownLeavesReconnectedWebsocket(t *testing.T) {
 	cancel()
 	select {
 	case err := <-placed:
-		assert.ErrorIs(t, err, context.Canceled, "WsPlaceNewOrder should return its cancellation")
+		assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceNewOrder should return its cancellation")
 	case <-time.After(30 * time.Second):
-		require.FailNow(t, "WsPlaceNewOrder must return once cancelled")
+		require.FailNow(t, "WebsocketPlaceNewOrder must return once cancelled")
 	}
 	assert.Never(t, func() bool { return !ex.Websocket.IsConnected() }, 500*time.Millisecond, 5*time.Millisecond, "a notice for the connections a reconnection replaced should leave the new ones alone")
 }
@@ -3402,7 +3400,7 @@ func testCancelAllSpotOrdersListingRateWebsocketAPI(t *testing.T, limit func(req
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
@@ -3431,7 +3429,7 @@ func testCancelAllSpotOrdersListingRateWebsocketAPI(t *testing.T, limit func(req
 	assert.Equal(t, map[string]string{"11": "CANCELED"}, resp.Status, "CancelAllOrders should cancel every symbol's open orders")
 }
 
-func TestWsHandleSpotAPIDataUnmatchedResponse(t *testing.T) {
+func TestWebsocketHandleSpotAPIDataUnmatchedResponse(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, false)
 	conn, err := ex.Websocket.GetConnection(spotWebsocketAPI)
@@ -3445,7 +3443,7 @@ func TestWsHandleSpotAPIDataUnmatchedResponse(t *testing.T) {
 // receives
 func retriedUserDataMock(signatures *atomic.Int32, failures int32, hold <-chan struct{}) mockws.WsMockFunc {
 	return func(_ testing.TB, msg []byte, w *gws.Conn) error {
-		var req WsAPIRequest
+		var req WebsocketAPIRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
@@ -3559,6 +3557,21 @@ type failingSendConnection struct{ websocket.Connection }
 
 func (failingSendConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return nil, websocket.ErrSignatureTimeout
+}
+
+// nullResponseConnection is a connection whose requests are answered with a JSON null
+type nullResponseConnection struct{ websocket.Connection }
+
+func (nullResponseConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte("null"), nil
+}
+
+func TestSendWebsocketAPIRequestNullResponse(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	err := ex.sendWsAPIRequest(t.Context(), nullResponseConnection{}, spotDefaultRate, &WebsocketAPIRequest{ID: "1", Method: "session.status"}, nil)
+	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "sendWsAPIRequest should fail a null response")
+	assert.ErrorIs(t, err, common.ErrNoResponse, "sendWsAPIRequest should report a null response as no response")
 }
 
 func TestUserDataStreamRequestGivenUp(t *testing.T) {

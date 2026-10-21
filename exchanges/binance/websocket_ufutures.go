@@ -76,9 +76,9 @@ var futuresKlineIntervals = []kline.Interval{
 	kline.OneMonth,
 }
 
-// WsDerivativesConnect dials a USDⓈ-M, COIN-M or options stream connection at its configured URL. Gorilla answers the
-// pings the servers send, every 3 minutes for USDⓈ-M and COIN-M and every 5 minutes for options
-func (e *Exchange) WsDerivativesConnect(ctx context.Context, conn websocket.Connection) error {
+// WebsocketDerivativesConnect dials a USDⓈ-M, COIN-M or options stream connection at its configured URL. Gorilla
+// answers the pings the servers send, every 3 minutes for USDⓈ-M and COIN-M and every 5 minutes for options
+func (e *Exchange) WebsocketDerivativesConnect(ctx context.Context, conn websocket.Connection) error {
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,

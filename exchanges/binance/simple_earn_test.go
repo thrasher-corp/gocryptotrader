@@ -412,7 +412,7 @@ func TestGetLockedSubscriptionPreview(t *testing.T) {
 	result, err := e.GetLockedSubscriptionPreview(t.Context(), "Axs*90", 0.1234, false)
 	require.NoError(t, err, "GetLockedSubscriptionPreview must not error")
 	if mockTests {
-		exp := []SimpleEarnLockedSubscriptionPreview{
+		exp := []SimpleEarnLockedSubscriptionPreviewResponse{
 			{
 				RewardAsset:                     currency.AXS,
 				TotalRewardAmount:               0.00517181,

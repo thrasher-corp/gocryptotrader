@@ -246,12 +246,6 @@ func (p wsParams) setUint(key string, value uint64) {
 	}
 }
 
-func (p wsParams) setInt(key string, value int64) {
-	if value != 0 {
-		p[key] = value
-	}
-}
-
 // setFloat sends a decimal as a string in plain notation, since Binance rejects exponents
 func (p wsParams) setFloat(key string, value float64) {
 	if value != 0 {
@@ -343,8 +337,8 @@ func (e *Exchange) setSymbol(params wsParams, pair currency.Pair) error {
 func (e *Exchange) spotWebsocketAPIConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
 		URL:                      binanceWebsocketAPIURL,
-		Connector:                e.WsConnectAPI,
-		Authenticate:             e.WsAuthenticateAPI,
+		Connector:                e.WebsocketConnectAPI,
+		Authenticate:             e.WebsocketAuthenticateAPI,
 		Handler:                  e.wsHandleSpotAPIData,
 		MessageFilter:            spotWebsocketAPI,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
@@ -359,8 +353,8 @@ func wsAPIResponseLimit(exch *config.Exchange) time.Duration {
 	return max(exch.WebsocketResponseMaxLimit, wsAPIResponseMaxLimit)
 }
 
-// WsConnectAPI connects to the spot WebSocket API and keeps the connection for the requests sent on it
-func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnectAPI connects to the spot WebSocket API and keeps the connection for the requests sent on it
+func (e *Exchange) WebsocketConnectAPI(ctx context.Context, conn websocket.Connection) error {
 	e.userData.reset()
 	e.wsAPI.set(nil, 0)
 	dialer := gws.Dialer{
@@ -379,10 +373,10 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 	return nil
 }
 
-// WsAuthenticateAPI subscribes the WebSocket API connection to the User Data Streams of the enabled spot and margin
-// accounts. Failures are reported instead of returned, and tried again in the background: an authentication error
-// would take every connection down, while this connection still serves requests without user data
-func (e *Exchange) WsAuthenticateAPI(ctx context.Context, conn websocket.Connection) error {
+// WebsocketAuthenticateAPI subscribes the WebSocket API connection to the User Data Streams of the enabled spot and
+// margin accounts. Failures are reported instead of returned, and tried again in the background: an authentication
+// error would take every connection down, while this connection still serves requests without user data
+func (e *Exchange) WebsocketAuthenticateAPI(ctx context.Context, conn websocket.Connection) error {
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 		if e.CurrencyPairs.IsAssetEnabled(a) != nil {
 			continue
@@ -471,7 +465,7 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 	case "outboundAccountPosition":
 		return e.processAccountPosition(ctx, a, event)
 	case "balanceUpdate":
-		var resp WsBalanceUpdate
+		var resp WebsocketBalanceUpdate
 		if err := json.Unmarshal(event, &resp); err != nil {
 			return err
 		}
@@ -481,13 +475,13 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 	case "listStatus":
 		return e.processListStatus(ctx, a, event)
 	case "externalLockUpdate":
-		var resp WsExternalLockUpdate
+		var resp WebsocketExternalLockUpdate
 		if err := json.Unmarshal(event, &resp); err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, &resp)
 	case "eventStreamTerminated":
-		var resp WsEventStreamTerminated
+		var resp WebsocketEventStreamTerminated
 		if err := json.Unmarshal(event, &resp); err != nil {
 			return err
 		}
@@ -508,7 +502,7 @@ func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, conn websocket.Conne
 // alone. A spot event is ordered against REST snapshots by account update time: one predating the stored snapshot is
 // left out, as the snapshot holds its balances and maybe later ones
 func (e *Exchange) processAccountPosition(ctx context.Context, a asset.Item, event []byte) error {
-	var resp WsAccountPosition
+	var resp WebsocketAccountPosition
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
@@ -588,7 +582,7 @@ func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *acc
 
 // processExecutionReport relays an executionReport event as an order update
 func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, event []byte) error {
-	var resp WsExecutionReport
+	var resp WebsocketExecutionReport
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
@@ -670,7 +664,7 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 // OCO order list by its list ID, which only this event updates, since the legs' executionReport events carry their
 // own order IDs
 func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []byte) error {
-	var resp WsListStatus
+	var resp WebsocketListStatus
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
@@ -719,19 +713,19 @@ func isConnected(conn websocket.Connection) bool {
 	return !ok || c.IsConnected()
 }
 
-// SendWsAPIRequest sends a WebSocket API request and decodes its result into result, which may be nil
-func (e *Exchange) SendWsAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
+// SendWebsocketAPIRequest sends a WebSocket API request and decodes its result into result, which may be nil
+func (e *Exchange) SendWebsocketAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
 	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return err
 	}
 	defer release()
-	return e.sendWsAPIRequest(ctx, conn, epl, &WsAPIRequest{ID: e.MessageID(), Method: method, Params: params}, result)
+	return e.sendWsAPIRequest(ctx, conn, epl, &WebsocketAPIRequest{ID: e.MessageID(), Method: method, Params: params}, result)
 }
 
-// SendSignedWsAPIRequest signs a WebSocket API request with the API key and secret, sends it and decodes its result
-// into result, which may be nil
-func (e *Exchange) SendSignedWsAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
+// SendSignedWebsocketAPIRequest signs a WebSocket API request with the API key and secret, sends it and decodes its
+// result into result, which may be nil
+func (e *Exchange) SendSignedWebsocketAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, result any) error {
 	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return err
@@ -743,7 +737,7 @@ func (e *Exchange) SendSignedWsAPIRequest(ctx context.Context, epl request.Endpo
 	if err := e.rateLimitAndSignWsAPIParams(ctx, epl, params); err != nil {
 		return err
 	}
-	return e.sendWsAPIRequest(ctx, conn, wsConnectionMessageRate, &WsAPIRequest{ID: e.MessageID(), Method: method, Params: params}, result)
+	return e.sendWsAPIRequest(ctx, conn, wsConnectionMessageRate, &WebsocketAPIRequest{ID: e.MessageID(), Method: method, Params: params}, result)
 }
 
 // rateLimitAndSignWsAPIParams waits for a SIGNED request's rate limit, then signs it. Binance rejects a timestamp older
@@ -779,7 +773,7 @@ func (e *Exchange) signWsAPIParams(ctx context.Context, params wsParams) error {
 	return nil
 }
 
-func (e *Exchange) sendWsAPIRequest(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, req *WsAPIRequest, result any) error {
+func (e *Exchange) sendWsAPIRequest(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, req *WebsocketAPIRequest, result any) error {
 	// The connection writes a request whatever its context, so a request cancelled while it waited, such as an order,
 	// must not be sent
 	if err := ctx.Err(); err != nil {
@@ -789,9 +783,12 @@ func (e *Exchange) sendWsAPIRequest(ctx context.Context, conn websocket.Connecti
 	if err != nil {
 		return err
 	}
-	var resp WsAPIResponse
+	var resp *WebsocketAPIResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %s: %w", errWebsocketAPIRequestFailed, req.Method, common.ErrNoResponse)
 	}
 	if resp.Error != nil {
 		return fmt.Errorf("%w: %s status %d: %w", errWebsocketAPIRequestFailed, req.Method, resp.Status, &APIError{Code: resp.Error.Code, Message: resp.Error.Message, Data: resp.Error.Data})
@@ -815,25 +812,25 @@ func (e *Exchange) sendUserDataStreamSubscription(ctx context.Context, conn webs
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	req := &WsAPIRequest{ID: e.MessageID(), Method: method, Params: params}
+	req := &WebsocketAPIRequest{ID: e.MessageID(), Method: method, Params: params}
 	e.userData.expect(req.ID, a)
 	defer e.userData.returned(req.ID)
 	return e.sendWsAPIRequest(ctx, conn, epl, req, result)
 }
 
-// GetWsAveragePrice returns the current average price of a symbol (Current average price)
-func (e *Exchange) GetWsAveragePrice(ctx context.Context, symbol currency.Pair) (*WsAveragePriceResponse, error) {
+// GetWebsocketAveragePrice returns the current average price of a symbol (Current average price)
+func (e *Exchange) GetWebsocketAveragePrice(ctx context.Context, symbol currency.Pair) (*WebsocketAveragePriceResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
-	var resp *WsAveragePriceResponse
-	return resp, e.SendWsAPIRequest(ctx, getCurrentAveragePriceRate, "avgPrice", params, &resp)
+	var resp *WebsocketAveragePriceResponse
+	return resp, e.SendWebsocketAPIRequest(ctx, getCurrentAveragePriceRate, "avgPrice", params, &resp)
 }
 
-// GetWsOrderbook returns the order book of a symbol (Order book); limit defaults to 100 levels when zero, and
+// GetWebsocketOrderbook returns the order book of a symbol (Order book); limit defaults to 100 levels when zero, and
 // symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWsOrderbook(ctx context.Context, symbol currency.Pair, limit uint64, symbolStatus string) (*OrderBookResponse, error) {
+func (e *Exchange) GetWebsocketOrderbook(ctx context.Context, symbol currency.Pair, limit uint64, symbolStatus string) (*OrderBookResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
@@ -841,15 +838,15 @@ func (e *Exchange) GetWsOrderbook(ctx context.Context, symbol currency.Pair, lim
 	params.setUint("limit", limit)
 	params.setString("symbolStatus", symbolStatus)
 	var resp *OrderBookResponse
-	return resp, e.SendWsAPIRequest(ctx, spotOrderbookLimit(limit), "depth", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, spotOrderbookLimit(limit), "depth", params, &resp)
 }
 
-// GetWsCandlestick returns klines of a symbol (Klines)
-func (e *Exchange) GetWsCandlestick(ctx context.Context, arg *WsKlinesRequest) ([]CandleStick, error) {
+// GetWebsocketCandlestick returns klines of a symbol (Klines)
+func (e *Exchange) GetWebsocketCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
 	return e.getWsKlines(ctx, "klines", arg)
 }
 
-func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *WsKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -872,12 +869,12 @@ func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *WsKlines
 	params.setString("timeZone", arg.TimeZone)
 	params.setUint("limit", arg.Limit)
 	var resp []CandleStick
-	return resp, e.SendWsAPIRequest(ctx, getKlineRate, method, params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, getKlineRate, method, params, &resp)
 }
 
-// GetWsRollingWindowPriceChanges returns price change statistics over a custom rolling window (Rolling window price
-// change statistics)
-func (e *Exchange) GetWsRollingWindowPriceChanges(ctx context.Context, arg *WsRollingWindowTickerRequest) ([]PriceChangeStats, error) {
+// GetWebsocketRollingWindowPriceChanges returns price change statistics over a custom rolling window (Rolling window
+// price change statistics)
+func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, arg *WebsocketRollingWindowTickerRequest) ([]PriceChangeStats, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -898,7 +895,7 @@ func (e *Exchange) GetWsRollingWindowPriceChanges(ctx context.Context, arg *WsRo
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
 	var resp objectOrArray[PriceChangeStats]
-	return resp, e.SendWsAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker", params, &resp)
 }
 
 // windowSizeToString formats a rolling window as a whole number of minutes, hours or days, the units the ticker
@@ -916,9 +913,9 @@ func windowSizeToString(windowSize time.Duration) (string, error) {
 	return "", fmt.Errorf("%w: %s", errInvalidWindowSize, windowSize)
 }
 
-// GetWs24HourPriceChanges returns 24 hour rolling window price change statistics (24hr ticker price change
+// GetWebsocket24HourPriceChanges returns 24 hour rolling window price change statistics (24hr ticker price change
 // statistics); every symbol's when arg.Symbols is empty
-func (e *Exchange) GetWs24HourPriceChanges(ctx context.Context, arg *WsTickerRequest) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *WebsocketTickerRequest) ([]PriceChangeStats, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -929,12 +926,12 @@ func (e *Exchange) GetWs24HourPriceChanges(ctx context.Context, arg *WsTickerReq
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
 	var resp objectOrArray[PriceChangeStats]
-	return resp, e.SendWsAPIRequest(ctx, spotTicker24HourLimit(len(arg.Symbols)), "ticker.24hr", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, spotTicker24HourLimit(len(arg.Symbols)), "ticker.24hr", params, &resp)
 }
 
-// GetWsSymbolOrderbookTicker returns the best bid and ask of symbols (Symbol order book ticker); every symbol's when
-// symbols is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWsSymbolOrderbookTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WsBookTicker, error) {
+// GetWebsocketSymbolOrderbookTicker returns the best bid and ask of symbols (Symbol order book ticker); every symbol's
+// when symbols is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
+func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WebsocketBookTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
 		return nil, err
@@ -944,13 +941,13 @@ func (e *Exchange) GetWsSymbolOrderbookTicker(ctx context.Context, symbols curre
 	if len(symbols) == 1 {
 		epl = spotBookTickerRate
 	}
-	var resp objectOrArray[WsBookTicker]
-	return resp, e.SendWsAPIRequest(ctx, epl, "ticker.book", params, &resp)
+	var resp objectOrArray[WebsocketBookTickerResponse]
+	return resp, e.SendWebsocketAPIRequest(ctx, epl, "ticker.book", params, &resp)
 }
 
-// GetWsSymbolPriceTicker returns the latest price of symbols (Symbol price ticker); every symbol's when symbols is
-// empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWsSymbolPriceTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WsPriceTicker, error) {
+// GetWebsocketSymbolPriceTicker returns the latest price of symbols (Symbol price ticker); every symbol's when symbols
+// is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
+func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WebsocketPriceTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
 		return nil, err
@@ -960,12 +957,12 @@ func (e *Exchange) GetWsSymbolPriceTicker(ctx context.Context, symbols currency.
 	if len(symbols) == 1 {
 		epl = spotSymbolPriceRate
 	}
-	var resp objectOrArray[WsPriceTicker]
-	return resp, e.SendWsAPIRequest(ctx, epl, "ticker.price", params, &resp)
+	var resp objectOrArray[WebsocketPriceTickerResponse]
+	return resp, e.SendWebsocketAPIRequest(ctx, epl, "ticker.price", params, &resp)
 }
 
-// GetWsTradingDayTickers returns price change statistics for the current trading day (Trading Day Ticker)
-func (e *Exchange) GetWsTradingDayTickers(ctx context.Context, arg *WsTradingDayTickerRequest) ([]PriceChangeStats, error) {
+// GetWebsocketTradingDayTickers returns price change statistics for the current trading day (Trading Day Ticker)
+func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *WebsocketTradingDayTickerRequest) ([]PriceChangeStats, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -980,11 +977,11 @@ func (e *Exchange) GetWsTradingDayTickers(ctx context.Context, arg *WsTradingDay
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
 	var resp objectOrArray[PriceChangeStats]
-	return resp, e.SendWsAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker.tradingDay", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker.tradingDay", params, &resp)
 }
 
-// GetWsAggregatedTrades returns aggregate trades of a symbol (Aggregate trades)
-func (e *Exchange) GetWsAggregatedTrades(ctx context.Context, arg *WsAggregatedTradesRequest) ([]AggregatedTrade, error) {
+// GetWebsocketAggregatedTrades returns aggregate trades of a symbol (Aggregate trades)
+func (e *Exchange) GetWebsocketAggregatedTrades(ctx context.Context, arg *WebsocketAggregatedTradesRequest) ([]AggregatedTrade, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1002,51 +999,52 @@ func (e *Exchange) GetWsAggregatedTrades(ctx context.Context, arg *WsAggregatedT
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("limit", arg.Limit)
 	var resp []AggregatedTrade
-	return resp, e.SendWsAPIRequest(ctx, aggTradesRate, "trades.aggregate", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, aggTradesRate, "trades.aggregate", params, &resp)
 }
 
-// GetWsMostRecentTrades returns the most recent trades of a symbol (Recent trades); limit defaults to 500 when zero
-func (e *Exchange) GetWsMostRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]RecentTrade, error) {
+// GetWebsocketMostRecentTrades returns the most recent trades of a symbol (Recent trades); limit defaults to 500 when
+// zero
+func (e *Exchange) GetWebsocketMostRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]RecentTrade, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
 	params.setUint("limit", limit)
 	var resp []RecentTrade
-	return resp, e.SendWsAPIRequest(ctx, getRecentTradesListRate, "trades.recent", params, &resp)
+	return resp, e.SendWebsocketAPIRequest(ctx, getRecentTradesListRate, "trades.recent", params, &resp)
 }
 
-// GetWsOptimisedCandlestick returns klines of a symbol modified for the presentation of candlestick charts (UI
+// GetWebsocketOptimisedCandlestick returns klines of a symbol modified for the presentation of candlestick charts (UI
 // Klines)
-func (e *Exchange) GetWsOptimisedCandlestick(ctx context.Context, arg *WsKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetWebsocketOptimisedCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
 	return e.getWsKlines(ctx, "uiKlines", arg)
 }
 
-// WsLogOutOfSession forgets the API key a session.logon authenticated the session with (Log out of the session)
-func (e *Exchange) WsLogOutOfSession(ctx context.Context) (*WsSessionStatusResponse, error) {
-	var resp *WsSessionStatusResponse
-	return resp, e.SendWsAPIRequest(ctx, wsSessionRate, "session.logout", nil, &resp)
+// WebsocketLogOutOfSession forgets the API key a session.logon authenticated the session with (Log out of the session)
+func (e *Exchange) WebsocketLogOutOfSession(ctx context.Context) (*WebsocketSessionStatusResponse, error) {
+	var resp *WebsocketSessionStatusResponse
+	return resp, e.SendWebsocketAPIRequest(ctx, wsSessionRate, "session.logout", nil, &resp)
 }
 
-// GetWsSessionStatus returns the WebSocket API session's status, including the API key authenticating it if any (Query
-// session status)
-func (e *Exchange) GetWsSessionStatus(ctx context.Context) (*WsSessionStatusResponse, error) {
-	var resp *WsSessionStatusResponse
-	return resp, e.SendWsAPIRequest(ctx, wsSessionRate, "session.status", nil, &resp)
+// GetWebsocketSessionStatus returns the WebSocket API session's status, including the API key authenticating it if any
+// (Query session status)
+func (e *Exchange) GetWebsocketSessionStatus(ctx context.Context) (*WebsocketSessionStatusResponse, error) {
+	var resp *WebsocketSessionStatusResponse
+	return resp, e.SendWebsocketAPIRequest(ctx, wsSessionRate, "session.status", nil, &resp)
 }
 
-// WsCancelOpenOrders cancels every open order of a symbol, including order lists (Cancel open orders)
-func (e *Exchange) WsCancelOpenOrders(ctx context.Context, symbol currency.Pair) ([]WsCancelOrderResponse, error) {
+// WebsocketCancelOpenOrders cancels every open order of a symbol, including order lists (Cancel open orders)
+func (e *Exchange) WebsocketCancelOpenOrders(ctx context.Context, symbol currency.Pair) ([]WebsocketCancelOrderResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
-	var resp []WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "openOrders.cancelAll", params, &resp)
+	var resp []WebsocketCancelOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotCancelRate, "openOrders.cancelAll", params, &resp)
 }
 
-// WsCancelOrder cancels an order (Cancel order); cancelling an order list's leg cancels the whole list
-func (e *Exchange) WsCancelOrder(ctx context.Context, arg *WsCancelOrderRequest) (*WsCancelOrderResponse, error) {
+// WebsocketCancelExistingOrder cancels an order (Cancel order); cancelling an order list's leg cancels the whole list
+func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, arg *WebsocketCancelOrderRequest) (*WebsocketCancelOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1061,12 +1059,12 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, arg *WsCancelOrderRequest)
 	params.setString("origClientOrderId", arg.OriginalClientOrderID)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	params.setString("cancelRestrictions", arg.CancelRestrictions)
-	var resp *WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "order.cancel", params, &resp)
+	var resp *WebsocketCancelOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotCancelRate, "order.cancel", params, &resp)
 }
 
-// WsCancelAndReplaceTradeOrder cancels an order and places a new order in its place (Cancel and replace order)
-func (e *Exchange) WsCancelAndReplaceTradeOrder(ctx context.Context, arg *WsCancelReplaceOrderRequest) (*WsCancelReplaceOrderResponse, error) {
+// WebsocketCancelAndReplaceTradeOrder cancels an order and places a new order in its place (Cancel and replace order)
+func (e *Exchange) WebsocketCancelAndReplaceTradeOrder(ctx context.Context, arg *WebsocketCancelReplaceOrderRequest) (*WebsocketCancelReplaceOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1101,21 +1099,21 @@ func (e *Exchange) WsCancelAndReplaceTradeOrder(ctx context.Context, arg *WsCanc
 	params.setFloat("stopPrice", arg.StopPrice)
 	params.setUint("trailingDelta", arg.TrailingDelta)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
-	params.setInt("strategyId", arg.StrategyID)
-	params.setInt("strategyType", arg.StrategyType)
+	params.setUint("strategyId", arg.StrategyID)
+	params.setUint("strategyType", arg.StrategyType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	params.setString("cancelRestrictions", arg.CancelRestrictions)
 	params.setString("orderRateLimitExceededMode", arg.OrderRateLimitExceededMode)
 	params.setString("pegPriceType", arg.PegPriceType)
 	params.setUint("pegOffsetValue", arg.PegOffsetValue)
 	params.setString("pegOffsetType", arg.PegOffsetType)
-	var resp *WsCancelReplaceOrderResponse
-	err := e.SendSignedWsAPIRequest(ctx, spotOrderRate, "order.cancelReplace", params, &resp)
+	var resp *WebsocketCancelReplaceOrderResponse
+	err := e.SendSignedWebsocketAPIRequest(ctx, spotOrderRate, "order.cancelReplace", params, &resp)
 	return cancelReplaceOutcome(resp, err)
 }
 
-// WsCancelOCOOrder cancels an order list (Cancel Order list)
-func (e *Exchange) WsCancelOCOOrder(ctx context.Context, arg *WsCancelOrderListRequest) (*WsCancelOrderResponse, error) {
+// WebsocketCancelOCOOrder cancels an order list (Cancel Order list)
+func (e *Exchange) WebsocketCancelOCOOrder(ctx context.Context, arg *WebsocketCancelOrderListRequest) (*WebsocketCancelOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1129,14 +1127,14 @@ func (e *Exchange) WsCancelOCOOrder(ctx context.Context, arg *WsCancelOrderListR
 	params.setUint("orderListId", arg.OrderListID)
 	params.setString("listClientOrderId", arg.ListClientOrderID)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
-	var resp *WsCancelOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotCancelRate, "orderList.cancel", params, &resp)
+	var resp *WebsocketCancelOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotCancelRate, "orderList.cancel", params, &resp)
 }
 
-// WsPlaceOCOOrder places a one-cancels-the-other order list: a LIMIT_MAKER order and a STOP_LOSS or STOP_LOSS_LIMIT
-// order, where the activation of one cancels the other (Place new OCO - Deprecated). Binance deprecated the method in
-// favour of orderList.place.oco but still serves it
-func (e *Exchange) WsPlaceOCOOrder(ctx context.Context, arg *WsPlaceOCOOrderRequest) (*WsOrderListResponse, error) {
+// WebsocketPlaceOCOOrder places a one-cancels-the-other order list: a LIMIT_MAKER order and a STOP_LOSS or
+// STOP_LOSS_LIMIT order, where the activation of one cancels the other (Place new OCO - Deprecated). Binance deprecated
+// the method in favour of orderList.place.oco but still serves it
+func (e *Exchange) WebsocketPlaceOCOOrder(ctx context.Context, arg *WebsocketPlaceOCOOrderRequest) (*WebsocketOrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1162,27 +1160,27 @@ func (e *Exchange) WsPlaceOCOOrder(ctx context.Context, arg *WsPlaceOCOOrderRequ
 	params.setString("listClientOrderId", arg.ListClientOrderID)
 	params.setString("limitClientOrderId", arg.LimitClientOrderID)
 	params.setFloat("limitIcebergQty", arg.LimitIcebergQuantity)
-	params.setInt("limitStrategyId", arg.LimitStrategyID)
-	params.setInt("limitStrategyType", arg.LimitStrategyType)
+	params.setUint("limitStrategyId", arg.LimitStrategyID)
+	params.setUint("limitStrategyType", arg.LimitStrategyType)
 	params.setFloat("stopPrice", arg.StopPrice)
 	params.setUint("trailingDelta", arg.TrailingDelta)
 	params.setString("stopClientOrderId", arg.StopClientOrderID)
 	params.setFloat("stopLimitPrice", arg.StopLimitPrice)
 	params.setString("stopLimitTimeInForce", arg.StopLimitTimeInForce)
 	params.setFloat("stopIcebergQty", arg.StopIcebergQuantity)
-	params.setInt("stopStrategyId", arg.StopStrategyID)
-	params.setInt("stopStrategyType", arg.StopStrategyType)
+	params.setUint("stopStrategyId", arg.StopStrategyID)
+	params.setUint("stopStrategyType", arg.StopStrategyType)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	var resp *WsOrderListResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotOCOOrderRate, "orderList.place", params, &resp)
+	var resp *WebsocketOrderListResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOCOOrderRate, "orderList.place", params, &resp)
 }
 
-// WsPlaceOCOOrderList places a one-cancels-the-other order list of an above and a below order, where the activation of
-// one order cancels the other (Place new Order list - OCO). One order must be LIMIT_MAKER, TAKE_PROFIT or
+// WebsocketPlaceOCOOrderList places a one-cancels-the-other order list of an above and a below order, where the
+// activation of one order cancels the other (Place new Order list - OCO). One order must be LIMIT_MAKER, TAKE_PROFIT or
 // TAKE_PROFIT_LIMIT and the other STOP_LOSS or STOP_LOSS_LIMIT, and the list counts as two orders against the unfilled
 // order count
-func (e *Exchange) WsPlaceOCOOrderList(ctx context.Context, arg *OCOOrderListRequest) (*WsOrderListResponse, error) {
+func (e *Exchange) WebsocketPlaceOCOOrderList(ctx context.Context, arg *OCOOrderListRequest) (*WebsocketOrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1209,8 +1207,8 @@ func (e *Exchange) WsPlaceOCOOrderList(ctx context.Context, arg *OCOOrderListReq
 	setWsOCOLegParams(params, "below", &arg.Below)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	var resp *WsOrderListResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotOCOOrderRate, "orderList.place.oco", params, &resp)
+	var resp *WebsocketOrderListResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOCOOrderRate, "orderList.place.oco", params, &resp)
 }
 
 // setWsOCOLegParams sets the parameters of an order list's above or below order, which carry the order's position as a
@@ -1231,7 +1229,7 @@ func setWsOCOLegParams(params wsParams, leg string, arg *OCOOrderListLeg) {
 }
 
 // orderParams validates an order.place or order.test request and returns its parameters
-func (e *Exchange) orderParams(arg *WsPlaceOrderRequest) (wsParams, error) {
+func (e *Exchange) orderParams(arg *WebsocketPlaceOrderRequest) (wsParams, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1256,8 +1254,8 @@ func (e *Exchange) orderParams(arg *WsPlaceOrderRequest) (wsParams, error) {
 	params.setFloat("stopPrice", arg.StopPrice)
 	params.setUint("trailingDelta", arg.TrailingDelta)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
-	params.setInt("strategyId", arg.StrategyID)
-	params.setInt("strategyType", arg.StrategyType)
+	params.setUint("strategyId", arg.StrategyID)
+	params.setUint("strategyType", arg.StrategyType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	params.setString("pegPriceType", arg.PegPriceType)
 	params.setUint("pegOffsetValue", arg.PegOffsetValue)
@@ -1265,33 +1263,33 @@ func (e *Exchange) orderParams(arg *WsPlaceOrderRequest) (wsParams, error) {
 	return params, nil
 }
 
-// WsPlaceNewOrder places an order (Place new order)
-func (e *Exchange) WsPlaceNewOrder(ctx context.Context, arg *WsPlaceOrderRequest) (*WsOrderResponse, error) {
+// WebsocketPlaceNewOrder places an order (Place new order)
+func (e *Exchange) WebsocketPlaceNewOrder(ctx context.Context, arg *WebsocketPlaceOrderRequest) (*WebsocketOrderResponse, error) {
 	params, err := e.orderParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotOrderRate, "order.place", params, &resp)
+	var resp *WebsocketOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOrderRate, "order.place", params, &resp)
 }
 
-// WsTestNewOrder validates an order and the request's signature without sending the order to the matching engine
+// WebsocketTestNewOrder validates an order and the request's signature without sending the order to the matching engine
 // (Test new order); the order's commission rates are returned when computeCommissionRates is set, and nil otherwise
-func (e *Exchange) WsTestNewOrder(ctx context.Context, arg *WsPlaceOrderRequest, computeCommissionRates bool) (*WsOrderCommissionRatesResponse, error) {
+func (e *Exchange) WebsocketTestNewOrder(ctx context.Context, arg *WebsocketPlaceOrderRequest, computeCommissionRates bool) (*WebsocketOrderCommissionRatesResponse, error) {
 	params, err := e.orderParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	if !computeCommissionRates {
-		return nil, e.SendSignedWsAPIRequest(ctx, spotDefaultRate, "order.test", params, nil)
+		return nil, e.SendSignedWebsocketAPIRequest(ctx, spotDefaultRate, "order.test", params, nil)
 	}
 	params["computeCommissionRates"] = true
-	var resp *WsOrderCommissionRatesResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, testNewOrderWithCommissionRate, "order.test", params, &resp)
+	var resp *WebsocketOrderCommissionRatesResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, testNewOrderWithCommissionRate, "order.test", params, &resp)
 }
 
 // wsSOROrderParams validates a sor.order.place or sor.order.test request and returns its parameters
-func (e *Exchange) wsSOROrderParams(arg *WsSOROrderRequest) (wsParams, error) {
+func (e *Exchange) wsSOROrderParams(arg *WebsocketSOROrderRequest) (wsParams, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1316,67 +1314,67 @@ func (e *Exchange) wsSOROrderParams(arg *WsSOROrderRequest) (wsParams, error) {
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
-	params.setInt("strategyId", arg.StrategyID)
-	params.setInt("strategyType", arg.StrategyType)
+	params.setUint("strategyId", arg.StrategyID)
+	params.setUint("strategyType", arg.StrategyType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	return params, nil
 }
 
-// WsPlaceNewSOROrder places an order using smart order routing (Place new order using SOR)
-func (e *Exchange) WsPlaceNewSOROrder(ctx context.Context, arg *WsSOROrderRequest) ([]WsSOROrderResponse, error) {
+// WebsocketPlaceNewSOROrder places an order using smart order routing (Place new order using SOR)
+func (e *Exchange) WebsocketPlaceNewSOROrder(ctx context.Context, arg *WebsocketSOROrderRequest) ([]WebsocketSOROrderResponse, error) {
 	params, err := e.wsSOROrderParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []WsSOROrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotOrderRate, "sor.order.place", params, &resp)
+	var resp []WebsocketSOROrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOrderRate, "sor.order.place", params, &resp)
 }
 
-// WsTestNewOrderUsingSOR validates an order using smart order routing and the request's signature without sending the
-// order to the matching engine (Test new order using SOR); the order's commission rates are returned when
+// WebsocketTestNewOrderUsingSOR validates an order using smart order routing and the request's signature without
+// sending the order to the matching engine (Test new order using SOR); the order's commission rates are returned when
 // computeCommissionRates is set, and nil otherwise
-func (e *Exchange) WsTestNewOrderUsingSOR(ctx context.Context, arg *WsSOROrderRequest, computeCommissionRates bool) (*WsSOROrderCommissionRatesResponse, error) {
+func (e *Exchange) WebsocketTestNewOrderUsingSOR(ctx context.Context, arg *WebsocketSOROrderRequest, computeCommissionRates bool) (*WebsocketSOROrderCommissionRatesResponse, error) {
 	params, err := e.wsSOROrderParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	if !computeCommissionRates {
-		return nil, e.SendSignedWsAPIRequest(ctx, spotDefaultRate, "sor.order.test", params, nil)
+		return nil, e.SendSignedWebsocketAPIRequest(ctx, spotDefaultRate, "sor.order.test", params, nil)
 	}
 	params["computeCommissionRates"] = true
-	var resp *WsSOROrderCommissionRatesResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, testNewOrderWithCommissionRate, "sor.order.test", params, &resp)
+	var resp *WebsocketSOROrderCommissionRatesResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, testNewOrderWithCommissionRate, "sor.order.test", params, &resp)
 }
 
-// WsAccountCommissionRates returns the account's commission rates for a symbol (Account Commission Rates)
-func (e *Exchange) WsAccountCommissionRates(ctx context.Context, symbol currency.Pair) (*WsAccountCommissionResponse, error) {
+// WebsocketAccountCommissionRates returns the account's commission rates for a symbol (Account Commission Rates)
+func (e *Exchange) WebsocketAccountCommissionRates(ctx context.Context, symbol currency.Pair) (*WebsocketAccountCommissionResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
-	var resp *WsAccountCommissionResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, getCommissionRate, "account.commission", params, &resp)
+	var resp *WebsocketAccountCommissionResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getCommissionRate, "account.commission", params, &resp)
 }
 
-// WsQueryAccountOrderRateLimits returns the account's unfilled order counts against the order rate limits (Unfilled
-// Order Count)
-func (e *Exchange) WsQueryAccountOrderRateLimits(ctx context.Context) ([]WsRateLimit, error) {
-	var resp []WsRateLimit
-	return resp, e.SendSignedWsAPIRequest(ctx, currentOrderCountUsageRate, "account.rateLimits.orders", nil, &resp)
+// WebsocketQueryAccountOrderRateLimits returns the account's unfilled order counts against the order rate limits
+// (Unfilled Order Count)
+func (e *Exchange) WebsocketQueryAccountOrderRateLimits(ctx context.Context) ([]WebsocketRateLimitResponse, error) {
+	var resp []WebsocketRateLimitResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, currentOrderCountUsageRate, "account.rateLimits.orders", nil, &resp)
 }
 
-// GetWsAccountInfo returns the account's information and balances (Account information); omitZeroBalances leaves out
-// the zero balances
-func (e *Exchange) GetWsAccountInfo(ctx context.Context, omitZeroBalances bool) (*AccountResponse, error) {
+// GetWebsocketAccountInfo returns the account's information and balances (Account information); omitZeroBalances leaves
+// out the zero balances
+func (e *Exchange) GetWebsocketAccountInfo(ctx context.Context, omitZeroBalances bool) (*AccountResponse, error) {
 	params := wsParams{}
 	params.setBool("omitZeroBalances", omitZeroBalances)
 	var resp *AccountResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotAccountInformationRate, "account.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotAccountInformationRate, "account.status", params, &resp)
 }
 
-// WsQueryAccountOCOOrderHistory returns the account's order lists, filtered by time range or starting from an order
-// list ID (Account order list history)
-func (e *Exchange) WsQueryAccountOCOOrderHistory(ctx context.Context, arg *WsOrderListHistoryRequest) ([]OCOOrderResponse, error) {
+// WebsocketQueryAccountOCOOrderHistory returns the account's order lists, filtered by time range or starting from an
+// order list ID (Account order list history)
+func (e *Exchange) WebsocketQueryAccountOCOOrderHistory(ctx context.Context, arg *WebsocketOrderListHistoryRequest) ([]OCOOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1391,12 +1389,12 @@ func (e *Exchange) WsQueryAccountOCOOrderHistory(ctx context.Context, arg *WsOrd
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("limit", arg.Limit)
 	var resp []OCOOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, getAllOCOOrdersRate, "allOrderLists", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getAllOCOOrdersRate, "allOrderLists", params, &resp)
 }
 
-// WsQueryAccountOrderHistory returns the account's orders of a symbol, filtered by time range or starting from an
-// order ID (Account order history)
-func (e *Exchange) WsQueryAccountOrderHistory(ctx context.Context, arg *WsOrderHistoryRequest) ([]TradeOrderResponse, error) {
+// WebsocketQueryAccountOrderHistory returns the account's orders of a symbol, filtered by time range or starting from
+// an order ID (Account order history)
+func (e *Exchange) WebsocketQueryAccountOrderHistory(ctx context.Context, arg *WebsocketOrderHistoryRequest) ([]TradeOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1414,11 +1412,11 @@ func (e *Exchange) WsQueryAccountOrderHistory(ctx context.Context, arg *WsOrderH
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("limit", arg.Limit)
 	var resp []TradeOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotAllOrdersRate, "allOrders", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotAllOrdersRate, "allOrders", params, &resp)
 }
 
-// WsAccountAllocation returns the account's allocations from SOR order placement (Account allocations)
-func (e *Exchange) WsAccountAllocation(ctx context.Context, arg *WsAllocationsRequest) ([]WsAllocation, error) {
+// WebsocketAccountAllocation returns the account's allocations from SOR order placement (Account allocations)
+func (e *Exchange) WebsocketAccountAllocation(ctx context.Context, arg *WebsocketAllocationsRequest) ([]WebsocketAllocationResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1436,12 +1434,13 @@ func (e *Exchange) WsAccountAllocation(ctx context.Context, arg *WsAllocationsRe
 	params.setUint("fromAllocationId", arg.FromAllocationID)
 	params.setUint("limit", arg.Limit)
 	params.setUint("orderId", arg.OrderID)
-	var resp []WsAllocation
-	return resp, e.SendSignedWsAPIRequest(ctx, getAllocationsRate, "myAllocations", params, &resp)
+	var resp []WebsocketAllocationResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getAllocationsRate, "myAllocations", params, &resp)
 }
 
-// WsAccountPreventedMatches returns the account's orders expired by self-trade prevention (Account prevented matches)
-func (e *Exchange) WsAccountPreventedMatches(ctx context.Context, arg *WsPreventedMatchesRequest) ([]WsPreventedMatch, error) {
+// WebsocketAccountPreventedMatches returns the account's orders expired by self-trade prevention (Account prevented
+// matches)
+func (e *Exchange) WebsocketAccountPreventedMatches(ctx context.Context, arg *WebsocketPreventedMatchesRequest) ([]WebsocketPreventedMatchResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1460,12 +1459,12 @@ func (e *Exchange) WsAccountPreventedMatches(ctx context.Context, arg *WsPrevent
 	if arg.PreventedMatchID == 0 {
 		epl = preventedMatchesByOrderIDRate
 	}
-	var resp []WsPreventedMatch
-	return resp, e.SendSignedWsAPIRequest(ctx, epl, "myPreventedMatches", params, &resp)
+	var resp []WebsocketPreventedMatchResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, epl, "myPreventedMatches", params, &resp)
 }
 
-// WsAccountTradeHistory returns the account's trades of a symbol (Account trade history)
-func (e *Exchange) WsAccountTradeHistory(ctx context.Context, arg *WsAccountTradesRequest) ([]WsAccountTrade, error) {
+// WebsocketAccountTradeHistory returns the account's trades of a symbol (Account trade history)
+func (e *Exchange) WebsocketAccountTradeHistory(ctx context.Context, arg *WebsocketAccountTradesRequest) ([]WebsocketAccountTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1483,19 +1482,19 @@ func (e *Exchange) WsAccountTradeHistory(ctx context.Context, arg *WsAccountTrad
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("fromId", arg.FromID)
 	params.setUint("limit", arg.Limit)
-	var resp []WsAccountTrade
-	return resp, e.SendSignedWsAPIRequest(ctx, spotAccountTradeListLimit(arg.OrderID), "myTrades", params, &resp)
+	var resp []WebsocketAccountTradeResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotAccountTradeListLimit(arg.OrderID), "myTrades", params, &resp)
 }
 
-// WsCurrentOpenOCOOrders returns the account's open order lists (Current open Order lists)
-func (e *Exchange) WsCurrentOpenOCOOrders(ctx context.Context) ([]OCOOrderResponse, error) {
+// WebsocketCurrentOpenOCOOrders returns the account's open order lists (Current open Order lists)
+func (e *Exchange) WebsocketCurrentOpenOCOOrders(ctx context.Context) ([]OCOOrderResponse, error) {
 	var resp []OCOOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, getOpenOCOListRate, "openOrderLists.status", nil, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOpenOCOListRate, "openOrderLists.status", nil, &resp)
 }
 
-// WsCurrentOpenOrders returns the account's open orders of a symbol, or of every symbol when symbol is empty (Current
-// open orders)
-func (e *Exchange) WsCurrentOpenOrders(ctx context.Context, symbol currency.Pair) ([]TradeOrderResponse, error) {
+// WebsocketCurrentOpenOrders returns the account's open orders of a symbol, or of every symbol when symbol is empty
+// (Current open orders)
+func (e *Exchange) WebsocketCurrentOpenOrders(ctx context.Context, symbol currency.Pair) ([]TradeOrderResponse, error) {
 	return e.wsCurrentOpenOrders(ctx, symbol, spotOpenOrdersAllRate)
 }
 
@@ -1511,11 +1510,11 @@ func (e *Exchange) wsCurrentOpenOrders(ctx context.Context, symbol currency.Pair
 		epl = spotOpenOrdersSpecificRate
 	}
 	var resp []TradeOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, epl, "openOrders.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, epl, "openOrders.status", params, &resp)
 }
 
-// WsQueryOCOOrder returns an order list by its order list ID or client order list ID (Query Order list)
-func (e *Exchange) WsQueryOCOOrder(ctx context.Context, orderListID uint64, listClientOrderID string) (*OCOOrderResponse, error) {
+// WebsocketQueryOCOOrder returns an order list by its order list ID or client order list ID (Query Order list)
+func (e *Exchange) WebsocketQueryOCOOrder(ctx context.Context, orderListID uint64, listClientOrderID string) (*OCOOrderResponse, error) {
 	if orderListID == 0 && listClientOrderID == "" {
 		return nil, errOrderListIDRequired
 	}
@@ -1524,11 +1523,11 @@ func (e *Exchange) WsQueryOCOOrder(ctx context.Context, orderListID uint64, list
 	// The method takes the client order list ID as origClientOrderId
 	params.setString("origClientOrderId", listClientOrderID)
 	var resp *OCOOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, getOCOListRate, "orderList.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOCOListRate, "orderList.status", params, &resp)
 }
 
-// WsQueryOrder returns an order by its order ID or client order ID (Query order)
-func (e *Exchange) WsQueryOrder(ctx context.Context, symbol currency.Pair, orderID uint64, originalClientOrderID string) (*TradeOrderResponse, error) {
+// WebsocketQueryOrder returns an order by its order ID or client order ID (Query order)
+func (e *Exchange) WebsocketQueryOrder(ctx context.Context, symbol currency.Pair, orderID uint64, originalClientOrderID string) (*TradeOrderResponse, error) {
 	if orderID == 0 && originalClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -1539,12 +1538,13 @@ func (e *Exchange) WsQueryOrder(ctx context.Context, symbol currency.Pair, order
 	params.setUint("orderId", orderID)
 	params.setString("origClientOrderId", originalClientOrderID)
 	var resp *TradeOrderResponse
-	return resp, e.SendSignedWsAPIRequest(ctx, spotOrderQueryRate, "order.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOrderQueryRate, "order.status", params, &resp)
 }
 
-// WsSubscribeUserDataStream subscribes the WebSocket API connection to the spot account's User Data Stream (Subscribe
-// to User Data Stream through signature subscription). It needs no session logon, so it works with every API key type
-func (e *Exchange) WsSubscribeUserDataStream(ctx context.Context) (*WsUserDataStreamSubscriptionResponse, error) {
+// WebsocketSubscribeUserDataStream subscribes the WebSocket API connection to the spot account's User Data Stream
+// (Subscribe to User Data Stream through signature subscription). It needs no session logon, so it works with every API
+// key type
+func (e *Exchange) WebsocketSubscribeUserDataStream(ctx context.Context) (*WebsocketUserDataStreamSubscriptionResponse, error) {
 	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return nil, err
@@ -1553,19 +1553,19 @@ func (e *Exchange) WsSubscribeUserDataStream(ctx context.Context) (*WsUserDataSt
 	return e.subscribeUserDataStream(ctx, conn)
 }
 
-func (e *Exchange) subscribeUserDataStream(ctx context.Context, conn websocket.Connection) (*WsUserDataStreamSubscriptionResponse, error) {
+func (e *Exchange) subscribeUserDataStream(ctx context.Context, conn websocket.Connection) (*WebsocketUserDataStreamSubscriptionResponse, error) {
 	params := wsParams{}
 	if err := e.rateLimitAndSignWsAPIParams(ctx, userDataStreamSubscribeRate, params); err != nil {
 		return nil, err
 	}
-	var resp *WsUserDataStreamSubscriptionResponse
+	var resp *WebsocketUserDataStreamSubscriptionResponse
 	return resp, e.sendUserDataStreamSubscription(ctx, conn, asset.Spot, wsConnectionMessageRate, "userDataStream.subscribe.signature", params, &resp)
 }
 
-// WsSubscribeUserDataStreamWithListenToken subscribes the WebSocket API connection to the margin account User Data
-// Stream a listen token from CreateMarginListenToken gives access to (userDataStream.subscribe.listenToken). The
+// WebsocketSubscribeUserDataStreamWithListenToken subscribes the WebSocket API connection to the margin account User
+// Data Stream a listen token from CreateMarginListenToken gives access to (userDataStream.subscribe.listenToken). The
 // subscription ends when the token expires unless it is renewed with a new token
-func (e *Exchange) WsSubscribeUserDataStreamWithListenToken(ctx context.Context, listenToken string) (*WsListenTokenSubscriptionResponse, error) {
+func (e *Exchange) WebsocketSubscribeUserDataStreamWithListenToken(ctx context.Context, listenToken string) (*WebsocketListenTokenSubscriptionResponse, error) {
 	conn, release, err := e.acquireWsAPIConnection()
 	if err != nil {
 		return nil, err
@@ -1574,11 +1574,11 @@ func (e *Exchange) WsSubscribeUserDataStreamWithListenToken(ctx context.Context,
 	return e.subscribeListenToken(ctx, conn, listenToken)
 }
 
-func (e *Exchange) subscribeListenToken(ctx context.Context, conn websocket.Connection, listenToken string) (*WsListenTokenSubscriptionResponse, error) {
+func (e *Exchange) subscribeListenToken(ctx context.Context, conn websocket.Connection, listenToken string) (*WebsocketListenTokenSubscriptionResponse, error) {
 	if listenToken == "" {
 		return nil, errListenTokenRequired
 	}
-	var resp *WsListenTokenSubscriptionResponse
+	var resp *WebsocketListenTokenSubscriptionResponse
 	return resp, e.sendUserDataStreamSubscription(ctx, conn, asset.Margin, userDataStreamSubscribeRate, "userDataStream.subscribe.listenToken", wsParams{"listenToken": listenToken}, &resp)
 }
 

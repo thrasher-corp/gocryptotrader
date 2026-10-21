@@ -127,15 +127,15 @@ func (c *matchRecordingConnection) RequireMatchWithData(signature any, _ []byte)
 	return nil
 }
 
-func TestWsDerivativesConnect(t *testing.T) {
+func TestWebsocketDerivativesConnect(t *testing.T) {
 	t.Parallel()
-	err := e.WsDerivativesConnect(t.Context(), failingDialConnection{})
-	assert.ErrorIs(t, err, errTestDial, "WsDerivativesConnect should return the dial error")
+	err := e.WebsocketDerivativesConnect(t.Context(), failingDialConnection{})
+	assert.ErrorIs(t, err, errTestDial, "WebsocketDerivativesConnect should return the dial error")
 
 	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
 	for _, filter := range []string{usdtmPublicFilter, usdtmMarketFilter, usdtmPrivateFilter, coinmFilter, coinmPrivateFilter, optionsPublicFilter, optionsMarketFilter, optionsPrivateFilter} {
 		_, err := ex.Websocket.GetConnection(filter)
-		assert.NoErrorf(t, err, "WsDerivativesConnect should dial the %s connection at its configured URL", filter)
+		assert.NoErrorf(t, err, "WebsocketDerivativesConnect should dial the %s connection at its configured URL", filter)
 	}
 }
 
@@ -478,7 +478,7 @@ func TestSubscribeUserDataRetried(t *testing.T) {
 	recorder := &streamRequestRecorder{}
 	useMockWebsocket(t, ex, &websocket.ConnectionSetup{
 		MessageFilter:            usdtmPrivateFilter,
-		Connector:                ex.WsDerivativesConnect,
+		Connector:                ex.WebsocketDerivativesConnect,
 		Handler:                  ex.wsHandleUFuturesUserData,
 		ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
@@ -1161,7 +1161,7 @@ func TestHandleFuturesUserDataErrors(t *testing.T) {
 	assert.Empty(t, relayedPayloads(ex), "nothing should be relayed for rejected frames")
 }
 
-func TestWsHandleUFuturesData(t *testing.T) {
+func TestWebsocketHandleUFuturesData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
@@ -1227,7 +1227,7 @@ func TestWsHandleUFuturesData(t *testing.T) {
 		},
 		&FuturesContinuousKline{
 			EventType: "continuous_kline", EventTime: fixtureTime(1791283239106), Pair: "BTCUSDT", ContractType: "PERPETUAL",
-			Kline: FuturesContinuousKlineData{
+			Kline: FuturesContinuousCandle{
 				StartTime: fixtureTime(1791283200000), CloseTime: fixtureTime(1791283259999), Interval: "1m", FirstUpdateID: 11747002966903,
 				LastUpdateID: 11747005833109, OpenPrice: 85999.9, ClosePrice: 86026.5, HighPrice: 86026.5, LowPrice: 85999.8, Volume: 10.516,
 				NumberOfTrades: 447, IsClosed: true, QuoteAssetVolume: 904406.8029, TakerBuyVolume: 7.507, TakerBuyQuoteAssetVolume: 645620.8782, Ignore: 1,
@@ -1283,7 +1283,7 @@ func isEventFrame(frame []byte, event string) bool {
 	return err == nil && e == event
 }
 
-func TestWsHandleUFuturesUserData(t *testing.T) {
+func TestWebsocketHandleUFuturesUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	for _, frame := range fixtureFrames(t, "testdata/wsUFuturesUserData.json") {
@@ -1350,11 +1350,11 @@ func TestWsHandleUFuturesUserData(t *testing.T) {
 		},
 		&FuturesStrategyUpdate{
 			EventType: "STRATEGY_UPDATE", TransactionTime: fixtureTime(1669261797627), EventTime: fixtureTime(1669261797628),
-			StrategyUpdate: FuturesStrategyUpdateData{StrategyID: 176054594, StrategyType: "GRID", StrategyStatus: "NEW", Symbol: "BTCUSDT", UpdateTime: fixtureTime(1669261797627), OpCode: 8007},
+			StrategyUpdate: FuturesStrategy{StrategyID: 176054594, StrategyType: "GRID", StrategyStatus: "NEW", Symbol: "BTCUSDT", UpdateTime: fixtureTime(1669261797627), OpCode: 8007},
 		},
 		&FuturesGridUpdate{
 			EventType: "GRID_UPDATE", TransactionTime: fixtureTime(1669262908216), EventTime: fixtureTime(1669262908218),
-			GridUpdate: FuturesGridUpdateData{
+			GridUpdate: FuturesGridStrategy{
 				StrategyID: 176057039, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSDT", RealisedPNL: -0.00300716,
 				UnmatchedAveragePrice: 86720, UnmatchedQuantity: -0.001, UnmatchedFee: -0.00300716, MatchedPNL: 0.5, UpdateTime: fixtureTime(1669262908197),
 			},
@@ -2779,7 +2779,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			name: "kline", fixture: "testdata/wsUFuturesMarket.json", key: "btcusdt@kline_1m", target: new(FuturesKline),
 			exp: &FuturesKline{
 				EventType: "kline", EventTime: fixtureTime(1791283227688), Symbol: "BTCUSDT",
-				Kline: FuturesKlineData{
+				Kline: FuturesCandle{
 					StartTime: fixtureTime(1791283200000), CloseTime: fixtureTime(1791283259999), Symbol: "BTCUSDT", Interval: "1m", FirstTradeID: 8149533620,
 					LastTradeID: 8149533714, OpenPrice: 85999.9, ClosePrice: 86000, HighPrice: 86000.1, LowPrice: 85999.8, Volume: 5.427, NumberOfTrades: 92,
 					IsClosed: true, QuoteAssetVolume: 466721.747, TakerBuyBaseAssetVolume: 2.897, TakerBuyQuoteAssetVolume: 249142, Ignore: 1,
@@ -2790,7 +2790,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			name: "account update", fixture: "testdata/wsUFuturesUserData.json", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
 			exp: &FuturesAccountUpdate{
 				EventType: "ACCOUNT_UPDATE", EventTime: fixtureTime(1564745798939), TransactionTime: fixtureTime(1564745798938),
-				UpdateData: FuturesAccountUpdateData{
+				UpdateData: FuturesAccountChange{
 					EventReasonType: "FUNDING_FEE",
 					Balances: []FuturesAccountUpdateBalance{
 						{Asset: currency.USDT, WalletBalance: 122624.12345678, CrossWalletBalance: 100.12345678, BalanceChange: 50.12345678},
@@ -2808,7 +2808,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			name: "COIN-M account update", fixture: "testdata/wsCFuturesUserData.json", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
 			exp: &FuturesAccountUpdate{
 				EventType: "ACCOUNT_UPDATE", EventTime: fixtureTime(1564745798939), TransactionTime: fixtureTime(1564745798938), AccountAlias: "SfsR",
-				UpdateData: FuturesAccountUpdateData{
+				UpdateData: FuturesAccountChange{
 					EventReasonType: "ORDER",
 					Balances:        []FuturesAccountUpdateBalance{{Asset: currency.BTC, WalletBalance: 1.12345678, CrossWalletBalance: 1.00345678, BalanceChange: 0.02345678}},
 					Positions: []FuturesAccountUpdatePosition{{

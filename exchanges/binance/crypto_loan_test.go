@@ -429,7 +429,7 @@ func TestCryptoLoanIncomeHistory(t *testing.T) {
 	result, err := e.CryptoLoanIncomeHistory(t.Context(), &CryptoLoanIncomeHistoryRequest{Asset: currency.USDT, StartTime: startTime, EndTime: endTime, Limit: 100})
 	require.NoError(t, err, "CryptoLoanIncomeHistory must not error")
 	if mockTests {
-		exp := []CryptoLoanIncome{
+		exp := []CryptoLoanIncomeResponse{
 			{
 				Asset:         currency.USDT,
 				Type:          "borrowIn",

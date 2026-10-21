@@ -12,12 +12,12 @@ import (
 )
 
 // GetAccountList calls Account List, returning the hourly and daily hashrate of a mining account
-func (e *Exchange) GetAccountList(ctx context.Context, algorithm, userName string) ([]MiningAccountHashrate, error) {
+func (e *Exchange) GetAccountList(ctx context.Context, algorithm, userName string) ([]MiningAccountHashrateResponse, error) {
 	params, err := miningAccountParams(algorithm, userName)
 	if err != nil {
 		return nil, err
 	}
-	var resp *MiningResponse[[]MiningAccountHashrate]
+	var resp *MiningResponse[[]MiningAccountHashrateResponse]
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/mining/statistics/user/list", params, sapiDefaultRate, &resp); err != nil {
 		return nil, err
 	}
@@ -25,8 +25,8 @@ func (e *Exchange) GetAccountList(ctx context.Context, algorithm, userName strin
 }
 
 // AcquiringAlgorithm calls Acquiring Algorithm, returning the mining algorithms
-func (e *Exchange) AcquiringAlgorithm(ctx context.Context) ([]MiningAlgorithm, error) {
-	var resp *MiningResponse[[]MiningAlgorithm]
+func (e *Exchange) AcquiringAlgorithm(ctx context.Context) ([]MiningAlgorithmResponse, error) {
+	var resp *MiningResponse[[]MiningAlgorithmResponse]
 	if err := e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/mining/pub/algoList", sapiDefaultRate, &resp); err != nil {
 		return nil, err
 	}
@@ -34,8 +34,8 @@ func (e *Exchange) AcquiringAlgorithm(ctx context.Context) ([]MiningAlgorithm, e
 }
 
 // GetCoinNames calls Acquiring CoinName, returning the mineable coins and their algorithms
-func (e *Exchange) GetCoinNames(ctx context.Context) ([]MiningCoin, error) {
-	var resp *MiningResponse[[]MiningCoin]
+func (e *Exchange) GetCoinNames(ctx context.Context) ([]MiningCoinResponse, error) {
+	var resp *MiningResponse[[]MiningCoinResponse]
 	if err := e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/mining/pub/coinList", sapiDefaultRate, &resp); err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (e *Exchange) GetMiningAccountEarning(ctx context.Context, arg *MiningAccou
 }
 
 // GetDetailMinerList calls Request for Detail Miner List, returning a miner's hashrate history
-func (e *Exchange) GetDetailMinerList(ctx context.Context, algorithm, userName, workerName string) ([]MinerDetail, error) {
+func (e *Exchange) GetDetailMinerList(ctx context.Context, algorithm, userName, workerName string) ([]MinerDetailResponse, error) {
 	params, err := miningAccountParams(algorithm, userName)
 	if err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ func (e *Exchange) GetDetailMinerList(ctx context.Context, algorithm, userName, 
 		return nil, fmt.Errorf("%w: miner name is required", errNameRequired)
 	}
 	params.Set("workerName", workerName)
-	var resp *MiningResponse[[]MinerDetail]
+	var resp *MiningResponse[[]MinerDetailResponse]
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/mining/worker/detail", params, sapiDefaultRate, &resp); err != nil {
 		return nil, err
 	}

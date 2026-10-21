@@ -62,7 +62,7 @@ func TestGetBrokerSubAccounts(t *testing.T) {
 	result, err := e.GetBrokerSubAccounts(t.Context(), "1", 1, 10)
 	require.NoError(t, err, "GetBrokerSubAccounts must not error")
 	if mockTests {
-		exp := []BrokerSubAccount{
+		exp := []BrokerSubAccountResponse{
 			{
 				SubAccountID:          "1",
 				Email:                 "test_brokersubuser@example.com",
@@ -353,7 +353,7 @@ func TestGetSubAccountDepositHistoryWithBroker(t *testing.T) {
 	result, err := e.GetSubAccountDepositHistoryWithBroker(t.Context(), arg)
 	require.NoError(t, err, "GetSubAccountDepositHistoryWithBroker must not error")
 	if mockTests {
-		exp := []BrokerSubAccountDeposit{
+		exp := []BrokerSubAccountDepositResponse{
 			{
 				DepositID:     1234567890123,
 				SubAccountID:  "1",
@@ -570,7 +570,7 @@ func TestGetSpotBrokerSubAccountTransferHistory(t *testing.T) {
 	result, err := e.GetSpotBrokerSubAccountTransferHistory(t.Context(), arg)
 	require.NoError(t, err, "GetSpotBrokerSubAccountTransferHistory must not error")
 	if mockTests {
-		exp := []BrokerSpotTransfer{
+		exp := []BrokerSpotTransferHistoryResponse{
 			{
 				FromID:           "1",
 				ToID:             "2",
@@ -632,7 +632,7 @@ func TestGetUniversalTransferHistoryThroughBroker(t *testing.T) {
 	result, err := e.GetUniversalTransferHistoryThroughBroker(t.Context(), arg)
 	require.NoError(t, err, "GetUniversalTransferHistoryThroughBroker must not error")
 	if mockTests {
-		exp := []BrokerUniversalTransfer{
+		exp := []BrokerUniversalTransferHistoryResponse{
 			{
 				FromID:           "1",
 				ToID:             "444016824578949121",
@@ -696,7 +696,7 @@ func TestGetSubAccountCoinMarginedFuturesCommissionAdjustment(t *testing.T) {
 	result, err := e.GetSubAccountCoinMarginedFuturesCommissionAdjustment(t.Context(), "1", "BTCUSD")
 	require.NoError(t, err, "GetSubAccountCoinMarginedFuturesCommissionAdjustment must not error")
 	if mockTests {
-		exp := []BrokerCoinFuturesCommission{{SubAccountID: 1, Pair: "BTCUSD", MakerCommission: 450, TakerCommission: 550}}
+		exp := []BrokerCoinFuturesCommissionResponse{{SubAccountID: 1, Pair: "BTCUSD", MakerCommission: 450, TakerCommission: 550}}
 		assert.Equal(t, exp, result, "GetSubAccountCoinMarginedFuturesCommissionAdjustment should decode every field")
 		return
 	}
@@ -769,7 +769,7 @@ func TestGetSubAccountUSDTMarginedFuturesCommissionAdjustment(t *testing.T) {
 	result, err := e.GetSubAccountUSDTMarginedFuturesCommissionAdjustment(t.Context(), "1", currency.NewBTCUSDT())
 	require.NoError(t, err, "GetSubAccountUSDTMarginedFuturesCommissionAdjustment must not error")
 	if mockTests {
-		exp := []BrokerUSDTFuturesCommission{{SubAccountID: 1, Symbol: "BTCUSDT", MakerCommission: 450, TakerCommission: 550}}
+		exp := []BrokerUSDTFuturesCommissionResponse{{SubAccountID: 1, Symbol: "BTCUSDT", MakerCommission: 450, TakerCommission: 550}}
 		assert.Equal(t, exp, result, "GetSubAccountUSDTMarginedFuturesCommissionAdjustment should decode every field")
 		return
 	}
@@ -817,7 +817,7 @@ func TestGetSpotBrokerCommissionRebateRecentRecord(t *testing.T) {
 	result, err := e.GetSpotBrokerCommissionRebateRecentRecord(t.Context(), arg)
 	require.NoError(t, err, "GetSpotBrokerCommissionRebateRecentRecord must not error")
 	if mockTests {
-		exp := []BrokerCommissionRebate{
+		exp := []BrokerCommissionRebateResponse{
 			{
 				SubAccountID: "1",
 				Income:       0.02063898,
@@ -853,7 +853,7 @@ func TestGetFuturesBrokerCommissionRebateRecentRecord(t *testing.T) {
 	result, err := e.GetFuturesBrokerCommissionRebateRecentRecord(t.Context(), arg)
 	require.NoError(t, err, "GetFuturesBrokerCommissionRebateRecentRecord must not error")
 	if mockTests {
-		exp := []BrokerCommissionRebate{
+		exp := []BrokerCommissionRebateResponse{
 			{
 				SubAccountID: "1",
 				Income:       0.02063898,

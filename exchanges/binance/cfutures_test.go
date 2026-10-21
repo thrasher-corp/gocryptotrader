@@ -260,7 +260,7 @@ func TestGetFuturesAggregatedTradesList(t *testing.T) {
 	result, err := e.GetFuturesAggregatedTradesList(t.Context(), &CFuturesAggregatedTradesRequest{Symbol: coinmTradablePair, Limit: 5, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetFuturesAggregatedTradesList must not error")
 	if mockTests {
-		exp := []CFuturesAggregatedTrade{
+		exp := []CFuturesAggregatedTradeResponse{
 			{
 				AggregateTradeID: 499297222,
 				Price:            86060.2,
@@ -311,7 +311,7 @@ func TestGetContinuousKlineData(t *testing.T) {
 	result, err := e.GetContinuousKlineData(t.Context(), &CFuturesContinuousKlineRequest{Pair: currency.NewCode("BTCUSD"), ContractType: "CURRENT_QUARTER", Interval: kline.OneHour, StartTime: startTime, EndTime: endTime, Limit: 5})
 	require.NoError(t, err, "GetContinuousKlineData must not error")
 	if mockTests {
-		exp := []CFuturesCandleStick{
+		exp := []CFuturesCandleStickResponse{
 			{
 				OpenTime:                types.Time(time.Unix(1744106400, 0)),
 				Open:                    79836.5,
@@ -354,18 +354,18 @@ func TestFuturesExchangeInfo(t *testing.T) {
 			ExchangeFilters: []string{
 				"EXCHANGE_MAX_NUM_ORDERS",
 			},
-			RateLimits: []RateLimitInfo{
+			RateLimits: []RateLimitInfoResponse{
 				{
-					RateLimitType: "REQUEST_WEIGHT",
-					Interval:      "MINUTE",
-					IntervalNum:   1,
-					Limit:         2400,
+					RateLimitType:  "REQUEST_WEIGHT",
+					Interval:       "MINUTE",
+					IntervalNumber: 1,
+					Limit:          2400,
 				},
 				{
-					RateLimitType: "ORDERS",
-					Interval:      "MINUTE",
-					IntervalNum:   1,
-					Limit:         1200,
+					RateLimitType:  "ORDERS",
+					Interval:       "MINUTE",
+					IntervalNumber: 1,
+					Limit:          1200,
 				},
 			},
 			ServerTime: types.Time(time.UnixMilli(1791278101111)),
@@ -551,7 +551,7 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 	result, err := e.FuturesGetFundingHistory(t.Context(), &CFuturesFundingRateHistoryRequest{Symbol: coinmTradablePair, Limit: 5, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "FuturesGetFundingHistory must not error")
 	if mockTests {
-		exp := []CFuturesFundingRateHistory{
+		exp := []CFuturesFundingRateHistoryResponse{
 			{
 				Symbol:      "BTCUSD_PERP",
 				FundingTime: types.Time(time.Unix(1744128000, 0)),
@@ -578,7 +578,7 @@ func TestGetFundingRateInfo(t *testing.T) {
 	result, err := e.GetFundingRateInfo(t.Context())
 	require.NoError(t, err, "GetFundingRateInfo must not error")
 	if mockTests {
-		exp := []CFuturesFundingRateInfo{
+		exp := []CFuturesFundingRateInfoResponse{
 			{
 				Symbol:                   "BTCUSD_PERP",
 				AdjustedFundingRateCap:   0.025,
@@ -650,7 +650,7 @@ func TestGetIndexPriceKlines(t *testing.T) {
 	result, err := e.GetIndexPriceKlines(t.Context(), &CFuturesIndexPriceKlineRequest{Pair: currency.NewCode("BTCUSD"), Interval: kline.OneHour, StartTime: startTime, EndTime: endTime, Limit: 5})
 	require.NoError(t, err, "GetIndexPriceKlines must not error")
 	if mockTests {
-		exp := []CFuturesPriceCandleStick{
+		exp := []CFuturesPriceCandleStickResponse{
 			{
 				OpenTime:          types.Time(time.Unix(1744106400, 0)),
 				Open:              78885.27746235,
@@ -698,7 +698,7 @@ func TestGetFuturesKlineData(t *testing.T) {
 	result, err := e.GetFuturesKlineData(t.Context(), req)
 	require.NoError(t, err, "GetFuturesKlineData must not error")
 	if mockTests {
-		exp := []CFuturesCandleStick{
+		exp := []CFuturesCandleStickResponse{
 			{
 				OpenTime:                types.Time(time.Unix(1744106400, 0)),
 				Open:                    78844,
@@ -784,7 +784,7 @@ func TestGetMarkPriceKline(t *testing.T) {
 	result, err := e.GetMarkPriceKline(t.Context(), req)
 	require.NoError(t, err, "GetMarkPriceKline must not error")
 	if mockTests {
-		exp := []CFuturesPriceCandleStick{
+		exp := []CFuturesPriceCandleStickResponse{
 			{
 				OpenTime:          types.Time(time.Unix(1744106400, 0)),
 				Open:              78844.32274145,
@@ -957,7 +957,7 @@ func TestGetPremiumIndexKlineData(t *testing.T) {
 	result, err := e.GetPremiumIndexKlineData(t.Context(), req)
 	require.NoError(t, err, "GetPremiumIndexKlineData must not error")
 	if mockTests {
-		exp := []CFuturesPremiumIndexCandleStick{
+		exp := []CFuturesPremiumIndexCandleStickResponse{
 			{
 				OpenTime:  types.Time(time.Unix(1744106400, 0)),
 				Open:      -0.00052326,
@@ -1196,9 +1196,9 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
-		exp    []CFuturesPriceChangeStats
+		exp    []CFuturesPriceChangeStatsResponse
 	}{
-		{"symbol", coinmTradablePair, []CFuturesPriceChangeStats{
+		{"symbol", coinmTradablePair, []CFuturesPriceChangeStatsResponse{
 			{
 				Symbol:               "BTCUSD_PERP",
 				Pair:                 "BTCUSD",
@@ -1219,7 +1219,7 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 				Count:                161590,
 			},
 		}},
-		{"every symbol", currency.EMPTYPAIR, []CFuturesPriceChangeStats{
+		{"every symbol", currency.EMPTYPAIR, []CFuturesPriceChangeStatsResponse{
 			{
 				Symbol:               "BTCUSD_PERP",
 				Pair:                 "BTCUSD",
@@ -1609,7 +1609,7 @@ func TestFuturesOrderParams(t *testing.T) {
 		CallbackRate:            0.3,
 		WorkingType:             "MARK_PRICE",
 		PriceProtect:            true,
-		NewOrderRespType:        "RESULT",
+		NewOrderResponseType:    "RESULT",
 		PriceMatch:              "OPPONENT",
 		SelfTradePreventionMode: "EXPIRE_BOTH",
 	})
@@ -1713,7 +1713,7 @@ func TestFuturesBatchOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "FuturesBatchOrder must not error")
 	if mockTests {
-		exp := []CFuturesBatchOrderData{
+		exp := []CFuturesBatchOrderResponse{
 			{
 				ClientOrderID:           "testOrder1",
 				CumulativeQuantity:      1,
@@ -1766,7 +1766,7 @@ func TestFuturesBatchCancelOrders(t *testing.T) {
 	result, err := e.FuturesBatchCancelOrders(t.Context(), coinmTradablePair, []uint64{283194212}, []string{"myOrder2"})
 	require.NoError(t, err, "FuturesBatchCancelOrders must not error")
 	if mockTests {
-		exp := []CFuturesBatchOrderData{
+		exp := []CFuturesBatchOrderResponse{
 			{
 				ClientOrderID:           "myOrder1",
 				CumulativeQuantity:      4,
@@ -2100,12 +2100,12 @@ func TestFuturesAlgoOrders(t *testing.T) {
 	assert.Equal(t, &UAlgoOrderResponse{UAlgoOrderBase: base}, queried, "FuturesQueryAlgoOrder should decode the algo order")
 	open, err := ex.FuturesCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", pair, 0)
 	require.NoError(t, err, "FuturesCurrentAllAlgoOpenOrders must not error")
-	assert.Equal(t, []UAlgoOrder{{UAlgoOrderBase: base}}, open, "FuturesCurrentAllAlgoOpenOrders should decode the open algo orders")
+	assert.Equal(t, []UAlgoOrderResponse{{UAlgoOrderBase: base}}, open, "FuturesCurrentAllAlgoOpenOrders should decode the open algo orders")
 	_, err = ex.FuturesCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
 	require.NoError(t, err, "FuturesCurrentAllAlgoOpenOrders must list every symbol's open algo orders")
 	history, err := ex.FuturesQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{Symbol: pair, StartTime: time.UnixMilli(1744103854944), EndTime: time.UnixMilli(1744190254944), Limit: 100})
 	require.NoError(t, err, "FuturesQueryAllAlgoOrders must not error")
-	assert.Equal(t, []UAlgoOrder{{UAlgoOrderBase: base}}, history, "FuturesQueryAllAlgoOrders should decode the algo orders")
+	assert.Equal(t, []UAlgoOrderResponse{{UAlgoOrderBase: base}}, history, "FuturesQueryAllAlgoOrders should decode the algo orders")
 	cancelled, err := ex.FuturesCancelAlgoOrder(t.Context(), 0, "gct-cm-stop")
 	require.NoError(t, err, "FuturesCancelAlgoOrder must not error")
 	assert.Equal(t, &UCancelAlgoOrderResponse{AlgoID: 3100001, ClientAlgoID: "gct-cm-stop", Code: 200, Message: "success"}, cancelled, "FuturesCancelAlgoOrder should decode the cancellation")
@@ -2196,7 +2196,7 @@ func TestGetFuturesOrderModifyHistory(t *testing.T) {
 	result, err := e.GetFuturesOrderModifyHistory(t.Context(), &CFuturesOrderModifyHistoryRequest{Symbol: coinmTradablePair, OrderID: 20072994037, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetFuturesOrderModifyHistory must not error")
 	if mockTests {
-		exp := []FuturesOrderAmendment{
+		exp := []FuturesOrderAmendmentResponse{
 			{
 				AmendmentID:   5363,
 				Symbol:        "BTCUSD_PERP",
@@ -2459,7 +2459,7 @@ func TestCFuturesQuarterlyContractSettlementPrice(t *testing.T) {
 	result, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), currency.NewCode("BTCUSD"))
 	require.NoError(t, err, "CFuturesQuarterlyContractSettlementPrice must not error")
 	if mockTests {
-		exp := []SettlementPrice{
+		exp := []SettlementPriceResponse{
 			{
 				DeliveryTime:  types.Time(time.Unix(1782432000, 0)),
 				DeliveryPrice: 60510.3,

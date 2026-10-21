@@ -24,8 +24,8 @@ type EnableOptionsForSubAccountResponse struct {
 	IsEOptionsEnabled bool   `json:"isEOptionsEnabled"`
 }
 
-// SubAccountFuturesPositionRisk holds a USDⓈ-M futures position of a sub-account
-type SubAccountFuturesPositionRisk struct {
+// SubAccountFuturesPositionRiskResponse holds a USDⓈ-M futures position of a sub-account
+type SubAccountFuturesPositionRiskResponse struct {
 	EntryPrice       types.Number `json:"entryPrice"`
 	Leverage         types.Number `json:"leverage"`
 	MaxNotional      types.Number `json:"maxNotional"`
@@ -39,8 +39,8 @@ type SubAccountFuturesPositionRisk struct {
 // SubAccountFuturesPositionRiskV2Response holds a sub-account's futures positions; which list is set depends on the
 // futures type queried
 type SubAccountFuturesPositionRiskV2Response struct {
-	FuturePositionRiskVos   []SubAccountFuturesPositionRisk  `json:"futurePositionRiskVos"`
-	DeliveryPositionRiskVos []SubAccountDeliveryPositionRisk `json:"deliveryPositionRiskVos"`
+	FuturePositionRiskVos   []SubAccountFuturesPositionRiskResponse `json:"futurePositionRiskVos"`
+	DeliveryPositionRiskVos []SubAccountDeliveryPositionRisk        `json:"deliveryPositionRiskVos"`
 }
 
 // SubAccountDeliveryPositionRisk holds a COIN-M futures position of a sub-account
@@ -58,8 +58,8 @@ type SubAccountDeliveryPositionRisk struct {
 	UnrealisedProfit types.Number  `json:"unrealizedProfit"`
 }
 
-// SubAccountStatus holds a sub-account's margin and futures status
-type SubAccountStatus struct {
+// SubAccountStatusResponse holds a sub-account's margin and futures status
+type SubAccountStatusResponse struct {
 	Email            string     `json:"email"`
 	IsSubUserEnabled bool       `json:"isSubUserEnabled"`
 	IsUserActive     bool       `json:"isUserActive"`
@@ -272,8 +272,8 @@ type SubAccountDepositHistoryRequest struct {
 	TxID          string
 }
 
-// SubAccountDepositRecord holds one deposit of a sub-account
-type SubAccountDepositRecord struct {
+// SubAccountDepositRecordResponse holds one deposit of a sub-account
+type SubAccountDepositRecordResponse struct {
 	ID            string        `json:"id"`
 	Amount        types.Number  `json:"amount"`
 	Coin          currency.Code `json:"coin"`
@@ -439,8 +439,8 @@ type SubAccountSpotAssetTransferHistoryRequest struct {
 	Limit     uint64 // Up to 200
 }
 
-// SubAccountSpotAssetTransfer holds one spot asset transfer between the master account and sub-accounts
-type SubAccountSpotAssetTransfer struct {
+// SubAccountSpotAssetTransferResponse holds one spot asset transfer between the master account and sub-accounts
+type SubAccountSpotAssetTransferResponse struct {
 	From          string        `json:"from"`
 	To            string        `json:"to"`
 	Asset         currency.Code `json:"asset"`
@@ -510,8 +510,8 @@ type SubAccountTransferHistoryRequest struct {
 	ReturnFailHistory bool   // Includes failed transfers
 }
 
-// SubAccountTransferHistoryRecord holds one transfer of a sub-account
-type SubAccountTransferHistoryRecord struct {
+// SubAccountTransferHistoryRecordResponse holds one transfer of a sub-account
+type SubAccountTransferHistoryRecordResponse struct {
 	CounterParty    string        `json:"counterParty"`
 	Email           string        `json:"email"`
 	Type            uint64        `json:"type"` // 1 transfer in, 2 transfer out
@@ -529,8 +529,8 @@ type ManagedSubAccountTransferResponse struct {
 	TransactionID uint64 `json:"tranId"`
 }
 
-// ManagedSubAccountAsset holds a managed sub-account's balance of one asset
-type ManagedSubAccountAsset struct {
+// ManagedSubAccountAssetResponse holds a managed sub-account's balance of one asset
+type ManagedSubAccountAssetResponse struct {
 	Coin             currency.Code `json:"coin"`
 	Name             string        `json:"name"`
 	TotalBalance     types.Number  `json:"totalBalance"`

@@ -268,7 +268,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, req *KlinesRequest) ([]Cand
 
 // GetTickerData returns rolling window price change statistics. The window's open time starts on a minute while its
 // close time is the time of the request, so the window can be up to 59999ms wider than the requested WindowSize
-func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRequest) ([]TickerStatistics, error) {
+func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRequest) ([]TickerStatisticsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRe
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", req.SymbolStatus)
 	}
-	var resp objectOrArray[TickerStatistics]
+	var resp objectOrArray[TickerStatisticsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker", params), spotTickerSymbolsLimit(len(req.Symbols)), &resp)
 }
 
@@ -318,7 +318,7 @@ func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStat
 
 // GetBestPrice returns the symbol order book ticker: the best bid and ask price and quantity of each symbol, or of
 // every symbol when none are given
-func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]BookTicker, error) {
+func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]BookTickerResponse, error) {
 	params := url.Values{}
 	if err := e.setSymbolParams(params, symbols); err != nil {
 		return nil, err
@@ -330,7 +330,7 @@ func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, sym
 	if len(symbols) == 1 {
 		rateLimit = spotBookTickerRate
 	}
-	var resp objectOrArray[BookTicker]
+	var resp objectOrArray[BookTickerResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/bookTicker", params), rateLimit, &resp)
 }
 
@@ -353,7 +353,7 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pair
 }
 
 // GetTradingDayTicker returns the price change statistics of the current trading day for each symbol
-func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTickerRequest) ([]TickerStatistics, error) {
+func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTickerRequest) ([]TickerStatisticsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTicke
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", req.SymbolStatus)
 	}
-	var resp objectOrArray[TickerStatistics]
+	var resp objectOrArray[TickerStatisticsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/tradingDay", params), spotTickerSymbolsLimit(len(req.Symbols)), &resp)
 }
 
@@ -449,7 +449,7 @@ func (e *Exchange) setSymbolParams(params url.Values, pairs currency.Pairs) erro
 }
 
 // CancelAllOpenOrderOnSymbol cancels all open orders on a symbol, including orders that are part of an order list
-func (e *Exchange) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol currency.Pair) ([]CancelledOpenOrder, error) {
+func (e *Exchange) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol currency.Pair) ([]CancelledOpenOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -459,7 +459,7 @@ func (e *Exchange) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol curren
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	var resp []CancelledOpenOrder
+	var resp []CancelledOpenOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/openOrders", params, spotCancelRate, &resp)
 }
 
@@ -1048,7 +1048,7 @@ func (e *Exchange) GetOCOOrders(ctx context.Context, orderListID uint64, origCli
 }
 
 // GetAllocations queries the allocations resulting from orders placed using smart order routing (SOR)
-func (e *Exchange) GetAllocations(ctx context.Context, req *AllocationsRequest) ([]Allocation, error) {
+func (e *Exchange) GetAllocations(ctx context.Context, req *AllocationsRequest) ([]AllocationResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -1081,13 +1081,13 @@ func (e *Exchange) GetAllocations(ctx context.Context, req *AllocationsRequest) 
 	if req.OrderID != 0 {
 		params.Set("orderId", strconv.FormatUint(req.OrderID, 10))
 	}
-	var resp []Allocation
+	var resp []AllocationResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/myAllocations", params, getAllocationsRate, &resp)
 }
 
 // GetPreventedMatches queries the orders that expired because of self-trade prevention (STP), by preventedMatchID or
 // by orderID
-func (e *Exchange) GetPreventedMatches(ctx context.Context, req *PreventedMatchesRequest) ([]PreventedMatch, error) {
+func (e *Exchange) GetPreventedMatches(ctx context.Context, req *PreventedMatchesRequest) ([]PreventedMatchResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -1117,12 +1117,12 @@ func (e *Exchange) GetPreventedMatches(ctx context.Context, req *PreventedMatche
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []PreventedMatch
+	var resp []PreventedMatchResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/myPreventedMatches", params, rateLimit, &resp)
 }
 
 // GetAccountTradeList returns the account's trades on a symbol
-func (e *Exchange) GetAccountTradeList(ctx context.Context, req *AccountTradeListRequest) ([]AccountTrade, error) {
+func (e *Exchange) GetAccountTradeList(ctx context.Context, req *AccountTradeListRequest) ([]AccountTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -1155,7 +1155,7 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, req *AccountTradeLis
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []AccountTrade
+	var resp []AccountTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/myTrades", params, spotAccountTradeListLimit(req.OrderID), &resp)
 }
 
@@ -1166,8 +1166,8 @@ func (e *Exchange) GetOpenOCOList(ctx context.Context) ([]OCOOrderResponse, erro
 }
 
 // GetCurrentOrderCountUsage queries the account's unfilled order count for every interval
-func (e *Exchange) GetCurrentOrderCountUsage(ctx context.Context) ([]RateLimitItem, error) {
-	var resp []RateLimitItem
+func (e *Exchange) GetCurrentOrderCountUsage(ctx context.Context) ([]RateLimitItemResponse, error) {
+	var resp []RateLimitItemResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/rateLimit/order", nil, currentOrderCountUsageRate, &resp)
 }
 
@@ -1304,7 +1304,7 @@ func checkErrorResponse(raw json.RawMessage) error {
 		return nil
 	}
 	// A body that does not decode as an error object is left for the caller's decoding to report
-	var resp ErrResponse
+	var resp *ErrResponse
 	if json.Unmarshal(raw, &resp) == nil && resp.Code.Int64() < 0 {
 		return &APIError{Code: resp.Code.Int64(), Message: resp.Message, Data: resp.Data}
 	}

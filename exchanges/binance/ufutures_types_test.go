@@ -11,38 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestAssetIndexResponseUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	index := AssetIndex{
-		Symbol:                "BTCUSD",
-		Time:                  types.Time(time.UnixMilli(1791283500001)),
-		Index:                 86168.37311999,
-		BidBuffer:             0.05,
-		AskBuffer:             0.05,
-		BidRate:               81859.95446399,
-		AskRate:               90476.79177599,
-		AutoExchangeBidBuffer: 0.025,
-		AutoExchangeAskBuffer: 0.025,
-		AutoExchangeBidRate:   84014.16379199,
-		AutoExchangeAskRate:   88322.58244799,
-	}
-	const object = `{"symbol":"BTCUSD","time":1791283500001,"index":"86168.37311999","bidBuffer":"0.05000000","askBuffer":"0.05000000","bidRate":"81859.95446399","askRate":"90476.79177599","autoExchangeBidBuffer":"0.02500000","autoExchangeAskBuffer":"0.02500000","autoExchangeBidRate":"84014.16379199","autoExchangeAskRate":"88322.58244799"}`
-	var got AssetIndexResponse
-	require.NoError(t, json.Unmarshal([]byte(object), &got), "Unmarshal must not error for an object")
-	assert.Equal(t, AssetIndexResponse{index}, got, "AssetIndexResponse should decode a single object into one element")
-
-	got = nil
-	require.NoError(t, json.Unmarshal([]byte("["+object+","+object+"]"), &got), "Unmarshal must not error for an array")
-	assert.Equal(t, AssetIndexResponse{index, index}, got, "AssetIndexResponse should decode an array")
-
-	assert.Error(t, json.Unmarshal([]byte(`"oops"`), &got), "AssetIndexResponse should reject a value that is neither an object nor an array")
-}
-
 func TestUKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got UKline
+	var got UKlineResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1744156800000,"76298.00","83554.90","74578.50","82588.00","560649.862",1744243199999,"44072322884.09750",8799174,"279060.371","21941548090.15170","0"]`), &got), "Unmarshal must not error")
-	exp := UKline{
+	exp := UKlineResponse{
 		OpenTime:                 types.Time(time.UnixMilli(1744156800000)),
 		Open:                     76298,
 		High:                     83554.9,
@@ -55,16 +28,16 @@ func TestUKlineUnmarshalJSON(t *testing.T) {
 		TakerBuyBaseAssetVolume:  279060.371,
 		TakerBuyQuoteAssetVolume: 21941548090.1517,
 	}
-	assert.Equal(t, exp, got, "UKline should decode every element")
-	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UKline should reject an object")
-	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UKline should reject an invalid element")
+	assert.Equal(t, exp, got, "UKlineResponse should decode every element")
+	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UKlineResponse should reject an object")
+	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UKlineResponse should reject an invalid element")
 }
 
 func TestUPriceKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got UPriceKline
+	var got UPriceKlineResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1744156800000,"76322.96800000","83567.47466667","74626.60222222","82611.44511111","0",1744243199999,"0",86399,"0","0","0"]`), &got), "Unmarshal must not error")
-	exp := UPriceKline{
+	exp := UPriceKlineResponse{
 		OpenTime:  types.Time(time.UnixMilli(1744156800000)),
 		Open:      76322.968,
 		High:      83567.47466667,
@@ -72,9 +45,9 @@ func TestUPriceKlineUnmarshalJSON(t *testing.T) {
 		Close:     82611.44511111,
 		CloseTime: types.Time(time.UnixMilli(1744243199999)),
 	}
-	assert.Equal(t, exp, got, "UPriceKline should decode the price and time elements")
-	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UPriceKline should reject an object")
-	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UPriceKline should reject an invalid element")
+	assert.Equal(t, exp, got, "UPriceKlineResponse should decode the price and time elements")
+	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UPriceKlineResponse should reject an object")
+	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UPriceKlineResponse should reject an invalid element")
 }
 
 func TestUDownloadLinkResponseUnmarshal(t *testing.T) {
@@ -238,7 +211,7 @@ func TestUFuturesOrderDataUnmarshal(t *testing.T) {
 
 func TestUAccountBalanceUnmarshal(t *testing.T) {
 	t.Parallel()
-	want := UAccountBalance{
+	want := UAccountBalanceResponse{
 		AccountAlias:       "test-account",
 		Asset:              currency.USDT,
 		Balance:            125.5,
@@ -250,7 +223,7 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		input string
-		want  UAccountBalance
+		want  UAccountBalanceResponse
 	}{
 		{
 			name: "quoted numbers",
@@ -295,7 +268,7 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
     "maxWithdrawAmount": ""
   }
 ]`,
-			want: UAccountBalance{
+			want: UAccountBalanceResponse{
 				AccountAlias: "test-account",
 				Asset:        currency.USDT,
 			},
@@ -303,9 +276,9 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var got []UAccountBalance
+			var got []UAccountBalanceResponse
 			require.NoError(t, json.Unmarshal([]byte(tc.input), &got), "Unmarshal must not error")
-			assert.Equal(t, []UAccountBalance{tc.want}, got, "UAccountBalance should decode every field")
+			assert.Equal(t, []UAccountBalanceResponse{tc.want}, got, "UAccountBalanceResponse should decode every field")
 		})
 	}
 }

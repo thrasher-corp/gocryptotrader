@@ -194,7 +194,7 @@ func TestGetCrossOrIsolatedMarginCapitalFlow(t *testing.T) {
 	})
 	require.NoError(t, err, "GetCrossOrIsolatedMarginCapitalFlow must not error")
 	if mockTests {
-		exp := []MarginCapitalFlow{
+		exp := []MarginCapitalFlowResponse{
 			{
 				ID:            123456,
 				TransactionID: 123123,
@@ -271,7 +271,7 @@ func TestGetCrossMarginFeeData(t *testing.T) {
 	result, err := e.GetCrossMarginFeeData(t.Context(), nil, currency.BTC)
 	require.NoError(t, err, "GetCrossMarginFeeData must not error")
 	if mockTests {
-		exp := []CrossMarginFeeData{
+		exp := []CrossMarginFeeResponse{
 			{
 				VIPLevel:       1,
 				Coin:           currency.BTC,
@@ -320,7 +320,7 @@ func TestGetIsolatedMarginFeeData(t *testing.T) {
 	result, err := e.GetIsolatedMarginFeeData(t.Context(), new(uint64(1)), currency.NewBTCUSDT())
 	require.NoError(t, err, "GetIsolatedMarginFeeData must not error")
 	if mockTests {
-		exp := []IsolatedMarginFeeData{
+		exp := []IsolatedMarginFeeResponse{
 			{
 				VIPLevel: 1,
 				Symbol:   "BTCUSDT",
@@ -356,7 +356,7 @@ func TestGetFutureHourlyInterestRate(t *testing.T) {
 	result, err := e.GetFutureHourlyInterestRate(t.Context(), []currency.Code{currency.BTC, currency.ETH}, true)
 	require.NoError(t, err, "GetFutureHourlyInterestRate must not error")
 	if mockTests {
-		exp := []HourlyInterestRate{
+		exp := []HourlyInterestRateResponse{
 			{
 				Asset:                  currency.BTC,
 				NextHourlyInterestRate: 0.00000571,
@@ -586,7 +586,7 @@ func TestGetMarginInterestRateHistory(t *testing.T) {
 	result, err := e.GetMarginInterestRateHistory(t.Context(), &MarginInterestRateHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetMarginInterestRateHistory must not error")
 	if mockTests {
-		exp := []MarginInterestRate{
+		exp := []MarginInterestRateResponse{
 			{
 				Asset:             currency.ETH,
 				DailyInterestRate: 0.00025,
@@ -629,7 +629,7 @@ func TestGetCrossMarginCollateralRatio(t *testing.T) {
 	result, err := e.GetCrossMarginCollateralRatio(t.Context())
 	require.NoError(t, err, "GetCrossMarginCollateralRatio must not error")
 	if mockTests {
-		exp := []CrossMarginCollateralRatio{
+		exp := []CrossMarginCollateralRatioResponse{
 			{
 				Collaterals: []CrossMarginCollateral{
 					{
@@ -661,7 +661,7 @@ func TestGetAllCrossMarginPairs(t *testing.T) {
 	result, err := e.GetAllCrossMarginPairs(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "GetAllCrossMarginPairs must not error")
 	if mockTests {
-		exp := []CrossMarginPair{
+		exp := []CrossMarginPairResponse{
 			{
 				Base:          currency.BTC,
 				ID:            351637150141315840,
@@ -687,7 +687,7 @@ func TestGetAllIsolatedMarginSymbols(t *testing.T) {
 	result, err := e.GetAllIsolatedMarginSymbols(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetAllIsolatedMarginSymbols must not error")
 	if mockTests {
-		exp := []IsolatedMarginSymbol{
+		exp := []IsolatedMarginSymbolResponse{
 			{
 				Base:          currency.BNB,
 				IsBuyAllowed:  true,
@@ -719,7 +719,7 @@ func TestGetAllMarginAssets(t *testing.T) {
 	result, err := e.GetAllMarginAssets(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetAllMarginAssets must not error")
 	if mockTests {
-		exp := []MarginAssetInfo{
+		exp := []MarginAssetInfoResponse{
 			{
 				AssetFullName:  "Bitcoin",
 				AssetName:      currency.BTC,
@@ -744,7 +744,7 @@ func TestGetTokensOrSymbolsDelistSchedule(t *testing.T) {
 	result, err := e.GetTokensOrSymbolsDelistSchedule(t.Context())
 	require.NoError(t, err, "GetTokensOrSymbolsDelistSchedule must not error")
 	if mockTests {
-		exp := []MarginDelistSchedule{
+		exp := []MarginDelistScheduleResponse{
 			{
 				DelistTime: types.Time(time.UnixMilli(1759276800000)),
 				CrossMarginAssets: []currency.Code{
@@ -774,7 +774,7 @@ func TestGetIsolatedMarginTierData(t *testing.T) {
 	result, err := e.GetIsolatedMarginTierData(t.Context(), currency.NewBTCUSDT(), 10)
 	require.NoError(t, err, "GetIsolatedMarginTierData must not error")
 	if mockTests {
-		exp := []IsolatedMarginTier{
+		exp := []IsolatedMarginTierResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				Tier:                    10,
@@ -882,7 +882,7 @@ func TestGetSmallLiabilityExchangeCoinList(t *testing.T) {
 	result, err := e.GetSmallLiabilityExchangeCoinList(t.Context())
 	require.NoError(t, err, "GetSmallLiabilityExchangeCoinList must not error")
 	if mockTests {
-		exp := []SmallLiabilityExchangeCoin{
+		exp := []SmallLiabilityExchangeCoinResponse{
 			{
 				Asset:             currency.ETH,
 				Interest:          0.00083334,
@@ -996,7 +996,7 @@ func TestCancelAllOpenMarginAccountOrdersOnSymbol(t *testing.T) {
 	result, err := e.CancelAllOpenMarginAccountOrdersOnSymbol(t.Context(), currency.NewBTCUSDT(), true)
 	require.NoError(t, err, "CancelAllOpenMarginAccountOrdersOnSymbol must not error")
 	if mockTests {
-		exp := []MarginCancelledOrder{
+		exp := []MarginCancelledOrderResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				IsIsolated:              true,
@@ -1489,7 +1489,7 @@ func TestGetCurrentMarginOrderCountUsage(t *testing.T) {
 	result, err := e.GetCurrentMarginOrderCountUsage(t.Context(), currency.NewBTCUSDT(), true)
 	require.NoError(t, err, "GetCurrentMarginOrderCountUsage must not error")
 	if mockTests {
-		exp := []MarginOrderCountUsage{
+		exp := []MarginOrderCountUsageResponse{
 			{
 				RateLimitType:  "ORDERS",
 				Interval:       "SECOND",
@@ -1679,7 +1679,7 @@ func TestGetMarginAccountTradeList(t *testing.T) {
 	result, err := e.GetMarginAccountTradeList(t.Context(), &MarginAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), IsIsolated: true, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetMarginAccountTradeList must not error")
 	if mockTests {
-		exp := []MarginAccountTrade{
+		exp := []MarginAccountTradeResponse{
 			{
 				Commission:      0.0000005,
 				CommissionAsset: currency.BTC,

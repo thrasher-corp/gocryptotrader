@@ -49,7 +49,7 @@ func TestGenerateOptionsSubscriptions(t *testing.T) {
 	}
 }
 
-func TestWsHandleOptionsData(t *testing.T) {
+func TestWebsocketHandleOptionsData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
@@ -90,7 +90,7 @@ func TestWsHandleOptionsData(t *testing.T) {
 			OptionType: "CALL", StrikePrice: 90000, DeliveryDateTime: fixtureTime(1798012800000), Unit: 1, OnboardDateTime: fixtureTime(1791283200000),
 			ContractStatus: "TRADING",
 		},
-		[]WsOptionsOpenInterest{{
+		[]WebsocketOptionsOpenInterest{{
 			EventType: "openInterest", EventTime: fixtureTime(1791283200045), Symbol: "BTC-261030-85000-C", OpenInterest: 1580.87, OpenInterestUSDT: 136129592.178168204,
 		}},
 	}
@@ -163,7 +163,7 @@ func TestHandleOptionsErrors(t *testing.T) {
 	assert.Empty(t, relayedPayloads(ex), "nothing should be relayed for rejected or disabled frames")
 }
 
-func TestWsHandleOptionsUserData(t *testing.T) {
+func TestWebsocketHandleOptionsUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	for _, frame := range fixtureFrames(t, "testdata/wsOptionsUserData.json") {
@@ -304,8 +304,8 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "trade", fixture: "testdata/wsOptions.json", key: "btcusdt@optionTrade", target: new(WsOptionsTrade),
-			exp: &WsOptionsTrade{
+			name: "trade", fixture: "testdata/wsOptions.json", key: "btcusdt@optionTrade", target: new(WebsocketOptionsTrade),
+			exp: &WebsocketOptionsTrade{
 				EventType: "trade", EventTime: fixtureTime(1791283461747), TradeCompletedTime: fixtureTime(1791283461746), Symbol: "BTC-261030-85000-C",
 				TradeID: 467, Price: 3660, Quantity: 1, TradeType: "MARKET", Direction: "BUY", IsBuyerMaker: true,
 			},
@@ -314,7 +314,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			name: "kline", fixture: "testdata/wsOptions.json", key: "btc-261030-85000-c@kline_1m", target: new(OptionsKline),
 			exp: &OptionsKline{
 				EventType: "kline", EventTime: fixtureTime(1791283502013), Symbol: "BTC-261030-85000-C",
-				Kline: OptionsKlineData{
+				Kline: OptionsCandle{
 					StartTime: fixtureTime(1791283440000), EndTime: fixtureTime(1791283499999), Symbol: "BTC-261030-85000-C", CandlePeriod: "1m",
 					FirstTradeID: -1, LastTradeID: -1, Open: 3610, Close: 3615, High: 3620, Low: 3605, Volume: 1.2, NumberOfTrades: 2, IsCompleted: true,
 					CompletedTradeAmount: 4335, TakerCompletedTradeVolume: 0.8, TakerTradeAmount: 2892,

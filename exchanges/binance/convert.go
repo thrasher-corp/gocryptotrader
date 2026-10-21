@@ -20,7 +20,7 @@ var errExactlyOneAmountRequired = errors.New("exactly one of the two amounts is 
 
 // GetAllConvertPairs calls List All Convert Pairs, returning the convertible pairs and their limits; at least one of
 // fromAsset and toAsset is required, and with only one the API returns just the pairs that asset is part of
-func (e *Exchange) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPair, error) {
+func (e *Exchange) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPairResponse, error) {
 	if fromAsset.IsEmpty() && toAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: fromAsset or toAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -31,13 +31,13 @@ func (e *Exchange) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset cu
 	if !toAsset.IsEmpty() {
 		params.Set("toAsset", toAsset.Upper().String())
 	}
-	var resp []ConvertPair
+	var resp []ConvertPairResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/sapi/v1/convert/exchangeInfo", params), getAllConvertPairsRate, &resp)
 }
 
 // GetOrderQuantityPrecisionPerAsset calls Query order quantity precision per asset
-func (e *Exchange) GetOrderQuantityPrecisionPerAsset(ctx context.Context) ([]OrderQuantityPrecision, error) {
-	var resp []OrderQuantityPrecision
+func (e *Exchange) GetOrderQuantityPrecisionPerAsset(ctx context.Context) ([]OrderQuantityPrecisionResponse, error) {
+	var resp []OrderQuantityPrecisionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/convert/assetInfo", nil, getOrderQuantityPrecisionPerAssetRate, &resp)
 }
 

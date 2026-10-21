@@ -56,11 +56,11 @@ var (
 func mostTradedOption(t *testing.T) currency.Pair {
 	t.Helper()
 	mostTradedOptionOnce.Do(func() {
-		tickers, err := e.GetEOptions24hrTickerPriceChangeStatistics(t.Context(), currency.EMPTYPAIR)
+		tickers, err := e.GetEOptions24HourTickerPriceChangeStatistics(t.Context(), currency.EMPTYPAIR)
 		if err != nil || len(tickers) == 0 {
 			return
 		}
-		busiest := slices.MaxFunc(tickers, func(a, b EOptionTicker) int { return cmp.Compare(a.TradeCount, b.TradeCount) })
+		busiest := slices.MaxFunc(tickers, func(a, b EOptionTickerResponse) int { return cmp.Compare(a.TradeCount, b.TradeCount) })
 		mostTradedOptionPair, _ = currency.NewPairDelimiter(busiest.Symbol, currency.DashDelimiter)
 	})
 	require.False(t, mostTradedOptionPair.IsEmpty(), "mostTradedOption must find an option")
@@ -2341,7 +2341,7 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 				ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 				useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
 					tb.Helper()
-					var req WsAPIRequest
+					var req WebsocketAPIRequest
 					if err := json.Unmarshal(msg, &req); err != nil {
 						return err
 					}
@@ -2446,8 +2446,8 @@ func TestPostOnlyOrdersReadAsPostOnly(t *testing.T) {
 
 func TestOptionsListingsReadPostOnly(t *testing.T) {
 	t.Parallel()
-	// The options listings flag post only orders as the single order query does, so the order manager's sweep reads them
-	// as SubmitOrder reports them; a listing without the flag, as Binance's documentation shows one, cannot tell
+	// Binance documents postOnly on the placement and single order query replies only, so a post only order listed
+	// without it reads as GTC; the listings' PostOnly fields are kept, and read, in case Binance sends the flag
 	const listed = `"orderId":4611875134427365377,"symbol":"BTC-260410-72000-P","price":"1300","quantity":"0.01","executedQty":"0","side":"SELL","type":"LIMIT","timeInForce":"GTC","reduceOnly":false,"createTime":1791284980615,"updateTime":1791284980616,"status":"ACCEPTED","avgPrice":"0","clientOrderId":"post-only","priceScale":1,"quantityScale":2,"optionSide":"PUT","quoteAsset":"USDT","mmp":false`
 	pair := currency.Pair{Base: currency.BTC, Quote: currency.NewCode("260410-72000-P"), Delimiter: currency.DashDelimiter}
 	for _, tc := range []struct {
@@ -4135,7 +4135,7 @@ func TestListedOrderListsAreOCO(t *testing.T) {
 	}
 
 	ws := newTestExchange(t)
-	oto := &WsListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING"}
+	oto := &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING"}
 	require.NoError(t, ws.processListStatus(t.Context(), asset.Spot, []byte(`{"e":"listStatus","s":"BTCUSDT","g":2,"c":"OTO","L":"EXECUTING"}`)), "processListStatus must not error")
 	assert.Equal(t, []any{oto}, relayedPayloads(ws), "processListStatus should relay an OTO list status without reporting the list as an order")
 }

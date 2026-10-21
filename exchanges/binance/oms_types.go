@@ -12,12 +12,6 @@ type SpotReferralCustomerIDResponse struct {
 	CustomerID string `json:"customerId"`
 }
 
-// ReferralCustomerEmail is the customer ID a partner set for a referred user's email
-type ReferralCustomerEmail struct {
-	CustomerID string `json:"customerId"`
-	Email      string `json:"email"`
-}
-
 // ReferralCustomerEmailResponse is the customer ID a partner set for a referred user's email
 type ReferralCustomerEmailResponse struct {
 	CustomerID string `json:"customerId"`
@@ -32,8 +26,8 @@ type SpotReferralNewUserResponse struct {
 	ReferrerID    uint64 `json:"referrerId"`
 }
 
-// ReferralRebateRecord is a rebate the account earned from a spot trade
-type ReferralRebateRecord struct {
+// ReferralRebateRecordResponse is a rebate the account earned from a spot trade
+type ReferralRebateRecordResponse struct {
 	Income types.Number  `json:"income"`
 	Asset  currency.Code `json:"asset"`
 	Symbol string        `json:"symbol"`
@@ -50,8 +44,8 @@ type PartnerRebateRecordRequest struct {
 	Limit uint64
 }
 
-// PartnerRebateRecord is a rebate a partner earned from a referred user's spot trade
-type PartnerRebateRecord struct {
+// PartnerRebateRecordResponse is a rebate a partner earned from a referred user's spot trade
+type PartnerRebateRecordResponse struct {
 	CustomerID      string        `json:"customerId"`
 	Email           string        `json:"email"`
 	Income          types.Number  `json:"income"`
@@ -104,15 +98,15 @@ type ReferralVolumeRequest struct {
 	Limit uint64
 }
 
-// ReferralRebateVolume is a broker's futures referral rebate volume at a time
-type ReferralRebateVolume struct {
+// ReferralRebateVolumeResponse is a broker's futures referral rebate volume at a time
+type ReferralRebateVolumeResponse struct {
 	Unit         currency.Code `json:"unit"`
 	RebateVolume types.Number  `json:"rebateVol"`
 	Time         types.Time    `json:"time"`
 }
 
-// ReferralTraderDetail is a referred trader's futures trade and rebate volume at a time
-type ReferralTraderDetail struct {
+// ReferralTraderDetailResponse is a referred trader's futures trade and rebate volume at a time
+type ReferralTraderDetailResponse struct {
 	CustomerID   string        `json:"customerId"`
 	Unit         currency.Code `json:"unit"`
 	TradeVolume  types.Number  `json:"tradeVol"`
@@ -120,15 +114,15 @@ type ReferralTraderDetail struct {
 	Time         types.Time    `json:"time"`
 }
 
-// ReferralTraderNumber is the number of new and existing traders a broker referred at a time
-type ReferralTraderNumber struct {
+// ReferralTraderNumberResponse is the number of new and existing traders a broker referred at a time
+type ReferralTraderNumberResponse struct {
 	NewTrader types.Number `json:"newTrader"`
 	OldTrader types.Number `json:"oldTrader"`
 	Time      types.Time   `json:"time"`
 }
 
-// ReferralTradeVolume is referred users' futures trade volume at a time
-type ReferralTradeVolume struct {
+// ReferralTradeVolumeResponse is referred users' futures trade volume at a time
+type ReferralTradeVolumeResponse struct {
 	Unit        currency.Code `json:"unit"`
 	TradeVolume types.Number  `json:"tradeVol"`
 	Time        types.Time    `json:"time"`

@@ -15,8 +15,8 @@ type MiningResponse[T any] struct {
 	Data    T      `json:"data"`
 }
 
-// MiningAccountHashrate is a mining account's hashrate history in one bucket type
-type MiningAccountHashrate struct {
+// MiningAccountHashrateResponse is a mining account's hashrate history in one bucket type
+type MiningAccountHashrateResponse struct {
 	// Type is the hashrate bucket, such as H_hashrate (hourly) or D_hashrate (daily)
 	Type     string           `json:"type"`
 	UserName string           `json:"userName"`
@@ -30,16 +30,16 @@ type MiningHashrate struct {
 	Reject   types.Number `json:"reject"`
 }
 
-// MiningAlgorithm is a mining algorithm
-type MiningAlgorithm struct {
+// MiningAlgorithmResponse is a mining algorithm
+type MiningAlgorithmResponse struct {
 	AlgorithmName string `json:"algoName"`
 	AlgorithmID   uint64 `json:"algoId"`
 	PoolIndex     uint64 `json:"poolIndex"`
 	Unit          string `json:"unit"`
 }
 
-// MiningCoin is a mineable coin and its algorithm
-type MiningCoin struct {
+// MiningCoinResponse is a mineable coin and its algorithm
+type MiningCoinResponse struct {
 	CoinName      currency.Code `json:"coinName"`
 	CoinID        uint64        `json:"coinId"`
 	PoolIndex     uint64        `json:"poolIndex"`
@@ -178,8 +178,8 @@ type MiningAccountProfit struct {
 	Amount  float64 `json:"amount"`
 }
 
-// MinerDetail is a miner's hashrate history in one bucket type
-type MinerDetail struct {
+// MinerDetailResponse is a miner's hashrate history in one bucket type
+type MinerDetailResponse struct {
 	WorkerName string `json:"workerName"`
 	// Type is the hashrate bucket, such as H_hashrate (hourly) or D_hashrate (daily)
 	Type          string          `json:"type"`

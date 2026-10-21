@@ -297,7 +297,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 			MessageFilter:         c.filter,
 			URL:                   c.url,
-			Connector:             e.WsDerivativesConnect,
+			Connector:             e.WebsocketDerivativesConnect,
 			GenerateSubscriptions: c.generate,
 			Subscriber:            c.subscribe,
 			Unsubscriber:          c.unsubscribe,
@@ -503,7 +503,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.Options:
-		stats, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, currency.EMPTYPAIR)
+		stats, err := e.GetEOptions24HourTickerPriceChangeStatistics(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -573,7 +573,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		price = e.cFuturesTickerPrice(&stats[0], p)
 	case asset.Options:
-		stats, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, p)
+		stats, err := e.GetEOptions24HourTickerPriceChangeStatistics(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +615,7 @@ func (e *Exchange) spotTickerPrice(t *PriceChangeStats, pair currency.Pair, a as
 }
 
 // uFuturesTickerPrice converts a USDⓈ-M 24hr ticker, which has no best bid or ask
-func (e *Exchange) uFuturesTickerPrice(t *U24HourPriceChangeStats, pair currency.Pair) ticker.Price {
+func (e *Exchange) uFuturesTickerPrice(t *U24HourPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -635,7 +635,7 @@ func (e *Exchange) uFuturesTickerPrice(t *U24HourPriceChangeStats, pair currency
 
 // cFuturesTickerPrice converts a COIN-M 24hr ticker, which has no best bid or ask. Its volume counts contracts, so the
 // base volume comes from the base asset volume, and the quantities stay in contracts as the ticker stream sends them
-func (e *Exchange) cFuturesTickerPrice(t *CFuturesPriceChangeStats, pair currency.Pair) ticker.Price {
+func (e *Exchange) cFuturesTickerPrice(t *CFuturesPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -654,7 +654,7 @@ func (e *Exchange) cFuturesTickerPrice(t *CFuturesPriceChangeStats, pair currenc
 
 // optionsTickerPrice converts an options 24hr ticker. Its price change percent is a fraction, and its close time is the
 // time of the last trade rather than of the statistics, so the ticker is stamped when it is stored
-func (e *Exchange) optionsTickerPrice(t *EOptionTicker, pair currency.Pair) ticker.Price {
+func (e *Exchange) optionsTickerPrice(t *EOptionTickerResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                t.LastPrice.Float64(),
 		LastSize:            t.LastQuantity.Float64(),
@@ -908,8 +908,8 @@ const fundingHistoryPageLimit = 1000
 
 // allDeposits returns every deposit of the default window with its source address, requesting pages until one is not
 // full
-func (e *Exchange) allDeposits(ctx context.Context) ([]DepositRecord, error) {
-	var deposits []DepositRecord
+func (e *Exchange) allDeposits(ctx context.Context) ([]DepositRecordResponse, error) {
+	var deposits []DepositRecordResponse
 	for {
 		page, err := e.DepositHistory(ctx, &DepositHistoryRequest{
 			IncludeSource: true,
@@ -928,8 +928,8 @@ func (e *Exchange) allDeposits(ctx context.Context) ([]DepositRecord, error) {
 
 // allWithdrawals returns every withdrawal of a coin, or of every coin, in the default window, requesting pages until one
 // is not full
-func (e *Exchange) allWithdrawals(ctx context.Context, coin currency.Code) ([]WithdrawalRecord, error) {
-	var withdrawals []WithdrawalRecord
+func (e *Exchange) allWithdrawals(ctx context.Context, coin currency.Code) ([]WithdrawalRecordResponse, error) {
+	var withdrawals []WithdrawalRecordResponse
 	for {
 		page, err := e.WithdrawHistory(ctx, &WithdrawHistoryRequest{
 			Coin:   coin,
@@ -1633,7 +1633,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 
 // submitSpotOrderWebsocket places a spot order through the WebSocket API, sending what the REST route sends
 func (e *Exchange) submitSpotOrderWebsocket(ctx context.Context, s *order.Submit, v *spotOrderValues) (*order.SubmitResponse, error) {
-	placed, err := e.WsPlaceNewOrder(ctx, &WsPlaceOrderRequest{
+	placed, err := e.WebsocketPlaceNewOrder(ctx, &WebsocketPlaceOrderRequest{
 		Symbol:               s.Pair,
 		Side:                 v.side,
 		Type:                 v.orderType,
@@ -1771,7 +1771,7 @@ func (e *Exchange) submitSpotOCOOrder(ctx context.Context, s *order.Submit) (*or
 		req.Above, req.Below = legs.stopLoss, legs.limitMaker
 	}
 	if e.canUseWebsocketAPIForOrders() {
-		wsList, wsErr := e.WsPlaceOCOOrderList(ctx, req)
+		wsList, wsErr := e.WebsocketPlaceOCOOrderList(ctx, req)
 		if wsErr != nil {
 			return nil, wsErr
 		}
@@ -1916,17 +1916,17 @@ func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit)
 			return e.submitFuturesAlgoOrder(ctx, s, v)
 		}
 		placed, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             v.side,
-			PositionSide:     v.positionSide,
-			OrderType:        v.orderType,
-			TimeInForce:      v.timeInForce,
-			ReduceOnly:       v.reduceOnly,
-			Quantity:         s.Amount,
-			Price:            v.price,
-			NewClientOrderID: s.ClientOrderID,
-			NewOrderRespType: "RESULT",
-			GoodTillDate:     v.goodTillDate,
+			Symbol:               s.Pair,
+			Side:                 v.side,
+			PositionSide:         v.positionSide,
+			OrderType:            v.orderType,
+			TimeInForce:          v.timeInForce,
+			ReduceOnly:           v.reduceOnly,
+			Quantity:             s.Amount,
+			Price:                v.price,
+			NewClientOrderID:     s.ClientOrderID,
+			NewOrderResponseType: "RESULT",
+			GoodTillDate:         v.goodTillDate,
 		})
 		if err != nil {
 			return nil, err
@@ -1940,18 +1940,18 @@ func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit)
 // is TriggerPrice
 func (e *Exchange) submitFuturesAlgoOrder(ctx context.Context, s *order.Submit, v *futuresOrderValues) (*order.SubmitResponse, error) {
 	req := &UNewAlgoOrderRequest{
-		AlgoType:         "CONDITIONAL",
-		Symbol:           s.Pair,
-		Side:             v.side,
-		PositionSide:     v.positionSide,
-		OrderType:        v.orderType,
-		TimeInForce:      v.timeInForce,
-		Quantity:         s.Amount,
-		Price:            v.price,
-		ReduceOnly:       v.reduceOnly,
-		ClientAlgoID:     s.ClientOrderID,
-		NewOrderRespType: "RESULT",
-		GoodTillDate:     v.goodTillDate,
+		AlgoType:             "CONDITIONAL",
+		Symbol:               s.Pair,
+		Side:                 v.side,
+		PositionSide:         v.positionSide,
+		OrderType:            v.orderType,
+		TimeInForce:          v.timeInForce,
+		Quantity:             s.Amount,
+		Price:                v.price,
+		ReduceOnly:           v.reduceOnly,
+		ClientAlgoID:         s.ClientOrderID,
+		NewOrderResponseType: "RESULT",
+		GoodTillDate:         v.goodTillDate,
 	}
 	if s.Type == order.TrailingStop {
 		if s.TrackingMode != order.Percentage || s.TrackingValue <= 0 {
@@ -2000,16 +2000,16 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 			return e.submitFuturesAlgoOrder(ctx, s, v)
 		}
 		placed, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             v.side,
-			PositionSide:     v.positionSide,
-			OrderType:        v.orderType,
-			TimeInForce:      v.timeInForce,
-			Quantity:         s.Amount,
-			Price:            v.price,
-			ReduceOnly:       v.reduceOnly,
-			NewClientOrderID: s.ClientOrderID,
-			NewOrderRespType: "RESULT",
+			Symbol:               s.Pair,
+			Side:                 v.side,
+			PositionSide:         v.positionSide,
+			OrderType:            v.orderType,
+			TimeInForce:          v.timeInForce,
+			Quantity:             s.Amount,
+			Price:                v.price,
+			ReduceOnly:           v.reduceOnly,
+			NewClientOrderID:     s.ClientOrderID,
+			NewOrderResponseType: "RESULT",
 		})
 		if err != nil {
 			return nil, err
@@ -2242,7 +2242,7 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 	cancelList := func() error {
 		var err error
 		if useWebsocket {
-			_, err = e.WsCancelOCOOrder(ctx, &WsCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+			_, err = e.WebsocketCancelOCOOrder(ctx, &WebsocketCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 		} else {
 			_, err = e.CancelOCOOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 		}
@@ -2254,7 +2254,7 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 	cancelOrder := func() error {
 		var err error
 		if useWebsocket {
-			_, err = e.WsCancelOrder(ctx, &WsCancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
+			_, err = e.WebsocketCancelExistingOrder(ctx, &WebsocketCancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
 		} else {
 			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
 		}
@@ -2653,7 +2653,7 @@ func (e *Exchange) cancelAllSpotOrders(ctx context.Context, pair currency.Pair, 
 	var errs error
 	for _, p := range pairs {
 		if e.canUseWebsocketAPIForOrders() {
-			cancelled, err := e.WsCancelOpenOrders(ctx, p)
+			cancelled, err := e.WebsocketCancelOpenOrders(ctx, p)
 			if err != nil {
 				errs = common.AppendError(errs, cancelAllPairError(p, err))
 				continue
@@ -2745,7 +2745,7 @@ func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currenc
 		}); err != nil {
 			return err
 		}
-		var openAlgo []UAlgoOrder
+		var openAlgo []UAlgoOrderResponse
 		if err := e.sendOnShare(ctx, uFuturesCancelAllListingRate, uFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
 			openAlgo, err = e.uCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
 			return err
@@ -2793,7 +2793,7 @@ func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currenc
 		}); err != nil {
 			return err
 		}
-		var openAlgo []UAlgoOrder
+		var openAlgo []UAlgoOrderResponse
 		if err := e.sendOnShare(ctx, cFuturesCancelAllListingRate, cFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
 			openAlgo, err = e.futuresCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
 			return err
@@ -2833,7 +2833,7 @@ func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currenc
 func (e *Exchange) cancelAllOptionsOrders(ctx context.Context, pair currency.Pair) error {
 	pairs := currency.Pairs{pair}
 	if pair.IsEmpty() {
-		var open []OptionsOpenOrder
+		var open []OptionsOpenOrderResponse
 		if err := e.sendOnShare(ctx, optionsCancelAllListingRate, optionsAllQueryOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
 			open, err = e.getCurrentOpenOptionsOrders(ctx, &OptionsOpenOrdersRequest{}, f)
 			return err
@@ -2877,7 +2877,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	case asset.Spot:
 		var o *TradeOrderResponse
 		if e.canUseWebsocketAPIForOrders() {
-			o, err = e.WsQueryOrder(ctx, pair, id, "")
+			o, err = e.WebsocketQueryOrder(ctx, pair, id, "")
 		} else {
 			o, err = e.QueryOrder(ctx, pair, "", id)
 		}
@@ -2974,7 +2974,7 @@ func (e *Exchange) spotOrderListInfo(ctx context.Context, orderListID uint64, pa
 	var list *OCOOrderResponse
 	var err error
 	if e.canUseWebsocketAPIForOrders() {
-		list, err = e.WsQueryOCOOrder(ctx, orderListID, "")
+		list, err = e.WebsocketQueryOCOOrder(ctx, orderListID, "")
 	} else {
 		list, err = e.GetOCOOrders(ctx, orderListID, "")
 	}
@@ -3306,9 +3306,11 @@ func (e *Exchange) cOrderDetail(o *FuturesOrderDetailResponse, pair currency.Pai
 	return d, err
 }
 
-// optionsOrderDetail converts an options order. The queries that report postOnly flag post only orders, which read as
-// post only, as SubmitOrder reports them, rather than as the GTC Binance reports beside the flag. Values that cannot be
-// converted are left unset and returned as the error
+// optionsOrderDetail converts an options order. A reply that flags a post only order with postOnly reads as post only,
+// as SubmitOrder reports it, rather than as the GTC Binance reports beside the flag. Binance documents the flag on the
+// placement and single order query replies only, so the open order and order history listings list a post only order
+// as GTC; their PostOnly fields are kept in case Binance sends it. Values that cannot be converted are left unset and
+// returned as the error
 func (e *Exchange) optionsOrderDetail(o *OptionsOrder, createTime time.Time, postOnly bool, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.Options, o.Side, o.Status, o.Type, o.TimeInForce)
 	d := order.Detail{
@@ -3473,7 +3475,7 @@ func (e *Exchange) spotActiveOrders(ctx context.Context, req *order.MultiOrderRe
 		var lists []OCOOrderResponse
 		var err error
 		if useWebsocket {
-			lists, err = e.WsCurrentOpenOCOOrders(ctx)
+			lists, err = e.WebsocketCurrentOpenOCOOrders(ctx)
 		} else {
 			lists, err = e.GetOpenOCOList(ctx)
 		}
@@ -3497,7 +3499,7 @@ func (e *Exchange) spotActiveOrders(ctx context.Context, req *order.MultiOrderRe
 		var open []TradeOrderResponse
 		var err error
 		if useWebsocket {
-			open, err = e.WsCurrentOpenOrders(ctx, p)
+			open, err = e.WebsocketCurrentOpenOrders(ctx, p)
 		} else {
 			open, err = e.OpenOrders(ctx, p)
 		}
@@ -3888,9 +3890,9 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			}
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UAlgoOrder, error) {
+			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UAlgoOrderResponse, error) {
 				return e.UQueryAllAlgoOrders(ctx, &UAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 1000})
-			}, func(o *UAlgoOrder) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrder) uint64 { return o.AlgoID })
+			}, func(o *UAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrderResponse) uint64 { return o.AlgoID })
 			if err != nil {
 				return nil, err
 			}
@@ -3925,9 +3927,9 @@ func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			})
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]UAlgoOrder, error) {
+			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]UAlgoOrderResponse, error) {
 				return e.FuturesQueryAllAlgoOrders(ctx, &UAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 100})
-			}, func(o *UAlgoOrder) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrder) uint64 { return o.AlgoID })
+			}, func(o *UAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrderResponse) uint64 { return o.AlgoID })
 			if err != nil {
 				return nil, err
 			}
@@ -3946,9 +3948,9 @@ func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderReque
 func (e *Exchange) optionsOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range req.Pairs {
-		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, 0, 1000, func(start, end time.Time) ([]OptionsOrderHistoryItem, error) {
+		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, 0, 1000, func(start, end time.Time) ([]OptionsOrderHistoryItemResponse, error) {
 			return e.GetOptionsOrdersHistory(ctx, &OptionsOrderHistoryRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 1000})
-		}, func(o *OptionsOrderHistoryItem) time.Time { return o.CreateTime.Time() }, func(o *OptionsOrderHistoryItem) uint64 { return o.OrderID })
+		}, func(o *OptionsOrderHistoryItemResponse) time.Time { return o.CreateTime.Time() }, func(o *OptionsOrderHistoryItemResponse) uint64 { return o.OrderID })
 		if err != nil {
 			return nil, err
 		}
@@ -4346,9 +4348,9 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 				mml.MarketMaxQty = f.MaxQuantity.Float64()
 				mml.MarketStepIncrementSize = f.StepSize.Float64()
 			case maxNumOrdersFilter:
-				mml.MaxTotalOrders = f.Limit
+				mml.MaxTotalOrders = boundedInt64(f.Limit)
 			case maxNumAlgoOrdersFilter:
-				mml.MaxAlgoOrders = f.Limit
+				mml.MaxAlgoOrders = boundedInt64(f.Limit)
 			}
 		}
 		l = append(l, mml)
@@ -5085,7 +5087,7 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	var position *UPositionInformationV3
+	var position *UPositionInformationV3Response
 	for i := range positions {
 		if positions[i].Symbol == symbol && positions[i].PositionSide == positionSide {
 			position = &positions[i]
@@ -5549,7 +5551,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if err != nil {
 		return nil, err
 	}
-	fundingRateLimits := make(map[string]*CFuturesFundingRateInfo, len(info))
+	fundingRateLimits := make(map[string]*CFuturesFundingRateInfoResponse, len(info))
 	for i := range info {
 		fundingRateLimits[info[i].Symbol] = &info[i]
 	}

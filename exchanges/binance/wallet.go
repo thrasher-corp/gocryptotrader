@@ -90,12 +90,12 @@ func (e *Exchange) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissionRe
 }
 
 // GetAssetDetail returns the Asset Detail of every asset, or of ccy when it is set
-func (e *Exchange) GetAssetDetail(ctx context.Context, ccy currency.Code) (map[currency.Code]AssetDetail, error) {
+func (e *Exchange) GetAssetDetail(ctx context.Context, ccy currency.Code) (map[currency.Code]AssetDetailResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.Upper().String())
 	}
-	var resp map[currency.Code]AssetDetail
+	var resp map[currency.Code]AssetDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/asset/assetDetail", params, sapiDefaultRate, &resp)
 }
 
@@ -155,7 +155,7 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code, acc
 
 // GetFundingAssets returns the Funding Wallet balances of Binance Pay, Binance Card, Binance Gift Card and Stock Token
 // assets, or of ccy when it is set
-func (e *Exchange) GetFundingAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
+func (e *Exchange) GetFundingAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]FundingAssetResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.Upper().String())
@@ -163,7 +163,7 @@ func (e *Exchange) GetFundingAssets(ctx context.Context, ccy currency.Code, need
 	if needBTCValuation {
 		params.Set("needBtcValuation", "true")
 	}
-	var resp []FundingAsset
+	var resp []FundingAssetResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/asset/get-funding-asset", params, sapiDefaultRate, &resp)
 }
 
@@ -313,7 +313,7 @@ func (e *Exchange) setIsolatedSymbols(params url.Values, fromSymbol, toSymbol cu
 
 // GetUserWalletBalance returns the User Wallet Balance of each wallet, valued in quoteAsset (BTC when unset), with each
 // wallet's asset balances when needBalanceDetail is true
-func (e *Exchange) GetUserWalletBalance(ctx context.Context, quoteAsset currency.Code, needBalanceDetail bool) ([]UserWalletBalance, error) {
+func (e *Exchange) GetUserWalletBalance(ctx context.Context, quoteAsset currency.Code, needBalanceDetail bool) ([]UserWalletBalanceResponse, error) {
 	params := url.Values{}
 	if !quoteAsset.IsEmpty() {
 		params.Set("quoteAsset", quoteAsset.Upper().String())
@@ -321,7 +321,7 @@ func (e *Exchange) GetUserWalletBalance(ctx context.Context, quoteAsset currency
 	if needBalanceDetail {
 		params.Set("needBalanceDetail", "true")
 	}
-	var resp []UserWalletBalance
+	var resp []UserWalletBalanceResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/asset/wallet/balance", params, getUserWalletBalanceRate, &resp)
 }
 
@@ -343,7 +343,7 @@ func (e *Exchange) ToggleBNBBurn(ctx context.Context, spotBNBBurn, interestBNBBu
 }
 
 // GetTradeFees returns the Trade Fee of every spot symbol, or of symbol when it is set
-func (e *Exchange) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]TradeFee, error) {
+func (e *Exchange) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]TradeFeeResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -352,12 +352,12 @@ func (e *Exchange) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]Tr
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []TradeFee
+	var resp []TradeFeeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/asset/tradeFee", params, sapiDefaultRate, &resp)
 }
 
 // GetUserAssets returns the User Asset balances: every positive balance, or ccy's when it is set
-func (e *Exchange) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]UserAsset, error) {
+func (e *Exchange) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]UserAssetResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.Upper().String())
@@ -365,7 +365,7 @@ func (e *Exchange) GetUserAssets(ctx context.Context, ccy currency.Code, needBTC
 	if needBTCValuation {
 		params.Set("needBtcValuation", "true")
 	}
-	var resp []UserAsset
+	var resp []UserAssetResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v3/asset/getUserAsset", params, userAssetsRate, &resp)
 }
 
@@ -394,7 +394,7 @@ func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, coin curren
 }
 
 // DepositHistory returns the Deposit History. The time window cannot exceed 90 days and defaults to the last 90 days
-func (e *Exchange) DepositHistory(ctx context.Context, req *DepositHistoryRequest) ([]DepositRecord, error) {
+func (e *Exchange) DepositHistory(ctx context.Context, req *DepositHistoryRequest) ([]DepositRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -420,13 +420,13 @@ func (e *Exchange) DepositHistory(ctx context.Context, req *DepositHistoryReques
 	if req.TxID != "" {
 		params.Set("txId", req.TxID)
 	}
-	var resp []DepositRecord
+	var resp []DepositRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/hisrec", params, sapiDefaultRate, &resp)
 }
 
 // GetDepositAddressListWithNetwork returns the deposit address list of a coin on network, or on the coin's default
 // network when network is empty
-func (e *Exchange) GetDepositAddressListWithNetwork(ctx context.Context, coin currency.Code, network string) ([]DepositAddressWithNetwork, error) {
+func (e *Exchange) GetDepositAddressListWithNetwork(ctx context.Context, coin currency.Code, network string) ([]DepositAddressWithNetworkResponse, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -435,13 +435,13 @@ func (e *Exchange) GetDepositAddressListWithNetwork(ctx context.Context, coin cu
 	if network != "" {
 		params.Set("network", network)
 	}
-	var resp []DepositAddressWithNetwork
+	var resp []DepositAddressWithNetworkResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address/list", params, getDepositAddressListInNetworkRate, &resp)
 }
 
 // GetWithdrawAddressList returns the withdraw address list of the address book
-func (e *Exchange) GetWithdrawAddressList(ctx context.Context) ([]WithdrawAddress, error) {
-	var resp []WithdrawAddress
+func (e *Exchange) GetWithdrawAddressList(ctx context.Context) ([]WithdrawAddressResponse, error) {
+	var resp []WithdrawAddressResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/withdraw/address/list", nil, withdrawAddressListRate, &resp)
 }
 
@@ -509,7 +509,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, req *WithdrawRequest) (*W
 
 // WithdrawHistory returns the Withdraw History. The time window cannot exceed 90 days and defaults to the last 90 days,
 // or to the last 7 days when a withdraw order ID is set
-func (e *Exchange) WithdrawHistory(ctx context.Context, req *WithdrawHistoryRequest) ([]WithdrawalRecord, error) {
+func (e *Exchange) WithdrawHistory(ctx context.Context, req *WithdrawHistoryRequest) ([]WithdrawalRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -535,13 +535,13 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, req *WithdrawHistoryRequ
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	var resp []WithdrawalRecord
+	var resp []WithdrawalRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/withdraw/history", params, withdrawalHistoryRate, &resp)
 }
 
 // GetSymbolsDelistScheduleForSpot returns the Spot Delist Schedule
-func (e *Exchange) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]DelistSchedule, error) {
-	var resp []DelistSchedule
+func (e *Exchange) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]DelistScheduleResponse, error) {
+	var resp []DelistScheduleResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/spot/delist-schedule", symbolDelistScheduleForSpotRate, &resp)
 }
 
@@ -553,7 +553,7 @@ func (e *Exchange) GetSystemStatus(ctx context.Context) (*SystemStatusResponse, 
 
 // GetLocalEntitiesDepositHistory returns the Deposit History Travel Rule of local entities that require the travel
 // rule. The time window cannot exceed 90 days and defaults to the last 90 days
-func (e *Exchange) GetLocalEntitiesDepositHistory(ctx context.Context, req *LocalEntityDepositHistoryRequest) ([]LocalEntityDepositRecord, error) {
+func (e *Exchange) GetLocalEntitiesDepositHistory(ctx context.Context, req *LocalEntityDepositHistoryRequest) ([]LocalEntityDepositRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -588,7 +588,7 @@ func (e *Exchange) GetLocalEntitiesDepositHistory(ctx context.Context, req *Loca
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []LocalEntityDepositRecord
+	var resp []LocalEntityDepositRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/localentity/deposit/history", params, sapiDefaultRate, &resp)
 }
 
@@ -614,25 +614,25 @@ func (e *Exchange) SubmitDepositQuestionnaire(ctx context.Context, transactionID
 }
 
 // GetOnboardedVASPList returns the VASP list of local entities that require the travel rule
-func (e *Exchange) GetOnboardedVASPList(ctx context.Context) ([]VASP, error) {
-	var resp []VASP
+func (e *Exchange) GetOnboardedVASPList(ctx context.Context) ([]VASPResponse, error) {
+	var resp []VASPResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/localentity/vasp", nil, sapiDefaultRate, &resp)
 }
 
 // WithdrawalHistoryV1 returns the Withdraw History Travel Rule of local entities that require the travel rule. The time
 // window cannot exceed 90 days and defaults to the last 90 days
-func (e *Exchange) WithdrawalHistoryV1(ctx context.Context, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecord, error) {
+func (e *Exchange) WithdrawalHistoryV1(ctx context.Context, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecordResponse, error) {
 	return e.localEntityWithdrawHistory(ctx, "/sapi/v1/localentity/withdraw/history", req)
 }
 
 // WithdrawalHistoryV2 returns the Withdraw History V2 of local entities that require the travel rule, which may omit
 // withdrawals made through WithdrawCrypto. The time window cannot exceed 90 days and defaults to the last 90 days, or
 // to the last 7 days when a withdraw order ID is set
-func (e *Exchange) WithdrawalHistoryV2(ctx context.Context, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecord, error) {
+func (e *Exchange) WithdrawalHistoryV2(ctx context.Context, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecordResponse, error) {
 	return e.localEntityWithdrawHistory(ctx, "/sapi/v2/localentity/withdraw/history", req)
 }
 
-func (e *Exchange) localEntityWithdrawHistory(ctx context.Context, path string, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecord, error) {
+func (e *Exchange) localEntityWithdrawHistory(ctx context.Context, path string, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecordResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -664,7 +664,7 @@ func (e *Exchange) localEntityWithdrawHistory(ctx context.Context, path string, 
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	var resp []LocalEntityWithdrawalRecord
+	var resp []LocalEntityWithdrawalRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, path, params, sapiDefaultRate, &resp)
 }
 

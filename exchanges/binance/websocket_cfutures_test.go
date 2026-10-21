@@ -39,7 +39,7 @@ func TestGenerateCFuturesSubscriptions(t *testing.T) {
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
 
-func TestWsHandleCFuturesData(t *testing.T) {
+func TestWebsocketHandleCFuturesData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
@@ -83,7 +83,7 @@ func TestWsHandleCFuturesData(t *testing.T) {
 		&tick,
 		&FuturesContinuousKline{
 			EventType: "continuous_kline", EventTime: fixtureTime(1791283466336), Pair: "BTCUSD", ContractType: "PERPETUAL",
-			Kline: FuturesContinuousKlineData{
+			Kline: FuturesContinuousCandle{
 				StartTime: fixtureTime(1791283440000), CloseTime: fixtureTime(1791283499999), Interval: "1m", FirstUpdateID: 11747022867989,
 				LastUpdateID: 11747024833030, OpenPrice: 86111, ClosePrice: 86137.7, HighPrice: 86137.8, LowPrice: 86111, Volume: 546, NumberOfTrades: 53,
 				IsClosed: true, QuoteAssetVolume: 0.63398896, TakerBuyVolume: 543, TakerBuyQuoteAssetVolume: 0.63050617, Ignore: 1,
@@ -111,7 +111,7 @@ func TestWsHandleCFuturesData(t *testing.T) {
 		&CFuturesIndexPrice{EventType: "IndexUpdate", EventTime: fixtureTime(1791283451000), Pair: "BTCUSD", IndexPrice: 86169.89067719},
 		&CFuturesPriceKline{
 			EventType: "indexPrice_kline", EventTime: fixtureTime(1791283451057), Pair: "BTCUSD",
-			Kline: CFuturesPriceKlineData{
+			Kline: CFuturesPriceCandle{
 				StartTime: fixtureTime(1791283440000), CloseTime: fixtureTime(1791283499999), Symbol: "0", Interval: "1m", FirstTradeID: 1791283440000,
 				LastTradeID: 1791283451000, OpenPrice: 86151.64923644, ClosePrice: 86169.89067719, HighPrice: 86170.98258838, LowPrice: 86151.64923644,
 				Volume: 1, NumberOfBasicData: 12, IsClosed: true, QuoteAssetVolume: 2, TakerBuyBaseAssetVolume: 3, TakerBuyQuoteAssetVolume: 4, Ignore: 5,
@@ -119,7 +119,7 @@ func TestWsHandleCFuturesData(t *testing.T) {
 		},
 		&CFuturesPriceKline{
 			EventType: "markPrice_kline", EventTime: fixtureTime(1791283451080), Pair: "BTCUSD",
-			Kline: CFuturesPriceKlineData{
+			Kline: CFuturesPriceCandle{
 				StartTime: fixtureTime(1791283440000), CloseTime: fixtureTime(1791283499999), Symbol: "BTCUSD_PERP", Interval: "1m", FirstTradeID: 1791283440000,
 				LastTradeID: 1791283451000, OpenPrice: 86111, ClosePrice: 86135.5, HighPrice: 86135.6, LowPrice: 86110.9, Volume: 1, NumberOfBasicData: 12,
 				QuoteAssetVolume: 2, TakerBuyBaseAssetVolume: 3, TakerBuyQuoteAssetVolume: 4, Ignore: 5,
@@ -139,7 +139,7 @@ func TestWsHandleCFuturesData(t *testing.T) {
 	}, got, "partial depth should load the top levels into the COIN-M order book")
 }
 
-func TestWsHandleCFuturesUserData(t *testing.T) {
+func TestWebsocketHandleCFuturesUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	for _, frame := range fixtureFrames(t, "testdata/wsCFuturesUserData.json") {
@@ -183,11 +183,11 @@ func TestWsHandleCFuturesUserData(t *testing.T) {
 		},
 		&FuturesStrategyUpdate{
 			EventType: "STRATEGY_UPDATE", TransactionTime: fixtureTime(1669261797627), EventTime: fixtureTime(1669261797628),
-			StrategyUpdate: FuturesStrategyUpdateData{StrategyID: 176054595, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSD_PERP", UpdateTime: fixtureTime(1669261797627), OpCode: 8001},
+			StrategyUpdate: FuturesStrategy{StrategyID: 176054595, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSD_PERP", UpdateTime: fixtureTime(1669261797627), OpCode: 8001},
 		},
 		&FuturesGridUpdate{
 			EventType: "GRID_UPDATE", TransactionTime: fixtureTime(1669262908216), EventTime: fixtureTime(1669262908218),
-			GridUpdate: FuturesGridUpdateData{
+			GridUpdate: FuturesGridStrategy{
 				StrategyID: 176057040, StrategyType: "GRID", StrategyStatus: "WORKING", Symbol: "BTCUSD_PERP", RealisedPNL: -0.00000716,
 				UnmatchedAveragePrice: 86720, UnmatchedQuantity: -1, UnmatchedFee: -0.00000716, MatchedPNL: 0.00000001, UpdateTime: fixtureTime(1669262908197),
 			},

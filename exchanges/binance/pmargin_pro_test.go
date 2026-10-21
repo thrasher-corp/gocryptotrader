@@ -179,7 +179,7 @@ func TestGetPMProNegativeBalanceInterestHistory(t *testing.T) {
 	result, err := e.GetPMProNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 100})
 	require.NoError(t, err, "GetPMProNegativeBalanceInterestHistory must not error")
 	if mockTests {
-		exp := []PMProNegativeBalanceInterest{
+		exp := []PMProNegativeBalanceInterestResponse{
 			{
 				Asset:               currency.ETH,
 				Interest:            24.444,
@@ -219,7 +219,7 @@ func TestGetPortfolioMarginAssetLeverage(t *testing.T) {
 	result, err := e.GetPortfolioMarginAssetLeverage(t.Context())
 	require.NoError(t, err, "GetPortfolioMarginAssetLeverage must not error")
 	if mockTests {
-		exp := []PMAssetLeverage{
+		exp := []PMAssetLeverageResponse{
 			{
 				Asset:    currency.USDC,
 				Leverage: 10,
@@ -239,7 +239,7 @@ func TestGetPortfolioMarginCollateralRate(t *testing.T) {
 	result, err := e.GetPortfolioMarginCollateralRate(t.Context())
 	require.NoError(t, err, "GetPortfolioMarginCollateralRate must not error")
 	if mockTests {
-		exp := []PMCollateralRate{
+		exp := []PMCollateralRateResponse{
 			{
 				Asset:          currency.USDC,
 				CollateralRate: 1,
@@ -263,16 +263,16 @@ func TestGetPortfolioMarginAssetIndexPrice(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		ccy  currency.Code
-		exp  []PortfolioMarginAssetIndexPrice
+		exp  []PortfolioMarginAssetIndexPriceResponse
 	}{
-		{name: "asset", ccy: currency.BTC, exp: []PortfolioMarginAssetIndexPrice{
+		{name: "asset", ccy: currency.BTC, exp: []PortfolioMarginAssetIndexPriceResponse{
 			{
 				Asset:           currency.BTC,
 				AssetIndexPrice: 28251.9136906,
 				Time:            types.Time(time.UnixMilli(1683518338121)),
 			},
 		}},
-		{name: "allAssets", ccy: currency.EMPTYCODE, exp: []PortfolioMarginAssetIndexPrice{
+		{name: "allAssets", ccy: currency.EMPTYCODE, exp: []PortfolioMarginAssetIndexPriceResponse{
 			{
 				Asset:           currency.BTC,
 				AssetIndexPrice: 28251.9136906,

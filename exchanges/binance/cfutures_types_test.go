@@ -72,9 +72,9 @@ func TestFuturesOrderResponseUnmarshal(t *testing.T) {
 	}
 	assert.Equal(t, exp, x, "FuturesOrderResponse should unmarshal correctly")
 
-	var rejected CFuturesBatchOrderData
+	var rejected CFuturesBatchOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"code":-2022,"msg":"ReduceOnly Order is rejected."}`), &rejected), "Unmarshal must not error for a rejected batch entry")
-	assert.Equal(t, CFuturesBatchOrderData{Code: -2022, Message: "ReduceOnly Order is rejected."}, rejected, "a rejected batch entry should be distinguishable from a zero-valued success")
+	assert.Equal(t, CFuturesBatchOrderResponse{Code: -2022, Message: "ReduceOnly Order is rejected."}, rejected, "a rejected batch entry should be distinguishable from a zero-valued success")
 }
 
 func TestNotionalBracketDataUnmarshal(t *testing.T) {
@@ -148,9 +148,9 @@ func TestBatchCancelOrderDataUnmarshal(t *testing.T) {
 ]
 `
 
-	var x []CFuturesBatchOrderData
+	var x []CFuturesBatchOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := []CFuturesBatchOrderData{
+	exp := []CFuturesBatchOrderResponse{
 		{
 			ClientOrderID:           "myOrder1",
 			CumulativeQuantity:      3.5,
@@ -182,7 +182,7 @@ func TestBatchCancelOrderDataUnmarshal(t *testing.T) {
 			Message: "Unknown order sent.",
 		},
 	}
-	assert.Equal(t, exp, x, "CFuturesBatchOrderData should unmarshal correctly")
+	assert.Equal(t, exp, x, "CFuturesBatchOrderResponse should unmarshal correctly")
 }
 
 func TestFuturesAccountTradeListUnmarshal(t *testing.T) {
@@ -520,9 +520,9 @@ func TestFuturesAccountBalanceDataUnmarshal(t *testing.T) {
 
 func TestCFuturesCandleStickUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var c CFuturesCandleStick
+	var c CFuturesCandleStickResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1791158400000,"86473.8","86950.4","84911.4","85712.2","9107384",1791244799999,"10598.59035224",192291,"4347561","5055.74120577","0"]`), &c), "Unmarshal must not error")
-	exp := CFuturesCandleStick{
+	exp := CFuturesCandleStickResponse{
 		OpenTime:                types.Time(time.UnixMilli(1791158400000)),
 		Open:                    86473.8,
 		High:                    86950.4,
@@ -535,16 +535,16 @@ func TestCFuturesCandleStickUnmarshalJSON(t *testing.T) {
 		TakerBuyVolume:          4347561,
 		TakerBuyBaseAssetVolume: 5055.74120577,
 	}
-	assert.Equal(t, exp, c, "CFuturesCandleStick should decode every element")
+	assert.Equal(t, exp, c, "CFuturesCandleStickResponse should decode every element")
 	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1791158400000}`), &c), "Unmarshal should error on an object")
 	assert.Error(t, json.Unmarshal([]byte(`[1791158400000,"86473.8","86950.4","84911.4","85712.2","9107384",1791244799999,"10598.59035224","many"]`), &c), "Unmarshal should error on a malformed trade count")
 }
 
 func TestCFuturesPriceCandleStickUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var c CFuturesPriceCandleStick
+	var c CFuturesPriceCandleStickResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1791158400000,"86506.81356609","86981.89291707","84971.36471527","85749.09994179","0",1791244799999,"0",86400,"0","0","0"]`), &c), "Unmarshal must not error")
-	exp := CFuturesPriceCandleStick{
+	exp := CFuturesPriceCandleStickResponse{
 		OpenTime:          types.Time(time.UnixMilli(1791158400000)),
 		Open:              86506.81356609,
 		High:              86981.89291707,
@@ -553,16 +553,16 @@ func TestCFuturesPriceCandleStickUnmarshalJSON(t *testing.T) {
 		CloseTime:         types.Time(time.UnixMilli(1791244799999)),
 		NumberOfBasicData: 86400,
 	}
-	assert.Equal(t, exp, c, "CFuturesPriceCandleStick should decode every element")
+	assert.Equal(t, exp, c, "CFuturesPriceCandleStickResponse should decode every element")
 	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1791158400000}`), &c), "Unmarshal should error on an object")
 	assert.Error(t, json.Unmarshal([]byte(`[1791158400000,"86506.81356609","86981.89291707","84971.36471527","85749.09994179","0",1791244799999,"0",-1]`), &c), "Unmarshal should error on a negative sample count")
 }
 
 func TestCFuturesPremiumIndexCandleStickUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var c CFuturesPremiumIndexCandleStick
+	var c CFuturesPremiumIndexCandleStickResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1791158400000,"-0.00051341","0.00033899","-0.00122261","-0.00043352","0",1791244799999,"0",17280,"0","0","0"]`), &c), "Unmarshal must not error")
-	exp := CFuturesPremiumIndexCandleStick{
+	exp := CFuturesPremiumIndexCandleStickResponse{
 		OpenTime:  types.Time(time.UnixMilli(1791158400000)),
 		Open:      -0.00051341,
 		High:      0.00033899,
@@ -570,7 +570,7 @@ func TestCFuturesPremiumIndexCandleStickUnmarshalJSON(t *testing.T) {
 		Close:     -0.00043352,
 		CloseTime: types.Time(time.UnixMilli(1791244799999)),
 	}
-	assert.Equal(t, exp, c, "CFuturesPremiumIndexCandleStick should decode every element")
+	assert.Equal(t, exp, c, "CFuturesPremiumIndexCandleStickResponse should decode every element")
 	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1791158400000}`), &c), "Unmarshal should error on an object")
 	assert.Error(t, json.Unmarshal([]byte(`[1791158400000,"low"]`), &c), "Unmarshal should error on a malformed price")
 }

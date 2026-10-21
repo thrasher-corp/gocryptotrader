@@ -26,8 +26,8 @@ type BrokerSubAccountAPIPermissionResponse struct {
 	FuturesTrade bool   `json:"futuresTrade"`
 }
 
-// BrokerSubAccount is a link sub-account and its commissions
-type BrokerSubAccount struct {
+// BrokerSubAccountResponse is a link sub-account and its commissions
+type BrokerSubAccountResponse struct {
 	SubAccountID    string  `json:"subaccountId"`
 	Email           string  `json:"email"`
 	Tag             string  `json:"tag"`
@@ -153,8 +153,8 @@ type BrokerSubAccountDepositHistoryRequest struct {
 	Offset uint64
 }
 
-// BrokerSubAccountDeposit is a link sub-account deposit
-type BrokerSubAccountDeposit struct {
+// BrokerSubAccountDepositResponse is a link sub-account deposit
+type BrokerSubAccountDepositResponse struct {
 	DepositID     uint64        `json:"depositId"`
 	SubAccountID  string        `json:"subAccountId"`
 	Address       string        `json:"address"`
@@ -303,8 +303,8 @@ type BrokerSpotTransferHistoryRequest struct {
 	Limit uint64
 }
 
-// BrokerSpotTransfer is a spot transfer between link accounts
-type BrokerSpotTransfer struct {
+// BrokerSpotTransferHistoryResponse is a spot transfer between link accounts
+type BrokerSpotTransferHistoryResponse struct {
 	FromID           string        `json:"fromId"`
 	ToID             string        `json:"toId"`
 	Asset            currency.Code `json:"asset"`
@@ -347,8 +347,9 @@ type BrokerUniversalTransferHistoryRequest struct {
 	ShowAllStatus bool
 }
 
-// BrokerUniversalTransfer is a universal transfer between link accounts; the master account's ID is never returned
-type BrokerUniversalTransfer struct {
+// BrokerUniversalTransferHistoryResponse is a universal transfer between link accounts; the master account's ID is
+// never returned
+type BrokerUniversalTransferHistoryResponse struct {
 	FromID           string        `json:"fromId"`
 	ToID             string        `json:"toId"`
 	Asset            currency.Code `json:"asset"`
@@ -381,12 +382,12 @@ type BrokerUniversalTransferResponse struct {
 	ClientTransferID string `json:"clientTranId"`
 }
 
-// BrokerCoinFuturesCommission is a link sub-account's COIN-M futures commission on a pair, where 100 is 0.01%
-type BrokerCoinFuturesCommission struct {
+// BrokerCoinFuturesCommissionResponse is a link sub-account's COIN-M futures commission on a pair, where 100 is 0.01%
+type BrokerCoinFuturesCommissionResponse struct {
 	SubAccountID    uint64 `json:"subAccountId"`
 	Pair            string `json:"pair"`
-	MakerCommission int64  `json:"makerCommission"`
-	TakerCommission int64  `json:"takerCommission"`
+	MakerCommission uint64 `json:"makerCommission"`
+	TakerCommission uint64 `json:"takerCommission"`
 }
 
 // BrokerCoinFuturesCommissionAdjustmentRequest holds a link sub-account's COIN-M futures commission adjustment, where 100 is
@@ -407,8 +408,8 @@ type BrokerCoinFuturesCommissionAdjustmentResponse struct {
 	Pair            string `json:"pair"`
 	MakerAdjustment uint64 `json:"makerAdjustment"`
 	TakerAdjustment uint64 `json:"takerAdjustment"`
-	MakerCommission int64  `json:"makerCommission"`
-	TakerCommission int64  `json:"takerCommission"`
+	MakerCommission uint64 `json:"makerCommission"`
+	TakerCommission uint64 `json:"takerCommission"`
 }
 
 // BrokerCommissionRequest holds a link sub-account's spot and margin commissions as decimal fractions between
@@ -431,12 +432,12 @@ type BrokerCommissionResponse struct {
 	MarginTakerCommission float64 `json:"marginTakerCommission"`
 }
 
-// BrokerUSDTFuturesCommission is a link sub-account's USDT-M futures commission on a symbol, where 100 is 0.01%
-type BrokerUSDTFuturesCommission struct {
+// BrokerUSDTFuturesCommissionResponse is a link sub-account's USDT-M futures commission on a symbol, where 100 is 0.01%
+type BrokerUSDTFuturesCommissionResponse struct {
 	SubAccountID    uint64 `json:"subAccountId"`
 	Symbol          string `json:"symbol"`
-	MakerCommission int64  `json:"makerCommission"`
-	TakerCommission int64  `json:"takerCommission"`
+	MakerCommission uint64 `json:"makerCommission"`
+	TakerCommission uint64 `json:"takerCommission"`
 }
 
 // BrokerUSDTFuturesCommissionAdjustmentRequest holds a link sub-account's USDT-M futures commission adjustment, where 100 is
@@ -456,8 +457,8 @@ type BrokerUSDTFuturesCommissionAdjustmentResponse struct {
 	Symbol          string `json:"symbol"`
 	MakerAdjustment uint64 `json:"makerAdjustment"`
 	TakerAdjustment uint64 `json:"takerAdjustment"`
-	MakerCommission int64  `json:"makerCommission"`
-	TakerCommission int64  `json:"takerCommission"`
+	MakerCommission uint64 `json:"makerCommission"`
+	TakerCommission uint64 `json:"takerCommission"`
 }
 
 // BrokerSpotCommissionRebateRequest holds the parameters of Query Spot Commission Rebate Recent Record
@@ -471,8 +472,8 @@ type BrokerSpotCommissionRebateRequest struct {
 	Size uint64
 }
 
-// BrokerCommissionRebate is a commission rebate a link account earned
-type BrokerCommissionRebate struct {
+// BrokerCommissionRebateResponse is a commission rebate a link account earned
+type BrokerCommissionRebateResponse struct {
 	SubAccountID string        `json:"subaccountId"`
 	Income       types.Number  `json:"income"`
 	Asset        currency.Code `json:"asset"`

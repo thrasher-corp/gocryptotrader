@@ -218,8 +218,8 @@ func (e *Exchange) GetSOLStakingQuotaDetails(ctx context.Context) (*SOLStakingQu
 }
 
 // GetUnclaimedRewards returns unclaimed SOL staking boost APR airdrop rewards
-func (e *Exchange) GetUnclaimedRewards(ctx context.Context) ([]SOLStakingUnclaimedReward, error) {
-	var resp []SOLStakingUnclaimedReward
+func (e *Exchange) GetUnclaimedRewards(ctx context.Context) ([]SOLStakingUnclaimedRewardResponse, error) {
+	var resp []SOLStakingUnclaimedRewardResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sol-staking/sol/history/unclaimedRewards", nil, unclaimedRewardsRate, &resp)
 }
 

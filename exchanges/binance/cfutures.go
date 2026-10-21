@@ -140,7 +140,7 @@ func (e *Exchange) CFuturesServerTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetFuturesAggregatedTradesList returns the coin margined futures Compressed/Aggregate Trades List
-func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, req *CFuturesAggregatedTradesRequest) ([]CFuturesAggregatedTrade, error) {
+func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, req *CFuturesAggregatedTradesRequest) ([]CFuturesAggregatedTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -170,12 +170,12 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, req *CFut
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []CFuturesAggregatedTrade
+	var resp []CFuturesAggregatedTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/aggTrades", params), cFuturesAggregateTradesRate, &resp)
 }
 
 // GetContinuousKlineData returns the coin margined futures Continuous Contract Kline/Candlestick Data
-func (e *Exchange) GetContinuousKlineData(ctx context.Context, req *CFuturesContinuousKlineRequest) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetContinuousKlineData(ctx context.Context, req *CFuturesContinuousKlineRequest) ([]CFuturesCandleStickResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (e *Exchange) GetContinuousKlineData(ctx context.Context, req *CFuturesCont
 	}
 	params.Set("pair", req.Pair.Upper().String())
 	params.Set("contractType", req.ContractType)
-	var resp []CFuturesCandleStick
+	var resp []CFuturesCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), cFuturesKlineLimit(req.Limit), &resp)
 }
 
@@ -228,7 +228,7 @@ func (e *Exchange) FuturesExchangeInfo(ctx context.Context) (*CFuturesExchangeIn
 
 // FuturesGetFundingHistory returns the coin margined futures Funding Rate History of Perpetual Futures; delivery
 // symbols return no records
-func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, req *CFuturesFundingRateHistoryRequest) ([]CFuturesFundingRateHistory, error) {
+func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, req *CFuturesFundingRateHistoryRequest) ([]CFuturesFundingRateHistoryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -247,14 +247,14 @@ func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, req *CFuturesFu
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []CFuturesFundingRateHistory
+	var resp []CFuturesFundingRateHistoryResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/fundingRate", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFundingRateInfo returns the coin margined futures Funding Rate Info, which only lists symbols whose funding rate
 // cap, floor or interval was adjusted
-func (e *Exchange) GetFundingRateInfo(ctx context.Context) ([]CFuturesFundingRateInfo, error) {
-	var resp []CFuturesFundingRateInfo
+func (e *Exchange) GetFundingRateInfo(ctx context.Context) ([]CFuturesFundingRateInfoResponse, error) {
+	var resp []CFuturesFundingRateInfoResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/fundingInfo", cFuturesDefaultRate, &resp)
 }
 
@@ -284,7 +284,7 @@ func (e *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol currency.Pai
 }
 
 // GetIndexPriceKlines returns the coin margined futures Index Price Kline/Candlestick Data
-func (e *Exchange) GetIndexPriceKlines(ctx context.Context, req *CFuturesIndexPriceKlineRequest) ([]CFuturesPriceCandleStick, error) {
+func (e *Exchange) GetIndexPriceKlines(ctx context.Context, req *CFuturesIndexPriceKlineRequest) ([]CFuturesPriceCandleStickResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -296,17 +296,17 @@ func (e *Exchange) GetIndexPriceKlines(ctx context.Context, req *CFuturesIndexPr
 		return nil, err
 	}
 	params.Set("pair", req.Pair.Upper().String())
-	var resp []CFuturesPriceCandleStick
+	var resp []CFuturesPriceCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/indexPriceKlines", params), cFuturesKlineLimit(req.Limit), &resp)
 }
 
 // GetFuturesKlineData returns the coin margined futures Kline/Candlestick Data
-func (e *Exchange) GetFuturesKlineData(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetFuturesKlineData(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesCandleStickResponse, error) {
 	params, err := e.symbolKlineParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp []CFuturesCandleStick
+	var resp []CFuturesCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/klines", params), cFuturesKlineLimit(req.Limit), &resp)
 }
 
@@ -341,12 +341,12 @@ func (e *Exchange) GetMarketRatio(ctx context.Context, req *CFuturesStatisticsRe
 }
 
 // GetMarkPriceKline returns the coin margined futures Mark Price Kline/Candlestick Data
-func (e *Exchange) GetMarkPriceKline(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesPriceCandleStick, error) {
+func (e *Exchange) GetMarkPriceKline(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesPriceCandleStickResponse, error) {
 	params, err := e.symbolKlineParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp []CFuturesPriceCandleStick
+	var resp []CFuturesPriceCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/markPriceKlines", params), cFuturesKlineLimit(req.Limit), &resp)
 }
 
@@ -417,12 +417,12 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 }
 
 // GetPremiumIndexKlineData returns the coin margined futures Premium index Kline Data
-func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesPremiumIndexCandleStick, error) {
+func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, req *CFuturesKlineRequest) ([]CFuturesPremiumIndexCandleStickResponse, error) {
 	params, err := e.symbolKlineParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp []CFuturesPremiumIndexCandleStick
+	var resp []CFuturesPremiumIndexCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/premiumIndexKlines", params), cFuturesKlineLimit(req.Limit), &resp)
 }
 
@@ -518,7 +518,7 @@ func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, req *CFuturesStati
 
 // GetFuturesSwapTickerChangeStats returns the coin margined futures 24hr Ticker Price Change Statistics of a symbol,
 // of every symbol of a pair, or of every symbol when both are empty
-func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair currency.Code) ([]CFuturesPriceChangeStats, error) {
+func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair currency.Code) ([]CFuturesPriceChangeStatsResponse, error) {
 	params, err := e.symbolOrPairParams(symbol, pair)
 	if err != nil {
 		return nil, err
@@ -527,7 +527,7 @@ func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol c
 	if !symbol.IsEmpty() {
 		rateLimit = cFuturesDefaultRate
 	}
-	var resp []CFuturesPriceChangeStats
+	var resp []CFuturesPriceChangeStatsResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/24hr", params), rateLimit, &resp)
 }
 
@@ -696,7 +696,7 @@ func (e *Exchange) FuturesModifyMultipleOrders(ctx context.Context, orders []CFu
 // FuturesBatchOrder places up to five coin margined futures orders through Place Multiple Orders; an entry Binance
 // rejects carries its error code and message instead of the order. Binance is moving stop, take profit and trailing
 // stop orders to its algo order service, after which they are rejected with -4120
-func (e *Exchange) FuturesBatchOrder(ctx context.Context, orders []FuturesNewOrderRequest) ([]CFuturesBatchOrderData, error) {
+func (e *Exchange) FuturesBatchOrder(ctx context.Context, orders []FuturesNewOrderRequest) ([]CFuturesBatchOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -724,13 +724,13 @@ func (e *Exchange) FuturesBatchOrder(ctx context.Context, orders []FuturesNewOrd
 	}
 	params := url.Values{}
 	params.Set("batchOrders", string(batchOrders))
-	var resp []CFuturesBatchOrderData
+	var resp []CFuturesBatchOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/batchOrders", params, cFuturesBatchOrdersRate, &resp)
 }
 
 // FuturesBatchCancelOrders cancels coin margined futures orders of a symbol by order ID or client order ID through
 // Cancel Multiple Orders; an entry Binance rejects carries its error code and message instead of the order
-func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, origClientOrderIDs []string) ([]CFuturesBatchOrderData, error) {
+func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, origClientOrderIDs []string) ([]CFuturesBatchOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -757,7 +757,7 @@ func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency
 		}
 		params.Set("origClientOrderIdList", string(clientOrderIDList))
 	}
-	var resp []CFuturesBatchOrderData
+	var resp []CFuturesBatchOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesCancelRate, &resp)
 }
 
@@ -912,8 +912,8 @@ func (e *Exchange) futuresOrderParams(req *FuturesNewOrderRequest) (url.Values, 
 	if req.PriceProtect {
 		params.Set("priceProtect", "true")
 	}
-	if req.NewOrderRespType != "" {
-		params.Set("newOrderRespType", req.NewOrderRespType)
+	if req.NewOrderResponseType != "" {
+		params.Set("newOrderRespType", req.NewOrderResponseType)
 	}
 	if req.PriceMatch != "" {
 		params.Set("priceMatch", req.PriceMatch)
@@ -993,13 +993,13 @@ func (e *Exchange) FuturesCancelAllAlgoOpenOrders(ctx context.Context, symbol cu
 
 // FuturesCurrentAllAlgoOpenOrders returns open coin margined futures algo (conditional) orders from Current All Algo
 // Open Orders; each argument is an optional filter, and an empty symbol returns every symbol's orders
-func (e *Exchange) FuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]UAlgoOrder, error) {
+func (e *Exchange) FuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]UAlgoOrderResponse, error) {
 	return e.futuresCurrentAllAlgoOpenOrders(ctx, algoType, symbol, algoID, cFuturesOpenAlgoOrdersAllRate)
 }
 
 // futuresCurrentAllAlgoOpenOrders lists open coin margined futures algo orders, drawing on allSymbols for a listing of
 // every symbol's, so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
-func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]UAlgoOrder, error) {
+func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]UAlgoOrderResponse, error) {
 	params := url.Values{}
 	rateLimit := allSymbols
 	if algoType != "" {
@@ -1016,13 +1016,13 @@ func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType
 	if algoID > 0 {
 		params.Set("algoId", strconv.FormatUint(algoID, 10))
 	}
-	var resp []UAlgoOrder
+	var resp []UAlgoOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openAlgoOrders", params, rateLimit, &resp)
 }
 
 // FuturesQueryAllAlgoOrders returns a coin margined futures symbol's active, cancelled, triggered and finished algo
 // (conditional) orders from Query All Algo Orders. A time window may span at most seven days
-func (e *Exchange) FuturesQueryAllAlgoOrders(ctx context.Context, arg *UAllAlgoOrdersRequest) ([]UAlgoOrder, error) {
+func (e *Exchange) FuturesQueryAllAlgoOrders(ctx context.Context, arg *UAllAlgoOrdersRequest) ([]UAlgoOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1044,7 +1044,7 @@ func (e *Exchange) FuturesQueryAllAlgoOrders(ctx context.Context, arg *UAllAlgoO
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UAlgoOrder
+	var resp []UAlgoOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/allAlgoOrders", params, cFuturesAllAlgoOrdersRate, &resp)
 }
 
@@ -1116,7 +1116,7 @@ func (e *Exchange) getFuturesAllOpenOrders(ctx context.Context, symbol currency.
 
 // GetFuturesOrderModifyHistory returns a coin margined futures order's modifications through Get Order Modify History;
 // only the last three months are kept
-func (e *Exchange) GetFuturesOrderModifyHistory(ctx context.Context, req *CFuturesOrderModifyHistoryRequest) ([]FuturesOrderAmendment, error) {
+func (e *Exchange) GetFuturesOrderModifyHistory(ctx context.Context, req *CFuturesOrderModifyHistoryRequest) ([]FuturesOrderAmendmentResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -1138,7 +1138,7 @@ func (e *Exchange) GetFuturesOrderModifyHistory(ctx context.Context, req *CFutur
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []FuturesOrderAmendment
+	var resp []FuturesOrderAmendmentResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/orderAmendment", params, cFuturesDefaultRate, &resp)
 }
 
@@ -1285,13 +1285,13 @@ func (e *Exchange) FuturesForceOrders(ctx context.Context, req *CFuturesForceOrd
 
 // CFuturesQuarterlyContractSettlementPrice returns a COIN-M pair's quarterly contract settlement prices. Binance only
 // documents the endpoint for USDⓈ-M futures, but the COIN-M host serves its own pairs (BTCUSD) from the same path
-func (e *Exchange) CFuturesQuarterlyContractSettlementPrice(ctx context.Context, pair currency.Code) ([]SettlementPrice, error) {
+func (e *Exchange) CFuturesQuarterlyContractSettlementPrice(ctx context.Context, pair currency.Code) ([]SettlementPriceResponse, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("pair", pair.Upper().String())
-	var resp []SettlementPrice
+	var resp []SettlementPriceResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/delivery-price", params), futuresDataRate, &resp)
 }
 

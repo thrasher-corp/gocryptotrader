@@ -280,8 +280,8 @@ type SimpleEarnLockedReward struct {
 	Type       string        `json:"type"`
 }
 
-// SimpleEarnLockedSubscriptionPreview holds the estimated rewards and schedule of a locked product subscription
-type SimpleEarnLockedSubscriptionPreview struct {
+// SimpleEarnLockedSubscriptionPreviewResponse holds the estimated rewards and schedule of a locked product subscription
+type SimpleEarnLockedSubscriptionPreviewResponse struct {
 	RewardAsset                     currency.Code `json:"rewardAsset"`
 	TotalRewardAmount               types.Number  `json:"totalRewardAmt"`
 	ExtraRewardAsset                currency.Code `json:"extraRewardAsset"`

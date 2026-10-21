@@ -106,18 +106,18 @@ type ExchangeInfoRequest struct {
 
 // ExchangeInfoResponse holds the exchange trading rules and symbol information
 type ExchangeInfoResponse struct {
-	Timezone        string           `json:"timezone"`
-	ServerTime      types.Time       `json:"serverTime"`
-	RateLimits      []RateLimitItem  `json:"rateLimits"`
-	ExchangeFilters []ExchangeFilter `json:"exchangeFilters"`
-	Symbols         []SymbolInfo     `json:"symbols"`
+	Timezone        string                  `json:"timezone"`
+	ServerTime      types.Time              `json:"serverTime"`
+	RateLimits      []RateLimitItemResponse `json:"rateLimits"`
+	ExchangeFilters []ExchangeFilter        `json:"exchangeFilters"`
+	Symbols         []SymbolInfo            `json:"symbols"`
 	// SORs is sent only when smart order routing (SOR) is available
 	SORs []SORInfo `json:"sors"`
 }
 
-// RateLimitItem holds a rate limit. Count, the usage counted against it, is sent by the unfilled order count query
-// and the WebSocket API but not by the exchange information
-type RateLimitItem struct {
+// RateLimitItemResponse holds a rate limit. Count, the usage counted against it, is sent by the unfilled order count
+// query and the WebSocket API but not by the exchange information
+type RateLimitItemResponse struct {
 	RateLimitType  string `json:"rateLimitType"`
 	Interval       string `json:"interval"`
 	IntervalNumber uint64 `json:"intervalNum"`
@@ -328,9 +328,9 @@ type RollingWindowTickerRequest struct {
 	SymbolStatus string
 }
 
-// TickerStatistics holds a symbol's price change statistics over a trading day or a rolling window. The MINI type
-// leaves out the price change fields
-type TickerStatistics struct {
+// TickerStatisticsResponse holds a symbol's price change statistics over a trading day or a rolling window. The MINI
+// type leaves out the price change fields
+type TickerStatisticsResponse struct {
 	Symbol               string       `json:"symbol"`
 	PriceChange          types.Number `json:"priceChange"`
 	PriceChangePercent   types.Number `json:"priceChangePercent"`
@@ -381,8 +381,8 @@ type PriceChangeStats struct {
 	Count                uint64       `json:"count"`
 }
 
-// BookTicker holds a symbol's best bid and ask price and quantity
-type BookTicker struct {
+// BookTickerResponse holds a symbol's best bid and ask price and quantity
+type BookTickerResponse struct {
 	Symbol      string       `json:"symbol"`
 	BidPrice    types.Number `json:"bidPrice"`
 	BidQuantity types.Number `json:"bidQty"`
@@ -448,9 +448,9 @@ type CancelOrderResponse struct {
 	OrderConditionalFields
 }
 
-// CancelledOpenOrder holds an entry of a cancel all open orders response: a cancelled order, or a cancelled order list
-// with its list status, orders and order reports
-type CancelledOpenOrder struct {
+// CancelledOpenOrderResponse holds an entry of a cancel all open orders response: a cancelled order, or a cancelled
+// order list with its list status, orders and order reports
+type CancelledOpenOrderResponse struct {
 	CancelOrderResponse
 	ContingencyType   string           `json:"contingencyType"`
 	ListStatusType    string           `json:"listStatusType"`
@@ -563,7 +563,7 @@ type OrderResponse struct {
 	Symbol                     string            `json:"symbol"`
 	OriginalClientOrderID      string            `json:"origClientOrderId"`
 	OrderID                    uint64            `json:"orderId"`
-	OrderListID                int64             `json:"orderListId"`
+	OrderListID                int64             `json:"orderListId"` // -1 unless the order is part of an order list
 	ClientOrderID              string            `json:"clientOrderId"`
 	TransactTime               types.Time        `json:"transactTime"`
 	Price                      types.Number      `json:"price"`
@@ -628,7 +628,7 @@ type CancelAndReplaceResponse struct {
 // and message of a failed cancellation
 type CancelReplaceCancelResponse struct {
 	CancelOrderResponse
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // negative when the cancellation failed
 	Message string `json:"msg"`
 }
 
@@ -636,7 +636,7 @@ type CancelReplaceCancelResponse struct {
 // message of a failed placement
 type CancelReplaceNewOrderResponse struct {
 	NewOrderResponse
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // negative when the placement failed
 	Message string `json:"msg"`
 }
 
@@ -711,7 +711,7 @@ type SOROrderRequest struct {
 type SOROrderResponse struct {
 	Symbol                     string       `json:"symbol"`
 	OrderID                    uint64       `json:"orderId"`
-	OrderListID                int64        `json:"orderListId"`
+	OrderListID                int64        `json:"orderListId"` // always -1
 	ClientOrderID              string       `json:"clientOrderId"`
 	TransactTime               types.Time   `json:"transactTime"`
 	Price                      types.Number `json:"price"`
@@ -804,10 +804,10 @@ type TradeOrderResponse struct {
 // AccountResponse holds the account information. The commissions are in basis points and signed, since a liquidity
 // provider's maker rebate is reported as a negative commission
 type AccountResponse struct {
-	MakerCommission            int64           `json:"makerCommission"`
-	TakerCommission            int64           `json:"takerCommission"`
-	BuyerCommission            int64           `json:"buyerCommission"`
-	SellerCommission           int64           `json:"sellerCommission"`
+	MakerCommission            uint64          `json:"makerCommission"`
+	TakerCommission            uint64          `json:"takerCommission"`
+	BuyerCommission            uint64          `json:"buyerCommission"`
+	SellerCommission           uint64          `json:"sellerCommission"`
 	CommissionRates            CommissionRates `json:"commissionRates"`
 	CanTrade                   bool            `json:"canTrade"`
 	CanWithdraw                bool            `json:"canWithdraw"`
@@ -840,13 +840,13 @@ type AllocationsRequest struct {
 	OrderID          uint64
 }
 
-// Allocation holds an allocation resulting from an order placed using smart order routing (SOR)
-type Allocation struct {
+// AllocationResponse holds an allocation resulting from an order placed using smart order routing (SOR)
+type AllocationResponse struct {
 	Symbol          string        `json:"symbol"`
 	AllocationID    uint64        `json:"allocationId"`
 	AllocationType  string        `json:"allocationType"`
 	OrderID         uint64        `json:"orderId"`
-	OrderListID     int64         `json:"orderListId"`
+	OrderListID     int64         `json:"orderListId"` // -1 unless the order is part of an order list
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
 	QuoteQuantity   types.Number  `json:"quoteQty"`
@@ -868,8 +868,8 @@ type PreventedMatchesRequest struct {
 	Limit                uint64 // 500 when zero, at most 1000
 }
 
-// PreventedMatch holds a match that self-trade prevention (STP) prevented, expiring the orders involved
-type PreventedMatch struct {
+// PreventedMatchResponse holds a match that self-trade prevention (STP) prevented, expiring the orders involved
+type PreventedMatchResponse struct {
 	Symbol                  string       `json:"symbol"`
 	PreventedMatchID        uint64       `json:"preventedMatchId"`
 	TakerOrderID            uint64       `json:"takerOrderId"`
@@ -893,12 +893,12 @@ type AccountTradeListRequest struct {
 	Limit     uint64 // 500 when zero, at most 1000
 }
 
-// AccountTrade holds a trade of the account
-type AccountTrade struct {
+// AccountTradeResponse holds a trade of the account
+type AccountTradeResponse struct {
 	Symbol          string        `json:"symbol"`
 	ID              uint64        `json:"id"`
 	OrderID         uint64        `json:"orderId"`
-	OrderListID     int64         `json:"orderListId"`
+	OrderListID     int64         `json:"orderListId"` // -1 unless the order is part of an order list
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
 	QuoteQuantity   types.Number  `json:"quoteQty"`

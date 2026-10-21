@@ -27,8 +27,8 @@ type PMProBankruptcyLoanAmountResponse struct {
 	Amount types.Number  `json:"amount"`
 }
 
-// PMProNegativeBalanceInterest holds a portfolio margin pro negative balance interest record
-type PMProNegativeBalanceInterest struct {
+// PMProNegativeBalanceInterestResponse holds a portfolio margin pro negative balance interest record
+type PMProNegativeBalanceInterestResponse struct {
 	Asset               currency.Code `json:"asset"`
 	Interest            types.Number  `json:"interest"`
 	InterestAccruedTime types.Time    `json:"interestAccruedTime"`
@@ -36,20 +36,20 @@ type PMProNegativeBalanceInterest struct {
 	Principal           types.Number  `json:"principal"`
 }
 
-// PMAssetLeverage holds a portfolio margin asset's leverage
-type PMAssetLeverage struct {
+// PMAssetLeverageResponse holds a portfolio margin asset's leverage
+type PMAssetLeverageResponse struct {
 	Asset    currency.Code `json:"asset"`
 	Leverage uint64        `json:"leverage"`
 }
 
-// PMCollateralRate holds a portfolio margin asset's collateral rate
-type PMCollateralRate struct {
+// PMCollateralRateResponse holds a portfolio margin asset's collateral rate
+type PMCollateralRateResponse struct {
 	Asset          currency.Code `json:"asset"`
 	CollateralRate types.Number  `json:"collateralRate"`
 }
 
-// PortfolioMarginAssetIndexPrice holds a portfolio margin asset's index price
-type PortfolioMarginAssetIndexPrice struct {
+// PortfolioMarginAssetIndexPriceResponse holds a portfolio margin asset's index price
+type PortfolioMarginAssetIndexPriceResponse struct {
 	Asset           currency.Code `json:"asset"`
 	AssetIndexPrice types.Number  `json:"assetIndexPrice"` // in USD
 	Time            types.Time    `json:"time"`

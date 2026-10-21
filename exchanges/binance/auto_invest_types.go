@@ -26,8 +26,8 @@ type AutoInvestROIDimension struct {
 	DimensionUnit  string       `json:"dimensionUnit"`
 }
 
-// AutoInvestTargetAssetROI holds a target asset's simulated return accumulated up to a date
-type AutoInvestTargetAssetROI struct {
+// AutoInvestTargetAssetROIResponse holds a target asset's simulated return accumulated up to a date
+type AutoInvestTargetAssetROIResponse struct {
 	Date        types.Time   `json:"date"`
 	SimulateROI types.Number `json:"simulateRoi"`
 }
@@ -193,8 +193,8 @@ type AutoInvestSubscriptionHistoryRequest struct {
 	Current     uint64
 }
 
-// AutoInvestSubscriptionTransaction holds an Auto-Invest subscription transaction
-type AutoInvestSubscriptionTransaction struct {
+// AutoInvestSubscriptionTransactionResponse holds an Auto-Invest subscription transaction
+type AutoInvestSubscriptionTransactionResponse struct {
 	ID                  uint64        `json:"id"`
 	TargetAsset         currency.Code `json:"targetAsset"`
 	PlanType            string        `json:"planType"`
@@ -295,8 +295,8 @@ type IndexLinkedPlanRedemptionHistoryRequest struct {
 	Size      uint64
 }
 
-// IndexLinkedPlanRedemption holds an index-linked plan redemption
-type IndexLinkedPlanRedemption struct {
+// IndexLinkedPlanRedemptionResponse holds an index-linked plan redemption
+type IndexLinkedPlanRedemptionResponse struct {
 	IndexID            uint64        `json:"indexId"`
 	IndexName          string        `json:"indexName"`
 	RedemptionID       uint64        `json:"redemptionId"`
@@ -308,8 +308,8 @@ type IndexLinkedPlanRedemption struct {
 	TransactionFeeUnit currency.Code `json:"transactionFeeUnit"`
 }
 
-// IndexLinkedPlanRebalance holds an index-linked plan rebalance
-type IndexLinkedPlanRebalance struct {
+// IndexLinkedPlanRebalanceResponse holds an index-linked plan rebalance
+type IndexLinkedPlanRebalanceResponse struct {
 	IndexID            uint64                                `json:"indexId"`
 	IndexName          string                                `json:"indexName"`
 	RebalanceID        uint64                                `json:"rebalanceId"`

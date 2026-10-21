@@ -25,7 +25,7 @@ func TestGetAccountList(t *testing.T) {
 	result, err := e.GetAccountList(t.Context(), "sha256", "sams")
 	require.NoError(t, err, "GetAccountList must not error")
 	if mockTests {
-		exp := []MiningAccountHashrate{
+		exp := []MiningAccountHashrateResponse{
 			{
 				Type:     "H_hashrate",
 				UserName: "sams",
@@ -52,7 +52,7 @@ func TestAcquiringAlgorithm(t *testing.T) {
 	result, err := e.AcquiringAlgorithm(t.Context())
 	require.NoError(t, err, "AcquiringAlgorithm must not error")
 	if mockTests {
-		exp := []MiningAlgorithm{
+		exp := []MiningAlgorithmResponse{
 			{
 				AlgorithmName: "sha256",
 				AlgorithmID:   1,
@@ -79,7 +79,7 @@ func TestGetCoinNames(t *testing.T) {
 	result, err := e.GetCoinNames(t.Context())
 	require.NoError(t, err, "GetCoinNames must not error")
 	if mockTests {
-		exp := []MiningCoin{
+		exp := []MiningCoinResponse{
 			{
 				CoinName:      currency.BTC,
 				CoinID:        1,
@@ -354,7 +354,7 @@ func TestGetDetailMinerList(t *testing.T) {
 	result, err := e.GetDetailMinerList(t.Context(), "sha256", "sams", "bhdc1.16A10404B")
 	require.NoError(t, err, "GetDetailMinerList must not error")
 	if mockTests {
-		exp := []MinerDetail{
+		exp := []MinerDetailResponse{
 			{
 				WorkerName: "bhdc1.16A10404B",
 				Type:       "H_hashrate",

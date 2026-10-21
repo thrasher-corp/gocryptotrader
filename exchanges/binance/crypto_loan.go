@@ -200,7 +200,7 @@ func (e *Exchange) FlexibleLoanRepayHistory(ctx context.Context, req *FlexibleLo
 }
 
 // CryptoLoanIncomeHistory returns the asset movements of stable rate crypto loans
-func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, req *CryptoLoanIncomeHistoryRequest) ([]CryptoLoanIncome, error) {
+func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, req *CryptoLoanIncomeHistoryRequest) ([]CryptoLoanIncomeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, req *CryptoLoanI
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []CryptoLoanIncome
+	var resp []CryptoLoanIncomeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/income", params, cryptoLoansIncomeHistoryRate, &resp)
 }
 

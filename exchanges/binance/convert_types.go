@@ -5,8 +5,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// ConvertPair is a convertible pair with the amount limits of each side; a maximum of 9E+24 means no practical limit
-type ConvertPair struct {
+// ConvertPairResponse is a convertible pair with the amount limits of each side; a maximum of 9E+24 means no practical
+// limit
+type ConvertPairResponse struct {
 	FromAsset          currency.Code `json:"fromAsset"`
 	ToAsset            currency.Code `json:"toAsset"`
 	FromAssetMinAmount types.Number  `json:"fromAssetMinAmount"`
@@ -17,8 +18,8 @@ type ConvertPair struct {
 	FromIsBase bool `json:"fromIsBase"`
 }
 
-// OrderQuantityPrecision is the number of decimal places an asset's convert order quantity accepts
-type OrderQuantityPrecision struct {
+// OrderQuantityPrecisionResponse is the number of decimal places an asset's convert order quantity accepts
+type OrderQuantityPrecisionResponse struct {
 	Asset    currency.Code `json:"asset"`
 	Fraction uint64        `json:"fraction"`
 }
@@ -74,7 +75,7 @@ type ConvertOrderStatusResponse struct {
 
 // ConvertLimitOrderRequest holds the parameters of a convert limit order
 type ConvertLimitOrderRequest struct {
-	// BaseAsset is the side ConvertPair.FromIsBase names the base
+	// BaseAsset is the side ConvertPairResponse.FromIsBase names the base
 	BaseAsset  currency.Code
 	QuoteAsset currency.Code
 	// LimitPrice is the price from BaseAsset to QuoteAsset

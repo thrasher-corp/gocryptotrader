@@ -219,12 +219,12 @@ func TestStreamPayloads(t *testing.T) {
 				Ignore:                   123456,
 			},
 		}},
-		{"btcusdt@depth5", &WsPartialDepth{
+		{"btcusdt@depth5", &WebsocketPartialDepth{
 			LastUpdateID: 101096708675,
 			Bids:         orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.31683}, {Price: 86104, Amount: 0.02991}},
 			Asks:         orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.55365}, {Price: 86104.03, Amount: 0.00072}},
 		}},
-		{"btcusdt@depth10@100ms", &WsPartialDepth{
+		{"btcusdt@depth10@100ms", &WebsocketPartialDepth{
 			LastUpdateID: 101096708778,
 			Bids:         orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
 			Asks:         orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}},
@@ -271,7 +271,7 @@ func TestStreamPayloads(t *testing.T) {
 	}
 }
 
-func TestWsHandleData(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true
@@ -367,7 +367,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.Equal(t, orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}}, book.Asks, "asks should be the last payload's")
 }
 
-func TestWsHandleDataErrors(t *testing.T) {
+func TestWebsocketHandleDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true
@@ -401,7 +401,7 @@ func TestWsHandleDataErrors(t *testing.T) {
 	}
 }
 
-func TestWsHandleDataDisabledPair(t *testing.T) {
+func TestWebsocketHandleDataDisabledPair(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true

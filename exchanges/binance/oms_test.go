@@ -59,7 +59,7 @@ func TestGetSpotClientEmailCustomisedID(t *testing.T) {
 	result, err := e.GetSpotClientEmailCustomisedID(t.Context(), "", "")
 	require.NoError(t, err, "GetSpotClientEmailCustomisedID must not error")
 	if mockTests {
-		exp := []ReferralCustomerEmail{{CustomerID: "abc123", Email: "test@example.com"}}
+		exp := []ReferralCustomerEmailResponse{{CustomerID: "abc123", Email: "test@example.com"}}
 		assert.Equal(t, exp, result, "GetSpotClientEmailCustomisedID should decode every field")
 		return
 	}
@@ -115,7 +115,7 @@ func TestGetSpotOwnRebateRecentRecords(t *testing.T) {
 	result, err := e.GetSpotOwnRebateRecentRecords(t.Context(), startTime, endTime, 10)
 	require.NoError(t, err, "GetSpotOwnRebateRecentRecords must not error")
 	if mockTests {
-		exp := []ReferralRebateRecord{{Income: 0.02063898, Asset: currency.BTC, Symbol: "ETHBTC", Time: types.Time(time.UnixMilli(1744150000000))}}
+		exp := []ReferralRebateRecordResponse{{Income: 0.02063898, Asset: currency.BTC, Symbol: "ETHBTC", Time: types.Time(time.UnixMilli(1744150000000))}}
 		assert.Equal(t, exp, result, "GetSpotOwnRebateRecentRecords should decode every field")
 		return
 	}
@@ -144,7 +144,7 @@ func TestGetSpotOthersRebateRecentRecord(t *testing.T) {
 	result, err := e.GetSpotOthersRebateRecentRecord(t.Context(), arg)
 	require.NoError(t, err, "GetSpotOthersRebateRecentRecord must not error")
 	if mockTests {
-		exp := []PartnerRebateRecord{
+		exp := []PartnerRebateRecordResponse{
 			{
 				CustomerID:      "123123",
 				Email:           "om***@***.com",
@@ -215,7 +215,7 @@ func TestGetFuturesClientEmailCustomisedID(t *testing.T) {
 	result, err := e.GetFuturesClientEmailCustomisedID(t.Context(), &ReferralCustomerEmailRequest{})
 	require.NoError(t, err, "GetFuturesClientEmailCustomisedID must not error")
 	if mockTests {
-		exp := []ReferralCustomerEmail{{CustomerID: "abc123", Email: "test@example.com"}}
+		exp := []ReferralCustomerEmailResponse{{CustomerID: "abc123", Email: "test@example.com"}}
 		assert.Equal(t, exp, result, "GetFuturesClientEmailCustomisedID should decode every field")
 		return
 	}
@@ -279,7 +279,7 @@ func TestGetRebateVolume(t *testing.T) {
 	result, err := e.GetRebateVolume(t.Context(), &ReferralVolumeRequest{StartTime: startTime, EndTime: endTime, Limit: 100})
 	require.NoError(t, err, "GetRebateVolume must not error")
 	if mockTests {
-		exp := []ReferralRebateVolume{{Unit: currency.USDT, RebateVolume: 0.000232, Time: types.Time(time.UnixMilli(1744156800000))}}
+		exp := []ReferralRebateVolumeResponse{{Unit: currency.USDT, RebateVolume: 0.000232, Time: types.Time(time.UnixMilli(1744156800000))}}
 		assert.Equal(t, exp, result, "GetRebateVolume should decode every field")
 		return
 	}
@@ -300,7 +300,7 @@ func TestGetTraderDetail(t *testing.T) {
 	result, err := e.GetTraderDetail(t.Context(), "sde001", &ReferralVolumeRequest{CoinMargined: true, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetTraderDetail must not error")
 	if mockTests {
-		exp := []ReferralTraderDetail{
+		exp := []ReferralTraderDetailResponse{
 			{CustomerID: "sde001", Unit: currency.BTC, TradeVolume: 9.57083, RebateVolume: 0.000354, Time: types.Time(time.UnixMilli(1744156800000))},
 		}
 		assert.Equal(t, exp, result, "GetTraderDetail should decode every field")
@@ -323,7 +323,7 @@ func TestGetFuturesReferredTradersNumber(t *testing.T) {
 	result, err := e.GetFuturesReferredTradersNumber(t.Context(), &ReferralVolumeRequest{CoinMargined: true, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetFuturesReferredTradersNumber must not error")
 	if mockTests {
-		exp := []ReferralTraderNumber{{NewTrader: 1, OldTrader: 2, Time: types.Time(time.UnixMilli(1744156800000))}}
+		exp := []ReferralTraderNumberResponse{{NewTrader: 1, OldTrader: 2, Time: types.Time(time.UnixMilli(1744156800000))}}
 		assert.Equal(t, exp, result, "GetFuturesReferredTradersNumber should decode every field")
 		return
 	}
@@ -344,7 +344,7 @@ func TestGetUserTradeVolume(t *testing.T) {
 	result, err := e.GetUserTradeVolume(t.Context(), &ReferralVolumeRequest{CoinMargined: true, StartTime: startTime, EndTime: endTime, Limit: 100})
 	require.NoError(t, err, "GetUserTradeVolume must not error")
 	if mockTests {
-		exp := []ReferralTradeVolume{{Unit: currency.BTC, TradeVolume: 53.60756, Time: types.Time(time.UnixMilli(1744156800000))}}
+		exp := []ReferralTradeVolumeResponse{{Unit: currency.BTC, TradeVolume: 53.60756, Time: types.Time(time.UnixMilli(1744156800000))}}
 		assert.Equal(t, exp, result, "GetUserTradeVolume should decode every field")
 		return
 	}

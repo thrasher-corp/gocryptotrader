@@ -89,7 +89,7 @@ func TestGetV1FuturesPositionRiskSubAccount(t *testing.T) {
 	result, err := e.GetV1FuturesPositionRiskSubAccount(t.Context(), "address@example.com")
 	require.NoError(t, err, "GetV1FuturesPositionRiskSubAccount must not error")
 	if mockTests {
-		exp := []SubAccountFuturesPositionRisk{
+		exp := []SubAccountFuturesPositionRiskResponse{
 			{
 				EntryPrice:       9975.12,
 				Leverage:         50,
@@ -125,7 +125,7 @@ func TestGetV2FuturesPositionRiskSubAccount(t *testing.T) {
 		{
 			name: "USDT-margined", futuresType: 1,
 			exp: &SubAccountFuturesPositionRiskV2Response{
-				FuturePositionRiskVos: []SubAccountFuturesPositionRisk{
+				FuturePositionRiskVos: []SubAccountFuturesPositionRiskResponse{
 					{
 						EntryPrice:       9975.12,
 						Leverage:         50,
@@ -181,7 +181,7 @@ func TestGetSubAccountStatusOnMarginFutures(t *testing.T) {
 	result, err := e.GetSubAccountStatusOnMarginFutures(t.Context(), "myemail@example.com")
 	require.NoError(t, err, "GetSubAccountStatusOnMarginFutures must not error")
 	if mockTests {
-		exp := []SubAccountStatus{
+		exp := []SubAccountStatusResponse{
 			{
 				Email:            "myemail@example.com",
 				IsSubUserEnabled: true,
@@ -632,12 +632,12 @@ func TestGetSubAccountDepositHistory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *SubAccountDepositHistoryRequest
-		exp  []SubAccountDepositRecord
+		exp  []SubAccountDepositRecordResponse
 	}{
 		{
 			name: "status",
 			req:  &SubAccountDepositHistoryRequest{Email: "someone@example.com", Coin: currency.BTC, Status: new(uint64(1)), StartTime: startTime, EndTime: endTime, Limit: 100, Offset: 1},
-			exp: []SubAccountDepositRecord{
+			exp: []SubAccountDepositRecordResponse{
 				{
 					ID:           "769800519366885380",
 					Amount:       0.001,
@@ -656,7 +656,7 @@ func TestGetSubAccountDepositHistory(t *testing.T) {
 		{
 			name: "source",
 			req:  &SubAccountDepositHistoryRequest{Email: "someone@example.com", IncludeSource: true, Coin: currency.XRP, TxID: "98A3EA560C6B3336D348B6C83F0F95ECE4F1F5919E94BD006E5BF3BF264FACFC"},
-			exp: []SubAccountDepositRecord{
+			exp: []SubAccountDepositRecordResponse{
 				{
 					ID:            "769800519366885381",
 					Amount:        25,
@@ -1016,11 +1016,11 @@ func TestGetSubAccountSpotAssetTransferHistory(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *SubAccountSpotAssetTransferHistoryRequest
-		exp  []SubAccountSpotAssetTransfer
+		exp  []SubAccountSpotAssetTransferResponse
 	}{
 		{
 			name: "from", req: &SubAccountSpotAssetTransferHistoryRequest{FromEmail: "aaa@example.com", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10},
-			exp: []SubAccountSpotAssetTransfer{
+			exp: []SubAccountSpotAssetTransferResponse{
 				{
 					From:          "aaa@example.com",
 					To:            "bbb@example.com",
@@ -1034,7 +1034,7 @@ func TestGetSubAccountSpotAssetTransferHistory(t *testing.T) {
 		},
 		{
 			name: "to", req: &SubAccountSpotAssetTransferHistoryRequest{ToEmail: "bbb@example.com", Limit: 10},
-			exp: []SubAccountSpotAssetTransfer{
+			exp: []SubAccountSpotAssetTransferResponse{
 				{
 					From:          "ccc@example.com",
 					To:            "bbb@example.com",
@@ -1222,7 +1222,7 @@ func TestSubAccountTransferHistoryForSubAccount(t *testing.T) {
 	})
 	require.NoError(t, err, "SubAccountTransferHistoryForSubAccount must not error")
 	if mockTests {
-		exp := []SubAccountTransferHistoryRecord{
+		exp := []SubAccountTransferHistoryRecordResponse{
 			{
 				CounterParty:    "master",
 				Email:           "master@example.com",
@@ -1358,7 +1358,7 @@ func TestGetManagedSubAccountAssetsDetails(t *testing.T) {
 	result, err := e.GetManagedSubAccountAssetsDetails(t.Context(), "emailaddress@example.com")
 	require.NoError(t, err, "GetManagedSubAccountAssetsDetails must not error")
 	if mockTests {
-		exp := []ManagedSubAccountAsset{
+		exp := []ManagedSubAccountAssetResponse{
 			{
 				Coin:             currency.NewCode("INJ"),
 				Name:             "Injective Protocol",

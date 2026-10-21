@@ -232,8 +232,8 @@ type CryptoLoanIncomeHistoryRequest struct {
 	Limit     uint64
 }
 
-// CryptoLoanIncome holds a stable rate crypto loan asset movement
-type CryptoLoanIncome struct {
+// CryptoLoanIncomeResponse holds a stable rate crypto loan asset movement
+type CryptoLoanIncomeResponse struct {
 	Asset         currency.Code `json:"asset"`
 	Type          string        `json:"type"`
 	Amount        types.Number  `json:"amount"`

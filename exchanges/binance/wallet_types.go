@@ -51,7 +51,7 @@ type AccountSnapshotRequest struct {
 
 // AccountSnapshotResponse holds daily account snapshots
 type AccountSnapshotResponse struct {
-	Code        int64             `json:"code"`
+	Code        int64             `json:"code"` // 200 on success; Binance's error codes are negative
 	Message     string            `json:"msg"`
 	SnapshotVos []AccountSnapshot `json:"snapshotVos"`
 }
@@ -126,8 +126,8 @@ type APIKeyPermissionResponse struct {
 	EnablePortfolioMarginTrading bool       `json:"enablePortfolioMarginTrading"`
 }
 
-// AssetDetail holds the deposit and withdrawal details of an asset
-type AssetDetail struct {
+// AssetDetailResponse holds the deposit and withdrawal details of an asset
+type AssetDetailResponse struct {
 	MinimumWithdrawAmount types.Number `json:"minWithdrawAmount"`
 	DepositStatus         bool         `json:"depositStatus"`
 	WithdrawFee           types.Number `json:"withdrawFee"` // Quoted in live responses, although the documentation shows a bare number
@@ -157,7 +157,7 @@ type AssetDividend struct {
 	DividendTime  types.Time    `json:"divTime"`
 	EnglishInfo   string        `json:"enInfo"`
 	TransactionID uint64        `json:"tranId"`
-	Direction     int64         `json:"direction"`
+	Direction     int64         `json:"direction"` // only 1 is documented; signed as a direction may be negative
 }
 
 // DustLogResponse holds the dust conversion log
@@ -203,8 +203,8 @@ type DustTransferResult struct {
 	TransferedAmount    types.Number  `json:"transferedAmount"`
 }
 
-// FundingAsset holds a funding wallet asset balance
-type FundingAsset struct {
+// FundingAssetResponse holds a funding wallet asset balance
+type FundingAssetResponse struct {
 	Asset        currency.Code `json:"asset"`
 	Free         types.Number  `json:"free"`
 	Locked       types.Number  `json:"locked"`
@@ -326,8 +326,8 @@ type UserUniversalTransferResponse struct {
 	TransactionID uint64 `json:"tranId"`
 }
 
-// UserWalletBalance holds the balance of one wallet
-type UserWalletBalance struct {
+// UserWalletBalanceResponse holds the balance of one wallet
+type UserWalletBalanceResponse struct {
 	Activate      bool                 `json:"activate"`
 	Balance       types.Number         `json:"balance"`
 	WalletName    string               `json:"walletName"`
@@ -345,15 +345,15 @@ type WalletAssetBalance struct {
 	BTCValuation types.Number  `json:"btcValuation"`
 }
 
-// TradeFee holds the trading fee rates of a symbol
-type TradeFee struct {
+// TradeFeeResponse holds the trading fee rates of a symbol
+type TradeFeeResponse struct {
 	Symbol          string       `json:"symbol"`
 	MakerCommission types.Number `json:"makerCommission"`
 	TakerCommission types.Number `json:"takerCommission"`
 }
 
-// UserAsset holds the positive balance of one asset
-type UserAsset struct {
+// UserAssetResponse holds the positive balance of one asset
+type UserAssetResponse struct {
 	Asset        currency.Code `json:"asset"`
 	Free         types.Number  `json:"free"`
 	Locked       types.Number  `json:"locked"`
@@ -404,9 +404,9 @@ type CoinNetwork struct {
 	DepositDust             types.Number  `json:"depositDust"` // Minimum creditable deposit amount
 	MinimumConfirm          uint64        `json:"minConfirm"`
 	UnlockConfirm           uint64        `json:"unLockConfirm"`
-	SameAddress             bool          `json:"sameAddress"` // Superseded by WithdrawTag, which carries the same value
-	WithdrawTag             bool          `json:"withdrawTag"` // Whether a withdrawal needs a memo or tag
-	EstimatedArrivalTime    uint64        `json:"estimatedArrivalTime"`
+	SameAddress             bool          `json:"sameAddress"`          // Superseded by WithdrawTag, which carries the same value
+	WithdrawTag             bool          `json:"withdrawTag"`          // Whether a withdrawal needs a memo or tag
+	EstimatedArrivalTime    uint64        `json:"estimatedArrivalTime"` // Binance's arrival estimate, documented without a unit; not a time
 	Busy                    bool          `json:"busy"`
 	ContractAddressURL      string        `json:"contractAddressUrl"`
 	ContractAddress         string        `json:"contractAddress"`
@@ -434,8 +434,8 @@ type DepositHistoryRequest struct {
 	TxID          string
 }
 
-// DepositRecord holds one deposit
-type DepositRecord struct {
+// DepositRecordResponse holds one deposit
+type DepositRecordResponse struct {
 	ID               string        `json:"id"`
 	Amount           types.Number  `json:"amount"`
 	Coin             currency.Code `json:"coin"`
@@ -454,16 +454,16 @@ type DepositRecord struct {
 	SourceAddress    string        `json:"sourceAddress"`    // Only present when the source is requested
 }
 
-// DepositAddressWithNetwork holds a deposit address of a coin on a network
-type DepositAddressWithNetwork struct {
+// DepositAddressWithNetworkResponse holds a deposit address of a coin on a network
+type DepositAddressWithNetworkResponse struct {
 	Coin      currency.Code `json:"coin"`
 	Address   string        `json:"address"`
 	Tag       string        `json:"tag"`
 	IsDefault uint64        `json:"isDefault"` // 1 for the default address
 }
 
-// WithdrawAddress holds an address book entry
-type WithdrawAddress struct {
+// WithdrawAddressResponse holds an address book entry
+type WithdrawAddressResponse struct {
 	Address     string        `json:"address"`
 	AddressTag  string        `json:"addressTag"`
 	Coin        currency.Code `json:"coin"`
@@ -520,8 +520,8 @@ type WithdrawHistoryRequest struct {
 	EndTime         time.Time
 }
 
-// WithdrawalRecord holds one withdrawal
-type WithdrawalRecord struct {
+// WithdrawalRecordResponse holds one withdrawal
+type WithdrawalRecordResponse struct {
 	ID              string         `json:"id"`
 	Amount          types.Number   `json:"amount"`
 	TransactionFee  types.Number   `json:"transactionFee"`
@@ -540,8 +540,8 @@ type WithdrawalRecord struct {
 	CompleteTime    types.DateTime `json:"completeTime"`
 }
 
-// DelistSchedule holds the spot symbols delisted at one time
-type DelistSchedule struct {
+// DelistScheduleResponse holds the spot symbols delisted at one time
+type DelistScheduleResponse struct {
 	DelistTime types.Time `json:"delistTime"`
 	Symbols    []string   `json:"symbols"`
 }
@@ -567,8 +567,8 @@ type LocalEntityDepositHistoryRequest struct {
 	Limit                uint64 // Up to 1000, default 1000
 }
 
-// LocalEntityDepositRecord holds one deposit of a local entity that requires the travel rule
-type LocalEntityDepositRecord struct {
+// LocalEntityDepositRecordResponse holds one deposit of a local entity that requires the travel rule
+type LocalEntityDepositRecordResponse struct {
 	TravelRuleRecordID   uint64        `json:"trId"`
 	TransactionID        uint64        `json:"tranId"`
 	Amount               types.Number  `json:"amount"`
@@ -595,8 +595,8 @@ type DepositQuestionnaireResponse struct {
 	Info               string `json:"info"`
 }
 
-// VASP holds a virtual asset service provider of the travel rule
-type VASP struct {
+// VASPResponse holds a virtual asset service provider of the travel rule
+type VASPResponse struct {
 	VASPName   string `json:"vaspName"`
 	VASPCode   string `json:"vaspCode"`
 	Identifier string `json:"identifier"` // Value for a questionnaire's vasp field
@@ -616,8 +616,8 @@ type LocalEntityWithdrawHistoryRequest struct {
 	EndTime             time.Time
 }
 
-// LocalEntityWithdrawalRecord holds one withdrawal of a local entity that requires the travel rule
-type LocalEntityWithdrawalRecord struct {
+// LocalEntityWithdrawalRecordResponse holds one withdrawal of a local entity that requires the travel rule
+type LocalEntityWithdrawalRecordResponse struct {
 	ID                 string         `json:"id"`
 	TravelRuleRecordID uint64         `json:"trId"`
 	Amount             types.Number   `json:"amount"`

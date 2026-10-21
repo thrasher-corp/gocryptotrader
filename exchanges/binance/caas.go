@@ -42,9 +42,9 @@ func (e *Exchange) ChangeSubAccountAPIPermission(ctx context.Context, arg *Broke
 }
 
 // GetBrokerSubAccounts calls Query Sub Account; size is at most 500, the default
-func (e *Exchange) GetBrokerSubAccounts(ctx context.Context, subAccountID string, page, size uint64) ([]BrokerSubAccount, error) {
+func (e *Exchange) GetBrokerSubAccounts(ctx context.Context, subAccountID string, page, size uint64) ([]BrokerSubAccountResponse, error) {
 	params := brokerSubAccountPageParams(subAccountID, page, size)
-	var resp []BrokerSubAccount
+	var resp []BrokerSubAccountResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/subAccount", params, sapiDefaultRate, &resp)
 }
 
@@ -197,7 +197,7 @@ func (e *Exchange) UpdateIPRestrictionForSubAccountAPIKey(ctx context.Context, a
 
 // GetSubAccountDepositHistoryWithBroker calls Get Sub Account Deposit History for a window of at most 7 days; without
 // a window the API returns the last 7 days
-func (e *Exchange) GetSubAccountDepositHistoryWithBroker(ctx context.Context, arg *BrokerSubAccountDepositHistoryRequest) ([]BrokerSubAccountDeposit, error) {
+func (e *Exchange) GetSubAccountDepositHistoryWithBroker(ctx context.Context, arg *BrokerSubAccountDepositHistoryRequest) ([]BrokerSubAccountDepositResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (e *Exchange) GetSubAccountDepositHistoryWithBroker(ctx context.Context, ar
 	if arg.Offset > 0 {
 		params.Set("offset", strconv.FormatUint(arg.Offset, 10))
 	}
-	var resp []BrokerSubAccountDeposit
+	var resp []BrokerSubAccountDepositResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/subAccount/depositHist", params, brokerSubAccountDepositHistoryRate, &resp)
 }
 
@@ -302,7 +302,7 @@ func (e *Exchange) SubAccountTransferWithFuturesBroker(ctx context.Context, arg 
 
 // GetSpotBrokerSubAccountTransferHistory calls Query Sub Account Transfer History（SPOT）; FromID or ToID is required
 // and the query covers at most 100 days
-func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, arg *BrokerSpotTransferHistoryRequest) ([]BrokerSpotTransfer, error) {
+func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, arg *BrokerSpotTransferHistoryRequest) ([]BrokerSpotTransferHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, a
 	if err != nil {
 		return nil, err
 	}
-	var resp []BrokerSpotTransfer
+	var resp []BrokerSpotTransferHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/transfer", params, sapiDefaultRate, &resp)
 }
 
@@ -330,7 +330,7 @@ func (e *Exchange) SubAccountTransferWithSpotBroker(ctx context.Context, arg *Br
 
 // GetUniversalTransferHistoryThroughBroker calls Query Universal Transfer History; FromID or ToID is required and the
 // query covers at most 100 days
-func (e *Exchange) GetUniversalTransferHistoryThroughBroker(ctx context.Context, arg *BrokerUniversalTransferHistoryRequest) ([]BrokerUniversalTransfer, error) {
+func (e *Exchange) GetUniversalTransferHistoryThroughBroker(ctx context.Context, arg *BrokerUniversalTransferHistoryRequest) ([]BrokerUniversalTransferHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (e *Exchange) GetUniversalTransferHistoryThroughBroker(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	var resp []BrokerUniversalTransfer
+	var resp []BrokerUniversalTransferHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/universalTransfer", params, sapiDefaultRate, &resp)
 }
 
@@ -367,7 +367,7 @@ func (e *Exchange) UniversalTransferWithBroker(ctx context.Context, arg *BrokerU
 
 // GetSubAccountCoinMarginedFuturesCommissionAdjustment calls Query Sub Account COIN-Ⓜ Futures Commission Adjustment
 // for a COIN-M pair such as BTCUSD; a symbol's commission is its fee tier's base commission plus the adjustment
-func (e *Exchange) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, pair string) ([]BrokerCoinFuturesCommission, error) {
+func (e *Exchange) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, pair string) ([]BrokerCoinFuturesCommissionResponse, error) {
 	if subAccountID == "" {
 		return nil, errSubAccountIDMissing
 	}
@@ -377,7 +377,7 @@ func (e *Exchange) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx cont
 	params := url.Values{}
 	params.Set("subAccountId", subAccountID)
 	params.Set("pair", pair)
-	var resp []BrokerCoinFuturesCommission
+	var resp []BrokerCoinFuturesCommissionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/coinFutures", params, sapiDefaultRate, &resp)
 }
 
@@ -433,7 +433,7 @@ func (e *Exchange) ChangeSubAccountCommission(ctx context.Context, arg *BrokerCo
 
 // GetSubAccountUSDTMarginedFuturesCommissionAdjustment calls Query Sub Account USDT-Ⓜ Futures Commission Adjustment;
 // a symbol's commission is its fee tier's base commission plus the adjustment
-func (e *Exchange) GetSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID string, symbol currency.Pair) ([]BrokerUSDTFuturesCommission, error) {
+func (e *Exchange) GetSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID string, symbol currency.Pair) ([]BrokerUSDTFuturesCommissionResponse, error) {
 	if subAccountID == "" {
 		return nil, errSubAccountIDMissing
 	}
@@ -447,7 +447,7 @@ func (e *Exchange) GetSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx cont
 	params := url.Values{}
 	params.Set("subAccountId", subAccountID)
 	params.Set("symbol", symbolValue)
-	var resp []BrokerUSDTFuturesCommission
+	var resp []BrokerUSDTFuturesCommissionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/futures", params, sapiDefaultRate, &resp)
 }
 
@@ -478,7 +478,7 @@ func (e *Exchange) ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx c
 
 // GetSpotBrokerCommissionRebateRecentRecord calls Query Spot Commission Rebate Recent Record for a window of at most
 // 7 days; without a window the API returns the last 7 days
-func (e *Exchange) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context, arg *BrokerSpotCommissionRebateRequest) ([]BrokerCommissionRebate, error) {
+func (e *Exchange) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context, arg *BrokerSpotCommissionRebateRequest) ([]BrokerCommissionRebateResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -495,12 +495,12 @@ func (e *Exchange) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context
 	if arg.Size > 0 {
 		params.Set("size", strconv.FormatUint(arg.Size, 10))
 	}
-	var resp []BrokerCommissionRebate
+	var resp []BrokerCommissionRebateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/rebate/recentRecord", params, sapiDefaultRate, &resp)
 }
 
 // GetFuturesBrokerCommissionRebateRecentRecord calls Query Broker Futures Commission Rebate Record
-func (e *Exchange) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Context, arg *BrokerFuturesCommissionRebateRequest) ([]BrokerCommissionRebate, error) {
+func (e *Exchange) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Context, arg *BrokerFuturesCommissionRebateRequest) ([]BrokerCommissionRebateResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -520,7 +520,7 @@ func (e *Exchange) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Cont
 	if arg.FilterResult {
 		params.Set("filterResult", "true")
 	}
-	var resp []BrokerCommissionRebate
+	var resp []BrokerCommissionRebateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/broker/rebate/futures/recentRecord", params, sapiDefaultRate, &resp)
 }
 

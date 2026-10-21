@@ -815,12 +815,14 @@ func TestEndpointLimitArguments(t *testing.T) {
 	t.Parallel()
 	// The argument index of the endpoint limit of each sender whose limit must be a weighted Binance limit
 	senders := map[string]int{
-		"SendHTTPRequest":        3,
-		"SendAPIKeyHTTPRequest":  4,
-		"SendAuthHTTPRequest":    5,
-		"SendWsAPIRequest":       1,
-		"SendSignedWsAPIRequest": 1,
+		"SendHTTPRequest":               3,
+		"SendAPIKeyHTTPRequest":         4,
+		"SendAuthHTTPRequest":           5,
+		"SendWebsocketAPIRequest":       1,
+		"SendSignedWebsocketAPIRequest": 1,
 	}
+	// A sender renamed without this list would otherwise go unchecked
+	called := make(map[string]bool, len(senders))
 	files, err := filepath.Glob("*.go")
 	require.NoError(t, err, "the package's files must be listed")
 	fset := token.NewFileSet()
@@ -845,6 +847,7 @@ func TestEndpointLimitArguments(t *testing.T) {
 					return true
 				}
 				if i, ok := senders[sel.Sel.Name]; ok && i < len(n.Args) {
+					called[sel.Sel.Name] = true
 					if arg, ok := n.Args[i].(*ast.Ident); ok && arg.Name == "wsConnectionMessageRate" {
 						assert.Failf(t, "unweighted endpoint limit", "%s should pass a weighted endpoint limit to %s", fset.Position(n.Pos()), sel.Sel.Name)
 					}
@@ -852,6 +855,9 @@ func TestEndpointLimitArguments(t *testing.T) {
 			}
 			return true
 		})
+	}
+	for sender := range senders {
+		assert.Truef(t, called[sender], "%s should be called by the package", sender)
 	}
 }
 
@@ -913,7 +919,7 @@ func TestCancelEndpointLimits(t *testing.T) {
 					return true
 				}
 				endpoint, limit = literal(call.Args[3]), call.Args[5]
-			case sel.Sel.Name == "SendSignedWsAPIRequest" && len(call.Args) > 2:
+			case sel.Sel.Name == "SendSignedWebsocketAPIRequest" && len(call.Args) > 2:
 				endpoint, limit = literal(call.Args[2]), call.Args[1]
 			default:
 				return true

@@ -16,7 +16,7 @@ import (
 )
 
 // GetVIPBorrowInterestRate returns the flexible borrow interest rates of up to ten loan coins
-func (e *Exchange) GetVIPBorrowInterestRate(ctx context.Context, loanCoins []currency.Code) ([]VIPLoanBorrowInterestRate, error) {
+func (e *Exchange) GetVIPBorrowInterestRate(ctx context.Context, loanCoins []currency.Code) ([]VIPLoanBorrowInterestRateResponse, error) {
 	if len(loanCoins) == 0 {
 		return nil, fmt.Errorf("%w: loan coin", currency.ErrCurrencyCodeEmpty)
 	}
@@ -29,7 +29,7 @@ func (e *Exchange) GetVIPBorrowInterestRate(ctx context.Context, loanCoins []cur
 	}
 	params := url.Values{}
 	params.Set("loanCoin", strings.Join(coins, ","))
-	var resp []VIPLoanBorrowInterestRate
+	var resp []VIPLoanBorrowInterestRateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/vip/request/interestRate", params, getVIPBorrowInterestRate, &resp)
 }
 

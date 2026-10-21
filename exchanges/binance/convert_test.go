@@ -22,7 +22,7 @@ func TestGetAllConvertPairs(t *testing.T) {
 	result, err := e.GetAllConvertPairs(t.Context(), currency.BTC, currency.EMPTYCODE)
 	require.NoError(t, err, "GetAllConvertPairs must not error")
 	if mockTests {
-		exp := []ConvertPair{
+		exp := []ConvertPairResponse{
 			{FromAsset: currency.BTC, ToAsset: currency.USDT, FromAssetMinAmount: 0.00000012, FromAssetMaxAmount: 9e24, ToAssetMinAmount: 0.01, ToAssetMaxAmount: 9e24, FromIsBase: true},
 			{FromAsset: currency.BTC, ToAsset: currency.NewCode("BAR"), FromAssetMinAmount: 0.00000012, FromAssetMaxAmount: 0.27, ToAssetMinAmount: 0.035, ToAssetMaxAmount: 86000},
 		}
@@ -40,7 +40,7 @@ func TestGetOrderQuantityPrecisionPerAsset(t *testing.T) {
 	result, err := e.GetOrderQuantityPrecisionPerAsset(t.Context())
 	require.NoError(t, err, "GetOrderQuantityPrecisionPerAsset must not error")
 	if mockTests {
-		exp := []OrderQuantityPrecision{{Asset: currency.BTC, Fraction: 8}, {Asset: currency.USDT, Fraction: 2}}
+		exp := []OrderQuantityPrecisionResponse{{Asset: currency.BTC, Fraction: 8}, {Asset: currency.USDT, Fraction: 2}}
 		assert.Equal(t, exp, result, "GetOrderQuantityPrecisionPerAsset should decode every field")
 		return
 	}

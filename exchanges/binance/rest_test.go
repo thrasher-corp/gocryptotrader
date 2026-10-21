@@ -91,7 +91,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		exp := &ExchangeInfoResponse{
 			Timezone:   "UTC",
 			ServerTime: types.Time(time.UnixMilli(1791283064798)),
-			RateLimits: []RateLimitItem{
+			RateLimits: []RateLimitItemResponse{
 				{
 					RateLimitType:  "REQUEST_WEIGHT",
 					Interval:       "MINUTE",
@@ -880,7 +880,7 @@ func TestGetTickerData(t *testing.T) {
 	result, err := e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{spotTradablePair}, WindowSize: 20 * time.Minute, Type: "FULL"})
 	require.NoError(t, err, "GetTickerData must not error")
 	if mockTests {
-		exp := []TickerStatistics{
+		exp := []TickerStatisticsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				PriceChange:          180.73,
@@ -997,7 +997,7 @@ func TestGetBestPrice(t *testing.T) {
 	result, err := e.GetBestPrice(t.Context(), currency.Pairs{spotTradablePair}, "")
 	require.NoError(t, err, "GetBestPrice must not error")
 	if mockTests {
-		exp := []BookTicker{
+		exp := []BookTickerResponse{
 			{
 				Symbol:      "BTCUSDT",
 				BidPrice:    67773.99,
@@ -1015,7 +1015,7 @@ func TestGetBestPrice(t *testing.T) {
 	result, err = e.GetBestPrice(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
 	require.NoError(t, err, "GetBestPrice must not error")
 	if mockTests {
-		exp := []BookTicker{
+		exp := []BookTickerResponse{
 			{
 				Symbol:      "BTCUSDT",
 				BidPrice:    86168.13,
@@ -1090,7 +1090,7 @@ func TestGetTradingDayTicker(t *testing.T) {
 	result, err := e.GetTradingDayTicker(t.Context(), &TradingDayTickerRequest{Symbols: currency.Pairs{spotTradablePair}})
 	require.NoError(t, err, "GetTradingDayTicker must not error")
 	if mockTests {
-		exp := []TickerStatistics{
+		exp := []TickerStatisticsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				PriceChange:          -1079.67,
@@ -1123,7 +1123,7 @@ func TestGetTradingDayTicker(t *testing.T) {
 	})
 	require.NoError(t, err, "GetTradingDayTicker must not error")
 	if mockTests {
-		exp := []TickerStatistics{
+		exp := []TickerStatisticsResponse{
 			{
 				Symbol:      "BTCUSDT",
 				OpenPrice:   85269.79,
@@ -1231,7 +1231,7 @@ func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
 	result, err := e.CancelAllOpenOrderOnSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err, "CancelAllOpenOrderOnSymbol must not error")
 	if mockTests {
-		exp := []CancelledOpenOrder{
+		exp := []CancelledOpenOrderResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				OriginalClientOrderID:   "E6APeyTJvkMvLMYMqu1KQ4",
@@ -2991,7 +2991,7 @@ func TestGetAllocations(t *testing.T) {
 	result, err := e.GetAllocations(t.Context(), &AllocationsRequest{Symbol: spotTradablePair, StartTime: startTime, EndTime: endTime, FromAllocationID: 10, Limit: 10, OrderID: 10})
 	require.NoError(t, err, "GetAllocations must not error")
 	if mockTests {
-		exp := []Allocation{
+		exp := []AllocationResponse{
 			{
 				Symbol:          "BTCUSDT",
 				AllocationID:    10,
@@ -3044,7 +3044,7 @@ func TestGetPreventedMatches(t *testing.T) {
 	result, err := e.GetPreventedMatches(t.Context(), &PreventedMatchesRequest{Symbol: spotTradablePair, OrderID: 12, FromPreventedMatchID: 1, Limit: 10})
 	require.NoError(t, err, "GetPreventedMatches must not error")
 	if mockTests {
-		exp := []PreventedMatch{
+		exp := []PreventedMatchResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				PreventedMatchID:        1,
@@ -3066,7 +3066,7 @@ func TestGetPreventedMatches(t *testing.T) {
 	result, err = e.GetPreventedMatches(t.Context(), &PreventedMatchesRequest{Symbol: spotTradablePair, PreventedMatchID: 1})
 	require.NoError(t, err, "GetPreventedMatches must not error")
 	if mockTests {
-		exp := []PreventedMatch{
+		exp := []PreventedMatchResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				PreventedMatchID:        1,
@@ -3103,7 +3103,7 @@ func TestGetAccountTradeList(t *testing.T) {
 	result, err := e.GetAccountTradeList(t.Context(), &AccountTradeListRequest{Symbol: spotTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetAccountTradeList must not error")
 	if mockTests {
-		exp := []AccountTrade{
+		exp := []AccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              28457,
@@ -3141,7 +3141,7 @@ func TestGetAccountTradeList(t *testing.T) {
 	result, err = e.GetAccountTradeList(t.Context(), &AccountTradeListRequest{Symbol: spotTradablePair, OrderID: 100234, FromID: 28457})
 	require.NoError(t, err, "GetAccountTradeList must not error")
 	if mockTests {
-		exp := []AccountTrade{
+		exp := []AccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              28457,
@@ -3209,7 +3209,7 @@ func TestGetCurrentOrderCountUsage(t *testing.T) {
 	result, err := e.GetCurrentOrderCountUsage(t.Context())
 	require.NoError(t, err, "GetCurrentOrderCountUsage must not error")
 	if mockTests {
-		exp := []RateLimitItem{
+		exp := []RateLimitItemResponse{
 			{
 				RateLimitType:  "ORDERS",
 				Interval:       "SECOND",

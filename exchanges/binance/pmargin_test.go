@@ -8,37 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-func TestAccountBalanceResponseUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	balance := AccountBalance{Asset: currency.BTC, TotalWalletBalance: 1.5, UpdateTime: types.Time(time.UnixMilli(1617939110373))}
-	for _, tc := range []struct {
-		name  string
-		input string
-		exp   AccountBalanceResponse
-	}{
-		{name: "array", input: `[{"asset":"BTC","totalWalletBalance":"1.5","updateTime":1617939110373},{"asset":"ETH"}]`, exp: AccountBalanceResponse{balance, {Asset: currency.ETH}}},
-		{name: "object", input: `{"asset":"BTC","totalWalletBalance":"1.5","updateTime":1617939110373}`, exp: AccountBalanceResponse{balance}},
-		{name: "null", input: `null`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var resp AccountBalanceResponse
-			require.NoError(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error")
-			assert.Equal(t, tc.exp, resp, "Unmarshal should decode every balance")
-		})
-	}
-	for _, input := range []string{`"oops"`, `[{"totalWalletBalance":true}]`, `{"totalWalletBalance":true}`} {
-		var resp AccountBalanceResponse
-		assert.Errorf(t, json.Unmarshal([]byte(input), &resp), "Unmarshal should error for %s", input)
-	}
-}
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
@@ -48,9 +22,9 @@ func TestGetAccountBalance(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		ccy  currency.Code
-		exp  AccountBalanceResponse
+		exp  []AccountBalanceResponse
 	}{
-		{name: "allAssets", ccy: currency.EMPTYCODE, exp: AccountBalanceResponse{
+		{name: "allAssets", ccy: currency.EMPTYCODE, exp: []AccountBalanceResponse{
 			{
 				Asset:               currency.USDT,
 				TotalWalletBalance:  139.22469206,
@@ -67,7 +41,7 @@ func TestGetAccountBalance(t *testing.T) {
 				NegativeBalance:     0.5,
 			},
 		}},
-		{name: "asset", ccy: currency.BTC, exp: AccountBalanceResponse{
+		{name: "asset", ccy: currency.BTC, exp: []AccountBalanceResponse{
 			{
 				Asset:               currency.BTC,
 				TotalWalletBalance:  0.31,
@@ -308,7 +282,7 @@ func TestGetCMNotionalAndLeverageBrackets(t *testing.T) {
 	result, err := e.GetCMNotionalAndLeverageBrackets(t.Context(), coinmTradablePair)
 	require.NoError(t, err, "GetCMNotionalAndLeverageBrackets must not error")
 	if mockTests {
-		exp := []CMNotionalAndLeverage{
+		exp := []CMNotionalAndLeverageResponse{
 			{
 				Symbol: "BTCUSD_PERP",
 				Brackets: []CMNotionalBracket{
@@ -431,7 +405,7 @@ func TestGetCMIncomeHistory(t *testing.T) {
 	result, err := e.GetCMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{Symbol: coinmTradablePair, IncomeType: "REALIZED_PNL", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
 	require.NoError(t, err, "GetCMIncomeHistory must not error")
 	if mockTests {
-		exp := []IncomeItem{
+		exp := []IncomeItemResponse{
 			{
 				Symbol:        "BTCUSD_PERP",
 				IncomeType:    "REALIZED_PNL",
@@ -545,7 +519,7 @@ func TestGetUMIncomeHistory(t *testing.T) {
 	result, err := e.GetUMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{Symbol: usdtmTradablePair, IncomeType: "COMMISSION", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
 	require.NoError(t, err, "GetUMIncomeHistory must not error")
 	if mockTests {
-		exp := []IncomeItem{
+		exp := []IncomeItemResponse{
 			{
 				Symbol:        "BTCUSDT",
 				IncomeType:    "COMMISSION",
@@ -676,9 +650,9 @@ func TestGetCMPositionInformation(t *testing.T) {
 		name        string
 		marginAsset currency.Code
 		pair        currency.Code
-		exp         []CMPositionInformation
+		exp         []CMPositionInformationResponse
 	}{
-		{name: "marginAsset", marginAsset: currency.ETH, exp: []CMPositionInformation{
+		{name: "marginAsset", marginAsset: currency.ETH, exp: []CMPositionInformationResponse{
 			{
 				Symbol:           "ETHUSD_PERP",
 				PositionAmount:   10,
@@ -693,7 +667,7 @@ func TestGetCMPositionInformation(t *testing.T) {
 				NotionalValue:    0.06288319,
 			},
 		}},
-		{name: "pair", pair: currency.NewCode("BTCUSD"), exp: []CMPositionInformation{
+		{name: "pair", pair: currency.NewCode("BTCUSD"), exp: []CMPositionInformationResponse{
 			{
 				Symbol:           "BTCUSD_201225",
 				PositionAmount:   1,
@@ -830,7 +804,7 @@ func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
 	result, err := e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 10})
 	require.NoError(t, err, "GetPortfolioMarginNegativeBalanceInterestHistory must not error")
 	if mockTests {
-		exp := []PortfolioMarginNegativeBalanceInterest{
+		exp := []PortfolioMarginNegativeBalanceInterestResponse{
 			{
 				Asset:               currency.ETH,
 				Interest:            24.444,
@@ -854,7 +828,7 @@ func TestGetUMPositionInformation(t *testing.T) {
 	result, err := e.GetUMPositionInformation(t.Context(), usdtmTradablePair)
 	require.NoError(t, err, "GetUMPositionInformation must not error")
 	if mockTests {
-		exp := []UMPositionInformation{
+		exp := []UMPositionInformationResponse{
 			{
 				EntryPrice:       62000.5,
 				Leverage:         10,
@@ -921,7 +895,7 @@ func TestGetUserRateLimits(t *testing.T) {
 	result, err := e.GetUserRateLimits(t.Context())
 	require.NoError(t, err, "GetUserRateLimits must not error")
 	if mockTests {
-		exp := []PMRateLimit{
+		exp := []PMRateLimitResponse{
 			{
 				RateLimitType:  "ORDERS",
 				Interval:       "MINUTE",
@@ -961,7 +935,7 @@ func TestGetUMNotionalAndLeverageBrackets(t *testing.T) {
 	result, err := e.GetUMNotionalAndLeverageBrackets(t.Context(), usdtmTradablePair)
 	require.NoError(t, err, "GetUMNotionalAndLeverageBrackets must not error")
 	if mockTests {
-		exp := []UMNotionalAndLeverage{
+		exp := []UMNotionalAndLeverageResponse{
 			{
 				Symbol:              "BTCUSDT",
 				NotionalCoefficient: 1.5,
@@ -1228,7 +1202,7 @@ func TestNewCMOrder(t *testing.T) {
 	}{
 		{
 			name: "price",
-			arg:  &CMOrderRequest{Symbol: coinmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, ReduceOnly: true, Price: 9500, NewClientOrderID: "testOrder", NewOrderRespType: "RESULT"},
+			arg:  &CMOrderRequest{Symbol: coinmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, ReduceOnly: true, Price: 9500, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT"},
 			exp: &CMOrderResponse{
 				ClientOrderID:      "testOrder",
 				CumulativeQuantity: 1,
@@ -1330,7 +1304,7 @@ func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
 	result, err := e.CancelAllMarginOpenOrdersBySymbol(t.Context(), marginTradablePair)
 	require.NoError(t, err, "CancelAllMarginOpenOrdersBySymbol must not error")
 	if mockTests {
-		exp := []PMCancelledMarginOrder{
+		exp := []PMCancelledMarginOrderResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				OriginalClientOrderID:   "E6APeyTJvkMvLMYMqu1KQ4",
@@ -1560,7 +1534,7 @@ func TestNewMarginOrder(t *testing.T) {
 	}{
 		{
 			name: "stopLossLimit",
-			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Sell, OrderType: "STOP_LOSS_LIMIT", Quantity: 0.001, Price: 60000, StopPrice: 60100, NewClientOrderID: "6gCrw2kRUAF9CvJDGP16IP", NewOrderRespType: "FULL", IcebergQuantity: 0.0005, SideEffectType: "MARGIN_BUY", TimeInForce: "GTC", SelfTradePreventionMode: "EXPIRE_TAKER", AutoRepayAtCancel: &autoRepayAtCancel},
+			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Sell, OrderType: "STOP_LOSS_LIMIT", Quantity: 0.001, Price: 60000, StopPrice: 60100, NewClientOrderID: "6gCrw2kRUAF9CvJDGP16IP", NewOrderResponseType: "FULL", IcebergQuantity: 0.0005, SideEffectType: "MARGIN_BUY", TimeInForce: "GTC", SelfTradePreventionMode: "EXPIRE_TAKER", AutoRepayAtCancel: &autoRepayAtCancel},
 			exp: &PMNewMarginOrderResponse{
 				Symbol:                "BTCUSDT",
 				OrderID:               28,
@@ -1579,7 +1553,7 @@ func TestNewMarginOrder(t *testing.T) {
 		},
 		{
 			name: "marketQuoteQuantity",
-			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Buy, OrderType: "MARKET", QuoteOrderQuantity: 100, NewOrderRespType: "FULL"},
+			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Buy, OrderType: "MARKET", QuoteOrderQuantity: 100, NewOrderResponseType: "FULL"},
 			exp: &PMNewMarginOrderResponse{
 				Symbol:                  "BTCUSDT",
 				OrderID:                 29,
@@ -1728,7 +1702,7 @@ func TestNewUMOrder(t *testing.T) {
 	}{
 		{
 			name: "goodTillDate",
-			arg:  &UMOrderRequest{Symbol: usdtmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.02, ReduceOnly: true, Price: 62000.5, NewClientOrderID: "testOrder", NewOrderRespType: "RESULT", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1693207680000)},
+			arg:  &UMOrderRequest{Symbol: usdtmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.02, ReduceOnly: true, Price: 62000.5, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1693207680000)},
 			exp: &UMOrderResponse{
 				ClientOrderID:           "testOrder",
 				CumulativeQuantity:      0.01,
@@ -1848,9 +1822,9 @@ func TestGetCMAccountTradeList(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		arg  *CMAccountTradeListRequest
-		exp  []CMAccountTrade
+		exp  []CMAccountTradeResponse
 	}{
-		{name: "symbol", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []CMAccountTrade{
+		{name: "symbol", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []CMAccountTradeResponse{
 			{
 				Symbol:          "BTCUSD_PERP",
 				ID:              6,
@@ -1870,7 +1844,7 @@ func TestGetCMAccountTradeList(t *testing.T) {
 				Maker:           true,
 			},
 		}},
-		{name: "pair", arg: &CMAccountTradeListRequest{Pair: currency.NewCode("BTCUSD")}, exp: []CMAccountTrade{
+		{name: "pair", arg: &CMAccountTradeListRequest{Pair: currency.NewCode("BTCUSD")}, exp: []CMAccountTradeResponse{
 			{
 				Symbol:          "BTCUSD_250926",
 				ID:              7,
@@ -1890,7 +1864,7 @@ func TestGetCMAccountTradeList(t *testing.T) {
 				Maker:           true,
 			},
 		}},
-		{name: "fromID", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, FromID: 6}, exp: []CMAccountTrade{
+		{name: "fromID", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, FromID: 6}, exp: []CMAccountTradeResponse{
 			{
 				Symbol:          "BTCUSD_PERP",
 				ID:              6,
@@ -1933,7 +1907,7 @@ func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
 	result, err := e.GetCMPositionADLQuantileEstimation(t.Context(), coinmTradablePair)
 	require.NoError(t, err, "GetCMPositionADLQuantileEstimation must not error")
 	if mockTests {
-		exp := []CMADLQuantileEstimation{
+		exp := []CMADLQuantileEstimationResponse{
 			{
 				Symbol: "BTCUSD_PERP",
 				ADLQuantile: CMADLQuantile{
@@ -2020,7 +1994,7 @@ func TestMarginAccountNewOCO(t *testing.T) {
 		StopLimitPrice:       59900,
 		StopIcebergQuantity:  0.01,
 		StopLimitTimeInForce: "GTC",
-		NewOrderRespType:     "RESULT",
+		NewOrderResponseType: "RESULT",
 		SideEffectType:       "MARGIN_BUY",
 	})
 	require.NoError(t, err, "MarginAccountNewOCO must not error")
@@ -2111,7 +2085,7 @@ func TestGetPMMarginAccountTradeList(t *testing.T) {
 	result, err := e.GetPMMarginAccountTradeList(t.Context(), &PMMarginTradeListRequest{Symbol: marginTradablePair, OrderID: 39324, StartTime: startTime, EndTime: endTime, FromID: 1, Limit: 10})
 	require.NoError(t, err, "GetPMMarginAccountTradeList must not error")
 	if mockTests {
-		exp := []PMMarginTrade{
+		exp := []PMMarginTradeResponse{
 			{
 				Commission:      0.00006,
 				CommissionAsset: currency.BTC,
@@ -2147,7 +2121,7 @@ func TestGetAllCMConditionalOrders(t *testing.T) {
 	result, err := e.GetAllCMConditionalOrders(t.Context(), &CMConditionalOrdersRequest{Symbol: coinmTradablePair, StrategyID: 123445, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetAllCMConditionalOrders must not error")
 	if mockTests {
-		exp := []CMConditionalOrderRecord{
+		exp := []CMConditionalOrderRecordResponse{
 			{
 				NewClientStrategyID: "abc",
 				StrategyID:          123445,
@@ -2728,7 +2702,7 @@ func TestGetUsersCMForceOrders(t *testing.T) {
 	result, err := e.GetUsersCMForceOrders(t.Context(), &PMForceOrdersRequest{Symbol: coinmTradablePair, AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetUsersCMForceOrders must not error")
 	if mockTests {
-		exp := []CMForceOrder{
+		exp := []CMForceOrderResponse{
 			{
 				OrderID:          165123080,
 				Symbol:           "BTCUSD_PERP",
@@ -2807,7 +2781,7 @@ func TestGetUsersUMForceOrders(t *testing.T) {
 	result, err := e.GetUsersUMForceOrders(t.Context(), &PMForceOrdersRequest{Symbol: usdtmTradablePair, AutoCloseType: "LIQUIDATION", StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetUsersUMForceOrders must not error")
 	if mockTests {
-		exp := []UMForceOrder{
+		exp := []UMForceOrderResponse{
 			{
 				OrderID:          6071832819,
 				Symbol:           "BTCUSDT",
@@ -2853,9 +2827,9 @@ func TestGetUMAccountTradeList(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		arg  *UMAccountTradeListRequest
-		exp  []UMAccountTrade
+		exp  []UMAccountTradeResponse
 	}{
-		{name: "timeRange", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []UMAccountTrade{
+		{name: "timeRange", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []UMAccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              67880589,
@@ -2873,7 +2847,7 @@ func TestGetUMAccountTradeList(t *testing.T) {
 				PositionSide:    "BOTH",
 			},
 		}},
-		{name: "fromID", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, FromID: 67880589}, exp: []UMAccountTrade{
+		{name: "fromID", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, FromID: 67880589}, exp: []UMAccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              67880589,
@@ -2914,7 +2888,7 @@ func TestGetUMPositionADLQuantileEstimation(t *testing.T) {
 	result, err := e.GetUMPositionADLQuantileEstimation(t.Context(), usdtmTradablePair)
 	require.NoError(t, err, "GetUMPositionADLQuantileEstimation must not error")
 	if mockTests {
-		exp := []UMADLQuantileEstimation{
+		exp := []UMADLQuantileEstimationResponse{
 			{
 				Symbol: "BTCUSDT",
 				ADLQuantile: UMADLQuantile{
@@ -2976,7 +2950,7 @@ func TestNewUMAlgoOrder(t *testing.T) {
 	}{
 		{
 			name: "takeProfit",
-			arg:  &UMAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, PositionSide: "BOTH", OrderType: "TAKE_PROFIT", TimeInForce: "GTD", Quantity: 0.01, Price: 75000, TriggerPrice: 74000, WorkingType: "MARK_PRICE", PriceProtect: true, ReduceOnly: true, ClientAlgoID: "tpOrder1", NewOrderRespType: "ACK", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1750500000000)},
+			arg:  &UMAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, PositionSide: "BOTH", OrderType: "TAKE_PROFIT", TimeInForce: "GTD", Quantity: 0.01, Price: 75000, TriggerPrice: 74000, WorkingType: "MARK_PRICE", PriceProtect: true, ReduceOnly: true, ClientAlgoID: "tpOrder1", NewOrderResponseType: "ACK", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1750500000000)},
 			exp: &UMAlgoOrderResponse{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "tpOrder1",
@@ -3149,7 +3123,7 @@ func TestGetUMOpenAlgoOrders(t *testing.T) {
 	result, err := e.GetUMOpenAlgoOrders(t.Context(), currency.NewBTCUSDT(), "CONDITIONAL", 2146760)
 	require.NoError(t, err, "GetUMOpenAlgoOrders must not error")
 	if mockTests {
-		exp := []UMAlgoOrder{{
+		exp := []UMAlgoOrderResponse{{
 			AlgoID:                  2146760,
 			ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
 			AlgoType:                "CONDITIONAL",

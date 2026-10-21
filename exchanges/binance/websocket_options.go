@@ -76,7 +76,7 @@ func (e *Exchange) wsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case "optionSymbol":
 		return sendDecoded[OptionsNewSymbol](ctx, e, data)
 	case "openInterest":
-		return sendDecodedArray[WsOptionsOpenInterest](ctx, e, data)
+		return sendDecodedArray[WebsocketOptionsOpenInterest](ctx, e, data)
 	default:
 		return fmt.Errorf("%w %q on stream %q", errUnhandledStreamEvent, event, stream)
 	}
@@ -152,7 +152,7 @@ func (e *Exchange) processOptionsTrade(data []byte) error {
 	if !saveTradeData && !e.IsTradeFeedEnabled() {
 		return nil
 	}
-	var resp WsOptionsTrade
+	var resp WebsocketOptionsTrade
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}

@@ -145,8 +145,8 @@ type CFuturesAggregatedTradesRequest struct {
 	Limit     uint64
 }
 
-// CFuturesAggregatedTrade holds a coin margined futures aggregate trade
-type CFuturesAggregatedTrade struct {
+// CFuturesAggregatedTradeResponse holds a coin margined futures aggregate trade
+type CFuturesAggregatedTradeResponse struct {
 	AggregateTradeID uint64       `json:"a"`
 	Price            types.Number `json:"p"`
 	Quantity         types.Number `json:"q"`
@@ -167,8 +167,8 @@ type CFuturesContinuousKlineRequest struct {
 	Limit        uint64
 }
 
-// CFuturesCandleStick holds a coin margined futures kline. Volume and TakerBuyVolume count contracts
-type CFuturesCandleStick struct {
+// CFuturesCandleStickResponse holds a coin margined futures kline. Volume and TakerBuyVolume count contracts
+type CFuturesCandleStickResponse struct {
 	OpenTime                types.Time
 	Open                    types.Number
 	High                    types.Number
@@ -183,18 +183,18 @@ type CFuturesCandleStick struct {
 }
 
 // UnmarshalJSON decodes a coin margined futures kline from its array form
-func (c *CFuturesCandleStick) UnmarshalJSON(data []byte) error {
+func (c *CFuturesCandleStickResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.BaseAssetVolume, &c.NumberOfTrades, &c.TakerBuyVolume, &c.TakerBuyBaseAssetVolume, nil})
 }
 
 // CFuturesExchangeInfoResponse holds the coin margined futures trading rules and symbol information
 type CFuturesExchangeInfoResponse struct {
 	// ExchangeFilters is always empty in practice
-	ExchangeFilters []string             `json:"exchangeFilters"`
-	RateLimits      []RateLimitInfo      `json:"rateLimits"`
-	ServerTime      types.Time           `json:"serverTime"`
-	Symbols         []CFuturesSymbolInfo `json:"symbols"`
-	Timezone        string               `json:"timezone"`
+	ExchangeFilters []string                `json:"exchangeFilters"`
+	RateLimits      []RateLimitInfoResponse `json:"rateLimits"`
+	ServerTime      types.Time              `json:"serverTime"`
+	Symbols         []CFuturesSymbolInfo    `json:"symbols"`
+	Timezone        string                  `json:"timezone"`
 }
 
 // CFuturesSymbolInfo holds the trading rules of a coin margined futures symbol
@@ -240,7 +240,7 @@ type CFuturesSymbolFilter struct {
 	MaxQuantity       types.Number `json:"maxQty"`
 	MinQuantity       types.Number `json:"minQty"`
 	StepSize          types.Number `json:"stepSize"`
-	Limit             int64        `json:"limit"`
+	Limit             uint64       `json:"limit"`
 	MultiplierUp      types.Number `json:"multiplierUp"`
 	MultiplierDown    types.Number `json:"multiplierDown"`
 	MultiplierDecimal types.Number `json:"multiplierDecimal"`
@@ -254,8 +254,8 @@ type CFuturesFundingRateHistoryRequest struct {
 	Limit     uint64
 }
 
-// CFuturesFundingRateHistory holds a coin margined perpetual futures funding rate
-type CFuturesFundingRateHistory struct {
+// CFuturesFundingRateHistoryResponse holds a coin margined perpetual futures funding rate
+type CFuturesFundingRateHistoryResponse struct {
 	Symbol      string       `json:"symbol"`
 	FundingTime types.Time   `json:"fundingTime"`
 	FundingRate types.Number `json:"fundingRate"`
@@ -264,9 +264,9 @@ type CFuturesFundingRateHistory struct {
 	RateType  string       `json:"rateType"`
 }
 
-// CFuturesFundingRateInfo holds the funding rate limits of a coin margined perpetual futures symbol whose cap, floor
-// or funding interval was adjusted
-type CFuturesFundingRateInfo struct {
+// CFuturesFundingRateInfoResponse holds the funding rate limits of a coin margined perpetual futures symbol whose cap,
+// floor or funding interval was adjusted
+type CFuturesFundingRateInfoResponse struct {
 	Symbol                   string       `json:"symbol"`
 	AdjustedFundingRateCap   types.Number `json:"adjustedFundingRateCap"`
 	AdjustedFundingRateFloor types.Number `json:"adjustedFundingRateFloor"`
@@ -299,8 +299,8 @@ type CFuturesIndexPriceKlineRequest struct {
 	Limit     uint64
 }
 
-// CFuturesPriceCandleStick holds a coin margined futures index or mark price kline
-type CFuturesPriceCandleStick struct {
+// CFuturesPriceCandleStickResponse holds a coin margined futures index or mark price kline
+type CFuturesPriceCandleStickResponse struct {
 	OpenTime  types.Time
 	Open      types.Number
 	High      types.Number
@@ -312,7 +312,7 @@ type CFuturesPriceCandleStick struct {
 }
 
 // UnmarshalJSON decodes a coin margined futures index or mark price kline from its array form
-func (c *CFuturesPriceCandleStick) UnmarshalJSON(data []byte) error {
+func (c *CFuturesPriceCandleStickResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, nil, &c.CloseTime, nil, &c.NumberOfBasicData, nil, nil, nil})
 }
 
@@ -376,8 +376,8 @@ type CFuturesOrderBookResponse struct {
 	Asks              orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
-// CFuturesPremiumIndexCandleStick holds a coin margined futures premium index kline
-type CFuturesPremiumIndexCandleStick struct {
+// CFuturesPremiumIndexCandleStickResponse holds a coin margined futures premium index kline
+type CFuturesPremiumIndexCandleStickResponse struct {
 	OpenTime  types.Time
 	Open      types.Number
 	High      types.Number
@@ -387,7 +387,7 @@ type CFuturesPremiumIndexCandleStick struct {
 }
 
 // UnmarshalJSON decodes a coin margined futures premium index kline from its array form
-func (c *CFuturesPremiumIndexCandleStick) UnmarshalJSON(data []byte) error {
+func (c *CFuturesPremiumIndexCandleStickResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, nil, &c.CloseTime, nil, nil, nil, nil, nil})
 }
 
@@ -438,9 +438,9 @@ type TakerBuySellVolume struct {
 	Timestamp            types.Time   `json:"timestamp"`
 }
 
-// CFuturesPriceChangeStats holds the 24 hour price change statistics of a coin margined futures symbol. Volume counts
-// contracts and BaseVolume is in the base asset; coin margined futures sends no quote volume
-type CFuturesPriceChangeStats struct {
+// CFuturesPriceChangeStatsResponse holds the 24 hour price change statistics of a coin margined futures symbol. Volume
+// counts contracts and BaseVolume is in the base asset; coin margined futures sends no quote volume
+type CFuturesPriceChangeStatsResponse struct {
 	Symbol               string       `json:"symbol"`
 	Pair                 string       `json:"pair"`
 	PriceChange          types.Number `json:"priceChange"`
@@ -562,7 +562,7 @@ type CFuturesAutoCancelAllOpenOrdersResponse struct {
 
 // CFuturesStatusResponse holds the status Binance answers coin margined futures actions with
 type CFuturesStatusResponse struct {
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // 200 on success; Binance's error codes are negative
 	Message string `json:"msg"`
 }
 
@@ -638,7 +638,7 @@ type CFuturesModifyOrderResponse struct {
 // and message that rejected it
 type CFuturesModifyBatchOrderResponse struct {
 	CFuturesModifyOrderResponse
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // negative when Binance rejected the entry
 	Message string `json:"msg"`
 }
 
@@ -652,11 +652,11 @@ type CFuturesOrderModifyHistoryRequest struct {
 	Limit             uint64 // 50 when zero, at most 100
 }
 
-// CFuturesBatchOrderData holds an entry of a coin margined futures batch placement or cancellation, which carries
+// CFuturesBatchOrderResponse holds an entry of a coin margined futures batch placement or cancellation, which carries
 // Code and Message instead of the order when that entry was rejected
-type CFuturesBatchOrderData struct {
+type CFuturesBatchOrderResponse struct {
 	FuturesOrderResponse
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // negative when Binance rejected the entry
 	Message string `json:"msg"`
 }
 
@@ -678,7 +678,7 @@ type FuturesNewOrderRequest struct {
 	CallbackRate            float64
 	WorkingType             string
 	PriceProtect            bool
-	NewOrderRespType        string
+	NewOrderResponseType    string
 	PriceMatch              string
 	SelfTradePreventionMode string
 }
@@ -724,7 +724,7 @@ type CFuturesModifyIsolatedPositionMarginRequest struct {
 // FuturesMarginUpdatedResponse holds the result of changing a coin margined futures isolated position's margin
 type FuturesMarginUpdatedResponse struct {
 	Amount  float64 `json:"amount"`
-	Code    int64   `json:"code"`
+	Code    int64   `json:"code"` // 200 on success; Binance's error codes are negative
 	Message string  `json:"msg"`
 	// Type is 1 when margin was added and 2 when it was reduced
 	Type uint64 `json:"type"`

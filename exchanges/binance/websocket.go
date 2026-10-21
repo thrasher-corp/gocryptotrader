@@ -187,7 +187,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 // the WebSocket API connection the closing takes down, takes no more from the event on, and closeConnection runs once
 // those in flight on it have returned or their response limit has passed
 func (e *Exchange) handleServerShutdown(event []byte, apiConn websocket.Connection, closeConnection func() error) error {
-	var resp WsServerShutdown
+	var resp WebsocketServerShutdown
 	if err := json.Unmarshal(event, &resp); err != nil {
 		return err
 	}
@@ -415,7 +415,7 @@ func (e *Exchange) processPartialDepth(ctx context.Context, symbol string, data 
 	if err != nil || !enabled {
 		return err
 	}
-	var resp WsPartialDepth
+	var resp WebsocketPartialDepth
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}

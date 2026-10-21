@@ -98,7 +98,7 @@ func (e *Exchange) GetSummaryOfMarginAccount(ctx context.Context) (*MarginAccoun
 
 // GetCrossOrIsolatedMarginCapitalFlow returns the cross or isolated margin capital flow. Binance keeps the last 90
 // days, rejects windows longer than 7 days and queries the last 7 days when no time is given
-func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, req *MarginCapitalFlowRequest) ([]MarginCapitalFlow, error) {
+func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, req *MarginCapitalFlowRequest) ([]MarginCapitalFlowResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, req 
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []MarginCapitalFlow
+	var resp []MarginCapitalFlowResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/capital-flow", params, marginCapitalFlowRate, &resp)
 }
 
@@ -145,7 +145,7 @@ func (e *Exchange) GetCrossMarginAccountDetail(ctx context.Context) (*CrossMargi
 
 // GetCrossMarginFeeData returns the cross margin fee data of one coin, or of every coin when coin is empty, at a VIP
 // level; a nil vipLevel returns the user's own level
-func (e *Exchange) GetCrossMarginFeeData(ctx context.Context, vipLevel *uint64, coin currency.Code) ([]CrossMarginFeeData, error) {
+func (e *Exchange) GetCrossMarginFeeData(ctx context.Context, vipLevel *uint64, coin currency.Code) ([]CrossMarginFeeResponse, error) {
 	params := url.Values{}
 	if vipLevel != nil {
 		params.Set("vipLevel", strconv.FormatUint(*vipLevel, 10))
@@ -156,7 +156,7 @@ func (e *Exchange) GetCrossMarginFeeData(ctx context.Context, vipLevel *uint64, 
 		params.Set("coin", coin.Upper().String())
 		rateLimit = sapiDefaultRate
 	}
-	var resp []CrossMarginFeeData
+	var resp []CrossMarginFeeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/crossMarginData", params, rateLimit, &resp)
 }
 
@@ -168,7 +168,7 @@ func (e *Exchange) GetEnabledIsolatedMarginAccountLimit(ctx context.Context) (*I
 
 // GetIsolatedMarginFeeData returns the isolated margin fee data of one symbol, or of every symbol when symbol is
 // empty, at a VIP level; a nil vipLevel returns the user's own level
-func (e *Exchange) GetIsolatedMarginFeeData(ctx context.Context, vipLevel *uint64, symbol currency.Pair) ([]IsolatedMarginFeeData, error) {
+func (e *Exchange) GetIsolatedMarginFeeData(ctx context.Context, vipLevel *uint64, symbol currency.Pair) ([]IsolatedMarginFeeResponse, error) {
 	params := url.Values{}
 	if vipLevel != nil {
 		params.Set("vipLevel", strconv.FormatUint(*vipLevel, 10))
@@ -183,13 +183,13 @@ func (e *Exchange) GetIsolatedMarginFeeData(ctx context.Context, vipLevel *uint6
 		params.Set("symbol", symbolValue)
 		rateLimit = sapiDefaultRate
 	}
-	var resp []IsolatedMarginFeeData
+	var resp []IsolatedMarginFeeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginData", params, rateLimit, &resp)
 }
 
 // GetFutureHourlyInterestRate returns the next hourly interest rate estimate of each asset for cross or isolated
 // margin
-func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []currency.Code, isIsolated bool) ([]HourlyInterestRate, error) {
+func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []currency.Code, isIsolated bool) ([]HourlyInterestRateResponse, error) {
 	if len(assets) == 0 {
 		return nil, currency.ErrCurrencyCodesEmpty
 	}
@@ -200,7 +200,7 @@ func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []cur
 	params := url.Values{}
 	params.Set("assets", strings.Join(assetNames, ","))
 	params.Set("isIsolated", strings.ToUpper(strconv.FormatBool(isIsolated)))
-	var resp []HourlyInterestRate
+	var resp []HourlyInterestRateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/next-hourly-interest-rate", params, marginHourlyInterestRate, &resp)
 }
 
@@ -325,7 +325,7 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, req *MarginAcco
 
 // GetMarginInterestRateHistory returns the daily margin interest rate history of an asset; windows may span up to 30
 // days
-func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, req *MarginInterestRateHistoryRequest) ([]MarginInterestRate, error) {
+func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, req *MarginInterestRateHistoryRequest) ([]MarginInterestRateResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, req *Margin
 	if !req.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
-	var resp []MarginInterestRate
+	var resp []MarginInterestRateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestRateHistory", params, sapiDefaultRate, &resp)
 }
 
@@ -372,13 +372,13 @@ func (e *Exchange) GetMaxBorrow(ctx context.Context, assetName currency.Code, is
 }
 
 // GetCrossMarginCollateralRatio returns the cross margin collateral discount rate tiers of each group of assets
-func (e *Exchange) GetCrossMarginCollateralRatio(ctx context.Context) ([]CrossMarginCollateralRatio, error) {
-	var resp []CrossMarginCollateralRatio
+func (e *Exchange) GetCrossMarginCollateralRatio(ctx context.Context) ([]CrossMarginCollateralRatioResponse, error) {
+	var resp []CrossMarginCollateralRatioResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/crossMarginCollateralRatio", crossMarginCollateralRatioRate, &resp)
 }
 
 // GetAllCrossMarginPairs returns every cross margin pair, or one when symbol is set
-func (e *Exchange) GetAllCrossMarginPairs(ctx context.Context, symbol currency.Pair) ([]CrossMarginPair, error) {
+func (e *Exchange) GetAllCrossMarginPairs(ctx context.Context, symbol currency.Pair) ([]CrossMarginPairResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Margin)
@@ -387,12 +387,12 @@ func (e *Exchange) GetAllCrossMarginPairs(ctx context.Context, symbol currency.P
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []CrossMarginPair
+	var resp []CrossMarginPairResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), sapiDefaultRate, &resp)
 }
 
 // GetAllIsolatedMarginSymbols returns every isolated margin symbol, or one when symbol is set
-func (e *Exchange) GetAllIsolatedMarginSymbols(ctx context.Context, symbol currency.Pair) ([]IsolatedMarginSymbol, error) {
+func (e *Exchange) GetAllIsolatedMarginSymbols(ctx context.Context, symbol currency.Pair) ([]IsolatedMarginSymbolResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Margin)
@@ -401,29 +401,29 @@ func (e *Exchange) GetAllIsolatedMarginSymbols(ctx context.Context, symbol curre
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []IsolatedMarginSymbol
+	var resp []IsolatedMarginSymbolResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/isolated/allPairs", params), allIsolatedMarginSymbolsRate, &resp)
 }
 
 // GetAllMarginAssets returns every margin asset, or one when assetName is set
-func (e *Exchange) GetAllMarginAssets(ctx context.Context, assetName currency.Code) ([]MarginAssetInfo, error) {
+func (e *Exchange) GetAllMarginAssets(ctx context.Context, assetName currency.Code) ([]MarginAssetInfoResponse, error) {
 	params := url.Values{}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.Upper().String())
 	}
-	var resp []MarginAssetInfo
+	var resp []MarginAssetInfoResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), sapiDefaultRate, &resp)
 }
 
 // GetTokensOrSymbolsDelistSchedule returns the delist schedule of cross margin assets and isolated margin symbols
-func (e *Exchange) GetTokensOrSymbolsDelistSchedule(ctx context.Context) ([]MarginDelistSchedule, error) {
-	var resp []MarginDelistSchedule
+func (e *Exchange) GetTokensOrSymbolsDelistSchedule(ctx context.Context) ([]MarginDelistScheduleResponse, error) {
+	var resp []MarginDelistScheduleResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/delist-schedule", marginTokensAndSymbolsDelistScheduleRate, &resp)
 }
 
 // GetIsolatedMarginTierData returns the isolated margin tier data of a symbol, for one tier or for every tier when
 // tier is 0
-func (e *Exchange) GetIsolatedMarginTierData(ctx context.Context, symbol currency.Pair, tier uint64) ([]IsolatedMarginTier, error) {
+func (e *Exchange) GetIsolatedMarginTierData(ctx context.Context, symbol currency.Pair, tier uint64) ([]IsolatedMarginTierResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -436,7 +436,7 @@ func (e *Exchange) GetIsolatedMarginTierData(ctx context.Context, symbol currenc
 	if tier != 0 {
 		params.Set("tier", strconv.FormatUint(tier, 10))
 	}
-	var resp []IsolatedMarginTier
+	var resp []IsolatedMarginTierResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginTier", params, sapiDefaultRate, &resp)
 }
 
@@ -502,8 +502,8 @@ func (e *Exchange) GetForceLiquidationRecord(ctx context.Context, req *ForceLiqu
 }
 
 // GetSmallLiabilityExchangeCoinList returns the liabilities MarginSmallLiabilityExchange can exchange
-func (e *Exchange) GetSmallLiabilityExchangeCoinList(ctx context.Context) ([]SmallLiabilityExchangeCoin, error) {
-	var resp []SmallLiabilityExchangeCoin
+func (e *Exchange) GetSmallLiabilityExchangeCoinList(ctx context.Context) ([]SmallLiabilityExchangeCoinResponse, error) {
+	var resp []SmallLiabilityExchangeCoinResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/exchange-small-liability", nil, getSmallLiabilityExchangeCoinListRate, &resp)
 }
 
@@ -574,7 +574,7 @@ func (e *Exchange) GetMarginAccountsOpenOrders(ctx context.Context, symbol curre
 
 // CancelAllOpenMarginAccountOrdersOnSymbol cancels every open order on a symbol in the margin account, order lists
 // such as OCO included
-func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginCancelledOrder, error) {
+func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginCancelledOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -587,7 +587,7 @@ func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context,
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
 	}
-	var resp []MarginCancelledOrder
+	var resp []MarginCancelledOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/openOrders", params, sapiDefaultRate, &resp)
 }
 
@@ -874,7 +874,7 @@ func (e *Exchange) MarginManualLiquidation(ctx context.Context, marginType strin
 
 // GetCurrentMarginOrderCountUsage returns the margin account's current order count usage for every rate limit
 // interval
-func (e *Exchange) GetCurrentMarginOrderCountUsage(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginOrderCountUsage, error) {
+func (e *Exchange) GetCurrentMarginOrderCountUsage(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginOrderCountUsageResponse, error) {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
@@ -886,7 +886,7 @@ func (e *Exchange) GetCurrentMarginOrderCountUsage(ctx context.Context, symbol c
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []MarginOrderCountUsage
+	var resp []MarginOrderCountUsageResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/rateLimit/order", params, marginCurrentOrderCountUsageRate, &resp)
 }
 
@@ -985,7 +985,7 @@ func (e *Exchange) GetMarginAccountsOpenOCOOrder(ctx context.Context, symbol cur
 
 // GetMarginAccountTradeList returns the margin account's trades on a symbol from FromID onwards, or from the last 24
 // hours when FromID is 0; windows must be shorter than 24 hours
-func (e *Exchange) GetMarginAccountTradeList(ctx context.Context, req *MarginAccountTradeListRequest) ([]MarginAccountTrade, error) {
+func (e *Exchange) GetMarginAccountTradeList(ctx context.Context, req *MarginAccountTradeListRequest) ([]MarginAccountTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -1021,7 +1021,7 @@ func (e *Exchange) GetMarginAccountTradeList(ctx context.Context, req *MarginAcc
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []MarginAccountTrade
+	var resp []MarginAccountTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/myTrades", params, marginAccountTradeListRate, &resp)
 }
 
@@ -1086,7 +1086,7 @@ func (e *Exchange) GetMaxTransferOutAmount(ctx context.Context, assetName curren
 }
 
 // CreateMarginListenToken creates a listen token that subscribes a WebSocket API connection to the margin account's
-// User Data Stream with WsSubscribeUserDataStreamWithListenToken (Create Margin Account listenToken)
+// User Data Stream with WebsocketSubscribeUserDataStreamWithListenToken (Create Margin Account listenToken)
 func (e *Exchange) CreateMarginListenToken(ctx context.Context, arg *MarginListenTokenRequest) (*MarginListenTokenResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
