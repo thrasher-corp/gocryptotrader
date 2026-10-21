@@ -602,7 +602,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		for key := range resp {
-			allOrders = append(allOrders, resp[key])
+			fill := resp[key]
+			fill.TradeID = key
+			allOrders = append(allOrders, fill)
 		}
 	}
 
@@ -613,32 +615,38 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
-		var pair currency.Pair
-		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
+		orders[i], err = tradeHistoryToOrderDetail(&allOrders[i], format, e.Name)
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(allOrders[i].Type)
-		if err != nil {
-			return nil, err
-		}
-		detail := order.Detail{
-			OrderID:              strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-			Amount:               allOrders[i].Amount,
-			ExecutedAmount:       allOrders[i].Amount,
-			Price:                allOrders[i].Rate,
-			AverageExecutedPrice: allOrders[i].Rate,
-			Side:                 side,
-			Status:               order.Filled,
-			Date:                 allOrders[i].Timestamp.Time(),
-			Pair:                 pair,
-			Exchange:             e.Name,
-		}
-		detail.InferCostsAndTimes()
-		orders[i] = detail
 	}
 	return req.Filter(e.Name, orders), nil
+}
+
+// tradeHistoryToOrderDetail preserves a fill, not cumulative order state.
+// Order quantities, status, limit price, average and fee are unavailable.
+func tradeHistoryToOrderDetail(history *TradeHistory, format currency.PairFormat, exchangeName string) (order.Detail, error) {
+	pair, err := currency.NewPairDelimiter(history.Pair, format.Delimiter)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	side, err := order.StringToOrderSide(history.Type)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	detail := order.Detail{
+		OrderID: strconv.FormatFloat(history.OrderID, 'f', -1, 64),
+		Trades: []order.TradeHistory{{
+			TID: history.TradeID, Price: history.Rate, Amount: history.Amount,
+			Side: side, Timestamp: history.Timestamp.Time(), Exchange: exchangeName,
+		}},
+		Side:     side,
+		Date:     history.Timestamp.Time(),
+		Pair:     pair,
+		Exchange: exchangeName,
+	}
+	detail.InferExecutionAndTimes()
+	return detail, nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

@@ -4010,6 +4010,73 @@ func TestModifyOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestRESTOrderExecutionMappings(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		instID, instType := "BTC-USDT", "SPOT"
+		if r.URL.Query().Get("instType") == "SWAP" {
+			instID, instType = "BTC-USDT-SWAP", "SWAP"
+		}
+		row := func(orderID, fee string) string {
+			limitPrice := "60000"
+			if orderID == "3" {
+				limitPrice = "61000" // Order 3 filled below its limit, so its average and limit prices differ.
+			}
+			return `{"accFillSz":"0.0015","avgPx":"60000","cTime":"1654084334977","fee":"` + fee + `","feeCcy":"USDT","fillSz":"0.0005","instId":"` + instID + `","instType":"` + instType + `","ordId":"` + orderID + `","ordType":"limit","px":"` + limitPrice + `","rebate":"0.0012","side":"buy","state":"partially_filled","sz":"0.002","uTime":"1654084353264"}`
+		}
+		data := row("1", "-0.06") + "," + row("2", "0.02")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/public/instruments"):
+			data = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","settleCcy":"USDT","ctVal":"0.01","state":"live"}`
+		case strings.HasSuffix(r.URL.Path, "/trade/order") && r.URL.Query().Get("ordId") == "3":
+			data = row("3", "-0.06")
+		case strings.HasSuffix(r.URL.Path, "/trade/order"):
+			data = row("1", "-0.06")
+		case strings.HasSuffix(r.URL.Path, "/trade/orders-pending"):
+			data += "," + row("3", "-0.06")
+		}
+		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[` + data + `]}`))
+		assert.NoError(t, err, "mock response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+
+	req := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{mainPair}}
+	active, err := ex.GetActiveOrders(t.Context(), req)
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, active, 3, "GetActiveOrders must return all three mocked orders")
+	assert.Equal(t, 0.06, active[0].Fee, "GetActiveOrders should report a charge as positive")
+	assert.Equal(t, -0.02, active[1].Fee, "GetActiveOrders should report a rebate as negative")
+	assert.Equal(t, 0.0015, active[0].ExecutedAmount, "GetActiveOrders should report the accumulated fill size")
+	assert.Equal(t, 0.0005, active[0].RemainingAmount, "GetActiveOrders should report the unfilled size")
+	assert.Equal(t, 60000.0, active[0].AverageExecutedPrice, "GetActiveOrders should report the average fill price")
+	assert.Equal(t, 60000.0, active[2].AverageExecutedPrice, "GetActiveOrders should report the average fill price, not the limit price")
+
+	info, err := ex.GetOrderInfo(t.Context(), "1", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 0.0015, info.ExecutedAmount, "GetOrderInfo should report the accumulated fill size")
+	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price")
+	info, err = ex.GetOrderInfo(t.Context(), "3", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for an order filled below its limit")
+	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price, not the limit price")
+
+	history, err := ex.GetOrderHistory(t.Context(), req)
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, history, 2, "GetOrderHistory must return both mocked orders")
+	assert.Equal(t, 0.06, history[0].Fee, "GetOrderHistory should report a charge as positive")
+	assert.Equal(t, -0.02, history[1].Fee, "GetOrderHistory should report a rebate as negative")
+
+	positions, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair}, StartDate: time.Now().Add(-time.Hour), EndDate: time.Now()})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, positions, 1, "GetFuturesPositionOrders must return one position")
+	require.Len(t, positions[0].Orders, 2, "GetFuturesPositionOrders must return both mocked orders")
+	assert.Equal(t, 0.06, positions[0].Orders[0].Fee, "GetFuturesPositionOrders should report a charge as positive")
+	assert.Equal(t, -0.02, positions[0].Orders[1].Fee, "GetFuturesPositionOrders should report a rebate as negative")
+}
+
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
