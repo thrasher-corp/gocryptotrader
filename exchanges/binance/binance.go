@@ -132,7 +132,8 @@ func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit u
 }
 
 // GetMostRecentTrades returns recent trade activity
-// limit: Up to 500 results returned
+//
+// limit: Up to 1000 results returned
 func (e *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	params := url.Values{}
 	symbol, err := e.FormatSymbol(rtr.Symbol, asset.Spot)
