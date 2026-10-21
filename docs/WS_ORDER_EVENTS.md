@@ -33,9 +33,17 @@ out of reported trades.
 | LastUpdated          | Time of last order event (as reported by the exchange)            |                                                         | Optional  |
 | Pair                 | Tradable pair                                                     |                                                         | Mandatory |
 
-Leave `RemainingAmount` unknown when the exchange reports the remainder only
-in another unit. For example, if a market buy requests 10 USDT, fills 0.000199
-BTC and has 0.05 USDT left, keep `QuoteAmount` as 10 and the executed base
-amount as 0.000199; do not put 0.05 USDT into a base-quantity field or subtract
-BTC from USDT. A zero remainder means nothing remains only when the response
-establishes that fact; otherwise zero can mean unavailable.
+Derive `RemainingAmount` only from authoritative quantities in the same unit,
+such as reported total base quantity minus reported filled base quantity.
+Leave it unknown when only an outstanding quote budget is available. For
+example, if a market buy requests 10 USDT, fills 0.000199 BTC and has 0.05 USDT
+left, keep `QuoteAmount` as 10 and `ExecutedAmount` as 0.000199. The remaining
+quote budget is known, but the base quantity it will buy depends on future
+fill prices. Dividing 0.05 USDT by the historical average of 50,000 USDT/BTC
+would estimate 0.000001 BTC; a later fill at 100,000 USDT/BTC would buy only
+0.0000005 BTC instead. Do not use the order price, latest fill price or
+historical average to present such an estimate as a known remainder, put a
+quote amount into a base-quantity field or subtract BTC from USDT.
+
+A zero remainder means nothing remains only when the response establishes
+that fact; otherwise zero can mean unavailable.

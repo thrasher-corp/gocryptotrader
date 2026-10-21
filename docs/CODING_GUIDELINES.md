@@ -100,6 +100,11 @@ Never relay an empty batch.
   count, and subtracting reported remaining quantity from reported total
   quantity when their units match. An order request or acknowledgement does
   not prove a fill.
+  Derive remaining quantity only from authoritative quantities in the same
+  unit. Do not estimate it by converting an outstanding quote budget using
+  the order price, latest fill price or historical average: those prices do
+  not establish the price of future fills. Such estimates belong in consuming
+  applications, not exchange-reported order state.
 - Use the exchange's reported value before reconstructing an equivalent value.
   If the generic contract cannot represent an authoritative field without
   losing information, extend it or document exactly what is omitted and how a
@@ -307,11 +312,17 @@ Use `require` and `assert` appropriately:
     hide earlier fills on large orders.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
-- Bound channel receives and other waits in tests so a missing event fails
-    promptly rather than relying on the package timeout. For a test-owned
-    buffered channel, assert the event count after a synchronous handler
-    returns and before receiving. For asynchronous delivery or shared channels,
-    use a select with a deadline.
+- Prefer `testing/synctest` for self-contained concurrent unit tests rather
+    than real-time sleeps, polling or arbitrary deadlines. Create the relevant
+    goroutines, channels, timers and other synchronisation resources inside
+    the bubble. Use `synctest.Wait()` to establish quiescence, then assert the
+    expected events or state; quiescence alone does not prove success. Keep
+    running these tests with race detection.
+- When real network I/O, external processes or goroutines outside the bubble
+    prevent isolation, use bounded waits rather than unbounded receives or
+    arbitrary sleeps. Synchronous tests do not need a bubble merely to inspect
+    completed work: for a test-owned buffered channel, assert the event count
+    after the handler returns and before receiving.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the
