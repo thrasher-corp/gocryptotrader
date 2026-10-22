@@ -485,8 +485,8 @@ func TestRunPruneRefusesSkipRecordBudgets(t *testing.T) {
 		strings.Repeat("BenchmarkCase/small-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", 3)
 	done := "PASS\nok  \tgithub.com/thrasher-corp/gocryptotrader/currency\t1.2s\n"
 	for _, tc := range []struct{ name, in, key string }{
-		{"a subbenchmark behind a hidden announcement", "opening fixture: BenchmarkCase/large\n        --- SKIP: BenchmarkCase/large\n", "currency.BenchmarkCase/large"},
-		{"a parent that skips after a subbenchmark measured", "    fixture.go:12: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase/large"},
+		{"a sub-benchmark behind a hidden announcement", "opening fixture: BenchmarkCase/large\n        --- SKIP: BenchmarkCase/large\n", "currency.BenchmarkCase/large"},
+		{"a parent that skips after a sub-benchmark measured", "    fixture.go:12: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase/large"},
 		{"a benchmark behind a hidden announcement", "fixture ready: BenchmarkHidden\nprogress: --- SKIP: BenchmarkHidden\n", "currency.BenchmarkHidden"},
 		{"a benchmark after a printed ok line", "ok  github.com/thrasher-corp/gocryptotrader/currency\n" +
 			"fixture ready: BenchmarkHidden\n    fixture.go:12: --- SKIP: BenchmarkHidden\n", "currency.BenchmarkHidden"},

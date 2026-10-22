@@ -215,7 +215,7 @@ func TestCompareSkipped(t *testing.T) {
 	}
 	skipped := map[string]string{
 		"currency.BenchmarkA": "currency",
-		// Skipped before b.Run, so its subbenchmark reports nothing
+		// Skipped before b.Run, so its sub-benchmark reports nothing
 		"currency.BenchmarkB": "currency",
 		"currency.BenchmarkC": "currency",
 		// A new benchmark that skips, which no budget reveals

@@ -109,8 +109,8 @@ then reported nothing at all, in a package that ran to its `ok` line, as a skip 
 Printed text can still disguise a skip record. `benchcheck` does not read a record run into text
 laid out like `b.Log` output, indented by eight spaces or by four before a `file.go:12:` prefix,
 since a benchmark can log exactly that text itself and plain output cannot tell the two apart. A
-benchmark that has measured a subbenchmark and then skips after printing such text therefore shows
-no `skipped` finding: a subbenchmark the skip left unmeasured is still reported `missing` if it has
+benchmark that has measured a sub-benchmark and then skips after printing such text therefore shows
+no `skipped` finding: a sub-benchmark the skip left unmeasured is still reported `missing` if it has
 a budget, and not reported at all if it has none.
 
 ## Updating the baseline
@@ -216,7 +216,7 @@ parse, would otherwise change which sample sits in the middle with nothing to no
 Keep `-cpu` a single value above 1. benchcheck strips the `-N` suffix go test appends to result
 names, and refuses output in which results carry different ones, as `-cpu 1,4` produces. In output
 without `-v` that check is also what tells the suffix from a name ending in digits: under `-cpu 1`,
-which appends no suffix, a subbenchmark named `size-1` would otherwise lose its `-1`.
+which appends no suffix, a sub-benchmark named `size-1` would otherwise lose its `-1`.
 
 `-v` is there for its skip reports, described under
 [Which packages are benchmarked](#which-packages-are-benchmarked). It also announces each benchmark

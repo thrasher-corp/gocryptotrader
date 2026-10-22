@@ -122,7 +122,7 @@ func TestParseRecordsSkips(t *testing.T) {
 		"currency.BenchmarkSub/a":      "currency",
 		"currency.BenchmarkSub/c/deep": "currency",
 	}, run.Skipped, "every skip should be recorded under its package")
-	assert.Contains(t, run.Samples, "currency.BenchmarkSub/b", "the subbenchmark that ran should still be measured")
+	assert.Contains(t, run.Samples, "currency.BenchmarkSub/b", "the sub-benchmark that ran should still be measured")
 	assert.Equal(t, map[string]bool{"currency": true}, run.Verbose, "bare benchmark names should mark the package's output as -v output")
 }
 
@@ -183,7 +183,7 @@ func TestParseRecordsSkipsOutputRanInto(t *testing.T) {
 	for _, tc := range []struct{ name, in, key string }{
 		{"text before b.SkipNow", "BenchmarkCase\npreparing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
 		{"a cleanup printing after b.Skip", "BenchmarkCase\n    code_test.go:34: fixture unavailable\nclosing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
-		{"a subbenchmark", "BenchmarkCase\nBenchmarkCase/child\npreparing fixture: --- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
+		{"a sub-benchmark", "BenchmarkCase\nBenchmarkCase/child\npreparing fixture: --- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
 		{"a parent printing before b.Run", "BenchmarkCase\npreparing fixture: BenchmarkCase/child\n--- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
 		{"a benchmark beside a longer name", "BenchmarkCase\npreparing fixture: --- SKIP: BenchmarkCase\nBenchmarkCaseExtra\n" +
 			"BenchmarkCaseExtra-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
@@ -191,14 +191,14 @@ func TestParseRecordsSkipsOutputRanInto(t *testing.T) {
 			"BenchmarkCaseExtra\nBenchmarkCaseExtra/child\nBenchmarkCaseExtra/child-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
 		{"text laid out as a logged line before b.SkipNow, beside a shorter name", "BenchmarkCas\n" +
 			"BenchmarkCas-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\nBenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
-		{"text laid out as a logged line before b.SkipNow, beside subbenchmarks named after it", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n" +
+		{"text laid out as a logged line before b.SkipNow, beside sub-benchmarks named after it", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n" +
 			"BenchmarkOther\nBenchmarkOther/currency.BenchmarkCase\nBenchmarkOther/currency.BenchmarkCase-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n" +
 			"BenchmarkOther/currency.BenchmarkCase/child\nBenchmarkOther/currency.BenchmarkCase/child-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n", "currency.BenchmarkCase"},
 		{"text laid out as a logged line before b.SkipNow", "BenchmarkCase\n        preparing fixture: --- SKIP: BenchmarkCase\n", "currency.BenchmarkCase"},
-		{"text laid out as a logged line before the b.SkipNow of a subbenchmark named after a measured benchmark", "BenchmarkCase\n" +
+		{"text laid out as a logged line before the b.SkipNow of a sub-benchmark named after a measured benchmark", "BenchmarkCase\n" +
 			"BenchmarkCase-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\nBenchmarkOther\nBenchmarkOther/currency.BenchmarkCase\n" +
 			"        preparing fixture: --- SKIP: BenchmarkOther/currency.BenchmarkCase\n", "currency.BenchmarkOther/currency.BenchmarkCase"},
-		{"text laid out as a logged line before a subbenchmark's b.SkipNow", "BenchmarkCase\nBenchmarkCase/child\n" +
+		{"text laid out as a logged line before a sub-benchmark's b.SkipNow", "BenchmarkCase\nBenchmarkCase/child\n" +
 			"    fixture.go:12: --- SKIP: BenchmarkCase/child\n", "currency.BenchmarkCase/child"},
 		{"a parent printing before b.Run and its child before b.SkipNow", "BenchmarkCase\nBenchmarkCase/small\n" +
 			"BenchmarkCase/small-4   \t 100\t 10 ns/op\t 16 B/op\t 2 allocs/op\n" +
@@ -350,7 +350,7 @@ func TestParseAnnouncementStaysInItsPackage(t *testing.T) {
 	assert.Contains(t, run.Samples, "types.BenchmarkZ/n", "another package's result should not be read against that announcement")
 }
 
-func TestParseNamesAParentAfterItsSubbenchmarks(t *testing.T) {
+func TestParseNamesAParentAfterItsSubBenchmarks(t *testing.T) {
 	t.Parallel()
 	// A parent that runs a child only once b.N > 1 reports its own result after the child's
 	in := "pkg: github.com/thrasher-corp/gocryptotrader/currency\n" +
@@ -430,7 +430,7 @@ func TestParseRejectsOutputRunIntoResults(t *testing.T) {
 	result := "BenchmarkNoisy-4   \t  122286\t   906.4 ns/op\t    4096 B/op\t       1 allocs/op\n"
 	for _, tc := range []struct{ name, in string }{
 		{"a dot", "BenchmarkNoisy\n" + strings.Repeat("."+result, 3)},
-		{"a dot from a subbenchmark", "BenchmarkParent\nBenchmarkParent/quiet\n" +
+		{"a dot from a sub-benchmark", "BenchmarkParent\nBenchmarkParent/quiet\n" +
 			strings.Repeat("BenchmarkParent/quiet-4   \t 4356048\t   30.31 ns/op\t      64 B/op\t       1 allocs/op\n", 3) +
 			".BenchmarkParent/noisy\n" + strings.Repeat(".BenchmarkParent/noisy-4   \t  152587\t   874.7 ns/op\t    4096 B/op\t       1 allocs/op\n", 3)},
 		{"text naming a benchmark", "BenchmarkNoisy\n" + strings.Repeat("working on BenchmarkNoisy: "+result, 3)},
@@ -767,7 +767,7 @@ func TestSplitProcSuffix(t *testing.T) {
 		{"BenchmarkX/size-+4", []string{"BenchmarkX/size"}, "BenchmarkX/size-+4", ""},
 		{"BenchmarkX/size-4.", []string{"BenchmarkX/size"}, "BenchmarkX/size-4.", ""},
 		{"BenchmarkX/size-4", []string{"BenchmarkX/size", "BenchmarkX/size-4-more"}, "BenchmarkX/size", "4"},
-		// A parent's result can follow its subbenchmarks' announcements
+		// A parent's result can follow its sub-benchmarks' announcements
 		{"BenchmarkLateSub/small-4", []string{"BenchmarkLateSub", "BenchmarkLateSub/small-4", "BenchmarkLateSub/small-4/child"}, "BenchmarkLateSub/small-4", ""},
 		// The newest announcement wins
 		{"BenchmarkX/size-4", []string{"BenchmarkX/size"}, "BenchmarkX/size", "4"},

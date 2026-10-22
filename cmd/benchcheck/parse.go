@@ -237,7 +237,7 @@ func Parse(r io.Reader) (*Run, error) {
 }
 
 // recordUnreported records as skipped each benchmark -v announced in a finished package that reported
-// nothing for itself or a subbenchmark. Printed text can hide go test's skip record, and without one
+// nothing for itself or a sub-benchmark. Printed text can hide go test's skip record, and without one
 // the budget would read as deleted.
 func recordUnreported(run *Run, pkg string, announced []string) {
 	if !run.Finished[pkg] {
@@ -253,7 +253,7 @@ func recordUnreported(run *Run, pkg string, announced []string) {
 	}
 }
 
-// reportsUnder reports whether keys holds key or the key of one of its subbenchmarks
+// reportsUnder reports whether keys holds key or the key of one of its sub-benchmarks
 func reportsUnder[V any](keys map[string]V, key string) bool {
 	for k := range keys {
 		if k == key || strings.HasPrefix(k, key+"/") {
@@ -348,7 +348,7 @@ var loggedLine = regexp.MustCompile(`^(?: {4}.+?:\d+: | {8})`)
 
 // embeddedSkip returns the benchmark named by a skip record that printed text has pushed off the start
 // of the line. The record must end a line that is not logged, and name a benchmark announced in the
-// package or a subbenchmark of one.
+// package or a sub-benchmark of one.
 func embeddedSkip(line string, announced []string) (string, bool) {
 	if loggedLine.MatchString(line) {
 		return "", false
@@ -419,7 +419,7 @@ func parseBenchLine(line string, announced []string) (benchLine, bool) {
 }
 
 // splitProcSuffix splits off the -N GOMAXPROCS suffix go test appends when N is above 1. The newest
-// announcement that matches settles where the name ends, so a subbenchmark named "size-4" keeps its
+// announcement that matches settles where the name ends, so a sub-benchmark named "size-4" keeps its
 // digits; failing that, a final dash and digits is the suffix.
 func splitProcSuffix(name string, announced []string) (base, procs string) {
 	for _, a := range slices.Backward(announced) {

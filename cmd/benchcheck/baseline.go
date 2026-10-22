@@ -270,7 +270,7 @@ func updatedBudget(got, budget uint64, tolerance float64) uint64 {
 	return budget
 }
 
-// packageOf returns the longest known package key falls under, or "". Package paths and subbenchmark
+// packageOf returns the longest known package key falls under, or "". Package paths and sub-benchmark
 // names both contain dots, so a key cannot simply be split.
 func packageOf(key string, known map[string]bool) string {
 	var match string
