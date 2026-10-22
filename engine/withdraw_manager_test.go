@@ -143,6 +143,25 @@ func TestWithdrawEventByID(t *testing.T) {
 	assert.NotNil(t, v, "WithdrawalEventByID should return a non-nil value when the request is cached")
 }
 
+func TestWithdrawalCacheConsistency(t *testing.T) {
+	t.Parallel()
+	em, pm := withdrawManagerTestHelper(t)
+	m, err := SetupWithdrawManager(em, pm, false)
+	require.NoError(t, err)
+
+	reqID := uuid.NewV4()
+	resp := &withdraw.Response{ID: reqID}
+	withdraw.Cache.Add(resp.ID.String(), resp)
+	t.Cleanup(func() {
+		withdraw.Cache.Remove(resp.ID.String())
+	})
+
+	got, err := m.WithdrawalEventByID(reqID.String())
+	require.NoError(t, err)
+	assert.Equal(t, resp, got)
+}
+
+
 func TestWithdrawalEventByExchange(t *testing.T) {
 	t.Parallel()
 	em, pm := withdrawManagerTestHelper(t)

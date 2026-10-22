@@ -26,7 +26,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ```go
 package main
 
-import ("github.com/thrasher-corp/gocryptotrader/common/cache")
+import (
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
+)
 
 func main() {
     lruCache := cache.New(5)
