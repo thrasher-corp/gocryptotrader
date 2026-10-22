@@ -2124,59 +2124,66 @@ func orderTradeCreationTimes(t *testing.T, orders []*gctrpc.OrderDetails) map[st
 
 func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
 	t.Parallel()
-	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("binance")
-	require.NoError(t, err, "NewExchangeByName must not error")
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.Name = newUniqueFakeExchangeName()
-	b.Enabled = true
-	cp := currency.NewBTCUSDT()
-	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {
-			Available:     currency.Pairs{cp},
-			Enabled:       currency.Pairs{cp},
-			AssetEnabled:  true,
-			ConfigFormat:  &currency.PairFormat{Uppercase: true},
-			RequestFormat: &currency.PairFormat{Uppercase: true},
-		},
-	}
-	fills := orderFillTimes()
-	require.NoError(t, em.Add(tradeTimeExchange{
-		IBotExchange: exch,
-		orders: []order.Detail{
-			partiallyFilledOrder(b.Name, "1", cp, asset.Spot, fills["1"]),
-			partiallyFilledOrder(b.Name, "2", cp, asset.Spot, fills["2"]),
-		},
-	}), "Add must not error")
+	for name, reportedAsset := range map[string]asset.Item{"populated_asset": asset.Spot, "omitted_asset": asset.Empty} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			exch, err := em.NewExchangeByName("binance")
+			require.NoError(t, err, "NewExchangeByName must not error")
+			exch.SetDefaults()
+			b := exch.GetBase()
+			b.Name = newUniqueFakeExchangeName()
+			b.Enabled = true
+			cp := currency.NewBTCUSDT()
+			b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					Available:     currency.Pairs{cp},
+					Enabled:       currency.Pairs{cp},
+					AssetEnabled:  true,
+					ConfigFormat:  &currency.PairFormat{Uppercase: true},
+					RequestFormat: &currency.PairFormat{Uppercase: true},
+				},
+			}
+			fills := orderFillTimes()
+			require.NoError(t, em.Add(tradeTimeExchange{
+				IBotExchange: exch,
+				orders: []order.Detail{
+					partiallyFilledOrder(b.Name, "1", cp, reportedAsset, fills["1"]),
+					partiallyFilledOrder(b.Name, "2", cp, reportedAsset, fills["2"]),
+				},
+			}), "Add must not error")
 
-	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
-	require.NoError(t, err, "SetupOrderManager must not error")
-	om.started.Store(true)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
-	p := &gctrpc.CurrencyPair{Delimiter: "-", Base: cp.Base.String(), Quote: cp.Quote.String()}
+			var wg sync.WaitGroup
+			om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+			require.NoError(t, err, "SetupOrderManager must not error")
+			om.started.Store(true)
+			s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
+			p := &gctrpc.CurrencyPair{Delimiter: "-", Base: cp.Base.String(), Quote: cp.Quote.String()}
 
-	orders, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
-		Exchange:  b.Name,
-		AssetType: asset.Spot.String(),
-		Pair:      p,
-		StartDate: fills["1"][0].Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
-		EndDate:   fills["2"][1].Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
-	})
-	require.NoError(t, err, "GetOrders must not error")
-	assert.Equal(t, fills, orderTradeCreationTimes(t, orders.GetOrders()), "GetOrders should preserve each trade's timestamp nanoseconds")
-	for _, detail := range orders.GetOrders() {
-		for _, trade := range detail.GetTrades() {
-			assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrders should report the fill's asset type, not its order type")
-		}
-	}
+			// Fetch the order before GetOrders can populate the order manager's asset type.
+			detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: p, Asset: asset.Spot.String()})
+			require.NoError(t, err, "GetOrder must not error")
+			assert.Equal(t, asset.Spot.String(), detail.GetAssetType(), "GetOrder should report the requested asset when the exchange omits it")
+			assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
+			for _, trade := range detail.GetTrades() {
+				assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type")
+			}
 
-	detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: p, Asset: asset.Spot.String()})
-	require.NoError(t, err, "GetOrder must not error")
-	assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
-	for _, trade := range detail.GetTrades() {
-		assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type")
+			orders, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
+				Exchange:  b.Name,
+				AssetType: asset.Spot.String(),
+				Pair:      p,
+				StartDate: fills["1"][0].Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+				EndDate:   fills["2"][1].Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+			})
+			require.NoError(t, err, "GetOrders must not error")
+			assert.Equal(t, fills, orderTradeCreationTimes(t, orders.GetOrders()), "GetOrders should preserve each trade's timestamp nanoseconds")
+			for _, detail := range orders.GetOrders() {
+				for _, trade := range detail.GetTrades() {
+					assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrders should report the fill's asset type, not its order type")
+				}
+			}
+		})
 	}
 }
 
