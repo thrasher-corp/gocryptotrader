@@ -842,11 +842,11 @@ func (e *Exchange) GetWebsocketOrderbook(ctx context.Context, symbol currency.Pa
 }
 
 // GetWebsocketCandlestick returns klines of a symbol (Klines)
-func (e *Exchange) GetWebsocketCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetWebsocketCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStickResponse, error) {
 	return e.getWsKlines(ctx, "klines", arg)
 }
 
-func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *WebsocketKlinesRequest) ([]CandleStickResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -868,13 +868,13 @@ func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *Websocke
 	params.setTime("endTime", arg.EndTime)
 	params.setString("timeZone", arg.TimeZone)
 	params.setUint("limit", arg.Limit)
-	var resp []CandleStick
+	var resp []CandleStickResponse
 	return resp, e.SendWebsocketAPIRequest(ctx, getKlineRate, method, params, &resp)
 }
 
 // GetWebsocketRollingWindowPriceChanges returns price change statistics over a custom rolling window (Rolling window
 // price change statistics)
-func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, arg *WebsocketRollingWindowTickerRequest) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, arg *WebsocketRollingWindowTickerRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -894,7 +894,7 @@ func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, ar
 	}
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
-	var resp objectOrArray[PriceChangeStats]
+	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker", params, &resp)
 }
 
@@ -915,7 +915,7 @@ func windowSizeToString(windowSize time.Duration) (string, error) {
 
 // GetWebsocket24HourPriceChanges returns 24 hour rolling window price change statistics (24hr ticker price change
 // statistics); every symbol's when arg.Symbols is empty
-func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *WebsocketTickerRequest) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *WebsocketTickerRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -925,7 +925,7 @@ func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *Webs
 	}
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
-	var resp objectOrArray[PriceChangeStats]
+	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTicker24HourLimit(len(arg.Symbols)), "ticker.24hr", params, &resp)
 }
 
@@ -962,7 +962,7 @@ func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols cu
 }
 
 // GetWebsocketTradingDayTickers returns price change statistics for the current trading day (Trading Day Ticker)
-func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *WebsocketTradingDayTickerRequest) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *WebsocketTradingDayTickerRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -976,12 +976,12 @@ func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *Webso
 	params.setString("timeZone", arg.TimeZone)
 	params.setString("type", arg.Type)
 	params.setString("symbolStatus", arg.SymbolStatus)
-	var resp objectOrArray[PriceChangeStats]
+	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker.tradingDay", params, &resp)
 }
 
 // GetWebsocketAggregatedTrades returns aggregate trades of a symbol (Aggregate trades)
-func (e *Exchange) GetWebsocketAggregatedTrades(ctx context.Context, arg *WebsocketAggregatedTradesRequest) ([]AggregatedTrade, error) {
+func (e *Exchange) GetWebsocketAggregatedTrades(ctx context.Context, arg *WebsocketAggregatedTradesRequest) ([]AggregatedTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -998,25 +998,25 @@ func (e *Exchange) GetWebsocketAggregatedTrades(ctx context.Context, arg *Websoc
 	params.setTime("startTime", arg.StartTime)
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("limit", arg.Limit)
-	var resp []AggregatedTrade
+	var resp []AggregatedTradeResponse
 	return resp, e.SendWebsocketAPIRequest(ctx, aggTradesRate, "trades.aggregate", params, &resp)
 }
 
 // GetWebsocketMostRecentTrades returns the most recent trades of a symbol (Recent trades); limit defaults to 500 when
 // zero
-func (e *Exchange) GetWebsocketMostRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]RecentTrade, error) {
+func (e *Exchange) GetWebsocketMostRecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]RecentTradeResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
 	params.setUint("limit", limit)
-	var resp []RecentTrade
+	var resp []RecentTradeResponse
 	return resp, e.SendWebsocketAPIRequest(ctx, getRecentTradesListRate, "trades.recent", params, &resp)
 }
 
 // GetWebsocketOptimisedCandlestick returns klines of a symbol modified for the presentation of candlestick charts (UI
 // Klines)
-func (e *Exchange) GetWebsocketOptimisedCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetWebsocketOptimisedCandlestick(ctx context.Context, arg *WebsocketKlinesRequest) ([]CandleStickResponse, error) {
 	return e.getWsKlines(ctx, "uiKlines", arg)
 }
 

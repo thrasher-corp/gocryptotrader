@@ -200,8 +200,8 @@ type UIncomeHistoryRequest struct {
 	Limit      uint64
 }
 
-// UAccountIncomeHistory holds one income record from Get Income History
-type UAccountIncomeHistory struct {
+// UAccountIncomeHistoryResponse holds one income record from Get Income History
+type UAccountIncomeHistoryResponse struct {
 	Symbol        string        `json:"symbol"`
 	IncomeType    string        `json:"incomeType"`
 	Income        types.Number  `json:"income"`
@@ -298,8 +298,8 @@ type UCompressedTradesRequest struct {
 	Limit     uint64
 }
 
-// UCompressedTradeData holds an aggregate trade
-type UCompressedTradeData struct {
+// UCompressedTradeResponse holds an aggregate trade
+type UCompressedTradeResponse struct {
 	AggregateTradeID uint64       `json:"a"`
 	Price            types.Number `json:"p"`
 	Quantity         types.Number `json:"q"`
@@ -405,8 +405,8 @@ type UFuturesSymbolFilter struct {
 	PositionControlSide string       `json:"positionControlSide"`
 }
 
-// FundingRateHistory holds a funding rate record from Get Funding Rate History
-type FundingRateHistory struct {
+// FundingRateHistoryResponse holds a funding rate record from Get Funding Rate History
+type FundingRateHistoryResponse struct {
 	Symbol      string       `json:"symbol"`
 	FundingRate types.Number `json:"fundingRate"`
 	FundingTime types.Time   `json:"fundingTime"`
@@ -469,8 +469,8 @@ type UFuturesDataRequest struct {
 	Limit     uint64
 }
 
-// ULongShortRatio holds a period's long/short ratio of accounts or positions
-type ULongShortRatio struct {
+// ULongShortRatioResponse holds a period's long/short ratio of accounts or positions
+type ULongShortRatioResponse struct {
 	Symbol         string       `json:"symbol"`
 	LongShortRatio types.Number `json:"longShortRatio"`
 	// LongAccount and ShortAccount are account shares on the account ratio endpoints and position shares on Top
@@ -480,8 +480,8 @@ type ULongShortRatio struct {
 	Timestamp    types.Time   `json:"timestamp"`
 }
 
-// UMarkPrice holds a symbol's mark price and funding rate
-type UMarkPrice struct {
+// UMarkPriceResponse holds a symbol's mark price and funding rate
+type UMarkPriceResponse struct {
 	Symbol               string       `json:"symbol"`
 	MarkPrice            types.Number `json:"markPrice"`
 	IndexPrice           types.Number `json:"indexPrice"`
@@ -507,8 +507,8 @@ type AssetIndexResponse struct {
 	AutoExchangeAskRate   types.Number `json:"autoExchangeAskRate"`
 }
 
-// UPublicTradesData holds a market trade from Recent Trades List or Old Trades Lookup
-type UPublicTradesData struct {
+// UPublicTradesResponse holds a market trade from Recent Trades List or Old Trades Lookup
+type UPublicTradesResponse struct {
 	ID            uint64       `json:"id"`
 	Price         types.Number `json:"price"`
 	Quantity      types.Number `json:"qty"`
@@ -525,8 +525,8 @@ type UOpenInterestResponse struct {
 	Time         types.Time   `json:"time"`
 }
 
-// UOpenInterestStats holds a period's open interest statistics
-type UOpenInterestStats struct {
+// UOpenInterestStatsResponse holds a period's open interest statistics
+type UOpenInterestStatsResponse struct {
 	Symbol               string       `json:"symbol"`
 	SumOpenInterest      types.Number `json:"sumOpenInterest"`
 	SumOpenInterestValue types.Number `json:"sumOpenInterestValue"`
@@ -564,8 +564,8 @@ type UIndexPriceConstituent struct {
 	Weight   types.Number `json:"weight"`
 }
 
-// USymbolOrderbookTicker holds a symbol's best bid and ask
-type USymbolOrderbookTicker struct {
+// USymbolOrderbookTickerResponse holds a symbol's best bid and ask
+type USymbolOrderbookTickerResponse struct {
 	Symbol       string       `json:"symbol"`
 	BidPrice     types.Number `json:"bidPrice"`
 	BidQuantity  types.Number `json:"bidQty"`
@@ -575,15 +575,15 @@ type USymbolOrderbookTicker struct {
 	LastUpdateID uint64       `json:"lastUpdateId"` // not in the schema, but sent live
 }
 
-// USymbolPriceTicker holds a symbol's latest price
-type USymbolPriceTicker struct {
+// USymbolPriceTickerResponse holds a symbol's latest price
+type USymbolPriceTickerResponse struct {
 	Symbol string       `json:"symbol"`
 	Price  types.Number `json:"price"`
 	Time   types.Time   `json:"time"`
 }
 
-// UTakerVolumeData holds a period's taker buy and sell volumes
-type UTakerVolumeData struct {
+// UTakerVolumeResponse holds a period's taker buy and sell volumes
+type UTakerVolumeResponse struct {
 	BuySellRatio types.Number `json:"buySellRatio"`
 	BuyVolume    types.Number `json:"buyVol"`
 	SellVolume   types.Number `json:"sellVol"`
@@ -620,8 +620,8 @@ type UAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// UAccountTradeHistory holds one of the account's trades
-type UAccountTradeHistory struct {
+// UAccountTradeHistoryResponse holds one of the account's trades
+type UAccountTradeHistoryResponse struct {
 	Buyer           bool          `json:"buyer"`
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
@@ -686,8 +686,8 @@ type UOrderResponse struct {
 	PriceRate       types.Number `json:"priceRate"`     // callback rate, only sent for TRAILING_STOP_MARKET orders
 }
 
-// UFuturesOrderData holds an order from All Orders, which may also list COIN-M orders
-type UFuturesOrderData struct {
+// UFuturesOrderResponse holds an order from All Orders, which may also list COIN-M orders
+type UFuturesOrderResponse struct {
 	UOrderResponse
 	CumulativeBase types.Number `json:"cumBase"`
 	Pair           string       `json:"pair"`
@@ -941,8 +941,8 @@ type UADLQuantile struct {
 	Both  uint64 `json:"BOTH"`
 }
 
-// UPositionInformationV2 holds a position from Position Information V2
-type UPositionInformationV2 struct {
+// UPositionInformationV2Response holds a position from Position Information V2
+type UPositionInformationV2Response struct {
 	Symbol           string        `json:"symbol"`
 	PositionAmount   types.Number  `json:"positionAmt"`
 	EntryPrice       types.Number  `json:"entryPrice"`

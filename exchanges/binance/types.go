@@ -233,8 +233,8 @@ type AggregatedTradeRequest struct {
 	Limit     uint64
 }
 
-// AggregatedTrade holds an aggregate trade: the fills of one taker order at one price
-type AggregatedTrade struct {
+// AggregatedTradeResponse holds an aggregate trade: the fills of one taker order at one price
+type AggregatedTradeResponse struct {
 	AggregateTradeID uint64       `json:"a"`
 	Price            types.Number `json:"p"`
 	Quantity         types.Number `json:"q"`
@@ -263,7 +263,7 @@ type OrderBookRequest struct {
 
 // OrderBookResponse holds an order book
 type OrderBookResponse struct {
-	LastUpdateID int64                            `json:"lastUpdateId"`
+	LastUpdateID int64                            `json:"lastUpdateId"` // int64 to match the order book API it feeds
 	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
@@ -274,8 +274,8 @@ type RecentTradeRequest struct {
 	Limit  uint64 // 500 when zero, at most 1000
 }
 
-// RecentTrade holds a trade of the recent or historical trades lists
-type RecentTrade struct {
+// RecentTradeResponse holds a trade of the recent or historical trades lists
+type RecentTradeResponse struct {
 	ID            uint64       `json:"id"`
 	Price         types.Number `json:"price"`
 	Quantity      types.Number `json:"qty"`
@@ -298,8 +298,8 @@ type KlinesRequest struct {
 	TimeZone string
 }
 
-// CandleStick holds a kline, a candlestick bar
-type CandleStick struct {
+// CandleStickResponse holds a kline, a candlestick bar
+type CandleStickResponse struct {
 	OpenTime                 types.Time
 	OpenPrice                types.Number
 	HighPrice                types.Number
@@ -314,7 +314,7 @@ type CandleStick struct {
 }
 
 // UnmarshalJSON decodes a kline from its array form, whose twelfth element is unused
-func (c *CandleStick) UnmarshalJSON(data []byte) error {
+func (c *CandleStickResponse) UnmarshalJSON(data []byte) error {
 	target := [12]any{&c.OpenTime, &c.OpenPrice, &c.HighPrice, &c.LowPrice, &c.ClosePrice, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.NumberOfTrades, &c.TakerBuyBaseAssetVolume, &c.TakerBuyQuoteAssetVolume, nil}
 	return json.Unmarshal(data, &target)
 }
@@ -355,9 +355,9 @@ type PriceChangeStatsRequest struct {
 	SymbolStatus string
 }
 
-// PriceChangeStats holds 24hr ticker price change statistics; the MINI type leaves out the price change, previous close,
-// last quantity, bid and ask fields
-type PriceChangeStats struct {
+// PriceChangeStatsResponse holds 24hr ticker price change statistics; the MINI type leaves out the price change,
+// previous close, last quantity, bid and ask fields
+type PriceChangeStatsResponse struct {
 	Symbol               string       `json:"symbol"`
 	PriceChange          types.Number `json:"priceChange"`
 	PriceChangePercent   types.Number `json:"priceChangePercent"`
@@ -390,8 +390,8 @@ type BookTickerResponse struct {
 	AskQuantity types.Number `json:"askQty"`
 }
 
-// SymbolPrice holds a symbol's latest price
-type SymbolPrice struct {
+// SymbolPriceResponse holds a symbol's latest price
+type SymbolPriceResponse struct {
 	Symbol string       `json:"symbol"`
 	Price  types.Number `json:"price"`
 }
@@ -804,10 +804,10 @@ type TradeOrderResponse struct {
 // AccountResponse holds the account information. The commissions are in basis points and signed, since a liquidity
 // provider's maker rebate is reported as a negative commission
 type AccountResponse struct {
-	MakerCommission            uint64          `json:"makerCommission"`
-	TakerCommission            uint64          `json:"takerCommission"`
-	BuyerCommission            uint64          `json:"buyerCommission"`
-	SellerCommission           uint64          `json:"sellerCommission"`
+	MakerCommission            int64           `json:"makerCommission"`
+	TakerCommission            int64           `json:"takerCommission"`
+	BuyerCommission            int64           `json:"buyerCommission"`
+	SellerCommission           int64           `json:"sellerCommission"`
 	CommissionRates            CommissionRates `json:"commissionRates"`
 	CanTrade                   bool            `json:"canTrade"`
 	CanWithdraw                bool            `json:"canWithdraw"`

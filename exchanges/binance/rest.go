@@ -99,7 +99,7 @@ func (e *Exchange) GetExchangeServerTime(ctx context.Context) (*ServerTimeRespon
 
 // GetAggregatedTrades returns the compressed/aggregate trades list. A limit above the endpoint's maximum of 1000 is
 // collected over several requests, paging on from FromID or StartTime until the limit or EndTime is reached
-func (e *Exchange) GetAggregatedTrades(ctx context.Context, req *AggregatedTradeRequest) ([]AggregatedTrade, error) {
+func (e *Exchange) GetAggregatedTrades(ctx context.Context, req *AggregatedTradeRequest) ([]AggregatedTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -138,17 +138,17 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, req *AggregatedTrade
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []AggregatedTrade
+	var resp []AggregatedTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/aggTrades", params), aggTradesRate, &resp)
 }
 
 // batchAggregateTrades collects aggregate trades a thousand at a time. The first page starts at FromID or StartTime
 // and each later page starts at the last trade collected, which the endpoint returns again since fromId is inclusive
-func (e *Exchange) batchAggregateTrades(ctx context.Context, req *AggregatedTradeRequest, params url.Values) ([]AggregatedTrade, error) {
+func (e *Exchange) batchAggregateTrades(ctx context.Context, req *AggregatedTradeRequest, params url.Values) ([]AggregatedTradeResponse, error) {
 	params.Set("limit", "1000")
-	var trades []AggregatedTrade
+	var trades []AggregatedTradeResponse
 	for uint64(len(trades)) < req.Limit {
-		var page []AggregatedTrade
+		var page []AggregatedTradeResponse
 		if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/aggTrades", params), aggTradesRate, &page); err != nil {
 			return nil, fmt.Errorf("error fetching aggregate trades for %s: %w", req.Symbol, err)
 		}
@@ -219,7 +219,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, req *OrderBookRequest) (*Or
 }
 
 // GetMostRecentTrades returns the recent trades list of a symbol
-func (e *Exchange) GetMostRecentTrades(ctx context.Context, req *RecentTradeRequest) ([]RecentTrade, error) {
+func (e *Exchange) GetMostRecentTrades(ctx context.Context, req *RecentTradeRequest) ([]RecentTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -235,13 +235,13 @@ func (e *Exchange) GetMostRecentTrades(ctx context.Context, req *RecentTradeRequ
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []RecentTrade
+	var resp []RecentTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/trades", params), getRecentTradesListRate, &resp)
 }
 
 // GetHistoricalTrades looks up older trades of a symbol, starting from fromID when it is set and otherwise returning the
 // most recent trades
-func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair, limit, fromID uint64) ([]RecentTrade, error) {
+func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair, limit, fromID uint64) ([]RecentTradeResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -257,12 +257,12 @@ func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatUint(fromID, 10))
 	}
-	var resp []RecentTrade
+	var resp []RecentTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), getOldTradeLookupRate, &resp)
 }
 
 // GetSpotKline returns the kline/candlestick bars of a symbol
-func (e *Exchange) GetSpotKline(ctx context.Context, req *KlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetSpotKline(ctx context.Context, req *KlinesRequest) ([]CandleStickResponse, error) {
 	return e.getKlines(ctx, req, "/api/v3/klines")
 }
 
@@ -298,7 +298,7 @@ func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRe
 
 // GetPriceChangeStats returns 24hr ticker price change statistics. A request without symbols returns every symbol, at
 // a much higher weight
-func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStatsRequest) ([]PriceChangeStats, error) {
+func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStatsRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStat
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", req.SymbolStatus)
 	}
-	var resp objectOrArray[PriceChangeStats]
+	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/24hr", params), spotTicker24HourLimit(len(req.Symbols)), &resp)
 }
 
@@ -336,7 +336,7 @@ func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, sym
 
 // GetLatestSpotPrice returns the symbol price ticker: the latest price of each symbol, or of every symbol when none are
 // given
-func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]SymbolPrice, error) {
+func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]SymbolPriceResponse, error) {
 	params := url.Values{}
 	if err := e.setSymbolParams(params, symbols); err != nil {
 		return nil, err
@@ -348,7 +348,7 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pair
 	if len(symbols) == 1 {
 		rateLimit = spotSymbolPriceRate
 	}
-	var resp objectOrArray[SymbolPrice]
+	var resp objectOrArray[SymbolPriceResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
 }
 
@@ -378,12 +378,12 @@ func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTicke
 }
 
 // GetUIKline returns UIKlines: kline data modified for presentation in candlestick charts
-func (e *Exchange) GetUIKline(ctx context.Context, req *KlinesRequest) ([]CandleStick, error) {
+func (e *Exchange) GetUIKline(ctx context.Context, req *KlinesRequest) ([]CandleStickResponse, error) {
 	return e.getKlines(ctx, req, "/api/v3/uiKlines")
 }
 
 // getKlines sends a klines or uiKlines request, which take the same parameters and return the same response
-func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path string) ([]CandleStick, error) {
+func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path string) ([]CandleStickResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -417,7 +417,7 @@ func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path strin
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []CandleStick
+	var resp []CandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(path, params), getKlineRate, &resp)
 }
 

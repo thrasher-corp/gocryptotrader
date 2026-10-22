@@ -129,7 +129,7 @@ func (e *Exchange) processOptionsTicker(ctx context.Context, data []byte) error 
 	if err != nil || !enabled {
 		return err
 	}
-	return e.processAndSendTicker(ctx, &ticker.Price{
+	p := &ticker.Price{
 		Last:                       resp.LastPrice.Float64(),
 		LastSize:                   resp.LastQuantity.Float64(),
 		VolumeWeightedAveragePrice: resp.WeightedAveragePrice.Float64(),
@@ -143,7 +143,23 @@ func (e *Exchange) processOptionsTicker(ctx context.Context, data []byte) error 
 		ExchangeName:               e.Name,
 		AssetType:                  asset.Options,
 		LastUpdated:                resp.EventTime.Time(),
-	})
+	}
+	// The stream carries no best bid or ask, so they are taken from the option's order book as the websocket holds it,
+	// leaving out a book that only REST stored, or that REST wrote last, until the websocket loads a snapshot over it, as
+	// diff updates are not applied to a REST snapshot. A book whose subscription is removed keeps its last levels, as it
+	// does in the order book store. One copy of the book gives both sides as of the same update
+	if book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Options); err == nil && !book.RestSnapshot {
+		if len(book.Bids) != 0 {
+			p.Bid = book.Bids[0].Price
+		}
+		if len(book.Asks) != 0 {
+			p.Ask = book.Asks[0].Price
+		}
+		if p.Bid != 0 && p.Ask != 0 && p.Bid >= p.Ask {
+			p.Bid, p.Ask = 0, 0
+		}
+	}
+	return e.processAndSendTicker(ctx, p)
 }
 
 // processOptionsTrade relays a trade of an enabled pair. The direction is the taker's side

@@ -370,8 +370,8 @@ func (e *Exchange) GetUserAssets(ctx context.Context, ccy currency.Code, needBTC
 }
 
 // GetAllCoinsInfo returns All Coins' Information: balances and the deposit and withdrawal networks of each coin
-func (e *Exchange) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
-	var resp []CoinInfo
+func (e *Exchange) GetAllCoinsInfo(ctx context.Context) ([]CoinInfoResponse, error) {
+	var resp []CoinInfoResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/config/getall", nil, allCoinInfoRate, &resp)
 }
 

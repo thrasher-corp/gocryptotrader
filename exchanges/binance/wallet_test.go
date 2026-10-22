@@ -762,7 +762,7 @@ func TestGetAllCoinsInfo(t *testing.T) {
 	result, err := e.GetAllCoinsInfo(t.Context())
 	require.NoError(t, err, "GetAllCoinsInfo must not error")
 	if mockTests {
-		exp := []CoinInfo{
+		exp := []CoinInfoResponse{
 			{
 				Coin:              currency.BTC,
 				DepositAllEnable:  true,

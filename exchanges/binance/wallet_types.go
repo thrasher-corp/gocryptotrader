@@ -363,8 +363,8 @@ type UserAssetResponse struct {
 	BTCValuation types.Number  `json:"btcValuation"`
 }
 
-// CoinInfo holds a coin's balances and its deposit and withdrawal networks
-type CoinInfo struct {
+// CoinInfoResponse holds a coin's balances and its deposit and withdrawal networks
+type CoinInfoResponse struct {
 	Coin              currency.Code `json:"coin"`
 	DepositAllEnable  bool          `json:"depositAllEnable"`
 	WithdrawAllEnable bool          `json:"withdrawAllEnable"`

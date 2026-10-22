@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WsPayload is a WebSocket Streams subscription request: SUBSCRIBE or UNSUBSCRIBE with the stream names
-type WsPayload struct {
+// WebsocketPayloadRequest is a WebSocket Streams subscription request: SUBSCRIBE or UNSUBSCRIBE with the stream names
+type WebsocketPayloadRequest struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     string   `json:"id"`
@@ -45,14 +45,14 @@ type DiffDepthStream struct {
 
 // KlineStream is a Kline/Candlestick Streams (<symbol>@kline_<interval>) payload
 type KlineStream struct {
-	EventType string          `json:"e"`
-	EventTime types.Time      `json:"E"`
-	Symbol    string          `json:"s"`
-	Kline     KlineStreamData `json:"k"`
+	EventType string     `json:"e"`
+	EventTime types.Time `json:"E"`
+	Symbol    string     `json:"s"`
+	Kline     SpotCandle `json:"k"`
 }
 
-// KlineStreamData is the candle of a kline stream payload
-type KlineStreamData struct {
+// SpotCandle is the candle of a kline stream payload
+type SpotCandle struct {
 	StartTime                types.Time   `json:"t"`
 	CloseTime                types.Time   `json:"T"`
 	Symbol                   string       `json:"s"`

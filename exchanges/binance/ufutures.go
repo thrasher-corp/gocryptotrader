@@ -222,7 +222,7 @@ func (e *Exchange) uFuturesDownloadLink(ctx context.Context, path, downloadID st
 
 // UAccountIncomeHistory returns the account's income records from Get Income History; without a time window the
 // last seven days are returned, and only the last three months are kept
-func (e *Exchange) UAccountIncomeHistory(ctx context.Context, arg *UIncomeHistoryRequest) ([]UAccountIncomeHistory, error) {
+func (e *Exchange) UAccountIncomeHistory(ctx context.Context, arg *UIncomeHistoryRequest) ([]UAccountIncomeHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (e *Exchange) UAccountIncomeHistory(ctx context.Context, arg *UIncomeHistor
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UAccountIncomeHistory
+	var resp []UAccountIncomeHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/income", params, uFuturesIncomeHistoryRate, &resp)
 }
 
@@ -345,7 +345,7 @@ func (e *Exchange) UCompositeIndexInfo(ctx context.Context, symbol currency.Pair
 
 // UCompressedTrades returns aggregate market trades from Compressed/Aggregate Trades List; only the last 48 hours can
 // be queried and a time window must be shorter than an hour
-func (e *Exchange) UCompressedTrades(ctx context.Context, arg *UCompressedTradesRequest) ([]UCompressedTradeData, error) {
+func (e *Exchange) UCompressedTrades(ctx context.Context, arg *UCompressedTradesRequest) ([]UCompressedTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (e *Exchange) UCompressedTrades(ctx context.Context, arg *UCompressedTrades
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UCompressedTradeData
+	var resp []UCompressedTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/aggTrades", params), uFuturesAggregateTradesRate, &resp)
 }
 
@@ -401,7 +401,7 @@ func (e *Exchange) UExchangeInfo(ctx context.Context) (*UExchangeInfoResponse, e
 
 // UGetFundingHistory returns funding rate records from Get Funding Rate History, oldest first; without a time window
 // the latest 200 are returned
-func (e *Exchange) UGetFundingHistory(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]FundingRateHistory, error) {
+func (e *Exchange) UGetFundingHistory(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]FundingRateHistoryResponse, error) {
 	params := url.Values{}
 	if err := setTimeRangeParams(params, startTime, endTime); err != nil {
 		return nil, err
@@ -416,7 +416,7 @@ func (e *Exchange) UGetFundingHistory(ctx context.Context, symbol currency.Pair,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []FundingRateHistory
+	var resp []FundingRateHistoryResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/fundingRate", params), uFuturesFundingRateHistoryRate, &resp)
 }
 
@@ -485,14 +485,14 @@ func (e *Exchange) uKlineData(ctx context.Context, path string, params url.Value
 
 // UGlobalLongShortRatio returns the long/short account ratio of all traders from Long/Short Ratio; only the last 30
 // days are kept
-func (e *Exchange) UGlobalLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatio, error) {
-	var resp []ULongShortRatio
+func (e *Exchange) UGlobalLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatioResponse, error) {
+	var resp []ULongShortRatioResponse
 	return resp, e.uFuturesData(ctx, "/futures/data/globalLongShortAccountRatio", arg, &resp)
 }
 
 // UGetMarkPrice returns the mark price and funding rate of one symbol or, with an empty symbol, every symbol, from
 // Mark Price
-func (e *Exchange) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]UMarkPrice, error) {
+func (e *Exchange) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]UMarkPriceResponse, error) {
 	params := url.Values{}
 	rateLimit := uFuturesMarkPriceAllRate
 	if !symbol.IsEmpty() {
@@ -503,7 +503,7 @@ func (e *Exchange) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]U
 		params.Set("symbol", symbolValue)
 		rateLimit = uFuturesDefaultRate
 	}
-	var resp objectOrArray[UMarkPrice]
+	var resp objectOrArray[UMarkPriceResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/premiumIndex", params), rateLimit, &resp)
 }
 
@@ -533,7 +533,7 @@ func (e *Exchange) GetMultiAssetModeAssetIndex(ctx context.Context, symbol curre
 
 // UFuturesHistoricalTrades returns older market trades from Old Trades Lookup, starting at a trade ID or, when fromID
 // is 0, with the most recent; only the last month is kept
-func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID, limit uint64) ([]UPublicTradesData, error) {
+func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID, limit uint64) ([]UPublicTradesResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -549,7 +549,7 @@ func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []UPublicTradesData
+	var resp []UPublicTradesResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, common.EncodeURLValues("/fapi/v1/historicalTrades", params), uFuturesHistoricalTradesRate, &resp)
 }
 
@@ -570,8 +570,8 @@ func (e *Exchange) UOpenInterest(ctx context.Context, symbol currency.Pair) (*UO
 
 // UOpenInterestStats returns a symbol's open interest history from Open Interest Statistics; only the last month is
 // kept
-func (e *Exchange) UOpenInterestStats(ctx context.Context, arg *UFuturesDataRequest) ([]UOpenInterestStats, error) {
-	var resp []UOpenInterestStats
+func (e *Exchange) UOpenInterestStats(ctx context.Context, arg *UFuturesDataRequest) ([]UOpenInterestStatsResponse, error) {
+	var resp []UOpenInterestStatsResponse
 	return resp, e.uFuturesData(ctx, "/futures/data/openInterestHist", arg, &resp)
 }
 
@@ -632,7 +632,7 @@ func (e *Exchange) GetIndexPriceConstituents(ctx context.Context, symbol currenc
 }
 
 // URecentTrades returns a symbol's recent market trades from Recent Trades List
-func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]UPublicTradesData, error) {
+func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]UPublicTradesResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -645,7 +645,7 @@ func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, limi
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []UPublicTradesData
+	var resp []UPublicTradesResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/trades", params), uFuturesRecentTradesRate, &resp)
 }
 
@@ -670,7 +670,7 @@ func (e *Exchange) GetURPIOrderbook(ctx context.Context, symbol currency.Pair, l
 
 // USymbolOrderbookTicker returns the best bid and ask of one symbol or, with an empty symbol, every symbol, from
 // Symbol Order Book Ticker
-func (e *Exchange) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pair) ([]USymbolOrderbookTicker, error) {
+func (e *Exchange) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pair) ([]USymbolOrderbookTickerResponse, error) {
 	params := url.Values{}
 	rateLimit := uFuturesOrderbookTickerAllRate
 	if !symbol.IsEmpty() {
@@ -681,13 +681,13 @@ func (e *Exchange) USymbolOrderbookTicker(ctx context.Context, symbol currency.P
 		params.Set("symbol", symbolValue)
 		rateLimit = uFuturesBookTickerRate
 	}
-	var resp objectOrArray[USymbolOrderbookTicker]
+	var resp objectOrArray[USymbolOrderbookTickerResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/ticker/bookTicker", params), rateLimit, &resp)
 }
 
 // USymbolPriceTickerV2 returns the latest price of one symbol or, with an empty symbol, every symbol, from Symbol
 // Price Ticker V2
-func (e *Exchange) USymbolPriceTickerV2(ctx context.Context, symbol currency.Pair) ([]USymbolPriceTicker, error) {
+func (e *Exchange) USymbolPriceTickerV2(ctx context.Context, symbol currency.Pair) ([]USymbolPriceTickerResponse, error) {
 	params := url.Values{}
 	rateLimit := uFuturesSymbolPriceAllRate
 	if !symbol.IsEmpty() {
@@ -698,14 +698,14 @@ func (e *Exchange) USymbolPriceTickerV2(ctx context.Context, symbol currency.Pai
 		params.Set("symbol", symbolValue)
 		rateLimit = uFuturesDefaultRate
 	}
-	var resp objectOrArray[USymbolPriceTicker]
+	var resp objectOrArray[USymbolPriceTickerResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v2/ticker/price", params), rateLimit, &resp)
 }
 
-// UTakerBuySellVol returns a symbol's taker buy and sell volumes from Taker Buy/Sell Volume; only the last 30 days
+// UTakerBuySellVolume returns a symbol's taker buy and sell volumes from Taker Buy/Sell Volume; only the last 30 days
 // are kept
-func (e *Exchange) UTakerBuySellVol(ctx context.Context, arg *UFuturesDataRequest) ([]UTakerVolumeData, error) {
-	var resp []UTakerVolumeData
+func (e *Exchange) UTakerBuySellVolume(ctx context.Context, arg *UFuturesDataRequest) ([]UTakerVolumeResponse, error) {
+	var resp []UTakerVolumeResponse
 	return resp, e.uFuturesData(ctx, "/futures/data/takerlongshortRatio", arg, &resp)
 }
 
@@ -728,15 +728,15 @@ func (e *Exchange) U24HourTickerPriceChangeStats(ctx context.Context, symbol cur
 
 // UTopAccountsLongShortRatio returns the long/short account ratio of the top 20% of traders by margin balance, from
 // Top Trader Long/Short Account Ratio; only the last 30 days are kept
-func (e *Exchange) UTopAccountsLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatio, error) {
-	var resp []ULongShortRatio
+func (e *Exchange) UTopAccountsLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatioResponse, error) {
+	var resp []ULongShortRatioResponse
 	return resp, e.uFuturesData(ctx, "/futures/data/topLongShortAccountRatio", arg, &resp)
 }
 
 // UTopPositionsLongShortRatio returns the long/short position ratio of the top 20% of traders by margin balance, from
 // Top Trader Long/Short Position Ratio; only the last 30 days are kept
-func (e *Exchange) UTopPositionsLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatio, error) {
-	var resp []ULongShortRatio
+func (e *Exchange) UTopPositionsLongShortRatio(ctx context.Context, arg *UFuturesDataRequest) ([]ULongShortRatioResponse, error) {
+	var resp []ULongShortRatioResponse
 	return resp, e.uFuturesData(ctx, "/futures/data/topLongShortPositionRatio", arg, &resp)
 }
 
@@ -790,7 +790,7 @@ func (e *Exchange) ChangePositionMode(ctx context.Context, dualSidePosition bool
 
 // UAccountTradesHistory returns the account's trades in a symbol from Account Trade List, which may also list COIN-M
 // trades. A time window may span at most seven days, and only the last three months are kept
-func (e *Exchange) UAccountTradesHistory(ctx context.Context, arg *UAccountTradeListRequest) ([]UAccountTradeHistory, error) {
+func (e *Exchange) UAccountTradesHistory(ctx context.Context, arg *UAccountTradeListRequest) ([]UAccountTradeHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -818,14 +818,14 @@ func (e *Exchange) UAccountTradesHistory(ctx context.Context, arg *UAccountTrade
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UAccountTradeHistory
+	var resp []UAccountTradeHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/userTrades", params, uFuturesAccountTradeListRate, &resp)
 }
 
 // UAllAccountOrders returns the account's active, cancelled and filled orders from All Orders, which may also list
 // COIN-M orders. A time window may span at most seven days, and cancelled or expired orders without fills drop out
 // after three days
-func (e *Exchange) UAllAccountOrders(ctx context.Context, arg *UAllOrdersRequest) ([]UFuturesOrderData, error) {
+func (e *Exchange) UAllAccountOrders(ctx context.Context, arg *UAllOrdersRequest) ([]UFuturesOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -846,7 +846,7 @@ func (e *Exchange) UAllAccountOrders(ctx context.Context, arg *UAllOrdersRequest
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UFuturesOrderData
+	var resp []UFuturesOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/allOrders", params, uFuturesGetAllOrdersRate, &resp)
 }
 
@@ -1447,9 +1447,9 @@ func (e *Exchange) UPositionMarginChangeHistory(ctx context.Context, arg *UPosit
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionMargin/history", params, uFuturesDefaultRate, &resp)
 }
 
-// UModifyIsolatedPositionMarginReq adds margin to or reduces margin from an isolated position with Modify Isolated
+// UModifyIsolatedPositionMarginRequest adds margin to or reduces margin from an isolated position with Modify Isolated
 // Position Margin; changeType is add or reduce, and positionSide is required in Hedge Mode
-func (e *Exchange) UModifyIsolatedPositionMarginReq(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (*UModifyIsolatedPositionMarginResponse, error) {
+func (e *Exchange) UModifyIsolatedPositionMarginRequest(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (*UModifyIsolatedPositionMarginResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1492,7 +1492,7 @@ func (e *Exchange) UPositionsADLEstimate(ctx context.Context, symbol currency.Pa
 
 // UPositionsInfoV2 returns the positions of one symbol or, with an empty symbol, every symbol, from Position
 // Information V2
-func (e *Exchange) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2, error) {
+func (e *Exchange) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2Response, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -1501,7 +1501,7 @@ func (e *Exchange) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) (
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []UPositionInformationV2
+	var resp []UPositionInformationV2Response
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v2/positionRisk", params, uFuturesPositionRiskRate, &resp)
 }
 

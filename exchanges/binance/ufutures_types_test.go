@@ -63,7 +63,7 @@ func TestUDownloadLinkResponseUnmarshal(t *testing.T) {
 	assert.Equal(t, exp, got, "UDownloadLinkResponse should decode a file that is still processing")
 }
 
-func TestUAccountTradeHistoryUnmarshal(t *testing.T) {
+func TestUAccountTradeHistoryResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -87,9 +87,9 @@ func TestUAccountTradeHistoryUnmarshal(t *testing.T) {
 }
 `
 
-	var x UAccountTradeHistory
+	var x UAccountTradeHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UAccountTradeHistory{
+	exp := UAccountTradeHistoryResponse{
 		Buyer:           true,
 		Commission:      -0.078125,
 		CommissionAsset: currency.USDT,
@@ -108,10 +108,10 @@ func TestUAccountTradeHistoryUnmarshal(t *testing.T) {
 		Pair:            "BTCUSDT",
 		Time:            types.Time(time.UnixMilli(1569514978020)),
 	}
-	assert.Equal(t, exp, x, "UAccountTradeHistory should unmarshal correctly")
+	assert.Equal(t, exp, x, "UAccountTradeHistoryResponse should unmarshal correctly")
 }
 
-func TestUPublicTradesDataUnmarshal(t *testing.T) {
+func TestUPublicTradesResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -125,9 +125,9 @@ func TestUPublicTradesDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x UPublicTradesData
+	var x UPublicTradesResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UPublicTradesData{
+	exp := UPublicTradesResponse{
 		ID:            8027591209,
 		Price:         79673.50,
 		Quantity:      0.0625,
@@ -136,10 +136,10 @@ func TestUPublicTradesDataUnmarshal(t *testing.T) {
 		IsBuyerMaker:  true,
 		IsRPITrade:    true,
 	}
-	assert.Equal(t, exp, x, "UPublicTradesData should unmarshal correctly")
+	assert.Equal(t, exp, x, "UPublicTradesResponse should unmarshal correctly")
 }
 
-func TestUFuturesOrderDataUnmarshal(t *testing.T) {
+func TestUFuturesOrderResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -174,9 +174,9 @@ func TestUFuturesOrderDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x UFuturesOrderData
+	var x UFuturesOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UFuturesOrderData{
+	exp := UFuturesOrderResponse{
 		ClientOrderID:           "customID",
 		ExecutedQuantity:        4.125,
 		OrderID:                 1573346959,
@@ -206,7 +206,7 @@ func TestUFuturesOrderDataUnmarshal(t *testing.T) {
 		CumulativeBase:          8.25,
 		Pair:                    "BTCUSDT",
 	}
-	assert.Equal(t, exp, x, "UFuturesOrderData should unmarshal correctly")
+	assert.Equal(t, exp, x, "UFuturesOrderResponse should unmarshal correctly")
 }
 
 func TestUAccountBalanceUnmarshal(t *testing.T) {

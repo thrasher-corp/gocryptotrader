@@ -591,7 +591,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // spotTickerPrice converts a spot or margin 24hr ticker. Close is the previous close, as the ticker stream reports it
-func (e *Exchange) spotTickerPrice(t *PriceChangeStats, pair currency.Pair, a asset.Item) ticker.Price {
+func (e *Exchange) spotTickerPrice(t *PriceChangeStatsResponse, pair currency.Pair, a asset.Item) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -1060,7 +1060,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				log.Warnf(log.ExchangeSys, "%s skipping %s trade %d with unknown side %d", e.Name, a, trades[i].TradeID, trades[i].Side)
 				continue
 			}
-			// The trade ID matches the trade stream's; the ID is unique across symbols
+			// The trade ID matches the trade stream's; both are counted per symbol
 			resp = append(resp, trade.Data{
 				TID:          strconv.FormatUint(trades[i].TradeID, 10),
 				Exchange:     e.Name,
@@ -3876,9 +3876,9 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	var orders []order.Detail
 	for _, p := range req.Pairs {
 		if !isConditionalOrderType(req.Type) {
-			history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UFuturesOrderData, error) {
+			history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UFuturesOrderResponse, error) {
 				return e.UAllAccountOrders(ctx, &UAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 1000})
-			}, func(o *UFuturesOrderData) time.Time { return o.Time.Time() }, func(o *UFuturesOrderData) uint64 { return o.OrderID })
+			}, func(o *UFuturesOrderResponse) time.Time { return o.Time.Time() }, func(o *UFuturesOrderResponse) uint64 { return o.OrderID })
 			if err != nil {
 				return nil, err
 			}
@@ -3914,9 +3914,9 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range req.Pairs {
-		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]FuturesOrderData, error) {
+		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]CFuturesAllOrdersResponse, error) {
 			return e.GetAllFuturesOrders(ctx, &CFuturesAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 100})
-		}, func(o *FuturesOrderData) time.Time { return o.Time.Time() }, func(o *FuturesOrderData) uint64 { return o.OrderID })
+		}, func(o *CFuturesAllOrdersResponse) time.Time { return o.Time.Time() }, func(o *CFuturesAllOrdersResponse) uint64 { return o.OrderID })
 		if err != nil {
 			return nil, err
 		}
@@ -4966,7 +4966,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 		if change.IsNegative() {
 			changeType = "reduce"
 		}
-		_, err = e.UModifyIsolatedPositionMarginReq(ctx, req.Pair, positionSide, changeType, amount)
+		_, err = e.UModifyIsolatedPositionMarginRequest(ctx, req.Pair, positionSide, changeType, amount)
 	}
 	if err != nil {
 		return nil, err
@@ -5203,7 +5203,7 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	var position *FuturesPositionInformation
+	var position *FuturesPositionInformationResponse
 	for i := range positions {
 		if positions[i].Symbol == symbol && positions[i].PositionSide == positionSide {
 			position = &positions[i]
@@ -5370,7 +5370,7 @@ func (e *Exchange) uPositionOrders(ctx context.Context, pair currency.Pair, star
 		marginType = e.positionMarginType(asset.USDTMarginedFutures, pair, positions[0].MarginType)
 	}
 	const limit = 1000 // the most Binance returns a request
-	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]UFuturesOrderData, error) {
+	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]UFuturesOrderResponse, error) {
 		return e.UAllAccountOrders(ctx, &UAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
 	})
 	if err != nil {
@@ -5411,7 +5411,7 @@ func (e *Exchange) cPositionOrders(ctx context.Context, pair currency.Pair, star
 		break
 	}
 	const limit = 100 // the most Binance returns a request
-	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]FuturesOrderData, error) {
+	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]CFuturesAllOrdersResponse, error) {
 		return e.GetAllFuturesOrders(ctx, &CFuturesAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
 	})
 	if err != nil {

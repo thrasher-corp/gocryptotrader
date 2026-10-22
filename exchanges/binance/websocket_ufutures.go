@@ -578,7 +578,7 @@ func nextUserDataRetryWait(wait, delay time.Duration) time.Duration {
 }
 
 // fetchDerivativesOrderbook returns a USDⓈ-M, COIN-M or options REST order book as deep as the asset's snapshots, which
-// keeps options books, shallow but costly when deep, at a weight of 1
+// keeps options books, shallow but costly when deep, at a weight of 2
 func (e *Exchange) fetchDerivativesOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	return e.fetchDerivativesOrderbookDepth(ctx, p, a, orderbookSnapshotLimit(a))
 }

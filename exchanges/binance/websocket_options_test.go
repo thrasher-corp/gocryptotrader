@@ -55,16 +55,14 @@ func TestWebsocketHandleOptionsData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	for _, frame := range fixtureFrames(t, "testdata/wsOptions.json") {
-		require.NoErrorf(t, ex.wsHandleOptionsData(t.Context(), nil, frame), "wsHandleOptionsData must not error for %s", frame)
-	}
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleOptionsData, fixtureFrames(t, "testdata/wsOptions.json")), "handling the fixture must return")
 	exp := []any{
 		&OptionsBookTicker{
 			EventType: "bookTicker", UpdateID: 42788078076, Symbol: "BTC-261030-85000-C", BestBidPrice: 3645, BestBidQuantity: 2.17, BestAskPrice: 3675,
 			BestAskQuantity: 6.18, TransactionTime: fixtureTime(1791283337764), EventTime: fixtureTime(1791283337765),
 		},
 		&ticker.Price{
-			Last: 3660, LastSize: 1.25, VolumeWeightedAveragePrice: 3650.092, High: 4085, Low: 3540, BaseVolume: 175, QuoteVolume: 643766.05, Open: 3904,
+			Last: 3660, LastSize: 1.25, VolumeWeightedAveragePrice: 3650.092, High: 4085, Low: 3540, Bid: 3645, Ask: 3670, BaseVolume: 175, QuoteVolume: 643766.05, Open: 3904,
 			PercentChange24Hour: -6.25, Pair: testOptionsPair, ExchangeName: ex.Name, AssetType: asset.Options, LastUpdated: time.UnixMilli(1791283461766),
 		},
 		[]trade.Data{{
@@ -105,6 +103,73 @@ func TestWebsocketHandleOptionsData(t *testing.T) {
 		LastUpdated:  time.UnixMilli(1791283337855),
 		LastPushed:   time.UnixMilli(1791283337870),
 	}, got, "partial depth should load the top levels into the options order book")
+}
+
+func TestOptionsTickerBidAskFromOrderbook(t *testing.T) {
+	t.Parallel()
+	const frame = `{"stream":"btc-261030-85000-c@optionTicker","data":{"e":"24hrTicker","E":1791283461766,"s":"BTC-261030-85000-C","p":"-244.000","P":"-0.0625","w":"3650.092","c":"3660.000","Q":"1.25","o":"3904.000","h":"4085.000","l":"3540.000","v":"175.00","q":"643766.050","O":1791201120000,"C":1791283461766,"F":62,"L":468,"n":407}}`
+	streamBook := func(ctx context.Context, ex *Exchange, book *orderbook.Book) error {
+		return ex.Websocket.Orderbook.LoadSnapshot(ctx, book)
+	}
+	for _, tc := range []struct {
+		name           string
+		load           func(context.Context, *Exchange, *orderbook.Book) error
+		bids, asks     orderbook.Levels
+		expBid, expAsk float64
+	}{
+		{name: "no book"},
+		{
+			name: "both sides", load: streamBook, expBid: 3645, expAsk: 3675,
+			bids: orderbook.Levels{{Price: 3645, Amount: 1}, {Price: 3640, Amount: 3}},
+			asks: orderbook.Levels{{Price: 3675, Amount: 2}, {Price: 3680, Amount: 4}},
+		},
+		{name: "bids only", load: streamBook, bids: orderbook.Levels{{Price: 3645, Amount: 1}}, expBid: 3645},
+		{name: "asks only", load: streamBook, asks: orderbook.Levels{{Price: 3675, Amount: 2}}, expAsk: 3675},
+		// The ticker store refuses a ticker whose bid is not below its ask, so a crossed or locked book gives neither
+		{name: "crossed", load: streamBook, bids: orderbook.Levels{{Price: 3700, Amount: 1}}, asks: orderbook.Levels{{Price: 3675, Amount: 2}}},
+		{name: "locked", load: streamBook, bids: orderbook.Levels{{Price: 3675, Amount: 1}}, asks: orderbook.Levels{{Price: 3675, Amount: 2}}},
+		{
+			name: "resynchronising", bids: orderbook.Levels{{Price: 3645, Amount: 1}}, asks: orderbook.Levels{{Price: 3675, Amount: 2}},
+			load: func(ctx context.Context, ex *Exchange, book *orderbook.Book) error {
+				if err := ex.Websocket.Orderbook.LoadSnapshot(ctx, book); err != nil {
+					return err
+				}
+				return ex.Websocket.Orderbook.InvalidateOrderbook(book.Pair, book.Asset)
+			},
+		},
+		// Nothing keeps a book only REST stored up to date, so it can be far older than the ticker
+		{
+			name: "REST book only", bids: orderbook.Levels{{Price: 3645, Amount: 1}}, asks: orderbook.Levels{{Price: 3675, Amount: 2}},
+			load: func(_ context.Context, _ *Exchange, book *orderbook.Book) error { return book.Process() },
+		},
+		// Diff updates are not applied to a book REST wrote last, so it is left out until the websocket loads a snapshot over
+		// it
+		{
+			name: "REST wrote last", bids: orderbook.Levels{{Price: 3645, Amount: 1}}, asks: orderbook.Levels{{Price: 3675, Amount: 2}},
+			load: func(ctx context.Context, ex *Exchange, book *orderbook.Book) error {
+				if err := ex.Websocket.Orderbook.LoadSnapshot(ctx, book); err != nil {
+					return err
+				}
+				return book.Process()
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newDerivativesTestExchange(t)
+			if tc.load != nil {
+				book := &orderbook.Book{Exchange: ex.Name, Pair: testOptionsPair, Asset: asset.Options, Bids: tc.bids, Asks: tc.asks, LastUpdated: time.Now()}
+				require.NoError(t, tc.load(t.Context(), ex, book), "loading the order book must not error")
+			}
+			require.NoError(t, ex.wsHandleOptionsData(t.Context(), nil, []byte(frame)), "wsHandleOptionsData must not error")
+			got, err := ticker.GetTicker(ex.Name, testOptionsPair, asset.Options)
+			require.NoError(t, err, "GetTicker must not error")
+			assert.Equal(t, &ticker.Price{
+				Last: 3660, LastSize: 1.25, VolumeWeightedAveragePrice: 3650.092, High: 4085, Low: 3540, Bid: tc.expBid, Ask: tc.expAsk, BaseVolume: 175, QuoteVolume: 643766.05,
+				Open: 3904, PercentChange24Hour: -6.25, Pair: testOptionsPair, ExchangeName: ex.Name, AssetType: asset.Options, LastUpdated: time.UnixMilli(1791283461766),
+			}, got, "the stored ticker should take its best bid and ask from a usable order book")
+		})
+	}
 }
 
 func TestHandleOptionsErrors(t *testing.T) {

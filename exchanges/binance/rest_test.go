@@ -338,7 +338,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 	result, err := e.GetAggregatedTrades(t.Context(), &AggregatedTradeRequest{Symbol: spotTradablePair, Limit: 5})
 	require.NoError(t, err, "GetAggregatedTrades must not error")
 	if mockTests {
-		exp := []AggregatedTrade{
+		exp := []AggregatedTradeResponse{
 			{
 				AggregateTradeID: 4081863688,
 				Price:            86168.13,
@@ -409,7 +409,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		}
 		return
 	}
-	trades := []AggregatedTrade{
+	trades := []AggregatedTradeResponse{
 		{
 			AggregateTradeID: 4081863688,
 			Price:            86168.13,
@@ -463,7 +463,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		endTime time.Time
-		exp     []AggregatedTrade
+		exp     []AggregatedTradeResponse
 	}{
 		{name: "until a page has no new trades", exp: trades},
 		{name: "until a trade after the end time", endTime: time.UnixMilli(1791284811500), exp: trades[:4]},
@@ -573,7 +573,7 @@ func TestGetMostRecentTrades(t *testing.T) {
 	result, err := e.GetMostRecentTrades(t.Context(), &RecentTradeRequest{Symbol: spotTradablePair, Limit: 15})
 	require.NoError(t, err, "GetMostRecentTrades must not error")
 	if mockTests {
-		exp := []RecentTrade{
+		exp := []RecentTradeResponse{
 			{
 				ID:            6739441146,
 				Price:         86168.14,
@@ -717,7 +717,7 @@ func TestGetHistoricalTrades(t *testing.T) {
 	result, err := e.GetHistoricalTrades(t.Context(), spotTradablePair, 5, 0)
 	require.NoError(t, err, "GetHistoricalTrades must not error")
 	if mockTests {
-		exp := []RecentTrade{
+		exp := []RecentTradeResponse{
 			{
 				ID:            6739441160,
 				Price:         86168.14,
@@ -788,7 +788,7 @@ func TestGetSpotKline(t *testing.T) {
 	result, err := e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetSpotKline must not error")
 	if mockTests {
-		exp := []CandleStick{
+		exp := []CandleStickResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1744104000, 0)),
 				OpenPrice:                79005.01,
@@ -917,7 +917,7 @@ func TestGetPriceChangeStats(t *testing.T) {
 	result, err := e.GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Symbols: currency.Pairs{spotTradablePair}})
 	require.NoError(t, err, "GetPriceChangeStats must not error")
 	if mockTests {
-		exp := []PriceChangeStats{
+		exp := []PriceChangeStatsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				PriceChange:          -1641.24,
@@ -951,7 +951,7 @@ func TestGetPriceChangeStats(t *testing.T) {
 	result, err = e.GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, Type: "MINI", SymbolStatus: "TRADING"})
 	require.NoError(t, err, "GetPriceChangeStats must not error")
 	if mockTests {
-		exp := []PriceChangeStats{
+		exp := []PriceChangeStatsResponse{
 			{
 				Symbol:      "BTCUSDT",
 				LastPrice:   86168.14,
@@ -1046,7 +1046,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 	result, err := e.GetLatestSpotPrice(t.Context(), currency.Pairs{spotTradablePair}, "")
 	require.NoError(t, err, "GetLatestSpotPrice must not error")
 	if mockTests {
-		exp := []SymbolPrice{
+		exp := []SymbolPriceResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  67773.99,
@@ -1061,7 +1061,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 	result, err = e.GetLatestSpotPrice(t.Context(), currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, "")
 	require.NoError(t, err, "GetLatestSpotPrice must not error")
 	if mockTests {
-		exp := []SymbolPrice{
+		exp := []SymbolPriceResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  86168.13,
@@ -1172,7 +1172,7 @@ func TestGetUIKline(t *testing.T) {
 	result, err := e.GetUIKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin.Short(), Limit: 3, StartTime: startTime, EndTime: endTime, TimeZone: "8"})
 	require.NoError(t, err, "GetUIKline must not error")
 	if mockTests {
-		exp := []CandleStick{
+		exp := []CandleStickResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1744104000, 0)),
 				OpenPrice:                79005.01,
@@ -2695,6 +2695,30 @@ func TestGetAccount(t *testing.T) {
 	assert.NotEmpty(t, result.AccountType, "GetAccount should return the account type")
 }
 
+func TestGetAccountNegativeCommissions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		field string
+		exp   AccountResponse
+	}{
+		{field: "makerCommission", exp: AccountResponse{MakerCommission: -1}},
+		{field: "takerCommission", exp: AccountResponse{TakerCommission: -1}},
+		{field: "buyerCommission", exp: AccountResponse{BuyerCommission: -1}},
+		{field: "sellerCommission", exp: AccountResponse{SellerCommission: -1}},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(`{"` + tc.field + `":-1}`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			result, err := ex.GetAccount(t.Context(), false)
+			require.NoErrorf(t, err, "GetAccount must not error for a negative %s", tc.field)
+			assert.Equal(t, &tc.exp, result, "GetAccount should decode the negative commission")
+		})
+	}
+}
+
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -3454,8 +3478,8 @@ func TestSendAPIKeyHTTPRequest(t *testing.T) {
 
 func TestObjectOrArrayUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	exp := objectOrArray[SymbolPrice]{{Symbol: "BTCUSDT", Price: 86168.13}, {Symbol: "ETHUSDT", Price: 2713.26}}
-	var result objectOrArray[SymbolPrice]
+	exp := objectOrArray[SymbolPriceResponse]{{Symbol: "BTCUSDT", Price: 86168.13}, {Symbol: "ETHUSDT", Price: 2713.26}}
+	var result objectOrArray[SymbolPriceResponse]
 	require.NoError(t, json.Unmarshal([]byte(`[{"symbol":"BTCUSDT","price":"86168.13000000"},{"symbol":"ETHUSDT","price":"2713.26000000"}]`), &result), "Unmarshal must not error for an array")
 	assert.Equal(t, exp, result, "Unmarshal should decode every element of an array")
 
@@ -3468,9 +3492,9 @@ func TestObjectOrArrayUnmarshalJSON(t *testing.T) {
 	assert.Error(t, json.Unmarshal([]byte(`[1]`), &result), "Unmarshal should error for an array of non-objects")
 }
 
-func TestCandleStickUnmarshalJSON(t *testing.T) {
+func TestCandleStickResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	exp := CandleStick{
+	exp := CandleStickResponse{
 		OpenTime:                 types.Time(time.UnixMilli(1499040000000)),
 		OpenPrice:                0.0163479,
 		HighPrice:                0.8,
@@ -3483,7 +3507,7 @@ func TestCandleStickUnmarshalJSON(t *testing.T) {
 		TakerBuyBaseAssetVolume:  1756.87402397,
 		TakerBuyQuoteAssetVolume: 28.46694368,
 	}
-	var result CandleStick
+	var result CandleStickResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1499040000000,"0.01634790","0.80000000","0.01575800","0.01577100","148976.11427815",1499644799999,"2434.19055334",308,"1756.87402397","28.46694368","0"]`), &result), "Unmarshal must not error")
 	assert.Equal(t, exp, result, "Unmarshal should decode every element")
 

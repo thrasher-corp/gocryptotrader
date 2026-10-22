@@ -390,7 +390,7 @@ func TestUAccountIncomeHistory(t *testing.T) {
 	})
 	require.NoError(t, err, "UAccountIncomeHistory must not error")
 	if mockTests {
-		exp := []UAccountIncomeHistory{
+		exp := []UAccountIncomeHistoryResponse{
 			{
 				Symbol:        "BTCUSDT",
 				IncomeType:    "REALIZED_PNL",
@@ -682,7 +682,7 @@ func TestUCompressedTrades(t *testing.T) {
 	require.NoError(t, err, "UCompressedTrades must not error for a time window")
 	require.NotEmpty(t, result, "UCompressedTrades must return trades")
 	if mockTests {
-		exp := []UCompressedTradeData{
+		exp := []UCompressedTradeResponse{
 			{
 				AggregateTradeID: 3476467420,
 				Price:            86163.1,
@@ -983,7 +983,7 @@ func TestUGetFundingHistory(t *testing.T) {
 	result, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), startTime, endTime, 1000)
 	require.NoError(t, err, "UGetFundingHistory must not error")
 	if mockTests {
-		exp := []FundingRateHistory{
+		exp := []FundingRateHistoryResponse{
 			{
 				Symbol:      "BTCUSDT",
 				FundingRate: 0.00003134,
@@ -1146,7 +1146,7 @@ func TestUGlobalLongShortRatio(t *testing.T) {
 	result, err := e.UGlobalLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
 	require.NoError(t, err, "UGlobalLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatio{
+		exp := []ULongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.0593,
@@ -1187,7 +1187,7 @@ func TestUGetMarkPrice(t *testing.T) {
 	result, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "UGetMarkPrice must not error for a symbol")
 	if mockTests {
-		exp := []UMarkPrice{
+		exp := []UMarkPriceResponse{
 			{
 				Symbol:               "BTCUSDT",
 				MarkPrice:            86163,
@@ -1204,7 +1204,7 @@ func TestUGetMarkPrice(t *testing.T) {
 	result, err = e.UGetMarkPrice(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "UGetMarkPrice must not error for every symbol")
 	if mockTests {
-		exp := []UMarkPrice{
+		exp := []UMarkPriceResponse{
 			{
 				Symbol:               "BTCUSDT",
 				MarkPrice:            86163,
@@ -1330,7 +1330,7 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 		result, err := e.UFuturesHistoricalTrades(t.Context(), currency.NewBTCUSDT(), fromID, 5)
 		require.NoErrorf(t, err, "UFuturesHistoricalTrades must not error from trade ID %d", fromID)
 		if mockTests {
-			exp := []UPublicTradesData{
+			exp := []UPublicTradesResponse{
 				{
 					ID:            8149534980,
 					Price:         86065.5,
@@ -1381,7 +1381,7 @@ func TestUOpenInterestStats(t *testing.T) {
 	result, err := e.UOpenInterestStats(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 1})
 	require.NoError(t, err, "UOpenInterestStats must not error")
 	if mockTests {
-		exp := []UOpenInterestStats{
+		exp := []UOpenInterestStatsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				SumOpenInterest:      94576.939,
@@ -1538,7 +1538,7 @@ func TestURecentTrades(t *testing.T) {
 	result, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), 1000)
 	require.NoError(t, err, "URecentTrades must not error")
 	if mockTests {
-		exp := []UPublicTradesData{
+		exp := []UPublicTradesResponse{
 			{
 				ID:            8149534980,
 				Price:         86065.5,
@@ -1614,7 +1614,7 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 	result, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "USymbolOrderbookTicker must not error for a symbol")
 	if mockTests {
-		exp := []USymbolOrderbookTicker{
+		exp := []USymbolOrderbookTickerResponse{
 			{
 				Symbol:       "BTCUSDT",
 				BidPrice:     86163,
@@ -1630,7 +1630,7 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 	result, err = e.USymbolOrderbookTicker(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "USymbolOrderbookTicker must not error for every symbol")
 	if mockTests {
-		exp := []USymbolOrderbookTicker{
+		exp := []USymbolOrderbookTickerResponse{
 			{
 				Symbol:       "BTCUSDT",
 				BidPrice:     86163,
@@ -1661,7 +1661,7 @@ func TestUSymbolPriceTickerV2(t *testing.T) {
 	result, err := e.USymbolPriceTickerV2(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "USymbolPriceTickerV2 must not error for a symbol")
 	if mockTests {
-		exp := []USymbolPriceTicker{
+		exp := []USymbolPriceTickerResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  86163,
@@ -1673,7 +1673,7 @@ func TestUSymbolPriceTickerV2(t *testing.T) {
 	result, err = e.USymbolPriceTickerV2(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "USymbolPriceTickerV2 must not error for every symbol")
 	if mockTests {
-		exp := []USymbolPriceTicker{
+		exp := []USymbolPriceTickerResponse{
 			{
 				Symbol: "HUSDT",
 				Price:  0.06884,
@@ -1691,14 +1691,14 @@ func TestUSymbolPriceTickerV2(t *testing.T) {
 	assert.NotEmpty(t, result, "USymbolPriceTickerV2 should return prices")
 }
 
-func TestUTakerBuySellVol(t *testing.T) {
+func TestUTakerBuySellVolume(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UTakerBuySellVol)
+	testUFuturesDataValidation(t, e.UTakerBuySellVolume)
 	startTime, endTime := getTime()
-	result, err := e.UTakerBuySellVol(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "UTakerBuySellVol must not error")
+	result, err := e.UTakerBuySellVolume(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "UTakerBuySellVolume must not error")
 	if mockTests {
-		exp := []UTakerVolumeData{
+		exp := []UTakerVolumeResponse{
 			{
 				BuySellRatio: 0.5069,
 				BuyVolume:    63.747,
@@ -1712,10 +1712,10 @@ func TestUTakerBuySellVol(t *testing.T) {
 				Timestamp:    types.Time(time.Unix(1791282900, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UTakerBuySellVol should decode every field")
+		assert.Equal(t, exp, result, "UTakerBuySellVolume should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UTakerBuySellVol should return volumes")
+	assert.NotEmpty(t, result, "UTakerBuySellVolume should return volumes")
 }
 
 func TestU24HourTickerPriceChangeStats(t *testing.T) {
@@ -1799,7 +1799,7 @@ func TestUTopAccountsLongShortRatio(t *testing.T) {
 	result, err := e.UTopAccountsLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 2})
 	require.NoError(t, err, "UTopAccountsLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatio{
+		exp := []ULongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.124,
@@ -1828,7 +1828,7 @@ func TestUTopPositionsLongShortRatio(t *testing.T) {
 	result, err := e.UTopPositionsLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
 	require.NoError(t, err, "UTopPositionsLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatio{
+		exp := []ULongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.6782,
@@ -1884,7 +1884,7 @@ func TestUAccountTradesHistory(t *testing.T) {
 	result, err := e.UAccountTradesHistory(t.Context(), &UAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5})
 	require.NoError(t, err, "UAccountTradesHistory must not error")
 	if mockTests {
-		exp := []UAccountTradeHistory{
+		exp := []UAccountTradeHistoryResponse{
 			{
 				Buyer:           true,
 				Commission:      -0.0781901,
@@ -1927,7 +1927,7 @@ func TestUAllAccountOrders(t *testing.T) {
 		result, err := e.UAllAccountOrders(t.Context(), tc)
 		require.NoErrorf(t, err, "UAllAccountOrders must not error for symbol %q", tc.Symbol)
 		if mockTests {
-			exp := []UFuturesOrderData{
+			exp := []UFuturesOrderResponse{
 				{
 					ClientOrderID:           "testOrder",
 					ExecutedQuantity:        0.001,
@@ -2761,20 +2761,20 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 	}
 }
 
-func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
+func TestUModifyIsolatedPositionMarginRequest(t *testing.T) {
 	t.Parallel()
-	_, err := e.UModifyIsolatedPositionMarginReq(t.Context(), currency.EMPTYPAIR, "LONG", "add", 5)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UModifyIsolatedPositionMarginReq must reject an empty symbol")
-	_, err = e.UModifyIsolatedPositionMarginReq(t.Context(), currency.NewBTCUSDT(), "LONG", "", 5)
-	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "UModifyIsolatedPositionMarginReq must reject an empty change type")
-	_, err = e.UModifyIsolatedPositionMarginReq(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 0)
-	require.ErrorIs(t, err, errMarginAmountRequired, "UModifyIsolatedPositionMarginReq must reject a zero amount")
+	_, err := e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.EMPTYPAIR, "LONG", "add", 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UModifyIsolatedPositionMarginRequest must reject an empty symbol")
+	_, err = e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "", 5)
+	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "UModifyIsolatedPositionMarginRequest must reject an empty change type")
+	_, err = e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 0)
+	require.ErrorIs(t, err, errMarginAmountRequired, "UModifyIsolatedPositionMarginRequest must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UModifyIsolatedPositionMarginReq(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 5)
-	require.NoError(t, err, "UModifyIsolatedPositionMarginReq must not error")
+	result, err := e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 5)
+	require.NoError(t, err, "UModifyIsolatedPositionMarginRequest must not error")
 	if mockTests {
 		exp := &UModifyIsolatedPositionMarginResponse{
 			Amount:  5,
@@ -2782,7 +2782,7 @@ func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
 			Message: "Successfully modify position margin.",
 			Type:    1,
 		}
-		assert.Equal(t, exp, result, "UModifyIsolatedPositionMarginReq should decode every field")
+		assert.Equal(t, exp, result, "UModifyIsolatedPositionMarginRequest should decode every field")
 	}
 }
 
@@ -2817,7 +2817,7 @@ func TestUPositionsInfoV2(t *testing.T) {
 	result, err := e.UPositionsInfoV2(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "UPositionsInfoV2 must not error")
 	if mockTests {
-		exp := []UPositionInformationV2{
+		exp := []UPositionInformationV2Response{
 			{
 				Symbol:           "BTCUSDT",
 				PositionAmount:   0.001,

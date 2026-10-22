@@ -45,9 +45,7 @@ func TestWebsocketHandleCFuturesData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	for _, frame := range fixtureFrames(t, "testdata/wsCFutures.json") {
-		require.NoErrorf(t, ex.wsHandleCFuturesData(t.Context(), nil, frame), "wsHandleCFuturesData must not error for %s", frame)
-	}
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleCFuturesData, fixtureFrames(t, "testdata/wsCFutures.json")), "handling the fixture must return")
 	miniTicker := ticker.Price{
 		Last: 86137.8, High: 86664.7, Low: 84911.4, Open: 85973.7, BaseVolume: 8584, Pair: testCFuturesPair, ExchangeName: ex.Name,
 		AssetType: asset.CoinMarginedFutures, LastUpdated: time.UnixMilli(1791283463856),

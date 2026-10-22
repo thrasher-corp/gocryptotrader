@@ -932,7 +932,7 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	optionsGetTransHistoryDownloadLinkByIDRate:       {optionsIPPool, 5},
 	optionsHistoricalExerciseRecordsRate:             {optionsIPPool, 3},
 	optionsMarkPriceRate:                             {optionsIPPool, 5},
-	optionsOrderbook50Rate:                           {optionsIPPool, 1},
+	optionsOrderbook50Rate:                           {optionsIPPool, 2}, // documented as 1, but charged 2
 	optionsOrderbook100Rate:                          {optionsIPPool, 5},
 	optionsOrderbook500Rate:                          {optionsIPPool, 10},
 	optionsOrderbook1000Rate:                         {optionsIPPool, 20},

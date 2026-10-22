@@ -582,7 +582,7 @@ func TestGetWebsocketCandlestick(t *testing.T) {
 	got, err := ex.GetWebsocketCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: start, EndTime: end, TimeZone: "8", Limit: 2})
 	require.NoError(t, err, "GetWebsocketCandlestick must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "klines", 0), got, "GetWebsocketCandlestick should return the klines")
+		assert.Equal(t, wsAPIFixtureResult[[]CandleStickResponse](t, "klines", 0), got, "GetWebsocketCandlestick should return the klines")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketCandlestick should return the requested number of klines")
 	}
@@ -603,14 +603,14 @@ func TestGetWebsocketRollingWindowPriceChanges(t *testing.T) {
 	got, err := ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 2 * time.Hour, Type: "FULL", SymbolStatus: "TRADING"})
 	require.NoError(t, err, "GetWebsocketRollingWindowPriceChanges must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker", 0)}, got, "GetWebsocketRollingWindowPriceChanges should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStatsResponse{wsAPIFixtureResult[PriceChangeStatsResponse](t, "ticker", 0)}, got, "GetWebsocketRollingWindowPriceChanges should return the symbol's statistics")
 	} else {
 		assert.Len(t, got, 1, "GetWebsocketRollingWindowPriceChanges should return the symbol's statistics")
 	}
 	got, err = ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 7 * 24 * time.Hour, Type: "MINI"})
 	require.NoError(t, err, "GetWebsocketRollingWindowPriceChanges must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker", 1), got, "GetWebsocketRollingWindowPriceChanges should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStatsResponse](t, "ticker", 1), got, "GetWebsocketRollingWindowPriceChanges should return the symbols' statistics")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketRollingWindowPriceChanges should return the symbols' statistics")
 	}
@@ -648,14 +648,14 @@ func TestGetWebsocket24HourPriceChanges(t *testing.T) {
 	got, err := ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}})
 	require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.24hr", 0)}, got, "GetWebsocket24HourPriceChanges should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStatsResponse{wsAPIFixtureResult[PriceChangeStatsResponse](t, "ticker.24hr", 0)}, got, "GetWebsocket24HourPriceChanges should return the symbol's statistics")
 	} else {
 		assert.Len(t, got, 1, "GetWebsocket24HourPriceChanges should return the symbol's statistics")
 	}
 	got, err = ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, Type: "MINI", SymbolStatus: "TRADING"})
 	require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 1), got, "GetWebsocket24HourPriceChanges should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStatsResponse](t, "ticker.24hr", 1), got, "GetWebsocket24HourPriceChanges should return the symbols' statistics")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocket24HourPriceChanges should return the symbols' statistics")
 	}
@@ -663,7 +663,7 @@ func TestGetWebsocket24HourPriceChanges(t *testing.T) {
 		// Every symbol's statistics weigh 80, too much for live tests
 		got, err = ex.GetWebsocket24HourPriceChanges(t.Context(), &WebsocketTickerRequest{})
 		require.NoError(t, err, "GetWebsocket24HourPriceChanges must not error for every symbol")
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.24hr", 2), got, "GetWebsocket24HourPriceChanges should return every symbol's statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStatsResponse](t, "ticker.24hr", 2), got, "GetWebsocket24HourPriceChanges should return every symbol's statistics")
 	}
 }
 
@@ -765,14 +765,14 @@ func TestGetWebsocketTradingDayTickers(t *testing.T) {
 	got, err := ex.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, TimeZone: "8", Type: "FULL", SymbolStatus: "TRADING"})
 	require.NoError(t, err, "GetWebsocketTradingDayTickers must not error for a symbol")
 	if mockTests {
-		assert.Equal(t, []PriceChangeStats{wsAPIFixtureResult[PriceChangeStats](t, "ticker.tradingDay", 0)}, got, "GetWebsocketTradingDayTickers should return the symbol's statistics")
+		assert.Equal(t, []PriceChangeStatsResponse{wsAPIFixtureResult[PriceChangeStatsResponse](t, "ticker.tradingDay", 0)}, got, "GetWebsocketTradingDayTickers should return the symbol's statistics")
 	} else {
 		assert.Len(t, got, 1, "GetWebsocketTradingDayTickers should return the symbol's statistics")
 	}
 	got, err = ex.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}})
 	require.NoError(t, err, "GetWebsocketTradingDayTickers must not error for several symbols")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStats](t, "ticker.tradingDay", 1), got, "GetWebsocketTradingDayTickers should return the symbols' statistics")
+		assert.Equal(t, wsAPIFixtureResult[[]PriceChangeStatsResponse](t, "ticker.tradingDay", 1), got, "GetWebsocketTradingDayTickers should return the symbols' statistics")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketTradingDayTickers should return the symbols' statistics")
 	}
@@ -792,14 +792,14 @@ func TestGetWebsocketAggregatedTrades(t *testing.T) {
 	got, err := ex.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: 4081866525, Limit: 2})
 	require.NoError(t, err, "GetWebsocketAggregatedTrades must not error from a trade ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 0), got, "GetWebsocketAggregatedTrades should return the trades from the ID")
+		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTradeResponse](t, "trades.aggregate", 0), got, "GetWebsocketAggregatedTrades should return the trades from the ID")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketAggregatedTrades should return the requested number of trades")
 	}
 	got, err = ex.GetWebsocketAggregatedTrades(t.Context(), &WebsocketAggregatedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: end, Limit: 1000})
 	require.NoError(t, err, "GetWebsocketAggregatedTrades must not error for a time range")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTrade](t, "trades.aggregate", 1), got, "GetWebsocketAggregatedTrades should return the trades in the time range")
+		assert.Equal(t, wsAPIFixtureResult[[]AggregatedTradeResponse](t, "trades.aggregate", 1), got, "GetWebsocketAggregatedTrades should return the trades in the time range")
 	} else {
 		assert.NotEmpty(t, got, "GetWebsocketAggregatedTrades should return the trades in the time range")
 	}
@@ -814,7 +814,7 @@ func TestGetWebsocketMostRecentTrades(t *testing.T) {
 	got, err := ex.GetWebsocketMostRecentTrades(t.Context(), currency.NewBTCUSDT(), 2)
 	require.NoError(t, err, "GetWebsocketMostRecentTrades must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]RecentTrade](t, "trades.recent", 0), got, "GetWebsocketMostRecentTrades should return the trades")
+		assert.Equal(t, wsAPIFixtureResult[[]RecentTradeResponse](t, "trades.recent", 0), got, "GetWebsocketMostRecentTrades should return the trades")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketMostRecentTrades should return the requested number of trades")
 	}
@@ -829,7 +829,7 @@ func TestGetWebsocketOptimisedCandlestick(t *testing.T) {
 	got, err := ex.GetWebsocketOptimisedCandlestick(t.Context(), &WebsocketKlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, Limit: 2})
 	require.NoError(t, err, "GetWebsocketOptimisedCandlestick must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]CandleStick](t, "uiKlines", 0), got, "GetWebsocketOptimisedCandlestick should return the klines")
+		assert.Equal(t, wsAPIFixtureResult[[]CandleStickResponse](t, "uiKlines", 0), got, "GetWebsocketOptimisedCandlestick should return the klines")
 	} else {
 		assert.Len(t, got, 2, "GetWebsocketOptimisedCandlestick should return the requested number of klines")
 	}
@@ -2188,7 +2188,7 @@ func TestWebsocketAPIConnectionDuringFlush(t *testing.T) {
 	var subscribingOnce sync.Once
 	streamsServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsPayload
+		var req WebsocketPayloadRequest
 		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 		subscribingOnce.Do(func() { close(subscribing) })
 		select {

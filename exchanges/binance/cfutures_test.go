@@ -85,7 +85,7 @@ func TestGetFuturesAccountBalance(t *testing.T) {
 	result, err := e.GetFuturesAccountBalance(t.Context())
 	require.NoError(t, err, "GetFuturesAccountBalance must not error")
 	if mockTests {
-		exp := []FuturesAccountBalanceData{
+		exp := []FuturesAccountBalanceResponse{
 			{
 				AccountAlias:       "SgsR",
 				Asset:              currency.BTC,
@@ -119,7 +119,7 @@ func TestFuturesIncomeHistory(t *testing.T) {
 	result, err := e.FuturesIncomeHistory(t.Context(), &CFuturesIncomeHistoryRequest{Symbol: coinmTradablePair, IncomeType: "COMMISSION", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 5})
 	require.NoError(t, err, "FuturesIncomeHistory must not error")
 	if mockTests {
-		exp := []FuturesIncomeHistoryData{
+		exp := []FuturesIncomeHistoryResponse{
 			{
 				Symbol:        "BTCUSD_PERP",
 				IncomeType:    "COMMISSION",
@@ -152,7 +152,7 @@ func TestFuturesNotionalBracket(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	btcusd := NotionalBracketData{
+	btcusd := NotionalBracketResponse{
 		Pair: "BTCUSD",
 		Brackets: []NotionalBracket{
 			{Bracket: 1, InitialLeverage: 125, QuantityCap: 5, MaintenanceMarginRatio: 0.004},
@@ -162,10 +162,10 @@ func TestFuturesNotionalBracket(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		pair currency.Code
-		exp  []NotionalBracketData
+		exp  []NotionalBracketResponse
 	}{
-		{"pair", currency.NewCode("BTCUSD"), []NotionalBracketData{btcusd}},
-		{"every pair", currency.EMPTYCODE, []NotionalBracketData{btcusd, {
+		{"pair", currency.NewCode("BTCUSD"), []NotionalBracketResponse{btcusd}},
+		{"every pair", currency.EMPTYCODE, []NotionalBracketResponse{btcusd, {
 			Pair: "ETHUSD",
 			Brackets: []NotionalBracket{
 				{Bracket: 1, InitialLeverage: 75, QuantityCap: 150, MaintenanceMarginRatio: 0.0065},
@@ -204,7 +204,7 @@ func TestGetFuturesBasisData(t *testing.T) {
 	result, err := e.GetFuturesBasisData(t.Context(), &CFuturesStatisticsRequest{Pair: currency.NewCode("BTCUSD"), ContractType: "CURRENT_QUARTER", Period: kline.FiveMin, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetFuturesBasisData must not error")
 	if mockTests {
-		exp := []FuturesBasisData{
+		exp := []FuturesBasisResponse{
 			{
 				IndexPrice:          85913.95737453,
 				ContractType:        "CURRENT_QUARTER",
@@ -604,7 +604,7 @@ func TestGetIndexAndMarkPrice(t *testing.T) {
 	result, err := e.GetIndexAndMarkPrice(t.Context(), currency.EMPTYPAIR, currency.NewCode("BTCUSD"))
 	require.NoError(t, err, "GetIndexAndMarkPrice must not error")
 	if mockTests {
-		exp := []IndexMarkPrice{
+		exp := []IndexMarkPriceResponse{
 			{
 				Symbol:               "BTCUSD_PERP",
 				Pair:                 "BTCUSD",
@@ -753,7 +753,7 @@ func TestGetMarketRatio(t *testing.T) {
 	result, err := e.GetMarketRatio(t.Context(), req)
 	require.NoError(t, err, "GetMarketRatio must not error")
 	if mockTests {
-		exp := []TopTraderAccountRatio{
+		exp := []CFuturesLongShortAccountRatioResponse{
 			{
 				Pair:           "BTCUSD",
 				LongShortRatio: 3.662,
@@ -822,7 +822,7 @@ func TestGetFuturesHistoricalTrades(t *testing.T) {
 	result, err := e.GetFuturesHistoricalTrades(t.Context(), coinmTradablePair, 0, 5)
 	require.NoError(t, err, "GetFuturesHistoricalTrades must not error")
 	if mockTests {
-		exp := []FuturesPublicTradesData{
+		exp := []FuturesPublicTradesResponse{
 			{
 				ID:           1157458431,
 				Price:        86118.7,
@@ -876,7 +876,7 @@ func TestGetOpenInterestStats(t *testing.T) {
 	result, err := e.GetOpenInterestStats(t.Context(), req)
 	require.NoError(t, err, "GetOpenInterestStats must not error")
 	if mockTests {
-		exp := []OpenInterestStats{
+		exp := []OpenInterestStatsResponse{
 			{
 				Pair:                 "BTCUSD",
 				ContractType:         "CURRENT_QUARTER",
@@ -1034,7 +1034,7 @@ func TestGetFuturesPublicTrades(t *testing.T) {
 	result, err := e.GetFuturesPublicTrades(t.Context(), coinmTradablePair, 5)
 	require.NoError(t, err, "GetFuturesPublicTrades must not error")
 	if mockTests {
-		exp := []FuturesPublicTradesData{
+		exp := []FuturesPublicTradesResponse{
 			{
 				ID:           1157458431,
 				Price:        86118.7,
@@ -1066,9 +1066,9 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
-		exp    []SymbolOrderBookTicker
+		exp    []SymbolOrderBookTickerResponse
 	}{
-		{"symbol", coinmTradablePair, []SymbolOrderBookTicker{
+		{"symbol", coinmTradablePair, []SymbolOrderBookTickerResponse{
 			{
 				LastUpdateID: 11746981095251,
 				Symbol:       "BTCUSD_PERP",
@@ -1080,7 +1080,7 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 				Time:         types.Time(time.UnixMilli(1791282926732)),
 			},
 		}},
-		{"every symbol", currency.EMPTYPAIR, []SymbolOrderBookTicker{
+		{"every symbol", currency.EMPTYPAIR, []SymbolOrderBookTickerResponse{
 			{
 				LastUpdateID: 11747177394191,
 				Symbol:       "BTCUSD_PERP",
@@ -1126,12 +1126,12 @@ func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 		name   string
 		symbol currency.Pair
 		pair   currency.Code
-		exp    []SymbolPriceTicker
+		exp    []SymbolPriceTickerResponse
 	}{
-		{"symbol", coinmTradablePair, currency.EMPTYCODE, []SymbolPriceTicker{
+		{"symbol", coinmTradablePair, currency.EMPTYCODE, []SymbolPriceTickerResponse{
 			{Symbol: "BTCUSD_PERP", Pair: "BTCUSD", Price: 86002.8, Time: types.Time(time.UnixMilli(1791282919817))},
 		}},
-		{"pair", currency.EMPTYPAIR, currency.NewCode("BTCUSD"), []SymbolPriceTicker{
+		{"pair", currency.EMPTYPAIR, currency.NewCode("BTCUSD"), []SymbolPriceTickerResponse{
 			{Symbol: "BTCUSD_PERP", Pair: "BTCUSD", Price: 86110.7, Time: types.Time(time.UnixMilli(1791285170154))},
 			{Symbol: "BTCUSD_270326", Pair: "BTCUSD", Price: 88215.3, Time: types.Time(time.UnixMilli(1791285054739))},
 		}},
@@ -1161,7 +1161,7 @@ func TestGetFuturesTakerVolume(t *testing.T) {
 	result, err := e.GetFuturesTakerVolume(t.Context(), req)
 	require.NoError(t, err, "GetFuturesTakerVolume must not error")
 	if mockTests {
-		exp := []TakerBuySellVolume{
+		exp := []TakerBuySellVolumeResponse{
 			{
 				Pair:                 "BTCUSD",
 				ContractType:         "ALL",
@@ -1282,7 +1282,7 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	result, err := e.GetTraderFuturesAccountRatio(t.Context(), req)
 	require.NoError(t, err, "GetTraderFuturesAccountRatio must not error")
 	if mockTests {
-		exp := []TopTraderAccountRatio{
+		exp := []CFuturesLongShortAccountRatioResponse{
 			{
 				Pair:           "BTCUSD",
 				LongShortRatio: 3.946,
@@ -1313,7 +1313,7 @@ func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 	result, err := e.GetTraderFuturesPositionsRatio(t.Context(), req)
 	require.NoError(t, err, "GetTraderFuturesPositionsRatio must not error")
 	if mockTests {
-		exp := []TopTraderPositionRatio{
+		exp := []TopTraderPositionRatioResponse{
 			{
 				Pair:           "BTCUSD",
 				LongShortRatio: 2.3599,
@@ -1384,9 +1384,9 @@ func TestFuturesTradeHistory(t *testing.T) {
 		name   string
 		symbol currency.Pair
 		pair   currency.Code
-		exp    []FuturesAccountTradeList
+		exp    []FuturesAccountTradeListResponse
 	}{
-		{"coin margined symbol", coinmTradablePair, currency.EMPTYCODE, []FuturesAccountTradeList{
+		{"coin margined symbol", coinmTradablePair, currency.EMPTYCODE, []FuturesAccountTradeListResponse{
 			{
 				Symbol:          "BTCUSD_PERP",
 				ID:              1157458432,
@@ -1421,7 +1421,7 @@ func TestFuturesTradeHistory(t *testing.T) {
 				Buyer:           true,
 			},
 		}},
-		{"USDⓈ-M pair", currency.EMPTYPAIR, currency.NewCode("BTCUSDT"), []FuturesAccountTradeList{
+		{"USDⓈ-M pair", currency.EMPTYPAIR, currency.NewCode("BTCUSDT"), []FuturesAccountTradeListResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              6096753380,
@@ -1476,7 +1476,7 @@ func TestGetAllFuturesOrders(t *testing.T) {
 	result, err := e.GetAllFuturesOrders(t.Context(), &CFuturesAllOrdersRequest{Symbol: coinmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 2})
 	require.NoError(t, err, "GetAllFuturesOrders must not error")
 	if mockTests {
-		exp := []FuturesOrderData{
+		exp := []CFuturesAllOrdersResponse{
 			{
 				AveragePrice:            9022.5,
 				ClientOrderID:           "abc",
@@ -2234,7 +2234,7 @@ func TestFuturesMarginChangeHistory(t *testing.T) {
 	result, err := e.FuturesMarginChangeHistory(t.Context(), &CFuturesPositionMarginHistoryRequest{Symbol: coinmTradablePair, Type: 1, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "FuturesMarginChangeHistory must not error")
 	if mockTests {
-		exp := []GetPositionMarginChangeHistoryData{
+		exp := []GetPositionMarginChangeHistoryResponse{
 			{
 				Amount:       23.36332311,
 				Asset:        currency.BTC,
@@ -2289,7 +2289,7 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 	result, err := e.FuturesPositionsADLEstimate(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "FuturesPositionsADLEstimate must not error")
 	if mockTests {
-		exp := []ADLEstimateData{
+		exp := []ADLEstimateResponse{
 			{
 				Symbol: "BTCUSD_PERP",
 				ADLQuantile: CFuturesADLQuantile{
@@ -2319,7 +2319,7 @@ func TestFuturesPositionsInfo(t *testing.T) {
 	result, err := e.FuturesPositionsInfo(t.Context(), currency.BTC, currency.EMPTYCODE)
 	require.NoError(t, err, "FuturesPositionsInfo must not error")
 	if mockTests {
-		exp := []FuturesPositionInformation{
+		exp := []FuturesPositionInformationResponse{
 			{
 				Symbol:           "BTCUSD_PERP",
 				PositionAmount:   3,
@@ -2417,7 +2417,7 @@ func TestFuturesForceOrders(t *testing.T) {
 	result, err := e.FuturesForceOrders(t.Context(), &CFuturesForceOrdersRequest{AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "FuturesForceOrders must not error")
 	if mockTests {
-		exp := []ForcedOrdersData{
+		exp := []ForcedOrdersResponse{
 			{
 				OrderID:          165123080,
 				Symbol:           "BTCUSD_PERP",

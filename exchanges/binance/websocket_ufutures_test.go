@@ -850,12 +850,14 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 			})
 			handle := tc.handle(ex)
 			var last []byte
+			var depthFrames [][]byte
 			for _, frame := range fixtureFrames(t, tc.fixture) {
 				if stream, _, _, _ := decodeStreamFrame(frame); stream == tc.stream {
-					require.NoError(t, handle(t.Context(), nil, frame), "handling a diff depth frame must not error")
+					depthFrames = append(depthFrames, frame)
 					last = frame
 				}
 			}
+			require.NoError(t, handleFramesWithin(t.Context(), handle, depthFrames), "handling all diff depth frames must return")
 			var got *orderbookState
 			require.Eventually(t, func() bool {
 				var err error
@@ -1168,9 +1170,7 @@ func TestWebsocketHandleUFuturesData(t *testing.T) {
 		return nil, errTestNoSnapshot
 	})
 	for _, path := range []string{"testdata/wsUFuturesPublic.json", "testdata/wsUFuturesMarket.json"} {
-		for _, frame := range fixtureFrames(t, path) {
-			require.NoErrorf(t, ex.wsHandleUFuturesData(t.Context(), nil, frame), "wsHandleUFuturesData must not error for %s", frame)
-		}
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleUFuturesData, fixtureFrames(t, path)), "handling the fixture must return")
 	}
 	miniTicker := ticker.Price{
 		Last: 86026.4, High: 86683.9, Low: 84910, Open: 86016.5, BaseVolume: 119489.809, QuoteVolume: 10238568766.13,

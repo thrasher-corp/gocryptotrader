@@ -60,8 +60,8 @@ type FuturesAccountInformationPosition struct {
 	IsolatedWallet types.Number `json:"isolatedWallet"`
 }
 
-// FuturesAccountBalanceData holds a coin margined futures account balance
-type FuturesAccountBalanceData struct {
+// FuturesAccountBalanceResponse holds a coin margined futures account balance
+type FuturesAccountBalanceResponse struct {
 	AccountAlias       string        `json:"accountAlias"`
 	Asset              currency.Code `json:"asset"`
 	Balance            types.Number  `json:"balance"`
@@ -82,8 +82,8 @@ type CFuturesIncomeHistoryRequest struct {
 	Limit      uint64
 }
 
-// FuturesIncomeHistoryData holds a coin margined futures income record
-type FuturesIncomeHistoryData struct {
+// FuturesIncomeHistoryResponse holds a coin margined futures income record
+type FuturesIncomeHistoryResponse struct {
 	Symbol     string        `json:"symbol"`
 	IncomeType string        `json:"incomeType"`
 	Income     types.Number  `json:"income"`
@@ -95,8 +95,8 @@ type FuturesIncomeHistoryData struct {
 	TradeID       string `json:"tradeId"`
 }
 
-// NotionalBracketData holds the notional brackets of a coin margined futures pair
-type NotionalBracketData struct {
+// NotionalBracketResponse holds the notional brackets of a coin margined futures pair
+type NotionalBracketResponse struct {
 	Pair     string            `json:"pair"`
 	Brackets []NotionalBracket `json:"brackets"`
 }
@@ -123,8 +123,8 @@ type CFuturesStatisticsRequest struct {
 	EndTime      time.Time
 }
 
-// FuturesBasisData holds a coin margined futures basis record
-type FuturesBasisData struct {
+// FuturesBasisResponse holds a coin margined futures basis record
+type FuturesBasisResponse struct {
 	IndexPrice   types.Number `json:"indexPrice"`
 	ContractType string       `json:"contractType"`
 	BasisRate    types.Number `json:"basisRate"`
@@ -274,8 +274,8 @@ type CFuturesFundingRateInfoResponse struct {
 	Disclaimer               bool         `json:"disclaimer"`
 }
 
-// IndexMarkPrice holds the index and mark prices of a coin margined futures symbol
-type IndexMarkPrice struct {
+// IndexMarkPriceResponse holds the index and mark prices of a coin margined futures symbol
+type IndexMarkPriceResponse struct {
 	Symbol     string       `json:"symbol"`
 	Pair       string       `json:"pair"`
 	MarkPrice  types.Number `json:"markPrice"`
@@ -326,8 +326,9 @@ type CFuturesKlineRequest struct {
 	Limit     uint64
 }
 
-// TopTraderAccountRatio holds a coin margined futures long/short account ratio, of the top traders or of every account
-type TopTraderAccountRatio struct {
+// CFuturesLongShortAccountRatioResponse holds a coin margined futures long/short account ratio, of the top traders or
+// of every account
+type CFuturesLongShortAccountRatioResponse struct {
 	Pair           string       `json:"pair"`
 	LongShortRatio types.Number `json:"longShortRatio"`
 	LongAccount    types.Number `json:"longAccount"`
@@ -335,9 +336,9 @@ type TopTraderAccountRatio struct {
 	Timestamp      types.Time   `json:"timestamp"`
 }
 
-// FuturesPublicTradesData holds a coin margined futures trade. Quantity counts contracts and BaseQuantity is the
+// FuturesPublicTradesResponse holds a coin margined futures trade. Quantity counts contracts and BaseQuantity is the
 // traded base asset amount; coin margined futures sends no quote figure
-type FuturesPublicTradesData struct {
+type FuturesPublicTradesResponse struct {
 	ID           uint64       `json:"id"`
 	Price        types.Number `json:"price"`
 	Quantity     types.Number `json:"qty"`
@@ -355,8 +356,8 @@ type CFuturesOpenInterestResponse struct {
 	Time         types.Time   `json:"time"`
 }
 
-// OpenInterestStats holds a coin margined futures open interest statistic
-type OpenInterestStats struct {
+// OpenInterestStatsResponse holds a coin margined futures open interest statistic
+type OpenInterestStatsResponse struct {
 	Pair         string `json:"pair"`
 	ContractType string `json:"contractType"`
 	// SumOpenInterest counts contracts and SumOpenInterestValue is in the base asset
@@ -406,8 +407,8 @@ type CFuturesIndexPriceConstituent struct {
 	Weight   types.Number `json:"weight"`
 }
 
-// SymbolOrderBookTicker holds the best price and quantity on a coin margined futures order book
-type SymbolOrderBookTicker struct {
+// SymbolOrderBookTickerResponse holds the best price and quantity on a coin margined futures order book
+type SymbolOrderBookTickerResponse struct {
 	LastUpdateID uint64       `json:"lastUpdateId"`
 	Symbol       string       `json:"symbol"`
 	Pair         string       `json:"pair"`
@@ -418,16 +419,16 @@ type SymbolOrderBookTicker struct {
 	Time         types.Time   `json:"time"`
 }
 
-// SymbolPriceTicker holds the latest price of a coin margined futures symbol
-type SymbolPriceTicker struct {
+// SymbolPriceTickerResponse holds the latest price of a coin margined futures symbol
+type SymbolPriceTickerResponse struct {
 	Symbol string       `json:"symbol"`
 	Pair   string       `json:"ps"`
 	Price  types.Number `json:"price"`
 	Time   types.Time   `json:"time"`
 }
 
-// TakerBuySellVolume holds coin margined futures taker buy and sell volumes
-type TakerBuySellVolume struct {
+// TakerBuySellVolumeResponse holds coin margined futures taker buy and sell volumes
+type TakerBuySellVolumeResponse struct {
 	Pair         string `json:"pair"`
 	ContractType string `json:"contractType"`
 	// TakerBuyVolume and TakerSellVolume count contracts; the value fields are in the base asset
@@ -460,8 +461,8 @@ type CFuturesPriceChangeStatsResponse struct {
 	Count                uint64       `json:"count"`
 }
 
-// TopTraderPositionRatio holds a coin margined futures top trader long/short position ratio
-type TopTraderPositionRatio struct {
+// TopTraderPositionRatioResponse holds a coin margined futures top trader long/short position ratio
+type TopTraderPositionRatioResponse struct {
 	Pair           string       `json:"pair"`
 	LongShortRatio types.Number `json:"longShortRatio"`
 	LongPosition   types.Number `json:"longPosition"`
@@ -481,8 +482,8 @@ type CFuturesAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// FuturesAccountTradeList holds a coin margined futures account trade
-type FuturesAccountTradeList struct {
+// FuturesAccountTradeListResponse holds a coin margined futures account trade
+type FuturesAccountTradeListResponse struct {
 	Symbol      string        `json:"symbol"`
 	ID          uint64        `json:"id"`
 	OrderID     uint64        `json:"orderId"`
@@ -546,8 +547,8 @@ type FuturesOrderDetailResponse struct {
 	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 }
 
-// FuturesOrderData holds a coin margined futures order as the all orders endpoint returns it
-type FuturesOrderData struct {
+// CFuturesAllOrdersResponse holds a coin margined futures order as the all orders endpoint returns it
+type CFuturesAllOrdersResponse struct {
 	FuturesOrderDetailResponse
 	CumulativeQuote types.Number `json:"cumQuote"`
 	GoodTillDate    types.Time   `json:"goodTillDate"`
@@ -700,8 +701,8 @@ type CFuturesPositionMarginHistoryRequest struct {
 	Limit     uint64
 }
 
-// GetPositionMarginChangeHistoryData holds a coin margined futures position margin change
-type GetPositionMarginChangeHistoryData struct {
+// GetPositionMarginChangeHistoryResponse holds a coin margined futures position margin change
+type GetPositionMarginChangeHistoryResponse struct {
 	Amount types.Number  `json:"amount"`
 	Asset  currency.Code `json:"asset"`
 	Symbol string        `json:"symbol"`
@@ -730,8 +731,8 @@ type FuturesMarginUpdatedResponse struct {
 	Type uint64 `json:"type"`
 }
 
-// ADLEstimateData holds the auto-deleveraging queue estimate of a coin margined futures symbol's positions
-type ADLEstimateData struct {
+// ADLEstimateResponse holds the auto-deleveraging queue estimate of a coin margined futures symbol's positions
+type ADLEstimateResponse struct {
 	Symbol      string              `json:"symbol"`
 	ADLQuantile CFuturesADLQuantile `json:"adlQuantile"`
 }
@@ -745,8 +746,8 @@ type CFuturesADLQuantile struct {
 	Both  uint64 `json:"BOTH"`
 }
 
-// FuturesPositionInformation holds a coin margined futures position
-type FuturesPositionInformation struct {
+// FuturesPositionInformationResponse holds a coin margined futures position
+type FuturesPositionInformationResponse struct {
 	Symbol           string       `json:"symbol"`
 	PositionAmount   types.Number `json:"positionAmt"`
 	EntryPrice       types.Number `json:"entryPrice"`
@@ -777,8 +778,8 @@ type CFuturesForceOrdersRequest struct {
 	Limit         uint64
 }
 
-// ForcedOrdersData holds a coin margined futures order Binance placed to liquidate or deleverage a position
-type ForcedOrdersData struct {
+// ForcedOrdersResponse holds a coin margined futures order Binance placed to liquidate or deleverage a position
+type ForcedOrdersResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`

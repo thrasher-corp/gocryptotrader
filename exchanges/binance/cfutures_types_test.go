@@ -77,7 +77,7 @@ func TestFuturesOrderResponseUnmarshal(t *testing.T) {
 	assert.Equal(t, CFuturesBatchOrderResponse{Code: -2022, Message: "ReduceOnly Order is rejected."}, rejected, "a rejected batch entry should be distinguishable from a zero-valued success")
 }
 
-func TestNotionalBracketDataUnmarshal(t *testing.T) {
+func TestNotionalBracketResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -95,9 +95,9 @@ func TestNotionalBracketDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x NotionalBracketData
+	var x NotionalBracketResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := NotionalBracketData{
+	exp := NotionalBracketResponse{
 		Pair: "BTCUSD",
 		Brackets: []NotionalBracket{{
 			Bracket:                1,
@@ -108,7 +108,7 @@ func TestNotionalBracketDataUnmarshal(t *testing.T) {
 			Cumulative:             8.75,
 		}},
 	}
-	assert.Equal(t, exp, x, "NotionalBracketData should unmarshal correctly")
+	assert.Equal(t, exp, x, "NotionalBracketResponse should unmarshal correctly")
 }
 
 func TestBatchCancelOrderDataUnmarshal(t *testing.T) {
@@ -185,7 +185,7 @@ func TestBatchCancelOrderDataUnmarshal(t *testing.T) {
 	assert.Equal(t, exp, x, "CFuturesBatchOrderResponse should unmarshal correctly")
 }
 
-func TestFuturesAccountTradeListUnmarshal(t *testing.T) {
+func TestFuturesAccountTradeListResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -209,9 +209,9 @@ func TestFuturesAccountTradeListUnmarshal(t *testing.T) {
 }
 `
 
-	var x FuturesAccountTradeList
+	var x FuturesAccountTradeListResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := FuturesAccountTradeList{
+	exp := FuturesAccountTradeListResponse{
 		Symbol:          "BTCUSD_200626",
 		ID:              6,
 		OrderID:         28,
@@ -230,10 +230,10 @@ func TestFuturesAccountTradeListUnmarshal(t *testing.T) {
 		Buyer:           true,
 		Maker:           true,
 	}
-	assert.Equal(t, exp, x, "FuturesAccountTradeList should unmarshal correctly")
+	assert.Equal(t, exp, x, "FuturesAccountTradeListResponse should unmarshal correctly")
 }
 
-func TestForcedOrdersDataUnmarshal(t *testing.T) {
+func TestForcedOrdersResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -264,9 +264,9 @@ func TestForcedOrdersDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x ForcedOrdersData
+	var x ForcedOrdersResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := ForcedOrdersData{
+	exp := ForcedOrdersResponse{
 		OrderID:          6071832819,
 		Symbol:           "BTCUSD_200925",
 		Pair:             "BTCUSD",
@@ -292,10 +292,10 @@ func TestForcedOrdersDataUnmarshal(t *testing.T) {
 		UpdateTime:       types.Time(time.UnixMilli(1596107620087)),
 		GoodTillDate:     types.Time(time.UnixMilli(1596107620099)),
 	}
-	assert.Equal(t, exp, x, "ForcedOrdersData should unmarshal correctly")
+	assert.Equal(t, exp, x, "ForcedOrdersResponse should unmarshal correctly")
 }
 
-func TestGetPositionMarginChangeHistoryDataUnmarshal(t *testing.T) {
+func TestGetPositionMarginChangeHistoryResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -308,9 +308,9 @@ func TestGetPositionMarginChangeHistoryDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x GetPositionMarginChangeHistoryData
+	var x GetPositionMarginChangeHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := GetPositionMarginChangeHistoryData{
+	exp := GetPositionMarginChangeHistoryResponse{
 		Amount:       23.36332311,
 		Asset:        currency.BTC,
 		Symbol:       "BTCUSD_200925",
@@ -318,7 +318,7 @@ func TestGetPositionMarginChangeHistoryDataUnmarshal(t *testing.T) {
 		Type:         1,
 		PositionSide: "BOTH",
 	}
-	assert.Equal(t, exp, x, "GetPositionMarginChangeHistoryData should unmarshal correctly")
+	assert.Equal(t, exp, x, "GetPositionMarginChangeHistoryResponse should unmarshal correctly")
 }
 
 func TestFuturesOrderDetailResponseUnmarshal(t *testing.T) {
@@ -387,7 +387,7 @@ func TestFuturesOrderDetailResponseUnmarshal(t *testing.T) {
 	assert.Equal(t, exp, x, "FuturesOrderDetailResponse should unmarshal correctly")
 }
 
-func TestFuturesOrderDataUnmarshal(t *testing.T) {
+func TestCFuturesAllOrdersResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -422,9 +422,9 @@ func TestFuturesOrderDataUnmarshal(t *testing.T) {
 }
 `
 
-	var x FuturesOrderData
+	var x CFuturesAllOrdersResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := FuturesOrderData{
+	exp := CFuturesAllOrdersResponse{
 		AveragePrice:            4096.5,
 		ClientOrderID:           "customID",
 		CumulativeBase:          8.25,
@@ -454,15 +454,15 @@ func TestFuturesOrderDataUnmarshal(t *testing.T) {
 		CumulativeQuote:         16.5,
 		GoodTillDate:            types.Time(time.UnixMilli(1693207680000)),
 	}
-	assert.Equal(t, exp, x, "FuturesOrderData should unmarshal correctly")
+	assert.Equal(t, exp, x, "CFuturesAllOrdersResponse should unmarshal correctly")
 }
 
-func TestFuturesPublicTradesDataUnmarshal(t *testing.T) {
+func TestFuturesPublicTradesResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `{"id":1150414473,"price":"79822.4","qty":"2","baseQty":"0.00250556","time":1787898309227,"isBuyerMaker":true}`
-	var x FuturesPublicTradesData
+	var x FuturesPublicTradesResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := FuturesPublicTradesData{
+	exp := FuturesPublicTradesResponse{
 		ID:           1150414473,
 		Price:        79822.4,
 		Quantity:     2,
@@ -470,12 +470,12 @@ func TestFuturesPublicTradesDataUnmarshal(t *testing.T) {
 		Time:         types.Time(time.UnixMilli(1787898309227)),
 		IsBuyerMaker: true,
 	}
-	assert.Equal(t, exp, x, "FuturesPublicTradesData should unmarshal correctly")
+	assert.Equal(t, exp, x, "FuturesPublicTradesResponse should unmarshal correctly")
 }
 
-func TestFuturesAccountBalanceDataUnmarshal(t *testing.T) {
+func TestFuturesAccountBalanceResponseUnmarshal(t *testing.T) {
 	t.Parallel()
-	want := FuturesAccountBalanceData{
+	want := FuturesAccountBalanceResponse{
 		AccountAlias:       "test-account",
 		Asset:              currency.BTC,
 		Balance:            0.0025,
@@ -487,7 +487,7 @@ func TestFuturesAccountBalanceDataUnmarshal(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name, input string
-		want        FuturesAccountBalanceData
+		want        FuturesAccountBalanceResponse
 	}{
 		{
 			name:  "quoted numbers",
@@ -502,7 +502,7 @@ func TestFuturesAccountBalanceDataUnmarshal(t *testing.T) {
 		{
 			name:  "empty numbers",
 			input: `[{"accountAlias":"test-account","asset":"BTC","balance":"","withdrawAvailable":"","crossWalletBalance":"","crossUnPnl":"","availableBalance":"","updateTime":1592468353979}]`,
-			want: FuturesAccountBalanceData{
+			want: FuturesAccountBalanceResponse{
 				AccountAlias: "test-account",
 				Asset:        currency.BTC,
 				UpdateTime:   types.Time(time.UnixMilli(1592468353979)),
@@ -511,9 +511,9 @@ func TestFuturesAccountBalanceDataUnmarshal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var got []FuturesAccountBalanceData
+			var got []FuturesAccountBalanceResponse
 			require.NoError(t, json.Unmarshal([]byte(tc.input), &got), "Unmarshal must not error")
-			assert.Equal(t, []FuturesAccountBalanceData{tc.want}, got, "FuturesAccountBalanceData should decode every field")
+			assert.Equal(t, []FuturesAccountBalanceResponse{tc.want}, got, "FuturesAccountBalanceResponse should decode every field")
 		})
 	}
 }

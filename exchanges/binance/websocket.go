@@ -57,7 +57,7 @@ var (
 // book is known at once against request weight. USDⓈ-M and COIN-M take the 1000 levels their procedures ask for.
 // Spot takes 1000 rather than its procedure's 5000, which costs 250 weight instead of 50. Options books hold a few
 // dozen levels a side (47 at most across the busiest symbols in a live sample), so they take 50, the deepest snapshot
-// costing 1 weight, rather than 1000 at 20 weight out of the 400 a minute their orders share
+// costing 2 weight, rather than 1000 at 20 weight out of the 400 a minute their orders share
 const (
 	spotOrderbookSnapshotLimit    = 1000
 	optionsOrderbookSnapshotLimit = 50
@@ -109,7 +109,7 @@ func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
 func (e *Exchange) spotStreamConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
 		URL:                   binanceDefaultWebsocketURL,
-		Connector:             e.WsConnect,
+		Connector:             e.WebsocketConnect,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
@@ -122,8 +122,8 @@ func (e *Exchange) spotStreamConnectionSetup(exch *config.Exchange) *websocket.C
 	}
 }
 
-// WsConnect connects to the spot market data streams
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+// WebsocketConnect connects to the spot market data streams
+func (e *Exchange) WebsocketConnect(ctx context.Context, conn websocket.Connection) error {
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
@@ -594,7 +594,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		}
 	}
 
-	req := WsPayload{
+	req := WebsocketPayloadRequest{
 		ID:     e.MessageID(),
 		Method: op,
 		Params: subs.QualifiedChannels(),

@@ -3,6 +3,7 @@ package binance
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -108,12 +109,60 @@ func useWebsocket(tb testing.TB, ex *Exchange, setup *websocket.ConnectionSetup)
 	require.NoError(tb, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
 	tb.Cleanup(func() {
 		if ex.Websocket.IsConnected() {
-			assert.NoError(tb, ex.Websocket.Shutdown(), "Shutdown should not error")
+			assert.NoError(tb, shutdownWithin(ex), "Shutdown should not error")
 		}
 	})
 }
 
-func BenchmarkWsHandleData(b *testing.B) {
+// errShutdownStalled is returned when a websocket shutdown does not return in time, as one waiting on a reader that a
+// handler left blocked never does
+var errShutdownStalled = errors.New("websocket shutdown stalled")
+
+// shutdownWithin shuts the websocket down and reports a shutdown still running after 30 s, so a test whose handler
+// blocks a reader fails instead of waiting for go test's timeout
+func shutdownWithin(ex *Exchange) error {
+	done := make(chan error, 1)
+	go func() { done <- ex.Websocket.Shutdown() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("%w after 30s", errShutdownStalled)
+	}
+}
+
+// handleFramesWithin hands each frame to handler in turn and returns the first error, or one when a frame's handling has
+// not returned after 30 s, so a test whose handler blocks fails instead of waiting for go test's timeout, while a slow
+// run that keeps making progress does not. Its worker keeps no testing.T, which a handler returning after the test has
+// ended would otherwise fail
+func handleFramesWithin(ctx context.Context, handler func(context.Context, websocket.Connection, []byte) error, frames [][]byte) error {
+	handled := make(chan error, len(frames))
+	go func() {
+		for _, frame := range frames {
+			err := handler(ctx, nil, frame)
+			if err != nil {
+				err = fmt.Errorf("%w handling %s", err, frame)
+			}
+			handled <- err
+			if err != nil {
+				return
+			}
+		}
+	}()
+	for range frames {
+		select {
+		case err := <-handled:
+			if err != nil {
+				return err
+			}
+		case <-time.After(30 * time.Second):
+			return errors.New("handler stalled: a frame was not handled within 30s")
+		}
+	}
+	return nil
+}
+
+func BenchmarkWebsocketHandleData(b *testing.B) {
 	b.ReportAllocs()
 	lines := fixtureLines(b, "testdata/wsSpot.json")
 	ex := newTestExchange(b)
@@ -176,7 +225,7 @@ func TestStreamPayloads(t *testing.T) {
 			EventType: "kline",
 			EventTime: types.Time(time.UnixMilli(1791284982042)),
 			Symbol:    "BTCUSDT",
-			Kline: KlineStreamData{
+			Kline: SpotCandle{
 				StartTime:                types.Time(time.UnixMilli(1791284940000)),
 				CloseTime:                types.Time(time.UnixMilli(1791284999999)),
 				Symbol:                   "BTCUSDT",
@@ -199,7 +248,7 @@ func TestStreamPayloads(t *testing.T) {
 			EventType: "kline",
 			EventTime: types.Time(time.UnixMilli(1791284981014)),
 			Symbol:    "BTCUSDT",
-			Kline: KlineStreamData{
+			Kline: SpotCandle{
 				StartTime:                types.Time(time.UnixMilli(1791284980000)),
 				CloseTime:                types.Time(time.UnixMilli(1791284980999)),
 				Symbol:                   "BTCUSDT",
@@ -449,11 +498,13 @@ func TestSpotOrderbookSync(t *testing.T) {
 			LastUpdated:  time.UnixMilli(1791284980650),
 		}, nil
 	})
+	var depthFrames [][]byte
 	for _, line := range fixtureLines(t, "testdata/wsSpot.json") {
 		if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
-			require.NoError(t, ex.wsHandleData(t.Context(), nil, line), "wsHandleData must not error for a diff depth frame")
+			depthFrames = append(depthFrames, line)
 		}
 	}
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, depthFrames), "handling all diff depth frames must return")
 	var got *orderbookState
 	require.Eventually(t, func() bool {
 		var err error
@@ -573,7 +624,7 @@ func TestOrderbookSnapshotLimit(t *testing.T) {
 		{asset.USDTMarginedFutures, 1000, uFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
 		{asset.CoinMarginedFutures, 1000, cFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
 		// Options orders share a 400 a minute pool, so their snapshots take the deepest book at the least weight
-		{asset.Options, 50, optionsOrderbookLimit, endpointCost{optionsIPPool, 1}},
+		{asset.Options, 50, optionsOrderbookLimit, endpointCost{optionsIPPool, 2}},
 	} {
 		limit := orderbookSnapshotLimit(tc.a)
 		assert.Equalf(t, tc.limit, limit, "orderbookSnapshotLimit should give the %s snapshot depth", tc.a)
@@ -891,7 +942,7 @@ func (s *spotDepthServer) use(t *testing.T, ex *Exchange, maxSubscriptions int) 
 	require.NoError(t, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
 	t.Cleanup(func() {
 		if ex.Websocket.IsConnected() {
-			assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error")
+			assert.NoError(t, shutdownWithin(ex), "Shutdown should not error")
 		}
 	})
 	useTestOrderbookSync(ex, ex.fetchOrderbookSnapshot)
@@ -911,7 +962,7 @@ func (s *spotDepthServer) use(t *testing.T, ex *Exchange, maxSubscriptions int) 
 // handleRequest answers SUBSCRIBE and UNSUBSCRIBE requests and streams a connection's subscribed symbols
 func (s *spotDepthServer) handleRequest(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
-	var req WsPayload
+	var req WebsocketPayloadRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
 	}
@@ -1089,7 +1140,7 @@ func TestSpotOrderbookSyncAfterReconnect(t *testing.T) {
 
 	// Shutting down while snapshots are pending, then reconnecting to streams that moved on, must not leave a book
 	// without synchronisation
-	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	require.NoError(t, shutdownWithin(ex), "Shutdown must not error")
 	release()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	// The outdated snapshot loads when it arrives, so a book follows its stream once it is past the updates the
@@ -1298,7 +1349,7 @@ func TestSubscribe(t *testing.T) {
 	} else {
 		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 			tb.Helper()
-			var req WsPayload
+			var req WebsocketPayloadRequest
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			assert.Contains(tb, []string{wsSubscribeMethod, wsUnsubscribeMethod}, req.Method, "method should be SUBSCRIBE or UNSUBSCRIBE")
 			assert.ElementsMatch(tb, exp.QualifiedChannels(), req.Params, "request should name every stream")
@@ -1323,7 +1374,7 @@ func TestSubscribeBadResp(t *testing.T) {
 	ex := newTestExchange(t)
 	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
-		var req WsPayload
+		var req WebsocketPayloadRequest
 		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%q}`, req.ID))
 	}
