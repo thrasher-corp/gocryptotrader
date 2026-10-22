@@ -757,7 +757,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		return nil, err
 	}
 	var pair currency.Pair
-	pair, err = currency.NewPairFromString(orderInfo.InstrumentName)
+	// Both lookup paths query by ID, not asset. Derive the market from the returned
+	// instrument so a supported but mismatched incoming asset cannot mislabel the order.
+	assetType, pair, err = getAssetPairByInstrument(orderInfo.InstrumentName)
 	if err != nil {
 		return nil, err
 	}

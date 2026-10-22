@@ -1122,10 +1122,8 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
 	}
-	if result.AssetType == asset.Empty {
-		// Some exchange wrappers omit the asset type; the request has already been validated.
-		result.AssetType = a
-	}
+	// Preserve the wrapper's asset, even when unknown. Request validation checks enabled
+	// markets and pairs, not which market owns an order looked up by ID.
 	trades := make([]*gctrpc.TradeHistory, len(result.Trades))
 	for i := range result.Trades {
 		trades[i] = &gctrpc.TradeHistory{

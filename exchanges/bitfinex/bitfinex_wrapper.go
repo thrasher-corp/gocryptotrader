@@ -700,13 +700,21 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 	// API docs discrepancy. Example contains prefixed "exchange "
 	// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-	orderType := strings.Replace(o.Type, "exchange ", "", 1)
+	orderType, isSpot := strings.CutPrefix(o.Type, "exchange ")
 	if orderType == "trailing-stop" {
 		orderDetail.Type = order.TrailingStop
 	} else {
 		orderDetail.Type, err = order.StringToOrderType(orderType)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+		}
+	}
+	// The exchange prefix distinguishes spot orders from margin orders on the same symbol.
+	// ID lookups can return either market regardless of the incoming asset; leave unknown types unclassified.
+	if orderDetail.Type != order.UnknownType {
+		orderDetail.AssetType = asset.Margin
+		if isSpot {
+			orderDetail.AssetType = asset.Spot
 		}
 	}
 

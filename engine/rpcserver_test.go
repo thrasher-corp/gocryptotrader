@@ -2143,6 +2143,10 @@ func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
 					ConfigFormat:  &currency.PairFormat{Uppercase: true},
 					RequestFormat: &currency.PairFormat{Uppercase: true},
 				},
+				asset.Futures: {
+					Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}, AssetEnabled: true,
+					ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true},
+				},
 			}
 			fills := orderFillTimes()
 			require.NoError(t, em.Add(tradeTimeExchange{
@@ -2160,13 +2164,19 @@ func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
 			s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 			p := &gctrpc.CurrencyPair{Delimiter: "-", Base: cp.Base.String(), Quote: cp.Quote.String()}
 
-			// Fetch the order before GetOrders can populate the order manager's asset type.
-			detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: p, Asset: asset.Spot.String()})
-			require.NoError(t, err, "GetOrder must not error")
-			assert.Equal(t, asset.Spot.String(), detail.GetAssetType(), "GetOrder should report the requested asset when the exchange omits it")
-			assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
-			for _, trade := range detail.GetTrades() {
-				assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type")
+			// The wrapper looks up the order by ID, independently of the requested market.
+			for _, requestedAsset := range []asset.Item{asset.Spot, asset.Futures, asset.All} {
+				requestPair := p
+				if requestedAsset == asset.All {
+					requestPair = &gctrpc.CurrencyPair{}
+				}
+				detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: requestPair, Asset: requestedAsset.String()})
+				require.NoError(t, err, "GetOrder must not error")
+				assert.Equal(t, reportedAsset.String(), detail.GetAssetType(), "GetOrder should preserve the reported asset rather than infer it from the request")
+				assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
+				for _, trade := range detail.GetTrades() {
+					assert.Equal(t, reportedAsset.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type or the requested asset")
+				}
 			}
 
 			orders, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
