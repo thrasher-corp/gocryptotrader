@@ -17,8 +17,9 @@ import (
 
 var errBadTiming = errors.New("benchmark timing is not a finite, non-negative number")
 
-// highlightDelta is the smallest significant timing change the summary leads with. Two runs of
-// identical code on one machine still found a few significant changes, nearly all smaller than this.
+// highlightDelta is the smallest significant timing change the summary leads with. Runs of identical
+// code on one machine still find a few significant changes by chance, which this keeps out of the lead
+// only when they are small.
 const highlightDelta = 0.05
 
 // comparisonRow holds one benchmark's medians at both revisions
@@ -150,8 +151,12 @@ func relativeChange(base, head float64) float64 {
 	return head/base - 1
 }
 
-// writeOutput saves each revision's raw go test output, which benchstat also reads
+// writeOutput replaces an earlier run's files in dir with each revision's raw go test output, which
+// benchstat also reads
 func (c *comparison) writeOutput(dir string) error {
+	if err := removeEarlierOutput(dir); err != nil {
+		return err
+	}
 	for _, r := range []*revision{c.base, c.head} {
 		if err := os.WriteFile(filepath.Join(dir, r.label+".txt"), r.output.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error saving the %s output: %w", r.label, err)
@@ -164,16 +169,29 @@ func (c *comparison) writeOutput(dir string) error {
 func (c *comparison) write(out io.Writer, dir string) error {
 	var summary bytes.Buffer
 	c.render(&summary)
-	if !c.predatesList {
-		if err := c.writeOutput(dir); err != nil {
+	if c.predatesList {
+		if err := removeEarlierOutput(dir); err != nil {
 			return err
 		}
+	} else if err := c.writeOutput(dir); err != nil {
+		return err
 	}
 	if err := os.WriteFile(filepath.Join(dir, "summary.md"), summary.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("error saving the summary: %w", err)
 	}
 	_, err := out.Write(summary.Bytes())
 	return err
+}
+
+// removeEarlierOutput removes the files an earlier comparison wrote to dir, its report first, so that no
+// report is left beside output it does not describe
+func removeEarlierOutput(dir string) error {
+	for _, name := range []string{"summary.md", "base.txt", "head.txt"} {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("error removing the earlier %s: %w", name, err)
+		}
+	}
+	return nil
 }
 
 // render writes the comparison as Markdown, for a terminal or a GitHub job summary
@@ -291,9 +309,19 @@ func formatNS(ns float64) string {
 	}
 }
 
-// codeSpan quotes a benchmark key for a Markdown table cell, where a pipe would end the cell
+// codeSpan quotes a benchmark key for a Markdown table cell, where a pipe would end the cell. A key
+// holding backticks gets a longer run of them around it, padded with spaces where it starts or ends
+// with one, so that its own cannot end the span.
 func codeSpan(s string) string {
-	return "`" + strings.ReplaceAll(s, "|", `\|`) + "`"
+	fence := "`"
+	for strings.Contains(s, fence) {
+		fence += "`"
+	}
+	s = strings.ReplaceAll(s, "|", `\|`)
+	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") {
+		s = " " + s + " "
+	}
+	return fence + s + fence
 }
 
 func plural(n int, noun string) string {

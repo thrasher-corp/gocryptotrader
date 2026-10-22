@@ -10,11 +10,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -103,6 +105,9 @@ func runComparison(out io.Writer, o *options) error {
 	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		return fmt.Errorf("error creating %s: %w", outDir, err)
 	}
+	// A signal would otherwise end the process before it removes the work directory
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	// Under the output directory rather than the system's, which can be a small in-memory filesystem
 	work, err := os.MkdirTemp(outDir, ".work-")
 	if err != nil {
@@ -110,7 +115,6 @@ func runComparison(out io.Writer, o *options) error {
 	}
 	defer os.RemoveAll(work)
 
-	ctx := context.Background()
 	c := &comparison{
 		base:    newRevision("base", filepath.Join(work, "base")),
 		head:    newRevision("head", root),
@@ -181,7 +185,9 @@ func newRevision(label, root string) *revision {
 // run. A flag it does not know is refused rather than dropped, so the comparison cannot drift from what
 // the gate measures without anyone noticing.
 func binaryFlags(goTestFlags []string, samples int) ([]string, error) {
-	var flags []string
+	// As go test passes it, so that a benchmark calling os.Exit(0) fails rather than quietly ending its
+	// package's run
+	flags := []string{"-test.paniconexit0"}
 	for i := 0; i < len(goTestFlags); i++ {
 		arg := goTestFlags[i]
 		name, value, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")

@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -171,6 +174,14 @@ func TestComparisonRender(t *testing.T) {
 	assert.NotContains(t, moved, smallShift, "a significant change below the highlight threshold should not lead")
 	assert.Contains(t, all, smallShift, "every compared benchmark should be in the full table")
 	assert.Contains(t, all, "<summary>All 8 benchmarks</summary>", "the full table should count its rows")
+	assert.Contains(t, all, "</summary>\n\n| Benchmark |", "a blank line should end the summary's HTML, which would otherwise swallow the table")
+	header := "| Benchmark | ns/op | B/op | allocs/op |\n| --- | --- | --- | --- |\n"
+	assert.Contains(t, moved, header, "the benchmarks that moved should form a table")
+	assert.Contains(t, all, header, "every compared benchmark should be in a table")
+	_, afterDetails, ok := strings.Cut(all, "</details>")
+	require.True(t, ok, "the details block must be closed")
+	assert.Contains(t, afterDetails, "### Not compared (9)", "what was not compared should follow the details block rather than hide in it")
+	assert.Contains(t, all, "</details>\n\n### Not compared (9)", "a blank line should end the details block's HTML, which would otherwise swallow the heading after it")
 
 	for _, line := range []string{
 		"### Not compared (9)",
@@ -183,6 +194,124 @@ func TestComparisonRender(t *testing.T) {
 	assert.NotContains(t, out, "### Notes", "a comparison without warnings should have no notes")
 }
 
+func TestComparisonRowMoved(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		row  comparisonRow
+		exp  bool
+	}{
+		{"a significant 5% slowdown", comparisonRow{baseNS: 100, headNS: 105, significant: true}, true},
+		{"a significant 5% speed-up", comparisonRow{baseNS: 100, headNS: 95, significant: true}, true},
+		{"a significant 5.1% slowdown", comparisonRow{baseNS: 100, headNS: 105.1, significant: true}, true},
+		{"a significant 5.1% speed-up", comparisonRow{baseNS: 100, headNS: 94.9, significant: true}, true},
+		{"a significant 4.9% change", comparisonRow{baseNS: 100, headNS: 104.9, significant: true}, false},
+		{"an insignificant 10% change", comparisonRow{baseNS: 100, headNS: 110}, false},
+		{"allocations that moved", comparisonRow{baseNS: 100, headNS: 100, allocationsMoved: true}, true},
+	} {
+		assert.Equalf(t, tc.exp, tc.row.moved(), "moved should be %t for %s", tc.exp, tc.name)
+	}
+}
+
+func TestRemoveEarlierOutput(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{"summary.md": "report\n", "base.txt": "base\n", "head.txt": "head\n", "notes.txt": "kept\n"})
+	require.NoError(t, removeEarlierOutput(dir), "removeEarlierOutput must not error")
+	assert.Equal(t, []string{"notes.txt"}, dirNames(t, dir), "only the files a comparison writes should be removed")
+	assert.NoError(t, removeEarlierOutput(dir), "removeEarlierOutput should not error when there is nothing to remove")
+
+	names := []string{"summary.md", "base.txt", "head.txt"}
+	for i, name := range names {
+		dir := t.TempDir()
+		// A directory that is not empty cannot be removed in a file's place
+		files := map[string]string{name + "/inside.txt": "in the way\n"}
+		for _, other := range names {
+			if other != name {
+				files[other] = "earlier\n"
+			}
+		}
+		writeFiles(t, dir, files)
+		assert.ErrorContainsf(t, removeEarlierOutput(dir), "error removing the earlier "+name, "a %s that cannot be removed should fail, naming it", name)
+		for _, before := range names[:i] {
+			assert.NoFileExistsf(t, filepath.Join(dir, before), "%s should be removed before %s, the report first", before, name)
+		}
+		for _, after := range names[i+1:] {
+			assert.FileExistsf(t, filepath.Join(dir, after), "%s should be left once removing %s fails", after, name)
+		}
+	}
+}
+
+// outputComparison returns a comparison whose revisions printed one line each
+func outputComparison(predatesList bool) *comparison {
+	c := &comparison{base: newRevision("base", ""), head: newRevision("head", ""), samples: 7, predatesList: predatesList}
+	c.base.commit, c.head.commit = "0123456789abcdef", "fedcba9876543210"
+	c.base.output.WriteString("base output\n")
+	c.head.output.WriteString("head output\n")
+	return c
+}
+
+// assertFiles asserts that dir holds exactly the files given, with their contents
+func assertFiles(t *testing.T, dir string, exp map[string]string) {
+	t.Helper()
+	got := make(map[string]string, len(exp))
+	for _, name := range dirNames(t, dir) {
+		body, err := os.ReadFile(filepath.Join(dir, name))
+		require.NoErrorf(t, err, "reading %s must not error", name)
+		got[name] = string(body)
+	}
+	assert.Equal(t, exp, got, "the directory should hold the files expected")
+}
+
+type failingWriter struct{ err error }
+
+func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
+
+func TestComparisonWrite(t *testing.T) {
+	t.Parallel()
+	earlier := map[string]string{"summary.md": "earlier report\n", "base.txt": "earlier base\n", "head.txt": "earlier head\n", "notes.txt": "kept\n"}
+
+	dir := t.TempDir()
+	writeFiles(t, dir, earlier)
+	var out bytes.Buffer
+	require.NoError(t, outputComparison(false).write(&out, dir), "write must not error")
+	assert.Contains(t, out.String(), "## Benchmark comparison", "write should print the report")
+	assertFiles(t, dir, map[string]string{"summary.md": out.String(), "base.txt": "base output\n", "head.txt": "head output\n", "notes.txt": "kept\n"})
+
+	dir = t.TempDir()
+	writeFiles(t, dir, earlier)
+	out.Reset()
+	require.NoError(t, outputComparison(true).write(&out, dir), "write must not error for a base without a package list")
+	assert.Contains(t, out.String(), "predates `benchmarks/packages.txt`", "write should print the report")
+	assertFiles(t, dir, map[string]string{"summary.md": out.String(), "notes.txt": "kept\n"})
+
+	missing := filepath.Join(t.TempDir(), "missing")
+	assert.ErrorContains(t, outputComparison(false).write(&bytes.Buffer{}, missing), "error saving the base output", "write should fail when the raw output cannot be saved")
+	assert.ErrorContains(t, outputComparison(true).write(&bytes.Buffer{}, missing), "error saving the summary", "write should fail when the report cannot be saved")
+	for _, predatesList := range []bool{false, true} {
+		dir = t.TempDir()
+		writeFiles(t, dir, map[string]string{"base.txt/inside.txt": "in the way\n"})
+		assert.ErrorContainsf(t, outputComparison(predatesList).write(&bytes.Buffer{}, dir), "error removing the earlier base.txt",
+			"write should fail when an earlier file cannot be removed, with predatesList %t", predatesList)
+	}
+	errPrint := errors.New("printing failed")
+	assert.ErrorIs(t, outputComparison(false).write(failingWriter{errPrint}, t.TempDir()), errPrint, "write should return the error printing the report")
+}
+
+func TestComparisonWriteOutput(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{"summary.md": "earlier report\n", "head.txt": "earlier head\n", "notes.txt": "kept\n"})
+	require.NoError(t, outputComparison(false).writeOutput(dir), "writeOutput must not error")
+	assertFiles(t, dir, map[string]string{"base.txt": "base output\n", "head.txt": "head output\n", "notes.txt": "kept\n"})
+
+	assert.ErrorContains(t, outputComparison(false).writeOutput(filepath.Join(t.TempDir(), "missing")), "error saving the base output",
+		"writeOutput should fail when the output cannot be saved")
+	dir = t.TempDir()
+	writeFiles(t, dir, map[string]string{"summary.md/inside.txt": "in the way\n"})
+	assert.ErrorContains(t, outputComparison(false).writeOutput(dir), "error removing the earlier summary.md", "writeOutput should fail when the earlier report cannot be removed")
+}
+
 func TestComparisonRenderNothingMoved(t *testing.T) {
 	t.Parallel()
 	c := &comparison{base: newRevision("base", ""), head: newRevision("head", ""), samples: 7}
@@ -193,6 +322,7 @@ func TestComparisonRenderNothingMoved(t *testing.T) {
 	var report bytes.Buffer
 	c.render(&report)
 	assert.Contains(t, report.String(), "### Moved (0)\n\nNo allocations moved", "the report should say when nothing moved")
+	assert.Contains(t, report.String(), "<summary>All 1 benchmark</summary>", "a single compared benchmark should still be in the full table")
 	assert.NotContains(t, report.String(), " CPU", "the report should name no processor when the revisions' outputs disagree")
 	assert.NotContains(t, report.String(), "### Not compared", "a comparison that compared everything should list nothing as not compared")
 }
@@ -225,6 +355,10 @@ func TestFormatting(t *testing.T) {
 		assert.Equalf(t, tc.exp, countCell(tc.base, tc.head), "countCell should describe %d to %d", tc.base, tc.head)
 	}
 	assert.Equal(t, "`a/b.BenchmarkX/x\\|y`", codeSpan("a/b.BenchmarkX/x|y"), "a pipe should not end the table cell")
+	assert.Equal(t, "``a/b.BenchmarkX/x`y``", codeSpan("a/b.BenchmarkX/x`y"), "a backtick should not end the code span")
+	assert.Equal(t, "``` a/b.BenchmarkX/``y` ```", codeSpan("a/b.BenchmarkX/``y`"), "a key ending with a backtick should be set apart from the run around it")
+	assert.Equal(t, "`` `x ``", codeSpan("`x"), "a key starting with a backtick should be set apart from the run around it")
+	assert.Equal(t, "````a/b.BenchmarkX/x```y````", codeSpan("a/b.BenchmarkX/x```y"), "a run of three backticks should not end the code span")
 	assert.Equal(t, "0123456789ab", shortCommit("0123456789abcdef"), "a commit should be shortened to twelve characters")
 	assert.Equal(t, "abc", shortCommit("abc"), "a short name should be left as it is")
 	assert.True(t, math.IsInf(relativeChange(0, 1), 1), "a change from zero should be infinite")

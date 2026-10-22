@@ -71,7 +71,7 @@ func main() {
 	flag.BoolVar(&o.list, "list", false, "check the package list against the packages declaring benchmarks, then print it as go test arguments")
 	flag.StringVar(&o.compare, "compare", "", "measure this commit and the working tree in alternating rounds, one sample per process, "+
 		"and report their timings and allocations side by side; give go test's flags after --. No difference fails it")
-	flag.StringVar(&o.out, "out", ".bench-compare", "with -compare, the directory for each revision's raw output and summary.md")
+	flag.StringVar(&o.out, "out", ".bench-compare", "with -compare, the directory for each revision's raw output and summary.md; before writing them a run removes any base.txt, head.txt and summary.md already there")
 	flag.Parse()
 	o.args = flag.Args()
 

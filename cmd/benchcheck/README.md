@@ -246,10 +246,11 @@ The report puts each benchmark's medians at both revisions, `ns/op`, `B/op` and 
 row, and leads with the benchmarks that moved: allocations whose medians differ by more than the
 baseline's tolerance, and timings that changed significantly by 5% or more. A timing's significance
 is benchstat's default test, a Mann-Whitney U test at p < 0.05, and `~` marks a timing without a
-significant change. With this many benchmarks a few pass that test by chance alone, so a small
-timing change is a reason to look again rather than a result. The report is saved as `summary.md`,
-beside each revision's raw output for
-[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) to read.
+significant change. With this many benchmarks a few pass that test by chance alone, some by a wide
+margin, so a timing change is a reason to look again rather than a result. The report is saved as
+`summary.md`, beside each revision's raw output for
+[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) to read. Before writing them, a run
+removes any `summary.md`, `base.txt` and `head.txt` already in the output directory.
 
 Both revisions are built with the running toolchain and `-trimpath`, which shares the build cache
 between them and builds a package whose code and dependencies are unchanged into the same binary at
