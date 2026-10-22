@@ -191,6 +191,9 @@ Verify all tests pass by:
 - When renaming fixtures, update all references, including tests, benchmarks,
     documentation and any code that generates the files. Preserve fixture
     contents unless a data change is required.
+- Audit formatter, linter and spell-checker filters when fixture extensions
+    change. Raw protocol fixtures must retain their intended treatment rather
+    than having wire values edited to satisfy prose checks.
 
 ### Assertion Usage
 
