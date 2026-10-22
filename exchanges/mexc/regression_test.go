@@ -1802,6 +1802,8 @@ func TestWebsocketMintsNoListenKeyWhenAPublicConnectionFails(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	}
+	// The failed Connect below starts the connection monitor, which retries until the websocket is disabled
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Disable(), "Disable should not error") })
 	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail when the venue refuses the public connection")
 	assert.Zero(t, minted.Load(), "no listen key should be minted when a public connection fails")
 }
@@ -2374,8 +2376,7 @@ func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
 
 // TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted connects through the websocket manager to a local venue whose
 // listen key endpoint refuses, as it does once an account holds its 60 keys. The public connections are made first and
-// the manager rolls them back when a later one fails, and nothing retries a failed first connect, so the market data
-// must not depend on the key.
+// the manager rolls them back when a later one fails, so the market data must not depend on the key.
 func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	t.Parallel()
 	var publicSubscribed atomic.Int64

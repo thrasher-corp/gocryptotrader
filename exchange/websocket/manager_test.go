@@ -921,6 +921,30 @@ func TestConnectStartsMonitorAfterMultiConnectionSuccessWithEndedContext(t *test
 	})
 }
 
+func TestConnectRetriesSingleConnectionAfterContextEnds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var upgradeAttempts atomic.Int64
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if upgradeAttempts.Add(1) == 1 {
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := newRetryTestManager(t, false, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		require.ErrorIs(t, ws.Connect(ctx), gws.ErrBadHandshake, "Connect must error while the server is unavailable")
+		time.Sleep(ws.connectionMonitorDelay)
+		synctest.Wait()
+		// Single connection connectors and subscribers take no context, so the retry can still succeed
+		assert.True(t, ws.IsConnected(), "IsConnected should return true once the server is available, though the context has ended")
+	})
+}
+
 func TestConnectReturnsTeardownError(t *testing.T) {
 	t.Parallel()
 

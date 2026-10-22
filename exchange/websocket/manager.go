@@ -448,9 +448,11 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 }
 
 // Connect initiates a websocket connection by using a package defined connection
-// function. Unless ctx has ended, a failed connection is retried by the manager's connection monitor, so callers
-// should not retry it themselves. The monitor reuses the ctx of the attempt that started it for every retry and
-// reconnection, so pass a ctx that stays live for as long as the websocket is wanted.
+// function. Once running, the connection monitor retries a disconnected websocket while it is enabled, so callers
+// should not retry it themselves. It is not started when there is nothing to connect (no connector in single
+// connection mode, no connection setups in multi connection mode) or when a multi connection attempt leaves the
+// websocket disconnected after ctx has ended. The monitor reuses the ctx of the attempt that started it for every
+// retry and reconnection, even after it ends, so pass a ctx that stays live for as long as the websocket is wanted.
 func (m *Manager) Connect(ctx context.Context) error {
 	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
 		m.preConnect(ctx)
