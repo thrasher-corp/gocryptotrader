@@ -779,6 +779,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	}
 	return &order.Detail{
 		AssetType:       assetType,
+		Date:            orderInfo.CreationTimestamp.Time(),
 		Exchange:        e.Name,
 		TimeInForce:     tif,
 		Price:           orderInfo.Price,

@@ -358,6 +358,8 @@ type Order struct {
 	RemainingAmount       float64       `json:"remaining_amount,string"`
 	ExecutedAmount        float64       `json:"executed_amount,string"`
 	OrderID               int64         `json:"order_id,omitempty"`
+	LastUpdated           types.Time    `json:"-"`
+	Status                string        `json:"-"`
 }
 
 // OrderMultiResponse holds order information on the executed orders

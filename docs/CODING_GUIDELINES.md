@@ -223,6 +223,13 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
+- For ID-based lookups, derive related identity fields together from the
+    authoritative response rather than mixing returned market metadata with
+    caller-supplied defaults. Test mismatched request identities and verify the
+    metadata required by downstream consumers, including creation timestamps.
+- Use fixtures that reflect the documented endpoint version's wire format.
+    Test decoding and wrapper conversion together; fabricated response shapes
+    can conceal failures before the conversion is reached.
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.

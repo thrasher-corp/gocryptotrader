@@ -676,18 +676,35 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	}
 
 	orderDetail := &order.Detail{
-		Amount:          o.OriginalAmount,
-		Date:            o.Timestamp.Time(),
-		Exchange:        e.Name,
-		OrderID:         strconv.FormatInt(o.ID, 10),
-		Side:            side,
-		Price:           o.Price,
-		RemainingAmount: o.RemainingAmount,
-		Pair:            o.Symbol,
-		ExecutedAmount:  o.ExecutedAmount,
+		Amount:               o.OriginalAmount,
+		Date:                 o.Timestamp.Time(),
+		Exchange:             e.Name,
+		OrderID:              strconv.FormatInt(o.ID, 10),
+		Side:                 side,
+		Price:                o.Price,
+		RemainingAmount:      o.RemainingAmount,
+		Pair:                 o.Symbol,
+		ExecutedAmount:       o.ExecutedAmount,
+		LastUpdated:          o.LastUpdated.Time(),
+		AverageExecutedPrice: o.AverageExecutionPrice,
 	}
 
 	switch {
+	case o.Status != "":
+		status, _, _ := strings.Cut(o.Status, " @ ")
+		switch {
+		case status == "EXECUTED" || status == "FORCED EXECUTED":
+			orderDetail.Status = order.Filled
+		case strings.HasSuffix(status, "CANCELED"):
+			orderDetail.Status = order.Cancelled
+		case strings.HasPrefix(status, "INSUFFICIENT BALANCE"):
+			orderDetail.Status = order.InsufficientBalance
+		default:
+			orderDetail.Status, err = order.StringToOrderStatus(status)
+			if err != nil {
+				return nil, err
+			}
+		}
 	case o.IsLive:
 		orderDetail.Status = order.Active
 	case o.IsCancelled:
@@ -700,7 +717,14 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 	// API docs discrepancy. Example contains prefixed "exchange "
 	// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-	orderType, isSpot := strings.CutPrefix(o.Type, "exchange ")
+	orderType, isSpot := strings.CutPrefix(strings.ToLower(o.Type), "exchange ")
+	if orderType == "fok" || orderType == "ioc" {
+		orderDetail.TimeInForce, err = order.StringToTimeInForce(orderType)
+		if err != nil {
+			return nil, err
+		}
+		orderType = "limit"
+	}
 	if orderType == "trailing-stop" {
 		orderDetail.Type = order.TrailingStop
 	} else {
@@ -747,7 +771,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	for i := range resp {
-		if resp[i].OrderID != id {
+		if resp[i].ID != id {
 			continue
 		}
 		var o *order.Detail
@@ -762,7 +786,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	for i := range resp {
-		if resp[i].OrderID != id {
+		if resp[i].ID != id {
 			continue
 		}
 		var o *order.Detail

@@ -565,7 +565,7 @@ func (e *Exchange) CancelAllOrders(context.Context, *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	genOrderDetail, err := e.GetOrderByID(ctx, orderID, "", currency.Code{})
 	if err != nil {
 		return nil, err
@@ -576,7 +576,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, fmt.Errorf("order %s product type %s: %w", orderID, genOrderDetail.ProductType, err)
 	}
-	response := e.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
+	response := e.getOrderRespToOrderDetail(genOrderDetail, genOrderDetail.ProductID, assetItem)
 	fillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, 0, "", time.Time{}, time.Now(), defaultOrderFillCount)
 	if err != nil {
 		return nil, err

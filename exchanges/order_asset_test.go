@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -38,6 +40,7 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 		responses       map[string]string
 		requestedAssets []asset.Item
 		wantAsset       asset.Item
+		wantPair        string
 		wantTrades      int
 		wantErr         error
 	}{
@@ -78,7 +81,7 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
 			responses: map[string]string{
 				"/hist":      `[]`,
-				"/v1/orders": `[{"id":1,"order_id":1,"symbol":"BTC-USD","side":"buy","type":"exchange limit"}]`,
+				"/v1/orders": `[{"id":1,"symbol":"btcusd","side":"buy","type":"exchange limit"}]`,
 			},
 		},
 		{
@@ -86,23 +89,23 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
 			responses: map[string]string{
 				"/hist":      `[]`,
-				"/v1/orders": `[{"id":1,"order_id":1,"symbol":"BTC-USD","side":"buy","type":"limit"}]`,
+				"/v1/orders": `[{"id":1,"symbol":"btcusd","side":"buy","type":"limit"}]`,
 			},
 		},
 		{
 			name: "bitfinex_inactive_spot", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Spot,
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[{"id":1,"order_id":1,"symbol":"BTC-USD","side":"buy","type":"exchange limit"}]`},
+			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"EXCHANGE LIMIT",null,null,null,0,"EXECUTED @ 25",null,null,26,25]]`},
 		},
 		{
 			name: "bitfinex_inactive_margin", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Margin,
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[{"id":1,"order_id":1,"symbol":"BTC-USD","side":"buy","type":"limit"}]`},
+			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"LIMIT",null,null,null,0,"EXECUTED @ 25",null,null,26,25]]`},
 		},
 		{
 			name: "bitfinex_unknown_type", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Empty,
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[{"id":1,"order_id":1,"symbol":"BTC-USD","side":"buy","type":"unrecognised"}]`},
+			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"unrecognised",null,null,null,0,"EXECUTED",null,null,26,25]]`},
 		},
 		{
 			name: "coinbase_spot", newExchange: func() exchange.IBotExchange { return new(coinbase.Exchange) }, wantAsset: asset.Spot,
@@ -115,6 +118,20 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			name: "coinbase_futures", newExchange: func() exchange.IBotExchange { return new(coinbase.Exchange) }, wantAsset: asset.Futures,
 			responses: map[string]string{
 				"/orders/historical/1":     `{"order":{"order_id":"1","product_id":"BTC-USD","product_type":"FUTURE"}}`,
+				"/orders/historical/fills": `{"fills":[],"cursor":"0"}`,
+			},
+		},
+		{
+			name: "coinbase_futures_product", newExchange: func() exchange.IBotExchange { return new(coinbase.Exchange) }, wantAsset: asset.Futures, wantPair: "SLP-20DEC30-CDE",
+			responses: map[string]string{
+				"/orders/historical/1":     `{"order":{"order_id":"1","product_id":"SLP-20DEC30-CDE","product_type":"FUTURE"}}`,
+				"/orders/historical/fills": `{"fills":[],"cursor":"0"}`,
+			},
+		},
+		{
+			name: "coinbase_spot_product", newExchange: func() exchange.IBotExchange { return new(coinbase.Exchange) }, wantAsset: asset.Spot, wantPair: "ETH-USD",
+			responses: map[string]string{
+				"/orders/historical/1":     `{"order":{"order_id":"1","product_id":"ETH-USD","product_type":"SPOT"}}`,
 				"/orders/historical/fills": `{"fills":[],"cursor":"0"}`,
 			},
 		},
@@ -183,9 +200,53 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 				require.NotNil(t, detail, "GetOrderInfo must return an order")
 				assert.Equalf(t, tc.wantAsset, detail.AssetType, "GetOrderInfo should report the queried or returned market, not requested asset %s", requested)
 				assert.Len(t, detail.Trades, tc.wantTrades, "GetOrderInfo should retain the order's fills")
+				if tc.wantPair != "" {
+					assert.Equal(t, tc.wantPair, detail.Pair.String(), "GetOrderInfo should report the returned product, not the requested pair")
+				}
 			}
 		})
 	}
+}
+
+func TestGetOrderInfoDeribitCreationTime(t *testing.T) {
+	t.Parallel()
+	for _, instrument := range []string{"BTC-PERPETUAL", "BTC_USDC", "BTC-26SEP25-30000-C"} {
+		t.Run(instrument, func(t *testing.T) {
+			t.Parallel()
+			ex := new(deribit.Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			b := ex.GetBase()
+			b.SkipAuthCheck = true
+			b.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: base64.StdEncoding.EncodeToString(make([]byte, 32))})
+			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
+				"/private/get_order_state": `{"result":{"order_id":"1","instrument_name":"` + instrument + `","order_type":"limit","order_state":"open","time_in_force":"good_til_cancelled","creation_timestamp":1792648800123,"last_update_timestamp":1792648860456}}`,
+			}}}), "SetHTTPClient must not error")
+			for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options} {
+				detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), requested)
+				require.NoError(t, err, "GetOrderInfo must derive identity from the response")
+				assert.Equal(t, time.UnixMilli(1792648800123), detail.Date, "creation time should come from the distinct creation field")
+				assert.Equal(t, time.UnixMilli(1792648860456), detail.LastUpdated, "last update should retain its own field")
+			}
+		})
+	}
+}
+
+func TestBTSEActiveOrdersReportedAsset(t *testing.T) {
+	t.Parallel()
+	ex := new(btse.Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, currency.NewBTCUSD())
+	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
+		"/spot/api/v3.2/user/open_orders":   `[{"orderID":"1","symbol":"BTC-USD","side":"BUY","orderState":"open","orderType":76}]`,
+		"/spot/api/v3.2/user/trade_history": `[{"orderId":"1","tradeId":"fill-1","side":"BUY","timestamp":1789618131546}]`,
+	}}}), "SetHTTPClient must not error")
+	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSD()}, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "active spot orders must remain readable")
+	require.Len(t, orders, 1, "the wrapper must return the active order")
+	assert.Equal(t, asset.Spot, orders[0].AssetType, "active orders should identify their actual spot endpoint")
+	assert.Len(t, orders[0].Trades, 1, "asset classification should retain fills")
 }
 
 // All HTTP calls stay in memory, including wrappers that still hard-code their API URL.

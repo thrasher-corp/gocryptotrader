@@ -730,6 +730,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 
 			openOrder := order.Detail{
+				AssetType:       asset.Spot,
 				Pair:            p,
 				Exchange:        e.Name,
 				Amount:          resp[i].Size,
