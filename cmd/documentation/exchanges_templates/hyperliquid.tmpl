@@ -123,12 +123,13 @@ Hyperliquid closes the connection, dropping every feed on it, when a subscriptio
 options are validated first. Subscriptions complete when Hyperliquid acknowledges them, and are rolled back when it
 rejects them, the connection drops or they time out. Hyperliquid may still subscribe a feed whose subscribe timed out or
 was cancelled once sent, so the feed keeps its slot, and neither it nor a variant exclusive of it can be subscribed,
-until Hyperliquid answers; a late acknowledgement unsubscribes it, and the slot stays held until the connection drops if
-that unsubscribe fails. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens, Hyperliquid replays
-recent entries, and only those newer than the last entry relayed from that feed are relayed, so a first subscription
-relays none and resubscribing after a reconnect relays what the replay holds of the gap. Account trades use
-`userEvents`, which includes TWAP slice fills but replays nothing, so the fills it misses while disconnected are not
-recovered from the websocket.
+until Hyperliquid answers or the connection drops. A late acknowledgement leaves the feed sending but unheld until it is
+subscribed again, which Hyperliquid answers as already subscribed; until then it is not checked against exclusive
+variants, and counts towards the subscription limit only through the room kept for a configured account feed not yet
+held. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens, Hyperliquid replays recent entries, and
+only those newer than the last entry relayed from that feed are relayed, so a first subscription relays none and
+resubscribing after a reconnect relays what the replay holds of the gap. Account trades use `userEvents`, which includes
+TWAP slice fills but replays nothing, so the fills it misses while disconnected are not recovered from the websocket.
 
 `orderUpdates` sends a row only when an order's status changes, so fills from `userEvents`, and from `userFills` and
 `userTwapSliceFills` when subscribed, are also relayed to the order stream as trades of their orders; a fill both feeds

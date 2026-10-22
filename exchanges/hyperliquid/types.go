@@ -45,6 +45,10 @@ type Exchange struct {
 	authorityValidations map[authorityValidationKey]struct{}
 	websocketPendingMu   sync.Mutex
 	websocketPending     map[websocketPendingKey]*websocketPendingOperation
+	// websocketUnheldAggregatedFills holds the aggregated userFills feeds Hyperliquid acknowledged after their subscribe
+	// was abandoned, which keep sending without a held subscription, until Hyperliquid confirms an unsubscribe of the
+	// feed or its connection is lost; websocketPendingMu guards it
+	websocketUnheldAggregatedFills map[websocketPendingKey]struct{}
 	// websocketTradeReplays holds the coins whose next trades message replays recent trades; websocketPendingMu guards it
 	websocketTradeReplays map[string]struct{}
 	// websocketWatermarks holds how far the websocket has relayed feeds that repeat entries: the newest trade per coin, the

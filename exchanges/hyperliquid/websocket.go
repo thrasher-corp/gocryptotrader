@@ -272,13 +272,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *WebsocketMessage, raw []byte) error {
 	switch envelope.Channel {
 	case wsChannelSubscriptionResponse:
-		return e.wsHandleSubscriptionResponse(ctx, conn, envelope.Data)
+		return e.wsHandleSubscriptionResponse(conn, envelope.Data)
 	case wsChannelPost:
 		return e.wsHandlePostResponse(conn, envelope.Data)
 	case wsChannelPong:
 		return nil
 	case wsChannelError:
-		return e.wsHandleError(ctx, conn, envelope.Data)
+		return e.wsHandleError(conn, envelope.Data)
 	case wsChannelAllMids:
 		return wsRelay[WebsocketAllMids](ctx, e, envelope.Data)
 	case wsChannelNotification:
@@ -346,7 +346,7 @@ func wsRelay[T any](ctx context.Context, e *Exchange, raw []byte) error {
 }
 
 // wsHandleSubscriptionResponse completes the subscription operation an acknowledgement matches
-func (e *Exchange) wsHandleSubscriptionResponse(ctx context.Context, conn websocket.Connection, raw []byte) error {
+func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, raw []byte) error {
 	var response *WebsocketSubscriptionResponse
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return fmt.Errorf("%w: %w", errWebsocketSubscription, err)
@@ -373,29 +373,43 @@ func (e *Exchange) wsHandleSubscriptionResponse(ctx context.Context, conn websoc
 			e.clearTradeReplay(response.Subscription.Coin)
 		}
 	}
-	_, err := e.completeWebsocketPending(ctx, conn, response.Method, &response.Subscription)
+	_, err := e.completeWebsocketPending(conn, response.Method, &response.Subscription)
 	return err
 }
 
 // completeWebsocketPending applies the server's completion of a pending operation to the subscription store; it reports
 // whether an operation was pending, as a late or unknown completion is ignored
-func (e *Exchange) completeWebsocketPending(ctx context.Context, conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
+func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
 	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
+	if method == wsMethodUnsubscribe {
+		delete(e.websocketUnheldAggregatedFills, key)
+	}
 	pending := e.websocketPending[key]
 	if pending == nil {
 		e.websocketPendingMu.Unlock()
 		return false, nil
 	}
-	if awaited := pending.awaitedMethod(); awaited != method {
+	if pending.method != method {
 		e.websocketPendingMu.Unlock()
-		return true, fmt.Errorf("%w: expected %s, got %s", errWebsocketSubscription, awaited, method)
-	}
-	if pending.abandoned {
-		return true, e.completeAbandonedWebsocketPending(ctx, &key, pending)
+		return true, fmt.Errorf("%w: expected %s, got %s", errWebsocketSubscription, pending.method, method)
 	}
 	delete(e.websocketPending, key)
+	abandoned := pending.abandoned
+	if abandoned && key.subscription.Type == wsChannelUserFills && key.subscription.AggregateByTime {
+		if e.websocketUnheldAggregatedFills == nil {
+			e.websocketUnheldAggregatedFills = make(map[websocketPendingKey]struct{})
+		}
+		e.websocketUnheldAggregatedFills[key] = struct{}{}
+	}
 	e.websocketPendingMu.Unlock()
+	if abandoned {
+		// The feed is now active, but its subscription was rolled back when abandoned. Unsubscribing would stop a
+		// configured feed until the next flush or reconnection, so the feed is left active and unheld: a later subscribe
+		// of it takes it over through "Already subscribed". Until then it is not checked against exclusive variants, and
+		// counts towards the subscription limit only through the room kept for a configured account feed not yet held
+		return true, nil
+	}
 
 	var err error
 	switch method {
@@ -411,37 +425,15 @@ func (e *Exchange) completeWebsocketPending(ctx context.Context, conn websocket.
 	return true, err
 }
 
-// completeAbandonedWebsocketPending settles an abandoned subscribe that Hyperliquid has now answered, releasing
-// websocketPendingMu, which the caller holds. Its acknowledgement means the feed is active, so the feed is unsubscribed
-// and the operation stays pending until that is acknowledged too, which then frees the feed's slot. An unsubscribe that
-// cannot be sent leaves the feed active, so it keeps the slot until the connection drops
-func (e *Exchange) completeAbandonedWebsocketPending(ctx context.Context, key *websocketPendingKey, pending *websocketPendingOperation) error {
-	if pending.cleanup {
-		delete(e.websocketPending, *key)
-		e.websocketPendingMu.Unlock()
-		return nil
-	}
-	pending.cleanup = true
-	e.websocketPendingMu.Unlock()
-	if err := key.connection.SendJSONMessage(ctx, request.Unset, &WebsocketSubscriptionRequest{Method: wsMethodUnsubscribe, Subscription: key.subscription}); err != nil {
-		return fmt.Errorf("unsubscribing %s, acknowledged after its subscribe was abandoned: %w", key.subscription.Type, err)
-	}
-	return nil
-}
-
 // failWebsocketPendingOperation fails and rolls back one pending operation; it reports whether the operation was pending.
-// A refused cleanup of an abandoned subscribe leaves its feed active, so the operation keeps the feed's slot
+// An abandoned subscribe is only removed, as it was failed and rolled back when abandoned
 func (e *Exchange) failWebsocketPendingOperation(conn websocket.Connection, method string, sub *WebsocketSubscription, cause error) bool {
 	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	pending := e.websocketPending[key]
-	if pending == nil || pending.awaitedMethod() != method {
+	if pending == nil || pending.method != method {
 		e.websocketPendingMu.Unlock()
 		return false
-	}
-	if pending.cleanup {
-		e.websocketPendingMu.Unlock()
-		return true
 	}
 	delete(e.websocketPending, key)
 	abandoned := pending.abandoned
@@ -487,6 +479,13 @@ func (e *Exchange) failWebsocketPending(conn websocket.Connection, cause error) 
 			}
 		}
 	}
+	if lost {
+		for key := range e.websocketUnheldAggregatedFills {
+			if key.connection == conn {
+				delete(e.websocketUnheldAggregatedFills, key)
+			}
+		}
+	}
 	e.websocketPendingMu.Unlock()
 
 	result := cause
@@ -514,7 +513,7 @@ func (e *Exchange) abortWebsocketPending(key *websocketPendingKey, pending *webs
 // abandonWebsocketPending fails a sent operation the server has not settled in time; if the acknowledgement handler
 // already took the operation, its outcome is returned instead. Hyperliquid may still acknowledge a subscribe and keep
 // sending its feed, so an abandoned subscribe stays pending, holding the feed's slot and refusing other operations on
-// it, until Hyperliquid answers it or the connection drops; an acknowledgement then unsubscribes the feed
+// it, until Hyperliquid answers it or the connection drops
 func (e *Exchange) abandonWebsocketPending(key *websocketPendingKey, pending *websocketPendingOperation, cause error) error {
 	if pending.method != wsMethodSubscribe {
 		return e.abortWebsocketPending(key, pending, cause)
@@ -545,7 +544,7 @@ func (e *Exchange) abandonedWebsocketSubscriptions() subscription.List {
 
 // wsHandleError settles the operation an error message answers, which the message identifies by quoting its
 // subscription or request; any other error fails every operation pending on the connection
-func (e *Exchange) wsHandleError(ctx context.Context, conn websocket.Connection, raw []byte) error {
+func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 	var message string
 	if err := json.Unmarshal(raw, &message); err != nil {
 		message = strings.TrimSpace(string(raw))
@@ -557,7 +556,7 @@ func (e *Exchange) wsHandleError(ctx context.Context, conn websocket.Connection,
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadySubscribed); ok {
 		// The feed is active, so the subscribe succeeded, though without replaying recent trades
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(ctx, conn, wsMethodSubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(conn, wsMethodSubscribe, &sub); settled {
 				return err
 			}
 		}
@@ -566,7 +565,7 @@ func (e *Exchange) wsHandleError(ctx context.Context, conn websocket.Connection,
 	if quoted, ok := strings.CutPrefix(message, wsErrorAlreadyUnsubscribed); ok {
 		// The feed is inactive, so the unsubscribe succeeded
 		if sub, err := decodeWebsocketSubscription(quoted); err == nil {
-			if settled, err := e.completeWebsocketPending(ctx, conn, wsMethodUnsubscribe, &sub); settled {
+			if settled, err := e.completeWebsocketPending(conn, wsMethodUnsubscribe, &sub); settled {
 				return err
 			}
 		}
@@ -1071,12 +1070,20 @@ func (e *Exchange) wsHandleUserFills(ctx context.Context, raw []byte) error {
 	return e.relayFills(ctx, fills, nil, !e.aggregatesUserFills(feed.user))
 }
 
-// aggregatesUserFills reports whether the userFills feed held for a user combines each order's fills within a block; a
-// combined fill carries the trade ID of one of them, so it cannot be added up with the fills userEvents sends
+// aggregatesUserFills reports whether the userFills feed held for a user, or else one acknowledged after its subscribe
+// was abandoned, combines each order's fills within a block; a combined fill carries the trade ID of one of them, so it
+// cannot be added up with the fills userEvents sends
 func (e *Exchange) aggregatesUserFills(user string) bool {
 	for _, sub := range e.Websocket.GetSubscriptions() {
 		if key, ok := sub.EnsureKeyed().(*websocketSubscriptionKey); ok && key.feed.Type == wsChannelUserFills && key.feed.User == user {
 			return key.feed.AggregateByTime
+		}
+	}
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	for key := range e.websocketUnheldAggregatedFills {
+		if key.subscription.User == user {
+			return true
 		}
 	}
 	return false

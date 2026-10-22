@@ -2616,6 +2616,36 @@ func TestWebsocketHandleUserFills(t *testing.T) {
 	require.NoError(t, aggregated.wsHandleData(t.Context(), accountConn(t, aggregated), []byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for an aggregated fill")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(aggregated.Name)}, receiveWebsocketData(t, aggregated), "wsHandleUserFills should relay aggregated fills only to the fills feed")
 	assertNoWebsocketData(t, aggregated)
+
+	unheld, account := acknowledgeUserFillsLate(t, map[string]any{"aggregateByTime": true})
+	require.NoError(t, unheld.wsHandleData(t.Context(), account, []byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for an aggregated fill")
+	assert.Equal(t, []fill.Data{testWebsocketFillData(unheld.Name)}, receiveWebsocketData(t, unheld), "wsHandleUserFills should relay the fills of an aggregated feed acknowledged late only to the fills feed")
+	assertNoWebsocketData(t, unheld)
+}
+
+// acknowledgeUserFillsLate returns an exchange whose userFills subscribe with the options in params timed out, and
+// which Hyperliquid then acknowledged, leaving the feed sending without a held subscription
+func acknowledgeUserFillsLate(t *testing.T, params map[string]any) (*Exchange, *websocketConnectionFixture) {
+	t.Helper()
+	ex := newWebsocketTestExchange(t)
+	account := accountConn(t, ex)
+	account.mu.Lock()
+	account.reply = nil
+	account.mu.Unlock()
+	limit := ex.WebsocketResponseMaxLimit
+	ex.WebsocketResponseMaxLimit = time.Millisecond
+	require.ErrorIs(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: params}}), websocket.ErrSignatureTimeout, "Subscribe must time out without an acknowledgement")
+	ex.WebsocketResponseMaxLimit = limit
+	sent := account.sentRequests()
+	require.NotEmpty(t, sent, "Subscribe must send the userFills subscribe")
+	for _, frame := range acknowledge([]byte(sent[len(sent)-1])) {
+		require.NoError(t, ex.wsHandleData(t.Context(), account, []byte(frame)), "wsHandleData must not error for the late acknowledgement")
+	}
+	require.Empty(t, ex.Websocket.GetSubscriptions(), "the late acknowledgement must leave the feed unheld")
+	account.mu.Lock()
+	account.reply = acknowledge
+	account.mu.Unlock()
+	return ex, account
 }
 
 func TestAggregatesUserFills(t *testing.T) {
@@ -2633,6 +2663,50 @@ func TestAggregatesUserFills(t *testing.T) {
 	plain := newWebsocketTestExchange(t)
 	require.NoError(t, subscribeWebsocketTest(t, plain, subscription.List{{Channel: wsChannelUserFills, Authenticated: true}}), "Subscribe must not error")
 	assert.False(t, plain.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report a held userFills feed that sends each fill")
+
+	plainLate, _ := acknowledgeUserFillsLate(t, nil)
+	assert.False(t, plainLate.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report a feed acknowledged late that sends each fill")
+
+	unheld, account := acknowledgeUserFillsLate(t, map[string]any{"aggregateByTime": true})
+	assert.True(t, unheld.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report an aggregated feed acknowledged late")
+	assert.False(t, unheld.aggregatesUserFills(testOtherAddress), "aggregatesUserFills should report no combining for another user")
+	assert.ErrorIs(t, unheld.failWebsocketPending(account, errWebsocketServer), errWebsocketServer, "failWebsocketPending should return the cause")
+	assert.ErrorIs(t, unheld.failWebsocketPending(publicConn(t, unheld), websocket.ErrNotConnected), websocket.ErrNotConnected, "failWebsocketPending should return the cause")
+	assert.True(t, unheld.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should keep an aggregated feed acknowledged late while its connection stays up")
+	assert.ErrorIs(t, unheld.failWebsocketPending(account, websocket.ErrNotConnected), websocket.ErrNotConnected, "failWebsocketPending should return the cause")
+	assert.False(t, unheld.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should forget an aggregated feed acknowledged late once its connection is lost")
+
+	aggregatedFeed := `{"type":"userFills","user":"` + testAccountAddress + `","aggregateByTime":true}`
+	aggregatedFills := subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}
+	stopped, account := acknowledgeUserFillsLate(t, map[string]any{"aggregateByTime": true})
+	assert.ErrorIs(t, stopped.wsHandleData(t.Context(), account, websocketErrorFrame(t, wsErrorAlreadyUnsubscribed+aggregatedFeed)), errWebsocketServer, "wsHandleData should report an already unsubscribed answer naming no operation")
+	assert.False(t, stopped.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should forget an aggregated feed acknowledged late once Hyperliquid reports it unsubscribed")
+
+	retried, account := acknowledgeUserFillsLate(t, map[string]any{"aggregateByTime": true})
+	account.mu.Lock()
+	account.reply = nil
+	account.mu.Unlock()
+	retried.WebsocketResponseMaxLimit = time.Millisecond
+	require.ErrorIs(t, subscribeWebsocketTest(t, retried, aggregatedFills), websocket.ErrSignatureTimeout, "Subscribe must time out without an answer")
+	require.NoError(t, retried.wsHandleData(t.Context(), account, websocketErrorFrame(t, wsErrorAlreadySubscribed+aggregatedFeed)), "wsHandleData must not error for a late already subscribed answer")
+	assert.True(t, retried.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should report an aggregated feed whose takeover Hyperliquid answered late")
+	require.NoError(t, retried.wsHandleData(t.Context(), account, []byte(`{"channel":"subscriptionResponse","data":{"method":"unsubscribe","subscription":`+aggregatedFeed+`}}`)), "wsHandleData must not error for an unsubscribe acknowledgement naming no operation")
+	assert.False(t, retried.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should forget an aggregated feed once Hyperliquid acknowledges its unsubscribe")
+
+	takenOver, account := acknowledgeUserFillsLate(t, map[string]any{"aggregateByTime": true})
+	// Hyperliquid answers a subscribe of the feed the late acknowledgement left active as already subscribed
+	alreadySubscribed := string(websocketErrorFrame(t, wsErrorAlreadySubscribed+aggregatedFeed))
+	account.mu.Lock()
+	account.reply = func(request []byte) []string {
+		if strings.Contains(string(request), `"method":"subscribe"`) {
+			return []string{alreadySubscribed}
+		}
+		return acknowledge(request)
+	}
+	account.mu.Unlock()
+	require.NoError(t, subscribeWebsocketTest(t, takenOver, aggregatedFills), "Subscribe must take over the feed the late acknowledgement left active")
+	require.NoError(t, unsubscribeWebsocketTest(t, takenOver, aggregatedFills), "Unsubscribe must not error")
+	assert.False(t, takenOver.aggregatesUserFills(testAccountAddress), "aggregatesUserFills should forget an aggregated feed acknowledged late once it is unsubscribed")
 }
 
 func TestUnrelayedFills(t *testing.T) {
@@ -3422,10 +3496,10 @@ func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 		`{"method":"subscribe","subscription":{"type":" "}}`,
 		`null`,
 	} {
-		err := ex.wsHandleSubscriptionResponse(t.Context(), publicConn(t, ex), []byte(data))
+		err := ex.wsHandleSubscriptionResponse(publicConn(t, ex), []byte(data))
 		assert.ErrorIsf(t, err, errWebsocketSubscription, "wsHandleSubscriptionResponse should reject %s", data)
 	}
-	assert.ErrorIs(t, ex.wsHandleSubscriptionResponse(t.Context(), publicConn(t, ex), []byte(`null`)), common.ErrNoResponse, "wsHandleSubscriptionResponse should reject an empty acknowledgement")
+	assert.ErrorIs(t, ex.wsHandleSubscriptionResponse(publicConn(t, ex), []byte(`null`)), common.ErrNoResponse, "wsHandleSubscriptionResponse should reject an empty acknowledgement")
 	assert.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"ETH"}}}`)), "wsHandleSubscriptionResponse should ignore an acknowledgement without an operation")
 
 	sub, key := testOrderbookSubscription()
@@ -3483,7 +3557,7 @@ func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 					}
 					raw, err := json.Marshal(WebsocketSubscriptionResponse{Method: method, Subscription: payload})
 					require.NoError(t, err, "Marshal must encode the acknowledgement")
-					require.NoError(t, ex.wsHandleSubscriptionResponse(t.Context(), accountConn(t, ex), raw), "wsHandleSubscriptionResponse must accept the acknowledgement")
+					require.NoError(t, ex.wsHandleSubscriptionResponse(accountConn(t, ex), raw), "wsHandleSubscriptionResponse must accept the acknowledgement")
 					if pending != nil {
 						require.NoError(t, receivePendingResult(t, pending), "wsHandleSubscriptionResponse must complete the pending operation")
 					}
@@ -3507,24 +3581,24 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	sub, key := testOrderbookSubscription()
-	settled, err := ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodSubscribe, &key.subscription)
+	settled, err := ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &key.subscription)
 	assert.False(t, settled, "completeWebsocketPending should report an unknown operation as not settled")
 	assert.NoError(t, err, "completeWebsocketPending should ignore an unknown operation")
 
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
-	settled, err = ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
+	settled, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
 	assert.True(t, settled, "completeWebsocketPending should report an operation completed with another method as settled")
 	assert.ErrorIs(t, err, errWebsocketSubscription, "completeWebsocketPending should reject a completion with another method")
 	assert.Same(t, pending, pendingWebsocketOperation(ex, &key), "completeWebsocketPending should keep an operation completed with another method")
 
-	settled, err = ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodSubscribe, &key.subscription)
+	settled, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &key.subscription)
 	assert.True(t, settled, "completeWebsocketPending should report the operation as settled")
 	require.NoError(t, err, "completeWebsocketPending must not error")
 	require.NoError(t, receivePendingResult(t, pending), "the completed subscribe must succeed")
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "completeWebsocketPending should mark the subscription subscribed")
 
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, sub, &key)
-	_, err = ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &key.subscription)
 	require.NoError(t, err, "completeWebsocketPending must not error for an unsubscribe")
 	require.NoError(t, receivePendingResult(t, pending), "the completed unsubscribe must succeed")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "completeWebsocketPending should remove the unsubscribed subscription")
@@ -3533,7 +3607,7 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	conflictKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelAllMids}}
 	pending = &websocketPendingOperation{method: wsMethodSubscribe, connection: publicConn(t, ex), subscription: conflict, done: make(chan error, 1)}
 	registerWebsocketPending(ex, &conflictKey, pending)
-	_, err = ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodSubscribe, &conflictKey.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodSubscribe, &conflictKey.subscription)
 	assert.ErrorIs(t, err, subscription.ErrInStateAlready, "completeWebsocketPending should return a state conflict")
 	assert.ErrorIs(t, receivePendingResult(t, pending), subscription.ErrInStateAlready, "completeWebsocketPending should fail the operation with the state conflict")
 	assert.Nil(t, ex.Websocket.GetSubscription(conflict), "completeWebsocketPending should roll back a subscribe it cannot complete")
@@ -3542,7 +3616,7 @@ func TestCompleteWebsocketPending(t *testing.T) {
 	require.NoError(t, unstored.SetState(subscription.SubscribedState), "SetState must not error")
 	unstoredKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelOutcomeMetaUpdates}}
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, unstored, &unstoredKey)
-	_, err = ex.completeWebsocketPending(t.Context(), publicConn(t, ex), wsMethodUnsubscribe, &unstoredKey.subscription)
+	_, err = ex.completeWebsocketPending(publicConn(t, ex), wsMethodUnsubscribe, &unstoredKey.subscription)
 	assert.ErrorIs(t, err, subscription.ErrNotFound, "completeWebsocketPending should return a store error")
 	assert.ErrorIs(t, receivePendingResult(t, pending), subscription.ErrNotFound, "completeWebsocketPending should fail the operation with the store error")
 	assert.Equal(t, subscription.SubscribedState, unstored.State(), "completeWebsocketPending should restore the state of an unsubscribe it cannot complete")
@@ -3643,13 +3717,13 @@ func TestWebsocketHandleError(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	tradesSub, tradesKey := testTradesSubscription()
 	pending := addWebsocketPending(t, ex, wsMethodSubscribe, tradesSub, &tradesKey)
-	require.NoError(t, ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadySubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate subscribe")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadySubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate subscribe")
 	require.NoError(t, receivePendingResult(t, pending), "wsHandleError must settle a duplicate subscribe")
 	assert.Equal(t, subscription.SubscribedState, tradesSub.State(), "wsHandleError should mark a duplicate subscribe subscribed")
 	assert.False(t, ex.consumeTradeReplay("BTC"), "wsHandleError should not await a replay for a duplicate trades subscribe, as none follows")
 
 	pending = addWebsocketPending(t, ex, wsMethodUnsubscribe, tradesSub, &tradesKey)
-	require.NoError(t, ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadyUnsubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate unsubscribe")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorAlreadyUnsubscribed+`{"type":"trades","coin":"BTC"}`))), "wsHandleError must not error for a duplicate unsubscribe")
 	require.NoError(t, receivePendingResult(t, pending), "wsHandleError must settle a duplicate unsubscribe")
 	assert.Nil(t, ex.Websocket.GetSubscription(tradesSub), "wsHandleError should remove a duplicate unsubscribe's subscription")
 
@@ -3659,7 +3733,7 @@ func TestWebsocketHandleError(t *testing.T) {
 		wsErrorAlreadyUnsubscribed + `{"type":"trades","coin":"ETH"}`,
 		wsErrorAlreadyUnsubscribed + `invalid`,
 	} {
-		err := ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(message)))
+		err := ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(message)))
 		assert.ErrorIsf(t, err, errWebsocketServer, "wsHandleError should return %q without an operation", message)
 		assert.ErrorContainsf(t, err, message, "wsHandleError should return the server's message %q", message)
 	}
@@ -3669,7 +3743,7 @@ func TestWebsocketHandleError(t *testing.T) {
 	assetDataSub := &subscription.Subscription{Channel: wsChannelActiveAssetData, Authenticated: true, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, QualifiedChannel: "activeAssetData:perpetualcontract:BTC-USDC"}
 	assetDataKey := websocketPendingKey{connection: accountConn(t, ex), subscription: WebsocketSubscription{Type: wsChannelActiveAssetData, Coin: "BTC", User: testAccountAddress}}
 	assetDataPending := addWebsocketPending(t, ex, wsMethodSubscribe, assetDataSub, &assetDataKey)
-	err := ex.wsHandleError(t.Context(), accountConn(t, ex), []byte(strconv.Quote(wsErrorInvalidSubscription+`{"type":"activeAssetData","user":"`+testAccountAddress+`","coin":"BTC"}`)))
+	err := ex.wsHandleError(accountConn(t, ex), []byte(strconv.Quote(wsErrorInvalidSubscription+`{"type":"activeAssetData","user":"`+testAccountAddress+`","coin":"BTC"}`)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return an invalid subscription's error")
 	assert.ErrorIs(t, receivePendingResult(t, assetDataPending), errWebsocketServer, "wsHandleError should fail the invalid subscription")
 	assert.Nil(t, ex.Websocket.GetSubscription(assetDataSub), "wsHandleError should roll back the invalid subscription")
@@ -3678,7 +3752,7 @@ func TestWebsocketHandleError(t *testing.T) {
 	candleSub := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, Interval: kline.OneMin, QualifiedChannel: "candle:perpetualcontract:BTC-USDC:1m"}
 	candleKey := websocketPendingKey{subscription: WebsocketSubscription{Type: wsChannelCandle, Coin: "BTC", Interval: "1m"}}
 	candlePending := addWebsocketPending(t, ex, wsMethodSubscribe, candleSub, &candleKey)
-	err = ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(wsErrorParseFailure+`{"method":"subscribe","subscription":{"type":"candle","coin":"BTC","interval":"1m"}}`)))
+	err = ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(wsErrorParseFailure+`{"method":"subscribe","subscription":{"type":"candle","coin":"BTC","interval":"1m"}}`)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a parse failure's error")
 	assert.ErrorIs(t, receivePendingResult(t, candlePending), errWebsocketServer, "wsHandleError should fail the subscription the server could not parse")
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations a parse failure does not answer")
@@ -3686,13 +3760,13 @@ func TestWebsocketHandleError(t *testing.T) {
 	responses, err := publicConn(t, ex).matcher().Set(uint64(4), 1)
 	require.NoError(t, err, "Set must not error")
 	postFailure := wsErrorParseFailure + `{"method":"post","id":4,"request":{"type":"info","payload":{"type":"bogusInfoType"}}}`
-	require.NoError(t, ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(postFailure))), "wsHandleError must not error for a post the server could not parse")
+	require.NoError(t, ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(postFailure))), "wsHandleError must not error for a post the server could not parse")
 	var response WebsocketPostResponse
 	require.NoError(t, json.Unmarshal(receivePostResponse(t, responses), &response), "Unmarshal must not error")
 	encodedFailure, err := json.Marshal(postFailure)
 	require.NoError(t, err, "Marshal must not error")
 	assert.Equal(t, WebsocketPostResponse{ID: 4, Response: WebsocketPostResponseBody{Type: wsPostTypeError, Payload: encodedFailure}}, response, "wsHandleError should answer the post with the server's error")
-	err = ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(postFailure)))
+	err = ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(postFailure)))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return a post parse failure without a request")
 	assert.Same(t, bookPending, pendingWebsocketOperation(ex, &bookKey), "wsHandleError should keep the operations a post parse failure does not answer")
 	require.True(t, ex.failWebsocketPendingOperation(publicConn(t, ex), wsMethodSubscribe, &bookKey.subscription, errWebsocketFixture), "failWebsocketPendingOperation must fail the remaining operation")
@@ -3706,16 +3780,16 @@ func TestWebsocketHandleError(t *testing.T) {
 	} {
 		sub, key := testOrderbookSubscription()
 		pending := addWebsocketPending(t, ex, wsMethodSubscribe, sub, &key)
-		err := ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(strconv.Quote(message)))
+		err := ex.wsHandleError(publicConn(t, ex), []byte(strconv.Quote(message)))
 		assert.ErrorIsf(t, err, errWebsocketServer, "wsHandleError should return %q", message)
 		assert.ErrorIsf(t, receivePendingResult(t, pending), errWebsocketServer, "wsHandleError should fail every operation on the connection for %q", message)
 		assert.Nilf(t, ex.Websocket.GetSubscription(sub), "wsHandleError should roll back every operation on the connection for %q", message)
 	}
 
-	err = ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(`null`))
+	err = ex.wsHandleError(publicConn(t, ex), []byte(`null`))
 	assert.ErrorIs(t, err, errWebsocketServer, "wsHandleError should return an empty error")
 	assert.ErrorContains(t, err, "unspecified error", "wsHandleError should describe an empty error")
-	err = ex.wsHandleError(t.Context(), publicConn(t, ex), []byte(`{"message":"bad request"}`))
+	err = ex.wsHandleError(publicConn(t, ex), []byte(`{"message":"bad request"}`))
 	assert.ErrorContains(t, err, `{"message":"bad request"}`, "wsHandleError should return a structured error as it was sent")
 }
 
@@ -4937,64 +5011,60 @@ func TestAbandonedWebsocketSubscribe(t *testing.T) {
 	t.Run("acknowledged late", func(t *testing.T) {
 		t.Parallel()
 		ex, conn, key := abandon(t, 0)
+		abandoned := pendingWebsocketOperation(ex, key)
 		assert.ErrorIs(t, subscribeWebsocketTest(t, ex, trades()), errWebsocketSubscription, "Subscribe should refuse the feed while its abandoned subscribe awaits an answer")
-		conn.mu.Lock()
-		conn.reply = nil
-		conn.mu.Unlock()
+		sent := len(conn.sentRequests())
 		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodSubscribe)), "wsHandleData must not error for the late acknowledgement")
-		sent := conn.sentRequests()
-		assert.Equal(t, `{"method":"unsubscribe","subscription":`+feed+`}`, sent[len(sent)-1], "the late acknowledgement should unsubscribe the feed")
-		assert.NotNil(t, pendingWebsocketOperation(ex, key), "the feed should keep its slot until its unsubscribe is acknowledged")
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodUnsubscribe)), "wsHandleData must not error for the unsubscribe's acknowledgement")
-		assert.Nil(t, pendingWebsocketOperation(ex, key), "the unsubscribe's acknowledgement should free the feed's slot")
+		assert.Nil(t, pendingWebsocketOperation(ex, key), "the late acknowledgement should settle the abandoned subscribe")
+		assert.Len(t, conn.sentRequests(), sent, "the late acknowledgement should leave the feed subscribed")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "the abandoned subscribe should stay rolled back")
+		assert.Equal(t, subscription.UnsubscribedState, abandoned.subscription.State(), "the abandoned subscription should stay unsubscribed")
+		assert.Empty(t, abandoned.done, "the abandoned operation should not send another result")
+		// Hyperliquid answers a subscribe of the feed the late acknowledgement left active as already subscribed
+		alreadySubscribed := string(websocketErrorFrame(t, wsErrorAlreadySubscribed+feed))
 		conn.mu.Lock()
-		conn.reply = acknowledge
+		conn.reply = func([]byte) []string { return []string{alreadySubscribed} }
 		conn.mu.Unlock()
-		require.NoError(t, subscribeWebsocketTest(t, ex, trades()), "Subscribe must subscribe the feed once its abandoned subscribe is settled")
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodUnsubscribe)), "wsHandleData must not error for a repeated unsubscribe acknowledgement")
+		require.NoError(t, subscribeWebsocketTest(t, ex, trades()), "Subscribe must take over the feed the late acknowledgement left active")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "Subscribe should hold the feed it took over")
+		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodUnsubscribe)), "a stale unsubscribe acknowledgement must be ignored")
 		assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "a stale unsubscribe acknowledgement should leave the later subscription held")
-	})
-	t.Run("unsubscribe acknowledged at once", func(t *testing.T) {
-		t.Parallel()
-		ex, conn, key := abandon(t, 0)
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodSubscribe)), "wsHandleData must not error for the late acknowledgement")
-		assert.Nil(t, pendingWebsocketOperation(ex, key), "an unsubscribe acknowledged while it is sent should free the feed's slot")
-		for i, err := range conn.handled() {
-			assert.NoErrorf(t, err, "the acknowledgement %d handled while sending should not error", i)
-		}
 	})
 	t.Run("already subscribed", func(t *testing.T) {
 		t.Parallel()
 		ex, conn, key := abandon(t, 0)
+		abandoned := pendingWebsocketOperation(ex, key)
+		sent := len(conn.sentRequests())
 		err := ex.wsHandleData(t.Context(), conn, websocketErrorFrame(t, wsErrorAlreadySubscribed+feed))
 		require.NoError(t, err, "wsHandleData must not error for a late already subscribed answer")
-		assert.Nil(t, pendingWebsocketOperation(ex, key), "an already subscribed answer should have the feed unsubscribed and settled")
-		sent := conn.sentRequests()
-		assert.Equal(t, `{"method":"unsubscribe","subscription":`+feed+`}`, sent[len(sent)-1], "an already subscribed answer should unsubscribe the feed")
+		assert.Nil(t, pendingWebsocketOperation(ex, key), "an already subscribed answer should settle the abandoned subscribe")
+		assert.Len(t, conn.sentRequests(), sent, "an already subscribed answer should leave the feed subscribed")
 		assert.Empty(t, ex.Websocket.GetSubscriptions(), "the abandoned subscribe should stay rolled back")
+		assert.Equal(t, subscription.UnsubscribedState, abandoned.subscription.State(), "the abandoned subscription should stay unsubscribed")
+		assert.Empty(t, abandoned.done, "the abandoned operation should not send another result")
 	})
 	t.Run("refused late", func(t *testing.T) {
 		t.Parallel()
 		ex, conn, key := abandon(t, 0)
+		abandoned := pendingWebsocketOperation(ex, key)
 		sent := len(conn.sentRequests())
 		err := ex.wsHandleData(t.Context(), conn, websocketErrorFrame(t, wsErrorInvalidSubscription+feed))
 		assert.ErrorIs(t, err, errWebsocketServer, "wsHandleData should report the late refusal")
 		assert.Nil(t, pendingWebsocketOperation(ex, key), "a late refusal should free the feed's slot")
+		assert.Empty(t, abandoned.done, "the abandoned operation should not send another result")
 		assert.Len(t, conn.sentRequests(), sent, "a late refusal should send nothing")
 	})
-	t.Run("unsubscribe refused", func(t *testing.T) {
+	t.Run("refused late while subscribed again", func(t *testing.T) {
 		t.Parallel()
 		ex, conn, key := abandon(t, 0)
-		conn.mu.Lock()
-		conn.reply = nil
-		conn.mu.Unlock()
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodSubscribe)), "wsHandleData must not error for the late acknowledgement")
-		other, otherKey := testOrderbookSubscription()
-		otherPending := addWebsocketPending(t, ex, wsMethodSubscribe, other, &otherKey)
-		err := ex.wsHandleData(t.Context(), conn, websocketErrorFrame(t, wsErrorParseFailure+`{"method":"unsubscribe","subscription":`+feed+`}`))
-		assert.ErrorIs(t, err, errWebsocketServer, "wsHandleData should report the refused unsubscribe")
-		assert.NotNil(t, pendingWebsocketOperation(ex, key), "a refused unsubscribe should keep the slot of the feed it leaves active")
-		assert.Same(t, otherPending, pendingWebsocketOperation(ex, &otherKey), "a refused unsubscribe should leave the connection's other operations pending")
+		abandoned := pendingWebsocketOperation(ex, key)
+		// A subscribe of the feed stores its subscription before it finds the abandoned subscribe pending
+		retry, err := trades().ExpandTemplates(ex)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		retry[0].SetKey(abandoned.subscription.EnsureKeyed())
+		require.NoError(t, ex.Websocket.AddSubscriptions(conn, retry...), "AddSubscriptions must not error")
+		assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, websocketErrorFrame(t, wsErrorInvalidSubscription+feed)), errWebsocketServer, "wsHandleData should report the late refusal")
+		assert.Same(t, retry[0], ex.Websocket.GetSubscription(retry[0]), "a late refusal should leave the subscription the feed's subscribe stored since")
 	})
 	t.Run("unrelated error", func(t *testing.T) {
 		t.Parallel()
@@ -5011,31 +5081,13 @@ func TestAbandonedWebsocketSubscribe(t *testing.T) {
 		assert.Equal(t, websocket.ErrNotConnected, ex.failWebsocketPending(conn, websocket.ErrNotConnected), "failWebsocketPending should return the cause alone, as an abandoned subscribe is already rolled back")
 		assert.Nil(t, pendingWebsocketOperation(ex, key), "a lost connection should free the feed's slot")
 	})
-	t.Run("unsubscribe not sent", func(t *testing.T) {
-		t.Parallel()
-		ex, conn, key := abandon(t, 0)
-		conn.mu.Lock()
-		conn.reply, conn.sendErr = nil, errWebsocketFixture
-		conn.mu.Unlock()
-		assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodSubscribe)), errWebsocketFixture, "wsHandleData should report the unsubscribe it could not send")
-		assert.NotNil(t, pendingWebsocketOperation(ex, key), "a feed whose unsubscribe cannot be sent should keep its slot, as it stays active")
-		assert.Equal(t, websocket.ErrNotConnected, ex.failWebsocketPending(conn, websocket.ErrNotConnected), "failWebsocketPending should return the cause")
-		assert.Nil(t, pendingWebsocketOperation(ex, key), "a lost connection should free the feed's slot")
-	})
 	t.Run("subscription limit", func(t *testing.T) {
 		t.Parallel()
 		ex, conn, _ := abandon(t, maximumWebsocketSubscriptions-1)
 		other := subscription.List{{Channel: subscription.AllTradesChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{testBuilderPair}}}
 		assert.ErrorIs(t, subscribeWebsocketTest(t, ex, other), errWebsocketSubscriptionsLimit, "Subscribe should count the abandoned subscribe's slot")
-		conn.mu.Lock()
-		conn.reply = nil
-		conn.mu.Unlock()
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodSubscribe)), "wsHandleData must not error for the late acknowledgement")
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, acknowledgement(wsMethodUnsubscribe)), "wsHandleData must not error for the unsubscribe's acknowledgement")
-		conn.mu.Lock()
-		conn.reply = acknowledge
-		conn.mu.Unlock()
-		assert.NoError(t, subscribeWebsocketTest(t, ex, other), "Subscribe should use the slot the settled subscribe freed")
+		require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, websocketErrorFrame(t, wsErrorInvalidSubscription+feed)), errWebsocketServer, "wsHandleData must report the late refusal")
+		assert.NoError(t, subscribeWebsocketTest(t, ex, other), "Subscribe should use the slot the refused subscribe freed")
 	})
 	t.Run("account feed", func(t *testing.T) {
 		t.Parallel()

@@ -178,18 +178,9 @@ type websocketPendingOperation struct {
 	subscription  *subscription.Subscription
 	previousState subscription.State
 	done          chan error
-	// abandoned marks a subscribe whose caller gave up on it once sent, and whose subscription was rolled back; cleanup
-	// marks an abandoned subscribe Hyperliquid acknowledged, whose feed is being unsubscribed. websocketPendingMu guards
-	// both
-	abandoned, cleanup bool
-}
-
-// awaitedMethod returns the method whose acknowledgement settles the operation; the caller holds websocketPendingMu
-func (p *websocketPendingOperation) awaitedMethod() string {
-	if p.cleanup {
-		return wsMethodUnsubscribe
-	}
-	return p.method
+	// abandoned marks a subscribe whose caller gave up on it once sent, and whose subscription was rolled back;
+	// websocketPendingMu guards it
+	abandoned bool
 }
 
 // websocketPosition is where an entry of a replaying feed sits: its time, then its trade ID, which orders the entries of
