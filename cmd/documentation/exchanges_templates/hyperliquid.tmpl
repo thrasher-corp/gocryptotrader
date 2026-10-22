@@ -61,8 +61,9 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
   take-profit or stop-loss children must set `TriggerPriceType` to `order.MarkPrice`. A market trigger order or child
   without a limit price is priced `SlippageTolerance` away from its trigger price, which defaults to 10%, as for
   Hyperliquid's own TP/SL market orders.
-+ `ModifyOrder` replaces resting limit orders only. Hyperliquid replaces an order only when the replacement rests, so a
-  GTC replacement that would match is rejected and trigger and IOC replacements are not supported.
++ `ModifyOrder` replaces resting limit orders only, and cannot add a take profit or stop loss. Hyperliquid replaces an
+  order only when the replacement rests, so a GTC replacement that would match is rejected and trigger and IOC
+  replacements are not supported.
 + Fee estimates follow Hyperliquid's fee formula, from the account's rates and referral discount when credentials are
   set, and the base tier rates otherwise. A spot pair between two spot quote assets, the tokens that quote a listed spot
   market, pays a fifth of the rate. A builder-deployed perpetual market's deployer fee scale raises its fees, and growth
@@ -85,11 +86,12 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 
 ### Balances
 
-Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot. Other
-accounts hold a balance per perpetual DEX, in that DEX's collateral token, stored under a subaccount ID of the account
-address and DEX name. Its hold is the margin in use, up to the account value, and its free amount is what can be
-withdrawn. Portfolio margin accounts report a spot hold beside a hold that can be negative, so a spot balance's hold is
-the larger of the two, from zero up to its total, and the rest of the total is free.
+Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot; while the
+spot asset is disabled, refreshing perpetual balances refreshes it too. Other accounts hold a balance per perpetual DEX,
+in that DEX's collateral token, stored under a subaccount ID of the account address and DEX name. Its hold is the margin
+in use, up to the account value, and its free amount is what can be withdrawn. Portfolio margin accounts report a spot
+hold beside a hold that can be negative, so a spot balance's hold is the larger of the two, from zero up to its total,
+and the rest of the total is free.
 
 ### Websocket
 

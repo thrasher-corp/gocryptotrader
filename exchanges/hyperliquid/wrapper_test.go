@@ -144,6 +144,21 @@ func clearBalanceTimes(t *testing.T, subAccounts accounts.SubAccounts) {
 	}
 }
 
+// balanceObserver records the stored USDC total as each Save starts. A refresh's stored balances change only inside a
+// Save, so any total a reader can see between two of its Saves is still stored when the next Save starts
+type balanceObserver struct {
+	*Exchange
+	usdcTotals []float64
+}
+
+// GetCredentials records the stored USDC total, as Save requests credentials before it stores anything
+func (o *balanceObserver) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
+	if balances, err := o.Accounts.CurrencyBalances(nil, asset.All); err == nil {
+		o.usdcTotals = append(o.usdcTotals, balances[currency.USDC].Total)
+	}
+	return o.Exchange.GetCredentials(ctx)
+}
+
 // statusesResponse returns an exchange action response holding the statuses, which are JSON values
 func statusesResponse(responseType string, statuses ...string) string {
 	return `{"status":"ok","response":{"type":"` + responseType + `","data":{"statuses":[` + strings.Join(statuses, ",") + `]}}}`
@@ -1434,11 +1449,12 @@ func TestUpdateAccountBalances(t *testing.T) {
 	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances must require an account address")
 
 	for _, mode := range []AccountAbstraction{AccountAbstractionUnifiedAccount, AccountAbstractionPortfolioMargin} {
-		ex := newInfoServerExchange(t, map[string]string{
+		responses := map[string]string{
 			"spotClearinghouseState": `{"balances":[{"coin":"USDC","token":0,"total":"30","hold":"4"},{"coin":"HYPE","token":150,"total":"5","hold":"1"}]}`,
 			"userAbstraction":        `"` + string(mode) + `"`,
 			"perpDexs":               `[null,{"name":"xyz"}]`,
-		}, nil)
+		}
+		ex := newInfoServerExchange(t, responses, nil)
 		stale := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress)
 		stale.Balances.Set(currency.USDC, accounts.Balance{Total: 30})
 		staleBuilder := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress+":xyz")
@@ -1457,6 +1473,51 @@ func TestUpdateAccountBalances(t *testing.T) {
 		require.NoError(t, err, "CurrencyBalances must not error")
 		assert.Equalf(t, 30.0, balances[currency.USDC].Total, "UpdateAccountBalances should count %s USDC once", mode)
 		assert.Equalf(t, 5.0, balances[currency.HYPE].Total, "UpdateAccountBalances should count %s HYPE once", mode)
+
+		// With spot disabled the engine refreshes perpetual balances only, which must then refresh the spot balance
+		perpetualOnly := newInfoServerExchange(t, map[string]string{
+			"spotClearinghouseState": `{"balances":[{"coin":"USDC","token":0,"total":"30","hold":"35"},{"coin":"HYPE","token":150,"total":"5","hold":"1"}]}`,
+			"userAbstraction":        responses["userAbstraction"],
+			"perpDexs":               `[null]`,
+		}, nil)
+		require.NoError(t, perpetualOnly.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		result, err = perpetualOnly.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s perpetual balances with spot disabled", mode)
+		assert.Equalf(t, accounts.SubAccounts{accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress)}, result, "UpdateAccountBalances should return %s's DEX subaccount empty with spot disabled", mode)
+		balances, err = perpetualOnly.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equalf(t, 30.0, balances[currency.USDC].Total, "UpdateAccountBalances should refresh %s USDC with spot disabled", mode)
+		assert.Equalf(t, 30.0, balances[currency.USDC].Hold, "UpdateAccountBalances should hold no more than %s's USDC total with spot disabled", mode)
+		assert.Zerof(t, balances[currency.USDC].Free, "UpdateAccountBalances should leave %s's USDC fully held with spot disabled", mode)
+		assert.Equalf(t, 5.0, balances[currency.HYPE].Total, "UpdateAccountBalances should refresh %s HYPE with spot disabled", mode)
+		observer := &balanceObserver{Exchange: newInfoServerExchange(t, responses, nil)}
+		observer.Accounts = accounts.MustNewAccounts(observer)
+		require.NoError(t, observer.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		require.NoError(t, observer.Accounts.Save(t.Context(), accounts.SubAccounts{stale, staleBuilder}, true), "Save must not error")
+		_, err = observer.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s perpetual balances with stale DEX balances", mode)
+		require.NotEmpty(t, observer.usdcTotals, "UpdateAccountBalances must save balances")
+		for _, total := range observer.usdcTotals {
+			assert.LessOrEqualf(t, total, 30.0, "UpdateAccountBalances should never store %s's refreshed USDC beside a stale DEX balance", mode)
+		}
+		balances, err = observer.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equalf(t, 30.0, balances[currency.USDC].Total, "UpdateAccountBalances should clear %s's stale default DEX balance with spot disabled", mode)
+		assert.Equalf(t, 5.0, balances[currency.HYPE].Total, "UpdateAccountBalances should clear %s's stale builder DEX balance with spot disabled", mode)
+		delete(responses, "spotClearinghouseState")
+		spotFailure := newInfoServerExchange(t, responses, nil)
+		require.NoError(t, spotFailure.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		stored := accounts.NewSubAccount(asset.Spot, testAccountAddress)
+		stored.Balances.Set(currency.USDC, accounts.Balance{Total: 30, Free: 30})
+		require.NoError(t, spotFailure.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
+		_, err = spotFailure.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		assert.ErrorIsf(t, err, request.ErrBadStatus, "UpdateAccountBalances should return %s's failed spot refresh with spot disabled", mode)
+		balances, err = spotFailure.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equalf(t, 30.0, balances[currency.USDC].Total, "UpdateAccountBalances should keep %s's stored balance when the spot refresh fails", mode)
+		// With spot enabled the engine refreshes spot itself, so this server, which fails a spot request, must get none
+		_, err = newInfoServerExchange(t, responses, nil).UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		assert.NoErrorf(t, err, "UpdateAccountBalances should not request %s's spot balance with spot enabled", mode)
 	}
 
 	// Portfolio margin balances shaped as live ones, with negative holds and spot holds
@@ -1661,6 +1722,22 @@ func TestUpdateAccountBalances(t *testing.T) {
 	expFLX := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress+":flx")
 	expFLX.Balances.Set(currency.NewCode("USDH"), accounts.Balance{Total: 120, Hold: 3.955, Free: 116.045})
 	assert.Equal(t, accounts.SubAccounts{expDefault, expXYZ, expFLX}, perpetual, "UpdateAccountBalances should return each perpetual DEX's collateral balance")
+}
+
+func TestSpotSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := newUnavailableServerExchange(t).spotSubAccount(t.Context(), testAccountAddress)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "spotSubAccount should return a failed spot balance request")
+
+	ex := newInfoServerExchange(t, map[string]string{
+		"spotClearinghouseState": `{"balances":[{"coin":"USDC","token":0,"total":"30","hold":"4"},{"coin":"HYPE","token":150,"total":"5","hold":"-1","spotHold":"2"}]}`,
+	}, nil)
+	subAccount, err := ex.spotSubAccount(t.Context(), testTraderAddress)
+	require.NoError(t, err, "spotSubAccount must not error")
+	exp := accounts.NewSubAccount(asset.Spot, testTraderAddress)
+	exp.Balances.Set(currency.USDC, accounts.Balance{Total: 30, Hold: 4, Free: 26})
+	exp.Balances.Set(currency.HYPE, accounts.Balance{Total: 5, Hold: 2, Free: 3})
+	assert.Equal(t, exp, subAccount, "spotSubAccount should return every spot balance under the address")
 }
 
 func TestPerpetualMetadataForDEX(t *testing.T) {
@@ -2490,11 +2567,26 @@ func TestModifyOrder(t *testing.T) {
 		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, TimeInForce: order.ImmediateOrCancel}, err: order.ErrUnsupportedTimeInForce},
 		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, TimeInForce: order.FillOrKill}, err: order.ErrUnsupportedTimeInForce},
 		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, TriggerPrice: 90}, err: errRiskManagementUnsupported},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 110}}}, err: errRiskManagementUnsupported},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 90}}}, err: errRiskManagementUnsupported},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{StopEntry: order.RiskManagement{Enabled: true, Price: 90}}}, err: errRiskManagementUnsupported},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true}}}, err: errRiskManagementUnsupported},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.AnySide}, err: order.ErrSideIsInvalid},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.ClosePosition}, err: order.ErrSideIsInvalid},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.CouldNotBuy}, err: order.ErrSideIsInvalid},
+		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.MissingData}, err: order.ErrSideIsInvalid},
 		{modify: &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, NewClientOrderID: "invalid"}, err: errClientOrderIDInvalid},
 	} {
 		_, err := unavailable.ModifyOrder(t.Context(), tc.modify)
 		assert.ErrorIsf(t, err, tc.err, "ModifyOrder should reject %+v before any request", tc.modify)
 	}
+	// These pass the checks and fail only at the order lookup
+	for _, side := range []order.Side{order.Bid, order.Ask, order.Long, order.Short} {
+		_, err := unavailable.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: side})
+		assert.ErrorIsf(t, err, request.ErrBadStatus, "ModifyOrder should accept the %s side and look the order up", side)
+	}
+	_, err = unavailable.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{TriggerPriceType: order.MarkPrice, Price: 110}}})
+	assert.ErrorIs(t, err, request.ErrBadStatus, "ModifyOrder should accept a take profit that is not enabled and look the order up")
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1.000001})
 	assert.ErrorIs(t, err, errSizePrecision, "ModifyOrder should reject a size beyond the market's precision")
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1})

@@ -287,6 +287,27 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	if sweetItem.Candles[len(sweetItem.Candles)-1].Time.Equal(laterEndDate) {
 		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].Time, "should not equal")
 	}
+
+	// A candle opening between interval starts cannot be padded
+	start = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, start.AddDate(0, 0, 1), 1)
+	require.NoError(t, err, "CreateKlineRequest must not error")
+	_, err = r.ProcessResponse([]Candle{{Time: start.Add(time.Minute), Close: 1}})
+	assert.ErrorIs(t, err, errCandleOpenTimeIsNotUTCAligned, "ProcessResponse should return the padding error")
+
+	// A range holding only the current period, which has no candle yet, leaves none once the empty partial is dropped
+	start = time.Now().UTC().Truncate(OneDay.Duration())
+	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneDay, OneDay, start, start.Add(OneDay.Duration()), 1)
+	require.NoError(t, err, "CreateKlineRequest must not error")
+	_, err = r.ProcessResponse([]Candle{{Time: start.Add(-OneDay.Duration()), Close: 1}})
+	assert.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert, "ProcessResponse should report a range left without candles")
+
+	// One hour of the current four-hour period cannot build its candle
+	start = time.Now().UTC().Truncate(FourHour.Duration())
+	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, FourHour, OneHour, start, start.Add(FourHour.Duration()), 1)
+	require.NoError(t, err, "CreateKlineRequest must not error")
+	_, err = r.ProcessResponse([]Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}})
+	assert.ErrorIs(t, err, ErrInsufficientCandleData, "ProcessResponse should return the conversion's error")
 }
 
 func TestRequest_ProcessResponse_OneMonth(t *testing.T) {

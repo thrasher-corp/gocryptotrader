@@ -171,6 +171,10 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Padding drops an empty partial candle, so a range holding only the current period can be left with none
+	if len(holder.Candles) == 0 {
+		return nil, fmt.Errorf("%w between %s and %s", ErrNoTimeSeriesDataToConvert, r.Start, r.End)
+	}
 
 	if r.IsExtended {
 		// NOTE: This allows for a processed candles to be analysed
@@ -179,7 +183,9 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		copy(r.ProcessedCandles, holder.Candles)
 	}
 	if r.ClientRequired != r.ExchangeInterval {
-		holder, err = holder.ConvertToNewInterval(r.ClientRequired)
+		if holder, err = holder.ConvertToNewInterval(r.ClientRequired); err != nil {
+			return nil, err
+		}
 	}
 
 	if r.PartialCandle {
@@ -191,7 +197,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		}
 	}
 
-	return holder, err
+	return holder, nil
 }
 
 // Size returns the max length of return for pre-allocation.

@@ -723,8 +723,9 @@ func (e *Exchange) GetHistoricCandlesExtended(context.Context, currency.Pair, as
 }
 
 // UpdateAccountBalances retrieves balances for the configured account, vault or subaccount
-// Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot; their
-// perpetual DEX balances are saved empty so stale separate balances are cleared without double counting
+// Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot and
+// refreshed with perpetual balances while spot is disabled; their perpetual DEX balances are saved empty so stale
+// separate balances are cleared without double counting
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if a != asset.Spot && a != asset.PerpetualContract {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
@@ -736,13 +737,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	var subAccounts accounts.SubAccounts
 	switch a {
 	case asset.Spot:
-		state, err := e.GetSpotClearinghouseState(ctx, address)
+		subAccount, err := e.spotSubAccount(ctx, address)
 		if err != nil {
 			return nil, err
-		}
-		subAccount := accounts.NewSubAccount(a, address)
-		for i := range state.Balances {
-			subAccount.Balances.Set(state.Balances[i].Coin, convertSpotBalance(&state.Balances[i]))
 		}
 		subAccounts = accounts.SubAccounts{subAccount}
 	case asset.PerpetualContract:
@@ -759,7 +756,16 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			for i := range dexes {
 				subAccounts = append(subAccounts, accounts.NewSubAccount(a, dexSubAccountID(address, dexes[i])))
 			}
-			break
+			if e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+				break
+			}
+			// The engine refreshes only the enabled assets, so with spot disabled the shared balance is refreshed here and
+			// saved with the cleared DEX balances, so that no reader sees it beside a stale DEX balance
+			spot, err := e.spotSubAccount(ctx, address)
+			if err != nil {
+				return nil, err
+			}
+			return subAccounts, e.Accounts.Save(ctx, append(accounts.SubAccounts{spot}, subAccounts...), true)
 		}
 		tokenNames, err := e.getSpotTokenNames(ctx)
 		if err != nil {
@@ -790,6 +796,20 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		}
 	}
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+}
+
+// spotSubAccount returns the account's spot balances, which unified and portfolio margin accounts also trade
+// perpetuals with
+func (e *Exchange) spotSubAccount(ctx context.Context, address string) (*accounts.SubAccount, error) {
+	state, err := e.GetSpotClearinghouseState(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	subAccount := accounts.NewSubAccount(asset.Spot, address)
+	for i := range state.Balances {
+		subAccount.Balances.Set(state.Balances[i].Coin, convertSpotBalance(&state.Balances[i]))
+	}
+	return subAccount, nil
 }
 
 // perpetualMetadataForDEX identifies a DEX by every market's prefix, never by the bulk response's position. Empty,
@@ -976,7 +996,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 
 // ModifyOrder replaces a resting limit order, keeping any fields the modification omits. Amount is the requested total
 // of the current order; its executed size is subtracted before replacement. The response reports the replacement size,
-// which becomes the total for subsequent amendments of the replacement order.
+// which becomes the total for subsequent amendments of the replacement order. A take profit or stop loss is refused,
+// as the replacement cannot carry one.
 // Without always place, Hyperliquid only accepts a replacement that rests: it must not be a trigger order and must be
 // ALO or a GTC that would not execute, which then rests as ALO
 func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*order.ModifyResponse, error) {
@@ -992,6 +1013,12 @@ func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*orde
 	}
 	if modify.TriggerPrice != 0 {
 		return nil, fmt.Errorf("%w: trigger price requires a trigger order type", errRiskManagementUnsupported)
+	}
+	if risk := &modify.RiskManagementModes; risk.TakeProfit.Enabled || risk.StopLoss.Enabled || risk.StopEntry.Enabled {
+		return nil, fmt.Errorf("%w: take profit and stop loss cannot be amended", errRiskManagementUnsupported)
+	}
+	if modify.Side != order.UnknownSide && !order.IsValidOrderSubmissionSide(modify.Side) {
+		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, modify.Side)
 	}
 	if modify.NewClientOrderID != "" {
 		if err := validateClientOrderID(modify.NewClientOrderID); err != nil {
