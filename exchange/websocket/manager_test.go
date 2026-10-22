@@ -271,6 +271,8 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		setup.UseMultiConnectionManagement = true
 		err := ws.Setup(setup)
 		require.NoError(t, err, "Setup must not error")
+		// Failed connects start the connection monitor, and cleanup waits up to one delay for it to exit
+		ws.connectionMonitorDelay = 100 * time.Millisecond
 		ws.SetCanUseAuthenticatedEndpoints(true)
 		if connSetup != nil {
 			ws.connectionManager = []*websocket{{setup: connSetup}}
@@ -403,6 +405,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 
 			err := ws.Connect(t.Context())
 			assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
+			assert.False(t, ws.connectionMonitorRunning.Load(), "connection monitor should not start without pending connections")
 		})
 
 		t.Run("missing generate subscriptions", func(t *testing.T) {
@@ -814,45 +817,132 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	t.Parallel()
 
-	wsURL, dialer, openConnections := newConnectionCountingServer(t)
+	synctest.Test(t, func(t *testing.T) {
+		wsURL, dialer, openConnections := newConnectionCountingServer(t)
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.RunningURL = wsURL
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
+
+		readerDone := make(chan struct{})
+		// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
+		// already running
+		ws.connector = func() error {
+			if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+				return err
+			}
+			ws.Wg.Go(func() {
+				defer close(readerDone)
+				for {
+					if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
+						return
+					}
+				}
+			})
+			if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+				return err
+			}
+			return errDastardlyReason
+		}
+
+		require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+		assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
+		assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
+		select {
+		case <-readerDone:
+		default:
+			assert.Fail(t, "reader should be stopped by the time Connect returns")
+		}
+		assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+	})
+}
+
+func TestConnectDoesNotStartMonitorWithoutConnector(t *testing.T) {
+	t.Parallel()
+
 	ws := NewManager()
 	t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
-	setup := newDefaultSetup()
-	setup.RunningURL = wsURL
-	require.NoError(t, ws.Setup(setup), "Setup must not error")
-	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
-	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
+	require.NoError(t, ws.Setup(newDefaultSetup()), "Setup must not error")
+	ws.connector = nil // Setup rejects a nil connector, so it is cleared afterwards
+	require.ErrorIs(t, ws.Connect(t.Context()), errNoConnectFunc, "Connect must error without a connector")
+	assert.False(t, ws.connectionMonitorRunning.Load(), "connection monitor should not start without a connector")
+}
 
-	readerDone := make(chan struct{})
-	// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
-	// already running
-	ws.connector = func() error {
-		if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-			return err
-		}
-		ws.Wg.Go(func() {
-			defer close(readerDone)
-			for {
-				if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
-					return
-				}
+func TestConnectDoesNotStartMonitorAfterMultiConnectionAttemptWithEndedContext(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := newRetryTestManager(t, true, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+		setup := ws.connectionManager[0].setup
+		connector := setup.Connector
+		// The in-memory dialer does not watch the context, so the connector does, as a network dial would
+		setup.Connector = func(ctx context.Context, conn Connection) error {
+			if err := ctx.Err(); err != nil {
+				return err
 			}
-		})
-		if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-			return err
+			return connector(ctx, conn)
 		}
-		return errDastardlyReason
-	}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		require.ErrorIs(t, ws.Connect(ctx), context.Canceled, "Connect must error once its context has ended")
+		assert.False(t, ws.connectionMonitorRunning.Load(), "connection monitor should not start when every retry would dial with an ended context")
+	})
+}
 
-	require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
-	assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
-	assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
-	select {
-	case <-readerDone:
-	default:
-		assert.Fail(t, "reader should be stopped by the time Connect returns")
-	}
-	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+func TestConnectStartsMonitorAfterMultiConnectionSuccessWithEndedContext(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := newRetryTestManager(t, true, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+		ws.trafficTimeout = time.Hour // Stops the traffic monitor closing the idle connection on its own
+		ctx, cancel := context.WithCancel(t.Context())
+		setup := ws.connectionManager[0].setup
+		connector := setup.Connector
+		// Ends the context once the socket is up, as a deadline expiring late in a successful attempt would
+		setup.Connector = func(ctx context.Context, conn Connection) error {
+			defer cancel()
+			return connector(ctx, conn)
+		}
+
+		require.NoError(t, ws.Connect(ctx), "Connect must not error")
+		require.NoError(t, ws.Disable(), "Disable must not error")
+		time.Sleep(2 * ws.connectionMonitorDelay)
+		synctest.Wait()
+		assert.False(t, ws.IsConnected(), "IsConnected should return false once the monitor sees the websocket was disabled")
+	})
+}
+
+func TestConnectRetriesSingleConnectionAfterContextEnds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var upgradeAttempts atomic.Int64
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if upgradeAttempts.Add(1) == 1 {
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := newRetryTestManager(t, false, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		require.ErrorIs(t, ws.Connect(ctx), gws.ErrBadHandshake, "Connect must error while the server is unavailable")
+		time.Sleep(ws.connectionMonitorDelay)
+		synctest.Wait()
+		// Single connection connectors and subscribers take no context, so the retry can still succeed
+		assert.True(t, ws.IsConnected(), "IsConnected should return true once the server is available, though the context has ended")
+	})
 }
 
 func TestConnectReturnsTeardownError(t *testing.T) {
@@ -860,6 +950,8 @@ func TestConnectReturnsTeardownError(t *testing.T) {
 
 	ws := NewManager()
 	require.NoError(t, ws.Setup(newDefaultSetup()), "Setup must not error")
+	// The failed Connect below starts the connection monitor, which retries until the websocket is disabled
+	t.Cleanup(func() { assert.NoError(t, ws.Disable(), "Disable should not error") })
 	ws.Conn = &struct{ *connection }{&connection{}}
 	ws.connector = func() error { return errDastardlyReason }
 
@@ -1015,6 +1107,186 @@ func TestConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T
 		time.Sleep(3*ws.trafficTimeout + ws.connectionMonitorDelay)
 		synctest.Wait()
 		assert.Greater(t, dials.Load(), int64(1), "connection should be dropped and dialled again when no traffic arrives")
+	})
+}
+
+// newRetryTestManager returns a manager that dials wsURL through dialer, using multi connection management if requested
+func newRetryTestManager(t *testing.T, multiConnection bool, wsURL string, dialer *gws.Dialer) *Manager {
+	t.Helper()
+	ws := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+	setup := newDefaultSetup()
+	setup.RunningURL = wsURL
+	setup.UseMultiConnectionManagement = multiConnection
+	require.NoError(t, ws.Setup(setup), "Setup must not error")
+
+	if multiConnection {
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL: wsURL,
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: "test"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+		return ws
+	}
+
+	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+	ws.connector = func() error {
+		if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+			return err
+		}
+		ws.Wg.Add(1)
+		go ws.Reader(t.Context(), ws.Conn, func(context.Context, Connection, []byte) error { return nil })
+		return nil
+	}
+	ws.Subscriber = func(subs subscription.List) error {
+		for _, sub := range subs {
+			if err := ws.subscriptions.Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return ws
+}
+
+func TestConnectRetriesFailedInitialConnection(t *testing.T) {
+	t.Parallel()
+
+	testRetry := func(t *testing.T, multiConnection bool) {
+		t.Helper()
+		synctest.Test(t, func(t *testing.T) {
+			var upgradeAttempts atomic.Int64
+			mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if upgradeAttempts.Add(1) == 1 {
+					http.Error(w, "unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+			}))
+			ws := newRetryTestManager(t, multiConnection, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+
+			require.ErrorIs(t, ws.Connect(t.Context()), gws.ErrBadHandshake, "Connect must error while the server is unavailable")
+			time.Sleep(ws.connectionMonitorDelay)
+			synctest.Wait()
+			assert.True(t, ws.IsConnected(), "IsConnected should return true once the server is available, without another Connect call")
+			assert.Equal(t, int64(2), upgradeAttempts.Load(), "server should see exactly one retry")
+		})
+	}
+
+	t.Run("single connection", func(t *testing.T) {
+		t.Parallel()
+		testRetry(t, false)
+	})
+	t.Run("multi connection", func(t *testing.T) {
+		t.Parallel()
+		testRetry(t, true)
+	})
+}
+
+func TestConnectShutsDownConnectionCompletedAfterDisable(t *testing.T) {
+	t.Parallel()
+
+	testDisable := func(t *testing.T, multiConnection bool) {
+		t.Helper()
+		synctest.Test(t, func(t *testing.T) {
+			mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+			}))
+			ws := newRetryTestManager(t, multiConnection, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+			ws.trafficTimeout = time.Hour // Stops the traffic monitor closing the idle connection on its own
+			// Mirrors a slow login that outlasts the connection monitor's first check
+			if multiConnection {
+				setup := ws.connectionManager[0].setup
+				connector := setup.Connector
+				setup.Connector = func(ctx context.Context, conn Connection) error {
+					time.Sleep(ws.connectionMonitorDelay * 3 / 2)
+					return connector(ctx, conn)
+				}
+			} else {
+				connector := ws.connector
+				ws.connector = func() error {
+					time.Sleep(ws.connectionMonitorDelay * 3 / 2)
+					return connector()
+				}
+			}
+
+			go func() {
+				time.Sleep(ws.connectionMonitorDelay / 2)
+				assert.NoError(t, ws.Disable(), "Disable should not error")
+			}()
+			require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+			time.Sleep(2 * ws.connectionMonitorDelay)
+			synctest.Wait()
+			assert.False(t, ws.IsConnected(), "IsConnected should return false once the monitor sees the websocket was disabled while connecting")
+		})
+	}
+
+	t.Run("single connection", func(t *testing.T) {
+		t.Parallel()
+		testDisable(t, false)
+	})
+	t.Run("multi connection", func(t *testing.T) {
+		t.Parallel()
+		testDisable(t, true)
+	})
+}
+
+func TestConnectRetriesStopWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var upgradeAttempts atomic.Int64
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			upgradeAttempts.Add(1)
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		}))
+		ws := newRetryTestManager(t, false, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+
+		require.ErrorIs(t, ws.Connect(t.Context()), gws.ErrBadHandshake, "Connect must error while the server is unavailable")
+		time.Sleep(2 * ws.connectionMonitorDelay)
+		synctest.Wait()
+		require.Equal(t, int64(3), upgradeAttempts.Load(), "connection monitor must retry once per delay")
+
+		require.NoError(t, ws.Disable(), "Disable must not error")
+		time.Sleep(3 * ws.connectionMonitorDelay)
+		synctest.Wait()
+		assert.Equal(t, int64(3), upgradeAttempts.Load(), "connection monitor should not retry once disabled")
+		assert.False(t, ws.connectionMonitorRunning.Load(), "connection monitor should exit once disabled")
+	})
+}
+
+func TestConnectRetriesReleaseConnectionsWhenConnectorFails(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		wsURL, dialer, openConnections := newConnectionCountingServer(t)
+		ws := newRetryTestManager(t, false, wsURL, dialer)
+		var attempts atomic.Int64
+		connect := ws.connector
+		// Mirrors an exchange whose login keeps failing after the socket and its reader are running
+		ws.connector = func() error {
+			attempts.Add(1)
+			if err := connect(); err != nil {
+				return err
+			}
+			return errDastardlyReason
+		}
+
+		require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+		time.Sleep(5*ws.connectionMonitorDelay + ws.connectionMonitorDelay/2)
+		synctest.Wait()
+		assert.Equal(t, int64(6), attempts.Load(), "connection monitor should retry once per delay")
+		assert.Zero(t, openConnections.Load(), "server should see every failed attempt's socket closed")
+		assert.False(t, ws.IsConnected(), "IsConnected should return false while the connector keeps failing")
 	})
 }
 
