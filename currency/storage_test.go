@@ -77,7 +77,7 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	// Exchanges which do not error with a bad APIKey on startup
-	for _, n := range []string{"OpenExchangeRates"} {
+	for _, n := range []string{"OpenExchangeRates", "AllRatesToday"} {
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
 		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
 		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
@@ -134,6 +134,8 @@ func overrideForProvider(n string) BotOverrides {
 		b.ExchangeRates = true
 	case "FXMacroData":
 		b.FXMacroData = true
+	case "AllRatesToday":
+		b.AllRatesToday = true
 	}
 	return b
 }
