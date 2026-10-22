@@ -93,10 +93,17 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 	shunt := f.Primary.CheckCurrencies(fullRange)
 	rates, err := f.Primary.GetNewRate(baseCurrency, currencies)
 	if err != nil {
-		return f.backupGetRate(baseCurrency, currencies)
+		backupRates, backupErr := f.backupGetRate(baseCurrency, currencies)
+		if backupErr != nil {
+			return nil, fmt.Errorf("primary provider %s failed: %w; fallback providers failed: %w",
+				f.Primary.Provider.GetName(),
+				err,
+				backupErr)
+		}
+		return backupRates, nil
 	}
 
-	if len(shunt) != 0 {
+	if len(shunt) == 0 {
 		return rates, nil
 	}
 
