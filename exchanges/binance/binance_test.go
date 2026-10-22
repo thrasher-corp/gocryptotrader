@@ -2074,7 +2074,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	err = e.CurrencyPairs.StorePairs(asset.Spot, ap, true)
 	require.NoError(bb, err)
 
-	data, err := os.ReadFile("testdata/wsHandleData.json")
+	data, err := os.ReadFile("testdata/wsHandleData.jsonl")
 	require.NoError(bb, err)
 	lines := bytes.Split(data, []byte("\n"))
 	require.Len(bb, lines, 8)
