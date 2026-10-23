@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"reflect"
 	"slices"
@@ -63,6 +64,16 @@ var (
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 	errFailedToAuthenticate                 = errors.New("failed to authenticate")
+	errOptionalConnectionSubscriptions      = errors.New("an optional connection cannot take subscriptions")
+	errOptionalConnectionUnsupported        = errors.New("optional connections need multi-connection management")
+)
+
+// An optional connection that is not up is dialled again this long after its last attempt. Each of its dials, the first
+// included, is bounded, so that neither the websocket's lock nor the connections set up after it wait for a whole
+// handshake timeout
+const (
+	optionalConnectionRetryDelay  = 30 * time.Second
+	optionalConnectionDialTimeout = 10 * time.Second
 )
 
 // Websocket functionality list and state consts
@@ -164,6 +175,13 @@ type websocket struct {
 	setup         *ConnectionSetup
 	subscriptions *subscription.Store
 	connections   []Connection
+	// optionalRetryAt is the earliest time the connection monitor dials an optional connection that is not up, a retry
+	// delay after the last attempt, so that one failing or lost soon after it connects is dialled at most once per delay;
+	// guarded by the manager's m
+	optionalRetryAt time.Time
+	// optionalReaderDone is closed when the reader of the optional connection's latest attempt returns; guarded by the
+	// manager's m
+	optionalReaderDone chan struct{}
 }
 
 var globalReporter Reporter
@@ -351,6 +369,9 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		if c.Handler == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
+		if c.Optional && !c.SubscriptionsNotRequired {
+			return fmt.Errorf("%w: %w", errConnSetup, errOptionalConnectionSubscriptions)
+		}
 
 		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
 			return errMessageFilterNotComparable
@@ -370,6 +391,9 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		return nil
 	}
 
+	if c.Optional {
+		return fmt.Errorf("%w: %w", errConnSetup, errOptionalConnectionUnsupported)
+	}
 	if c.Authenticated {
 		m.AuthConn = m.createConnectionFromSetup(c)
 	} else {
@@ -377,6 +401,50 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 	}
 
 	return nil
+}
+
+// createConnection dials a new connection for the websocket under dialCtx, then tracks it, reads its messages and
+// authenticates it under ctx, which outlives a bounded dial
+func (m *Manager) createConnection(dialCtx, ctx context.Context, ws *websocket) (Connection, error) {
+	conn := m.createConnectionFromSetup(ws.setup)
+	if ws.setup.Optional {
+		// An optional connection is released on its own while the others stay up, so the connection monitor finds its
+		// faults instead of reconnecting the websocket, and shutting it down stops its routines
+		stop := make(chan struct{})
+		conn.readMessageErrors, conn.shutdown, conn.stopRoutines = make(chan error, 1), stop, sync.OnceFunc(func() { close(stop) })
+		ws.optionalRetryAt = time.Now().Add(optionalConnectionRetryDelay)
+	}
+
+	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
+	// connector dialled before failing.
+	if err := ws.setup.Connector(dialCtx, conn); err != nil {
+		return nil, fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(err, conn.Shutdown()))
+	}
+
+	if !conn.IsConnected() {
+		return nil, fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
+	}
+
+	m.trackConnection(conn, ws)
+
+	m.Wg.Add(1)
+	if ws.setup.Optional {
+		done := make(chan struct{})
+		ws.optionalReaderDone = done
+		go func() {
+			defer close(done)
+			m.Reader(ctx, conn, ws.setup.Handler)
+		}()
+	} else {
+		go m.Reader(ctx, conn, ws.setup.Handler)
+	}
+
+	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
+		if err := ws.setup.Authenticate(ctx, conn); err != nil {
+			return conn, fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
+		}
+	}
+	return conn, nil
 }
 
 // createConnectionFromSetup returns a websocket connection from a setup
@@ -529,6 +597,9 @@ func (m *Manager) connect(ctx context.Context) error {
 	// subscriptionError is a non-fatal error that does not shutdown connections
 	var subscriptionError error
 
+	// optionalError reports optional connections that could not be established, which leaves the others connected
+	var optionalError error
+
 	// TODO: Implement concurrency below.
 	for i, ws := range connectionManager {
 		var subs subscription.List
@@ -574,7 +645,21 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 
 		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
-			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
+			var err error
+			if ws.setup.Optional {
+				// An optional connection's dial is bounded here as when it is tried again, so it cannot hold the
+				// connections after it back for a whole handshake timeout
+				dialCtx, cancel := context.WithTimeout(ctx, optionalConnectionDialTimeout)
+				_, err = m.createConnection(dialCtx, ctx, ws)
+				cancel()
+			} else {
+				err = m.createConnectAndSubscribe(ctx, ws, nil)
+			}
+			if err != nil {
+				if ws.setup.Optional {
+					optionalError = common.AppendError(optionalError, m.dropOptionalConnection(ws, fmt.Errorf("cannot connect to optional [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err)))
+					continue
+				}
 				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
 				break
 			}
@@ -666,7 +751,87 @@ func (m *Manager) connect(ctx context.Context) error {
 		go m.monitorFrame(ctx, nil, m.monitorConnection)
 	}
 
-	return subscriptionError
+	return common.AppendError(subscriptionError, optionalError)
+}
+
+// dropOptionalConnection releases an optional connection that could not be established or was lost, returning err with
+// any error releasing it other than closing a socket already closed
+// assumes m.m is held
+func (m *Manager) dropOptionalConnection(ws *websocket, err error) error {
+	m.connectionManagerMu.Lock()
+	defer m.connectionManagerMu.Unlock()
+	for _, conn := range ws.connections {
+		if shutdownErr := conn.Shutdown(); shutdownErr != nil && !errors.Is(shutdownErr, net.ErrClosed) {
+			err = common.AppendError(err, shutdownErr)
+		}
+		conn.Subscriptions().Clear()
+		delete(m.connections, conn)
+	}
+	ws.connections = nil
+	ws.subscriptions.Clear()
+	return err
+}
+
+// connectOptional replaces lost optional connections and tries again those that could not be established, once each is
+// due another attempt, while the websocket is connected. It holds the websocket's lock, as connecting the websocket
+// does, so an attempt cannot interleave with a shutdown or reconnection. Only the dial is bounded: the connection is
+// authenticated and read under ctx, authentication waiting on its requests' own response limits as when connecting the
+// websocket, so that a slow server is not cut off partway through, and neither bounds a write stalled by a peer that
+// stops reading. A websocket without optional connections returns without the lock, so its connection monitor never
+// waits on a flush or shutdown
+func (m *Manager) connectOptional(ctx context.Context) {
+	if !slices.ContainsFunc(m.snapshotConnectionManager(), func(ws *websocket) bool { return ws.setup.Optional }) {
+		return
+	}
+	m.m.Lock()
+	defer m.m.Unlock()
+	if !m.IsConnected() {
+		return
+	}
+	for _, ws := range m.snapshotConnectionManager() {
+		if !ws.setup.Optional {
+			continue
+		}
+		if conns := m.snapshotManagedConnections(ws); len(conns) != 0 {
+			conn, ok := conns[0].(*connection)
+			if !ok || conn.IsConnected() {
+				continue
+			}
+			var fault error
+			select {
+			case fault = <-conn.readMessageErrors:
+			default: // The connection was shut down rather than faulted
+			}
+			if err := m.dropOptionalConnection(ws, fault); err != nil {
+				log.Warnf(log.WebsocketMgr, "%s websocket: [URL:%s] optional connection lost: %v", m.exchangeName, ws.setup.URL, err)
+			} else {
+				log.Warnf(log.WebsocketMgr, "%s websocket: [URL:%s] optional connection lost", m.exchangeName, ws.setup.URL)
+			}
+		}
+		if done := ws.optionalReaderDone; done != nil {
+			// A replacement's connector may reset what the released connection's handler is still using, so its reader
+			// must return first, as shutting the websocket down waits for its readers before connecting again
+			select {
+			case <-done:
+			default:
+				continue
+			}
+		}
+		if time.Now().Before(ws.optionalRetryAt) {
+			continue
+		}
+		dialCtx, cancel := context.WithTimeout(ctx, optionalConnectionDialTimeout)
+		_, err := m.createConnection(dialCtx, ctx, ws)
+		cancel()
+		if err != nil {
+			err = m.dropOptionalConnection(ws, err)
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] optional connection not established, retrying in %s: %v", m.exchangeName, ws.setup.URL, optionalConnectionRetryDelay, err)
+			}
+			continue
+		}
+		log.Infof(log.WebsocketMgr, "%s websocket: [URL:%s] optional connection established", m.exchangeName, ws.setup.URL)
+	}
 }
 
 // createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
@@ -676,27 +841,9 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
-	conn := m.createConnectionFromSetup(ws.setup)
-
-	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
-	// connector dialled before failing.
-	if err := ws.setup.Connector(ctx, conn); err != nil {
-		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(err, conn.Shutdown()))
-	}
-
-	if !conn.IsConnected() {
-		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
-	}
-
-	m.trackConnection(conn, ws)
-
-	m.Wg.Add(1)
-	go m.Reader(ctx, conn, ws.setup.Handler)
-
-	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
-		if err := ws.setup.Authenticate(ctx, conn); err != nil {
-			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
-		}
+	conn, err := m.createConnection(ctx, ctx, ws)
+	if err != nil {
+		return err
 	}
 
 	if ws.setup.SubscriptionsNotRequired {
@@ -1152,6 +1299,8 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 			if err != nil {
 				log.Errorln(log.WebsocketMgr, err)
 			}
+		} else if m.IsConnected() {
+			m.connectOptional(ctx)
 		}
 		t.Reset(m.connectionMonitorDelay)
 	}
