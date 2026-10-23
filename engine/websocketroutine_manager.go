@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -40,6 +42,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		dataReceivers:   make(map[string]context.CancelFunc),
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -67,7 +70,6 @@ func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.connectionCancel = connectionCancel
-	m.shutdown = make(chan struct{})
 	m.mu.Unlock()
 
 	go func() {
@@ -102,12 +104,12 @@ func (m *WebsocketRoutineManager) Stop() error {
 		m.connectionCancel()
 		m.connectionCancel = nil
 	}
-	shutdown := m.shutdown
-	m.shutdown = nil
+	receivers := m.dataReceivers
+	m.dataReceivers = nil
 	m.mu.Unlock()
 
-	if shutdown != nil {
-		close(shutdown)
+	for _, cancel := range receivers {
+		cancel()
 	}
 	m.wg.Wait()
 
@@ -152,7 +154,7 @@ func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 		}
 
 		wg.Go(func() {
-			if err := m.websocketDataReceiver(ws); err != nil {
+			if err := m.websocketDataReceiver(ctx, ws); err != nil {
 				if errors.Is(err, errRoutineManagerNotStarted) && ctx.Err() != nil {
 					return
 				}
@@ -170,9 +172,71 @@ func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 	wg.Wait()
 }
 
+// registerExchange attaches an exchange loaded after the routine manager started
+// to websocket data handling and initiates its connection. Exchanges loaded
+// during startup are connected by websocketRoutine instead.
+func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exchange.IBotExchange) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+	}
+
+	if exch == nil {
+		return errExchangeIsNil
+	}
+
+	if m.state.Load() == stoppedState {
+		return nil
+	}
+
+	if !exch.SupportsWebsocket() {
+		return nil
+	}
+
+	ws, err := exch.GetWebsocket()
+	if err != nil {
+		return fmt.Errorf("%s GetWebsocket error: %w", exch.GetName(), err)
+	}
+
+	if ws == nil {
+		return errNilWebsocket
+	}
+
+	if !ws.IsEnabled() {
+		return nil
+	}
+
+	if err := m.websocketDataReceiver(ctx, ws); err != nil {
+		return err
+	}
+
+	if err := ws.Connect(ctx); err != nil {
+		m.unregisterExchange(exch.GetName())
+		return fmt.Errorf("%s websocket connect error: %w", exch.GetName(), err)
+	}
+	return nil
+}
+
+// unregisterExchange stops the data receiver associated with an unloaded
+// exchange so a replacement instance can register without duplicating receivers.
+func (m *WebsocketRoutineManager) unregisterExchange(name string) {
+	if m == nil || name == "" {
+		return
+	}
+
+	key := strings.ToLower(name)
+	m.mu.Lock()
+	cancel := m.dataReceivers[key]
+	delete(m.dataReceivers, key)
+	m.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+}
+
 // websocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) error {
+func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws *websocket.Manager) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -185,19 +249,33 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
-	m.mu.RLock()
-	shutdown := m.shutdown
-	m.mu.RUnlock()
-	if shutdown == nil {
+	receiverCtx, cancel := context.WithCancel(ctx)
+
+	m.mu.Lock()
+	if m.state.Load() == stoppedState {
+		m.mu.Unlock()
+		cancel()
 		return errRoutineManagerNotStarted
 	}
+	if m.dataReceivers == nil {
+		m.dataReceivers = make(map[string]context.CancelFunc)
+	}
+	key := strings.ToLower(ws.GetName())
+	if previous := m.dataReceivers[key]; previous != nil {
+		previous()
+	}
+	m.dataReceivers[key] = cancel
+	m.mu.Unlock()
 
 	m.wg.Go(func() {
 		for {
 			select {
-			case <-shutdown:
+			case <-receiverCtx.Done():
 				return
 			case payload := <-ws.DataHandler.C:
+				if receiverCtx.Err() != nil {
+					return
+				}
 				if payload.Data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}

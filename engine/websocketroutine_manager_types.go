@@ -33,9 +33,9 @@ type WebsocketRoutineManager struct {
 	orderManager     iOrderManager
 	syncer           iCurrencyPairSyncer
 	currencyConfig   *currency.Config
-	shutdown         chan struct{}
 	connectionCancel context.CancelFunc
 	dataHandlers     []WebsocketDataHandler
+	dataReceivers    map[string]context.CancelFunc
 	wg               sync.WaitGroup
 	mu               sync.RWMutex
 }
