@@ -20,11 +20,25 @@ func TestCurrenciesUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	require.NoError(t, err)
 	require.Equal(t, expected, unmarshalHere.Join())
+	assert.Equal(t, []string{"btc", "usd", "ltc", "bro", "things"}, unmarshalHere.Strings(), "a comma separated string should read as one code per entry")
 
 	j := []byte(`["btc","usd","ltc","bro","things"]`)
 	err = json.Unmarshal(j, &unmarshalHere)
 	require.NoError(t, err)
 	require.Len(t, unmarshalHere, 5)
+
+	for input, expected := range map[string][]string{
+		`"GT"`:            {"GT"},
+		`" GT , USDT ,,"`: {"GT", "USDT"},
+		`""`:              {},
+	} {
+		var c Currencies
+		require.NoErrorf(t, json.Unmarshal([]byte(input), &c), "Unmarshal must not error for %s", input)
+		assert.Equalf(t, expected, c.Strings(), "Unmarshal should read %s as its comma separated codes", input)
+	}
+
+	var c Currencies
+	assert.Error(t, json.Unmarshal([]byte(`"GT`), &c), "Unmarshal should error on an unterminated string")
 }
 
 func TestCurrenciesMarshalJSON(t *testing.T) {

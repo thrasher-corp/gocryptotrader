@@ -32,7 +32,7 @@ const (
 // P2PMerchantInfoResponse holds P2P merchant account information.
 type P2PMerchantInfoResponse struct {
 	IsSelf                    bool                   `json:"is_self"`
-	UserRegistrationTime      string                 `json:"user_timest"` // Formatted date, such as 2025/11/19
+	UserRegistrationDate      Date                   `json:"user_timest"`
 	CounterpartiesNumber      uint64                 `json:"counterparties_num"`
 	EmailVerified             types.Boolean          `json:"email_verified"`
 	Verified                  types.Boolean          `json:"verified"`
@@ -77,7 +77,7 @@ type GetCounterpartyInfoRequest struct {
 
 // P2PCounterpartyInfoResponse holds P2P counterparty user information.
 type P2PCounterpartyInfoResponse struct {
-	UserRegistrationTime      string        `json:"user_timest"` // Formatted date, such as 2025/11/19
+	UserRegistrationDate      Date          `json:"user_timest"`
 	EmailVerified             types.Boolean `json:"email_verified"`
 	Verified                  types.Boolean `json:"verified"`
 	HasPhone                  types.Boolean `json:"has_phone"`
@@ -173,12 +173,12 @@ func (r *PendingP2POrderRequest) MarshalJSON() ([]byte, error) {
 	type Alias PendingP2POrderRequest
 	return json.Marshal(&struct {
 		*Alias
-		StartTime int64 `json:"start_time,omitempty"`
-		EndTime   int64 `json:"end_time,omitempty"`
+		StartTime uint64 `json:"start_time,omitempty"`
+		EndTime   uint64 `json:"end_time,omitempty"`
 	}{
 		Alias:     (*Alias)(r),
-		StartTime: unixSecondsOrZero(r.StartTime),
-		EndTime:   unixSecondsOrZero(r.EndTime),
+		StartTime: unixSeconds(r.StartTime),
+		EndTime:   unixSeconds(r.EndTime),
 	})
 }
 
@@ -201,26 +201,18 @@ func (r *P2PCompletedOrderRequest) MarshalJSON() ([]byte, error) {
 	type Alias P2PCompletedOrderRequest
 	aux := &struct {
 		*Alias
-		StartTime    int64 `json:"start_time,omitempty"`
-		EndTime      int64 `json:"end_time,omitempty"`
-		QueryDispute uint8 `json:"query_dispute,omitempty"`
+		StartTime    uint64 `json:"start_time,omitempty"`
+		EndTime      uint64 `json:"end_time,omitempty"`
+		QueryDispute uint8  `json:"query_dispute,omitempty"`
 	}{
 		Alias:     (*Alias)(r),
-		StartTime: unixSecondsOrZero(r.StartTime),
-		EndTime:   unixSecondsOrZero(r.EndTime),
+		StartTime: unixSeconds(r.StartTime),
+		EndTime:   unixSeconds(r.EndTime),
 	}
 	if r.QueryDispute {
 		aux.QueryDispute = 1
 	}
 	return json.Marshal(aux)
-}
-
-// unixSecondsOrZero returns t as Unix seconds, or 0 for an unset time so it can be omitted
-func unixSecondsOrZero(t time.Time) int64 {
-	if t.IsZero() {
-		return 0
-	}
-	return t.Unix()
 }
 
 // P2POrderListResponse represents a P2P transactions detail list
@@ -233,7 +225,7 @@ type P2POrderListResponse struct {
 
 // P2PTransactionTimeMarker represents an order countdown
 type P2PTransactionTimeMarker struct {
-	OrderCountdownSeconds uint64 `json:"od_time"`
+	OrderCountdown types.DurationSeconds `json:"od_time"`
 }
 
 // P2POrderInfo represents a P2P order list item
@@ -258,7 +250,7 @@ type P2POrderInfo struct {
 	HidePayment          types.Boolean            `json:"hide_payment"`
 	SelectedPayType      string                   `json:"sel_paytype"`
 	PayOthers            []*P2POtherPaymentMethod `json:"pay_others"`
-	CountdownSeconds     uint64                   `json:"cd_time"`
+	Countdown            types.DurationSeconds    `json:"cd_time"`
 	OrderType            uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
 	OrderTags            []string                 `json:"order_tag"`
 	ConvertInfo          *P2PConvertInfo          `json:"convert_info"`
@@ -266,54 +258,54 @@ type P2POrderInfo struct {
 
 // P2POrderDetailResponse represents a P2P order detail
 type P2POrderDetailResponse struct {
-	IsSell                  types.Boolean            `json:"is_sell"`
-	TransactionID           uint64                   `json:"txid"`
-	OrderID                 uint64                   `json:"orderid"`
-	CreationTime            types.Time               `json:"timest"`
-	PaymentDeadline         types.Time               `json:"last_pay_time"`
-	RemainingPaymentSeconds int64                    `json:"remain_pay_time"` // Zero or negative once payment is overdue
-	CurrencyType            currency.Code            `json:"currency_type"`
-	WantType                currency.Code            `json:"want_type"`
-	FiatSymbol              string                   `json:"symbol"`
-	Rate                    types.Number             `json:"rate"`
-	Amount                  types.Number             `json:"amount"`
-	Total                   types.Number             `json:"total"`
-	Status                  string                   `json:"status"`
-	ReasonID                string                   `json:"reason_id"`
-	ReasonDescription       string                   `json:"reason_desc"`
-	CancelTime              string                   `json:"cancel_time"` // Kept as sent, since Gate documents no format
-	InAppeal                types.Boolean            `json:"in_appeal"`
-	DisputeTime             types.Time               `json:"dispute_time"`
-	Cancelable              types.Boolean            `json:"cancelable"`
-	HidePayment             types.Boolean            `json:"hide_payment"`
-	TradeTips               string                   `json:"trade_tips"`
-	ShowBank                types.Boolean            `json:"show_bank"`
-	BankName                string                   `json:"bankname"`
-	BankBranch              string                   `json:"bankbranch"`
-	BankAccount             string                   `json:"bankid"` // Possibly masked
-	BankHolderRealName      string                   `json:"bank_holder_realname"`
-	ShowAlipay              types.Boolean            `json:"show_ali"`
-	AlipayName              string                   `json:"aliname"`
-	HasAlipayCode           types.Boolean            `json:"is_alicode"`
-	ShowWechat              types.Boolean            `json:"show_wechat"`
-	WechatName              string                   `json:"wename"`
-	ShowOthers              types.Boolean            `json:"show_others"`
-	PayOthers               []*P2POtherPaymentMethod `json:"pay_others"`
-	SelectedPayType         string                   `json:"sel_paytype"`
-	CounterpartyUID         string                   `json:"its_uid"`
-	CounterpartyNickname    string                   `json:"its_nickname"`
-	CounterpartyRealName    string                   `json:"its_realname"`
-	HaveTraded              types.Boolean            `json:"have_traded"`
-	AppealAllowCancel       types.Boolean            `json:"appeal_allow_cancel"`
-	AppealVerdictHasOpen    string                   `json:"appeal_verdict_has_open"`
-	UnreadMessages          uint64                   `json:"im_unread"`
-	PaymentVoucherURLs      []string                 `json:"payment_voucher_url"`
-	PaidTime                types.Time               `json:"timest_paid"`
-	OwnRealName             string                   `json:"own_realname"`
-	OrderType               uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
-	IsShowReceive           types.Boolean            `json:"is_show_receive"`
-	ShowSellerContactInfo   bool                     `json:"show_seller_contact_info"`
-	SupportedPayTypes       []string                 `json:"supported_pay_types"`
+	IsSell                types.Boolean            `json:"is_sell"`
+	TransactionID         uint64                   `json:"txid"`
+	OrderID               uint64                   `json:"orderid"`
+	CreationTime          types.Time               `json:"timest"`
+	PaymentDeadline       types.Time               `json:"last_pay_time"`
+	RemainingPaymentTime  types.DurationSeconds    `json:"remain_pay_time"` // Zero or negative once payment is overdue
+	CurrencyType          currency.Code            `json:"currency_type"`
+	WantType              currency.Code            `json:"want_type"`
+	FiatSymbol            string                   `json:"symbol"`
+	Rate                  types.Number             `json:"rate"`
+	Amount                types.Number             `json:"amount"`
+	Total                 types.Number             `json:"total"`
+	Status                string                   `json:"status"`
+	ReasonID              string                   `json:"reason_id"`
+	ReasonDescription     string                   `json:"reason_desc"`
+	CancelTime            string                   `json:"cancel_time"` // Kept as sent, since Gate documents no format
+	InAppeal              types.Boolean            `json:"in_appeal"`
+	DisputeTime           types.Time               `json:"dispute_time"`
+	Cancelable            types.Boolean            `json:"cancelable"`
+	HidePayment           types.Boolean            `json:"hide_payment"`
+	TradeTips             string                   `json:"trade_tips"`
+	ShowBank              types.Boolean            `json:"show_bank"`
+	BankName              string                   `json:"bankname"`
+	BankBranch            string                   `json:"bankbranch"`
+	BankAccount           string                   `json:"bankid"` // Possibly masked
+	BankHolderRealName    string                   `json:"bank_holder_realname"`
+	ShowAlipay            types.Boolean            `json:"show_ali"`
+	AlipayName            string                   `json:"aliname"`
+	HasAlipayCode         types.Boolean            `json:"is_alicode"`
+	ShowWechat            types.Boolean            `json:"show_wechat"`
+	WechatName            string                   `json:"wename"`
+	ShowOthers            types.Boolean            `json:"show_others"`
+	PayOthers             []*P2POtherPaymentMethod `json:"pay_others"`
+	SelectedPayType       string                   `json:"sel_paytype"`
+	CounterpartyUID       string                   `json:"its_uid"`
+	CounterpartyNickname  string                   `json:"its_nickname"`
+	CounterpartyRealName  string                   `json:"its_realname"`
+	HaveTraded            types.Boolean            `json:"have_traded"`
+	AppealAllowCancel     types.Boolean            `json:"appeal_allow_cancel"`
+	AppealVerdictHasOpen  string                   `json:"appeal_verdict_has_open"`
+	UnreadMessages        uint64                   `json:"im_unread"`
+	PaymentVoucherURLs    []string                 `json:"payment_voucher_url"`
+	PaidTime              types.Time               `json:"timest_paid"`
+	OwnRealName           string                   `json:"own_realname"`
+	OrderType             uint8                    `json:"order_type"` // 1 standard, 2 partner, 3 flash swap or 4 Web3
+	IsShowReceive         types.Boolean            `json:"is_show_receive"`
+	ShowSellerContactInfo bool                     `json:"show_seller_contact_info"`
+	SupportedPayTypes     []string                 `json:"supported_pay_types"`
 }
 
 // P2POtherPaymentMethod represents a payment method other than bank, Alipay or WeChat. Order lists only populate
@@ -401,7 +393,7 @@ type PublishP2PAdRequest struct {
 	UserCountryLimit      string        `json:"user_country_limit,omitempty"` // -1 unrestricted
 	UserOrderLimit        types.Number  `json:"user_order_limit,omitempty"`   // -1 unlimited
 	RateReferenceID       string        `json:"rateReferenceId,omitempty"`    // 1 platform, 2 Gate or 3 spot reference
-	RateOffset            types.Number  `json:"rateOffset,omitempty"`         // Absolute percentage, 0.5 being 0.5%
+	RateOffsetPercentage  types.Number  `json:"rateOffset,omitempty"`         // 0.5 being 0.5%
 	FloatTrend            string        `json:"float_trend,omitempty"`        // 0 markup or 1 markdown
 	TeamPaymentUID        string        `json:"team_payment_uid,omitempty"`
 }
@@ -595,12 +587,12 @@ func (r *GetP2PChatHistoryRequest) MarshalJSON() ([]byte, error) {
 	type Alias GetP2PChatHistoryRequest
 	return json.Marshal(&struct {
 		*Alias
-		LastReceived  int64 `json:"lastreceived,omitempty"`
-		FirstReceived int64 `json:"firstreceived,omitempty"`
+		LastReceived  uint64 `json:"lastreceived,omitempty"`
+		FirstReceived uint64 `json:"firstreceived,omitempty"`
 	}{
 		Alias:         (*Alias)(r),
-		LastReceived:  unixSecondsOrZero(r.LastReceived),
-		FirstReceived: unixSecondsOrZero(r.FirstReceived),
+		LastReceived:  unixSeconds(r.LastReceived),
+		FirstReceived: unixSeconds(r.FirstReceived),
 	})
 }
 

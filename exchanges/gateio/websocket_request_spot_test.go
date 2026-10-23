@@ -164,6 +164,29 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
+	// Gate takes up to 10 orders for each of up to 4 currency pairs in one batch
+	batch := make([]*CreateOrderRequest, 11)
+	for i := range batch {
+		batch[i] = &CreateOrderRequest{CurrencyPair: BTCUSDT, Type: "limit", Side: "buy", Amount: 1, Price: 1}
+	}
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), batch...)
+	require.ErrorIs(t, err, errTooManyBatchOrders, "WebsocketSpotSubmitOrders must refuse more than 10 orders for a currency pair")
+	for i, base := range []currency.Code{currency.ETH, currency.LTC, currency.XRP, currency.SOL} {
+		batch[i] = &CreateOrderRequest{CurrencyPair: currency.NewPairWithDelimiter(base.String(), "USDT", currency.UnderscoreDelimiter), Type: "limit", Side: "buy", Amount: 1, Price: 1}
+	}
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), batch[:5]...)
+	require.ErrorIs(t, err, errTooManyBatchOrders, "WebsocketSpotSubmitOrders must refuse more than 4 currency pairs")
+	// The limits themselves pass the check, so an unconnected instance fails only at sending
+	unconnected := new(Exchange)
+	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+	_, err = unconnected.WebsocketSpotSubmitOrders(t.Context(), batch[:4]...)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSpotSubmitOrders should allow 4 currency pairs and fail only at sending")
+	for i := range batch {
+		batch[i] = &CreateOrderRequest{CurrencyPair: BTCUSDT, Type: "limit", Side: "buy", Amount: 1, Price: 1}
+	}
+	_, err = unconnected.WebsocketSpotSubmitOrders(t.Context(), batch[:10]...)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSpotSubmitOrders should allow 10 orders for a currency pair and fail only at sending")
+
 	ex := newWsAPITestExchange(t, asset.Spot, canManipulateRealOrders)
 	first := &CreateOrderRequest{Text: "t-my-custom-id", CurrencyPair: BTCUSDT, Type: "limit", Account: asset.Spot, Side: "buy", Amount: 1, Price: 1}
 	second := &CreateOrderRequest{Text: "t-my-other-id", CurrencyPair: BTCUSDT, Type: "limit", Account: asset.Spot, Side: "sell", Amount: 2, Price: 3}
@@ -355,8 +378,7 @@ func newExchangeWithWebsocket(tb testing.TB, a asset.Item) *Exchange {
 	if apiCredentials.Key == "" || apiCredentials.Secret == "" {
 		tb.Skip()
 	}
-	e := new(Exchange)
-	require.NoError(tb, testexch.Setup(e), "Test instance Setup must not error")
+	e := newTestExchange(tb)
 	testexch.UpdatePairsOnce(tb, e)
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true

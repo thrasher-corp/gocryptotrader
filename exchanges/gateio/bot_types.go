@@ -33,15 +33,15 @@ const (
 
 // GetBotStrategyRecommendationsRequest holds parameters for the AIHub strategy recommendation endpoint.
 type GetBotStrategyRecommendationsRequest struct {
-	Market                  string       `json:"market,omitempty"`
-	StrategyType            string       `json:"strategy_type,omitempty"`
-	Direction               string       `json:"direction,omitempty"`
-	InvestAmount            types.Number `json:"invest_amount,omitempty"`
-	Scene                   string       `json:"scene,omitempty"`
-	RefreshRecommendationID string       `json:"refresh_recommendation_id,omitempty"`
-	Limit                   uint64       `json:"limit,omitempty"`
-	MaxDrawdownLTE          string       `json:"max_drawdown_lte,omitempty"`
-	BacktestAPRGTE          string       `json:"backtest_apr_gte,omitempty"`
+	Market                        string       `json:"market,omitempty"`
+	StrategyType                  string       `json:"strategy_type,omitempty"`
+	Direction                     string       `json:"direction,omitempty"`
+	InvestAmount                  types.Number `json:"invest_amount,omitempty"`
+	Scene                         string       `json:"scene,omitempty"`
+	RefreshRecommendationID       string       `json:"refresh_recommendation_id,omitempty"`
+	Limit                         uint64       `json:"limit,omitempty"`
+	MaxDrawdownLessThanOrEqual    string       `json:"max_drawdown_lte,omitempty"`
+	BacktestAPRGreaterThanOrEqual string       `json:"backtest_apr_gte,omitempty"`
 }
 
 // BotRecommendation holds a single strategy recommendation.
@@ -255,12 +255,12 @@ func (b *BotPortfolioRunningResponse) AsError() error {
 
 // BotPortfolioBaseInfo holds base information about a portfolio strategy.
 type BotPortfolioBaseInfo struct {
-	StrategyName    string       `json:"strategy_name"`
-	CreatedAt       string       `json:"created_at"`       // Kept as sent, since Gate documents no format
-	RunningDuration uint64       `json:"running_duration"` // Seconds
-	InvestAmount    types.Number `json:"invest_amount"`
-	TotalProfit     types.Number `json:"total_profit"`
-	ProfitRate      types.Number `json:"profit_rate"`
+	StrategyName    string                `json:"strategy_name"`
+	CreatedAt       string                `json:"created_at"` // Kept as sent, since Gate documents no format
+	RunningDuration types.DurationSeconds `json:"running_duration"`
+	InvestAmount    types.Number          `json:"invest_amount"`
+	TotalProfit     types.Number          `json:"total_profit"`
+	ProfitRate      types.Number          `json:"profit_rate"`
 }
 
 // BotPortfolioMetrics holds the metrics for a portfolio strategy detail.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -51,10 +52,10 @@ type StockSymbol struct {
 	ExchangeDescription    string                    `json:"exchange_desc"`
 	QuoteCurrency          currency.Code             `json:"quote_currency"`
 	QuoteCurrencyPrecision uint64                    `json:"quote_currency_precision"`
-	FXRate                 types.Number              `json:"fx_rate"` // Quote currency to USD
+	QuoteCurrencyUSDRate   types.Number              `json:"fx_rate"`
 	SymbolDescription      string                    `json:"symbol_desc"`
 	Category               string                    `json:"category"`
-	AssetType              string                    `json:"asset_type"`   // STOCK or ETF
+	AssetType              asset.Item                `json:"asset_type"`
 	TradeStatus            string                    `json:"trade_status"` // pre_market, open, post_market, closed or gt_lp
 	TradeMode              uint64                    `json:"trade_mode"`
 	OrderFillTiming        uint64                    `json:"order_fill_timing"` // 1: immediate, 2: after pre-market opens, 3: after the regular session opens
@@ -91,10 +92,10 @@ type StockSymbolDetail struct {
 	ExchangeDescription    string                    `json:"exchange_desc"`
 	QuoteCurrency          currency.Code             `json:"quote_currency"`
 	QuoteCurrencyPrecision uint64                    `json:"quote_currency_precision"`
-	FXRate                 types.Number              `json:"fx_rate"` // Quote currency to USD
+	QuoteCurrencyUSDRate   types.Number              `json:"fx_rate"`
 	SymbolDescription      string                    `json:"symbol_desc"`
 	Category               string                    `json:"category"`
-	AssetType              string                    `json:"asset_type"` // STOCK or ETF
+	AssetType              asset.Item                `json:"asset_type"`
 	SettlementCurrency     currency.Code             `json:"settlement_currency"`
 	MaxOrderVolume         types.Number              `json:"max_order_volume"`
 	StepOrderVolume        types.Number              `json:"step_order_volume"`
@@ -187,31 +188,31 @@ type StockCreateOrderResponse struct {
 
 // StockOpenOrderResponse holds an open stock order
 type StockOpenOrderResponse struct {
-	OrderID             string        `json:"order_id"`
-	Symbol              string        `json:"symbol"`
-	Exchange            string        `json:"exchange"`
-	QuoteCurrency       currency.Code `json:"quote_currency"`
-	FXRate              types.Number  `json:"fx_rate"` // Quote currency to USD
-	SymbolDescription   string        `json:"symbol_desc"`
-	TradeStatus         string        `json:"trade_status"` // pre_market, open, post_market, closed or gt_lp
-	TradeMode           uint64        `json:"trade_mode"`
-	PriceType           string        `json:"price_type"` // market or limit
-	Side                uint64        `json:"side"`       // 1: sell, 2: buy
-	Status              uint64        `json:"status"`
-	Volume              types.Number  `json:"volume"`
-	FillVolume          types.Number  `json:"fill_volume"`
-	Price               types.Number  `json:"price"`
-	TimeSetup           types.Time    `json:"time_setup"`
-	TimeUpdate          types.Time    `json:"time_update"`
-	MaxOrderVolume      types.Number  `json:"max_order_volume"`
-	StepOrderVolume     types.Number  `json:"step_order_volume"`
-	MinOrderVolume      types.Number  `json:"min_order_volume"`
-	PricePrecision      uint64        `json:"price_precision"`
-	PriceProtection     types.Number  `json:"price_protection"`
-	SellPriceProtection types.Number  `json:"sell_price_protection"`
-	BuyPriceProtection  types.Number  `json:"buy_price_protection"`
-	CommissionRate      types.Number  `json:"commission_rate"`
-	SlippageRate        types.Number  `json:"slippage_rate"`
+	OrderID              string        `json:"order_id"`
+	Symbol               string        `json:"symbol"`
+	Exchange             string        `json:"exchange"`
+	QuoteCurrency        currency.Code `json:"quote_currency"`
+	QuoteCurrencyUSDRate types.Number  `json:"fx_rate"`
+	SymbolDescription    string        `json:"symbol_desc"`
+	TradeStatus          string        `json:"trade_status"` // pre_market, open, post_market, closed or gt_lp
+	TradeMode            uint64        `json:"trade_mode"`
+	PriceType            string        `json:"price_type"` // market or limit
+	Side                 uint64        `json:"side"`       // 1: sell, 2: buy
+	Status               uint64        `json:"status"`
+	Volume               types.Number  `json:"volume"`
+	FillVolume           types.Number  `json:"fill_volume"`
+	Price                types.Number  `json:"price"`
+	TimeSetup            types.Time    `json:"time_setup"`
+	TimeUpdate           types.Time    `json:"time_update"`
+	MaxOrderVolume       types.Number  `json:"max_order_volume"`
+	StepOrderVolume      types.Number  `json:"step_order_volume"`
+	MinOrderVolume       types.Number  `json:"min_order_volume"`
+	PricePrecision       uint64        `json:"price_precision"`
+	PriceProtection      types.Number  `json:"price_protection"`
+	SellPriceProtection  types.Number  `json:"sell_price_protection"`
+	BuyPriceProtection   types.Number  `json:"buy_price_protection"`
+	CommissionRate       types.Number  `json:"commission_rate"`
+	SlippageRate         types.Number  `json:"slippage_rate"`
 }
 
 // GetStockOrderHistoryRequest holds the filters for GetStockOrderHistory
@@ -233,26 +234,26 @@ type StockOrderStatusDetail struct {
 
 // StockHistoricalOrder holds a stock order from the order history
 type StockHistoricalOrder struct {
-	OrderID           string                  `json:"order_id"`
-	Symbol            string                  `json:"symbol"`
-	Exchange          string                  `json:"exchange"`
-	QuoteCurrency     currency.Code           `json:"quote_currency"`
-	FXRate            types.Number            `json:"fx_rate"` // Quote currency to USD
-	SymbolDescription string                  `json:"symbol_desc"`
-	PriceType         string                  `json:"price_type"` // market or limit
-	Status            uint64                  `json:"status"`
-	StatusDescription string                  `json:"status_desc"`
-	StatusDetail      *StockOrderStatusDetail `json:"status_detail"`
-	FinishAs          uint64                  `json:"finish_as"`
-	Side              uint64                  `json:"side"` // 1: sell, 2: buy
-	TimeInForce       string                  `json:"time_in_force"`
-	Volume            types.Number            `json:"volume"`
-	FillVolume        types.Number            `json:"fill_volume"`
-	Price             types.Number            `json:"price"`
-	AverageFillPrice  types.Number            `json:"avg_fill_price"`
-	Commission        types.Number            `json:"commission"`
-	TimeSetup         types.Time              `json:"time_setup"`
-	TimeDone          types.Time              `json:"time_done"`
+	OrderID              string                  `json:"order_id"`
+	Symbol               string                  `json:"symbol"`
+	Exchange             string                  `json:"exchange"`
+	QuoteCurrency        currency.Code           `json:"quote_currency"`
+	QuoteCurrencyUSDRate types.Number            `json:"fx_rate"`
+	SymbolDescription    string                  `json:"symbol_desc"`
+	PriceType            string                  `json:"price_type"` // market or limit
+	Status               uint64                  `json:"status"`
+	StatusDescription    string                  `json:"status_desc"`
+	StatusDetail         *StockOrderStatusDetail `json:"status_detail"`
+	FinishAs             uint64                  `json:"finish_as"`
+	Side                 uint64                  `json:"side"` // 1: sell, 2: buy
+	TimeInForce          string                  `json:"time_in_force"`
+	Volume               types.Number            `json:"volume"`
+	FillVolume           types.Number            `json:"fill_volume"`
+	Price                types.Number            `json:"price"`
+	AverageFillPrice     types.Number            `json:"avg_fill_price"`
+	Commission           types.Number            `json:"commission"`
+	TimeSetup            types.Time              `json:"time_setup"`
+	TimeDone             types.Time              `json:"time_done"`
 }
 
 // StockOrderHistoryResponse holds a page of the stock order history
@@ -287,7 +288,7 @@ type StockPositionResponse struct {
 	Exchange                   string        `json:"exchange"`
 	QuoteCurrency              currency.Code `json:"quote_currency"`
 	QuoteCurrencyPrecision     uint64        `json:"quote_currency_precision"`
-	FXRate                     types.Number  `json:"fx_rate"`      // Quote currency to USD
+	QuoteCurrencyUSDRate       types.Number  `json:"fx_rate"`
 	TradeStatus                string        `json:"trade_status"` // pre_market, open, post_market, closed or gt_lp
 	SymbolDescription          string        `json:"symbol_desc"`
 	PositionPNL                types.Number  `json:"position_pnl"`

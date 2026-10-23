@@ -11,7 +11,7 @@ type StakingCoinResponse struct {
 	ProductID           uint64                   `json:"pid"`
 	ProductType         uint8                    `json:"productType"` // 0 voucher, 1 locked position, 2 US Treasury bond
 	IsDeFi              types.Boolean            `json:"isDefi"`
-	Currency            string                   `json:"currency"` // Comma separated when the product stakes several currencies
+	Currencies          currency.Currencies      `json:"currency"`
 	EstimatedAPR        types.Number             `json:"estimateApr"`
 	MinStakeAmount      types.Number             `json:"minStakeAmount"`
 	MaxStakeAmount      types.Number             `json:"maxStakeAmount"`
@@ -120,16 +120,16 @@ type StakingDividendRecordsResponse struct {
 
 // StakingAssetItemResponse holds an on-chain staking position
 type StakingAssetItemResponse struct {
-	ProductID      uint64       `json:"pid"`
-	MortgageCoin   string       `json:"mortgage_coin"` // Comma separated when the product stakes several currencies
-	MortgageAmount types.Number `json:"mortgage_amount"`
-	CreateTime     types.Time   `json:"createStamp"`
-	ExtraIncome    types.Number `json:"extra_income"`
-	FreezeAmount   types.Number `json:"freeze_amount"`
-	MoveIncome     types.Number `json:"move_income"`
-	Type           uint8        `json:"type"`   // 0 voucher, 1 locked position, 2 US Treasury bond
-	Status         uint8        `json:"status"` // 1 listed, 2 delisted
-	IncomeTotal    types.Number `json:"income_total"`
+	ProductID          uint64              `json:"pid"`
+	MortgageCurrencies currency.Currencies `json:"mortgage_coin"`
+	MortgageAmount     types.Number        `json:"mortgage_amount"`
+	CreateTime         types.Time          `json:"createStamp"`
+	ExtraIncome        types.Number        `json:"extra_income"`
+	FreezeAmount       types.Number        `json:"freeze_amount"`
+	MoveIncome         types.Number        `json:"move_income"`
+	Type               uint8               `json:"type"`   // 0 voucher, 1 locked position, 2 US Treasury bond
+	Status             uint8               `json:"status"` // 1 listed, 2 delisted
+	IncomeTotal        types.Number        `json:"income_total"`
 	// YesterdayIncomeMulti is kept raw because the API documents the array without describing its items
 	YesterdayIncomeMulti []json.RawMessage    `json:"yesterday_income_multi"`
 	RewardCoins          []*StakingRewardCoin `json:"reward_coins"`

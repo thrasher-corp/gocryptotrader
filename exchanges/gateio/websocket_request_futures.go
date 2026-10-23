@@ -35,10 +35,13 @@ func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item
 	return resps[0], err
 }
 
-// WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
+// WebsocketFuturesSubmitOrders submits up to 10 orders of one asset via the websocket connection in one request
 func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*FuturesOrderCreateRequest) ([]*WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
+	}
+	if len(orders) > 10 {
+		return nil, fmt.Errorf("%w: %d orders, while Gate takes at most 10 in one request", errTooManyOrderRequest, len(orders))
 	}
 	for _, o := range orders {
 		if err := o.validate(false); err != nil {

@@ -139,7 +139,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         },
         Subscriber:               e.FuturesSubscribe,
         Unsubscriber:             e.FuturesUnsubscribe,
-        GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
+        GenerateSubscriptions:    func(ctx context.Context) (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(ctx, currency.USDT) },
         Connector:                e.WebsocketFuturesConnect,
     }); err != nil {
         return err

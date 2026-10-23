@@ -10,7 +10,37 @@ import (
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"GateIO"}, new(v18.Version).Exchanges())
+	assert.Equal(t, []string{"*"}, new(v18.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
+}
+
+func TestMatchesGateIOInAnyCase(t *testing.T) {
+	t.Parallel()
+	const (
+		oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+		newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+	)
+	for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
+		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+
+		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
+		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+	}
+	for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
+		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+		assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+
+		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
+		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+		assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+	}
 }
 
 func TestUpgradeExchange(t *testing.T) {

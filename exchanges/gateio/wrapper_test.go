@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -137,12 +136,6 @@ func TestContractOpenInterest(t *testing.T) {
 			assert.InDelta(t, tc.exp, tc.contract.openInterest(), 1e-6, "openInterest should return the position sized in the quote currency")
 		})
 	}
-}
-
-func TestFuturesContractFundingInterval(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, 8*time.Hour, (&FuturesContractResponse{FundingInterval: 28800}).fundingInterval(), "fundingInterval should convert Gate's seconds")
-	assert.Equal(t, time.Duration(math.MaxInt64).Truncate(time.Second), (&FuturesContractResponse{FundingInterval: math.MaxUint64}).fundingInterval(), "fundingInterval should cap a value a duration cannot hold")
 }
 
 // TestFuturesContractOpenInterestFromResponse pins contractTypeInverse and the type tag against a
@@ -837,7 +830,7 @@ func TestSetDefaultsMarginWebsocketSupport(t *testing.T) {
 	assert.True(t, ex.IsAssetWebsocketSupported(asset.Spot), "SetDefaults should keep spot websocket support")
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ex.generateSubscriptionsSpot()
+	subs, err := ex.generateSubscriptionsSpot(t.Context())
 	require.NoError(t, err, "generateSubscriptionsSpot must not error")
 	require.NotEmpty(t, subs, "generateSubscriptionsSpot must generate subscriptions")
 	for _, s := range subs {
@@ -1215,4 +1208,65 @@ func TestSetup(t *testing.T) {
 	ex.SetDefaults()
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for a disabled exchange")
 	assert.False(t, ex.IsEnabled(), "Setup should leave a disabled exchange disabled")
+}
+
+func TestSetupSandbox(t *testing.T) {
+	t.Parallel()
+	testnet := map[exchange.URL]string{
+		exchange.RestSpot:              "https://api-testnet.gateapi.io",
+		exchange.RestFutures:           "https://api-testnet.gateapi.io",
+		exchange.WebsocketSpot:         "wss://ws-testnet.gate.com/v4/ws/spot",
+		exchange.WebsocketUSDTMargined: "wss://ws-testnet.gate.com/v4/ws/futures/usdt",
+		exchange.WebsocketCoinMargined: "wss://fx-ws-testnet.gateio.ws/v4/ws/btc",
+		exchange.WebsocketFutures:      "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt",
+		exchange.WebsocketOptions:      "wss://ws-testnet.gate.com/v4/ws/options",
+		// Neither has a testnet form, so useSandbox leaves both as they are
+		exchange.RestSpotSupplementary: "https://fx-api-testnet.gateio.ws",
+		exchange.EdgeCase1:             "https://www.gate.com/apiw/v2/",
+	}
+	ex := new(Exchange)
+	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = true }), "SetupWithConfig must not error")
+	for kind, exp := range testnet {
+		got, err := ex.API.Endpoints.GetURL(kind)
+		require.NoErrorf(t, err, "GetURL must not error for %s", kind)
+		assert.Equalf(t, exp, got, "Setup should move %s to Gate's testnet when useSandbox is set", kind)
+	}
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.ElementsMatch(t, []string{
+		testnet[exchange.WebsocketSpot], testnet[exchange.WebsocketUSDTMargined], testnet[exchange.WebsocketCoinMargined],
+		testnet[exchange.WebsocketFutures], testnet[exchange.WebsocketOptions],
+	}, urls, "Setup should connect every websocket to Gate's testnet when useSandbox is set")
+
+	// An endpoint the config sets keeps its value, so a proxy or a hand-set testnet URL still works
+	const proxy = "https://gate-proxy.example.com"
+	ex = new(Exchange)
+	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
+		c.UseSandbox = true
+		c.API.Endpoints = map[string]string{exchange.RestSpot.String(): proxy}
+	}), "SetupWithConfig must not error")
+	got, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not error")
+	assert.Equal(t, proxy, got, "Setup should keep a configured endpoint when useSandbox is set")
+	got, err = ex.API.Endpoints.GetURL(exchange.RestFutures)
+	require.NoError(t, err, "GetURL must not error")
+	assert.Equal(t, testnet[exchange.RestFutures], got, "Setup should still move the default endpoints when another is configured")
+
+	// A configured endpoint that differs from the default only by a trailing slash is still the default
+	ex = new(Exchange)
+	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
+		c.UseSandbox = true
+		c.API.Endpoints = map[string]string{exchange.RestSpot.String(): gateioTradeURL + "/", exchange.WebsocketSpot.String(): "wss://api.gateio.ws/ws/v4"}
+	}), "SetupWithConfig must not error")
+	for _, kind := range []exchange.URL{exchange.RestSpot, exchange.WebsocketSpot} {
+		got, err = ex.API.Endpoints.GetURL(kind)
+		require.NoErrorf(t, err, "GetURL must not error for %s", kind)
+		assert.Equalf(t, testnet[kind], got, "Setup should move %s to the testnet when it differs from the default only by a trailing slash", kind)
+	}
+
+	ex = new(Exchange)
+	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = false }), "SetupWithConfig must not error")
+	got, err = ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not error")
+	assert.Equal(t, gateioTradeURL, got, "Setup should keep live trading endpoints when useSandbox is not set")
 }

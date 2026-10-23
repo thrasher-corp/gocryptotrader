@@ -31,7 +31,7 @@ func TestGetP2PAccountInfo(t *testing.T) {
 	if mockTests {
 		exp := &P2PMerchantInfoResponse{
 			IsSelf:                    true,
-			UserRegistrationTime:      "2025/11/19",
+			UserRegistrationDate:      Date(time.Date(2025, 11, 19, 0, 0, 0, 0, time.UTC)),
 			CounterpartiesNumber:      12,
 			EmailVerified:             true,
 			Verified:                  true,
@@ -78,7 +78,7 @@ func TestGetP2PCounterpartyInfo(t *testing.T) {
 	require.NoError(t, err, "GetP2PCounterpartyInfo must not error")
 	if mockTests {
 		exp := &P2PCounterpartyInfoResponse{
-			UserRegistrationTime:      "2025/11/19",
+			UserRegistrationDate:      Date(time.Date(2025, 11, 19, 0, 0, 0, 0, time.UTC)),
 			EmailVerified:             true,
 			Verified:                  true,
 			HasPhone:                  true,
@@ -241,7 +241,7 @@ func TestGetPendingP2POrders(t *testing.T) {
 				CurrencyType:         currency.USDT,
 				WantType:             currency.USD,
 				SelectedPayType:      "bank",
-				CountdownSeconds:     600,
+				Countdown:            types.DurationSeconds(10 * time.Minute),
 				OrderType:            3,
 				OrderTags:            []string{"fast"},
 				ConvertInfo: &P2PConvertInfo{
@@ -257,19 +257,13 @@ func TestGetPendingP2POrders(t *testing.T) {
 					Status:              "finished",
 				},
 			}},
-			TransactionTime: []*P2PTransactionTimeMarker{{OrderCountdownSeconds: 600}},
+			TransactionTime: []*P2PTransactionTimeMarker{{OrderCountdown: types.DurationSeconds(10 * time.Minute)}},
 			Count:           1,
 		}
 		assert.Equal(t, exp, result, "GetPendingP2POrders should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetPendingP2POrders should return an order list")
-}
-
-func TestUnixSecondsOrZero(t *testing.T) {
-	t.Parallel()
-	assert.Zero(t, unixSecondsOrZero(time.Time{}), "an unset time should be zero so it is omitted")
-	assert.Equal(t, int64(1764547200), unixSecondsOrZero(time.Unix(1764547200, 0)), "a set time should be Unix seconds")
 }
 
 func TestPendingP2POrderRequestMarshalJSON(t *testing.T) {
@@ -369,28 +363,28 @@ func TestGetP2POrderDetails(t *testing.T) {
 	require.NoError(t, err, "GetP2POrderDetails must not error")
 	if mockTests {
 		exp := &P2POrderDetailResponse{
-			IsSell:                  true,
-			TransactionID:           p2pTestTransactionID,
-			OrderID:                 p2pTestAdvertisementID,
-			CreationTime:            types.Time(time.Unix(1767530241, 0)),
-			PaymentDeadline:         types.Time(time.Unix(1767531441, 0)),
-			RemainingPaymentSeconds: -30,
-			CurrencyType:            currency.USDT,
-			WantType:                currency.USD,
-			FiatSymbol:              "$",
-			Rate:                    1.23,
-			Amount:                  3,
-			Total:                   3.69,
-			Status:                  "paid",
-			DisputeTime:             types.Time(time.Unix(1767531441, 0)),
-			Cancelable:              true,
-			TradeTips:               "Please pay from an account under your real name",
-			ShowBank:                true,
-			BankName:                "Demo Bank",
-			BankBranch:              "Main Branch",
-			BankAccount:             "****1234",
-			BankHolderRealName:      "Merchant Demo",
-			ShowOthers:              true,
+			IsSell:               true,
+			TransactionID:        p2pTestTransactionID,
+			OrderID:              p2pTestAdvertisementID,
+			CreationTime:         types.Time(time.Unix(1767530241, 0)),
+			PaymentDeadline:      types.Time(time.Unix(1767531441, 0)),
+			RemainingPaymentTime: types.DurationSeconds(-30 * time.Second),
+			CurrencyType:         currency.USDT,
+			WantType:             currency.USD,
+			FiatSymbol:           "$",
+			Rate:                 1.23,
+			Amount:               3,
+			Total:                3.69,
+			Status:               "paid",
+			DisputeTime:          types.Time(time.Unix(1767531441, 0)),
+			Cancelable:           true,
+			TradeTips:            "Please pay from an account under your real name",
+			ShowBank:             true,
+			BankName:             "Demo Bank",
+			BankBranch:           "Main Branch",
+			BankAccount:          "****1234",
+			BankHolderRealName:   "Merchant Demo",
+			ShowOthers:           true,
 			PayOthers: []*P2POtherPaymentMethod{{
 				ID:                 "10002",
 				AccountDescription: "Business USD account",

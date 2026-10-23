@@ -66,11 +66,11 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 		if arg.Limit > 0 {
 			params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 		}
-		if arg.MaxDrawdownLTE != "" {
-			params.Set("max_drawdown_lte", arg.MaxDrawdownLTE)
+		if arg.MaxDrawdownLessThanOrEqual != "" {
+			params.Set("max_drawdown_lte", arg.MaxDrawdownLessThanOrEqual)
 		}
-		if arg.BacktestAPRGTE != "" {
-			params.Set("backtest_apr_gte", arg.BacktestAPRGTE)
+		if arg.BacktestAPRGreaterThanOrEqual != "" {
+			params.Set("backtest_apr_gte", arg.BacktestAPRGreaterThanOrEqual)
 		}
 	}
 	var resp *BotDiscoverResponse

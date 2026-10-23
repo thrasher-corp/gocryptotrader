@@ -34,12 +34,16 @@ var endpoints = []endpoint{
 	{key: "RestSpotSupplementaryURL", oldDefault: "https://fx-api-testnet.gateio.ws", newDefault: "https://fx-api-testnet.gateio.ws"},
 }
 
-// Exchanges returns just GateIO
-func (*Version) Exchanges() []string { return []string{"GateIO"} }
+// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts GateIO's in
+// any case; UpgradeExchange and DowngradeExchange pick out GateIO themselves
+func (*Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange removes the old default endpoints, so the new defaults apply, and strips the version prefix from
 // custom endpoints, since GateIO now adds it to every request path
 func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isGateIO(e) {
+		return e, nil
+	}
 	for _, ep := range endpoints {
 		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -66,6 +70,9 @@ func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 // DowngradeExchange removes the new default endpoints, so the old defaults apply, and restores the version prefix to
 // custom endpoints, since earlier versions expect each endpoint to carry it
 func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isGateIO(e) {
+		return e, nil
+	}
 	for _, ep := range endpoints {
 		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -88,6 +95,12 @@ func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 		}
 	}
 	return e, nil
+}
+
+// isGateIO reports whether an exchange config is GateIO's, matching its name in any case
+func isGateIO(e []byte) bool {
+	name, err := jsonparser.GetString(e, "name")
+	return err == nil && strings.EqualFold(name, "GateIO")
 }
 
 func setEndpoint(e []byte, key, url string) ([]byte, error) {

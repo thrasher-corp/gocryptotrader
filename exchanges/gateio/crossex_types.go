@@ -75,7 +75,7 @@ func (c CrossExchangeSymbolIdentifierRequest) String() string {
 }
 
 // MarshalJSON implements json.Marshaler.
-func (c CrossExchangeSymbolIdentifierRequest) MarshalJSON() ([]byte, error) { //nolint:gocritic // hugeParam: a value receiver lets json call this for unaddressable values, such as requests marshalled by value
+func (c CrossExchangeSymbolIdentifierRequest) MarshalJSON() ([]byte, error) { //nolint:gocritic // hugeParam: sonic calls a pointer receiver's MarshalJSON only for addressable values, so a request marshalled by value or a map value would send the identifier's raw fields
 	formatted, err := c.Format()
 	if err != nil {
 		return nil, err
@@ -97,18 +97,19 @@ func (c *CrossExchangeSymbolIdentifierRequest) businessType() string {
 
 // CrossExchangeSymbolResponse holds symbol information for a CrossEx trading pair.
 type CrossExchangeSymbolResponse struct {
-	Symbol          string        `json:"symbol"`
-	ExchangeType    string        `json:"exchange_type"`
-	BusinessType    string        `json:"business_type"`
-	State           string        `json:"state"`
-	MinSize         types.Number  `json:"min_size"`
-	MinNotional     types.Number  `json:"min_notional"`
-	LotSize         types.Number  `json:"lot_size"`
-	TickSize        types.Number  `json:"tick_size"`
-	MaxOpenOrders   types.Number  `json:"max_num_orders"`
-	MaxMarketSize   types.Number  `json:"max_market_size"`
-	MaxLimitSize    types.Number  `json:"max_limit_size"`
-	ContractSize    types.Number  `json:"contract_size"` // Deprecated by Gate, as quantity is used uniformly
+	Symbol        string       `json:"symbol"`
+	ExchangeType  string       `json:"exchange_type"`
+	BusinessType  string       `json:"business_type"`
+	State         string       `json:"state"`
+	MinSize       types.Number `json:"min_size"`
+	MinNotional   types.Number `json:"min_notional"`
+	LotSize       types.Number `json:"lot_size"`
+	TickSize      types.Number `json:"tick_size"`
+	MaxOpenOrders types.Number `json:"max_num_orders"`
+	MaxMarketSize types.Number `json:"max_market_size"`
+	MaxLimitSize  types.Number `json:"max_limit_size"`
+	// Deprecated: Gate now uses quantity uniformly
+	ContractSize    types.Number  `json:"contract_size"`
 	LiquidationFee  types.Number  `json:"liquidation_fee"`
 	DefaultLeverage types.Number  `json:"default_leverage"` // Returned by the live API although undocumented
 	DelistTime      types.Time    `json:"delist_time"`
@@ -288,13 +289,13 @@ type CrossExchangeConvertQuoteRequest struct {
 
 // CrossExchangeConvertQuoteResponse holds the quote returned from a flash swap inquiry.
 type CrossExchangeConvertQuoteResponse struct {
-	QuoteID           string        `json:"quote_id"`
-	ValidMilliseconds types.Number  `json:"valid_ms"` // How long the quote remains valid
-	FromCoin          currency.Code `json:"from_coin"`
-	ToCoin            currency.Code `json:"to_coin"`
-	FromAmount        types.Number  `json:"from_amount"`
-	ToAmount          types.Number  `json:"to_amount"`
-	Price             types.Number  `json:"price"`
+	QuoteID    string                     `json:"quote_id"`
+	ValidFor   types.DurationMilliseconds `json:"valid_ms"`
+	FromCoin   currency.Code              `json:"from_coin"`
+	ToCoin     currency.Code              `json:"to_coin"`
+	FromAmount types.Number               `json:"from_amount"`
+	ToAmount   types.Number               `json:"to_amount"`
+	Price      types.Number               `json:"price"`
 }
 
 // CrossExchangeConvertOrderRequest is the request body for executing a CrossEx flash swap.
@@ -434,30 +435,30 @@ type CrossExchangeSpecialFee struct {
 
 // CrossExchangePositionResponse holds a CrossEx contract position.
 type CrossExchangePositionResponse struct {
-	UserID            string       `json:"user_id"`
-	PositionID        string       `json:"position_id"`
-	Symbol            string       `json:"symbol"`
-	PositionSide      string       `json:"position_side"`
-	InitialMargin     types.Number `json:"initial_margin"`
-	IsolatedMargin    types.Number `json:"isolated_margin"` // Zero in cross margin mode
-	MarginMode        string       `json:"margin_mode"`
-	MaintenanceMargin types.Number `json:"maintenance_margin"`
-	PositionQuantity  types.Number `json:"position_qty"`
-	PositionValue     types.Number `json:"position_value"`
-	UnrealisedPNL     types.Number `json:"upnl"`
-	UnrealisedPNLRate types.Number `json:"upnl_rate"`
-	EntryPrice        types.Number `json:"entry_price"`
-	LiquidationPrice  types.Number `json:"liq_price"` // Zero in cross margin mode, or for an isolated position that cannot be liquidated
-	MarkPrice         types.Number `json:"mark_price"`
-	Leverage          types.Number `json:"leverage"`
-	MaxLeverage       types.Number `json:"max_leverage"`
-	RiskLimit         types.Number `json:"risk_limit"`
-	Fee               types.Number `json:"fee"`
-	FundingFee        types.Number `json:"funding_fee"` // Accumulated; positive values are gains
-	FundingTime       types.Time   `json:"funding_time"`
-	CreateTime        types.Time   `json:"create_time"`
-	UpdateTime        types.Time   `json:"update_time"`
-	ClosedPNL         types.Number `json:"closed_pnl"`
+	UserID                string       `json:"user_id"`
+	PositionID            string       `json:"position_id"`
+	Symbol                string       `json:"symbol"`
+	PositionSide          string       `json:"position_side"`
+	InitialMargin         types.Number `json:"initial_margin"`
+	IsolatedMargin        types.Number `json:"isolated_margin"` // Zero in cross margin mode
+	MarginMode            string       `json:"margin_mode"`
+	MaintenanceMargin     types.Number `json:"maintenance_margin"`
+	PositionQuantity      types.Number `json:"position_qty"`
+	PositionValue         types.Number `json:"position_value"`
+	UnrealisedPNL         types.Number `json:"upnl"`
+	UnrealisedPNLRate     types.Number `json:"upnl_rate"`
+	EntryPrice            types.Number `json:"entry_price"`
+	LiquidationPrice      types.Number `json:"liq_price"` // Zero in cross margin mode, or for an isolated position that cannot be liquidated
+	MarkPrice             types.Number `json:"mark_price"`
+	Leverage              types.Number `json:"leverage"`
+	MaxLeverage           types.Number `json:"max_leverage"`
+	RiskLimit             types.Number `json:"risk_limit"`
+	Fee                   types.Number `json:"fee"`
+	AccumulatedFundingFee types.Number `json:"funding_fee"` // Positive values are gains
+	FundingTime           types.Time   `json:"funding_time"`
+	CreateTime            types.Time   `json:"create_time"`
+	UpdateTime            types.Time   `json:"update_time"`
+	ClosedPNL             types.Number `json:"closed_pnl"`
 }
 
 // CrossExchangeMarginPositionResponse holds a CrossEx leveraged (margin) position.
@@ -675,8 +676,8 @@ type CrossExchangeMarketTickerResponse struct {
 
 // CrossExchangeFundingInfoResponse holds an exchange's funding rate information for a CrossEx futures symbol
 type CrossExchangeFundingInfoResponse struct {
-	Symbol                 string       `json:"symbol"`
-	FundingRate            types.Number `json:"funding_rate"`
-	FundingIntervalSeconds types.Number `json:"funding_interval"`
-	NextFundingTime        types.Time   `json:"funding_time"`
+	Symbol          string                `json:"symbol"`
+	FundingRate     types.Number          `json:"funding_rate"`
+	FundingInterval types.DurationSeconds `json:"funding_interval"`
+	NextFundingTime types.Time            `json:"funding_time"`
 }

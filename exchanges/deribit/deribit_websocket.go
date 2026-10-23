@@ -879,7 +879,7 @@ func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channel
 }
 
 // generateSubscriptions returns a list of configured subscriptions
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

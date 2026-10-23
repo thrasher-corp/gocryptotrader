@@ -118,7 +118,7 @@ func TestGetTradFiMT5Account(t *testing.T) {
 	result, err := e.GetTradFiMT5Account(t.Context())
 	require.NoError(t, err, "GetTradFiMT5Account must not error")
 	if mockTests {
-		exp := &TradFiMT5AccountResponse{Leverage: 100, StopOutLevel: "50%", Status: 3}
+		exp := &TradFiMT5AccountResponse{Leverage: 100, StopOutLevelPercentage: DisplayNumber{Text: "50%", Value: 50}, Status: 3}
 		assert.Equal(t, exp, result, "GetTradFiMT5Account should decode every field")
 		return
 	}
@@ -327,7 +327,7 @@ func TestGetTradFiUserAssets(t *testing.T) {
 	result, err := e.GetTradFiUserAssets(t.Context())
 	require.NoError(t, err, "GetTradFiUserAssets must not error")
 	if mockTests {
-		exp := &TradFiUserAssetsResponse{Equity: 1012.55, MarginLevel: 4299.58, Balance: 1000, Margin: 23.55, MarginFree: 989, UnrealisedPNL: 12.55}
+		exp := &TradFiUserAssetsResponse{Equity: 1012.55, MarginLevelPercentage: 4299.58, Balance: 1000, Margin: 23.55, MarginFree: 989, UnrealisedPNL: 12.55}
 		assert.Equal(t, exp, result, "GetTradFiUserAssets should decode every field")
 		return
 	}
@@ -564,7 +564,7 @@ func TestGetTradFiOrderHistory(t *testing.T) {
 			Volume:            0.05,
 			FillVolume:        0.05,
 			ClosePNL:          -1.49755,
-			Price:             1.3689,
+			AverageFillPrice:  1.3689,
 			TriggerPrice:      1.3689,
 			TimeSetup:         types.Time(time.Unix(1769397512, 0)),
 			TimeDone:          types.Time(time.Unix(1769397512, 0)),
@@ -591,7 +591,7 @@ func TestGetTradFiOrderHistory(t *testing.T) {
 			Side:              2,
 			Volume:            0.1,
 			FillVolume:        0.1,
-			Price:             1.09,
+			AverageFillPrice:  1.09,
 			TriggerPrice:      1.09,
 			PriceTakeProfit:   1.1,
 			PriceStopLoss:     1.08,
@@ -614,14 +614,14 @@ func TestGetTradFiOrderLog(t *testing.T) {
 	require.NoError(t, err, "GetTradFiOrderLog must not error")
 	if mockTests {
 		exp := &TradFiOrderLogResponse{
-			OrderID:   13950884,
-			LogID:     1214290,
-			Symbol:    "AUDUSD",
-			PriceType: "market",
-			State:     4,
-			Side:      2,
-			Volume:    0.01,
-			Price:     0.72221,
+			OrderID:          13950884,
+			LogID:            1214290,
+			Symbol:           "AUDUSD",
+			PriceType:        "market",
+			State:            4,
+			Side:             2,
+			Volume:           0.01,
+			AverageFillPrice: 0.72221,
 		}
 		assert.Equal(t, exp, result, "GetTradFiOrderLog should decode every field")
 		return
@@ -774,7 +774,7 @@ func TestGetTradFiPositionHistory(t *testing.T) {
 				TimeCreate:        types.Time(time.Unix(1769223566, 0)),
 				TimeClose:         types.Time(time.Unix(1769224573, 0)),
 				PositionStatus:    "2",
-				CloseDetail:       &TradFiLiquidationDetail{MarginLevel: 49.5, Margin: 11.77, Equity: 5.83, StopOutLevel: 50},
+				CloseDetail:       &TradFiLiquidationDetail{MarginLevelPercentage: 49.5, Margin: 11.77, Equity: 5.83, StopOutLevelPercentage: 50},
 				RealisedPNLDetail: TradFiRealisedPNLDetail{ClosedPNL: -48.5, Swap: -0.3, Fee: 0.6},
 			}},
 		}

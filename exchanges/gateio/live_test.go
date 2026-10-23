@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -20,6 +21,10 @@ import (
 
 var mockTests = false
 
+// useTestNet points the live tests at Gate's testnet, which needs testnet API keys in apiCredentials; tests of the
+// assets the testnet doesn't serve fail there
+const useTestNet = false
+
 var testPairsOnce sync.Once
 
 func TestMain(m *testing.M) {
@@ -28,7 +33,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	e = new(Exchange)
-	if err := testexch.Setup(e); err != nil {
+	if err := testexch.SetupWithConfig(e, func(c *config.Exchange) { c.UseSandbox = useTestNet }); err != nil {
 		log.Fatalf("GateIO Setup error: %s", err)
 	}
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" {

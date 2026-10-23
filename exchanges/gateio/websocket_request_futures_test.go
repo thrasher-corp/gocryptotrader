@@ -8,8 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -129,6 +131,18 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Options, out)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	batch := make([]*FuturesOrderCreateRequest, 11)
+	for i := range batch {
+		batch[i] = out
+	}
+	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, batch...)
+	require.ErrorIs(t, err, errTooManyOrderRequest, "WebsocketFuturesSubmitOrders must refuse more than 10 orders")
+	// The limit itself passes the check, so an unconnected instance fails only at sending
+	unconnected := new(Exchange)
+	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+	_, err = unconnected.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, batch[:10]...)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketFuturesSubmitOrders should allow 10 orders and fail only at sending")
 
 	ex := newWsAPITestExchange(t, asset.USDTMarginedFutures, canManipulateRealOrders)
 	first := &FuturesOrderCreateRequest{Contract: BTCUSDT, Size: 10, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-my-custom-id"}

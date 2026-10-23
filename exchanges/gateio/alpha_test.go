@@ -104,8 +104,8 @@ func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 		Slippage:                 10,
 		TargetTokenMinAmount:     500.6,
 		TargetTokenMaxAmount:     666.6,
-		EstimateGasFeeAmountUSDT: "$0.04",
-		OrderFee:                 "$0",
+		EstimateGasFeeAmountUSDT: DisplayNumber{Text: "$0.04", Value: 0.04},
+		OrderFee:                 DisplayNumber{Text: "$0"},
 	}
 	assert.Equal(t, exp, result, "CreateAlphaCurrencyQuoteID should decode every field")
 
@@ -258,7 +258,7 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	require.NotEmpty(t, result, "GetAlphaCurrencyTicker must return tickers")
 	if mockTests {
 		require.Len(t, result, 5, "GetAlphaCurrencyTicker must return every recorded ticker")
-		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxnura", Change: 0.27, Last: 0.00001617, Volume: 2379.22, MarketCap: 144024.57}
+		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxnura", PercentageChange24Hour: 0.27, Last: 0.00001617, USDTVolume24Hour: 2379.22, MarketCap: 144024.57}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrencyTicker should decode every field")
 	}
 
@@ -268,7 +268,7 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	require.Len(t, result, 1, "GetAlphaCurrencyTicker must return the requested ticker")
 	assert.Equal(t, "memeboxTUT", result[0].Currency, "currency symbol should keep its case")
 	if mockTests {
-		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxTUT", Change: -6.5, Last: 0.02047, Volume: 108404.86, MarketCap: 17010203.55}
+		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxTUT", PercentageChange24Hour: -6.5, Last: 0.02047, USDTVolume24Hour: 108404.86, MarketCap: 17010203.55}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrencyTicker should decode every field")
 	}
 }

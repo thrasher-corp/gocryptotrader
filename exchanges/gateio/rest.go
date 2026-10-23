@@ -35,6 +35,7 @@ const (
 	gateioTradeURL                      = "https://api.gateio.ws"
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
+	testnetRESTURL                      = "https://api-testnet.gateapi.io"
 	tradeBaseURL                        = "https://www.gate.io/"
 
 	// Account names as expected on the wire; these are decoupled from asset.Item String values
@@ -72,14 +73,14 @@ var (
 	errPeriodTypeRequired               = errors.New("period type required")
 	errInvalidPlanPeriodDay             = errors.New("invalid plan period day")
 	errInvalidPlanPeriodHour            = errors.New("invalid plan period hour")
-	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidTriggerRule               = errors.New("invalid price trigger rule")
 	errInvalidOrderStatus               = errors.New("invalid order status")
 	errInvalidLoanID                    = errors.New("missing loan ID")
 	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
 	errInvalidAutoSize                  = errors.New("invalid autoSize")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
-	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidTimeout                   = errors.New("invalid countdown timeout, which must be whole seconds of at least 5, or zero to stop the countdown")
+	errNotWholeSeconds                  = errors.New("duration must be whole seconds")
 	errNoTickerData                     = errors.New("no ticker data available")
 	errInvalidTimezone                  = errors.New("invalid timezone")
 	errTooManyBatchOrders               = errors.New("too many orders in batch request")
@@ -162,8 +163,8 @@ func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
 	return nil
 }
 
-// unixSeconds returns t in Unix seconds for Gate's unsigned request fields; a time before 1970 returns 0 rather than
-// wrapping around
+// unixSeconds returns t in Unix seconds for Gate's unsigned request fields. An unset time, or any time before 1970,
+// returns 0 rather than wrapping around, so an omitempty field leaves it out
 func unixSeconds(t time.Time) uint64 {
 	return uint64(max(t.Unix(), 0))
 }
@@ -877,7 +878,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	ordersPerPair := make(map[string]int)
+	pairs := make(currency.Pairs, len(args))
 	for x := range args {
 		if x != 0 && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
@@ -904,17 +905,30 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if err := validateSpotOrderPrice(args[x].Type, args[x].Price.Float64()); err != nil {
 			return nil, err
 		}
-		pair := args[x].CurrencyPair.String()
-		ordersPerPair[pair]++
-		if ordersPerPair[pair] > 10 {
-			return nil, fmt.Errorf("%w: at most 10 orders are allowed per currency pair, %s has more", errTooManyBatchOrders, pair)
-		}
+		pairs[x] = args[x].CurrencyPair
 	}
-	if len(ordersPerPair) > 4 {
-		return nil, fmt.Errorf("%w: at most 4 currency pairs are allowed, %d supplied", errTooManyBatchOrders, len(ordersPerPair))
+	if err := checkSpotBatchLimits(pairs); err != nil {
+		return nil, err
 	}
 	var response []*SpotOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotBatchOrdersEPL, http.MethodPost, "spot/batch_orders", nil, &args, &response)
+}
+
+// checkSpotBatchLimits checks a batch of spot orders against Gate's limits of 10 orders for each currency pair and 4
+// currency pairs in one request, which apply to REST and websocket batches alike
+func checkSpotBatchLimits(pairs currency.Pairs) error {
+	ordersPerPair := make(map[string]int, len(pairs))
+	for _, p := range pairs {
+		pair := p.String()
+		ordersPerPair[pair]++
+		if ordersPerPair[pair] > 10 {
+			return fmt.Errorf("%w: at most 10 orders are allowed per currency pair, %s has more", errTooManyBatchOrders, pair)
+		}
+	}
+	if len(ordersPerPair) > 4 {
+		return fmt.Errorf("%w: at most 4 currency pairs are allowed, %d supplied", errTooManyBatchOrders, len(ordersPerPair))
+	}
+	return nil
 }
 
 // validateSpotOrderPrice requires a positive price for limit orders, which is Gate's default order type, while market
@@ -1193,8 +1207,8 @@ func (e *Exchange) CountdownCancelSpotOrders(ctx context.Context, arg *Countdown
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if arg.Timeout > 0 && arg.Timeout < 5 {
-		return nil, errInvalidCountdown
+	if err := validateCountdownTimeout(arg.Countdown.Duration()); err != nil {
+		return nil, err
 	}
 	var response *TriggerTimeResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCountdownCancelEPL, http.MethodPost, "spot/countdown_cancel_all", nil, arg, &response)
@@ -1268,6 +1282,9 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 	}
 	if arg.Trigger.Rule != ">=" && arg.Trigger.Rule != "<=" {
 		return nil, fmt.Errorf("%w: %q, expected '>=' or '<='", errInvalidTriggerRule, arg.Trigger.Rule)
+	}
+	if err := checkWholeSeconds(arg.Trigger.ExpireAfter, "trigger expiry"); err != nil {
+		return nil, err
 	}
 	arg.Put.Side = strings.ToLower(arg.Put.Side)
 	if arg.Put.Side != order.Buy.Lower() && arg.Put.Side != order.Sell.Lower() {
@@ -1363,7 +1380,7 @@ func (e *Exchange) CreateSpotPOVOrder(ctx context.Context, arg *SpotPOVOrderRequ
 	if arg.Amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	if arg.ParticipationRate == 0 {
+	if arg.ParticipationRatePercentage == 0 {
 		return nil, errParticipationRateRequired
 	}
 	if arg.TimeToLive == "" {
@@ -2104,6 +2121,8 @@ func (e *Exchange) GetSingleBorrowLoanDetail(ctx context.Context, loanID string)
 
 var (
 	errInvalidNumericString         = errors.New("invalid numeric string")
+	errInvalidDisplayNumber         = errors.New("invalid display number")
+	errInvalidDate                  = errors.New("invalid date")
 	errLimitWithTimeRange           = errors.New("limit cannot be combined with a from or to time")
 	errLiquidationTimeRangeTooLarge = errors.New("liquidation order time range exceeds one hour")
 	errInvalidMarginChange          = errors.New("margin change must be non-zero")
@@ -3069,10 +3088,28 @@ func (e *Exchange) CountdownCancelFuturesOrders(ctx context.Context, settle curr
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if arg.Timeout < 0 || (arg.Timeout > 0 && arg.Timeout < 5) {
-		return nil, errInvalidTimeout
+	if err := validateCountdownTimeout(arg.Countdown.Duration()); err != nil {
+		return nil, err
 	}
 	return e.sendCountdownCancelOrdersRequest(ctx, perpetualCancelTriggerOrdersEPL, "futures/"+settle.Item.Lower+"/countdown_cancel_all", arg)
+}
+
+// validateCountdownTimeout checks a countdown cancel timeout, which Gate needs in whole seconds of at least 5, or zero
+// to stop the countdown
+func validateCountdownTimeout(timeout time.Duration) error {
+	if timeout < 0 || timeout != 0 && timeout < 5*time.Second || timeout%time.Second != 0 {
+		return fmt.Errorf("%w: %s", errInvalidTimeout, timeout)
+	}
+	return nil
+}
+
+// checkWholeSeconds refuses a duration Gate takes as an integer number of seconds when it holds a fraction of one, as
+// marshalling it would send a decimal Gate rejects
+func checkWholeSeconds(d types.DurationSeconds, field string) error {
+	if d.Duration()%time.Second != 0 {
+		return fmt.Errorf("%w: %s is %s", errNotWholeSeconds, field, d)
+	}
+	return nil
 }
 
 func (e *Exchange) sendCountdownCancelOrdersRequest(ctx context.Context, epl request.EndpointLimit, path string, arg any) (*TriggerTimeResponse, error) {
@@ -3550,6 +3587,9 @@ func (p *FuturesPriceTriggeredOrderRequest) validate() error {
 	}
 	if p.Trigger.Rule != 1 && p.Trigger.Rule != 2 {
 		return fmt.Errorf("%w: %d; 1: at or above the trigger price, 2: at or below it", errInvalidTriggerRule, p.Trigger.Rule)
+	}
+	if err := checkWholeSeconds(p.Trigger.ExpireAfter, "trigger expiry"); err != nil {
+		return err
 	}
 	// close-long-order and close-short-order are read-only types Gate reports for an order's own take profit and stop loss
 	switch p.OrderType {
@@ -4035,32 +4075,8 @@ func (e *Exchange) CreatePriceTriggeredDeliveryOrder(ctx context.Context, settle
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
-	if arg.Initial.Contract.IsEmpty() {
-		return nil, fmt.Errorf("%w: contract pair is required", currency.ErrCurrencyPairEmpty)
-	}
-	if arg.Initial.Price < 0 {
-		return nil, fmt.Errorf("%w: initial price must not be negative", limits.ErrPriceBelowMin)
-	}
-	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrUnsupportedTimeInForce, arg.Initial.TimeInForce)
-	}
-	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
-		return nil, fmt.Errorf("%w: %d", errInvalidTriggerStrategyType, arg.Trigger.StrategyType)
-	}
-	if arg.Trigger.PriceType > 2 {
-		return nil, fmt.Errorf("%w: %d", errInvalidTriggerPriceType, arg.Trigger.PriceType)
-	}
-	if arg.Trigger.Rule != 1 && arg.Trigger.Rule != 2 {
-		return nil, fmt.Errorf("%w: %d", errInvalidTriggerRule, arg.Trigger.Rule)
-	}
-	if arg.Trigger.Price <= 0 {
-		return nil, fmt.Errorf("%w: trigger price must be positive", limits.ErrPriceBelowMin)
-	}
-	switch arg.OrderType {
-	case "", "close-long-position", "close-short-position", "plan-close-long-position", "plan-close-short-position":
-	default:
-		// close-long-order and close-short-order are read only, so Gate rejects them on creation
-		return nil, fmt.Errorf("%w: %q", errInvalidAutoOrderType, arg.OrderType)
+	if err := arg.validate(); err != nil {
+		return nil, err
 	}
 	var response *TriggerOrderIDResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySubmitTriggerOrderEPL, http.MethodPost, "delivery/"+settle.Item.Lower+"/price_orders", nil, arg, &response)
@@ -4523,8 +4539,8 @@ func (e *Exchange) CountdownCancelOptionOrders(ctx context.Context, arg *Countdo
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if arg.Timeout < 0 || (arg.Timeout != 0 && arg.Timeout < 5*time.Second) {
-		return nil, fmt.Errorf("%w: %s", errInvalidTimeout, arg.Timeout)
+	if err := validateCountdownTimeout(arg.Countdown.Duration()); err != nil {
+		return nil, err
 	}
 	var response *TriggerTimeResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsCountdownCancelEPL, http.MethodPost, "options/countdown_cancel_all", nil, arg, &response)
@@ -4820,6 +4836,9 @@ func (e *Exchange) ModifyDualCurrencyOrderReinvest(ctx context.Context, arg *Dua
 	}
 	if arg.Status > 1 {
 		return fmt.Errorf("%w: 0 switches reinvestment off and 1 switches it on", errInvalidReinvestStatus)
+	}
+	if err := checkWholeSeconds(arg.EffectiveDuration, "effective duration"); err != nil {
+		return err
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnDualModifyOrderReinvestEPL, http.MethodPost, "earn/dual/modify-order-reinvest", nil, arg, nil)
 }
@@ -5806,7 +5825,7 @@ func (e *Exchange) CreateLendingOrRedemption(ctx context.Context, arg *LendingOr
 		return errLoanTypeIsRequired
 	}
 	// Only lending earns interest, so redemptions carry no minimum rate
-	if arg.Type == "lend" && arg.MinRate <= 0 {
+	if arg.Type == "lend" && arg.MinHourlyRate <= 0 {
 		return fmt.Errorf("%w: minimum interest rate is required", limits.ErrAmountBelowMin)
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniCreateLendsEPL, http.MethodPost, "earn/uni/lends", nil, arg, nil)

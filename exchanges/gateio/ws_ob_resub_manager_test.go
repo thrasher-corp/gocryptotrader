@@ -16,7 +16,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestNewWSOBResubManager(t *testing.T) {
+func TestNewWebsocketOrderbookResubscriptionManager(t *testing.T) {
 	t.Parallel()
 
 	m := newWSOBResubManager()

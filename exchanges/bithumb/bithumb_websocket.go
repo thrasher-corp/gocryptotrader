@@ -179,7 +179,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 }
 
 // generateSubscriptions generates the default subscription set
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

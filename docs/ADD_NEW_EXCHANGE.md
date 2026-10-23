@@ -711,7 +711,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 
 ```go
 // generateSubscriptions generates default subscription
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
     for _, s := range e.Features.Subscriptions {
         if s.Asset == asset.Empty {
             // Handle backwards compatibility with config without assets, all binance subs are spot

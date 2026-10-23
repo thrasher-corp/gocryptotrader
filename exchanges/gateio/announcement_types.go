@@ -53,9 +53,9 @@ type AnnouncementArticle struct {
 	ID          uint64 `json:"id"`
 	Title       string `json:"title"`
 	Brief       string `json:"brief"`
-	Created     string `json:"created"`      // Relative to now, such as "3 days"
-	Updated     string `json:"updated"`      // Relative to now, such as "3 days"
-	ReleaseDate string `json:"release_time"` // Formatted as 2006-01-02
+	Created     string `json:"created"` // Relative to now, such as 1 days, or a date such as 2026-10-09 UTC once older
+	Updated     string `json:"updated"` // Relative to now, such as 1 days, or a date such as 2026-10-09 UTC once older
+	ReleaseDate Date   `json:"release_time"`
 	// ReleaseTime, CreateTime, UpdateTime and URL are returned by the live API but not documented
 	ReleaseTime      types.Time                     `json:"release_timestamp"`
 	CreateTime       types.Time                     `json:"created_t"`

@@ -15,6 +15,10 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
+- Before adding a package-local helper for a general task, such as converting
+    times, numbers or currencies, check `common`, `types` and `currency` for
+    one. When a second package needs a helper, move it to a shared package
+    rather than copying it.
 
 ## Security
 
@@ -46,6 +50,7 @@ Never relay an empty batch.
   - If the API always returns a number as a bare JSON number, use `float64`.
   - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
+  - For durations the API sends as a number of seconds or milliseconds, use `types.DurationSeconds` or `types.DurationMilliseconds`, which hold a `time.Duration`.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
@@ -93,6 +98,15 @@ Never relay an empty batch.
 - Use pointer structs for passing request parameters.
 - Use idiomatic Go types (e.g., `time.Time`) in the parameter definition and convert them within the method as needed when preparing the request.
 - Time related requests should default to UTC.
+
+### Batch Operations
+
+- Wrapper methods that act on several items at once, such as `CancelBatchOrders`
+    and `WebsocketSubmitOrders`, send one batch request. Return an error when
+    more items are supplied than the venue accepts in one request rather than
+    splitting them across requests, so callers decide how to batch.
+- Return `common.ErrFunctionNotSupported` when the venue has no batch endpoint
+    for an asset, rather than sending one request per item.
 
 ### Path Construction
 

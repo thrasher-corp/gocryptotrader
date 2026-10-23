@@ -25,7 +25,7 @@ func (a *alphaStatusError) AsError() error {
 
 // AlphaAccountResponse represents an alpha account information
 type AlphaAccountResponse struct {
-	Currency     string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
+	Currency     string       `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	Available    types.Number `json:"available"`
 	Locked       types.Number `json:"locked"`
 	TokenAddress string       `json:"token_address"`
@@ -36,14 +36,14 @@ type AlphaAccountResponse struct {
 type AlphaAccountTransactionItemResponse struct {
 	ID       string       `json:"id"`
 	Time     types.Time   `json:"time"`
-	Currency string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
+	Currency string       `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	Change   types.Number `json:"change"`
 	Balance  types.Number `json:"balance"`
 }
 
 // AlphaCurrencyQuoteInfoRequest represents a currency quote information request parameters
 type AlphaCurrencyQuoteInfoRequest struct {
-	Currency string       `json:"currency"` // Case sensitive alpha currency symbol, such as memeboxTUT
+	Currency string       `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	Side     order.Side   `json:"side"`
 	Amount   types.Number `json:"amount"`   // Quote currency (USDT) amount for a buy and base currency amount for a sell
 	GasMode  string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
@@ -67,17 +67,16 @@ func (a *AlphaCurrencyQuoteInfoRequest) MarshalJSON() ([]byte, error) {
 // AlphaCurrencyQuoteDetailResponse holds a currency quote information detail
 type AlphaCurrencyQuoteDetailResponse struct {
 	alphaStatusError
-	QuoteID              string       `json:"quote_id"`
-	MinAmount            types.Number `json:"min_amount"`
-	MaxAmount            string       `json:"max_amount"` // Gate documents a non-numeric form, such as 1000:0.0
-	Price                types.Number `json:"price"`
-	Slippage             types.Number `json:"slippage"`
-	TargetTokenMinAmount types.Number `json:"target_token_min_amount"`
-	TargetTokenMaxAmount types.Number `json:"target_token_max_amount"`
-	ErrorType            uint64       `json:"error_type"` // 0 success, 1 above the maximum or 2 below the minimum
-	// The fees are kept as sent, since Gate formats them for display with a currency sign, such as $0.04
-	EstimateGasFeeAmountUSDT string `json:"estimate_gas_fee_amount_usdt"`
-	OrderFee                 string `json:"order_fee"`
+	QuoteID                  string        `json:"quote_id"`
+	MinAmount                types.Number  `json:"min_amount"`
+	MaxAmount                string        `json:"max_amount"` // Gate documents a non-numeric form, such as 1000:0.0
+	Price                    types.Number  `json:"price"`
+	Slippage                 types.Number  `json:"slippage"`
+	TargetTokenMinAmount     types.Number  `json:"target_token_min_amount"`
+	TargetTokenMaxAmount     types.Number  `json:"target_token_max_amount"`
+	ErrorType                uint64        `json:"error_type"` // 0 success, 1 above the maximum or 2 below the minimum
+	EstimateGasFeeAmountUSDT DisplayNumber `json:"estimate_gas_fee_amount_usdt"`
+	OrderFee                 DisplayNumber `json:"order_fee"`
 }
 
 // AlphaPlaceOrderResponse represents response details returned after placing alpha orders
@@ -95,7 +94,7 @@ type AlphaPlaceOrderResponse struct {
 
 // GetAlphaOrdersRequest holds the optional filters for listing alpha orders
 type GetAlphaOrdersRequest struct {
-	Currency string     // Case sensitive alpha currency symbol, such as memeboxTUT
+	Currency string     // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	Side     order.Side // Buy or Sell
 	// Status is 1 processing, 2 successful, 3 failed, 4 cancelled, 5 buy order placed but transfer not completed or
 	// 6 order cancelled but transfer not completed, with 0 returning every status
@@ -113,7 +112,7 @@ type AlphaOrderDetailResponse struct {
 	TransactionHash string       `json:"tx_hash"`
 	Side            string       `json:"side"`
 	USDTAmount      types.Number `json:"usdt_amount"`
-	Currency        string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
+	Currency        string       `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	CurrencyAmount  types.Number `json:"currency_amount"`
 	Status          uint8        `json:"status"`
 	GasMode         string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
@@ -126,7 +125,7 @@ type AlphaOrderDetailResponse struct {
 
 // AlphaCurrencyDetailResponse holds an alpha currency detail
 type AlphaCurrencyDetailResponse struct {
-	Currency        string `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
+	Currency        string `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
 	Name            string `json:"name"`
 	Chain           string `json:"chain"`
 	Address         string `json:"address"`
@@ -137,9 +136,9 @@ type AlphaCurrencyDetailResponse struct {
 
 // AlphaCurrencyTickerInfoResponse represents an alpha currency ticker detail
 type AlphaCurrencyTickerInfoResponse struct {
-	Currency  string       `json:"currency"` // A case sensitive alpha symbol, such as memeboxTUT, which currency.Code would upper-case
-	Change    types.Number `json:"change"`   // 24 hour percentage change
-	Last      types.Number `json:"last"`
-	Volume    types.Number `json:"volume"` // 24 hour USDT volume
-	MarketCap types.Number `json:"market_cap"`
+	Currency               string       `json:"currency"` // Case sensitive, such as memeboxTUT, which Gate no longer finds once currency.Code upper-cases it
+	PercentageChange24Hour types.Number `json:"change"`
+	Last                   types.Number `json:"last"`
+	USDTVolume24Hour       types.Number `json:"volume"`
+	MarketCap              types.Number `json:"market_cap"`
 }

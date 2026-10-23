@@ -129,7 +129,7 @@ type BrokerCommission struct {
 	Amount               types.Number         `json:"amount"`
 	Fee                  types.Number         `json:"fee"`
 	FeeAsset             currency.Code        `json:"fee_asset"`
-	RebateFee            types.Number         `json:"rebate_fee"` // Rebate income converted to USDT
+	RebateFeeUSDT        types.Number         `json:"rebate_fee"`
 	Source               string               `json:"source"`
 	CurrencyPair         currency.Pair        `json:"currency_pair"`
 	SubBrokerInfo        *BrokerSubBrokerInfo `json:"sub_broker_info"`
@@ -141,7 +141,7 @@ type BrokerTransaction struct {
 	TransactionTime      types.Time           `json:"transaction_time"`
 	UserID               uint64               `json:"user_id"`
 	GroupName            string               `json:"group_name"`
-	Fee                  types.Number         `json:"fee"` // Fee in USDT
+	FeeUSDT              types.Number         `json:"fee"`
 	CurrencyPair         currency.Pair        `json:"currency_pair"`
 	Amount               types.Number         `json:"amount"`
 	FeeAsset             currency.Code        `json:"fee_asset"`

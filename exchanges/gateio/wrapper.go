@@ -211,6 +211,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
+	if exch.UseSandbox {
+		if err := e.useTestnetEndpoints(); err != nil {
+			return err
+		}
+	}
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
@@ -256,8 +261,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.USDTMarginedFutures)
+		GenerateSubscriptions: func(ctx context.Context) (subscription.List, error) {
+			return e.GenerateFuturesDefaultSubscriptions(ctx, asset.USDTMarginedFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return e.WebsocketFuturesConnect(ctx, conn, asset.USDTMarginedFutures)
@@ -282,8 +287,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.CoinMarginedFutures)
+		GenerateSubscriptions: func(ctx context.Context) (subscription.List, error) {
+			return e.GenerateFuturesDefaultSubscriptions(ctx, asset.CoinMarginedFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return e.WebsocketFuturesConnect(ctx, conn, asset.CoinMarginedFutures)
@@ -307,8 +312,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:   e.DeliveryFuturesSubscribe,
 		Unsubscriber: e.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateDeliveryFuturesDefaultSubscriptions(asset.DeliveryFutures)
+		GenerateSubscriptions: func(ctx context.Context) (subscription.List, error) {
+			return e.GenerateDeliveryFuturesDefaultSubscriptions(ctx, asset.DeliveryFutures)
 		},
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return e.WebsocketDeliveryFuturesConnect(ctx, conn, asset.DeliveryFutures)
@@ -334,6 +339,38 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.WebsocketOptionsConnect,
 		MessageFilter:         asset.Options,
 	})
+}
+
+// testnetEndpoints pairs each endpoint's production default with its Gate testnet equivalent
+var testnetEndpoints = []struct {
+	kind                exchange.URL
+	production, testnet string
+}{
+	{kind: exchange.RestSpot, production: gateioTradeURL, testnet: testnetRESTURL},
+	{kind: exchange.RestFutures, production: gateioFuturesLiveTradingAlternative, testnet: testnetRESTURL},
+	{kind: exchange.WebsocketSpot, production: gateioWebsocketEndpoint, testnet: testnetSpotWebsocketURL},
+	{kind: exchange.WebsocketUSDTMargined, production: usdtFuturesWebsocketURL, testnet: testnetUSDTFuturesWebsocketURL},
+	{kind: exchange.WebsocketCoinMargined, production: btcFuturesWebsocketURL, testnet: testnetBTCFuturesWebsocketURL},
+	{kind: exchange.WebsocketFutures, production: deliveryRealUSDTTradingURL, testnet: deliveryTestNetUSDTTradingURL},
+	{kind: exchange.WebsocketOptions, production: optionsWebsocketURL, testnet: optionsWebsocketTestnetURL},
+}
+
+// useTestnetEndpoints moves every endpoint still at its production default to Gate's testnet, so useSandbox needs no
+// endpoint configuration, while an endpoint the config sets to anything else is kept as configured
+func (e *Exchange) useTestnetEndpoints() error {
+	for _, endpoint := range testnetEndpoints {
+		running, err := e.API.Endpoints.GetURL(endpoint.kind)
+		if err != nil {
+			return err
+		}
+		if strings.TrimRight(running, "/") != strings.TrimRight(endpoint.production, "/") {
+			continue
+		}
+		if err := e.API.Endpoints.SetRunningURL(endpoint.kind.String(), endpoint.testnet); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // futuresBaseVolume returns a futures ticker's 24h volume in the base currency. Gate truncates
@@ -754,8 +791,8 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 		ValidateOrderbook: e.ValidateOrderbook,
 		Pair:              p,
 		LastUpdateID:      o.ID,
-		LastUpdated:       o.Update.Time(),
-		LastPushed:        o.Current.Time(),
+		LastUpdated:       o.UpdateTime.Time(),
+		LastPushed:        o.ResponseTime.Time(),
 		Bids:              o.Bids.Levels(),
 		Asks:              o.Asks.Levels(),
 	}, nil
@@ -1246,20 +1283,25 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return err
 }
 
-// CancelBatchOrders cancels orders of one asset by their IDs. Spot, margin and cross margin orders, which may span
-// several pairs, and perpetual futures orders are cancelled in batches, while delivery and options orders, which Gate
-// cannot cancel in a batch by ID, are cancelled one at a time. Each order's outcome is reported in the response status
-// keyed by its ID, as cancelled or as the reason Gate gave for not cancelling it, and the errors of requests that
-// failed are returned together once every order has been tried
+// CancelBatchOrders cancels up to 20 spot, margin, cross margin or perpetual futures orders of one asset by their IDs in
+// one request, whose spot orders may span several pairs. A larger batch is refused rather than split, so the caller
+// decides how to batch, and delivery and options orders are not supported, as Gate cannot cancel them in a batch by ID.
+// Each order's outcome is reported in the response status keyed by its ID, as cancelled or as the reason Gate gave for
+// not cancelling it
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
 	a := o[0].AssetType
 	switch a {
-	case asset.Spot, asset.Margin, asset.CrossMargin, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options:
+	case asset.Spot, asset.Margin, asset.CrossMargin, asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+	case asset.DeliveryFutures, asset.Options:
+		return nil, fmt.Errorf("%w: Gate cannot cancel %s orders in a batch by ID", common.ErrFunctionNotSupported, a)
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+	}
+	if len(o) > cancelBatchOrderLimit {
+		return nil, fmt.Errorf("%w: %d orders, while Gate cancels at most %d in one request", errTooManyOrders, len(o), cancelBatchOrderLimit)
 	}
 	isSpot := a == asset.Spot || a == asset.Margin || a == asset.CrossMargin
 	pairs := make(currency.Pairs, len(o))
@@ -1282,48 +1324,28 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
-	var errs error
-	switch a {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
-		for start := 0; start < len(o); start += cancelBatchOrderLimit {
-			batch := o[start:min(start+cancelBatchOrderLimit, len(o))]
-			params := make([]CancelOrderByIDRequest, len(batch))
-			for i := range batch {
-				params[i] = CancelOrderByIDRequest{CurrencyPair: pairs[start+i], ID: batch[i].OrderID}
-			}
-			results, err := e.CancelBatchOrdersWithIDList(ctx, params)
-			outcomes := make([]cancelOutcome, len(results))
-			for i, r := range results {
-				outcomes[i] = cancelOutcome{orderID: r.OrderID, text: r.Text, succeeded: r.Succeeded, reason: joinNonEmpty(r.Label, r.Message)}
-			}
-			errs = common.AppendError(errs, recordCancelOutcomes(resp, batch, outcomes, err))
-		}
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		for start := 0; start < len(o); start += cancelBatchOrderLimit {
-			batch := o[start:min(start+cancelBatchOrderLimit, len(o))]
-			orderIDs := make([]string, len(batch))
-			for i := range batch {
-				orderIDs[i] = batch[i].OrderID
-			}
-			results, err := e.CancelBatchFuturesOrders(ctx, settle, orderIDs)
-			outcomes := make([]cancelOutcome, len(results))
-			for i, r := range results {
-				outcomes[i] = cancelOutcome{orderID: r.ID, succeeded: r.Succeeded, reason: r.Message}
-			}
-			errs = common.AppendError(errs, recordCancelOutcomes(resp, batch, outcomes, err))
-		}
-	case asset.DeliveryFutures:
+	if isSpot {
+		params := make([]CancelOrderByIDRequest, len(o))
 		for i := range o {
-			_, err := e.CancelSingleDeliveryOrder(ctx, settle, o[i].OrderID)
-			errs = common.AppendError(errs, recordCancelOutcomes(resp, o[i:i+1], []cancelOutcome{{orderID: o[i].OrderID, succeeded: true}}, err))
+			params[i] = CancelOrderByIDRequest{CurrencyPair: pairs[i], ID: o[i].OrderID}
 		}
-	case asset.Options:
-		for i := range o {
-			_, err := e.CancelOptionSingleOrder(ctx, o[i].OrderID)
-			errs = common.AppendError(errs, recordCancelOutcomes(resp, o[i:i+1], []cancelOutcome{{orderID: o[i].OrderID, succeeded: true}}, err))
+		results, err := e.CancelBatchOrdersWithIDList(ctx, params)
+		outcomes := make([]cancelOutcome, len(results))
+		for i, r := range results {
+			outcomes[i] = cancelOutcome{orderID: r.OrderID, text: r.Text, succeeded: r.Succeeded, reason: joinNonEmpty(r.Label, r.Message)}
 		}
+		return resp, recordCancelOutcomes(resp, o, outcomes, err)
 	}
-	return resp, errs
+	orderIDs := make([]string, len(o))
+	for i := range o {
+		orderIDs[i] = o[i].OrderID
+	}
+	results, err := e.CancelBatchFuturesOrders(ctx, settle, orderIDs)
+	outcomes := make([]cancelOutcome, len(results))
+	for i, r := range results {
+		outcomes[i] = cancelOutcome{orderID: r.ID, succeeded: r.Succeeded, reason: r.Message}
+	}
+	return resp, recordCancelOutcomes(resp, o, outcomes, err)
 }
 
 // cancelBatchOrderLimit is the most spot or perpetual futures orders Gate cancels in one batch request
@@ -2089,7 +2111,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 	availableChains := make([]string, 0, len(chains))
 	for _, cChain := range chains {
-		if cChain.IsDisabled == 0 {
+		if !cChain.Disabled.Bool() {
 			availableChains = append(availableChains, cChain.Chain)
 		}
 	}
@@ -2151,7 +2173,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Multiplier:         fContract.QuantoMultiplier.Float64(),
 				MaxLeverage:        fContract.LeverageMax.Float64(),
 				LatestRate: fundingrate.Rate{
-					Time: fContract.FundingNextApply.Time().Add(-fContract.fundingInterval()),
+					Time: fContract.FundingNextApply.Time().Add(-fContract.FundingInterval.Duration()),
 					Rate: fContract.FundingRate.Decimal(),
 				},
 			}
@@ -2604,7 +2626,7 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		Asset:    item,
 		Pair:     fPair,
 		LatestRate: fundingrate.Rate{
-			Time: contract.FundingNextApply.Time().Add(-contract.fundingInterval()),
+			Time: contract.FundingNextApply.Time().Add(-contract.FundingInterval.Duration()),
 			Rate: contract.FundingRate.Decimal(),
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
@@ -2750,12 +2772,6 @@ func (c *FuturesContractResponse) openInterest() float64 {
 	}
 	// ordered as the multiply this replaces was, so a direct contract keeps its exact float64 result
 	return c.PositionSize.Float64() * c.IndexPrice.Float64() * c.QuantoMultiplier.Float64()
-}
-
-// fundingInterval returns the contract's funding interval, which Gate gives in seconds; the cap keeps an out of range
-// value from overflowing the duration
-func (c *FuturesContractResponse) fundingInterval() time.Duration {
-	return time.Duration(min(c.FundingInterval, uint64(math.MaxInt64/time.Second))) * time.Second
 }
 
 func (c *FuturesContractResponse) contractName() string {
@@ -3064,11 +3080,11 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		var cost float64
 		var purchased float64
 		if resp.AverageDealPrice != 0 {
+			// The cost is the quote total filled on either side, as GetOrderInfo and the spot.orders finish push give it
+			cost = resp.FilledTotal.Float64()
 			if side.IsLong() {
-				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
 			} else {
-				cost = resp.Amount.Float64()
 				purchased = resp.FilledTotal.Float64()
 			}
 		}

@@ -515,7 +515,7 @@ func TestV14MigrationGeneratesValidSpotSubscriptions(t *testing.T) {
 			require.NoError(t, testexch.Setup(e), "test instance setup must not error")
 			e.Config.Features.Subscriptions = migratedConfig.Features.Subscriptions
 			e.SetSubscriptionsFromConfig()
-			subs, err := e.generateSubscriptionsSpot()
+			subs, err := e.generateSubscriptionsSpot(t.Context())
 			require.NoError(t, err, "migrated subscriptions must expand and validate")
 			assert.NotEmpty(t, subs, "migrated configuration should generate subscriptions")
 			for _, s := range subs {

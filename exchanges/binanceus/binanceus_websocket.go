@@ -512,7 +512,7 @@ func (e *Exchange) UpdateLocalBuffer(ctx context.Context, wsdp *WebsocketDepthSt
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (e *Exchange) GenerateSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateSubscriptions(_ context.Context) (subscription.List, error) {
 	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 

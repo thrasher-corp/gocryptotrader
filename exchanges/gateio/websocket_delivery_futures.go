@@ -16,12 +16,8 @@ import (
 )
 
 const (
-	// delivery real trading urls
-	deliveryRealUSDTTradingURL = "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt"
-
-	// delivery testnet urls
-	deliveryTestNetBTCTradingURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"  //nolint:unused // Can be used for testing
-	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt" //nolint:unused // Can be used for testing
+	deliveryRealUSDTTradingURL    = "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt"
+	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
 
 	deliveryFuturesUpdateLimit uint64 = 100
 )
@@ -51,8 +47,7 @@ func (e *Exchange) WebsocketDeliveryFuturesConnect(ctx context.Context, conn web
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions(assetType asset.Item) (subscription.List, error) {
-	ctx := context.TODO()
+func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions(ctx context.Context, assetType asset.Item) (subscription.List, error) {
 	if _, err := e.GetCredentials(ctx); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}

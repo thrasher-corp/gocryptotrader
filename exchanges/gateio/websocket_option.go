@@ -25,7 +25,7 @@ import (
 
 const (
 	optionsWebsocketURL        = "wss://op-ws.gateio.live/v4/ws"
-	optionsWebsocketTestnetURL = "wss://op-ws-testnet.gateio.live/v4/ws"
+	optionsWebsocketTestnetURL = "wss://ws-testnet.gate.com/v4/ws/options"
 
 	// channels
 	optionsPingChannel                   = "options.ping"
@@ -81,8 +81,7 @@ func (e *Exchange) WebsocketOptionsConnect(ctx context.Context, conn websocket.C
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 // TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
-	ctx := context.TODO()
+func (e *Exchange) GenerateOptionsDefaultSubscriptions(ctx context.Context) (subscription.List, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
 	pairs, err := e.GetEnabledPairs(asset.Options)
 	if err != nil {

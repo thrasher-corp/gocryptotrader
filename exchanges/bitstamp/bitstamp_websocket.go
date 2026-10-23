@@ -228,7 +228,7 @@ func (e *Exchange) handleWSOrder(ctx context.Context, event string, msg []byte) 
 	return e.Websocket.DataHandler.Send(ctx, d)
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

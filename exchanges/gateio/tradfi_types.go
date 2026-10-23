@@ -56,9 +56,9 @@ type tradFiList[T any] struct {
 
 // TradFiMT5AccountResponse holds MT5 account information
 type TradFiMT5AccountResponse struct {
-	Leverage     uint64 `json:"leverage"`
-	StopOutLevel string `json:"stop_out_level"` // A percentage, such as 50%
-	Status       uint64 `json:"status"`         // 1: not opened, 2: pending review, 3: active
+	Leverage               uint64        `json:"leverage"`
+	StopOutLevelPercentage DisplayNumber `json:"stop_out_level"`
+	Status                 uint64        `json:"status"` // 1: not opened, 2: pending review, 3: active
 }
 
 // TradFiCategoryResponse holds a trading symbol category
@@ -166,12 +166,12 @@ type TradFiUserInfoResponse struct {
 
 // TradFiUserAssetsResponse holds TradFi account balance and margin information
 type TradFiUserAssetsResponse struct {
-	Equity        types.Number `json:"equity"`
-	MarginLevel   types.Number `json:"margin_level"` // Percentage
-	Balance       types.Number `json:"balance"`
-	Margin        types.Number `json:"margin"`
-	MarginFree    types.Number `json:"margin_free"`
-	UnrealisedPNL types.Number `json:"unrealized_pnl"`
+	Equity                types.Number `json:"equity"`
+	MarginLevelPercentage types.Number `json:"margin_level"`
+	Balance               types.Number `json:"balance"`
+	Margin                types.Number `json:"margin"`
+	MarginFree            types.Number `json:"margin_free"`
+	UnrealisedPNL         types.Number `json:"unrealized_pnl"`
 }
 
 // TradFiTransactionRequest holds the parameters for CreateTradFiTransaction
@@ -300,7 +300,7 @@ type TradFiHistoricalOrderResponse struct {
 	Volume            types.Number `json:"volume"`
 	FillVolume        types.Number `json:"fill_volume"`
 	ClosePNL          types.Number `json:"close_pnl"`
-	Price             types.Number `json:"price"` // Average fill price
+	AverageFillPrice  types.Number `json:"price"`
 	TriggerPrice      types.Number `json:"trigger_price"`
 	PriceTakeProfit   types.Number `json:"price_tp"`
 	PriceStopLoss     types.Number `json:"price_sl"`
@@ -310,14 +310,14 @@ type TradFiHistoricalOrderResponse struct {
 
 // TradFiOrderLogResponse holds the order recorded against an order placement log ID
 type TradFiOrderLogResponse struct {
-	OrderID   uint64       `json:"order_id"`
-	LogID     uint64       `json:"log_id"`
-	Symbol    string       `json:"symbol"`
-	PriceType string       `json:"price_type"` // market or trigger
-	State     uint64       `json:"state"`      // 1: placed, 2: cancelled, 3: partially filled, 4: filled, 5: rejected
-	Side      uint64       `json:"side"`       // 1: sell, 2: buy
-	Volume    types.Number `json:"volume"`
-	Price     types.Number `json:"price"` // Average fill price
+	OrderID          uint64       `json:"order_id"`
+	LogID            uint64       `json:"log_id"`
+	Symbol           string       `json:"symbol"`
+	PriceType        string       `json:"price_type"` // market or trigger
+	State            uint64       `json:"state"`      // 1: placed, 2: cancelled, 3: partially filled, 4: filled, 5: rejected
+	Side             uint64       `json:"side"`       // 1: sell, 2: buy
+	Volume           types.Number `json:"volume"`
+	AverageFillPrice types.Number `json:"price"`
 }
 
 // TradFiPositionResponse holds an open position
@@ -362,10 +362,10 @@ type GetTradFiPositionHistoryRequest struct {
 
 // TradFiLiquidationDetail holds the margin state recorded when a position was liquidated
 type TradFiLiquidationDetail struct {
-	MarginLevel  types.Number `json:"margin_level"` // Multiplied by 100
-	Margin       types.Number `json:"margin"`
-	Equity       types.Number `json:"equity"`
-	StopOutLevel types.Number `json:"stop_out_level"` // Multiplied by 100
+	MarginLevelPercentage  types.Number `json:"margin_level"`
+	Margin                 types.Number `json:"margin"`
+	Equity                 types.Number `json:"equity"`
+	StopOutLevelPercentage types.Number `json:"stop_out_level"`
 }
 
 // TradFiRealisedPNLDetail holds a breakdown of realised profit and loss

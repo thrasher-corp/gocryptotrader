@@ -107,11 +107,12 @@ type AccountBalanceInformation struct {
 
 // MarginAccountItemResponse margin account item.
 type MarginAccountItemResponse struct {
-	CurrencyPair          currency.Pair             `json:"currency_pair"`
-	AccountType           string                    `json:"account_type"` // "mmr" (maintenance margin rate account) or "inactive" (market not activated)
-	Leverage              types.Number              `json:"leverage"`
-	Locked                bool                      `json:"locked"`
-	RiskRate              types.Number              `json:"risk"` // Superseded by MaintenanceMarginRate
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	AccountType  string        `json:"account_type"` // "mmr" (maintenance margin rate account) or "inactive" (market not activated)
+	Leverage     types.Number  `json:"leverage"`
+	Locked       bool          `json:"locked"`
+	// Deprecated: Gate superseded it with MaintenanceMarginRate
+	RiskRate              types.Number              `json:"risk"`
 	MaintenanceMarginRate types.Number              `json:"mmr"`
 	Base                  AccountBalanceInformation `json:"base"`
 	Quote                 AccountBalanceInformation `json:"quote"`

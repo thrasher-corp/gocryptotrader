@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -244,7 +245,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ex.GenerateOptionsDefaultSubscriptions()
+	subs, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	var userChannels int
 	for _, s := range subs {
@@ -259,6 +260,11 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 		}
 	}
 	assert.NotZero(t, userChannels, "GenerateOptionsDefaultSubscriptions should add the authenticated channels")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = ex.GenerateOptionsDefaultSubscriptions(ctx)
+	assert.ErrorIs(t, err, context.Canceled, "GenerateOptionsDefaultSubscriptions should request the options account under the context it is given")
 }
 
 func TestWebsocketHandleOptionsDataNullResult(t *testing.T) {

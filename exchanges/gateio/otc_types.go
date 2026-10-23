@@ -37,20 +37,20 @@ type OTCQuoteRequest struct {
 
 // OTCQuoteResponse holds the quote data returned by the OTC quote API.
 type OTCQuoteResponse struct {
-	Type                   string        `json:"type"`
-	PayCoin                currency.Code `json:"pay_coin"`
-	GetCoin                currency.Code `json:"get_coin"`
-	PayAmount              types.Number  `json:"pay_amount"`
-	GetAmount              types.Number  `json:"get_amount"`
-	Rate                   types.Number  `json:"rate"`
-	ReciprocalExchangeRate types.Number  `json:"rate_reci"`
-	PromotionCode          string        `json:"promotion_code"`
-	Side                   string        `json:"side"`
-	OrderType              string        `json:"order_type"`
-	QuoteToken             string        `json:"quote_token"`
-	ValidityPeriodSeconds  types.Number  `json:"validity_period"`
-	RefreshLimit           uint64        `json:"refresh_limit"`
-	RefreshLimitMessage    string        `json:"refresh_limit_msg"`
+	Type                   string                `json:"type"`
+	PayCoin                currency.Code         `json:"pay_coin"`
+	GetCoin                currency.Code         `json:"get_coin"`
+	PayAmount              types.Number          `json:"pay_amount"`
+	GetAmount              types.Number          `json:"get_amount"`
+	Rate                   types.Number          `json:"rate"`
+	ReciprocalExchangeRate types.Number          `json:"rate_reci"`
+	PromotionCode          string                `json:"promotion_code"`
+	Side                   string                `json:"side"`
+	OrderType              string                `json:"order_type"`
+	QuoteToken             string                `json:"quote_token"`
+	ValidityPeriod         types.DurationSeconds `json:"validity_period"`
+	RefreshLimit           uint64                `json:"refresh_limit"`
+	RefreshLimitMessage    string                `json:"refresh_limit_msg"`
 }
 
 // OTCFiatOrderRequest holds request parameters for creating a fiat order.
@@ -172,10 +172,10 @@ type OTCPreUploadRequest struct {
 
 // OTCPreUploadResponse holds the credential and S3 POST policy for uploading a file to the temporary bucket
 type OTCPreUploadResponse struct {
-	FileKey          string                   `json:"file_key"` // Base64 object path to pass unchanged to the submitting endpoint
-	URL              string                   `json:"url"`
-	Fields           OTCPreUploadPolicyFields `json:"fields"`
-	ExpiresInSeconds uint64                   `json:"expires_in"`
+	FileKey   string                   `json:"file_key"` // Base64 object path to pass unchanged to the submitting endpoint
+	URL       string                   `json:"url"`
+	Fields    OTCPreUploadPolicyFields `json:"fields"`
+	ExpiresIn types.DurationSeconds    `json:"expires_in"`
 }
 
 // OTCPreUploadPolicyFields holds the S3 POST policy fields to send unchanged as form data when uploading the file

@@ -86,7 +86,7 @@ func TestGetFiatStablecoinQuote(t *testing.T) {
 			Side:                   "PAY",
 			OrderType:              "FIAT",
 			QuoteToken:             otcTestQuoteToken,
-			ValidityPeriodSeconds:  300,
+			ValidityPeriod:         types.DurationSeconds(5 * time.Minute),
 			RefreshLimit:           20,
 			RefreshLimitMessage:    "refresh limit reached",
 		}
@@ -386,7 +386,7 @@ func TestPreUploadOTCFile(t *testing.T) {
 				Policy:      "eyJleHBpcmF0aW9uIjoiMjAyNi0wOC0zMVQwOToyMToyNVoiLCJjb25kaXRpb25zIjpbWyJjb250ZW50LWxlbmd0aC1yYW5nZSIsMSwxMDQ4NTc2MF1dfQ==",
 				Signature:   "EXAMPLE_SIGNATURE",
 			},
-			ExpiresInSeconds: 5400,
+			ExpiresIn: types.DurationSeconds(90 * time.Minute),
 		}
 		assert.Equal(t, exp, result, "PreUploadOTCFile should decode every field")
 		return

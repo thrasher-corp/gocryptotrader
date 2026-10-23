@@ -36,6 +36,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
+	testnetSpotWebsocketURL = "wss://ws-testnet.gate.com/v4/ws/spot"
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -648,7 +649,7 @@ func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) err
 }
 
 // generateSubscriptionsSpot returns configured subscriptions
-func (e *Exchange) generateSubscriptionsSpot() (subscription.List, error) {
+func (e *Exchange) generateSubscriptionsSpot(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

@@ -13,105 +13,76 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
-// rebateTransactionHistoryParams builds the shared query parameters used by the agency and partner transaction history endpoints.
-func rebateTransactionHistoryParams(arg *RebateTransactionHistoryRequest) (url.Values, error) {
-	params := url.Values{}
-	if arg == nil {
-		return params, nil
+// Params returns the query parameters of the agency and partner transaction history endpoints
+func (r *RebateTransactionHistoryRequest) Params() (url.Values, error) {
+	if r == nil {
+		return url.Values{}, nil
 	}
-	if !arg.From.IsZero() && !arg.To.IsZero() {
-		if err := common.StartEndTimeCheck(arg.From, arg.To); err != nil {
-			return nil, err
-		}
+	params, err := rebateHistoryParams(r.UserID, r.From, r.To, r.Limit, r.Offset)
+	if err != nil {
+		return nil, err
 	}
-	if !arg.CurrencyPair.IsEmpty() {
-		params.Set("currency_pair", arg.CurrencyPair.String())
-	}
-	if arg.UserID != 0 {
-		params.Set("user_id", strconv.FormatUint(arg.UserID, 10))
-	}
-	if !arg.From.IsZero() {
-		params.Set("from", strconv.FormatInt(arg.From.UTC().Unix(), 10))
-	}
-	if !arg.To.IsZero() {
-		params.Set("to", strconv.FormatInt(arg.To.UTC().Unix(), 10))
-	}
-	if arg.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
-	}
-	if arg.Offset != 0 {
-		params.Set("offset", strconv.FormatUint(arg.Offset, 10))
+	if !r.CurrencyPair.IsEmpty() {
+		params.Set("currency_pair", r.CurrencyPair.String())
 	}
 	return params, nil
 }
 
-// rebateCommissionHistoryParams builds the shared query parameters used by the agency and partner commission history endpoints.
-func rebateCommissionHistoryParams(arg *RebateCommissionHistoryRequest) (url.Values, error) {
-	params := url.Values{}
-	if arg == nil {
-		return params, nil
+// Params returns the query parameters of the agency and partner commission history endpoints
+func (r *RebateCommissionHistoryRequest) Params() (url.Values, error) {
+	if r == nil {
+		return url.Values{}, nil
 	}
-	if !arg.From.IsZero() && !arg.To.IsZero() {
-		if err := common.StartEndTimeCheck(arg.From, arg.To); err != nil {
-			return nil, err
-		}
+	params, err := rebateHistoryParams(r.UserID, r.From, r.To, r.Limit, r.Offset)
+	if err != nil {
+		return nil, err
 	}
-	if !arg.Currency.IsEmpty() {
-		params.Set("currency", arg.Currency.String())
+	if !r.Currency.IsEmpty() {
+		params.Set("currency", r.Currency.String())
 	}
-	if arg.CommissionType != 0 {
-		params.Set("commission_type", strconv.FormatUint(arg.CommissionType, 10))
-	}
-	if arg.UserID != 0 {
-		params.Set("user_id", strconv.FormatUint(arg.UserID, 10))
-	}
-	if !arg.From.IsZero() {
-		params.Set("from", strconv.FormatInt(arg.From.UTC().Unix(), 10))
-	}
-	if !arg.To.IsZero() {
-		params.Set("to", strconv.FormatInt(arg.To.UTC().Unix(), 10))
-	}
-	if arg.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
-	}
-	if arg.Offset != 0 {
-		params.Set("offset", strconv.FormatUint(arg.Offset, 10))
+	if r.CommissionType != 0 {
+		params.Set("commission_type", strconv.FormatUint(r.CommissionType, 10))
 	}
 	return params, nil
 }
 
-// rebateBrokerHistoryParams builds the shared query parameters used by the broker commission and transaction history endpoints.
-func rebateBrokerHistoryParams(arg *RebateBrokerHistoryRequest) (url.Values, error) {
-	params := url.Values{}
-	if arg == nil {
-		return params, nil
+// Params returns the query parameters of the broker commission and transaction history endpoints
+func (r *RebateBrokerHistoryRequest) Params() (url.Values, error) {
+	if r == nil {
+		return url.Values{}, nil
 	}
-	if !arg.From.IsZero() && !arg.To.IsZero() {
-		if err := common.StartEndTimeCheck(arg.From, arg.To); err != nil {
+	return rebateHistoryParams(r.UserID, r.From, r.To, r.Limit, r.Offset)
+}
+
+// rebateHistoryParams returns the query parameters every rebate history endpoint shares
+func rebateHistoryParams(userID uint64, from, to time.Time, limit, offset uint64) (url.Values, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
 		}
 	}
-	if arg.UserID != 0 {
-		params.Set("user_id", strconv.FormatUint(arg.UserID, 10))
+	params := url.Values{}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !arg.From.IsZero() {
-		params.Set("from", strconv.FormatInt(arg.From.UTC().Unix(), 10))
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if !arg.To.IsZero() {
-		params.Set("to", strconv.FormatInt(arg.To.UTC().Unix(), 10))
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if arg.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
+	if limit != 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if arg.Offset != 0 {
-		params.Set("offset", strconv.FormatUint(arg.Offset, 10))
+	if offset != 0 {
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	return params, nil
 }
 
 // GetAgencyTransactionHistory retrieves a broker's transaction history of recommended users.
 func (e *Exchange) GetAgencyTransactionHistory(ctx context.Context, arg *RebateTransactionHistoryRequest) (*AgencyTransactionHistoryResponse, error) {
-	params, err := rebateTransactionHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +92,7 @@ func (e *Exchange) GetAgencyTransactionHistory(ctx context.Context, arg *RebateT
 
 // GetAgencyCommissionHistory retrieves a broker's rebate history of recommended users.
 func (e *Exchange) GetAgencyCommissionHistory(ctx context.Context, arg *RebateCommissionHistoryRequest) (*AgencyCommissionHistoryResponse, error) {
-	params, err := rebateCommissionHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +102,7 @@ func (e *Exchange) GetAgencyCommissionHistory(ctx context.Context, arg *RebateCo
 
 // GetPartnerTransactionHistory retrieves a partner's transaction history of recommended users.
 func (e *Exchange) GetPartnerTransactionHistory(ctx context.Context, arg *RebateTransactionHistoryRequest) (*PartnerTransactionHistoryResponse, error) {
-	params, err := rebateTransactionHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +112,7 @@ func (e *Exchange) GetPartnerTransactionHistory(ctx context.Context, arg *Rebate
 
 // GetPartnerCommissionHistory retrieves a partner's rebate records of recommended users.
 func (e *Exchange) GetPartnerCommissionHistory(ctx context.Context, arg *RebateCommissionHistoryRequest) (*PartnerCommissionHistoryResponse, error) {
-	params, err := rebateCommissionHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +140,7 @@ func (e *Exchange) GetPartnerSubordinateList(ctx context.Context, arg *PartnerSu
 
 // GetBrokerCommissionHistory retrieves a broker's rebate records for users.
 func (e *Exchange) GetBrokerCommissionHistory(ctx context.Context, arg *RebateBrokerHistoryRequest) (*BrokerCommissionHistoryResponse, error) {
-	params, err := rebateBrokerHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +150,7 @@ func (e *Exchange) GetBrokerCommissionHistory(ctx context.Context, arg *RebateBr
 
 // GetBrokerTransactionHistory retrieves a broker's trading history for users.
 func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, arg *RebateBrokerHistoryRequest) (*BrokerTransactionHistoryResponse, error) {
-	params, err := rebateBrokerHistoryParams(arg)
+	params, err := arg.Params()
 	if err != nil {
 		return nil, err
 	}

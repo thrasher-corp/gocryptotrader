@@ -414,7 +414,7 @@ func (e *Exchange) ProcessUpdate(ctx context.Context, update *WebsocketOrderbook
 }
 
 // generateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

@@ -17,20 +17,20 @@ import (
 // rebateTestPair is the currency pair the recorded rebate fixtures report
 var rebateTestPair = currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
 
-func TestRebateTransactionHistoryParams(t *testing.T) {
+func TestRebateTransactionHistoryRequestParams(t *testing.T) {
 	t.Parallel()
 	from := time.Unix(1710000000, 0)
 	to := from.Add(time.Hour)
 
-	params, err := rebateTransactionHistoryParams(nil)
-	require.NoError(t, err, "rebateTransactionHistoryParams must not error for a nil request")
-	assert.Empty(t, params, "rebateTransactionHistoryParams should not set parameters for a nil request")
+	params, err := (*RebateTransactionHistoryRequest)(nil).Params()
+	require.NoError(t, err, "Params must not error for a nil request")
+	assert.Empty(t, params, "Params should not set parameters for a nil request")
 
-	_, err = rebateTransactionHistoryParams(&RebateTransactionHistoryRequest{From: to, To: from})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "rebateTransactionHistoryParams must reject a start after the end")
+	_, err = (&RebateTransactionHistoryRequest{From: to, To: from}).Params()
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "Params must reject a start after the end")
 
-	params, err = rebateTransactionHistoryParams(&RebateTransactionHistoryRequest{CurrencyPair: rebateTestPair, UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5})
-	require.NoError(t, err, "rebateTransactionHistoryParams must not error")
+	params, err = (&RebateTransactionHistoryRequest{CurrencyPair: rebateTestPair, UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5}).Params()
+	require.NoError(t, err, "Params must not error")
 	exp := url.Values{
 		"currency_pair": {"BTC_USDT"},
 		"user_id":       {"10000001"},
@@ -39,23 +39,23 @@ func TestRebateTransactionHistoryParams(t *testing.T) {
 		"limit":         {"10"},
 		"offset":        {"5"},
 	}
-	assert.Equal(t, exp, params, "rebateTransactionHistoryParams should set every parameter")
+	assert.Equal(t, exp, params, "Params should set every parameter")
 }
 
-func TestRebateCommissionHistoryParams(t *testing.T) {
+func TestRebateCommissionHistoryRequestParams(t *testing.T) {
 	t.Parallel()
 	from := time.Unix(1710000000, 0)
 	to := from.Add(time.Hour)
 
-	params, err := rebateCommissionHistoryParams(nil)
-	require.NoError(t, err, "rebateCommissionHistoryParams must not error for a nil request")
-	assert.Empty(t, params, "rebateCommissionHistoryParams should not set parameters for a nil request")
+	params, err := (*RebateCommissionHistoryRequest)(nil).Params()
+	require.NoError(t, err, "Params must not error for a nil request")
+	assert.Empty(t, params, "Params should not set parameters for a nil request")
 
-	_, err = rebateCommissionHistoryParams(&RebateCommissionHistoryRequest{From: to, To: from})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "rebateCommissionHistoryParams must reject a start after the end")
+	_, err = (&RebateCommissionHistoryRequest{From: to, To: from}).Params()
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "Params must reject a start after the end")
 
-	params, err = rebateCommissionHistoryParams(&RebateCommissionHistoryRequest{Currency: currency.USDT, CommissionType: 2, UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5})
-	require.NoError(t, err, "rebateCommissionHistoryParams must not error")
+	params, err = (&RebateCommissionHistoryRequest{Currency: currency.USDT, CommissionType: 2, UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5}).Params()
+	require.NoError(t, err, "Params must not error")
 	exp := url.Values{
 		"currency":        {"USDT"},
 		"commission_type": {"2"},
@@ -65,23 +65,23 @@ func TestRebateCommissionHistoryParams(t *testing.T) {
 		"limit":           {"10"},
 		"offset":          {"5"},
 	}
-	assert.Equal(t, exp, params, "rebateCommissionHistoryParams should set every parameter")
+	assert.Equal(t, exp, params, "Params should set every parameter")
 }
 
-func TestRebateBrokerHistoryParams(t *testing.T) {
+func TestRebateBrokerHistoryRequestParams(t *testing.T) {
 	t.Parallel()
 	from := time.Unix(1710000000, 0)
 	to := from.Add(time.Hour)
 
-	params, err := rebateBrokerHistoryParams(nil)
-	require.NoError(t, err, "rebateBrokerHistoryParams must not error for a nil request")
-	assert.Empty(t, params, "rebateBrokerHistoryParams should not set parameters for a nil request")
+	params, err := (*RebateBrokerHistoryRequest)(nil).Params()
+	require.NoError(t, err, "Params must not error for a nil request")
+	assert.Empty(t, params, "Params should not set parameters for a nil request")
 
-	_, err = rebateBrokerHistoryParams(&RebateBrokerHistoryRequest{From: to, To: from})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "rebateBrokerHistoryParams must reject a start after the end")
+	_, err = (&RebateBrokerHistoryRequest{From: to, To: from}).Params()
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "Params must reject a start after the end")
 
-	params, err = rebateBrokerHistoryParams(&RebateBrokerHistoryRequest{UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5})
-	require.NoError(t, err, "rebateBrokerHistoryParams must not error")
+	params, err = (&RebateBrokerHistoryRequest{UserID: 10000001, From: from, To: to, Limit: 10, Offset: 5}).Params()
+	require.NoError(t, err, "Params must not error")
 	exp := url.Values{
 		"user_id": {"10000001"},
 		"from":    {strconv.FormatInt(from.Unix(), 10)},
@@ -89,7 +89,7 @@ func TestRebateBrokerHistoryParams(t *testing.T) {
 		"limit":   {"10"},
 		"offset":  {"5"},
 	}
-	assert.Equal(t, exp, params, "rebateBrokerHistoryParams should set every parameter")
+	assert.Equal(t, exp, params, "Params should set every parameter")
 }
 
 func TestGetAgencyTransactionHistory(t *testing.T) {
@@ -255,7 +255,7 @@ func TestGetBrokerCommissionHistory(t *testing.T) {
 				Amount:         1500.5,
 				Fee:            0.65,
 				FeeAsset:       currency.USDT,
-				RebateFee:      0.32,
+				RebateFeeUSDT:  0.32,
 				Source:         "Spot",
 				CurrencyPair:   rebateTestPair,
 				SubBrokerInfo: &BrokerSubBrokerInfo{
@@ -290,7 +290,7 @@ func TestGetBrokerTransactionHistory(t *testing.T) {
 				TransactionTime: types.Time(time.Unix(1715864142, 0)),
 				UserID:          10000001,
 				GroupName:       "group_a",
-				Fee:             0.65,
+				FeeUSDT:         0.65,
 				CurrencyPair:    rebateTestPair,
 				Amount:          1500.5,
 				FeeAsset:        currency.USDT,

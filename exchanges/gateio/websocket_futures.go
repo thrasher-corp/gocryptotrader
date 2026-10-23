@@ -28,8 +28,10 @@ import (
 )
 
 const (
-	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	btcFuturesWebsocketURL         = "wss://fx-ws.gateio.ws/v4/ws/btc"
+	usdtFuturesWebsocketURL        = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	testnetBTCFuturesWebsocketURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/btc"
+	testnetUSDTFuturesWebsocketURL = "wss://ws-testnet.gate.com/v4/ws/futures/usdt"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"

@@ -113,6 +113,17 @@ func TestCrossExchangeSymbolIdentifierMarshalJSON(t *testing.T) {
 
 	_, err = CrossExchangeSymbolIdentifierRequest{Exchange: "OKX", Asset: asset.Futures}.MarshalJSON()
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "MarshalJSON should reject a symbol it cannot render")
+
+	// sonic skips a pointer receiver's MarshalJSON for values it cannot address, so these pin the value receiver
+	symbol := newCrossExchangeSymbol("okx", asset.Futures, currency.NewBTCUSDT())
+	got, err = json.Marshal(struct {
+		Symbol CrossExchangeSymbolIdentifierRequest `json:"symbol"`
+	}{Symbol: symbol})
+	require.NoError(t, err, "Marshal must not error for a request marshalled by value")
+	assert.JSONEq(t, `{"symbol":"OKX_FUTURE_BTC_USDT"}`, string(got), "Marshal should render the symbol in a request marshalled by value")
+	got, err = json.Marshal(map[string]CrossExchangeSymbolIdentifierRequest{"symbol": symbol})
+	require.NoError(t, err, "Marshal must not error for a map value")
+	assert.JSONEq(t, `{"symbol":"OKX_FUTURE_BTC_USDT"}`, string(got), "Marshal should render the symbol held as a map value")
 }
 
 func TestCrossExchangeSymbolIdentifierBusinessType(t *testing.T) {
@@ -638,13 +649,13 @@ func TestGetCrossExchangeConvertQuote(t *testing.T) {
 	require.NoError(t, err, "GetCrossExchangeConvertQuote must not error")
 	if mockTests {
 		exp := &CrossExchangeConvertQuoteResponse{
-			QuoteID:           "CTH46487058372",
-			ValidMilliseconds: 5000,
-			FromCoin:          currency.BTC,
-			ToCoin:            currency.USDT,
-			FromAmount:        1,
-			ToAmount:          65000,
-			Price:             65000,
+			QuoteID:    "CTH46487058372",
+			ValidFor:   types.DurationMilliseconds(5 * time.Second),
+			FromCoin:   currency.BTC,
+			ToCoin:     currency.USDT,
+			FromAmount: 1,
+			ToAmount:   65000,
+			Price:      65000,
 		}
 		assert.Equal(t, exp, result, "GetCrossExchangeConvertQuote should decode every field")
 		return
@@ -1015,28 +1026,28 @@ func TestGetCrossExchangeContractPositions(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	exp := []*CrossExchangePositionResponse{{
-		UserID:            "10001004",
-		PositionID:        "20062926505289216",
-		Symbol:            "BINANCE_FUTURE_BTC_USDT",
-		PositionSide:      "LONG",
-		InitialMargin:     5.79934625,
-		MarginMode:        "CROSS",
-		MaintenanceMargin: 0.06229625,
-		PositionQuantity:  10,
-		PositionValue:     5.795,
-		UnrealisedPNL:     0.369,
-		UnrealisedPNLRate: 0.068,
-		EntryPrice:        0.5426,
-		MarkPrice:         0.5795,
-		Leverage:          1,
-		MaxLeverage:       18,
-		RiskLimit:         1,
-		Fee:               0.002713,
-		FundingFee:        -0.01,
-		FundingTime:       types.Time(time.UnixMilli(1750700000000)),
-		CreateTime:        types.Time(time.UnixMilli(1750682334273)),
-		UpdateTime:        types.Time(time.UnixMilli(1750730699867)),
-		ClosedPNL:         12,
+		UserID:                "10001004",
+		PositionID:            "20062926505289216",
+		Symbol:                "BINANCE_FUTURE_BTC_USDT",
+		PositionSide:          "LONG",
+		InitialMargin:         5.79934625,
+		MarginMode:            "CROSS",
+		MaintenanceMargin:     0.06229625,
+		PositionQuantity:      10,
+		PositionValue:         5.795,
+		UnrealisedPNL:         0.369,
+		UnrealisedPNLRate:     0.068,
+		EntryPrice:            0.5426,
+		MarkPrice:             0.5795,
+		Leverage:              1,
+		MaxLeverage:           18,
+		RiskLimit:             1,
+		Fee:                   0.002713,
+		AccumulatedFundingFee: -0.01,
+		FundingTime:           types.Time(time.UnixMilli(1750700000000)),
+		CreateTime:            types.Time(time.UnixMilli(1750682334273)),
+		UpdateTime:            types.Time(time.UnixMilli(1750730699867)),
+		ClosedPNL:             12,
 	}}
 	for _, tc := range []struct {
 		symbol       CrossExchangeSymbolIdentifierRequest
@@ -1533,8 +1544,8 @@ func TestGetCrossExchangeFundingInfo(t *testing.T) {
 	require.NoError(t, err, "GetCrossExchangeFundingInfo must not error")
 	if mockTests {
 		exp := []*CrossExchangeFundingInfoResponse{
-			{Symbol: "BINANCE_FUTURE_BTC_USDT", FundingRate: 0.00006537, FundingIntervalSeconds: 28800, NextFundingTime: types.Time(time.UnixMilli(1785168000000))},
-			{Symbol: "KRAKEN_FUTURE_BTC_USD", FundingRate: 0.000011898754310345, FundingIntervalSeconds: 3600, NextFundingTime: types.Time(time.UnixMilli(1785139200000))},
+			{Symbol: "BINANCE_FUTURE_BTC_USDT", FundingRate: 0.00006537, FundingInterval: types.DurationSeconds(8 * time.Hour), NextFundingTime: types.Time(time.UnixMilli(1785168000000))},
+			{Symbol: "KRAKEN_FUTURE_BTC_USD", FundingRate: 0.000011898754310345, FundingInterval: types.DurationSeconds(time.Hour), NextFundingTime: types.Time(time.UnixMilli(1785139200000))},
 		}
 		assert.Equal(t, exp, result, "GetCrossExchangeFundingInfo should decode every field")
 		return

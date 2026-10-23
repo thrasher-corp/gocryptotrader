@@ -24,7 +24,7 @@ func TestGetStakingCoins(t *testing.T) {
 	if mockTests {
 		exp := []*StakingCoinResponse{{
 			ProductID:           1,
-			Currency:            "GT",
+			Currencies:          currency.Currencies{currency.GT},
 			EstimatedAPR:        36,
 			MinStakeAmount:      1,
 			MaxStakeAmount:      700,
@@ -178,7 +178,7 @@ func TestGetStakingAssets(t *testing.T) {
 	if mockTests {
 		exp := []*StakingAssetItemResponse{{
 			ProductID:            64,
-			MortgageCoin:         "USDT",
+			MortgageCurrencies:   currency.Currencies{currency.USDT},
 			MortgageAmount:       1,
 			CreateTime:           types.Time(time.Unix(1750764156, 0)),
 			Type:                 1,

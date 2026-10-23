@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestBotResponseError(t *testing.T) {
@@ -448,7 +450,7 @@ func TestGetBotStrategyDetail(t *testing.T) {
 			BaseInfo: &BotPortfolioBaseInfo{
 				StrategyName:    "BTC_USDT Spot Grid",
 				CreatedAt:       "2026-01-01 00:00:00",
-				RunningDuration: 86400,
+				RunningDuration: types.DurationSeconds(24 * time.Hour),
 				InvestAmount:    1000,
 				TotalProfit:     120.5,
 				ProfitRate:      0.12,

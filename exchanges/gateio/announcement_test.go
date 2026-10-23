@@ -31,7 +31,7 @@ func TestGetAnnouncementArticles(t *testing.T) {
 			Brief:        "Gate WCTC S9 Global Trading Competition is here.",
 			Created:      "3 days",
 			Updated:      "3 days",
-			ReleaseDate:  "2026-10-09",
+			ReleaseDate:  Date(time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)),
 			ReleaseTime:  types.Time(time.Unix(1791532603, 0)),
 			CreateTime:   types.Time(time.Unix(1791532603, 0)),
 			UpdateTime:   types.Time(time.Unix(1791534265, 0)),

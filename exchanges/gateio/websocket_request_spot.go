@@ -36,13 +36,14 @@ func (e *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, o *CreateOrderR
 	return resps[0], nil
 }
 
-// WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
-// send multiple orders in a single request. But only for one asset route.
+// WebsocketSpotSubmitOrders submits orders via the websocket connection in one request, which takes up to 10 orders for
+// each of up to 4 currency pairs
 func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]*WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
 
+	pairs := make(currency.Pairs, len(orders))
 	for i := range orders {
 		if orders[i].Text == "" {
 			// API requires Text field, or it will be rejected
@@ -60,6 +61,10 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 		if orders[i].Type == "limit" && orders[i].Price == 0 {
 			return nil, order.ErrPriceMustBeSetIfLimitOrder
 		}
+		pairs[i] = orders[i].CurrencyPair
+	}
+	if err := checkSpotBatchLimits(pairs); err != nil {
+		return nil, err
 	}
 
 	if len(orders) == 1 {
