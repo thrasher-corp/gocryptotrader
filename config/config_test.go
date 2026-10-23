@@ -1575,7 +1575,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1592,9 +1592,40 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
+}
+
+func TestReadVersion17ConfigFromFile(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the current config fixture")
+	var expected Config
+	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+	var remoteControl map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["remoteControl"], &remoteControl), "Unmarshal must preserve remote control settings")
+	var grpcConfig map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(remoteControl["gRPC"], &grpcConfig), "Unmarshal must preserve gRPC settings")
+	grpcConfig["timeInNanoSeconds"] = json.RawMessage(`true`)
+	remoteControl["gRPC"], err = json.Marshal(grpcConfig)
+	require.NoError(t, err, "Marshal must encode gRPC settings")
+	saved["remoteControl"], err = json.Marshal(remoteControl)
+	require.NoError(t, err, "Marshal must encode remote control settings")
+	saved["version"] = json.RawMessage(`17`)
+	data, err = json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the version 17 config")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 17 config")
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance to the current version")
+	assert.Equal(t, expected.RemoteControl, migrated.RemoteControl, "ReadConfigFromFile should preserve current remote control settings")
+	var output bytes.Buffer
+	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
+	assert.NotContains(t, output.String(), `"timeInNanoSeconds"`, "Save should omit the removed timestamp precision setting")
 }
 
 func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
@@ -1604,7 +1635,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the current config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1634,7 +1665,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 16 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should preserve exchanges apart from obsolete buffer settings")
 
 	var output bytes.Buffer
@@ -1652,7 +1683,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 17, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, 18, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")

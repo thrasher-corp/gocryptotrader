@@ -453,13 +453,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			return nil, err
 		}
 		return &order.Detail{
-			OrderID:  id,
-			Amount:   orderInfo.Amount,
-			Price:    orderInfo.Rate,
-			Side:     side,
-			Date:     orderInfo.TimestampCreated.Time(),
-			Pair:     symbol,
-			Exchange: e.Name,
+			// GetOrderInformation queries the spot API by ID, independently of the incoming asset.
+			AssetType: asset.Spot,
+			OrderID:   id,
+			Amount:    orderInfo.Amount,
+			Price:     orderInfo.Rate,
+			Side:      side,
+			Date:      orderInfo.TimestampCreated.Time(),
+			Pair:      symbol,
+			Exchange:  e.Name,
 		}, nil
 	}
 	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)

@@ -501,6 +501,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 			}
 			resp.Exchange = e.Name
+			// The open-order crawl and QueryOrder use the spot API, regardless of the incoming asset.
+			resp.AssetType = asset.Spot
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err

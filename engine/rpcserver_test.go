@@ -54,6 +54,7 @@ import (
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -1834,6 +1835,7 @@ func TestGetManagedOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
+	tradeTime := time.Unix(1_643_640_186, 123_456_789).UTC()
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
@@ -1845,6 +1847,7 @@ func TestGetManagedOrders(t *testing.T) {
 		Status:    order.New,
 		AssetType: asset.Spot,
 		Pair:      currency.NewBTCUSDT(),
+		Trades:    []order.TradeHistory{{Timestamp: tradeTime}},
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -1856,46 +1859,16 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: "spot",
 		Pair:      p,
 	})
-	switch {
-	case err != nil:
-		t.Errorf("non expected Error: %v", err)
-	case oo == nil || len(oo.GetOrders()) != 1:
-		t.Errorf("unexpected order result: %v", oo)
-	default:
-		got := oo.GetOrders()[0]
-		assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
-		assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
-	}
-}
-
-func TestRPCServer_unixTimestamp(t *testing.T) {
-	t.Parallel()
-
-	s := RPCServer{
-		Engine: &Engine{
-			Config: &config.Config{
-				RemoteControl: config.RemoteControlConfig{
-					GRPC: config.GRPCConfig{
-						TimeInNanoSeconds: false,
-					},
-				},
-			},
-		},
-	}
-	const sec = 1618888141
-	const nsec = 2
-	x := time.Unix(sec, nsec)
-
-	timestampSeconds := s.unixTimestamp(x)
-	if timestampSeconds != sec {
-		t.Errorf("have %d, want %d", timestampSeconds, sec)
-	}
-
-	s.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
-	timestampNanos := s.unixTimestamp(x)
-	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
-		t.Errorf("have %d, want %d", timestampSeconds, want)
-	}
+	require.NoError(t, err, "GetManagedOrders must not error")
+	require.NotNil(t, oo, "GetManagedOrders must return a response")
+	require.Len(t, oo.GetOrders(), 1, "GetManagedOrders must return the stored order")
+	require.Len(t, oo.GetOrders()[0].GetTrades(), 1, "GetManagedOrders must return the stored trade")
+	creationTime := oo.GetOrders()[0].GetTrades()[0].GetCreationTime()
+	require.NotNil(t, creationTime, "GetManagedOrders must return the trade timestamp")
+	assert.Equal(t, tradeTime, creationTime.AsTime(), "GetManagedOrders should preserve trade timestamp nanoseconds")
+	got := oo.GetOrders()[0]
+	assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
+	assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
 }
 
 func TestRPCServer_tickerResponse(t *testing.T) {
@@ -1932,65 +1905,52 @@ func TestRPCServer_tickerResponse(t *testing.T) {
 		FlashReturnRateAmount:      25,
 	}
 
-	for _, tc := range []struct {
-		name        string
-		nanoseconds bool
-		timestamp   int64
-	}{
-		{name: "seconds", timestamp: 1643640186},
-		{name: "nanoseconds", nanoseconds: true, timestamp: 1643640186123456789},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			s := &RPCServer{Engine: &Engine{Config: &config.Config{}}}
-			s.Config.RemoteControl.GRPC.TimeInNanoSeconds = tc.nanoseconds
-			want := &gctrpc.TickerResponse{
-				Pair: &gctrpc.CurrencyPair{
-					Base:  "BTC",
-					Quote: "USD",
-				},
-				LastUpdated:                tc.timestamp,
-				CurrencyPair:               "BTCUSD",
-				Last:                       1,
-				LastSize:                   2,
-				VolumeWeightedAveragePrice: 3,
-				High:                       4,
-				Low:                        5,
-				Bid:                        7,
-				BidSize:                    8,
-				Ask:                        10,
-				AskSize:                    11,
-				Volume:                     12,
-				BaseVolume:                 12,
-				QuoteVolume:                13,
-				Open:                       14,
-				Open24Hour:                 15,
-				PercentChange24Hour:        16,
-				Close:                      17,
-				OpenInterest:               18,
-				OpenInterestValue:          19,
-				MarkPrice:                  20,
-				IndexPrice:                 21,
-				ExchangeName:               "Bitstamp",
-				AssetType:                  asset.Spot.String(),
-				FlashReturnRate:            22,
-				BidPeriod:                  23,
-				AskPeriod:                  24,
-				FlashReturnRateAmount:      25,
-			}
-			got := s.tickerResponse(price)
-			assert.Equal(t, want, got, "ticker RPC response should contain every stored price field")
-
-			encoded, err := proto.Marshal(got)
-			require.NoError(t, err, "ticker RPC response must marshal")
-			var decoded gctrpc.TickerResponse
-			require.NoError(t, proto.Unmarshal(encoded, &decoded), "ticker RPC response must unmarshal")
-			assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
-		})
+	s := &RPCServer{}
+	want := &gctrpc.TickerResponse{
+		Pair: &gctrpc.CurrencyPair{
+			Base:  "BTC",
+			Quote: "USD",
+		},
+		LastUpdated:                timestamppb.New(price.LastUpdated),
+		CurrencyPair:               "BTCUSD",
+		Last:                       1,
+		LastSize:                   2,
+		VolumeWeightedAveragePrice: 3,
+		High:                       4,
+		Low:                        5,
+		Bid:                        7,
+		BidSize:                    8,
+		Ask:                        10,
+		AskSize:                    11,
+		Volume:                     12,
+		BaseVolume:                 12,
+		QuoteVolume:                13,
+		Open:                       14,
+		Open24Hour:                 15,
+		PercentChange24Hour:        16,
+		Close:                      17,
+		OpenInterest:               18,
+		OpenInterestValue:          19,
+		MarkPrice:                  20,
+		IndexPrice:                 21,
+		ExchangeName:               "Bitstamp",
+		AssetType:                  asset.Spot.String(),
+		FlashReturnRate:            22,
+		BidPeriod:                  23,
+		AskPeriod:                  24,
+		FlashReturnRateAmount:      25,
 	}
+	got := s.tickerResponse(price)
+	assert.Equal(t, want, got, "ticker RPC response should contain every stored price field")
+
+	encoded, err := proto.Marshal(got)
+	require.NoError(t, err, "ticker RPC response must marshal")
+	var decoded gctrpc.TickerResponse
+	require.NoError(t, proto.Unmarshal(encoded, &decoded), "ticker RPC response must unmarshal")
+	assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
 }
 
-func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
+func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	t.Parallel()
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
@@ -2040,22 +2000,267 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	}
 
-	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
-	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
-	one, err := server.GetTicker(t.Context(), request)
-	require.NoError(t, err)
-	assert.Equal(t, now.Unix(), one.LastUpdated)
-	assert.Equal(t, request.Pair, one.Pair, "GetTicker should echo the requested pair")
-	assert.Equal(t, "XXXXX-YYYYY", one.CurrencyPair, "GetTicker should echo the requested pair format")
-
-	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
-	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
-	two, err := server.GetTicker(t.Context(), request)
-	require.NoError(t, err)
-	assert.Equal(t, now.UnixNano(), two.LastUpdated)
+	response, err := server.GetTicker(t.Context(), request)
+	require.NoError(t, err, "GetTicker must not error")
+	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
+	assert.Equal(t, now.UTC(), response.LastUpdated.AsTime(), "LastUpdated should preserve nanosecond precision")
+	assert.Equal(t, request.Pair, response.Pair, "GetTicker should echo the requested pair")
+	assert.Equal(t, "XXXXX-YYYYY", response.CurrencyPair, "GetTicker should echo the requested pair format")
 	request.Pair.Base = "changed"
-	assert.Equal(t, "XXXXX", one.Pair.Base, "response pair should not alias the request")
-	assert.Equal(t, "XXXXX", two.Pair.Base, "response pair should not alias the request")
+	assert.Equal(t, "XXXXX", response.Pair.Base, "response pair should not alias the request")
+}
+
+func TestRPCServer_GetOrderbook_LastUpdated(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = newUniqueFakeExchangeName()
+	b.Enabled = true
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
+
+	pair := currency.NewPair(currency.BTC, currency.METAL)
+	depth, err := orderbook.DeployDepth(b.Name, pair, asset.Spot)
+	require.NoError(t, err, "DeployDepth must not error")
+	lastUpdated := time.Unix(1759200000, 123456789)
+	err = depth.LoadSnapshot(&orderbook.Book{
+		Bids:         []orderbook.Level{{Price: 10, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 11, Amount: 1}},
+		LastUpdated:  lastUpdated,
+		LastPushed:   lastUpdated,
+		RestSnapshot: true,
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	response, err := s.GetOrderbook(t.Context(), &gctrpc.GetOrderbookRequest{
+		Exchange:  b.Name,
+		Pair:      &gctrpc.CurrencyPair{Base: pair.Base.String(), Quote: pair.Quote.String()},
+		AssetType: asset.Spot.String(),
+	})
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
+	assert.Equal(t, lastUpdated.UTC(), response.LastUpdated.AsTime(), "LastUpdated should preserve nanosecond precision")
+}
+
+// tradeTimeExchange serves orders to the order RPCs without API calls or credentials
+type tradeTimeExchange struct {
+	exchange.IBotExchange
+	orders []order.Detail
+}
+
+func (f tradeTimeExchange) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	resp := make(order.FilteredOrders, len(f.orders))
+	for i := range f.orders {
+		resp[i] = f.orders[i].Copy()
+	}
+	return resp, nil
+}
+
+func (f tradeTimeExchange) GetOrderInfo(_ context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	for i := range f.orders {
+		if f.orders[i].OrderID == orderID {
+			return f.orders[i].CopyToPointer(), nil
+		}
+	}
+	return nil, order.ErrOrderNotFound
+}
+
+// orderFillTimes returns distinct sub-second trade times for two orders, keyed by order ID. The second
+// order's trades fall after 2038, beyond 32-bit Unix seconds
+func orderFillTimes() map[string][]time.Time {
+	return map[string][]time.Time{
+		"1": {time.Unix(1_643_640_186, 123_456_789).UTC(), time.Unix(1_643_640_187, 987_654_321).UTC()},
+		"2": {time.Unix(2_243_640_188, 246_813_579).UTC(), time.Unix(2_243_640_189, 864_202_468).UTC()},
+	}
+}
+
+// partiallyFilledOrder returns an open order holding one trade at each of the given times
+func partiallyFilledOrder(exchangeName, orderID string, pair currency.Pair, a asset.Item, tradeTimes []time.Time) order.Detail {
+	trades := make([]order.TradeHistory, len(tradeTimes))
+	for i := range tradeTimes {
+		trades[i] = order.TradeHistory{TID: orderID + "-" + strconv.Itoa(i), Timestamp: tradeTimes[i], Type: order.Limit}
+	}
+	return order.Detail{
+		Exchange:       exchangeName,
+		OrderID:        orderID,
+		Pair:           pair,
+		AssetType:      a,
+		Side:           order.Buy,
+		Type:           order.Limit,
+		Status:         order.PartiallyFilled,
+		Amount:         2,
+		ExecutedAmount: 1,
+		Date:           tradeTimes[0].Add(-time.Minute),
+		LastUpdated:    tradeTimes[len(tradeTimes)-1].Add(time.Minute),
+		Trades:         trades,
+	}
+}
+
+// tradeCreationTimes returns each trade's creation time
+func tradeCreationTimes(t *testing.T, trades []*gctrpc.TradeHistory) []time.Time {
+	t.Helper()
+	times := make([]time.Time, len(trades))
+	for i, trade := range trades {
+		require.NotNilf(t, trade.GetCreationTime(), "trade %d must have a creation time", i)
+		require.NoErrorf(t, trade.GetCreationTime().CheckValid(), "trade %d must have a valid creation time", i)
+		times[i] = trade.GetCreationTime().AsTime()
+	}
+	return times
+}
+
+// orderTradeCreationTimes returns each order's trade creation times, keyed by order ID
+func orderTradeCreationTimes(t *testing.T, orders []*gctrpc.OrderDetails) map[string][]time.Time {
+	t.Helper()
+	times := make(map[string][]time.Time, len(orders))
+	for _, o := range orders {
+		require.NotContainsf(t, times, o.GetId(), "order %s must be returned once", o.GetId())
+		times[o.GetId()] = tradeCreationTimes(t, o.GetTrades())
+	}
+	return times
+}
+
+func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
+	t.Parallel()
+	for name, reportedAsset := range map[string]asset.Item{"populated_asset": asset.Spot, "omitted_asset": asset.Empty} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			exch, err := em.NewExchangeByName("binance")
+			require.NoError(t, err, "NewExchangeByName must not error")
+			exch.SetDefaults()
+			b := exch.GetBase()
+			b.Name = newUniqueFakeExchangeName()
+			b.Enabled = true
+			cp := currency.NewBTCUSDT()
+			b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					Available:     currency.Pairs{cp},
+					Enabled:       currency.Pairs{cp},
+					AssetEnabled:  true,
+					ConfigFormat:  &currency.PairFormat{Uppercase: true},
+					RequestFormat: &currency.PairFormat{Uppercase: true},
+				},
+				asset.Futures: {
+					Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}, AssetEnabled: true,
+					ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true},
+				},
+			}
+			fills := orderFillTimes()
+			require.NoError(t, em.Add(tradeTimeExchange{
+				IBotExchange: exch,
+				orders: []order.Detail{
+					partiallyFilledOrder(b.Name, "1", cp, reportedAsset, fills["1"]),
+					partiallyFilledOrder(b.Name, "2", cp, reportedAsset, fills["2"]),
+				},
+			}), "Add must not error")
+
+			var wg sync.WaitGroup
+			om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+			require.NoError(t, err, "SetupOrderManager must not error")
+			om.started.Store(true)
+			s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
+			p := &gctrpc.CurrencyPair{Delimiter: "-", Base: cp.Base.String(), Quote: cp.Quote.String()}
+
+			// The wrapper looks up the order by ID, independently of the requested market.
+			for _, requestedAsset := range []asset.Item{asset.Spot, asset.Futures, asset.All} {
+				requestPair := p
+				if requestedAsset == asset.All {
+					requestPair = &gctrpc.CurrencyPair{}
+				}
+				detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: requestPair, Asset: requestedAsset.String()})
+				require.NoError(t, err, "GetOrder must not error")
+				assert.Equal(t, reportedAsset.String(), detail.GetAssetType(), "GetOrder should preserve the reported asset rather than infer it from the request")
+				assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
+				for _, trade := range detail.GetTrades() {
+					assert.Equal(t, reportedAsset.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type or the requested asset")
+				}
+			}
+
+			orders, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
+				Exchange:  b.Name,
+				AssetType: asset.Spot.String(),
+				Pair:      p,
+				StartDate: fills["1"][0].Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+				EndDate:   fills["2"][1].Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+			})
+			require.NoError(t, err, "GetOrders must not error")
+			assert.Equal(t, fills, orderTradeCreationTimes(t, orders.GetOrders()), "GetOrders should preserve each trade's timestamp nanoseconds")
+			for _, detail := range orders.GetOrders() {
+				for _, trade := range detail.GetTrades() {
+					assert.Equal(t, asset.Spot.String(), trade.GetAssetType(), "GetOrders should report the fill's asset type, not its order type")
+				}
+			}
+		})
+	}
+}
+
+func TestRPCServer_GetOrderbooksExchangeIsolation(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	pair := currency.NewBTCUSDT()
+	want := make(map[string]time.Time)
+	for i := range 2 {
+		exch, err := em.NewExchangeByName("binance")
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+		b := exch.GetBase()
+		b.Name = newUniqueFakeExchangeName()
+		b.Enabled = true
+		b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				Available: currency.Pairs{pair}, Enabled: currency.Pairs{pair}, AssetEnabled: true,
+				ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true},
+			},
+		}
+		require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must register each exchange independently")
+		lastUpdated := time.Unix(2_243_640_188+int64(i), 123_456_789).UTC()
+		want[b.Name] = lastUpdated
+		depth, err := orderbook.DeployDepth(b.Name, pair, asset.Spot)
+		require.NoError(t, err, "DeployDepth must register each exchange's book")
+		require.NoError(t, depth.LoadSnapshot(&orderbook.Book{
+			Exchange: b.Name, Pair: pair, Asset: asset.Spot, LastUpdated: lastUpdated,
+			Bids: orderbook.Levels{{Price: 100, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+			RestSnapshot: true,
+		}), "LoadSnapshot must cache each exchange's book")
+	}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	response, err := s.GetOrderbooks(t.Context(), &gctrpc.GetOrderbooksRequest{})
+	require.NoError(t, err, "GetOrderbooks must not error")
+	require.Len(t, response.GetOrderbooks(), len(want), "GetOrderbooks must return both exchanges")
+	seen := make(map[string]bool)
+	for _, entry := range response.GetOrderbooks() {
+		require.Contains(t, want, entry.GetExchange(), "GetOrderbooks must return a registered exchange")
+		assert.False(t, seen[entry.GetExchange()], "GetOrderbooks should not repeat an exchange")
+		seen[entry.GetExchange()] = true
+		require.Len(t, entry.GetOrderbooks(), 1, "each exchange must contain only its own book")
+		book := entry.GetOrderbooks()[0]
+		assert.Equal(t, pair.Base.String(), book.GetPair().GetBase(), "book should retain its base currency")
+		assert.Equal(t, asset.Spot.String(), book.GetAssetType(), "book should retain its asset type")
+		require.NotNil(t, book.GetLastUpdated(), "book must have an update timestamp")
+		require.NoError(t, book.GetLastUpdated().CheckValid(), "book timestamp must be valid")
+		assert.Equal(t, want[entry.GetExchange()], book.GetLastUpdated().AsTime(), "book should retain its own exchange's nanosecond timestamp")
+	}
+}
+
+func TestRPCServer_buildFuturePosition(t *testing.T) {
+	t.Parallel()
+	fills := orderFillTimes()
+	cp := currency.NewBTCUSDT()
+	position := &futures.Position{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures,
+		Pair:     cp,
+		Status:   order.Open,
+		Orders: []order.Detail{
+			partiallyFilledOrder(fakeExchangeName, "1", cp, asset.Futures, fills["1"]),
+			partiallyFilledOrder(fakeExchangeName, "2", cp, asset.Futures, fills["2"]),
+		},
+	}
+	response := new(RPCServer).buildFuturePosition(position, false, false, true, false)
+	assert.Equal(t, fills, orderTradeCreationTimes(t, response.GetOrders()), "buildFuturePosition should preserve each trade's timestamp nanoseconds")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
