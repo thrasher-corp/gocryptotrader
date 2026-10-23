@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sync"
 	"text/template"
+	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -18,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -46,6 +48,8 @@ const (
 	// counting each USDC alias apart from its USD product; every subscription holds one product or instrument, so each
 	// connection is held to it
 	websocketMaxSubscriptionsPerConnection = 30
+	// websocketCloseTimeout bounds sending the close frame that has the venue close a connection for reconnection
+	websocketCloseTimeout = 5 * time.Second
 
 	// Advanced Trade's channel names, as requests and messages carry them
 	wsChannelHeartbeats   = "heartbeats"
@@ -292,8 +296,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(websocketSubscriptionTemplate)
 }
 
-// websocketSubscriptionTemplate qualifies a subscription's channel for each of its assets, per pair for a channel taking
-// pairs and once otherwise; an asset the channel does not stream for an asset.All subscription generates nothing
+// websocketSubscriptionTemplate qualifies a subscription's channel for each of its assets, per pair for a channel
+// taking pairs and once otherwise; an asset the channel does not stream for an asset.All subscription generates nothing
 const websocketSubscriptionTemplate = `
 {{- range $asset, $pairs := $.AssetPairs }}
 	{{- if perPair $.S $asset }}
@@ -470,7 +474,7 @@ func (e *Exchange) wsManageChannel(ctx context.Context, conn websocket.Connectio
 
 // confirmationLists reports whether a confirmation lists a subscription: an account channel by name, and a product
 // channel's subscription by its product or the product it streams as, which Coinbase lists in its place
-func (e *Exchange) confirmationLists(confirmation *websocketSubscriptionsEvent, channel string, s *subscription.Subscription) bool {
+func (e *Exchange) confirmationLists(confirmation *WebsocketSubscriptionsEvent, channel string, s *subscription.Subscription) bool {
 	products, ok := confirmation.Subscriptions[channel]
 	if !ok || len(s.Pairs) == 0 {
 		return ok
@@ -478,11 +482,15 @@ func (e *Exchange) confirmationLists(confirmation *websocketSubscriptionsEvent, 
 	return slices.Contains(products, s.Pairs[0].Format(productIDFormat).String()) || slices.Contains(products, e.websocketStreamProduct(s.Asset, s.Pairs[0]))
 }
 
-// wsSendRequest sends a subscribe or unsubscribe request and returns the subscriptions its reply lists. Coinbase's reply
-// names neither the request nor its channel, so the connection's requests are sent one at a time; an authenticated
-// request carries a fresh JWT, as each expires after two minutes
-func (e *Exchange) wsSendRequest(ctx context.Context, conn websocket.Connection, op, channel string, productIDs []string, authenticated bool) (*websocketSubscriptionsEvent, error) {
-	req := &websocketRequest{Type: op, Channel: channel, ProductIDs: productIDs}
+// wsSendRequest sends a subscribe or unsubscribe request and returns the subscriptions its reply lists. Coinbase's
+// reply names neither the request nor its channel, so the connection's requests are sent one at a time; an
+// authenticated request carries a fresh JWT, as each expires after two minutes
+func (e *Exchange) wsSendRequest(ctx context.Context, conn websocket.Connection, op, channel string, productIDs []string, authenticated bool) (*WebsocketSubscriptionsEvent, error) {
+	// A request its caller stopped waiting for before it was sent has no reply that could arrive late
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	req := &WebsocketWireRequest{Type: op, Channel: channel, ProductIDs: productIDs}
 	if authenticated {
 		jwt, _, err := e.GetJWT(ctx, "")
 		if err != nil {
@@ -492,28 +500,35 @@ func (e *Exchange) wsSendRequest(ctx context.Context, conn websocket.Connection,
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketMessageEPL, wsChannelSubscriptions, req)
 	if err != nil {
+		if errors.Is(err, websocket.ErrSignatureTimeout) || ctx.Err() != nil {
+			// The reply can still arrive, after the request stopped waiting for it, and be taken for the next request's,
+			// so the connection is closed, for the manager to reconnect and subscribe afresh; the close outlives the
+			// request's context
+			closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), websocketCloseTimeout)
+			defer cancel()
+			e.wsCloseForReconnection(closeCtx, conn, websocketMessageEPL, "request unanswered")
+		}
 		return nil, err
 	}
-	var envelope websocketEnvelope
-	if err := json.Unmarshal(resp, &envelope); err != nil {
+	var reply *WebsocketSubscriptionsResponse
+	if err := json.Unmarshal(resp, &reply); err != nil {
 		return nil, err
 	}
-	if envelope.Type == wsMessageError {
-		return nil, fmt.Errorf("%w: %s", errWebsocketRequestRefused, envelope.Message)
-	}
-	var events []websocketSubscriptionsEvent
-	if err := json.Unmarshal(envelope.Events, &events); err != nil {
-		return nil, err
-	}
-	if len(events) == 0 {
+	if reply == nil {
 		return nil, fmt.Errorf("%w: %s", common.ErrNoResponse, resp)
 	}
-	return &events[len(events)-1], nil
+	if reply.Type == wsMessageError {
+		return nil, fmt.Errorf("%w: %s", errWebsocketRequestRefused, reply.Message)
+	}
+	if len(reply.Events) == 0 {
+		return nil, fmt.Errorf("%w: %s", common.ErrNoResponse, resp)
+	}
+	return &reply.Events[len(reply.Events)-1], nil
 }
 
 // wsHandleData checks an Advanced Trade message's sequence, then routes it to its request or its channel's handler
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var envelope websocketEnvelope
+	var envelope WebsocketEnvelope
 	if err := json.Unmarshal(respRaw, &envelope); err != nil {
 		return fmt.Errorf("%s could not parse websocket data: %w: %s", e.Name, err, respRaw)
 	}
@@ -538,7 +553,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // wsHandleChannel passes a message to its channel's handler, or a confirmation to the request awaiting it
-func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *websocketEnvelope, respRaw []byte) error {
+func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connection, envelope *WebsocketEnvelope, respRaw []byte) error {
 	switch envelope.Channel {
 	case wsChannelSubscriptions:
 		// A confirmation no request awaits answers one that stopped waiting, and is already superseded
@@ -584,14 +599,37 @@ func (e *Exchange) wsResynchronise(ctx context.Context, conn websocket.Connectio
 			resubscribe = append(resubscribe, s)
 		}
 	}
-	if len(resubscribe) == 0 {
+	e.wsResubscribe(ctx, conn, resubscribe, websocketMessageEPL)
+}
+
+// wsResubscribe resubscribes a connection's subscriptions in the background, so the reader goes on to read the replies,
+// leaving out those another resubscription holds. They are claimed before the reader moves on, as the manager marks
+// them resubscribing only once the goroutine runs. A failed resubscription leaves its subscriptions half-way, never
+// resubscribed or unsubscribed, so the connection is closed for the manager to reconnect and subscribe afresh: the
+// venue answers a close by closing, which the manager takes as a fault
+func (e *Exchange) wsResubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List, epl request.EndpointLimit) {
+	state := e.wsConnections.get(conn)
+	claimed := state.claimResubscription(subs)
+	if len(claimed) == 0 {
 		return
 	}
 	go func() {
-		if err := e.Websocket.ResubscribeFromConnection(ctx, conn, resubscribe); err != nil && !errors.Is(err, subscription.ErrInStateAlready) {
-			log.Errorf(log.WebsocketMgr, "%s websocket could not resubscribe after dropped messages: %v", e.Name, err)
+		defer state.releaseResubscription(claimed)
+		err := e.Websocket.ResubscribeFromConnection(ctx, conn, claimed)
+		if err == nil || ctx.Err() != nil || !isConnected(conn) {
+			return
 		}
+		log.Errorf(log.WebsocketMgr, "%s websocket could not resubscribe %s, reconnecting: %v", e.Name, claimed, err)
+		e.wsCloseForReconnection(ctx, conn, epl, "resubscription failed")
 	}()
+}
+
+// wsCloseForReconnection asks the venue to close a connection, which it answers by closing it; the manager takes that
+// as a fault and reconnects, subscribing afresh, where a connection shut down here would not be reconnected
+func (e *Exchange) wsCloseForReconnection(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, reason string) {
+	if err := conn.SendRawMessage(ctx, epl, gws.CloseMessage, gws.FormatCloseMessage(gws.CloseNormalClosure, reason)); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s websocket could not be closed for reconnection: %v", e.Name, err)
+	}
 }
 
 // websocketConnectionState holds an Advanced Trade connection's own state
@@ -604,6 +642,43 @@ type websocketConnectionState struct {
 	sequenceMu sync.Mutex
 	last       uint64
 	started    bool
+
+	// resubscribing holds the subscriptions a resubscription has claimed
+	resubscribingMu sync.Mutex
+	resubscribing   map[*subscription.Subscription]bool
+}
+
+// claimResubscription claims the subscriptions no resubscription holds, returning them
+func (s *websocketConnectionState) claimResubscription(subs subscription.List) subscription.List {
+	s.resubscribingMu.Lock()
+	defer s.resubscribingMu.Unlock()
+	if s.resubscribing == nil {
+		s.resubscribing = make(map[*subscription.Subscription]bool)
+	}
+	claimed := make(subscription.List, 0, len(subs))
+	for _, sub := range subs {
+		if !s.resubscribing[sub] {
+			s.resubscribing[sub] = true
+			claimed = append(claimed, sub)
+		}
+	}
+	return claimed
+}
+
+// releaseResubscription releases subscriptions a resubscription claimed
+func (s *websocketConnectionState) releaseResubscription(subs subscription.List) {
+	s.resubscribingMu.Lock()
+	defer s.resubscribingMu.Unlock()
+	for _, sub := range subs {
+		delete(s.resubscribing, sub)
+	}
+}
+
+// isResubscribing reports whether a resubscription holds a subscription
+func (s *websocketConnectionState) isResubscribing(sub *subscription.Subscription) bool {
+	s.resubscribingMu.Lock()
+	defer s.resubscribingMu.Unlock()
+	return s.resubscribing[sub]
 }
 
 // sequence records a message's sequence number, reporting a gap when messages before it were dropped, and a message

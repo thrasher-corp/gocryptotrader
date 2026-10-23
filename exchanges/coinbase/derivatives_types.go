@@ -120,8 +120,9 @@ func (o *DerivativesOrderPrice) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// DerivativesOrder is a gateway order, as trading and account methods and the user.orders notifications report it
-type DerivativesOrder struct {
+// DerivativesOrderResponse is a gateway order, as trading and account methods and the user.orders notifications report
+// it
+type DerivativesOrderResponse struct {
 	OrderID string `json:"order_id"`
 	// OrderState is open, filled, rejected, cancelled, untriggered or triggered
 	OrderState string `json:"order_state"`
@@ -229,13 +230,14 @@ type DerivativesSettlementsResponse struct {
 	Continuation string                  `json:"continuation"`
 }
 
-// derivativesCurrencyParams are the params of a request for a currency
-type derivativesCurrencyParams struct {
+// DerivativesCurrencyWireRequest holds the params of a request for a currency
+type DerivativesCurrencyWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
-// derivativesInstrumentNameParams are the params of a request for an instrument
-type derivativesInstrumentNameParams struct {
+// DerivativesInstrumentNameWireRequest holds the params of a request for an instrument
+type DerivativesInstrumentNameWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
 }
 

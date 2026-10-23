@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -291,31 +293,147 @@ func TestWebsocketDerivativesScheduleReauthentication(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":0}`), connected: true}
-	ex.wsDerivativesScheduleReauthentication(t.Context(), conn, 2*time.Millisecond)
+	ex.wsDerivativesScheduleReauthentication(t.Context(), conn, ex.derivativesSessions.authenticated(conn, testAPIKey), 2*time.Millisecond)
 	assert.Eventually(t, func() bool { return conn.sent() == 1 }, time.Second, time.Millisecond, "a session should be authenticated again before it expires")
 
 	closed := &reauthConnection{result: json.RawMessage(`{}`)}
-	ex.wsDerivativesScheduleReauthentication(t.Context(), closed, time.Millisecond)
+	ex.wsDerivativesScheduleReauthentication(t.Context(), closed, ex.derivativesSessions.authenticated(closed, testAPIKey), time.Millisecond)
 	assert.Never(t, func() bool { return closed.sent() != 0 }, 50*time.Millisecond, time.Millisecond, "a closed connection should not be authenticated again")
+}
+
+func TestWebsocketDerivativesRenewalOutlivesCaller(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	synctest.Test(t, func(t *testing.T) {
+		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+		require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
+		// AuthenticateWebsocket authenticates the connection again with its caller's context, which then ends
+		ctx, cancel := context.WithCancel(t.Context())
+		require.NoError(t, ex.wsDerivativesSendAuth(ctx, conn), "the caller's authentication must succeed")
+		cancel()
+		time.Sleep(5*time.Minute + time.Second)
+		synctest.Wait()
+		assert.Equal(t, 3, conn.sent(), "a connection's session should be renewed after the context of its last authentication's caller ends")
+	})
+}
+
+func TestWebsocketDerivativesSupersededRenewalFailure(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	synctest.Test(t, func(t *testing.T) {
+		conn := &firstAuthBlockedConnection{connected: true, blocked: make(chan struct{}), release: make(chan struct{})}
+		authentication := ex.derivativesSessions.authenticated(conn, testAPIKey)
+		ex.wsDerivativesScheduleReauthentication(t.Context(), conn, authentication, 2*time.Second)
+		<-conn.blocked
+		// The connection authenticates again while its renewal is under way, which then fails as its session expires
+		require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the later authentication must succeed")
+		close(conn.release)
+		synctest.Wait()
+		assert.Zero(t, conn.closes(), "a renewal a later authentication superseded should not close the connection")
+		assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(conn), "a renewal a later authentication superseded should keep its session")
+		// The later authentication's own renewal carries on
+		time.Sleep(5*time.Minute + time.Second)
+		synctest.Wait()
+		assert.EqualValues(t, 3, conn.sends.Load(), "the later authentication's session should be renewed")
+	})
+}
+
+// firstAuthBlockedConnection is a connected request connection whose first request waits for release, then fails, as
+// a renewal timing out does, and whose later requests issue a session lasting 10 minutes
+type firstAuthBlockedConnection struct {
+	reauthConnection
+	sends            atomic.Int32
+	blocked, release chan struct{}
+}
+
+// SendMessageReturnResponse holds the first request until released, then refuses it, and answers the others
+func (c *firstAuthBlockedConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+	if c.sends.Add(1) == 1 {
+		close(c.blocked)
+		<-c.release
+		return nil, errors.New("renewal refused")
+	}
+	req, ok := payload.(*JSONRPCRequest)
+	if !ok {
+		return nil, errors.New("not a JSON-RPC request")
+	}
+	return json.Marshal(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": json.RawMessage(`{"access_token":"t","expires_in":600}`)})
+}
+
+func TestWebsocketDerivativesRenewalPerConnection(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	synctest.Test(t, func(t *testing.T) {
+		// Each session lasts 10 minutes, so it is renewed after 5
+		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+		// AuthenticateWebsocket authenticates a connection already authenticated, which has its renewal pending
+		for range 3 {
+			require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "wsDerivativesSendAuth must not error")
+		}
+		time.Sleep(5*time.Minute + time.Second)
+		synctest.Wait()
+		assert.Equal(t, 4, conn.sent(), "a connection should renew its session once, however often it was authenticated")
+		time.Sleep(5 * time.Minute)
+		synctest.Wait()
+		assert.Equal(t, 5, conn.sent(), "each renewal should schedule the next, and only it")
+	})
+}
+
+func TestDerivativesWebsocketSessionsScheduleRenewal(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var sessions derivativesWebsocketSessions
+		var first, second, other, stale atomic.Int32
+		conn, otherConn := &reauthConnection{connected: true}, &reauthConnection{connected: true}
+		superseded := sessions.authenticated(conn, testAPIKey)
+		authentication := sessions.authenticated(conn, testAPIKey)
+		assert.True(t, sessions.superseded(conn, superseded), "superseded should report an authentication a later one superseded")
+		assert.False(t, sessions.superseded(conn, authentication), "superseded should not report the connection's latest authentication")
+		sessions.scheduleRenewal(conn, authentication, time.Minute, func() { first.Add(1) })
+		sessions.scheduleRenewal(conn, authentication, time.Hour, func() { second.Add(1) })
+		// A renewal of a superseded authentication is not scheduled, and leaves the latest one's renewal
+		sessions.scheduleRenewal(conn, superseded, time.Minute, func() { stale.Add(1) })
+		sessions.scheduleRenewal(otherConn, sessions.authenticated(otherConn, testAPIKey), time.Minute, func() { other.Add(1) })
+		time.Sleep(2 * time.Minute)
+		synctest.Wait()
+		assert.Zero(t, first.Load(), "scheduleRenewal should stop the renewal it replaces")
+		assert.Zero(t, stale.Load(), "scheduleRenewal should not schedule the renewal of a superseded authentication")
+		assert.EqualValues(t, 1, other.Load(), "scheduleRenewal should leave another connection's renewal")
+		time.Sleep(time.Hour)
+		synctest.Wait()
+		assert.EqualValues(t, 1, second.Load(), "scheduleRenewal should run the connection's latest renewal")
+		assert.False(t, sessions.clearUnlessSuperseded(conn, superseded), "clearUnlessSuperseded should leave a session a later authentication began")
+		assert.Equal(t, testAPIKey, sessions.authenticatedKey(conn), "clearUnlessSuperseded should keep the later authentication's key")
+		assert.True(t, sessions.clearUnlessSuperseded(conn, authentication), "clearUnlessSuperseded should clear the latest authentication's session")
+		assert.Empty(t, sessions.authenticatedKey(conn), "clearUnlessSuperseded should forget the key")
+	})
 }
 
 func TestWebsocketDerivativesRenewSession(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	refused := &reauthConnection{err: errors.New("refused"), connected: true}
-	ex.derivativesSessions.set(refused, testAPIKey)
-	assert.Equal(t, derivativesReauthenticateRetry, ex.wsDerivativesRenewSession(t.Context(), refused, time.Now().Add(time.Hour)), "a failed renewal should be tried again while the session has time left")
+	authentication := ex.derivativesSessions.authenticated(refused, testAPIKey)
+	assert.Equal(t, derivativesReauthenticateRetry, ex.wsDerivativesRenewSession(t.Context(), refused, authentication, time.Now().Add(time.Hour)), "a failed renewal should be tried again while the session has time left")
 	assert.Empty(t, ex.derivativesSessions.authenticatedKey(refused), "a failed renewal should leave the connection unauthenticated, so the wrapper uses HTTP")
 	assert.Zero(t, refused.closes(), "a failed renewal should not close a connection whose session has time left")
-	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), refused, time.Now().Add(time.Second)), "a renewal failing as the session expires should not be tried again")
+	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), refused, authentication, time.Now().Add(time.Second)), "a renewal failing as the session expires should not be tried again")
 	assert.Equal(t, 1, refused.closes(), "a connection whose session expires unrenewed should be closed, for the manager to reconnect it")
 
 	renewed := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":0}`), connected: true}
-	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), renewed, time.Now().Add(time.Hour)), "a renewed session should not be tried again")
+	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), renewed, ex.derivativesSessions.authenticated(renewed, ""), time.Now().Add(time.Hour)), "a renewed session should not be tried again")
 	assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(renewed), "a renewed session should leave the connection authenticated with the exchange's API key")
 
+	// A renewal a later authentication superseded is not sent
+	superseded := &reauthConnection{err: errors.New("refused"), connected: true}
+	stale := ex.derivativesSessions.authenticated(superseded, testAPIKey)
+	ex.derivativesSessions.authenticated(superseded, testAPIKey)
+	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), superseded, stale, time.Now()), "a superseded renewal should not be tried")
+	assert.Zero(t, superseded.sent(), "a superseded renewal should not be sent")
+	assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(superseded), "a superseded renewal should keep the later authentication's session")
+
 	closed := &reauthConnection{err: errors.New("refused")}
-	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), closed, time.Now()), "a closed connection's session should not be renewed")
+	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), closed, ex.derivativesSessions.authenticated(closed, ""), time.Now()), "a closed connection's session should not be renewed")
 	assert.Zero(t, closed.sent(), "a closed connection should not be sent a renewal")
 	assert.Zero(t, closed.closes(), "a closed connection should not be closed again")
 }

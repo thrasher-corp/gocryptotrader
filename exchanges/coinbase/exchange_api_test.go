@@ -15,7 +15,7 @@ func TestGetCurrencies(t *testing.T) {
 	resp, err := e.GetCurrencies(t.Context())
 	require.NoError(t, err, "GetCurrencies must not error")
 	if mockTests {
-		exp := []ExchangeCurrency{
+		exp := []ExchangeCurrencyResponse{
 			{
 				ID:               currency.NewCode("ACX"),
 				Name:             "Across Protocol",
@@ -217,7 +217,7 @@ func TestGetCurrency(t *testing.T) {
 	resp, err := e.GetCurrency(t.Context(), currency.BTC.Lower())
 	require.NoError(t, err, "GetCurrency must not error")
 	if mockTests {
-		exp := &ExchangeCurrency{
+		exp := &ExchangeCurrencyResponse{
 			ID:               currency.BTC,
 			Name:             "Bitcoin",
 			MinimumSize:      0.00000001,

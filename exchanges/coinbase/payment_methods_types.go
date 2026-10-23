@@ -6,13 +6,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// paymentMethodsResponse holds the payment methods ListPaymentMethods returns
-type paymentMethodsResponse struct {
+// PaymentMethodsResponse holds the payment methods ListPaymentMethods returns
+type PaymentMethodsResponse struct {
 	PaymentMethods []PaymentMethod `json:"payment_methods"`
 }
 
-// paymentMethodResponse holds the payment method GetPaymentMethod returns
-type paymentMethodResponse struct {
+// PaymentMethodResponse holds the payment method GetPaymentMethod returns
+type PaymentMethodResponse struct {
 	PaymentMethod *PaymentMethod `json:"payment_method"`
 }
 

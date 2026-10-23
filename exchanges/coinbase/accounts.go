@@ -14,7 +14,7 @@ func (e *Exchange) GetAccount(ctx context.Context, accountUUID string) (*Account
 	if accountUUID == "" {
 		return nil, errAccountIDRequired
 	}
-	var resp *accountResponse
+	var resp *AccountResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"accounts/"+accountUUID, nil, nil, &resp); err != nil {
 		return nil, err
 	}

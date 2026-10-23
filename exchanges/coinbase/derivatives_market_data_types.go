@@ -2,6 +2,8 @@ package coinbase
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -53,15 +55,16 @@ type DerivativesBookSummaryByCurrencyRequest struct {
 	Kind string
 }
 
-// derivativesBookSummaryByCurrencyParams are public/get_book_summary_by_currency's params
-type derivativesBookSummaryByCurrencyParams struct {
+// DerivativesBookSummaryByCurrencyWireRequest holds public/get_book_summary_by_currency's params
+type DerivativesBookSummaryByCurrencyWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 	Kind     string `json:"kind,omitempty"`
 }
 
-// DerivativesBookSummary is an instrument's market summary; prices the gateway sends as null, such as the bid of an
-// empty book or the last price of an instrument that has not traded in 24 hours, are zero
-type DerivativesBookSummary struct {
+// DerivativesBookSummaryResponse is an instrument's market summary; prices the gateway sends as null, such as the bid
+// of an empty book or the last price of an instrument that has not traded in 24 hours, are zero
+type DerivativesBookSummaryResponse struct {
 	InstrumentName string        `json:"instrument_name"`
 	BaseCurrency   currency.Code `json:"base_currency"`
 	QuoteCurrency  currency.Code `json:"quote_currency"`
@@ -104,8 +107,8 @@ type DerivativesContractSizeResponse struct {
 	ContractSize float64 `json:"contract_size"`
 }
 
-// DerivativesCurrency is a currency the gateway supports and its deposit and withdrawal parameters
-type DerivativesCurrency struct {
+// DerivativesCurrencyResponse is a currency the gateway supports and its deposit and withdrawal parameters
+type DerivativesCurrencyResponse struct {
 	Currency         currency.Code `json:"currency"`
 	CurrencyLongName string        `json:"currency_long"`
 	CurrencyUUID     string        `json:"currency_uuid"`
@@ -150,8 +153,8 @@ type DerivativesDeliveryPricesRequest struct {
 	Count uint64
 }
 
-// derivativesDeliveryPricesParams are public/get_delivery_prices's params
-type derivativesDeliveryPricesParams struct {
+// DerivativesDeliveryPricesWireRequest holds public/get_delivery_prices's params
+type DerivativesDeliveryPricesWireRequest struct {
 	IndexName string `json:"index_name"`
 	Offset    uint64 `json:"offset,omitempty"`
 	Count     uint64 `json:"count,omitempty"`
@@ -183,8 +186,9 @@ type DerivativesExpirationsRequest struct {
 	CurrencyPair string
 }
 
-// derivativesExpirationsParams are public/get_expirations's params
-type derivativesExpirationsParams struct {
+// DerivativesExpirationsWireRequest holds public/get_expirations's params
+type DerivativesExpirationsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency     string `json:"currency,omitempty"`
 	Kind         string `json:"kind,omitempty"`
 	CurrencyPair string `json:"currency_pair,omitempty"`
@@ -226,8 +230,8 @@ type DerivativesFundingChartDataRequest struct {
 	Length string
 }
 
-// derivativesFundingChartDataParams are public/get_funding_chart_data's params
-type derivativesFundingChartDataParams struct {
+// DerivativesFundingChartDataWireRequest holds public/get_funding_chart_data's params
+type DerivativesFundingChartDataWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
 	Length         string `json:"length"`
 }
@@ -253,16 +257,16 @@ type DerivativesInstrumentTimeRangeRequest struct {
 	EndTime        time.Time
 }
 
-// derivativesInstrumentTimeRangeParams are the params of a request for an instrument's data over a time range, its
-// ends in Unix milliseconds
-type derivativesInstrumentTimeRangeParams struct {
+// DerivativesInstrumentTimeRangeWireRequest holds the params of a request for an instrument's data over a time range,
+// its ends in Unix milliseconds
+type DerivativesInstrumentTimeRangeWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
-	StartTimestamp int64  `json:"start_timestamp"`
-	EndTimestamp   int64  `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 }
 
-// DerivativesFundingRateHistory is a perpetual's funding over an hour
-type DerivativesFundingRateHistory struct {
+// DerivativesFundingRateHistoryResponse is a perpetual's funding over an hour
+type DerivativesFundingRateHistoryResponse struct {
 	// Timestamp is the end of the hour
 	Timestamp  types.Time `json:"timestamp"`
 	IndexPrice float64    `json:"index_price"`
@@ -273,14 +277,14 @@ type DerivativesFundingRateHistory struct {
 	Interest8Hour float64 `json:"interest_8h"`
 }
 
-// DerivativesHistoricalVolatility is a currency's realised volatility at an hour, as a percentage
-type DerivativesHistoricalVolatility struct {
+// DerivativesHistoricalVolatilityResponse is a currency's realised volatility at an hour, as a percentage
+type DerivativesHistoricalVolatilityResponse struct {
 	Timestamp  types.Time
 	Volatility float64
 }
 
 // UnmarshalJSON decodes a [timestamp, volatility] tuple
-func (h *DerivativesHistoricalVolatility) UnmarshalJSON(data []byte) error {
+func (h *DerivativesHistoricalVolatilityResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &h.Timestamp, &h.Volatility)
 }
 
@@ -292,25 +296,25 @@ type DerivativesIndexChartDataRequest struct {
 	Range string
 }
 
-// derivativesIndexChartDataParams are public/get_index_chart_data's params
-type derivativesIndexChartDataParams struct {
+// DerivativesIndexChartDataWireRequest holds public/get_index_chart_data's params
+type DerivativesIndexChartDataWireRequest struct {
 	IndexName string `json:"index_name"`
 	Range     string `json:"range"`
 }
 
-// DerivativesIndexChartPoint is an index's average price at a point of its chart
-type DerivativesIndexChartPoint struct {
+// DerivativesIndexChartPointResponse is an index's average price at a point of its chart
+type DerivativesIndexChartPointResponse struct {
 	Timestamp types.Time
 	Price     float64
 }
 
 // UnmarshalJSON decodes a [timestamp, price] tuple
-func (i *DerivativesIndexChartPoint) UnmarshalJSON(data []byte) error {
+func (i *DerivativesIndexChartPointResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &i.Timestamp, &i.Price)
 }
 
-// derivativesIndexNameParams are the params of a request for a price index
-type derivativesIndexNameParams struct {
+// DerivativesIndexNameWireRequest holds the params of a request for a price index
+type DerivativesIndexNameWireRequest struct {
 	IndexName string `json:"index_name"`
 }
 
@@ -320,30 +324,30 @@ type DerivativesIndexPriceResponse struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
 }
 
-// derivativesMarketDataExtendedParams are the params of a request whose extended flag adds details to its result
-type derivativesMarketDataExtendedParams struct {
+// DerivativesMarketDataExtendedWireRequest holds the params of a request whose extended flag adds details to its result
+type DerivativesMarketDataExtendedWireRequest struct {
 	Extended bool `json:"extended,omitempty"`
 }
 
-// DerivativesIndexPriceName is a price index's name and, when extended details are requested, whether future and option
-// combos can be created on it; the gateway only sends a setting that is enabled
-type DerivativesIndexPriceName struct {
+// DerivativesIndexPriceNameResponse is a price index's name and, when extended details are requested, whether future
+// and option combos can be created on it; the gateway only sends a setting that is enabled
+type DerivativesIndexPriceNameResponse struct {
 	Name                       string `json:"name"`
 	FutureComboCreationEnabled bool   `json:"future_combo_creation_enabled"`
 	OptionComboCreationEnabled bool   `json:"option_combo_creation_enabled"`
 }
 
 // UnmarshalJSON decodes an index's name, which the gateway sends as a bare string unless extended details are requested
-func (i *DerivativesIndexPriceName) UnmarshalJSON(data []byte) error {
+func (i *DerivativesIndexPriceNameResponse) UnmarshalJSON(data []byte) error {
 	if data = bytes.TrimSpace(data); len(data) > 0 && data[0] == '"' {
 		return json.Unmarshal(data, &i.Name)
 	}
-	type indexPriceName DerivativesIndexPriceName
+	type indexPriceName DerivativesIndexPriceNameResponse
 	return json.Unmarshal(data, (*indexPriceName)(i))
 }
 
-// DerivativesInstrument is an instrument's specification; fields only some kinds carry are zero for the others
-type DerivativesInstrument struct {
+// DerivativesInstrumentResponse is an instrument's specification; fields only some kinds carry are zero for the others
+type DerivativesInstrumentResponse struct {
 	InstrumentName string `json:"instrument_name"`
 	InstrumentID   uint64 `json:"instrument_id"`
 	// Kind is future, option, spot, future_combo or option_combo
@@ -419,8 +423,8 @@ type DerivativesInstrument struct {
 
 // UnmarshalJSON decodes an instrument, reading its expiration timestamp as milliseconds; types.Time reads the 14 digit
 // timestamp of the year 3000, which perpetuals and spot expire at, as microseconds
-func (i *DerivativesInstrument) UnmarshalJSON(data []byte) error {
-	type instrument DerivativesInstrument
+func (i *DerivativesInstrumentResponse) UnmarshalJSON(data []byte) error {
+	type instrument DerivativesInstrumentResponse
 	aux := struct {
 		*instrument
 		ExpirationTimestamp *int64 `json:"expiration_timestamp"`
@@ -469,8 +473,9 @@ type DerivativesInstrumentsRequest struct {
 	Extended bool
 }
 
-// derivativesInstrumentsParams are public/get_instruments's params
-type derivativesInstrumentsParams struct {
+// DerivativesInstrumentsWireRequest holds public/get_instruments's params
+type DerivativesInstrumentsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 	Kind     string `json:"kind,omitempty"`
 	Expired  bool   `json:"expired,omitempty"`
@@ -492,13 +497,14 @@ type DerivativesLastSettlementsByCurrencyRequest struct {
 	SearchStartTime time.Time
 }
 
-// derivativesLastSettlementsByCurrencyParams are public/get_last_settlements_by_currency's params
-type derivativesLastSettlementsByCurrencyParams struct {
+// DerivativesLastSettlementsByCurrencyWireRequest holds public/get_last_settlements_by_currency's params
+type DerivativesLastSettlementsByCurrencyWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency             string `json:"currency"`
 	Type                 string `json:"type,omitempty"`
 	Count                uint64 `json:"count,omitempty"`
 	Continuation         string `json:"continuation,omitempty"`
-	SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // DerivativesLastSettlementsByInstrumentRequest selects a page of an instrument's settlement events, newest first
@@ -514,13 +520,13 @@ type DerivativesLastSettlementsByInstrumentRequest struct {
 	SearchStartTime time.Time
 }
 
-// derivativesLastSettlementsByInstrumentParams are public/get_last_settlements_by_instrument's params
-type derivativesLastSettlementsByInstrumentParams struct {
+// DerivativesLastSettlementsByInstrumentWireRequest holds public/get_last_settlements_by_instrument's params
+type DerivativesLastSettlementsByInstrumentWireRequest struct {
 	InstrumentName       string `json:"instrument_name"`
 	Type                 string `json:"type,omitempty"`
 	Count                uint64 `json:"count,omitempty"`
 	Continuation         string `json:"continuation,omitempty"`
-	SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // DerivativesLastTradesByCurrencyRequest selects a currency's latest trades, optionally within a trade ID or time range
@@ -541,14 +547,15 @@ type DerivativesLastTradesByCurrencyRequest struct {
 	Sorting string
 }
 
-// derivativesLastTradesByCurrencyParams are public/get_last_trades_by_currency's params
-type derivativesLastTradesByCurrencyParams struct {
+// DerivativesLastTradesByCurrencyWireRequest holds public/get_last_trades_by_currency's params
+type DerivativesLastTradesByCurrencyWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
 	Kind           string `json:"kind,omitempty"`
 	StartID        string `json:"start_id,omitempty"`
 	EndID          string `json:"end_id,omitempty"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 	Sorting        string `json:"sorting,omitempty"`
 }
@@ -569,12 +576,13 @@ type DerivativesLastTradesByCurrencyAndTimeRequest struct {
 	Sorting string
 }
 
-// derivativesLastTradesByCurrencyAndTimeParams are public/get_last_trades_by_currency_and_time's params
-type derivativesLastTradesByCurrencyAndTimeParams struct {
+// DerivativesLastTradesByCurrencyAndTimeWireRequest holds public/get_last_trades_by_currency_and_time's params
+type DerivativesLastTradesByCurrencyAndTimeWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
 	Kind           string `json:"kind,omitempty"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 	Sorting        string `json:"sorting,omitempty"`
 }
@@ -594,19 +602,19 @@ type DerivativesLastTradesByInstrumentRequest struct {
 	Sorting string
 }
 
-// derivativesLastTradesByInstrumentParams are public/get_last_trades_by_instrument's params
-type derivativesLastTradesByInstrumentParams struct {
+// DerivativesLastTradesByInstrumentWireRequest holds public/get_last_trades_by_instrument's params
+type DerivativesLastTradesByInstrumentWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
 	StartSequence  uint64 `json:"start_seq,omitempty"`
 	EndSequence    uint64 `json:"end_seq,omitempty"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 	Sorting        string `json:"sorting,omitempty"`
 }
 
-// DerivativesLastTradesByInstrumentAndTimeRequest selects an instrument's latest trades within a time range, which needs
-// a start or an end time; the docs require both, but the gateway takes either alone. Coinbase-routed spot is not
+// DerivativesLastTradesByInstrumentAndTimeRequest selects an instrument's latest trades within a time range, which
+// needs a start or an end time; the docs require both, but the gateway takes either alone. Coinbase-routed spot is not
 // supported
 type DerivativesLastTradesByInstrumentAndTimeRequest struct {
 	InstrumentName string
@@ -618,11 +626,11 @@ type DerivativesLastTradesByInstrumentAndTimeRequest struct {
 	Sorting string
 }
 
-// derivativesLastTradesByInstrumentAndTimeParams are public/get_last_trades_by_instrument_and_time's params
-type derivativesLastTradesByInstrumentAndTimeParams struct {
+// DerivativesLastTradesByInstrumentAndTimeWireRequest holds public/get_last_trades_by_instrument_and_time's params
+type DerivativesLastTradesByInstrumentAndTimeWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 	Sorting        string `json:"sorting,omitempty"`
 }
@@ -670,14 +678,14 @@ type DerivativesPublicTrade struct {
 	Legs []DerivativesPublicTrade `json:"legs"`
 }
 
-// DerivativesMarkPrice is an option's mark price at a point in time
-type DerivativesMarkPrice struct {
+// DerivativesMarkPriceResponse is an option's mark price at a point in time
+type DerivativesMarkPriceResponse struct {
 	Timestamp types.Time
 	MarkPrice float64
 }
 
 // UnmarshalJSON decodes a [timestamp, mark price] tuple
-func (m *DerivativesMarkPrice) UnmarshalJSON(data []byte) error {
+func (m *DerivativesMarkPriceResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &m.Timestamp, &m.MarkPrice)
 }
 
@@ -689,8 +697,8 @@ type DerivativesOrderBookRequest struct {
 	Depth uint64
 }
 
-// derivativesOrderBookParams are public/get_order_book's params
-type derivativesOrderBookParams struct {
+// DerivativesOrderBookWireRequest holds public/get_order_book's params
+type DerivativesOrderBookWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
 	Depth          uint64 `json:"depth,omitempty"`
 }
@@ -703,15 +711,15 @@ type DerivativesOrderBookByInstrumentIDRequest struct {
 	Depth uint64
 }
 
-// derivativesOrderBookByInstrumentIDParams are public/get_order_book_by_instrument_id's params
-type derivativesOrderBookByInstrumentIDParams struct {
+// DerivativesOrderBookByInstrumentIDWireRequest holds public/get_order_book_by_instrument_id's params
+type DerivativesOrderBookByInstrumentIDWireRequest struct {
 	InstrumentID uint64 `json:"instrument_id"`
 	Depth        uint64 `json:"depth,omitempty"`
 }
 
-// DerivativesOrderBook is an instrument's order book, bids and asks best first, and its ticker
-type DerivativesOrderBook struct {
-	DerivativesTicker
+// DerivativesOrderBookResponse is an instrument's order book, bids and asks best first, and its ticker
+type DerivativesOrderBookResponse struct {
+	DerivativesTickerResponse
 	// ChangeID identifies the book's state, as the book subscriptions number their changes
 	ChangeID uint64                      `json:"change_id"`
 	Bids     []DerivativesOrderBookLevel `json:"bids"`
@@ -729,13 +737,14 @@ func (o *DerivativesOrderBookLevel) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &o.Price, &o.Amount)
 }
 
-// derivativesSupportedIndexNamesParams are public/get_supported_index_names's params
-type derivativesSupportedIndexNamesParams struct {
+// DerivativesSupportedIndexNamesWireRequest holds public/get_supported_index_names's params
+type DerivativesSupportedIndexNamesWireRequest struct {
 	Type string `json:"type,omitempty"`
 }
 
-// DerivativesTradeVolume is a currency's traded volumes in the currency, including block trades but not position moves
-type DerivativesTradeVolume struct {
+// DerivativesTradeVolumeResponse is a currency's traded volumes in the currency, including block trades but not
+// position moves
+type DerivativesTradeVolumeResponse struct {
 	Currency currency.Code `json:"currency"`
 	// CurrencyPair is the currency's USD index, which the docs leave out
 	CurrencyPair  string  `json:"currency_pair"`
@@ -765,12 +774,12 @@ type DerivativesTradingViewChartDataRequest struct {
 	Resolution kline.Interval
 }
 
-// derivativesTradingViewChartDataParams are public/get_tradingview_chart_data's params, its times in Unix
+// DerivativesTradingViewChartDataWireRequest holds public/get_tradingview_chart_data's params, its times in Unix
 // milliseconds and its resolution as the gateway names it
-type derivativesTradingViewChartDataParams struct {
+type DerivativesTradingViewChartDataWireRequest struct {
 	InstrumentName string `json:"instrument_name"`
-	StartTimestamp int64  `json:"start_timestamp"`
-	EndTimestamp   int64  `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 	Resolution     string `json:"resolution"`
 }
 
@@ -799,12 +808,13 @@ type DerivativesVolatilityIndexDataRequest struct {
 	Resolution kline.Interval
 }
 
-// derivativesVolatilityIndexDataParams are public/get_volatility_index_data's params, its times in Unix milliseconds
-// and its resolution as the gateway names it
-type derivativesVolatilityIndexDataParams struct {
+// DerivativesVolatilityIndexDataWireRequest holds public/get_volatility_index_data's params, its times in Unix
+// milliseconds and its resolution as the gateway names it
+type DerivativesVolatilityIndexDataWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
-	StartTimestamp int64  `json:"start_timestamp"`
-	EndTimestamp   int64  `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 	Resolution     string `json:"resolution"`
 }
 
@@ -829,9 +839,9 @@ func (v *DerivativesVolatilityIndexCandle) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &v.Timestamp, &v.Open, &v.High, &v.Low, &v.Close)
 }
 
-// DerivativesTicker is an instrument's ticker; fields only some kinds carry are zero for the others, as are prices the
-// gateway sends as null, such as the best bid of an empty book
-type DerivativesTicker struct {
+// DerivativesTickerResponse is an instrument's ticker; fields only some kinds carry are zero for the others, as are
+// prices the gateway sends as null, such as the best bid of an empty book
+type DerivativesTickerResponse struct {
 	InstrumentName string     `json:"instrument_name"`
 	Timestamp      types.Time `json:"timestamp"`
 	// State is the book's state: open, settlement, delivered, inactive, locked, halted or archivized
@@ -849,8 +859,8 @@ type DerivativesTicker struct {
 	MaximumPrice float64 `json:"max_price"`
 	// OpenInterest is in USD for inverse futures and perpetuals, and in the base currency for options and linear
 	// instruments
-	OpenInterest           float64 `json:"open_interest"`
-	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
+	OpenInterest           float64                           `json:"open_interest"`
+	EstimatedDeliveryPrice DerivativesEstimatedDeliveryPrice `json:"estimated_delivery_price"`
 	// SettlementPrice is the last settlement's price while the book is open, and DeliveryPrice the delivery's once it has
 	// closed; spot has neither
 	SettlementPrice float64 `json:"settlement_price"`
@@ -915,9 +925,30 @@ type DerivativesTickersByCurrencyRequest struct {
 	Depth uint64
 }
 
-// derivativesTickersByCurrencyParams are public/tickers_by_currency's params; the gateway takes a list of kinds
-type derivativesTickersByCurrencyParams struct {
+// DerivativesTickersByCurrencyWireRequest holds public/tickers_by_currency's params; the gateway takes a list of kinds
+type DerivativesTickersByCurrencyWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string   `json:"currency"`
 	Kinds    []string `json:"kind,omitempty"`
 	Depth    uint64   `json:"depth,omitempty"`
+}
+
+var errDerivativesInvalidEstimatedDeliveryPrice = errors.New("invalid estimated delivery price")
+
+// DerivativesEstimatedDeliveryPrice is an instrument's estimated delivery price. Once the instrument expires the
+// gateway sends "expired" in its place, which decodes as zero, as the ticker's state tells the instrument has expired
+type DerivativesEstimatedDeliveryPrice float64
+
+// UnmarshalJSON decodes a price, or "expired" as zero
+func (d *DerivativesEstimatedDeliveryPrice) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`"expired"`)) {
+		*d = 0
+		return nil
+	}
+	var price float64
+	if err := json.Unmarshal(data, &price); err != nil {
+		return fmt.Errorf("%w: %s", errDerivativesInvalidEstimatedDeliveryPrice, data)
+	}
+	*d = DerivativesEstimatedDeliveryPrice(price)
+	return nil
 }

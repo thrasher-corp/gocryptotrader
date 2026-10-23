@@ -16,8 +16,8 @@ type AppCreateAddressRequest struct {
 	Network string
 }
 
-// appCreateAddressBody is Create Address's request body, whose fields are all optional
-type appCreateAddressBody struct {
+// AppCreateAddressWireRequest is Create Address's request body, whose fields are all optional
+type AppCreateAddressWireRequest struct {
 	Name    string `json:"name,omitempty"`
 	Network string `json:"network,omitempty"`
 }
@@ -43,9 +43,9 @@ type AppListAddressTransactionsRequest struct {
 	Page *AppPageRequest
 }
 
-// AppAddress is a receive address of an account; an address belongs to one account only. Currency and
+// AppAddressResponse is a receive address of an account; an address belongs to one account only. Currency and
 // DestinationTag are undocumented
-type AppAddress struct {
+type AppAddressResponse struct {
 	ID      string `json:"id"`
 	Address string `json:"address"`
 	// Name is the address's label

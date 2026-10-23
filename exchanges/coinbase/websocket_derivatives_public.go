@@ -100,7 +100,7 @@ func (e *Exchange) wsHandleDerivativesNotification(ctx context.Context, conn web
 
 // decodeDerivativesNotification decodes a subscription notification's data into the value data points to
 func decodeDerivativesNotification(respRaw []byte, data any) error {
-	notification := derivativesNotification{Params: derivativesNotificationParams{Data: data}}
+	notification := DerivativesNotification{Params: DerivativesNotificationParameters{Data: data}}
 	if err := json.Unmarshal(respRaw, &notification); err != nil {
 		return fmt.Errorf("%w: %w", errDerivativesMalformedNotification, err)
 	}
@@ -116,8 +116,8 @@ func wsDerivativesRelay[T any](ctx context.Context, e *Exchange, respRaw []byte)
 	return e.Websocket.DataHandler.Send(ctx, data)
 }
 
-// wsHandleDerivativesOrderbook loads a book snapshot and applies a book change, checking each change follows the last one
-// applied, or loads a grouped book, which every notification sends whole
+// wsHandleDerivativesOrderbook loads a book snapshot and applies a book change, checking each change follows the last
+// one applied, or loads a grouped book, which every notification sends whole
 func (e *Exchange) wsHandleDerivativesOrderbook(ctx context.Context, conn websocket.Connection, channel string, respRaw []byte) error {
 	// book.{instrument}.{group}.{depth}.{interval} has 5 parts, book.{instrument}.{interval} 3
 	if strings.Count(channel, ".") == 4 {
@@ -205,8 +205,8 @@ func derivativesBookChangeLevels(changes []DerivativesWebsocketOrderbookChange) 
 	return levels
 }
 
-// derivativesBookLevels converts book levels, which the gateway sends best first, leaving out a combo's levels at a zero
-// price, which its spread can be quoted at but a book cannot hold
+// derivativesBookLevels converts book levels, which the gateway sends best first, leaving out a combo's levels at a
+// zero price, which its spread can be quoted at but a book cannot hold
 func derivativesBookLevels(levels []DerivativesOrderBookLevel) orderbook.Levels {
 	converted := make(orderbook.Levels, 0, len(levels))
 	for i := range levels {
@@ -224,18 +224,14 @@ func (e *Exchange) wsDerivativesResubscribe(ctx context.Context, conn websocket.
 		if s.QualifiedChannel != channel {
 			continue
 		}
-		go func() {
-			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscription.List{s}); err != nil && !errors.Is(err, subscription.ErrInStateAlready) {
-				_ = e.Websocket.DataHandler.Send(ctx, fmt.Errorf("%s websocket could not resubscribe to %s: %w", e.Name, channel, err))
-			}
-		}()
+		e.wsResubscribe(ctx, conn, subscription.List{s}, derivativesNonMatchingEPL)
 		return
 	}
 }
 
 // wsHandleDerivativesTicker stores and relays a ticker
 func (e *Exchange) wsHandleDerivativesTicker(ctx context.Context, respRaw []byte) error {
-	var data DerivativesTicker
+	var data DerivativesTickerResponse
 	if err := decodeDerivativesNotification(respRaw, &data); err != nil {
 		return err
 	}
@@ -251,7 +247,7 @@ func (e *Exchange) wsHandleDerivativesTicker(ctx context.Context, respRaw []byte
 }
 
 // tickerPrice converts a ticker; min_price and max_price bound the price an order may carry rather than the day's range
-func (t *DerivativesTicker) tickerPrice(exchangeName string, pair currency.Pair, a asset.Item) *ticker.Price {
+func (t *DerivativesTickerResponse) tickerPrice(exchangeName string, pair currency.Pair, a asset.Item) *ticker.Price {
 	return &ticker.Price{
 		ExchangeName:        exchangeName,
 		Pair:                pair,

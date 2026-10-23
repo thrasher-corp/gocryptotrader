@@ -15,7 +15,7 @@ func (e *Exchange) GetPaymentMethod(ctx context.Context, paymentMethodID string)
 	if paymentMethodID == "" {
 		return nil, errPaymentMethodIDRequired
 	}
-	var resp *paymentMethodResponse
+	var resp *PaymentMethodResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"payment_methods/"+paymentMethodID, nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -28,6 +28,12 @@ func (e *Exchange) GetPaymentMethod(ctx context.Context, paymentMethodID string)
 // ListPaymentMethods returns the user's payment methods, such as bank accounts, which fiat moves into and out of
 // Coinbase through
 func (e *Exchange) ListPaymentMethods(ctx context.Context) ([]PaymentMethod, error) {
-	var resp paymentMethodsResponse
-	return resp.PaymentMethods, e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"payment_methods", nil, nil, &resp)
+	var resp *PaymentMethodsResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"payment_methods", nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp.PaymentMethods, nil
 }

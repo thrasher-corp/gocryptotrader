@@ -81,13 +81,19 @@ func (e *Exchange) GetPublicProductCandles(ctx context.Context, req *ProductCand
 	if err != nil {
 		return nil, err
 	}
-	var resp candlesResponse
-	return resp.Candles, e.SendHTTPRequest(ctx, exchange.RestSpot, advancedTradePublicEPL, advancedTradePath+"market/products/"+req.ProductID+"/candles", params, &resp)
+	var resp *CandlesResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, advancedTradePublicEPL, advancedTradePath+"market/products/"+req.ProductID+"/candles", params, &resp); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp.Candles, nil
 }
 
 // GetPublicServerTime returns the Advanced Trade API's time
-func (e *Exchange) GetPublicServerTime(ctx context.Context) (*ServerTime, error) {
-	var resp *ServerTime
+func (e *Exchange) GetPublicServerTime(ctx context.Context) (*ServerTimeResponse, error) {
+	var resp *ServerTimeResponse
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, advancedTradePublicEPL, advancedTradePath+"time", nil, &resp); err != nil {
 		return nil, err
 	}

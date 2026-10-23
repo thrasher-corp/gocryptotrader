@@ -28,12 +28,13 @@ const (
 // subscriptionKeys are the saved subscription fields the defaults use; an entry with any other field is customised
 var subscriptionKeys = []string{"enabled", "channel", "asset", "params", "interval", "levels", "authenticated"}
 
-// defaultSubscription is an enabled default subscription
+// defaultSubscription is a default subscription, enabled unless disabled is set
 type defaultSubscription struct {
 	channel       string
 	asset         string
 	interval      time.Duration
 	authenticated bool
+	disabled      bool
 }
 
 // previousDefaults are the v17 default subscriptions
@@ -46,6 +47,20 @@ var previousDefaults = []defaultSubscription{
 	{channel: "orderbook", asset: spotAsset},
 	{channel: "myAccount", asset: allAssets, authenticated: true},
 	{channel: "ticker_batch", asset: spotAsset},
+}
+
+// previousExample is the subscription list the v17 config_example.json shipped, which differs from previousDefaults.
+// Configurations copied from it hold GCT's choices rather than the user's, and its account channel is one neither
+// version can generate, which fails every subscription once authenticated websocket support is enabled
+var previousExample = []defaultSubscription{
+	{channel: "heartbeat"},
+	{channel: "status", authenticated: true, disabled: true},
+	{channel: "ticker", asset: spotAsset},
+	{channel: "candles", asset: spotAsset},
+	{channel: "allTrades", asset: spotAsset},
+	{channel: "orderbook", asset: spotAsset},
+	{channel: "account", authenticated: true},
+	{channel: "ticker_batch", asset: spotAsset, disabled: true},
 }
 
 // currentDefaults are the v18 default subscriptions, which stream every asset; each connection subscribes heartbeats
@@ -95,9 +110,10 @@ type Version struct{}
 // Exchanges returns just Coinbase
 func (*Version) Exchanges() []string { return []string{"Coinbase"} }
 
-// UpgradeExchange replaces the previous default subscriptions with the current defaults, which stream every asset, as
-// it does a subscription list holding a legacy Coinbase Pro channel, which the previous version replaced with its
-// defaults on load; subscriptions which differ from the previous defaults are the user's choice and are left unchanged
+// UpgradeExchange replaces the previous default subscriptions, or the list the previous config_example.json shipped,
+// with the current defaults, which stream every asset, as it does a subscription list holding a legacy Coinbase Pro
+// channel, which the previous version replaced with its defaults on load; subscriptions which differ from both are the
+// user's choice and are left unchanged
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
 	entries, err := subscriptions(exchange)
 	if err != nil || entries == nil {
@@ -107,8 +123,13 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 	if err != nil {
 		return exchange, fmt.Errorf("error decoding Coinbase subscriptions: %w", err)
 	}
-	if slices.ContainsFunc(saved, func(s savedSubscription) bool { return slices.Contains(legacyChannels, s.Channel) }) || matchDefaults(entries, saved, previousDefaults) {
-		return setDefaults(exchange, currentDefaults)
+	if slices.ContainsFunc(saved, func(s savedSubscription) bool { return slices.Contains(legacyChannels, s.Channel) }) {
+		return setDefaults(exchange, currentDefaults, nil)
+	}
+	for _, previous := range [][]defaultSubscription{previousDefaults, previousExample} {
+		if inert, ok := matchDefaults(entries, saved, previous); ok {
+			return setDefaults(exchange, currentDefaults, inert)
+		}
 	}
 	return exchange, nil
 }
@@ -126,8 +147,8 @@ func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, e
 	if err != nil {
 		return exchange, fmt.Errorf("error decoding Coinbase subscriptions: %w", err)
 	}
-	if matchDefaults(entries, saved, currentDefaults) {
-		return setDefaults(exchange, previousDefaults)
+	if inert, ok := matchDefaults(entries, saved, currentDefaults); ok {
+		return setDefaults(exchange, previousDefaults, inert)
 	}
 	for i := range saved {
 		if saved[i].Enabled == nil || !*saved[i].Enabled || slices.Contains(previousChannels, saved[i].Channel) ||
@@ -177,14 +198,19 @@ func decodeEntries(entries []json.RawMessage) ([]savedSubscription, error) {
 	return saved, nil
 }
 
-// setDefaults replaces a configuration's subscriptions with a set of defaults, as the config saves them
-func setDefaults(exchange []byte, defaults []defaultSubscription) ([]byte, error) {
-	saved := make([]savedDefault, len(defaults))
+// setDefaults replaces a configuration's subscriptions with a set of defaults, as the config saves them, followed by
+// the disabled entries kept
+func setDefaults(exchange []byte, defaults []defaultSubscription, keep []json.RawMessage) ([]byte, error) {
+	saved := make([]any, 0, len(defaults)+len(keep))
 	for i := range defaults {
-		saved[i] = savedDefault{Enabled: true, Channel: defaults[i].channel, Asset: defaults[i].asset, Authenticated: defaults[i].authenticated}
+		d := savedDefault{Enabled: true, Channel: defaults[i].channel, Asset: defaults[i].asset, Authenticated: defaults[i].authenticated}
 		if defaults[i].interval != 0 {
-			saved[i].Interval = shortInterval(defaults[i].interval)
+			d.Interval = shortInterval(defaults[i].interval)
 		}
+		saved = append(saved, d)
+	}
+	for _, entry := range keep {
+		saved = append(saved, entry)
 	}
 	updated, err := json.Marshal(saved)
 	if err != nil {
@@ -204,38 +230,41 @@ func shortInterval(d time.Duration) string {
 }
 
 // matchDefaults reports whether each saved subscription resolves to a different one of the defaults, and holds only
-// the fields the defaults use
-func matchDefaults(entries []json.RawMessage, saved []savedSubscription, defaults []defaultSubscription) bool {
-	if len(saved) != len(defaults) {
-		return false
-	}
-	for _, entry := range entries {
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(entry, &fields) != nil {
-			return false
-		}
-		for key := range fields {
-			if !slices.Contains(subscriptionKeys, key) {
-				return false
-			}
-		}
-	}
+// the fields the defaults use, setting aside the disabled entries whose channel and asset match no default: the
+// config loader drops a disabled subscription, so it changes nothing the defaults stream, and it is returned to be kept
+func matchDefaults(entries []json.RawMessage, saved []savedSubscription, defaults []defaultSubscription) (inert []json.RawMessage, ok bool) {
 	matched := make([]bool, len(defaults))
+	var count int
 	for i := range saved {
 		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool {
 			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, saved[i].Asset)
 		})
+		if j == -1 && (saved[i].Enabled == nil || !*saved[i].Enabled) {
+			inert = append(inert, entries[i])
+			continue
+		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(entries[i], &fields) != nil {
+			return nil, false
+		}
+		for key := range fields {
+			if !slices.Contains(subscriptionKeys, key) {
+				return nil, false
+			}
+		}
 		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
-			return false
+			return nil, false
 		}
 		matched[j] = true
+		count++
 	}
-	return true
+	return inert, count == len(defaults)
 }
 
-// matches reports whether a saved subscription resolves to the default: enabled, authenticated as the default is, an
-// absent, false or null authenticated field all being unauthenticated, without parameters, an absent, null or empty
-// parameters object all being none, with the default's interval as the config loader parses it and no levels
+// matches reports whether a saved subscription resolves to the default: explicitly enabled, or disabled where the
+// default is, authenticated as the default is, an absent, false or null authenticated field all being unauthenticated,
+// without parameters, an absent, null or empty parameters object all being none, with the default's interval as the
+// config loader parses it and no levels
 func (d *defaultSubscription) matches(s *savedSubscription) bool {
 	interval, ok := parseInterval(s.Interval)
 	if !ok {
@@ -243,7 +272,7 @@ func (d *defaultSubscription) matches(s *savedSubscription) bool {
 	}
 	levels, ok := parseLevels(s.Levels)
 	return ok &&
-		s.Enabled != nil && *s.Enabled &&
+		s.Enabled != nil && *s.Enabled != d.disabled &&
 		(s.Authenticated != nil && *s.Authenticated) == d.authenticated &&
 		interval == d.interval &&
 		levels == 0 &&

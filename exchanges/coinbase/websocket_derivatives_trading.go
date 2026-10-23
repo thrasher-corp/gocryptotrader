@@ -5,12 +5,12 @@ import (
 )
 
 // Buy places a buy order as GlobalDerivativesAPI.Buy does, over the websocket
-func (w WebsocketAPI) Buy(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderResponse, error) {
+func (w WebsocketAPI) Buy(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return w.e.GlobalDerivatives().placeOrder(ctx, true, derivativesBuyMethod, req)
 }
 
 // CancelOrderByID cancels an order as GlobalDerivativesAPI.CancelOrderByID does, over the websocket
-func (w WebsocketAPI) CancelOrderByID(ctx context.Context, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrder, error) {
+func (w WebsocketAPI) CancelOrderByID(ctx context.Context, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().cancelOrderByID(ctx, true, req)
 }
 
@@ -47,17 +47,17 @@ func (w WebsocketAPI) CancelByLabel(ctx context.Context, req *DerivativesCancelB
 }
 
 // ClosePosition closes a position as GlobalDerivativesAPI.ClosePosition does, over the websocket
-func (w WebsocketAPI) ClosePosition(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderResponse, error) {
+func (w WebsocketAPI) ClosePosition(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error) {
 	return w.e.GlobalDerivatives().closePosition(ctx, true, req)
 }
 
 // EditOrder edits an order as GlobalDerivativesAPI.EditOrder does, over the websocket
-func (w WebsocketAPI) EditOrder(ctx context.Context, req *DerivativesEditOrderRequest) (*DerivativesOrderResponse, error) {
+func (w WebsocketAPI) EditOrder(ctx context.Context, req *DerivativesEditOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return w.e.GlobalDerivatives().editOrder(ctx, true, req)
 }
 
 // EditOrderByLabel edits an order by its label as GlobalDerivativesAPI.EditOrderByLabel does, over the websocket
-func (w WebsocketAPI) EditOrderByLabel(ctx context.Context, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderResponse, error) {
+func (w WebsocketAPI) EditOrderByLabel(ctx context.Context, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderTradesResponse, error) {
 	return w.e.GlobalDerivatives().editOrderByLabel(ctx, true, req)
 }
 
@@ -72,25 +72,25 @@ func (w WebsocketAPI) GetMaxOrderSize(ctx context.Context, req *DerivativesMaxOr
 }
 
 // GetOpenOrders returns the account's open orders as GlobalDerivativesAPI.GetOpenOrders does, over the websocket
-func (w WebsocketAPI) GetOpenOrders(ctx context.Context, req *DerivativesOpenOrdersRequest) ([]DerivativesOrder, error) {
+func (w WebsocketAPI) GetOpenOrders(ctx context.Context, req *DerivativesOpenOrdersRequest) ([]DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOpenOrders(ctx, true, req)
 }
 
 // GetOpenOrdersByCurrency returns a currency's open orders as GlobalDerivativesAPI.GetOpenOrdersByCurrency does, over
 // the websocket
-func (w WebsocketAPI) GetOpenOrdersByCurrency(ctx context.Context, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrder, error) {
+func (w WebsocketAPI) GetOpenOrdersByCurrency(ctx context.Context, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOpenOrdersByCurrency(ctx, true, req)
 }
 
 // GetOpenOrdersByInstrument returns an instrument's open orders as GlobalDerivativesAPI.GetOpenOrdersByInstrument
 // does, over the websocket
-func (w WebsocketAPI) GetOpenOrdersByInstrument(ctx context.Context, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrder, error) {
+func (w WebsocketAPI) GetOpenOrdersByInstrument(ctx context.Context, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOpenOrdersByInstrument(ctx, true, req)
 }
 
 // GetOpenOrdersByLabel returns the open orders with a label as GlobalDerivativesAPI.GetOpenOrdersByLabel does, over the
 // websocket
-func (w WebsocketAPI) GetOpenOrdersByLabel(ctx context.Context, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrder, error) {
+func (w WebsocketAPI) GetOpenOrdersByLabel(ctx context.Context, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOpenOrdersByLabel(ctx, true, req)
 }
 
@@ -108,18 +108,18 @@ func (w WebsocketAPI) GetOrderHistoryByInstrument(ctx context.Context, req *Deri
 
 // GetOrderMarginByIDs returns the orders' initial margins as GlobalDerivativesAPI.GetOrderMarginByIDs does, over the
 // websocket
-func (w WebsocketAPI) GetOrderMarginByIDs(ctx context.Context, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMargin, error) {
+func (w WebsocketAPI) GetOrderMarginByIDs(ctx context.Context, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMarginResponse, error) {
 	return w.e.GlobalDerivatives().getOrderMarginByIDs(ctx, true, req)
 }
 
 // GetOrderState returns an order as GlobalDerivativesAPI.GetOrderState does, over the websocket
-func (w WebsocketAPI) GetOrderState(ctx context.Context, req *DerivativesOrderStateRequest) (*DerivativesOrder, error) {
+func (w WebsocketAPI) GetOrderState(ctx context.Context, req *DerivativesOrderStateRequest) (*DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOrderState(ctx, true, req)
 }
 
 // GetOrderStateByLabel returns the orders with a label as GlobalDerivativesAPI.GetOrderStateByLabel does, over the
 // websocket
-func (w WebsocketAPI) GetOrderStateByLabel(ctx context.Context, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrder, error) {
+func (w WebsocketAPI) GetOrderStateByLabel(ctx context.Context, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrderResponse, error) {
 	return w.e.GlobalDerivatives().getOrderStateByLabel(ctx, true, req)
 }
 
@@ -166,12 +166,12 @@ func (w WebsocketAPI) GetUserTradesByInstrumentAndTime(ctx context.Context, req 
 }
 
 // GetUserTradesByOrder returns an order's trades as GlobalDerivativesAPI.GetUserTradesByOrder does, over the websocket
-func (w WebsocketAPI) GetUserTradesByOrder(ctx context.Context, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTrade, error) {
+func (w WebsocketAPI) GetUserTradesByOrder(ctx context.Context, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTradeResponse, error) {
 	return w.e.GlobalDerivatives().getUserTradesByOrder(ctx, true, req)
 }
 
 // Sell places a sell order as GlobalDerivativesAPI.Sell does, over the websocket
-func (w WebsocketAPI) Sell(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderResponse, error) {
+func (w WebsocketAPI) Sell(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return w.e.GlobalDerivatives().placeOrder(ctx, true, derivativesSellMethod, req)
 }
 

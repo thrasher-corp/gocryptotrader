@@ -246,8 +246,8 @@ const (
 // editOrderNotFoundReasons are the edit failure reasons Coinbase reports for an order it does not know
 var editOrderNotFoundReasons = []string{"ORDER_NOT_FOUND", "FUTURES_VENUE_ORDER_NOT_FOUND"}
 
-// cancelOrdersBody is the body Cancel Orders sends
-type cancelOrdersBody struct {
+// CancelOrdersWireRequest is the body Cancel Orders sends
+type CancelOrdersWireRequest struct {
 	OrderIDs []string `json:"order_ids"`
 }
 
@@ -299,8 +299,8 @@ type ClosePositionRequest struct {
 	Size float64
 }
 
-// closePositionBody is the body Close Position sends
-type closePositionBody struct {
+// ClosePositionWireRequest is the body Close Position sends
+type ClosePositionWireRequest struct {
 	ClientOrderID string `json:"client_order_id"`
 	ProductID     string `json:"product_id"`
 	Size          string `json:"size,omitempty"`
@@ -333,19 +333,19 @@ type CreateOrderRequest struct {
 	CostBasisMethod string
 }
 
-// orderBody is the body Create Order and Preview Order send; Preview Order takes no client order ID, preview ID or
-// smart order routing preference
-type orderBody struct {
+// OrderWireRequest is the body Create Order and Preview Order send; Preview Order takes no client order ID, preview ID
+// or smart order routing preference
+type OrderWireRequest struct {
 	ClientOrderID              string                  `json:"client_order_id,omitempty"`
 	ProductID                  string                  `json:"product_id"`
 	Side                       string                  `json:"side"`
-	OrderConfiguration         orderConfigurationBody  `json:"order_configuration"`
+	OrderConfiguration         OrderConfigurationWire  `json:"order_configuration"`
 	Leverage                   string                  `json:"leverage,omitempty"`
 	MarginType                 string                  `json:"margin_type,omitempty"`
 	PreviewID                  string                  `json:"preview_id,omitempty"`
-	AttachedOrderConfiguration orderConfigurationBody  `json:"attached_order_configuration,omitempty"`
+	AttachedOrderConfiguration OrderConfigurationWire  `json:"attached_order_configuration,omitempty"`
 	SORPreference              string                  `json:"sor_preference,omitempty"`
-	PredictionMetadata         *predictionMetadataBody `json:"prediction_metadata,omitempty"`
+	PredictionMetadata         *PredictionMetadataWire `json:"prediction_metadata,omitempty"`
 	EquityOrderMetadata        *EquityOrderMetadata    `json:"equity_order_metadata,omitempty"`
 	CostBasisMethod            string                  `json:"cost_basis_method,omitempty"`
 }
@@ -357,7 +357,7 @@ type orderBody struct {
 // Sizes and prices left zero are not sent
 type OrderConfigurationRequest interface {
 	// orderConfiguration validates the configuration and returns the key and body Coinbase takes it under
-	orderConfiguration() (string, *orderConfigurationLegBody, error)
+	orderConfiguration() (string, *OrderConfigurationLegWire, error)
 }
 
 // MarketMarketIOCRequest is a market order, which fills what it can at once at the best prices and cancels the rest;
@@ -483,12 +483,12 @@ type ScaledLimitGTCRequest struct {
 	SizeRatio         float64
 }
 
-// orderConfigurationBody is an order configuration as Coinbase takes it: one configuration under its key
-type orderConfigurationBody map[string]*orderConfigurationLegBody
+// OrderConfigurationWire is an order configuration as Coinbase takes it: one configuration under its key
+type OrderConfigurationWire map[string]*OrderConfigurationLegWire
 
-// orderConfigurationLegBody is a configuration of an order configuration body; each configuration sets the fields its
+// OrderConfigurationLegWire is a configuration of an order configuration body; each configuration sets the fields its
 // type takes, and omitempty leaves the rest out
-type orderConfigurationLegBody struct {
+type OrderConfigurationLegWire struct {
 	QuoteSize         string                      `json:"quote_size,omitempty"`
 	BaseSize          string                      `json:"base_size,omitempty"`
 	LimitPrice        string                      `json:"limit_price,omitempty"`
@@ -501,7 +501,7 @@ type orderConfigurationLegBody struct {
 	NumberOfBuckets   string                      `json:"number_buckets,omitempty"`
 	BucketSize        string                      `json:"bucket_size,omitempty"`
 	BucketDuration    string                      `json:"bucket_duration,omitempty"`
-	Orders            []orderConfigurationLegBody `json:"orders,omitempty"`
+	Orders            []OrderConfigurationLegWire `json:"orders,omitempty"`
 	NumberOfOrders    uint64                      `json:"num_orders,omitempty"`
 	MinimumPrice      string                      `json:"min_price,omitempty"`
 	MaximumPrice      string                      `json:"max_price,omitempty"`
@@ -519,8 +519,8 @@ type PredictionMetadataRequest struct {
 	SupportsFractionalBaseSize              bool
 }
 
-// predictionMetadataBody is the prediction metadata an order request sends
-type predictionMetadataBody struct {
+// PredictionMetadataWire is the prediction metadata an order request sends
+type PredictionMetadataWire struct {
 	PredictionSide                          string `json:"prediction_side,omitempty"`
 	PreviewOrderEstimatedAverageFilledPrice string `json:"preview_order_est_average_filled_price,omitempty"`
 	SupportsFractionalBaseSize              bool   `json:"supports_fractional_base_size,omitempty"`
@@ -766,12 +766,12 @@ type EditOrderRequest struct {
 	AverageEntryPrice float64
 }
 
-// editOrderBody is the body Edit Order and Edit Order Preview send
-type editOrderBody struct {
+// EditOrderWireRequest is the body Edit Order and Edit Order Preview send
+type EditOrderWireRequest struct {
 	OrderID                    string                 `json:"order_id"`
 	Price                      string                 `json:"price"`
 	Size                       string                 `json:"size"`
-	AttachedOrderConfiguration orderConfigurationBody `json:"attached_order_configuration,omitempty"`
+	AttachedOrderConfiguration OrderConfigurationWire `json:"attached_order_configuration,omitempty"`
 	CancelAttachedOrder        bool                   `json:"cancel_attached_order,omitempty"`
 	StopPrice                  string                 `json:"stop_price,omitempty"`
 	AverageEntryPrice          string                 `json:"average_entry_price,omitempty"`
@@ -852,8 +852,8 @@ type TriggerBracketPNL struct {
 	StopLossPNL   types.Number `json:"stop_loss_pnl"`
 }
 
-// getOrderResponse holds the order Get Order returns
-type getOrderResponse struct {
+// GetOrderResponse holds the order Get Order returns
+type GetOrderResponse struct {
 	Order *Order `json:"order"`
 }
 

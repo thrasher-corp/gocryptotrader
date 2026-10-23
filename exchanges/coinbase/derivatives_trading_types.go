@@ -123,10 +123,10 @@ type DerivativesOrderRequest struct {
 	AllocatedMargin float64 `json:"allocated_margin,omitempty"`
 }
 
-// derivativesOrderParams are a buy or sell request's params, with its valid until time in Unix milliseconds
-type derivativesOrderParams struct {
+// DerivativesOrderWireRequest holds a buy or sell request's params, with its valid until time in Unix milliseconds
+type DerivativesOrderWireRequest struct {
 	*DerivativesOrderRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // DerivativesSecondaryOrder is an order a linked order places or cancels once it fills; Amount and Direction are
@@ -154,17 +154,17 @@ type DerivativesSecondaryOrder struct {
 	Trigger string `json:"trigger,omitempty"`
 }
 
-// DerivativesOrderResponse is an order placed, edited or closing a position, and the trades it made at once
-type DerivativesOrderResponse struct {
-	Order DerivativesOrder `json:"order"`
+// DerivativesOrderTradesResponse is an order placed, edited or closing a position, and the trades it made at once
+type DerivativesOrderTradesResponse struct {
+	Order DerivativesOrderResponse `json:"order"`
 	// Trades can be empty for a filled spot order routed to Coinbase Exchange, whose fills arrive asynchronously on the
 	// user.trades channel
-	Trades []DerivativesUserTrade `json:"trades"`
+	Trades []DerivativesUserTradeResponse `json:"trades"`
 }
 
-// DerivativesUserTrade is one of the account's trades, as the trading methods and the user.trades notifications
+// DerivativesUserTradeResponse is one of the account's trades, as the trading methods and the user.trades notifications
 // report it
-type DerivativesUserTrade struct {
+type DerivativesUserTradeResponse struct {
 	// TradeID is unique within the trade's currency
 	TradeID string `json:"trade_id"`
 	// TradeSequence is the trade's sequence number within its instrument
@@ -223,12 +223,12 @@ type DerivativesUserTrade struct {
 	RiskReducing bool          `json:"risk_reducing"`
 	API          bool          `json:"api"`
 	// Legs holds a combo trade's leg trades, which the gateway includes only when combo trades alone are requested
-	Legs             []DerivativesUserTrade       `json:"legs"`
-	ComboID          string                       `json:"combo_id"`
-	ComboTradeID     string                       `json:"combo_trade_id"`
-	QuoteSetID       string                       `json:"quote_set_id"`
-	QuoteID          string                       `json:"quote_id"`
-	TradeAllocations []DerivativesTradeAllocation `json:"trade_allocations"`
+	Legs             []DerivativesUserTradeResponse `json:"legs"`
+	ComboID          string                         `json:"combo_id"`
+	ComboTradeID     string                         `json:"combo_trade_id"`
+	QuoteSetID       string                         `json:"quote_set_id"`
+	QuoteID          string                         `json:"quote_id"`
+	TradeAllocations []DerivativesTradeAllocation   `json:"trade_allocations"`
 	// Isolated, MainUserID and UserID are set for a trade of an isolated margin subaccount, whose user ID is the
 	// subaccount's
 	Isolated   bool   `json:"isolated"`
@@ -284,10 +284,11 @@ type DerivativesCancelAllByCurrencyRequest struct {
 	IncludeIsolated bool `json:"include_isolated,omitempty"`
 }
 
-// derivativesCancelAllByCurrencyParams are a cancel by currency request's params, with its currency as the gateway
-// takes it
-type derivativesCancelAllByCurrencyParams struct {
+// DerivativesCancelAllByCurrencyWireRequest holds a cancel by currency request's params, with its currency as the
+// gateway takes it
+type DerivativesCancelAllByCurrencyWireRequest struct {
 	*DerivativesCancelAllByCurrencyRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -331,9 +332,9 @@ type DerivativesCancelAllByKindOrTypeRequest struct {
 	FreezeQuotes bool   `json:"freeze_quotes,omitempty"`
 }
 
-// derivativesCancelAllByKindOrTypeParams are a cancel by kind or type request's params, with its currencies as a
+// DerivativesCancelAllByKindOrTypeWireRequest holds a cancel by kind or type request's params, with its currencies as a
 // single currency or a list
-type derivativesCancelAllByKindOrTypeParams struct {
+type DerivativesCancelAllByKindOrTypeWireRequest struct {
 	*DerivativesCancelAllByKindOrTypeRequest
 	Currency any `json:"currency"`
 }
@@ -348,9 +349,11 @@ type DerivativesCancelByLabelRequest struct {
 	IncludeIsolated bool `json:"include_isolated,omitempty"`
 }
 
-// derivativesCancelByLabelParams are a cancel by label request's params, with its currency as the gateway takes it
-type derivativesCancelByLabelParams struct {
+// DerivativesCancelByLabelWireRequest holds a cancel by label request's params, with its currency as the gateway takes
+// it
+type DerivativesCancelByLabelWireRequest struct {
 	*DerivativesCancelByLabelRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency,omitempty"`
 }
 
@@ -371,7 +374,7 @@ func (d *DerivativesCancelAllResponse) UnmarshalJSON(data []byte) error {
 		}
 		var count uint64
 		for i := range reports {
-			count += uint64(len(reports[i].Result))
+			count += uint64(len(reports[i].Orders()))
 		}
 		*d = DerivativesCancelAllResponse{CancelledCount: count, ExecutionReports: reports}
 		return nil
@@ -385,14 +388,29 @@ func (d *DerivativesCancelAllResponse) UnmarshalJSON(data []byte) error {
 }
 
 // DerivativesCancelExecutionReport is the orders one internal cancellation request cancelled; a cancel all request is
-// split into requests by currency, order type and instrument book
+// split into requests by currency, order type and instrument book. The gateway documents the report by an example
+// alone, which holds a cancelled order in Order, while its prose describes reports by request, holding the orders in
+// Result, so both are read
 type DerivativesCancelExecutionReport struct {
 	InstrumentName string `json:"instrument_name"`
 	// Currency is the currency, or for spot the pair, such as BTC_USDC, the request cancelled orders in
 	Currency string `json:"currency"`
 	// Type is the order type the request cancelled
-	Type   string             `json:"type"`
-	Result []DerivativesOrder `json:"result"`
+	Type   string                     `json:"type"`
+	Result []DerivativesOrderResponse `json:"result"`
+	Order  *DerivativesOrderResponse  `json:"order"`
+}
+
+// Orders returns the orders a report holds
+func (r *DerivativesCancelExecutionReport) Orders() []*DerivativesOrderResponse {
+	orders := make([]*DerivativesOrderResponse, 0, len(r.Result)+1)
+	for i := range r.Result {
+		orders = append(orders, &r.Result[i])
+	}
+	if r.Order != nil {
+		orders = append(orders, r.Order)
+	}
+	return orders
 }
 
 // DerivativesClosePositionRequest closes a position with a reduce only order
@@ -439,10 +457,10 @@ type DerivativesEditOrderRequest struct {
 	AllocatedMargin float64 `json:"allocated_margin,omitempty"`
 }
 
-// derivativesEditOrderParams are an edit request's params, with its valid until time in Unix milliseconds
-type derivativesEditOrderParams struct {
+// DerivativesEditOrderWireRequest holds an edit request's params, with its valid until time in Unix milliseconds
+type DerivativesEditOrderWireRequest struct {
 	*DerivativesEditOrderRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // DerivativesEditOrderByLabelRequest edits the only open order of an instrument with a label; Amount or Contracts
@@ -474,11 +492,11 @@ type DerivativesEditOrderByLabelRequest struct {
 	AllocatedMargin float64 `json:"allocated_margin,omitempty"`
 }
 
-// derivativesEditOrderByLabelParams are an edit by label request's params, with its valid until time in Unix
+// DerivativesEditOrderByLabelWireRequest holds an edit by label request's params, with its valid until time in Unix
 // milliseconds
-type derivativesEditOrderByLabelParams struct {
+type DerivativesEditOrderByLabelWireRequest struct {
 	*DerivativesEditOrderByLabelRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // DerivativesMarginsRequest asks for the margins and fees of a hypothetical order
@@ -564,10 +582,11 @@ type DerivativesOpenOrdersByCurrencyRequest struct {
 	Type string `json:"type,omitempty"`
 }
 
-// derivativesOpenOrdersByCurrencyParams are an open orders by currency request's params, with its currency as the
-// gateway takes it
-type derivativesOpenOrdersByCurrencyParams struct {
+// DerivativesOpenOrdersByCurrencyWireRequest holds an open orders by currency request's params, with its currency as
+// the gateway takes it
+type DerivativesOpenOrdersByCurrencyWireRequest struct {
 	*DerivativesOpenOrdersByCurrencyRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -585,10 +604,11 @@ type DerivativesOpenOrdersByLabelRequest struct {
 	Label    string        `json:"label"`
 }
 
-// derivativesOpenOrdersByLabelParams are an open orders by label request's params, with its currency as the gateway
-// takes it
-type derivativesOpenOrdersByLabelParams struct {
+// DerivativesOpenOrdersByLabelWireRequest holds an open orders by label request's params, with its currency as the
+// gateway takes it
+type DerivativesOpenOrdersByLabelWireRequest struct {
 	*DerivativesOpenOrdersByLabelRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -613,10 +633,11 @@ type DerivativesOrderHistoryByCurrencyRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesOrderHistoryByCurrencyParams are an order history by currency request's params, with its currency as the
-// gateway takes it
-type derivativesOrderHistoryByCurrencyParams struct {
+// DerivativesOrderHistoryByCurrencyWireRequest holds an order history by currency request's params, with its currency
+// as the gateway takes it
+type DerivativesOrderHistoryByCurrencyWireRequest struct {
 	*DerivativesOrderHistoryByCurrencyRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -639,29 +660,29 @@ type DerivativesOrderHistoryByInstrumentRequest struct {
 // DerivativesOrderHistoryResponse is a page of order history; the gateway sends the orders alone unless a
 // continuation token is requested
 type DerivativesOrderHistoryResponse struct {
-	Orders       []DerivativesOrder `json:"orders"`
-	Continuation string             `json:"continuation"`
+	Orders       []DerivativesOrderResponse `json:"orders"`
+	Continuation string                     `json:"continuation"`
 }
 
-// derivativesOrderHistoryPage is an order history page with a continuation token; its orders field is a pointer to
+// DerivativesOrderHistoryPage is an order history page with a continuation token; its orders field is a pointer to
 // tell a missing field from an empty list, as the gateway does not document the page's fields
-type derivativesOrderHistoryPage struct {
-	Orders       *[]DerivativesOrder `json:"orders"`
-	Continuation string              `json:"continuation"`
+type DerivativesOrderHistoryPage struct {
+	Orders       *[]DerivativesOrderResponse `json:"orders"`
+	Continuation string                      `json:"continuation"`
 }
 
 // UnmarshalJSON decodes a list of orders, or a page of orders with its continuation token
 func (d *DerivativesOrderHistoryResponse) UnmarshalJSON(data []byte) error {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) > 0 && trimmed[0] == '[' {
-		var orders []DerivativesOrder
+		var orders []DerivativesOrderResponse
 		if err := json.Unmarshal(trimmed, &orders); err != nil {
 			return err
 		}
 		*d = DerivativesOrderHistoryResponse{Orders: orders}
 		return nil
 	}
-	var page derivativesOrderHistoryPage
+	var page DerivativesOrderHistoryPage
 	if err := json.Unmarshal(trimmed, &page); err != nil {
 		return err
 	}
@@ -679,8 +700,8 @@ type DerivativesOrderMarginByIDsRequest struct {
 	Isolated bool `json:"isolated,omitempty"`
 }
 
-// DerivativesOrderMargin is the initial margin an open order holds
-type DerivativesOrderMargin struct {
+// DerivativesOrderMarginResponse is the initial margin an open order holds
+type DerivativesOrderMarginResponse struct {
 	OrderID               string        `json:"order_id"`
 	InitialMargin         float64       `json:"initial_margin"`
 	InitialMarginCurrency currency.Code `json:"initial_margin_currency"`
@@ -701,10 +722,11 @@ type DerivativesOrderStateByLabelRequest struct {
 	IncludeIsolated bool `json:"include_isolated,omitempty"`
 }
 
-// derivativesOrderStateByLabelParams are an order state by label request's params, with its currency as the gateway
-// takes it
-type derivativesOrderStateByLabelParams struct {
+// DerivativesOrderStateByLabelWireRequest holds an order state by label request's params, with its currency as the
+// gateway takes it
+type DerivativesOrderStateByLabelWireRequest struct {
 	*DerivativesOrderStateByLabelRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -723,12 +745,13 @@ type DerivativesSettlementHistoryByCurrencyRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesSettlementHistoryByCurrencyParams are a settlement history request's params, with its currency as the
-// gateway takes it and its search start time in Unix milliseconds
-type derivativesSettlementHistoryByCurrencyParams struct {
+// DerivativesSettlementHistoryByCurrencyWireRequest holds a settlement history request's params, with its currency as
+// the gateway takes it and its search start time in Unix milliseconds
+type DerivativesSettlementHistoryByCurrencyWireRequest struct {
 	*DerivativesSettlementHistoryByCurrencyRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency             string `json:"currency"`
-	SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // DerivativesSettlementHistoryByInstrumentRequest asks for the settlement events that affected the account in an
@@ -744,11 +767,11 @@ type DerivativesSettlementHistoryByInstrumentRequest struct {
 	SearchStartTime time.Time `json:"-"`
 }
 
-// derivativesSettlementHistoryByInstrumentParams are a settlement history request's params, with its search start time
-// in Unix milliseconds
-type derivativesSettlementHistoryByInstrumentParams struct {
+// DerivativesSettlementHistoryByInstrumentWireRequest holds a settlement history request's params, with its search
+// start time in Unix milliseconds
+type DerivativesSettlementHistoryByInstrumentWireRequest struct {
 	*DerivativesSettlementHistoryByInstrumentRequest
-	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // DerivativesTriggerOrderHistoryRequest asks for the account's trigger order log in a currency
@@ -760,10 +783,11 @@ type DerivativesTriggerOrderHistoryRequest struct {
 	Continuation string `json:"continuation,omitempty"`
 }
 
-// derivativesTriggerOrderHistoryParams are a trigger order history request's params, with its currency as the gateway
-// takes it
-type derivativesTriggerOrderHistoryParams struct {
+// DerivativesTriggerOrderHistoryWireRequest holds a trigger order history request's params, with its currency as the
+// gateway takes it
+type DerivativesTriggerOrderHistoryWireRequest struct {
 	*DerivativesTriggerOrderHistoryRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 }
 
@@ -826,13 +850,14 @@ type DerivativesUserTradesByCurrencyRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesUserTradesByCurrencyParams are a user trades request's params, with its currency as the gateway takes it
-// and its time range in Unix milliseconds
-type derivativesUserTradesByCurrencyParams struct {
+// DerivativesUserTradesByCurrencyWireRequest holds a user trades request's params, with its currency as the gateway
+// takes it and its time range in Unix milliseconds
+type DerivativesUserTradesByCurrencyWireRequest struct {
 	*DerivativesUserTradesByCurrencyRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // DerivativesUserTradesByCurrencyAndTimeRequest asks for the account's trades in a currency's instruments within a time
@@ -853,13 +878,14 @@ type DerivativesUserTradesByCurrencyAndTimeRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesUserTradesByCurrencyAndTimeParams are a user trades request's params, with its currency as the gateway
-// takes it and its time range in Unix milliseconds
-type derivativesUserTradesByCurrencyAndTimeParams struct {
+// DerivativesUserTradesByCurrencyAndTimeWireRequest holds a user trades request's params, with its currency as the
+// gateway takes it and its time range in Unix milliseconds
+type DerivativesUserTradesByCurrencyAndTimeWireRequest struct {
 	*DerivativesUserTradesByCurrencyAndTimeRequest
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64  `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // DerivativesUserTradesByInstrumentRequest asks for the account's latest trades in an instrument
@@ -880,11 +906,12 @@ type DerivativesUserTradesByInstrumentRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesUserTradesByInstrumentParams are a user trades request's params, with its time range in Unix milliseconds
-type derivativesUserTradesByInstrumentParams struct {
+// DerivativesUserTradesByInstrumentWireRequest holds a user trades request's params, with its time range in Unix
+// milliseconds
+type DerivativesUserTradesByInstrumentWireRequest struct {
 	*DerivativesUserTradesByInstrumentRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // DerivativesUserTradesByInstrumentAndTimeRequest asks for the account's trades in an instrument within a time range,
@@ -903,12 +930,12 @@ type DerivativesUserTradesByInstrumentAndTimeRequest struct {
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 }
 
-// derivativesUserTradesByInstrumentAndTimeParams are a user trades request's params, with its time range in Unix
+// DerivativesUserTradesByInstrumentAndTimeWireRequest holds a user trades request's params, with its time range in Unix
 // milliseconds
-type derivativesUserTradesByInstrumentAndTimeParams struct {
+type DerivativesUserTradesByInstrumentAndTimeWireRequest struct {
 	*DerivativesUserTradesByInstrumentAndTimeRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // DerivativesUserTradesByOrderRequest asks for the trades an order made
@@ -927,8 +954,8 @@ type DerivativesUserTradesByOrderRequest struct {
 
 // DerivativesUserTradesResponse is a page of the account's trades and whether more match the request
 type DerivativesUserTradesResponse struct {
-	Trades  []DerivativesUserTrade `json:"trades"`
-	HasMore bool                   `json:"has_more"`
+	Trades  []DerivativesUserTradeResponse `json:"trades"`
+	HasMore bool                           `json:"has_more"`
 }
 
 // DerivativesSetLeverageRequest sets or removes a future's custom leverage

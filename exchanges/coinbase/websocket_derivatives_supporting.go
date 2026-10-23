@@ -25,7 +25,7 @@ func (w WebsocketAPI) Hello(ctx context.Context, req *DerivativesHelloRequest) (
 		return nil, errDerivativesClientVersionRequired
 	}
 	var resp *DerivativesHelloResponse
-	params := &derivativesHelloParams{ClientName: req.ClientName, ClientVersion: req.ClientVersion}
+	params := &DerivativesHelloWireRequest{ClientName: req.ClientName, ClientVersion: req.ClientVersion}
 	if err := w.SendRequest(ctx, derivativesNonMatchingEPL, "public/hello", params, &resp); err != nil {
 		return nil, err
 	}

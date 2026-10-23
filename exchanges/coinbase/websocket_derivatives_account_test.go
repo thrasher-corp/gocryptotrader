@@ -100,17 +100,17 @@ func TestWebsocketHandleDerivativesAccount(t *testing.T) {
 		},
 		"changes": &DerivativesWebsocketUserChanges{
 			InstrumentName: "BTC-PERPETUAL",
-			Orders: []DerivativesOrder{{
+			Orders: []DerivativesOrderResponse{{
 				OrderID: "7654321", OrderState: DerivativesOrderStateCancelled, OrderType: DerivativesOrderTypeMarket, TimeInForce: DerivativesTimeInForceImmediateOrCancel,
 				InstrumentName: "BTC-PERPETUAL", CreationTimestamp: testMarketDataMilli(1792374001000), LastUpdateTimestamp: testMarketDataMilli(1792374002000),
 				Direction: DerivativesDirectionSell, Price: DerivativesOrderPrice{Value: 82000}, ReduceOnly: true, Amount: 100, FilledAmount: 40, AveragePrice: 82400.5,
 			}},
-			Trades: []DerivativesUserTrade{{
+			Trades: []DerivativesUserTradeResponse{{
 				TradeID: "453630200", TradeSequence: 307194900, InstrumentName: "BTC-PERPETUAL", Timestamp: testMarketDataMilli(1792374001500), OrderType: "market",
 				OrderID: "7654321", Direction: DerivativesDirectionSell, IndexPrice: 82380.1, Price: 82400.5, MarkPrice: 82390.4, Amount: 40, Liquidity: "T",
 				Fee: 0.00000024, FeeCurrency: currency.BTC, State: DerivativesOrderStateCancelled,
 			}},
-			Positions: []DerivativesPosition{{
+			Positions: []DerivativesPositionResponse{{
 				InstrumentName: "BTC-PERPETUAL", Kind: DerivativesKindFuture, Direction: DerivativesDirectionSell, Size: -40, SizeCurrency: -0.000485,
 				AveragePrice: 82400.5, MarkPrice: 82390.4, IndexPrice: 82380.1, Delta: -0.000485, InitialMargin: 0.0000097, MaintenanceMargin: 0.0000049,
 				Leverage: 50, TotalProfitLoss: 0.00000006,
@@ -175,6 +175,26 @@ func TestDerivativesOrderType(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "derivativesOrderType should error for an unknown order type")
 }
 
+func TestDerivativesOriginalOrderType(t *testing.T) {
+	t.Parallel()
+	ex := &Exchange{}
+	for _, tc := range []struct {
+		orderType, originalOrderType string
+		exp                          order.Type
+	}{
+		{DerivativesOrderTypeLimit, "", order.Limit},
+		{DerivativesOrderTypeLimit, DerivativesOrderTypeMarket, order.Market},
+		{DerivativesOrderTypeLimit, DerivativesOrderTypeMarketLimit, order.Market},
+	} {
+		detail, err := ex.derivativesOrderDetail(&DerivativesOrderResponse{OrderID: "USDC-1", InstrumentName: "BTC_USDC-PERPETUAL", Direction: DerivativesDirectionBuy, OrderState: DerivativesOrderStateFilled, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType, Amount: 1, FilledAmount: 1})
+		require.NoErrorf(t, err, "derivativesOrderDetail must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
+		assert.Equalf(t, tc.exp, detail.Type, "derivativesOrderDetail should report a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
+		trade, err := ex.derivativesTradeHistory(&DerivativesUserTradeResponse{TradeID: "USDC-2", Direction: DerivativesDirectionBuy, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType})
+		require.NoErrorf(t, err, "derivativesTradeHistory must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
+		assert.Equalf(t, tc.exp, trade.Type, "derivativesTradeHistory should report a trade of a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
+	}
+}
+
 func TestDerivativesOrderStatus(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -184,7 +204,8 @@ func TestDerivativesOrderStatus(t *testing.T) {
 	}{
 		{DerivativesOrderStateOpen, 0, order.Open},
 		{DerivativesOrderStateOpen, 1, order.PartiallyFilled},
-		{DerivativesOrderStateTriggered, 0, order.Open},
+		{DerivativesOrderStateTriggered, 0, order.Closed},
+		{DerivativesOrderStateTriggered, 1, order.Closed},
 		{DerivativesOrderStateUntriggered, 0, order.Pending},
 		{DerivativesOrderStateFilled, 1, order.Filled},
 		{DerivativesOrderStateCancelled, 0, order.Cancelled},

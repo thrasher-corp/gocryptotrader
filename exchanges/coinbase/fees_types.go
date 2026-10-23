@@ -107,15 +107,15 @@ type VolumeTypesAndRange struct {
 // its example sends bare, 0.5; it decodes from either, and from null as zero
 type DecimalValue float64
 
-// decimalObject is the object Coinbase's schema wraps a decimal in
-type decimalObject struct {
+// DecimalObject is the object Coinbase's schema wraps a decimal in
+type DecimalObject struct {
 	Value types.Number `json:"value"`
 }
 
 // UnmarshalJSON decodes a decimal from the object holding it, or from a bare number or decimal string
 func (d *DecimalValue) UnmarshalJSON(data []byte) error {
 	if bytes.HasPrefix(bytes.TrimSpace(data), []byte("{")) {
-		var obj decimalObject
+		var obj DecimalObject
 		if err := json.Unmarshal(data, &obj); err != nil {
 			return fmt.Errorf("%w: %s", errInvalidDecimalValue, data)
 		}

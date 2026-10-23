@@ -83,11 +83,11 @@ func derivativesAccountCurrency(ccy currency.Code, documented []currency.Code) (
 // ChangeMarginModel changes the margin model of the account or a subaccount, which changes its margin requirements,
 // available funds and trading capabilities, and returns the change's effect on each currency; a dry run returns the
 // effect without making the change
-func (g GlobalDerivativesAPI) ChangeMarginModel(ctx context.Context, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChange, error) {
+func (g GlobalDerivativesAPI) ChangeMarginModel(ctx context.Context, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChangeResponse, error) {
 	return g.changeMarginModel(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) changeMarginModel(ctx context.Context, overWebsocket bool, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChange, error) {
+func (g GlobalDerivativesAPI) changeMarginModel(ctx context.Context, overWebsocket bool, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChangeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -96,8 +96,8 @@ func (g GlobalDerivativesAPI) changeMarginModel(ctx context.Context, overWebsock
 	default:
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidMarginModel, req.MarginModel)
 	}
-	params := &derivativesChangeMarginModelParams{UserID: req.UserID, MarginModel: req.MarginModel, DryRun: req.DryRun}
-	var resp []DerivativesMarginModelChange
+	params := &DerivativesChangeMarginModelWireRequest{UserID: req.UserID, MarginModel: req.MarginModel, DryRun: req.DryRun}
+	var resp []DerivativesMarginModelChangeResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/change_margin_model", params, &resp)
 }
 
@@ -113,7 +113,7 @@ func (g GlobalDerivativesAPI) getAccessLog(ctx context.Context, overWebsocket bo
 		return nil, err
 	}
 	var resp *DerivativesAccessLogResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_access_log", &derivativesAccessLogParams{Offset: req.Offset, Count: req.Count}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_access_log", &DerivativesAccessLogWireRequest{Offset: req.Offset, Count: req.Count}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -132,7 +132,7 @@ func (g GlobalDerivativesAPI) getAccountSummaries(ctx context.Context, overWebso
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	params := &derivativesAccountSummariesParams{SubaccountID: req.SubaccountID, Extended: req.Extended, IncludeIsolated: req.IncludeIsolated}
+	params := &DerivativesAccountSummariesWireRequest{SubaccountID: req.SubaccountID, Extended: req.Extended, IncludeIsolated: req.IncludeIsolated}
 	var resp *DerivativesAccountSummariesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_account_summaries", params, &resp); err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (g GlobalDerivativesAPI) getAccountSummary(ctx context.Context, overWebsock
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesAccountSummaryParams{Currency: ccy, SubaccountID: req.SubaccountID, Extended: req.Extended}
+	params := &DerivativesAccountSummaryWireRequest{Currency: ccy, SubaccountID: req.SubaccountID, Extended: req.Extended}
 	var resp *DerivativesAccountSummaryResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_account_summary", params, &resp); err != nil {
 		return nil, err
@@ -172,16 +172,16 @@ func (g GlobalDerivativesAPI) getAccountSummary(ctx context.Context, overWebsock
 // GetLeverage returns a future's custom and maximum leverage or, without an instrument, those of every future with a
 // custom leverage, leaving out futures at their maximum. A regular subaccount reading isolated margin leverage, which
 // only the main account sees, receives none
-func (g GlobalDerivativesAPI) GetLeverage(ctx context.Context, req *DerivativesGetLeverageRequest) ([]DerivativesLeverage, error) {
+func (g GlobalDerivativesAPI) GetLeverage(ctx context.Context, req *DerivativesGetLeverageRequest) ([]DerivativesLeverageResponse, error) {
 	return g.getLeverage(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getLeverage(ctx context.Context, overWebsocket bool, req *DerivativesGetLeverageRequest) ([]DerivativesLeverage, error) {
+func (g GlobalDerivativesAPI) getLeverage(ctx context.Context, overWebsocket bool, req *DerivativesGetLeverageRequest) ([]DerivativesLeverageResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	params := &derivativesLeverageParams{InstrumentName: req.InstrumentName, SubaccountID: req.SubaccountID, Isolated: req.Isolated}
-	var resp derivativesLeverages
+	params := &DerivativesLeverageWireRequest{InstrumentName: req.InstrumentName, SubaccountID: req.SubaccountID, Isolated: req.Isolated}
+	var resp DerivativesLeverages
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_leverage", params, &resp)
 }
 
@@ -197,7 +197,7 @@ func (g GlobalDerivativesAPI) getPMEParams(ctx context.Context, overWebsocket bo
 		return nil, err
 	}
 	var resp *DerivativesPMEParamsResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_pme_params", &derivativesCurrencyParams{Currency: code}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_pme_params", &DerivativesCurrencyWireRequest{Currency: code}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -209,19 +209,19 @@ func (g GlobalDerivativesAPI) getPMEParams(ctx context.Context, overWebsocket bo
 // GetPosition returns the account's position in an instrument, which has a zero size when there is none. With
 // IncludeIsolated, an instrument bound to an isolated margin subaccount returns that subaccount's position in place of
 // the cross margin one; GetPositions returns both
-func (g GlobalDerivativesAPI) GetPosition(ctx context.Context, req *DerivativesGetPositionRequest) (*DerivativesPosition, error) {
+func (g GlobalDerivativesAPI) GetPosition(ctx context.Context, req *DerivativesGetPositionRequest) (*DerivativesPositionResponse, error) {
 	return g.getPosition(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getPosition(ctx context.Context, overWebsocket bool, req *DerivativesGetPositionRequest) (*DerivativesPosition, error) {
+func (g GlobalDerivativesAPI) getPosition(ctx context.Context, overWebsocket bool, req *DerivativesGetPositionRequest) (*DerivativesPositionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	if req.InstrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp *DerivativesPosition
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_position", &derivativesPositionParams{InstrumentName: req.InstrumentName, IncludeIsolated: req.IncludeIsolated}, &resp); err != nil {
+	var resp *DerivativesPositionResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_position", &DerivativesPositionWireRequest{InstrumentName: req.InstrumentName, IncludeIsolated: req.IncludeIsolated}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -233,15 +233,15 @@ func (g GlobalDerivativesAPI) getPosition(ctx context.Context, overWebsocket boo
 // GetPositions returns the open positions of the account or a subaccount, optionally in one settlement currency and of
 // one kind; spot holdings are balances, which GetAccountSummary reports. Isolated margin positions are owned by their
 // subaccounts, so they are only returned with IncludeIsolated or the subaccount's ID
-func (g GlobalDerivativesAPI) GetPositions(ctx context.Context, req *DerivativesGetPositionsRequest) ([]DerivativesPosition, error) {
+func (g GlobalDerivativesAPI) GetPositions(ctx context.Context, req *DerivativesGetPositionsRequest) ([]DerivativesPositionResponse, error) {
 	return g.getPositions(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getPositions(ctx context.Context, overWebsocket bool, req *DerivativesGetPositionsRequest) ([]DerivativesPosition, error) {
+func (g GlobalDerivativesAPI) getPositions(ctx context.Context, overWebsocket bool, req *DerivativesGetPositionsRequest) ([]DerivativesPositionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	params := &derivativesPositionsParams{Kind: req.Kind, SubaccountID: req.SubaccountID, IncludeIsolated: req.IncludeIsolated}
+	params := &DerivativesPositionsWireRequest{Kind: req.Kind, SubaccountID: req.SubaccountID, IncludeIsolated: req.IncludeIsolated}
 	switch {
 	case req.Currency.IsEmpty():
 	case strings.EqualFold(req.Currency.String(), DerivativesCurrencyAny):
@@ -258,7 +258,7 @@ func (g GlobalDerivativesAPI) getPositions(ctx context.Context, overWebsocket bo
 	default:
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidPositionKind, req.Kind)
 	}
-	var resp []DerivativesPosition
+	var resp []DerivativesPositionResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_positions", params, &resp)
 }
 
@@ -282,25 +282,25 @@ func (g GlobalDerivativesAPI) getRiskProfile(ctx context.Context, overWebsocket 
 // GetSubaccounts returns the main account's and its subaccounts' details, with their portfolios when asked for; a
 // subaccount is sent limited details of the main account. Isolated margin subaccounts are created on an account's first
 // isolated order, recycled once flat and hidden unless asked for, so their bindings are to be read afresh, not cached
-func (g GlobalDerivativesAPI) GetSubaccounts(ctx context.Context, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccount, error) {
+func (g GlobalDerivativesAPI) GetSubaccounts(ctx context.Context, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccountResponse, error) {
 	return g.getSubaccounts(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getSubaccounts(ctx context.Context, overWebsocket bool, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccount, error) {
+func (g GlobalDerivativesAPI) getSubaccounts(ctx context.Context, overWebsocket bool, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccountResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	var resp []DerivativesSubaccount
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_subaccounts", &derivativesSubaccountsParams{WithPortfolio: req.WithPortfolio, IncludeIsolated: req.IncludeIsolated}, &resp)
+	var resp []DerivativesSubaccountResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_subaccounts", &DerivativesSubaccountsWireRequest{WithPortfolio: req.WithPortfolio, IncludeIsolated: req.IncludeIsolated}, &resp)
 }
 
 // GetSubaccountsDetails returns the positions of the main account and each subaccount in a currency and, when asked
 // for, their open orders
-func (g GlobalDerivativesAPI) GetSubaccountsDetails(ctx context.Context, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetails, error) {
+func (g GlobalDerivativesAPI) GetSubaccountsDetails(ctx context.Context, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetailsResponse, error) {
 	return g.getSubaccountsDetails(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getSubaccountsDetails(ctx context.Context, overWebsocket bool, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetails, error) {
+func (g GlobalDerivativesAPI) getSubaccountsDetails(ctx context.Context, overWebsocket bool, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetailsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -308,8 +308,8 @@ func (g GlobalDerivativesAPI) getSubaccountsDetails(ctx context.Context, overWeb
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesSubaccountsDetailsParams{Currency: ccy, WithOpenOrders: req.WithOpenOrders, IncludeIsolated: req.IncludeIsolated}
-	var resp []DerivativesSubaccountDetails
+	params := &DerivativesSubaccountsDetailsWireRequest{Currency: ccy, WithOpenOrders: req.WithOpenOrders, IncludeIsolated: req.IncludeIsolated}
+	var resp []DerivativesSubaccountDetailsResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_subaccounts_details", params, &resp)
 }
 
@@ -325,7 +325,7 @@ func (g GlobalDerivativesAPI) getTradingLimits(ctx context.Context, overWebsocke
 		return nil, err
 	}
 	var resp *DerivativesTradingLimitsResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_trading_limits", &derivativesCurrencyParams{Currency: code}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_trading_limits", &DerivativesCurrencyWireRequest{Currency: code}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -353,10 +353,14 @@ func (g GlobalDerivativesAPI) getTransactionLog(ctx context.Context, overWebsock
 	if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	params := &derivativesTransactionLogParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesTransactionLogWireRequest{
 		Currency:       ccy,
-		StartTimestamp: req.StartTime.UnixMilli(),
-		EndTimestamp:   req.EndTime.UnixMilli(),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Query:          req.Query,
 		Count:          req.Count,
 		SubaccountID:   req.SubaccountID,
@@ -374,12 +378,12 @@ func (g GlobalDerivativesAPI) getTransactionLog(ctx context.Context, overWebsock
 
 // GetUserLocks returns whether the account is locked in each currency, and why; a lock may stop trading, withdrawals
 // or other operations
-func (g GlobalDerivativesAPI) GetUserLocks(ctx context.Context) ([]DerivativesUserLock, error) {
+func (g GlobalDerivativesAPI) GetUserLocks(ctx context.Context) ([]DerivativesUserLockResponse, error) {
 	return g.getUserLocks(ctx, false)
 }
 
-func (g GlobalDerivativesAPI) getUserLocks(ctx context.Context, overWebsocket bool) ([]DerivativesUserLock, error) {
-	var resp []DerivativesUserLock
+func (g GlobalDerivativesAPI) getUserLocks(ctx context.Context, overWebsocket bool) ([]DerivativesUserLockResponse, error) {
+	var resp []DerivativesUserLockResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_locks", nil, &resp)
 }
 
@@ -429,7 +433,7 @@ func (g GlobalDerivativesAPI) simulatePortfolio(ctx context.Context, overWebsock
 
 // derivativesSimulatePortfolio validates a portfolio simulation request against the currencies its method documents
 // and returns its params
-func derivativesSimulatePortfolio(req *DerivativesSimulatePortfolioRequest, documented []currency.Code) (*derivativesSimulatePortfolioParams, error) {
+func derivativesSimulatePortfolio(req *DerivativesSimulatePortfolioRequest, documented []currency.Code) (*DerivativesSimulatePortfolioWireRequest, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -437,23 +441,24 @@ func derivativesSimulatePortfolio(req *DerivativesSimulatePortfolioRequest, docu
 	if err != nil {
 		return nil, err
 	}
-	return &derivativesSimulatePortfolioParams{Currency: ccy, AddPositions: req.AddPositions, SimulatedPositions: req.SimulatedPositions}, nil
+	return &DerivativesSimulatePortfolioWireRequest{Currency: ccy, AddPositions: req.AddPositions, SimulatedPositions: req.SimulatedPositions}, nil
 }
 
 // GetAnnouncements returns the platform's announcements published up to a time, newest first; the gateway returns at
 // most 50, whatever the count
-func (g GlobalDerivativesAPI) GetAnnouncements(ctx context.Context, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncement, error) {
+func (g GlobalDerivativesAPI) GetAnnouncements(ctx context.Context, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncementResponse, error) {
 	return g.getAnnouncements(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getAnnouncements(ctx context.Context, overWebsocket bool, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncement, error) {
+func (g GlobalDerivativesAPI) getAnnouncements(ctx context.Context, overWebsocket bool, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncementResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	params := &derivativesAnnouncementsParams{Count: req.Count}
-	if !req.StartTime.IsZero() {
-		params.StartTimestamp = req.StartTime.UnixMilli()
+	startTimestamp, err := derivativesUnixMilli(req.StartTime)
+	if err != nil {
+		return nil, err
 	}
-	var resp []DerivativesAnnouncement
+	params := &DerivativesAnnouncementsWireRequest{Count: req.Count, StartTimestamp: startTimestamp}
+	var resp []DerivativesAnnouncementResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_announcements", params, &resp)
 }

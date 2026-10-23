@@ -19,8 +19,9 @@ type DerivativesSubmitTransferBetweenSubaccountsRequest struct {
 	Nonce string
 }
 
-// derivativesSubmitTransferBetweenSubaccountsParams are private/submit_transfer_between_subaccounts' params
-type derivativesSubmitTransferBetweenSubaccountsParams struct {
+// DerivativesSubmitTransferBetweenSubaccountsWireRequest holds private/submit_transfer_between_subaccounts' params
+type DerivativesSubmitTransferBetweenSubaccountsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency    string  `json:"currency"`
 	Amount      float64 `json:"amount"`
 	Destination uint64  `json:"destination"`
@@ -28,8 +29,8 @@ type derivativesSubmitTransferBetweenSubaccountsParams struct {
 	Nonce       string  `json:"nonce,omitempty"`
 }
 
-// DerivativesTransfer is a transfer between the account and a subaccount or another user
-type DerivativesTransfer struct {
+// DerivativesTransferResponse is a transfer between the account and a subaccount or another user
+type DerivativesTransferResponse struct {
 	ID uint64 `json:"id"`
 	// Type is user for a transfer to or from another user, and subaccount for one to or from a subaccount
 	Type     string        `json:"type"`

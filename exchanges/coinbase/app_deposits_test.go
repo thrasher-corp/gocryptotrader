@@ -29,9 +29,9 @@ const (
 var testAppFiatTransferKinds = []string{"deposits", "withdrawals"}
 
 // testAppFiatTransfer returns the docs' list and show resource of a deposit or withdrawal
-func testAppFiatTransfer(t *testing.T, resource string) AppFiatTransfer {
+func testAppFiatTransfer(t *testing.T, resource string) AppFiatTransferResponse {
 	t.Helper()
-	return AppFiatTransfer{
+	return AppFiatTransferResponse{
 		ID:     testAppFiatTransferID,
 		Status: AppFiatTransferStatusCompleted,
 		PaymentMethod: AppResourceReference{
@@ -147,7 +147,7 @@ func testAppFiatTransferIDRequestErrors[T any](t *testing.T, name string, call f
 
 // testAppListFiatTransfersRequestErrors checks a deposit or withdrawal list refuses every invalid request before
 // sending it
-func testAppListFiatTransfersRequestErrors(t *testing.T, name string, list func(context.Context, *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransfer], error)) {
+func testAppListFiatTransfersRequestErrors(t *testing.T, name string, list func(context.Context, *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error)) {
 	t.Helper()
 	for _, tc := range []struct {
 		req *AppListFiatTransfersRequest
@@ -208,8 +208,8 @@ func TestAppListDeposits(t *testing.T) {
 	resp, err := e.App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccount(t)})
 	require.NoError(t, err, "ListDeposits must not error")
 	if mockTests {
-		exp := &AppListResponse[AppFiatTransfer]{
-			Data:       []AppFiatTransfer{testAppFiatTransfer(t, "deposit")},
+		exp := &AppListResponse[AppFiatTransferResponse]{
+			Data:       []AppFiatTransferResponse{testAppFiatTransfer(t, "deposit")},
 			Pagination: AppPagination{Limit: 25, Order: AppOrderDescending},
 		}
 		assert.Equal(t, exp, resp, "ListDeposits should decode every field")
@@ -298,7 +298,7 @@ func TestAppCommitFiatTransfer(t *testing.T) {
 
 func TestAppListFiatTransfers(t *testing.T) {
 	t.Parallel()
-	testAppListFiatTransfersRequestErrors(t, "listFiatTransfers", func(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransfer], error) {
+	testAppListFiatTransfersRequestErrors(t, "listFiatTransfers", func(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error) {
 		return e.App().listFiatTransfers(ctx, "deposits", req)
 	})
 	for _, kind := range testAppFiatTransferKinds {
@@ -311,8 +311,8 @@ func TestAppListFiatTransfers(t *testing.T) {
 		}))
 		resp, err := ex.App().listFiatTransfers(t.Context(), kind, &AppListFiatTransfersRequest{AccountID: testAppAccountID, Page: &AppPageRequest{Limit: 1, Order: AppOrderAscending, StartingAfter: testAppFiatTransferID}})
 		require.NoErrorf(t, err, "listFiatTransfers must not error for %s", kind)
-		exp := &AppListResponse[AppFiatTransfer]{
-			Data:       []AppFiatTransfer{{ID: testAppFiatTransferID}},
+		exp := &AppListResponse[AppFiatTransferResponse]{
+			Data:       []AppFiatTransferResponse{{ID: testAppFiatTransferID}},
 			Pagination: AppPagination{Limit: 1, Order: AppOrderAscending, NextURI: "/v2/accounts/x"},
 		}
 		assert.Equalf(t, exp, resp, "listFiatTransfers should return the page of %s", kind)
@@ -321,7 +321,7 @@ func TestAppListFiatTransfers(t *testing.T) {
 
 func TestAppGetFiatTransfer(t *testing.T) {
 	t.Parallel()
-	testAppFiatTransferIDRequestErrors(t, "getFiatTransfer", func(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransfer, error) {
+	testAppFiatTransferIDRequestErrors(t, "getFiatTransfer", func(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransferResponse, error) {
 		return e.App().getFiatTransfer(ctx, "deposits", req)
 	})
 	for _, kind := range testAppFiatTransferKinds {
@@ -333,7 +333,7 @@ func TestAppGetFiatTransfer(t *testing.T) {
 		}))
 		resp, err := ex.App().getFiatTransfer(t.Context(), kind, &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
 		require.NoErrorf(t, err, "getFiatTransfer must not error for %s", kind)
-		assert.Equalf(t, &AppFiatTransfer{ID: testAppFiatTransferID}, resp, "getFiatTransfer should return the %s", kind)
+		assert.Equalf(t, &AppFiatTransferResponse{ID: testAppFiatTransferID}, resp, "getFiatTransfer should return the %s", kind)
 	}
 	_, err := newResponseServerExchange(t, `{"data":null}`).App().getFiatTransfer(t.Context(), "deposits", &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "getFiatTransfer should error for a null transfer")

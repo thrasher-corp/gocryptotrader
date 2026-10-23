@@ -28,12 +28,12 @@ func (a AppAPI) CommitDeposit(ctx context.Context, req *AppFiatTransferIDRequest
 }
 
 // ListDeposits returns a page of a fiat account's deposits; a crypto account's deposits are among its transactions
-func (a AppAPI) ListDeposits(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransfer], error) {
+func (a AppAPI) ListDeposits(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error) {
 	return a.listFiatTransfers(ctx, "deposits", req)
 }
 
 // GetDeposit returns one of a fiat account's deposits
-func (a AppAPI) GetDeposit(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransfer, error) {
+func (a AppAPI) GetDeposit(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransferResponse, error) {
 	return a.getFiatTransfer(ctx, "deposits", req)
 }
 
@@ -54,7 +54,7 @@ func (a AppAPI) createFiatTransfer(ctx context.Context, kind string, req *AppFia
 	if req.PaymentMethodID == "" {
 		return nil, errAppPaymentMethodRequired
 	}
-	body := &appFiatTransferBody{
+	body := &AppFiatTransferWireRequest{
 		Amount:        formatFloat(req.Amount),
 		Currency:      req.Currency.Upper().String(),
 		PaymentMethod: req.PaymentMethodID,
@@ -72,7 +72,7 @@ func (a AppAPI) commitFiatTransfer(ctx context.Context, kind string, req *AppFia
 }
 
 // listFiatTransfers returns a page of an account's deposits or withdrawals
-func (a AppAPI) listFiatTransfers(ctx context.Context, kind string, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransfer], error) {
+func (a AppAPI) listFiatTransfers(ctx context.Context, kind string, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (a AppAPI) listFiatTransfers(ctx context.Context, kind string, req *AppList
 	if err != nil {
 		return nil, err
 	}
-	resp, err := sendAppRequest[[]AppFiatTransfer](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/"+kind, params, nil)
+	resp, err := sendAppRequest[[]AppFiatTransferResponse](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/"+kind, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -91,11 +91,11 @@ func (a AppAPI) listFiatTransfers(ctx context.Context, kind string, req *AppList
 }
 
 // getFiatTransfer returns one of an account's deposits or withdrawals
-func (a AppAPI) getFiatTransfer(ctx context.Context, kind string, req *AppFiatTransferIDRequest) (*AppFiatTransfer, error) {
+func (a AppAPI) getFiatTransfer(ctx context.Context, kind string, req *AppFiatTransferIDRequest) (*AppFiatTransferResponse, error) {
 	if err := req.validate(); err != nil {
 		return nil, err
 	}
-	resp, err := sendAppRequest[*AppFiatTransfer](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/"+kind+"/"+req.TransferID, nil, nil)
+	resp, err := sendAppRequest[*AppFiatTransferResponse](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/"+kind+"/"+req.TransferID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (a AppAPI) getFiatTransfer(ctx context.Context, kind string, req *AppFiatTr
 // sendTransferRequest posts a deposit or withdrawal request and returns the transfer, which its response holds
 // outside the data envelope the Coinbase App API's other responses use
 func (a AppAPI) sendTransferRequest(ctx context.Context, path string, body any) (*AppTransfer, error) {
-	var resp *appTransferResponse
+	var resp *AppTransferResponse
 	if err := a.e.SendAuthenticatedHTTPRequest(ctx, appEPL, http.MethodPost, appPath+path, nil, body, &resp); err != nil {
 		return nil, err
 	}

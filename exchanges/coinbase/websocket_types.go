@@ -3,12 +3,13 @@ package coinbase
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// websocketRequest is an Advanced Trade subscribe or unsubscribe request, for one channel
-type websocketRequest struct {
+// WebsocketWireRequest is an Advanced Trade subscribe or unsubscribe request, for one channel
+type WebsocketWireRequest struct {
 	Type       string   `json:"type"`
 	Channel    string   `json:"channel"`
 	ProductIDs []string `json:"product_ids,omitempty"`
@@ -16,8 +17,8 @@ type websocketRequest struct {
 	JWT string `json:"jwt,omitempty"`
 }
 
-// websocketEnvelope is every Advanced Trade websocket message's envelope; an error carries only its type and message
-type websocketEnvelope struct {
+// WebsocketEnvelope is every Advanced Trade websocket message's envelope; an error carries only its type and message
+type WebsocketEnvelope struct {
 	Channel   string          `json:"channel"`
 	ClientID  string          `json:"client_id"`
 	Timestamp time.Time       `json:"timestamp"`
@@ -28,9 +29,18 @@ type websocketEnvelope struct {
 	Message string `json:"message"`
 }
 
-// websocketSubscriptionsEvent lists every channel a connection is subscribed to, and its products; Coinbase sends one
+// WebsocketSubscriptionsResponse is the reply to an Advanced Trade subscribe or unsubscribe request: the subscriptions
+// channel's message, or an error carrying only its type and message
+type WebsocketSubscriptionsResponse struct {
+	Events []WebsocketSubscriptionsEvent `json:"events"`
+	// Type is error for an error, which reports the failure in Message
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// WebsocketSubscriptionsEvent lists every channel a connection is subscribed to, and its products; Coinbase sends one
 // after each subscribe and unsubscribe request
-type websocketSubscriptionsEvent struct {
+type WebsocketSubscriptionsEvent struct {
 	Subscriptions map[string][]string `json:"subscriptions"`
 }
 
@@ -67,20 +77,20 @@ type WebsocketStatusEvent struct {
 
 // WebsocketProductStatus is a product's trading status
 type WebsocketProductStatus struct {
-	ProductType        string       `json:"product_type"`
-	ID                 string       `json:"id"`
-	BaseCurrency       string       `json:"base_currency"`
-	QuoteCurrency      string       `json:"quote_currency"`
-	BaseIncrement      types.Number `json:"base_increment"`
-	QuoteIncrement     types.Number `json:"quote_increment"`
-	DisplayName        string       `json:"display_name"`
-	Status             string       `json:"status"`
-	StatusMessage      string       `json:"status_message"`
-	MinimumMarketFunds types.Number `json:"min_market_funds"`
+	ProductType        string        `json:"product_type"`
+	ID                 string        `json:"id"`
+	BaseCurrency       currency.Code `json:"base_currency"`
+	QuoteCurrency      currency.Code `json:"quote_currency"`
+	BaseIncrement      types.Number  `json:"base_increment"`
+	QuoteIncrement     types.Number  `json:"quote_increment"`
+	DisplayName        string        `json:"display_name"`
+	Status             string        `json:"status"`
+	StatusMessage      string        `json:"status_message"`
+	MinimumMarketFunds types.Number  `json:"min_market_funds"`
 }
 
-// websocketTickerEvent holds ticker or ticker_batch channel tickers
-type websocketTickerEvent struct {
+// WebsocketTickerEvent holds ticker or ticker_batch channel tickers
+type WebsocketTickerEvent struct {
 	Type    string            `json:"type"`
 	Tickers []WebsocketTicker `json:"tickers"`
 }
@@ -102,16 +112,16 @@ type WebsocketTicker struct {
 	BestAskQuantity             types.Number `json:"best_ask_quantity"`
 }
 
-// websocketLevel2Event holds a product's book snapshot or the levels that changed since the last event
-type websocketLevel2Event struct {
+// WebsocketLevel2Event holds a product's book snapshot or the levels that changed since the last event
+type WebsocketLevel2Event struct {
 	// Type is snapshot or update
 	Type      string                  `json:"type"`
 	ProductID string                  `json:"product_id"`
-	Updates   []websocketLevel2Update `json:"updates"`
+	Updates   []WebsocketLevel2Update `json:"updates"`
 }
 
-// websocketLevel2Update is a book level's new quantity, which replaces the level's, and removes it when zero
-type websocketLevel2Update struct {
+// WebsocketLevel2Update is a book level's new quantity, which replaces the level's, and removes it when zero
+type WebsocketLevel2Update struct {
 	// Side is bid or offer
 	Side        string       `json:"side"`
 	EventTime   time.Time    `json:"event_time"`
@@ -119,8 +129,8 @@ type websocketLevel2Update struct {
 	NewQuantity types.Number `json:"new_quantity"`
 }
 
-// websocketMarketTradesEvent holds trades batched over 250 milliseconds
-type websocketMarketTradesEvent struct {
+// WebsocketMarketTradesEvent holds trades batched over 250 milliseconds
+type WebsocketMarketTradesEvent struct {
 	Type   string                 `json:"type"`
 	Trades []WebsocketMarketTrade `json:"trades"`
 }

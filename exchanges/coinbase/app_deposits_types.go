@@ -34,10 +34,11 @@ type AppFiatTransferRequest struct {
 	Commit bool
 }
 
-// appFiatTransferBody is Deposit Funds' and Withdraw Funds' request body; commit is always sent, so a transfer does not
-// depend on Coinbase's default, which changed to false on 11 April 2025
-type appFiatTransferBody struct {
-	Amount        string `json:"amount"`
+// AppFiatTransferWireRequest is Deposit Funds' and Withdraw Funds' request body; commit is always sent, so a transfer
+// does not depend on Coinbase's default, which changed to false on 11 April 2025
+type AppFiatTransferWireRequest struct {
+	Amount string `json:"amount"`
+	// Currency stays a string, the code as the App API takes it
 	Currency      string `json:"currency"`
 	PaymentMethod string `json:"payment_method"`
 	Commit        bool   `json:"commit"`
@@ -56,9 +57,9 @@ type AppListFiatTransfersRequest struct {
 	Page *AppPageRequest
 }
 
-// appTransferResponse holds the transfer Deposit Funds, Withdraw Funds and their commits return, which has no data
+// AppTransferResponse holds the transfer Deposit Funds, Withdraw Funds and their commits return, which has no data
 // envelope
-type appTransferResponse struct {
+type AppTransferResponse struct {
 	Transfer *AppTransfer `json:"transfer"`
 }
 
@@ -137,9 +138,9 @@ type AppTransferFee struct {
 	Type string `json:"type"`
 }
 
-// AppFiatTransfer is a fiat deposit or withdrawal as List and Show return it; Resource tells them apart. A committed
-// transfer also has a transaction
-type AppFiatTransfer struct {
+// AppFiatTransferResponse is a fiat deposit or withdrawal as List and Show return it; Resource tells them apart. A
+// committed transfer also has a transaction
+type AppFiatTransferResponse struct {
 	ID string `json:"id"`
 	// Status is created, completed or canceled
 	Status        string               `json:"status"`

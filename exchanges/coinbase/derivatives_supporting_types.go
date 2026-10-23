@@ -17,8 +17,8 @@ type DerivativesHelloRequest struct {
 	ClientVersion string
 }
 
-// derivativesHelloParams are public/hello's params
-type derivativesHelloParams struct {
+// DerivativesHelloWireRequest holds public/hello's params
+type DerivativesHelloWireRequest struct {
 	ClientName    string `json:"client_name"`
 	ClientVersion string `json:"client_version"`
 }
@@ -37,8 +37,8 @@ type DerivativesStatusResponse struct {
 	LockedIndices []string `json:"locked_indices"`
 }
 
-// derivativesTestParams are public/test's params
-type derivativesTestParams struct {
+// DerivativesTestWireRequest holds public/test's params
+type DerivativesTestWireRequest struct {
 	ExpectedResult string `json:"expected_result"`
 }
 

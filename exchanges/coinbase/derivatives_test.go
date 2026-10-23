@@ -4,18 +4,22 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -32,7 +36,7 @@ func writeJSONRPC(t *testing.T, w http.ResponseWriter, body string) {
 // receivedJSONRPC is a JSON-RPC request a test server received
 type receivedJSONRPC struct {
 	JSONRPC string          `json:"jsonrpc"`
-	ID      int64           `json:"id"`
+	ID      uint64          `json:"id"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
 }
@@ -68,7 +72,7 @@ func TestGlobalDerivativesAuthenticate(t *testing.T) {
 		assert.Equal(t, "2.0", req.JSONRPC, "Authenticate should send a JSON-RPC 2.0 envelope")
 		assert.Zero(t, req.ID, "Authenticate should leave the ID out over HTTP")
 		assert.Equal(t, derivativesAuthMethod, req.Method, "Authenticate should name the method")
-		var auth derivativesAuthParams
+		var auth DerivativesAuthWireRequest
 		if assert.NoError(t, json.Unmarshal(req.Params, &auth), "The params should decode") {
 			assert.Equal(t, derivativesGrantType, auth.GrantType, "Authenticate should exchange a CDP JWT")
 			jwt, err := parseTestJWT(auth.Token)
@@ -303,7 +307,7 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	ex, venue := newDerivativesWebsocketTestExchange(t)
 	auth := venue.requestsFor(derivativesAuthMethod)
 	require.Len(t, auth, 1, "the connection must authenticate once")
-	var params derivativesAuthParams
+	var params DerivativesAuthWireRequest
 	require.NoError(t, json.Unmarshal(auth[0].Params, &params), "the auth params must decode")
 	jwt := verifyTestJWT(t, params.Token)
 	assert.NotContains(t, jwt.Claims, "uri", "the websocket JWT should not be bound to a request")
@@ -311,9 +315,9 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	assert.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 2 }, time.Second, time.Millisecond, "each gateway connection should ask for heartbeats")
 
 	var result string
-	require.NoError(t, ex.WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, "public/set_heartbeat", &derivativesHeartbeatParams{Interval: 30}, &result), "SendRequest must not error")
+	require.NoError(t, ex.WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, "public/set_heartbeat", &DerivativesHeartbeatWireRequest{Interval: 30}, &result), "SendRequest must not error")
 	assert.Equal(t, "ok", result, "SendRequest should decode the result")
-	err := ex.WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, derivativesAuthMethod, &derivativesAuthParams{GrantType: "client_credentials"}, &result)
+	err := ex.WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, derivativesAuthMethod, &DerivativesAuthWireRequest{GrantType: "client_credentials"}, &result)
 	derivativesErr, ok := errors.AsType[*DerivativesError](err)
 	require.True(t, ok, "SendRequest must return the error the gateway reports")
 	assert.Equal(t, int64(13004), derivativesErr.Code, "SendRequest should decode the error")
@@ -323,4 +327,213 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "SendRequest should refuse a private method on an unauthenticated connection")
 	err = newTestExchange(t).WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, "public/test", nil, &result)
 	assert.Error(t, err, "SendRequest should error without a connection")
+}
+
+func TestDerivativesAccessTokenSharedRenewal(t *testing.T) {
+	t.Parallel()
+	var authCalls atomic.Int64
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "Reading the request body should not error")
+		if strings.Contains(string(body), derivativesAuthMethod) {
+			authCalls.Add(1)
+			// A renewal in flight lets the other requests find the cache empty, as concurrent requests do
+			time.Sleep(20 * time.Millisecond)
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+			return
+		}
+		assert.Equal(t, "Bearer renewed", r.Header.Get("Authorization"), "every request should carry the renewed access token")
+		_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":"ok"}`))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for range 10 {
+		wg.Go(func() {
+			<-start
+			var resp string
+			assert.NoError(t, ex.GlobalDerivatives().SendAuthenticatedHTTPRequest(t.Context(), derivativesNonMatchingEPL, "private/get_positions", nil, &resp), "SendAuthenticatedHTTPRequest should not error")
+		})
+	}
+	close(start)
+	wg.Wait()
+	require.EqualValues(t, 1, authCalls.Load(), "concurrent requests must share one public/auth")
+}
+
+func TestDerivativesAccessTokenRenewalWaitEnds(t *testing.T) {
+	t.Parallel()
+	entered, release := make(chan struct{}), make(chan struct{})
+	var authCalls atomic.Int32
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if authCalls.Add(1) == 1 {
+			close(entered)
+			<-release
+		}
+		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
+	}))
+	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+	first := make(chan error, 1)
+	go func() {
+		_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
+		first <- err
+	}()
+	<-entered
+	// A request waiting for the renewal under way stops when its context ends
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	waited := make(chan error, 1)
+	go func() {
+		_, _, err := ex.GlobalDerivatives().accessToken(ctx)
+		waited <- err
+	}()
+	select {
+	case err := <-waited:
+		assert.ErrorIs(t, err, context.Canceled, "accessToken should return its context's error while another renewal is under way")
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "accessToken should stop waiting for another renewal once its context ends")
+	}
+	close(release)
+	require.NoError(t, <-first, "the renewal under way must complete")
+	assert.EqualValues(t, 1, authCalls.Load(), "the request whose context ended should not renew the token")
+	_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+	require.NoError(t, err, "accessToken must not error once a token is renewed")
+	assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
+	assert.EqualValues(t, 1, authCalls.Load(), "accessToken should reuse the renewed token")
+}
+
+func TestDerivativesAccessTokenRenewalFailureReleases(t *testing.T) {
+	t.Parallel()
+	var authCalls atomic.Int32
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if authCalls.Add(1) == 1 {
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","error":{"code":13004,"message":"invalid_credentials"}}`)
+			return
+		}
+		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
+	}))
+	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+	_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "accessToken must return the refused renewal's error")
+	// The failed renewal releases its turn, so the next request renews rather than waiting for it
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, token, err := ex.GlobalDerivatives().accessToken(ctx)
+	require.NoError(t, err, "accessToken must renew the token after a failed renewal")
+	assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
+	assert.EqualValues(t, 2, authCalls.Load(), "accessToken should renew once for each request")
+}
+
+func TestDerivativesTimesBeforeEpochRefused(t *testing.T) {
+	t.Parallel()
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "a request with a time before 1970 should not be sent", "requested %s", r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	g := ex.GlobalDerivatives()
+	before, after := time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	timeRange := &DerivativesInstrumentTimeRangeRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after}
+	for name, call := range map[string]func() error{
+		"GetFundingRateHistory": func() error { _, err := g.GetFundingRateHistory(t.Context(), timeRange); return err },
+		"GetFundingRateValue":   func() error { _, err := g.GetFundingRateValue(t.Context(), timeRange); return err },
+		"GetMarkPriceHistory":   func() error { _, err := g.GetMarkPriceHistory(t.Context(), timeRange); return err },
+		"GetLastSettlementsByCurrency": func() error {
+			_, err := g.GetLastSettlementsByCurrency(t.Context(), &DerivativesLastSettlementsByCurrencyRequest{Currency: currency.BTC, SearchStartTime: before})
+			return err
+		},
+		"GetLastSettlementsByInstrument": func() error {
+			_, err := g.GetLastSettlementsByInstrument(t.Context(), &DerivativesLastSettlementsByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", SearchStartTime: before})
+			return err
+		},
+		"GetLastTradesByCurrency": func() error {
+			_, err := g.GetLastTradesByCurrency(t.Context(), &DerivativesLastTradesByCurrencyRequest{Currency: currency.BTC, StartTime: before, EndTime: after})
+			return err
+		},
+		"GetLastTradesByCurrencyAndTime": func() error {
+			_, err := g.GetLastTradesByCurrencyAndTime(t.Context(), &DerivativesLastTradesByCurrencyAndTimeRequest{Currency: currency.BTC, StartTime: before, EndTime: after})
+			return err
+		},
+		"GetLastTradesByInstrument": func() error {
+			_, err := g.GetLastTradesByInstrument(t.Context(), &DerivativesLastTradesByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after})
+			return err
+		},
+		"GetLastTradesByInstrumentAndTime": func() error {
+			_, err := g.GetLastTradesByInstrumentAndTime(t.Context(), &DerivativesLastTradesByInstrumentAndTimeRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after})
+			return err
+		},
+		"GetTradingViewChartData": func() error {
+			_, err := g.GetTradingViewChartData(t.Context(), &DerivativesTradingViewChartDataRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after, Resolution: kline.OneHour})
+			return err
+		},
+		"GetVolatilityIndexData": func() error {
+			_, err := g.GetVolatilityIndexData(t.Context(), &DerivativesVolatilityIndexDataRequest{Currency: currency.BTC, StartTime: before, EndTime: after, Resolution: kline.OneHour})
+			return err
+		},
+		"GetTransactionLog": func() error {
+			_, err := g.GetTransactionLog(t.Context(), &DerivativesGetTransactionLogRequest{Currency: currency.BTC, StartTime: before, EndTime: after})
+			return err
+		},
+		"GetAnnouncements": func() error {
+			_, err := g.GetAnnouncements(t.Context(), &DerivativesGetAnnouncementsRequest{StartTime: before})
+			return err
+		},
+		"Buy": func() error {
+			_, err := g.Buy(t.Context(), &DerivativesOrderRequest{InstrumentName: "BTC-PERPETUAL", Amount: 10, Type: DerivativesOrderTypeLimit, Price: 80000, ValidUntil: before})
+			return err
+		},
+		"EditOrder": func() error {
+			_, err := g.EditOrder(t.Context(), &DerivativesEditOrderRequest{OrderID: "1", Amount: 10, Price: 80000, ValidUntil: before})
+			return err
+		},
+		"EditOrderByLabel": func() error {
+			_, err := g.EditOrderByLabel(t.Context(), &DerivativesEditOrderByLabelRequest{Label: "l", InstrumentName: "BTC-PERPETUAL", Amount: 10, Price: 80000, ValidUntil: before})
+			return err
+		},
+		"GetSettlementHistoryByCurrency": func() error {
+			_, err := g.GetSettlementHistoryByCurrency(t.Context(), &DerivativesSettlementHistoryByCurrencyRequest{Currency: currency.BTC, SearchStartTime: before})
+			return err
+		},
+		"GetSettlementHistoryByInstrument": func() error {
+			_, err := g.GetSettlementHistoryByInstrument(t.Context(), &DerivativesSettlementHistoryByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", SearchStartTime: before})
+			return err
+		},
+		"GetUserTradesByCurrency": func() error {
+			_, err := g.GetUserTradesByCurrency(t.Context(), &DerivativesUserTradesByCurrencyRequest{Currency: currency.BTC, StartTime: before, EndTime: after})
+			return err
+		},
+		"GetUserTradesByCurrencyAndTime": func() error {
+			_, err := g.GetUserTradesByCurrencyAndTime(t.Context(), &DerivativesUserTradesByCurrencyAndTimeRequest{Currency: currency.BTC, StartTime: before, EndTime: after})
+			return err
+		},
+		"GetUserTradesByInstrument": func() error {
+			_, err := g.GetUserTradesByInstrument(t.Context(), &DerivativesUserTradesByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after})
+			return err
+		},
+		"GetUserTradesByInstrumentAndTime": func() error {
+			_, err := g.GetUserTradesByInstrumentAndTime(t.Context(), &DerivativesUserTradesByInstrumentAndTimeRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after})
+			return err
+		},
+	} {
+		assert.ErrorIsf(t, call(), errDerivativesTimeBeforeEpoch, "%s should refuse a time before 1970", name)
+	}
+}
+
+func TestDerivativesRequestIDs(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	first, second := ex.derivativesRequestID(), ex.derivativesRequestID()
+	assert.Positive(t, first, "derivativesRequestID should count up from one")
+	assert.Equal(t, first+1, second, "derivativesRequestID should give each request the next ID")
+	// The mock gateway decodes every ID a request can carry
+	body, err := json.Marshal(&JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: math.MaxUint64, Method: "public/test"})
+	require.NoError(t, err, "a request with the largest ID must encode")
+	var req derivativesVenueRequest
+	require.NoError(t, json.Unmarshal(body, &req), "the mock must decode a request with the largest ID")
+	assert.Equal(t, uint64(math.MaxUint64), req.ID, "the mock should decode the request's ID")
+	frame, err := derivativesVenueFrame(req.ID, json.RawMessage(`{"result":"ok"}`))
+	require.NoError(t, err, "the mock must answer a request with the largest ID")
+	var envelope DerivativesEnvelope
+	require.NoError(t, json.Unmarshal(frame, &envelope), "the mock's answer must decode")
+	assert.Equal(t, uint64(math.MaxUint64), envelope.ID, "the mock should answer with the request's ID")
 }

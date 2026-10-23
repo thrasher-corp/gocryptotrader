@@ -62,7 +62,7 @@ func (g GlobalDerivativesAPI) testConnection(ctx context.Context, overWebsocket 
 	// A typed nil pointer would be sent as null params, so the params are only set for an expected result
 	var params any
 	if expectedResult != "" {
-		params = &derivativesTestParams{ExpectedResult: expectedResult}
+		params = &DerivativesTestWireRequest{ExpectedResult: expectedResult}
 	}
 	var resp *DerivativesTestConnectionResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/test", params, &resp); err != nil {

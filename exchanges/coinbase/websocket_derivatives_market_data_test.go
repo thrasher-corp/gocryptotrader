@@ -193,7 +193,7 @@ func TestWebsocketAPIGetIndexPriceNames(t *testing.T) {
 	if mockTests {
 		assert.Equal(t, mockMarketDataIndexPriceNames(), resp, "WebsocketAPI.GetIndexPriceNames should decode every name")
 	} else {
-		assert.Contains(t, resp, DerivativesIndexPriceName{Name: testMarketDataIndexName}, "WebsocketAPI.GetIndexPriceNames should return the btc_usdc index")
+		assert.Contains(t, resp, DerivativesIndexPriceNameResponse{Name: testMarketDataIndexName}, "WebsocketAPI.GetIndexPriceNames should return the btc_usdc index")
 	}
 
 	_, err = newTestExchange(t).WebsocketAPI().GetIndexPriceNames(t.Context(), false)

@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Gateway combo book states; DerivativesComboStateAny selects active and inactive combos, as leaving the state out does,
-// which the docs leave out but the gateway accepts
+// Gateway combo book states; DerivativesComboStateAny selects active and inactive combos, as leaving the state out
+// does, which the docs leave out but the gateway accepts
 const (
 	DerivativesComboStateActive   = "active"
 	DerivativesComboStateInactive = "inactive"
@@ -22,13 +22,13 @@ type DerivativesComboTrade struct {
 	Direction string `json:"direction"`
 }
 
-// derivativesCreateComboParams are private/create_combo's params
-type derivativesCreateComboParams struct {
+// DerivativesCreateComboWireRequest holds private/create_combo's params
+type DerivativesCreateComboWireRequest struct {
 	Trades []DerivativesComboTrade `json:"trades"`
 }
 
-// DerivativesCombo is a combo book and its legs
-type DerivativesCombo struct {
+// DerivativesComboResponse is a combo book and its legs
+type DerivativesComboResponse struct {
 	// ID is the combo's instrument name
 	ID           string `json:"id"`
 	InstrumentID uint64 `json:"instrument_id"`
@@ -40,11 +40,11 @@ type DerivativesCombo struct {
 	Legs              []DerivativesComboLeg `json:"legs"`
 }
 
-// DerivativesComboLeg is a combo leg's instrument and size multiplier, which is negative for a leg traded opposite to
-// the combo
+// DerivativesComboLeg is a combo leg's instrument and size multiplier
 type DerivativesComboLeg struct {
 	InstrumentName string `json:"instrument_name"`
-	Amount         int64  `json:"amount"`
+	// Amount is negative for a leg traded opposite to the combo
+	Amount int64 `json:"amount"`
 }
 
 // DerivativesLegPricesRequest selects the leg prices of a combo structure for a price of the whole structure
@@ -54,8 +54,8 @@ type DerivativesLegPricesRequest struct {
 	Price float64
 }
 
-// derivativesLegPricesParams are private/get_leg_prices's params; the price is always sent, as zero is a price
-type derivativesLegPricesParams struct {
+// DerivativesLegPricesWireRequest holds private/get_leg_prices's params; the price is always sent, as zero is a price
+type DerivativesLegPricesWireRequest struct {
 	Legs  []DerivativesComboTrade `json:"legs"`
 	Price float64                 `json:"price"`
 }
@@ -77,8 +77,8 @@ type DerivativesLegPrice struct {
 	Ratio uint64 `json:"ratio"`
 }
 
-// derivativesComboIDParams are the params of a request for a combo
-type derivativesComboIDParams struct {
+// DerivativesComboIDWireRequest holds the params of a request for a combo
+type DerivativesComboIDWireRequest struct {
 	ComboID string `json:"combo_id"`
 }
 
@@ -90,8 +90,9 @@ type DerivativesComboIDsRequest struct {
 	State string
 }
 
-// derivativesComboIDsParams are public/get_combo_ids's params
-type derivativesComboIDsParams struct {
+// DerivativesComboIDsWireRequest holds public/get_combo_ids's params
+type DerivativesComboIDsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency string `json:"currency"`
 	State    string `json:"state,omitempty"`
 }

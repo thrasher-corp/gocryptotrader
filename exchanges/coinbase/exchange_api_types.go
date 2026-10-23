@@ -11,9 +11,9 @@ const (
 	ExchangeCurrencyTypeFiat   = "fiat"
 )
 
-// ExchangeCurrency is a currency Coinbase Exchange knows of, with the networks it can be deposited and withdrawn on;
-// not every currency trades
-type ExchangeCurrency struct {
+// ExchangeCurrencyResponse is a currency Coinbase Exchange knows of, with the networks it can be deposited and
+// withdrawn on; not every currency trades
+type ExchangeCurrencyResponse struct {
 	ID   currency.Code `json:"id"`
 	Name string        `json:"name"`
 	// MinimumSize is the smallest amount of the currency Coinbase Exchange moves

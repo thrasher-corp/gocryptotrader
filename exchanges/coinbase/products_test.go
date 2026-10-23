@@ -386,7 +386,7 @@ func TestListProducts(t *testing.T) {
 					Low24Hour:                    80564.57,
 				},
 			},
-			NumProducts: 2,
+			NumberOfProducts: 2,
 			Pagination: PaginationMetadata{
 				NextCursor: "cHJvZHVjdHNfY3Vyc29yOkJUQy1VU0RD",
 				HasNext:    true,

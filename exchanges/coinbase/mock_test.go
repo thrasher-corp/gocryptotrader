@@ -133,7 +133,7 @@ func (v *derivativesVenue) override(method string, body json.RawMessage) {
 
 // derivativesVenueRequest is a JSON-RPC request the mock received
 type derivativesVenueRequest struct {
-	ID     int64           `json:"id"`
+	ID     uint64          `json:"id"`
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
 }
@@ -182,7 +182,7 @@ func (v *derivativesVenue) result(req *derivativesVenueRequest) (json.RawMessage
 	}
 	switch req.Method {
 	case derivativesAuthMethod:
-		var params derivativesAuthParams
+		var params DerivativesAuthWireRequest
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			return nil, err
 		}
@@ -213,14 +213,14 @@ func (v *derivativesVenue) result(req *derivativesVenueRequest) (json.RawMessage
 }
 
 // derivativesVenueFrame returns the frame answering a request with its ID and a response body's result or error
-func derivativesVenueFrame(id int64, body json.RawMessage) ([]byte, error) {
+func derivativesVenueFrame(id uint64, body json.RawMessage) ([]byte, error) {
 	var response map[string]json.RawMessage
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
 	frame := map[string]json.RawMessage{"jsonrpc": json.RawMessage(`"2.0"`)}
 	if id != 0 {
-		frame["id"] = json.RawMessage(strconv.FormatInt(id, 10))
+		frame["id"] = json.RawMessage(strconv.FormatUint(id, 10))
 	}
 	for _, field := range []string{"result", "error"} {
 		if value, ok := response[field]; ok {

@@ -22,7 +22,7 @@ func (w WebsocketAPI) DisableCancelOnDisconnect(ctx context.Context, scope strin
 	if err := validateDerivativesCancelOnDisconnectScope(scope); err != nil {
 		return err
 	}
-	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "private/disable_cancel_on_disconnect", &derivativesCancelOnDisconnectParams{Scope: scope})
+	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "private/disable_cancel_on_disconnect", &DerivativesCancelOnDisconnectWireRequest{Scope: scope})
 }
 
 // EnableCancelOnDisconnect has the gateway cancel the orders a connection placed once it closes, goes ten minutes
@@ -33,7 +33,7 @@ func (w WebsocketAPI) EnableCancelOnDisconnect(ctx context.Context, scope string
 	if err := validateDerivativesCancelOnDisconnectScope(scope); err != nil {
 		return err
 	}
-	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "private/enable_cancel_on_disconnect", &derivativesCancelOnDisconnectParams{Scope: scope})
+	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "private/enable_cancel_on_disconnect", &DerivativesCancelOnDisconnectWireRequest{Scope: scope})
 }
 
 // GetCancelOnDisconnect returns whether this connection, which an empty scope defaults to, or the account cancels a
@@ -59,5 +59,5 @@ func (w WebsocketAPI) SetHeartbeat(ctx context.Context, interval time.Duration) 
 	if interval%time.Second != 0 {
 		return fmt.Errorf("%w: %s", errDerivativesHeartbeatIntervalFraction, interval)
 	}
-	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "public/set_heartbeat", &derivativesHeartbeatParams{Interval: interval.Seconds()})
+	return w.e.GlobalDerivatives().sendOKRequest(ctx, true, "public/set_heartbeat", &DerivativesHeartbeatWireRequest{Interval: interval.Seconds()})
 }

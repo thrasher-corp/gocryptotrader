@@ -59,8 +59,8 @@ const (
 	FuturesSweepStatusProcessing = "PROCESSING"
 )
 
-// futuresSweepResponse reports whether a sweep was scheduled or cancelled
-type futuresSweepResponse struct {
+// FuturesSweepResponse reports whether a sweep was scheduled or cancelled
+type FuturesSweepResponse struct {
 	Success bool `json:"success"`
 }
 
@@ -81,8 +81,8 @@ type MarginWindow struct {
 	EndTime          time.Time `json:"end_time"`
 }
 
-// futuresBalanceSummaryResponse holds a US derivatives balance summary
-type futuresBalanceSummaryResponse struct {
+// FuturesBalanceSummaryResponse holds a US derivatives balance summary
+type FuturesBalanceSummaryResponse struct {
 	BalanceSummary *FuturesBalanceSummary `json:"balance_summary"`
 }
 
@@ -134,13 +134,13 @@ type MarginWindowMeasure struct {
 	FuturesBuyingPower types.Number `json:"futures_buying_power"`
 }
 
-// futuresPositionsResponse holds US derivatives positions
-type futuresPositionsResponse struct {
+// FuturesPositionsResponse holds US derivatives positions
+type FuturesPositionsResponse struct {
 	Positions []FuturesPosition `json:"positions"`
 }
 
-// futuresPositionResponse holds a US derivatives position
-type futuresPositionResponse struct {
+// FuturesPositionResponse holds a US derivatives position
+type FuturesPositionResponse struct {
 	Position *FuturesPosition `json:"position"`
 }
 
@@ -158,13 +158,13 @@ type FuturesPosition struct {
 	DailyRealisedPNL types.Number `json:"daily_realized_pnl"`
 }
 
-// scheduleFuturesSweepBody is ScheduleFuturesSweep's body; an unset amount sweeps every available excess fund
-type scheduleFuturesSweepBody struct {
+// ScheduleFuturesSweepWireRequest is ScheduleFuturesSweep's body; an unset amount sweeps every available excess fund
+type ScheduleFuturesSweepWireRequest struct {
 	USDAmount string `json:"usd_amount,omitempty"`
 }
 
-// futuresSweepsResponse holds US derivatives sweeps
-type futuresSweepsResponse struct {
+// FuturesSweepsResponse holds US derivatives sweeps
+type FuturesSweepsResponse struct {
 	Sweeps []FuturesSweep `json:"sweeps"`
 }
 
@@ -180,8 +180,12 @@ type FuturesSweep struct {
 	ScheduledTime time.Time `json:"scheduled_time"`
 }
 
-// intradayMarginSettingBody is the intraday margin setting SetIntradayMarginSetting sends and
-// GetIntradayMarginSetting returns
-type intradayMarginSettingBody struct {
+// IntradayMarginSettingWireRequest is the intraday margin setting SetIntradayMarginSetting sends
+type IntradayMarginSettingWireRequest struct {
+	Setting string `json:"setting"`
+}
+
+// IntradayMarginSettingResponse is the intraday margin setting GetIntradayMarginSetting returns
+type IntradayMarginSettingResponse struct {
 	Setting string `json:"setting"`
 }

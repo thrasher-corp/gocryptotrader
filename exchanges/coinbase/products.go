@@ -15,8 +15,14 @@ func (e *Exchange) GetBestBidAsk(ctx context.Context, productIDs []string) ([]Pr
 	for _, id := range productIDs {
 		params.Add("product_ids", id)
 	}
-	var resp bestBidAskResponse
-	return resp.PriceBooks, e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"best_bid_ask", params, nil, &resp)
+	var resp *BestBidAskResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"best_bid_ask", params, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp.PriceBooks, nil
 }
 
 // GetMarketTrades returns a product's latest trades, at most 100 whatever the limit, and its best bid and ask; it is
@@ -83,8 +89,14 @@ func (e *Exchange) GetProductCandles(ctx context.Context, req *ProductCandlesReq
 	if err != nil {
 		return nil, err
 	}
-	var resp candlesResponse
-	return resp.Candles, e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"products/"+req.ProductID+"/candles", params, nil, &resp)
+	var resp *CandlesResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"products/"+req.ProductID+"/candles", params, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp.Candles, nil
 }
 
 // ListProducts returns a page of the products Coinbase lists, spot by default, with each product's Watched set when it

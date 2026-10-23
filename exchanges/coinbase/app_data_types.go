@@ -8,16 +8,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// AppFiatCurrency is a fiat currency the Coinbase App knows of, by its ISO 4217 code where it has one
-type AppFiatCurrency struct {
+// AppFiatCurrencyResponse is a fiat currency the Coinbase App knows of, by its ISO 4217 code where it has one
+type AppFiatCurrencyResponse struct {
 	ID          currency.Code `json:"id"`
 	Name        string        `json:"name"`
 	MinimumSize types.Number  `json:"min_size"`
 }
 
-// AppCurrency is a currency as the Coinbase App describes it: a cryptocurrency Get Cryptocurrencies lists, or an
-// account's currency
-type AppCurrency struct {
+// AppCurrencyResponse is a currency as the Coinbase App describes it: a cryptocurrency Get Cryptocurrencies lists, or
+// an account's currency
+type AppCurrencyResponse struct {
 	AssetID string        `json:"asset_id"`
 	Code    currency.Code `json:"code"`
 	Name    string        `json:"name"`
@@ -39,14 +39,14 @@ type AppCurrency struct {
 	Rewards json.RawMessage `json:"rewards"`
 }
 
-// AppExchangeRates are what one unit of a base currency is worth in each currency Coinbase prices
-type AppExchangeRates struct {
+// AppExchangeRatesResponse holds what one unit of a base currency is worth in each currency Coinbase prices
+type AppExchangeRatesResponse struct {
 	Currency currency.Code                  `json:"currency"`
 	Rates    map[currency.Code]types.Number `json:"rates"`
 }
 
-// AppPrice is the price of one unit of Base in Currency
-type AppPrice struct {
+// AppPriceResponse is the price of one unit of Base in Currency
+type AppPriceResponse struct {
 	Amount types.Number `json:"amount"`
 	// Base is undocumented
 	Base     currency.Code `json:"base"`
@@ -60,8 +60,8 @@ type AppSpotPriceRequest struct {
 	Date time.Time
 }
 
-// AppServerTime is the Coinbase App API's clock
-type AppServerTime struct {
+// AppServerTimeResponse is the Coinbase App API's clock
+type AppServerTimeResponse struct {
 	ISO   time.Time  `json:"iso"`
 	Epoch types.Time `json:"epoch"`
 }

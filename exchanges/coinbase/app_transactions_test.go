@@ -58,7 +58,7 @@ func TestAppSendMoney(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "SendMoney must not error")
-	exp := &AppTransaction{
+	exp := &AppTransactionResponse{
 		ID:     "3c04e35e-8e5a-5ff1-9155-00675db4ac02",
 		Type:   AppTransactionTypeSend,
 		Status: AppTransactionStatusPending,
@@ -112,7 +112,7 @@ func TestAppSendMoney(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "SendMoney must not error with every field set")
-	assert.Equal(t, &AppTransaction{ID: "3c04e35e-8e5a-5ff1-9155-00675db4ac02"}, resp, "SendMoney should return the send")
+	assert.Equal(t, &AppTransactionResponse{ID: "3c04e35e-8e5a-5ff1-9155-00675db4ac02"}, resp, "SendMoney should return the send")
 
 	req := &AppSendMoneyRequest{AccountID: testAppAccountID, To: "1AUJ8z5RuHRTqD1eikyfUUetzGmdWLGkpT", Amount: 0.1, Currency: currency.BTC}
 	_, err = newResponseServerExchange(t, `null`).App().SendMoney(t.Context(), req)
@@ -144,8 +144,8 @@ func TestAppListTransactions(t *testing.T) {
 	resp, err := e.App().ListTransactions(t.Context(), &AppListTransactionsRequest{AccountID: testAppAccount(t), Page: &AppPageRequest{Limit: 25, Order: AppOrderDescending}})
 	require.NoError(t, err, "ListTransactions must not error")
 	if mockTests {
-		exp := &AppListResponse[AppTransaction]{
-			Data: []AppTransaction{
+		exp := &AppListResponse[AppTransactionResponse]{
+			Data: []AppTransactionResponse{
 				{
 					ID:     "4117f7d6-5694-5b36-bc8f-847509850ea4",
 					Type:   AppTransactionTypeBuy,
@@ -286,7 +286,7 @@ func TestAppGetTransaction(t *testing.T) {
 	resp, err := e.App().GetTransaction(t.Context(), req)
 	require.NoError(t, err, "GetTransaction must not error")
 	if mockTests {
-		exp := &AppTransaction{
+		exp := &AppTransactionResponse{
 			ID:     "57ffb4ae-0c59-5430-bcd3-3f98f797a66c",
 			Type:   AppTransactionTypeSend,
 			Status: AppTransactionStatusCompleted,

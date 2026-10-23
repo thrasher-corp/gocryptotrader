@@ -35,8 +35,8 @@ func testDerivativesTransferRequest() *DerivativesSubmitTransferBetweenSubaccoun
 }
 
 // testDerivativesTransfer is the documented transfer, with the nonce it was requested with
-func testDerivativesTransfer() *DerivativesTransfer {
-	return &DerivativesTransfer{
+func testDerivativesTransfer() *DerivativesTransferResponse {
+	return &DerivativesTransferResponse{
 		ID:               2,
 		Type:             "user",
 		Currency:         currency.BTC,

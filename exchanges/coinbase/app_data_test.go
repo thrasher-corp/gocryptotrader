@@ -21,7 +21,7 @@ func TestAppGetFiatCurrencies(t *testing.T) {
 	resp, err := e.App().GetFiatCurrencies(t.Context())
 	require.NoError(t, err, "GetFiatCurrencies must not error")
 	if mockTests {
-		exp := []AppFiatCurrency{
+		exp := []AppFiatCurrencyResponse{
 			{ID: currency.NewCode("AED"), Name: "United Arab Emirates Dirham", MinimumSize: 0.01},
 			{ID: currency.NewCode("AFN"), Name: "Afghan Afghani", MinimumSize: 0.01},
 			{ID: currency.NewCode("ALL"), Name: "Albanian Lek", MinimumSize: 0.01},
@@ -43,7 +43,7 @@ func TestAppGetCryptocurrencies(t *testing.T) {
 	resp, err := e.App().GetCryptocurrencies(t.Context())
 	require.NoError(t, err, "GetCryptocurrencies must not error")
 	if mockTests {
-		exp := []AppCurrency{
+		exp := []AppCurrencyResponse{
 			{
 				AssetID:      "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
 				Code:         currency.BTC,
@@ -123,7 +123,7 @@ func TestAppGetExchangeRates(t *testing.T) {
 	resp, err := e.App().GetExchangeRates(t.Context(), currency.BTC.Lower())
 	require.NoError(t, err, "GetExchangeRates must not error")
 	if mockTests {
-		exp := &AppExchangeRates{
+		exp := &AppExchangeRatesResponse{
 			Currency: currency.BTC,
 			Rates: map[currency.Code]types.Number{
 				currency.NewCode("00"):    8743236.443365486,
@@ -142,7 +142,7 @@ func TestAppGetExchangeRates(t *testing.T) {
 	resp, err = e.App().GetExchangeRates(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err, "GetExchangeRates must not error without a base currency")
 	if mockTests {
-		exp := &AppExchangeRates{
+		exp := &AppExchangeRatesResponse{
 			Currency: currency.USD,
 			Rates: map[currency.Code]types.Number{
 				currency.NewCode("00"):    106.38286555014304,
@@ -164,10 +164,10 @@ func TestAppGetExchangeRates(t *testing.T) {
 }
 
 // testAppPrice checks a price a test received, against the fixture's amount in mock mode
-func testAppPrice(t *testing.T, name string, amount float64, resp *AppPrice) {
+func testAppPrice(t *testing.T, name string, amount float64, resp *AppPriceResponse) {
 	t.Helper()
 	if mockTests {
-		assert.Equalf(t, &AppPrice{Amount: types.Number(amount), Base: currency.BTC, Currency: currency.USD}, resp, "%s should decode every field", name)
+		assert.Equalf(t, &AppPriceResponse{Amount: types.Number(amount), Base: currency.BTC, Currency: currency.USD}, resp, "%s should decode every field", name)
 		return
 	}
 	assert.Positivef(t, resp.Amount.Float64(), "%s should return a price", name)
@@ -231,7 +231,7 @@ func TestAppGetCurrentTime(t *testing.T) {
 	resp, err := e.App().GetCurrentTime(t.Context())
 	require.NoError(t, err, "GetCurrentTime must not error")
 	if mockTests {
-		exp := &AppServerTime{
+		exp := &AppServerTimeResponse{
 			ISO:   time.Date(2026, 10, 19, 1, 2, 5, 0, time.UTC),
 			Epoch: types.Time(time.Unix(1792371725, 0)),
 		}
@@ -264,6 +264,6 @@ func TestAppGetPrice(t *testing.T) {
 		}))
 		resp, err := ex.App().getPrice(t.Context(), currency.NewPairWithDelimiter("eth", "usdc", "_"), kind, map[string][]string{"date": {"2026-10-01"}})
 		require.NoErrorf(t, err, "getPrice must not error for the %s price", kind)
-		assert.Equalf(t, &AppPrice{Amount: 3000.5, Base: currency.ETH, Currency: currency.USDC}, resp, "getPrice should return the %s price", kind)
+		assert.Equalf(t, &AppPriceResponse{Amount: 3000.5, Base: currency.ETH, Currency: currency.USDC}, resp, "getPrice should return the %s price", kind)
 	}
 }

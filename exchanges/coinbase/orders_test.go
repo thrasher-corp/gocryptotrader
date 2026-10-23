@@ -895,7 +895,7 @@ func TestPreviewOrderRequestBody(t *testing.T) {
 		"equity_order_metadata":{"equity_trading_session":"EQUITY_TRADING_SESSION_AFTER_HOURS"},
 		"cost_basis_method":"COST_BASIS_METHOD_HIFO"
 	}`, string(raw), "body should send every field, leaving out Create Order's own")
-	raw, err = json.Marshal(&orderBody{ProductID: testSpotProductID, Side: OrderSideBuy, OrderConfiguration: orderConfigurationBody{"market_market_ioc": {QuoteSize: "5"}}})
+	raw, err = json.Marshal(&OrderWireRequest{ProductID: testSpotProductID, Side: OrderSideBuy, OrderConfiguration: OrderConfigurationWire{"market_market_ioc": {QuoteSize: "5"}}})
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, `{"product_id":"BTC-USD","side":"BUY","order_configuration":{"market_market_ioc":{"quote_size":"5"}}}`, string(raw), "body should leave out every unset optional field")
 }
@@ -965,7 +965,7 @@ func TestPredictionMetadataRequestBody(t *testing.T) {
 	assert.Nil(t, body, "body should send no metadata for nil metadata")
 	body, err = (&PredictionMetadataRequest{PredictionSide: PredictionSideYes, PreviewOrderEstimatedAverageFilledPrice: 0.0000001, SupportsFractionalBaseSize: true}).body()
 	require.NoError(t, err, "body must not error")
-	assert.Equal(t, &predictionMetadataBody{PredictionSide: PredictionSideYes, PreviewOrderEstimatedAverageFilledPrice: "0.0000001", SupportsFractionalBaseSize: true}, body, "body should send every field, the price without exponent notation")
+	assert.Equal(t, &PredictionMetadataWire{PredictionSide: PredictionSideYes, PreviewOrderEstimatedAverageFilledPrice: "0.0000001", SupportsFractionalBaseSize: true}, body, "body should send every field, the price without exponent notation")
 	_, err = (&PredictionMetadataRequest{PredictionSide: "NO"}).body()
 	assert.ErrorIs(t, err, errInvalidPredictionSide, "body should refuse an unknown prediction side")
 	_, err = (&PredictionMetadataRequest{PreviewOrderEstimatedAverageFilledPrice: -1}).body()
@@ -983,7 +983,7 @@ func TestNewOrderConfigurationBody(t *testing.T) {
 	t.Parallel()
 	body, err := newOrderConfigurationBody(&MarketMarketIOCRequest{BaseSize: 1})
 	require.NoError(t, err, "newOrderConfigurationBody must not error")
-	assert.Equal(t, orderConfigurationBody{"market_market_ioc": {BaseSize: "1"}}, body, "newOrderConfigurationBody should key the configuration's body")
+	assert.Equal(t, OrderConfigurationWire{"market_market_ioc": {BaseSize: "1"}}, body, "newOrderConfigurationBody should key the configuration's body")
 	_, err = newOrderConfigurationBody(nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "newOrderConfigurationBody should refuse a nil configuration")
 	_, err = newOrderConfigurationBody((*LimitLimitGTCRequest)(nil))
@@ -1001,7 +1001,7 @@ func TestAttachedOrderConfigurationBody(t *testing.T) {
 	}
 	body, err := attachedOrderConfigurationBody(&TriggerBracketGTCRequest{LimitPrice: 1600, StopTriggerPrice: 1300})
 	require.NoError(t, err, "attachedOrderConfigurationBody must not error")
-	assert.Equal(t, orderConfigurationBody{"trigger_bracket_gtc": {LimitPrice: "1600", StopTriggerPrice: "1300"}}, body, "attachedOrderConfigurationBody should send the trigger bracket")
+	assert.Equal(t, OrderConfigurationWire{"trigger_bracket_gtc": {LimitPrice: "1600", StopTriggerPrice: "1300"}}, body, "attachedOrderConfigurationBody should send the trigger bracket")
 	_, err = attachedOrderConfigurationBody(&TriggerBracketGTDRequest{LimitPrice: 1600, StopTriggerPrice: 1300})
 	assert.ErrorIs(t, err, errInvalidAttachedOrderConfiguration, "attachedOrderConfigurationBody should refuse any configuration but a GTC trigger bracket")
 	_, err = attachedOrderConfigurationBody(&TriggerBracketGTCRequest{BaseSize: 1, LimitPrice: 1600, StopTriggerPrice: 1300})

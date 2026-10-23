@@ -15,7 +15,7 @@ type ProductRequest struct {
 	GetTradabilityStatus bool
 }
 
-// bestBidAskResponse holds the books GetBestBidAsk returns
-type bestBidAskResponse struct {
+// BestBidAskResponse holds the books GetBestBidAsk returns
+type BestBidAskResponse struct {
 	PriceBooks []PriceBook `json:"pricebooks"`
 }

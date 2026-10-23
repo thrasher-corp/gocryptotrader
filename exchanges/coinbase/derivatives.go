@@ -48,6 +48,7 @@ var (
 	errInstrumentNameRequired      = errors.New("instrument name required")
 	errDerivativesUnexpectedResult = errors.New("unexpected result")
 	errDerivativesAccessToken      = errors.New("gateway issued no access token")
+	errDerivativesTimeBeforeEpoch  = errors.New("time before the Unix epoch")
 )
 
 // derivativesQueryMethods are the gateway methods that only answer an HTTP GET request with their params in the query
@@ -68,11 +69,40 @@ func (e *Exchange) GlobalDerivatives() GlobalDerivativesAPI {
 	return GlobalDerivativesAPI{e: e}
 }
 
+// derivativesRequestID returns a gateway websocket request's ID, the next of the exchange's message sequence
+func (e *Exchange) derivativesRequestID() uint64 {
+	return uint64(e.MessageSequence()) //nolint:gosec // The message sequence counts up from one
+}
+
+// derivativesUnixMilli returns a time in Unix milliseconds, as the gateway's timestamps are, or zero for an unset time,
+// which leaves an optional timestamp out of a request; a time before 1970 has no timestamp, so it is refused
+func derivativesUnixMilli(t time.Time) (uint64, error) {
+	if t.IsZero() {
+		return 0, nil
+	}
+	milli := t.UnixMilli()
+	if milli < 0 {
+		return 0, fmt.Errorf("%w: %s", errDerivativesTimeBeforeEpoch, t)
+	}
+	return uint64(milli), nil
+}
+
+// derivativesUnixMilliRange returns a time range's ends in Unix milliseconds, as derivativesUnixMilli does
+func derivativesUnixMilliRange(start, end time.Time) (startMilli, endMilli uint64, err error) {
+	if startMilli, err = derivativesUnixMilli(start); err != nil {
+		return 0, 0, err
+	}
+	if endMilli, err = derivativesUnixMilli(end); err != nil {
+		return 0, 0, err
+	}
+	return startMilli, endMilli, nil
+}
+
 // JSONRPCRequest is the envelope of every gateway request; requests sent over HTTP leave the ID out, as each HTTP
 // response answers its own request
 type JSONRPCRequest struct {
 	JSONRPC string `json:"jsonrpc"`
-	ID      int64  `json:"id,omitempty"`
+	ID      uint64 `json:"id,omitempty"`
 	Method  string `json:"method"`
 	Params  any    `json:"params,omitempty"`
 }
@@ -80,15 +110,15 @@ type JSONRPCRequest struct {
 // JSONRPCResponse is the envelope of every gateway response; Error is set in place of Result when a request fails
 type JSONRPCResponse struct {
 	JSONRPC string            `json:"jsonrpc"`
-	ID      int64             `json:"id"`
+	ID      uint64            `json:"id"`
 	Result  any               `json:"result"`
 	Error   *DerivativesError `json:"error"`
 	Testnet bool              `json:"testnet"`
 }
 
-// DerivativesError is the error object the gateway returns in place of a result; its code is negative for JSON-RPC
-// protocol errors and positive for the gateway's own
+// DerivativesError is the error object the gateway returns in place of a result
 type DerivativesError struct {
+	// Code is negative for JSON-RPC protocol errors and positive for the gateway's own
 	Code    int64  `json:"code"`
 	Message string `json:"message"`
 	// Data holds the error's details, usually the parameter at fault and the reason, although some errors carry other
@@ -105,8 +135,8 @@ func (d *DerivativesError) Error() string {
 	return msg
 }
 
-// derivativesAuthParams are public/auth's params for a CDP API key's JWT
-type derivativesAuthParams struct {
+// DerivativesAuthWireRequest holds public/auth's params for a CDP API key's JWT
+type DerivativesAuthWireRequest struct {
 	GrantType string `json:"grant_type"`
 	Token     string `json:"token"`
 }
@@ -133,6 +163,30 @@ type DerivativesAuthResponse struct {
 type derivativesAccessToken struct {
 	m      sync.Mutex
 	tokens map[string]derivativesToken
+	// renewal is held while a token is renewed, so requests finding no token share one public/auth rather than each
+	// sending one; it is a channel, so a request waiting for it stops when its context ends
+	renewal chan struct{}
+}
+
+// lockRenewal waits to renew a token, until no other renewal is under way or the context ends, and returns the
+// renewal's release
+func (d *derivativesAccessToken) lockRenewal(ctx context.Context) (func(), error) {
+	d.m.Lock()
+	if d.renewal == nil {
+		d.renewal = make(chan struct{}, 1)
+	}
+	renewal := d.renewal
+	d.m.Unlock()
+	select {
+	case renewal <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-renewal
+			return nil, err
+		}
+		return func() { <-renewal }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // derivativesToken is an access token and the time it expires
@@ -188,7 +242,7 @@ func (g GlobalDerivativesAPI) Authenticate(ctx context.Context) (*DerivativesAut
 		return nil, err
 	}
 	var resp *DerivativesAuthResponse
-	if err := g.e.sendDerivativesHTTPRequest(ctx, derivativesNonMatchingEPL, derivativesAuthMethod, &derivativesAuthParams{GrantType: derivativesGrantType, Token: jwt}, &resp, ""); err != nil {
+	if err := g.e.sendDerivativesHTTPRequest(ctx, derivativesNonMatchingEPL, derivativesAuthMethod, &DerivativesAuthWireRequest{GrantType: derivativesGrantType, Token: jwt}, &resp, ""); err != nil {
 		return nil, err
 	}
 	if resp == nil || resp.AccessToken == "" {
@@ -203,6 +257,14 @@ func (g GlobalDerivativesAPI) accessToken(ctx context.Context) (apiKey, token st
 	if err != nil {
 		return "", "", err
 	}
+	if token, ok := g.e.derivativesToken.get(creds.Key); ok {
+		return creds.Key, token, nil
+	}
+	release, err := g.e.derivativesToken.lockRenewal(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	defer release()
 	if token, ok := g.e.derivativesToken.get(creds.Key); ok {
 		return creds.Key, token, nil
 	}
@@ -426,7 +488,7 @@ func (w WebsocketAPI) connection(ctx context.Context, method string) (websocket.
 // sendRequestOnConnection sends a JSON-RPC request on a gateway websocket connection and decodes its result
 func (w WebsocketAPI) sendRequestOnConnection(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, method string, params, result any) error {
 	return derivativesRetry(ctx, func() error {
-		req := &JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: w.e.MessageSequence(), Method: method, Params: params}
+		req := &JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: w.e.derivativesRequestID(), Method: method, Params: params}
 		raw, err := conn.SendMessageReturnResponse(ctx, epl, req.ID, req)
 		if err != nil {
 			return err

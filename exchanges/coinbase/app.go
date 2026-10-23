@@ -71,8 +71,8 @@ type AppWarning struct {
 	URL     string `json:"url"`
 }
 
-// appResponse is the envelope of every Coinbase App response
-type appResponse[T any] struct {
+// AppResponse is the envelope of every Coinbase App response
+type AppResponse[T any] struct {
 	Data       T              `json:"data"`
 	Pagination *AppPagination `json:"pagination"`
 	Warnings   []AppWarning   `json:"warnings"`
@@ -119,8 +119,8 @@ func (p *AppPageRequest) params() (url.Values, error) {
 
 // sendPublicAppRequest sends an unauthenticated GET request for a Coinbase App path under /v2/ and decodes the response
 // envelope
-func sendPublicAppRequest[T any](ctx context.Context, a AppAPI, path string, params url.Values) (*appResponse[T], error) {
-	var resp appResponse[T]
+func sendPublicAppRequest[T any](ctx context.Context, a AppAPI, path string, params url.Values) (*AppResponse[T], error) {
+	var resp AppResponse[T]
 	if err := a.e.SendHTTPRequest(ctx, exchange.RestSpot, appEPL, appPath+path, params, &resp); err != nil {
 		return nil, err
 	}
@@ -128,8 +128,8 @@ func sendPublicAppRequest[T any](ctx context.Context, a AppAPI, path string, par
 }
 
 // sendAppRequest sends a request for a Coinbase App path under /v2/ with a JWT, and decodes the response envelope
-func sendAppRequest[T any](ctx context.Context, a AppAPI, method, path string, params url.Values, body any) (*appResponse[T], error) {
-	var resp appResponse[T]
+func sendAppRequest[T any](ctx context.Context, a AppAPI, method, path string, params url.Values, body any) (*AppResponse[T], error) {
+	var resp AppResponse[T]
 	if err := a.e.SendAuthenticatedHTTPRequest(ctx, appEPL, method, appPath+path, params, body, &resp); err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func sendAppRequest[T any](ctx context.Context, a AppAPI, method, path string, p
 }
 
 // listResponse returns a list envelope as a list page
-func listResponse[T any](resp *appResponse[[]T]) *AppListResponse[T] {
+func listResponse[T any](resp *AppResponse[[]T]) *AppListResponse[T] {
 	page := &AppListResponse[T]{Data: resp.Data, Warnings: resp.Warnings}
 	if resp.Pagination != nil {
 		page.Pagination = *resp.Pagination

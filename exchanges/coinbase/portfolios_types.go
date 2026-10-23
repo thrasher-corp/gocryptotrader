@@ -93,18 +93,18 @@ type Portfolio struct {
 	SubaccountUUID string `json:"subaccount_uuid"`
 }
 
-// portfoliosResponse holds a list of portfolios
-type portfoliosResponse struct {
+// PortfoliosResponse holds a list of portfolios
+type PortfoliosResponse struct {
 	Portfolios []Portfolio `json:"portfolios"`
 }
 
-// portfolioResponse holds a created or edited portfolio
-type portfolioResponse struct {
+// PortfolioResponse holds a created or edited portfolio
+type PortfolioResponse struct {
 	Portfolio *Portfolio `json:"portfolio"`
 }
 
-// portfolioNameBody is the body of a request that names a portfolio
-type portfolioNameBody struct {
+// PortfolioNameWireRequest is the body of a request that names a portfolio
+type PortfolioNameWireRequest struct {
 	Name string `json:"name"`
 }
 
@@ -121,8 +121,8 @@ type PortfolioBreakdownRequest struct {
 	Currency currency.Code
 }
 
-// portfolioBreakdownResponse holds a portfolio's breakdown
-type portfolioBreakdownResponse struct {
+// PortfolioBreakdownResponse holds a portfolio's breakdown
+type PortfolioBreakdownResponse struct {
 	Breakdown *PortfolioBreakdown `json:"breakdown"`
 }
 
@@ -286,16 +286,17 @@ type MovePortfolioFundsRequest struct {
 	Amount              float64
 }
 
-// movePortfolioFundsBody is MovePortfolioFunds' body
-type movePortfolioFundsBody struct {
-	Funds               portfolioFunds `json:"funds"`
+// MovePortfolioFundsWireRequest is MovePortfolioFunds' body
+type MovePortfolioFundsWireRequest struct {
+	Funds               PortfolioFunds `json:"funds"`
 	SourcePortfolioUUID string         `json:"source_portfolio_uuid"`
 	TargetPortfolioUUID string         `json:"target_portfolio_uuid"`
 }
 
-// portfolioFunds is an amount of a currency moved between portfolios
-type portfolioFunds struct {
-	Value    string `json:"value"`
+// PortfolioFunds is an amount of a currency moved between portfolios
+type PortfolioFunds struct {
+	Value string `json:"value"`
+	// Currency stays a string, the code as Advanced Trade takes it
 	Currency string `json:"currency"`
 }
 

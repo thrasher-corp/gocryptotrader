@@ -58,8 +58,8 @@ func testComboBooksTrades(t *testing.T) []DerivativesComboTrade {
 }
 
 // mockComboBooksCreatedCombo is the documented create combo response
-func mockComboBooksCreatedCombo() *DerivativesCombo {
-	return &DerivativesCombo{
+func mockComboBooksCreatedCombo() *DerivativesComboResponse {
+	return &DerivativesComboResponse{
 		ID:                "BTC-REV-29APR22-37500",
 		InstrumentID:      52,
 		State:             "active",
@@ -179,8 +179,8 @@ func TestValidateDerivativesComboTrades(t *testing.T) {
 }
 
 // mockComboBooksFutureComboDetails is the mock combo of mockMarketDataFutureCombo
-func mockComboBooksFutureComboDetails() *DerivativesCombo {
-	return &DerivativesCombo{
+func mockComboBooksFutureComboDetails() *DerivativesComboResponse {
+	return &DerivativesComboResponse{
 		ID:                "BTC-FS-27NOV26_PERP",
 		InstrumentID:      683926,
 		State:             "active",
@@ -252,8 +252,8 @@ func TestGlobalDerivativesGetComboIDs(t *testing.T) {
 }
 
 // mockComboBooksCombos are the first mock active combos of BTC
-func mockComboBooksCombos() []DerivativesCombo {
-	return []DerivativesCombo{
+func mockComboBooksCombos() []DerivativesComboResponse {
+	return []DerivativesComboResponse{
 		{
 			ID:                "BTC-CDIAG-25JUN27_26MAR27-82000_78000",
 			InstrumentID:      715448,

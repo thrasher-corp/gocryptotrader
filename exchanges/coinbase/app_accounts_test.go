@@ -41,7 +41,7 @@ func TestAppGetCurrentUser(t *testing.T) {
 	resp, err := e.App().GetCurrentUser(t.Context())
 	require.NoError(t, err, "GetCurrentUser must not error")
 	if mockTests {
-		exp := &AppUser{
+		exp := &AppUserResponse{
 			ID:             "9bd290f2-beed-52e5-84b7-2c36d961a161",
 			Name:           "First Last",
 			AvatarURL:      "https://static-assets.coinbase.com/profile/avatar.jpg",
@@ -74,7 +74,7 @@ func TestAppGetPersonalDetails(t *testing.T) {
 	resp, err := e.App().GetPersonalDetails(t.Context())
 	require.NoError(t, err, "GetPersonalDetails must not error")
 	if mockTests {
-		exp := &AppPersonalDetails{
+		exp := &AppPersonalDetailsResponse{
 			FirstName: "First",
 			LastName:  "Last",
 			PrimaryAddress: &AppPersonalAddress{
@@ -110,7 +110,7 @@ func TestAppListAccounts(t *testing.T) {
 	resp, err := e.App().ListAccounts(t.Context(), &AppListAccountsRequest{IncludeAvailableToSend: true})
 	require.NoError(t, err, "ListAccounts must not error")
 	if mockTests {
-		bitcoin := AppCurrency{
+		bitcoin := AppCurrencyResponse{
 			AssetID:      "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
 			Code:         currency.BTC,
 			Name:         "Bitcoin",
@@ -121,8 +121,8 @@ func TestAppListAccounts(t *testing.T) {
 			AddressRegex: "^([13][a-km-zA-HJ-NP-Z1-9]{25,34})|^(bc1[qzry9x8gf2tvdw0s3jn54khce6mua7l]([qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}|[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}))$",
 			Slug:         "bitcoin",
 		}
-		exp := &AppListResponse[AppAccount]{
-			Data: []AppAccount{
+		exp := &AppListResponse[AppAccountResponse]{
+			Data: []AppAccountResponse{
 				{
 					ID:       "58542935-67b5-56e1-a3f9-42686e07fa40",
 					Name:     "My Vault",
@@ -158,7 +158,7 @@ func TestAppListAccounts(t *testing.T) {
 					Name:    "USDC Wallet",
 					Primary: true,
 					Type:    AppAccountTypeWallet,
-					Currency: AppCurrency{
+					Currency: AppCurrencyResponse{
 						AssetID:  "2b92315d-eab7-5bef-84fa-089a131333f5",
 						Code:     currency.USDC,
 						Name:     "USDC",
@@ -217,12 +217,12 @@ func TestAppGetAccount(t *testing.T) {
 	resp, err := e.App().GetAccount(t.Context(), &AppGetAccountRequest{AccountID: accountID})
 	require.NoError(t, err, "GetAccount must not error for an account ID")
 	if mockTests {
-		exp := &AppAccount{
+		exp := &AppAccountResponse{
 			ID:      "8d5f2c4e-7a1b-5c3d-9e6f-0a1b2c3d4e5f",
 			Name:    "USDC Wallet",
 			Primary: true,
 			Type:    AppAccountTypeWallet,
-			Currency: AppCurrency{
+			Currency: AppCurrencyResponse{
 				AssetID:  "2b92315d-eab7-5bef-84fa-089a131333f5",
 				Code:     currency.USDC,
 				Name:     "USDC",
@@ -243,12 +243,12 @@ func TestAppGetAccount(t *testing.T) {
 			ResourcePath: "/v2/accounts/8d5f2c4e-7a1b-5c3d-9e6f-0a1b2c3d4e5f",
 		}
 		assert.Equal(t, exp, primary, "GetAccount should decode a currency's primary account")
-		exp = &AppAccount{
+		exp = &AppAccountResponse{
 			ID:      "2bbf394c-193b-5b2a-9155-3b4732659ede",
 			Name:    "My Wallet",
 			Primary: true,
 			Type:    AppAccountTypeWallet,
-			Currency: AppCurrency{
+			Currency: AppCurrencyResponse{
 				AssetID:      "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
 				Code:         currency.BTC,
 				Name:         "Bitcoin",

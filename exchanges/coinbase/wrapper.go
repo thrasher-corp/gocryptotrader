@@ -56,6 +56,9 @@ const (
 	// cancelOrdersBatchSize is the most orders a cancel request names, as Coinbase's earlier documentation capped it
 	cancelOrdersBatchSize = 100
 
+	// tickerMergeWindow is the longest a ticker's field is carried into tickers from a source leaving it out
+	tickerMergeWindow = time.Minute
+
 	// derivativesBookDepth is how many levels a side of a gateway book UpdateOrderbook fetches
 	derivativesBookDepth = 1000
 	// derivativesFundingRatePageLimit is the most hourly funding records a gateway funding history page holds
@@ -136,7 +139,9 @@ func (e *Exchange) SetDefaults() {
 		asset.USDCMarginedFutures: underscoreFormat,
 		asset.CoinMarginedFutures: dashFormat,
 	} {
-		if err := e.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: format, ConfigFormat: format}); err != nil {
+		// The gateway's assets are off until enabled, as it serves eligible accounts outside the US, and a connection
+		// to it that fails takes the whole websocket down with it
+		if err := e.SetAssetPairStore(a, currency.PairStore{AssetEnabled: isAdvancedTradeAsset(a), RequestFormat: format, ConfigFormat: format}); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, a, err)
 		}
 	}
@@ -347,16 +352,22 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config. A disabled asset
+// whose pairs fail to load or update keeps those it has, so an outage of the gateway, whose assets are off by default,
+// fails no update of the assets in use
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.FetchTradablePairs(ctx, a)
-		if err != nil {
+		if err == nil {
+			err = e.UpdatePairs(pairs, a, false)
+		}
+		if err == nil {
+			continue
+		}
+		if e.CurrencyPairs.IsAssetEnabled(a) == nil {
 			return err
 		}
-		if err := e.UpdatePairs(pairs, a, false); err != nil {
-			return err
-		}
+		log.Warnf(log.ExchangeSys, "%s could not update the pairs of disabled asset %s: %v", e.Name, a, err)
 	}
 	return e.EnsureOnePairEnabled()
 }
@@ -451,12 +462,12 @@ func (e *Exchange) loadPerpetualFutures(products []Product) {
 
 // derivativesPerpetuals returns the gateway's perpetuals of a perpetual asset, active or not; its dated futures,
 // options, spot and combos belong to no supported asset
-func (e *Exchange) derivativesPerpetuals(ctx context.Context, a asset.Item) ([]DerivativesInstrument, error) {
+func (e *Exchange) derivativesPerpetuals(ctx context.Context, a asset.Item) ([]DerivativesInstrumentResponse, error) {
 	instruments, err := e.GlobalDerivatives().getInstruments(ctx, e.derivativesOverWebsocket(ctx, false), &DerivativesInstrumentsRequest{Currency: currency.NewCode(DerivativesCurrencyAny), Kind: DerivativesKindFuture})
 	if err != nil {
 		return nil, err
 	}
-	return slices.DeleteFunc(instruments, func(i DerivativesInstrument) bool {
+	return slices.DeleteFunc(instruments, func(i DerivativesInstrumentResponse) bool {
 		instrumentAsset, _, err := derivativesInstrumentPair(i.InstrumentName)
 		return err != nil || instrumentAsset != a
 	}), nil
@@ -521,7 +532,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // UpdateTickers updates the tickers of an asset's enabled pairs: from the product list for Advanced Trade, which
-// carries no best bid or ask, and from the book summaries of the currencies the gateway's perpetuals settle in
+// carries no best bid or ask, so each pair's top of book is fetched with it, and from the book summaries of the
+// currencies the gateway's perpetuals settle in
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
@@ -550,7 +562,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s", errProductNotFound, id))
 				continue
 			}
-			prices = append(prices, *e.productTickerPrice(product, p, a))
+			book, err := e.GetPublicProductBook(ctx, &ProductBookRequest{ProductID: id, Limit: 1})
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			price := e.productTickerPrice(product, p, a)
+			if len(book.PriceBook.Bids) != 0 {
+				price.Bid, price.BidSize = book.PriceBook.Bids[0].Price.Float64(), book.PriceBook.Bids[0].Size.Float64()
+			}
+			if len(book.PriceBook.Asks) != 0 {
+				price.Ask, price.AskSize = book.PriceBook.Asks[0].Price.Float64(), book.PriceBook.Asks[0].Size.Float64()
+			}
+			prices = append(prices, *price)
 		}
 	case isDerivativesAsset(a):
 		var currencies currency.Currencies
@@ -582,16 +606,15 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if len(prices) == 0 {
 		return errs
 	}
-	// The product list carries no best bid or ask, which the websocket's tickers do
-	_, err = e.processMergedTickers(prices, isAdvancedTradeAsset(a), false)
+	_, err = e.processMergedTickers(prices, false, false)
 	return common.AppendError(errs, err)
 }
 
 // derivativesBookSummaries returns the gateway's book summaries of the futures settling in the currencies given, by
 // instrument name, one request a currency, as the gateway summarises one currency at a time
-func (e *Exchange) derivativesBookSummaries(ctx context.Context, currencies currency.Currencies) (map[string]*DerivativesBookSummary, error) {
+func (e *Exchange) derivativesBookSummaries(ctx context.Context, currencies currency.Currencies) (map[string]*DerivativesBookSummaryResponse, error) {
 	overWebsocket := e.derivativesOverWebsocket(ctx, false)
-	summaries := make(map[string]*DerivativesBookSummary)
+	summaries := make(map[string]*DerivativesBookSummaryResponse)
 	for _, c := range currencies {
 		resp, err := e.GlobalDerivatives().getBookSummaryByCurrency(ctx, overWebsocket, &DerivativesBookSummaryByCurrencyRequest{Currency: c, Kind: DerivativesKindFuture})
 		if err != nil {
@@ -658,33 +681,68 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
-	if err := ticker.ProcessTicker(price); err != nil {
+	if _, err := e.processMergedTickers([]ticker.Price{*price}, false, false); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, a)
 }
 
+// tickerSourceTimes are when a pair's stored best bid and ask, and its quote volume, last came from a source sending
+// them, rather than from a merge
+type tickerSourceTimes struct {
+	book        time.Time
+	quoteVolume time.Time
+}
+
 // processMergedTickers stores tickers, each first given the fields its source leaves out from the pair's stored
 // ticker, which another source updated: the best bid and ask, where a ticker has neither and book is set, and the
-// quote volume, where quoteVolume is set. The merges and the store are held together, as a merge between another's
-// read and write would restore what that one replaced
+// quote volume, where quoteVolume is set. A field is only merged while a source sent it within tickerMergeWindow, as
+// the merged ticker carries the new ticker's time, and only a ticker the store takes counts as its source sending it.
+// The merges and the store are held together, as a merge between another's read and write would restore what that one
+// replaced
 func (e *Exchange) processMergedTickers(prices []ticker.Price, book, quoteVolume bool) ([]ticker.Price, error) {
 	e.tickerMergeMu.Lock()
 	defer e.tickerMergeMu.Unlock()
+	if e.tickerSourceTimes == nil {
+		e.tickerSourceTimes = make(map[key.PairAsset]tickerSourceTimes)
+	}
+	processed := make([]ticker.Price, 0, len(prices))
+	var errs error
 	for i := range prices {
 		price := &prices[i]
-		stored, err := ticker.GetTicker(price.ExchangeName, price.Pair, price.AssetType)
-		if err != nil {
-			continue
+		k := key.PairAsset{Base: price.Pair.Base.Item, Quote: price.Pair.Quote.Item, Asset: price.AssetType}
+		updated := price.LastUpdated
+		if updated.IsZero() {
+			updated = time.Now()
 		}
-		if book && price.Bid == 0 && price.Ask == 0 {
-			price.Bid, price.BidSize, price.Ask, price.AskSize = stored.Bid, stored.BidSize, stored.Ask, stored.AskSize
+		times := e.tickerSourceTimes[k]
+		lacksBook := book && price.Bid == 0 && price.Ask == 0
+		mergeBook := lacksBook && updated.Sub(times.book) <= tickerMergeWindow
+		mergeQuoteVolume := quoteVolume && updated.Sub(times.quoteVolume) <= tickerMergeWindow
+		if !lacksBook {
+			times.book = updated
 		}
-		if quoteVolume {
-			price.QuoteVolume = stored.QuoteVolume
+		if !quoteVolume {
+			times.quoteVolume = updated
+		}
+		if mergeBook || mergeQuoteVolume {
+			if stored, err := ticker.GetTicker(price.ExchangeName, price.Pair, price.AssetType); err == nil {
+				if mergeBook {
+					price.Bid, price.BidSize, price.Ask, price.AskSize = stored.Bid, stored.BidSize, stored.Ask, stored.AskSize
+				}
+				if mergeQuoteVolume {
+					price.QuoteVolume = stored.QuoteVolume
+				}
+			}
+		}
+		accepted, err := ticker.ProcessBatch([]ticker.Price{*price})
+		errs = common.AppendError(errs, err)
+		if len(accepted) != 0 {
+			e.tickerSourceTimes[k] = times
+			processed = append(processed, accepted...)
 		}
 	}
-	return ticker.ProcessBatch(prices)
+	return processed, errs
 }
 
 // productTickerPrice returns a product's day statistics as a ticker; a US derivative's volume and open interest are
@@ -711,7 +769,7 @@ func (e *Exchange) productTickerPrice(p *Product, pair currency.Pair, a asset.It
 }
 
 // tickerPrice returns a book summary as a ticker; its creation timestamp is when the gateway compiled it
-func (b *DerivativesBookSummary) tickerPrice(exchangeName string, p currency.Pair, a asset.Item) *ticker.Price {
+func (b *DerivativesBookSummaryResponse) tickerPrice(exchangeName string, p currency.Pair, a asset.Item) *ticker.Price {
 	return &ticker.Price{
 		ExchangeName:        exchangeName,
 		Pair:                p,
@@ -839,10 +897,29 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				subAccounts = append(subAccounts, isolated)
 			}
 		}
+		// A recycled isolated margin subaccount is left out once its collateral is swept back to the main account, so
+		// the balances stored for it are cleared rather than counted again with the main account's
+		return subAccounts, e.Accounts.Save(ctx, slices.Concat(subAccounts, e.recycledSubAccounts(ctx, a, subAccounts)), true)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+}
+
+// recycledSubAccounts returns an empty sub-account for each sub-account stored for an asset that its latest balances
+// leave out, so that saving them clears its stored balances
+func (e *Exchange) recycledSubAccounts(ctx context.Context, a asset.Item, latest accounts.SubAccounts) accounts.SubAccounts {
+	stored, err := e.GetCachedSubAccounts(ctx, a)
+	if err != nil {
+		return nil
+	}
+	var recycled accounts.SubAccounts
+	for _, s := range stored {
+		if !slices.ContainsFunc(latest, func(l *accounts.SubAccount) bool { return l.ID == s.ID }) {
+			recycled = append(recycled, accounts.NewSubAccount(a, s.ID))
+		}
+	}
+	return recycled
 }
 
 // setDerivativesBalances sets a sub-account's balances from the gateway account summaries in the currencies its asset
@@ -881,7 +958,7 @@ func accountAsset(acct *Account) asset.Item {
 		return asset.Empty
 	}
 	switch acct.Platform {
-	case AccountPlatformConsumer, "":
+	case AccountPlatformConsumer, AccountPlatformUnspecified, "":
 		return asset.Spot
 	case AccountPlatformCFMConsumer:
 		return asset.Futures
@@ -904,7 +981,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			return nil, err
 		}
 		for j := range transactions {
-			if transferType, ok := fundingTransferType(transactions[j].Type); ok {
+			if transferType, ok := fundingTransferType(&transactions[j]); ok {
 				resp = append(resp, e.fundingHistory(&transactions[j], transferType))
 			}
 		}
@@ -929,7 +1006,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			return nil, err
 		}
 		for j := range transactions {
-			transferType, ok := fundingTransferType(transactions[j].Type)
+			transferType, ok := fundingTransferType(&transactions[j])
 			if !ok || transferType != withdrawalTransferType {
 				continue
 			}
@@ -959,12 +1036,18 @@ const (
 )
 
 // fundingTransferType returns whether a Coinbase App transaction deposits or withdraws funds, and false for any other
-// transaction, such as a trade or a transfer between the user's own accounts
-func fundingTransferType(transactionType string) (string, bool) {
-	switch transactionType {
+// transaction, such as a trade or a transfer between the user's own accounts. A send that credited the account is a
+// deposit, as send was Coinbase's type for crypto moving either way before it was restricted to sends
+func fundingTransferType(t *AppTransactionResponse) (string, bool) {
+	switch t.Type {
 	case AppTransactionTypeReceive, AppTransactionTypeFiatDeposit:
 		return depositTransferType, true
-	case AppTransactionTypeSend, AppTransactionTypeFiatWithdrawal:
+	case AppTransactionTypeSend:
+		if t.Amount.Amount.Float64() > 0 {
+			return depositTransferType, true
+		}
+		return withdrawalTransferType, true
+	case AppTransactionTypeFiatWithdrawal:
 		return withdrawalTransferType, true
 	}
 	return "", false
@@ -972,7 +1055,7 @@ func fundingTransferType(transactionType string) (string, bool) {
 
 // fundingHistory returns a deposit or withdrawal as GCT records it; Coinbase signs a transaction's amount by its
 // direction, and reports the network fee of a send, in the currency the network charges
-func (e *Exchange) fundingHistory(t *AppTransaction, transferType string) exchange.FundingHistory {
+func (e *Exchange) fundingHistory(t *AppTransactionResponse, transferType string) exchange.FundingHistory {
 	f := exchange.FundingHistory{
 		ExchangeName: e.Name,
 		Status:       t.Status,
@@ -1046,11 +1129,11 @@ func (c pageCursors) seen(cursor string) bool {
 }
 
 // appAccounts returns every Coinbase App account the API key can see
-func (e *Exchange) appAccounts(ctx context.Context) ([]AppAccount, error) {
-	var resp []AppAccount
-	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccount], error) {
+func (e *Exchange) appAccounts(ctx context.Context) ([]AppAccountResponse, error) {
+	var resp []AppAccountResponse
+	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
 		return e.App().ListAccounts(ctx, &AppListAccountsRequest{Page: page})
-	}, func(a *AppAccount) string { return a.ID }, func(a *AppAccount) bool {
+	}, func(a *AppAccountResponse) string { return a.ID }, func(a *AppAccountResponse) bool {
 		resp = append(resp, *a)
 		return false
 	})
@@ -1058,11 +1141,11 @@ func (e *Exchange) appAccounts(ctx context.Context) ([]AppAccount, error) {
 }
 
 // appTransactions returns every transaction of a Coinbase App account
-func (e *Exchange) appTransactions(ctx context.Context, accountID string) ([]AppTransaction, error) {
-	var resp []AppTransaction
-	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppTransaction], error) {
+func (e *Exchange) appTransactions(ctx context.Context, accountID string) ([]AppTransactionResponse, error) {
+	var resp []AppTransactionResponse
+	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppTransactionResponse], error) {
 		return e.App().ListTransactions(ctx, &AppListTransactionsRequest{AccountID: accountID, Page: page})
-	}, func(t *AppTransaction) string { return t.ID }, func(t *AppTransaction) bool {
+	}, func(t *AppTransactionResponse) string { return t.ID }, func(t *AppTransactionResponse) bool {
 		resp = append(resp, *t)
 		return false
 	})
@@ -1078,10 +1161,10 @@ func (e *Exchange) appAccountID(ctx context.Context, c currency.Code, accountID 
 	if c.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	var found *AppAccount
-	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccount], error) {
+	var found *AppAccountResponse
+	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
 		return e.App().ListAccounts(ctx, &AppListAccountsRequest{Page: page})
-	}, func(a *AppAccount) string { return a.ID }, func(a *AppAccount) bool {
+	}, func(a *AppAccountResponse) string { return a.ID }, func(a *AppAccountResponse) bool {
 		if !a.Currency.Code.Equal(c) {
 			return false
 		}
@@ -1438,6 +1521,9 @@ func orderConfigurationRequest(s *order.Submit) (OrderConfigurationRequest, erro
 	tif := s.TimeInForce
 	postOnly := tif.Is(order.PostOnly)
 	untilDate := tif.Is(order.GoodTillTime) || tif.Is(order.GoodTillDay) || !s.EndTime.IsZero()
+	if (s.Type == order.StopLimit || s.Type == order.Bracket) && s.Amount == 0 {
+		return nil, fmt.Errorf("%w: a %s order is sized in the base currency", order.ErrAmountMustBeSet, s.Type)
+	}
 	switch s.Type {
 	case order.Market:
 		if tif.Is(order.FillOrKill) {
@@ -1694,12 +1780,12 @@ func derivativesIsolated(t margin.Type) (bool, error) {
 }
 
 // derivativesTradeHistory returns one of the account's gateway trades as an order's trade
-func (e *Exchange) derivativesTradeHistory(t *DerivativesUserTrade) (order.TradeHistory, error) {
+func (e *Exchange) derivativesTradeHistory(t *DerivativesUserTradeResponse) (order.TradeHistory, error) {
 	side, err := order.StringToOrderSide(t.Direction)
 	if err != nil {
 		return order.TradeHistory{}, fmt.Errorf("trade %s: %w", t.TradeID, err)
 	}
-	orderType, err := derivativesOrderType(t.OrderType)
+	orderType, err := derivativesOrderType(cmp.Or(t.OriginalOrderType, t.OrderType))
 	if err != nil {
 		return order.TradeHistory{}, fmt.Errorf("trade %s: %w", t.TradeID, err)
 	}
@@ -1749,7 +1835,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			if err != nil {
 				return nil, err
 			}
-			if tif != order.UnknownTIF && tif != existingTIF {
+			if tif != order.UnknownTIF && advancedTradeEditTimeInForce(tif, existingTIF) != existingTIF {
 				return nil, fmt.Errorf("%w: %s, as Advanced Trade edits an order's price and size alone", order.ErrUnsupportedTimeInForce, tif)
 			}
 			tif = existingTIF
@@ -1769,6 +1855,18 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, m.AssetType)
 }
 
+// advancedTradeEditTimeInForce returns a time in force an edit carries as Advanced Trade reports the order's: a post
+// only request leaves unsaid the duration Advanced Trade spells out, and a good till day order is a good till date one
+func advancedTradeEditTimeInForce(requested, existing order.TimeInForce) order.TimeInForce {
+	if requested.Is(order.GoodTillDay) {
+		requested = requested&^order.GoodTillDay | order.GoodTillTime
+	}
+	if requested&(order.GoodTillCancel|order.GoodTillTime|order.ImmediateOrCancel|order.FillOrKill) == 0 {
+		requested |= existing & (order.GoodTillCancel | order.GoodTillTime)
+	}
+	return requested
+}
+
 // modifyDerivativesOrder edits a gateway order, by its ID, or else by its label in the pair, in the main account or the
 // isolated margin subaccount holding it. The gateway takes an edit's flags afresh, post only defaulting to true and
 // reduce only to false, so the order is read first: the amount, price and trigger price the modification leaves unset
@@ -1776,11 +1874,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 func (e *Exchange) modifyDerivativesOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	overWebsocket := e.derivativesOverWebsocket(ctx, true)
 	g := e.GlobalDerivatives()
-	var existing *DerivativesOrder
+	var existing *DerivativesOrderResponse
 	var isolated bool
 	if m.OrderID != "" {
 		var err error
-		if existing, err = derivativesOrderLookup(false, func(lookupIsolated bool) (*DerivativesOrder, error) {
+		if existing, err = derivativesOrderLookup(false, func(lookupIsolated bool) (*DerivativesOrderResponse, error) {
 			isolated = lookupIsolated
 			return g.getOrderState(ctx, overWebsocket, &DerivativesOrderStateRequest{OrderID: m.OrderID, Isolated: lookupIsolated})
 		}); err != nil {
@@ -1797,7 +1895,7 @@ func (e *Exchange) modifyDerivativesOrder(ctx context.Context, m *order.Modify) 
 		if err != nil {
 			return nil, err
 		}
-		open = slices.DeleteFunc(open, func(o DerivativesOrder) bool { return o.Label != m.ClientOrderID || o.InstrumentName != name })
+		open = slices.DeleteFunc(open, func(o DerivativesOrderResponse) bool { return o.Label != m.ClientOrderID || o.InstrumentName != name })
 		switch len(open) {
 		case 0:
 			return nil, fmt.Errorf("%w: no open order labelled %q in %s", order.ErrOrderNotFound, m.ClientOrderID, name)
@@ -1827,10 +1925,13 @@ func (e *Exchange) modifyDerivativesOrder(ctx context.Context, m *order.Modify) 
 		if lifetime := m.TimeInForce &^ order.PostOnly; lifetime != order.UnknownTIF && lifetime != existingTIF {
 			return nil, fmt.Errorf("%w: %s, as a gateway edit changes an order's post only flag but not its time in force", order.ErrUnsupportedTimeInForce, m.TimeInForce)
 		}
-		postOnly = m.TimeInForce.Is(order.PostOnly)
-		rejectPostOnly = postOnly
+		// The order manager passes an order's stored time in force with every modification, so the flags change only
+		// when post only is asked to change, leaving a repricing post only order repricing
+		if postOnlyAsked := m.TimeInForce.Is(order.PostOnly); postOnlyAsked != existing.PostOnly {
+			postOnly, rejectPostOnly = postOnlyAsked, postOnlyAsked
+		}
 	}
-	edited, err := derivativesOrderLookup(isolated, func(lookupIsolated bool) (*DerivativesOrderResponse, error) {
+	edited, err := derivativesOrderLookup(isolated, func(lookupIsolated bool) (*DerivativesOrderTradesResponse, error) {
 		if m.OrderID != "" {
 			return g.editOrder(ctx, overWebsocket, &DerivativesEditOrderRequest{
 				OrderID:        m.OrderID,
@@ -1921,8 +2022,8 @@ func (e *Exchange) CancelOrder(ctx context.Context, c *order.Cancel) error {
 
 // cancelDerivativesOrder cancels a gateway order by its ID, looking in the isolated margin subaccounts first when
 // asked
-func (e *Exchange) cancelDerivativesOrder(ctx context.Context, orderID string, isolatedFirst, overWebsocket bool) (*DerivativesOrder, error) {
-	return derivativesOrderLookup(isolatedFirst, func(isolated bool) (*DerivativesOrder, error) {
+func (e *Exchange) cancelDerivativesOrder(ctx context.Context, orderID string, isolatedFirst, overWebsocket bool) (*DerivativesOrderResponse, error) {
+	return derivativesOrderLookup(isolatedFirst, func(isolated bool) (*DerivativesOrderResponse, error) {
 		return e.GlobalDerivatives().cancelOrderByID(ctx, overWebsocket, &DerivativesCancelOrderByIDRequest{OrderID: orderID, Isolated: isolated})
 	})
 }
@@ -1934,6 +2035,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 	if len(cancels) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
+	// A gateway order named again is sent again only while its cancel has failed, as the gateway refuses to cancel an
+	// order it has cancelled, and the refusal would replace the order's status
+	cancelledDerivatives := make(map[string]bool)
 	var advancedTradeIDs []string
 	for i := range cancels {
 		if err := cancels[i].Validate(cancels[i].StandardCancel()); err != nil {
@@ -1948,12 +2052,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		}
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
-	if err := e.cancelAdvancedTradeOrders(ctx, advancedTradeIDs, resp.Status); err != nil {
-		return nil, err
-	}
+	// The gateway's orders are cancelled though an Advanced Trade batch failed, as they are held apart from its orders
+	advancedTradeErr := e.cancelAdvancedTradeOrders(ctx, advancedTradeIDs, resp.Status)
 	overWebsocket := e.derivativesOverWebsocket(ctx, true)
 	for i := range cancels {
-		if !isDerivativesAsset(cancels[i].AssetType) {
+		if !isDerivativesAsset(cancels[i].AssetType) || cancelledDerivatives[cancels[i].OrderID] {
 			continue
 		}
 		cancelled, err := e.cancelDerivativesOrder(ctx, cancels[i].OrderID, cancels[i].MarginType == margin.Isolated, overWebsocket)
@@ -1961,9 +2064,10 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 			resp.Status[cancels[i].OrderID] = err.Error()
 			continue
 		}
+		cancelledDerivatives[cancels[i].OrderID] = true
 		resp.Status[cancels[i].OrderID] = derivativesOrderStatusString(cancelled)
 	}
-	return resp, nil
+	return resp, advancedTradeErr
 }
 
 // cancelAdvancedTradeOrders submits Advanced Trade orders for cancellation in batches, recording each order's status:
@@ -1976,7 +2080,10 @@ func (e *Exchange) cancelAdvancedTradeOrders(ctx context.Context, orderIDs []str
 		}
 		for i := range resp.Results {
 			if err := resp.Results[i].Err(); err != nil {
-				statuses[resp.Results[i].OrderID] = err.Error()
+				// An order named again keeps the status of a cancel request Coinbase submitted over the repeat's refusal
+				if statuses[resp.Results[i].OrderID] != order.PendingCancel.String() {
+					statuses[resp.Results[i].OrderID] = err.Error()
+				}
 				continue
 			}
 			statuses[resp.Results[i].OrderID] = order.PendingCancel.String()
@@ -1987,7 +2094,7 @@ func (e *Exchange) cancelAdvancedTradeOrders(ctx context.Context, orderIDs []str
 
 // derivativesOrderStatusString returns a gateway order's status as GCT names it, or its state when GCT has no name
 // for it
-func derivativesOrderStatusString(o *DerivativesOrder) string {
+func derivativesOrderStatusString(o *DerivativesOrderResponse) string {
 	status, err := derivativesOrderStatus(o.OrderState, o.FilledAmount)
 	if err != nil {
 		return o.OrderState
@@ -2020,9 +2127,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 		if err != nil {
 			return resp, err
 		}
-		ids := make([]string, len(open))
+		ids := make([]string, 0, len(open))
 		for i := range open {
-			ids[i] = open[i].OrderID
+			// The shared filter keeps orders of no known type, such as scaled orders and roll steps, which a cancellation
+			// of one type leaves alone
+			if req.Type != order.AnyType && open[i].Type != req.Type {
+				continue
+			}
+			ids = append(ids, open[i].OrderID)
 		}
 		return resp, e.cancelAdvancedTradeOrders(ctx, ids, resp.Status)
 	case isDerivativesAsset(c.AssetType):
@@ -2080,8 +2192,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 				return resp, err
 			}
 			for i := range cancelled.ExecutionReports {
-				for j := range cancelled.ExecutionReports[i].Result {
-					o := &cancelled.ExecutionReports[i].Result[j]
+				for _, o := range cancelled.ExecutionReports[i].Orders() {
 					resp.Status[o.OrderID] = derivativesOrderStatusString(o)
 				}
 			}
@@ -2158,7 +2269,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 	var detail *order.Detail
 	switch {
 	case isAdvancedTradeAsset(a):
-		listed := time.Now()
+		listed := e.orderSizes.stamp()
 		o, err := e.GetOrder(ctx, orderID)
 		if err != nil {
 			return nil, err
@@ -2173,7 +2284,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 		overWebsocket := e.derivativesOverWebsocket(ctx, true)
 		g := e.GlobalDerivatives()
 		var isolated bool
-		o, err := derivativesOrderLookup(false, func(lookupIsolated bool) (*DerivativesOrder, error) {
+		o, err := derivativesOrderLookup(false, func(lookupIsolated bool) (*DerivativesOrderResponse, error) {
 			isolated = lookupIsolated
 			return g.getOrderState(ctx, overWebsocket, &DerivativesOrderStateRequest{OrderID: orderID, Isolated: lookupIsolated})
 		})
@@ -2214,8 +2325,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 
 // derivativesOrderTrades returns a gateway order's trades, oldest first, from the recent store, which keeps a trade for
 // 24 hours, and the historical store, which indexes it after a short delay
-func (e *Exchange) derivativesOrderTrades(ctx context.Context, overWebsocket bool, orderID string, isolated bool) ([]DerivativesUserTrade, error) {
-	byID := make(map[string]DerivativesUserTrade)
+func (e *Exchange) derivativesOrderTrades(ctx context.Context, overWebsocket bool, orderID string, isolated bool) ([]DerivativesUserTradeResponse, error) {
+	byID := make(map[string]DerivativesUserTradeResponse)
 	for _, historical := range []bool{false, true} {
 		trades, err := e.GlobalDerivatives().getUserTradesByOrder(ctx, overWebsocket, &DerivativesUserTradesByOrderRequest{OrderID: orderID, Sorting: DerivativesSortingAscending, Historical: historical, Isolated: isolated})
 		if err != nil {
@@ -2226,7 +2337,7 @@ func (e *Exchange) derivativesOrderTrades(ctx context.Context, overWebsocket boo
 		}
 	}
 	trades := slices.Collect(maps.Values(byID))
-	slices.SortFunc(trades, func(a, b DerivativesUserTrade) int {
+	slices.SortFunc(trades, func(a, b DerivativesUserTradeResponse) int {
 		return cmp.Or(a.Timestamp.Time().Compare(b.Timestamp.Time()), cmp.Compare(a.TradeSequence, b.TradeSequence), strings.Compare(a.TradeID, b.TradeID))
 	})
 	return trades, nil
@@ -2274,7 +2385,7 @@ func orderConfigurationValues(c *OrderConfiguration) orderConfiguration {
 
 // orderDetail returns an Advanced Trade order as GCT records it, from a request begun at listed; an order sized in the
 // quote currency has no remaining base amount to report
-func (e *Exchange) orderDetail(o *Order, listed time.Time) (*order.Detail, error) {
+func (e *Exchange) orderDetail(o *Order, listed listStamp) (*order.Detail, error) {
 	a, err := productTypeAsset(o.ProductType)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
@@ -2324,6 +2435,12 @@ func (e *Exchange) orderDetail(o *Order, listed time.Time) (*order.Detail, error
 		Date:                 o.CreatedTime,
 		LastUpdated:          o.LastUpdateTime,
 	}
+	// Coinbase's last update time is the latest fill's, or the creation time, so a later accepted edit is newer
+	for i := range o.EditHistory {
+		if o.EditHistory[i].ReplaceAcceptTimestamp.After(d.LastUpdated) {
+			d.LastUpdated = o.EditHistory[i].ReplaceAcceptTimestamp
+		}
+	}
 	if !o.SizeInQuote && values.baseSize > 0 {
 		d.RemainingAmount = max(values.baseSize-d.ExecutedAmount, 0)
 	}
@@ -2345,11 +2462,13 @@ func (e *Exchange) orderDetail(o *Order, listed time.Time) (*order.Detail, error
 	return d, nil
 }
 
-// orderTrades returns an Advanced Trade order's fills as its trades, a page at a time; the fills Coinbase adjusts a
-// fill with are left out, as the fill they adjust is already counted
+// orderTrades returns an Advanced Trade order's fills as its trades, a page at a time. The fills Coinbase adjusts a
+// fill with share its trade ID and are left out, as the fill they adjust is already counted, but a fill a reversal
+// undoes is left out too
 func (e *Exchange) orderTrades(ctx context.Context, d *order.Detail) ([]order.TradeHistory, error) {
 	req := &ListFillsRequest{OrderIDs: []string{d.OrderID}, Limit: fillsPageLimit}
 	var trades []order.TradeHistory
+	reversed := make(map[string]bool)
 	cursors := pageCursors{}
 	for {
 		cursors.visit(req.Cursor)
@@ -2362,6 +2481,9 @@ func (e *Exchange) orderTrades(ctx context.Context, d *order.Detail) ([]order.Tr
 		}
 		for i := range resp.Fills {
 			f := &resp.Fills[i]
+			if f.TradeType == FillTradeTypeReversal {
+				reversed[f.TradeID] = true
+			}
 			if f.TradeType != "" && f.TradeType != FillTradeTypeFill {
 				continue
 			}
@@ -2383,7 +2505,8 @@ func (e *Exchange) orderTrades(ctx context.Context, d *order.Detail) ([]order.Tr
 			})
 		}
 		if resp.Cursor == "" || len(resp.Fills) == 0 {
-			return trades, nil
+			// A reversal can be listed on another page than the fill it undoes
+			return slices.DeleteFunc(trades, func(t order.TradeHistory) bool { return reversed[t.TID] }), nil
 		}
 		if cursors.seen(resp.Cursor) {
 			return nil, fmt.Errorf("%w: fills cursor %q", errListPagingStalled, resp.Cursor)
@@ -2431,7 +2554,7 @@ func (e *Exchange) advancedTradeOrders(ctx context.Context, req *order.MultiOrde
 	if req.AssetType == asset.Futures {
 		productType = ProductTypeFuture
 	}
-	listed := time.Now()
+	listed := e.orderSizes.stamp()
 	orders, err := e.listOrders(ctx, &ListOrdersRequest{
 		ProductIDs:    productIDs,
 		ProductType:   productType,
@@ -2455,7 +2578,7 @@ func (e *Exchange) advancedTradeOrders(ctx context.Context, req *order.MultiOrde
 
 // derivativesOrderDetails returns gateway orders as GCT records them, leaving out the orders of instruments outside
 // the asset
-func (e *Exchange) derivativesOrderDetails(orders []DerivativesOrder, a asset.Item) ([]order.Detail, error) {
+func (e *Exchange) derivativesOrderDetails(orders []DerivativesOrderResponse, a asset.Item) ([]order.Detail, error) {
 	details := make([]order.Detail, 0, len(orders))
 	for i := range orders {
 		if instrumentAsset, _, err := derivativesInstrumentPair(orders[i].InstrumentName); err != nil || instrumentAsset != a {
@@ -2481,21 +2604,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	switch {
 	case isAdvancedTradeAsset(req.AssetType):
 		var err error
-		// Coinbase lists open orders apart from orders in its other live statuses
-		if details, err = e.advancedTradeOrders(ctx, req, []string{OrderStatusOpen}); err != nil {
+		if details, err = e.advancedTradeLiveOrders(ctx, req); err != nil {
 			return nil, err
-		}
-		queued, err := e.advancedTradeOrders(ctx, req, []string{OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued})
-		if err != nil {
-			return nil, err
-		}
-		// An order changing status between the lists could be in both, and the later list holds its newer state
-		for i := range queued {
-			if j := slices.IndexFunc(details, func(d order.Detail) bool { return d.OrderID == queued[i].OrderID }); j != -1 {
-				details[j] = queued[i]
-				continue
-			}
-			details = append(details, queued[i])
 		}
 	case isDerivativesAsset(req.AssetType):
 		// The open orders by instrument leave out the isolated margin subaccounts', so the request's pairs are filtered
@@ -2513,12 +2623,46 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return e.filterOrders(req, details), nil
 }
 
+// advancedTradeLiveOrders returns an Advanced Trade asset's live orders from one list of every live status, as an order
+// moving between statuses, such as an edit's OPEN, EDIT_QUEUED and OPEN again, would be missing from separate lists
+// taken either side of its move. Coinbase's earlier documentation refused OPEN listed with other statuses, so when
+// Coinbase refuses the list as an invalid argument the open orders are listed apart from the others, an order moving
+// between those lists being missed
+func (e *Exchange) advancedTradeLiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
+	details, err := e.advancedTradeOrders(ctx, req, []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued})
+	if apiErr, ok := errors.AsType[*APIError](err); !ok || apiErr.ErrorType != "INVALID_ARGUMENT" {
+		return details, err
+	}
+	if details, err = e.advancedTradeOrders(ctx, req, []string{OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}); err != nil {
+		return nil, err
+	}
+	// The open orders are listed last, so an order accepted, or edited, between the lists is in one of them; one in both
+	// takes the later list's newer state
+	open, err := e.advancedTradeOrders(ctx, req, []string{OrderStatusOpen})
+	if err != nil {
+		return nil, err
+	}
+	for i := range open {
+		if j := slices.IndexFunc(details, func(d order.Detail) bool { return d.OrderID == open[i].OrderID }); j != -1 {
+			details[j] = open[i]
+			continue
+		}
+		details = append(details, open[i])
+	}
+	return details, nil
+}
+
 // filterOrders applies a request's filters to orders: its margin type and time in force, which the shared filter leaves
 // out, and the rest
 func (e *Exchange) filterOrders(req *order.MultiOrderRequest, details []order.Detail) order.FilteredOrders {
+	tif := req.TimeInForce
+	// Advanced Trade places a good till day order as good till time, which it then reports
+	if isAdvancedTradeAsset(req.AssetType) && tif.Is(order.GoodTillDay) {
+		tif = tif&^order.GoodTillDay | order.GoodTillTime
+	}
 	details = slices.DeleteFunc(details, func(d order.Detail) bool {
 		return (req.MarginType != margin.Unset && d.MarginType != req.MarginType) ||
-			(req.TimeInForce != order.UnknownTIF && !d.TimeInForce.Is(req.TimeInForce))
+			(tif != order.UnknownTIF && !d.TimeInForce.Is(tif))
 	})
 	return req.Filter(e.Name, details)
 }
@@ -2553,9 +2697,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 // derivativesOrderHistory returns the gateway's closed orders of the request's instruments, or of the currencies its
 // asset settles in when it names none, newest first, back to the request's start, keeping each order's latest state
-func (e *Exchange) derivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest) ([]DerivativesOrder, error) {
-	latest := make(map[string]DerivativesOrder)
-	if err := e.pageDerivativesOrderHistory(ctx, req, func(orders []DerivativesOrder) bool {
+func (e *Exchange) derivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest) ([]DerivativesOrderResponse, error) {
+	latest := make(map[string]DerivativesOrderResponse)
+	if err := e.pageDerivativesOrderHistory(ctx, req, func(orders []DerivativesOrderResponse) bool {
 		for i := range orders {
 			if o, ok := latest[orders[i].OrderID]; !ok || orders[i].LastUpdateTimestamp.Time().After(o.LastUpdateTimestamp.Time()) {
 				latest[orders[i].OrderID] = orders[i]
@@ -2566,7 +2710,7 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, req *order.Multi
 		return nil, err
 	}
 	history := slices.Collect(maps.Values(latest))
-	slices.SortFunc(history, func(a, b DerivativesOrder) int {
+	slices.SortFunc(history, func(a, b DerivativesOrderResponse) int {
 		return cmp.Or(b.CreationTimestamp.Time().Compare(a.CreationTimestamp.Time()), strings.Compare(a.OrderID, b.OrderID))
 	})
 	return history, nil
@@ -2575,10 +2719,10 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, req *order.Multi
 // derivativesClosedOrder returns a gateway order from the order history of its pair, or of its asset's currencies
 // when no pair is given, as the gateway reports an order's state only until 30 minutes after it closes; the history is
 // paged until the order is found
-func (e *Exchange) derivativesClosedOrder(ctx context.Context, orderID string, p currency.Pair, a asset.Item) (*DerivativesOrder, error) {
-	var found *DerivativesOrder
-	if err := e.pageDerivativesOrderHistory(ctx, &order.MultiOrderRequest{AssetType: a, Pairs: pairsFor(p)}, func(orders []DerivativesOrder) bool {
-		if i := slices.IndexFunc(orders, func(o DerivativesOrder) bool { return o.OrderID == orderID }); i != -1 {
+func (e *Exchange) derivativesClosedOrder(ctx context.Context, orderID string, p currency.Pair, a asset.Item) (*DerivativesOrderResponse, error) {
+	var found *DerivativesOrderResponse
+	if err := e.pageDerivativesOrderHistory(ctx, &order.MultiOrderRequest{AssetType: a, Pairs: pairsFor(p)}, func(orders []DerivativesOrderResponse) bool {
+		if i := slices.IndexFunc(orders, func(o DerivativesOrderResponse) bool { return o.OrderID == orderID }); i != -1 {
 			found = &orders[i]
 		}
 		return found != nil
@@ -2599,7 +2743,7 @@ var errDerivativesHistoryPagingStopped = errors.New("gateway history paging stop
 // returns true. It reads the recent store, which keeps an order for 30 minutes, and the historical store, which indexes
 // it after a short delay, for the main account and each isolated margin subaccount, whose history the gateway returns
 // only for its subaccount ID, by currency, as a recycled subaccount can hold several instruments' orders
-func (e *Exchange) pageDerivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, visit func([]DerivativesOrder) bool) error {
+func (e *Exchange) pageDerivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, visit func([]DerivativesOrderResponse) bool) error {
 	if err := e.walkDerivativesOrderHistory(ctx, req, visit); err != nil && !errors.Is(err, errDerivativesHistoryPagingStopped) {
 		return err
 	}
@@ -2608,7 +2752,7 @@ func (e *Exchange) pageDerivativesOrderHistory(ctx context.Context, req *order.M
 
 // walkDerivativesOrderHistory is pageDerivativesOrderHistory, ending with errDerivativesHistoryPagingStopped when visit
 // stops it
-func (e *Exchange) walkDerivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, visit func([]DerivativesOrder) bool) error {
+func (e *Exchange) walkDerivativesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, visit func([]DerivativesOrderResponse) bool) error {
 	overWebsocket := e.derivativesOverWebsocket(ctx, true)
 	g := e.GlobalDerivatives()
 	names := make([]string, len(req.Pairs))
@@ -2721,10 +2865,10 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, accou
 		}
 		chain = details.DefaultNetwork
 	}
-	var found *AppAddress
-	if err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAddress], error) {
+	var found *AppAddressResponse
+	if err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAddressResponse], error) {
 		return e.App().ListAddresses(ctx, &AppListAddressesRequest{AccountID: accountID, Page: page})
-	}, func(a *AppAddress) string { return a.ID }, func(a *AppAddress) bool {
+	}, func(a *AppAddressResponse) string { return a.ID }, func(a *AppAddressResponse) bool {
 		if chain != "" && !strings.EqualFold(a.Network, chain) {
 			return false
 		}
@@ -3509,7 +3653,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pai
 	if err != nil {
 		return 0, err
 	}
-	i := slices.IndexFunc(resp, func(l DerivativesLeverage) bool { return l.InstrumentName == name })
+	i := slices.IndexFunc(resp, func(l DerivativesLeverageResponse) bool { return l.InstrumentName == name })
 	if i == -1 {
 		return 0, fmt.Errorf("%w: %s", errInstrumentNotFound, name)
 	}
@@ -3578,7 +3722,13 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		}
 		var contracts float64
 		if instrument.ContractSize != 0 {
-			contracts = position.Size / instrument.ContractSize
+			// A linear perpetual's contract size is in its base currency, as its position's size_currency is, and an
+			// inverse one's in USD, as its position's size is
+			size := position.Size
+			if derivativesSettlementType(instrument.InstrumentType) == futures.Linear {
+				size = position.SizeCurrency
+			}
+			contracts = size / instrument.ContractSize
 		}
 		return &futures.PositionSummary{
 			Pair:                         r.Pair,
@@ -3596,7 +3746,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 			ContractMultiplier:           decimal.MustFromFloat(instrument.ContractSize),
 			ContractSettlementType:       derivativesSettlementType(instrument.InstrumentType),
 			AverageOpenPrice:             decimal.MustFromFloat(position.AveragePrice),
-			UnrealisedPNL:                decimal.MustFromFloat(position.TotalProfitLoss - position.RealisedProfitLoss),
+			UnrealisedPNL:                decimal.MustFromFloat(position.TotalProfitLoss),
 			RealisedPNL:                  decimal.MustFromFloat(position.RealisedProfitLoss),
 		}, nil
 	}

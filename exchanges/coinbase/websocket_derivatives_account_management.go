@@ -7,7 +7,7 @@ import (
 )
 
 // ChangeMarginModel changes the margin model as GlobalDerivativesAPI.ChangeMarginModel does, over the websocket
-func (w WebsocketAPI) ChangeMarginModel(ctx context.Context, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChange, error) {
+func (w WebsocketAPI) ChangeMarginModel(ctx context.Context, req *DerivativesChangeMarginModelRequest) ([]DerivativesMarginModelChangeResponse, error) {
 	return w.e.GlobalDerivatives().changeMarginModel(ctx, true, req)
 }
 
@@ -30,7 +30,7 @@ func (w WebsocketAPI) GetAccountSummary(ctx context.Context, req *DerivativesGet
 }
 
 // GetLeverage returns futures' custom and maximum leverage as GlobalDerivativesAPI.GetLeverage does, over the websocket
-func (w WebsocketAPI) GetLeverage(ctx context.Context, req *DerivativesGetLeverageRequest) ([]DerivativesLeverage, error) {
+func (w WebsocketAPI) GetLeverage(ctx context.Context, req *DerivativesGetLeverageRequest) ([]DerivativesLeverageResponse, error) {
 	return w.e.GlobalDerivatives().getLeverage(ctx, true, req)
 }
 
@@ -42,12 +42,12 @@ func (w WebsocketAPI) GetPMEParams(ctx context.Context, ccy currency.Code) (*Der
 
 // GetPosition returns the account's position in an instrument as GlobalDerivativesAPI.GetPosition does, over the
 // websocket
-func (w WebsocketAPI) GetPosition(ctx context.Context, req *DerivativesGetPositionRequest) (*DerivativesPosition, error) {
+func (w WebsocketAPI) GetPosition(ctx context.Context, req *DerivativesGetPositionRequest) (*DerivativesPositionResponse, error) {
 	return w.e.GlobalDerivatives().getPosition(ctx, true, req)
 }
 
 // GetPositions returns the open positions as GlobalDerivativesAPI.GetPositions does, over the websocket
-func (w WebsocketAPI) GetPositions(ctx context.Context, req *DerivativesGetPositionsRequest) ([]DerivativesPosition, error) {
+func (w WebsocketAPI) GetPositions(ctx context.Context, req *DerivativesGetPositionsRequest) ([]DerivativesPositionResponse, error) {
 	return w.e.GlobalDerivatives().getPositions(ctx, true, req)
 }
 
@@ -58,13 +58,13 @@ func (w WebsocketAPI) GetRiskProfile(ctx context.Context) (*DerivativesRiskProfi
 
 // GetSubaccounts returns the account's and its subaccounts' details as GlobalDerivativesAPI.GetSubaccounts does, over
 // the websocket
-func (w WebsocketAPI) GetSubaccounts(ctx context.Context, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccount, error) {
+func (w WebsocketAPI) GetSubaccounts(ctx context.Context, req *DerivativesGetSubaccountsRequest) ([]DerivativesSubaccountResponse, error) {
 	return w.e.GlobalDerivatives().getSubaccounts(ctx, true, req)
 }
 
 // GetSubaccountsDetails returns the accounts' positions as GlobalDerivativesAPI.GetSubaccountsDetails does, over the
 // websocket
-func (w WebsocketAPI) GetSubaccountsDetails(ctx context.Context, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetails, error) {
+func (w WebsocketAPI) GetSubaccountsDetails(ctx context.Context, req *DerivativesGetSubaccountsDetailsRequest) ([]DerivativesSubaccountDetailsResponse, error) {
 	return w.e.GlobalDerivatives().getSubaccountsDetails(ctx, true, req)
 }
 
@@ -81,7 +81,7 @@ func (w WebsocketAPI) GetTransactionLog(ctx context.Context, req *DerivativesGet
 }
 
 // GetUserLocks returns the account's locks as GlobalDerivativesAPI.GetUserLocks does, over the websocket
-func (w WebsocketAPI) GetUserLocks(ctx context.Context) ([]DerivativesUserLock, error) {
+func (w WebsocketAPI) GetUserLocks(ctx context.Context) ([]DerivativesUserLockResponse, error) {
 	return w.e.GlobalDerivatives().getUserLocks(ctx, true)
 }
 
@@ -98,6 +98,6 @@ func (w WebsocketAPI) SimulatePortfolio(ctx context.Context, req *DerivativesSim
 
 // GetAnnouncements returns the platform's announcements as GlobalDerivativesAPI.GetAnnouncements does, over the
 // websocket
-func (w WebsocketAPI) GetAnnouncements(ctx context.Context, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncement, error) {
+func (w WebsocketAPI) GetAnnouncements(ctx context.Context, req *DerivativesGetAnnouncementsRequest) ([]DerivativesAnnouncementResponse, error) {
 	return w.e.GlobalDerivatives().getAnnouncements(ctx, true, req)
 }

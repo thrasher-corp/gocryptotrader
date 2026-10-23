@@ -27,16 +27,16 @@ type DerivativesChangeMarginModelRequest struct {
 	DryRun bool
 }
 
-// derivativesChangeMarginModelParams are private/change_margin_model's params
-type derivativesChangeMarginModelParams struct {
+// DerivativesChangeMarginModelWireRequest holds private/change_margin_model's params
+type DerivativesChangeMarginModelWireRequest struct {
 	UserID      uint64 `json:"user_id,omitempty"`
 	MarginModel string `json:"margin_model"`
 	DryRun      bool   `json:"dry_run,omitempty"`
 }
 
-// DerivativesMarginModelChange is a margin model change's effect on one currency; the gateway sends the currency in
-// lower case
-type DerivativesMarginModelChange struct {
+// DerivativesMarginModelChangeResponse is a margin model change's effect on one currency; the gateway sends the
+// currency in lower case
+type DerivativesMarginModelChangeResponse struct {
 	Currency currency.Code               `json:"currency"`
 	OldState DerivativesMarginModelState `json:"old_state"`
 	NewState DerivativesMarginModelState `json:"new_state"`
@@ -56,8 +56,8 @@ type DerivativesGetAccessLogRequest struct {
 	Count uint64
 }
 
-// derivativesAccessLogParams are private/get_access_log's params
-type derivativesAccessLogParams struct {
+// DerivativesAccessLogWireRequest holds private/get_access_log's params
+type DerivativesAccessLogWireRequest struct {
 	Offset uint64 `json:"offset,omitempty"`
 	Count  uint64 `json:"count,omitempty"`
 }
@@ -116,8 +116,8 @@ type DerivativesGetAccountSummariesRequest struct {
 	IncludeIsolated bool
 }
 
-// derivativesAccountSummariesParams are private/get_account_summaries' params
-type derivativesAccountSummariesParams struct {
+// DerivativesAccountSummariesWireRequest holds private/get_account_summaries' params
+type DerivativesAccountSummariesWireRequest struct {
 	SubaccountID    uint64 `json:"subaccount_id,omitempty"`
 	Extended        bool   `json:"extended,omitempty"`
 	IncludeIsolated bool   `json:"include_isolated,omitempty"`
@@ -182,8 +182,9 @@ type DerivativesGetAccountSummaryRequest struct {
 	Extended bool
 }
 
-// derivativesAccountSummaryParams are private/get_account_summary's params
-type derivativesAccountSummaryParams struct {
+// DerivativesAccountSummaryWireRequest holds private/get_account_summary's params
+type DerivativesAccountSummaryWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency     string `json:"currency"`
 	SubaccountID uint64 `json:"subaccount_id,omitempty"`
 	Extended     bool   `json:"extended,omitempty"`
@@ -398,15 +399,15 @@ type DerivativesGetLeverageRequest struct {
 	Isolated bool
 }
 
-// derivativesLeverageParams are private/get_leverage's params
-type derivativesLeverageParams struct {
+// DerivativesLeverageWireRequest holds private/get_leverage's params
+type DerivativesLeverageWireRequest struct {
 	InstrumentName string `json:"instrument_name,omitempty"`
 	SubaccountID   uint64 `json:"subaccount_id,omitempty"`
 	Isolated       bool   `json:"isolated,omitempty"`
 }
 
-// DerivativesLeverage is a future's custom and maximum leverage
-type DerivativesLeverage struct {
+// DerivativesLeverageResponse is a future's custom and maximum leverage
+type DerivativesLeverageResponse struct {
 	InstrumentName string `json:"instrument_name"`
 	// Leverage is the custom leverage, zero when the future uses MaximumLeverage, which the gateway sends as null
 	Leverage float64 `json:"leverage"`
@@ -414,34 +415,34 @@ type DerivativesLeverage struct {
 	MaximumLeverage float64 `json:"max_leverage"`
 }
 
-// derivativesLeverages decodes private/get_leverage's result, which is one future's leverage, a list of them or an
+// DerivativesLeverages decodes private/get_leverage's result, which is one future's leverage, a list of them or an
 // empty object
-type derivativesLeverages []DerivativesLeverage
+type DerivativesLeverages []DerivativesLeverageResponse
 
 // UnmarshalJSON decodes the leverage the gateway returns for one future, the list it returns for every future with a
 // custom leverage, or the empty object it returns a regular subaccount, from which isolated leverage is hidden
-func (d *derivativesLeverages) UnmarshalJSON(data []byte) error {
+func (d *DerivativesLeverages) UnmarshalJSON(data []byte) error {
 	trimmed := bytes.TrimSpace(data)
 	if bytes.Equal(trimmed, []byte("null")) {
 		return nil
 	}
 	if len(trimmed) > 0 && trimmed[0] == '[' {
-		var leverages []DerivativesLeverage
+		var leverages []DerivativesLeverageResponse
 		if err := json.Unmarshal(trimmed, &leverages); err != nil {
 			return fmt.Errorf("%w: %w", errDerivativesMalformedLeverage, err)
 		}
 		*d = leverages
 		return nil
 	}
-	var leverage DerivativesLeverage
+	var leverage DerivativesLeverageResponse
 	if err := json.Unmarshal(trimmed, &leverage); err != nil {
 		return fmt.Errorf("%w: %w", errDerivativesMalformedLeverage, err)
 	}
-	if leverage == (DerivativesLeverage{}) {
-		*d = derivativesLeverages{}
+	if leverage == (DerivativesLeverageResponse{}) {
+		*d = DerivativesLeverages{}
 		return nil
 	}
-	*d = derivativesLeverages{leverage}
+	*d = DerivativesLeverages{leverage}
 	return nil
 }
 
@@ -466,15 +467,15 @@ type DerivativesGetPositionRequest struct {
 	IncludeIsolated bool
 }
 
-// derivativesPositionParams are private/get_position's params
-type derivativesPositionParams struct {
+// DerivativesPositionWireRequest holds private/get_position's params
+type DerivativesPositionWireRequest struct {
 	InstrumentName  string `json:"instrument_name"`
 	IncludeIsolated bool   `json:"include_isolated,omitempty"`
 }
 
-// DerivativesPosition is a position in an instrument; a closed position has a zero size and the direction zero. An
-// isolated margin position is owned by its subaccount, whose user ID UserID holds
-type DerivativesPosition struct {
+// DerivativesPositionResponse is a position in an instrument; a closed position has a zero size and the direction zero.
+// An isolated margin position is owned by its subaccount, whose user ID UserID holds
+type DerivativesPositionResponse struct {
 	InstrumentName string `json:"instrument_name"`
 	// Kind is future, option, spot, future_combo or option_combo
 	Kind   string `json:"kind"`
@@ -532,8 +533,9 @@ type DerivativesGetPositionsRequest struct {
 	IncludeIsolated bool
 }
 
-// derivativesPositionsParams are private/get_positions' params
-type derivativesPositionsParams struct {
+// DerivativesPositionsWireRequest holds private/get_positions' params
+type DerivativesPositionsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency        string `json:"currency,omitempty"`
 	Kind            string `json:"kind,omitempty"`
 	SubaccountID    uint64 `json:"subaccount_id,omitempty"`
@@ -556,15 +558,15 @@ type DerivativesGetSubaccountsRequest struct {
 	IncludeIsolated bool
 }
 
-// derivativesSubaccountsParams are private/get_subaccounts' params
-type derivativesSubaccountsParams struct {
+// DerivativesSubaccountsWireRequest holds private/get_subaccounts' params
+type DerivativesSubaccountsWireRequest struct {
 	WithPortfolio   bool `json:"with_portfolio,omitempty"`
 	IncludeIsolated bool `json:"include_isolated,omitempty"`
 }
 
-// DerivativesSubaccount is the main account's or a subaccount's details; a subaccount is sent limited details of the
-// main account
-type DerivativesSubaccount struct {
+// DerivativesSubaccountResponse is the main account's or a subaccount's details; a subaccount is sent limited details
+// of the main account
+type DerivativesSubaccountResponse struct {
 	// ID is the account's user ID, which subaccount ID parameters take
 	ID uint64 `json:"id"`
 	// Type is main or subaccount
@@ -626,19 +628,20 @@ type DerivativesGetSubaccountsDetailsRequest struct {
 	IncludeIsolated bool
 }
 
-// derivativesSubaccountsDetailsParams are private/get_subaccounts_details' params
-type derivativesSubaccountsDetailsParams struct {
+// DerivativesSubaccountsDetailsWireRequest holds private/get_subaccounts_details' params
+type DerivativesSubaccountsDetailsWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency        string `json:"currency"`
 	WithOpenOrders  bool   `json:"with_open_orders,omitempty"`
 	IncludeIsolated bool   `json:"include_isolated,omitempty"`
 }
 
-// DerivativesSubaccountDetails is the main account's or a subaccount's positions in a currency and, when asked for,
-// its open orders
-type DerivativesSubaccountDetails struct {
-	UserID     uint64                `json:"uid"`
-	Positions  []DerivativesPosition `json:"positions"`
-	OpenOrders []DerivativesOrder    `json:"open_orders"`
+// DerivativesSubaccountDetailsResponse is the main account's or a subaccount's positions in a currency and, when asked
+// for, its open orders
+type DerivativesSubaccountDetailsResponse struct {
+	UserID     uint64                        `json:"uid"`
+	Positions  []DerivativesPositionResponse `json:"positions"`
+	OpenOrders []DerivativesOrderResponse    `json:"open_orders"`
 }
 
 // DerivativesTradingLimitsResponse is the account's open order and position limits in a currency and margin model;
@@ -676,11 +679,12 @@ type DerivativesGetTransactionLogRequest struct {
 	Continuation uint64
 }
 
-// derivativesTransactionLogParams are private/get_transaction_log's params, with the window in Unix milliseconds
-type derivativesTransactionLogParams struct {
+// DerivativesTransactionLogWireRequest holds private/get_transaction_log's params, with the window in Unix milliseconds
+type DerivativesTransactionLogWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency       string `json:"currency"`
-	StartTimestamp int64  `json:"start_timestamp"`
-	EndTimestamp   int64  `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 	Query          string `json:"query,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 	SubaccountID   uint64 `json:"subaccount_id,omitempty"`
@@ -754,8 +758,8 @@ type DerivativesTransactionLogEntry struct {
 	StarbaseTimestamp types.Time `json:"starbase_timestamp"`
 }
 
-// DerivativesUserLock is whether the account is locked in a currency
-type DerivativesUserLock struct {
+// DerivativesUserLockResponse is whether the account is locked in a currency
+type DerivativesUserLockResponse struct {
 	Currency currency.Code `json:"currency"`
 	// Locked is set when the account is locked in the currency, as the documented example names it; Enabled holds it
 	// where the gateway sends the name the schema documents
@@ -778,8 +782,9 @@ type DerivativesSimulatePortfolioRequest struct {
 	SimulatedPositions map[string]float64
 }
 
-// derivativesSimulatePortfolioParams are private/simulate_portfolio's and private/pme/simulate's params
-type derivativesSimulatePortfolioParams struct {
+// DerivativesSimulatePortfolioWireRequest holds private/simulate_portfolio's and private/pme/simulate's params
+type DerivativesSimulatePortfolioWireRequest struct {
+	// Currency stays a string, the code in the case the gateway takes
 	Currency           string             `json:"currency"`
 	AddPositions       *bool              `json:"add_positions,omitempty"`
 	SimulatedPositions map[string]float64 `json:"simulated_positions,omitempty"`
@@ -893,7 +898,7 @@ type DerivativesPMEWorstCaseBucket struct {
 	// Source is the risk vector, standard or extended, and Index the scenario's position in it
 	Source string `json:"source"`
 	Index  uint64 `json:"index"`
-	Bucket int64  `json:"bucket"`
+	Bucket uint64 `json:"bucket"`
 	// Side is the side of the price move, such as left
 	Side string `json:"side"`
 }
@@ -926,14 +931,14 @@ type DerivativesGetAnnouncementsRequest struct {
 	Count uint64
 }
 
-// derivativesAnnouncementsParams are public/get_announcements' params, with the start time in Unix milliseconds
-type derivativesAnnouncementsParams struct {
-	StartTimestamp int64  `json:"start_timestamp,omitempty"`
+// DerivativesAnnouncementsWireRequest holds public/get_announcements' params, with the start time in Unix milliseconds
+type DerivativesAnnouncementsWireRequest struct {
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
 	Count          uint64 `json:"count,omitempty"`
 }
 
-// DerivativesAnnouncement is a platform announcement
-type DerivativesAnnouncement struct {
+// DerivativesAnnouncementResponse is a platform announcement
+type DerivativesAnnouncementResponse struct {
 	ID    uint64 `json:"id"`
 	Title string `json:"title"`
 	// Body is HTML

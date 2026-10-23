@@ -28,7 +28,7 @@ func (g GlobalDerivativesAPI) getCancelOnDisconnect(ctx context.Context, overWeb
 		return nil, err
 	}
 	var resp *DerivativesCancelOnDisconnectResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_cancel_on_disconnect", &derivativesCancelOnDisconnectParams{Scope: scope}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_cancel_on_disconnect", &DerivativesCancelOnDisconnectWireRequest{Scope: scope}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

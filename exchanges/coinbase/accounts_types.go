@@ -22,6 +22,9 @@ const (
 	AccountPlatformCFMConsumer = "ACCOUNT_PLATFORM_CFM_CONSUMER"
 	// AccountPlatformINTX holds International Exchange balances
 	AccountPlatformINTX = "ACCOUNT_PLATFORM_INTX"
+	// AccountPlatformUnspecified is the platform an account reports by default, which, as an empty platform, holds spot
+	// balances
+	AccountPlatformUnspecified = "ACCOUNT_PLATFORM_UNSPECIFIED"
 )
 
 // ListAccountsRequest selects a page of the accounts ListAccounts returns
@@ -45,8 +48,8 @@ type AccountsResponse struct {
 	Size uint64 `json:"size"`
 }
 
-// accountResponse holds the account GetAccount returns
-type accountResponse struct {
+// AccountResponse holds the account GetAccount returns
+type AccountResponse struct {
 	Account *Account `json:"account"`
 }
 

@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -529,4 +530,35 @@ func TestFormatHelpers(t *testing.T) {
 	assert.NoError(t, checkWindow(time.Time{}, time.Now()), "checkWindow should allow an unset start")
 	assert.NoError(t, checkWindow(time.Now(), time.Time{}), "checkWindow should allow an unset end")
 	assert.ErrorIs(t, checkWindow(time.Unix(2, 0), time.Unix(1, 0)), common.ErrStartAfterEnd, "checkWindow should reject a reversed window")
+}
+
+func TestAppErrorPublicShape(t *testing.T) {
+	t.Parallel()
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, err := w.Write([]byte(`{"error":"rpc error: code = NotFound desc = not found","code":5,"message":"rpc error: code = NotFound desc = not found"}`))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	_, err := ex.App().GetSpotPrice(t.Context(), &AppSpotPriceRequest{Pair: currency.NewPair(currency.NewCode("NOTACOINXYZ"), currency.USD)})
+	require.Error(t, err, "GetSpotPrice must error")
+	apiErr, ok := errors.AsType[*APIError](err)
+	require.True(t, ok, "GetSpotPrice's error must be an APIError")
+	assert.EqualValues(t, 5, apiErr.Code, "Code should be NotFound's")
+}
+
+func TestNullReplies(t *testing.T) {
+	t.Parallel()
+	ex := newResponseServerExchange(t, `null`)
+	candles := &ProductCandlesRequest{ProductID: testSpotProductID, Start: testCandlesStart, End: testCandlesStart.Add(time.Hour), Granularity: GranularityOneHour}
+	for name, call := range map[string]func() error{
+		"ListFuturesPositions":    func() error { _, err := ex.ListFuturesPositions(t.Context()); return err },
+		"ListFuturesSweeps":       func() error { _, err := ex.ListFuturesSweeps(t.Context()); return err },
+		"ListPaymentMethods":      func() error { _, err := ex.ListPaymentMethods(t.Context()); return err },
+		"ListPortfolios":          func() error { _, err := ex.ListPortfolios(t.Context(), ""); return err },
+		"GetBestBidAsk":           func() error { _, err := ex.GetBestBidAsk(t.Context(), []string{testSpotProductID}); return err },
+		"GetProductCandles":       func() error { _, err := ex.GetProductCandles(t.Context(), candles); return err },
+		"GetPublicProductCandles": func() error { _, err := ex.GetPublicProductCandles(t.Context(), candles); return err },
+	} {
+		assert.ErrorIsf(t, call(), common.ErrNoResponse, "%s should error for a null response", name)
+	}
 }

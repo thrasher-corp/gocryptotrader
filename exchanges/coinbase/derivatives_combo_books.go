@@ -17,16 +17,16 @@ var (
 )
 
 // CreateCombo returns the combo whose legs match the trades, creating its book when none exists
-func (g GlobalDerivativesAPI) CreateCombo(ctx context.Context, trades []DerivativesComboTrade) (*DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) CreateCombo(ctx context.Context, trades []DerivativesComboTrade) (*DerivativesComboResponse, error) {
 	return g.createCombo(ctx, false, trades)
 }
 
-func (g GlobalDerivativesAPI) createCombo(ctx context.Context, overWebsocket bool, trades []DerivativesComboTrade) (*DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) createCombo(ctx context.Context, overWebsocket bool, trades []DerivativesComboTrade) (*DerivativesComboResponse, error) {
 	if err := validateDerivativesComboTrades(trades); err != nil {
 		return nil, err
 	}
-	var resp *DerivativesCombo
-	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/create_combo", &derivativesCreateComboParams{Trades: trades}, &resp); err != nil {
+	var resp *DerivativesComboResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/create_combo", &DerivativesCreateComboWireRequest{Trades: trades}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -49,7 +49,7 @@ func (g GlobalDerivativesAPI) getLegPrices(ctx context.Context, overWebsocket bo
 		return nil, err
 	}
 	var resp *DerivativesLegPricesResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_leg_prices", &derivativesLegPricesParams{Legs: req.Legs, Price: req.Price}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_leg_prices", &DerivativesLegPricesWireRequest{Legs: req.Legs, Price: req.Price}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -79,16 +79,16 @@ func validateDerivativesComboTrades(trades []DerivativesComboTrade) error {
 }
 
 // GetComboDetails returns a combo's legs and book state, an expired combo's included
-func (g GlobalDerivativesAPI) GetComboDetails(ctx context.Context, comboID string) (*DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) GetComboDetails(ctx context.Context, comboID string) (*DerivativesComboResponse, error) {
 	return g.getComboDetails(ctx, false, comboID)
 }
 
-func (g GlobalDerivativesAPI) getComboDetails(ctx context.Context, overWebsocket bool, comboID string) (*DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) getComboDetails(ctx context.Context, overWebsocket bool, comboID string) (*DerivativesComboResponse, error) {
 	if comboID == "" {
 		return nil, errDerivativesComboIDRequired
 	}
-	var resp *DerivativesCombo
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combo_details", &derivativesComboIDParams{ComboID: comboID}, &resp); err != nil {
+	var resp *DerivativesComboResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combo_details", &DerivativesComboIDWireRequest{ComboID: comboID}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -115,18 +115,18 @@ func (g GlobalDerivativesAPI) getComboIDs(ctx context.Context, overWebsocket boo
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidComboState, req.State)
 	}
 	var resp []string
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combo_ids", &derivativesComboIDsParams{Currency: derivativesMarketDataCurrency(req.Currency), State: req.State}, &resp)
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combo_ids", &DerivativesComboIDsWireRequest{Currency: derivativesMarketDataCurrency(req.Currency), State: req.State}, &resp)
 }
 
 // GetCombos returns a settlement currency's active combos, or every currency's for any
-func (g GlobalDerivativesAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]DerivativesComboResponse, error) {
 	return g.getCombos(ctx, false, ccy)
 }
 
-func (g GlobalDerivativesAPI) getCombos(ctx context.Context, overWebsocket bool, ccy currency.Code) ([]DerivativesCombo, error) {
+func (g GlobalDerivativesAPI) getCombos(ctx context.Context, overWebsocket bool, ccy currency.Code) ([]DerivativesComboResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []DerivativesCombo
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combos", &derivativesCurrencyParams{Currency: derivativesMarketDataCurrency(ccy)}, &resp)
+	var resp []DerivativesComboResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_combos", &DerivativesCurrencyWireRequest{Currency: derivativesMarketDataCurrency(ccy)}, &resp)
 }

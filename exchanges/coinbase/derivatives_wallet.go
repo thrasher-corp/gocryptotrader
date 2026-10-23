@@ -46,11 +46,11 @@ var (
 // SubmitTransferBetweenSubaccounts transfers funds between subaccounts, or a subaccount and the main account; it tops
 // up an isolated margin subaccount's collateral, which the gateway otherwise allocates with each order. The
 // transfer's state is not proof of completion, which an account summary or the portfolio channel confirms
-func (g GlobalDerivativesAPI) SubmitTransferBetweenSubaccounts(ctx context.Context, req *DerivativesSubmitTransferBetweenSubaccountsRequest) (*DerivativesTransfer, error) {
+func (g GlobalDerivativesAPI) SubmitTransferBetweenSubaccounts(ctx context.Context, req *DerivativesSubmitTransferBetweenSubaccountsRequest) (*DerivativesTransferResponse, error) {
 	return g.submitTransferBetweenSubaccounts(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) submitTransferBetweenSubaccounts(ctx context.Context, overWebsocket bool, req *DerivativesSubmitTransferBetweenSubaccountsRequest) (*DerivativesTransfer, error) {
+func (g GlobalDerivativesAPI) submitTransferBetweenSubaccounts(ctx context.Context, overWebsocket bool, req *DerivativesSubmitTransferBetweenSubaccountsRequest) (*DerivativesTransferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -67,14 +67,14 @@ func (g GlobalDerivativesAPI) submitTransferBetweenSubaccounts(ctx context.Conte
 	if err := validateDerivativesTransferNonce(req.Nonce); err != nil {
 		return nil, err
 	}
-	params := &derivativesSubmitTransferBetweenSubaccountsParams{
+	params := &DerivativesSubmitTransferBetweenSubaccountsWireRequest{
 		Currency:    ccy,
 		Amount:      req.Amount,
 		Destination: req.Destination,
 		Source:      req.Source,
 		Nonce:       req.Nonce,
 	}
-	var resp *DerivativesTransfer
+	var resp *DerivativesTransferResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/submit_transfer_between_subaccounts", params, &resp); err != nil {
 		return nil, err
 	}

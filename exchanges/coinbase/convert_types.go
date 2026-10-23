@@ -119,16 +119,16 @@ type CreateConvertQuoteRequest struct {
 	CodeValue       string
 }
 
-// createConvertQuoteBody is CreateConvertQuote's body
-type createConvertQuoteBody struct {
+// CreateConvertQuoteWireRequest is CreateConvertQuote's body
+type CreateConvertQuoteWireRequest struct {
 	FromAccount            string                         `json:"from_account"`
 	ToAccount              string                         `json:"to_account"`
 	Amount                 string                         `json:"amount"`
-	TradeIncentiveMetadata *convertTradeIncentiveMetadata `json:"trade_incentive_metadata,omitempty"`
+	TradeIncentiveMetadata *ConvertTradeIncentiveMetadata `json:"trade_incentive_metadata,omitempty"`
 }
 
-// convertTradeIncentiveMetadata is the trade incentive a convert quote applies
-type convertTradeIncentiveMetadata struct {
+// ConvertTradeIncentiveMetadata is the trade incentive a convert quote applies
+type ConvertTradeIncentiveMetadata struct {
 	UserIncentiveID string `json:"user_incentive_id,omitempty"`
 	CodeValue       string `json:"code_val,omitempty"`
 }
@@ -142,14 +142,14 @@ type ConvertTradeRequest struct {
 	ToAccount   string
 }
 
-// convertAccountsBody is CommitConvertTrade's body, the accounts a trade converts between
-type convertAccountsBody struct {
+// ConvertAccountsWireRequest is CommitConvertTrade's body, the accounts a trade converts between
+type ConvertAccountsWireRequest struct {
 	FromAccount string `json:"from_account"`
 	ToAccount   string `json:"to_account"`
 }
 
-// convertTradeResponse holds a convert trade
-type convertTradeResponse struct {
+// ConvertTradeResponse holds a convert trade
+type ConvertTradeResponse struct {
 	Trade *ConvertTrade `json:"trade"`
 }
 
@@ -708,18 +708,19 @@ type ConvertSEPAInstitution struct {
 
 // ConvertPayPal is a PayPal account
 type ConvertPayPal struct {
-	AccountHolder       *ConvertPayPalAccount  `json:"account_holder"`
-	Merchant            *ConvertPayPalMerchant `json:"merchant"`
-	Metadata            *ConvertPayPalMetadata `json:"metadata"`
-	Email               string                 `json:"email"`
-	OwnerName           string                 `json:"owner_name"`
-	BirthDate           string                 `json:"birth_date"`
-	PhoneNumber         string                 `json:"phone_number"`
-	PhoneType           string                 `json:"phone_type"`
-	BillingAddress      *ConvertAddress        `json:"billing_address"`
-	BraintreeCustomerID string                 `json:"braintree_customer_id"`
-	PaymentMethodNonce  string                 `json:"payment_method_nonce"`
-	PayerID             string                 `json:"payer_id"`
+	AccountHolder *ConvertPayPalAccount  `json:"account_holder"`
+	Merchant      *ConvertPayPalMerchant `json:"merchant"`
+	Metadata      *ConvertPayPalMetadata `json:"metadata"`
+	Email         string                 `json:"email"`
+	OwnerName     string                 `json:"owner_name"`
+	// BirthDate is kept as sent, as Coinbase leaves its format undocumented
+	BirthDate           string          `json:"birth_date"`
+	PhoneNumber         string          `json:"phone_number"`
+	PhoneType           string          `json:"phone_type"`
+	BillingAddress      *ConvertAddress `json:"billing_address"`
+	BraintreeCustomerID string          `json:"braintree_customer_id"`
+	PaymentMethodNonce  string          `json:"payment_method_nonce"`
+	PayerID             string          `json:"payer_id"`
 }
 
 // ConvertPayPalAccount is a customer's PayPal account
@@ -809,7 +810,7 @@ type ConvertCustodialPool struct {
 
 // ConvertApplePay is a card paid through Apple Pay
 type ConvertApplePay struct {
-	Braintree *ConvertBraintreeData `json:"braintree"`
+	Braintree *ConvertBraintree     `json:"braintree"`
 	ApplePay  *ConvertDigitalWallet `json:"apple_pay"`
 	UserID    string                `json:"user_id"`
 	// PostalCode and the fields after it are set once an order is submitted
@@ -831,8 +832,8 @@ type ConvertApplePay struct {
 	Debit   string `json:"debit"`
 }
 
-// ConvertBraintreeData is a Braintree payment's nonce and correlation ID
-type ConvertBraintreeData struct {
+// ConvertBraintree is a Braintree payment's nonce and correlation ID
+type ConvertBraintree struct {
 	Nonce         string `json:"nonce"`
 	CorrelationID string `json:"correlation_id"`
 }
@@ -881,7 +882,7 @@ type ConvertDAppWalletAccount struct {
 
 // ConvertGooglePay is a card paid through Google Pay
 type ConvertGooglePay struct {
-	Braintree *ConvertBraintreeData `json:"braintree"`
+	Braintree *ConvertBraintree     `json:"braintree"`
 	GooglePay *ConvertDigitalWallet `json:"google_pay"`
 	UserID    string                `json:"user_id"`
 	// PostalCode and the fields after it are set once an order is submitted
@@ -1514,7 +1515,7 @@ type ConvertUnitPrice struct {
 // ConvertScaledAmount is a price and its scale
 type ConvertScaledAmount struct {
 	Amount Amount `json:"amount"`
-	Scale  int64  `json:"scale"`
+	Scale  uint64 `json:"scale"`
 }
 
 // ConvertUserWarning is a warning about a convert trade for its user

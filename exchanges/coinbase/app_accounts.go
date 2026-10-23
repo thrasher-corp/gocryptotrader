@@ -15,8 +15,8 @@ var (
 )
 
 // GetCurrentUser returns the public profile of the user the credentials act for
-func (a AppAPI) GetCurrentUser(ctx context.Context) (*AppUser, error) {
-	resp, err := sendAppRequest[*AppUser](ctx, a, http.MethodGet, "user", nil, nil)
+func (a AppAPI) GetCurrentUser(ctx context.Context) (*AppUserResponse, error) {
+	resp, err := sendAppRequest[*AppUserResponse](ctx, a, http.MethodGet, "user", nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -28,8 +28,8 @@ func (a AppAPI) GetCurrentUser(ctx context.Context) (*AppUser, error) {
 
 // GetPersonalDetails returns the user's legal name and KYC verified primary address. Coinbase documents only OAuth2
 // scopes for it, so whether a CDP API key may call it is unverified; its documented response has no data envelope
-func (a AppAPI) GetPersonalDetails(ctx context.Context) (*AppPersonalDetails, error) {
-	var resp *AppPersonalDetails
+func (a AppAPI) GetPersonalDetails(ctx context.Context) (*AppPersonalDetailsResponse, error) {
+	var resp *AppPersonalDetailsResponse
 	if err := a.e.SendAuthenticatedHTTPRequest(ctx, appEPL, http.MethodGet, appPath+"user/personal-details", nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (a AppAPI) GetPersonalDetails(ctx context.Context) (*AppPersonalDetails, er
 
 // ListAccounts returns a page of the accounts the credentials can access: wallets, fiat accounts, vaults and loan
 // collateral accounts
-func (a AppAPI) ListAccounts(ctx context.Context, req *AppListAccountsRequest) (*AppListResponse[AppAccount], error) {
+func (a AppAPI) ListAccounts(ctx context.Context, req *AppListAccountsRequest) (*AppListResponse[AppAccountResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (a AppAPI) ListAccounts(ctx context.Context, req *AppListAccountsRequest) (
 	if req.IncludeAvailableToSend {
 		params.Set("include_available_to_send", "true")
 	}
-	resp, err := sendAppRequest[[]AppAccount](ctx, a, http.MethodGet, "accounts", params, nil)
+	resp, err := sendAppRequest[[]AppAccountResponse](ctx, a, http.MethodGet, "accounts", params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (a AppAPI) ListAccounts(ctx context.Context, req *AppListAccountsRequest) (
 }
 
 // GetAccount returns an account by its ID, or a currency's primary account by the currency
-func (a AppAPI) GetAccount(ctx context.Context, req *AppGetAccountRequest) (*AppAccount, error) {
+func (a AppAPI) GetAccount(ctx context.Context, req *AppGetAccountRequest) (*AppAccountResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (a AppAPI) GetAccount(ctx context.Context, req *AppGetAccountRequest) (*App
 	if req.IncludeAvailableToSend {
 		params.Set("include_available_to_send", "true")
 	}
-	resp, err := sendAppRequest[*AppAccount](ctx, a, http.MethodGet, "accounts/"+account, params, nil)
+	resp, err := sendAppRequest[*AppAccountResponse](ctx, a, http.MethodGet, "accounts/"+account, params, nil)
 	if err != nil {
 		return nil, err
 	}

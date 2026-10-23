@@ -8,24 +8,25 @@ import (
 
 // GetBookSummaryByCurrency returns the market summaries of a settlement currency's instruments as
 // GlobalDerivativesAPI.GetBookSummaryByCurrency does, over the websocket
-func (w WebsocketAPI) GetBookSummaryByCurrency(ctx context.Context, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummary, error) {
+func (w WebsocketAPI) GetBookSummaryByCurrency(ctx context.Context, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummaryResponse, error) {
 	return w.e.GlobalDerivatives().getBookSummaryByCurrency(ctx, true, req)
 }
 
 // GetBookSummaryByInstrument returns an instrument's market summary as GlobalDerivativesAPI.GetBookSummaryByInstrument
 // does, over the websocket
-func (w WebsocketAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]DerivativesBookSummary, error) {
+func (w WebsocketAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]DerivativesBookSummaryResponse, error) {
 	return w.e.GlobalDerivatives().getBookSummaryByInstrument(ctx, true, instrumentName)
 }
 
-// GetContractSize returns an instrument's contract size as GlobalDerivativesAPI.GetContractSize does, over the websocket
+// GetContractSize returns an instrument's contract size as GlobalDerivativesAPI.GetContractSize does, over the
+// websocket
 func (w WebsocketAPI) GetContractSize(ctx context.Context, instrumentName string) (*DerivativesContractSizeResponse, error) {
 	return w.e.GlobalDerivatives().getContractSize(ctx, true, instrumentName)
 }
 
 // GetCurrencies returns every currency the gateway supports as GlobalDerivativesAPI.GetCurrencies does, over the
 // websocket
-func (w WebsocketAPI) GetCurrencies(ctx context.Context) ([]DerivativesCurrency, error) {
+func (w WebsocketAPI) GetCurrencies(ctx context.Context) ([]DerivativesCurrencyResponse, error) {
 	return w.e.GlobalDerivatives().getCurrencies(ctx, true)
 }
 
@@ -48,7 +49,7 @@ func (w WebsocketAPI) GetFundingChartData(ctx context.Context, req *DerivativesF
 
 // GetFundingRateHistory returns a perpetual's hourly funding as GlobalDerivativesAPI.GetFundingRateHistory does, over
 // the websocket
-func (w WebsocketAPI) GetFundingRateHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistory, error) {
+func (w WebsocketAPI) GetFundingRateHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistoryResponse, error) {
 	return w.e.GlobalDerivatives().getFundingRateHistory(ctx, true, req)
 }
 
@@ -58,14 +59,14 @@ func (w WebsocketAPI) GetFundingRateValue(ctx context.Context, req *DerivativesI
 	return w.e.GlobalDerivatives().getFundingRateValue(ctx, true, req)
 }
 
-// GetHistoricalVolatility returns a currency's realised volatility as GlobalDerivativesAPI.GetHistoricalVolatility does,
-// over the websocket
-func (w WebsocketAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]DerivativesHistoricalVolatility, error) {
+// GetHistoricalVolatility returns a currency's realised volatility as GlobalDerivativesAPI.GetHistoricalVolatility
+// does, over the websocket
+func (w WebsocketAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]DerivativesHistoricalVolatilityResponse, error) {
 	return w.e.GlobalDerivatives().getHistoricalVolatility(ctx, true, ccy)
 }
 
 // GetIndexChartData returns an index's price chart as GlobalDerivativesAPI.GetIndexChartData does, over the websocket
-func (w WebsocketAPI) GetIndexChartData(ctx context.Context, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPoint, error) {
+func (w WebsocketAPI) GetIndexChartData(ctx context.Context, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPointResponse, error) {
 	return w.e.GlobalDerivatives().getIndexChartData(ctx, true, req)
 }
 
@@ -76,18 +77,18 @@ func (w WebsocketAPI) GetIndexPrice(ctx context.Context, indexName string) (*Der
 
 // GetIndexPriceNames returns the names of every price index as GlobalDerivativesAPI.GetIndexPriceNames does, over the
 // websocket
-func (w WebsocketAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]DerivativesIndexPriceName, error) {
+func (w WebsocketAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]DerivativesIndexPriceNameResponse, error) {
 	return w.e.GlobalDerivatives().getIndexPriceNames(ctx, true, extended)
 }
 
 // GetInstrument returns an instrument's specification as GlobalDerivativesAPI.GetInstrument does, over the websocket
-func (w WebsocketAPI) GetInstrument(ctx context.Context, instrumentName string) (*DerivativesInstrument, error) {
+func (w WebsocketAPI) GetInstrument(ctx context.Context, instrumentName string) (*DerivativesInstrumentResponse, error) {
 	return w.e.GlobalDerivatives().getInstrument(ctx, true, instrumentName)
 }
 
 // GetInstruments returns a settlement currency's instruments as GlobalDerivativesAPI.GetInstruments does, over the
 // websocket
-func (w WebsocketAPI) GetInstruments(ctx context.Context, req *DerivativesInstrumentsRequest) ([]DerivativesInstrument, error) {
+func (w WebsocketAPI) GetInstruments(ctx context.Context, req *DerivativesInstrumentsRequest) ([]DerivativesInstrumentResponse, error) {
 	return w.e.GlobalDerivatives().getInstruments(ctx, true, req)
 }
 
@@ -115,8 +116,8 @@ func (w WebsocketAPI) GetLastTradesByCurrencyAndTime(ctx context.Context, req *D
 	return w.e.GlobalDerivatives().getLastTradesByCurrencyAndTime(ctx, true, req)
 }
 
-// GetLastTradesByInstrument returns an instrument's latest trades as GlobalDerivativesAPI.GetLastTradesByInstrument does,
-// over the websocket
+// GetLastTradesByInstrument returns an instrument's latest trades as GlobalDerivativesAPI.GetLastTradesByInstrument
+// does, over the websocket
 func (w WebsocketAPI) GetLastTradesByInstrument(ctx context.Context, req *DerivativesLastTradesByInstrumentRequest) (*DerivativesLastTradesResponse, error) {
 	return w.e.GlobalDerivatives().getLastTradesByInstrument(ctx, true, req)
 }
@@ -129,35 +130,35 @@ func (w WebsocketAPI) GetLastTradesByInstrumentAndTime(ctx context.Context, req 
 
 // GetMarkPriceHistory returns an option's mark prices as GlobalDerivativesAPI.GetMarkPriceHistory does, over the
 // websocket
-func (w WebsocketAPI) GetMarkPriceHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPrice, error) {
+func (w WebsocketAPI) GetMarkPriceHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPriceResponse, error) {
 	return w.e.GlobalDerivatives().getMarkPriceHistory(ctx, true, req)
 }
 
 // GetOrderBook returns an instrument's order book as GlobalDerivativesAPI.GetOrderBook does, over the websocket
-func (w WebsocketAPI) GetOrderBook(ctx context.Context, req *DerivativesOrderBookRequest) (*DerivativesOrderBook, error) {
+func (w WebsocketAPI) GetOrderBook(ctx context.Context, req *DerivativesOrderBookRequest) (*DerivativesOrderBookResponse, error) {
 	return w.e.GlobalDerivatives().getOrderBook(ctx, true, req)
 }
 
 // GetOrderBookByInstrumentID returns the order book of an instrument identified by its ID as
 // GlobalDerivativesAPI.GetOrderBookByInstrumentID does, over the websocket
-func (w WebsocketAPI) GetOrderBookByInstrumentID(ctx context.Context, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBook, error) {
+func (w WebsocketAPI) GetOrderBookByInstrumentID(ctx context.Context, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBookResponse, error) {
 	return w.e.GlobalDerivatives().getOrderBookByInstrumentID(ctx, true, req)
 }
 
-// GetSupportedIndexNames returns the names of the price indexes of a type as GlobalDerivativesAPI.GetSupportedIndexNames
-// does, over the websocket
+// GetSupportedIndexNames returns the names of the price indexes of a type as
+// GlobalDerivativesAPI.GetSupportedIndexNames does, over the websocket
 func (w WebsocketAPI) GetSupportedIndexNames(ctx context.Context, indexType string) ([]string, error) {
 	return w.e.GlobalDerivatives().getSupportedIndexNames(ctx, true, indexType)
 }
 
 // GetTradeVolumes returns each currency's traded volumes as GlobalDerivativesAPI.GetTradeVolumes does, over the
 // websocket
-func (w WebsocketAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]DerivativesTradeVolume, error) {
+func (w WebsocketAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]DerivativesTradeVolumeResponse, error) {
 	return w.e.GlobalDerivatives().getTradeVolumes(ctx, true, extended)
 }
 
-// GetTradingViewChartData returns an instrument's candles as GlobalDerivativesAPI.GetTradingViewChartData does, over the
-// websocket, where the gateway takes it as any other method
+// GetTradingViewChartData returns an instrument's candles as GlobalDerivativesAPI.GetTradingViewChartData does, over
+// the websocket, where the gateway takes it as any other method
 func (w WebsocketAPI) GetTradingViewChartData(ctx context.Context, req *DerivativesTradingViewChartDataRequest) (*DerivativesTradingViewChartDataResponse, error) {
 	return w.e.GlobalDerivatives().getTradingViewChartData(ctx, true, req)
 }
@@ -169,12 +170,12 @@ func (w WebsocketAPI) GetVolatilityIndexData(ctx context.Context, req *Derivativ
 }
 
 // GetTicker returns an instrument's ticker as GlobalDerivativesAPI.GetTicker does, over the websocket
-func (w WebsocketAPI) GetTicker(ctx context.Context, instrumentName string) (*DerivativesTicker, error) {
+func (w WebsocketAPI) GetTicker(ctx context.Context, instrumentName string) (*DerivativesTickerResponse, error) {
 	return w.e.GlobalDerivatives().getTicker(ctx, true, instrumentName)
 }
 
 // GetTickersByCurrency returns the tickers of a settlement currency's open instruments as
 // GlobalDerivativesAPI.GetTickersByCurrency does, over the websocket
-func (w WebsocketAPI) GetTickersByCurrency(ctx context.Context, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBook, error) {
+func (w WebsocketAPI) GetTickersByCurrency(ctx context.Context, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBookResponse, error) {
 	return w.e.GlobalDerivatives().getTickersByCurrency(ctx, true, req)
 }

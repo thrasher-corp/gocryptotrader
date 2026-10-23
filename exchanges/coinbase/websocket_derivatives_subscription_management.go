@@ -25,7 +25,7 @@ func (w WebsocketAPI) Subscribe(ctx context.Context, channels []string) ([]strin
 		return nil, errDerivativesChannelsRequired
 	}
 	var resp []string
-	return resp, w.sendStreamsRequest(ctx, derivativesSubscribeEPL, "public/subscribe", &derivativesSubscriptionParams{Channels: channels}, &resp)
+	return resp, w.sendStreamsRequest(ctx, derivativesSubscribeEPL, "public/subscribe", &DerivativesSubscriptionWireRequest{Channels: channels}, &resp)
 }
 
 // SubscribePrivate subscribes the gateway's private connection to channels, adding a label of up to 16 characters to
@@ -42,15 +42,15 @@ func (w WebsocketAPI) SubscribePrivate(ctx context.Context, req *DerivativesPriv
 	return resp, w.SendRequest(ctx, derivativesSubscribeEPL, "private/subscribe", req, &resp)
 }
 
-// Unsubscribe unsubscribes the gateway's public streams from channels and returns the channels the gateway
-// unsubscribed, which leaves out channels that were invalid or not subscribed; the gateway accepts it over the
-// websocket only, on its streams
+// Unsubscribe unsubscribes the gateway's public streams from channels and returns the channels the gateway names in
+// its reply, which can include channels that were not subscribed; the gateway accepts it over the websocket only, on
+// its streams
 func (w WebsocketAPI) Unsubscribe(ctx context.Context, channels []string) ([]string, error) {
 	if len(channels) == 0 {
 		return nil, errDerivativesChannelsRequired
 	}
 	var resp []string
-	return resp, w.sendStreamsRequest(ctx, derivativesNonMatchingEPL, "public/unsubscribe", &derivativesSubscriptionParams{Channels: channels}, &resp)
+	return resp, w.sendStreamsRequest(ctx, derivativesNonMatchingEPL, "public/unsubscribe", &DerivativesSubscriptionWireRequest{Channels: channels}, &resp)
 }
 
 // UnsubscribePrivate unsubscribes the gateway's private connection from channels and returns the channels the gateway
@@ -60,7 +60,7 @@ func (w WebsocketAPI) UnsubscribePrivate(ctx context.Context, channels []string)
 		return nil, errDerivativesChannelsRequired
 	}
 	var resp []string
-	return resp, w.SendRequest(ctx, derivativesNonMatchingEPL, "private/unsubscribe", &derivativesSubscriptionParams{Channels: channels}, &resp)
+	return resp, w.SendRequest(ctx, derivativesNonMatchingEPL, "private/unsubscribe", &DerivativesSubscriptionWireRequest{Channels: channels}, &resp)
 }
 
 // UnsubscribeAll unsubscribes the gateway's public streams from every channel, including the manager's subscriptions;

@@ -32,6 +32,8 @@ const (
 var (
 	previousDefaults = []string{heartbeatEntry, statusEntry, spotTicker, spotCandles, spotTrades, spotOrderbook, accountEntry, tickerBatch}
 	currentDefaults  = []string{tickerEntry, candlesEntry, tradesEntry, orderbookEntry, statusEntry, accountEntry}
+	// previousExample is the subscription list the v17 config_example.json shipped
+	previousExample = []string{heartbeatEntry, `{"enabled":false,"channel":"status","authenticated":true}`, spotTicker, spotCandles, spotTrades, spotOrderbook, `{"enabled":true,"channel":"account","authenticated":true}`, `{"enabled":false,"channel":"ticker_batch","asset":"spot"}`}
 )
 
 // subscriptions returns a Coinbase config holding the subscription entries
@@ -85,6 +87,8 @@ func TestUpgradeExchangeSubscriptions(t *testing.T) {
 		"repeated key last applies": with(previousDefaults, 2, strings.Replace(spotTicker, `"asset":"spot"`, `"asset":"futures","asset":"spot"`, 1)),
 		"legacy level2_batch":       {`{"enabled":true,"channel":"level2_batch","asset":"spot"}`, spotTicker},
 		"legacy matches":            {`{"enabled":false,"channel":"matches"}`, `{"enabled":true,"channel":"custom","asset":"spot","pairs":"BTC-USD"}`},
+		"master's example config":   previousExample,
+		"reordered example config":  {previousExample[7], previousExample[6], previousExample[5], previousExample[4], previousExample[3], previousExample[2], previousExample[1], previousExample[0]},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -150,8 +154,10 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 		"unknown field":            with(previousDefaults, 4, field(spotTrades, `"custom":"retained"`)),
 		"capitalised field":        with(previousDefaults, 4, strings.Replace(spotTrades, `"enabled"`, `"Enabled"`, 1)),
 		"current defaults":         currentDefaults,
-		"master's example config":  {heartbeatEntry, `{"enabled":false,"channel":"status","authenticated":true}`, spotTicker, spotCandles, spotTrades, spotOrderbook, `{"enabled":true,"channel":"account","authenticated":true}`, `{"enabled":false,"channel":"ticker_batch","asset":"spot"}`},
 		"previous and one more":    append(append([]string(nil), previousDefaults...), balanceSummary),
+		"example account renamed":  with(previousExample, 6, `{"enabled":true,"channel":"myAccount","asset":"all","authenticated":true}`),
+		"example ticker batch on":  with(previousExample, 7, `{"enabled":true,"channel":"ticker_batch","asset":"spot"}`),
+		"example status omitted":   with(previousExample, 1, `{"channel":"status","authenticated":true}`),
 		"legacy name as parameter": with(previousDefaults, 2, field(spotTicker, `"params":{"channel":"matches"}`)),
 	} {
 		t.Run("upgrade/"+name, func(t *testing.T) {
@@ -177,6 +183,38 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 			got, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(input))
 			require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
 			assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
+		})
+	}
+}
+
+func TestMigrationKeepsDisabledEntries(t *testing.T) {
+	t.Parallel()
+	disabledSummary := strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)
+	omittedLevel2 := `{"channel":"level2","asset":"spot"}`
+	nullBook := `{"enabled":null,"channel":"book","asset":"usdcmarginedfutures"}`
+	for name, tc := range map[string]struct {
+		migrate func(*v18.Version, context.Context, []byte) ([]byte, error)
+		entries []string
+		exp     []string
+	}{
+		"upgrade explicitly disabled":   {(*v18.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), disabledSummary), append(append([]string(nil), currentDefaults...), disabledSummary)},
+		"upgrade enabled omitted":       {(*v18.Version).UpgradeExchange, append([]string{omittedLevel2}, previousDefaults...), append(append([]string(nil), currentDefaults...), omittedLevel2)},
+		"upgrade enabled null":          {(*v18.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), nullBook), append(append([]string(nil), currentDefaults...), nullBook)},
+		"upgrade with custom field":     {(*v18.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), field(disabledSummary, `"pairs":"BTC-USD"`)), append(append([]string(nil), currentDefaults...), field(disabledSummary, `"pairs":"BTC-USD"`))},
+		"downgrade explicitly disabled": {(*v18.Version).DowngradeExchange, append(append([]string(nil), currentDefaults...), disabledSummary), append(append([]string(nil), previousDefaults...), disabledSummary)},
+		// A disabled default is the user's choice, which keeps the list
+		"upgrade disabled default": {(*v18.Version).UpgradeExchange, with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1)), with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1))},
+		"upgrade enabled extra":    {(*v18.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), balanceSummary), append(append([]string(nil), previousDefaults...), balanceSummary)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			version := new(v18.Version)
+			got, err := tc.migrate(version, t.Context(), []byte(subscriptions(tc.entries...)))
+			require.NoError(t, err, "migration must not error")
+			assert.JSONEq(t, subscriptions(tc.exp...), string(got), "migration should keep disabled entries the defaults do not name")
+			again, err := tc.migrate(version, t.Context(), got)
+			require.NoError(t, err, "repeated migration must not error")
+			assert.JSONEq(t, string(got), string(again), "migration should be idempotent")
 		})
 	}
 }

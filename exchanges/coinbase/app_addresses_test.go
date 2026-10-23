@@ -47,7 +47,7 @@ func TestAppCreateAddress(t *testing.T) {
 	resp, err := e.App().CreateAddress(t.Context(), req)
 	require.NoError(t, err, "CreateAddress must not error")
 	if mockTests {
-		exp := &AppAddress{
+		exp := &AppAddressResponse{
 			ID:           "dd3183eb-af1d-5f5d-a90d-cbff946435ff",
 			Address:      "0xc0ffee254729296a45a3885639AC7E10F9d54979",
 			Name:         "New receive address",
@@ -75,7 +75,7 @@ func TestAppCreateAddress(t *testing.T) {
 	}))
 	resp, err = ex.App().CreateAddress(t.Context(), &AppCreateAddressRequest{AccountID: testAppAccountID})
 	require.NoError(t, err, "CreateAddress must not error without a name or network")
-	assert.Equal(t, &AppAddress{ID: testAppAddressID}, resp, "CreateAddress should return the address")
+	assert.Equal(t, &AppAddressResponse{ID: testAppAddressID}, resp, "CreateAddress should return the address")
 
 	_, err = newResponseServerExchange(t, `null`).App().CreateAddress(t.Context(), &AppCreateAddressRequest{AccountID: testAppAccountID})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateAddress should error for a null response")
@@ -96,8 +96,8 @@ func TestAppListAddresses(t *testing.T) {
 	resp, err := e.App().ListAddresses(t.Context(), &AppListAddressesRequest{AccountID: testAppAccount(t)})
 	require.NoError(t, err, "ListAddresses must not error")
 	if mockTests {
-		exp := &AppListResponse[AppAddress]{
-			Data: []AppAddress{
+		exp := &AppListResponse[AppAddressResponse]{
+			Data: []AppAddressResponse{
 				{
 					ID:           "dd3183eb-af1d-5f5d-a90d-cbff946435ff",
 					Address:      "mswUGcPHp1YnkLCgF1TtoryqSc5E9Q8xFa",
@@ -147,7 +147,7 @@ func TestAppGetAddress(t *testing.T) {
 	resp, err := e.App().GetAddress(t.Context(), &AppGetAddressRequest{AccountID: accountID, AddressID: addressID})
 	require.NoError(t, err, "GetAddress must not error")
 	if mockTests {
-		exp := &AppAddress{
+		exp := &AppAddressResponse{
 			ID:           "dd3183eb-af1d-5f5d-a90d-cbff946435ff",
 			Address:      "mswUGcPHp1YnkLCgF1TtoryqSc5E9Q8xFa",
 			Network:      "bitcoin",
@@ -183,8 +183,8 @@ func TestAppListAddressTransactions(t *testing.T) {
 	resp, err := e.App().ListAddressTransactions(t.Context(), &AppListAddressTransactionsRequest{AccountID: accountID, AddressID: addressID})
 	require.NoError(t, err, "ListAddressTransactions must not error")
 	if mockTests {
-		exp := &AppListResponse[AppTransaction]{
-			Data: []AppTransaction{
+		exp := &AppListResponse[AppTransactionResponse]{
+			Data: []AppTransactionResponse{
 				{
 					ID:     "57ffb4ae-0c59-5430-bcd3-3f98f797a66c",
 					Type:   AppTransactionTypeSend,

@@ -10,8 +10,8 @@ import (
 
 // GetCurrencies returns every currency Coinbase Exchange knows of, delisted ones included, with the networks each is
 // deposited and withdrawn on and their withdrawal limits; not every currency trades
-func (e *Exchange) GetCurrencies(ctx context.Context) ([]ExchangeCurrency, error) {
-	var resp []ExchangeCurrency
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]ExchangeCurrencyResponse, error) {
+	var resp []ExchangeCurrencyResponse
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, exchangeAPIPublicEPL, "/currencies", nil, &resp); err != nil {
 		return nil, err
 	}
@@ -20,11 +20,11 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]ExchangeCurrency, error
 
 // GetCurrency returns a currency Coinbase Exchange knows of, with the networks it is deposited and withdrawn on and
 // their withdrawal limits
-func (e *Exchange) GetCurrency(ctx context.Context, code currency.Code) (*ExchangeCurrency, error) {
+func (e *Exchange) GetCurrency(ctx context.Context, code currency.Code) (*ExchangeCurrencyResponse, error) {
 	if code.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *ExchangeCurrency
+	var resp *ExchangeCurrencyResponse
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, exchangeAPIPublicEPL, "/currencies/"+code.Upper().String(), nil, &resp); err != nil {
 		return nil, err
 	}

@@ -38,11 +38,11 @@ var (
 
 // GetBookSummaryByCurrency returns the market summaries of a settlement currency's instruments, optionally of one kind;
 // the docs recommend the ticker subscription over polling it
-func (g GlobalDerivativesAPI) GetBookSummaryByCurrency(ctx context.Context, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummary, error) {
+func (g GlobalDerivativesAPI) GetBookSummaryByCurrency(ctx context.Context, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummaryResponse, error) {
 	return g.getBookSummaryByCurrency(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getBookSummaryByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummary, error) {
+func (g GlobalDerivativesAPI) getBookSummaryByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesBookSummaryByCurrencyRequest) ([]DerivativesBookSummaryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -53,22 +53,22 @@ func (g GlobalDerivativesAPI) getBookSummaryByCurrency(ctx context.Context, over
 	if err := validateDerivativesMarketDataKind(req.Kind, DerivativesKindFuture, DerivativesKindOption, DerivativesKindSpot, DerivativesKindFutureCombo, DerivativesKindOptionCombo); err != nil {
 		return nil, err
 	}
-	params := &derivativesBookSummaryByCurrencyParams{Currency: derivativesMarketDataCurrency(req.Currency), Kind: req.Kind}
-	var resp []DerivativesBookSummary
+	params := &DerivativesBookSummaryByCurrencyWireRequest{Currency: derivativesMarketDataCurrency(req.Currency), Kind: req.Kind}
+	var resp []DerivativesBookSummaryResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_book_summary_by_currency", params, &resp)
 }
 
 // GetBookSummaryByInstrument returns an instrument's market summary, as a list of one
-func (g GlobalDerivativesAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]DerivativesBookSummary, error) {
+func (g GlobalDerivativesAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]DerivativesBookSummaryResponse, error) {
 	return g.getBookSummaryByInstrument(ctx, false, instrumentName)
 }
 
-func (g GlobalDerivativesAPI) getBookSummaryByInstrument(ctx context.Context, overWebsocket bool, instrumentName string) ([]DerivativesBookSummary, error) {
+func (g GlobalDerivativesAPI) getBookSummaryByInstrument(ctx context.Context, overWebsocket bool, instrumentName string) ([]DerivativesBookSummaryResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp []DerivativesBookSummary
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_book_summary_by_instrument", &derivativesInstrumentNameParams{InstrumentName: instrumentName}, &resp)
+	var resp []DerivativesBookSummaryResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_book_summary_by_instrument", &DerivativesInstrumentNameWireRequest{InstrumentName: instrumentName}, &resp)
 }
 
 // GetContractSize returns an instrument's contract size, a combo's or an expired instrument's included
@@ -81,7 +81,7 @@ func (g GlobalDerivativesAPI) getContractSize(ctx context.Context, overWebsocket
 		return nil, errInstrumentNameRequired
 	}
 	var resp *DerivativesContractSizeResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_contract_size", &derivativesInstrumentNameParams{InstrumentName: instrumentName}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_contract_size", &DerivativesInstrumentNameWireRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -91,12 +91,12 @@ func (g GlobalDerivativesAPI) getContractSize(ctx context.Context, overWebsocket
 }
 
 // GetCurrencies returns every currency the gateway supports and its deposit and withdrawal parameters
-func (g GlobalDerivativesAPI) GetCurrencies(ctx context.Context) ([]DerivativesCurrency, error) {
+func (g GlobalDerivativesAPI) GetCurrencies(ctx context.Context) ([]DerivativesCurrencyResponse, error) {
 	return g.getCurrencies(ctx, false)
 }
 
-func (g GlobalDerivativesAPI) getCurrencies(ctx context.Context, overWebsocket bool) ([]DerivativesCurrency, error) {
-	var resp []DerivativesCurrency
+func (g GlobalDerivativesAPI) getCurrencies(ctx context.Context, overWebsocket bool) ([]DerivativesCurrencyResponse, error) {
+	var resp []DerivativesCurrencyResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_currencies", nil, &resp)
 }
 
@@ -113,7 +113,7 @@ func (g GlobalDerivativesAPI) getDeliveryPrices(ctx context.Context, overWebsock
 	if req.IndexName == "" {
 		return nil, errDerivativesIndexNameRequired
 	}
-	params := &derivativesDeliveryPricesParams{IndexName: req.IndexName, Offset: req.Offset, Count: req.Count}
+	params := &DerivativesDeliveryPricesWireRequest{IndexName: req.IndexName, Offset: req.Offset, Count: req.Count}
 	var resp *DerivativesDeliveryPricesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_delivery_prices", params, &resp); err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func (g GlobalDerivativesAPI) getExpirations(ctx context.Context, overWebsocket 
 	if err := validateDerivativesMarketDataKind(req.Kind, DerivativesKindFuture, DerivativesKindOption, DerivativesKindAny); err != nil {
 		return nil, err
 	}
-	params := &derivativesExpirationsParams{Kind: req.Kind, CurrencyPair: req.CurrencyPair}
+	params := &DerivativesExpirationsWireRequest{Kind: req.Kind, CurrencyPair: req.CurrencyPair}
 	if !req.Currency.IsEmpty() {
 		params.Currency = derivativesMarketDataCurrency(req.Currency)
 	}
@@ -169,7 +169,7 @@ func (g GlobalDerivativesAPI) getFundingChartData(ctx context.Context, overWebso
 	default:
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidFundingChartLength, req.Length)
 	}
-	params := &derivativesFundingChartDataParams{InstrumentName: req.InstrumentName, Length: req.Length}
+	params := &DerivativesFundingChartDataWireRequest{InstrumentName: req.InstrumentName, Length: req.Length}
 	var resp *DerivativesFundingChartDataResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_funding_chart_data", params, &resp); err != nil {
 		return nil, err
@@ -182,16 +182,16 @@ func (g GlobalDerivativesAPI) getFundingChartData(ctx context.Context, overWebso
 
 // GetFundingRateHistory returns a perpetual's hourly funding over the hours ending in a time range, oldest first; a
 // range of more than 744 hours returns its latest 744
-func (g GlobalDerivativesAPI) GetFundingRateHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistory, error) {
+func (g GlobalDerivativesAPI) GetFundingRateHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistoryResponse, error) {
 	return g.getFundingRateHistory(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getFundingRateHistory(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistory, error) {
+func (g GlobalDerivativesAPI) getFundingRateHistory(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesFundingRateHistoryResponse, error) {
 	params, err := req.params()
 	if err != nil {
 		return nil, err
 	}
-	var resp []DerivativesFundingRateHistory
+	var resp []DerivativesFundingRateHistoryResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_funding_rate_history", params, &resp)
 }
 
@@ -216,7 +216,7 @@ func (g GlobalDerivativesAPI) getFundingRateValue(ctx context.Context, overWebso
 }
 
 // params validates an instrument time range request and returns its params
-func (r *DerivativesInstrumentTimeRangeRequest) params() (*derivativesInstrumentTimeRangeParams, error) {
+func (r *DerivativesInstrumentTimeRangeRequest) params() (*DerivativesInstrumentTimeRangeWireRequest, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -226,34 +226,38 @@ func (r *DerivativesInstrumentTimeRangeRequest) params() (*derivativesInstrument
 	if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
 		return nil, err
 	}
-	return &derivativesInstrumentTimeRangeParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(r.StartTime, r.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	return &DerivativesInstrumentTimeRangeWireRequest{
 		InstrumentName: r.InstrumentName,
-		StartTimestamp: r.StartTime.UnixMilli(),
-		EndTimestamp:   r.EndTime.UnixMilli(),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 	}, nil
 }
 
 // GetHistoricalVolatility returns a currency's hourly realised volatility over about the last 16 days, oldest first;
 // the gateway repeats the first point
-func (g GlobalDerivativesAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]DerivativesHistoricalVolatility, error) {
+func (g GlobalDerivativesAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]DerivativesHistoricalVolatilityResponse, error) {
 	return g.getHistoricalVolatility(ctx, false, ccy)
 }
 
-func (g GlobalDerivativesAPI) getHistoricalVolatility(ctx context.Context, overWebsocket bool, ccy currency.Code) ([]DerivativesHistoricalVolatility, error) {
+func (g GlobalDerivativesAPI) getHistoricalVolatility(ctx context.Context, overWebsocket bool, ccy currency.Code) ([]DerivativesHistoricalVolatilityResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []DerivativesHistoricalVolatility
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_historical_volatility", &derivativesCurrencyParams{Currency: derivativesMarketDataCurrency(ccy)}, &resp)
+	var resp []DerivativesHistoricalVolatilityResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_historical_volatility", &DerivativesCurrencyWireRequest{Currency: derivativesMarketDataCurrency(ccy)}, &resp)
 }
 
 // GetIndexChartData returns an index's average price over a period, oldest first; the points are 6 seconds apart for an
 // hour and 6 hours apart for all of the index's history
-func (g GlobalDerivativesAPI) GetIndexChartData(ctx context.Context, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPoint, error) {
+func (g GlobalDerivativesAPI) GetIndexChartData(ctx context.Context, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPointResponse, error) {
 	return g.getIndexChartData(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getIndexChartData(ctx context.Context, overWebsocket bool, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPoint, error) {
+func (g GlobalDerivativesAPI) getIndexChartData(ctx context.Context, overWebsocket bool, req *DerivativesIndexChartDataRequest) ([]DerivativesIndexChartPointResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -265,8 +269,8 @@ func (g GlobalDerivativesAPI) getIndexChartData(ctx context.Context, overWebsock
 	default:
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidIndexChartRange, req.Range)
 	}
-	var resp []DerivativesIndexChartPoint
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_chart_data", &derivativesIndexChartDataParams{IndexName: req.IndexName, Range: req.Range}, &resp)
+	var resp []DerivativesIndexChartPointResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_chart_data", &DerivativesIndexChartDataWireRequest{IndexName: req.IndexName, Range: req.Range}, &resp)
 }
 
 // GetIndexPrice returns an index's current price and estimated delivery price; index names are lower case, such as
@@ -280,7 +284,7 @@ func (g GlobalDerivativesAPI) getIndexPrice(ctx context.Context, overWebsocket b
 		return nil, errDerivativesIndexNameRequired
 	}
 	var resp *DerivativesIndexPriceResponse
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_price", &derivativesIndexNameParams{IndexName: indexName}, &resp); err != nil {
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_price", &DerivativesIndexNameWireRequest{IndexName: indexName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -291,26 +295,26 @@ func (g GlobalDerivativesAPI) getIndexPrice(ctx context.Context, overWebsocket b
 
 // GetIndexPriceNames returns the names of every price index and, when extended is set, whether future and option combos
 // can be created on each
-func (g GlobalDerivativesAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]DerivativesIndexPriceName, error) {
+func (g GlobalDerivativesAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]DerivativesIndexPriceNameResponse, error) {
 	return g.getIndexPriceNames(ctx, false, extended)
 }
 
-func (g GlobalDerivativesAPI) getIndexPriceNames(ctx context.Context, overWebsocket, extended bool) ([]DerivativesIndexPriceName, error) {
-	var resp []DerivativesIndexPriceName
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_price_names", &derivativesMarketDataExtendedParams{Extended: extended}, &resp)
+func (g GlobalDerivativesAPI) getIndexPriceNames(ctx context.Context, overWebsocket, extended bool) ([]DerivativesIndexPriceNameResponse, error) {
+	var resp []DerivativesIndexPriceNameResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_index_price_names", &DerivativesMarketDataExtendedWireRequest{Extended: extended}, &resp)
 }
 
 // GetInstrument returns an instrument's specification, a combo's or an expired instrument's included
-func (g GlobalDerivativesAPI) GetInstrument(ctx context.Context, instrumentName string) (*DerivativesInstrument, error) {
+func (g GlobalDerivativesAPI) GetInstrument(ctx context.Context, instrumentName string) (*DerivativesInstrumentResponse, error) {
 	return g.getInstrument(ctx, false, instrumentName)
 }
 
-func (g GlobalDerivativesAPI) getInstrument(ctx context.Context, overWebsocket bool, instrumentName string) (*DerivativesInstrument, error) {
+func (g GlobalDerivativesAPI) getInstrument(ctx context.Context, overWebsocket bool, instrumentName string) (*DerivativesInstrumentResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp *DerivativesInstrument
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_instrument", &derivativesInstrumentNameParams{InstrumentName: instrumentName}, &resp); err != nil {
+	var resp *DerivativesInstrumentResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_instrument", &DerivativesInstrumentNameWireRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -321,11 +325,11 @@ func (g GlobalDerivativesAPI) getInstrument(ctx context.Context, overWebsocket b
 
 // GetInstruments returns a settlement currency's instruments, optionally of one kind; the gateway lists Deribit's whole
 // catalogue, although Coinbase accounts only trade its perpetuals, and limits the method to a request a second
-func (g GlobalDerivativesAPI) GetInstruments(ctx context.Context, req *DerivativesInstrumentsRequest) ([]DerivativesInstrument, error) {
+func (g GlobalDerivativesAPI) GetInstruments(ctx context.Context, req *DerivativesInstrumentsRequest) ([]DerivativesInstrumentResponse, error) {
 	return g.getInstruments(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getInstruments(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentsRequest) ([]DerivativesInstrument, error) {
+func (g GlobalDerivativesAPI) getInstruments(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentsRequest) ([]DerivativesInstrumentResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -335,13 +339,13 @@ func (g GlobalDerivativesAPI) getInstruments(ctx context.Context, overWebsocket 
 	if err := validateDerivativesMarketDataKind(req.Kind, DerivativesKindFuture, DerivativesKindOption, DerivativesKindSpot, DerivativesKindFutureCombo, DerivativesKindOptionCombo, DerivativesKindAny); err != nil {
 		return nil, err
 	}
-	params := &derivativesInstrumentsParams{
+	params := &DerivativesInstrumentsWireRequest{
 		Currency: derivativesMarketDataCurrency(req.Currency),
 		Kind:     req.Kind,
 		Expired:  req.Expired,
 		Extended: req.Extended,
 	}
-	var resp []DerivativesInstrument
+	var resp []DerivativesInstrumentResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesGetInstrumentsEPL, "public/get_instruments", params, &resp)
 }
 
@@ -364,12 +368,16 @@ func (g GlobalDerivativesAPI) getLastSettlementsByCurrency(ctx context.Context, 
 	if err := validateDerivativesMarketDataCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastSettlementsByCurrencyParams{
+	searchStart, err := derivativesUnixMilli(req.SearchStartTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastSettlementsByCurrencyWireRequest{
 		Currency:             derivativesMarketDataCurrency(req.Currency),
 		Type:                 req.Type,
 		Count:                req.Count,
 		Continuation:         req.Continuation,
-		SearchStartTimestamp: derivativesMarketDataUnixMilli(req.SearchStartTime),
+		SearchStartTimestamp: searchStart,
 	}
 	var resp *DerivativesSettlementsResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_last_settlements_by_currency", params, &resp); err != nil {
@@ -400,12 +408,16 @@ func (g GlobalDerivativesAPI) getLastSettlementsByInstrument(ctx context.Context
 	if err := validateDerivativesMarketDataCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastSettlementsByInstrumentParams{
+	searchStart, err := derivativesUnixMilli(req.SearchStartTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastSettlementsByInstrumentWireRequest{
 		InstrumentName:       req.InstrumentName,
 		Type:                 req.Type,
 		Count:                req.Count,
 		Continuation:         req.Continuation,
-		SearchStartTimestamp: derivativesMarketDataUnixMilli(req.SearchStartTime),
+		SearchStartTimestamp: searchStart,
 	}
 	var resp *DerivativesSettlementsResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_last_settlements_by_instrument", params, &resp); err != nil {
@@ -439,13 +451,17 @@ func (g GlobalDerivativesAPI) getLastTradesByCurrency(ctx context.Context, overW
 	if err := checkWindow(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastTradesByCurrencyParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastTradesByCurrencyWireRequest{
 		Currency:       derivativesMarketDataCurrency(req.Currency),
 		Kind:           req.Kind,
 		StartID:        req.StartID,
 		EndID:          req.EndID,
-		StartTimestamp: derivativesMarketDataUnixMilli(req.StartTime),
-		EndTimestamp:   derivativesMarketDataUnixMilli(req.EndTime),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Count:          req.Count,
 		Sorting:        req.Sorting,
 	}
@@ -481,11 +497,15 @@ func (g GlobalDerivativesAPI) getLastTradesByCurrencyAndTime(ctx context.Context
 	if err := checkDerivativesLastTradesWindow(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastTradesByCurrencyAndTimeParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastTradesByCurrencyAndTimeWireRequest{
 		Currency:       derivativesMarketDataCurrency(req.Currency),
 		Kind:           req.Kind,
-		StartTimestamp: derivativesMarketDataUnixMilli(req.StartTime),
-		EndTimestamp:   derivativesMarketDataUnixMilli(req.EndTime),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Count:          req.Count,
 		Sorting:        req.Sorting,
 	}
@@ -518,12 +538,16 @@ func (g GlobalDerivativesAPI) getLastTradesByInstrument(ctx context.Context, ove
 	if err := checkWindow(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastTradesByInstrumentParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastTradesByInstrumentWireRequest{
 		InstrumentName: req.InstrumentName,
 		StartSequence:  req.StartSequence,
 		EndSequence:    req.EndSequence,
-		StartTimestamp: derivativesMarketDataUnixMilli(req.StartTime),
-		EndTimestamp:   derivativesMarketDataUnixMilli(req.EndTime),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Count:          req.Count,
 		Sorting:        req.Sorting,
 	}
@@ -556,10 +580,14 @@ func (g GlobalDerivativesAPI) getLastTradesByInstrumentAndTime(ctx context.Conte
 	if err := checkDerivativesLastTradesWindow(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	params := &derivativesLastTradesByInstrumentAndTimeParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesLastTradesByInstrumentAndTimeWireRequest{
 		InstrumentName: req.InstrumentName,
-		StartTimestamp: derivativesMarketDataUnixMilli(req.StartTime),
-		EndTimestamp:   derivativesMarketDataUnixMilli(req.EndTime),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Count:          req.Count,
 		Sorting:        req.Sorting,
 	}
@@ -576,25 +604,25 @@ func (g GlobalDerivativesAPI) getLastTradesByInstrumentAndTime(ctx context.Conte
 // GetMarkPriceHistory returns an option's mark prices within a time range, oldest first; the gateway keeps about the
 // last 5 minutes of history, and only for the options its volatility index is calculated from, so other instruments
 // return none
-func (g GlobalDerivativesAPI) GetMarkPriceHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPrice, error) {
+func (g GlobalDerivativesAPI) GetMarkPriceHistory(ctx context.Context, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPriceResponse, error) {
 	return g.getMarkPriceHistory(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getMarkPriceHistory(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPrice, error) {
+func (g GlobalDerivativesAPI) getMarkPriceHistory(ctx context.Context, overWebsocket bool, req *DerivativesInstrumentTimeRangeRequest) ([]DerivativesMarkPriceResponse, error) {
 	params, err := req.params()
 	if err != nil {
 		return nil, err
 	}
-	var resp []DerivativesMarkPrice
+	var resp []DerivativesMarkPriceResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_mark_price_history", params, &resp)
 }
 
 // GetOrderBook returns an instrument's order book, up to a depth on each side, and its ticker
-func (g GlobalDerivativesAPI) GetOrderBook(ctx context.Context, req *DerivativesOrderBookRequest) (*DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) GetOrderBook(ctx context.Context, req *DerivativesOrderBookRequest) (*DerivativesOrderBookResponse, error) {
 	return g.getOrderBook(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOrderBook(ctx context.Context, overWebsocket bool, req *DerivativesOrderBookRequest) (*DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) getOrderBook(ctx context.Context, overWebsocket bool, req *DerivativesOrderBookRequest) (*DerivativesOrderBookResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -604,8 +632,8 @@ func (g GlobalDerivativesAPI) getOrderBook(ctx context.Context, overWebsocket bo
 	if err := validateDerivativesOrderBookDepth(req.Depth); err != nil {
 		return nil, err
 	}
-	var resp *DerivativesOrderBook
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_order_book", &derivativesOrderBookParams{InstrumentName: req.InstrumentName, Depth: req.Depth}, &resp); err != nil {
+	var resp *DerivativesOrderBookResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_order_book", &DerivativesOrderBookWireRequest{InstrumentName: req.InstrumentName, Depth: req.Depth}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -616,11 +644,11 @@ func (g GlobalDerivativesAPI) getOrderBook(ctx context.Context, overWebsocket bo
 
 // GetOrderBookByInstrumentID returns the order book of an instrument identified by its ID, up to a depth on each side,
 // and its ticker
-func (g GlobalDerivativesAPI) GetOrderBookByInstrumentID(ctx context.Context, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) GetOrderBookByInstrumentID(ctx context.Context, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBookResponse, error) {
 	return g.getOrderBookByInstrumentID(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOrderBookByInstrumentID(ctx context.Context, overWebsocket bool, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) getOrderBookByInstrumentID(ctx context.Context, overWebsocket bool, req *DerivativesOrderBookByInstrumentIDRequest) (*DerivativesOrderBookResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -630,8 +658,8 @@ func (g GlobalDerivativesAPI) getOrderBookByInstrumentID(ctx context.Context, ov
 	if err := validateDerivativesOrderBookDepth(req.Depth); err != nil {
 		return nil, err
 	}
-	var resp *DerivativesOrderBook
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_order_book_by_instrument_id", &derivativesOrderBookByInstrumentIDParams{InstrumentID: req.InstrumentID, Depth: req.Depth}, &resp); err != nil {
+	var resp *DerivativesOrderBookResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_order_book_by_instrument_id", &DerivativesOrderBookByInstrumentIDWireRequest{InstrumentID: req.InstrumentID, Depth: req.Depth}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -661,17 +689,17 @@ func (g GlobalDerivativesAPI) getSupportedIndexNames(ctx context.Context, overWe
 		return nil, fmt.Errorf("%w: %q", errDerivativesInvalidIndexType, indexType)
 	}
 	var resp []string
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_supported_index_names", &derivativesSupportedIndexNamesParams{Type: indexType}, &resp)
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_supported_index_names", &DerivativesSupportedIndexNamesWireRequest{Type: indexType}, &resp)
 }
 
 // GetTradeVolumes returns each currency's traded volumes over 24 hours and, when extended is set, 7 and 30 days
-func (g GlobalDerivativesAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]DerivativesTradeVolume, error) {
+func (g GlobalDerivativesAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]DerivativesTradeVolumeResponse, error) {
 	return g.getTradeVolumes(ctx, false, extended)
 }
 
-func (g GlobalDerivativesAPI) getTradeVolumes(ctx context.Context, overWebsocket, extended bool) ([]DerivativesTradeVolume, error) {
-	var resp []DerivativesTradeVolume
-	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_trade_volumes", &derivativesMarketDataExtendedParams{Extended: extended}, &resp)
+func (g GlobalDerivativesAPI) getTradeVolumes(ctx context.Context, overWebsocket, extended bool) ([]DerivativesTradeVolumeResponse, error) {
+	var resp []DerivativesTradeVolumeResponse
+	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/get_trade_volumes", &DerivativesMarketDataExtendedWireRequest{Extended: extended}, &resp)
 }
 
 // GetTradingViewChartData returns an instrument's candles opening within a time range, as TradingView charts take them;
@@ -695,10 +723,14 @@ func (g GlobalDerivativesAPI) getTradingViewChartData(ctx context.Context, overW
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesTradingViewChartDataParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesTradingViewChartDataWireRequest{
 		InstrumentName: req.InstrumentName,
-		StartTimestamp: req.StartTime.UnixMilli(),
-		EndTimestamp:   req.EndTime.UnixMilli(),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Resolution:     resolution,
 	}
 	var resp *DerivativesTradingViewChartDataResponse
@@ -711,7 +743,8 @@ func (g GlobalDerivativesAPI) getTradingViewChartData(ctx context.Context, overW
 	return resp, nil
 }
 
-// derivativesChartResolution returns the gateway's TradingView chart resolution, in minutes or 1D, for a candle interval
+// derivativesChartResolution returns the gateway's TradingView chart resolution, in minutes or 1D, for a candle
+// interval
 func derivativesChartResolution(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.TenMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.TwoHour, kline.ThreeHour, kline.SixHour, kline.TwelveHour:
@@ -742,10 +775,14 @@ func (g GlobalDerivativesAPI) getVolatilityIndexData(ctx context.Context, overWe
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesVolatilityIndexDataParams{
+	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	params := &DerivativesVolatilityIndexDataWireRequest{
 		Currency:       derivativesMarketDataCurrency(req.Currency),
-		StartTimestamp: req.StartTime.UnixMilli(),
-		EndTimestamp:   req.EndTime.UnixMilli(),
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
 		Resolution:     resolution,
 	}
 	var resp *DerivativesVolatilityIndexDataResponse
@@ -772,16 +809,16 @@ func derivativesVolatilityIndexResolution(interval kline.Interval) (string, erro
 
 // GetTicker returns an instrument's ticker: its best prices, mark and index prices, 24 hour statistics and, by kind,
 // greeks and implied volatilities, funding or combo prices
-func (g GlobalDerivativesAPI) GetTicker(ctx context.Context, instrumentName string) (*DerivativesTicker, error) {
+func (g GlobalDerivativesAPI) GetTicker(ctx context.Context, instrumentName string) (*DerivativesTickerResponse, error) {
 	return g.getTicker(ctx, false, instrumentName)
 }
 
-func (g GlobalDerivativesAPI) getTicker(ctx context.Context, overWebsocket bool, instrumentName string) (*DerivativesTicker, error) {
+func (g GlobalDerivativesAPI) getTicker(ctx context.Context, overWebsocket bool, instrumentName string) (*DerivativesTickerResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp *DerivativesTicker
-	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/ticker", &derivativesInstrumentNameParams{InstrumentName: instrumentName}, &resp); err != nil {
+	var resp *DerivativesTickerResponse
+	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/ticker", &DerivativesInstrumentNameWireRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -792,11 +829,11 @@ func (g GlobalDerivativesAPI) getTicker(ctx context.Context, overWebsocket bool,
 
 // GetTickersByCurrency returns the tickers of a settlement currency's open instruments of the kinds requested; at a
 // depth of 3 or 10 each ticker also holds that many levels of its book, which a depth of 1 leaves out
-func (g GlobalDerivativesAPI) GetTickersByCurrency(ctx context.Context, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) GetTickersByCurrency(ctx context.Context, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBookResponse, error) {
 	return g.getTickersByCurrency(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getTickersByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBook, error) {
+func (g GlobalDerivativesAPI) getTickersByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesTickersByCurrencyRequest) ([]DerivativesOrderBookResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -816,8 +853,8 @@ func (g GlobalDerivativesAPI) getTickersByCurrency(ctx context.Context, overWebs
 	default:
 		return nil, fmt.Errorf("%w: %d levels, want 1, 3 or 10", errDerivativesInvalidDepth, req.Depth)
 	}
-	params := &derivativesTickersByCurrencyParams{Currency: derivativesMarketDataCurrency(req.Currency), Kinds: req.Kinds, Depth: req.Depth}
-	var resp []DerivativesOrderBook
+	params := &DerivativesTickersByCurrencyWireRequest{Currency: derivativesMarketDataCurrency(req.Currency), Kinds: req.Kinds, Depth: req.Depth}
+	var resp []DerivativesOrderBookResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "public/tickers_by_currency", params, &resp)
 }
 
@@ -848,8 +885,8 @@ func validateDerivativesLastSettlementsType(settlementType string) error {
 	return fmt.Errorf("%w: %q", errDerivativesInvalidLastSettlementsType, settlementType)
 }
 
-// validateDerivativesLastTrades checks a trades request's count is within the gateway's maximum and its sorting is unset
-// or one the docs name, as the gateway ignores any other
+// validateDerivativesLastTrades checks a trades request's count is within the gateway's maximum and its sorting is
+// unset or one the docs name, as the gateway ignores any other
 func validateDerivativesLastTrades(count uint64, sorting string) error {
 	if err := validateDerivativesMarketDataCount(count); err != nil {
 		return err
@@ -876,13 +913,4 @@ func checkDerivativesLastTradesWindow(start, end time.Time) error {
 		return errDerivativesLastTradesWindowRequired
 	}
 	return checkWindow(start, end)
-}
-
-// derivativesMarketDataUnixMilli returns a time in Unix milliseconds, or zero for an unset time, which leaves an optional
-// timestamp out of a request
-func derivativesMarketDataUnixMilli(t time.Time) int64 {
-	if t.IsZero() {
-		return 0
-	}
-	return t.UnixMilli()
 }

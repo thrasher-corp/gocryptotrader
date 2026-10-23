@@ -204,9 +204,9 @@ func mockDerivativesRemoveLeverageRequest() *DerivativesSetLeverageRequest {
 // and websocket tests both decode
 
 // testDerivativesPlacedOrderResponse is the documented buy, sell and close position response
-func testDerivativesPlacedOrderResponse() *DerivativesOrderResponse {
-	return &DerivativesOrderResponse{
-		Order: DerivativesOrder{
+func testDerivativesPlacedOrderResponse() *DerivativesOrderTradesResponse {
+	return &DerivativesOrderTradesResponse{
+		Order: DerivativesOrderResponse{
 			OrderID:             "ETH-584864807",
 			OrderState:          "filled",
 			OrderType:           "limit",
@@ -222,7 +222,7 @@ func testDerivativesPlacedOrderResponse() *DerivativesOrderResponse {
 			FilledAmount:        21,
 			AveragePrice:        202.8,
 		},
-		Trades: []DerivativesUserTrade{
+		Trades: []DerivativesUserTradeResponse{
 			{
 				TradeID:        "ETH-2696097",
 				TradeSequence:  1966068,
@@ -246,9 +246,9 @@ func testDerivativesPlacedOrderResponse() *DerivativesOrderResponse {
 }
 
 // testDerivativesEditedOrderResponse is the documented edit and edit by label response
-func testDerivativesEditedOrderResponse() *DerivativesOrderResponse {
-	return &DerivativesOrderResponse{
-		Order: DerivativesOrder{
+func testDerivativesEditedOrderResponse() *DerivativesOrderTradesResponse {
+	return &DerivativesOrderTradesResponse{
+		Order: DerivativesOrderResponse{
 			OrderID:             "94166",
 			OrderState:          "open",
 			OrderType:           "limit",
@@ -263,13 +263,13 @@ func testDerivativesEditedOrderResponse() *DerivativesOrderResponse {
 			Amount:              150,
 			Replaced:            true,
 		},
-		Trades: []DerivativesUserTrade{},
+		Trades: []DerivativesUserTradeResponse{},
 	}
 }
 
 // testDerivativesCancelledOrder is the documented cancel response, an untriggered stop market order
-func testDerivativesCancelledOrder() *DerivativesOrder {
-	return &DerivativesOrder{
+func testDerivativesCancelledOrder() *DerivativesOrderResponse {
+	return &DerivativesOrderResponse{
 		OrderID:             "ETH-SLIS-12",
 		OrderState:          "untriggered",
 		OrderType:           "stop_market",
@@ -286,8 +286,8 @@ func testDerivativesCancelledOrder() *DerivativesOrder {
 }
 
 // testDerivativesOpenOrders is the documented open orders response
-func testDerivativesOpenOrders() []DerivativesOrder {
-	return []DerivativesOrder{
+func testDerivativesOpenOrders() []DerivativesOrderResponse {
+	return []DerivativesOrderResponse{
 		{
 			OrderID:             "146062",
 			OrderState:          "open",
@@ -308,7 +308,7 @@ func testDerivativesOpenOrders() []DerivativesOrder {
 // testDerivativesOrderHistoryResponse is the documented order history response
 func testDerivativesOrderHistoryResponse() *DerivativesOrderHistoryResponse {
 	return &DerivativesOrderHistoryResponse{
-		Orders: []DerivativesOrder{
+		Orders: []DerivativesOrderResponse{
 			{
 				OrderID:             "146475",
 				OrderState:          "filled",
@@ -329,8 +329,8 @@ func testDerivativesOrderHistoryResponse() *DerivativesOrderHistoryResponse {
 }
 
 // testDerivativesOrderMargins is the documented order margins response
-func testDerivativesOrderMargins() []DerivativesOrderMargin {
-	return []DerivativesOrderMargin{
+func testDerivativesOrderMargins() []DerivativesOrderMarginResponse {
+	return []DerivativesOrderMarginResponse{
 		{OrderID: "ETH-349278", InitialMargin: 0.00091156, InitialMarginCurrency: currency.ETH},
 		{OrderID: "ETH-349279", InitialMarginCurrency: currency.ETH},
 		{OrderID: "ETH-349280", InitialMarginCurrency: currency.ETH},
@@ -338,8 +338,8 @@ func testDerivativesOrderMargins() []DerivativesOrderMargin {
 }
 
 // testDerivativesOrderState is the documented order state response, with the label the by label response carries
-func testDerivativesOrderState(label string) *DerivativesOrder {
-	return &DerivativesOrder{
+func testDerivativesOrderState(label string) *DerivativesOrderResponse {
+	return &DerivativesOrderResponse{
 		OrderID:             "ETH-331562",
 		OrderState:          "filled",
 		OrderType:           "limit",
@@ -401,7 +401,7 @@ func testDerivativesTriggerOrderHistoryResponse() *DerivativesTriggerOrderHistor
 // testDerivativesUserTradesResponse is the documented user trades response
 func testDerivativesUserTradesResponse() *DerivativesUserTradesResponse {
 	return &DerivativesUserTradesResponse{
-		Trades: []DerivativesUserTrade{
+		Trades: []DerivativesUserTradeResponse{
 			{
 				TradeID:           "48078936",
 				TradeSequence:     1,
@@ -445,8 +445,8 @@ func testDerivativesUserTradesResponse() *DerivativesUserTradesResponse {
 }
 
 // testDerivativesUserTradesByOrder is the documented order trades response
-func testDerivativesUserTradesByOrder() []DerivativesUserTrade {
-	return []DerivativesUserTrade{
+func testDerivativesUserTradesByOrder() []DerivativesUserTradeResponse {
+	return []DerivativesUserTradeResponse{
 		{
 			TradeID:        "ETH-2696068",
 			TradeSequence:  1966042,
@@ -526,7 +526,7 @@ type derivativesTradingLiveTicker struct {
 func getDerivativesTradingLiveTicker(t *testing.T) *derivativesTradingLiveTicker {
 	t.Helper()
 	var ticker *derivativesTradingLiveTicker
-	err := e.GlobalDerivatives().SendHTTPRequest(t.Context(), derivativesNonMatchingEPL, "public/ticker", &derivativesInstrumentNameParams{InstrumentName: derivativesTradingLiveInstrument}, &ticker)
+	err := e.GlobalDerivatives().SendHTTPRequest(t.Context(), derivativesNonMatchingEPL, "public/ticker", &DerivativesInstrumentNameWireRequest{InstrumentName: derivativesTradingLiveInstrument}, &ticker)
 	require.NoError(t, err, "public/ticker must not error")
 	require.NotNil(t, ticker, "public/ticker must return the ticker")
 	return ticker
@@ -561,7 +561,7 @@ func newDerivativesTradingLiveOrderRequest(t *testing.T, direction string) *Deri
 
 // placeDerivativesTradingLiveOrder places a live buy order no market move fills while the test runs, and returns the
 // request and the order; it is cancelled when the test ends
-func placeDerivativesTradingLiveOrder(t *testing.T) (*DerivativesOrderRequest, *DerivativesOrder) {
+func placeDerivativesTradingLiveOrder(t *testing.T) (*DerivativesOrderRequest, *DerivativesOrderResponse) {
 	t.Helper()
 	req := newDerivativesTradingLiveOrderRequest(t, DerivativesDirectionBuy)
 	resp, err := e.GlobalDerivatives().Buy(t.Context(), req)
@@ -585,7 +585,7 @@ func setDerivativesTradingLiveLeverage(t *testing.T, set func(context.Context, *
 	t.Helper()
 	derivativesTradingLiveLeverageMu.Lock()
 	var current *derivativesTradingLiveLeverage
-	err := e.GlobalDerivatives().SendAuthenticatedHTTPRequest(t.Context(), derivativesNonMatchingEPL, "private/get_leverage", &derivativesInstrumentNameParams{InstrumentName: derivativesTradingLiveInstrument}, &current)
+	err := e.GlobalDerivatives().SendAuthenticatedHTTPRequest(t.Context(), derivativesNonMatchingEPL, "private/get_leverage", &DerivativesInstrumentNameWireRequest{InstrumentName: derivativesTradingLiveInstrument}, &current)
 	if err != nil || current == nil {
 		derivativesTradingLiveLeverageMu.Unlock()
 		require.NoError(t, err, "private/get_leverage must not error")
@@ -1279,7 +1279,7 @@ func TestGlobalDerivativesGetOrderStateByLabel(t *testing.T) {
 	resp, err := e.GlobalDerivatives().GetOrderStateByLabel(t.Context(), req)
 	require.NoError(t, err, "GetOrderStateByLabel must not error")
 	if mockTests {
-		assert.Equal(t, []DerivativesOrder{*testDerivativesOrderState("fooBar")}, resp, "GetOrderStateByLabel should decode every field")
+		assert.Equal(t, []DerivativesOrderResponse{*testDerivativesOrderState("fooBar")}, resp, "GetOrderStateByLabel should decode every field")
 	}
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOrderStateByLabel(t.Context(), req)
@@ -1654,12 +1654,24 @@ func TestDerivativesCancelAllResponseUnmarshalJSON(t *testing.T) {
 				InstrumentName: "BTC_USDC-PERPETUAL",
 				Currency:       "USDC",
 				Type:           "limit",
-				Result:         []DerivativesOrder{{OrderID: "USDC-1", OrderState: "cancelled", CancelReason: "user_request"}, {OrderID: "USDC-2"}},
+				Result:         []DerivativesOrderResponse{{OrderID: "USDC-1", OrderState: "cancelled", CancelReason: "user_request"}, {OrderID: "USDC-2"}},
 			},
-			{Currency: "BTC_USDC", Type: "stop", Result: []DerivativesOrder{}},
+			{Currency: "BTC_USDC", Type: "stop", Result: []DerivativesOrderResponse{}},
 		},
 	}
 	assert.Equal(t, exp, resp, "UnmarshalJSON should decode the execution reports and count their orders")
+
+	// The documented example holds a cancelled order in each report
+	const documented = `[{"order":{"order_id":"BTC-1","instrument_name":"BTC-PERPETUAL","order_state":"cancelled"}},{"order":{"order_id":"ETH-2","instrument_name":"ETH-PERPETUAL","order_state":"cancelled"}}]`
+	require.NoError(t, json.Unmarshal([]byte(documented), &resp), "Unmarshal must not error for the documented execution reports")
+	exp = DerivativesCancelAllResponse{
+		CancelledCount: 2,
+		ExecutionReports: []DerivativesCancelExecutionReport{
+			{Order: &DerivativesOrderResponse{OrderID: "BTC-1", InstrumentName: "BTC-PERPETUAL", OrderState: "cancelled"}},
+			{Order: &DerivativesOrderResponse{OrderID: "ETH-2", InstrumentName: "ETH-PERPETUAL", OrderState: "cancelled"}},
+		},
+	}
+	assert.Equal(t, exp, resp, "UnmarshalJSON should decode the documented execution reports and count their orders")
 
 	for _, data := range []string{`"4"`, `{}`, `[4]`, `-1`} {
 		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &resp), errDerivativesInvalidCancelAllResult, "UnmarshalJSON should refuse %s", data)
@@ -1670,13 +1682,13 @@ func TestDerivativesOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var resp DerivativesOrderHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(`[{"order_id":"1"}]`), &resp), "Unmarshal must not error for a list")
-	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrder{{OrderID: "1"}}}, resp, "UnmarshalJSON should decode a list of orders")
+	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrderResponse{{OrderID: "1"}}}, resp, "UnmarshalJSON should decode a list of orders")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"orders":[{"order_id":"2"}],"continuation":"next"}`), &resp), "Unmarshal must not error for a page")
-	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrder{{OrderID: "2"}}, Continuation: "next"}, resp, "UnmarshalJSON should decode a page of orders and its continuation token")
+	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrderResponse{{OrderID: "2"}}, Continuation: "next"}, resp, "UnmarshalJSON should decode a page of orders and its continuation token")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"orders":[],"continuation":""}`), &resp), "Unmarshal must not error for the last page")
-	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrder{}}, resp, "UnmarshalJSON should decode an empty last page")
+	assert.Equal(t, DerivativesOrderHistoryResponse{Orders: []DerivativesOrderResponse{}}, resp, "UnmarshalJSON should decode an empty last page")
 
 	err := json.Unmarshal([]byte(`{"entries":[{"order_id":"3"}],"continuation":"next"}`), &resp)
 	assert.ErrorIs(t, err, errDerivativesOrderHistoryOrdersMissing, "UnmarshalJSON should refuse a page without an orders field")
@@ -1699,9 +1711,9 @@ func TestDerivativesUserTradeUnmarshal(t *testing.T) {
 		"combo_id":"BTC-FS-27NOV26_PERP","combo_trade_id":"USDC-6","quote_set_id":"set","quote_id":"quote",
 		"trade_allocations":[{"user_id":5,"amount":0.0005,"fee":0.001,"client_info":{"client_id":1,"client_link_id":2,"name":"desk"}}],
 		"isolated":true,"main_uid":1000,"user_id":123456,"matching_id":null}`
-	var trade DerivativesUserTrade
+	var trade DerivativesUserTradeResponse
 	require.NoError(t, json.Unmarshal([]byte(data), &trade), "Unmarshal must not error")
-	exp := DerivativesUserTrade{
+	exp := DerivativesUserTradeResponse{
 		TradeID:               "USDC-7",
 		TradeSequence:         42,
 		InstrumentName:        "BTC_USDC-PERPETUAL",
@@ -1738,7 +1750,7 @@ func TestDerivativesUserTradeUnmarshal(t *testing.T) {
 		MMP:                   true,
 		RiskReducing:          true,
 		API:                   true,
-		Legs:                  []DerivativesUserTrade{{TradeID: "USDC-8", Direction: "sell"}},
+		Legs:                  []DerivativesUserTradeResponse{{TradeID: "USDC-8", Direction: "sell"}},
 		ComboID:               "BTC-FS-27NOV26_PERP",
 		ComboTradeID:          "USDC-6",
 		QuoteSetID:            "set",
@@ -2062,7 +2074,7 @@ func TestDerivativesUserTradesTimeRange(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
 		start, end       time.Time
-		expStart, expEnd int64
+		expStart, expEnd uint64
 		err              error
 	}{
 		{name: "no range"},
@@ -2071,6 +2083,7 @@ func TestDerivativesUserTradesTimeRange(t *testing.T) {
 		{name: "range", start: start, end: end, expStart: 1792368000000, expEnd: 1792371600000},
 		{name: "same start and end", start: end, end: end, err: common.ErrStartEqualsEnd},
 		{name: "start after end", start: end, end: start, err: common.ErrStartAfterEnd},
+		{name: "start before 1970", start: time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC), end: end, err: errDerivativesTimeBeforeEpoch},
 	} {
 		startTimestamp, endTimestamp, err := derivativesUserTradesTimeRange(tc.start, tc.end)
 		require.ErrorIsf(t, err, tc.err, "derivativesUserTradesTimeRange must return the expected error for %s", tc.name)

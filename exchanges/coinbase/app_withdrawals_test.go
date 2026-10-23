@@ -100,8 +100,8 @@ func TestAppListWithdrawals(t *testing.T) {
 	resp, err := e.App().ListWithdrawals(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccount(t)})
 	require.NoError(t, err, "ListWithdrawals must not error")
 	if mockTests {
-		exp := &AppListResponse[AppFiatTransfer]{
-			Data:       []AppFiatTransfer{testAppFiatTransfer(t, "withdrawal")},
+		exp := &AppListResponse[AppFiatTransferResponse]{
+			Data:       []AppFiatTransferResponse{testAppFiatTransfer(t, "withdrawal")},
 			Pagination: AppPagination{Limit: 25, Order: AppOrderDescending},
 		}
 		assert.Equal(t, exp, resp, "ListWithdrawals should decode every field")

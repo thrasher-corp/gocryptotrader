@@ -131,11 +131,12 @@ type AppTravelRuleAddress struct {
 	PostalCode string `json:"postal_code,omitempty"`
 }
 
-// appSendMoneyBody is Send Money's request body
-type appSendMoneyBody struct {
-	Type              string             `json:"type"`
-	To                string             `json:"to"`
-	Amount            string             `json:"amount"`
+// AppSendMoneyWireRequest is Send Money's request body
+type AppSendMoneyWireRequest struct {
+	Type   string `json:"type"`
+	To     string `json:"to"`
+	Amount string `json:"amount"`
+	// Currency stays a string, the code as the App API takes it
 	Currency          string             `json:"currency"`
 	Description       string             `json:"description,omitempty"`
 	SkipNotifications bool               `json:"skip_notifications,omitempty"`
@@ -158,10 +159,10 @@ type AppGetTransactionRequest struct {
 	TransactionID string
 }
 
-// AppTransaction is an event on an account. Amount and NativeAmount are negative for a debit, such as a send or an
-// advanced trade sell's fill; a transaction with a counterparty sets To or From. Coinbase recommends describing a
+// AppTransactionResponse is an event on an account. Amount and NativeAmount are negative for a debit, such as a send or
+// an advanced trade sell's fill; a transaction with a counterparty sets To or From. Coinbase recommends describing a
 // transaction from Details, as types and statuses change over time
-type AppTransaction struct {
+type AppTransactionResponse struct {
 	ID           string    `json:"id"`
 	Type         string    `json:"type"`
 	Status       string    `json:"status"`

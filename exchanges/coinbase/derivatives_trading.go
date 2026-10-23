@@ -58,20 +58,22 @@ var (
 
 // Buy places a buy order and returns it with the trades it made at once; a spot order routed to Coinbase Exchange
 // fills asynchronously, so its trades arrive on the user.trades channel instead
-func (g GlobalDerivativesAPI) Buy(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) Buy(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return g.placeOrder(ctx, false, derivativesBuyMethod, req)
 }
 
 // placeOrder places a buy or sell order, which take the same params
-func (g GlobalDerivativesAPI) placeOrder(ctx context.Context, overWebsocket bool, method string, req *DerivativesOrderRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) placeOrder(ctx context.Context, overWebsocket bool, method string, req *DerivativesOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	if err := req.validate(); err != nil {
 		return nil, err
 	}
-	params := &derivativesOrderParams{DerivativesOrderRequest: req}
-	if !req.ValidUntil.IsZero() {
-		params.ValidUntil = req.ValidUntil.UnixMilli()
+	params := &DerivativesOrderWireRequest{DerivativesOrderRequest: req}
+	validUntil, err := derivativesUnixMilli(req.ValidUntil)
+	if err != nil {
+		return nil, err
 	}
-	var resp *DerivativesOrderResponse
+	params.ValidUntil = validUntil
+	var resp *DerivativesOrderTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, method, params, &resp); err != nil {
 		return nil, err
 	}
@@ -83,18 +85,18 @@ func (g GlobalDerivativesAPI) placeOrder(ctx context.Context, overWebsocket bool
 
 // CancelOrderByID cancels an open order or trigger order and returns it; an isolated margin order is only found with
 // Isolated set
-func (g GlobalDerivativesAPI) CancelOrderByID(ctx context.Context, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) CancelOrderByID(ctx context.Context, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrderResponse, error) {
 	return g.cancelOrderByID(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) cancelOrderByID(ctx context.Context, overWebsocket bool, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) cancelOrderByID(ctx context.Context, overWebsocket bool, req *DerivativesCancelOrderByIDRequest) (*DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	if req.OrderID == "" {
 		return nil, errDerivativesOrderIDRequired
 	}
-	var resp *DerivativesOrder
+	var resp *DerivativesOrderResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/cancel", req, &resp); err != nil {
 		return nil, err
 	}
@@ -143,7 +145,7 @@ func (g GlobalDerivativesAPI) cancelAllByCurrency(ctx context.Context, overWebso
 	if err := validateDerivativesCancelOrderType(req.Type); err != nil {
 		return nil, err
 	}
-	params := &derivativesCancelAllByCurrencyParams{DerivativesCancelAllByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
+	params := &DerivativesCancelAllByCurrencyWireRequest{DerivativesCancelAllByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
 	var resp *DerivativesCancelAllResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/cancel_all_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -229,7 +231,7 @@ func (g GlobalDerivativesAPI) cancelAllByKindOrType(ctx context.Context, overWeb
 	if err := validateDerivativesCancelOrderType(req.Type); err != nil {
 		return nil, err
 	}
-	params := &derivativesCancelAllByKindOrTypeParams{DerivativesCancelAllByKindOrTypeRequest: req, Currency: currencies}
+	params := &DerivativesCancelAllByKindOrTypeWireRequest{DerivativesCancelAllByKindOrTypeRequest: req, Currency: currencies}
 	var resp *DerivativesCancelAllResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/cancel_all_by_kind_or_type", params, &resp); err != nil {
 		return nil, err
@@ -253,7 +255,7 @@ func (g GlobalDerivativesAPI) cancelByLabel(ctx context.Context, overWebsocket b
 	if req.Label == "" {
 		return nil, errDerivativesLabelRequired
 	}
-	params := &derivativesCancelByLabelParams{DerivativesCancelByLabelRequest: req}
+	params := &DerivativesCancelByLabelWireRequest{DerivativesCancelByLabelRequest: req}
 	if !req.Currency.IsEmpty() {
 		params.Currency = req.Currency.Upper().String()
 	}
@@ -269,11 +271,11 @@ func (g GlobalDerivativesAPI) cancelByLabel(ctx context.Context, overWebsocket b
 
 // ClosePosition closes a position with a reduce only limit or market order and returns the order with the trades it
 // made at once; with Isolated it closes the isolated margin subaccount's position in full
-func (g GlobalDerivativesAPI) ClosePosition(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) ClosePosition(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error) {
 	return g.closePosition(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) closePosition(ctx context.Context, overWebsocket bool, req *DerivativesClosePositionRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) closePosition(ctx context.Context, overWebsocket bool, req *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -283,7 +285,7 @@ func (g GlobalDerivativesAPI) closePosition(ctx context.Context, overWebsocket b
 	if req.Type != DerivativesOrderTypeLimit && req.Type != DerivativesOrderTypeMarket {
 		return nil, fmt.Errorf("%w: %q, want limit or market", errDerivativesInvalidOrderType, req.Type)
 	}
-	var resp *DerivativesOrderResponse
+	var resp *DerivativesOrderTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/close_position", req, &resp); err != nil {
 		return nil, err
 	}
@@ -295,11 +297,11 @@ func (g GlobalDerivativesAPI) closePosition(ctx context.Context, overWebsocket b
 
 // EditOrder edits an open order's size, price and flags and returns it with the trades it made at once; an isolated
 // margin order is only found with Isolated set
-func (g GlobalDerivativesAPI) EditOrder(ctx context.Context, req *DerivativesEditOrderRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) EditOrder(ctx context.Context, req *DerivativesEditOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return g.editOrder(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) editOrder(ctx context.Context, overWebsocket bool, req *DerivativesEditOrderRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) editOrder(ctx context.Context, overWebsocket bool, req *DerivativesEditOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -309,11 +311,13 @@ func (g GlobalDerivativesAPI) editOrder(ctx context.Context, overWebsocket bool,
 	if err := validateDerivativesOrderEdit(req.Amount, req.Contracts, req.Advanced, req.PostOnly, req.RejectPostOnly, req.Isolated, req.AllocatedMargin); err != nil {
 		return nil, err
 	}
-	params := &derivativesEditOrderParams{DerivativesEditOrderRequest: req}
-	if !req.ValidUntil.IsZero() {
-		params.ValidUntil = req.ValidUntil.UnixMilli()
+	params := &DerivativesEditOrderWireRequest{DerivativesEditOrderRequest: req}
+	validUntil, err := derivativesUnixMilli(req.ValidUntil)
+	if err != nil {
+		return nil, err
 	}
-	var resp *DerivativesOrderResponse
+	params.ValidUntil = validUntil
+	var resp *DerivativesOrderTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/edit", params, &resp); err != nil {
 		return nil, err
 	}
@@ -325,11 +329,11 @@ func (g GlobalDerivativesAPI) editOrder(ctx context.Context, overWebsocket bool,
 
 // EditOrderByLabel edits the only open order of an instrument with a label, as EditOrder does; labels are not unique,
 // and the gateway rejects the edit when more than one open order has the label
-func (g GlobalDerivativesAPI) EditOrderByLabel(ctx context.Context, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) EditOrderByLabel(ctx context.Context, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderTradesResponse, error) {
 	return g.editOrderByLabel(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) editOrderByLabel(ctx context.Context, overWebsocket bool, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) editOrderByLabel(ctx context.Context, overWebsocket bool, req *DerivativesEditOrderByLabelRequest) (*DerivativesOrderTradesResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -339,11 +343,13 @@ func (g GlobalDerivativesAPI) editOrderByLabel(ctx context.Context, overWebsocke
 	if err := validateDerivativesOrderEdit(req.Amount, req.Contracts, req.Advanced, req.PostOnly, req.RejectPostOnly, req.Isolated, req.AllocatedMargin); err != nil {
 		return nil, err
 	}
-	params := &derivativesEditOrderByLabelParams{DerivativesEditOrderByLabelRequest: req}
-	if !req.ValidUntil.IsZero() {
-		params.ValidUntil = req.ValidUntil.UnixMilli()
+	params := &DerivativesEditOrderByLabelWireRequest{DerivativesEditOrderByLabelRequest: req}
+	validUntil, err := derivativesUnixMilli(req.ValidUntil)
+	if err != nil {
+		return nil, err
 	}
-	var resp *DerivativesOrderResponse
+	params.ValidUntil = validUntil
+	var resp *DerivativesOrderTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesMatchingEPL, "private/edit_by_label", params, &resp); err != nil {
 		return nil, err
 	}
@@ -414,11 +420,11 @@ func (g GlobalDerivativesAPI) getMaxOrderSize(ctx context.Context, overWebsocket
 
 // GetOpenOrders returns the account's open orders in every currency, by instrument kind and order type; the hidden
 // isolated margin subaccounts' orders are returned with IncludeIsolated
-func (g GlobalDerivativesAPI) GetOpenOrders(ctx context.Context, req *DerivativesOpenOrdersRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOpenOrders(ctx context.Context, req *DerivativesOpenOrdersRequest) ([]DerivativesOrderResponse, error) {
 	return g.getOpenOrders(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOpenOrders(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOpenOrders(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersRequest) ([]DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -428,16 +434,16 @@ func (g GlobalDerivativesAPI) getOpenOrders(ctx context.Context, overWebsocket b
 	if err := validateDerivativesOpenOrderType(req.Type); err != nil {
 		return nil, err
 	}
-	var resp []DerivativesOrder
+	var resp []DerivativesOrderResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_open_orders", req, &resp)
 }
 
 // GetOpenOrdersByCurrency returns the open orders of a currency's instruments, by instrument kind and order type
-func (g GlobalDerivativesAPI) GetOpenOrdersByCurrency(ctx context.Context, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOpenOrdersByCurrency(ctx context.Context, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrderResponse, error) {
 	return g.getOpenOrdersByCurrency(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOpenOrdersByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOpenOrdersByCurrency(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByCurrencyRequest) ([]DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -450,17 +456,17 @@ func (g GlobalDerivativesAPI) getOpenOrdersByCurrency(ctx context.Context, overW
 	if err := validateDerivativesOpenOrderType(req.Type); err != nil {
 		return nil, err
 	}
-	params := &derivativesOpenOrdersByCurrencyParams{DerivativesOpenOrdersByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
-	var resp []DerivativesOrder
+	params := &DerivativesOpenOrdersByCurrencyWireRequest{DerivativesOpenOrdersByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
+	var resp []DerivativesOrderResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_open_orders_by_currency", params, &resp)
 }
 
 // GetOpenOrdersByInstrument returns the open orders of an instrument, by order type
-func (g GlobalDerivativesAPI) GetOpenOrdersByInstrument(ctx context.Context, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOpenOrdersByInstrument(ctx context.Context, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrderResponse, error) {
 	return g.getOpenOrdersByInstrument(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOpenOrdersByInstrument(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOpenOrdersByInstrument(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByInstrumentRequest) ([]DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -470,16 +476,16 @@ func (g GlobalDerivativesAPI) getOpenOrdersByInstrument(ctx context.Context, ove
 	if err := validateDerivativesOpenOrderType(req.Type); err != nil {
 		return nil, err
 	}
-	var resp []DerivativesOrder
+	var resp []DerivativesOrderResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_open_orders_by_instrument", req, &resp)
 }
 
 // GetOpenOrdersByLabel returns the open orders with a label in a currency's instruments
-func (g GlobalDerivativesAPI) GetOpenOrdersByLabel(ctx context.Context, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOpenOrdersByLabel(ctx context.Context, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrderResponse, error) {
 	return g.getOpenOrdersByLabel(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOpenOrdersByLabel(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOpenOrdersByLabel(ctx context.Context, overWebsocket bool, req *DerivativesOpenOrdersByLabelRequest) ([]DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -489,8 +495,8 @@ func (g GlobalDerivativesAPI) getOpenOrdersByLabel(ctx context.Context, overWebs
 	if req.Label == "" {
 		return nil, errDerivativesLabelRequired
 	}
-	params := &derivativesOpenOrdersByLabelParams{DerivativesOpenOrdersByLabelRequest: req, Currency: req.Currency.Upper().String()}
-	var resp []DerivativesOrder
+	params := &DerivativesOpenOrdersByLabelWireRequest{DerivativesOpenOrdersByLabelRequest: req, Currency: req.Currency.Upper().String()}
+	var resp []DerivativesOrderResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_open_orders_by_label", params, &resp)
 }
 
@@ -513,7 +519,7 @@ func (g GlobalDerivativesAPI) getOrderHistoryByCurrency(ctx context.Context, ove
 	if err := validateDerivativesTradingCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesOrderHistoryByCurrencyParams{DerivativesOrderHistoryByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
+	params := &DerivativesOrderHistoryByCurrencyWireRequest{DerivativesOrderHistoryByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
 	var resp *DerivativesOrderHistoryResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_order_history_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -551,11 +557,11 @@ func (g GlobalDerivativesAPI) getOrderHistoryByInstrument(ctx context.Context, o
 }
 
 // GetOrderMarginByIDs returns the initial margin each order holds
-func (g GlobalDerivativesAPI) GetOrderMarginByIDs(ctx context.Context, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMargin, error) {
+func (g GlobalDerivativesAPI) GetOrderMarginByIDs(ctx context.Context, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMarginResponse, error) {
 	return g.getOrderMarginByIDs(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOrderMarginByIDs(ctx context.Context, overWebsocket bool, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMargin, error) {
+func (g GlobalDerivativesAPI) getOrderMarginByIDs(ctx context.Context, overWebsocket bool, req *DerivativesOrderMarginByIDsRequest) ([]DerivativesOrderMarginResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -567,25 +573,25 @@ func (g GlobalDerivativesAPI) getOrderMarginByIDs(ctx context.Context, overWebso
 			return nil, fmt.Errorf("%w: order ID %d is empty", errDerivativesOrderIDRequired, i)
 		}
 	}
-	var resp []DerivativesOrderMargin
+	var resp []DerivativesOrderMarginResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_order_margin_by_ids", req, &resp)
 }
 
 // GetOrderState returns an order that is open or closed within the last 30 minutes; for a quote's order, Amount is the
 // amount remaining. Older orders are in the order history, and an isolated margin order is only found with Isolated
 // set
-func (g GlobalDerivativesAPI) GetOrderState(ctx context.Context, req *DerivativesOrderStateRequest) (*DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOrderState(ctx context.Context, req *DerivativesOrderStateRequest) (*DerivativesOrderResponse, error) {
 	return g.getOrderState(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOrderState(ctx context.Context, overWebsocket bool, req *DerivativesOrderStateRequest) (*DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOrderState(ctx context.Context, overWebsocket bool, req *DerivativesOrderStateRequest) (*DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	if req.OrderID == "" {
 		return nil, errDerivativesOrderIDRequired
 	}
-	var resp *DerivativesOrder
+	var resp *DerivativesOrderResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_order_state", req, &resp); err != nil {
 		return nil, err
 	}
@@ -597,11 +603,11 @@ func (g GlobalDerivativesAPI) getOrderState(ctx context.Context, overWebsocket b
 
 // GetOrderStateByLabel returns the orders with a label in a currency's instruments that are open or closed within the
 // last 30 minutes, which a trigger order and the order it placed both share
-func (g GlobalDerivativesAPI) GetOrderStateByLabel(ctx context.Context, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) GetOrderStateByLabel(ctx context.Context, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrderResponse, error) {
 	return g.getOrderStateByLabel(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getOrderStateByLabel(ctx context.Context, overWebsocket bool, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrder, error) {
+func (g GlobalDerivativesAPI) getOrderStateByLabel(ctx context.Context, overWebsocket bool, req *DerivativesOrderStateByLabelRequest) ([]DerivativesOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -611,8 +617,8 @@ func (g GlobalDerivativesAPI) getOrderStateByLabel(ctx context.Context, overWebs
 	if req.Label == "" {
 		return nil, errDerivativesLabelRequired
 	}
-	params := &derivativesOrderStateByLabelParams{DerivativesOrderStateByLabelRequest: req, Currency: req.Currency.Upper().String()}
-	var resp []DerivativesOrder
+	params := &DerivativesOrderStateByLabelWireRequest{DerivativesOrderStateByLabelRequest: req, Currency: req.Currency.Upper().String()}
+	var resp []DerivativesOrderResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_order_state_by_label", params, &resp)
 }
 
@@ -636,10 +642,12 @@ func (g GlobalDerivativesAPI) getSettlementHistoryByCurrency(ctx context.Context
 	if err := validateDerivativesTradingCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesSettlementHistoryByCurrencyParams{DerivativesSettlementHistoryByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
-	if !req.SearchStartTime.IsZero() {
-		params.SearchStartTimestamp = req.SearchStartTime.UnixMilli()
+	params := &DerivativesSettlementHistoryByCurrencyWireRequest{DerivativesSettlementHistoryByCurrencyRequest: req, Currency: req.Currency.Upper().String()}
+	searchStart, err := derivativesUnixMilli(req.SearchStartTime)
+	if err != nil {
+		return nil, err
 	}
+	params.SearchStartTimestamp = searchStart
 	var resp *DerivativesSettlementsResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_settlement_history_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -669,10 +677,12 @@ func (g GlobalDerivativesAPI) getSettlementHistoryByInstrument(ctx context.Conte
 	if err := validateDerivativesTradingCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesSettlementHistoryByInstrumentParams{DerivativesSettlementHistoryByInstrumentRequest: req}
-	if !req.SearchStartTime.IsZero() {
-		params.SearchStartTimestamp = req.SearchStartTime.UnixMilli()
+	params := &DerivativesSettlementHistoryByInstrumentWireRequest{DerivativesSettlementHistoryByInstrumentRequest: req}
+	searchStart, err := derivativesUnixMilli(req.SearchStartTime)
+	if err != nil {
+		return nil, err
 	}
+	params.SearchStartTimestamp = searchStart
 	var resp *DerivativesSettlementsResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_settlement_history_by_instrument", params, &resp); err != nil {
 		return nil, err
@@ -699,7 +709,7 @@ func (g GlobalDerivativesAPI) getTriggerOrderHistory(ctx context.Context, overWe
 	if err := validateDerivativesTradingCount(req.Count); err != nil {
 		return nil, err
 	}
-	params := &derivativesTriggerOrderHistoryParams{DerivativesTriggerOrderHistoryRequest: req, Currency: req.Currency.Upper().String()}
+	params := &DerivativesTriggerOrderHistoryWireRequest{DerivativesTriggerOrderHistoryRequest: req, Currency: req.Currency.Upper().String()}
 	var resp *DerivativesTriggerOrderHistoryResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_trigger_order_history", params, &resp); err != nil {
 		return nil, err
@@ -736,7 +746,7 @@ func (g GlobalDerivativesAPI) getUserTradesByCurrency(ctx context.Context, overW
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesUserTradesByCurrencyParams{DerivativesUserTradesByCurrencyRequest: req, Currency: req.Currency.Upper().String(), StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &DerivativesUserTradesByCurrencyWireRequest{DerivativesUserTradesByCurrencyRequest: req, Currency: req.Currency.Upper().String(), StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *DerivativesUserTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_trades_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -776,7 +786,7 @@ func (g GlobalDerivativesAPI) getUserTradesByCurrencyAndTime(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesUserTradesByCurrencyAndTimeParams{DerivativesUserTradesByCurrencyAndTimeRequest: req, Currency: req.Currency.Upper().String(), StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &DerivativesUserTradesByCurrencyAndTimeWireRequest{DerivativesUserTradesByCurrencyAndTimeRequest: req, Currency: req.Currency.Upper().String(), StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *DerivativesUserTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_trades_by_currency_and_time", params, &resp); err != nil {
 		return nil, err
@@ -810,7 +820,7 @@ func (g GlobalDerivativesAPI) getUserTradesByInstrument(ctx context.Context, ove
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesUserTradesByInstrumentParams{DerivativesUserTradesByInstrumentRequest: req, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &DerivativesUserTradesByInstrumentWireRequest{DerivativesUserTradesByInstrumentRequest: req, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *DerivativesUserTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_trades_by_instrument", params, &resp); err != nil {
 		return nil, err
@@ -847,7 +857,7 @@ func (g GlobalDerivativesAPI) getUserTradesByInstrumentAndTime(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	params := &derivativesUserTradesByInstrumentAndTimeParams{DerivativesUserTradesByInstrumentAndTimeRequest: req, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+	params := &DerivativesUserTradesByInstrumentAndTimeWireRequest{DerivativesUserTradesByInstrumentAndTimeRequest: req, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
 	var resp *DerivativesUserTradesResponse
 	if err := g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_trades_by_instrument_and_time", params, &resp); err != nil {
 		return nil, err
@@ -860,11 +870,11 @@ func (g GlobalDerivativesAPI) getUserTradesByInstrumentAndTime(ctx context.Conte
 
 // GetUserTradesByOrder returns the trades an order made; recent trades are kept for 24 hours, and Historical returns
 // older ones. An isolated margin order's trades are only found with Isolated set
-func (g GlobalDerivativesAPI) GetUserTradesByOrder(ctx context.Context, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTrade, error) {
+func (g GlobalDerivativesAPI) GetUserTradesByOrder(ctx context.Context, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTradeResponse, error) {
 	return g.getUserTradesByOrder(ctx, false, req)
 }
 
-func (g GlobalDerivativesAPI) getUserTradesByOrder(ctx context.Context, overWebsocket bool, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTrade, error) {
+func (g GlobalDerivativesAPI) getUserTradesByOrder(ctx context.Context, overWebsocket bool, req *DerivativesUserTradesByOrderRequest) ([]DerivativesUserTradeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -874,13 +884,13 @@ func (g GlobalDerivativesAPI) getUserTradesByOrder(ctx context.Context, overWebs
 	if err := validateDerivativesUserTradesSorting(req.Sorting); err != nil {
 		return nil, err
 	}
-	var resp []DerivativesUserTrade
+	var resp []DerivativesUserTradeResponse
 	return resp, g.sendRequest(ctx, overWebsocket, derivativesNonMatchingEPL, "private/get_user_trades_by_order", req, &resp)
 }
 
 // Sell places a sell order and returns it with the trades it made at once; a spot order routed to Coinbase Exchange
 // fills asynchronously, so its trades arrive on the user.trades channel instead
-func (g GlobalDerivativesAPI) Sell(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderResponse, error) {
+func (g GlobalDerivativesAPI) Sell(ctx context.Context, req *DerivativesOrderRequest) (*DerivativesOrderTradesResponse, error) {
 	return g.placeOrder(ctx, false, derivativesSellMethod, req)
 }
 
@@ -1024,9 +1034,9 @@ func (s *DerivativesSecondaryOrder) validate() error {
 	return validateDerivativesTrigger(s.Trigger)
 }
 
-// validateDerivativesOrderEdit checks an edit carries a size and a documented advanced order type, that reject post only
-// comes with post only, and that allocated margin is not negative and goes to an isolated margin order alone, as only
-// an isolated margin subaccount takes margin from the main account
+// validateDerivativesOrderEdit checks an edit carries a size and a documented advanced order type, that reject post
+// only comes with post only, and that allocated margin is not negative and goes to an isolated margin order alone, as
+// only an isolated margin subaccount takes margin from the main account
 func validateDerivativesOrderEdit(amount, contracts float64, advanced string, postOnly, rejectPostOnly, isolated bool, allocatedMargin float64) error {
 	if err := validateDerivativesOrderSize(amount, contracts); err != nil {
 		return err
@@ -1195,15 +1205,9 @@ func derivativesKindOrTypeCurrencies(codes []currency.Code) (any, error) {
 
 // derivativesUserTradesTimeRange returns a trade query's bounds in Unix milliseconds, zero for an unset bound, once
 // checkWindow accepts them
-func derivativesUserTradesTimeRange(start, end time.Time) (startTimestamp, endTimestamp int64, err error) {
+func derivativesUserTradesTimeRange(start, end time.Time) (startTimestamp, endTimestamp uint64, err error) {
 	if err := checkWindow(start, end); err != nil {
 		return 0, 0, err
 	}
-	if !start.IsZero() {
-		startTimestamp = start.UnixMilli()
-	}
-	if !end.IsZero() {
-		endTimestamp = end.UnixMilli()
-	}
-	return startTimestamp, endTimestamp, nil
+	return derivativesUnixMilliRange(start, end)
 }

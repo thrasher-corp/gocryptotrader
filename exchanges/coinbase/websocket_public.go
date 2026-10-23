@@ -63,8 +63,8 @@ func (e *Exchange) websocketPairs(productID string) (asset.Item, currency.Pairs,
 
 // wsHandleTicker stores and relays tickers from the ticker and ticker_batch channels. A batched ticker leaves out the
 // best bid and ask, so it keeps those of the pair's stored ticker
-func (e *Exchange) wsHandleTicker(ctx context.Context, envelope *websocketEnvelope) error {
-	var events []websocketTickerEvent
+func (e *Exchange) wsHandleTicker(ctx context.Context, envelope *WebsocketEnvelope) error {
+	var events []WebsocketTickerEvent
 	if err := json.Unmarshal(envelope.Events, &events); err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, envelope *websocketEnvelo
 }
 
 // wsHandleCandles relays each pair's five minute candles; a candle is sent again each second it changes
-func (e *Exchange) wsHandleCandles(ctx context.Context, envelope *websocketEnvelope) error {
+func (e *Exchange) wsHandleCandles(ctx context.Context, envelope *WebsocketEnvelope) error {
 	var events []WebsocketCandlesEvent
 	if err := json.Unmarshal(envelope.Events, &events); err != nil {
 		return err
@@ -155,12 +155,12 @@ func (e *Exchange) wsHandleCandles(ctx context.Context, envelope *websocketEnvel
 
 // wsHandleMarketTrades relays and saves trades as the trade feed and trade saving settings allow. Coinbase sends the
 // maker's side of each trade, so a trade's side is the taker's, its opposite
-func (e *Exchange) wsHandleMarketTrades(ctx context.Context, envelope *websocketEnvelope) error {
+func (e *Exchange) wsHandleMarketTrades(ctx context.Context, envelope *WebsocketEnvelope) error {
 	tradeFeed, saveTrades := e.IsTradeFeedEnabled(), e.IsSaveTradeDataEnabled()
 	if !tradeFeed && !saveTrades {
 		return nil
 	}
-	var events []websocketMarketTradesEvent
+	var events []WebsocketMarketTradesEvent
 	if err := json.Unmarshal(envelope.Events, &events); err != nil {
 		return err
 	}
@@ -224,8 +224,8 @@ func takerSide(makerSide string) (order.Side, error) {
 // wsHandleLevel2 loads a book snapshot or applies an update, whose levels replace the book's, a zero quantity removing
 // one. A book an update cannot apply to is resubscribed, which sends a new snapshot; until it arrives its updates are
 // dropped
-func (e *Exchange) wsHandleLevel2(ctx context.Context, conn websocket.Connection, envelope *websocketEnvelope) error {
-	var events []websocketLevel2Event
+func (e *Exchange) wsHandleLevel2(ctx context.Context, conn websocket.Connection, envelope *WebsocketEnvelope) error {
+	var events []WebsocketLevel2Event
 	if err := json.Unmarshal(envelope.Events, &events); err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (e *Exchange) wsHandleLevel2(ctx context.Context, conn websocket.Connection
 }
 
 // level2Levels returns an event's bid and offer levels
-func level2Levels(updates []websocketLevel2Update) (bids, asks orderbook.Levels, err error) {
+func level2Levels(updates []WebsocketLevel2Update) (bids, asks orderbook.Levels, err error) {
 	bids = make(orderbook.Levels, 0, len(updates))
 	asks = make(orderbook.Levels, 0, len(updates))
 	for i := range updates {
@@ -302,15 +302,11 @@ func (e *Exchange) wsResubscribeBook(ctx context.Context, conn websocket.Connect
 		if s.QualifiedChannel != wsChannelLevel2 || s.Asset != a || len(s.Pairs) != 1 || e.websocketStreamProduct(a, s.Pairs[0]) != productID {
 			continue
 		}
-		if s.State() == subscription.ResubscribingState {
+		if e.wsConnections.get(conn).isResubscribing(s) {
 			return true
 		}
 		e.wsInvalidateBooks(s)
-		go func() {
-			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscription.List{s}); err != nil && !errors.Is(err, subscription.ErrInStateAlready) {
-				_ = e.Websocket.DataHandler.Send(ctx, fmt.Errorf("%s websocket could not resubscribe to %s: %w", e.Name, s, err))
-			}
-		}()
+		e.wsResubscribe(ctx, conn, subscription.List{s}, websocketMessageEPL)
 		return true
 	}
 	return false
@@ -333,7 +329,7 @@ func (e *Exchange) wsInvalidateBooks(s *subscription.Subscription) {
 }
 
 // wsHandleStatus relays products' trading status
-func (e *Exchange) wsHandleStatus(ctx context.Context, envelope *websocketEnvelope) error {
+func (e *Exchange) wsHandleStatus(ctx context.Context, envelope *WebsocketEnvelope) error {
 	var events []WebsocketStatusEvent
 	if err := json.Unmarshal(envelope.Events, &events); err != nil {
 		return err

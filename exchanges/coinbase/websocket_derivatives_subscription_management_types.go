@@ -1,7 +1,7 @@
 package coinbase
 
-// derivativesSubscriptionParams are the params of a subscribe or unsubscribe request
-type derivativesSubscriptionParams struct {
+// DerivativesSubscriptionWireRequest holds the params of a subscribe or unsubscribe request
+type DerivativesSubscriptionWireRequest struct {
 	Channels []string `json:"channels"`
 }
 

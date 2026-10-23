@@ -29,7 +29,7 @@ func TestAppPageRequestParams(t *testing.T) {
 
 func TestListResponse(t *testing.T) {
 	t.Parallel()
-	page := listResponse(&appResponse[[]string]{Data: []string{"a"}, Pagination: &AppPagination{NextURI: "/v2/accounts?starting_after=a"}, Warnings: []AppWarning{{ID: "deprecated"}}})
+	page := listResponse(&AppResponse[[]string]{Data: []string{"a"}, Pagination: &AppPagination{NextURI: "/v2/accounts?starting_after=a"}, Warnings: []AppWarning{{ID: "deprecated"}}})
 	assert.Equal(t, &AppListResponse[string]{Data: []string{"a"}, Pagination: AppPagination{NextURI: "/v2/accounts?starting_after=a"}, Warnings: []AppWarning{{ID: "deprecated"}}}, page, "listResponse should keep the data, cursor and warnings")
-	assert.Equal(t, &AppListResponse[string]{Data: []string{"a"}}, listResponse(&appResponse[[]string]{Data: []string{"a"}}), "listResponse should leave the cursor empty without pagination")
+	assert.Equal(t, &AppListResponse[string]{Data: []string{"a"}}, listResponse(&AppResponse[[]string]{Data: []string{"a"}}), "listResponse should leave the cursor empty without pagination")
 }

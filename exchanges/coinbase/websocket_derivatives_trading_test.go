@@ -422,7 +422,7 @@ func TestWebsocketAPIGetOrderStateByLabel(t *testing.T) {
 	resp, err := ex.WebsocketAPI().GetOrderStateByLabel(t.Context(), req)
 	require.NoError(t, err, "WebsocketAPI.GetOrderStateByLabel must not error")
 	if mockTests {
-		assert.Equal(t, []DerivativesOrder{*testDerivativesOrderState("fooBar")}, resp, "WebsocketAPI.GetOrderStateByLabel should decode every field")
+		assert.Equal(t, []DerivativesOrderResponse{*testDerivativesOrderState("fooBar")}, resp, "WebsocketAPI.GetOrderStateByLabel should decode every field")
 	}
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)

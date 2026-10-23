@@ -115,8 +115,8 @@ func marketDataFutureCombo(t *testing.T) string {
 }
 
 // mockMarketDataFutureSummaries are the mock book summaries of USDC futures
-func mockMarketDataFutureSummaries() []DerivativesBookSummary {
-	return []DerivativesBookSummary{
+func mockMarketDataFutureSummaries() []DerivativesBookSummaryResponse {
+	return []DerivativesBookSummaryResponse{
 		{
 			InstrumentName:         "BTC_USDC-27NOV26",
 			BaseCurrency:           currency.BTC,
@@ -182,8 +182,8 @@ func mockMarketDataFutureSummaries() []DerivativesBookSummary {
 }
 
 // mockMarketDataOptionSummaries are the mock book summaries of BTC options, filtered to mockMarketDataOption's
-func mockMarketDataOptionSummaries() []DerivativesBookSummary {
-	return []DerivativesBookSummary{
+func mockMarketDataOptionSummaries() []DerivativesBookSummaryResponse {
+	return []DerivativesBookSummaryResponse{
 		{
 			InstrumentName:         "BTC-6NOV26-82000-C",
 			BaseCurrency:           currency.BTC,
@@ -238,8 +238,8 @@ func TestGlobalDerivativesGetBookSummaryByCurrency(t *testing.T) {
 }
 
 // mockMarketDataPerpetualSummary is the mock book summary of testMarketDataPerpetual
-func mockMarketDataPerpetualSummary() []DerivativesBookSummary {
-	return []DerivativesBookSummary{
+func mockMarketDataPerpetualSummary() []DerivativesBookSummaryResponse {
+	return []DerivativesBookSummaryResponse{
 		{
 			InstrumentName:         "BTC_USDC-PERPETUAL",
 			BaseCurrency:           currency.BTC,
@@ -298,8 +298,8 @@ func TestGlobalDerivativesGetContractSize(t *testing.T) {
 }
 
 // mockMarketDataCurrencies are the mock currencies, filtered to USDC and BTC
-func mockMarketDataCurrencies() []DerivativesCurrency {
-	return []DerivativesCurrency{
+func mockMarketDataCurrencies() []DerivativesCurrencyResponse {
+	return []DerivativesCurrencyResponse{
 		{
 			Currency:                   currency.USDC,
 			CurrencyLongName:           "USD Coin",
@@ -357,7 +357,7 @@ func TestGlobalDerivativesGetCurrencies(t *testing.T) {
 	// The gateway sends no withdrawal priorities today, so the documented example's are served
 	resp, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"currency":"BTC","withdrawal_priorities":[{"name":"very_low","value":0.15},{"name":"very_high","value":1.5}]}]}`).GlobalDerivatives().GetCurrencies(t.Context())
 	require.NoError(t, err, "GetCurrencies must not error for withdrawal priorities")
-	exp := []DerivativesCurrency{{Currency: currency.BTC, WithdrawalPriorities: []DerivativesWithdrawalPriority{{Name: "very_low", Value: 0.15}, {Name: "very_high", Value: 1.5}}}}
+	exp := []DerivativesCurrencyResponse{{Currency: currency.BTC, WithdrawalPriorities: []DerivativesWithdrawalPriority{{Name: "very_low", Value: 0.15}, {Name: "very_high", Value: 1.5}}}}
 	assert.Equal(t, exp, resp, "GetCurrencies should decode the documented withdrawal priorities")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetCurrencies(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCurrencies should return the request failure")
@@ -524,8 +524,8 @@ func testMarketDataFundingRequest() *DerivativesInstrumentTimeRangeRequest {
 
 // mockMarketDataFundingRateHistory is the mock hourly funding of testMarketDataPerpetual, each hour ending after the
 // range's start
-func mockMarketDataFundingRateHistory() []DerivativesFundingRateHistory {
-	return []DerivativesFundingRateHistory{
+func mockMarketDataFundingRateHistory() []DerivativesFundingRateHistoryResponse {
+	return []DerivativesFundingRateHistoryResponse{
 		{
 			Timestamp:          testMarketDataMilli(1792285200000),
 			IndexPrice:         81435.22,
@@ -612,12 +612,12 @@ func TestDerivativesInstrumentTimeRangeRequestParams(t *testing.T) {
 
 	params, err := testMarketDataFundingRequest().params()
 	require.NoError(t, err, "params must not error")
-	assert.Equal(t, &derivativesInstrumentTimeRangeParams{InstrumentName: testMarketDataPerpetual, StartTimestamp: 1792281600000, EndTimestamp: 1792296000000}, params, "params should send the time range in Unix milliseconds")
+	assert.Equal(t, &DerivativesInstrumentTimeRangeWireRequest{InstrumentName: testMarketDataPerpetual, StartTimestamp: 1792281600000, EndTimestamp: 1792296000000}, params, "params should send the time range in Unix milliseconds")
 }
 
 // mockMarketDataHistoricalVolatility is the mock realised volatility of BTC
-func mockMarketDataHistoricalVolatility() []DerivativesHistoricalVolatility {
-	return []DerivativesHistoricalVolatility{
+func mockMarketDataHistoricalVolatility() []DerivativesHistoricalVolatilityResponse {
+	return []DerivativesHistoricalVolatilityResponse{
 		{Timestamp: testMarketDataMilli(1791000000000), Volatility: 37.10409279955044},
 		{Timestamp: testMarketDataMilli(1791000000000), Volatility: 37.10409279955044},
 		{Timestamp: testMarketDataMilli(1791003600000), Volatility: 37.023424633380706},
@@ -645,16 +645,16 @@ func TestGlobalDerivativesGetHistoricalVolatility(t *testing.T) {
 
 func TestDerivativesHistoricalVolatilityUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var resp DerivativesHistoricalVolatility
+	var resp DerivativesHistoricalVolatilityResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1549720800000,14.747743607344217]`), &resp), "Unmarshal must not error")
-	assert.Equal(t, DerivativesHistoricalVolatility{Timestamp: testMarketDataMilli(1549720800000), Volatility: 14.747743607344217}, resp, "UnmarshalJSON should decode the timestamp and volatility")
+	assert.Equal(t, DerivativesHistoricalVolatilityResponse{Timestamp: testMarketDataMilli(1549720800000), Volatility: 14.747743607344217}, resp, "UnmarshalJSON should decode the timestamp and volatility")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[1549720800000]`), &resp), errInvalidTuple, "UnmarshalJSON should refuse a tuple without a volatility")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[1549720800000,"high"]`), &resp), errInvalidTuple, "UnmarshalJSON should refuse a volatility that is not a number")
 }
 
 // mockMarketDataIndexChart is the start of the mock hour of the testMarketDataIndexName chart
-func mockMarketDataIndexChart() []DerivativesIndexChartPoint {
-	return []DerivativesIndexChartPoint{
+func mockMarketDataIndexChart() []DerivativesIndexChartPointResponse {
+	return []DerivativesIndexChartPointResponse{
 		{Timestamp: testMarketDataMilli(1792368576000), Price: 82122.113333},
 		{Timestamp: testMarketDataMilli(1792368582000), Price: 82123.983333},
 		{Timestamp: testMarketDataMilli(1792368588000), Price: 82124.706667},
@@ -687,9 +687,9 @@ func TestGlobalDerivativesGetIndexChartData(t *testing.T) {
 
 func TestDerivativesIndexChartPointUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var resp DerivativesIndexChartPoint
+	var resp DerivativesIndexChartPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636]`), &resp), "Unmarshal must not error")
-	assert.Equal(t, DerivativesIndexChartPoint{Timestamp: testMarketDataMilli(1573228800000), Price: 8751.7138636}, resp, "UnmarshalJSON should decode the timestamp and price")
+	assert.Equal(t, DerivativesIndexChartPointResponse{Timestamp: testMarketDataMilli(1573228800000), Price: 8751.7138636}, resp, "UnmarshalJSON should decode the timestamp and price")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636,1]`), &resp), errInvalidTuple, "UnmarshalJSON should refuse a tuple with an extra element")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`{"price":8751.7138636}`), &resp), errInvalidTuple, "UnmarshalJSON should refuse a point that is not a tuple")
 }
@@ -715,8 +715,8 @@ func TestGlobalDerivativesGetIndexPrice(t *testing.T) {
 
 // mockMarketDataIndexPriceNames are the mock index names, which the gateway sends as bare strings without extended
 // details
-func mockMarketDataIndexPriceNames() []DerivativesIndexPriceName {
-	return []DerivativesIndexPriceName{{Name: "ada_usd"}, {Name: "ada_usdc"}, {Name: "ada_usdt"}, {Name: "algo_usd"}, {Name: "algo_usdc"}}
+func mockMarketDataIndexPriceNames() []DerivativesIndexPriceNameResponse {
+	return []DerivativesIndexPriceNameResponse{{Name: "ada_usd"}, {Name: "ada_usdc"}, {Name: "ada_usdt"}, {Name: "algo_usd"}, {Name: "algo_usdc"}}
 }
 
 func TestGlobalDerivativesGetIndexPriceNames(t *testing.T) {
@@ -726,16 +726,16 @@ func TestGlobalDerivativesGetIndexPriceNames(t *testing.T) {
 	if mockTests {
 		assert.Equal(t, mockMarketDataIndexPriceNames(), resp, "GetIndexPriceNames should decode every name")
 	} else {
-		assert.Contains(t, resp, DerivativesIndexPriceName{Name: testMarketDataIndexName}, "GetIndexPriceNames should return the btc_usdc index")
+		assert.Contains(t, resp, DerivativesIndexPriceNameResponse{Name: testMarketDataIndexName}, "GetIndexPriceNames should return the btc_usdc index")
 	}
 
 	resp, err = e.GlobalDerivatives().GetIndexPriceNames(t.Context(), true)
 	require.NoError(t, err, "GetIndexPriceNames must not error with extended details")
 	if mockTests {
-		exp := []DerivativesIndexPriceName{{Name: "ada_usd"}, {Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, {Name: "btc_usdc", OptionComboCreationEnabled: true}}
+		exp := []DerivativesIndexPriceNameResponse{{Name: "ada_usd"}, {Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, {Name: "btc_usdc", OptionComboCreationEnabled: true}}
 		assert.Equal(t, exp, resp, "GetIndexPriceNames should decode the extended details")
 	} else {
-		assert.Contains(t, resp, DerivativesIndexPriceName{Name: testMarketDataIndexName, OptionComboCreationEnabled: true}, "GetIndexPriceNames should return btc_usdc's combo creation settings")
+		assert.Contains(t, resp, DerivativesIndexPriceNameResponse{Name: testMarketDataIndexName, OptionComboCreationEnabled: true}, "GetIndexPriceNames should return btc_usdc's combo creation settings")
 	}
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetIndexPriceNames(t.Context(), false)
@@ -746,24 +746,24 @@ func TestDerivativesIndexPriceNameUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		input string
-		exp   DerivativesIndexPriceName
+		exp   DerivativesIndexPriceNameResponse
 	}{
-		{input: `"btc_usdc"`, exp: DerivativesIndexPriceName{Name: "btc_usdc"}},
-		{input: `{"name":"btc_usdc"}`, exp: DerivativesIndexPriceName{Name: "btc_usdc"}},
-		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: DerivativesIndexPriceName{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
+		{input: `"btc_usdc"`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
+		{input: `{"name":"btc_usdc"}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
+		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
 		{input: `null`},
 	} {
-		var resp DerivativesIndexPriceName
+		var resp DerivativesIndexPriceNameResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error for %s", tc.input)
 		assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode %s", tc.input)
 	}
-	var resp DerivativesIndexPriceName
+	var resp DerivativesIndexPriceNameResponse
 	assert.Error(t, json.Unmarshal([]byte(`["btc_usd"]`), &resp), "UnmarshalJSON should refuse a name that is neither a string nor an object")
 }
 
 // mockMarketDataInstruments are the mock specifications of the perpetual, spot pair and option the tests use
-func mockMarketDataInstruments() map[string]*DerivativesInstrument {
-	return map[string]*DerivativesInstrument{
+func mockMarketDataInstruments() map[string]*DerivativesInstrumentResponse {
+	return map[string]*DerivativesInstrumentResponse{
 		testMarketDataPerpetual: {
 			InstrumentName:               "BTC_USDC-PERPETUAL",
 			InstrumentID:                 211704,
@@ -904,13 +904,13 @@ func TestGlobalDerivativesGetInstrument(t *testing.T) {
 
 func TestDerivativesInstrumentUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var resp DerivativesInstrument
+	var resp DerivativesInstrumentResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC_USDC-PERPETUAL","creation_timestamp":1646824342000,"expiration_timestamp":32503708800000}`), &resp), "Unmarshal must not error")
-	exp := DerivativesInstrument{InstrumentName: testMarketDataPerpetual, CreationTimestamp: testMarketDataMilli(1646824342000), ExpirationTimestamp: testMarketDataMilli(testMarketDataYear3000)}
+	exp := DerivativesInstrumentResponse{InstrumentName: testMarketDataPerpetual, CreationTimestamp: testMarketDataMilli(1646824342000), ExpirationTimestamp: testMarketDataMilli(testMarketDataYear3000)}
 	assert.Equal(t, exp, resp, "UnmarshalJSON should decode every field, reading the expiration in milliseconds")
 	assert.Equal(t, 3000, resp.ExpirationTimestamp.Time().UTC().Year(), "UnmarshalJSON should decode a perpetual's expiration in the year 3000")
 
-	resp = DerivativesInstrument{ExpirationTimestamp: testMarketDataMilli(1793952000000)}
+	resp = DerivativesInstrumentResponse{ExpirationTimestamp: testMarketDataMilli(1793952000000)}
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC-6NOV26-82000-C"}`), &resp), "Unmarshal must not error without an expiration")
 	assert.Equal(t, testMarketDataMilli(1793952000000), resp.ExpirationTimestamp, "UnmarshalJSON should leave the expiration unchanged when it is left out")
 	require.NoError(t, json.Unmarshal([]byte(`{"expiration_timestamp":0}`), &resp), "Unmarshal must not error for a zero expiration")
@@ -921,8 +921,8 @@ func TestDerivativesInstrumentUnmarshalJSON(t *testing.T) {
 
 // mockMarketDataFutures are the mock extended specifications of USDC futures, filtered to testMarketDataPerpetual and
 // mockMarketDataDatedFuture
-func mockMarketDataFutures() []DerivativesInstrument {
-	return []DerivativesInstrument{
+func mockMarketDataFutures() []DerivativesInstrumentResponse {
+	return []DerivativesInstrumentResponse{
 		{
 			InstrumentName:               "BTC_USDC-PERPETUAL",
 			InstrumentID:                 211704,
@@ -1198,8 +1198,8 @@ func TestValidateDerivativesLastSettlementsType(t *testing.T) {
 	}
 }
 
-// testMarketDataLastTradesByCurrencyRequest requests USDC futures trades by trade ID, which live tests leave out, as the
-// gateway only serves the last 24 hours of trades
+// testMarketDataLastTradesByCurrencyRequest requests USDC futures trades by trade ID, which live tests leave out, as
+// the gateway only serves the last 24 hours of trades
 func testMarketDataLastTradesByCurrencyRequest() *DerivativesLastTradesByCurrencyRequest {
 	if mockTests {
 		return &DerivativesLastTradesByCurrencyRequest{Currency: currency.USDC, Kind: DerivativesKindFuture, StartID: mockMarketDataTradesStartID, EndID: mockMarketDataTradesEndID, Sorting: DerivativesSortingAscending}
@@ -1637,10 +1637,29 @@ func TestCheckDerivativesLastTradesWindow(t *testing.T) {
 	}
 }
 
-func TestDerivativesMarketDataUnixMilli(t *testing.T) {
+func TestDerivativesUnixMilli(t *testing.T) {
 	t.Parallel()
-	assert.Zero(t, derivativesMarketDataUnixMilli(time.Time{}), "derivativesMarketDataUnixMilli should return zero for an unset time")
-	assert.Equal(t, int64(1792368000000), derivativesMarketDataUnixMilli(mockMarketDataTradesWindowStart), "derivativesMarketDataUnixMilli should return the time in Unix milliseconds")
+	milli, err := derivativesUnixMilli(time.Time{})
+	require.NoError(t, err, "derivativesUnixMilli must not error for an unset time")
+	assert.Zero(t, milli, "derivativesUnixMilli should return zero for an unset time")
+	milli, err = derivativesUnixMilli(mockMarketDataTradesWindowStart)
+	require.NoError(t, err, "derivativesUnixMilli must not error for a time after 1970")
+	assert.Equal(t, uint64(1792368000000), milli, "derivativesUnixMilli should return the time in Unix milliseconds")
+	milli, err = derivativesUnixMilli(time.Unix(0, 0))
+	require.NoError(t, err, "derivativesUnixMilli must not error for the epoch")
+	assert.Zero(t, milli, "derivativesUnixMilli should return the epoch as zero")
+	_, err = derivativesUnixMilli(time.Unix(0, 0).Add(-time.Millisecond))
+	assert.ErrorIs(t, err, errDerivativesTimeBeforeEpoch, "derivativesUnixMilli should refuse a time before 1970")
+
+	start, end, err := derivativesUnixMilliRange(mockMarketDataTradesWindowStart, mockMarketDataTradesWindowStart.Add(time.Hour))
+	require.NoError(t, err, "derivativesUnixMilliRange must not error")
+	assert.Equal(t, uint64(1792368000000), start, "derivativesUnixMilliRange should return the start in Unix milliseconds")
+	assert.Equal(t, uint64(1792371600000), end, "derivativesUnixMilliRange should return the end in Unix milliseconds")
+	before := time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct{ start, end time.Time }{{before, mockMarketDataTradesWindowStart}, {mockMarketDataTradesWindowStart, before}} {
+		_, _, err := derivativesUnixMilliRange(tc.start, tc.end)
+		assert.ErrorIsf(t, err, errDerivativesTimeBeforeEpoch, "derivativesUnixMilliRange should refuse %s to %s", tc.start, tc.end)
+	}
 }
 
 // testMarketDataMarkPriceRequest returns the mock mark price window of mockMarketDataOption, or a listed option's last
@@ -1655,8 +1674,8 @@ func testMarketDataMarkPriceRequest(t *testing.T) *DerivativesInstrumentTimeRang
 }
 
 // mockMarketDataMarkPrices are the first mock mark prices of mockMarketDataOption
-func mockMarketDataMarkPrices() []DerivativesMarkPrice {
-	return []DerivativesMarkPrice{
+func mockMarketDataMarkPrices() []DerivativesMarkPriceResponse {
+	return []DerivativesMarkPriceResponse{
 		{Timestamp: testMarketDataMilli(1792372167484), MarkPrice: 0.037090317611473314},
 		{Timestamp: testMarketDataMilli(1792372168525), MarkPrice: 0.03709451170934973},
 		{Timestamp: testMarketDataMilli(1792372169193), MarkPrice: 0.03709451170934973},
@@ -1690,16 +1709,16 @@ func TestGlobalDerivativesGetMarkPriceHistory(t *testing.T) {
 
 func TestDerivativesMarkPriceUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var resp DerivativesMarkPrice
+	var resp DerivativesMarkPriceResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1608142381229,0.5165791606037885]`), &resp), "Unmarshal must not error")
-	assert.Equal(t, DerivativesMarkPrice{Timestamp: testMarketDataMilli(1608142381229), MarkPrice: 0.5165791606037885}, resp, "UnmarshalJSON should decode the timestamp and mark price")
+	assert.Equal(t, DerivativesMarkPriceResponse{Timestamp: testMarketDataMilli(1608142381229), MarkPrice: 0.5165791606037885}, resp, "UnmarshalJSON should decode the timestamp and mark price")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[]`), &resp), errInvalidTuple, "UnmarshalJSON should refuse an empty tuple")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[true,0.5]`), &resp), errInvalidTuple, "UnmarshalJSON should refuse a timestamp that is not a number")
 }
 
 // mockMarketDataOrderBook is the mock order book of testMarketDataPerpetual, 5 levels deep
-func mockMarketDataOrderBook() *DerivativesOrderBook {
-	return &DerivativesOrderBook{
+func mockMarketDataOrderBook() *DerivativesOrderBookResponse {
+	return &DerivativesOrderBookResponse{
 		InstrumentName: "BTC_USDC-PERPETUAL",
 		Timestamp:      testMarketDataMilli(1792372177889),
 		State:          "open",
@@ -1770,8 +1789,8 @@ func TestGlobalDerivativesGetOrderBook(t *testing.T) {
 }
 
 // mockMarketDataOrderBookByID is the mock order book of testMarketDataPerpetualID, 1 level deep
-func mockMarketDataOrderBookByID() *DerivativesOrderBook {
-	return &DerivativesOrderBook{
+func mockMarketDataOrderBookByID() *DerivativesOrderBookResponse {
+	return &DerivativesOrderBookResponse{
 		InstrumentName: "BTC_USDC-PERPETUAL",
 		Timestamp:      testMarketDataMilli(1792372178626),
 		State:          "open",
@@ -1866,8 +1885,8 @@ func TestGlobalDerivativesGetSupportedIndexNames(t *testing.T) {
 
 // mockMarketDataTradeVolumes are the mock extended trade volumes, filtered to BTC's, which trades options and futures,
 // and USDE's, which trades spot
-func mockMarketDataTradeVolumes() []DerivativesTradeVolume {
-	return []DerivativesTradeVolume{
+func mockMarketDataTradeVolumes() []DerivativesTradeVolumeResponse {
+	return []DerivativesTradeVolumeResponse{
 		{
 			Currency:           currency.BTC,
 			CurrencyPair:       "btc_usd",
@@ -1905,8 +1924,8 @@ func TestGlobalDerivativesGetTradeVolumes(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTradeVolumes should return the request failure")
 }
 
-// testMarketDataTradingViewChartDataRequest requests testMarketDataPerpetual's hourly candles opening in the 4 hours from
-// 2026-10-18T00:00:00Z
+// testMarketDataTradingViewChartDataRequest requests testMarketDataPerpetual's hourly candles opening in the 4 hours
+// from 2026-10-18T00:00:00Z
 func testMarketDataTradingViewChartDataRequest() *DerivativesTradingViewChartDataRequest {
 	return &DerivativesTradingViewChartDataRequest{InstrumentName: testMarketDataPerpetual, StartTime: testMarketDataRangeStart, EndTime: testMarketDataRangeEnd, Resolution: kline.OneHour}
 }
@@ -2064,8 +2083,8 @@ func TestDerivativesVolatilityIndexCandleUnmarshalJSON(t *testing.T) {
 }
 
 // mockMarketDataTickers are the mock tickers of a perpetual, an option, Coinbase-routed spot and a future combo
-func mockMarketDataTickers() map[string]*DerivativesTicker {
-	return map[string]*DerivativesTicker{
+func mockMarketDataTickers() map[string]*DerivativesTickerResponse {
+	return map[string]*DerivativesTickerResponse{
 		testMarketDataPerpetual: {
 			InstrumentName: "BTC_USDC-PERPETUAL",
 			Timestamp:      testMarketDataMilli(1792372182952),
@@ -2213,8 +2232,8 @@ func testMarketDataTickersByCurrencyRequest() *DerivativesTickersByCurrencyReque
 
 // mockMarketDataTickersByCurrency are the mock tickers of USDC futures, filtered to testMarketDataPerpetual's and
 // mockMarketDataDatedFuture's
-func mockMarketDataTickersByCurrency() []DerivativesOrderBook {
-	return []DerivativesOrderBook{
+func mockMarketDataTickersByCurrency() []DerivativesOrderBookResponse {
+	return []DerivativesOrderBookResponse{
 		{
 			InstrumentName: "BTC_USDC-PERPETUAL",
 			Timestamp:      testMarketDataMilli(1792372186228),
@@ -2348,4 +2367,65 @@ func TestValidateDerivativesMarketDataKind(t *testing.T) {
 	for _, kind := range []string{DerivativesKindSpot, "Future"} {
 		assert.ErrorIsf(t, validateDerivativesMarketDataKind(kind, DerivativesKindFuture, DerivativesKindOption), errDerivativesInvalidMarketDataKind, "validateDerivativesMarketDataKind should refuse kind %q", kind)
 	}
+}
+
+func TestDerivativesEstimatedDeliveryPriceUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		input string
+		exp   DerivativesEstimatedDeliveryPrice
+		err   error
+	}{
+		{input: `82394.38`, exp: 82394.38},
+		{input: `"expired"`},
+		{input: `null`},
+		{input: `"soon"`, err: errDerivativesInvalidEstimatedDeliveryPrice},
+	} {
+		var price DerivativesEstimatedDeliveryPrice
+		err := json.Unmarshal([]byte(tc.input), &price)
+		assert.ErrorIsf(t, err, tc.err, "UnmarshalJSON should return the expected error for %s", tc.input)
+		assert.Equalf(t, tc.exp, price, "UnmarshalJSON should decode %s", tc.input)
+	}
+}
+
+func TestGetTickerAndOrderBookDeliveredInstrument(t *testing.T) {
+	t.Parallel()
+	// A delivered future's ticker and book as the gateway sent them on 20 October 2026, less the envelopes' timings, its
+	// estimated delivery price then "expired"
+	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		switch req.Method {
+		case "public/ticker":
+			return `{"jsonrpc":"2.0","id":1,"result":{"timestamp":1792483205250,"state":"delivered","stats":{"high":82575.0,"low":81172.5,"price_change":-1.3563,"volume":22.90362211,"volume_usd":1870260.0,"volume_notional":1870260.0},"index_price":81441.35,"instrument_name":"BTC-20OCT26","last_price":81455.0,"min_price":80237.5,"max_price":82682.5,"open_interest":822660,"mark_price":81459.59,"estimated_delivery_price":"expired","delivery_price":81459.59,"best_ask_price":0.0,"best_bid_price":0.0,"best_ask_amount":0.0,"best_bid_amount":0.0},"testnet":false}`
+		case "public/get_order_book":
+			return `{"jsonrpc":"2.0","id":1,"result":{"timestamp":1792483205250,"state":"delivered","stats":{"high":82575.0,"low":81172.5,"price_change":-1.3563,"volume":22.90362211,"volume_usd":1870260.0,"volume_notional":1870260.0},"change_id":179190796196,"index_price":81441.35,"instrument_name":"BTC-20OCT26","bids":[],"asks":[],"last_price":81455.0,"min_price":80237.5,"max_price":82682.5,"open_interest":822660,"mark_price":81459.59,"estimated_delivery_price":"expired","delivery_price":81459.59,"best_ask_price":0.0,"best_bid_price":0.0,"best_ask_amount":0.0,"best_bid_amount":0.0},"testnet":false}`
+		}
+		assert.Failf(t, "the test should only read the ticker and the book", "sent %s", req.Method)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	})
+	exp := DerivativesTickerResponse{
+		InstrumentName: "BTC-20OCT26",
+		Timestamp:      testMarketDataMilli(1792483205250),
+		State:          "delivered",
+		Stats: DerivativesTickerStats{
+			High:           82575,
+			Low:            81172.5,
+			PriceChange:    -1.3563,
+			Volume:         22.90362211,
+			VolumeUSD:      1870260,
+			VolumeNotional: 1870260,
+		},
+		LastPrice:     81455,
+		MarkPrice:     81459.59,
+		IndexPrice:    81441.35,
+		MinimumPrice:  80237.5,
+		MaximumPrice:  82682.5,
+		OpenInterest:  822660,
+		DeliveryPrice: 81459.59,
+	}
+	ticker, err := ex.GlobalDerivatives().GetTicker(t.Context(), "BTC-20OCT26")
+	require.NoError(t, err, "GetTicker must decode a delivered instrument's ticker")
+	assert.Equal(t, &exp, ticker, "GetTicker should decode a delivered instrument's ticker, with no estimated delivery price")
+	book, err := ex.GlobalDerivatives().GetOrderBook(t.Context(), &DerivativesOrderBookRequest{InstrumentName: "BTC-20OCT26"})
+	require.NoError(t, err, "GetOrderBook must decode a delivered instrument's book")
+	assert.Equal(t, &DerivativesOrderBookResponse{DerivativesTickerResponse: exp, ChangeID: 179190796196, Bids: []DerivativesOrderBookLevel{}, Asks: []DerivativesOrderBookLevel{}}, book, "GetOrderBook should decode a delivered instrument's empty book")
 }

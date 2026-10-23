@@ -8832,6 +8832,114 @@
        "product_id": "BTC-USD",
        "bids": [
         {
+         "price": "81331.92",
+         "size": "0.40025047"
+        }
+       ],
+       "asks": [
+        {
+         "price": "81331.93",
+         "size": "0.00006202"
+        }
+       ],
+       "time": "2026-10-20T08:03:41.363054Z"
+      },
+      "last": "81331.925",
+      "mid_market": "81331.925",
+      "spread_bps": "0.001229529411",
+      "spread_absolute": "0.01"
+     },
+     "queryString": "limit=1&product_id=BTC-USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "pricebook": {
+       "product_id": "ETH-USD",
+       "bids": [
+        {
+         "price": "2382.56",
+         "size": "1.32921964"
+        }
+       ],
+       "asks": [
+        {
+         "price": "2382.68",
+         "size": "1.63100841"
+        }
+       ],
+       "time": "2026-10-20T08:03:41.578587Z"
+      },
+      "last": "2382.62",
+      "mid_market": "2382.62",
+      "spread_bps": "0.503634562761",
+      "spread_absolute": "0.12"
+     },
+     "queryString": "limit=1&product_id=ETH-USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "pricebook": {
+       "product_id": "BIP-20DEC30-CDE",
+       "bids": [
+        {
+         "price": "81335",
+         "size": "312"
+        }
+       ],
+       "asks": [
+        {
+         "price": "81345",
+         "size": "2"
+        }
+       ],
+       "time": "2026-10-20T08:03:41.017566Z"
+      },
+      "last": "81340",
+      "mid_market": "81340",
+      "spread_bps": "1.229331858135",
+      "spread_absolute": "10"
+     },
+     "queryString": "limit=1&product_id=BIP-20DEC30-CDE",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "pricebook": {
+       "product_id": "BIT-30OCT26-CDE",
+       "bids": [
+        {
+         "price": "81475",
+         "size": "67"
+        }
+       ],
+       "asks": [
+        {
+         "price": "81495",
+         "size": "200"
+        }
+       ],
+       "time": "2026-10-20T08:03:42.066753Z"
+      },
+      "last": "81485",
+      "mid_market": "81485",
+      "spread_bps": "2.454138290693",
+      "spread_absolute": "20"
+     },
+     "queryString": "limit=1&product_id=BIT-30OCT26-CDE",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "pricebook": {
+       "product_id": "BTC-USD",
+       "bids": [
+        {
          "price": "82064.55",
          "size": "0.27404577"
         },
@@ -11258,7 +11366,7 @@
       "cursor": "",
       "proof_token_required": false
      },
-     "queryString": "limit=1000\u0026order_status=OPEN\u0026product_type=SPOT",
+     "queryString": "limit=1000\u0026order_status=OPEN\u0026order_status=PENDING\u0026order_status=QUEUED\u0026order_status=EDIT_QUEUED\u0026order_status=CANCEL_QUEUED\u0026product_type=SPOT",
      "bodyParams": "",
      "headers": null
     },
@@ -11340,18 +11448,6 @@
       "sequence": "0"
      },
      "queryString": "limit=1000\u0026order_status=FILLED\u0026order_status=CANCELLED\u0026order_status=EXPIRED\u0026order_status=FAILED\u0026product_type=SPOT",
-     "bodyParams": "",
-     "headers": null
-    },
-    {
-     "data": {
-      "orders": [],
-      "sequence": "0",
-      "has_next": false,
-      "cursor": "",
-      "proof_token_required": false
-     },
-     "queryString": "limit=1000\u0026order_status=PENDING\u0026order_status=QUEUED\u0026order_status=EDIT_QUEUED\u0026order_status=CANCEL_QUEUED\u0026product_type=SPOT",
      "bodyParams": "",
      "headers": null
     }

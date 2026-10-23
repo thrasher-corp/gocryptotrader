@@ -27,8 +27,8 @@ func (e *Exchange) CommitConvertTrade(ctx context.Context, req *ConvertTradeRequ
 	if err := checkConvertAccounts(req.FromAccount, req.ToAccount); err != nil {
 		return nil, err
 	}
-	var resp *convertTradeResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"convert/trade/"+req.TradeID, nil, &convertAccountsBody{FromAccount: req.FromAccount, ToAccount: req.ToAccount}, &resp); err != nil {
+	var resp *ConvertTradeResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"convert/trade/"+req.TradeID, nil, &ConvertAccountsWireRequest{FromAccount: req.FromAccount, ToAccount: req.ToAccount}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil || resp.Trade == nil {
@@ -49,11 +49,11 @@ func (e *Exchange) CreateConvertQuote(ctx context.Context, req *CreateConvertQuo
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: %v", errInvalidAmount, req.Amount)
 	}
-	body := &createConvertQuoteBody{FromAccount: req.FromAccount, ToAccount: req.ToAccount, Amount: formatFloat(req.Amount)}
+	body := &CreateConvertQuoteWireRequest{FromAccount: req.FromAccount, ToAccount: req.ToAccount, Amount: formatFloat(req.Amount)}
 	if req.UserIncentiveID != "" || req.CodeValue != "" {
-		body.TradeIncentiveMetadata = &convertTradeIncentiveMetadata{UserIncentiveID: req.UserIncentiveID, CodeValue: req.CodeValue}
+		body.TradeIncentiveMetadata = &ConvertTradeIncentiveMetadata{UserIncentiveID: req.UserIncentiveID, CodeValue: req.CodeValue}
 	}
-	var resp *convertTradeResponse
+	var resp *ConvertTradeResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"convert/quote", nil, body, &resp); err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (e *Exchange) GetConvertTrade(ctx context.Context, req *ConvertTradeRequest
 	params := url.Values{}
 	params.Set("from_account", req.FromAccount)
 	params.Set("to_account", req.ToAccount)
-	var resp *convertTradeResponse
+	var resp *ConvertTradeResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"convert/trade/"+req.TradeID, params, nil, &resp); err != nil {
 		return nil, err
 	}

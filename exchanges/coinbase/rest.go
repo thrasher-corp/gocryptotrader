@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -41,8 +42,10 @@ type Exchange struct {
 	wsConnections    websocketConnections
 	// orderSizes holds the sizes of the account's live Advanced Trade orders, which the user channel leaves out
 	orderSizes advancedTradeOrderSizes
-	// tickerMergeMu holds a ticker's merge with the stored one and its storing together
-	tickerMergeMu sync.Mutex
+	// tickerMergeMu holds a ticker's merge with the stored one and its storing together, and guards
+	// tickerSourceTimes, when each pair's stored best bid and ask and quote volume last came from a source sending them
+	tickerMergeMu     sync.Mutex
+	tickerSourceTimes map[key.PairAsset]tickerSourceTimes
 	// derivativesIncrementalTickers holds each instrument's incremental ticker so far, which a change is merged onto
 	derivativesIncrementalTickers   map[string]*DerivativesWebsocketIncrementalTicker
 	derivativesIncrementalTickersMu sync.Mutex
@@ -93,7 +96,7 @@ var (
 type APIError struct {
 	// ErrorType names the failure, such as NOT_FOUND, INVALID_ARGUMENT or unknown
 	ErrorType    string `json:"error"`
-	Code         int64  `json:"code"`
+	Code         uint64 `json:"code"`
 	Message      string `json:"message"`
 	ErrorDetails string `json:"error_details"`
 	// Details holds the failure's google.rpc details, which Coinbase rarely sends
@@ -104,7 +107,7 @@ type APIError struct {
 func (a *APIError) Error() string {
 	msg := a.ErrorType
 	if a.Code != 0 {
-		msg += " (" + strconv.FormatInt(a.Code, 10) + ")"
+		msg += " (" + strconv.FormatUint(a.Code, 10) + ")"
 	}
 	if a.Message != "" {
 		msg += ": " + a.Message
@@ -159,13 +162,17 @@ func advancedTradeError(body []byte) error {
 	return &apiErr
 }
 
-// appError returns the errors a Coinbase App response body reports, or nil when it reports none
+// AppErrorsEnvelope is a Coinbase App response body reporting errors
+type AppErrorsEnvelope struct {
+	Errors AppErrors `json:"errors"`
+}
+
+// appError returns the errors a Coinbase App response body reports, or nil when it reports none; the App API's public
+// endpoints answer in the Advanced Trade error shape, which is returned as an APIError
 func appError(body []byte) error {
-	var resp struct {
-		Errors AppErrors `json:"errors"`
-	}
+	var resp AppErrorsEnvelope
 	if !decodesAs(body, &resp) || len(resp.Errors) == 0 {
-		return nil
+		return advancedTradeError(body)
 	}
 	return resp.Errors
 }

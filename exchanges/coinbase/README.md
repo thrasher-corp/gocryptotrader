@@ -57,13 +57,19 @@ is replaced before it expires; its private websocket connection authenticates wi
   currency, whose amounts are in USD. Coinbase's web app trades the USDC perpetuals alone, so `GetCurrencyTradeURL`
   has no trade page for the inverse perpetuals. The gateway's dated futures, options, spot and combos trade through the
   `GlobalDerivatives` and `WebsocketAPI` methods only.
++ The gateway's assets are disabled by default, as the gateway serves eligible accounts outside the US, though a
+  configuration without currency pairs, such as `GetDefaultConfig` builds, enables every asset, as it does for every
+  exchange. While one is enabled, a gateway connection that cannot be dialled takes the Coinbase websocket down with
+  it, as the websocket manager has no optional connections; a disabled asset whose pairs fail to load keeps the pairs
+  it has.
 
 ### Orders
 
 + `SubmitOrder` places Advanced Trade orders: market, limit, stop limit and bracket orders; fill or kill, immediate or
   cancel, post only and good till date orders, which a good till time or good till day order with an end time is; quote
-  sized market and limit orders. A time in force Advanced Trade has no configuration for, and a reduce only order, are
-  refused. Coinbase requires a client order ID, so an order without one is given a UUID, which the response returns.
+  sized market and limit orders. A time in force Advanced Trade has no configuration for, a reduce only order, and a
+  stop limit or bracket order sized in the quote currency, which Coinbase sizes in the base currency, are refused.
+  Coinbase requires a client order ID, so an order without one is given a UUID, which the response returns.
   `RFQDisabled` turns smart order routing off. Coinbase's response only acknowledges an order, so it is reported new;
   `RetrieveFees` reads the order after `RetrieveFeeDelay` for its state and fees.
 + A gateway order is placed through the gateway's websocket where the wrapper may use it, and otherwise over HTTP. It
@@ -72,26 +78,36 @@ is replaced before it expires; its private websocket connection authenticates wi
   rejected rather than repriced when it would take liquidity, and isolated margin places an order in the isolated margin
   subaccount the gateway binds to its instrument. Leverage is an instrument's, which `SetLeverage` sets. Its orders take
   no end time, and the response reports the amount the gateway accepted, which it can reduce for a reduce only order.
+  A market order is reported as one though the gateway holds it as a limit order, and a trigger order that has fired is
+  reported closed, as the order it placed carries on under its own ID.
 + `ModifyOrder` changes an Advanced Trade limit order's price and size, which Coinbase requires together, so the
   order's own fill in for those left unset; it changes a gateway order by its ID, or by its label in the pair. The
   gateway takes an edit's flags afresh, so the order's amount, price, trigger price and reduce only flag are kept where
-  the change leaves them unset, as are its post only flags unless it sets a time in force. A time in force the edit
-  cannot apply is refused: Advanced Trade edits price and size alone, and the gateway can make an order post only or
-  not, but not change how long it rests.
+  the change leaves them unset, as are its post only flags unless it asks for another post only setting. A time in
+  force the edit cannot apply is refused: Advanced Trade edits price and size alone, and the gateway can make an order
+  post only or not, but not change how long it rests. The order's own time in force, which the order manager passes
+  with every modification, is accepted, a good till day one for the good till time order Advanced Trade made of it.
 + `CancelOrder`, `CancelBatchOrders`, `GetOrderInfo` and `ModifyOrder` find a gateway order in the main account, or in
   the isolated margin subaccount holding it. Advanced Trade cancels asynchronously, so `CancelBatchOrders` and
-  `CancelAllOrders` report an order pending cancellation once Coinbase submits its cancel request; `CancelAllOrders`
-  lists an asset's open orders and cancels them in batches. The gateway cancels an instrument's orders together, in
+  `CancelAllOrders` report an order pending cancellation once Coinbase submits its cancel request, and an order named
+  twice keeps the status of the cancel that went through. A batch that fails returns the statuses reported so far with
+  its error, the gateway's orders being cancelled still. `CancelAllOrders` lists an asset's open orders and cancels
+  them in batches, those of the type asked for alone. The gateway cancels an instrument's orders together, in
   both margin scopes, unless the request selects them by side, margin type, time in force or a single stop or take
   profit type, when they are listed and cancelled one at a time.
-+ `GetOrderInfo` returns an order with its fills, `GetActiveOrders` an asset's live orders, Advanced Trade's pending
-  and queued ones among them, and `GetOrderHistory` its filled, cancelled, expired and failed orders, by margin type and
-  time in force too. The gateway's include the
-  isolated margin subaccounts' orders. Its history and an order's trades come from both its recent store, which keeps
-  orders for 30 minutes and trades for a day, and its historical store, which indexes them after a short delay. The
-  gateway reports an order's state until 30 minutes after it closes, so `GetOrderInfo` finds an older order in its
-  pair's history, a page at a time. Where the EU's strong customer authentication answers an order or fill list with a
-  proof token challenge, which only the account holder can meet, the list reports an error rather than no orders.
++ `GetOrderInfo` returns an order with its fills, less those a reversal undoes, `GetActiveOrders` an asset's live
+  orders, Advanced Trade's pending and queued ones among them, and `GetOrderHistory` its filled, cancelled, expired and
+  failed orders, by margin type and time in force too, a good till day filter matching the good till time orders
+  Advanced Trade made of them. Advanced Trade's live orders come from one list of every live status, as an order moving
+  between statuses would be missing from separate lists; were Coinbase to refuse the list, as its earlier documentation
+  said, the open orders are listed after the others, which finds an order accepted or edited between the two lists but
+  can miss one whose edit or cancellation is queued between them. An order's last update is its latest fill or accepted
+  edit. The gateway's
+  include the isolated margin subaccounts' orders. Its history and an order's trades come from both its recent store,
+  which keeps orders for 30 minutes and trades for a day, and its historical store, which indexes them after a short
+  delay. The gateway reports an order's state until 30 minutes after it closes, so `GetOrderInfo` finds an older order
+  in its pair's history, a page at a time. Where the EU's strong customer authentication answers an order or fill list
+  with a proof token challenge, which only the account holder can meet, the list reports an error rather than no orders.
 
 ### Derivatives
 
@@ -102,9 +118,9 @@ is replaced before it expires; its private websocket connection authenticates wi
   Coinbase keeps no funding history for US derivatives. Neither venue predicts the next rate or reports payments.
 + `GetOpenInterest` returns a US derivative's open interest in contracts, and a gateway perpetual's in its base
   currency, or USD for an inverse perpetual.
-+ `GetFuturesPositionSummary` returns a US derivative's position, its sizes in contracts, or a gateway perpetual's
-  cross margin position. `GetLeverage` and `SetLeverage` act on a gateway perpetual's cross or isolated margin; US
-  derivatives take no leverage.
++ `GetFuturesPositionSummary` returns a US derivative's position, its sizes in contracts, or a gateway perpetual's cross
+  margin position, its unrealised profit since the position opened and its realised profit the session's. `GetLeverage`
+  and `SetLeverage` act on a gateway perpetual's cross or isolated margin; US derivatives take no leverage.
 
 ### Balances
 
@@ -114,7 +130,8 @@ available balance leaves out what is held. The gateway's account summaries back 
 amount is what can be withdrawn, which leaves out margin held, session profit and reserved balances. The two assets
 split the gateway account's currencies, so each balance is counted once: bitcoin and ether, which margin the inverse
 perpetuals, under `coinmarginedfutures`, and the rest, USDC among them, under `usdcmarginedfutures`. Each active
-isolated margin subaccount is a sub-account of its own, by its ID.
+isolated margin subaccount is a sub-account of its own, by its ID, cleared once the gateway recycles it, as its
+collateral returns to the main account.
 
 ### Deposits and withdrawals
 
@@ -128,14 +145,16 @@ Coinbase Exchange moves a currency on, such as `ethereum` and `solana` for USDC.
   request's travel rule details. `WithdrawFiatFunds` withdraws to the payment method its bank names, and commits the
   withdrawal at once.
 + `GetAccountFundingHistory` and `GetWithdrawalsHistory` list each account's transactions in full, a page at a time, as
-  the App API filters them by no type; on an account with many trades that takes many requests.
+  the App API filters them by no type; on an account with many trades that takes many requests. A send that credited
+  the account, as Coinbase's sends of either direction did before it restricted the type, is a deposit.
 
 ### Market data
 
-+ `UpdateTickers` updates every enabled pair's ticker from one request: Advanced Trade's product list, which carries no
-  best bid or ask, so a pair keeps the bid and ask its websocket ticker stored, or the gateway's book summaries, one
-  request a currency its perpetuals settle in. `UpdateTicker` returns a product's best bid and ask. Advanced Trade's
-  websocket tickers carry no quote volume, so a pair keeps the one its REST ticker stored.
++ `UpdateTickers` updates every enabled pair's ticker: from Advanced Trade's product list, which carries no best bid or
+  ask, with each pair's top of book fetched beside it, or from the gateway's book summaries, one request a currency its
+  perpetuals settle in. `UpdateTicker` returns a product's best bid and ask. Advanced Trade's websocket tickers carry no
+  quote volume, and its batched tickers no best bid or ask, so a pair keeps the ones another source stored, for a
+  minute after that source sent them.
 + `GetRecentTrades` and `GetHistoricTrades` return each trade's taker side; Advanced Trade reports the maker's.
   Advanced Trade's history pages back a second at a time, and the gateway serves its last 24 hours of trades.
 + Candles cover 1, 5, 15 and 30 minutes, 1, 2, 4 and 6 hours and a day. The gateway aligns its longer candles to its
@@ -148,16 +167,21 @@ Coinbase Exchange moves a currency on, such as `ethereum` and `solana` for USDC.
 
 Market data and the user channels go over separate Advanced Trade connections, and the gateway's channels over its
 public streams and its private connection. Advanced Trade's connections each subscribe to heartbeats first, which keep
-them open, then one channel a request, as its acknowledgements name no request. A connection carries at most 30
-subscriptions, as Coinbase holds at most 30 level2 products a connection, and more connections open as needed. Each
-message's sequence number is checked; after a gap, the books are resubscribed for new snapshots, and the account
-channels for a fresh view of the account. The standard channels use these channels: tickers `ticker`, candles
+them open, then one channel a request, as its acknowledgements name no request; a request that times out closes the
+connection, for the manager to reconnect it, as its late acknowledgement would be taken for the next request's. A
+connection carries at most 30 subscriptions, as Coinbase holds at most 30 level2 products a connection, and more
+connections open as needed. Each message's sequence number is checked; after a gap, the books are resubscribed for new
+snapshots, and the account channels for a fresh view of the account. A resubscription that fails closes the connection,
+for the manager to reconnect and subscribe afresh. The standard channels use these channels: tickers `ticker`, candles
 `candles`, trades `market_trades`, order books `level2` and the account `user`; `status`, `ticker_batch` and
 `futures_balance_summary` take their own names.
 
 + The account channel, and `futures_balance_summary`, subscribe once, without an asset, as they cover every product.
   It reports no order's size, so each order takes the size it was placed or last listed with; an order placed
-  elsewhere is looked up, and relayed again with its size.
+  elsewhere is looked up, and relayed again with its size. An open order sized in the base currency that an edit can
+  resize, a limit, stop limit, bracket or take profit/stop loss order, is looked up too when its filled and remaining
+  quantities give another size, so an edit made elsewhere is followed, and takes what it filled as its size when it
+  fills beyond it. An order Coinbase marks filled leaving dust keeps its size.
 + On the gateway, tickers subscribe `ticker`, order books `book` and trades `trades`, aggregated over 100ms by default,
   `agg2` for an interval of a second or `raw` for `kline.Raw`, and candles `chart.trades` at their interval, of up to 2
   hours, as the gateway aligns longer ones to its daily settlement. Any of the gateway's channels can be subscribed by

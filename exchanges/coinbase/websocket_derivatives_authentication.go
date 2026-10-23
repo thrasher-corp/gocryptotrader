@@ -19,8 +19,8 @@ func (w WebsocketAPI) Logout(ctx context.Context, invalidateToken bool) error {
 	// The gateway answers a logout by closing the connection, so no response is awaited
 	return conn.SendJSONMessage(ctx, derivativesNonMatchingEPL, &JSONRPCRequest{
 		JSONRPC: jsonRPCVersion,
-		ID:      w.e.MessageSequence(),
+		ID:      w.e.derivativesRequestID(),
 		Method:  derivativesLogoutMethod,
-		Params:  &derivativesLogoutParams{InvalidateToken: invalidateToken},
+		Params:  &DerivativesLogoutWireRequest{InvalidateToken: invalidateToken},
 	})
 }

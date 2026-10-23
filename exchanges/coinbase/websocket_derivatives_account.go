@@ -2,6 +2,7 @@ package coinbase
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -15,21 +16,21 @@ import (
 
 var errDerivativesUnknownOrderState = errors.New("unknown gateway order state")
 
-// wsHandleDerivativesOrders relays a user.orders or user.isolated.orders notification's orders. A raw channel sends each
-// order as it changes, and the others a list of the orders changed over their interval; the gateway documents an
+// wsHandleDerivativesOrders relays a user.orders or user.isolated.orders notification's orders. A raw channel sends
+// each order as it changes, and the others a list of the orders changed over their interval; the gateway documents an
 // isolated subaccount's notification as one order, so either form is accepted
 func (e *Exchange) wsHandleDerivativesOrders(ctx context.Context, respRaw []byte) error {
 	var data json.RawMessage
 	if err := decodeDerivativesNotification(respRaw, &data); err != nil {
 		return err
 	}
-	var orders []DerivativesOrder
+	var orders []DerivativesOrderResponse
 	if trimmed := bytes.TrimSpace(data); len(trimmed) != 0 && trimmed[0] == '[' {
 		if err := json.Unmarshal(trimmed, &orders); err != nil {
 			return fmt.Errorf("%w: %w", errDerivativesMalformedNotification, err)
 		}
 	} else {
-		orders = make([]DerivativesOrder, 1)
+		orders = make([]DerivativesOrderResponse, 1)
 		if err := json.Unmarshal(trimmed, &orders[0]); err != nil {
 			return fmt.Errorf("%w: %w", errDerivativesMalformedNotification, err)
 		}
@@ -52,7 +53,7 @@ func (e *Exchange) wsHandleDerivativesOrders(ctx context.Context, respRaw []byte
 
 // wsHandleDerivativesUserTrades passes the account's trades to the fills feed
 func (e *Exchange) wsHandleDerivativesUserTrades(respRaw []byte) error {
-	var trades []DerivativesUserTrade
+	var trades []DerivativesUserTradeResponse
 	if err := decodeDerivativesNotification(respRaw, &trades); err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func (e *Exchange) wsHandleDerivativesUserTrades(respRaw []byte) error {
 }
 
 // derivativesOrderDetail converts a gateway order; its label is its client order ID
-func (e *Exchange) derivativesOrderDetail(o *DerivativesOrder) (*order.Detail, error) {
+func (e *Exchange) derivativesOrderDetail(o *DerivativesOrderResponse) (*order.Detail, error) {
 	a, pair, err := derivativesInstrumentPair(o.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -85,7 +86,8 @@ func (e *Exchange) derivativesOrderDetail(o *DerivativesOrder) (*order.Detail, e
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
 	}
-	orderType, err := derivativesOrderType(o.OrderType)
+	// The gateway holds a market order as a limit order, naming the type placed in original_order_type
+	orderType, err := derivativesOrderType(cmp.Or(o.OriginalOrderType, o.OrderType))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", o.OrderID, err)
 	}
@@ -129,7 +131,7 @@ func (e *Exchange) derivativesOrderDetail(o *DerivativesOrder) (*order.Detail, e
 }
 
 // derivativesTradeFill converts one of the account's trades to a fill
-func (e *Exchange) derivativesTradeFill(t *DerivativesUserTrade) (*fill.Data, error) {
+func (e *Exchange) derivativesTradeFill(t *DerivativesUserTradeResponse) (*fill.Data, error) {
 	a, pair, err := derivativesInstrumentPair(t.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -182,16 +184,18 @@ func derivativesOrderType(orderType string) (order.Type, error) {
 }
 
 // derivativesOrderStatus converts a gateway order state; an open or cancelled order that has started filling is
-// partially filled
+// partially filled, and a triggered trigger order is closed, as the order it placed carries on under its own ID
 func derivativesOrderStatus(state string, filledAmount float64) (order.Status, error) {
 	switch state {
-	case DerivativesOrderStateOpen, DerivativesOrderStateTriggered:
+	case DerivativesOrderStateOpen:
 		if filledAmount > 0 {
 			return order.PartiallyFilled, nil
 		}
 		return order.Open, nil
 	case DerivativesOrderStateUntriggered:
 		return order.Pending, nil
+	case DerivativesOrderStateTriggered:
+		return order.Closed, nil
 	case DerivativesOrderStateFilled:
 		return order.Filled, nil
 	case DerivativesOrderStateCancelled:

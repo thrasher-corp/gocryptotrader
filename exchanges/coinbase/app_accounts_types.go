@@ -30,9 +30,9 @@ type AppCountry struct {
 	IsInEurope bool `json:"is_in_europe"`
 }
 
-// AppUser is the user the credentials act for. Email is sent to OAuth2 tokens granted identity:user:email; the
+// AppUserResponse is the user the credentials act for. Email is sent to OAuth2 tokens granted identity:user:email; the
 // fields from Username on are undocumented
-type AppUser struct {
+type AppUserResponse struct {
 	ID             string        `json:"id"`
 	Name           string        `json:"name"`
 	AvatarURL      string        `json:"avatar_url"`
@@ -83,9 +83,9 @@ type AppReferralMoney struct {
 	ReferralThreshold types.Number  `json:"referral_threshold"`
 }
 
-// AppPersonalDetails is a user's legal name and KYC verified primary address. OAuth2 tokens get the name with
+// AppPersonalDetailsResponse is a user's legal name and KYC verified primary address. OAuth2 tokens get the name with
 // identity:user:name:read and the address with identity:user:address:read
-type AppPersonalDetails struct {
+type AppPersonalDetailsResponse struct {
 	FirstName      string              `json:"firstName"`
 	LastName       string              `json:"lastName"`
 	PrimaryAddress *AppPersonalAddress `json:"primaryAddress"`
@@ -117,16 +117,16 @@ type AppGetAccountRequest struct {
 	IncludeAvailableToSend bool
 }
 
-// AppAccount is a wallet, fiat account, vault or loan collateral account. AllowDeposits, AllowWithdrawals and
+// AppAccountResponse is a wallet, fiat account, vault or loan collateral account. AllowDeposits, AllowWithdrawals and
 // PortfolioID are undocumented
-type AppAccount struct {
+type AppAccountResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	// Primary is set for a currency's primary account, which is always a wallet
-	Primary  bool        `json:"primary"`
-	Type     string      `json:"type"`
-	Currency AppCurrency `json:"currency"`
-	Balance  AppMoney    `json:"balance"`
+	Primary  bool                `json:"primary"`
+	Type     string              `json:"type"`
+	Currency AppCurrencyResponse `json:"currency"`
+	Balance  AppMoney            `json:"balance"`
 	// AvailableToSend is what can be sent from the account now, after holds and the user's send limits, so it may be
 	// less than Balance; it is nil unless asked for, and for accounts it is unavailable for, and an actual zero is sent
 	// as zero. Send limits apply across a user's accounts, so their AvailableToSend amounts cannot be added up

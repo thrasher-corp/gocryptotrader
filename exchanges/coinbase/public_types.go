@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -41,8 +42,8 @@ const (
 	ExpiringContractStatusAll       = "STATUS_ALL"
 )
 
-// ServerTime is the Advanced Trade API's clock
-type ServerTime struct {
+// ServerTimeResponse is the Advanced Trade API's clock
+type ServerTimeResponse struct {
 	ISO          time.Time  `json:"iso"`
 	EpochSeconds types.Time `json:"epochSeconds"`
 	EpochMillis  types.Time `json:"epochMillis"`
@@ -112,9 +113,9 @@ type ListProductsRequest struct {
 
 // ProductsResponse is a page of products
 type ProductsResponse struct {
-	Products    []Product          `json:"products"`
-	NumProducts uint64             `json:"num_products"`
-	Pagination  PaginationMetadata `json:"pagination"`
+	Products         []Product          `json:"products"`
+	NumberOfProducts uint64             `json:"num_products"`
+	Pagination       PaginationMetadata `json:"pagination"`
 }
 
 // PaginationMetadata is the cursor a page of products is fetched with
@@ -144,7 +145,7 @@ type Product struct {
 	Watched                      bool         `json:"watched"`
 	IsDisabled                   bool         `json:"is_disabled"`
 	New                          bool         `json:"new"`
-	// Status is online or delisted for spot, STANDARD for futures and ONLINE for the gateway's instruments
+	// Status is online or delisted for spot, ONLINE for the gateway's instruments and empty for US derivatives
 	Status          string `json:"status"`
 	CancelOnly      bool   `json:"cancel_only"`
 	LimitOnly       bool   `json:"limit_only"`
@@ -262,8 +263,8 @@ type MarginRate struct {
 // DeribitProductDetails describes a Global Derivatives gateway instrument; Coinbase documents it but sends null
 type DeribitProductDetails struct {
 	InstrumentID                 string         `json:"instrument_id"`
-	SettlementCurrency           string         `json:"settlement_currency"`
-	CounterCurrency              string         `json:"counter_currency"`
+	SettlementCurrency           currency.Code  `json:"settlement_currency"`
+	CounterCurrency              currency.Code  `json:"counter_currency"`
 	SettlementPeriod             string         `json:"settlement_period"`
 	PriceIndex                   string         `json:"price_index"`
 	InstrumentType               string         `json:"instrument_type"`
@@ -333,7 +334,8 @@ type EquityProductDetails struct {
 
 // EquityTradingDayInfo is an equity venue's schedule for a trading day
 type EquityTradingDayInfo struct {
-	VenueID          string                       `json:"venue_id"`
+	VenueID string `json:"venue_id"`
+	// Date is the trading day as Coinbase sends it, a date without a time, such as 2026-10-20
 	Date             string                       `json:"date"`
 	TradeDateType    string                       `json:"trade_date_type"`
 	HolidayName      string                       `json:"holiday_name"`
@@ -399,8 +401,10 @@ type EquityFundamentals struct {
 
 // EquityEarnings is an equity issuer's earnings announcement for a period
 type EquityEarnings struct {
-	ReferencePeriod                      string       `json:"reference_period"`
-	AnnouncementDate                     string       `json:"announcement_date"`
+	ReferencePeriod string `json:"reference_period"`
+	// AnnouncementDate is a date without a time, such as 2026-10-20
+	AnnouncementDate string `json:"announcement_date"`
+	// AnnounceTime is when in the day the announcement comes, an enum such as EARNINGS_ANNOUNCE_TIME_UNKNOWN
 	AnnounceTime                         string       `json:"announce_time"`
 	Status                               string       `json:"status"`
 	EarningsPerShare                     types.Number `json:"eps"`
@@ -412,7 +416,8 @@ type EquityEarnings struct {
 
 // EquityFinancials are an equity issuer's financials for a fiscal period
 type EquityFinancials struct {
-	FiscalPeriod  string       `json:"fiscal_period"`
+	FiscalPeriod string `json:"fiscal_period"`
+	// PeriodEndDate is a date without a time, such as 2026-10-20
 	PeriodEndDate string       `json:"period_end_date"`
 	TotalRevenue  types.Number `json:"total_revenue"`
 	NetIncome     types.Number `json:"net_income"`
@@ -430,10 +435,10 @@ type ProductBookRequest struct {
 	AggregationPriceIncrement float64
 }
 
-// ProductBookResponse is a product's book, with its last trade price, midpoint and spread
+// ProductBookResponse is a product's book, with its last price, midpoint and spread
 type ProductBookResponse struct {
 	PriceBook PriceBook `json:"pricebook"`
-	// Last is the last trade's price, which Coinbase sends only for the authenticated book
+	// Last is the book's midpoint, as MidMarket is, on the public book, not the last trade's price
 	Last           types.Number `json:"last"`
 	MidMarket      types.Number `json:"mid_market"`
 	SpreadBPS      types.Number `json:"spread_bps"`
@@ -464,8 +469,8 @@ type ProductCandlesRequest struct {
 	Limit uint64
 }
 
-// candlesResponse holds a product's candles
-type candlesResponse struct {
+// CandlesResponse holds a product's candles
+type CandlesResponse struct {
 	Candles []Candle `json:"candles"`
 }
 

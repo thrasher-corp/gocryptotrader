@@ -103,7 +103,7 @@ func TestWebsocketAPISetHeartbeat(t *testing.T) {
 		require.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 3 }, time.Second, time.Millisecond, "each gateway connection and WebsocketAPI.SetHeartbeat must set heartbeats")
 		intervals := make([]float64, 0, 3)
 		for _, req := range venue.requestsFor("public/set_heartbeat") {
-			var params derivativesHeartbeatParams
+			var params DerivativesHeartbeatWireRequest
 			require.NoError(t, json.Unmarshal(req.Params, &params), "the heartbeat params must decode")
 			intervals = append(intervals, params.Interval)
 		}

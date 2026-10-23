@@ -343,7 +343,7 @@ func TestGetPublicServerTime(t *testing.T) {
 	resp, err := e.GetPublicServerTime(t.Context())
 	require.NoError(t, err, "GetPublicServerTime must not error")
 	if mockTests {
-		exp := &ServerTime{
+		exp := &ServerTimeResponse{
 			ISO:          time.Date(2026, 10, 19, 0, 22, 36, 0, time.UTC),
 			EpochSeconds: types.Time(time.Unix(1792369356, 0)),
 			EpochMillis:  types.Time(time.UnixMilli(1792369356892)),
@@ -431,7 +431,7 @@ func TestListPublicProducts(t *testing.T) {
 					Low24Hour:                    80564.57,
 				},
 			},
-			NumProducts: 2,
+			NumberOfProducts: 2,
 			Pagination: PaginationMetadata{
 				NextCursor: "cHJvZHVjdHNfY3Vyc29yOkJUQy1VU0RD",
 				HasNext:    true,
@@ -595,7 +595,7 @@ func TestListPublicProducts(t *testing.T) {
 					},
 				},
 			},
-			NumProducts: 2,
+			NumberOfProducts: 2,
 			Pagination: PaginationMetadata{
 				NextCursor: "cHJvZHVjdHNfY3Vyc29yOkJJVC0zME9DVDI2LUNERQ==",
 				HasNext:    true,

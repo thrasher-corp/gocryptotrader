@@ -98,8 +98,8 @@ func newDerivativesAccountParamsServer(t *testing.T, result string) (ex *Exchang
 }
 
 // testDerivativesMarginModelChanges is the documented margin model change's effect
-func testDerivativesMarginModelChanges() []DerivativesMarginModelChange {
-	return []DerivativesMarginModelChange{
+func testDerivativesMarginModelChanges() []DerivativesMarginModelChangeResponse {
+	return []DerivativesMarginModelChangeResponse{
 		{
 			Currency: currency.NewCode("eth"),
 		},
@@ -352,8 +352,8 @@ func testDerivativesAccountSummary() *DerivativesAccountSummaryResponse {
 }
 
 // testDerivativesLeverages is the documented leverage of the documented instrument
-func testDerivativesLeverages() []DerivativesLeverage {
-	return []DerivativesLeverage{
+func testDerivativesLeverages() []DerivativesLeverageResponse {
+	return []DerivativesLeverageResponse{
 		{
 			InstrumentName:  "BTC-PERPETUAL",
 			Leverage:        25,
@@ -376,8 +376,8 @@ func testDerivativesPMEParams() *DerivativesPMEParamsResponse {
 }
 
 // testDerivativesPosition is the documented position in the documented instrument
-func testDerivativesPosition() *DerivativesPosition {
-	return &DerivativesPosition{
+func testDerivativesPosition() *DerivativesPositionResponse {
+	return &DerivativesPositionResponse{
 		InstrumentName:   "BTC-PERPETUAL",
 		Kind:             "future",
 		UserID:           1234,
@@ -392,8 +392,8 @@ func testDerivativesPosition() *DerivativesPosition {
 }
 
 // testDerivativesPositions is the documented BTC future positions
-func testDerivativesPositions() []DerivativesPosition {
-	return []DerivativesPosition{
+func testDerivativesPositions() []DerivativesPositionResponse {
+	return []DerivativesPositionResponse{
 		{
 			InstrumentName:     "BTC-PERPETUAL",
 			Kind:               "future",
@@ -420,8 +420,8 @@ func testDerivativesPositions() []DerivativesPosition {
 
 // testDerivativesIsolatedPositions is the isolated positions guide's documented positions in every currency,
 // including the isolated margin subaccounts'
-func testDerivativesIsolatedPositions() []DerivativesPosition {
-	return []DerivativesPosition{
+func testDerivativesIsolatedPositions() []DerivativesPositionResponse {
+	return []DerivativesPositionResponse{
 		{
 			InstrumentName: "SOL_USDC-PERPETUAL",
 			UserID:         testDerivativesAccountIsolatedSubaccountID,
@@ -435,8 +435,8 @@ func testDerivativesIsolatedPositions() []DerivativesPosition {
 }
 
 // testDerivativesSubaccounts is the documented accounts with their portfolios
-func testDerivativesSubaccounts() []DerivativesSubaccount {
-	return []DerivativesSubaccount{
+func testDerivativesSubaccounts() []DerivativesSubaccountResponse {
+	return []DerivativesSubaccountResponse{
 		{
 			ID:                      2,
 			Type:                    "main",
@@ -491,8 +491,8 @@ func testDerivativesSubaccounts() []DerivativesSubaccount {
 
 // testDerivativesIsolatedSubaccounts is the isolated positions guide's documented accounts, including an isolated
 // margin subaccount
-func testDerivativesIsolatedSubaccounts() []DerivativesSubaccount {
-	return []DerivativesSubaccount{
+func testDerivativesIsolatedSubaccounts() []DerivativesSubaccountResponse {
+	return []DerivativesSubaccountResponse{
 		{
 			ID:   1000,
 			Type: "main",
@@ -508,11 +508,11 @@ func testDerivativesIsolatedSubaccounts() []DerivativesSubaccount {
 
 // testDerivativesSubaccountsDetails is the documented accounts' positions, with the documented open order the
 // recording adds, as the request asks for open orders
-func testDerivativesSubaccountsDetails() []DerivativesSubaccountDetails {
-	return []DerivativesSubaccountDetails{
+func testDerivativesSubaccountsDetails() []DerivativesSubaccountDetailsResponse {
+	return []DerivativesSubaccountDetailsResponse{
 		{
 			UserID: 3,
-			Positions: []DerivativesPosition{
+			Positions: []DerivativesPositionResponse{
 				{
 					InstrumentName:     "BTC-PERPETUAL",
 					Kind:               "future",
@@ -533,7 +533,7 @@ func testDerivativesSubaccountsDetails() []DerivativesSubaccountDetails {
 					RealisedFunding:    -0.00000088,
 				},
 			},
-			OpenOrders: []DerivativesOrder{
+			OpenOrders: []DerivativesOrderResponse{
 				{
 					OrderID:             "146062",
 					OrderState:          "open",
@@ -554,7 +554,7 @@ func testDerivativesSubaccountsDetails() []DerivativesSubaccountDetails {
 		},
 		{
 			UserID: 10,
-			Positions: []DerivativesPosition{
+			Positions: []DerivativesPositionResponse{
 				{
 					InstrumentName:     "BTC-3SEP21",
 					Kind:               "future",
@@ -738,8 +738,8 @@ func testDerivativesTransactionLog() *DerivativesTransactionLogResponse {
 }
 
 // testDerivativesUserLocks is the documented account locks
-func testDerivativesUserLocks() []DerivativesUserLock {
-	return []DerivativesUserLock{
+func testDerivativesUserLocks() []DerivativesUserLockResponse {
+	return []DerivativesUserLockResponse{
 		{
 			Currency: currency.BTC,
 			Locked:   true,
@@ -942,8 +942,8 @@ func testDerivativesSimulatedPortfolio() *DerivativesSimulatePortfolioResponse {
 }
 
 // testDerivativesAnnouncements is the recorded live announcement
-func testDerivativesAnnouncements() []DerivativesAnnouncement {
-	return []DerivativesAnnouncement{
+func testDerivativesAnnouncements() []DerivativesAnnouncementResponse {
+	return []DerivativesAnnouncementResponse{
 		{
 			ID:                   1791813857051,
 			Title:                "🚨 New Equity & ETF Perpetuals. Coming to Deribit.",
@@ -1198,7 +1198,7 @@ func TestGlobalDerivativesGetLeverage(t *testing.T) {
 	ex, sent := newDerivativesAccountParamsServer(t, `[{"instrument_name":"SOL_USDC-PERPETUAL","leverage":5,"max_leverage":50}]`)
 	resp, err = ex.GlobalDerivatives().GetLeverage(t.Context(), &DerivativesGetLeverageRequest{Isolated: true})
 	require.NoError(t, err, "GetLeverage must not error for every future")
-	assert.Equal(t, []DerivativesLeverage{{InstrumentName: "SOL_USDC-PERPETUAL", Leverage: 5, MaximumLeverage: 50}}, resp, "GetLeverage should decode the list of futures with a custom leverage")
+	assert.Equal(t, []DerivativesLeverageResponse{{InstrumentName: "SOL_USDC-PERPETUAL", Leverage: 5, MaximumLeverage: 50}}, resp, "GetLeverage should decode the list of futures with a custom leverage")
 	params := sent()
 	require.Len(t, params, 1, "GetLeverage must send one request")
 	assert.JSONEq(t, `{"isolated":true}`, params[0], "GetLeverage should leave the instrument out and send the isolated flag")
@@ -1211,27 +1211,27 @@ func TestDerivativesLeveragesUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		input string
-		exp   derivativesLeverages
+		exp   DerivativesLeverages
 	}{
-		{input: `{"instrument_name":"BTC_USDC-PERPETUAL","leverage":null,"max_leverage":50}`, exp: derivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", MaximumLeverage: 50}}},
+		{input: `{"instrument_name":"BTC_USDC-PERPETUAL","leverage":null,"max_leverage":50}`, exp: DerivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", MaximumLeverage: 50}}},
 		// A direct call may pass the list after whitespace, which the decoder trims before it reaches UnmarshalJSON
 		{
 			input: ` [{"instrument_name":"BTC_USDC-PERPETUAL","leverage":10,"max_leverage":50},{"instrument_name":"ETH_USDC-PERPETUAL","leverage":2.5,"max_leverage":50}]`,
-			exp:   derivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", Leverage: 10, MaximumLeverage: 50}, {InstrumentName: "ETH_USDC-PERPETUAL", Leverage: 2.5, MaximumLeverage: 50}},
+			exp:   DerivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", Leverage: 10, MaximumLeverage: 50}, {InstrumentName: "ETH_USDC-PERPETUAL", Leverage: 2.5, MaximumLeverage: 50}},
 		},
-		{input: `[]`, exp: derivativesLeverages{}},
+		{input: `[]`, exp: DerivativesLeverages{}},
 		// The gateway hides isolated margin leverage from a regular subaccount behind an empty object
-		{input: `{}`, exp: derivativesLeverages{}},
+		{input: `{}`, exp: DerivativesLeverages{}},
 	} {
-		var leverages derivativesLeverages
+		var leverages DerivativesLeverages
 		require.NoErrorf(t, leverages.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
 		assert.Equalf(t, tc.exp, leverages, "UnmarshalJSON should decode %s", tc.input)
 	}
-	leverages := derivativesLeverages{{InstrumentName: "kept"}}
+	leverages := DerivativesLeverages{{InstrumentName: "kept"}}
 	require.NoError(t, leverages.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON must not error for null")
-	assert.Equal(t, derivativesLeverages{{InstrumentName: "kept"}}, leverages, "UnmarshalJSON should leave the leverages unchanged for null")
+	assert.Equal(t, DerivativesLeverages{{InstrumentName: "kept"}}, leverages, "UnmarshalJSON should leave the leverages unchanged for null")
 	for _, input := range []string{`"leverage"`, `[1]`, `{"max_leverage":"high"}`} {
-		var leverages derivativesLeverages
+		var leverages DerivativesLeverages
 		assert.ErrorIsf(t, leverages.UnmarshalJSON([]byte(input)), errDerivativesMalformedLeverage, "UnmarshalJSON should refuse %s", input)
 	}
 }
@@ -1521,7 +1521,7 @@ func TestGlobalDerivativesGetUserLocks(t *testing.T) {
 
 	resp, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"currency":"USDC","enabled":true,"message":"locked"}]}`).GlobalDerivatives().GetUserLocks(t.Context())
 	require.NoError(t, err, "GetUserLocks must not error for the schema's field name")
-	assert.Equal(t, []DerivativesUserLock{{Currency: currency.USDC, Enabled: true, Message: "locked"}}, resp, "GetUserLocks should decode the lock under the schema's name")
+	assert.Equal(t, []DerivativesUserLockResponse{{Currency: currency.USDC, Enabled: true, Message: "locked"}}, resp, "GetUserLocks should decode the lock under the schema's name")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetUserLocks(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserLocks should return the request failure")
 }

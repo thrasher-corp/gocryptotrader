@@ -415,11 +415,12 @@ func derivativesInstrumentPair(instrument string) (asset.Item, currency.Pair, er
 // wsDerivativesConnect dials a gateway connection and asks it for heartbeats once the connection's reader runs, as the
 // request waits for its reply
 func (e *Exchange) wsDerivativesConnect(ctx context.Context, conn websocket.Connection) error {
+	e.wsConnections.pruneClosed()
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 	go func() {
-		params := &derivativesHeartbeatParams{Interval: derivativesHeartbeatInterval.Seconds()}
+		params := &DerivativesHeartbeatWireRequest{Interval: derivativesHeartbeatInterval.Seconds()}
 		var resp string
 		// A connection closed before heartbeats are set needs none
 		if err := e.WebsocketAPI().sendRequestOnConnection(ctx, conn, derivativesNonMatchingEPL, "public/set_heartbeat", params, &resp); err != nil && ctx.Err() == nil && isConnected(conn) {
@@ -429,8 +430,8 @@ func (e *Exchange) wsDerivativesConnect(ctx context.Context, conn websocket.Conn
 	return nil
 }
 
-// derivativesHeartbeatParams are public/set_heartbeat's params, the interval in seconds
-type derivativesHeartbeatParams struct {
+// DerivativesHeartbeatWireRequest holds public/set_heartbeat's params, the interval in seconds
+type DerivativesHeartbeatWireRequest struct {
 	Interval float64 `json:"interval"`
 }
 
@@ -458,64 +459,104 @@ func (e *Exchange) wsDerivativesSendAuth(ctx context.Context, conn websocket.Con
 		return err
 	}
 	var resp *DerivativesAuthResponse
-	if err := e.WebsocketAPI().sendRequestOnConnection(ctx, conn, derivativesNonMatchingEPL, derivativesAuthMethod, &derivativesAuthParams{GrantType: derivativesGrantType, Token: jwt}, &resp); err != nil {
+	if err := e.WebsocketAPI().sendRequestOnConnection(ctx, conn, derivativesNonMatchingEPL, derivativesAuthMethod, &DerivativesAuthWireRequest{GrantType: derivativesGrantType, Token: jwt}, &resp); err != nil {
 		return fmt.Errorf("%w: %w", errDerivativesWebsocketAuthentication, err)
 	}
 	if resp == nil {
 		return fmt.Errorf("%w: no session issued", errDerivativesWebsocketAuthentication)
 	}
-	e.derivativesSessions.set(conn, creds.Key)
+	authentication := e.derivativesSessions.authenticated(conn, creds.Key)
 	if resp.ExpiresIn > 0 {
-		e.wsDerivativesScheduleReauthentication(ctx, conn, time.Duration(resp.ExpiresIn)*time.Second)
+		e.wsDerivativesScheduleReauthentication(ctx, conn, authentication, time.Duration(resp.ExpiresIn)*time.Second)
 	}
 	return nil
 }
 
-// wsDerivativesScheduleReauthentication authenticates a connection again before its session expires, and again after
-// each failure for as long as wsDerivativesRenewSession asks
-func (e *Exchange) wsDerivativesScheduleReauthentication(ctx context.Context, conn websocket.Connection, lifetime time.Duration) {
+// wsDerivativesScheduleReauthentication authenticates a connection again before the session an authentication began
+// expires, and again after each failure for as long as wsDerivativesRenewSession asks. The renewal replaces any the
+// connection has pending, as each authentication schedules one, and AuthenticateWebsocket authenticates a connection
+// already authenticated. It belongs to the connection, not to the authentication's caller, so it outlives the
+// caller's context, and ends once the connection closes
+func (e *Exchange) wsDerivativesScheduleReauthentication(ctx context.Context, conn websocket.Connection, authentication uint64, lifetime time.Duration) {
+	ctx = context.WithoutCancel(ctx)
 	expiry := time.Now().Add(lifetime)
 	var renew func()
 	renew = func() {
-		if retry := e.wsDerivativesRenewSession(ctx, conn, expiry); retry > 0 {
-			time.AfterFunc(retry, renew)
+		if retry := e.wsDerivativesRenewSession(ctx, conn, authentication, expiry); retry > 0 {
+			e.derivativesSessions.scheduleRenewal(conn, authentication, retry, renew)
 		}
 	}
-	time.AfterFunc(max(lifetime-derivativesReauthenticateMargin, lifetime/2), renew)
+	e.derivativesSessions.scheduleRenewal(conn, authentication, max(lifetime-derivativesReauthenticateMargin, lifetime/2), renew)
 }
 
-// wsDerivativesRenewSession authenticates a connection again while it stays connected, returning how long to wait
-// before trying again after a failure. A failure moves the wrapper's private calls to HTTP; as the gateway drops a
-// session's private subscriptions once it expires, a connection whose session could not be renewed in time is closed,
-// for the manager to reconnect, authenticating and subscribing afresh
-func (e *Exchange) wsDerivativesRenewSession(ctx context.Context, conn websocket.Connection, expiry time.Time) time.Duration {
-	if ctx.Err() != nil || !isConnected(conn) {
+// wsDerivativesRenewSession authenticates a connection again while it stays connected and no later authentication has
+// superseded the one renewed, returning how long to wait before trying again after a failure. A failure moves the
+// wrapper's private calls to HTTP; as the gateway drops a session's private subscriptions once it expires, a connection
+// whose session could not be renewed in time is closed, for the manager to reconnect, authenticating and subscribing
+// afresh. A later authentication that succeeds while a renewal is under way keeps its session
+func (e *Exchange) wsDerivativesRenewSession(ctx context.Context, conn websocket.Connection, authentication uint64, expiry time.Time) time.Duration {
+	if ctx.Err() != nil || !isConnected(conn) || e.derivativesSessions.superseded(conn, authentication) {
 		return 0
 	}
 	err := e.wsDerivativesSendAuth(ctx, conn)
-	if err == nil {
+	if err == nil || !e.derivativesSessions.clearUnlessSuperseded(conn, authentication) {
 		return 0
 	}
-	e.derivativesSessions.set(conn, "")
 	if time.Until(expiry) > derivativesReauthenticateRetry {
 		log.Errorf(log.WebsocketMgr, "%s gateway websocket session could not be renewed, trying again in %s: %v", e.Name, derivativesReauthenticateRetry, err)
 		return derivativesReauthenticateRetry
 	}
 	log.Errorf(log.WebsocketMgr, "%s gateway websocket session could not be renewed before it expires, reconnecting: %v", e.Name, err)
-	// The gateway answers a close by closing the connection, which the manager takes as a fault and reconnects; a
-	// connection shut down here would not be reconnected
-	if err := conn.SendRawMessage(ctx, derivativesNonMatchingEPL, gws.CloseMessage, gws.FormatCloseMessage(gws.CloseNormalClosure, "session expired")); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s gateway websocket could not be closed for reconnection: %v", e.Name, err)
-	}
+	e.wsCloseForReconnection(ctx, conn, derivativesNonMatchingEPL, "session expired")
 	return 0
 }
 
 // derivativesWebsocketSessions holds the API key each of the gateway's private connections is authenticated with, as
 // the manager opens another once a connection holds its most subscriptions, and a session acts for its key's account
-// alone
+// alone, and each connection's pending session renewal and latest authentication, which numbers renewals, so that one
+// a later authentication superseded is left alone
 type derivativesWebsocketSessions struct {
-	m    sync.Mutex
-	keys map[websocket.Connection]string
+	m               sync.Mutex
+	keys            map[websocket.Connection]string
+	renewals        map[websocket.Connection]*time.Timer
+	authentications map[websocket.Connection]uint64
+	lastAuth        uint64
+}
+
+// authenticated records the API key a connection authenticated with, returning the authentication's number
+func (s *derivativesWebsocketSessions) authenticated(conn websocket.Connection, key string) uint64 {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.keys == nil {
+		s.keys = make(map[websocket.Connection]string)
+	}
+	if s.authentications == nil {
+		s.authentications = make(map[websocket.Connection]uint64)
+	}
+	s.pruneClosed(conn)
+	s.keys[conn] = key
+	s.lastAuth++
+	s.authentications[conn] = s.lastAuth
+	return s.lastAuth
+}
+
+// superseded reports whether a connection authenticated again since an authentication
+func (s *derivativesWebsocketSessions) superseded(conn websocket.Connection, authentication uint64) bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.authentications[conn] != authentication
+}
+
+// clearUnlessSuperseded forgets a connection's API key after its renewal failed, unless a later authentication
+// succeeded meanwhile, and reports whether it did
+func (s *derivativesWebsocketSessions) clearUnlessSuperseded(conn websocket.Connection, authentication uint64) bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.authentications[conn] != authentication {
+		return false
+	}
+	s.keys[conn] = ""
+	return true
 }
 
 // set records the API key a connection is authenticated with, none when it is not, and forgets connections that have
@@ -526,12 +567,46 @@ func (s *derivativesWebsocketSessions) set(conn websocket.Connection, key string
 	if s.keys == nil {
 		s.keys = make(map[websocket.Connection]string)
 	}
+	s.pruneClosed(conn)
+	s.keys[conn] = key
+}
+
+// scheduleRenewal runs a connection's session renewal after a delay, in place of any renewal it has pending, unless a
+// later authentication superseded the one it renews
+func (s *derivativesWebsocketSessions) scheduleRenewal(conn websocket.Connection, authentication uint64, after time.Duration, renew func()) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.authentications[conn] != authentication {
+		return
+	}
+	if s.renewals == nil {
+		s.renewals = make(map[websocket.Connection]*time.Timer)
+	}
+	s.pruneClosed(conn)
+	if pending, ok := s.renewals[conn]; ok {
+		pending.Stop()
+	}
+	s.renewals[conn] = time.AfterFunc(after, renew)
+}
+
+// pruneClosed forgets the closed connections other than conn, stopping their pending renewals; the caller holds s.m
+func (s *derivativesWebsocketSessions) pruneClosed(conn websocket.Connection) {
 	for c := range s.keys {
 		if c != conn && !isConnected(c) {
 			delete(s.keys, c)
 		}
 	}
-	s.keys[conn] = key
+	for c, pending := range s.renewals {
+		if c != conn && !isConnected(c) {
+			pending.Stop()
+			delete(s.renewals, c)
+		}
+	}
+	for c := range s.authentications {
+		if c != conn && !isConnected(c) {
+			delete(s.authentications, c)
+		}
+	}
 }
 
 // authenticatedKey returns the API key a connection is authenticated with, none when it is not
@@ -560,8 +635,8 @@ func (e *Exchange) wsDerivativesUnsubscribe(ctx context.Context, conn websocket.
 	return e.wsDerivativesManage(ctx, conn, false, subs)
 }
 
-// wsDerivativesManage subscribes to or unsubscribes from channels on a gateway connection, then records each the gateway
-// acknowledged and reports the rest
+// wsDerivativesManage subscribes to or unsubscribes from channels on a gateway connection, then records each the
+// gateway acknowledged and reports the rest
 func (e *Exchange) wsDerivativesManage(ctx context.Context, conn websocket.Connection, subscribe bool, subs subscription.List) error {
 	if len(subs) == 0 {
 		return nil
@@ -580,7 +655,7 @@ func (e *Exchange) wsDerivativesManage(ctx context.Context, conn websocket.Conne
 		method = "private/unsubscribe"
 	}
 	var acknowledged []string
-	if err := e.WebsocketAPI().sendRequestOnConnection(ctx, conn, epl, method, &derivativesSubscriptionParams{Channels: subs.QualifiedChannels()}, &acknowledged); err != nil {
+	if err := e.WebsocketAPI().sendRequestOnConnection(ctx, conn, epl, method, &DerivativesSubscriptionWireRequest{Channels: subs.QualifiedChannels()}, &acknowledged); err != nil {
 		return fmt.Errorf("%s %s: %w", method, subs, err)
 	}
 	var errs error
@@ -601,7 +676,7 @@ func (e *Exchange) wsDerivativesManage(ctx context.Context, conn websocket.Conne
 // wsHandleDerivatives passes a gateway response to the request awaiting it, answers a heartbeat test request and
 // processes a subscription notification
 func (e *Exchange) wsHandleDerivatives(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var envelope derivativesEnvelope
+	var envelope DerivativesEnvelope
 	if err := json.Unmarshal(respRaw, &envelope); err != nil {
 		return fmt.Errorf("%s could not parse gateway websocket data: %w: %s", e.Name, err, respRaw)
 	}

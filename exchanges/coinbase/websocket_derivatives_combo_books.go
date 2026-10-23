@@ -8,7 +8,7 @@ import (
 
 // CreateCombo returns the combo whose legs match the trades as GlobalDerivativesAPI.CreateCombo does, over the
 // websocket, which must be authenticated
-func (w WebsocketAPI) CreateCombo(ctx context.Context, trades []DerivativesComboTrade) (*DerivativesCombo, error) {
+func (w WebsocketAPI) CreateCombo(ctx context.Context, trades []DerivativesComboTrade) (*DerivativesComboResponse, error) {
 	return w.e.GlobalDerivatives().createCombo(ctx, true, trades)
 }
 
@@ -20,7 +20,7 @@ func (w WebsocketAPI) GetLegPrices(ctx context.Context, req *DerivativesLegPrice
 
 // GetComboDetails returns a live combo's legs and book state as GlobalDerivativesAPI.GetComboDetails does, over the
 // websocket
-func (w WebsocketAPI) GetComboDetails(ctx context.Context, comboID string) (*DerivativesCombo, error) {
+func (w WebsocketAPI) GetComboDetails(ctx context.Context, comboID string) (*DerivativesComboResponse, error) {
 	return w.e.GlobalDerivatives().getComboDetails(ctx, true, comboID)
 }
 
@@ -31,6 +31,6 @@ func (w WebsocketAPI) GetComboIDs(ctx context.Context, req *DerivativesComboIDsR
 }
 
 // GetCombos returns a settlement currency's active combos as GlobalDerivativesAPI.GetCombos does, over the websocket
-func (w WebsocketAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]DerivativesCombo, error) {
+func (w WebsocketAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]DerivativesComboResponse, error) {
 	return w.e.GlobalDerivatives().getCombos(ctx, true, ccy)
 }

@@ -20,7 +20,7 @@ var (
 // SendMoney sends funds from an account to a blockchain address or an email address, with no fee for a send that
 // stays off the blockchain. Sends are asynchronous, and Coinbase may delay or cancel one, so poll GetTransaction until
 // the send's status is completed
-func (a AppAPI) SendMoney(ctx context.Context, req *AppSendMoneyRequest) (*AppTransaction, error) {
+func (a AppAPI) SendMoney(ctx context.Context, req *AppSendMoneyRequest) (*AppTransactionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (a AppAPI) SendMoney(ctx context.Context, req *AppSendMoneyRequest) (*AppTr
 	if err := req.TravelRuleData.validate(); err != nil {
 		return nil, err
 	}
-	body := &appSendMoneyBody{
+	body := &AppSendMoneyWireRequest{
 		Type:              AppTransactionTypeSend,
 		To:                req.To,
 		Amount:            formatFloat(req.Amount),
@@ -51,7 +51,7 @@ func (a AppAPI) SendMoney(ctx context.Context, req *AppSendMoneyRequest) (*AppTr
 		Network:           req.Network,
 		TravelRuleData:    req.TravelRuleData,
 	}
-	resp, err := sendAppRequest[*AppTransaction](ctx, a, http.MethodPost, "accounts/"+req.AccountID+"/transactions", nil, body)
+	resp, err := sendAppRequest[*AppTransactionResponse](ctx, a, http.MethodPost, "accounts/"+req.AccountID+"/transactions", nil, body)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (a AppAPI) SendMoney(ctx context.Context, req *AppSendMoneyRequest) (*AppTr
 }
 
 // ListTransactions returns a page of an account's transactions
-func (a AppAPI) ListTransactions(ctx context.Context, req *AppListTransactionsRequest) (*AppListResponse[AppTransaction], error) {
+func (a AppAPI) ListTransactions(ctx context.Context, req *AppListTransactionsRequest) (*AppListResponse[AppTransactionResponse], error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (a AppAPI) ListTransactions(ctx context.Context, req *AppListTransactionsRe
 	if err != nil {
 		return nil, err
 	}
-	resp, err := sendAppRequest[[]AppTransaction](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/transactions", params, nil)
+	resp, err := sendAppRequest[[]AppTransactionResponse](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/transactions", params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (a AppAPI) ListTransactions(ctx context.Context, req *AppListTransactionsRe
 }
 
 // GetTransaction returns one of an account's transactions
-func (a AppAPI) GetTransaction(ctx context.Context, req *AppGetTransactionRequest) (*AppTransaction, error) {
+func (a AppAPI) GetTransaction(ctx context.Context, req *AppGetTransactionRequest) (*AppTransactionResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (a AppAPI) GetTransaction(ctx context.Context, req *AppGetTransactionReques
 	if req.TransactionID == "" {
 		return nil, errAppTransactionIDRequired
 	}
-	resp, err := sendAppRequest[*AppTransaction](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/transactions/"+req.TransactionID, nil, nil)
+	resp, err := sendAppRequest[*AppTransactionResponse](ctx, a, http.MethodGet, "accounts/"+req.AccountID+"/transactions/"+req.TransactionID, nil, nil)
 	if err != nil {
 		return nil, err
 	}

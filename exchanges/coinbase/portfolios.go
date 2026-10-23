@@ -21,8 +21,8 @@ func (e *Exchange) CreatePortfolio(ctx context.Context, name string) (*Portfolio
 	if name == "" {
 		return nil, errPortfolioNameRequired
 	}
-	var resp *portfolioResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"portfolios", nil, &portfolioNameBody{Name: name}, &resp); err != nil {
+	var resp *PortfolioResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"portfolios", nil, &PortfolioNameWireRequest{Name: name}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil || resp.Portfolio == nil {
@@ -51,8 +51,8 @@ func (e *Exchange) EditPortfolio(ctx context.Context, req *EditPortfolioRequest)
 	if req.Name == "" {
 		return nil, errPortfolioNameRequired
 	}
-	var resp *portfolioResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPut, advancedTradePath+"portfolios/"+req.PortfolioUUID, nil, &portfolioNameBody{Name: req.Name}, &resp); err != nil {
+	var resp *PortfolioResponse
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPut, advancedTradePath+"portfolios/"+req.PortfolioUUID, nil, &PortfolioNameWireRequest{Name: req.Name}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil || resp.Portfolio == nil {
@@ -74,7 +74,7 @@ func (e *Exchange) GetPortfolioBreakdown(ctx context.Context, req *PortfolioBrea
 	if !req.Currency.IsEmpty() {
 		params.Set("currency", req.Currency.Upper().String())
 	}
-	var resp *portfolioBreakdownResponse
+	var resp *PortfolioBreakdownResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"portfolios/"+req.PortfolioUUID, params, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -95,9 +95,12 @@ func (e *Exchange) ListPortfolios(ctx context.Context, portfolioType string) ([]
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidPortfolioType, portfolioType)
 	}
-	var resp portfoliosResponse
+	var resp *PortfoliosResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"portfolios", params, nil, &resp); err != nil {
 		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
 	}
 	return resp.Portfolios, nil
 }
@@ -121,8 +124,8 @@ func (e *Exchange) MovePortfolioFunds(ctx context.Context, req *MovePortfolioFun
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: %v", errInvalidAmount, req.Amount)
 	}
-	body := &movePortfolioFundsBody{
-		Funds:               portfolioFunds{Value: formatFloat(req.Amount), Currency: req.Currency.Upper().String()},
+	body := &MovePortfolioFundsWireRequest{
+		Funds:               PortfolioFunds{Value: formatFloat(req.Amount), Currency: req.Currency.Upper().String()},
 		SourcePortfolioUUID: req.SourcePortfolioUUID,
 		TargetPortfolioUUID: req.TargetPortfolioUUID,
 	}

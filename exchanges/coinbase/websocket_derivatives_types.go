@@ -6,28 +6,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// derivativesEnvelope identifies a gateway websocket message: the response to a request, a heartbeat or a subscription
+// DerivativesEnvelope identifies a gateway websocket message: the response to a request, a heartbeat or a subscription
 // notification
-type derivativesEnvelope struct {
-	ID     int64                     `json:"id"`
-	Method string                    `json:"method"`
-	Params derivativesEnvelopeParams `json:"params"`
+type DerivativesEnvelope struct {
+	ID     uint64                        `json:"id"`
+	Method string                        `json:"method"`
+	Params DerivativesEnvelopeParameters `json:"params"`
 }
 
-// derivativesEnvelopeParams identifies a notification's channel or a heartbeat's type
-type derivativesEnvelopeParams struct {
+// DerivativesEnvelopeParameters identifies a notification's channel or a heartbeat's type
+type DerivativesEnvelopeParameters struct {
 	Channel string `json:"channel"`
 	// Type is test_request when a heartbeat must be answered with a public/test request
 	Type string `json:"type"`
 }
 
-// derivativesNotification decodes a subscription notification's data into the value Data holds
-type derivativesNotification struct {
-	Params derivativesNotificationParams `json:"params"`
+// DerivativesNotification decodes a subscription notification's data into the value Data holds
+type DerivativesNotification struct {
+	Params DerivativesNotificationParameters `json:"params"`
 }
 
-// derivativesNotificationParams holds a subscription notification's channel and data
-type derivativesNotificationParams struct {
+// DerivativesNotificationParameters holds a subscription notification's channel and data
+type DerivativesNotificationParameters struct {
 	Channel string `json:"channel"`
 	Data    any    `json:"data"`
 }
@@ -69,10 +69,10 @@ type DerivativesWebsocketGroupedOrderbook struct {
 	Asks           []DerivativesOrderBookLevel `json:"asks"`
 }
 
-// DerivativesWebsocketIncrementalTicker is an incremental_ticker notification. The first for an instrument is a snapshot
-// carrying the whole ticker, and each change after it carries only the fields that moved. A change clears a field by
-// sending it as null, which would leave a plain float64 as it was, so every field a change can leave out is a pointer,
-// nil where a notification leaves it out or sends null
+// DerivativesWebsocketIncrementalTicker is an incremental_ticker notification. The first for an instrument is a
+// snapshot carrying the whole ticker, and each change after it carries only the fields that moved. A change clears a
+// field by sending it as null, which would leave a plain float64 as it was, so every field a change can leave out is a
+// pointer, nil where a notification leaves it out or sends null
 type DerivativesWebsocketIncrementalTicker struct {
 	// Type is snapshot or change
 	Type                   string                                      `json:"type"`
@@ -291,7 +291,7 @@ type DerivativesWebsocketTrailingTriggerPrices map[string]float64
 
 // DerivativesWebsocketAnnouncement is an announcement the gateway published or deleted
 type DerivativesWebsocketAnnouncement struct {
-	DerivativesAnnouncement
+	DerivativesAnnouncementResponse
 	// Action is new for a published announcement and deleted for a deleted one
 	Action string `json:"action"`
 	// Unread counts the account's earlier unread announcements, which only an authenticated connection is sent
@@ -300,14 +300,14 @@ type DerivativesWebsocketAnnouncement struct {
 
 // DerivativesWebsocketInstrumentCreation is an instrument the gateway created, which it notifies once
 type DerivativesWebsocketInstrumentCreation struct {
-	DerivativesInstrument
+	DerivativesInstrumentResponse
 	Timestamp types.Time `json:"timestamp"`
 }
 
 // UnmarshalJSON decodes the instrument and the notification's timestamp, which the instrument's own decoder, promoted
 // to this type, would leave out
 func (d *DerivativesWebsocketInstrumentCreation) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d.DerivativesInstrument); err != nil {
+	if err := json.Unmarshal(data, &d.DerivativesInstrumentResponse); err != nil {
 		return err
 	}
 	var notification struct {
@@ -322,8 +322,8 @@ func (d *DerivativesWebsocketInstrumentCreation) UnmarshalJSON(data []byte) erro
 
 // DerivativesWebsocketUserChanges is the account's order, trade and position changes in an instrument
 type DerivativesWebsocketUserChanges struct {
-	InstrumentName string                 `json:"instrument_name"`
-	Orders         []DerivativesOrder     `json:"orders"`
-	Trades         []DerivativesUserTrade `json:"trades"`
-	Positions      []DerivativesPosition  `json:"positions"`
+	InstrumentName string                         `json:"instrument_name"`
+	Orders         []DerivativesOrderResponse     `json:"orders"`
+	Trades         []DerivativesUserTradeResponse `json:"trades"`
+	Positions      []DerivativesPositionResponse  `json:"positions"`
 }

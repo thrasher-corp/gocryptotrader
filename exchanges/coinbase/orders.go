@@ -79,7 +79,7 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) (*Cancel
 		return nil, errOrderIDRequired
 	}
 	var resp *CancelOrdersResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"orders/batch_cancel", nil, &cancelOrdersBody{OrderIDs: orderIDs}, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"orders/batch_cancel", nil, &CancelOrdersWireRequest{OrderIDs: orderIDs}, &resp); err != nil {
 		return nil, orderNotFoundError(err)
 	}
 	if resp == nil {
@@ -104,7 +104,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, req *ClosePositionRequest)
 	if err := checkOrderNumbers(errInvalidAmount, req.Size); err != nil {
 		return nil, err
 	}
-	body := &closePositionBody{ClientOrderID: req.ClientOrderID, ProductID: req.ProductID, Size: orderDecimalParam(req.Size)}
+	body := &ClosePositionWireRequest{ClientOrderID: req.ClientOrderID, ProductID: req.ProductID, Size: orderDecimalParam(req.Size)}
 	var resp *CreateOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodPost, advancedTradePath+"orders/close_position", nil, body, &resp); err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func (e *Exchange) GetOrder(ctx context.Context, orderID string) (*Order, error)
 	if orderID == "" {
 		return nil, errOrderIDRequired
 	}
-	var resp *getOrderResponse
+	var resp *GetOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"orders/historical/"+orderID, nil, nil, &resp); err != nil {
 		return nil, orderNotFoundError(err)
 	}
@@ -277,7 +277,7 @@ func editOrderFailure(sentinel error, editErrs []EditOrderError) error {
 }
 
 // body validates the order and returns the body Create Order sends
-func (r *CreateOrderRequest) body() (*orderBody, error) {
+func (r *CreateOrderRequest) body() (*OrderWireRequest, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (r *CreateOrderRequest) body() (*orderBody, error) {
 }
 
 // body validates the order and returns the body Preview Order sends
-func (r *PreviewOrderRequest) body() (*orderBody, error) {
+func (r *PreviewOrderRequest) body() (*OrderWireRequest, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func (r *PreviewOrderRequest) body() (*orderBody, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &orderBody{
+	return &OrderWireRequest{
 		ProductID:                  r.ProductID,
 		Side:                       r.Side,
 		OrderConfiguration:         configuration,
@@ -362,7 +362,7 @@ func (r *PreviewOrderRequest) body() (*orderBody, error) {
 }
 
 // body validates the edit and returns the body Edit Order and Edit Order Preview send
-func (r *EditOrderRequest) body() (*editOrderBody, error) {
+func (r *EditOrderRequest) body() (*EditOrderWireRequest, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -382,7 +382,7 @@ func (r *EditOrderRequest) body() (*editOrderBody, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &editOrderBody{
+	return &EditOrderWireRequest{
 		OrderID:                    r.OrderID,
 		Price:                      formatFloat(r.Price),
 		Size:                       formatFloat(r.Size),
@@ -405,7 +405,7 @@ func (m *EquityOrderMetadata) validate() error {
 }
 
 // body validates the prediction metadata and returns the body an order request sends; nil metadata sends none
-func (m *PredictionMetadataRequest) body() (*predictionMetadataBody, error) {
+func (m *PredictionMetadataRequest) body() (*PredictionMetadataWire, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -415,7 +415,7 @@ func (m *PredictionMetadataRequest) body() (*predictionMetadataBody, error) {
 	if err := checkOrderNumbers(errInvalidPrice, m.PreviewOrderEstimatedAverageFilledPrice); err != nil {
 		return nil, err
 	}
-	return &predictionMetadataBody{
+	return &PredictionMetadataWire{
 		PredictionSide:                          m.PredictionSide,
 		PreviewOrderEstimatedAverageFilledPrice: orderDecimalParam(m.PreviewOrderEstimatedAverageFilledPrice),
 		SupportsFractionalBaseSize:              m.SupportsFractionalBaseSize,
@@ -428,7 +428,7 @@ func isOrderConfigurationSet(configuration OrderConfigurationRequest) bool {
 }
 
 // newOrderConfigurationBody validates an order configuration and returns its body
-func newOrderConfigurationBody(configuration OrderConfigurationRequest) (orderConfigurationBody, error) {
+func newOrderConfigurationBody(configuration OrderConfigurationRequest) (OrderConfigurationWire, error) {
 	if err := common.NilGuard(configuration); err != nil {
 		return nil, err
 	}
@@ -436,12 +436,12 @@ func newOrderConfigurationBody(configuration OrderConfigurationRequest) (orderCo
 	if err != nil {
 		return nil, err
 	}
-	return orderConfigurationBody{key: leg}, nil
+	return OrderConfigurationWire{key: leg}, nil
 }
 
 // attachedOrderConfigurationBody returns the body of the take profit/stop loss order a new order attaches, which can
 // only be a trigger bracket without a size, as it takes its parent's; a nil configuration, typed or not, attaches none
-func attachedOrderConfigurationBody(configuration OrderConfigurationRequest) (orderConfigurationBody, error) {
+func attachedOrderConfigurationBody(configuration OrderConfigurationRequest) (OrderConfigurationWire, error) {
 	if !isOrderConfigurationSet(configuration) {
 		return nil, nil
 	}
@@ -457,7 +457,7 @@ func attachedOrderConfigurationBody(configuration OrderConfigurationRequest) (or
 
 // editAttachedOrderConfigurationBody returns the body of the attached order configuration an edit sets, which can be a
 // trigger bracket, limit or stop limit configuration; a nil configuration, typed or not, sets none
-func editAttachedOrderConfigurationBody(configuration OrderConfigurationRequest) (orderConfigurationBody, error) {
+func editAttachedOrderConfigurationBody(configuration OrderConfigurationRequest) (OrderConfigurationWire, error) {
 	if !isOrderConfigurationSet(configuration) {
 		return nil, nil
 	}
@@ -469,30 +469,30 @@ func editAttachedOrderConfigurationBody(configuration OrderConfigurationRequest)
 }
 
 // orderConfiguration validates the market order and returns its body
-func (r *MarketMarketIOCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *MarketMarketIOCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
-	return "market_market_ioc", &orderConfigurationLegBody{QuoteSize: orderDecimalParam(r.QuoteSize), BaseSize: orderDecimalParam(r.BaseSize)}, nil
+	return "market_market_ioc", &OrderConfigurationLegWire{QuoteSize: orderDecimalParam(r.QuoteSize), BaseSize: orderDecimalParam(r.BaseSize)}, nil
 }
 
 // orderConfiguration validates the fill or kill market order and returns its body
-func (r *MarketMarketFOKRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *MarketMarketFOKRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
-	return "market_market_fok", &orderConfigurationLegBody{QuoteSize: orderDecimalParam(r.QuoteSize), BaseSize: orderDecimalParam(r.BaseSize)}, nil
+	return "market_market_fok", &OrderConfigurationLegWire{QuoteSize: orderDecimalParam(r.QuoteSize), BaseSize: orderDecimalParam(r.BaseSize)}, nil
 }
 
 // orderConfiguration validates the smart order routed limit order and returns its body
-func (r *SORLimitIOCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *SORLimitIOCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice); err != nil {
 		return "", nil, err
 	}
-	return "sor_limit_ioc", &orderConfigurationLegBody{
+	return "sor_limit_ioc", &OrderConfigurationLegWire{
 		QuoteSize:  orderDecimalParam(r.QuoteSize),
 		BaseSize:   orderDecimalParam(r.BaseSize),
 		LimitPrice: orderDecimalParam(r.LimitPrice),
@@ -500,14 +500,14 @@ func (r *SORLimitIOCRequest) orderConfiguration() (string, *orderConfigurationLe
 }
 
 // orderConfiguration validates the good til cancelled limit order and returns its body
-func (r *LimitLimitGTCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *LimitLimitGTCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice); err != nil {
 		return "", nil, err
 	}
-	return "limit_limit_gtc", &orderConfigurationLegBody{
+	return "limit_limit_gtc", &OrderConfigurationLegWire{
 		QuoteSize:  orderDecimalParam(r.QuoteSize),
 		BaseSize:   orderDecimalParam(r.BaseSize),
 		LimitPrice: orderDecimalParam(r.LimitPrice),
@@ -516,14 +516,14 @@ func (r *LimitLimitGTCRequest) orderConfiguration() (string, *orderConfiguration
 }
 
 // orderConfiguration validates the good til date limit order and returns its body
-func (r *LimitLimitGTDRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *LimitLimitGTDRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice); err != nil {
 		return "", nil, err
 	}
-	return "limit_limit_gtd", &orderConfigurationLegBody{
+	return "limit_limit_gtd", &OrderConfigurationLegWire{
 		QuoteSize:  orderDecimalParam(r.QuoteSize),
 		BaseSize:   orderDecimalParam(r.BaseSize),
 		LimitPrice: orderDecimalParam(r.LimitPrice),
@@ -533,14 +533,14 @@ func (r *LimitLimitGTDRequest) orderConfiguration() (string, *orderConfiguration
 }
 
 // orderConfiguration validates the fill or kill limit order and returns its body
-func (r *LimitLimitFOKRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *LimitLimitFOKRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice); err != nil {
 		return "", nil, err
 	}
-	return "limit_limit_fok", &orderConfigurationLegBody{
+	return "limit_limit_fok", &OrderConfigurationLegWire{
 		QuoteSize:  orderDecimalParam(r.QuoteSize),
 		BaseSize:   orderDecimalParam(r.BaseSize),
 		LimitPrice: orderDecimalParam(r.LimitPrice),
@@ -548,7 +548,7 @@ func (r *LimitLimitFOKRequest) orderConfiguration() (string, *orderConfiguration
 }
 
 // orderConfiguration validates the time weighted average price order and returns its body
-func (r *TWAPLimitGTDRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *TWAPLimitGTDRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize, r.BucketSize); err != nil {
 		return "", nil, err
 	}
@@ -566,7 +566,7 @@ func (r *TWAPLimitGTDRequest) orderConfiguration() (string, *orderConfigurationL
 	if r.NumberOfBuckets != 0 {
 		numberOfBuckets = strconv.FormatUint(r.NumberOfBuckets, 10)
 	}
-	return "twap_limit_gtd", &orderConfigurationLegBody{
+	return "twap_limit_gtd", &OrderConfigurationLegWire{
 		QuoteSize:       orderDecimalParam(r.QuoteSize),
 		BaseSize:        orderDecimalParam(r.BaseSize),
 		StartTime:       orderTimeParam(r.StartTime),
@@ -579,7 +579,7 @@ func (r *TWAPLimitGTDRequest) orderConfiguration() (string, *orderConfigurationL
 }
 
 // orderConfiguration validates the good til cancelled stop limit order and returns its body
-func (r *StopLimitStopLimitGTCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *StopLimitStopLimitGTCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.BaseSize); err != nil {
 		return "", nil, err
 	}
@@ -589,7 +589,7 @@ func (r *StopLimitStopLimitGTCRequest) orderConfiguration() (string, *orderConfi
 	if err := checkOrderEnum(r.StopDirection, errInvalidStopDirection, stopDirections); err != nil {
 		return "", nil, err
 	}
-	return "stop_limit_stop_limit_gtc", &orderConfigurationLegBody{
+	return "stop_limit_stop_limit_gtc", &OrderConfigurationLegWire{
 		BaseSize:      orderDecimalParam(r.BaseSize),
 		LimitPrice:    orderDecimalParam(r.LimitPrice),
 		StopPrice:     orderDecimalParam(r.StopPrice),
@@ -598,7 +598,7 @@ func (r *StopLimitStopLimitGTCRequest) orderConfiguration() (string, *orderConfi
 }
 
 // orderConfiguration validates the good til date stop limit order and returns its body
-func (r *StopLimitStopLimitGTDRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *StopLimitStopLimitGTDRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.BaseSize); err != nil {
 		return "", nil, err
 	}
@@ -608,7 +608,7 @@ func (r *StopLimitStopLimitGTDRequest) orderConfiguration() (string, *orderConfi
 	if err := checkOrderEnum(r.StopDirection, errInvalidStopDirection, stopDirections); err != nil {
 		return "", nil, err
 	}
-	return "stop_limit_stop_limit_gtd", &orderConfigurationLegBody{
+	return "stop_limit_stop_limit_gtd", &OrderConfigurationLegWire{
 		BaseSize:      orderDecimalParam(r.BaseSize),
 		LimitPrice:    orderDecimalParam(r.LimitPrice),
 		StopPrice:     orderDecimalParam(r.StopPrice),
@@ -618,14 +618,14 @@ func (r *StopLimitStopLimitGTDRequest) orderConfiguration() (string, *orderConfi
 }
 
 // orderConfiguration validates the good til cancelled bracket order and returns its body
-func (r *TriggerBracketGTCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *TriggerBracketGTCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice, r.StopTriggerPrice); err != nil {
 		return "", nil, err
 	}
-	return "trigger_bracket_gtc", &orderConfigurationLegBody{
+	return "trigger_bracket_gtc", &OrderConfigurationLegWire{
 		BaseSize:         orderDecimalParam(r.BaseSize),
 		LimitPrice:       orderDecimalParam(r.LimitPrice),
 		StopTriggerPrice: orderDecimalParam(r.StopTriggerPrice),
@@ -633,14 +633,14 @@ func (r *TriggerBracketGTCRequest) orderConfiguration() (string, *orderConfigura
 }
 
 // orderConfiguration validates the good til date bracket order and returns its body
-func (r *TriggerBracketGTDRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *TriggerBracketGTDRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.BaseSize); err != nil {
 		return "", nil, err
 	}
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice, r.StopTriggerPrice); err != nil {
 		return "", nil, err
 	}
-	return "trigger_bracket_gtd", &orderConfigurationLegBody{
+	return "trigger_bracket_gtd", &OrderConfigurationLegWire{
 		BaseSize:         orderDecimalParam(r.BaseSize),
 		LimitPrice:       orderDecimalParam(r.LimitPrice),
 		StopTriggerPrice: orderDecimalParam(r.StopTriggerPrice),
@@ -649,7 +649,7 @@ func (r *TriggerBracketGTDRequest) orderConfiguration() (string, *orderConfigura
 }
 
 // orderConfiguration validates the scaled order and its child orders and returns its body
-func (r *ScaledLimitGTCRequest) orderConfiguration() (string, *orderConfigurationLegBody, error) {
+func (r *ScaledLimitGTCRequest) orderConfiguration() (string, *OrderConfigurationLegWire, error) {
 	if err := checkOrderNumbers(errInvalidAmount, r.QuoteSize, r.BaseSize); err != nil {
 		return "", nil, err
 	}
@@ -662,9 +662,9 @@ func (r *ScaledLimitGTCRequest) orderConfiguration() (string, *orderConfiguratio
 	if err := checkOrderEnum(r.SizeDistribution, errInvalidScaledSizeDistribution, scaledSizeDistributions); err != nil {
 		return "", nil, err
 	}
-	var children []orderConfigurationLegBody
+	var children []OrderConfigurationLegWire
 	if len(r.Orders) != 0 {
-		children = make([]orderConfigurationLegBody, len(r.Orders))
+		children = make([]OrderConfigurationLegWire, len(r.Orders))
 		for i := range r.Orders {
 			_, child, err := r.Orders[i].orderConfiguration()
 			if err != nil {
@@ -673,7 +673,7 @@ func (r *ScaledLimitGTCRequest) orderConfiguration() (string, *orderConfiguratio
 			children[i] = *child
 		}
 	}
-	return "scaled_limit_gtc", &orderConfigurationLegBody{
+	return "scaled_limit_gtc", &OrderConfigurationLegWire{
 		Orders:            children,
 		QuoteSize:         orderDecimalParam(r.QuoteSize),
 		BaseSize:          orderDecimalParam(r.BaseSize),

@@ -55,8 +55,8 @@ func newTestExchange(tb testing.TB) *Exchange {
 	return ex
 }
 
-// derivativesWebsocketTestExchange connects, on first use, the gateway websocket of the exchange every live test shares,
-// authenticated when the credentials above are set, so the tests do not exhaust the gateway's connection limits
+// derivativesWebsocketTestExchange connects, on first use, the gateway websocket of the exchange every live test
+// shares, authenticated when the credentials above are set, so the tests do not exhaust the gateway's connection limits
 var derivativesWebsocketTestExchange = sync.OnceValues(func() (*Exchange, error) {
 	if err := setupDerivativesWebsocket(e); err != nil {
 		return nil, err

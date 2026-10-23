@@ -15,11 +15,11 @@ func (a AppAPI) CommitWithdrawal(ctx context.Context, req *AppFiatTransferIDRequ
 }
 
 // ListWithdrawals returns a page of a fiat account's withdrawals
-func (a AppAPI) ListWithdrawals(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransfer], error) {
+func (a AppAPI) ListWithdrawals(ctx context.Context, req *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error) {
 	return a.listFiatTransfers(ctx, "withdrawals", req)
 }
 
 // GetWithdrawal returns one of a fiat account's withdrawals
-func (a AppAPI) GetWithdrawal(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransfer, error) {
+func (a AppAPI) GetWithdrawal(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransferResponse, error) {
 	return a.getFiatTransfer(ctx, "withdrawals", req)
 }
