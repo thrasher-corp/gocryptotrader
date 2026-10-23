@@ -114,7 +114,7 @@ func TestConnectDrivesTheExpandedBoundary(t *testing.T) {
 		err := m.Connect(t.Context())
 		require.ErrorIs(t, err, ErrSubscriptionFailure, "an unexpanded list must fail the subscription generation stage")
 		require.ErrorIs(t, err, subscription.ErrNotExpanded, "the boundary must report the unexpanded list")
-		assert.False(t, connected, "Connect must not open a connection for an unexpanded list")
+		assert.False(t, connected, "Connect should not open a connection for an unexpanded list")
 	})
 
 	t.Run("accepts an expanded generated list and reaches the connector", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestConnectDrivesTheExpandedBoundary(t *testing.T) {
 		}, &connected)
 		err := m.Connect(t.Context())
 		require.NotErrorIs(t, err, subscription.ErrNotExpanded, "an expanded list must pass the boundary")
-		assert.True(t, connected, "Connect must reach the connector for an expanded list")
+		assert.True(t, connected, "Connect should reach the connector for an expanded list")
 	})
 }
 
