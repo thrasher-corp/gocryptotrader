@@ -101,11 +101,11 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 ### Balances
 
 Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot; while the
-spot asset is disabled, refreshing perpetual balances refreshes it too. Other accounts hold a balance per perpetual DEX,
-in that DEX's collateral token, stored under a subaccount ID of the account address and DEX name. Its hold is the margin
-in use, up to the account value, and its free amount is what can be withdrawn. Portfolio margin accounts report a spot
-hold beside a hold that can be negative, so a spot balance's hold is the larger of the two, from zero up to its total,
-and the rest of the total is free.
+spot asset is disabled, refreshing perpetual balances refreshes it too, and clears it once the account holds separate
+balances. Other accounts hold a balance per perpetual DEX, in that DEX's collateral token, stored under a subaccount ID
+of the account address and DEX name. Its hold is the margin in use, up to the account value, and its free amount is what
+can be withdrawn. Portfolio margin accounts report a spot hold beside a hold that can be negative, so a spot balance's
+hold is the larger of the two, from zero up to its total, and the rest of the total is free.
 
 ### Websocket
 

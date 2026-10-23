@@ -151,9 +151,10 @@ type balanceObserver struct {
 	usdcTotals []float64
 }
 
-// GetCredentials records the stored USDC total, as Save requests credentials before it stores anything
+// GetCredentials records the stored USDC total, as Save requests credentials before it stores anything. A store
+// holding no balances is recorded as no USDC, since a reader then sees none
 func (o *balanceObserver) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
-	if balances, err := o.Accounts.CurrencyBalances(nil, asset.All); err == nil {
+	if balances, err := o.Accounts.CurrencyBalances(nil, asset.All); err == nil || errors.Is(err, accounts.ErrNoBalances) {
 		o.usdcTotals = append(o.usdcTotals, balances[currency.USDC].Total)
 	}
 	return o.Exchange.GetCredentials(ctx)
@@ -1494,11 +1495,12 @@ func TestUpdateAccountBalances(t *testing.T) {
 		observer.Accounts = accounts.MustNewAccounts(observer)
 		require.NoError(t, observer.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
 		require.NoError(t, observer.Accounts.Save(t.Context(), accounts.SubAccounts{stale, staleBuilder}, true), "Save must not error")
+		observer.usdcTotals = nil
 		_, err = observer.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
 		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s perpetual balances with stale DEX balances", mode)
 		require.NotEmpty(t, observer.usdcTotals, "UpdateAccountBalances must save balances")
 		for _, total := range observer.usdcTotals {
-			assert.LessOrEqualf(t, total, 30.0, "UpdateAccountBalances should never store %s's refreshed USDC beside a stale DEX balance", mode)
+			assert.Equalf(t, 30.0, total, "UpdateAccountBalances should store %s's refreshed USDC and clear the stale DEX balances in one Save, so no reader sees the USDC counted twice or not at all", mode)
 		}
 		balances, err = observer.Accounts.CurrencyBalances(nil, asset.All)
 		require.NoError(t, err, "CurrencyBalances must not error")
@@ -1518,6 +1520,47 @@ func TestUpdateAccountBalances(t *testing.T) {
 		// With spot enabled the engine refreshes spot itself, so this server, which fails a spot request, must get none
 		_, err = newInfoServerExchange(t, responses, nil).UpdateAccountBalances(t.Context(), asset.PerpetualContract)
 		assert.NoErrorf(t, err, "UpdateAccountBalances should not request %s's spot balance with spot enabled", mode)
+	}
+
+	// The engine refreshes only the enabled assets, so with spot disabled a balance stored under spot while the account
+	// shared one is cleared once it holds separate balances, in the same Save as those
+	for _, mode := range []AccountAbstraction{AccountAbstractionDefault, AccountAbstractionDisabled, AccountAbstractionDEXAbstraction} {
+		responses := map[string]string{
+			"userAbstraction":    `"` + string(mode) + `"`,
+			"spotMeta":           `{"tokens":[{"name":"USDC","index":0}]}`,
+			"allPerpMetas":       `[{"universe":[],"collateralToken":0}]`,
+			"meta":               `{"universe":[],"collateralToken":0}`,
+			"clearinghouseState": `{"marginSummary":{"accountValue":"30","totalMarginUsed":"0"},"withdrawable":"30"}`,
+		}
+		shared := accounts.NewSubAccount(asset.Spot, testAccountAddress)
+		shared.Balances.Set(currency.USDC, accounts.Balance{Total: 30, Free: 30})
+		observer := &balanceObserver{Exchange: newInfoServerExchange(t, responses, nil)}
+		observer.Accounts = accounts.MustNewAccounts(observer)
+		require.NoError(t, observer.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		require.NoError(t, observer.Accounts.Save(t.Context(), accounts.SubAccounts{shared}, true), "Save must not error")
+		observer.usdcTotals = nil
+		result, err := observer.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s perpetual balances with spot disabled", mode)
+		clearBalanceTimes(t, result)
+		expDEX := accounts.NewSubAccount(asset.PerpetualContract, testAccountAddress)
+		expDEX.Balances.Set(currency.USDC, accounts.Balance{Total: 30, Free: 30})
+		assert.Equalf(t, accounts.SubAccounts{expDEX}, result, "UpdateAccountBalances should return only %s's DEX balances", mode)
+		require.NotEmpty(t, observer.usdcTotals, "UpdateAccountBalances must save balances")
+		for _, total := range observer.usdcTotals {
+			assert.Equalf(t, 30.0, total, "UpdateAccountBalances should store %s's DEX balance and clear the shared spot balance in one Save, so no reader sees the USDC counted twice or not at all", mode)
+		}
+		balances, err := observer.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equalf(t, 30.0, balances[currency.USDC].Total, "UpdateAccountBalances should clear the shared balance kept under spot once %s holds separate balances", mode)
+
+		// With spot enabled the engine refreshes spot itself, so the perpetual refresh leaves stored spot balances unchanged
+		enabled := newInfoServerExchange(t, responses, nil)
+		require.NoError(t, enabled.Accounts.Save(t.Context(), accounts.SubAccounts{shared}, true), "Save must not error")
+		_, err = enabled.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s perpetual balances with spot enabled", mode)
+		balances, err = enabled.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equalf(t, 60.0, balances[currency.USDC].Total, "UpdateAccountBalances should keep %s's spot balance with spot enabled", mode)
 	}
 
 	// Portfolio margin balances shaped as live ones, with negative holds and spot holds

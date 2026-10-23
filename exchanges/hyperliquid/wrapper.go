@@ -725,7 +725,8 @@ func (e *Exchange) GetHistoricCandlesExtended(context.Context, currency.Pair, as
 // UpdateAccountBalances retrieves balances for the configured account, vault or subaccount
 // Unified and portfolio margin accounts hold one balance across spot and perpetuals, which is stored under spot and
 // refreshed with perpetual balances while spot is disabled; their perpetual DEX balances are saved empty so stale
-// separate balances are cleared without double counting
+// separate balances are cleared without double counting. While spot is disabled, other accounts' perpetual balances
+// are saved with an empty spot balance, which clears a shared balance stored before the account changed mode
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if a != asset.Spot && a != asset.PerpetualContract {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
@@ -793,6 +794,11 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			subAccount := accounts.NewSubAccount(a, dexSubAccountID(address, dexes[i]))
 			subAccount.Balances.Set(collateral, convertPerpetualBalance(state))
 			subAccounts = append(subAccounts, subAccount)
+		}
+		if e.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
+			// The engine refreshes only the enabled assets, so with spot disabled a balance stored under spot while the
+			// account shared one is cleared with these rather than counted beside them
+			return subAccounts, e.Accounts.Save(ctx, append(accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, address)}, subAccounts...), true)
 		}
 	}
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
