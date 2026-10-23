@@ -1082,11 +1082,16 @@ func TestFetchReplacedOrderTotals(t *testing.T) {
 	const transaction = `{"tid":1,"price":"100","btc":"0.3","usd":"-30","fee":"0.1","datetime":"2024-04-03 08:00:01","type":2}`
 	replacedAt, created := time.UnixMicro(1712131206000000), time.Date(2024, 4, 3, 8, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		name   string
-		reply  string
-		totals bool
+		name      string
+		reply     string
+		totals    bool
+		amount    float64
+		perpetual bool
 	}{
-		{name: "partly executed", reply: fmt.Sprintf(status, "Canceled", transaction, "0.7"), totals: true},
+		{name: "partly executed", reply: fmt.Sprintf(status, "Canceled", transaction, "0.7"), totals: true, amount: 1},
+		{name: "perpetual partly executed", reply: strings.Replace(fmt.Sprintf(status, "Canceled", transaction, "0.7"), `"market":"BTC/USD"`, `"market":"BTC/USD-PERP"`, 1), totals: true, amount: 1, perpetual: true},
+		// Without a remaining amount, executed plus remaining is not the order's amount, which a stored order keeps
+		{name: "partly executed, none remaining", reply: fmt.Sprintf(status, "Canceled", transaction, "0"), totals: true},
 		{name: "nothing executed", reply: fmt.Sprintf(status, "Canceled", "", "1")},
 		{name: "still open", reply: fmt.Sprintf(status, "Open", transaction, "0.7")},
 	} {
@@ -1102,9 +1107,13 @@ func TestFetchReplacedOrderTotals(t *testing.T) {
 				assert.NoError(t, err, "Write should not error")
 			})
 			ex.Websocket.DataHandler = stream.NewRelay(10)
+			pair, a := wsSpotPair, asset.Spot
+			if tc.perpetual {
+				pair, a = wsPerpetualPair, asset.PerpetualContract
+			}
 			var o OrderEventData
 			require.NoError(t, json.Unmarshal([]byte(replacement), &o), "Unmarshal must not error")
-			require.NoError(t, ex.processOrderEvent(t.Context(), orderEventReplaced, &o, wsSpotPair, asset.Spot), "processOrderEvent must not error")
+			require.NoError(t, ex.processOrderEvent(t.Context(), orderEventReplaced, &o, pair, a), "processOrderEvent must not error")
 			payloads := dataHandlerPayloads(t, ex)
 			assert.Equal(t, int64(1), requests.Load(), "the replaced order's totals should be fetched")
 			if !tc.totals {
@@ -1115,20 +1124,58 @@ func TestFetchReplacedOrderTotals(t *testing.T) {
 			assert.Equal(t, &order.Detail{
 				Exchange:             ex.Name,
 				OrderID:              "1001",
+				Side:                 order.Buy,
 				Status:               order.PartiallyCancelled,
-				AssetType:            asset.Spot,
-				Pair:                 wsSpotPair,
+				AssetType:            a,
+				Pair:                 pair,
 				Date:                 created,
 				LastUpdated:          replacedAt,
+				Amount:               tc.amount,
 				ExecutedAmount:       0.3,
 				Fee:                  0.1,
 				FeeAsset:             currency.USD,
 				Cost:                 30,
 				CostAsset:            currency.USD,
 				AverageExecutedPrice: 100,
-			}, payloads[1], "the replaced order's totals should be relayed with its status after the replacement")
+			}, payloads[1], "the replaced order's totals should be relayed with its status and side after the replacement")
 		})
 	}
+}
+
+func TestFetchOrderTotalsWithoutSide(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"id":1001,"datetime":"2024-04-03 08:00:00","type":"0","status":"Canceled","market":"BTC/USD-PERP","transactions":[{"tid":1,"price":"100","btc":"0.3","usd":"-30","fee":"0.1","datetime":"2024-04-03 08:00:01","type":2}],"amount_remaining":"0.7"}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	ex.Websocket.DataHandler = stream.NewRelay(10)
+	var o OrderEventData
+	require.NoError(t, json.Unmarshal([]byte(`{"id":1001,"amount_str":"0.7","amount_at_create":"1","price_str":"100","order_subtype":0,"microtimestamp":"1712131206000000"}`), &o), "Unmarshal must not error")
+	require.NoError(t, ex.processOrderEvent(t.Context(), orderEventDeleted, &o, wsPerpetualPair, asset.PerpetualContract), "processOrderEvent must not error")
+	payloads := dataHandlerPayloads(t, ex)
+	require.Len(t, payloads, 2, "the data handler must receive the event and the order's totals")
+	// Only a replaced order takes its side from the read, so a deleted order keeps its event's side, unknown here; the
+	// read's side would add this perpetual to its position, where the tracker fails to calculate its PNL
+	assert.Equal(t, &order.Detail{
+		Exchange:             ex.Name,
+		OrderID:              "1001",
+		Type:                 order.Limit,
+		TimeInForce:          order.GoodTillCancel,
+		Status:               order.PartiallyCancelled,
+		AssetType:            asset.PerpetualContract,
+		Pair:                 wsPerpetualPair,
+		Date:                 time.Date(2024, 4, 3, 8, 0, 0, 0, time.UTC),
+		LastUpdated:          time.UnixMicro(1712131206000000),
+		Price:                100,
+		Amount:               1,
+		RemainingAmount:      0.7,
+		ExecutedAmount:       0.3,
+		Fee:                  0.1,
+		FeeAsset:             currency.USD,
+		Cost:                 30,
+		CostAsset:            currency.USD,
+		AverageExecutedPrice: 100,
+	}, payloads[1], "the deleted order's totals should be relayed with its event's detail, leaving its side unknown")
 }
 
 func TestIsOrderEventRetryable(t *testing.T) {

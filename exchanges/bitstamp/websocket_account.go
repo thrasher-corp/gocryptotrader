@@ -434,6 +434,15 @@ func (e *Exchange) fetchOrderTotals(ctx context.Context, closed *order.Detail, e
 		}
 		// The event's last update is kept, and its trades left out, as the API's trade times are rounded to seconds
 		d := *closed
+		if executed.IsZero() {
+			// A replaced order is relayed without its own fields, which the replacement event does not carry, so an order
+			// the store does not hold yet takes its side from the read. The read's amount is executed plus remaining, and is
+			// only taken while some remained, as an order the store holds would lose its amount if none is reported
+			d.Side = fetched.Side
+			if fetched.RemainingAmount > 0 {
+				d.Amount = fetched.Amount
+			}
+		}
 		d.Status = fetched.Status
 		d.ExecutedAmount = fetched.ExecutedAmount
 		d.Date = fetched.Date

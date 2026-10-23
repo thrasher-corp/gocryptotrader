@@ -610,6 +610,20 @@ func TestValidateSubscriptions(t *testing.T) {
 	}
 }
 
+func TestValidateSubscriptionsWithStored(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestInstance(t)
+	books := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel}}
+	stored, err := books.ExpandTemplates(ex)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	require.NoError(t, ex.Websocket.AddSubscriptions(nil, stored...), "AddSubscriptions must not error")
+	// A flush generates every subscription again and validates them together with the stored ones
+	_, err = books.ExpandTemplates(ex)
+	assert.NoError(t, err, "ExpandTemplates should accept the order books already subscribed to")
+	_, err = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: channelDetailOrderbook}}.ExpandTemplates(ex)
+	assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "ExpandTemplates should refuse detail order books for markets whose order books are subscribed to")
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
