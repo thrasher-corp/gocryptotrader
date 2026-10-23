@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -79,4 +80,93 @@ func fanOutExpander(count int) func(subscription.List) (subscription.ExpandedLis
 		}
 		return subscription.NewExpandedList(expanded)
 	}
+}
+
+// TestConnectDrivesTheExpandedBoundary ensures Connect validates generated subscriptions at the
+// boundary before any connection is opened: an unexpanded list must be refused, an expanded one
+// must reach the connector.
+func TestConnectDrivesTheExpandedBoundary(t *testing.T) {
+	t.Parallel()
+
+	newManager := func(t *testing.T, gen func() (subscription.List, error), connected *bool) *Manager {
+		t.Helper()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL:                   "ws://boundary.test",
+			Connector:             func(context.Context, Connection) error { *connected = true; return nil },
+			Handler:               func(context.Context, Connection, []byte) error { return nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+			GenerateSubscriptions: gen,
+		}), "SetupNewConnection must not error")
+		return m
+	}
+
+	t.Run("rejects an unexpanded generated list before connecting", func(t *testing.T) {
+		t.Parallel()
+		var connected bool
+		m := newManager(t, func() (subscription.List, error) {
+			return subscription.List{{Channel: "ticker"}}, nil
+		}, &connected)
+		err := m.Connect(t.Context())
+		require.ErrorIs(t, err, ErrSubscriptionFailure, "an unexpanded list must fail the subscription generation stage")
+		require.ErrorIs(t, err, subscription.ErrNotExpanded, "the boundary must report the unexpanded list")
+		assert.False(t, connected, "Connect must not open a connection for an unexpanded list")
+	})
+
+	t.Run("accepts an expanded generated list and reaches the connector", func(t *testing.T) {
+		t.Parallel()
+		var connected bool
+		m := newManager(t, func() (subscription.List, error) {
+			return subscription.List{{Channel: "ticker", QualifiedChannel: "ticker-spot"}}, nil
+		}, &connected)
+		err := m.Connect(t.Context())
+		require.NotErrorIs(t, err, subscription.ErrNotExpanded, "an expanded list must pass the boundary")
+		assert.True(t, connected, "Connect must reach the connector for an expanded list")
+	})
+}
+
+// TestFlushChannelsDrivesTheExpandedBoundary ensures a refresh regenerates and validates through
+// the same boundary instead of trusting the generator.
+func TestFlushChannelsDrivesTheExpandedBoundary(t *testing.T) {
+	t.Parallel()
+
+	newManager := func(t *testing.T, gen func() (subscription.List, error)) *Manager {
+		t.Helper()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL:                   "ws://boundary.test",
+			Connector:             func(context.Context, Connection) error { return nil },
+			Handler:               func(context.Context, Connection, []byte) error { return nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+			GenerateSubscriptions: gen,
+		}), "SetupNewConnection must not error")
+		m.setState(connectedState)
+		return m
+	}
+
+	t.Run("rejects an unexpanded regenerated list", func(t *testing.T) {
+		t.Parallel()
+		m := newManager(t, func() (subscription.List, error) {
+			return subscription.List{{Channel: "ticker"}}, nil
+		})
+		err := m.FlushChannels(t.Context())
+		require.ErrorIs(t, err, subscription.ErrNotExpanded, "FlushChannels must refuse an unexpanded regenerated list")
+	})
+
+	t.Run("accepts an expanded regenerated list", func(t *testing.T) {
+		t.Parallel()
+		m := newManager(t, func() (subscription.List, error) {
+			return subscription.List{{Channel: "ticker", QualifiedChannel: "ticker-spot"}}, nil
+		})
+		err := m.FlushChannels(t.Context())
+		require.NotErrorIs(t, err, subscription.ErrNotExpanded, "FlushChannels must accept an expanded regenerated list")
+	})
 }
