@@ -1,0 +1,6 @@
+{"pingTimeout":10000,"sessionId":"cbb32567-489d-4102-a35e-9dcd61dc0919","pingInterval":18000,"data":"welcome"}
+{"code":"200000","data":{"clientOid":"313e793a-a88b-4311-a590-a3b3bac00d2f-8df","orderId":"420781761635647489","tradeType":"FUTURES","ts":1773135391743000000},"id":"946ffd6b29904649b199a50885e114be","inTime":1773135391711213000,"op":"uta.order","outTime":1773135391743642000,"userRateLimit":{"limit":2000,"remaining":1999,"reset":14406}}
+{"code":"200000","data":{"clientOid":"313e793a-a88b-4311-a590-a3b3bac00d2f-8df","orderId":"420781761635647489","tradeType":"FUTURES","ts":1773135434166000000},"id":"9bf5eb399eea42a3b69c4edddd78876f","inTime":1773135434165975000,"op":"uta.cancel","outTime":1773135434167140000,"userRateLimit":{"limit":2000,"remaining":1998,"reset":14363}}
+{"code":"200000","data":{"clientOid":"11","orderId":"454538143408951297"},"id":"89fdf31583024ee3ab9ec96f8fbca994","inTime":1768909952943183000,"op":"uta.amend","outTime":1768909952945083000,"userRateLimit":{"limit":2000,"remaining":1997,"reset":21361}}
+{"code":"100003","id":"759ad5add86b4b09b35145a4d6f49488","op":"uta.order","msg":"Contract parameter invalid.","inTime":1741587922123,"outTime":1741587922128,"rateLimit":{"limit":1600,"reset":15244,"remaining":1528}}
+{"code":"400003","msg":"KC-API-KEY not exists.","inTime":1741589088843,"outTime":1741589088848}

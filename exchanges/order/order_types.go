@@ -76,7 +76,7 @@ type Submit struct {
 	ClientOrderID    string
 
 	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
-	// see kucoin_wrapper.go
+	// see exchanges/kucoin/wrapper.go
 	AutoBorrow bool
 	// AutoRepay when enabled the system will automatically repay the borrowed funds after the order is filled.
 	// Used in conjunction with margin trading to close/reduce short positions.
@@ -514,7 +514,7 @@ type RiskManagementModes struct {
 	StopLoss   RiskManagement
 
 	// StopEntry stop: 'entry': Triggers when the last trade price changes to a value at or above the stopPrice.
-	// see: https://www.kucoin.com/docs/rest/spot-trading/stop-order/introduction
+	// see: https://www.kucoin.com/docs-new/rest/spot-trading/orders/add-stop-order
 	StopEntry RiskManagement
 }
 
