@@ -68,8 +68,8 @@ func TestTimestampUnmarshalJSON(t *testing.T) {
 	want := time.Date(2026, 10, 22, 23, 7, 1, 0, time.UTC)
 	for _, input := range []string{`"2026-10-22T23:07:01+0000"`, `"2026-10-22T23:07:01+00:00"`, `"2026-10-22T23:07:01Z"`, `"2026-10-23T01:07:01+0200"`} {
 		var ts Timestamp
-		require.NoError(t, json.Unmarshal([]byte(input), &ts), "Unmarshal must not error for %s", input)
-		assert.True(t, want.Equal(ts.Time()), "Unmarshal should decode %s", input)
+		require.NoErrorf(t, json.Unmarshal([]byte(input), &ts), "Unmarshal must not error for %s", input)
+		assert.Truef(t, want.Equal(ts.Time()), "Unmarshal should decode %s", input)
 	}
 
 	var ts Timestamp
