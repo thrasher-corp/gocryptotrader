@@ -784,8 +784,8 @@ type P2PPrivilegeInfo struct {
 	Data string `json:"data"`
 }
 
-// P2PUserPayment is a payment method added to the user's account
-type P2PUserPayment struct {
+// P2PUserPaymentResponse is a payment method added to the user's account
+type P2PUserPaymentResponse struct {
 	ID       string `json:"id"`
 	RealName string `json:"realName"`
 	// PaymentType is the payment method type ID; documented as a string but recorded as a number

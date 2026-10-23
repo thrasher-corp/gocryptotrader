@@ -177,9 +177,12 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 	if err != nil {
 		return err
 	}
-	var resp SubscriptionResponse
+	var resp *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %w", errWebsocketAuthFailed, common.ErrNoResponse)
 	}
 	if !resp.Success {
 		return fmt.Errorf("%w: %s", errWebsocketAuthFailed, resp.ReturnMessage)
@@ -208,12 +211,13 @@ func (e *Exchange) websocketAuthenticationArguments(ctx context.Context) ([]any,
 }
 
 // sendSubscriptions sends subscribe or unsubscribe requests for subs in batches and records the subscriptions Bybit
-// accepts. Bybit rejects a whole request when one of its topics is invalid and names that topic, so a rejected batch is
-// resent without the topics it names and the batches after it are still sent; every rejected topic is reported in the
-// returned error
+// accepts, and those sharing a topic another subscription holds without a request. Bybit rejects a whole request when
+// one of its topics is invalid and names that topic, so a rejected batch is resent without the topics it names and the
+// batches after it are still sent; every rejected topic is reported in the returned error
 func (e *Exchange) sendSubscriptions(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
-	var errs error
-	for _, batch := range common.Batch(subs, subscriptionBatchSize) {
+	subs, marks, errs := e.shareTopics(conn, operation, subs)
+	defer e.keepHolders(marks)
+	for _, batch := range topicBatches(subs, subscriptionBatchSize) {
 		errs = common.AppendError(errs, e.sendSubscriptionBatch(ctx, conn, operation, batch))
 	}
 	return errs
@@ -227,9 +231,12 @@ func (e *Exchange) sendSubscriptionBatch(ctx context.Context, conn websocket.Con
 		if err != nil {
 			return common.AppendError(errs, fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), err))
 		}
-		var resp SubscriptionResponse
+		var resp *SubscriptionResponse
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
 			return common.AppendError(errs, fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), err))
+		}
+		if resp == nil {
+			return common.AppendError(errs, fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), common.ErrNoResponse))
 		}
 		if resp.Success {
 			return common.AppendError(errs, e.recordSubscriptions(conn, operation, batch))
@@ -261,10 +268,12 @@ func splitRejectedSubscriptions(batch subscription.List, message string) (reject
 }
 
 // sendCommandSubscriptions sends subscribe or unsubscribe requests for subs on the option and system status streams,
-// whose replies list the topics applied and rejected
+// whose replies list the topics applied and rejected, and records those sharing a topic another subscription holds
+// without a request
 func (e *Exchange) sendCommandSubscriptions(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
-	var errs error
-	for _, batch := range common.Batch(subs, subscriptionBatchSize) {
+	subs, marks, errs := e.shareTopics(conn, operation, subs)
+	defer e.keepHolders(marks)
+	for _, batch := range topicBatches(subs, subscriptionBatchSize) {
 		errs = common.AppendError(errs, e.sendCommandSubscriptionBatch(ctx, conn, operation, batch))
 	}
 	return errs
@@ -278,9 +287,12 @@ func (e *Exchange) sendCommandSubscriptionBatch(ctx context.Context, conn websoc
 	if err != nil {
 		return fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), err)
 	}
-	var resp SubscriptionResponse
+	var resp *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), err)
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %s %s: %w", websocket.ErrSubscriptionFailure, operation, strings.Join(req.Arguments, ","), common.ErrNoResponse)
 	}
 	var accepted, rejected subscription.List
 	for _, s := range batch {
@@ -300,12 +312,187 @@ func (e *Exchange) sendCommandSubscriptionBatch(ctx context.Context, conn websoc
 	return errs
 }
 
-// recordSubscriptions stores subscriptions Bybit subscribed, or removes ones it unsubscribed
+// recordSubscriptions stores subscriptions Bybit subscribed, recording the connection they hold their topics on, or
+// removes ones it unsubscribed
 func (e *Exchange) recordSubscriptions(conn websocket.Connection, operation string, subs subscription.List) error {
+	e.topicMu.Lock()
+	defer e.topicMu.Unlock()
+	return e.recordSubscriptionsLocked(conn, operation, subs)
+}
+
+// recordSubscriptionsLocked is recordSubscriptions for a caller holding topicMu
+func (e *Exchange) recordSubscriptionsLocked(conn websocket.Connection, operation string, subs subscription.List) error {
 	if operation == unsubscribeOperation {
+		// The manager may still store a holder subscribed on another connection too, so its record here is dropped now
+		// rather than when the manager no longer stores it. A key naming several holders leaves which one the manager
+		// removes to the manager, and that one's record to holdersLocked
+		for _, s := range subs {
+			var named []*subscription.Subscription
+			for h, holder := range e.topicHolders {
+				if holder.conn == conn && namesSubscription(s, h) {
+					named = append(named, h)
+				}
+			}
+			if len(named) == 1 {
+				delete(e.topicHolders, named[0])
+			}
+		}
 		return e.Websocket.RemoveSubscriptions(conn, subs...)
 	}
+	if e.topicHolders == nil {
+		e.topicHolders = make(map[*subscription.Subscription]topicHolder, len(subs))
+	}
+	for _, s := range subs {
+		e.topicHolders[s] = topicHolder{conn: conn}
+	}
 	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
+}
+
+// topicHolder is the connection a subscription holds its topic on, and the requests unsubscribing it in flight, while
+// which other requests do not count it
+type topicHolder struct {
+	conn    websocket.Connection
+	leaving []uint64
+}
+
+// topicMarks are the holders a request marked leaving, and the request's own mark
+type topicMarks struct {
+	request uint64
+	holders subscription.List
+}
+
+// shareTopics records at once the subscriptions in subs whose topic another subscription on the connection holds, and
+// returns the rest to be sent, with the leaving marks it set for keepHolders. Bybit ends a topic on its first
+// unsubscribe, refuses a second subscribe on the linear and inverse streams and leaves it unanswered on the spot
+// stream, so a topic that subscriptions share, as option trade subscriptions for one base coin do, is subscribed with
+// the first of them and unsubscribed with the last; resubscribing one of them sends nothing while another holds the
+// topic. Each subscription unsubscribed takes the holder it names, itself or an equal copy, off its topic, so
+// subscriptions unsubscribed together leave their topic to be unsubscribed, and a holder whose unsubscribe is sent is
+// marked leaving, so that a request made while it is in flight does not count it. Requests are not held back for one
+// another, so two subscribes of a topic sent at once can still both go out
+func (e *Exchange) shareTopics(conn websocket.Connection, operation string, subs subscription.List) (pending subscription.List, marks topicMarks, err error) {
+	e.topicMu.Lock()
+	defer e.topicMu.Unlock()
+	holders := e.holdersLocked(conn)
+	held := make(map[string]int, len(holders))
+	for _, h := range holders {
+		if len(e.topicHolders[h].leaving) == 0 {
+			held[h.QualifiedChannel]++
+		}
+	}
+	named := make([]*subscription.Subscription, len(subs))
+	if operation == unsubscribeOperation {
+		for i, s := range subs {
+			j := slices.IndexFunc(holders, func(h *subscription.Subscription) bool { return namesSubscription(s, h) })
+			if j < 0 {
+				continue
+			}
+			named[i] = holders[j]
+			if len(e.topicHolders[named[i]].leaving) == 0 {
+				held[named[i].QualifiedChannel]--
+			}
+			holders = slices.Delete(holders, j, j+1)
+		}
+	}
+	e.topicRequests++
+	marks.request = e.topicRequests
+	var shared subscription.List
+	for i, s := range subs {
+		if held[s.QualifiedChannel] > 0 {
+			shared = append(shared, s)
+			continue
+		}
+		pending = append(pending, s)
+		if h := named[i]; h != nil {
+			holder := e.topicHolders[h]
+			holder.leaving = append(holder.leaving, marks.request)
+			e.topicHolders[h] = holder
+			marks.holders = append(marks.holders, h)
+		}
+	}
+	if len(shared) != 0 {
+		err = e.recordSubscriptionsLocked(conn, operation, shared)
+	}
+	return pending, marks, err
+}
+
+// keepHolders clears a request's leaving marks once its unsubscriptions are over, so a holder whose unsubscription
+// failed, which the websocket manager still stores, is counted again unless another request is unsubscribing it
+func (e *Exchange) keepHolders(marks topicMarks) {
+	if len(marks.holders) == 0 {
+		return
+	}
+	e.topicMu.Lock()
+	defer e.topicMu.Unlock()
+	for _, s := range marks.holders {
+		h, ok := e.topicHolders[s]
+		if !ok {
+			continue
+		}
+		if i := slices.Index(h.leaving, marks.request); i >= 0 {
+			h.leaving = slices.Delete(h.leaving, i, i+1)
+			e.topicHolders[s] = h
+		}
+	}
+}
+
+// holdersLocked returns the subscriptions recorded on conn that the websocket manager stores, and drops the records of
+// those it no longer stores, as after a reconnect. topicMu must be held
+func (e *Exchange) holdersLocked(conn websocket.Connection) subscription.List {
+	if len(e.topicHolders) == 0 {
+		return nil
+	}
+	stored := make(map[*subscription.Subscription]bool)
+	for _, s := range e.Websocket.GetSubscriptions() {
+		stored[s] = true
+	}
+	var holders subscription.List
+	for s, h := range e.topicHolders {
+		switch {
+		case !stored[s]:
+			delete(e.topicHolders, s)
+		case h.conn == conn:
+			holders = append(holders, s)
+		}
+	}
+	return holders
+}
+
+// namesSubscription reports whether s names the stored subscription h as the websocket manager's store looks one up:
+// by being h, or by a key matching h's. It runs under topicMu, so a custom key's Match must not subscribe or
+// unsubscribe, as it must not where the manager's stores call it under their own locks
+func namesSubscription(s, h *subscription.Subscription) bool {
+	if s == h {
+		return true
+	}
+	key := s.EnsureKeyed()
+	if k, ok := key.(subscription.MatchableKey); ok {
+		stored, ok := h.EnsureKeyed().(subscription.MatchableKey)
+		return ok && k.Match(stored)
+	}
+	return key == h.EnsureKeyed()
+}
+
+// topicBatches splits subs into batches of at most size topics, keeping the subscriptions that share a topic in one
+// batch so that each topic is sent once
+func topicBatches(subs subscription.List, size int) []subscription.List {
+	var groups []subscription.List
+	group := make(map[string]int, len(subs))
+	for _, s := range subs {
+		i, ok := group[s.QualifiedChannel]
+		if !ok {
+			i = len(groups)
+			group[s.QualifiedChannel] = i
+			groups = append(groups, nil)
+		}
+		groups[i] = append(groups[i], s)
+	}
+	batches := common.Batch(groups, size)
+	merged := make([]subscription.List, len(batches))
+	for i, batch := range batches {
+		merged[i] = slices.Concat(batch...)
+	}
+	return merged
 }
 
 // uniqueTopics returns the topics of subs once each, in order; option trade subscriptions for one base coin share a topic
@@ -321,11 +508,13 @@ func uniqueTopics(subs subscription.List) []string {
 
 // handleNoTopicWebsocketResponse routes replies to subscribe, unsubscribe, auth and ping requests
 func (e *Exchange) handleNoTopicWebsocketResponse(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var resp SubscriptionResponse
+	var resp *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	switch {
+	case resp == nil:
+		// A null frame answers no request, so it is relayed below as an unknown frame
 	case resp.Type == commandResponseType:
 		if !conn.IncomingWithData(commandResponseType, respRaw) && len(resp.Data.FailTopics) != 0 {
 			return fmt.Errorf("%w: %s rejected", websocket.ErrSubscriptionFailure, strings.Join(resp.Data.FailTopics, ","))
@@ -347,7 +536,7 @@ func (e *Exchange) handleNoTopicWebsocketResponse(ctx context.Context, conn webs
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	var configured subscription.List
 	for _, s := range e.Features.Subscriptions {
-		if s.Asset == asset.Spot || s.Asset == asset.All {
+		if (s.Asset == asset.Spot || s.Asset == asset.All) && !dedicatedConnectionChannel(s.Channel) {
 			configured = append(configured, s)
 		}
 	}
@@ -362,6 +551,20 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 		}
 	}
 	return subs, nil
+}
+
+// dedicatedConnectionChannel reports whether a channel belongs to a stream other than spot's: the spread, event, RFQ,
+// Advanced Earn and system status streams, public or private
+func dedicatedConnectionChannel(channel string) bool {
+	switch channel {
+	case ChannelSpreadOrderbook, ChannelSpreadPublicTrade, ChannelSpreadTicker, ChannelSpreadOrder, ChannelSpreadExecution,
+		ChannelEventOrderbook, ChannelEventPublicTrade, ChannelEventPosition, ChannelEventExecution, ChannelEventOrder,
+		ChannelRFQPublicTrades, ChannelRFQQuotes, ChannelRFQTrades, ChannelRFQInquiries,
+		AdvancedEarnDualAssetsOffersChannel, AdvancedEarnSmartLeverageOffersChannel, AdvancedEarnDiscountBuyOffersChannel,
+		AdvancedEarnDoubleWinOffersChannel, chanSystemStatus:
+		return true
+	}
+	return false
 }
 
 // GetSubscriptionTemplate returns the template that expands spot subscriptions into topics

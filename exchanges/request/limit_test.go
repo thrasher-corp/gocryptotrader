@@ -1488,13 +1488,15 @@ func TestAdmitLocked(t *testing.T) {
 				{done: make(chan struct{})},
 				{done: tc.peerDone, limiter: tc.peerLimiter, weight: tc.peerWeight},
 			}}
+			start := time.Now()
 			require.ErrorIs(t, admit(b), tc.err, "admitLocked must resolve the group as one")
 			if tc.err != nil {
 				assert.InDelta(t, 1, first.limiter.Tokens(), 0.001, "a rejected group should give back the reservations already taken")
 				return
 			}
-			assert.InDelta(t, 0, first.limiter.Tokens(), 0.001, "an admitted group should keep its reservations")
-			assert.InDelta(t, 0, tc.peerLimiter.limiter.Tokens(), 0.001, "an admitted group should keep its reservations")
+			// The limiters regain a token an hour, so each check allows for what they can have regained since admission began
+			assert.InDelta(t, 0, first.limiter.Tokens(), 0.001+time.Since(start).Hours(), "an admitted group should keep its reservations")
+			assert.InDelta(t, 0, tc.peerLimiter.limiter.Tokens(), 0.001+time.Since(start).Hours(), "an admitted group should keep its reservations")
 		})
 	}
 
@@ -1509,7 +1511,9 @@ func TestAdmitLocked(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			first, orders := NewRateLimitWithWeight(time.Hour, 1, 1), bookedBudget(3, time.Now(), tc.booked)
+			first := NewRateLimitWithWeight(time.Hour, 1, 1)
+			// Admission reads the clock itself, so the booking is kept in view for an hour rather than a second
+			orders := &WindowBudget{window: time.Hour, requests: 3, booked: slices.Repeat([]time.Time{time.Now()}, tc.booked)}
 			b := &rateLimitBarrier{participants: []*rateLimitBarrierParticipant{
 				{done: make(chan struct{}), limiter: first, weight: 1},
 				{done: make(chan struct{}), limiter: GetRateLimiterWithWindowBudget(orders, 1), weight: 3},

@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WebsocketEventOrderbookResponse is a snapshot or delta of an event contract's payout ratio orderbook
-type WebsocketEventOrderbookResponse struct {
+// WebsocketEventOrderbookUpdate is a snapshot or delta of an event contract's payout ratio orderbook
+type WebsocketEventOrderbookUpdate struct {
 	Topic     string             `json:"topic"`
 	Type      string             `json:"type"`
 	Timestamp types.Time         `json:"ts"`
@@ -24,8 +24,8 @@ type EventOrderbookData struct {
 	Sequence uint64 `json:"seq"`
 }
 
-// WebsocketEventPublicTradeResponse holds public trades of an event contract, oldest first
-type WebsocketEventPublicTradeResponse struct {
+// WebsocketEventPublicTradeUpdate holds public trades of an event contract, oldest first
+type WebsocketEventPublicTradeUpdate struct {
 	Topic     string                `json:"topic"`
 	Type      string                `json:"type"`
 	Timestamp types.Time            `json:"ts"`
@@ -44,16 +44,16 @@ type EventWebsocketTrade struct {
 	Sequence uint64       `json:"seq"`
 }
 
-// WebsocketEventPositionResponse holds changes to the caller's event contract positions
-type WebsocketEventPositionResponse struct {
+// WebsocketEventPositionUpdate holds changes to the caller's event contract positions
+type WebsocketEventPositionUpdate struct {
 	ID           string          `json:"id"`
 	Topic        string          `json:"topic"`
 	CreationTime types.Time      `json:"creationTime"`
 	Data         []EventPosition `json:"data"`
 }
 
-// WebsocketEventExecutionResponse holds executions of the caller's event contract orders
-type WebsocketEventExecutionResponse struct {
+// WebsocketEventExecutionUpdate holds executions of the caller's event contract orders
+type WebsocketEventExecutionUpdate struct {
 	ID           string                 `json:"id"`
 	Topic        string                 `json:"topic"`
 	CreationTime types.Time             `json:"creationTime"`
@@ -116,8 +116,8 @@ type EventExtraFee struct {
 	Fee        types.Number  `json:"fee"`
 }
 
-// WebsocketEventOrderResponse holds changes to the caller's event contract orders
-type WebsocketEventOrderResponse struct {
+// WebsocketEventOrderUpdate holds changes to the caller's event contract orders
+type WebsocketEventOrderUpdate struct {
 	ID           string             `json:"id"`
 	Topic        string             `json:"topic"`
 	CreationTime types.Time         `json:"creationTime"`

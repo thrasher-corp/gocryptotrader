@@ -60,10 +60,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case chanOrderbook:
 		switch depth, _, _ := strings.Cut(rest, "."); depth {
 		case "rpi":
-			return relayWebsocketResponse[WebsocketRPIOrderbookResponse](ctx, e, respRaw)
+			return relayWebsocketResponse[WebsocketRPIOrderbookUpdate](ctx, e, respRaw)
 		case "full":
 			// Full depth pushes deltas only, which need a REST snapshot to build a book from, so they are relayed as is
-			return relayWebsocketResponse[WebsocketOrderbookResponse](ctx, e, respRaw)
+			return relayWebsocketResponse[WebsocketOrderbookUpdate](ctx, e, respRaw)
 		}
 		return e.wsProcessOrderbook(ctx, assetType, respRaw)
 	case chanPublicTrade:
@@ -73,13 +73,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case chanKline:
 		return e.wsProcessKline(ctx, assetType, respRaw)
 	case chanAllLiquidation:
-		return relayWebsocketResponse[WebsocketAllLiquidationResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketAllLiquidationUpdate](ctx, e, respRaw)
 	case chanInsurancePool:
-		return relayWebsocketResponse[WebsocketInsurancePoolResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketInsurancePoolUpdate](ctx, e, respRaw)
 	case chanPriceLimit:
-		return relayWebsocketResponse[WebsocketPriceLimitResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketPriceLimitUpdate](ctx, e, respRaw)
 	case chanADLAlert:
-		return relayWebsocketResponse[WebsocketADLAlertResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketADLAlertUpdate](ctx, e, respRaw)
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -94,7 +94,7 @@ func relayWebsocketResponse[T any](ctx context.Context, e *Exchange, respRaw []b
 }
 
 func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item, respRaw []byte) error {
-	var resp WebsocketOrderbookResponse
+	var resp WebsocketOrderbookUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, respRaw []byte) er
 	if !saveTradeData && !e.IsTradeFeedEnabled() {
 		return nil
 	}
-	var resp WebsocketPublicTradeResponse
+	var resp WebsocketPublicTradeUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (e *Exchange) publicTradePair(symbol string, a asset.Item) (currency.Pair, 
 }
 
 func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.Item, respRaw []byte) error {
-	var resp WebsocketTickerResponse
+	var resp WebsocketTickerUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func updateTicker(tick *ticker.Price, t *WebsocketTicker) {
 }
 
 func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, respRaw []byte) error {
-	var resp WebsocketKlineResponse
+	var resp WebsocketKlineUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}

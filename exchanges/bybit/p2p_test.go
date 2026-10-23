@@ -1543,7 +1543,7 @@ func TestGetP2PUserPayment(t *testing.T) {
 	result, err := e.GetP2PUserPayment(t.Context())
 	require.NoError(t, err, "GetP2PUserPayment must not error")
 	if mockTests {
-		exp := []P2PUserPayment{
+		exp := []P2PUserPaymentResponse{
 			{
 				ID:          "-1",
 				PaymentType: 377,

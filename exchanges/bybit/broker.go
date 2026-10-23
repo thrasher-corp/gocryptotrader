@@ -31,8 +31,8 @@ var errBrokerRateLimitNotSet = errors.New("broker rate limit not set")
 
 // GetBrokerWhitelistIP returns the API broker's dedicated hostnames and the IP addresses whitelisted for each; it must
 // be called from a whitelisted IP address (Get Broker Whitelist IP)
-func (e *Exchange) GetBrokerWhitelistIP(ctx context.Context) ([]BrokerWhitelistIP, error) {
-	var resp []BrokerWhitelistIP
+func (e *Exchange) GetBrokerWhitelistIP(ctx context.Context) ([]BrokerWhitelistIPResponse, error) {
+	var resp []BrokerWhitelistIPResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/whitelist/ip", nil, nil, &resp, defaultEPL)
 }
 

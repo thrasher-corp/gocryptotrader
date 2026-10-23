@@ -25,6 +25,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -359,6 +360,9 @@ func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	require.ErrorContains(t, err, "connection lost", "WebsocketAuthenticatePrivateConnection must return a failed send")
 	err = ex.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":"maybe"}`)})
 	require.Error(t, err, "WebsocketAuthenticatePrivateConnection must error for an undecodable reply")
+	err = ex.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`null`)})
+	require.ErrorIs(t, err, errWebsocketAuthFailed, "WebsocketAuthenticatePrivateConnection must not accept a null reply")
+	assert.ErrorIs(t, err, common.ErrNoResponse, "WebsocketAuthenticatePrivateConnection should report a null reply")
 
 	conn = &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":true,"ret_msg":"","op":"auth","conn_id":"cejreaspqfh3sjdnldmg-p","req_id":"1"}`)}
 	require.NoError(t, ex.WebsocketAuthenticatePrivateConnection(ctx, conn), "WebsocketAuthenticatePrivateConnection must not error")
@@ -547,6 +551,24 @@ func TestSendSubscriptions(t *testing.T) {
 	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
 	assert.Equal(t, unsubscribeOperation, req.Operation, "request operation should be unsubscribe")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribed subscriptions should be removed")
+
+	// Subscriptions sharing a topic are sent in one batch, so the topic is sent once wherever the batches fall
+	shared := websocketTestInstance(t)
+	topics := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+	subs = make(subscription.List, 0, len(topics)+1)
+	for _, topic := range topics {
+		subs = append(subs, sub(topic))
+	}
+	alias := sub("A")
+	alias.Channel = chanPublicTicker
+	subs = append(subs, alias)
+	conn = &FixtureConnection{reply: reject()}
+	require.NoError(t, shared.sendSubscriptions(t.Context(), conn, subscribeOperation, subs), "sendSubscriptions must not error for subscriptions sharing a topic")
+	require.Len(t, conn.sent, 1, "sendSubscriptions must send a topic shared across batches once")
+	req, ok = conn.sent[0].(*SubscriptionRequest)
+	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
+	assert.Len(t, req.Arguments, len(topics), "sendSubscriptions should send each topic once")
+	assert.Len(t, shared.Websocket.GetSubscriptions(), len(subs), "sendSubscriptions should store every subscription sharing a topic")
 }
 
 // sendOrFail fails a request that holds topic and accepts the rest
@@ -586,6 +608,7 @@ func TestSendSubscriptionBatch(t *testing.T) {
 		{name: "failed send", operation: subscribeOperation, bases: []string{"A"}, replies: []string{""}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.AUSDT"}},
 		{name: "failed resend keeps the rejection", operation: subscribeOperation, bases: []string{"A", "BAD"}, replies: []string{rejectsBad, ""}, expSent: [][]string{{"tickers.AUSDT", "tickers.BADUSDT"}, {"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.BADUSDT", "tickers.AUSDT"}},
 		{name: "undecodable reply", operation: subscribeOperation, bases: []string{"A"}, replies: []string{`{"success":"maybe"}`}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.AUSDT"}},
+		{name: "null reply", operation: subscribeOperation, bases: []string{"A", "B"}, replies: []string{`null`}, expSent: [][]string{{"tickers.AUSDT", "tickers.BUSDT"}}, expErrs: []error{websocket.ErrSubscriptionFailure, common.ErrNoResponse}, expNamed: []string{"tickers.AUSDT", "tickers.BUSDT"}},
 		{name: "unsubscribed", operation: unsubscribeOperation, stored: true, bases: []string{"A", "B"}, replies: []string{unsubscribed}, expSent: [][]string{{"tickers.AUSDT", "tickers.BUSDT"}}},
 		{name: "unsubscribed topic not stored", operation: unsubscribeOperation, bases: []string{"A"}, replies: []string{unsubscribed}, expSent: [][]string{{"tickers.AUSDT"}}, expErrs: []error{subscription.ErrNotFound}},
 	} {
@@ -684,6 +707,97 @@ func TestSpotSubscribeRejectedBatch(t *testing.T) {
 	assert.Len(t, received[2], len(pairs)-subscriptionBatchSize, "the later batch should still be sent")
 }
 
+// TestSpotSharedTopic subscribes and unsubscribes two configured spot subscriptions sharing a topic through the
+// websocket manager, against a stream that, as Bybit's does, carries each topic once and ends it on one unsubscribe
+func TestSpotSharedTopic(t *testing.T) {
+	t.Parallel()
+	var (
+		mu       sync.Mutex
+		topics   = make(map[string]bool)
+		requests []string
+	)
+	handler := func(tb testing.TB, msg []byte, c *gws.Conn) error {
+		tb.Helper()
+		var req SubscriptionRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		if req.Operation != subscribeOperation && req.Operation != unsubscribeOperation {
+			return nil
+		}
+		resp := &SubscriptionResponse{Success: true, ConnectionID: "d9avrat34tmf5pih98i0-gsmne", RequestID: req.RequestID, Operation: req.Operation}
+		mu.Lock()
+		for _, topic := range req.Arguments {
+			requests = append(requests, req.Operation+" "+topic)
+			switch {
+			case req.Operation == unsubscribeOperation:
+				delete(topics, topic)
+			case topics[topic]:
+				// The spot stream leaves a second subscribe to a topic unanswered; refusing it, as the linear stream
+				// does, fails the test at once rather than at the reply timeout
+				resp.Success = false
+				resp.ReturnMessage = "error:already subscribed,topic:" + topic
+			default:
+				topics[topic] = true
+			}
+		}
+		mu.Unlock()
+		return c.WriteJSON(resp)
+	}
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	}
+	pairs := currency.Pairs{currency.NewBTCUSDT()}
+	// The generic ticker channel and Bybit's own name for it both expand to the tickers.BTCUSDT topic
+	generic := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: pairs}
+	named := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: chanPublicTicker, Pairs: pairs}
+	ex.Features.Subscriptions = subscription.List{generic, named}
+	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handler))
+	s.Start()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
+	t.Cleanup(func() { stopWebsocket(t, ex) })
+	state := func() (stored, sent, held []string) {
+		for _, s := range ex.Websocket.GetSubscriptions() {
+			stored = append(stored, s.Channel+" "+s.QualifiedChannel)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for topic := range topics {
+			held = append(held, topic)
+		}
+		return stored, slices.Clone(requests), held
+	}
+	stored, sent, held := state()
+	assert.ElementsMatch(t, []string{"ticker tickers.BTCUSDT", "tickers tickers.BTCUSDT"}, stored, "Connect should store both subscriptions")
+	assert.Equal(t, []string{"subscribe tickers.BTCUSDT"}, sent, "Connect should subscribe the shared topic once")
+	assert.Equal(t, []string{"tickers.BTCUSDT"}, held, "the stream should carry the topic")
+
+	ex.Features.Subscriptions = subscription.List{generic}
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+	stored, sent, held = state()
+	assert.Equal(t, []string{"ticker tickers.BTCUSDT"}, stored, "FlushChannels should remove the dropped subscription")
+	assert.Equal(t, []string{"subscribe tickers.BTCUSDT"}, sent, "FlushChannels should not unsubscribe a topic another subscription holds")
+	assert.Equal(t, []string{"tickers.BTCUSDT"}, held, "the stream should still carry the topic")
+
+	ex.Features.Subscriptions = subscription.List{generic, named}
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error when a subscription shares a held topic")
+	stored, sent, _ = state()
+	assert.ElementsMatch(t, []string{"ticker tickers.BTCUSDT", "tickers tickers.BTCUSDT"}, stored, "FlushChannels should store a subscription to a held topic")
+	assert.Equal(t, []string{"subscribe tickers.BTCUSDT"}, sent, "FlushChannels should not subscribe a topic the stream already carries")
+
+	ex.Features.Subscriptions = subscription.List{named}
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+	ex.Features.Subscriptions = nil
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+	stored, sent, held = state()
+	assert.Empty(t, stored, "FlushChannels should remove the last subscription")
+	assert.Equal(t, []string{"subscribe tickers.BTCUSDT", "unsubscribe tickers.BTCUSDT"}, sent, "FlushChannels should unsubscribe the topic with its last subscription")
+	assert.Empty(t, held, "the stream should no longer carry the topic")
+}
+
 func TestSplitRejectedSubscriptions(t *testing.T) {
 	t.Parallel()
 	a := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSDT"}
@@ -769,6 +883,7 @@ func TestSendCommandSubscriptionBatch(t *testing.T) {
 		{name: "unsuccessful reply rejects every topic", operation: subscribeOperation, reply: unsuccessful, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
 		{name: "failed send", operation: subscribeOperation, expErrs: []error{websocket.ErrSubscriptionFailure, errFixtureSend}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
 		{name: "undecodable reply", operation: subscribeOperation, reply: `{"success":"maybe"}`, expErrs: []error{websocket.ErrSubscriptionFailure}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
+		{name: "null reply", operation: subscribeOperation, reply: `null`, expErrs: []error{websocket.ErrSubscriptionFailure, common.ErrNoResponse}, expNamed: []string{"tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}},
 		{name: "unsubscribed", operation: unsubscribeOperation, stored: true, reply: applied},
 		{name: "unsubscribed topics not stored", operation: unsubscribeOperation, reply: applied, expErrs: []error{subscription.ErrNotFound}},
 	} {
@@ -854,6 +969,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 		{name: "option pong", frame: `{"args":["1672916271846"],"op":"pong"}`},
 		{name: "private pong", frame: `{"req_id":"test","op":"pong","args":["1675418560633"],"conn_id":"cfcb4ocsvfriu23r3er0-1b"}`},
 		{name: "unknown", frame: `{"op":"welcome"}`, relayed: true},
+		{name: "null", frame: `null`, relayed: true},
 		{name: "undecodable", frame: `{"op":1}`, err: errors.New("op")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -896,6 +1012,428 @@ func TestUniqueTopics(t *testing.T) {
 	assert.Equal(t, []string{"publicTrade.BTC", "tickers.BTC-24SEP27-170000-P-USDT"}, uniqueTopics(subs), "uniqueTopics should list each topic once in order")
 }
 
+func TestShareTopics(t *testing.T) {
+	t.Parallel()
+	optionTrades := func(contract string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", contract, currency.DashDelimiter)}, QualifiedChannel: "publicTrade.BTC"}
+	}
+	ex := websocketTestInstance(t)
+	optionConn, spotConn, linearConn := &FixtureConnection{}, &FixtureConnection{}, &FixtureConnection{}
+	put, call := optionTrades("24SEP27-170000-P-USDT"), optionTrades("24SEP27-170000-C-USDT")
+	require.NoError(t, ex.recordSubscriptions(optionConn, subscribeOperation, subscription.List{put}), "recordSubscriptions must not error")
+	require.NoError(t, ex.recordSubscriptions(spotConn, subscribeOperation, subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"}}), "recordSubscriptions must not error")
+
+	// The spot and linear streams name their topics alike, and only a subscription on the same connection shares one,
+	// whatever asset either names
+	for _, linearTicker := range []*subscription.Subscription{
+		{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"},
+		{Channel: chanPublicTicker, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"},
+	} {
+		pending, leaving, err := ex.shareTopics(linearConn, subscribeOperation, subscription.List{linearTicker})
+		require.NoError(t, err, "shareTopics must not error")
+		assert.Equalf(t, subscription.List{linearTicker}, pending, "shareTopics should leave a topic another connection holds to be sent for a %s subscription", linearTicker.Asset)
+		assert.Empty(t, leaving.holders, "shareTopics should mark nothing leaving for a subscribe")
+	}
+
+	pending, _, err := ex.shareTopics(optionConn, subscribeOperation, subscription.List{call})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Empty(t, pending, "shareTopics should not send a topic another subscription on the connection holds")
+	assert.Same(t, call, ex.Websocket.GetSubscription(call), "shareTopics should store a subscription to a topic another subscription holds")
+	assert.Equal(t, subscription.SubscribedState, call.State(), "shareTopics should mark a subscription to a held topic subscribed")
+
+	pending, leaving, err := ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{put})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	ex.keepHolders(leaving)
+	assert.Empty(t, pending, "shareTopics should keep a topic another subscription still holds")
+	assert.Empty(t, leaving.holders, "shareTopics should mark nothing leaving for an unsubscribe it records at once")
+	assert.Nil(t, ex.Websocket.GetSubscription(put), "shareTopics should remove a subscription whose topic another still holds")
+	assert.Equal(t, subscription.UnsubscribedState, put.State(), "shareTopics should mark that subscription unsubscribed")
+	assert.Same(t, call, ex.Websocket.GetSubscription(call), "shareTopics should keep the subscription still holding the topic")
+
+	_, _, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{put})
+	assert.ErrorIs(t, err, subscription.ErrNotFound, "shareTopics should refuse to remove a subscription it does not hold")
+
+	// An equal copy names the stored subscription, as the websocket manager's store does, and the holder it names is not
+	// counted until its unsubscription is over
+	copied := call.Clone()
+	pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{copied})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	assert.Equal(t, subscription.List{copied}, pending, "shareTopics should leave the last subscription to a topic, named by an equal copy, to be unsubscribed")
+	assert.Equal(t, subscription.List{call}, leaving.holders, "shareTopics should mark the stored subscription the copy names leaving")
+	other := optionTrades("31DEC27-170000-P-USDT")
+	pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{other})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Equal(t, subscription.List{other}, pending, "shareTopics should send a topic whose only holder is being unsubscribed")
+	// The unsubscription was never sent, so the holder is still stored and counts again once it is over
+	ex.keepHolders(leaving)
+	pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{other})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Empty(t, pending, "shareTopics should count a holder whose unsubscription is over and which is still stored")
+
+	// Subscriptions unsubscribed together leave their shared topic to be unsubscribed
+	pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{other, call})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	assert.Equal(t, subscription.List{other, call}, pending, "shareTopics should leave a topic whose every subscription is unsubscribed to be unsubscribed")
+	assert.ElementsMatch(t, subscription.List{other, call}, leaving.holders, "shareTopics should mark every subscription it unsubscribes leaving")
+	require.NoError(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, pending), "recordSubscriptions must not error")
+	ex.keepHolders(leaving)
+
+	// A subscription the manager no longer stores, as after a reconnect, holds no topic
+	fresh := optionTrades("24SEP27-170000-P-USDT")
+	pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{fresh})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Equal(t, subscription.List{fresh}, pending, "shareTopics should send a topic whose subscriptions the manager no longer stores")
+	assert.NotContains(t, ex.topicHolders, call, "shareTopics should forget a subscription the manager no longer stores")
+
+	// A custom key names the stored subscription it matches, as the manager's store looks one up, so a subscription of
+	// other pairs can name one keyed to ignore them; it takes one holder off the topic, and another keeps the topic
+	broad := optionTrades("24SEP27-170000-P-USDT")
+	broad.Key = subscription.IgnoringPairsKey{Subscription: broad}
+	narrow := optionTrades("24SEP27-170000-C-USDT")
+	narrow.Channel = chanPublicTicker
+	narrow.Key = subscription.IgnoringPairsKey{Subscription: narrow}
+	require.NoError(t, ex.recordSubscriptions(optionConn, subscribeOperation, subscription.List{broad, narrow}), "recordSubscriptions must not error")
+	named := optionTrades("31DEC27-170000-C-USDT")
+	named.Channel = chanPublicTicker
+	named.Key = subscription.IgnoringPairsKey{Subscription: named}
+	pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{named})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	ex.keepHolders(leaving)
+	assert.Empty(t, pending, "shareTopics should keep a topic another custom keyed subscription holds")
+	assert.Empty(t, leaving.holders, "shareTopics should mark nothing leaving for an unsubscribe it records at once")
+	assert.Nil(t, ex.Websocket.GetSubscription(narrow), "shareTopics should remove the subscription the custom key names")
+	assert.Same(t, broad, ex.Websocket.GetSubscription(broad), "shareTopics should keep the other custom keyed subscription")
+	last := optionTrades("31DEC27-170000-P-USDT")
+	last.Key = subscription.IgnoringPairsKey{Subscription: last}
+	pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{last})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	ex.keepHolders(leaving)
+	assert.Equal(t, subscription.List{last}, pending, "shareTopics should leave a topic whose last holder a custom key names to be unsubscribed")
+	assert.Equal(t, subscription.List{broad}, leaving.holders, "shareTopics should mark the last holder the custom key names leaving")
+	require.NoError(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, pending), "recordSubscriptions must not error")
+
+	// A key naming two holders leaves the manager to remove either, and the other still counts whichever it removes
+	for i := range 50 {
+		wide := optionTrades("24SEP27-170000-C-USDT")
+		wide.Key = subscription.IgnoringPairsKey{Subscription: wide}
+		exact := optionTrades("24SEP27-170000-P-USDT")
+		require.NoErrorf(t, ex.recordSubscriptions(optionConn, subscribeOperation, subscription.List{wide, exact}), "recordSubscriptions must not error, iteration %d", i)
+		named := wide.Clone()
+		named.Key = wide.Key
+		pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, subscription.List{named})
+		require.NoErrorf(t, err, "shareTopics must not error when unsubscribing, iteration %d", i)
+		ex.keepHolders(leaving)
+		require.Emptyf(t, pending, "shareTopics must keep a topic the other holder holds, iteration %d", i)
+		sharer := optionTrades("31DEC27-170000-C-USDT")
+		sharer.Channel = chanPublicTicker
+		pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{sharer})
+		require.NoErrorf(t, err, "shareTopics must not error, iteration %d", i)
+		require.Emptyf(t, pending, "shareTopics must count the holder the manager kept, iteration %d", i)
+		require.NoErrorf(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, ex.Websocket.GetSubscriptions()), "recordSubscriptions must not error clearing iteration %d", i)
+	}
+}
+
+// TestTopicHolderMarks checks that each request clears only its own leaving marks, and all of them
+func TestTopicHolderMarks(t *testing.T) {
+	t.Parallel()
+	ticker := func(channel, base string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "USDT", "")}, QualifiedChannel: "tickers." + base + "USDT"}
+	}
+	ex := websocketTestInstance(t)
+	conn := &FixtureConnection{}
+	held := ticker(subscription.TickerChannel, "BTC")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{held}), "recordSubscriptions must not error")
+
+	// Two requests unsubscribing one holder each mark it, so the first ending leaves it leaving for the second
+	_, first, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{held})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	_, second, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{held.Clone()})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing again")
+	assert.Equal(t, subscription.List{held}, second.holders, "shareTopics should mark a holder another request is unsubscribing")
+	ex.keepHolders(first)
+	sharer := ticker(chanPublicTicker, "BTC")
+	pending, _, err := ex.shareTopics(conn, subscribeOperation, subscription.List{sharer})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Equal(t, subscription.List{sharer}, pending, "shareTopics should not count a holder another request is still unsubscribing")
+	ex.keepHolders(second)
+	pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{sharer})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Empty(t, pending, "shareTopics should count a holder once no request is unsubscribing it")
+	require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{sharer}), "recordSubscriptions must not error")
+
+	// A request clears every mark it set, and a request's late clearing leaves a later request's mark
+	other := ticker(subscription.TickerChannel, "ETH")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{other}), "recordSubscriptions must not error")
+	_, both, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{held, other})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	assert.ElementsMatch(t, subscription.List{held, other}, both.holders, "shareTopics should mark both holders it unsubscribes")
+	ex.keepHolders(both)
+	for _, sub := range []*subscription.Subscription{ticker(chanPublicTicker, "BTC"), ticker(chanPublicTicker, "ETH")} {
+		pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{sub})
+		require.NoError(t, err, "shareTopics must not error")
+		assert.Emptyf(t, pending, "shareTopics should count %s's holder once its request clears its marks", sub.QualifiedChannel)
+		require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{sub}), "recordSubscriptions must not error")
+	}
+	_, earlier, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{other})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{other}), "recordSubscriptions must not error")
+	assert.NotContains(t, ex.topicHolders, other, "recordSubscriptions should forget a holder unsubscribed from its connection")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{other}), "recordSubscriptions must not error for the subscription again")
+	_, later, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{other})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing again")
+	ex.keepHolders(earlier)
+	fresh := ticker(chanPublicTicker, "ETH")
+	pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{fresh})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Equal(t, subscription.List{fresh}, pending, "shareTopics should keep the mark of a later request when an earlier one clears its own")
+	ex.keepHolders(later)
+
+	// Three requests unsubscribing one holder each mark it, and their marks clear in any order
+	triple := ticker(subscription.TickerChannel, "DOT")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{triple}), "recordSubscriptions must not error")
+	_, one, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{triple})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	_, two, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{triple.Clone()})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing again")
+	_, three, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{triple.Clone()})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing a third time")
+	assert.Equal(t, subscription.List{triple}, three.holders, "shareTopics should mark a holder two other requests are unsubscribing")
+	ex.keepHolders(two)
+	ex.keepHolders(one)
+	dotSharer := ticker(chanPublicTicker, "DOT")
+	pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{dotSharer})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Equal(t, subscription.List{dotSharer}, pending, "shareTopics should not count a holder whose third unsubscribing request is still in flight")
+	ex.keepHolders(three)
+	pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{dotSharer})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Empty(t, pending, "shareTopics should count a holder once every request unsubscribing it has cleared its mark")
+	require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{dotSharer}), "recordSubscriptions must not error")
+
+	// A holder being resubscribed is still stored, and holds its topic
+	resubscribing := ticker(subscription.TickerChannel, "AVAX")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{resubscribing}), "recordSubscriptions must not error")
+	require.NoError(t, resubscribing.SetState(subscription.ResubscribingState), "SetState must not error")
+	pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{ticker(chanPublicTicker, "AVAX")})
+	require.NoError(t, err, "shareTopics must not error")
+	assert.Empty(t, pending, "shareTopics should count a holder being resubscribed")
+
+	// The record follows a subscription to the connection it was recorded on last
+	moved := ticker(subscription.TickerChannel, "LTC")
+	latest := &FixtureConnection{}
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{moved}), "recordSubscriptions must not error")
+	assert.ErrorIs(t, ex.recordSubscriptions(latest, subscribeOperation, subscription.List{moved}), subscription.ErrDuplicate, "recordSubscriptions should report the subscription the manager already stores")
+	ex.topicMu.Lock()
+	recorded := ex.topicHolders[moved].conn
+	ex.topicMu.Unlock()
+	assert.Same(t, latest, recorded, "recordSubscriptions should record the connection a subscription was recorded on last")
+
+	// A request naming a holder another request is unsubscribing does not count it again, so the topic stays for a
+	// holder subscribed meanwhile
+	leavingHolder := ticker(subscription.TickerChannel, "ADA")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{leavingHolder}), "recordSubscriptions must not error")
+	_, inFlight, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{leavingHolder})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{ticker(chanPublicTicker, "ADA")}), "recordSubscriptions must not error")
+	pending, again, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{leavingHolder.Clone()})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing again")
+	ex.keepHolders(again)
+	ex.keepHolders(inFlight)
+	assert.Empty(t, pending, "shareTopics should keep a topic a holder subscribed meanwhile holds")
+
+	// A scalar key names the holder of an equal key
+	scalar := ticker(subscription.TickerChannel, "SOL")
+	scalar.Key = "sol ticker"
+	require.NoError(t, ex.recordSubscriptions(conn, subscribeOperation, subscription.List{scalar}), "recordSubscriptions must not error")
+	copied := ticker(subscription.TickerChannel, "SOL")
+	copied.Key = "sol ticker"
+	pending, marks, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{copied})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	ex.keepHolders(marks)
+	assert.Equal(t, subscription.List{copied}, pending, "shareTopics should leave the last holder an equal scalar key names to be unsubscribed")
+	assert.Equal(t, subscription.List{scalar}, marks.holders, "shareTopics should mark the holder an equal scalar key names")
+	require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, pending), "recordSubscriptions must not error")
+	assert.NotContains(t, ex.topicHolders, scalar, "recordSubscriptions should forget the holder an equal scalar key unsubscribed")
+}
+
+// TestShareTopicsWhileUnsubscribing holds the reply to a topic's last unsubscribe, and checks that a subscribe to the
+// topic meanwhile is sent, as the topic is being unsubscribed, that a request on another connection does not wait for
+// the reply, and that a holder whose unsubscribe fails holds its topic again
+func TestShareTopicsWhileUnsubscribing(t *testing.T) {
+	t.Parallel()
+	ex := websocketTestInstance(t)
+	ticker := func(channel, base string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "USDT", "")}, QualifiedChannel: "tickers." + base + "USDT"}
+	}
+	unsubscribing := make(chan struct{}, 1)
+	release := make(chan struct{})
+	held := &FixtureConnection{reply: func(r any) ([]byte, error) {
+		req, ok := r.(*SubscriptionRequest)
+		if !ok {
+			return nil, errUnexpectedRequest
+		}
+		if req.Operation == unsubscribeOperation {
+			unsubscribing <- struct{}{}
+			<-release
+		}
+		return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+	}}
+	first := ticker(subscription.TickerChannel, "BTC")
+	require.NoError(t, ex.recordSubscriptions(held, subscribeOperation, subscription.List{first}), "recordSubscriptions must not error")
+	errs := make(chan error, 1)
+	go func() {
+		errs <- ex.sendSubscriptions(t.Context(), held, unsubscribeOperation, subscription.List{first})
+	}()
+	select {
+	case <-unsubscribing:
+	case <-time.After(5 * time.Second):
+		close(release)
+		require.FailNow(t, "the unsubscribe must reach the connection")
+	}
+	other := &FixtureConnection{reply: func(r any) ([]byte, error) {
+		req, ok := r.(*SubscriptionRequest)
+		if !ok {
+			return nil, errUnexpectedRequest
+		}
+		return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+	}}
+	assert.NoError(t, ex.sendSubscriptions(t.Context(), other, subscribeOperation, subscription.List{ticker(subscription.TickerChannel, "ETH")}), "a request on another connection should not wait for the reply")
+	second := ticker(chanPublicTicker, "BTC")
+	assert.NoError(t, ex.sendSubscriptions(t.Context(), held, subscribeOperation, subscription.List{second}), "a subscribe to a topic being unsubscribed should not error")
+	close(release)
+	select {
+	case err := <-errs:
+		require.NoError(t, err, "the unsubscribe must not error once answered")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the unsubscribe must be answered")
+	}
+	operations := make([]string, 0, len(held.sent))
+	for _, r := range held.sent {
+		req, ok := r.(*SubscriptionRequest)
+		require.True(t, ok, "sendSubscriptions must send SubscriptionRequests")
+		operations = append(operations, req.Operation+" "+strings.Join(req.Arguments, ","))
+	}
+	assert.Equal(t, []string{"unsubscribe tickers.BTCUSDT", "subscribe tickers.BTCUSDT"}, operations, "a subscribe to a topic being unsubscribed should be sent")
+
+	// A holder whose unsubscribe fails is still stored, and holds its topic for the next subscription to it
+	failing := &FixtureConnection{reply: func(r any) ([]byte, error) {
+		req, ok := r.(*SubscriptionRequest)
+		if !ok {
+			return nil, errUnexpectedRequest
+		}
+		if req.Operation == unsubscribeOperation {
+			return nil, errFixtureSend
+		}
+		return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+	}}
+	kept := ticker(subscription.TickerChannel, "SOL")
+	require.NoError(t, ex.recordSubscriptions(failing, subscribeOperation, subscription.List{kept}), "recordSubscriptions must not error")
+	require.ErrorIs(t, ex.sendSubscriptions(t.Context(), failing, unsubscribeOperation, subscription.List{kept}), errFixtureSend, "sendSubscriptions must return a failed unsubscribe")
+	require.NoError(t, ex.sendSubscriptions(t.Context(), failing, subscribeOperation, subscription.List{ticker(chanPublicTicker, "SOL")}), "sendSubscriptions must not error")
+	assert.Len(t, failing.sent, 1, "a subscribe to a topic a holder still holds after a failed unsubscribe should not be sent")
+	// The option and system status streams' sender does the same
+	option := &subscription.Subscription{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{fixtureOptionPair}, QualifiedChannel: "publicTrade.BTC"}
+	require.NoError(t, ex.recordSubscriptions(failing, subscribeOperation, subscription.List{option}), "recordSubscriptions must not error")
+	require.ErrorIs(t, ex.sendCommandSubscriptions(t.Context(), failing, unsubscribeOperation, subscription.List{option}), errFixtureSend, "sendCommandSubscriptions must return a failed unsubscribe")
+	optionSharer := &subscription.Subscription{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "24SEP27-170000-C-USDT", currency.DashDelimiter)}, QualifiedChannel: "publicTrade.BTC"}
+	require.NoError(t, ex.sendCommandSubscriptions(t.Context(), failing, subscribeOperation, subscription.List{optionSharer}), "sendCommandSubscriptions must not error")
+	assert.Len(t, failing.sent, 2, "a subscribe to an option topic a holder still holds after a failed unsubscribe should not be sent")
+
+	// A subscription recorded at once that cannot be removed does not stop the rest of the request
+	unstored := ticker(chanPublicTicker, "SOL")
+	unstored.Channel = "orderbook"
+	last := ticker(subscription.TickerChannel, "XRP")
+	require.NoError(t, ex.recordSubscriptions(failing, subscribeOperation, subscription.List{last}), "recordSubscriptions must not error")
+	sentBefore := len(failing.sent)
+	err := ex.sendSubscriptions(t.Context(), failing, unsubscribeOperation, subscription.List{unstored, last})
+	require.ErrorIs(t, err, subscription.ErrNotFound, "sendSubscriptions must report a subscription it does not hold")
+	require.Len(t, failing.sent, sentBefore+1, "sendSubscriptions must still send the rest of the request")
+	req, ok := failing.sent[sentBefore].(*SubscriptionRequest)
+	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
+	assert.Equal(t, []string{"tickers.XRPUSDT"}, req.Arguments, "sendSubscriptions should send the topic whose last holder it unsubscribes")
+}
+
+// TestSharedTopicsOnEveryStream shares a topic on the linear and private streams, which sendSubscriptions also serves
+func TestSharedTopicsOnEveryStream(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		subs        subscription.List
+		subscribe   func(*Exchange) func(context.Context, websocket.Connection, subscription.List) error
+		unsubscribe func(*Exchange) func(context.Context, websocket.Connection, subscription.List) error
+	}{
+		{
+			name: "linear",
+			subs: subscription.List{
+				{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Channel: chanPublicTicker, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+			},
+			subscribe: func(ex *Exchange) func(context.Context, websocket.Connection, subscription.List) error {
+				return func(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+					return ex.LinearSubscribe(ctx, conn, asset.USDTMarginedFutures, subs)
+				}
+			},
+			unsubscribe: func(ex *Exchange) func(context.Context, websocket.Connection, subscription.List) error {
+				return func(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+					return ex.LinearUnsubscribe(ctx, conn, asset.USDTMarginedFutures, subs)
+				}
+			},
+		},
+		{
+			// Private topics take no symbol, so subscriptions of different assets can share one
+			name: "private",
+			subs: subscription.List{
+				{Channel: chanOrder, Asset: asset.Spot, Authenticated: true},
+				{Channel: chanOrder, Asset: asset.USDTMarginedFutures, Authenticated: true},
+			},
+			subscribe: func(ex *Exchange) func(context.Context, websocket.Connection, subscription.List) error {
+				return ex.authSubscribe
+			},
+			unsubscribe: func(ex *Exchange) func(context.Context, websocket.Connection, subscription.List) error {
+				return ex.authUnsubscribe
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := websocketTestInstance(t)
+			conn := &FixtureConnection{reply: func(r any) ([]byte, error) {
+				req, ok := r.(*SubscriptionRequest)
+				if !ok {
+					return nil, errUnexpectedRequest
+				}
+				return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
+			}}
+			subscribe, unsubscribe := tc.subscribe(ex), tc.unsubscribe(ex)
+			for _, s := range tc.subs {
+				require.NoError(t, subscribe(t.Context(), conn, subscription.List{s}), "subscribing must not error")
+			}
+			require.Len(t, conn.sent, 1, "a topic subscriptions share must be subscribed once")
+			require.NoError(t, unsubscribe(t.Context(), conn, tc.subs[:1]), "unsubscribing must not error")
+			assert.Len(t, conn.sent, 1, "a topic another subscription holds should not be unsubscribed")
+			require.NoError(t, unsubscribe(t.Context(), conn, tc.subs[1:]), "unsubscribing the last subscription must not error")
+			require.Len(t, conn.sent, 2, "a topic's last subscription must unsubscribe it")
+			req, ok := conn.sent[1].(*SubscriptionRequest)
+			require.True(t, ok, "unsubscribing must send a SubscriptionRequest")
+			assert.Equal(t, unsubscribeOperation, req.Operation, "the last request should unsubscribe")
+			assert.Empty(t, ex.Websocket.GetSubscriptions(), "every subscription should be removed")
+		})
+	}
+}
+
+func TestTopicBatches(t *testing.T) {
+	t.Parallel()
+	a1 := &subscription.Subscription{Channel: "first", QualifiedChannel: "a"}
+	b := &subscription.Subscription{Channel: "second", QualifiedChannel: "b"}
+	a2 := &subscription.Subscription{Channel: "third", QualifiedChannel: "a"}
+	c := &subscription.Subscription{Channel: "fourth", QualifiedChannel: "c"}
+	d := &subscription.Subscription{Channel: "fifth", QualifiedChannel: "d"}
+	subs := subscription.List{a1, b, a2, c, d}
+	assert.Equal(t, []subscription.List{{a1, a2, b}, {c, d}}, topicBatches(subs, 2), "topicBatches should send at most size topics a batch, keeping the subscriptions that share one together")
+	assert.Equal(t, []subscription.List{{a1, a2, b, c, d}}, topicBatches(subs, 0), "topicBatches should send every topic in one batch without a size")
+	assert.Empty(t, topicBatches(nil, 2), "topicBatches should return no batches for no subscriptions")
+}
+
 func TestGenerateSpotSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -908,6 +1446,11 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
 		{Enabled: true, Asset: asset.Spot, Channel: chanInsurancePool},
 		{Enabled: true, Channel: chanSystemStatus},
+		// Channels with connections of their own are left to those, whatever asset they are configured for
+		{Enabled: true, Asset: asset.Spot, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": "SOLUSDT_SOL/USDT"}},
+		{Enabled: true, Asset: asset.All, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": "BTCUSDT-PRED"}},
+		{Enabled: true, Asset: asset.Spot, Channel: ChannelRFQPublicTrades},
+		{Enabled: true, Asset: asset.All, Channel: AdvancedEarnDualAssetsOffersChannel},
 	}
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -919,6 +1462,22 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel}}
 	_, err = ex.generateSubscriptions()
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must reject a subscription without a topic")
+}
+
+func TestDedicatedConnectionChannel(t *testing.T) {
+	t.Parallel()
+	for _, channel := range []string{
+		ChannelSpreadOrderbook, ChannelSpreadPublicTrade, ChannelSpreadTicker, ChannelSpreadOrder, ChannelSpreadExecution,
+		ChannelEventOrderbook, ChannelEventPublicTrade, ChannelEventPosition, ChannelEventExecution, ChannelEventOrder,
+		ChannelRFQPublicTrades, ChannelRFQQuotes, ChannelRFQTrades, ChannelRFQInquiries,
+		AdvancedEarnDualAssetsOffersChannel, AdvancedEarnSmartLeverageOffersChannel, AdvancedEarnDiscountBuyOffersChannel,
+		AdvancedEarnDoubleWinOffersChannel, chanSystemStatus,
+	} {
+		assert.Truef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should report %s as subscribed on a connection of its own", channel)
+	}
+	for _, channel := range []string{chanOrderbook, chanRPIOrderbook, chanPublicTrade, chanPublicTicker, chanKline, subscription.TickerChannel} {
+		assert.Falsef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should leave %s to the spot connection", channel)
+	}
 }
 
 func TestGetSubscriptionTemplate(t *testing.T) {

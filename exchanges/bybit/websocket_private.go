@@ -48,9 +48,9 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 	case name == chanWallet:
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case name == chanGreeks:
-		return relayWebsocketResponse[WebsocketGreeksResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketGreeksUpdate](ctx, e, respRaw)
 	case name == chanStrategy:
-		return relayWebsocketResponse[WebsocketStrategyResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketStrategyUpdate](ctx, e, respRaw)
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -58,7 +58,7 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 // wsProcessPosition emits canonical positions from Bybit's account-wide private stream so consumers do not depend on
 // exchange wire types
 func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketPositionResponse
+	var resp WebsocketPositionUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func positionCollateralCurrency(a asset.Item, pair currency.Pair, symbol string)
 }
 
 func (e *Exchange) wsProcessExecution(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketExecutionResponse
+	var resp WebsocketExecutionUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func isTradeExecution(execType string) bool {
 }
 
 func (e *Exchange) wsProcessFastExecution(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketFastExecutionResponse
+	var resp WebsocketFastExecutionUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ func (e *Exchange) executionFill(category, symbol, side, executionID, orderID, o
 
 // wsProcessOrder relays order pushes as order details
 func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketOrderResponse
+	var resp WebsocketOrderUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func timeInForceFromString(s string) (order.TimeInForce, error) {
 // wsProcessWalletPushData stores and emits a canonical account snapshot of the unified trading account's spot
 // balances
 func (e *Exchange) wsProcessWalletPushData(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketWalletResponse
+	var resp WebsocketWalletUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}

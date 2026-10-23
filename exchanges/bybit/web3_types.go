@@ -80,8 +80,8 @@ type Web3OrderResponse struct {
 	OrderNumber string `json:"orderNo"`
 }
 
-// Web3PaymentToken is a payment token usable for on-chain trading
-type Web3PaymentToken struct {
+// Web3PaymentTokenResponse is a payment token usable for on-chain trading
+type Web3PaymentTokenResponse struct {
 	// TokenCode is the token's CEX_ code, used in quote and execution requests
 	TokenCode         string        `json:"tokenCode"`
 	Symbol            currency.Code `json:"symbol"`
@@ -159,8 +159,8 @@ type Web3Order struct {
 	ActualFromTokenAmount types.Number `json:"actualFromTokenAmount"`
 }
 
-// Web3BizToken is an on-chain token available for trading
-type Web3BizToken struct {
+// Web3BizTokenResponse is an on-chain token available for trading
+type Web3BizTokenResponse struct {
 	// TokenCode is the token's DEX_ code, used in quote and execution requests
 	TokenCode         string        `json:"tokenCode"`
 	ChainCode         string        `json:"chainCode"`
@@ -466,8 +466,8 @@ type PredictionEngineStatusResponse struct {
 	Available bool `json:"available"`
 }
 
-// PredictionPaymentToken is a payment token accepted by the prediction market
-type PredictionPaymentToken struct {
+// PredictionPaymentTokenResponse is a payment token accepted by the prediction market
+type PredictionPaymentTokenResponse struct {
 	// TokenCode is the code buy requests pass as the payment token, such as USDC
 	TokenCode         string        `json:"tokenCode"`
 	Symbol            currency.Code `json:"symbol"`
@@ -611,8 +611,8 @@ type PredictionOrder struct {
 	UpdatedAt types.Time `json:"updatedAt"`
 }
 
-// PredictionOrderBook is an outcome token's order book; bids are sorted by price descending and asks ascending
-type PredictionOrderBook struct {
+// PredictionOrderBookResponse is an outcome token's order book; bids are sorted by price descending and asks ascending
+type PredictionOrderBookResponse struct {
 	TokenID string                     `json:"tokenId"`
 	Bids    []PredictionOrderBookLevel `json:"bids"`
 	Asks    []PredictionOrderBookLevel `json:"asks"`
@@ -624,8 +624,8 @@ type PredictionOrderBookLevel struct {
 	Size  types.Number `json:"size"`
 }
 
-// PredictionTokenPrice is an outcome token's best prices, on a 0 to 1 probability scale
-type PredictionTokenPrice struct {
+// PredictionTokenPriceResponse is an outcome token's best prices, on a 0 to 1 probability scale
+type PredictionTokenPriceResponse struct {
 	TokenID   string       `json:"tokenId"`
 	BestBid   types.Number `json:"bestBid"`
 	BestAsk   types.Number `json:"bestAsk"`

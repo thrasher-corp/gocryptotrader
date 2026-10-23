@@ -16,6 +16,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -101,7 +102,7 @@ func TestIsAdvancedEarnChannel(t *testing.T) {
 	}
 }
 
-func TestWsHandleAdvancedEarnData(t *testing.T) {
+func TestWebsocketHandleAdvancedEarnData(t *testing.T) {
 	t.Parallel()
 	ex := newAdvancedEarnTestExchange(t)
 	testexch.FixtureToDataHandler(t, advancedEarnOffersFixture, func(ctx context.Context, b []byte) error {
@@ -119,6 +120,7 @@ func TestWsHandleAdvancedEarnData(t *testing.T) {
 	require.NoError(t, err, "match.Set must not error")
 	reply := []byte(`{"req_id":"2f9d3c1e","success":true,"ret_msg":"","op":"subscribe","conn_id":"d7k2mock"}`)
 	require.NoError(t, ex.wsHandleAdvancedEarnData(t.Context(), conn, reply), "wsHandleAdvancedEarnData must route a subscription reply")
+	require.Len(t, replies, 1, "wsHandleAdvancedEarnData must deliver the reply to its request")
 	assert.Equal(t, reply, <-replies, "wsHandleAdvancedEarnData should deliver the reply to its request")
 
 	for _, tc := range []struct {
@@ -130,6 +132,7 @@ func TestWsHandleAdvancedEarnData(t *testing.T) {
 		{name: "unrequested reply", frame: `{"req_id":"9a8b7c6d","success":true,"ret_msg":"","op":"unsubscribe","conn_id":"d7k2mock"}`, err: websocket.ErrSignatureNotMatched},
 		{name: "unknown operation", frame: `{"op":"auth","success":true}`, err: errUnhandledAdvancedEarnMessage},
 		{name: "unknown topic", frame: `{"topic":"earn.sharkfin.offers","data":[]}`, err: errUnhandledAdvancedEarnMessage},
+		{name: "null", frame: `null`, err: errUnhandledAdvancedEarnMessage},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -224,6 +227,7 @@ func TestSendAdvancedEarnSubscription(t *testing.T) {
 	}{
 		{name: "accepted", reply: `{"req_id":"2f9d3c1e","success":true,"ret_msg":"","op":"subscribe","conn_id":"d7k2mock"}`},
 		{name: "rejected", reply: `{"req_id":"2f9d3c1e","success":false,"ret_msg":"Params Error","op":"subscribe","conn_id":"d7k2mock"}`, err: errAdvancedEarnSubscriptionRejected},
+		{name: "null", reply: `null`, err: common.ErrNoResponse},
 		{name: "failed send", err: errFixtureSend},
 	} {
 		conn := &signatureConnection{FixtureConnection: &FixtureConnection{reply: replySequence(tc.reply)}}

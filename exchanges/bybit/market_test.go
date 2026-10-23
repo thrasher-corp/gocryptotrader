@@ -1619,7 +1619,7 @@ func TestGetHistoricalVolatility(t *testing.T) {
 	result, err := e.GetHistoricalVolatility(t.Context(), &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, Period: 7, StartTime: marketTestStart, EndTime: marketTestEnd})
 	require.NoError(t, err, "GetHistoricalVolatility must not error")
 	if mockTests {
-		exp := []HistoricalVolatility{
+		exp := []HistoricalVolatilityResponse{
 			{
 				Period: 7,
 				Value:  0.3200234,

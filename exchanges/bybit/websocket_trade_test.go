@@ -164,11 +164,15 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	assert.ErrorContains(t, err, "Invalid sign", "error should carry Bybit's message")
 	err = ex.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":"0"}`)})
 	require.Error(t, err, "WebsocketAuthenticateTradeConnection must error for an undecodable reply")
+	// A null reply carries no return code, so it does not confirm the connection authenticated
+	err = ex.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`null`)})
+	require.ErrorIs(t, err, errWebsocketAuthFailed, "WebsocketAuthenticateTradeConnection must not accept a null reply")
+	assert.ErrorIs(t, err, common.ErrNoResponse, "WebsocketAuthenticateTradeConnection should report a null reply")
 	err = ex.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{reply: func(any) ([]byte, error) { return nil, errors.New("connection lost") }})
 	require.ErrorContains(t, err, "connection lost", "WebsocketAuthenticateTradeConnection must return a failed send")
 }
 
-func TestWsHandleTradeData(t *testing.T) {
+func TestWebsocketHandleTradeData(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		input string
@@ -656,6 +660,9 @@ func TestSendWebsocketTradeRequest(t *testing.T) {
 	require.ErrorContains(t, err, "connection lost", "sendWebsocketTradeRequest must return a failed send")
 	_, err = sendWebsocketTradeRequest[OrderResponse](t.Context(), e, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":"0"}`)}, "order.create", nil, wsCreateOrderEPL)
 	require.Error(t, err, "sendWebsocketTradeRequest must error for an undecodable reply")
+	// A null reply carries no return code, so it does not confirm the order was accepted
+	_, err = sendWebsocketTradeRequest[OrderResponse](t.Context(), e, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`null`)}, "order.create", nil, wsCreateOrderEPL)
+	require.ErrorIs(t, err, common.ErrNoResponse, "sendWebsocketTradeRequest must not accept a null reply")
 }
 
 func TestSendWebsocketTradeRequestStampsWhenSent(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -133,12 +134,17 @@ func TestManageRFQSubscriptions(t *testing.T) {
 	assert.ErrorContains(t, err, "subscribe "+ChannelRFQPublicTrades, "manageRFQSubscriptions should name the topics it could not send")
 	assert.Nil(t, ex.Websocket.GetSubscription(trades), "manageRFQSubscriptions should not store a topic it could not send")
 
+	nullReply := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`null`) }}
+	err = ex.manageRFQSubscriptions(t.Context(), nullReply, "subscribe", subscription.List{trades})
+	require.ErrorIs(t, err, errTopicsRejected, "manageRFQSubscriptions must fail every topic of a null reply")
+	assert.ErrorIs(t, err, common.ErrNoResponse, "manageRFQSubscriptions should report a null reply")
+	assert.Nil(t, ex.Websocket.GetSubscription(trades), "manageRFQSubscriptions should not store a topic whose reply is null")
 	unrouted := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`{"success":`) }}
 	require.Error(t, ex.manageRFQSubscriptions(t.Context(), unrouted, "subscribe", subscription.List{trades}), "manageRFQSubscriptions must error for a reply that does not decode")
 	assert.Nil(t, ex.Websocket.GetSubscription(trades), "manageRFQSubscriptions should not store a topic whose reply does not decode")
 }
 
-func TestWsHandleRFQPublicData(t *testing.T) {
+func TestWebsocketHandleRFQPublicData(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	conn := &topicFixtureConnection{match: websocket.NewMatch()}
@@ -155,7 +161,7 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 		require.NoError(t, json.Unmarshal(<-replies, &reply), "Unmarshal must not error")
 		assert.True(t, reply.Success, "the RFQ stream should accept the public trade topic")
 		for _, frame := range relayedFrames(ex) {
-			f, ok := frame.(*WebsocketRFQPublicTradeResponse)
+			f, ok := frame.(*WebsocketRFQPublicTradeUpdate)
 			require.Truef(t, ok, "wsHandleRFQPublicData must relay public trade frames, not %T", frame)
 			assert.NotEmpty(t, f.Data, "public trade frames should hold trades")
 		}
@@ -164,7 +170,7 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 
 	testexch.FixtureToDataHandler(t, "testdata/wsRFQPublic.json", handle)
 	exp := []any{
-		&WebsocketRFQPublicTradeResponse{
+		&WebsocketRFQPublicTradeUpdate{
 			ID:           "rfq_public_trades_1791008130310",
 			Topic:        "rfq.open.public.trades",
 			CreationTime: types.Time(time.UnixMilli(1791008130310)),
@@ -202,16 +208,18 @@ func TestWsHandleRFQPublicData(t *testing.T) {
 	require.NoError(t, err, "match.Set must not error")
 	reply := []byte(`{"req_id":"100","success":true,"ret_msg":"","op":"subscribe","conn_id":"dat23sjnufgc73fclss0-1m5nqb"}`)
 	require.NoError(t, handle(t.Context(), reply), "wsHandleRFQPublicData must route a subscription reply")
+	require.Len(t, ch, 1, "wsHandleRFQPublicData must deliver the reply to its request")
 	assert.Equal(t, reply, <-ch, "wsHandleRFQPublicData should deliver the reply to its request")
 	assert.NoError(t, handle(t.Context(), []byte(`{"req_id":"ping1","op":"pong","args":["1791534244031"],"conn_id":"dat23sjnufgc73fclss0-1m5nqb"}`)), "wsHandleRFQPublicData should ignore a pong")
 	assert.ErrorIs(t, handle(t.Context(), []byte(`{"req_id":"101","success":true,"op":"unsubscribe"}`)), websocket.ErrSignatureNotMatched, "wsHandleRFQPublicData should reject a reply no request awaits")
 	assert.ErrorIs(t, handle(t.Context(), []byte(`{"op":"auth","success":true}`)), errUnhandledStreamData, "wsHandleRFQPublicData should reject an unknown operation")
+	assert.ErrorIs(t, handle(t.Context(), []byte(`null`)), errUnhandledStreamData, "wsHandleRFQPublicData should reject a null frame")
 	assert.ErrorIs(t, handle(t.Context(), []byte(`{"topic":"rfq.open.rfqs"}`)), errUnhandledStreamData, "wsHandleRFQPublicData should reject an unknown topic")
 	assert.Error(t, handle(t.Context(), []byte(`{"topic":`)), "wsHandleRFQPublicData should reject malformed JSON")
 	assert.Error(t, handle(t.Context(), []byte(`{"op":["subscribe"]}`)), "wsHandleRFQPublicData should reject a malformed reply")
 }
 
-func TestWsHandleRFQPrivateData(t *testing.T) {
+func TestWebsocketHandleRFQPrivateData(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -222,7 +230,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 	ex := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsRFQPrivate.json", ex.wsHandleRFQPrivateData)
 	exp := []any{
-		&WebsocketRFQQuoteResponse{
+		&WebsocketRFQQuoteUpdate{
 			ID:           "rfq_quotes_1791008120140",
 			Topic:        "rfq.open.quotes",
 			CreationTime: types.Time(time.UnixMilli(1791008120140)),
@@ -245,7 +253,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketRFQQuoteResponse{
+		&WebsocketRFQQuoteUpdate{
 			ID:           "rfq_quotes_1791008130305",
 			Topic:        "rfq.open.quotes",
 			CreationTime: types.Time(time.UnixMilli(1791008130305)),
@@ -269,7 +277,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketRFQTradeResponse{
+		&WebsocketRFQTradeUpdate{
 			ID:           "rfq_trades_1791008130308",
 			Topic:        "rfq.open.trades",
 			CreationTime: types.Time(time.UnixMilli(1791008130308)),
@@ -326,7 +334,7 @@ func TestWsHandleRFQPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketRFQInquiryResponse{
+		&WebsocketRFQInquiryUpdate{
 			ID:           "rfq_rfqs_1791008100520",
 			Topic:        "rfq.open.rfqs",
 			CreationTime: types.Time(time.UnixMilli(1791008100520)),

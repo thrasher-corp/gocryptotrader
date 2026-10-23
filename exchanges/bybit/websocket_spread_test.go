@@ -63,11 +63,43 @@ func (c *topicFixtureConnection) SendMessageReturnResponse(ctx context.Context, 
 		c.match.RemoveSignature(signature)
 		return nil, err
 	}
-	return <-ch, nil
+	select {
+	case resp := <-ch:
+		return resp, nil
+	case <-time.After(time.Second):
+		// A reply the handler never routes would otherwise keep the test waiting until go test times it out. A stall
+		// can leave the timer and a routed reply both ready, and select picks either, so the reply is looked for again
+		select {
+		case resp := <-ch:
+			return resp, nil
+		default:
+		}
+		c.match.RemoveSignature(signature)
+		return nil, fmt.Errorf("%w: %v", websocket.ErrSignatureTimeout, signature)
+	}
 }
 
 func (c *topicFixtureConnection) RequireMatchWithData(signature any, data []byte) error {
 	return c.match.RequireMatchWithData(signature, data)
+}
+
+func TestTopicFixtureConnectionUnroutedReply(t *testing.T) {
+	t.Parallel()
+	conn := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`{}`) }, handler: func(context.Context, websocket.Connection, []byte) error { return nil }}
+	// The fixture's own timeout is under test, so the wait for it is bounded here
+	errs := make(chan error, 1)
+	go func() {
+		_, err := conn.SendMessageReturnResponse(t.Context(), wsSubscriptionEPL, "unrouted", &SubscriptionRequest{})
+		errs <- err
+	}()
+	select {
+	case err := <-errs:
+		require.ErrorIs(t, err, websocket.ErrSignatureTimeout, "SendMessageReturnResponse must time out waiting for a reply the handler did not route")
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "SendMessageReturnResponse must give up waiting for a reply the handler did not route")
+	}
+	_, err := conn.match.Set("unrouted", 1)
+	assert.NoError(t, err, "SendMessageReturnResponse should give up the signature it timed out on")
 }
 
 // commandReply returns a function building the COMMAND_RESP reply to a request; it lists the request's topics in
@@ -526,6 +558,8 @@ func TestManageCommandSubscriptions(t *testing.T) {
 	assert.ErrorContains(t, err, "subscribe tickers.BTCUSDT_BTC/USDT, tickers.ETHUSDT_ETH/USDT", "manageCommandSubscriptions should name the topics it could not send")
 	assert.Nil(t, ex.Websocket.GetSubscription(subs[0]), "manageCommandSubscriptions should not store a topic it could not send")
 
+	nullReply := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`null`) }}
+	require.ErrorIs(t, ex.manageCommandSubscriptions(t.Context(), nullReply, "subscribe", subs[:2]), errTopicsRejected, "manageCommandSubscriptions must fail every topic of a null reply")
 	unrouted := &topicFixtureConnection{match: websocket.NewMatch(), reply: func(*SubscriptionRequest) []byte { return []byte(`{"success":`) }}
 	require.Error(t, ex.manageCommandSubscriptions(t.Context(), unrouted, "subscribe", subs[:2]), "manageCommandSubscriptions must error for a reply that does not decode")
 	assert.Nil(t, ex.Websocket.GetSubscription(subs[0]), "manageCommandSubscriptions should not store a topic whose reply does not decode")
@@ -592,13 +626,14 @@ func TestHandleCommandFrame(t *testing.T) {
 		{name: "a pong", frame: `{"args":["1791534256294"],"op":"pong"}`},
 		{name: "a reply no request awaits", frame: `{"success":true,"conn_id":"dat42tru7geqm1secqg0-1k55h","data":{"failTopics":[],"successTopics":["tickers.ETHUSDT_ETH/USDT"]},"type":"COMMAND_RESP"}`, err: websocket.ErrSignatureNotMatched},
 		{name: "a frame that is not a command reply", frame: `{"success":true,"ret_msg":"","op":"auth","conn_id":"dat42tru7geqm1secqg0-1k55h"}`, err: errUnhandledStreamData},
+		{name: "a null frame", frame: `null`, err: errUnhandledStreamData},
 	} {
 		assert.ErrorIsf(t, handleCommandFrame(conn, []byte(tc.frame)), tc.err, "handleCommandFrame should handle %s", tc.name)
 	}
 	require.Error(t, handleCommandFrame(conn, []byte(`{"success":`)), "handleCommandFrame must error for a frame that does not decode")
 }
 
-func TestWsHandleSpreadPublicData(t *testing.T) {
+func TestWebsocketHandleSpreadPublicData(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	ex.Name = t.Name()
@@ -620,15 +655,15 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 		require.NotEmpty(t, got, "wsHandleSpreadPublicData must relay the stream's frames")
 		for _, frame := range got {
 			switch f := frame.(type) {
-			case *WebsocketSpreadOrderbookResponse:
+			case *WebsocketSpreadOrderbookUpdate:
 				assert.Equal(t, spreadTestSymbol, f.Data.Symbol, "orderbook frames should be for the subscribed symbol")
-			case *WebsocketSpreadTickerResponse:
+			case *WebsocketSpreadTickerUpdate:
 				assert.Equal(t, spreadTestSymbol, f.Data.Symbol, "ticker frames should be for the subscribed symbol")
 				pair, err := currency.NewPairFromString(f.Data.Symbol)
 				require.NoError(t, err, "NewPairFromString must not error")
 				_, err = ex.GetCachedTicker(pair, asset.Spread)
 				assert.NoError(t, err, "a relayed ticker frame's ticker should be stored")
-			case *WebsocketSpreadPublicTradeResponse:
+			case *WebsocketSpreadPublicTradeUpdate:
 				assert.NotEmpty(t, f.Data, "trade frames should hold trades")
 			default:
 				assert.Failf(t, "unexpected relayed frame", "the spread stream should not relay %T", frame)
@@ -639,7 +674,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 
 	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPublic.json", handle)
 	exp := []any{
-		&WebsocketSpreadOrderbookResponse{
+		&WebsocketSpreadOrderbookUpdate{
 			Topic:     "orderbook.25.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534204555)),
@@ -657,7 +692,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791528922919)),
 		},
-		&WebsocketSpreadOrderbookResponse{
+		&WebsocketSpreadOrderbookUpdate{
 			Topic:     "orderbook.25.BTCUSDT_BTC/USDT",
 			Type:      "delta",
 			Timestamp: types.Time(time.UnixMilli(1791534289889)),
@@ -674,7 +709,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791534289875)),
 		},
-		&WebsocketSpreadPublicTradeResponse{
+		&WebsocketSpreadPublicTradeUpdate{
 			Topic:     "publicTrade.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791362633860)),
@@ -691,7 +726,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketSpreadTickerResponse{
+		&WebsocketSpreadTickerUpdate{
 			Topic:     "tickers.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534255189)),
@@ -723,7 +758,7 @@ func TestWsHandleSpreadPublicData(t *testing.T) {
 	assert.Error(t, handle(t.Context(), []byte(`{"data":[]}`)), "wsHandleSpreadPublicData should reject a frame that is neither data nor a reply")
 }
 
-func TestWsProcessSpreadTicker(t *testing.T) {
+func TestWebsocketProcessSpreadTicker(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	ex.Name = t.Name()
@@ -752,7 +787,7 @@ func TestWsProcessSpreadTicker(t *testing.T) {
 	assert.Equal(t, expTicker, stored, "wsProcessSpreadTicker should store the ticker under the spread asset")
 	assert.Equal(t, spreadTestSymbol, stored.Pair.String(), "the stored pair should round-trip to the spread symbol")
 	expFrame := []any{
-		&WebsocketSpreadTickerResponse{
+		&WebsocketSpreadTickerUpdate{
 			Topic:     "tickers.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534255189)),
@@ -820,9 +855,9 @@ func TestRelayFrame(t *testing.T) {
 	ex := testInstance(t)
 	frames := fixtureFrames(t, "testdata/wsSpreadPublic.json")
 	require.Len(t, frames, 4, "the spread fixture must hold two orderbook pushes, a trade push and a ticker push")
-	require.NoError(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerResponse)), "relayFrame must not error")
+	require.NoError(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerUpdate)), "relayFrame must not error")
 	exp := []any{
-		&WebsocketSpreadTickerResponse{
+		&WebsocketSpreadTickerUpdate{
 			Topic:     "tickers.BTCUSDT_BTC/USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534255189)),
@@ -842,14 +877,14 @@ func TestRelayFrame(t *testing.T) {
 	}
 	assert.Equal(t, exp, relayedFrames(ex), "relayFrame should relay the frame decoded into the type given")
 
-	require.Error(t, ex.relayFrame(t.Context(), []byte(`{"topic":"tickers.BTCUSDT_BTC/USDT","data":"bad"}`), new(WebsocketSpreadTickerResponse)), "relayFrame must error for a frame that does not decode")
+	require.Error(t, ex.relayFrame(t.Context(), []byte(`{"topic":"tickers.BTCUSDT_BTC/USDT","data":"bad"}`), new(WebsocketSpreadTickerUpdate)), "relayFrame must error for a frame that does not decode")
 	assert.Empty(t, relayedFrames(ex), "relayFrame should not relay a frame that does not decode")
 
 	errBufferFull := fillDataHandler(t, ex)
-	require.ErrorIs(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerResponse)), errBufferFull, "relayFrame must return the data handler's error")
+	require.ErrorIs(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerUpdate)), errBufferFull, "relayFrame must return the data handler's error")
 }
 
-func TestWsHandleSpreadPrivateData(t *testing.T) {
+func TestWebsocketHandleSpreadPrivateData(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -860,7 +895,7 @@ func TestWsHandleSpreadPrivateData(t *testing.T) {
 	ex := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPrivate.json", ex.wsHandleSpreadPrivateData)
 	exp := []any{
-		&WebsocketSpreadOrderResponse{
+		&WebsocketSpreadOrderUpdate{
 			ID:           "1448939_BTCUSDT_28732003549",
 			Topic:        "spread.order",
 			CreationTime: types.Time(time.UnixMilli(1791008160130)),
@@ -945,7 +980,7 @@ func TestWsHandleSpreadPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketSpreadExecutionResponse{
+		&WebsocketSpreadExecutionUpdate{
 			ID:           "cvqes8141ilt347i9l20",
 			Topic:        "spread.execution",
 			CreationTime: types.Time(time.UnixMilli(1791008160126)),

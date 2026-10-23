@@ -12,8 +12,8 @@ import (
 
 // GetInstitutionWhitelistIP returns the account's dedicated institution hostnames and the IP addresses whitelisted for
 // them (Get Institution Whitelist IP). It needs a main account API key
-func (e *Exchange) GetInstitutionWhitelistIP(ctx context.Context) ([]InstitutionWhitelistIP, error) {
-	var resp []InstitutionWhitelistIP
+func (e *Exchange) GetInstitutionWhitelistIP(ctx context.Context) ([]InstitutionWhitelistIPResponse, error) {
+	var resp []InstitutionWhitelistIPResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins/whitelist/ip", nil, nil, &resp, defaultEPL)
 }
 

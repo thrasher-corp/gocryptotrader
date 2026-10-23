@@ -959,7 +959,7 @@ func TestSetup(t *testing.T) {
 		}
 		pushes := make(map[string][]byte)
 		for _, frame := range fixtureFrames(t, "testdata/wsSetupTickers.json") {
-			var push WebsocketTickerResponse
+			var push WebsocketTickerUpdate
 			require.NoError(t, json.Unmarshal(frame, &push), "Unmarshal must not error")
 			pushes[push.Topic] = frame
 		}
@@ -2572,6 +2572,69 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = notOpen.GetOrderInfo(t.Context(), "1321003749386327552", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, errAPIResponse, "GetOrderInfo must return Bybit's refusal to list the order history")
 
+	// An order whose contract has expired or been delisted since keeps the pair it was requested by, though its symbol is
+	// no longer an available pair; one of another symbol does not
+	emptyList := `{"retCode":0,"retMsg":"OK","result":{"category":"%s","nextPageCursor":"","list":[]},"retExtInfo":{},"time":1792700000000}`
+	closedOrder := `{"retCode":0,"retMsg":"OK","result":{"category":"%s","nextPageCursor":"","list":[{"orderId":"d1c2b8f4-5a6e-4f3b-9c7d-2e1f0a9b8c7d","orderLinkId":"","symbol":"%s","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","qty":"0.1","price":"100","avgPrice":"100","cumExecQty":"0.1","cumExecValue":"10","leavesQty":"0","cumExecFee":"0.05","createdTime":"1792108800000","updatedTime":"1792108801000"}]},"retExtInfo":{},"time":1792700000000}`
+	expiredOption := currency.NewPairWithDelimiter("BTC", "16OCT26-70000-C", "-")
+	for _, tc := range []struct {
+		name    string
+		asset   asset.Item
+		pair    currency.Pair
+		replies map[string]string
+		err     error
+	}{
+		{
+			name: "expired option", asset: asset.Options, pair: expiredOption,
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "option", "BTC-16OCT26-70000-C")},
+		},
+		{
+			name: "delisted spot pair from the order history", asset: asset.Spot, pair: currency.NewPairWithDelimiter("XYZ", "USDT", ""),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(emptyList, "spot"), "/v5/order/history": fmt.Sprintf(closedOrder, "spot", "XYZUSDT")},
+		},
+		{
+			name: "expired option requested by another option's pair", asset: asset.Options, pair: currency.NewPairWithDelimiter("BTC", "30OCT26-70000-C", "-"),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "option", "BTC-16OCT26-70000-C")},
+			err:     currency.ErrPairNotFound,
+		},
+		{
+			name: "expired option requested by another option's pair from the order history", asset: asset.Options, pair: currency.NewPairWithDelimiter("BTC", "30OCT26-70000-C", "-"),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(emptyList, "option"), "/v5/order/history": fmt.Sprintf(closedOrder, "option", "BTC-16OCT26-70000-C")},
+			err:     currency.ErrPairNotFound,
+		},
+		{
+			name: "expired USDT margined future", asset: asset.USDTMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("USDT-16OCT26")),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "linear", "BTCUSDT-16OCT26")},
+		},
+		{
+			name: "expired USDC margined future", asset: asset.USDCMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("16OCT26")),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "linear", "BTC-16OCT26")},
+		},
+		{
+			// The linear category returns USDT and USDC margined orders alike, so a pair of one asset is not taken for the
+			// other's order
+			name: "USDC perpetual requested as USDT margined", asset: asset.USDTMarginedFutures, pair: currency.NewPair(currency.BTC, currency.PERP),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "linear", "BTCPERP")},
+			err:     currency.ErrPairNotFound,
+		},
+		{
+			name: "USDT margined future requested as USDC margined", asset: asset.USDCMarginedFutures, pair: currency.NewPair(currency.NewCode("BTCUSDT"), currency.NewCode("16OCT26")),
+			replies: map[string]string{"/v5/order/realtime": fmt.Sprintf(closedOrder, "linear", "BTCUSDT-16OCT26")},
+			err:     currency.ErrPairNotFound,
+		},
+	} {
+		expired := restReplyTestInstance(t, tc.replies)
+		require.NoError(t, expired.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{currency.NewPairWithDelimiter("BTC", "30OCT26-70000-C", "-")}, false), "StorePairs must not error")
+		got, err := expired.GetOrderInfo(t.Context(), "d1c2b8f4-5a6e-4f3b-9c7d-2e1f0a9b8c7d", tc.pair, tc.asset)
+		require.ErrorIsf(t, err, tc.err, "GetOrderInfo must return the expected error for an %s order", tc.name)
+		if tc.err != nil {
+			continue
+		}
+		assert.Equalf(t, tc.pair, got.Pair, "GetOrderInfo should return the %s order with the pair it was requested by", tc.name)
+		assert.Equalf(t, order.Filled, got.Status, "GetOrderInfo should return the %s order's status", tc.name)
+		assert.Equalf(t, 0.1, got.ExecutedAmount, "GetOrderInfo should return the %s order's executed amount", tc.name)
+	}
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
@@ -2602,6 +2665,13 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "GetOrderInfo should return the order")
 		})
 	}
+}
+
+func TestRequestedPair(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairWithDelimiter("BTC", "16OCT26-70000-C", "-")
+	assert.Equal(t, pair, requestedPair(&OpenOrder{Symbol: "BTC-16OCT26-70000-C"}, "BTC-16OCT26-70000-C", pair), "requestedPair should return the pair for an order of its symbol")
+	assert.Equal(t, currency.EMPTYPAIR, requestedPair(&OpenOrder{Symbol: "BTC-30OCT26-70000-C"}, "BTC-16OCT26-70000-C", pair), "requestedPair should return no pair for an order of another symbol")
 }
 
 func TestOrderSymbol(t *testing.T) {
@@ -2887,7 +2957,7 @@ func TestOrderDetail(t *testing.T) {
 			fees: mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.6}),
 		},
 	} {
-		got, err := ex.orderDetail(&tc.order, tc.asset)
+		got, err := ex.orderDetail(&tc.order, tc.asset, currency.EMPTYPAIR)
 		require.NoErrorf(t, err, "orderDetail must not error for a %s", tc.name)
 		exp := tc.exp
 		exp.SetFees(tc.fees)
@@ -2898,9 +2968,27 @@ func TestOrderDetail(t *testing.T) {
 	untriggered, err := ex.orderDetail(&OpenOrder{
 		OrderID: "2132879318752520963", Symbol: "BTCUSDT", Quantity: 100, Side: "Buy", OrderStatus: "Untriggered", TimeInForce: "IOC",
 		OrderType: "Market", StopOrderType: "tpslOrder", TriggerPrice: 90000, MarketUnit: "quoteCoin",
-	}, asset.Spot)
+	}, asset.Spot, currency.EMPTYPAIR)
 	require.NoError(t, err, "orderDetail must not error for an untriggered spot market buy sized by value")
 	assert.True(t, untriggered.IsActive(), "orderDetail should leave an untriggered spot market buy sized by value active")
+
+	// The known pair of one linear asset is not taken for an order of the other's
+	_, err = ex.orderDetail(&OpenOrder{Symbol: "BTCPERP", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.PERP))
+	require.ErrorIs(t, err, currency.ErrPairNotFound, "orderDetail must not take a known pair for a USDC margined order asked for as USDT margined")
+	_, err = ex.orderDetail(&OpenOrder{Symbol: "BTCUSDT-16OCT26", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, asset.USDCMarginedFutures, currency.NewPair(currency.NewCode("BTCUSDT"), currency.NewCode("16OCT26")))
+	require.ErrorIs(t, err, currency.ErrPairNotFound, "orderDetail must not take a known pair for a USDT margined order asked for as USDC margined")
+	expired, err := ex.orderDetail(&OpenOrder{Symbol: "BTCUSDT-16OCT26", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.NewCode("USDT-16OCT26")))
+	require.NoError(t, err, "orderDetail must not error for an expired USDT margined future its caller knows")
+	assert.Equal(t, currency.USDT, expired.SettlementCurrency, "orderDetail should settle an expired USDT margined future in USDT")
+
+	// An order whose symbol is no longer an available pair takes the pair its caller knows, and keeps a listed one's own
+	delisted := currency.NewPairWithDelimiter("XYZ", "USDT", "")
+	got, err := ex.orderDetail(&OpenOrder{Symbol: "XYZUSDT", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, asset.Spot, delisted)
+	require.NoError(t, err, "orderDetail must not error for an order of a pair its caller knows")
+	assert.Equal(t, delisted, got.Pair, "orderDetail should take the known pair of an order whose symbol is no longer available")
+	got, err = ex.orderDetail(&OpenOrder{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, asset.Spot, delisted)
+	require.NoError(t, err, "orderDetail must not error for an order of an available pair")
+	assert.True(t, currency.NewBTCUSDT().Equal(got.Pair), "orderDetail should take an available pair's own match over the known pair")
 
 	// An asset Bybit does not trade has no cost currency, even when its pairs are stored
 	require.NoError(t, ex.CurrencyPairs.Store(asset.Margin, &currency.PairStore{AssetEnabled: true, Available: currency.Pairs{currency.NewBTCUSDT()}}), "Store must not error")
@@ -2917,7 +3005,7 @@ func TestOrderDetail(t *testing.T) {
 		{name: "asset Bybit does not trade", asset: asset.Margin, order: OpenOrder{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC"}, err: asset.ErrNotSupported},
 		{name: "fee without a coin", asset: asset.Spot, order: OpenOrder{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", TimeInForce: "GTC", CumulativeFeeDetail: map[currency.Code]types.Number{currency.EMPTYCODE: 0.1}}, err: currency.ErrCurrencyCodeEmpty},
 	} {
-		_, err := ex.orderDetail(&tc.order, tc.asset)
+		_, err := ex.orderDetail(&tc.order, tc.asset, currency.EMPTYPAIR)
 		assert.ErrorIsf(t, err, tc.err, "orderDetail should reject an order with a %s", tc.name)
 	}
 }

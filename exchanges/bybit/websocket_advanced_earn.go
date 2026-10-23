@@ -108,9 +108,12 @@ func (e *Exchange) sendAdvancedEarnSubscription(ctx context.Context, conn websoc
 	if err != nil {
 		return err
 	}
-	var reply WebsocketAdvancedEarnResponse
+	var reply *WebsocketAdvancedEarnResponse
 	if err := json.Unmarshal(raw, &reply); err != nil {
 		return err
+	}
+	if reply == nil {
+		return fmt.Errorf("%w: %w", errAdvancedEarnSubscriptionRejected, common.ErrNoResponse)
 	}
 	if !reply.Success {
 		return fmt.Errorf("%w: %s", errAdvancedEarnSubscriptionRejected, reply.ReturnMessage)
@@ -121,9 +124,12 @@ func (e *Exchange) sendAdvancedEarnSubscription(ctx context.Context, conn websoc
 // wsHandleAdvancedEarnData routes a frame of the Advanced Earn offers stream: replies to the requests awaiting them,
 // and each topic's offers to the data handler
 func (e *Exchange) wsHandleAdvancedEarnData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	var msg WebsocketAdvancedEarnResponse
+	var msg *WebsocketAdvancedEarnResponse
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
+	}
+	if msg == nil {
+		return fmt.Errorf("%w: %s", errUnhandledAdvancedEarnMessage, respRaw)
 	}
 	switch msg.Topic {
 	case "":

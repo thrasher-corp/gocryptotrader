@@ -125,7 +125,7 @@ func (e *Exchange) GetFiatConvertStatus(ctx context.Context, tradeNumber, mercha
 }
 
 // GetFiatConvertHistory returns fiat conversions (Get Convert History)
-func (e *Exchange) GetFiatConvertHistory(ctx context.Context, arg *FiatConvertHistoryRequest) ([]FiatTrade, error) {
+func (e *Exchange) GetFiatConvertHistory(ctx context.Context, arg *FiatConvertHistoryRequest) ([]FiatTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (e *Exchange) GetFiatConvertHistory(ctx context.Context, arg *FiatConvertHi
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-	var resp []FiatTrade
+	var resp []FiatTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/fiat/query-trade-history", params, nil, &resp, getFiatConvertHistoryEPL)
 }
 

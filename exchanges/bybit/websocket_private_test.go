@@ -65,7 +65,7 @@ func livePrivateSubscription(t *testing.T, topics ...string) {
 	}
 }
 
-func TestWsHandleAuthenticatedDataTopics(t *testing.T) {
+func TestWebsocketHandleAuthenticatedDataTopics(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
 	err := ex.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"id":"1","topic":"dcp.future","creationTime":1672364262482,"data":[]}`))
@@ -87,9 +87,9 @@ func TestWsHandleAuthenticatedDataTopics(t *testing.T) {
 		fixture string
 		exp     []any // the frame each push should be relayed as, decoded from the push
 	}{
-		{fixture: "testdata/wsSpreadPrivate.json", exp: []any{new(WebsocketSpreadOrderResponse), new(WebsocketSpreadExecutionResponse)}},
-		{fixture: "testdata/wsRFQPrivate.json", exp: []any{new(WebsocketRFQQuoteResponse), new(WebsocketRFQQuoteResponse), new(WebsocketRFQTradeResponse), new(WebsocketRFQInquiryResponse)}},
-		{fixture: "testdata/wsEventPrivate.json", exp: []any{new(WebsocketEventPositionResponse), new(WebsocketEventExecutionResponse), new(WebsocketEventExecutionResponse), new(WebsocketEventOrderResponse), new(WebsocketEventOrderResponse)}},
+		{fixture: "testdata/wsSpreadPrivate.json", exp: []any{new(WebsocketSpreadOrderUpdate), new(WebsocketSpreadExecutionUpdate)}},
+		{fixture: "testdata/wsRFQPrivate.json", exp: []any{new(WebsocketRFQQuoteUpdate), new(WebsocketRFQQuoteUpdate), new(WebsocketRFQTradeUpdate), new(WebsocketRFQInquiryUpdate)}},
+		{fixture: "testdata/wsEventPrivate.json", exp: []any{new(WebsocketEventPositionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventOrderUpdate), new(WebsocketEventOrderUpdate)}},
 	} {
 		frames := fixtureFrames(t, tc.fixture)
 		require.Lenf(t, frames, len(tc.exp), "%s must hold one push per expected frame", tc.fixture)
@@ -110,8 +110,8 @@ func TestWebsocketPosition(t *testing.T) {
 	}
 	ex := streamTestInstance(t)
 	frames := fixtureFrames(t, "testdata/wsPrivatePosition.json")
-	pushes := decodeFramesStrictly[WebsocketPositionResponse](t, frames)
-	expPushes := []WebsocketPositionResponse{
+	pushes := decodeFramesStrictly[WebsocketPositionUpdate](t, frames)
+	expPushes := []WebsocketPositionUpdate{
 		{
 			ID:           "1003076014fb7eedb-c7e6-45d6-a8c1-270f0169171a",
 			Topic:        "position",
@@ -256,7 +256,7 @@ func preciseNumber(t *testing.T, s string) types.PreciseNumber {
 	return n
 }
 
-func TestWsPositionStates(t *testing.T) {
+func TestWebsocketPositionStates(t *testing.T) {
 	t.Parallel()
 	payload := `{"id":"74199870_position_1787197420650","topic":"position","creationTime":1787197420650,"data":[{"positionIdx":0,"tradeMode":0,"riskId":1,"riskLimitValue":"25000","symbol":"BBUSDT","side":"Sell","size":"883","entryPrice":"0.01105794","sessionAvgPrice":"","leverage":"1","positionValue":"7.403955","positionBalance":"0","markPrice":"0.008385","positionIM":"7.41469557","positionMM":"0.15881967","positionIMByMp":"7.41469557","positionMMByMp":"0.15881967","takeProfit":"0","stopLoss":"0","trailingStop":"0","unrealisedPnl":"2.360203","cumRealisedPnl":"0.00281412","curRealisedPnl":"0.00281412","createdTime":"1728875391204","updatedTime":"1787197420648","tpslMode":"Full","liqPrice":"0.20927497","bustPrice":"","category":"linear","positionStatus":"Normal","adlRankIndicator":2,"autoAddMargin":0,"leverageSysUpdatedTime":"","mmrSysUpdatedTime":"","seq":169498457174,"openTime":1786983352599,"breakEvenPrice":"0.01105504","isReduceOnly":false}]}`
 	pair := currency.NewPair(currency.NewCode("BB"), currency.USDT)
@@ -285,6 +285,7 @@ func TestWsPositionStates(t *testing.T) {
 			ex := websocketTestInstance(t)
 			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false), "StorePairs must store the captured position pair")
 			require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(tt.replacements...).Replace(payload))), "wsProcessPosition must process the captured position")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the position")
 			message := <-ex.Websocket.DataHandler.C
 			positions, ok := message.Data.([]futures.Position)
 			require.True(t, ok, "position handler must emit canonical futures positions")
@@ -314,6 +315,18 @@ func TestWsPositionStates(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must reject an unknown pair")
 	err = ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`).Replace(payload)))
 	require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must reject a spot position")
+
+	// A push can carry several positions, such as both legs of a hedge mode position, and every one of them is relayed
+	position := payload[strings.IndexByte(payload, '[')+1 : strings.LastIndexByte(payload, ']')]
+	shortLeg := strings.Replace(position, `"positionIdx":0`, `"positionIdx":2`, 1)
+	longLeg := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Buy"`).Replace(position)
+	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, position, shortLeg+","+longLeg, 1))), "wsProcessPosition must process both legs of a hedge mode position")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the push")
+	positions, ok := (<-ex.Websocket.DataHandler.C).Data.([]futures.Position)
+	require.True(t, ok, "wsProcessPosition must relay canonical futures positions")
+	require.Len(t, positions, 2, "wsProcessPosition must relay every position of a push")
+	assert.Equal(t, order.Short, positions[0].LatestDirection, "wsProcessPosition should relay the short leg first, as it was pushed")
+	assert.Equal(t, order.Long, positions[1].LatestDirection, "wsProcessPosition should relay the long leg second, as it was pushed")
 }
 
 func TestPositionCollateralCurrency(t *testing.T) {
@@ -350,8 +363,8 @@ func TestWebsocketExecution(t *testing.T) {
 	}
 	ex := streamTestInstance(t)
 	frames := fixtureFrames(t, "testdata/wsPrivateExecution.json")
-	pushes := decodeFramesStrictly[WebsocketExecutionResponse](t, frames)
-	expPushes := []WebsocketExecutionResponse{
+	pushes := decodeFramesStrictly[WebsocketExecutionUpdate](t, frames)
+	expPushes := []WebsocketExecutionUpdate{
 		{
 			ID:           "386825804_BTCUSDT_140612148849382",
 			Topic:        "execution",
@@ -519,7 +532,7 @@ func TestWebsocketExecution(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsHandleAuthenticatedData must error for an execution of an unknown side")
 }
 
-func TestWsProcessExecution(t *testing.T) {
+func TestWebsocketProcessExecution(t *testing.T) {
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateExecution.json")
 	require.Len(t, frames, 3, "the execution fixture must hold a linear, a spot and an option push")
@@ -532,7 +545,7 @@ func TestWsProcessExecution(t *testing.T) {
 			{
 				ID:            "0ab1bdf7-4219-438b-b30a-32ec863018f7",
 				Timestamp:     time.UnixMilli(1746270400353),
-				Exchange:      "TestWsProcessExecution",
+				Exchange:      "TestWebsocketProcessExecution",
 				AssetType:     asset.USDTMarginedFutures,
 				CurrencyPair:  currency.NewBTCUSDT(),
 				Side:          order.Sell,
@@ -546,7 +559,7 @@ func TestWsProcessExecution(t *testing.T) {
 			{
 				ID:            "2290000001228958155",
 				Timestamp:     time.UnixMilli(1791535765237),
-				Exchange:      "TestWsProcessExecution",
+				Exchange:      "TestWebsocketProcessExecution",
 				AssetType:     asset.Spot,
 				CurrencyPair:  currency.NewBTCUSDT(),
 				Side:          order.Buy,
@@ -560,7 +573,7 @@ func TestWsProcessExecution(t *testing.T) {
 			{
 				ID:            "20350fa2-6942-57bc-8eb1-07705dd4bab3",
 				Timestamp:     time.UnixMilli(1791535798090),
-				Exchange:      "TestWsProcessExecution",
+				Exchange:      "TestWebsocketProcessExecution",
 				AssetType:     asset.Options,
 				CurrencyPair:  fixtureOptionPair,
 				Side:          order.Sell,
@@ -582,7 +595,7 @@ func TestWsProcessExecution(t *testing.T) {
 			{
 				ID:            "9b2e7c4d-1a3f-4e5b-8c6d-7e8f9a0b1c2d",
 				Timestamp:     time.UnixMilli(1746273600353),
-				Exchange:      "TestWsProcessExecution",
+				Exchange:      "TestWebsocketProcessExecution",
 				AssetType:     asset.USDTMarginedFutures,
 				CurrencyPair:  currency.NewBTCUSDT(),
 				Side:          order.Sell,
@@ -674,8 +687,8 @@ func TestWebsocketFastExecution(t *testing.T) {
 	}
 	ex := streamTestInstance(t)
 	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.json")
-	pushes := decodeFramesStrictly[WebsocketFastExecutionResponse](t, frames)
-	expPushes := []WebsocketFastExecutionResponse{
+	pushes := decodeFramesStrictly[WebsocketFastExecutionUpdate](t, frames)
+	expPushes := []WebsocketFastExecutionUpdate{
 		{
 			Topic:        "execution.fast",
 			CreationTime: types.Time(time.UnixMilli(1716800399338)),
@@ -743,7 +756,7 @@ func TestWebsocketFastExecution(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleAuthenticatedData must error for a fast execution of an unknown pair")
 }
 
-func TestWsProcessFastExecution(t *testing.T) {
+func TestWebsocketProcessFastExecution(t *testing.T) {
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.json")
 	require.Len(t, frames, 1, "the fast execution fixture must hold one push")
@@ -754,7 +767,7 @@ func TestWsProcessFastExecution(t *testing.T) {
 			{
 				ID:            "3510f361-0add-5c7b-a2e7-9679810944fc",
 				Timestamp:     time.UnixMilli(1716800399334),
-				Exchange:      "TestWsProcessFastExecution",
+				Exchange:      "TestWebsocketProcessFastExecution",
 				AssetType:     asset.USDTMarginedFutures,
 				CurrencyPair:  currency.NewBTCUSDT(),
 				Side:          order.Sell,
@@ -766,7 +779,7 @@ func TestWsProcessFastExecution(t *testing.T) {
 			{
 				ID:           "6e3f9a27-4b0c-5d1e-9f2a-81c7d4e0b5aa",
 				Timestamp:    time.UnixMilli(1716800399335),
-				Exchange:     "TestWsProcessFastExecution",
+				Exchange:     "TestWebsocketProcessFastExecution",
 				AssetType:    asset.USDTMarginedFutures,
 				CurrencyPair: currency.NewBTCUSDT(),
 				Side:         order.Buy,
@@ -847,7 +860,7 @@ func TestWebsocketOrder(t *testing.T) {
 	}
 	ex := streamTestInstance(t)
 	frames := fixtureFrames(t, "testdata/wsPrivateOrder.json")
-	pushes := decodeFramesStrictly[WebsocketOrderResponse](t, frames)
+	pushes := decodeFramesStrictly[WebsocketOrderUpdate](t, frames)
 	assert.Equal(t, fixtureWebsocketOrders(), pushes, "fixture frames should decode every order field")
 	conn := &FixtureConnection{match: websocket.NewMatch()}
 	for i, frame := range frames {
@@ -936,7 +949,7 @@ func TestWebsocketOrder(t *testing.T) {
 	}
 }
 
-func TestWsProcessOrder(t *testing.T) {
+func TestWebsocketProcessOrder(t *testing.T) {
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateOrder.json")
 	require.Len(t, frames, 3, "the order fixture must hold a linear, a spot and an option push")
@@ -955,7 +968,7 @@ func TestWsProcessOrder(t *testing.T) {
 		RemainingAmount:      0.2,
 		Cost:                 24780,
 		CostAsset:            currency.USDT,
-		Exchange:             "TestWsProcessOrder",
+		Exchange:             "TestWebsocketProcessOrder",
 		OrderID:              "c1956690-b731-4191-97c0-94b00422231b",
 		ClientOrderID:        "linear-tp-001",
 		Type:                 order.TakeProfit,
@@ -978,7 +991,7 @@ func TestWsProcessOrder(t *testing.T) {
 		ExecutedAmount:       0.000351,
 		Cost:                 28.9892655,
 		CostAsset:            currency.USDT,
-		Exchange:             "TestWsProcessOrder",
+		Exchange:             "TestWebsocketProcessOrder",
 		OrderID:              "2290000000123456789",
 		ClientOrderID:        "spot-buy-001",
 		Type:                 order.OCO,
@@ -998,7 +1011,7 @@ func TestWsProcessOrder(t *testing.T) {
 		ExecutedAmount:       0.01,
 		Cost:                 841.3,
 		CostAsset:            currency.USDT,
-		Exchange:             "TestWsProcessOrder",
+		Exchange:             "TestWebsocketProcessOrder",
 		OrderID:              "5cf98598-39a7-459e-97bf-76ca765ee020",
 		ClientOrderID:        "option-sell-001",
 		Type:                 order.Limit,
@@ -1013,6 +1026,11 @@ func TestWsProcessOrder(t *testing.T) {
 	// Option orders report their fee in cumExecFee, in the settle coin; their cumFeeDetail is empty
 	option.SetFees(mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 1.25}))
 	assert.Equal(t, []any{[]order.Detail{linear}, []order.Detail{spot}, []order.Detail{option}}, relayed(ex), "wsProcessOrder should relay each order as an order detail")
+	// A push can carry several orders, and every one of them is relayed
+	spotOrders := frames[1][bytes.Index(frames[1], []byte(`"data":[`))+len(`"data":[`) : bytes.LastIndexByte(frames[1], ']')]
+	twoOrders := bytes.Replace(frames[0], []byte(`"data":[`), bytes.Join([][]byte{[]byte(`"data":[`), spotOrders, []byte(",")}, nil), 1)
+	require.NoError(t, ex.wsProcessOrder(t.Context(), twoOrders), "wsProcessOrder must not error for a push of two orders")
+	assert.Equal(t, []any{[]order.Detail{spot, linear}}, relayed(ex), "wsProcessOrder should relay every order of a push")
 	// The cost is the executed value Bybit reports, which need not be the average price times the executed quantity
 	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[0], []byte(`"cumExecValue":"24780"`), []byte(`"cumExecValue":"24780.15"`), 1)), "wsProcessOrder must not error for an order whose value is not its average price times its quantity")
 	valued := linear
@@ -1076,8 +1094,8 @@ func mustFees(tb testing.TB, amounts ...order.FeeAmount) order.Fees {
 }
 
 // fixtureWebsocketOrders returns the order pushes testdata/wsPrivateOrder.json holds
-func fixtureWebsocketOrders() []WebsocketOrderResponse {
-	return []WebsocketOrderResponse{
+func fixtureWebsocketOrders() []WebsocketOrderUpdate {
+	return []WebsocketOrderUpdate{
 		{
 			ID:           "5923240c6880ab-c59f-420b-9adb-3639adc9dd90",
 			Topic:        "order",
@@ -1231,8 +1249,8 @@ func TestWebsocketWallet(t *testing.T) {
 	}
 	ex := streamTestInstance(t)
 	frames := fixtureFrames(t, "testdata/wsPrivateWallet.json")
-	pushes := decodeFramesStrictly[WebsocketWalletResponse](t, frames)
-	expPushes := []WebsocketWalletResponse{
+	pushes := decodeFramesStrictly[WebsocketWalletUpdate](t, frames)
+	expPushes := []WebsocketWalletUpdate{
 		{
 			ID:           "592324d2bce751-ad38-48eb-8f42-4671d1fb4d4e",
 			Topic:        "wallet",
@@ -1323,10 +1341,10 @@ func TestWebsocketWallet(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleAuthenticatedData must error without account storage")
 }
 
-func TestWsWalletReplacesRESTBalances(t *testing.T) {
+func TestWebsocketWalletReplacesRESTBalances(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","locked":"15","spotBorrow":"20","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"20","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
-	pushes := decodeFramesStrictly[WebsocketWalletResponse](t, [][]byte{payload})
+	pushes := decodeFramesStrictly[WebsocketWalletUpdate](t, [][]byte{payload})
 	require.Len(t, pushes[0].Data, 1, "the wallet payload must hold one account")
 	require.Len(t, pushes[0].Data[0].Coins, 1, "the wallet payload must hold one coin")
 	assert.Zero(t, pushes[0].Data[0].Coins[0].AvailableToWithdraw, "the deprecated empty availableToWithdraw should decode as zero")
@@ -1336,6 +1354,7 @@ func TestWsWalletReplacesRESTBalances(t *testing.T) {
 	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true), "Accounts.Save must seed a REST snapshot")
 	startedAt := time.Now()
 	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload), "wsProcessWalletPushData must process current UNIFIED wallet payload")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the wallet")
 	message := <-ex.Websocket.DataHandler.C
 	subAccounts, ok := message.Data.(accounts.SubAccounts)
 	require.True(t, ok, "wallet handler must emit canonical subaccounts")
@@ -1356,6 +1375,7 @@ func TestWsWalletReplacesRESTBalances(t *testing.T) {
 	// A coin pushed with nothing left replaces the stored balance with nothing
 	emptied := []byte(`{"id":"wallet-update-2","topic":"wallet","creationTime":1787197421650,"data":[{"accountType":"UNIFIED","coin":[{"coin":"USDT","walletBalance":"0","locked":"0","spotBorrow":"0","borrowAmount":"0","totalOrderIM":"0","totalPositionIM":"0","bonus":"0"}]}]}`)
 	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), emptied), "wsProcessWalletPushData must process an emptied wallet")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the emptied wallet")
 	<-ex.Websocket.DataHandler.C
 	stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
 	require.NoError(t, err, "GetBalance must return the stored USDT balance")
@@ -1369,7 +1389,7 @@ func TestWebsocketGreeks(t *testing.T) {
 		livePrivateSubscription(t, "greeks")
 		return
 	}
-	testRelayedPrivateStream[WebsocketGreeksResponse](t, "testdata/wsPrivateGreeks.json", []WebsocketGreeksResponse{
+	testRelayedPrivateStream[WebsocketGreeksUpdate](t, "testdata/wsPrivateGreeks.json", []WebsocketGreeksUpdate{
 		{
 			ID:           "592324fa945a30-2603-49a5-b865-21668c29f2a6",
 			Topic:        "greeks",
@@ -1408,7 +1428,7 @@ func TestWebsocketStrategy(t *testing.T) {
 		livePrivateSubscription(t, "strategy")
 		return
 	}
-	testRelayedPrivateStream[WebsocketStrategyResponse](t, "testdata/wsPrivateStrategy.json", []WebsocketStrategyResponse{
+	testRelayedPrivateStream[WebsocketStrategyUpdate](t, "testdata/wsPrivateStrategy.json", []WebsocketStrategyUpdate{
 		{
 			ID:           "62f79ebea4794f767cad0bd937f7ad01",
 			Topic:        "strategy",

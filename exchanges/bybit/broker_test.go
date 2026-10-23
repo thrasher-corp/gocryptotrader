@@ -20,7 +20,7 @@ func TestGetBrokerWhitelistIP(t *testing.T) {
 	result, err := e.GetBrokerWhitelistIP(t.Context())
 	require.NoError(t, err, "GetBrokerWhitelistIP must not error")
 	if mockTests {
-		exp := []BrokerWhitelistIP{
+		exp := []BrokerWhitelistIPResponse{
 			{
 				Name:           "CoinXXX",
 				EndpointDomain: "cabxxx0bnh.bybit-aws.com",

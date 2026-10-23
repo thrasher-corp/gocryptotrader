@@ -69,7 +69,7 @@ func (e *Exchange) wsHandleSystemStatus(ctx context.Context, conn websocket.Conn
 	case "":
 		return e.handleNoTopicWebsocketResponse(ctx, conn, respRaw)
 	case chanSystemStatus:
-		return relayWebsocketResponse[WebsocketSystemStatusResponse](ctx, e, respRaw)
+		return relayWebsocketResponse[WebsocketSystemStatusUpdate](ctx, e, respRaw)
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }

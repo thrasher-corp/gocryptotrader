@@ -18,7 +18,7 @@ func TestGetInstitutionWhitelistIP(t *testing.T) {
 	result, err := e.GetInstitutionWhitelistIP(t.Context())
 	require.NoError(t, err, "GetInstitutionWhitelistIP must not error")
 	if mockTests {
-		exp := []InstitutionWhitelistIP{
+		exp := []InstitutionWhitelistIPResponse{
 			{
 				Name:           "Example Client",
 				EndpointDomain: "gw-client.example.com",

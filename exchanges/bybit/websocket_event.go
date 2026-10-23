@@ -96,9 +96,9 @@ func (e *Exchange) wsHandleEventPublicData(ctx context.Context, conn websocket.C
 	}
 	switch {
 	case strings.HasPrefix(topic, "orderbook."):
-		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderbookResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderbookUpdate))
 	case strings.HasPrefix(topic, "publicTrade."):
-		return e.relayFrame(ctx, respRaw, new(WebsocketEventPublicTradeResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventPublicTradeUpdate))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -113,11 +113,11 @@ func (e *Exchange) wsHandleEventPrivateData(ctx context.Context, respRaw []byte)
 	}
 	switch topic {
 	case ChannelEventPosition:
-		return e.relayFrame(ctx, respRaw, new(WebsocketEventPositionResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventPositionUpdate))
 	case ChannelEventExecution, chanExecution:
-		return e.relayFrame(ctx, respRaw, new(WebsocketEventExecutionResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventExecutionUpdate))
 	case ChannelEventOrder, chanOrder:
-		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketEventOrderUpdate))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }

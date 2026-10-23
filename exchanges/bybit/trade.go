@@ -231,7 +231,7 @@ func (e *Exchange) PlaceBatchOrder(ctx context.Context, r *BatchPlaceOrderReques
 		return nil, err
 	}
 	ctx, epl := batchOrderLimit(ctx, createBatchOrderBudgets, r.Category, len(r.Request))
-	var resp BatchPlaceOrderResponse
+	var resp *BatchPlaceOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/create-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func (e *Exchange) PlaceBatchOrder(ctx context.Context, r *BatchPlaceOrderReques
 		resp.List[i].Code = outcomes[i].Code
 		resp.List[i].Message = outcomes[i].Message
 	}
-	return &resp, nil
+	return resp, nil
 }
 
 // BatchAmendOrder amends several orders of one category in a single request. Each order of the result carries Bybit's
@@ -254,12 +254,12 @@ func (e *Exchange) BatchAmendOrder(ctx context.Context, r *BatchAmendOrderReques
 		return nil, err
 	}
 	ctx, epl := batchOrderLimit(ctx, amendBatchOrderBudgets, r.Category, len(r.Request))
-	var resp BatchOrderResponse
+	var resp *BatchOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/amend-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return applyBatchOrderOutcomes(&resp, outcomes, len(r.Request))
+	return applyBatchOrderOutcomes(resp, outcomes, len(r.Request))
 }
 
 // CancelBatchOrder cancels several orders of one category in a single request. Each order of the result carries
@@ -270,19 +270,19 @@ func (e *Exchange) CancelBatchOrder(ctx context.Context, r *BatchCancelOrderRequ
 		return nil, err
 	}
 	ctx, epl := batchOrderLimit(ctx, cancelBatchOrderBudgets, r.Category, len(r.Request))
-	var resp BatchOrderResponse
+	var resp *BatchOrderResponse
 	outcomes, err := e.sendBatchOrderRequest(ctx, "/v5/order/cancel-batch", body, epl, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return applyBatchOrderOutcomes(&resp, outcomes, len(r.Request))
+	return applyBatchOrderOutcomes(resp, outcomes, len(r.Request))
 }
 
 // sendBatchOrderRequest sends a batch order request, decodes its result into result and returns Bybit's verdict on
 // each order, which it reports in retExtInfo in request order
 func (e *Exchange) sendBatchOrderRequest(ctx context.Context, path string, body map[string]any, f request.EndpointLimit, result any) ([]BatchOrderOutcome, error) {
-	var envelope RestResponse
-	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, body, &envelope, f); err != nil {
+	envelope := new(RestResponse)
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, body, envelope, f); err != nil {
 		return nil, err
 	}
 	if len(envelope.Result) == 0 || string(envelope.Result) == "null" {

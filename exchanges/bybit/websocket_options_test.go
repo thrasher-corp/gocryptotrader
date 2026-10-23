@@ -61,3 +61,31 @@ func TestOptionsUnsubscribe(t *testing.T) {
 	assert.Equal(t, []string{"publicTrade.BTC"}, req.Arguments, "OptionsUnsubscribe should send the base coin trade topic")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "OptionsUnsubscribe should remove the subscription")
 }
+
+func TestOptionsSharedTradeTopic(t *testing.T) {
+	t.Parallel()
+	trades := func(contract string) subscription.List {
+		return subscription.List{{Channel: subscription.AllTradesChannel, Asset: asset.Options, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", contract, currency.DashDelimiter)}}}
+	}
+	ex := websocketTestInstance(t)
+	conn := &FixtureConnection{reply: optionsReply}
+	put, call := trades("24SEP27-170000-P-USDT"), trades("24SEP27-170000-C-USDT")
+	require.NoError(t, ex.OptionsSubscribe(t.Context(), conn, put), "OptionsSubscribe must not error")
+	require.NoError(t, ex.OptionsSubscribe(t.Context(), conn, call), "OptionsSubscribe must not error for another contract of the base coin")
+	require.Len(t, conn.sent, 1, "OptionsSubscribe must subscribe a base coin's trade topic once")
+	assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "OptionsSubscribe should store both contracts' subscriptions")
+
+	// The topic carries both contracts' trades, so it stays until neither subscription holds it
+	require.NoError(t, ex.OptionsUnsubscribe(t.Context(), conn, put), "OptionsUnsubscribe must not error")
+	assert.Len(t, conn.sent, 1, "OptionsUnsubscribe should not unsubscribe a topic another subscription holds")
+	assert.Nil(t, ex.Websocket.GetSubscription(put[0]), "OptionsUnsubscribe should remove the unsubscribed contract")
+	assert.Same(t, call[0], ex.Websocket.GetSubscription(call[0]), "OptionsUnsubscribe should keep the other contract's subscription")
+
+	require.NoError(t, ex.OptionsUnsubscribe(t.Context(), conn, call), "OptionsUnsubscribe must not error for the last subscription")
+	require.Len(t, conn.sent, 2, "OptionsUnsubscribe must unsubscribe the topic with its last subscription")
+	req, ok := conn.sent[1].(*SubscriptionRequest)
+	require.True(t, ok, "OptionsUnsubscribe must send a SubscriptionRequest")
+	assert.Equal(t, unsubscribeOperation, req.Operation, "request operation should be unsubscribe")
+	assert.Equal(t, []string{"publicTrade.BTC"}, req.Arguments, "OptionsUnsubscribe should send the base coin trade topic")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "OptionsUnsubscribe should remove the last subscription")
+}

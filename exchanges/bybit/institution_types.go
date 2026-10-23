@@ -2,8 +2,8 @@ package bybit
 
 import "time"
 
-// InstitutionWhitelistIP holds a dedicated institution hostname and the IP addresses whitelisted for it
-type InstitutionWhitelistIP struct {
+// InstitutionWhitelistIPResponse holds a dedicated institution hostname and the IP addresses whitelisted for it
+type InstitutionWhitelistIPResponse struct {
 	Name           string   `json:"name"` // Client name
 	EndpointDomain string   `json:"endpointDomain"`
 	IPList         []string `json:"ipList"`

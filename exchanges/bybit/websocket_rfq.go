@@ -74,9 +74,13 @@ func (e *Exchange) manageRFQSubscriptions(ctx context.Context, conn websocket.Co
 			errs = common.AppendError(errs, fmt.Errorf("%s %s: %w", operation, strings.Join(topics, ", "), err))
 			continue
 		}
-		var reply SubscriptionResponse
+		var reply *SubscriptionResponse
 		if err := json.Unmarshal(resp, &reply); err != nil {
 			errs = common.AppendError(errs, err)
+			continue
+		}
+		if reply == nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %w", e.applyTopicResults(conn, operation, batch, topics), common.ErrNoResponse))
 			continue
 		}
 		if !reply.Success {
@@ -94,21 +98,23 @@ func (e *Exchange) wsHandleRFQPublicData(ctx context.Context, conn websocket.Con
 	topic, err := jsonparser.GetString(respRaw, "topic")
 	switch {
 	case err == nil && topic == ChannelRFQPublicTrades:
-		return e.relayFrame(ctx, respRaw, new(WebsocketRFQPublicTradeResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQPublicTradeUpdate))
 	case err == nil:
 		return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 	case !errors.Is(err, jsonparser.KeyPathNotFoundError):
 		return err
 	}
-	var reply SubscriptionResponse
+	var reply *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &reply); err != nil {
 		return err
 	}
-	switch reply.Operation {
-	case "subscribe", "unsubscribe":
-		return conn.RequireMatchWithData(reply.RequestID, respRaw)
-	case "pong":
-		return nil
+	if reply != nil {
+		switch reply.Operation {
+		case "subscribe", "unsubscribe":
+			return conn.RequireMatchWithData(reply.RequestID, respRaw)
+		case "pong":
+			return nil
+		}
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, respRaw)
 }
@@ -121,11 +127,11 @@ func (e *Exchange) wsHandleRFQPrivateData(ctx context.Context, respRaw []byte) e
 	}
 	switch topic {
 	case ChannelRFQQuotes:
-		return e.relayFrame(ctx, respRaw, new(WebsocketRFQQuoteResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQQuoteUpdate))
 	case ChannelRFQTrades:
-		return e.relayFrame(ctx, respRaw, new(WebsocketRFQTradeResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQTradeUpdate))
 	case ChannelRFQInquiries:
-		return e.relayFrame(ctx, respRaw, new(WebsocketRFQInquiryResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketRFQInquiryUpdate))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }

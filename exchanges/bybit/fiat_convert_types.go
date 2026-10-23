@@ -115,15 +115,15 @@ type FiatConfirmQuoteResponse struct {
 }
 
 // FiatConvertStatusResponse is one fiat conversion
-type FiatConvertStatusResponse FiatTrade
+type FiatConvertStatusResponse FiatTradeResponse
 
-// UnmarshalJSON decodes a conversion as FiatTrade does, since a defined type does not inherit its methods
+// UnmarshalJSON decodes a conversion as FiatTradeResponse does, since a defined type does not inherit its methods
 func (r *FiatConvertStatusResponse) UnmarshalJSON(data []byte) error {
-	return (*FiatTrade)(r).UnmarshalJSON(data)
+	return (*FiatTradeResponse)(r).UnmarshalJSON(data)
 }
 
-// FiatTrade is one fiat conversion
-type FiatTrade struct {
+// FiatTradeResponse is one fiat conversion
+type FiatTradeResponse struct {
 	TradeNumber string `json:"tradeNo"`
 	// Status is processing, success or failed
 	Status             string        `json:"status"`
@@ -141,8 +141,8 @@ type FiatTrade struct {
 
 // UnmarshalJSON decodes a conversion. The docs tables name the quote ID quoteTxId but the docs' response samples send
 // quoteTaxId, so either is read and the table's key wins when both hold a value
-func (t *FiatTrade) UnmarshalJSON(data []byte) error {
-	type alias FiatTrade
+func (t *FiatTradeResponse) UnmarshalJSON(data []byte) error {
+	type alias FiatTradeResponse
 	type keys struct {
 		*alias
 		QuoteTransactionID string `json:"quoteTxId"`
@@ -170,19 +170,19 @@ type FiatConvertHistoryRequest struct {
 
 // FiatBalances holds fiat balances. Get Balance documents one object but its example returns an array of all the
 // balances, so both forms decode
-type FiatBalances []FiatBalance
+type FiatBalances []FiatBalanceResponse
 
 // UnmarshalJSON decodes an array of balances, or a single balance object as a one-balance list
 func (f *FiatBalances) UnmarshalJSON(data []byte) error {
 	if len(data) != 0 && data[0] == '{' {
-		var balance FiatBalance
+		var balance FiatBalanceResponse
 		if err := json.Unmarshal(data, &balance); err != nil {
 			return err
 		}
 		*f = FiatBalances{balance}
 		return nil
 	}
-	var balances []FiatBalance
+	var balances []FiatBalanceResponse
 	if err := json.Unmarshal(data, &balances); err != nil {
 		return err
 	}
@@ -190,8 +190,8 @@ func (f *FiatBalances) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FiatBalance is the balance of one fiat currency
-type FiatBalance struct {
+// FiatBalanceResponse is the balance of one fiat currency
+type FiatBalanceResponse struct {
 	TotalBalance types.Number `json:"totalBalance"`
 	// Balance is the available balance
 	Balance       types.Number  `json:"balance"`

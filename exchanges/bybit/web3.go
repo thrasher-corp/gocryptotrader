@@ -130,7 +130,7 @@ func web3TradeBody(r *Web3TradeRequest) (map[string]any, error) {
 
 // GetWeb3PaymentTokenList returns the payment tokens, with their CEX_ token codes, that can buy the on-chain token at
 // tokenAddress on chainCode (Get Payment Token List)
-func (e *Exchange) GetWeb3PaymentTokenList(ctx context.Context, chainCode, tokenAddress string) ([]Web3PaymentToken, error) {
+func (e *Exchange) GetWeb3PaymentTokenList(ctx context.Context, chainCode, tokenAddress string) ([]Web3PaymentTokenResponse, error) {
 	if chainCode == "" {
 		return nil, errChainCodeRequired
 	}
@@ -140,7 +140,7 @@ func (e *Exchange) GetWeb3PaymentTokenList(ctx context.Context, chainCode, token
 	body := make(map[string]any)
 	body["chainCode"] = chainCode
 	body["tokenAddress"] = tokenAddress
-	var resp []Web3PaymentToken
+	var resp []Web3PaymentTokenResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/alpha/trade/pay-token-list", nil, body, &resp, defaultEPL)
 }
 
@@ -180,12 +180,12 @@ func (e *Exchange) GetWeb3OrderList(ctx context.Context, r *Web3OrderListRequest
 
 // GetWeb3BizTokenList returns the on-chain tokens available for trading, with their DEX_ token codes, risk flags and
 // order limits. tokenTag 1 returns new token sniping, 2 on-chain hot tokens, and 0 all tokens (Get Biz Token List)
-func (e *Exchange) GetWeb3BizTokenList(ctx context.Context, tokenTag uint64) ([]Web3BizToken, error) {
+func (e *Exchange) GetWeb3BizTokenList(ctx context.Context, tokenTag uint64) ([]Web3BizTokenResponse, error) {
 	body := make(map[string]any)
 	if tokenTag != 0 {
 		body["tokenTag"] = tokenTag
 	}
-	var resp []Web3BizToken
+	var resp []Web3BizTokenResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/alpha/trade/biz-token-list", nil, body, &resp, defaultEPL)
 }
 
@@ -414,8 +414,8 @@ func (e *Exchange) GetPredictionEngineStatus(ctx context.Context) (*PredictionEn
 }
 
 // GetPredictionPaymentTokenList returns the payment tokens the prediction market accepts (Get Payment Token List)
-func (e *Exchange) GetPredictionPaymentTokenList(ctx context.Context) ([]PredictionPaymentToken, error) {
-	var resp []PredictionPaymentToken
+func (e *Exchange) GetPredictionPaymentTokenList(ctx context.Context) ([]PredictionPaymentTokenResponse, error) {
+	var resp []PredictionPaymentTokenResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/alpha/prediction/pay-token-list", nil, nil, &resp, defaultEPL)
 }
 
@@ -571,22 +571,22 @@ func (e *Exchange) GetPredictionOrderList(ctx context.Context, r *PredictionOrde
 }
 
 // GetPredictionOrderBook returns the order books of up to 20 outcome tokens (Get Order Book)
-func (e *Exchange) GetPredictionOrderBook(ctx context.Context, tokenIDs []string) ([]PredictionOrderBook, error) {
+func (e *Exchange) GetPredictionOrderBook(ctx context.Context, tokenIDs []string) ([]PredictionOrderBookResponse, error) {
 	body, err := predictionTokenIDsBody(tokenIDs)
 	if err != nil {
 		return nil, err
 	}
-	var resp []PredictionOrderBook
+	var resp []PredictionOrderBookResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/alpha/prediction/order-book", nil, body, &resp, defaultEPL)
 }
 
 // GetPredictionTokenPrice returns the best bid, best ask and last price of up to 20 outcome tokens (Get Token Price)
-func (e *Exchange) GetPredictionTokenPrice(ctx context.Context, tokenIDs []string) ([]PredictionTokenPrice, error) {
+func (e *Exchange) GetPredictionTokenPrice(ctx context.Context, tokenIDs []string) ([]PredictionTokenPriceResponse, error) {
 	body, err := predictionTokenIDsBody(tokenIDs)
 	if err != nil {
 		return nil, err
 	}
-	var resp []PredictionTokenPrice
+	var resp []PredictionTokenPriceResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/alpha/prediction/token-price", nil, body, &resp, defaultEPL)
 }
 

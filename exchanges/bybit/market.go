@@ -334,7 +334,7 @@ func (e *Exchange) GetOpenInterestData(ctx context.Context, req *OpenInterestReq
 
 // GetHistoricalVolatility returns an option base coin's hourly historical volatility (Get Historical Volatility). A
 // time window covers at most 30 days of the last 2 years
-func (e *Exchange) GetHistoricalVolatility(ctx context.Context, req *HistoricalVolatilityRequest) ([]HistoricalVolatility, error) {
+func (e *Exchange) GetHistoricalVolatility(ctx context.Context, req *HistoricalVolatilityRequest) ([]HistoricalVolatilityResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, req *HistoricalV
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
-	var resp []HistoricalVolatility
+	var resp []HistoricalVolatilityResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/historical-volatility", params), defaultEPL, &resp)
 }
 

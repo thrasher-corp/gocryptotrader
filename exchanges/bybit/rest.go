@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -23,11 +24,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
+
+	// topicMu guards topicHolders, which records the connection each subscription of the streams whose subscriptions
+	// can share a topic holds its topic on, so that a shared topic is subscribed with the first and unsubscribed with
+	// the last of them, and topicRequests, which numbers the requests marking holders leaving
+	topicMu       sync.Mutex
+	topicHolders  map[*subscription.Subscription]topicHolder
+	topicRequests uint64
 }
 
 const (
@@ -172,19 +181,23 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 	if result != nil && isNil(result) {
 		return fmt.Errorf("%w: %T result", common.ErrNilPointer, result)
 	}
-	var resp RestResponse
+	var resp *RestResponse
 	err := e.SendPayload(ctx, f, func() (*request.Item, error) {
 		item, err := newItem()
 		if err != nil {
 			return nil, err
 		}
-		resp = RestResponse{}
-		item.Result = &resp
+		resp = new(RestResponse)
+		item.Result = resp
 		// Bybit signs each request with its own timestamp, so requests need no nonce order, and queueing for the
 		// requester's nonce lock would move a request past the send time its rate limits booked
 		item.NonceEnabled = true
 		return item, nil
 	}, auth)
+	if resp == nil {
+		// No request was built, so there is no reply to read
+		return err
+	}
 	if apiErr := resp.apiError(); apiErr != nil {
 		if err != nil {
 			return fmt.Errorf("%w: %w", apiErr, err)
@@ -198,7 +211,7 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 		return err
 	}
 	if envelope, ok := result.(*RestResponse); ok {
-		*envelope = resp
+		*envelope = *resp
 		return nil
 	}
 	if result == nil {

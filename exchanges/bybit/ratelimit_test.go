@@ -729,7 +729,7 @@ func TestOrderEntryBudgets(t *testing.T) {
 	}, websocketOrderBudgets, "each websocket order entry operation should draw on its REST operation's budgets")
 }
 
-func TestGetWSRateLimitEPLByCategory(t *testing.T) {
+func TestGetWebsocketRateLimitEPLByCategory(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		operation, category string

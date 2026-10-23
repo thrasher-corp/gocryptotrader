@@ -107,9 +107,9 @@ func (e *Exchange) wsHandleSpreadPublicData(ctx context.Context, conn websocket.
 	}
 	switch {
 	case strings.HasPrefix(topic, "orderbook."):
-		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadOrderbookResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadOrderbookUpdate))
 	case strings.HasPrefix(topic, "publicTrade."):
-		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadPublicTradeResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadPublicTradeUpdate))
 	case strings.HasPrefix(topic, "tickers."):
 		return e.wsProcessSpreadTicker(ctx, respRaw)
 	}
@@ -120,7 +120,7 @@ func (e *Exchange) wsHandleSpreadPublicData(ctx context.Context, conn websocket.
 // symbol as for OKX spreads, then relays the frame. The frame is relayed rather than the stored ticker because Bybit
 // lists no spread asset, so the engine's sync manager would log each relayed ticker as an error
 func (e *Exchange) wsProcessSpreadTicker(ctx context.Context, respRaw []byte) error {
-	var frame WebsocketSpreadTickerResponse
+	var frame WebsocketSpreadTickerUpdate
 	if err := json.Unmarshal(respRaw, &frame); err != nil {
 		return err
 	}
@@ -157,9 +157,9 @@ func (e *Exchange) wsHandleSpreadPrivateData(ctx context.Context, respRaw []byte
 	}
 	switch topic {
 	case ChannelSpreadOrder:
-		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadOrderResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadOrderUpdate))
 	case ChannelSpreadExecution:
-		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadExecutionResponse))
+		return e.relayFrame(ctx, respRaw, new(WebsocketSpreadExecutionUpdate))
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -283,14 +283,14 @@ func (e *Exchange) manageCommandSubscriptions(ctx context.Context, conn websocke
 			errs = common.AppendError(errs, fmt.Errorf("%s %s: %w", operation, strings.Join(topics, ", "), err))
 			continue
 		}
-		var reply CommandResponse
+		var reply *CommandResponse
 		if err := json.Unmarshal(resp, &reply); err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		failTopics := reply.Data.FailTopics
-		if !reply.Success {
-			failTopics = topics
+		failTopics := topics
+		if reply != nil && reply.Success {
+			failTopics = reply.Data.FailTopics
 		}
 		errs = common.AppendError(errs, e.applyTopicResults(conn, operation, batch, failTopics))
 	}
@@ -335,11 +335,11 @@ func handleCommandFrame(conn websocket.Connection, respRaw []byte) error {
 	if op, err := jsonparser.GetString(respRaw, "op"); err == nil && op == "pong" {
 		return nil
 	}
-	var reply CommandResponse
+	var reply *CommandResponse
 	if err := json.Unmarshal(respRaw, &reply); err != nil {
 		return err
 	}
-	if reply.Type != "COMMAND_RESP" {
+	if reply == nil || reply.Type != "COMMAND_RESP" {
 		return fmt.Errorf("%w: %s", errUnhandledStreamData, respRaw)
 	}
 	return conn.RequireMatchWithData(commandSignature(slices.Concat(reply.Data.SuccessTopics, reply.Data.FailTopics)), respRaw)

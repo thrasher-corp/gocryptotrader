@@ -250,7 +250,7 @@ func TestGetFiatConvertHistory(t *testing.T) {
 	result, err := e.GetFiatConvertHistory(t.Context(), &FiatConvertHistoryRequest{Index: 1, Limit: 20, StartTime: time.UnixMilli(1764500000000), EndTime: time.UnixMilli(1764600000000)})
 	require.NoError(t, err, "GetFiatConvertHistory must not error")
 	if mockTests {
-		exp := []FiatTrade{
+		exp := []FiatTradeResponse{
 			{
 				TradeNumber:        "TradeNo123456",
 				Status:             "success",
@@ -380,13 +380,13 @@ func TestFiatConvertStatusResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var got FiatConvertStatusResponse
 	require.NoError(t, got.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId123456"}`)), "UnmarshalJSON must not error")
-	assert.Equal(t, FiatConvertStatusResponse{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}, got, "UnmarshalJSON should read the sampled quote ID as FiatTrade does")
+	assert.Equal(t, FiatConvertStatusResponse{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}, got, "UnmarshalJSON should read the sampled quote ID as FiatTradeResponse does")
 	assert.Error(t, got.UnmarshalJSON([]byte(`{"quoteTaxId":5}`)), "UnmarshalJSON should reject a non-string sampled quote ID")
 }
 
 func TestFiatTradeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	exp := FiatTrade{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}
+	exp := FiatTradeResponse{TradeNumber: "TradeNo123456", QuoteTransactionID: "QuoteTaxId123456"}
 	for _, tc := range []struct {
 		name string
 		data string
@@ -400,16 +400,16 @@ func TestFiatTradeUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var got FiatTrade
+			var got FiatTradeResponse
 			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
 			assert.Equal(t, exp, got, "UnmarshalJSON should decode the quote ID")
 		})
 	}
-	var got FiatTrade
+	var got FiatTradeResponse
 	require.NoError(t, got.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456"}`)), "UnmarshalJSON must not error without either key")
-	assert.Equal(t, FiatTrade{TradeNumber: "TradeNo123456"}, got, "UnmarshalJSON should leave the quote ID empty without either key")
+	assert.Equal(t, FiatTradeResponse{TradeNumber: "TradeNo123456"}, got, "UnmarshalJSON should leave the quote ID empty without either key")
 	// A conversion decoded into a used one takes the new conversion's quote ID, whichever key it arrives under
-	reused := FiatTrade{QuoteTransactionID: "old"}
+	reused := FiatTradeResponse{QuoteTransactionID: "old"}
 	require.NoError(t, reused.UnmarshalJSON([]byte(`{"tradeNo":"TradeNo123456","quoteTaxId":"QuoteTaxId123456"}`)), "UnmarshalJSON must not error for a used conversion")
 	assert.Equal(t, exp, reused, "UnmarshalJSON should replace a used conversion's quote ID with the sampled key's value")
 	assert.Error(t, got.UnmarshalJSON([]byte(`{"quoteTaxId":5}`)), "UnmarshalJSON should reject a non-string sampled quote ID")

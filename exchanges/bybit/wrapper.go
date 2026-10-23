@@ -1402,7 +1402,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	if len(open.List) != 0 {
-		return e.orderDetail(&open.List[0], assetType)
+		return e.orderDetail(&open.List[0], assetType, requestedPair(&open.List[0], symbol, pair))
 	}
 	history, err := e.GetTradeOrderHistory(ctx, &OrderHistoryRequest{Category: category, Symbol: symbol, OrderID: orderID})
 	if err != nil {
@@ -1411,7 +1411,16 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if len(history.List) == 0 {
 		return nil, fmt.Errorf("%w: %s", order.ErrOrderNotFound, orderID)
 	}
-	return e.orderDetail(&history.List[0].OpenOrder, assetType)
+	return e.orderDetail(&history.List[0].OpenOrder, assetType, requestedPair(&history.List[0].OpenOrder, symbol, pair))
+}
+
+// requestedPair returns the pair an order was requested by when Bybit returned an order of that pair's symbol, and no
+// pair otherwise, since Get Open & Closed Orders ranks an order ID ahead of the symbol
+func requestedPair(o *OpenOrder, symbol string, pair currency.Pair) currency.Pair {
+	if o.Symbol != symbol {
+		return currency.EMPTYPAIR
+	}
+	return pair
 }
 
 // orderSymbol returns the symbol Bybit names a pair's orders by
@@ -1444,11 +1453,20 @@ func (e *Exchange) matchSymbol(symbol string, a asset.Item) (currency.Pair, erro
 	return e.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
 }
 
-// orderDetail converts a Bybit order into an order detail
-func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item) (*order.Detail, error) {
+// orderDetail converts a Bybit order into an order detail. known is the order's pair when the caller already knows it,
+// which an order keeps once its contract has expired or been delisted and its symbol is no longer an available pair
+func (e *Exchange) orderDetail(o *OpenOrder, a asset.Item, known currency.Pair) (*order.Detail, error) {
 	pair, err := e.matchSymbol(o.Symbol, a)
 	if err != nil {
-		return nil, err
+		// The linear category returns USDT and USDC margined orders alike. A USDT margined symbol carries USDT after its
+		// base coin (BTCUSDT, BTCUSDT-16OCT26) and a USDC margined one does not (BTCPERP, BTC-16OCT26), so the known pair
+		// of one asset is not taken for the other's order
+		otherMargin := (a == asset.USDTMarginedFutures || a == asset.USDCMarginedFutures) &&
+			strings.Contains(o.Symbol, currency.USDT.String()) != (a == asset.USDTMarginedFutures)
+		if known.IsEmpty() || otherMargin || !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		pair = known
 	}
 	orderType, err := orderTypeFromString(o.OrderType)
 	if err != nil {
@@ -1688,7 +1706,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 func (e *Exchange) ConstructOrderDetails(tradeOrders []OpenOrder, assetType asset.Item, pair currency.Pair, filterPairs currency.Pairs) (order.FilteredOrders, error) {
 	orders := make([]order.Detail, 0, len(tradeOrders))
 	for x := range tradeOrders {
-		d, err := e.orderDetail(&tradeOrders[x], assetType)
+		d, err := e.orderDetail(&tradeOrders[x], assetType, currency.EMPTYPAIR)
 		if err != nil {
 			if errors.Is(err, currency.ErrPairNotFound) {
 				continue
@@ -1740,7 +1758,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for i := range resp.List {
-				d, err := e.orderDetail(&resp.List[i].OpenOrder, req.AssetType)
+				d, err := e.orderDetail(&resp.List[i].OpenOrder, req.AssetType, currency.EMPTYPAIR)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue

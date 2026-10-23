@@ -53,12 +53,12 @@ type CollateralRatioTier struct {
 
 // SpotMarginCurrencyDataResponse holds the manual borrowing settings of coins, from Get Currency Data
 type SpotMarginCurrencyDataResponse struct {
-	List []SpotMarginCurrencyData `json:"list"`
+	List []SpotMarginCurrency `json:"list"`
 }
 
-// SpotMarginCurrencyData holds a coin's manual borrowing settings, from Get Currency Data. A disabled kind of borrowing
+// SpotMarginCurrency holds a coin's manual borrowing settings, from Get Currency Data. A disabled kind of borrowing
 // returns its settings empty
-type SpotMarginCurrencyData struct {
+type SpotMarginCurrency struct {
 	Currency                        currency.Code `json:"currency"`
 	FlexibleManualBorrowable        bool          `json:"flexibleManualBorrowable"`
 	MinFlexibleManualBorrowQuantity types.Number  `json:"minFlexibleManualBorrowQty"`

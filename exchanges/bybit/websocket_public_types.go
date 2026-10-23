@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// WebsocketOrderbookResponse is a push from the orderbook.{depth}.{symbol} and orderbook.full.{symbol} topics (Orderbook,
+// WebsocketOrderbookUpdate is a push from the orderbook.{depth}.{symbol} and orderbook.full.{symbol} topics (Orderbook,
 // Full Orderbook)
-type WebsocketOrderbookResponse struct {
+type WebsocketOrderbookUpdate struct {
 	Topic     string     `json:"topic"`
 	Type      string     `json:"type"`
 	Timestamp types.Time `json:"ts"`
@@ -30,8 +30,8 @@ type WebsocketOrderbook struct {
 	Sequence uint64 `json:"seq"`
 }
 
-// WebsocketRPIOrderbookResponse is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
-type WebsocketRPIOrderbookResponse struct {
+// WebsocketRPIOrderbookUpdate is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
+type WebsocketRPIOrderbookUpdate struct {
 	Topic             string                `json:"topic"`
 	Type              string                `json:"type"`
 	Timestamp         types.Time            `json:"ts"`
@@ -48,9 +48,9 @@ type WebsocketRPIOrderbook struct {
 	Sequence uint64              `json:"seq"`
 }
 
-// WebsocketPublicTradeResponse is a push from the publicTrade.{symbol} topic, which options subscribe to by base coin
+// WebsocketPublicTradeUpdate is a push from the publicTrade.{symbol} topic, which options subscribe to by base coin
 // (Trade)
-type WebsocketPublicTradeResponse struct {
+type WebsocketPublicTradeUpdate struct {
 	// ID is set on option pushes only
 	ID        string                 `json:"id"`
 	Topic     string                 `json:"topic"`
@@ -78,9 +78,9 @@ type WebsocketPublicTrade struct {
 	ImpliedVolatility     types.Number `json:"iv"`  // Options only
 }
 
-// WebsocketTickerResponse is a push from the tickers.{symbol} topic (Ticker). Linear and inverse tickers send a snapshot
+// WebsocketTickerUpdate is a push from the tickers.{symbol} topic (Ticker). Linear and inverse tickers send a snapshot
 // followed by deltas that hold only the fields that changed; spot and option tickers send snapshots only
-type WebsocketTickerResponse struct {
+type WebsocketTickerUpdate struct {
 	Topic         string     `json:"topic"`
 	Type          string     `json:"type"`
 	Timestamp     types.Time `json:"ts"`
@@ -146,8 +146,8 @@ type WebsocketTicker struct {
 	USDIndexPrice              types.Number `json:"usdIndexPrice"`
 }
 
-// WebsocketKlineResponse is a push from the kline.{interval}.{symbol} topic (Kline)
-type WebsocketKlineResponse struct {
+// WebsocketKlineUpdate is a push from the kline.{interval}.{symbol} topic (Kline)
+type WebsocketKlineUpdate struct {
 	Topic     string           `json:"topic"`
 	Type      string           `json:"type"`
 	Timestamp types.Time       `json:"ts"`
@@ -169,8 +169,8 @@ type WebsocketKline struct {
 	Timestamp types.Time   `json:"timestamp"` // Time of the last trade in the candle
 }
 
-// WebsocketAllLiquidationResponse is a push from the allLiquidation.{symbol} topic (All Liquidation)
-type WebsocketAllLiquidationResponse struct {
+// WebsocketAllLiquidationUpdate is a push from the allLiquidation.{symbol} topic (All Liquidation)
+type WebsocketAllLiquidationUpdate struct {
 	Topic     string                 `json:"topic"`
 	Type      string                 `json:"type"`
 	Timestamp types.Time             `json:"ts"`
@@ -186,8 +186,8 @@ type WebsocketLiquidation struct {
 	BankruptcyPrice types.Number `json:"p"`
 }
 
-// WebsocketInsurancePoolResponse is a push from the insurance.{USDT|USDC|inverse} topic (Insurance Pool)
-type WebsocketInsurancePoolResponse struct {
+// WebsocketInsurancePoolUpdate is a push from the insurance.{USDT|USDC|inverse} topic (Insurance Pool)
+type WebsocketInsurancePoolUpdate struct {
 	Topic     string                   `json:"topic"`
 	Type      string                   `json:"type"`
 	Timestamp types.Time               `json:"ts"`
@@ -203,8 +203,8 @@ type WebsocketInsurancePool struct {
 	UpdateTime types.Time   `json:"updateTime"`
 }
 
-// WebsocketPriceLimitResponse is a push from the priceLimit.{symbol} topic (Order Price Limit)
-type WebsocketPriceLimitResponse struct {
+// WebsocketPriceLimitUpdate is a push from the priceLimit.{symbol} topic (Order Price Limit)
+type WebsocketPriceLimitUpdate struct {
 	Topic     string     `json:"topic"`
 	Timestamp types.Time `json:"ts"`
 	// Data is an object, although the docs table calls it an array
@@ -218,8 +218,8 @@ type WebsocketPriceLimit struct {
 	SellLimit types.Number `json:"sellLmt"`
 }
 
-// WebsocketADLAlertResponse is a push from the adlAlert.{USDT|USDC|inverse} topic (ADL Alert)
-type WebsocketADLAlertResponse struct {
+// WebsocketADLAlertUpdate is a push from the adlAlert.{USDT|USDC|inverse} topic (ADL Alert)
+type WebsocketADLAlertUpdate struct {
 	Topic     string              `json:"topic"`
 	Type      string              `json:"type"`
 	Timestamp types.Time          `json:"ts"`

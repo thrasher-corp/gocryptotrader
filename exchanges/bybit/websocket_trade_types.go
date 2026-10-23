@@ -28,7 +28,7 @@ type WebsocketTradeRequestHeader struct {
 // REST endpoint's result for an order request and the server time for a pong
 type WebsocketTradeResponse[T any] struct {
 	RequestID          string                       `json:"reqId"`
-	ReturnCode         int64                        `json:"retCode"`
+	ReturnCode         int64                        `json:"retCode"` // Bybit's error codes include negative ones, such as -1 and -2015
 	ReturnMessage      string                       `json:"retMsg"`
 	Operation          string                       `json:"op"`
 	Data               T                            `json:"data"`
@@ -45,7 +45,7 @@ type WebsocketTradeExtraInfo struct {
 
 // WebsocketBatchOrderStatus is the outcome of one order of a batch request; a code of 0 means it was accepted
 type WebsocketBatchOrderStatus struct {
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // Bybit's error codes include negative ones, such as -1 and -2015
 	Message string `json:"msg"`
 }
 
@@ -60,8 +60,8 @@ type WebsocketTradeResponseHeader struct {
 	LimitResetTimestamp types.Time `json:"X-Bapi-Limit-Reset-Timestamp"`
 }
 
-// WebsocketBatchOrderAcknowledgements is the data of the reply to a batch order request
-type WebsocketBatchOrderAcknowledgements struct {
+// WebsocketBatchOrderResponse is the data of the reply to a batch order request
+type WebsocketBatchOrderResponse struct {
 	List []WebsocketBatchOrderAcknowledgement `json:"list"`
 }
 

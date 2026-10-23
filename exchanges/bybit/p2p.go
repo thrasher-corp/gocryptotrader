@@ -425,8 +425,8 @@ func (e *Exchange) GetP2PCounterpartyUserInfo(ctx context.Context, originalUID, 
 }
 
 // GetP2PUserPayment returns the payment methods added to the user's account (Get User Payment)
-func (e *Exchange) GetP2PUserPayment(ctx context.Context) ([]P2PUserPayment, error) {
-	var resp []P2PUserPayment
+func (e *Exchange) GetP2PUserPayment(ctx context.Context) ([]P2PUserPaymentResponse, error) {
+	var resp []P2PUserPaymentResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/p2p/user/payment/list", nil, nil, &resp, getP2PUserPaymentEPL)
 }
 

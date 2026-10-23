@@ -79,7 +79,7 @@ func TestEventPublicSubscribe(t *testing.T) {
 	}
 }
 
-func TestWsHandleEventPublicData(t *testing.T) {
+func TestWebsocketHandleEventPublicData(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	conn := &topicFixtureConnection{match: websocket.NewMatch()}
@@ -101,9 +101,9 @@ func TestWsHandleEventPublicData(t *testing.T) {
 		require.NotEmpty(t, got, "wsHandleEventPublicData must relay the orderbook snapshot")
 		for _, frame := range got {
 			switch f := frame.(type) {
-			case *WebsocketEventOrderbookResponse:
+			case *WebsocketEventOrderbookUpdate:
 				assert.Equal(t, symbol, f.Data.Symbol, "orderbook frames should be for the subscribed symbol")
-			case *WebsocketEventPublicTradeResponse:
+			case *WebsocketEventPublicTradeUpdate:
 				assert.NotEmpty(t, f.Data, "trade frames should hold trades")
 			default:
 				assert.Failf(t, "unexpected relayed frame", "the event stream should not relay %T", frame)
@@ -114,7 +114,7 @@ func TestWsHandleEventPublicData(t *testing.T) {
 
 	testexch.FixtureToDataHandler(t, "testdata/wsEventPublic.json", handle)
 	exp := []any{
-		&WebsocketEventOrderbookResponse{
+		&WebsocketEventOrderbookUpdate{
 			Topic:     "orderbook.25.ETHUSDT-6NOV26-2200-BELOW",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791534287389)),
@@ -129,7 +129,7 @@ func TestWsHandleEventPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791534284744)),
 		},
-		&WebsocketEventOrderbookResponse{
+		&WebsocketEventOrderbookUpdate{
 			Topic:     "orderbook.25.ETHUSDT-6NOV26-2200-BELOW",
 			Type:      "delta",
 			Timestamp: types.Time(time.UnixMilli(1791534292049)),
@@ -143,7 +143,7 @@ func TestWsHandleEventPublicData(t *testing.T) {
 			},
 			CreationTimestamp: types.Time(time.UnixMilli(1791534292029)),
 		},
-		&WebsocketEventPublicTradeResponse{
+		&WebsocketEventPublicTradeUpdate{
 			Topic:     "publicTrade.ETHUSDT-6NOV26-2200-BELOW",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791008160380)),
@@ -167,7 +167,7 @@ func TestWsHandleEventPublicData(t *testing.T) {
 	assert.Error(t, handle(t.Context(), []byte(`{"topic":`)), "wsHandleEventPublicData should reject malformed JSON")
 }
 
-func TestWsHandleEventPrivateData(t *testing.T) {
+func TestWebsocketHandleEventPrivateData(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -178,7 +178,7 @@ func TestWsHandleEventPrivateData(t *testing.T) {
 	ex := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsEventPrivate.json", ex.wsHandleEventPrivateData)
 	exp := []any{
-		&WebsocketEventPositionResponse{
+		&WebsocketEventPositionUpdate{
 			ID:           "592324d2bce751-ad38-48eb-8f42-4671d1fb4d4e",
 			Topic:        "position.event",
 			CreationTime: types.Time(time.UnixMilli(1791619200020)),
@@ -200,7 +200,7 @@ func TestWsHandleEventPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketEventExecutionResponse{
+		&WebsocketEventExecutionUpdate{
 			ID:           "1509583_BTCUSDT-15MIN-DOWN_1311",
 			Topic:        "execution",
 			CreationTime: types.Time(time.UnixMilli(1791008150640)),
@@ -242,7 +242,7 @@ func TestWsHandleEventPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketEventExecutionResponse{
+		&WebsocketEventExecutionUpdate{
 			ID:           "1509583_ETHUSDT-6NOV26-2200-BELOW_101174421",
 			Topic:        "execution.event",
 			CreationTime: types.Time(time.UnixMilli(1791008160380)),
@@ -324,7 +324,7 @@ func TestWsHandleEventPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketEventOrderResponse{
+		&WebsocketEventOrderUpdate{
 			ID:           "1509583_BTCUSDT-15MIN-DOWN_1311",
 			Topic:        "order",
 			CreationTime: types.Time(time.UnixMilli(1791008150640)),
@@ -362,7 +362,7 @@ func TestWsHandleEventPrivateData(t *testing.T) {
 				},
 			},
 		},
-		&WebsocketEventOrderResponse{
+		&WebsocketEventOrderUpdate{
 			ID:           "1509583_ETHUSDT-10OCT26-2580-2640-OUT_101174788",
 			Topic:        "order.event",
 			CreationTime: types.Time(time.UnixMilli(1791008195010)),

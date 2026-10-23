@@ -205,7 +205,7 @@ func TestGetWeb3PaymentTokenList(t *testing.T) {
 	result, err := e.GetWeb3PaymentTokenList(t.Context(), "SOL", web3SOLUSDTAddress)
 	require.NoError(t, err, "GetWeb3PaymentTokenList must not error")
 	if mockTests {
-		exp := []Web3PaymentToken{
+		exp := []Web3PaymentTokenResponse{
 			{
 				TokenCode:         "CEX_1",
 				Symbol:            currency.USDT,
@@ -343,7 +343,7 @@ func TestGetWeb3BizTokenList(t *testing.T) {
 	result, err := e.GetWeb3BizTokenList(t.Context(), 2)
 	require.NoError(t, err, "GetWeb3BizTokenList must not error")
 	if mockTests {
-		exp := []Web3BizToken{
+		exp := []Web3BizTokenResponse{
 			{
 				TokenCode:         "DEX_123",
 				ChainCode:         "ETH",
@@ -1009,7 +1009,7 @@ func TestGetPredictionPaymentTokenList(t *testing.T) {
 	result, err := e.GetPredictionPaymentTokenList(t.Context())
 	require.NoError(t, err, "GetPredictionPaymentTokenList must not error")
 	if mockTests {
-		exp := []PredictionPaymentToken{
+		exp := []PredictionPaymentTokenResponse{
 			{
 				TokenCode:         "USDC",
 				Symbol:            currency.USDC,
@@ -1255,7 +1255,7 @@ func TestGetPredictionOrderBook(t *testing.T) {
 	result, err := e.GetPredictionOrderBook(t.Context(), []string{"token_yes_123"})
 	require.NoError(t, err, "GetPredictionOrderBook must not error")
 	if mockTests {
-		exp := []PredictionOrderBook{
+		exp := []PredictionOrderBookResponse{
 			{
 				TokenID: "token_yes_123",
 				Bids: []PredictionOrderBookLevel{
@@ -1297,7 +1297,7 @@ func TestGetPredictionTokenPrice(t *testing.T) {
 	result, err := e.GetPredictionTokenPrice(t.Context(), []string{"token_yes_123", "token_no_123"})
 	require.NoError(t, err, "GetPredictionTokenPrice must not error")
 	if mockTests {
-		exp := []PredictionTokenPrice{
+		exp := []PredictionTokenPriceResponse{
 			{
 				TokenID:      "token_yes_123",
 				BestBid:      0.64,

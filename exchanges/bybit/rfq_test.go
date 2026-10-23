@@ -164,7 +164,7 @@ func TestCancelAllRFQs(t *testing.T) {
 	result, err := e.CancelAllRFQs(t.Context())
 	require.NoError(t, err, "CancelAllRFQs must not error")
 	if mockTests {
-		exp := []RFQCancellation{
+		exp := []RFQCancellationResponse{
 			{RFQID: "1791008100511241492396882271696580", RFQLinkID: "rfq-gct-001"},
 			{RFQID: "175766967076315412093641573648082", Code: 110001, Message: "RFQ is not active"},
 		}
@@ -311,7 +311,7 @@ func TestCancelAllRFQQuotes(t *testing.T) {
 	result, err := e.CancelAllRFQQuotes(t.Context())
 	require.NoError(t, err, "CancelAllRFQQuotes must not error")
 	if mockTests {
-		exp := []RFQQuoteCancellation{
+		exp := []RFQQuoteCancellationResponse{
 			{
 				RFQID:       "1791008100511241492396882271696580",
 				QuoteID:     "1791008120130044334361923221559805",

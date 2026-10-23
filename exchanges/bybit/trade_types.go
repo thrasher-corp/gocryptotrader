@@ -702,7 +702,7 @@ type BatchOrderExtInfo struct {
 
 // BatchOrderOutcome is Bybit's verdict on one order of a batch order request
 type BatchOrderOutcome struct {
-	Code    int64  `json:"code"`
+	Code    int64  `json:"code"` // Bybit's error codes include negative ones, such as -1 and -2015
 	Message string `json:"msg"`
 }
 
@@ -719,7 +719,7 @@ type BatchPlacedOrder struct {
 	OrderID     string     `json:"orderId"`
 	OrderLinkID string     `json:"orderLinkId"`
 	CreateAt    types.Time `json:"createAt"`
-	Code        int64      `json:"code"`
+	Code        int64      `json:"code"` // Bybit's error codes include negative ones, such as -1 and -2015
 	Message     string     `json:"msg"`
 }
 
@@ -850,7 +850,7 @@ type BatchOrderResult struct {
 	Symbol      string `json:"symbol"`
 	OrderID     string `json:"orderId"`
 	OrderLinkID string `json:"orderLinkId"`
-	Code        int64  `json:"code"`
+	Code        int64  `json:"code"` // Bybit's error codes include negative ones, such as -1 and -2015
 	Message     string `json:"msg"`
 }
 

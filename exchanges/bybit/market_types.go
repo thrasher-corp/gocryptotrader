@@ -467,8 +467,8 @@ type HistoricalVolatilityRequest struct {
 	EndTime   time.Time
 }
 
-// HistoricalVolatility holds an option base coin's hourly historical volatility
-type HistoricalVolatility struct {
+// HistoricalVolatilityResponse holds an option base coin's hourly historical volatility
+type HistoricalVolatilityResponse struct {
 	Period uint64       `json:"period"`
 	Value  types.Number `json:"value"`
 	Time   types.Time   `json:"time"`

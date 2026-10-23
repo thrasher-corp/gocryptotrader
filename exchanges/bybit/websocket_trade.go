@@ -32,9 +32,12 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 	if err != nil {
 		return err
 	}
-	var resp WebsocketTradeResponse[[]types.Time]
+	var resp *WebsocketTradeResponse[[]types.Time]
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %w", errWebsocketAuthFailed, common.ErrNoResponse)
 	}
 	if resp.ReturnCode != 0 {
 		return fmt.Errorf("%w: %w", errWebsocketAuthFailed, &APIError{Code: resp.ReturnCode, Message: resp.ReturnMessage})
@@ -203,7 +206,7 @@ func (e *Exchange) sendWebsocketBatchOrderRequest(ctx context.Context, op, categ
 	if err != nil {
 		return nil, err
 	}
-	resp, err := sendWebsocketTradeRequest[WebsocketBatchOrderAcknowledgements](withBatchOrderWeight(ctx, category, orders), e, outbound, op, args, epl)
+	resp, err := sendWebsocketTradeRequest[WebsocketBatchOrderResponse](withBatchOrderWeight(ctx, category, orders), e, outbound, op, args, epl)
 	if err != nil {
 		return nil, err
 	}
@@ -256,12 +259,15 @@ func sendWebsocketTradeRequest[T any](ctx context.Context, e *Exchange, conn web
 	if err != nil {
 		return nil, err
 	}
-	var resp WebsocketTradeResponse[T]
+	var resp *WebsocketTradeResponse[T]
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %s", common.ErrNoResponse, op)
 	}
 	if resp.ReturnCode != 0 {
 		return nil, &APIError{Code: resp.ReturnCode, Message: resp.ReturnMessage}
 	}
-	return &resp, nil
+	return resp, nil
 }

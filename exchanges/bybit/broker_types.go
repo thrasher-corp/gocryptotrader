@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// BrokerWhitelistIP holds a broker client's dedicated hostname and the IP addresses whitelisted for it
-type BrokerWhitelistIP struct {
+// BrokerWhitelistIPResponse holds a broker client's dedicated hostname and the IP addresses whitelisted for it
+type BrokerWhitelistIPResponse struct {
 	// Name is the client's name
 	Name string `json:"name"`
 	// EndpointDomain is the hostname dedicated to the client

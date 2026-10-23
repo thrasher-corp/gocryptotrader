@@ -78,8 +78,8 @@ type CancelRFQResponse struct {
 	RFQLinkID string `json:"rfqLinkId"`
 }
 
-// RFQCancellation is the outcome of cancelling one RFQ
-type RFQCancellation struct {
+// RFQCancellationResponse is the outcome of cancelling one RFQ
+type RFQCancellationResponse struct {
 	RFQID     string `json:"rfqId"`
 	RFQLinkID string `json:"rfqLinkId"`
 	// Code is zero when the cancellation succeeded; the docs type it as a string but their example sends a number
@@ -156,8 +156,8 @@ type CancelRFQQuoteResponse struct {
 	QuoteLinkID string `json:"quoteLinkId"`
 }
 
-// RFQQuoteCancellation is the outcome of cancelling one quote
-type RFQQuoteCancellation struct {
+// RFQQuoteCancellationResponse is the outcome of cancelling one quote
+type RFQQuoteCancellationResponse struct {
 	RFQID       string `json:"rfqId"`
 	QuoteID     string `json:"quoteId"`
 	QuoteLinkID string `json:"quoteLinkId"`

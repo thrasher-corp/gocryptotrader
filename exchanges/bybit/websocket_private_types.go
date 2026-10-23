@@ -12,8 +12,8 @@ import (
 // errInvalidExtraFees is returned for extra fees that are neither a list nor a JSON encoded list
 var errInvalidExtraFees = errors.New("extra fees must be a list or a JSON encoded list")
 
-// WebsocketPositionResponse is a push from the position topic or one of its categorised topics (Position)
-type WebsocketPositionResponse struct {
+// WebsocketPositionUpdate is a push from the position topic or one of its categorised topics (Position)
+type WebsocketPositionUpdate struct {
 	ID           string              `json:"id"`
 	Topic        string              `json:"topic"`
 	CreationTime types.Time          `json:"creationTime"`
@@ -79,8 +79,8 @@ type WebsocketPosition struct {
 	TradeMode uint64 `json:"tradeMode"`
 }
 
-// WebsocketExecutionResponse is a push from the execution topic or one of its categorised topics (Execution)
-type WebsocketExecutionResponse struct {
+// WebsocketExecutionUpdate is a push from the execution topic or one of its categorised topics (Execution)
+type WebsocketExecutionUpdate struct {
 	ID           string               `json:"id"`
 	Topic        string               `json:"topic"`
 	CreationTime types.Time           `json:"creationTime"`
@@ -142,9 +142,9 @@ type ExtraFee struct {
 	Fee        types.Number  `json:"fee"`
 }
 
-// WebsocketFastExecutionResponse is a push from the execution.fast topic or one of its categorised topics (Fast
+// WebsocketFastExecutionUpdate is a push from the execution.fast topic or one of its categorised topics (Fast
 // Execution)
-type WebsocketFastExecutionResponse struct {
+type WebsocketFastExecutionUpdate struct {
 	Topic        string                   `json:"topic"`
 	CreationTime types.Time               `json:"creationTime"`
 	Data         []WebsocketFastExecution `json:"data"`
@@ -167,8 +167,8 @@ type WebsocketFastExecution struct {
 	Sequence          uint64       `json:"seq"`
 }
 
-// WebsocketOrderResponse is a push from the order topic or one of its categorised topics (Order)
-type WebsocketOrderResponse struct {
+// WebsocketOrderUpdate is a push from the order topic or one of its categorised topics (Order)
+type WebsocketOrderUpdate struct {
 	ID           string           `json:"id"`
 	Topic        string           `json:"topic"`
 	CreationTime types.Time       `json:"creationTime"`
@@ -243,8 +243,8 @@ type WebsocketOrder struct {
 	RPIMatchedQuantity  types.Number                   `json:"rpiMatchedQty"`
 }
 
-// WebsocketWalletResponse is a push from the wallet topic (Wallet)
-type WebsocketWalletResponse struct {
+// WebsocketWalletUpdate is a push from the wallet topic (Wallet)
+type WebsocketWalletUpdate struct {
 	ID           string            `json:"id"`
 	Topic        string            `json:"topic"`
 	CreationTime types.Time        `json:"creationTime"`
@@ -274,8 +274,8 @@ type WebsocketWallet struct {
 	Coins      []WalletBalanceCoin `json:"coin"`
 }
 
-// WebsocketGreeksResponse is a push from the greeks topic (Greek)
-type WebsocketGreeksResponse struct {
+// WebsocketGreeksUpdate is a push from the greeks topic (Greek)
+type WebsocketGreeksUpdate struct {
 	ID           string            `json:"id"`
 	Topic        string            `json:"topic"`
 	CreationTime types.Time        `json:"creationTime"`
@@ -291,8 +291,8 @@ type WebsocketGreeks struct {
 	TotalTheta types.Number  `json:"totalTheta"`
 }
 
-// WebsocketStrategyResponse is a push from the strategy topic (Strategy)
-type WebsocketStrategyResponse struct {
+// WebsocketStrategyUpdate is a push from the strategy topic (Strategy)
+type WebsocketStrategyUpdate struct {
 	ID           string              `json:"id"`
 	Topic        string              `json:"topic"`
 	CreationTime types.Time          `json:"creationTime"`

@@ -184,7 +184,7 @@ func TestGetSpotMarginCurrencyData(t *testing.T) {
 		exp  *SpotMarginCurrencyDataResponse
 	}{
 		{name: "every coin", exp: &SpotMarginCurrencyDataResponse{
-			List: []SpotMarginCurrencyData{
+			List: []SpotMarginCurrency{
 				{
 					Currency:                        currency.LTC,
 					FlexibleManualBorrowable:        true,
@@ -206,7 +206,7 @@ func TestGetSpotMarginCurrencyData(t *testing.T) {
 			},
 		}},
 		{name: "one coin", coin: currency.BTC, exp: &SpotMarginCurrencyDataResponse{
-			List: []SpotMarginCurrencyData{
+			List: []SpotMarginCurrency{
 				{
 					Currency:                        currency.BTC,
 					FlexibleManualBorrowable:        true,

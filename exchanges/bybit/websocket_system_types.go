@@ -2,8 +2,8 @@ package bybit
 
 import "github.com/thrasher-corp/gocryptotrader/types"
 
-// WebsocketSystemStatusResponse is a push from the system.status topic (System Status)
-type WebsocketSystemStatusResponse struct {
+// WebsocketSystemStatusUpdate is a push from the system.status topic (System Status)
+type WebsocketSystemStatusUpdate struct {
 	Topic     string                  `json:"topic"`
 	Timestamp types.Time              `json:"ts"`
 	Data      []WebsocketSystemStatus `json:"data"`

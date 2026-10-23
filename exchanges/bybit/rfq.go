@@ -119,8 +119,8 @@ func (e *Exchange) CancelRFQ(ctx context.Context, rfqID, rfqLinkID string) (*Can
 
 // CancelAllRFQs cancels every active RFQ of the caller and returns each cancellation's outcome; an inquiring party's
 // cancellation also invalidates the RFQ's quotes (RFQ Trading: Cancel All RFQs)
-func (e *Exchange) CancelAllRFQs(ctx context.Context) ([]RFQCancellation, error) {
-	var resp []RFQCancellation
+func (e *Exchange) CancelAllRFQs(ctx context.Context) ([]RFQCancellationResponse, error) {
+	var resp []RFQCancellationResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/rfq/cancel-all-rfq", nil, nil, &resp, cancelAllRFQsEPL)
 }
 
@@ -244,8 +244,8 @@ func (e *Exchange) CancelRFQQuote(ctx context.Context, req *CancelRFQQuoteReques
 
 // CancelAllRFQQuotes cancels every active quote of the caller and returns each cancellation's outcome (RFQ Trading:
 // Cancel All Quotes)
-func (e *Exchange) CancelAllRFQQuotes(ctx context.Context) ([]RFQQuoteCancellation, error) {
-	var resp []RFQQuoteCancellation
+func (e *Exchange) CancelAllRFQQuotes(ctx context.Context) ([]RFQQuoteCancellationResponse, error) {
+	var resp []RFQQuoteCancellationResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/rfq/cancel-all-quotes", nil, nil, &resp, cancelAllRFQQuotesEPL)
 }
 
