@@ -120,19 +120,23 @@ func TestRateLimitBarrier(t *testing.T) {
 
 	t.Run("acceptance retains final reservations", func(t *testing.T) {
 		t.Parallel()
-		contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
-		require.NoError(t, err)
-		left := NewRateLimitWithWeight(time.Hour, 1, 1)
-		right := NewRateLimitWithWeight(time.Hour, 1, 1)
-		errs := make(chan error, 2)
-		go func() { errs <- left.RateLimit(contexts[0]) }()
-		go func() { errs <- right.RateLimit(contexts[1]) }()
-		require.NoError(t, <-errs)
-		require.NoError(t, <-errs)
-		require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
-		require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
+			require.NoError(t, err)
+			left := NewRateLimitWithWeight(time.Hour, 1, 1)
+			right := NewRateLimitWithWeight(time.Hour, 1, 1)
+			errs := make(chan error, 2)
+			go func() { errs <- left.RateLimit(contexts[0]) }()
+			go func() { errs <- right.RateLimit(contexts[1]) }()
+			require.NoError(t, <-errs)
+			require.NoError(t, <-errs)
+			// On the fake clock, a call that waits out the hour instead of being
+			// refused fails at once rather than hanging until go test times out.
+			require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+			require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+		})
 	})
 
 	t.Run("one delayed rejects both and restores reservations", func(t *testing.T) {
@@ -513,6 +517,32 @@ func TestNewBasicRateLimit(t *testing.T) {
 
 	assert.Same(t, defs[Unset], defs[Auth], "Unset and Auth should be same instance")
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
+}
+
+func TestRateLimitCancellationReleasesReservation(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		shared := NewRateLimit(time.Second, 1)
+		single, triple := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 3)
+		start := time.Now()
+		require.NoError(t, single.RateLimit(t.Context()), "initial call must not error")
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		errs := make(chan error, 1)
+		go func() { errs <- triple.RateLimit(ctx) }()
+		synctest.Wait()
+		time.Sleep(730 * time.Millisecond)
+		require.ErrorIs(t, single.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+			"call that may not wait must be refused while the reservation is held")
+		cancel()
+		require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
+
+		require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+		assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
+			"follow-up call should be admitted one token period after the initial call")
+	})
 }
 
 func TestCancelAll(t *testing.T) {
