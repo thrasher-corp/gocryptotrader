@@ -287,6 +287,39 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	if sweetItem.Candles[len(sweetItem.Candles)-1].Time.Equal(laterEndDate) {
 		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].Time, "should not equal")
 	}
+
+	// A candle opening between interval starts cannot be padded
+	start = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, start.AddDate(0, 0, 1), 1)
+	require.NoError(t, err, "CreateKlineRequest must not error")
+	_, err = r.ProcessResponse([]Candle{{Time: start.Add(time.Minute), Close: 1}})
+	assert.ErrorIs(t, err, errCandleOpenTimeIsNotUTCAligned, "ProcessResponse should return the padding error")
+
+	// CreateKlineRequest reads the clock again, so a period ending between the two reads leaves the request not partial;
+	// the request is then made once more, for the period then current, and required to be partial
+	currentPeriodRequest := func(clientRequired, exchangeInterval Interval) *Request {
+		t.Helper()
+		for range 2 {
+			start := time.Now().UTC().Truncate(clientRequired.Duration())
+			req, err := CreateKlineRequest("name", pair, pair, asset.Spot, clientRequired, exchangeInterval, start, start.Add(clientRequired.Duration()), 1)
+			require.NoError(t, err, "CreateKlineRequest must not error")
+			if req.PartialCandle {
+				return req
+			}
+		}
+		require.FailNow(t, "CreateKlineRequest must mark a request for the current period partial")
+		return nil
+	}
+
+	// A range holding only the current period, which has no candle yet, leaves none once the empty partial is dropped
+	r = currentPeriodRequest(OneDay, OneDay)
+	_, err = r.ProcessResponse([]Candle{{Time: r.Start.Add(-OneDay.Duration()), Close: 1}})
+	assert.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert, "ProcessResponse should report a range left without candles")
+
+	// One hour of the current four-hour period cannot build its candle
+	r = currentPeriodRequest(FourHour, OneHour)
+	_, err = r.ProcessResponse([]Candle{{Time: r.Start, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}})
+	assert.ErrorIs(t, err, ErrInsufficientCandleData, "ProcessResponse should return the conversion's error")
 }
 
 func TestRequest_ProcessResponse_OneMonth(t *testing.T) {

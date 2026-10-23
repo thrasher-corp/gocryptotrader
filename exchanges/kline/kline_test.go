@@ -994,6 +994,9 @@ func TestConvertToNewInterval(t *testing.T) {
 	_, err = old.ConvertToNewInterval(OneWeek)
 	assert.ErrorIs(t, err, ErrWholeNumberScaling)
 
+	_, err = (&Item{Interval: OneDay}).ConvertToNewInterval(ThreeDay)
+	assert.ErrorIs(t, err, ErrInsufficientCandleData, "ConvertToNewInterval should reject an item without candles")
+
 	old.Interval = OneDay
 	newInterval := ThreeDay
 	newCandle, err := old.ConvertToNewInterval(newInterval)

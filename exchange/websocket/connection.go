@@ -74,7 +74,16 @@ type ConnectionSetup struct {
 	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
-	ConnectionLevelReporter  Reporter
+	// ConnectWithoutSubscriptions dials a connection even when GenerateSubscriptions returns none, and keeps one
+	// connection when its subscriptions are all removed, so requests can always be sent on it. Unlike
+	// SubscriptionsNotRequired, subscriptions are still generated and refreshed
+	ConnectWithoutSubscriptions bool
+	// Optional marks a setup the other connections do not depend on: a failure to connect it, or the loss of one of its
+	// connections, leaves them up, and the connection monitor retries it after the monitor delay, doubling the delay
+	// after each further failure up to a minute, or the monitor delay when that is longer. The delay is kept across
+	// reconnections until it connects or has no subscriptions to connect for
+	Optional                bool
+	ConnectionLevelReporter Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -103,6 +112,12 @@ type ConnectionSetup struct {
 	Handler func(ctx context.Context, conn Connection, incoming []byte) error
 	// Authenticate will be called to authenticate the connection
 	Authenticate func(ctx context.Context, conn Connection) error
+	// OnDisconnect is called once for each connection whose Connector succeeded, when its reader stops, whether the
+	// connection dropped or was shut down, and before a shutdown returns, or straight away when the connection closed
+	// before its reader started. Retiring the setup's connections then waits for their readers while holding the
+	// manager's lock, so neither OnDisconnect nor the setup's Handler may call manager methods that take it, such as
+	// GetConnection, FlushChannels or Shutdown, and OnDisconnect must not wait on a lock their callers may hold
+	OnDisconnect func(ctx context.Context, conn Connection)
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
@@ -135,11 +150,26 @@ type connection struct {
 	Wg                   *sync.WaitGroup
 	Connection           *gws.Conn
 	shutdown             chan struct{}
-	Match                *Match
-	ResponseMaxLimit     time.Duration
-	Traffic              chan struct{}
-	readMessageErrors    chan error
+	// closed is closed when a managed connection shuts down, so its ping work stops with it rather than with the manager;
+	// managed connections are never dialled again
+	closed            chan struct{}
+	closeOnce         sync.Once
+	Match             *Match
+	ResponseMaxLimit  time.Duration
+	Traffic           chan struct{}
+	readMessageErrors chan error
 }
+
+// connectionFaultError is a connection fault naming its connection, so the connection monitor can tell which setup it
+// belongs to, and whether it is still in use
+type connectionFaultError struct {
+	connection Connection
+	err        error
+}
+
+func (e *connectionFaultError) Error() string { return e.err.Error() }
+
+func (e *connectionFaultError) Unwrap() error { return e.err }
 
 // Dial sets proxy URLs and then connects to the websocket.
 // The dialer is copied so the caller's dialer is left unmodified, and the handshake is bounded by defaultHandshakeTimeout
@@ -259,6 +289,8 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 			select {
 			case <-c.shutdown:
 				return
+			case <-c.closed:
+				return
 			case <-time.After(handler.Delay):
 				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
@@ -296,7 +328,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
+			case c.readMessageErrors <- &connectionFaultError{connection: c, err: fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL)}:
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -353,7 +385,13 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 // deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
 // return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
+	if c == nil {
+		return nil
+	}
+	if c.closed != nil {
+		c.closeOnce.Do(func() { close(c.closed) })
+	}
+	if c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
