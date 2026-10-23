@@ -14,9 +14,11 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -287,9 +289,78 @@ func (e *Exchange) newFuturesConnectionSetup(exch *config.Exchange, wsURL string
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
+		OnDisconnect:          e.invalidateOrderbooks,
 		MessageFilter:         futuresConnection,
 		Optional:              true,
 	}
+}
+
+// orderbookPushKind is what storing an orderbook push without an error says of it
+type orderbookPushKind uint8
+
+const (
+	// orderbookSnapshot is stored
+	orderbookSnapshot orderbookPushKind = iota
+	// orderbookDelta is stored, or skipped as one the book holds
+	orderbookDelta
+	// orderbookIncrement is stored, or queued by the update manager for its resync
+	orderbookIncrement
+)
+
+// feedOrderbook stores an orderbook push a connection sent through store, and records it for the connection's
+// disconnect hook, holding the lock the hook invalidates under throughout, so neither another connection's push nor the
+// hook comes between the two. A push stored, which leaves the book holding its update ID where it held another or was
+// unavailable, or a snapshot stored with an update ID the book held already, holds the connection's data, so the book is
+// no other connection's from then. A rejected push, or a skipped one the book already held, changes nothing. An
+// increment the update manager queued makes the book the connection's too, as its resync loads the book for the
+// connection, while the connection whose data the book holds keeps it
+func (e *Exchange) feedOrderbook(conn websocket.Connection, pair currency.Pair, a asset.Item, updateID int64, kind orderbookPushKind, store func() error) error {
+	e.orderbookFeedsMu.Lock()
+	defer e.orderbookFeedsMu.Unlock()
+	before, beforeErr := e.Websocket.Orderbook.LastUpdateID(pair, a)
+	err := store()
+	if conn == nil {
+		return err
+	}
+	after, afterErr := e.Websocket.Orderbook.LastUpdateID(pair, a)
+	// A snapshot is stored unless rejected, before it is relayed, so one whose relay alone failed was stored
+	stored := kind == orderbookSnapshot && (err == nil || errors.Is(err, stream.ErrChannelBufferFull))
+	held := afterErr == nil && after == updateID && (beforeErr != nil || before != after || stored)
+	if !held && (kind != orderbookIncrement || err != nil) {
+		return err
+	}
+	k := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
+	if held {
+		for other, fed := range e.orderbookFeeds {
+			if other != conn {
+				delete(fed, k)
+			}
+		}
+	}
+	if e.orderbookFeeds == nil {
+		e.orderbookFeeds = make(map[websocket.Connection]map[key.PairAsset]struct{})
+	}
+	if e.orderbookFeeds[conn] == nil {
+		e.orderbookFeeds[conn] = make(map[key.PairAsset]struct{})
+	}
+	e.orderbookFeeds[conn][k] = struct{}{}
+	return err
+}
+
+// invalidateOrderbooks invalidates the orderbooks recorded for a connection once its reader stops. The futures and UTA
+// public connections are optional, so the manager stays connected while one is down and the engine goes on waiting for
+// those books on the websocket rather than reading them over REST; invalidated, they read as unavailable rather than
+// as current until a connection feeds them again. A book another connection also feeds reads as unavailable until
+// that connection's next push is stored, and a level 2 resync already under way can still load its REST snapshot
+// afterwards, which is dated as of its request
+func (e *Exchange) invalidateOrderbooks(_ context.Context, conn websocket.Connection) {
+	e.orderbookFeedsMu.Lock()
+	defer e.orderbookFeedsMu.Unlock()
+	for k := range e.orderbookFeeds[conn] {
+		// A book the store no longer holds has nothing to invalidate, which is the only error
+		_ = e.Websocket.Orderbook.InvalidateOrderbook(k.Pair(), k.Asset)
+	}
+	delete(e.orderbookFeeds, conn)
 }
 
 // WebsocketConnectSpot connects to the Classic spot and margin websocket, with a private token when authenticated
@@ -403,14 +474,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case "message", "":
 		// Some private pushes omit the type, so a frame without one is a push when it names a topic
 		if msg.Topic != "" {
-			return e.processPush(ctx, &msg)
+			return e.processPush(ctx, conn, &msg)
 		}
 	}
 	return fmt.Errorf("%w %q: %s", errUnhandledMessageType, msg.Type, respData)
 }
 
 // processPush sends a topic push to the handler for its channel
-func (e *Exchange) processPush(ctx context.Context, msg *WebsocketMessage) error {
+func (e *Exchange) processPush(ctx context.Context, conn websocket.Connection, msg *WebsocketMessage) error {
 	channel, symbols, _ := strings.Cut(msg.Topic, ":")
 	switch channel {
 	case marketTickerChannel:
@@ -454,9 +525,9 @@ func (e *Exchange) processPush(ctx context.Context, msg *WebsocketMessage) error
 	case futuresTickerV1Channel:
 		return e.processFuturesTickerV1(ctx, msg.Data)
 	case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
-		return e.processFuturesOrderbookSnapshot(ctx, msg.Data, symbols)
+		return e.processFuturesOrderbookSnapshot(ctx, conn, msg.Data, symbols)
 	case futuresOrderbookChannel:
-		return e.processFuturesOrderbookIncrement(ctx, msg.Data, symbols)
+		return e.processFuturesOrderbookIncrement(ctx, conn, msg.Data, symbols)
 	case futuresLimitCandleChannel:
 		return e.processFuturesKline(ctx, msg.Data, symbols)
 	case futuresExecutionChannel:
@@ -619,8 +690,8 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 			if len(suffixes) != 0 {
 				s.QualifiedChannel += ":" + strings.Join(suffixes, ",")
 			}
-			key := subscription.List(batch)
-			result[&key] = s
+			assoc := subscription.List(batch)
+			result[&assoc] = s
 		}
 	}
 	return result

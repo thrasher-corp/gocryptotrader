@@ -22,7 +22,13 @@ func (e *Exchange) PlaceMarginHFOrder(ctx context.Context, r *PlaceMarginHFOrder
 		return nil, err
 	}
 	var resp *PlaceMarginHFOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginHFOrderEPL, http.MethodPost, "/v3/hf/margin/order", body, &resp)
+	return resp, e.rememberMarginOrder(r.ClientOrderID, func() (string, error) {
+		err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginHFOrderEPL, http.MethodPost, "/v3/hf/margin/order", body, &resp)
+		if resp == nil {
+			return "", err
+		}
+		return resp.OrderID, err
+	})
 }
 
 // PlaceMarginHFOrderTest checks a margin order and the request signature without placing the order (Add Order Test)
@@ -281,7 +287,13 @@ func (e *Exchange) PlaceMarginStopOrder(ctx context.Context, r *PlaceMarginStopO
 		body["stop"] = r.Stop
 	}
 	var resp *PlaceMarginStopOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginStopOrderEPL, http.MethodPost, "/v3/hf/margin/stop-order", body, &resp)
+	return resp, e.rememberMarginOrder(r.ClientOrderID, func() (string, error) {
+		err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginStopOrderEPL, http.MethodPost, "/v3/hf/margin/stop-order", body, &resp)
+		if resp == nil {
+			return "", err
+		}
+		return resp.OrderID, err
+	})
 }
 
 // CancelMarginStopOrderByOrderID requests the cancellation of a margin stop order (Cancel Stop Order By OrderId)

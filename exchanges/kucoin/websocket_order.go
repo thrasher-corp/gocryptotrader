@@ -32,7 +32,8 @@ var (
 
 // newOrderConnectionSetup returns the setup of the websocket order API connection, which places and cancels Classic
 // spot, margin and futures orders. It needs no subscriptions, and it signs its URL, so it cannot connect without
-// credentials
+// credentials and sits out while authenticated use is off, as the engine turns it off when it finds the credentials
+// refused
 func (e *Exchange) newOrderConnectionSetup(exch *config.Exchange, wsURL string) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
@@ -43,6 +44,7 @@ func (e *Exchange) newOrderConnectionSetup(exch *config.Exchange, wsURL string) 
 		MessageFilter:            orderConnection,
 		SubscriptionsNotRequired: true,
 		Optional:                 true,
+		RequiresAuthentication:   true,
 	}
 }
 
@@ -160,7 +162,13 @@ func (e *Exchange) WebsocketAddMarginOrder(ctx context.Context, req *PlaceMargin
 		return nil, err
 	}
 	var resp *WebsocketAddMarginOrderResponse
-	return resp, e.sendWsOrderRequest(ctx, placeMarginHFOrderEPL, "margin.order", args, &resp)
+	return resp, e.rememberMarginOrder(req.ClientOrderID, func() (string, error) {
+		err := e.sendWsOrderRequest(ctx, placeMarginHFOrderEPL, "margin.order", args, &resp)
+		if resp == nil {
+			return "", err
+		}
+		return resp.OrderID, err
+	})
 }
 
 // WebsocketAddFuturesOrder places a futures order through the websocket order API (Add Order, op futures.order)

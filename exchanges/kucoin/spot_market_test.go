@@ -683,7 +683,7 @@ func TestGetPartOrderbook(t *testing.T) {
 	_, err = e.GetPartOrderbook(t.Context(), "BTC-USDT", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetPartOrderbook must reject a zero size")
 	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
-	for _, size := range []uint64{1, 21, 50} {
+	for _, size := range []uint64{1, 21, 50, 101, 500} {
 		_, err = ex.GetPartOrderbook(t.Context(), "BTC-USDT", size)
 		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetPartOrderbook must reject size %d, which KuCoin does not serve", size)
 	}
@@ -765,7 +765,7 @@ func TestGetCallAuctionPartOrderbook(t *testing.T) {
 	_, err = e.GetCallAuctionPartOrderbook(t.Context(), "BTC-USDT", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetCallAuctionPartOrderbook must reject a zero size")
 	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
-	for _, size := range []uint64{1, 21, 50} {
+	for _, size := range []uint64{1, 21, 50, 101, 500} {
 		_, err = ex.GetCallAuctionPartOrderbook(t.Context(), "BTC-USDT", size)
 		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetCallAuctionPartOrderbook must reject size %d, which KuCoin does not serve", size)
 	}

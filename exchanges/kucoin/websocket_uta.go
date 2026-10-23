@@ -128,6 +128,7 @@ func (e *Exchange) newUTASpotPublicConnection(exch *config.Exchange, wsURL strin
 		Subscriber:            e.UTASubscribe,
 		Unsubscriber:          e.UTAUnsubscribe,
 		Handler:               e.wsHandleUTAData,
+		OnDisconnect:          e.invalidateOrderbooks,
 		MessageFilter:         utaSpotPublicConnection,
 		Optional:              true,
 	}
@@ -145,6 +146,7 @@ func (e *Exchange) newUTAFuturesPublicConnection(exch *config.Exchange, wsURL st
 		Subscriber:            e.UTASubscribe,
 		Unsubscriber:          e.UTAUnsubscribe,
 		Handler:               e.wsHandleUTAData,
+		OnDisconnect:          e.invalidateOrderbooks,
 		MessageFilter:         utaFuturesPublicConnection,
 		Optional:              true,
 	}
@@ -181,6 +183,8 @@ func (e *Exchange) newUTATradeConnection(exch *config.Exchange, wsURL string) *w
 		MessageFilter:            utaTradeConnection,
 		SubscriptionsNotRequired: true,
 		Optional:                 true,
+		// Its Authenticate is skipped while authenticated use is off, which would leave it connected without signing in
+		RequiresAuthentication: true,
 	}
 }
 

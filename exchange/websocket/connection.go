@@ -81,8 +81,19 @@ type ConnectionSetup struct {
 	// Optional marks a setup the other connections do not depend on: a failure to connect it, or the loss of one of its
 	// connections, leaves them up, and the connection monitor retries it after the monitor delay, doubling the delay
 	// after each further failure up to a minute, or the monitor delay when that is longer. The delay is kept across
-	// reconnections until it connects or has no subscriptions to connect for
-	Optional                bool
+	// reconnections until it connects or has no subscriptions to connect for. A retry runs the setup's Connector without
+	// the manager's lock, so a dial to an unreachable host holds up no other call
+	Optional bool
+	// RequiresAuthentication marks a setup that can only connect with authenticated use, such as one whose Connector
+	// signs in with the account's keys. While CanUseAuthenticatedEndpoints is false, connecting the manager or retrying
+	// the setup skips it as it skips a setup with no subscriptions to connect for, so it is not dialled and no failure
+	// is counted. FlushChannels and SubscribeToSetup, which connect a setup for its subscriptions, do not skip it, but
+	// keep a connection of it only if authenticated use is on once its Connector returns. Otherwise the connection is
+	// shut down and SubscribeToSetup returns the error, as FlushChannels does unless the setup is optional and has no
+	// connection, when it records the failure for a retry instead. Turning authenticated use back on connects it at the
+	// manager's next connection, or at the setup's next retry while a failure of it is still to be retried, not straight
+	// away
+	RequiresAuthentication  bool
 	ConnectionLevelReporter Reporter
 
 	// URL defines the websocket server URL to connect to
@@ -114,9 +125,11 @@ type ConnectionSetup struct {
 	Authenticate func(ctx context.Context, conn Connection) error
 	// OnDisconnect is called once for each connection whose Connector succeeded, when its reader stops, whether the
 	// connection dropped or was shut down, and before a shutdown returns, or straight away when the connection closed
-	// before its reader started. Retiring the setup's connections then waits for their readers while holding the
-	// manager's lock, so neither OnDisconnect nor the setup's Handler may call manager methods that take it, such as
-	// GetConnection, FlushChannels or Shutdown, and OnDisconnect must not wait on a lock their callers may hold
+	// before its reader started; a connection that an optional setup's retry was dialling during a shutdown is closed,
+	// and the hook called, once its Connector returns. Retiring the setup's connections then waits for their readers
+	// while holding the manager's lock, so neither OnDisconnect nor the setup's Handler may call manager methods that
+	// take it, such as GetConnection, FlushChannels or Shutdown, and OnDisconnect must not wait on a lock their callers
+	// may hold
 	OnDisconnect func(ctx context.Context, conn Connection)
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.

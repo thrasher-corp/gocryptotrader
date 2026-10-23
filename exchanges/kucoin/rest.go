@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -30,9 +32,17 @@ import (
 type Exchange struct {
 	exchange.Base
 	wsOBUpdateMgr *orderbookmanager.UpdateManager
-	// marginOrderIDs holds the IDs of the live margin orders this exchange placed or listed, as spot and margin order
-	// pushes share one topic and do not say which asset an order is
+	// marginOrderIDs maps the IDs of the live margin orders this exchange placed or listed, as spot and margin order
+	// pushes share one topic and do not say which asset an order is, to whether a stop order's trigger has been reported
 	marginOrderIDs sync.Map
+	// futuresStopOrderTypes holds the type of each live futures stop order this exchange has seen, as the Orders topic
+	// follows a triggered stop order under its order ID with only the limit or market type it places
+	futuresStopOrderTypes sync.Map
+	// marginPlacements holds the margin orders being placed, by client order ID, as their pushes can arrive before
+	// KuCoin's reply names their order IDs; marginPlacementsMu makes reading a push against them and settling a reply one
+	// step each
+	marginPlacements   map[string]*marginPlacement
+	marginPlacementsMu sync.Mutex
 	// spotAccountBalances holds each set of credentials' main and trade account balances. The spot balance is the two
 	// together, while REST lists them apart and a balance push carries one account's figures alone
 	spotAccountBalances map[accounts.Credentials]spotAccountShares
@@ -43,9 +53,17 @@ type Exchange struct {
 	// marginBalanceMu makes saving REST's cross margin snapshot and a margin balance push, which keeps the saved
 	// liability, one step each
 	marginBalanceMu sync.Mutex
+	// marginAccountsListedAt holds when each set of credentials' margin accounts were last listed, as a listing that
+	// leaves out a currency or an isolated margin account leaves no balance to tell a later push from an earlier one by
+	marginAccountsListedAt map[accounts.Credentials]time.Time
 	// tickerMergeMu serialises websocket ticker merges, which load the stored ticker and store it back, as the pushes
 	// of one pair can arrive on several connections at once
 	tickerMergeMu sync.Mutex
+	// orderbookFeeds holds the orderbooks each futures and UTA public connection's pushes have fed, which the
+	// connection's disconnect hook invalidates. They are recorded as they are fed, as a connection can drop while still
+	// subscribing, before the manager has recorded the subscriptions that fed them
+	orderbookFeeds   map[websocket.Connection]map[key.PairAsset]struct{}
+	orderbookFeedsMu sync.RWMutex
 }
 
 // KuCoin's REST hosts, and the parts of its trade page URLs the wrapper builds links from

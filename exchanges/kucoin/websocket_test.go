@@ -98,6 +98,19 @@ func accountTestInstance(t *testing.T) *Exchange {
 	return ex
 }
 
+// relayed returns what an exchange's handler relayed, which it must have done before returning, as the handlers relay
+// synchronously; failing at once rather than waiting keeps a handler that relays nothing from stalling the test
+func relayed(t *testing.T, ex *Exchange) any {
+	t.Helper()
+	select {
+	case p := <-ex.Websocket.DataHandler.C:
+		return p.Data
+	default:
+		require.FailNow(t, "the handler must have relayed a message")
+		return nil
+	}
+}
+
 // wsPush feeds a recorded frame through the router and returns what it relays
 func wsPush(t *testing.T, ex *Exchange, file, key string) any {
 	t.Helper()
@@ -411,11 +424,13 @@ func TestNewFuturesConnectionSetup(t *testing.T) {
 	assert.NotNil(t, s.Handler, "Handler should be set")
 }
 
-// newClassicWebsocketServer serves KuCoin's public token endpoints and the Classic websocket they name on loopback, for
-// a spot REST host at /spot/api and a futures one at /futures/api. The websocket welcomes each connection and
-// acknowledges each subscription; a token endpoint, or the order API at /order, answers with its given status instead
-func newClassicWebsocketServer(t *testing.T, spotStatus, futuresStatus int) *httptest.Server {
+// newClassicWebsocketServer serves KuCoin's public and private token endpoints and the Classic websocket they name on
+// loopback, for a spot REST host at /spot/api and a futures one at /futures/api. The websocket welcomes each connection,
+// acknowledges each subscription and pushes a level 5 futures orderbook once subscribed to one; a token endpoint answers
+// with its given status instead, and the order API at /order refuses every sign-in, counting them
+func newClassicWebsocketServer(t *testing.T, spotStatus, futuresStatus int) (s *httptest.Server, orderSignIns *atomic.Int32) {
 	t.Helper()
+	orderSignIns = new(atomic.Int32)
 	upgrader := gws.Upgrader{}
 	// The token names the server's own websocket, which is known once the server starts
 	var endpoint atomic.Pointer[string]
@@ -432,7 +447,10 @@ func newClassicWebsocketServer(t *testing.T, spotStatus, futuresStatus int) *htt
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /spot/api/v1/bullet-public", token(spotStatus))
 	mux.HandleFunc("POST /futures/api/v1/bullet-public", token(futuresStatus))
+	mux.HandleFunc("POST /spot/api/v1/bullet-private", token(spotStatus))
+	mux.HandleFunc("POST /futures/api/v1/bullet-private", token(futuresStatus))
 	mux.HandleFunc("/order", func(w http.ResponseWriter, _ *http.Request) {
+		orderSignIns.Add(1)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	})
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -458,13 +476,21 @@ func newClassicWebsocketServer(t *testing.T, spotStatus, futuresStatus int) *htt
 					return
 				}
 			}
+			if channel, symbols, _ := strings.Cut(req.Topic, ":"); req.Type == "subscribe" && channel == futuresOrderbookDepth5Channel {
+				for symbol := range strings.SplitSeq(symbols, ",") {
+					push := `{"topic":"` + channel + ":" + symbol + `","type":"message","subject":"level2","data":{"sequence":1,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610,"ts":1791899571610}}`
+					if err := c.WriteMessage(gws.TextMessage, []byte(push)); err != nil {
+						return
+					}
+				}
+			}
 		}
 	})
-	s := httptest.NewTestServer(t, mux)
+	s = httptest.NewTestServer(t, mux)
 	s.Start()
 	wsURL := "ws" + strings.TrimPrefix(s.URL, "http") + "/ws"
 	endpoint.Store(&wsURL)
-	return s
+	return s, orderSignIns
 }
 
 // TestOptionalConnectionsLeaveSpotUp connects the Classic spot, Classic futures and order API setups through the
@@ -475,18 +501,25 @@ func TestOptionalConnectionsLeaveSpotUp(t *testing.T) {
 	for _, tc := range []struct {
 		name                    string
 		spotStatus, futuresCode int
-		spotUp                  bool
+		authenticated           bool
+		spotUp, futuresUp       bool
+		// orderDown says why the order API connection is down
+		orderDown string
 	}{
-		{name: "futures token refused", spotStatus: http.StatusOK, futuresCode: http.StatusServiceUnavailable, spotUp: true},
+		{name: "futures token refused", spotStatus: http.StatusOK, futuresCode: http.StatusServiceUnavailable, spotUp: true, orderDown: "while authenticated use is not enabled"},
 		{name: "spot token refused", spotStatus: http.StatusServiceUnavailable, futuresCode: http.StatusOK},
+		{name: "order API sign-in refused", spotStatus: http.StatusOK, futuresCode: http.StatusOK, authenticated: true, spotUp: true, futuresUp: true, orderDown: "while its sign-in is refused"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := newClassicWebsocketServer(t, tc.spotStatus, tc.futuresCode)
+			s, orderSignIns := newClassicWebsocketServer(t, tc.spotStatus, tc.futuresCode)
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			ex.Name = t.Name()
 			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret", ClientID: "test-passphrase"})
+			ex.API.AuthenticatedSupport = tc.authenticated
+			ex.API.AuthenticatedWebsocketSupport = tc.authenticated
+			ex.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 			require.NoError(t, ex.SetHTTPClient(s.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), s.URL+"/spot/api"), "SetRunningURL must not error for spot")
@@ -501,6 +534,7 @@ func TestOptionalConnectionsLeaveSpotUp(t *testing.T) {
 				ex.newFuturesConnectionSetup(ex.Config, wsURL+"/ws"),
 				ex.newOrderConnectionSetup(ex.Config, wsURL+"/order"),
 			)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
 			err := ex.Websocket.Connect(t.Context())
 			if !tc.spotUp {
 				require.Error(t, err, "Connect must fail when the spot connection cannot be made")
@@ -512,15 +546,359 @@ func TestOptionalConnectionsLeaveSpotUp(t *testing.T) {
 			_, err = ex.Websocket.GetConnection(spotConnection)
 			assert.NoError(t, err, "the spot connection should be up")
 			_, err = ex.Websocket.GetConnection(futuresConnection)
-			assert.Error(t, err, "the futures connection should be down while its token is refused")
+			if tc.futuresUp {
+				assert.NoError(t, err, "the futures connection should be up")
+			} else {
+				assert.Error(t, err, "the futures connection should be down while its token is refused")
+			}
 			_, err = ex.Websocket.GetConnection(orderConnection)
-			assert.Error(t, err, "the order API connection should be down while its sign-in is refused")
+			assert.Errorf(t, err, "the order API connection should be down %s", tc.orderDown)
+			if tc.authenticated {
+				assert.NotZero(t, orderSignIns.Load(), "the order API's sign-in should be tried and refused")
+			} else {
+				assert.Zero(t, orderSignIns.Load(), "the order API connection should not be dialled while authenticated use is off")
+			}
 			subs := ex.Websocket.GetSubscriptions()
 			assert.True(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool {
 				return s.QualifiedChannel == marketTickerChannel+":BTC-USDT"
 			}), "the spot ticker should be subscribed with the futures and order API connections down")
 		})
 	}
+}
+
+// loadTestOrderbook stores a valid orderbook for a pair and asset in the websocket's orderbook store
+func loadTestOrderbook(t *testing.T, ex *Exchange, p currency.Pair, a asset.Item) {
+	t.Helper()
+	require.NoErrorf(t, ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
+		Exchange:     ex.Name,
+		Pair:         p,
+		Asset:        a,
+		Bids:         orderbook.Levels{{Price: 99, Amount: 1}},
+		Asks:         orderbook.Levels{{Price: 101, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastUpdateID: 1,
+	}), "LoadSnapshot must not error for %s %s", a, p)
+}
+
+// assertOrderbookValid asserts whether the websocket's orderbook of a pair and asset is valid
+func assertOrderbookValid(t *testing.T, ex *Exchange, p currency.Pair, a asset.Item, valid bool, msg string) {
+	t.Helper()
+	_, err := ex.Websocket.Orderbook.GetOrderbook(p, a)
+	if valid {
+		assert.NoErrorf(t, err, "%s: the %s %s orderbook should be valid", msg, a, p)
+		return
+	}
+	assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "%s: the %s %s orderbook should be invalid", msg, a, p)
+}
+
+// TestFuturesConnectionInvalidatesOrderbooks checks the Classic futures connection's disconnect hook invalidates the
+// orderbooks that connection's pushes fed, whatever its subscription store holds, as a connection can drop while still
+// subscribing, and leaves the orderbooks other connections fed valid
+func TestFuturesConnectionInvalidatesOrderbooks(t *testing.T) {
+	t.Parallel()
+	t.Run("snapshot pushes", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		// Both subscription stores are empty, as they are while a connection is still subscribing
+		dropped, other := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+		require.NoError(t, ex.wsHandleData(t.Context(), dropped, wsFixture(t, "wsFutures.json", "level50")), "wsHandleData must not error for the level 50 push")
+		ethusdtm := currency.NewPair(currency.ETH, currency.USDTM)
+		level5 := func(symbol string, sequence int) []byte {
+			return []byte(`{"topic":"/contractMarket/level2Depth5:` + symbol + `","type":"message","subject":"level2","data":{"sequence":` + strconv.Itoa(sequence) + `,"asks":[["2509",1]],"bids":[["2508",1]],"timestamp":1791899571610,"ts":1791899571610}}`)
+		}
+		require.NoError(t, ex.wsHandleData(t.Context(), other, level5("ETHUSDTM", 1)), "wsHandleData must not error for the level 5 push")
+		// A push the dropped connection sends for that book which fails does not make it the book's feed
+		require.Error(t, ex.wsHandleData(t.Context(), dropped, []byte(`{"topic":"/contractMarket/level2Depth5:ETHUSDTM","type":"message","subject":"level2","data":{"asks":{}}}`)), "wsHandleData must reject an undecodable level 5 push")
+		// A book the dropped connection fed before another connection fed it is the other connection's
+		solusdtm := currency.NewPair(currency.SOL, currency.USDTM)
+		require.NoError(t, ex.wsHandleData(t.Context(), dropped, level5("SOLUSDTM", 1)), "wsHandleData must not error for the dropped connection's level 5 push")
+		require.NoError(t, ex.wsHandleData(t.Context(), other, level5("SOLUSDTM", 2)), "wsHandleData must not error for the other connection's level 5 push")
+		loadTestOrderbook(t, ex, spotTestPair, asset.Spot)
+		// A book the store does not hold has nothing to invalidate
+		require.NoError(t, ex.feedOrderbook(dropped, currency.NewPair(currency.LTC, currency.USDTM), asset.Futures, 1, orderbookIncrement, func() error { return nil }), "feedOrderbook must not error for an increment queued for a book the store does not hold")
+		ex.newFuturesConnectionSetup(ex.Config, kucoinFuturesWebsocketURL).OnDisconnect(t.Context(), dropped)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "the orderbook the dropped connection's pushes fed")
+		assertOrderbookValid(t, ex, ethusdtm, asset.Futures, true, "an orderbook another connection fed")
+		assertOrderbookValid(t, ex, solusdtm, asset.Futures, true, "an orderbook another connection fed after the dropped one")
+		assertOrderbookValid(t, ex, spotTestPair, asset.Spot, true, "an orderbook no futures connection fed")
+		ex.orderbookFeedsMu.RLock()
+		_, droppedKept := ex.orderbookFeeds[dropped]
+		_, otherKept := ex.orderbookFeeds[other]
+		ex.orderbookFeedsMu.RUnlock()
+		assert.False(t, droppedKept, "the hook should forget the orderbooks the dropped connection fed")
+		assert.True(t, otherKept, "the hook should keep the orderbooks another connection fed")
+	})
+
+	t.Run("increment pushes", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		ex.wsOBUpdateMgr = newTestUpdateManager(ex, 1748392084690)
+		dropped := &utaFakeConnection{subs: subscription.NewStore()}
+		require.NoError(t, ex.wsHandleData(t.Context(), dropped, wsFixture(t, "wsFutures.json", "increment")), "wsHandleData must not error for the increment push")
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			_, err := ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
+			assert.NoError(c, err, "the increment should reach the futures book")
+		}, time.Second, 10*time.Millisecond, "the increment must reach the futures book")
+		ex.newFuturesConnectionSetup(ex.Config, kucoinFuturesWebsocketURL).OnDisconnect(t.Context(), dropped)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "the orderbook the dropped connection's increments fed")
+	})
+}
+
+// TestOrderbookFeedOwnership checks a disconnect hook invalidates a book holding its connection's push, or one its
+// connection queued a resync of, whatever the handler returned, and leaves a book holding another connection's push
+func TestOrderbookFeedOwnership(t *testing.T) {
+	t.Parallel()
+	for _, feed := range []struct {
+		name     string
+		snapshot func(t *testing.T, ex *Exchange, conn websocket.Connection, sequence int, stamped bool) error
+	}{
+		{
+			name: "Classic",
+			snapshot: func(t *testing.T, ex *Exchange, conn websocket.Connection, sequence int, stamped bool) error {
+				t.Helper()
+				var timestamp string
+				if stamped {
+					timestamp = `,"timestamp":1791899571610`
+				}
+				return ex.wsHandleData(t.Context(), conn, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":`+strconv.Itoa(sequence)+`,"asks":[["101",1]],"bids":[["99",1]]`+timestamp+`}}`))
+			},
+		},
+		{
+			name: "UTA",
+			snapshot: func(t *testing.T, ex *Exchange, conn websocket.Connection, sequence int, stamped bool) error {
+				t.Helper()
+				var timestamp string
+				if stamped {
+					timestamp = `,"M":1791901029947000000`
+				}
+				return ex.processUTAOrderbook(t.Context(), conn, utaMessage(t, `{"T":"obu.FUTURES","dp":"5","t":"snapshot","P":1791901029951262471,"d":{"a":[["101","1"]],"b":[["99","1"]],"s":"XBTUSDTM","O":`+strconv.Itoa(sequence)+`,"C":`+strconv.Itoa(sequence)+timestamp+`}}`), "FUTURES")
+			},
+		},
+	} {
+		t.Run(feed.name, func(t *testing.T) {
+			t.Parallel()
+			t.Run("latest push", func(t *testing.T) {
+				t.Parallel()
+				ex := wsTestInstance(t)
+				earlier, latest := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+				require.NoError(t, feed.snapshot(t, ex, earlier, 100, true), "the earlier snapshot must be stored")
+				require.NoError(t, feed.snapshot(t, ex, latest, 101, true), "the latest snapshot must be stored")
+				ex.invalidateOrderbooks(t.Context(), earlier)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's push")
+				ex.invalidateOrderbooks(t.Context(), latest)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push")
+				require.NoError(t, feed.snapshot(t, ex, earlier, 102, true), "the next snapshot must be stored")
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book the remaining connection pushed to again")
+			})
+			t.Run("push stored before its relay failed", func(t *testing.T) {
+				t.Parallel()
+				ex := wsTestInstance(t)
+				earlier, latest := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+				require.NoError(t, feed.snapshot(t, ex, earlier, 100, true), "the earlier snapshot must be stored")
+				for len(ex.Websocket.DataHandler.C) < cap(ex.Websocket.DataHandler.C) {
+					require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must not error while the relay has room")
+				}
+				require.Error(t, feed.snapshot(t, ex, latest, 101, true), "the latest snapshot's relay must fail on a full relay")
+				lastUpdateID, err := ex.Websocket.Orderbook.LastUpdateID(futuresTestPair, asset.Futures)
+				require.NoError(t, err, "LastUpdateID must not error")
+				require.Equal(t, int64(101), lastUpdateID, "the latest snapshot must be stored before its relay")
+				ex.invalidateOrderbooks(t.Context(), latest)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's unrelayed push")
+			})
+			for _, sequence := range []int{101, 100} {
+				t.Run("rejected push with update ID "+strconv.Itoa(sequence), func(t *testing.T) {
+					t.Parallel()
+					ex := wsTestInstance(t)
+					fed, rejected := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+					require.NoError(t, feed.snapshot(t, ex, fed, 100, true), "the snapshot must be stored")
+					require.ErrorIs(t, feed.snapshot(t, ex, rejected, sequence, false), orderbook.ErrLastUpdatedNotSet, "a snapshot without a timestamp must be rejected")
+					ex.invalidateOrderbooks(t.Context(), rejected)
+					assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book the dropped connection's rejected push left")
+					ex.invalidateOrderbooks(t.Context(), fed)
+					assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push")
+				})
+			}
+			t.Run("push with the stored update ID", func(t *testing.T) {
+				t.Parallel()
+				ex := wsTestInstance(t)
+				earlier, latest := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+				require.NoError(t, feed.snapshot(t, ex, earlier, 100, true), "the earlier snapshot must be stored")
+				require.NoError(t, feed.snapshot(t, ex, latest, 100, true), "a snapshot with the stored update ID must be stored")
+				ex.invalidateOrderbooks(t.Context(), earlier)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's push with the same update ID")
+				ex.invalidateOrderbooks(t.Context(), latest)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push")
+			})
+			t.Run("push with the stored update ID stored before its relay failed", func(t *testing.T) {
+				t.Parallel()
+				ex := wsTestInstance(t)
+				earlier, latest := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+				require.NoError(t, feed.snapshot(t, ex, earlier, 100, true), "the earlier snapshot must be stored")
+				for len(ex.Websocket.DataHandler.C) < cap(ex.Websocket.DataHandler.C) {
+					require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must not error while the relay has room")
+				}
+				require.ErrorIs(t, feed.snapshot(t, ex, latest, 100, true), stream.ErrChannelBufferFull, "the latest snapshot's relay must fail on a full relay")
+				ex.invalidateOrderbooks(t.Context(), earlier)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's unrelayed push with the same update ID")
+				ex.invalidateOrderbooks(t.Context(), latest)
+				assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's unrelayed push")
+			})
+		})
+	}
+
+	t.Run("disconnect while another connection's push is stored", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		dropped, live := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+		require.NoError(t, ex.wsHandleData(t.Context(), dropped, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":100,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610}}`)), "wsHandleData must not error")
+		stored, release, fed, invalidated := make(chan struct{}), make(chan struct{}), make(chan error, 1), make(chan struct{})
+		go func() {
+			fed <- ex.feedOrderbook(live, futuresTestPair, asset.Futures, 101, orderbookSnapshot, func() error {
+				err := ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
+					Exchange: ex.Name, Pair: futuresTestPair, Asset: asset.Futures, LastUpdateID: 101, LastUpdated: time.Now(),
+					Bids: orderbook.Levels{{Price: 99, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+				})
+				close(stored)
+				<-release
+				return err
+			})
+		}()
+		<-stored
+		go func() {
+			ex.invalidateOrderbooks(t.Context(), dropped)
+			close(invalidated)
+		}()
+		select {
+		case <-invalidated:
+			assert.Fail(t, "the disconnect hook should wait for a push being stored")
+		case <-time.After(100 * time.Millisecond):
+		}
+		close(release)
+		require.NoError(t, <-fed, "feedOrderbook must not error")
+		<-invalidated
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding the push another connection stored as the dropped connection's hook ran")
+	})
+
+	t.Run("another connection's push while one is stored", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		first, second := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+		stored, release, firstFed, secondFed := make(chan struct{}), make(chan struct{}), make(chan error, 1), make(chan error, 1)
+		go func() {
+			firstFed <- ex.feedOrderbook(first, futuresTestPair, asset.Futures, 100, orderbookSnapshot, func() error {
+				err := ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
+					Exchange: ex.Name, Pair: futuresTestPair, Asset: asset.Futures, LastUpdateID: 100, LastUpdated: time.Now(),
+					Bids: orderbook.Levels{{Price: 99, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+				})
+				close(stored)
+				<-release
+				return err
+			})
+		}()
+		<-stored
+		// The second push has the same update ID, as two feeds of one book can
+		go func() {
+			secondFed <- ex.wsHandleData(t.Context(), second, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":100,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610}}`))
+		}()
+		waited := true
+		select {
+		case <-secondFed:
+			waited = false
+		case <-time.After(100 * time.Millisecond):
+		}
+		assert.True(t, waited, "another connection's push should wait for a push being stored")
+		close(release)
+		require.NoError(t, <-firstFed, "feedOrderbook must not error")
+		if waited {
+			require.NoError(t, <-secondFed, "wsHandleData must not error")
+		}
+		ex.invalidateOrderbooks(t.Context(), first)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's later push with the same update ID")
+		ex.invalidateOrderbooks(t.Context(), second)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push")
+	})
+
+	t.Run("UTA deltas", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		fed, skipped, stored := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+		push := func(conn websocket.Connection, updateType string, start, end int) error {
+			return ex.processUTAOrderbook(t.Context(), conn, utaMessage(t, `{"T":"obu.FUTURES","dp":"increment@10ms","t":"`+updateType+`","P":1791901029951262471,"d":{"a":[["101","1"]],"b":[["99","1"]],"s":"XBTUSDTM","O":`+strconv.Itoa(start)+`,"C":`+strconv.Itoa(end)+`,"M":1791901029947000000}}`), "FUTURES")
+		}
+		require.NoError(t, push(fed, "snapshot", 100, 100), "processUTAOrderbook must not error for the snapshot")
+		for _, end := range []int{99, 100} {
+			require.NoErrorf(t, push(skipped, "delta", end, end), "processUTAOrderbook must not error for a delta ending at %d, which the book holds", end)
+		}
+		ex.invalidateOrderbooks(t.Context(), skipped)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book the dropped connection's skipped delta left")
+		require.NoError(t, push(stored, "delta", 101, 105), "processUTAOrderbook must not error for the next delta")
+		ex.invalidateOrderbooks(t.Context(), fed)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's later delta")
+		ex.invalidateOrderbooks(t.Context(), stored)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's delta")
+	})
+
+	t.Run("Classic increment queued", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		fed, queued := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+		require.NoError(t, ex.wsHandleData(t.Context(), fed, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":100,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610}}`)), "wsHandleData must not error for the snapshot")
+		fetching, fetched := make(chan struct{}), make(chan struct{})
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		ex.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
+			FetchDeadline:      time.Minute,
+			CheckPendingUpdate: checkPendingUpdate,
+			Orderbook:          &ex.Websocket.Orderbook,
+			FetchOrderbook: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Book, error) {
+				defer close(fetched)
+				close(fetching)
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		})
+		require.NoError(t, ex.processFuturesOrderbookIncrement(ctx, queued, []byte(`{"sequence":101,"change":"99,buy,2","timestamp":1791899571611}`), "XBTUSDTM"), "processFuturesOrderbookIncrement must not error")
+		select {
+		case <-fetching:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the update manager must fetch a snapshot for the queued increment")
+		}
+		ex.invalidateOrderbooks(t.Context(), fed)
+		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push while another connection's resync is under way")
+		cancel()
+		<-fetched
+	})
+}
+
+// TestOptionalConnectionLossInvalidatesOrderbooks connects the Classic spot and futures setups through the websocket
+// manager against a local KuCoin pushing a futures orderbook, and shuts them down: the futures orderbook the futures
+// connection fed is invalidated, while the spot orderbook, which the required spot connection's loss leaves to the
+// reconnection, is left alone
+func TestOptionalConnectionLossInvalidatesOrderbooks(t *testing.T) {
+	t.Parallel()
+	s, _ := newClassicWebsocketServer(t, http.StatusOK, http.StatusOK)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	require.NoError(t, ex.SetHTTPClient(s.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), s.URL+"/spot/api"), "SetRunningURL must not error for spot")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), s.URL+"/futures/api"), "SetRunningURL must not error for futures")
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}},
+		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresTestPair}},
+	}
+	wsURL := "ws" + strings.TrimPrefix(s.URL, "http") + "/ws"
+	newUTAWebsocket(t, ex, ex.newSpotConnectionSetup(ex.Config, wsURL), ex.newFuturesConnectionSetup(ex.Config, wsURL))
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	require.Eventually(t, func() bool {
+		_, err := ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
+		return err == nil
+	}, 5*time.Second, 10*time.Millisecond, "the futures connection must feed the futures orderbook")
+	loadTestOrderbook(t, ex, spotTestPair, asset.Spot)
+	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "the orderbook of the futures connection shut down")
+	assertOrderbookValid(t, ex, spotTestPair, asset.Spot, true, "an orderbook the futures connection did not feed")
 }
 
 // testWsConnector runs a Classic connector against a fake connection, publicly and then with a private token
@@ -737,7 +1115,7 @@ func TestWebsocketHandleData(t *testing.T) {
 func TestProcessPush(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
-	err := ex.processPush(t.Context(), &WebsocketMessage{Topic: "/market/unknown:BTC-USDT", Type: "message"})
+	err := ex.processPush(t.Context(), nil, &WebsocketMessage{Topic: "/market/unknown:BTC-USDT", Type: "message"})
 	require.ErrorIs(t, err, errUnhandledTopic, "processPush must reject a topic it does not handle")
 	assert.ErrorContains(t, err, "/market/unknown:BTC-USDT", "processPush should name the topic")
 

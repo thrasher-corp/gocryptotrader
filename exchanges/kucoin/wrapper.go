@@ -522,6 +522,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			})
 		}
 	case asset.Margin:
+		// Stamped before the requests, so that a push arriving while they are answered is not refused, and to the
+		// millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
+		listedAt := time.Now().Truncate(time.Millisecond)
 		resp, err := e.GetCrossMarginAccountsDetail(ctx, currency.EMPTYCODE, "")
 		if err != nil {
 			return nil, err
@@ -552,10 +555,11 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		}
 		// The isolated margin accounts are saved beside the cross margin account, which alone is returned, as callers
 		// such as the backtester's live funding set each currency from one returned sub-account after another
-		return subAccts, e.saveMarginSnapshot(ctx, snapshot)
+		return subAccts, e.saveMarginSnapshot(ctx, snapshot, listedAt)
 	case asset.Spot:
-		// Stamped before the request, so that a push arriving while it is answered keeps its account's share
-		listedAt := time.Now()
+		// Stamped before the request, so that a push arriving while it is answered keeps its account's share, and to the
+		// millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
+		listedAt := time.Now().Truncate(time.Millisecond)
 		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
 			return nil, err
@@ -609,7 +613,7 @@ func marginAssetBalance(a *MarginAssetDetail) accounts.Balance {
 
 // saveMarginSnapshot saves the cross margin account and each isolated margin account REST listed as the margin
 // sub-accounts, and empties the sub-account of an isolated margin symbol the account no longer lists
-func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.SubAccounts) error {
+func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.SubAccounts, listedAt time.Time) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -626,7 +630,16 @@ func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.Sub
 			snapshot = append(snapshot, accounts.NewSubAccount(asset.Margin, s.ID))
 		}
 	}
-	return e.Accounts.Save(ctx, snapshot, true)
+	if err := e.Accounts.Save(ctx, snapshot, true); err != nil {
+		return err
+	}
+	if e.marginAccountsListedAt == nil {
+		e.marginAccountsListedAt = make(map[accounts.Credentials]time.Time)
+	}
+	if listedAt.After(e.marginAccountsListedAt[*creds]) {
+		e.marginAccountsListedAt[*creds] = listedAt
+	}
+	return nil
 }
 
 // spotAccountShares holds each account's balance of each currency, keyed by account type: main and trade
@@ -1057,6 +1070,9 @@ func futuresTakeProfitStopLossRequest(r *FuturesOrderRequest, modes *order.RiskM
 		}
 		tpsl.StopPriceType = stopPriceType
 	}
+	if tpsl.TriggerStopUpPrice != 0 && tpsl.TriggerStopDownPrice != 0 && tpsl.TriggerStopUpPrice <= tpsl.TriggerStopDownPrice {
+		return nil, fmt.Errorf("%w: a buy order's take profit price must be above its stop loss price", errOCOPricesInverted)
+	}
 	return tpsl, nil
 }
 
@@ -1243,7 +1259,6 @@ func (e *Exchange) submitMarginOrder(ctx context.Context, s *order.Submit, symbo
 	if err != nil {
 		return nil, err
 	}
-	e.marginOrderIDs.Store(resp.OrderID, struct{}{})
 	submitted.BorrowSize = resp.BorrowSize.Float64()
 	submitted.LoanApplyID = resp.LoanApplyID
 	return submitted, nil
@@ -1561,16 +1576,33 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 			}
 			continue
 		}
+		sent := slices.Clone(r.OrderIDs)
+		for i := range r.ClientOrders {
+			sent = append(sent, r.ClientOrders[i].ClientOrderID)
+		}
+		named := make(map[string]struct{}, len(results))
 		for i := range results {
 			id := results[i].OrderID
 			if id == "" {
 				id = results[i].ClientOrderID
 			}
+			if !slices.Contains(sent, id) {
+				continue // A result naming no order this request sent reports nothing about its orders
+			}
+			named[id] = struct{}{}
 			status := results[i].Message
 			if results[i].Code == "200" {
 				status = order.Cancelled.String()
 			}
 			resp.Status[id] = status
+		}
+		// An order the reply leaves out was not reported cancelled
+		for _, id := range sent {
+			if _, ok := named[id]; !ok {
+				err := fmt.Errorf("%w for order %s", common.ErrNoResponse, id)
+				errs = common.AppendError(errs, err)
+				resp.Status[id] = err.Error()
+			}
 		}
 	}
 	return resp, errs
@@ -1904,13 +1936,20 @@ func (e *Exchange) marginHFOrderDetail(o *MarginHFOrderResponse) (order.Detail, 
 	if err != nil {
 		return order.Detail{}, err
 	}
-	oType, err := orderType(o.Type, o.Stop != "")
+	// A triggered stop order carries on as the limit or market order it placed, which the order pushes report it as
+	untriggered := o.Stop != "" && !o.StopTriggered
+	oType, err := orderType(o.Type, untriggered)
 	if err != nil {
 		return order.Detail{}, err
 	}
 	side, err := order.StringToOrderSide(o.Side)
 	if err != nil {
 		return order.Detail{}, err
+	}
+	status := orderStatus(o.Active, o.CancelExist, o.DealSize.Float64())
+	if untriggered && status == order.Open {
+		// A stop order waiting for its trigger is NEW, as Get Stop Order and the stop order pushes report it
+		status = order.New
 	}
 	d := order.Detail{
 		Exchange:        e.Name,
@@ -1921,7 +1960,7 @@ func (e *Exchange) marginHFOrderDetail(o *MarginHFOrderResponse) (order.Detail, 
 		MarginType:      tradeTypeMarginType(o.TradeType),
 		Type:            oType,
 		Side:            side,
-		Status:          orderStatus(o.Active, o.CancelExist, o.DealSize.Float64()),
+		Status:          status,
 		Price:           o.Price.Float64(),
 		TriggerPrice:    o.StopPrice.Float64(),
 		Amount:          o.Size.Float64(),
@@ -1937,11 +1976,19 @@ func (e *Exchange) marginHFOrderDetail(o *MarginHFOrderResponse) (order.Detail, 
 		Date:            o.CreatedAt.Time(),
 		LastUpdated:     o.LastUpdatedAt.Time(),
 	}
-	if o.Active {
-		e.marginOrderIDs.Store(o.ID, struct{}{})
-	} else {
+	switch {
+	case !o.Active:
 		e.marginOrderIDs.Delete(o.ID)
+		if o.ClientOrderID != "" {
+			// A reply still to come for its placement must not remember the finished order
+			e.notePlacingMarginOrder(o.ClientOrderID, o.ID, true)
+		}
 		d.CloseTime = d.LastUpdated
+	case untriggered:
+		e.marginOrderIDs.LoadOrStore(o.ID, false)
+	default:
+		// Read past any trigger, so a triggered push arriving later is not relayed over it
+		e.marginOrderIDs.Store(o.ID, true)
 	}
 	if d.ExecutedAmount > 0 {
 		d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
@@ -1964,6 +2011,10 @@ func takeProfitType(oType order.Type, stop string, side order.Side) order.Type {
 	return oType
 }
 
+// futuresFinalPushWait is how long after a futures order ends its final Orders push is waited for, which reports a
+// triggered stop order by the type its stop push or a REST read gave it
+const futuresFinalPushWait = time.Minute
+
 // futuresOrderDetail converts a futures order, whose amounts are in lots
 func (e *Exchange) futuresOrderDetail(o *FuturesOrderDetailResponse) (order.Detail, error) {
 	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, asset.Futures, false)
@@ -1979,6 +2030,13 @@ func (e *Exchange) futuresOrderDetail(o *FuturesOrderDetailResponse) (order.Deta
 		return order.Detail{}, err
 	}
 	oType = takeProfitType(oType, o.Stop, side)
+	switch {
+	case o.IsActive && o.Stop != "":
+		e.futuresStopOrderTypes.Store(o.ID, oType)
+	case !o.IsActive && time.Since(o.EndAt.Time()) > futuresFinalPushWait:
+		// An order that has only just ended keeps its type for its final Orders push, which may still be on its way
+		e.futuresStopOrderTypes.Delete(o.ID)
+	}
 	marginType := margin.Isolated
 	if o.MarginMode == "CROSS" {
 		marginType = margin.Multi
@@ -2033,6 +2091,10 @@ func (e *Exchange) stopOrderDetail(o *StopOrderResponse, a asset.Item, oco bool)
 	status := order.New
 	if strings.EqualFold(o.Status, "TRIGGERED") {
 		status = order.Closed
+	}
+	if a == asset.Margin && !oco && status == order.New {
+		// A margin stop order places its order under its own order ID once triggered, which the Order V2 pushes follow
+		e.marginOrderIDs.LoadOrStore(o.ID, false)
 	}
 	return order.Detail{
 		Exchange:      e.Name,
@@ -2299,10 +2361,11 @@ func (e *Exchange) futuresOrders(ctx context.Context, req *order.MultiOrderReque
 // listed first and one the active orders hold already is left out
 func (e *Exchange) activeFuturesOrders(ctx context.Context, req *order.MultiOrderRequest, symbol, side string) ([]order.Detail, error) {
 	var stopType string
+	listed := req
 	switch req.Type {
-	case order.StopLimit:
+	case order.StopLimit, order.TakeProfit:
 		stopType = order.Limit.Lower()
-	case order.StopMarket:
+	case order.StopMarket, order.TakeProfitMarket:
 		stopType = order.Market.Lower()
 	case order.AnyType, order.UnknownType:
 	default:
@@ -2321,16 +2384,27 @@ func (e *Exchange) activeFuturesOrders(ctx context.Context, req *order.MultiOrde
 	if err != nil {
 		return nil, err
 	}
-	orders, err := e.futuresOrders(ctx, req, "active", symbol, side)
+	// KuCoin lists a triggered take profit order among the stop orders of its type, which takeProfitType then names
+	switch req.Type {
+	case order.TakeProfit:
+		r := *req
+		r.Type = order.StopLimit
+		listed = &r
+	case order.TakeProfitMarket:
+		r := *req
+		r.Type = order.StopMarket
+		listed = &r
+	}
+	orders, err := e.futuresOrders(ctx, listed, "active", symbol, side)
 	if err != nil {
 		return nil, err
 	}
-	listed := make(map[string]struct{}, len(orders))
+	active := make(map[string]struct{}, len(orders))
 	for i := range orders {
-		listed[orders[i].OrderID] = struct{}{}
+		active[orders[i].OrderID] = struct{}{}
 	}
 	for i := range stops {
-		if _, ok := listed[stops[i].ID]; ok {
+		if _, ok := active[stops[i].ID]; ok {
 			continue
 		}
 		d, err := e.futuresOrderDetail(&stops[i])

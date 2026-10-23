@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -830,20 +831,23 @@ func TestProcessOrderChange(t *testing.T) {
 func TestSpotOrderAsset(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
-	ex.marginOrderIDs.Store("gct-margin", struct{}{})
+	ex.marginOrderIDs.Store("gct-margin", false)
 	for _, tc := range []struct {
 		name    string
 		pair    currency.Pair
 		orderID string
+		placing bool
 		exp     asset.Item
 	}{
-		{name: "an order placed elsewhere on a pair enabled for spot and margin", pair: spotTestPair, orderID: "gct-spot", exp: asset.Spot},
-		{name: "a known margin order on a pair enabled for spot and margin", pair: spotTestPair, orderID: "gct-margin", exp: asset.Margin},
+		{name: "an order placed elsewhere on a pair enabled for spot and margin", pair: currency.NewPairWithDelimiter("LTC", "USDT", "-"), orderID: "gct-spot", exp: asset.Spot},
+		{name: "a known margin order on a pair enabled for spot and margin", pair: currency.NewPairWithDelimiter("LTC", "USDT", "-"), orderID: "gct-margin", exp: asset.Margin},
 		{name: "a known margin order on a pair enabled for spot alone", pair: currency.NewPairWithDelimiter("ETH", "USDT", "-"), orderID: "gct-margin", exp: asset.Spot},
 		{name: "an order on a pair enabled for margin alone", pair: currency.NewPairWithDelimiter("TRX", "BTC", "-"), orderID: "gct-spot", exp: asset.Margin},
 		{name: "a known margin order on a pair enabled for neither", pair: currency.NewPairWithDelimiter("DOGE", "USDT", "-"), orderID: "gct-margin", exp: asset.Spot},
+		{name: "a margin order being placed on a pair enabled for spot and margin", pair: currency.NewPairWithDelimiter("LTC", "USDT", "-"), orderID: "gct-placing", placing: true, exp: asset.Margin},
+		{name: "a margin order being placed on a pair enabled for spot alone", pair: currency.NewPairWithDelimiter("ETH", "USDT", "-"), orderID: "gct-placing", placing: true, exp: asset.Spot},
 	} {
-		assert.Equalf(t, tc.exp, ex.spotOrderAsset(tc.pair, tc.orderID), "spotOrderAsset should read %s as a %s order", tc.name, tc.exp)
+		assert.Equalf(t, tc.exp, ex.spotOrderAsset(tc.pair, tc.orderID, tc.placing), "spotOrderAsset should read %s as a %s order", tc.name, tc.exp)
 	}
 }
 
@@ -1109,11 +1113,12 @@ func TestProcessStopOrder(t *testing.T) {
 		key        string
 		a          asset.Item
 		marginType margin.Type
+		oType      order.Type
 		status     order.Status
 	}{
-		{key: "stopOrder", a: asset.Spot, status: order.Open},
-		{key: "stopOrderMargin", a: asset.Margin, marginType: margin.Multi, status: order.Closed},
-		{key: "stopOrderIsolated", a: asset.Margin, marginType: margin.Isolated, status: order.Cancelled},
+		// A stop order waiting for its trigger is NEW, as Get Stop Order reports it
+		{key: "stopOrder", a: asset.Spot, oType: order.StopLimit, status: order.New},
+		{key: "stopOrderIsolated", a: asset.Margin, marginType: margin.Isolated, oType: order.StopLimit, status: order.Cancelled},
 	} {
 		exp := &order.Detail{
 			Price:        70000,
@@ -1121,7 +1126,7 @@ func TestProcessStopOrder(t *testing.T) {
 			Amount:       0.00007142,
 			Exchange:     ex.Name,
 			OrderID:      "vs93gpupfa48anof003u85mb",
-			Type:         order.StopLimit,
+			Type:         tc.oType,
 			Side:         order.Buy,
 			Status:       tc.status,
 			AssetType:    tc.a,
@@ -1132,6 +1137,10 @@ func TestProcessStopOrder(t *testing.T) {
 		}
 		assert.Equalf(t, exp, wsPush(t, ex, "wsSpot.json", tc.key), "processStopOrder should relay %s as an order update", tc.key)
 	}
+	// A triggered margin stop order carries on under its order ID as the limit order it placed, which its Order V2 pushes
+	// report
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, wsFixture(t, "wsSpot.json", "stopOrderMargin")), "wsHandleData must not error for a margin stop order's triggered push")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "processStopOrder should not relay a margin stop order's triggered push")
 	for _, tc := range []struct {
 		name, orderPrice string
 	}{
@@ -1148,7 +1157,7 @@ func TestProcessStopOrder(t *testing.T) {
 			OrderID:      "vs93gpupfa48anof003u85mb",
 			Type:         order.StopMarket,
 			Side:         order.Buy,
-			Status:       order.Open,
+			Status:       order.New,
 			AssetType:    asset.Spot,
 			Date:         time.UnixMilli(1742305928064),
 			LastUpdated:  time.Unix(0, 1742305928091268493),
@@ -1156,6 +1165,20 @@ func TestProcessStopOrder(t *testing.T) {
 		}
 		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processStopOrder should relay a stop order push %s as a stop market order", tc.name)
 	}
+	marginOpen := `{"orderId":"vs93gpupfa48anof003u85mb","orderPrice":"70000","orderType":"stop","side":"buy","size":"0.00007142","stop":"loss","stopPrice":"71000","symbol":"BTC-USDT","tradeType":"MARGIN_TRADE","type":"open","createdAt":1742305928064,"ts":1742305928091268493}`
+	require.NoError(t, ex.processStopOrder(t.Context(), []byte(marginOpen)), "processStopOrder must not error for a margin stop order's open push")
+	exp := &order.Detail{
+		Price: 70000, TriggerPrice: 71000, Amount: 0.00007142, Exchange: ex.Name, OrderID: "vs93gpupfa48anof003u85mb", Type: order.StopLimit, Side: order.Buy,
+		Status: order.New, AssetType: asset.Margin, MarginType: margin.Multi, Date: time.UnixMilli(1742305928064), LastUpdated: time.Unix(0, 1742305928091268493), Pair: spotTestPair,
+	}
+	assert.Equal(t, exp, relayed(t, ex), "processStopOrder should relay a margin stop order's open push as a new order, as Get Stop Order reports it")
+	spotTriggered := `{"orderId":"vs93gpupfa48anof003u85mb","orderPrice":"70000","orderType":"stop","side":"buy","size":"0.00007142","stop":"loss","stopPrice":"71000","symbol":"BTC-USDT","tradeType":"TRADE","type":"triggered","createdAt":1742305928064,"ts":1742305928091268493}`
+	require.NoError(t, ex.processStopOrder(t.Context(), []byte(spotTriggered)), "processStopOrder must not error for a spot stop order's triggered push")
+	exp = &order.Detail{
+		Price: 70000, TriggerPrice: 71000, Amount: 0.00007142, Exchange: ex.Name, OrderID: "vs93gpupfa48anof003u85mb", Type: order.StopLimit, Side: order.Buy,
+		Status: order.Closed, AssetType: asset.Spot, Date: time.UnixMilli(1742305928064), LastUpdated: time.Unix(0, 1742305928091268493), Pair: spotTestPair,
+	}
+	assert.Equal(t, exp, relayed(t, ex), "processStopOrder should relay a spot stop order's triggered push as a closed stop order")
 
 	require.Error(t, ex.processStopOrder(t.Context(), []byte(`{"size":[]}`)), "processStopOrder must reject an undecodable push")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"a"}`)), currency.ErrCreatingPair, "processStopOrder must reject a symbol that is not a pair")
@@ -1163,6 +1186,176 @@ func TestProcessStopOrder(t *testing.T) {
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"sideways"}`)), order.ErrSideIsInvalid, "processStopOrder must reject an unknown side")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"buy","type":"expired"}`)), errUnknownStopOrderType, "processStopOrder must reject an unknown message type")
 	require.ErrorIs(t, ex.processStopOrder(t.Context(), []byte(`{"symbol":"BTC-USDT","orderType":"stop","side":"buy","type":"open","tradeType":"OTC"}`)), errUnknownMarginTradeType, "processStopOrder must reject an unknown trade type")
+}
+
+// TestProcessStopOrderTriggeredMarginOrder checks a margin stop order's triggered push is relayed as the open limit or
+// market order it placed only as the first report of the trigger of an order remembered as waiting for it, as the Order V2
+// pushes and REST reads report the order from then on and can come first, when a late triggered push could reopen a
+// finished order; whatever came first, the order is remembered for the Order V2 pushes
+func TestProcessStopOrderTriggeredMarginOrder(t *testing.T) {
+	t.Parallel()
+	const orderID = "vs93gpupfa48anof003u85mb"
+	stopPush := func(tradeType, orderPrice, event string) []byte {
+		return []byte(`{"orderId":"` + orderID + `","orderPrice":"` + orderPrice + `","orderType":"stop","side":"buy","size":"0.00007142","stop":"loss","stopPrice":"71000","symbol":"BTC-USDT","tradeType":"` + tradeType + `","type":"` + event + `","createdAt":1742305928064,"ts":1742305928091268493}`)
+	}
+	for _, tc := range []struct {
+		tradeType, orderPrice string
+		marginType            margin.Type
+		price                 float64
+		oType                 order.Type
+	}{
+		{tradeType: "MARGIN_TRADE", orderPrice: "70000", marginType: margin.Multi, price: 70000, oType: order.Limit},
+		{tradeType: "MARGIN_ISOLATED_TRADE", marginType: margin.Isolated, oType: order.Market},
+	} {
+		t.Run(tc.tradeType, func(t *testing.T) {
+			t.Parallel()
+			ex := wsTestInstance(t)
+			require.NoError(t, ex.processStopOrder(t.Context(), stopPush(tc.tradeType, tc.orderPrice, "open")), "processStopOrder must not error for the open push")
+			relayed(t, ex)
+			require.NoError(t, ex.processStopOrder(t.Context(), stopPush(tc.tradeType, tc.orderPrice, "triggered")), "processStopOrder must not error for the triggered push")
+			exp := &order.Detail{
+				Price: tc.price, TriggerPrice: 71000, Amount: 0.00007142, Exchange: ex.Name, OrderID: orderID, Type: tc.oType, Side: order.Buy, Status: order.Open,
+				AssetType: asset.Margin, MarginType: tc.marginType, Date: time.UnixMilli(1742305928064), LastUpdated: time.Unix(0, 1742305928091268493), Pair: spotTestPair,
+			}
+			assert.Equal(t, exp, relayed(t, ex), "processStopOrder should relay the first report of a remembered stop order's trigger as the open order it placed")
+			require.NoError(t, ex.processStopOrder(t.Context(), stopPush(tc.tradeType, tc.orderPrice, "triggered")), "processStopOrder must not error for a repeated triggered push")
+			assert.Empty(t, ex.Websocket.DataHandler.C, "processStopOrder should not relay a trigger already reported")
+		})
+	}
+
+	orderPush := func(status, messageType string) []byte {
+		return []byte(`{"clientOid":"gct-margin-stop","orderId":"` + orderID + `","orderTime":1742305928064,"orderType":"limit","originSize":"0.00007142","filledSize":"0","remainSize":"0.00007142","size":"0.00007142","side":"buy","status":"` + status + `","symbol":"BTC-USDT","price":"70000","ts":1742305928191268493,"type":"` + messageType + `"}`)
+	}
+	pushOrder := func(t *testing.T, ex *Exchange, status, messageType string) {
+		t.Helper()
+		require.NoError(t, ex.processOrderChange(t.Context(), orderPush(status, messageType)), "processOrderChange must not error")
+		relayed(t, ex)
+	}
+	restRead := func(t *testing.T, ex *Exchange, stopTriggered, active bool) {
+		t.Helper()
+		_, err := ex.marginHFOrderDetail(&MarginHFOrderResponse{ID: orderID, ClientOrderID: "gct-margin-stop", Symbol: "BTC-USDT", Type: "limit", Side: "buy", Stop: "loss", StopTriggered: stopTriggered, Active: active, TradeType: CrossMarginTradeType})
+		require.NoError(t, err, "marginHFOrderDetail must not error")
+	}
+	place := func(t *testing.T, ex *Exchange, beforeReply func()) {
+		t.Helper()
+		require.NoError(t, ex.rememberMarginOrder("gct-margin-stop", func() (string, error) {
+			beforeReply()
+			return orderID, nil
+		}), "rememberMarginOrder must not error")
+	}
+	step := func(t *testing.T, ex *Exchange, name string) {
+		t.Helper()
+		switch name {
+		case "placed":
+			place(t, ex, func() {})
+		case "placed after an Order V2 push":
+			place(t, ex, func() { pushOrder(t, ex, "open", "open") })
+		case "placed after a REST read as finished":
+			place(t, ex, func() { restRead(t, ex, true, false) })
+		case "REST read waiting":
+			restRead(t, ex, false, true)
+		case "REST read triggered":
+			restRead(t, ex, true, true)
+		case "REST read finished":
+			restRead(t, ex, true, false)
+		case "Order V2 open push":
+			pushOrder(t, ex, "open", "open")
+		case "Order V2 done push":
+			pushOrder(t, ex, "done", "canceled")
+		case "stop order listing":
+			_, err := ex.stopOrderDetail(&StopOrderResponse{ID: orderID, Symbol: "BTC-USDT", Status: "NEW", Type: "limit", Side: "buy", TradeType: CrossMarginTradeType}, asset.Margin, false)
+			require.NoError(t, err, "stopOrderDetail must not error")
+		case "open push":
+			require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "70000", "open")), "processStopOrder must not error for the open push")
+			relayed(t, ex)
+		default:
+			require.FailNowf(t, "unknown step", "step %q", name)
+		}
+	}
+	for _, tc := range []struct {
+		steps  []string
+		relays bool
+	}{
+		{},
+		{steps: []string{"placed"}, relays: true},
+		{steps: []string{"REST read waiting"}, relays: true},
+		{steps: []string{"REST read triggered"}},
+		{steps: []string{"REST read finished"}},
+		{steps: []string{"REST read waiting", "Order V2 open push"}},
+		{steps: []string{"REST read waiting", "Order V2 done push"}},
+		{steps: []string{"placed after an Order V2 push"}},
+		{steps: []string{"placed after a REST read as finished"}},
+		{steps: []string{"REST read waiting", "Order V2 open push", "REST read waiting"}},
+		{steps: []string{"REST read waiting", "Order V2 open push", "stop order listing"}},
+		{steps: []string{"REST read waiting", "Order V2 open push", "open push"}},
+	} {
+		name := strings.Join(tc.steps, ", ")
+		if name == "" {
+			name = "not remembered"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := wsTestInstance(t)
+			for _, s := range tc.steps {
+				step(t, ex, s)
+			}
+			require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "70000", "triggered")), "processStopOrder must not error for the triggered push")
+			if tc.relays {
+				relayed(t, ex)
+			} else {
+				assert.Empty(t, ex.Websocket.DataHandler.C, "processStopOrder should not relay a triggered push that may come after other reports of the order")
+			}
+			_, remembered := ex.marginOrderIDs.Load(orderID)
+			assert.True(t, remembered, "processStopOrder should remember the order of a triggered push for its Order V2 pushes")
+		})
+	}
+}
+
+// TestProcessStopOrderRemembersMarginOrders checks a margin stop order's pushes remember it as a live margin order, as it
+// places its order under its own order ID once triggered and the Order V2 pushes follow it on a topic spot shares, and
+// that a cancelled one is forgotten
+func TestProcessStopOrderRemembersMarginOrders(t *testing.T) {
+	t.Parallel()
+	const orderID = "vs93gpupfa48anof003u85mb"
+	stopPush := func(tradeType, event string) []byte {
+		return []byte(`{"orderId":"` + orderID + `","orderPrice":"70","orderType":"stop","side":"buy","size":"0.1","stop":"loss","stopPrice":"71","symbol":"LTC-USDT","tradeType":"` + tradeType + `","type":"` + event + `","createdAt":1742305928064,"ts":1742305928091268493}`)
+	}
+	for _, tc := range []struct {
+		tradeType, event   string
+		relays, remembered bool
+	}{
+		{tradeType: "MARGIN_TRADE", event: "open", relays: true, remembered: true},
+		{tradeType: "MARGIN_ISOLATED_TRADE", event: "triggered", remembered: true},
+		{tradeType: "MARGIN_TRADE", event: "cancel", relays: true},
+		{tradeType: "TRADE", event: "triggered", relays: true},
+	} {
+		ex := wsTestInstance(t)
+		require.NoErrorf(t, ex.processStopOrder(t.Context(), stopPush(tc.tradeType, tc.event)), "processStopOrder must not error for a %s %s push", tc.tradeType, tc.event)
+		if tc.relays {
+			relayed(t, ex)
+		}
+		_, remembered := ex.marginOrderIDs.Load(orderID)
+		assert.Equalf(t, tc.remembered, remembered, "processStopOrder should remember a stop order from a %s %s push only while it is a live margin order", tc.tradeType, tc.event)
+	}
+
+	ex := wsTestInstance(t)
+	require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "open")), "processStopOrder must not error for the open push")
+	relayed(t, ex)
+	require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "cancel")), "processStopOrder must not error for the cancel push")
+	relayed(t, ex)
+	_, remembered := ex.marginOrderIDs.Load(orderID)
+	assert.False(t, remembered, "processStopOrder should forget a margin stop order it remembered once it is cancelled")
+
+	ex = wsTestInstance(t)
+	require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "open")), "processStopOrder must not error")
+	relayed(t, ex)
+	require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "triggered")), "processStopOrder must not error")
+	relayed(t, ex)
+	match := []byte(`{"clientOid":"gct-margin-stop","orderId":"` + orderID + `","orderTime":1742305928064,"orderType":"limit","originSize":"0.1","filledSize":"0.05","remainSize":"0.05","size":"0.1","side":"buy","status":"match","symbol":"LTC-USDT","matchPrice":"70","matchSize":"0.05","tradeId":"11116472408358913","ts":1742305928191268493,"type":"match","liquidity":"taker"}`)
+	require.NoError(t, ex.processOrderChange(t.Context(), match), "processOrderChange must not error")
+	d, ok := relayed(t, ex).(*order.Detail)
+	require.True(t, ok, "processOrderChange must relay an order detail")
+	assert.Equal(t, asset.Margin, d.AssetType, "the Order V2 push of a triggered margin stop order should be a margin order update on a pair enabled for spot and margin")
 }
 
 func TestStopPushOrderType(t *testing.T) {

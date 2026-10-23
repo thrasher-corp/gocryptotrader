@@ -462,8 +462,8 @@ func TestProcessFuturesOrderbookSnapshot(t *testing.T) {
 	}
 	assert.Equal(t, exp, book, "the level 50 push should load the book")
 
-	require.Error(t, ex.processFuturesOrderbookSnapshot(t.Context(), []byte(`{"asks":{}}`), "XBTUSDTM"), "processFuturesOrderbookSnapshot must reject an undecodable push")
-	require.ErrorIs(t, ex.processFuturesOrderbookSnapshot(t.Context(), []byte(`{}`), "NOTACONTRACT"), currency.ErrPairNotFound, "processFuturesOrderbookSnapshot must reject an unknown contract")
+	require.Error(t, ex.processFuturesOrderbookSnapshot(t.Context(), nil, []byte(`{"asks":{}}`), "XBTUSDTM"), "processFuturesOrderbookSnapshot must reject an undecodable push")
+	require.ErrorIs(t, ex.processFuturesOrderbookSnapshot(t.Context(), nil, []byte(`{}`), "NOTACONTRACT"), currency.ErrPairNotFound, "processFuturesOrderbookSnapshot must reject an unknown contract")
 }
 
 func TestProcessFuturesOrderbookIncrement(t *testing.T) {
@@ -495,7 +495,7 @@ func TestProcessFuturesOrderbookIncrement(t *testing.T) {
 
 	ex := wsTestInstance(t)
 	ex.wsOBUpdateMgr = newTestUpdateManager(ex, 17)
-	require.NoError(t, ex.processFuturesOrderbookIncrement(t.Context(), []byte(`{"sequence":18,"change":"85000,buy,83","timestamp":1551770400000}`), "XBTUSDTM"), "processFuturesOrderbookIncrement must not error for a buy")
+	require.NoError(t, ex.processFuturesOrderbookIncrement(t.Context(), nil, []byte(`{"sequence":18,"change":"85000,buy,83","timestamp":1551770400000}`), "XBTUSDTM"), "processFuturesOrderbookIncrement must not error for a buy")
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		book, err := ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
 		require.NoError(c, err, "GetOrderbook must return the realtime book")
@@ -510,11 +510,11 @@ func TestProcessFuturesOrderbookIncrement(t *testing.T) {
 		{name: "size", change: "5000.0,buy,bad"},
 		{name: "side", change: "5000.0,hold,83"},
 	} {
-		err := ex.processFuturesOrderbookIncrement(t.Context(), []byte(`{"sequence":19,"change":"`+tc.change+`","timestamp":1551770400000}`), "XBTUSDTM")
+		err := ex.processFuturesOrderbookIncrement(t.Context(), nil, []byte(`{"sequence":19,"change":"`+tc.change+`","timestamp":1551770400000}`), "XBTUSDTM")
 		require.ErrorIsf(t, err, errMalformedOrderbookChange, "processFuturesOrderbookIncrement must reject a change with a bad %s", tc.name)
 	}
-	require.Error(t, ex.processFuturesOrderbookIncrement(t.Context(), []byte(`{"sequence":`), "XBTUSDTM"), "processFuturesOrderbookIncrement must reject an undecodable push")
-	require.ErrorIs(t, ex.processFuturesOrderbookIncrement(t.Context(), []byte(`{}`), "NOTACONTRACT"), currency.ErrPairNotFound, "processFuturesOrderbookIncrement must reject an unknown contract")
+	require.Error(t, ex.processFuturesOrderbookIncrement(t.Context(), nil, []byte(`{"sequence":`), "XBTUSDTM"), "processFuturesOrderbookIncrement must reject an undecodable push")
+	require.ErrorIs(t, ex.processFuturesOrderbookIncrement(t.Context(), nil, []byte(`{}`), "NOTACONTRACT"), currency.ErrPairNotFound, "processFuturesOrderbookIncrement must reject an unknown contract")
 }
 
 func TestProcessFuturesKline(t *testing.T) {
@@ -691,6 +691,115 @@ func TestProcessFuturesOrderChange(t *testing.T) {
 	require.ErrorIs(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"symbol":"XBTUSDTM","orderType":"limit","side":"sideways"}`)), order.ErrSideIsInvalid, "processFuturesOrderChange must reject an unknown side")
 	require.ErrorIs(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"symbol":"XBTUSDTM","orderType":"limit","side":"buy","type":"expired"}`)), errUnknownOrderChangeType, "processFuturesOrderChange must reject an unknown message type")
 	require.ErrorIs(t, ex.processFuturesOrderChange(t.Context(), []byte(`{"symbol":"XBTUSDTM","orderType":"limit","side":"buy","type":"open","marginMode":"PORTFOLIO"}`)), errUnknownMarginMode, "processFuturesOrderChange must reject an unknown margin mode")
+}
+
+// TestProcessFuturesOrderChangeStopOrderType checks an Orders push gives a stop order the type REST and its stop pushes
+// give it, as KuCoin follows a triggered stop order on the Orders topic with only the limit or market type it places
+func TestProcessFuturesOrderChangeStopOrderType(t *testing.T) {
+	t.Parallel()
+	relay := func(t *testing.T, ex *Exchange, push string, stop bool) *order.Detail {
+		t.Helper()
+		if stop {
+			require.NoError(t, ex.processFuturesStopOrder(t.Context(), []byte(push)), "processFuturesStopOrder must not error")
+		} else {
+			require.NoError(t, ex.processFuturesOrderChange(t.Context(), []byte(push)), "processFuturesOrderChange must not error")
+		}
+		d, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "the push must be relayed as an order detail")
+		return d
+	}
+	// A stop push without an order price is for a stop market order
+	stopPush := func(id, price, side, stop, event string) string {
+		return `{"marginMode":"ISOLATED","orderId":"` + id + `","orderPrice":"` + price + `","orderType":"stop","side":"` + side + `","size":3,"stop":"` + stop + `","stopPrice":"65500","stopPriceType":"TP","symbol":"XBTUSDTM","type":"` + event + `","createdAt":1730194206837,"ts":1730194206843133000}`
+	}
+	// An Orders push without an order type leaves out the field, as the docs' open push does
+	orderPush := func(id, orderType, side, event, status string) string {
+		if orderType != "" {
+			orderType = `"orderType":"` + orderType + `",`
+		}
+		return `{"symbol":"XBTUSDTM",` + orderType + `"side":"` + side + `","canceledSize":"0","orderId":"` + id + `","marginMode":"ISOLATED","type":"` + event + `","orderTime":1731916985768138917,"size":"3","filledSize":"1","price":"65000.1","matchPrice":"65000.1","matchSize":"1","remainSize":"2","tradeId":"1794175373644","status":"` + status + `","ts":1731916996762000000}`
+	}
+	remembered := func(ex *Exchange) []any {
+		var ids []any
+		ex.futuresStopOrderTypes.Range(func(id, _ any) bool {
+			ids = append(ids, id)
+			return true
+		})
+		return ids
+	}
+
+	t.Run("triggered stop order", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		assert.Equal(t, order.TakeProfit, relay(t, ex, stopPush("tp", "65000.1", "buy", "down", "open"), true).Type, "processFuturesStopOrder should relay a buy triggered down as a take profit order")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, stopPush("tp", "65000.1", "buy", "down", "triggered"), true).Type, "processFuturesStopOrder should relay the triggered take profit order as a take profit order")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("tp", "", "buy", "open", "open"), false).Type, "processFuturesOrderChange should relay an open push without an order type with the stop order's type")
+		match := relay(t, ex, orderPush("tp", "limit", "buy", "match", "open"), false)
+		assert.Equal(t, order.TakeProfit, match.Type, "processFuturesOrderChange should relay a triggered take profit order's match with its stop push's type")
+		require.Len(t, match.Trades, 1, "processFuturesOrderChange must relay the match's trade")
+		assert.Equal(t, order.TakeProfit, match.Trades[0].Type, "processFuturesOrderChange should give the match's trade the order's type")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("tp", "limit", "buy", "match", "open"), false).Type, "processFuturesOrderChange should relay each later match with the stop order's type")
+		rest, err := ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "tp", Symbol: "XBTUSDTM", Type: "limit", Side: "buy", Stop: "down", StopTriggered: true, Size: 3, DealSize: 1, IsActive: true})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		assert.Equal(t, order.TakeProfit, rest.Type, "futuresOrderDetail should report the triggered take profit order as a take profit order")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("tp", "limit", "buy", "filled", "done"), false).Type, "processFuturesOrderChange should relay the fill of a triggered take profit order with its type")
+		assert.Empty(t, remembered(ex), "processFuturesOrderChange should forget a stop order once it is done")
+	})
+
+	t.Run("order pushes before the triggered pushes", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		relay(t, ex, stopPush("take-profit", "65000.1", "buy", "down", "open"), true)
+		relay(t, ex, stopPush("stop-loss", "65000.1", "sell", "down", "open"), true)
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("take-profit", "limit", "buy", "match", "open"), false).Type, "processFuturesOrderChange should relay a stop order's match with its stop push's type before the triggered push")
+		assert.Equal(t, order.StopLimit, relay(t, ex, orderPush("stop-loss", "limit", "sell", "match", "open"), false).Type, "processFuturesOrderChange should relay each stop order's match with its own stop push's type")
+	})
+
+	t.Run("stop orders REST lists", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		untriggered, err := ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "untriggered", Symbol: "XBTUSDTM", Type: "limit", Side: "buy", Stop: "down", Size: 3, IsActive: true})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		require.Equal(t, order.TakeProfit, untriggered.Type, "futuresOrderDetail must report a buy triggered down as a take profit order")
+		triggered, err := ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "triggered", Symbol: "XBTUSDTM", Type: "market", Side: "sell", Stop: "up", StopTriggered: true, Size: 3, DealSize: 1, IsActive: true})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		require.Equal(t, order.TakeProfitMarket, triggered.Type, "futuresOrderDetail must report a sell market order triggered up as a take profit market order")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("untriggered", "limit", "buy", "match", "open"), false).Type, "processFuturesOrderChange should relay an order REST listed as an untriggered stop order with its stop type")
+		assert.Equal(t, order.TakeProfitMarket, relay(t, ex, orderPush("triggered", "market", "sell", "match", "open"), false).Type, "processFuturesOrderChange should relay a market order REST listed as a triggered stop order with its stop type")
+		_, err = ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "untriggered", Symbol: "XBTUSDTM", Type: "limit", Side: "buy", Stop: "down", StopTriggered: true, Size: 3, DealSize: 3})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		assert.ElementsMatch(t, []any{"triggered"}, remembered(ex), "futuresOrderDetail should forget the stop order REST reports finished, and that alone")
+		assert.Equal(t, order.TakeProfitMarket, relay(t, ex, orderPush("triggered", "market", "sell", "match", "open"), false).Type, "processFuturesOrderChange should still relay the other stop order with its stop type")
+		_, err = ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "triggered", Symbol: "XBTUSDTM", Type: "market", Side: "sell", Size: 3, DealSize: 3})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		assert.Empty(t, remembered(ex), "futuresOrderDetail should forget an order REST reports finished without its stop condition too")
+	})
+
+	t.Run("stop order REST reads as just ended before its done push", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		relay(t, ex, stopPush("tp", "65000.1", "buy", "down", "triggered"), true)
+		_, err := ex.futuresOrderDetail(&FuturesOrderDetailResponse{ID: "tp", Symbol: "XBTUSDTM", Type: "limit", Side: "buy", Stop: "down", StopTriggered: true, Size: 3, DealSize: 3, EndAt: types.Time(time.Now())})
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		assert.Equal(t, order.TakeProfit, relay(t, ex, orderPush("tp", "limit", "buy", "filled", "done"), false).Type, "processFuturesOrderChange should relay the done push of a stop order REST read as just ended with its stop type")
+		assert.Empty(t, remembered(ex), "processFuturesOrderChange should forget the stop order once it is done")
+	})
+
+	t.Run("stop order cancelled before it triggers", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		relay(t, ex, stopPush("cancelled", "65000.1", "sell", "up", "open"), true)
+		assert.Equal(t, order.Cancelled, relay(t, ex, stopPush("cancelled", "65000.1", "sell", "up", "cancel"), true).Status, "processFuturesStopOrder should relay a cancelled stop order as cancelled")
+		assert.Empty(t, remembered(ex), "processFuturesStopOrder should forget a cancelled stop order")
+		assert.Equal(t, order.Limit, relay(t, ex, orderPush("cancelled", "limit", "sell", "match", "open"), false).Type, "processFuturesOrderChange should relay an order no longer known as a stop order with its own type")
+	})
+
+	t.Run("order placed elsewhere", func(t *testing.T) {
+		t.Parallel()
+		ex := wsTestInstance(t)
+		assert.Equal(t, order.Limit, relay(t, ex, orderPush("plain", "limit", "buy", "match", "open"), false).Type, "processFuturesOrderChange should relay an order not known as a stop order with its own type")
+		assert.Empty(t, remembered(ex), "processFuturesOrderChange should remember no type for an order not known as a stop order")
+	})
 }
 
 func TestFuturesMarginType(t *testing.T) {

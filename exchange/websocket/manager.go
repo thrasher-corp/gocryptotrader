@@ -63,6 +63,7 @@ var (
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 	errFailedToAuthenticate                 = errors.New("failed to authenticate")
+	errAuthenticatedUseOff                  = errors.New("authenticated use is off")
 )
 
 // Websocket functionality list and state consts
@@ -606,44 +607,20 @@ func (m *Manager) connect(ctx context.Context) error {
 // connectSetup dials a setup's connections and subscribes its generated subscriptions. A fatal error means the setup
 // could not be connected; a subscription error leaves its connections up. The caller must hold m.m
 func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subscriptionError, fatalErr error) {
-	var subs subscription.List
-	if !ws.setup.SubscriptionsNotRequired {
-		if ws.setup.GenerateSubscriptions == nil {
-			return nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
-		}
+	return m.connectSetupWith(ctx, i, ws, nil)
+}
 
-		var err error
-		subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
-		var generationError error
-		if err != nil {
-			generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-		}
-		subscriptionError, fatalErr = collectSubscriptionGenerationError(nil, generationError)
-		if fatalErr != nil {
-			return nil, fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-		}
-
-		if len(subs) == 0 && !ws.setup.ConnectWithoutSubscriptions {
-			// If no subscriptions are generated, we skip this connection.
-			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
-			}
-			return subscriptionError, nil
-		}
-	}
-
-	if ws.setup.Connector == nil {
-		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errNoConnectFunc)
-	}
-	if ws.setup.Handler == nil {
-		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
-	}
-	if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
-		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
+// connectSetupWith is connectSetup using the dialled connection, when given, for the first connection it would otherwise
+// dial; further connections, for subscriptions beyond one connection's limit, are dialled while m.m is held, moments
+// after the first reached the host. The caller discards the dialled connection when it is left unused, and must hold m.m
+func (m *Manager) connectSetupWith(ctx context.Context, i int, ws *websocket, dialled *dialledConnection) (subscriptionError, fatalErr error) {
+	subs, dial, subscriptionError, fatalErr := m.prepareSetup(i, ws)
+	if !dial {
+		return subscriptionError, fatalErr
 	}
 
 	if len(subs) == 0 {
-		if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
+		if err := m.connectAndSubscribe(ctx, ws, nil, dialled); err != nil {
 			return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
 		}
 		if m.verbose {
@@ -676,7 +653,7 @@ func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subsc
 			}
 			continue
 		}
-		if err := m.createConnectAndSubscribe(ctx, ws, batchRemainingSubs); err != nil {
+		if err := m.connectAndSubscribe(ctx, ws, batchRemainingSubs, dialled); err != nil {
 			if errors.Is(err, common.ErrFatal) {
 				return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
 			}
@@ -688,6 +665,55 @@ func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subsc
 		}
 	}
 	return subscriptionError, nil
+}
+
+// prepareSetup generates the subscriptions a setup is connected for and checks it can be dialled, reporting whether
+// connecting it dials a connection. A setup is skipped, which reads as connected with nothing, when it requires
+// authenticated use while that is off, or generates no subscriptions and connects only for them. The caller must hold
+// m.m
+func (m *Manager) prepareSetup(i int, ws *websocket) (subs subscription.List, dial bool, subscriptionError, fatalErr error) {
+	if ws.setup.RequiresAuthentication && !m.CanUseAuthenticatedEndpoints() {
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] requires authenticated use, which is off, skipping", m.exchangeName, i+1, ws.setup.URL)
+		}
+		return nil, false, nil, nil
+	}
+
+	if !ws.setup.SubscriptionsNotRequired {
+		if ws.setup.GenerateSubscriptions == nil {
+			return nil, false, nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+		}
+
+		var err error
+		subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+		var generationError error
+		if err != nil {
+			generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+		}
+		subscriptionError, fatalErr = collectSubscriptionGenerationError(nil, generationError)
+		if fatalErr != nil {
+			return nil, false, nil, fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+
+		if len(subs) == 0 && !ws.setup.ConnectWithoutSubscriptions {
+			// If no subscriptions are generated, we skip this connection.
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
+			}
+			return nil, false, subscriptionError, nil
+		}
+	}
+
+	if ws.setup.Connector == nil {
+		return nil, false, subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errNoConnectFunc)
+	}
+	if ws.setup.Handler == nil {
+		return nil, false, subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
+	}
+	if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
+		return nil, false, subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
+	}
+	return subs, true, subscriptionError, nil
 }
 
 // optionalSetupFailed closes an optional setup's connections after it failed to connect or lost a connection, so the
@@ -719,10 +745,11 @@ func (m *Manager) optionalRetryDelay(failures int) time.Duration {
 	return min(delay, ceiling)
 }
 
-// isolateConnectionFault handles a connection fault without reconnecting the other connections when the connection has
-// already been retired or belongs to an optional setup, which is retired and retried alone. The fault channel holds one
-// fault and drops the rest, so every managed connection is checked: a required setup's lost connection still needs the
-// reconnection, and an optional setup's is retired too. It reports whether it handled the fault
+// isolateConnectionFault handles a connection fault without reconnecting the other connections when the connection is
+// not registered, having been retired or not yet been connected by an optional setup's retry, or belongs to an optional
+// setup, which is retired and retried alone. The fault channel holds one fault and drops the rest, so every managed
+// connection is checked: a required setup's lost connection still needs the reconnection, and an optional setup's is
+// retired too. It reports whether it handled the fault
 func (m *Manager) isolateConnectionFault(err error) bool {
 	var fault *connectionFaultError
 	if !m.useMultiConnectionManagement || !errors.As(err, &fault) {
@@ -759,30 +786,107 @@ func (m *Manager) isolateConnectionFault(err error) bool {
 
 // retryOptionalSetups reconnects each optional setup whose connection failed once its retry is due
 func (m *Manager) retryOptionalSetups(ctx context.Context) {
+	for i, ws := range m.snapshotConnectionManager() {
+		m.retryOptionalSetup(ctx, i, ws)
+	}
+}
+
+// retryOptionalSetup reconnects an optional setup whose connection failed once its retry is due. Its first connection
+// is dialled with m.m released, as a connector reaching for an unreachable host takes as long as its timeouts allow, and
+// every call taking the lock, such as GetConnection before each websocket request, would wait for it
+func (m *Manager) retryOptionalSetup(ctx context.Context, i int, ws *websocket) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	if !m.IsEnabled() || !m.IsConnected() {
+	if !m.optionalRetryDue(ws) {
 		return
 	}
-	for i, ws := range m.snapshotConnectionManager() {
-		if !ws.setup.Optional || ws.retryFailures == 0 || time.Now().Before(ws.retryAt) || len(m.snapshotManagedConnections(ws)) != 0 {
-			continue
+	// A setup that would not be dialled, being skipped or failing before its dial, is settled without one
+	_, dial, subscriptionError, fatalErr := m.prepareSetup(i, ws)
+	if dial {
+		dialled := m.dialUnlocked(ctx, i, ws)
+		if dialled == nil {
+			return
 		}
-		subscriptionError, fatalErr := m.connectSetup(ctx, i, ws)
-		if fatalErr != nil {
-			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
-			continue
+		// The setup is prepared again, so it is subscribed to what it generates once dialled rather than before
+		subscriptionError, fatalErr = m.connectSetupWith(ctx, i, ws, dialled)
+		if !dialled.used {
+			m.discardDialled(ctx, ws, dialled)
 		}
-		ws.retryFailures, ws.retryAt = 0, time.Time{}
-		if subscriptionError != nil {
-			log.Errorln(log.WebsocketMgr, subscriptionError)
+	}
+	if fatalErr != nil {
+		log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
+		return
+	}
+	ws.retryFailures, ws.retryAt = 0, time.Time{}
+	if subscriptionError != nil {
+		log.Errorln(log.WebsocketMgr, subscriptionError)
+	}
+}
+
+// optionalRetryDue reports whether an optional setup that failed to connect is due to be retried: the manager is
+// enabled and connected, the setup's retry time has passed and nothing has connected it since. The caller must hold m.m
+func (m *Manager) optionalRetryDue(ws *websocket) bool {
+	return m.IsEnabled() && m.IsConnected() && ws.setup.Optional && ws.retryFailures != 0 && !time.Now().Before(ws.retryAt) &&
+		len(m.snapshotManagedConnections(ws)) == 0
+}
+
+// dialledConnection is a connection whose setup's connector ran without the manager's lock, and the error it returned
+type dialledConnection struct {
+	conn *connection
+	err  error
+	// used is set once the connection is taken for one of the setup's connections
+	used bool
+}
+
+// dialUnlocked runs a setup's connector on a new connection with m.m released, and returns the connection once m.m is
+// held again, or nil once it has been discarded because the manager or the setup changed while it was dialled. The
+// caller must hold m.m, which dialUnlocked releases and takes again
+func (m *Manager) dialUnlocked(ctx context.Context, i int, ws *websocket) *dialledConnection {
+	conn := m.createConnectionFromSetup(ws.setup)
+	// A shutdown waits on m.Wg while holding m.m, so the routines the connector starts join a group of their own, as
+	// adding to m.Wg during that wait would misuse it. Once m.m is held again, m.Wg waits on that group, and the
+	// connection's later routines join m.Wg itself
+	var routines sync.WaitGroup
+	conn.Wg = &routines
+	connector, shutdownC := ws.setup.Connector, m.ShutdownC
+	m.m.Unlock()
+	err := connector(ctx, conn)
+	m.m.Lock()
+	m.Wg.Go(routines.Wait)
+	conn.Wg = &m.Wg
+	dialled := &dialledConnection{conn: conn, err: err}
+	// A shutdown meanwhile closed the shutdown channel the connection's routines stop on, even if the manager has
+	// reconnected since, and another call may have connected the setup or counted a failure for it
+	if m.ShutdownC != shutdownC || !m.optionalRetryDue(ws) {
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] changed while its retry was dialled, discarding the connection", m.exchangeName, i+1, ws.setup.URL)
 		}
+		m.discardDialled(ctx, ws, dialled)
+		return nil
+	}
+	return dialled
+}
+
+// discardDialled shuts down a dialled connection a setup does not keep, without counting a failure for it, and calls the
+// setup's disconnect hook when its connector succeeded, as no reader will. The caller must hold m.m
+func (m *Manager) discardDialled(ctx context.Context, ws *websocket, dialled *dialledConnection) {
+	if err := dialled.conn.Shutdown(); err != nil {
+		log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
+	}
+	if dialled.err == nil && ws.setup.OnDisconnect != nil {
+		ws.setup.OnDisconnect(ctx, dialled.conn)
 	}
 }
 
 // createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
 // The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
+	return m.connectAndSubscribe(ctx, ws, subs, nil)
+}
+
+// connectAndSubscribe is createConnectAndSubscribe using the dialled connection, when given and not yet used, rather
+// than creating and dialling one
+func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List, dialled *dialledConnection) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
@@ -790,16 +894,32 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
 	}
 
-	conn := m.createConnectionFromSetup(ws.setup)
+	var conn *connection
+	var err error
+	if dialled != nil && !dialled.used {
+		dialled.used = true
+		conn, err = dialled.conn, dialled.err
+	} else {
+		conn = m.createConnectionFromSetup(ws.setup)
+		err = ws.setup.Connector(ctx, conn)
+	}
 
 	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
 	// connector dialled before failing.
-	if err := ws.setup.Connector(ctx, conn); err != nil {
+	if err != nil {
 		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(err, conn.Shutdown()))
 	}
 
-	if !conn.IsConnected() {
-		err := fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
+	var connectErr error
+	switch {
+	case !conn.IsConnected():
+		connectErr = ErrNotConnected
+	case ws.setup.RequiresAuthentication && !m.CanUseAuthenticatedEndpoints():
+		// Turned off while the setup was dialled, which leaves it nothing to connect for
+		connectErr = errAuthenticatedUseOff
+	}
+	if connectErr != nil {
+		err := fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(connectErr, conn.Shutdown()))
 		// No reader will start, so the disconnect hook undoes what the connector set up here
 		if ws.setup.OnDisconnect != nil {
 			ws.setup.OnDisconnect(ctx, conn)
@@ -819,7 +939,8 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	m.Wg.Add(1)
 	go m.managedReader(ctx, conn, ws.setup, done)
 
-	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
+	// A setup requiring authenticated use found it on above, so it signs in even if it has been turned off since
+	if ws.setup.Authenticate != nil && (ws.setup.RequiresAuthentication || m.CanUseAuthenticatedEndpoints()) {
 		if err := ws.setup.Authenticate(ctx, conn); err != nil {
 			// The connection is no use to its setup, and a flush keeps the setup's other connections rather than
 			// rolling the setup back, so it is retired here
@@ -908,8 +1029,9 @@ func (m *Manager) shutdown() error {
 }
 
 // teardown closes every connection, waits for the routines tracked by Wg and renews ShutdownC, leaving the manager
-// disconnected and ready for a fresh connection attempt. It is shared by shutdown and a failed connect, which can leave
-// sockets and readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
+// disconnected and ready for a fresh connection attempt; a connection an optional setup's retry is dialling is closed by
+// the retry once its connector returns. It is shared by shutdown and a failed connect, which can leave sockets and
+// readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
 func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a

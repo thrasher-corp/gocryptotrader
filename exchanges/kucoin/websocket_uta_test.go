@@ -279,6 +279,34 @@ func TestNewUTAFuturesPublicConnection(t *testing.T) {
 	assert.Equal(t, asset.Futures, subs[0].Asset, "GenerateSubscriptions should generate the futures ticker")
 }
 
+// TestUTAPublicConnectionsInvalidateOrderbooks checks each UTA public connection's disconnect hook invalidates the
+// orderbooks its pushes fed, under every asset they are stored under, and leaves those the other connection fed valid
+func TestUTAPublicConnectionsInvalidateOrderbooks(t *testing.T) {
+	t.Parallel()
+	ex := newUTATestExchange(t)
+	spotConn, futuresConn := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrderbook.json") {
+		_, market, _ := strings.Cut(msg.Topic, ".")
+		conn := spotConn
+		if market == "FUTURES" {
+			conn = futuresConn
+		}
+		require.NoErrorf(t, ex.processUTAOrderbook(t.Context(), conn, msg, market), "processUTAOrderbook must not error for fixture line %d", i+1)
+	}
+	futuresPairs := currency.Pairs{utaFuturesTestPair, currency.NewPairWithDelimiter("ETH", "USDTM", currency.UnderscoreDelimiter)}
+	ex.newUTASpotPublicConnection(ex.Config, kucoinUTASpotPublicWebsocketURL).OnDisconnect(t.Context(), spotConn)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		assertOrderbookValid(t, ex, utaSpotTestPair, a, false, "an orderbook the dropped spot connection's pushes fed")
+	}
+	for _, p := range futuresPairs {
+		assertOrderbookValid(t, ex, p, asset.Futures, true, "an orderbook the futures connection fed")
+	}
+	ex.newUTAFuturesPublicConnection(ex.Config, kucoinUTAFuturesPublicWebsocketURL).OnDisconnect(t.Context(), futuresConn)
+	for _, p := range futuresPairs {
+		assertOrderbookValid(t, ex, p, asset.Futures, false, "an orderbook the dropped futures connection's pushes fed")
+	}
+}
+
 func TestNewUTAPrivateConnection(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
@@ -328,6 +356,7 @@ func TestNewUTATradeConnection(t *testing.T) {
 	assert.Nil(t, c.GenerateSubscriptions, "GenerateSubscriptions should not be set")
 	assert.Nil(t, c.Subscriber, "Subscriber should not be set")
 	assert.True(t, c.SubscriptionsNotRequired, "SubscriptionsNotRequired should be true")
+	assert.True(t, c.RequiresAuthentication, "the UTA trade connection should sit out while authenticated use is off, which would skip its sign-in")
 }
 
 func TestHasUTASubscriptions(t *testing.T) {

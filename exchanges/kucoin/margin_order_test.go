@@ -615,6 +615,40 @@ func TestPlaceMarginStopOrder(t *testing.T) {
 	}
 }
 
+// TestPlaceMarginOrdersRemembered checks the margin orders placed over REST are remembered as live margin orders, as
+// spot and margin order pushes share one topic, and that an order KuCoin refuses is not
+func TestPlaceMarginOrdersRemembered(t *testing.T) {
+	t.Parallel()
+	const orderID = "671663e02188630007e21c9c"
+	for _, tc := range []struct {
+		name  string
+		place func(context.Context, *Exchange) error
+	}{
+		{name: "PlaceMarginHFOrder", place: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.PlaceMarginHFOrder(ctx, &PlaceMarginHFOrderRequest{ClientOrderID: "gct-margin", Side: "buy", Symbol: "BTC-USDT", Type: "limit", Price: 50000, Size: 0.00001})
+			return err
+		}},
+		{name: "PlaceMarginStopOrder", place: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.PlaceMarginStopOrder(ctx, &PlaceMarginStopOrderRequest{ClientOrderID: "gct-margin", Side: "buy", Symbol: "BTC-USDT", Type: "limit", Price: 50000, Size: 0.00001, StopPrice: 49000})
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newSigningTestInstance(t, `{"code":"200000","data":{"orderId":"`+orderID+`","clientOid":"gct-margin"}}`)
+			require.NoErrorf(t, tc.place(t.Context(), ex), "%s must not error", tc.name)
+			_, remembered := ex.marginOrderIDs.Load(orderID)
+			assert.Truef(t, remembered, "%s should remember the margin order it placed", tc.name)
+			assert.Zerof(t, marginPlacementsLen(ex), "%s should forget the client order ID once KuCoin replies", tc.name)
+
+			refused, _ := newSigningTestInstance(t, `{"code":"400100","msg":"refused"}`)
+			require.Errorf(t, tc.place(t.Context(), refused), "%s must return KuCoin's refusal", tc.name)
+			assert.Zerof(t, syncMapLen(&refused.marginOrderIDs), "%s should remember no order KuCoin refused", tc.name)
+			assert.Zerof(t, marginPlacementsLen(refused), "%s should forget the client order ID of an order KuCoin refused", tc.name)
+		})
+	}
+}
+
 func TestCancelMarginStopOrderByOrderID(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMarginStopOrderByOrderID(t.Context(), "")

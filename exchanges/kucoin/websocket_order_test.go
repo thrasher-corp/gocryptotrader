@@ -149,6 +149,7 @@ func orderAPITestInstance(t *testing.T) (*Exchange, *orderAPIServer) {
 	ex.SkipAuthCheck = true
 	ex.SetCredentials(orderAPITestCredentials)
 	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.NoError(t, ex.Websocket.SetupNewConnection(ex.newOrderConnectionSetup(&config.Exchange{WebsocketResponseMaxLimit: 5 * time.Second}, u)), "SetupNewConnection must not error")
 	connectTestWebsocket(t, ex)
 	return ex, server
@@ -186,6 +187,7 @@ func TestNewOrderConnectionSetup(t *testing.T) {
 	assert.Equal(t, 2*time.Second, s.ResponseMaxLimit, "ResponseMaxLimit should come from the config")
 	assert.True(t, s.SubscriptionsNotRequired, "the order connection should need no subscriptions")
 	assert.True(t, s.Optional, "the order connection should be optional, so a failed sign-in leaves the others up")
+	assert.True(t, s.RequiresAuthentication, "the order connection should sit out while authenticated use is off, as it signs in with the account's keys")
 	assert.NotNil(t, s.Connector, "Connector should be set")
 	assert.NotNil(t, s.Handler, "Handler should be set")
 }
@@ -362,6 +364,9 @@ func TestWebsocketAddMarginOrder(t *testing.T) {
 	assertOrderAPIArgs(t, server, "margin.order", `{"autoBorrow":true,"clientOid":"6216aa42-894b-4cdc-94ac-7c46c6b976d4-78c","price":"65000","side":"buy","size":"0.00001","symbol":"BTC-USDT","type":"limit"}`)
 	exp := &WebsocketAddMarginOrderResponse{BorrowSize: 10.2, ClientOrderID: "6216aa42-894b-4cdc-94ac-7c46c6b976d4-78c", LoanApplyID: "600656d9a33ac90009de4f6f", OrderID: "69afda52f5c2aa00072ee487"}
 	assert.Equal(t, exp, got, "WebsocketAddMarginOrder should decode every field")
+	_, remembered := ex.marginOrderIDs.Load("69afda52f5c2aa00072ee487")
+	assert.True(t, remembered, "WebsocketAddMarginOrder should remember the margin order it placed, as spot and margin order pushes share one topic")
+	assert.Zero(t, marginPlacementsLen(ex), "WebsocketAddMarginOrder should forget the client order ID once KuCoin replies")
 }
 
 func TestWebsocketAddFuturesOrder(t *testing.T) {

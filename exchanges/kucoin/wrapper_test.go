@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -954,7 +955,7 @@ func expectedOrders() map[string]order.Detail {
 		},
 		"margin BTC stop": {
 			Exchange: e.Name, OrderID: "671667306afcdb0007231080", ClientOrderID: "5c52e11203aa677f33e493fc", Pair: btcusdt,
-			AssetType: asset.Margin, MarginType: margin.Multi, Type: order.StopLimit, Side: order.Sell, Status: order.Open,
+			AssetType: asset.Margin, MarginType: margin.Multi, Type: order.Limit, Side: order.Sell, Status: order.Open,
 			Price: 70000, TriggerPrice: 69000, Amount: 0.0001, QuoteAmount: 7, RemainingAmount: 0.00005,
 			CostAsset: currency.USDT, FeeAsset: currency.USDT, TimeInForce: order.GoodTillCancel, HiddenOrder: true,
 			Date: time.UnixMilli(1729521500000), LastUpdated: time.UnixMilli(1729521600000),
@@ -1351,6 +1352,65 @@ func TestCancelAllOrdersFuturesFailure(t *testing.T) {
 			require.ErrorContains(t, err, tc.err, "CancelAllOrders must return the failed request's error")
 			assert.Equal(t, tc.exp, resp.Status, "CancelAllOrders should return the statuses of the orders cancelled before the failure")
 		})
+	}
+}
+
+// TestGetActiveOrdersFuturesTakeProfitOrders lists untriggered and triggered futures take profit orders by their types
+func TestGetActiveOrdersFuturesTakeProfitOrders(t *testing.T) {
+	t.Parallel()
+	futuresOrder := func(id, side, oType, stop string, triggered bool) string {
+		state := "false"
+		if triggered {
+			state = "true"
+		}
+		return `{"id":"` + id + `","symbol":"XBTUSDTM","type":"` + oType + `","side":"` + side + `","price":"100000","size":2,"value":"200","dealValue":"0","dealSize":0,"stop":"` + stop + `","stopPriceType":"TP","stopTriggered":` + state + `,"stopPrice":"99000","leverage":"3","clientOid":"gct-` + id + `","isActive":true,"cancelExist":false,"createdAt":1792500000000,"updatedAt":1792500000000,"settleCurrency":"USDT","marginMode":"ISOLATED","status":"open"}`
+	}
+	var mu sync.Mutex
+	var requests []string
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, r.URL.RequestURI())
+		mu.Unlock()
+		var items string
+		switch r.URL.Path {
+		case "/v1/stopOrders":
+			items = futuresOrder("tp-sell", "sell", "limit", "up", false) + "," + futuresOrder("tpm-buy", "buy", "market", "down", false) + "," + futuresOrder("sl-sell", "sell", "limit", "down", false)
+		case "/v1/orders":
+			items = futuresOrder("tp-triggered", "sell", "limit", "up", true)
+		default:
+			assert.Failf(t, "unexpected request", "request path %s should be one the test serves", r.URL.Path)
+		}
+		_, err := io.WriteString(w, `{"code":"200000","data":{"currentPage":1,"pageSize":1000,"totalNum":1,"totalPage":1,"items":[`+items+`]}}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	xbtusdtm := currency.NewPair(currency.XBT, currency.USDTM)
+	for _, tc := range []struct {
+		oType    order.Type
+		exp      []string
+		requests []string
+	}{
+		{oType: order.TakeProfit, exp: []string{"tp-triggered", "tp-sell"}, requests: []string{
+			"/v1/stopOrders?currentPage=1&pageSize=1000&symbol=XBTUSDTM&type=limit",
+			"/v1/orders?currentPage=1&pageSize=1000&status=active&symbol=XBTUSDTM&type=limit_stop",
+		}},
+		{oType: order.TakeProfitMarket, exp: []string{"tpm-buy"}, requests: []string{
+			"/v1/stopOrders?currentPage=1&pageSize=1000&symbol=XBTUSDTM&type=market",
+			"/v1/orders?currentPage=1&pageSize=1000&status=active&symbol=XBTUSDTM&type=market_stop",
+		}},
+	} {
+		mu.Lock()
+		requests = nil
+		mu.Unlock()
+		got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Pairs: currency.Pairs{xbtusdtm}, Type: tc.oType, Side: order.AnySide})
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s orders", tc.oType)
+		ids := make([]string, len(got))
+		for i := range got {
+			ids[i] = got[i].OrderID
+		}
+		assert.ElementsMatchf(t, tc.exp, ids, "GetActiveOrders should list the active %s orders", tc.oType)
+		mu.Lock()
+		assert.Equalf(t, tc.requests, requests, "GetActiveOrders should ask both lists for the stop orders of %s's order type", tc.oType)
+		mu.Unlock()
 	}
 }
 
@@ -2149,7 +2209,7 @@ func TestGetOrderInfo(t *testing.T) {
 			exp: &order.Detail{
 				Exchange: e.Name, OrderID: "671667306afcdb000723107f", ClientOrderID: "5c52e11203aa677f33e493fb",
 				Pair:      currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), currency.DashDelimiter),
-				AssetType: asset.Margin, MarginType: margin.Multi, Type: order.StopLimit, Side: order.Buy,
+				AssetType: asset.Margin, MarginType: margin.Multi, Type: order.Limit, Side: order.Buy,
 				Status: order.PartiallyFilled, Price: 50000, TriggerPrice: 50500, Amount: 0.00003, QuoteAmount: 1.5,
 				ExecutedAmount: 0.00001, RemainingAmount: 0.00001, AverageExecutedPrice: cost / executed, Cost: 0.5,
 				CostAsset: currency.USDT, Fee: 0.0005, FeeAsset: currency.USDT, TimeInForce: order.GoodTillTime | order.PostOnly,
@@ -2294,7 +2354,7 @@ func TestMarginHFOrderDetail(t *testing.T) {
 			},
 		},
 		{
-			// A triggered stop order keeps its stop condition, so it is a stop order
+			// A triggered stop order carries on as the market order it placed, as its order pushes report it
 			name: "filled isolated margin stop order",
 			o: &MarginHFOrderResponse{
 				ID: "671667306afcdb0007231094", ClientOrderID: "gct-margin-filled", Symbol: "ETH-USDT", Type: "market",
@@ -2305,11 +2365,27 @@ func TestMarginHFOrderDetail(t *testing.T) {
 			exp: order.Detail{
 				Exchange: e.Name, OrderID: "671667306afcdb0007231094", ClientOrderID: "gct-margin-filled",
 				Pair:      currency.NewPairWithDelimiter(currency.ETH.String(), currency.USDT.String(), currency.DashDelimiter),
-				AssetType: asset.Margin, MarginType: margin.Isolated, Type: order.StopMarket, Side: order.Sell,
+				AssetType: asset.Margin, MarginType: margin.Isolated, Type: order.Market, Side: order.Sell,
 				Status: order.Filled, TriggerPrice: 3100, Amount: 0.5, ExecutedAmount: 0.5, AverageExecutedPrice: 3000,
 				Cost: 1500, CostAsset: currency.USDT, Fee: 1.5, FeeAsset: currency.USDT, TimeInForce: order.GoodTillCancel,
 				Date: time.UnixMilli(1729521456248), LastUpdated: time.UnixMilli(1729651011877),
 				CloseTime: time.UnixMilli(1729651011877),
+			},
+		},
+		{
+			name: "untriggered isolated margin stop order",
+			o: &MarginHFOrderResponse{
+				ID: "671667306afcdb0007231095", ClientOrderID: "gct-margin-untriggered", Symbol: "ETH-USDT", Type: "market",
+				Side: "sell", Size: 0.5, RemainSize: 0.5, Stop: "loss", StopPrice: 3100, TimeInForce: "GTC", Active: true,
+				TradeType: IsolatedMarginTradeType, CreatedAt: types.Time(time.UnixMilli(1729521456248)),
+				LastUpdatedAt: types.Time(time.UnixMilli(1729521456248)),
+			},
+			exp: order.Detail{
+				Exchange: e.Name, OrderID: "671667306afcdb0007231095", ClientOrderID: "gct-margin-untriggered",
+				Pair:      currency.NewPairWithDelimiter(currency.ETH.String(), currency.USDT.String(), currency.DashDelimiter),
+				AssetType: asset.Margin, MarginType: margin.Isolated, Type: order.StopMarket, Side: order.Sell,
+				Status: order.New, TriggerPrice: 3100, Amount: 0.5, RemainingAmount: 0.5, CostAsset: currency.USDT,
+				TimeInForce: order.GoodTillCancel, Date: time.UnixMilli(1729521456248), LastUpdated: time.UnixMilli(1729521456248),
 			},
 		},
 	} {
@@ -2485,6 +2561,29 @@ func TestStopOrderDetail(t *testing.T) {
 			require.NoError(t, err, "stopOrderDetail must not error")
 			assert.Equal(t, tc.exp, got, "stopOrderDetail should convert the order")
 		})
+	}
+}
+
+// TestStopOrderDetailRemembersMarginOrders checks an untriggered margin stop order REST lists is remembered as a live
+// margin order, as it places its order under its own order ID once triggered and the Order V2 pushes follow it
+func TestStopOrderDetailRemembersMarginOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, status string
+		a            asset.Item
+		oco          bool
+		remembered   bool
+	}{
+		{name: "an untriggered margin stop order", status: "NEW", a: asset.Margin, remembered: true},
+		{name: "a triggered margin stop order", status: "TRIGGERED", a: asset.Margin},
+		{name: "a margin OCO order", status: "NEW", a: asset.Margin, oco: true},
+		{name: "an untriggered spot stop order", status: "NEW", a: asset.Spot},
+	} {
+		ex := wsTestInstance(t)
+		_, err := ex.stopOrderDetail(&StopOrderResponse{ID: "vs93gptvr9t2fsql003l8k65", Symbol: "BTC-USDT", Status: tc.status, Type: "limit", Side: "sell", TradeType: CrossMarginTradeType}, tc.a, tc.oco)
+		require.NoErrorf(t, err, "stopOrderDetail must not error for %s", tc.name)
+		_, remembered := ex.marginOrderIDs.Load("vs93gptvr9t2fsql003l8k65")
+		assert.Equalf(t, tc.remembered, remembered, "stopOrderDetail should remember %s only while it is a margin stop order waiting for its trigger", tc.name)
 	}
 }
 
@@ -2931,6 +3030,8 @@ func TestFuturesTakeProfitStopLossRequest(t *testing.T) {
 		{name: "a take profit stop market order", modes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 110000, OrderType: order.StopMarket}}, err: errRiskModeUnsupported},
 		// KuCoin takes one trigger price type for both triggers
 		{name: "triggers on different price types", modes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 110000, TriggerPriceType: order.MarkPrice}, StopLoss: order.RiskManagement{Enabled: true, Price: 90000, TriggerPriceType: order.IndexPrice}}, err: errRiskModeUnsupported},
+		{name: "a take profit below its stop loss", modes: order.RiskManagementModes{TakeProfit: stopLoss, StopLoss: takeProfit}, err: errOCOPricesInverted},
+		{name: "a take profit at its stop loss", modes: order.RiskManagementModes{TakeProfit: takeProfit, StopLoss: takeProfit}, err: errOCOPricesInverted},
 	} {
 		r := limitBuy
 		if tc.modify != nil {
@@ -3160,6 +3261,247 @@ func TestSubmitSpotOrder(t *testing.T) {
 			assert.Equal(t, tc.exp, resp, "submitSpotOrder should return KuCoin's order ID with the order")
 		})
 	}
+}
+
+// marginPlacementsLen returns how many client order IDs an exchange holds as being placed as margin orders
+func marginPlacementsLen(ex *Exchange) int {
+	ex.marginPlacementsMu.Lock()
+	defer ex.marginPlacementsMu.Unlock()
+	return len(ex.marginPlacements)
+}
+
+// syncMapLen returns how many entries a sync.Map holds
+func syncMapLen(m *sync.Map) int {
+	var n int
+	m.Range(func(any, any) bool {
+		n++
+		return true
+	})
+	return n
+}
+
+// TestSubmitMarginOrderPushesBeforeReply checks a margin order's pushes are read as margin when they arrive before
+// KuCoin's reply names the order's ID, and that an order already finished by the reply is not remembered as live
+func TestSubmitMarginOrderPushesBeforeReply(t *testing.T) {
+	t.Parallel()
+	const orderID, clientOrderID = "6720da3fa30a360007f5f900", "gct-margin-early"
+	ltcusdt := currency.NewPairWithDelimiter("LTC", "USDT", "-")
+	push := func(event, status string) []byte {
+		return []byte(`{"clientOid":"` + clientOrderID + `","orderId":"` + orderID + `","orderTime":1730206271588,"orderType":"market","originSize":"0.1","filledSize":"0.1","remainSize":"0","size":"0.1","side":"buy","status":"` + status + `","symbol":"LTC-USDT","ts":1730206271616000000,"type":"` + event + `"}`)
+	}
+	pushAsset := func(t *testing.T, ex *Exchange, event, status string) asset.Item {
+		t.Helper()
+		require.NoError(t, ex.processOrderChange(t.Context(), push(event, status)), "processOrderChange must not error")
+		d, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "processOrderChange must relay an order detail")
+		return d.AssetType
+	}
+	for _, tc := range []struct {
+		name       string
+		early      [][2]string
+		refused    bool
+		remembered bool
+	}{
+		{name: "an order received before the reply", early: [][2]string{{"received", "new"}}, remembered: true},
+		// A reply failing after the order was placed leaves the push as the order's only record of its ID
+		{name: "an order received before a failed reply", early: [][2]string{{"received", "new"}}, refused: true, remembered: true},
+		{name: "an order filled before the reply", early: [][2]string{{"received", "new"}, {"filled", "done"}}},
+		// The done push alone is read by the client order ID, as nothing remembers a finished order's ID
+		{name: "an order whose only push before the reply is its fill", early: [][2]string{{"filled", "done"}}},
+		{name: "an order filled before a failed reply", early: [][2]string{{"filled", "done"}}, refused: true},
+		// Pushes of one order can arrive out of order, and a push that follows the order's fill does not bring it back
+		{name: "an order whose open push follows its fill before the reply", early: [][2]string{{"filled", "done"}, {"open", "open"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var ex *Exchange
+			ex = newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/v3/hf/margin/order", r.URL.Path, "SubmitOrder should place a margin HF order")
+				for _, p := range tc.early {
+					assert.NoError(t, ex.processOrderChange(r.Context(), push(p[0], p[1])), "processOrderChange should not error")
+				}
+				reply := `{"code":"200000","data":{"orderId":"` + orderID + `","clientOid":"` + clientOrderID + `"}}`
+				if tc.refused {
+					reply = `{"code":"500000","msg":"system error"}`
+				}
+				_, err := io.WriteString(w, reply)
+				assert.NoError(t, err, "writing the reply should not error")
+			})
+			ex.Websocket.DataHandler = stream.NewRelay(10)
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: ltcusdt, AssetType: asset.Margin, Side: order.Buy, Type: order.Market, Amount: 0.1, ClientOrderID: clientOrderID})
+			if tc.refused {
+				require.Error(t, err, "SubmitOrder must return KuCoin's failed reply")
+			} else {
+				require.NoError(t, err, "SubmitOrder must not error")
+			}
+			require.Len(t, ex.Websocket.DataHandler.C, len(tc.early), "processOrderChange must relay each push that came before the reply")
+			for range tc.early {
+				d, ok := relayed(t, ex).(*order.Detail)
+				require.True(t, ok, "processOrderChange must relay an order detail")
+				assert.Equal(t, asset.Margin, d.AssetType, "a margin order's push before the reply should be a margin order update")
+			}
+			_, remembered := ex.marginOrderIDs.Load(orderID)
+			assert.Equal(t, tc.remembered, remembered, "SubmitOrder should remember a margin order as live only while it is")
+			assert.Zero(t, marginPlacementsLen(ex), "SubmitOrder should forget the client order ID, and any order finished before the reply, once KuCoin replies")
+			exp := asset.Spot
+			if tc.remembered {
+				exp = asset.Margin
+			}
+			assert.Equal(t, exp, pushAsset(t, ex, "open", "open"), "a later push should be read by whether the order is still live")
+		})
+	}
+
+	// The first request's reply is held until released, so a second request reusing its client order ID can fail first
+	heldServer := func(t *testing.T, second string) (ex *Exchange, started, release chan struct{}) {
+		t.Helper()
+		started, release = make(chan struct{}), make(chan struct{})
+		var requests atomic.Int32
+		ex = newLocalServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			reply := second
+			if requests.Add(1) == 1 {
+				close(started)
+				select {
+				case <-release:
+				case <-time.After(5 * time.Second):
+				}
+				reply = `{"code":"200000","data":{"orderId":"` + orderID + `","clientOid":"` + clientOrderID + `"}}`
+			}
+			_, err := io.WriteString(w, reply)
+			assert.NoError(t, err, "writing the reply should not error")
+		})
+		ex.Websocket.DataHandler = stream.NewRelay(10)
+		return ex, started, release
+	}
+	submitHeld := func(t *testing.T, ex *Exchange, started chan struct{}) chan error {
+		t.Helper()
+		first := make(chan error, 1)
+		go func() {
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: ltcusdt, AssetType: asset.Margin, Side: order.Buy, Type: order.Market, Amount: 0.1, ClientOrderID: clientOrderID})
+			first <- err
+		}()
+		select {
+		case <-started:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the first order's request must reach KuCoin")
+		}
+		return first
+	}
+	waitHeld := func(t *testing.T, first chan error, release chan struct{}) {
+		t.Helper()
+		close(release)
+		select {
+		case err := <-first:
+			require.NoError(t, err, "SubmitOrder must not error for the first order")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "SubmitOrder must return once KuCoin replies to the first order")
+		}
+	}
+
+	t.Run("a second request reusing the client order ID", func(t *testing.T) {
+		t.Parallel()
+		ex, started, release := heldServer(t, `{"code":"400100","msg":"duplicate clientOid"}`)
+		first := submitHeld(t, ex, started)
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: ltcusdt, AssetType: asset.Margin, Side: order.Buy, Type: order.Market, Amount: 0.1, ClientOrderID: clientOrderID})
+		require.Error(t, err, "SubmitOrder must return KuCoin's refusal of the second order")
+		assert.Equal(t, asset.Margin, pushAsset(t, ex, "received", "new"), "the first order's push should be a margin order update after the second request failed")
+		waitHeld(t, first, release)
+		_, remembered := ex.marginOrderIDs.Load(orderID)
+		assert.True(t, remembered, "SubmitOrder should remember the first order as live after the second request failed")
+	})
+
+	t.Run("the first request failing while a second reusing the client order ID is out", func(t *testing.T) {
+		t.Parallel()
+		secondArrived, release := make(chan struct{}), make(chan struct{})
+		var releaseOnce sync.Once
+		var requests atomic.Int32
+		ex := newLocalServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			reply := `{"code":"200000","data":{"orderId":"` + orderID + `","clientOid":"` + clientOrderID + `"}}`
+			if requests.Add(1) == 1 {
+				// The first request fails once the second is out
+				select {
+				case <-secondArrived:
+				case <-time.After(5 * time.Second):
+				}
+				reply = `{"code":"500000","msg":"system error"}`
+			} else {
+				close(secondArrived)
+				select {
+				case <-release:
+				case <-time.After(5 * time.Second):
+				}
+			}
+			_, err := io.WriteString(w, reply)
+			assert.NoError(t, err, "writing the reply should not error")
+		})
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+		ex.Websocket.DataHandler = stream.NewRelay(10)
+		submit := func() chan error {
+			done := make(chan error, 1)
+			go func() {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: ltcusdt, AssetType: asset.Margin, Side: order.Buy, Type: order.Market, Amount: 0.1, ClientOrderID: clientOrderID})
+				done <- err
+			}()
+			return done
+		}
+		wait := func(done chan error) error {
+			select {
+			case err := <-done:
+				return err
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "SubmitOrder must return")
+			}
+			return nil
+		}
+		first := submit()
+		require.Eventually(t, func() bool { return requests.Load() == 1 }, 5*time.Second, time.Millisecond, "the first request must reach KuCoin")
+		second := submit()
+		require.Error(t, wait(first), "SubmitOrder must return KuCoin's failed reply to the first request")
+		assert.Equal(t, asset.Margin, pushAsset(t, ex, "filled", "done"), "the second order's done push should be a margin order update while it is being placed")
+		releaseOnce.Do(func() { close(release) })
+		require.NoError(t, wait(second), "SubmitOrder must not error for the second request")
+		_, remembered := ex.marginOrderIDs.Load(orderID)
+		assert.False(t, remembered, "SubmitOrder should not remember an order that finished before its reply")
+		assert.Zero(t, marginPlacementsLen(ex), "SubmitOrder should forget the client order ID once every request using it has its reply")
+	})
+
+	t.Run("a done push for another order with the client order ID", func(t *testing.T) {
+		t.Parallel()
+		ex, started, release := heldServer(t, "")
+		first := submitHeld(t, ex, started)
+		other := []byte(`{"clientOid":"` + clientOrderID + `","orderId":"6720da3fa30a360007f5f901","orderTime":1730206271588,"orderType":"market","originSize":"0.1","filledSize":"0.1","remainSize":"0","size":"0.1","side":"buy","status":"done","symbol":"LTC-USDT","ts":1730206271616000000,"type":"filled"}`)
+		require.NoError(t, ex.processOrderChange(t.Context(), other), "processOrderChange must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processOrderChange must relay the other order's push")
+		relayed(t, ex)
+		waitHeld(t, first, release)
+		_, remembered := ex.marginOrderIDs.Load(orderID)
+		assert.True(t, remembered, "another order's done push should not make SubmitOrder forget the order it placed")
+	})
+
+	t.Run("an order finished by an update", func(t *testing.T) {
+		t.Parallel()
+		// An update push with status done is a partly filled order whose rest was cancelled, or an STP cancellation
+		ex := wsTestInstance(t)
+		ex.Websocket.DataHandler = stream.NewRelay(10)
+		ex.marginOrderIDs.Store(orderID, false)
+		assert.Equal(t, asset.Margin, pushAsset(t, ex, "update", "done"), "the update finishing a margin order should be a margin order update")
+		_, remembered := ex.marginOrderIDs.Load(orderID)
+		assert.False(t, remembered, "processOrderChange should forget a margin order an update finishes")
+	})
+}
+
+// TestRememberMarginOrder checks a placement KuCoin refuses is not remembered, even when its reply names an order ID
+func TestRememberMarginOrder(t *testing.T) {
+	t.Parallel()
+	ex := wsTestInstance(t)
+	errRefused := errors.New("refused")
+	err := ex.rememberMarginOrder("gct-refused", func() (string, error) { return "6720da3fa30a360007f5f901", errRefused })
+	require.ErrorIs(t, err, errRefused, "rememberMarginOrder must return the placement's error")
+	_, remembered := ex.marginOrderIDs.Load("6720da3fa30a360007f5f901")
+	assert.False(t, remembered, "rememberMarginOrder should not remember an order whose placement failed")
+	assert.Zero(t, marginPlacementsLen(ex), "rememberMarginOrder should forget the client order ID once the placement returns")
+	require.NoError(t, ex.rememberMarginOrder("gct-placed", func() (string, error) { return "6720da3fa30a360007f5f902", nil }), "rememberMarginOrder must not error")
+	_, remembered = ex.marginOrderIDs.Load("6720da3fa30a360007f5f902")
+	assert.True(t, remembered, "rememberMarginOrder should remember an order it placed")
 }
 
 func TestSubmitMarginOrder(t *testing.T) {
@@ -3891,6 +4233,230 @@ func TestUpdateAccountBalances(t *testing.T) {
 		}
 		require.NotEmptyf(t, result, "UpdateAccountBalances must return a %s sub-account", tc.asset)
 		assert.Equalf(t, tc.asset, result[0].AssetType, "UpdateAccountBalances should return a %s sub-account", tc.asset)
+	}
+}
+
+// balancePushAt returns an account balance push of one figure for every amount, made at the given time
+func balancePushAt(event, ccy string, total float64, at time.Time) []byte {
+	amount := strconv.FormatFloat(total, 'f', -1, 64)
+	return []byte(`{"currency":"` + ccy + `","total":"` + amount + `","available":"` + amount + `","hold":"0","relationEvent":"` + event + `","time":"` + strconv.FormatInt(at.UnixMilli(), 10) + `"}`)
+}
+
+// TestProcessAccountBalanceMarginPushOlderThanListing checks a margin push older than the listing that left out its
+// isolated margin account or cross margin currency is refused, as no balance is left for the store to refuse it by
+func TestProcessAccountBalanceMarginPushOlderThanListing(t *testing.T) {
+	t.Parallel()
+	first := []string{
+		`{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"500","available":"500","hold":"0","liability":"50"},{"currency":"ETH","total":"2","available":"2","hold":"0","liability":"0"}]}}`,
+		`{"code":"200000","data":{"assets":[
+			{"symbol":"BTC-USDT","status":"BORROW","baseAsset":{"currency":"BTC","total":"0.01","available":"0.01","hold":"0","liability":"0"},"quoteAsset":{"currency":"USDT","total":"100","available":"100","hold":"0","liability":"25"}},
+			{"symbol":"ETH-USDT","status":"EFFECTIVE","baseAsset":{"currency":"ETH","total":"0.5","available":"0.5","hold":"0","liability":"0"},"quoteAsset":{"currency":"USDT","total":"40","available":"40","hold":"0","liability":"0"}}]}}`,
+	}
+	second := []string{
+		`{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"500","available":"500","hold":"0","liability":"50"}]}}`,
+		`{"code":"200000","data":{"assets":[
+			{"symbol":"BTC-USDT","status":"BORROW","baseAsset":{"currency":"BTC","total":"0.01","available":"0.01","hold":"0","liability":"0"},"quoteAsset":{"currency":"USDT","total":"100","available":"100","hold":"0","liability":"25"}}]}}`,
+	}
+	var listing atomic.Pointer[[]string]
+	listing.Store(&first)
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		reply := `{"code":"400100","msg":"unexpected request"}`
+		switch r.URL.Path {
+		case "/v3/margin/accounts":
+			reply = (*listing.Load())[0]
+		case "/v3/isolated/accounts":
+			reply = (*listing.Load())[1]
+		}
+		_, err := io.WriteString(w, reply)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	// Pushes carry KuCoin's millisecond times, so the push falls between the two listings by a whole millisecond
+	between := time.UnixMilli(time.Now().UnixMilli() + 1)
+	time.Sleep(time.Until(between.Add(2 * time.Millisecond)))
+	listing.Store(&second)
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "UpdateAccountBalances must not error for a listing without ETH-USDT and cross margin ETH")
+	for _, tc := range []struct {
+		event, subAccount string
+		code              currency.Code
+	}{
+		{event: "isolatedV2_ETH-USDT.transfer", subAccount: "ETH-USDT", code: currency.USDT},
+		{event: "marginV2.transfer", code: currency.ETH},
+	} {
+		err := ex.processAccountBalance(t.Context(), balancePushAt(tc.event, tc.code.String(), 40, between))
+		require.ErrorIsf(t, err, errBalancePushOutOfSequence, "processAccountBalance must refuse the %s push older than the listing that left it out", tc.event)
+		_, err = ex.Accounts.GetBalance(tc.subAccount, creds, asset.Margin, tc.code)
+		assert.ErrorIsf(t, err, accounts.ErrNoBalances, "the %s push older than the listing should not bring back the balance the listing left out", tc.event)
+		later := time.UnixMilli(time.Now().Add(time.Minute).UnixMilli())
+		require.NoErrorf(t, ex.processAccountBalance(t.Context(), balancePushAt(tc.event, tc.code.String(), 40, later)), "processAccountBalance must not error for the %s push newer than the listing", tc.event)
+	}
+}
+
+// TestProcessAccountBalanceRefusedPushKeepsShare checks a push whose sum the store refuses leaves its account's share as it was
+func TestProcessAccountBalanceRefusedPushKeepsShare(t *testing.T) {
+	t.Parallel()
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := io.WriteString(w, `{"code":"200000","data":[{"id":"1","currency":"USDT","type":"trade","balance":"10","available":"10","holds":"0"},{"id":"2","currency":"USDT","type":"main","balance":"20","available":"20","holds":"0"}]}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	pushed := time.UnixMilli(time.Now().Add(time.Minute).UnixMilli())
+	later := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	later[0].Balances.Set(currency.USDT, accounts.Balance{Total: 99, Free: 99, UpdatedAt: pushed.Add(time.Hour)})
+	require.NoError(t, ex.Accounts.Save(t.Context(), later, false), "Save must not error")
+	err = ex.processAccountBalance(t.Context(), balancePushAt("trade.hold", "USDT", 50, pushed))
+	require.ErrorContains(t, err, "out of sequence", "processAccountBalance must return the store's refusal")
+	require.NoError(t, ex.processAccountBalance(t.Context(), balancePushAt("main.deposit", "USDT", 25, pushed.Add(2*time.Hour))), "processAccountBalance must not error for a push newer than the stored balance")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	b, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "the spot USDT balance must be stored")
+	assert.Equal(t, 35.0, b.Total, "a push the store refused should not replace its account's share")
+}
+
+// balanceListingCases are a spot and a margin listing, each holding USDT alone, with the relation event of a push for a
+// currency or account the listing leaves out
+var balanceListingCases = []struct {
+	a                asset.Item
+	replies          map[string]string
+	event, ccy       string
+	pushedTotal, exp float64
+}{
+	{
+		a:       asset.Spot,
+		replies: map[string]string{"/v1/accounts": `{"code":"200000","data":[{"id":"2","currency":"USDT","type":"main","balance":"20","available":"20","holds":"0"}]}`},
+		event:   "trade.hold", ccy: "USDT", pushedTotal: 10, exp: 30,
+	},
+	{
+		a: asset.Margin,
+		replies: map[string]string{
+			"/v3/margin/accounts":   `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"20","available":"20","hold":"0","liability":"0"}]}}`,
+			"/v3/isolated/accounts": `{"code":"200000","data":{"assets":[]}}`,
+		},
+		event: "marginV2.transfer", ccy: "ETH", pushedTotal: 40, exp: 40,
+	},
+}
+
+// heldListing starts listing an asset's balances against a local KuCoin answering each path with its reply, holding the
+// first request until the returned release is called, and returns once that request has arrived; wait returns the
+// listing's error once released
+func heldListing(t *testing.T, a asset.Item, replies map[string]string) (ex *Exchange, release func(), wait func() error) {
+	t.Helper()
+	started, held := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	release = func() { releaseOnce.Do(func() { close(held) }) }
+	var requests atomic.Int32
+	ex = newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			close(started)
+			<-held
+		}
+		reply, ok := replies[r.URL.Path]
+		if !assert.Truef(t, ok, "request path %s should be one the test serves", r.URL.Path) {
+			reply = `{"code":"400100","msg":"unexpected request"}`
+		}
+		_, err := io.WriteString(w, reply)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	t.Cleanup(release)
+	done := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(t.Context(), a)
+		done <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the held listing's request must reach the server")
+	}
+	return ex, release, func() error {
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the held listing must return once its reply is released")
+		}
+		return nil
+	}
+}
+
+// TestUpdateAccountBalancesNewestListingTime checks a listing answered after a newer one does not move the listing time back
+func TestUpdateAccountBalancesNewestListingTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range balanceListingCases {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, release, wait := heldListing(t, tc.a, tc.replies)
+			time.Sleep(2 * time.Millisecond)
+			between := time.UnixMilli(time.Now().UnixMilli())
+			time.Sleep(2 * time.Millisecond)
+			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+			require.NoError(t, err, "the newer listing must not error")
+			release()
+			require.NoError(t, wait(), "the older listing must not error")
+			err = ex.processAccountBalance(t.Context(), balancePushAt(tc.event, tc.ccy, tc.pushedTotal, between))
+			require.ErrorIs(t, err, errBalancePushOutOfSequence, "processAccountBalance must refuse a push older than the newest listing that left its currency out")
+		})
+	}
+}
+
+// TestUpdateAccountBalancesListingTimeMilliseconds checks a listing's time is taken to the millisecond, as pushes carry
+// their times, so a push made in the listing's millisecond is not refused as older than the listing
+func TestUpdateAccountBalancesListingTimeMilliseconds(t *testing.T) {
+	t.Parallel()
+	for _, tc := range balanceListingCases {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				_, err := io.WriteString(w, tc.replies[r.URL.Path])
+				assert.NoError(t, err, "writing the reply should not error")
+			})
+			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+			creds, err := ex.GetCredentials(t.Context())
+			require.NoError(t, err, "GetCredentials must not error")
+			var listedAt time.Time
+			if tc.a == asset.Spot {
+				ex.spotAccountBalancesMu.Lock()
+				listedAt = ex.spotAccountsListedAt[*creds]
+				ex.spotAccountBalancesMu.Unlock()
+			} else {
+				ex.marginBalanceMu.Lock()
+				listedAt = ex.marginAccountsListedAt[*creds]
+				ex.marginBalanceMu.Unlock()
+			}
+			require.False(t, listedAt.IsZero(), "the listing's time must be recorded")
+			sameMillisecond := time.UnixMilli(listedAt.UnixMilli())
+			assert.NoError(t, ex.processAccountBalance(t.Context(), balancePushAt(tc.event, tc.ccy, tc.pushedTotal, sameMillisecond)), "processAccountBalance should save a push made in the listing's millisecond")
+		})
+	}
+}
+
+// TestUpdateAccountBalancesStampedBeforeRequests checks a listing's time is taken before its requests are sent, so a push
+// made while the listing is answered is not refused as older than the listing, which could not hold it
+func TestUpdateAccountBalancesStampedBeforeRequests(t *testing.T) {
+	t.Parallel()
+	for _, tc := range balanceListingCases {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, release, wait := heldListing(t, tc.a, tc.replies)
+			time.Sleep(2 * time.Millisecond)
+			during := time.UnixMilli(time.Now().UnixMilli())
+			time.Sleep(2 * time.Millisecond)
+			release()
+			require.NoError(t, wait(), "the listing must not error")
+			require.NoError(t, ex.processAccountBalance(t.Context(), balancePushAt(tc.event, tc.ccy, tc.pushedTotal, during)), "processAccountBalance must save a push made while the listing was answered")
+			creds, err := ex.GetCredentials(t.Context())
+			require.NoError(t, err, "GetCredentials must not error")
+			b, err := ex.Accounts.GetBalance("", creds, tc.a, currency.NewCode(tc.ccy))
+			require.NoError(t, err, "the pushed currency's balance must be stored")
+			assert.Equal(t, tc.exp, b.Total, "the push made while the listing was answered should be saved")
+		})
 	}
 }
 
@@ -5248,7 +5814,7 @@ func TestGetHistoricalFundingRatesPages(t *testing.T) {
 	ex, requests := newServer(t)
 	_, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: pair, StartDate: first.AddDate(0, 0, -30), EndDate: first.Add(-time.Hour)})
 	assert.ErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should report a window without funding rates")
-	// The RPC server passes an unset end on, which KuCoin's window cannot take
+	// KuCoin's window needs an end, which the RPC server sets to now when none is given
 	_, err = ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: pair, StartDate: first})
 	assert.ErrorIs(t, err, common.ErrDateUnset, "GetHistoricalFundingRates should refuse a window without an end")
 	assert.EqualValues(t, 1, requests.Load(), "GetHistoricalFundingRates should send no request for a window without an end")
@@ -5346,6 +5912,52 @@ func TestCancelBatchOrders(t *testing.T) {
 		require.NoError(t, err, "CancelBatchOrders must not error")
 		assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome")
 		assert.EqualValues(t, len(replies), calls.Load(), "CancelBatchOrders should cancel ten orders a request, by order ID and by client order ID apart")
+	})
+
+	t.Run("replies without a result for every order", func(t *testing.T) {
+		t.Parallel()
+		cancels := []order.Cancel{
+			{AssetType: asset.Futures, OrderID: "250445104152670201"},
+			{AssetType: asset.Futures, OrderID: "250445104152670202"},
+			{AssetType: asset.Futures, Pair: xbtusdtm, ClientOrderID: "gct-futures-client"},
+		}
+		missing := func(id string) string { return fmt.Errorf("%w for order %s", common.ErrNoResponse, id).Error() }
+		for _, tc := range []struct {
+			name, orderReply, clientReply string
+			exp                           map[string]string
+		}{
+			{name: "no results", orderReply: `[]`, clientReply: `[]`, exp: map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": missing("250445104152670202"), "gct-futures-client": missing("gct-futures-client")}},
+			{name: "null results", orderReply: `null`, clientReply: `null`, exp: map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": missing("250445104152670202"), "gct-futures-client": missing("gct-futures-client")}},
+			{name: "a null result", orderReply: `[null]`, clientReply: `[null]`, exp: map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": missing("250445104152670202"), "gct-futures-client": missing("gct-futures-client")}},
+			{name: "a result naming no order", orderReply: `[{}]`, clientReply: `[{"code":"200","msg":"success"}]`, exp: map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": missing("250445104152670202"), "gct-futures-client": missing("gct-futures-client")}},
+			{
+				name:        "results for some of the orders",
+				orderReply:  `[{"orderId":"250445104152670202","clientOid":null,"code":"200","msg":"success"}]`,
+				clientReply: `[{"orderId":null,"clientOid":"gct-futures-client","code":"200","msg":"success"}]`,
+				exp:         map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": order.Cancelled.String(), "gct-futures-client": order.Cancelled.String()},
+			},
+			{
+				name:        "results for orders the request did not send",
+				orderReply:  `[{"orderId":"250445104152670202","clientOid":null,"code":"200","msg":"success"},{"orderId":"250445104152670299","clientOid":null,"code":"200","msg":"success"}]`,
+				clientReply: `[{"orderId":null,"clientOid":"gct-futures-client","code":"200","msg":"success"},{"orderId":null,"clientOid":"250445104152670201","code":"200","msg":"success"}]`,
+				exp:         map[string]string{"250445104152670201": missing("250445104152670201"), "250445104152670202": order.Cancelled.String(), "gct-futures-client": order.Cancelled.String()},
+			},
+		} {
+			ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the request body should not error")
+				reply := tc.orderReply
+				if strings.Contains(string(body), "clientOidsList") {
+					reply = tc.clientReply
+				}
+				_, err = io.WriteString(w, `{"code":"200000","data":`+reply+`}`)
+				assert.NoError(t, err, "writing the reply should not error")
+			})
+			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "CancelBatchOrders should return an error for the orders a reply with %s leaves out", tc.name)
+			require.NotNilf(t, resp, "CancelBatchOrders must return the statuses with %s", tc.name)
+			assert.Equalf(t, tc.exp, resp.Status, "CancelBatchOrders should report each order the reply with %s leaves out as unanswered", tc.name)
+		}
 	})
 
 	t.Run("orders listed more than once", func(t *testing.T) {

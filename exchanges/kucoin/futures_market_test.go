@@ -685,7 +685,7 @@ func TestGetFuturesPartOrderbook(t *testing.T) {
 	_, err = e.GetFuturesPartOrderbook(t.Context(), "XBTUSDTM", 0)
 	require.ErrorIs(t, err, errOrderbookSizeRequired, "GetFuturesPartOrderbook must reject a zero size")
 	ex, sent := newSigningTestInstance(t, `{"code":"200000","data":null}`)
-	for _, size := range []uint64{1, 21, 50} {
+	for _, size := range []uint64{1, 21, 50, 101, 500} {
 		_, err = ex.GetFuturesPartOrderbook(t.Context(), "XBTUSDTM", size)
 		require.ErrorIsf(t, err, errInvalidOrderbookSize, "GetFuturesPartOrderbook must reject size %d, which KuCoin does not serve", size)
 	}

@@ -166,20 +166,26 @@ func (e *Exchange) processUTAOrderbook(ctx context.Context, conn websocket.Conne
 	for _, a := range assets {
 		switch msg.UpdateType {
 		case "snapshot":
-			err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
-				Exchange:          e.Name,
-				Pair:              pair,
-				Asset:             a,
-				Bids:              utaOrderbookLevels(resp.Bids, true),
-				Asks:              utaOrderbookLevels(resp.Asks, true),
-				LastUpdated:       resp.MatchTimestamp.Time(),
-				LastPushed:        msg.PushTimestamp.Time(),
-				LastUpdateID:      orderbookUpdateID(resp.SequenceEnd),
-				ValidateOrderbook: e.ValidateOrderbook,
+			err = e.feedOrderbook(conn, pair, a, orderbookUpdateID(resp.SequenceEnd), orderbookSnapshot, func() error {
+				return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
+					Exchange:          e.Name,
+					Pair:              pair,
+					Asset:             a,
+					Bids:              utaOrderbookLevels(resp.Bids, true),
+					Asks:              utaOrderbookLevels(resp.Asks, true),
+					LastUpdated:       resp.MatchTimestamp.Time(),
+					LastPushed:        msg.PushTimestamp.Time(),
+					LastUpdateID:      orderbookUpdateID(resp.SequenceEnd),
+					ValidateOrderbook: e.ValidateOrderbook,
+				})
 			})
 		case "delta":
 			var desynced bool
-			desynced, err = e.applyUTAOrderbookDelta(ctx, msg, &resp, pair, a)
+			err = e.feedOrderbook(conn, pair, a, orderbookUpdateID(resp.SequenceEnd), orderbookDelta, func() error {
+				var deltaErr error
+				desynced, deltaErr = e.applyUTAOrderbookDelta(ctx, msg, &resp, pair, a)
+				return deltaErr
+			})
 			resync = resync || desynced
 		default:
 			return fmt.Errorf("%w: orderbook update type %q", errUTAUnknownTopic, msg.UpdateType)

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -96,7 +97,7 @@ func isInverseContract(pair currency.Pair) bool {
 }
 
 // processFuturesOrderbookSnapshot loads a futures Orderbook - Level 5 or Level 50 push
-func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, data []byte, symbol string) error {
+func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, conn websocket.Connection, data []byte, symbol string) error {
 	var resp WebsocketFuturesOrderbookDepth
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -105,20 +106,23 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, data []b
 	if err != nil {
 		return err
 	}
-	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
-		Exchange:     e.Name,
-		LastUpdateID: orderbookUpdateID(resp.Sequence),
-		LastUpdated:  resp.Timestamp.Time(),
-		LastPushed:   resp.PushTimestamp.Time(),
-		Asset:        asset.Futures,
-		Bids:         mergeRoundedOrderbookLevels(resp.Bids.Levels()),
-		Asks:         mergeRoundedOrderbookLevels(resp.Asks.Levels()),
-		Pair:         pair,
+	sequence := orderbookUpdateID(resp.Sequence)
+	return e.feedOrderbook(conn, pair, asset.Futures, sequence, orderbookSnapshot, func() error {
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
+			Exchange:     e.Name,
+			LastUpdateID: sequence,
+			LastUpdated:  resp.Timestamp.Time(),
+			LastPushed:   resp.PushTimestamp.Time(),
+			Asset:        asset.Futures,
+			Bids:         mergeRoundedOrderbookLevels(resp.Bids.Levels()),
+			Asks:         mergeRoundedOrderbookLevels(resp.Asks.Levels()),
+			Pair:         pair,
+		})
 	})
 }
 
 // processFuturesOrderbookIncrement applies a futures Orderbook - Increment push
-func (e *Exchange) processFuturesOrderbookIncrement(ctx context.Context, data []byte, symbol string) error {
+func (e *Exchange) processFuturesOrderbookIncrement(ctx context.Context, conn websocket.Connection, data []byte, symbol string) error {
 	pair, err := e.futuresPair(symbol)
 	if err != nil {
 		return err
@@ -149,14 +153,16 @@ func (e *Exchange) processFuturesOrderbookIncrement(ctx context.Context, data []
 	default:
 		return fmt.Errorf("%w: side %q", errMalformedOrderbookChange, resp.Change)
 	}
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, sequence, &orderbook.Update{
-		UpdateTime: resp.Timestamp.Time(),
-		LastPushed: resp.Timestamp.Time(),
-		UpdateID:   sequence,
-		Pair:       pair,
-		Asset:      asset.Futures,
-		Asks:       asks,
-		Bids:       bids,
+	return e.feedOrderbook(conn, pair, asset.Futures, sequence, orderbookIncrement, func() error {
+		return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, sequence, &orderbook.Update{
+			UpdateTime: resp.Timestamp.Time(),
+			LastPushed: resp.Timestamp.Time(),
+			UpdateID:   sequence,
+			Pair:       pair,
+			Asset:      asset.Futures,
+			Asks:       asks,
+			Bids:       bids,
+		})
 	})
 }
 
@@ -270,6 +276,14 @@ func (e *Exchange) processFuturesOrderChange(ctx context.Context, data []byte) e
 		if oType, err = order.StringToOrderType(resp.OrderType); err != nil {
 			return err
 		}
+	}
+	if stopType, ok := e.futuresStopOrderTypes.Load(resp.OrderID); ok {
+		if t, ok := stopType.(order.Type); ok {
+			oType = t
+		}
+	}
+	if resp.Status == "done" {
+		e.futuresStopOrderTypes.Delete(resp.OrderID)
 	}
 	side, err := order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -405,6 +419,11 @@ func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) err
 	status, err := stopOrderStatus(resp.Type)
 	if err != nil {
 		return err
+	}
+	if resp.Type == "cancel" {
+		e.futuresStopOrderTypes.Delete(resp.OrderID)
+	} else {
+		e.futuresStopOrderTypes.Store(resp.OrderID, oType)
 	}
 	if resp.Type == "triggered" {
 		// A triggered futures stop order stays live under its order ID, and the Orders topic follows it from then on

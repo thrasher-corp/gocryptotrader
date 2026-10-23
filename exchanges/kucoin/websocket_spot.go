@@ -359,6 +359,9 @@ func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
 		// A received message only carries the size the order was placed with
 		amount = resp.OriginSize.Float64()
 	}
+	// A margin order being placed, whose push came before the reply naming its order ID, is read as margin by its client
+	// order ID
+	placing := resp.ClientOrderID != "" && e.notePlacingMarginOrder(resp.ClientOrderID, resp.OrderID, resp.Status == "done")
 	detail := &order.Detail{
 		Price:           resp.Price.Float64(),
 		Amount:          amount,
@@ -370,7 +373,7 @@ func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
 		Type:            oType,
 		Side:            side,
 		Status:          status,
-		AssetType:       e.spotOrderAsset(pair, resp.OrderID),
+		AssetType:       e.spotOrderAsset(pair, resp.OrderID, placing),
 		Date:            resp.OrderTime.Time(),
 		LastUpdated:     resp.Timestamp.Time(),
 		Pair:            pair,
@@ -389,15 +392,18 @@ func (e *Exchange) processOrderChange(ctx context.Context, data []byte) error {
 	}
 	if resp.Status == "done" {
 		e.marginOrderIDs.Delete(resp.OrderID)
+	} else {
+		// A margin stop order's pushes here report it past its trigger
+		e.marginOrderIDs.CompareAndSwap(resp.OrderID, false, true)
 	}
 	return e.Websocket.DataHandler.Send(ctx, detail)
 }
 
 // spotOrderAsset returns the asset of a spot or margin order push, which shares one topic and does not say which it
-// is: margin for a margin order this exchange placed or listed while the pair is enabled for margin, otherwise spot
-// when the pair is enabled for spot, else margin when enabled for margin
-func (e *Exchange) spotOrderAsset(pair currency.Pair, orderID string) asset.Item {
-	if _, ok := e.marginOrderIDs.Load(orderID); ok {
+// is: margin for a margin order this exchange placed or listed, or is placing, while the pair is enabled for margin,
+// otherwise spot when the pair is enabled for spot, else margin when enabled for margin
+func (e *Exchange) spotOrderAsset(pair currency.Pair, orderID string, placing bool) asset.Item {
+	if _, ok := e.marginOrderIDs.Load(orderID); ok || placing {
 		if enabled, err := e.IsPairEnabled(pair, asset.Margin); err == nil && enabled {
 			return asset.Margin
 		}
@@ -409,6 +415,62 @@ func (e *Exchange) spotOrderAsset(pair currency.Pair, orderID string) asset.Item
 		return asset.Margin
 	}
 	return asset.Spot
+}
+
+// marginPlacement is a client order ID's margin orders being placed: how many requests using it are out, and the IDs of
+// the orders whose done push came before the reply, which is not to remember them as live
+type marginPlacement struct {
+	requests     int
+	doneOrderIDs map[string]struct{}
+}
+
+// rememberMarginOrder places a margin order through place, which returns the order's ID, and remembers it as a live
+// margin order, as spot and margin order pushes share one topic. A push can arrive before KuCoin's reply names the
+// order's ID, so the client order ID is held as being placed while a request using it is out: a push carrying it is
+// read as margin, and a done one is noted, so the reply does not remember a finished order. A margin stop order
+// cancelled before the reply stays remembered, as its stop push names no client order ID, which costs only its entry
+func (e *Exchange) rememberMarginOrder(clientOrderID string, place func() (orderID string, err error)) error {
+	e.marginPlacementsMu.Lock()
+	p := e.marginPlacements[clientOrderID]
+	if p == nil {
+		if e.marginPlacements == nil {
+			e.marginPlacements = make(map[string]*marginPlacement)
+		}
+		p = &marginPlacement{doneOrderIDs: make(map[string]struct{})}
+		e.marginPlacements[clientOrderID] = p
+	}
+	p.requests++
+	e.marginPlacementsMu.Unlock()
+
+	orderID, err := place()
+
+	e.marginPlacementsMu.Lock()
+	defer e.marginPlacementsMu.Unlock()
+	if _, done := p.doneOrderIDs[orderID]; err == nil && orderID != "" && !done {
+		e.marginOrderIDs.LoadOrStore(orderID, false)
+	}
+	p.requests--
+	if p.requests == 0 {
+		delete(e.marginPlacements, clientOrderID)
+	}
+	return err
+}
+
+// notePlacingMarginOrder reports whether a push's client order ID is being placed as a margin order, and if so
+// remembers the order as live, or notes that it is done
+func (e *Exchange) notePlacingMarginOrder(clientOrderID, orderID string, done bool) bool {
+	e.marginPlacementsMu.Lock()
+	defer e.marginPlacementsMu.Unlock()
+	p := e.marginPlacements[clientOrderID]
+	if p == nil {
+		return false
+	}
+	if done {
+		p.doneOrderIDs[orderID] = struct{}{}
+	} else if _, finished := p.doneOrderIDs[orderID]; !finished {
+		e.marginOrderIDs.Store(orderID, true)
+	}
+	return true
 }
 
 // orderChangeStatus returns the status of an order change push. The message type says whether a done order filled or
@@ -499,6 +561,11 @@ func (e *Exchange) saveMarginBalance(ctx context.Context, subAccount string, b *
 	saved, err := e.Accounts.GetBalance(subAccount, creds, asset.Margin, b.Currency)
 	if err != nil && !errors.Is(err, accounts.ErrNoBalances) {
 		return nil, err
+	}
+	// A listing holds the margin accounts as of when it was asked for, so a push older than the listing is out of date
+	// for a currency or isolated margin account the listing left out too
+	if err != nil && e.marginAccountsListedAt[*creds].After(b.UpdatedAt) {
+		return nil, fmt.Errorf("%w: margin %q %s at %s", errBalancePushOutOfSequence, subAccount, b.Currency, b.UpdatedAt)
 	}
 	b.Borrowed = saved.Borrowed
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, subAccount)}
@@ -596,6 +663,10 @@ func (e *Exchange) processStopOrder(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
+	if status == order.Open {
+		// A spot or margin stop order waiting for its trigger is NEW, as Get Stop Order reports it
+		status = order.New
+	}
 	var a asset.Item
 	var marginType margin.Type
 	switch resp.TradeType {
@@ -607,6 +678,31 @@ func (e *Exchange) processStopOrder(ctx context.Context, data []byte) error {
 		a, marginType = asset.Margin, margin.Isolated
 	default:
 		return fmt.Errorf("%w: %q", errUnknownMarginTradeType, resp.TradeType)
+	}
+	if a == asset.Margin {
+		// A margin stop order places its order under its own order ID once triggered, which the Order V2 pushes follow
+		switch resp.Type {
+		case "cancel":
+			e.marginOrderIDs.Delete(resp.OrderID)
+		case "triggered":
+			// From then on it is the limit or market order it placed, as Get Order By OrderId and the Order V2 pushes
+			// report it. On its own topic the triggered push can arrive after those pushes or a REST read have reported
+			// the order, when it could reopen a finished one, so it is relayed only as the first report of the trigger
+			// of an order remembered as waiting for it
+			if !e.marginOrderIDs.CompareAndSwap(resp.OrderID, false, true) {
+				e.marginOrderIDs.LoadOrStore(resp.OrderID, true)
+				return nil
+			}
+			status = order.Open
+			switch oType {
+			case order.StopLimit:
+				oType = order.Limit
+			case order.StopMarket:
+				oType = order.Market
+			}
+		default:
+			e.marginOrderIDs.LoadOrStore(resp.OrderID, false)
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Price:        resp.OrderPrice.Float64(),
