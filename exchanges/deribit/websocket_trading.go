@@ -5,12 +5,12 @@ import (
 )
 
 // Buy places a buy order as Exchange.Buy does, over the websocket
-func (w WebsocketAPI) Buy(ctx context.Context, arg *OrderRequest) (*OrderResponse, error) {
+func (w WebsocketAPI) Buy(ctx context.Context, arg *OrderRequest) (*OrderWithTradesResponse, error) {
 	return w.e.placeOrder(ctx, "private/buy", arg, true)
 }
 
 // CancelOrderByID cancels an order as Exchange.CancelOrderByID does, over the websocket
-func (w WebsocketAPI) CancelOrderByID(ctx context.Context, orderID string) (*Order, error) {
+func (w WebsocketAPI) CancelOrderByID(ctx context.Context, orderID string) (*OrderResponse, error) {
 	return w.e.cancelOrderByID(ctx, orderID, true)
 }
 
@@ -50,17 +50,17 @@ func (w WebsocketAPI) CancelQuotes(ctx context.Context, arg *CancelQuotesRequest
 }
 
 // ClosePosition closes a position as Exchange.ClosePosition does, over the websocket
-func (w WebsocketAPI) ClosePosition(ctx context.Context, arg *ClosePositionRequest) (*OrderResponse, error) {
+func (w WebsocketAPI) ClosePosition(ctx context.Context, arg *ClosePositionRequest) (*OrderWithTradesResponse, error) {
 	return w.e.closePosition(ctx, arg, true)
 }
 
 // EditOrder edits an order as Exchange.EditOrder does, over the websocket
-func (w WebsocketAPI) EditOrder(ctx context.Context, arg *EditOrderRequest) (*OrderResponse, error) {
+func (w WebsocketAPI) EditOrder(ctx context.Context, arg *EditOrderRequest) (*OrderWithTradesResponse, error) {
 	return w.e.editOrder(ctx, arg, true)
 }
 
 // EditOrderByLabel edits an order by its label as Exchange.EditOrderByLabel does, over the websocket
-func (w WebsocketAPI) EditOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest) (*OrderResponse, error) {
+func (w WebsocketAPI) EditOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest) (*OrderWithTradesResponse, error) {
 	return w.e.editOrderByLabel(ctx, arg, true)
 }
 
@@ -70,33 +70,33 @@ func (w WebsocketAPI) GetMargins(ctx context.Context, arg *MarginsRequest) (*Mar
 }
 
 // GetMMPConfig returns MMP configurations as Exchange.GetMMPConfig does, over the websocket
-func (w WebsocketAPI) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfig, error) {
+func (w WebsocketAPI) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfigResponse, error) {
 	return w.e.getMMPConfig(ctx, arg, true)
 }
 
 // GetMMPStatus returns triggered MMP groups as Exchange.GetMMPStatus does, over the websocket
-func (w WebsocketAPI) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatus, error) {
+func (w WebsocketAPI) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatusResponse, error) {
 	return w.e.getMMPStatus(ctx, arg, true)
 }
 
 // GetOpenOrders returns the account's open orders as Exchange.GetOpenOrders does, over the websocket
-func (w WebsocketAPI) GetOpenOrders(ctx context.Context, arg *OpenOrdersRequest) ([]Order, error) {
+func (w WebsocketAPI) GetOpenOrders(ctx context.Context, arg *OpenOrdersRequest) ([]OrderResponse, error) {
 	return w.e.getOpenOrders(ctx, arg, true)
 }
 
 // GetOpenOrdersByCurrency returns a currency's open orders as Exchange.GetOpenOrdersByCurrency does, over the websocket
-func (w WebsocketAPI) GetOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest) ([]Order, error) {
+func (w WebsocketAPI) GetOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest) ([]OrderResponse, error) {
 	return w.e.getOpenOrdersByCurrency(ctx, arg, true)
 }
 
 // GetOpenOrdersByInstrument returns an instrument's open orders as Exchange.GetOpenOrdersByInstrument does, over the
 // websocket
-func (w WebsocketAPI) GetOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest) ([]Order, error) {
+func (w WebsocketAPI) GetOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest) ([]OrderResponse, error) {
 	return w.e.getOpenOrdersByInstrument(ctx, arg, true)
 }
 
 // GetOpenOrdersByLabel returns the open orders with a label as Exchange.GetOpenOrdersByLabel does, over the websocket
-func (w WebsocketAPI) GetOpenOrdersByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]Order, error) {
+func (w WebsocketAPI) GetOpenOrdersByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]OrderResponse, error) {
 	return w.e.getOrdersByLabel(ctx, "private/get_open_orders_by_label", arg, true)
 }
 
@@ -113,17 +113,17 @@ func (w WebsocketAPI) GetOrderHistoryByInstrument(ctx context.Context, arg *Orde
 }
 
 // GetOrderMarginByIDs returns the orders' initial margins as Exchange.GetOrderMarginByIDs does, over the websocket
-func (w WebsocketAPI) GetOrderMarginByIDs(ctx context.Context, orderIDs []string) ([]OrderMargin, error) {
+func (w WebsocketAPI) GetOrderMarginByIDs(ctx context.Context, orderIDs []string) ([]OrderMarginResponse, error) {
 	return w.e.getOrderMarginByIDs(ctx, orderIDs, true)
 }
 
 // GetOrderState returns an order as Exchange.GetOrderState does, over the websocket
-func (w WebsocketAPI) GetOrderState(ctx context.Context, orderID string) (*Order, error) {
+func (w WebsocketAPI) GetOrderState(ctx context.Context, orderID string) (*OrderResponse, error) {
 	return w.e.getOrderState(ctx, orderID, true)
 }
 
 // GetOrderStateByLabel returns the orders with a label as Exchange.GetOrderStateByLabel does, over the websocket
-func (w WebsocketAPI) GetOrderStateByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]Order, error) {
+func (w WebsocketAPI) GetOrderStateByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]OrderResponse, error) {
 	return w.e.getOrdersByLabel(ctx, "private/get_order_state_by_label", arg, true)
 }
 
@@ -168,7 +168,7 @@ func (w WebsocketAPI) GetUserTradesByInstrumentAndTime(ctx context.Context, arg 
 }
 
 // GetUserTradesByOrder returns an order's trades as Exchange.GetUserTradesByOrder does, over the websocket
-func (w WebsocketAPI) GetUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest) ([]UserTrade, error) {
+func (w WebsocketAPI) GetUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest) ([]UserTradeResponse, error) {
 	return w.e.getUserTradesByOrder(ctx, arg, true)
 }
 
@@ -179,7 +179,7 @@ func (w WebsocketAPI) MassQuote(ctx context.Context, arg *MassQuoteRequest) (*Ma
 }
 
 // MovePositions moves positions as Exchange.MovePositions does, over the websocket
-func (w WebsocketAPI) MovePositions(ctx context.Context, arg *MovePositionsRequest) ([]PositionMoveTrade, error) {
+func (w WebsocketAPI) MovePositions(ctx context.Context, arg *MovePositionsRequest) ([]PositionMoveTradeResponse, error) {
 	return w.e.movePositions(ctx, arg, true)
 }
 
@@ -189,11 +189,11 @@ func (w WebsocketAPI) ResetMMP(ctx context.Context, arg *MMPGroupRequest) error 
 }
 
 // Sell places a sell order as Exchange.Sell does, over the websocket
-func (w WebsocketAPI) Sell(ctx context.Context, arg *OrderRequest) (*OrderResponse, error) {
+func (w WebsocketAPI) Sell(ctx context.Context, arg *OrderRequest) (*OrderWithTradesResponse, error) {
 	return w.e.placeOrder(ctx, "private/sell", arg, true)
 }
 
 // SetMMPConfig sets an MMP configuration as Exchange.SetMMPConfig does, over the websocket
-func (w WebsocketAPI) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfig, error) {
+func (w WebsocketAPI) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfigResponse, error) {
 	return w.e.setMMPConfig(ctx, arg, true)
 }

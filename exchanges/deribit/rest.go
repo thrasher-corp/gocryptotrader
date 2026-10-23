@@ -243,3 +243,16 @@ func retryRequest(ctx context.Context, send func() error) error {
 		}
 	}
 }
+
+// unixMilli returns a time in whole Unix milliseconds for a request's params, or zero for a zero time, which leaves an
+// optional timestamp out. A time before the first whole millisecond after the Unix epoch, which would otherwise give
+// zero or less, is that millisecond, so a bound or deadline that early is still sent rather than left out
+func unixMilli(t time.Time) uint64 {
+	if t.IsZero() {
+		return 0
+	}
+	if ms := t.UnixMilli(); ms > 0 {
+		return uint64(ms)
+	}
+	return 1
+}

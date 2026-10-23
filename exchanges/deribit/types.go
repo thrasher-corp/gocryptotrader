@@ -66,13 +66,14 @@ type Exchange struct {
 	// not stream, as of the last spot pairs fetched
 	coinbaseRoutedSpot    map[string]struct{}
 	coinbaseRoutedSpotMtx sync.RWMutex
-	// subscriptionMtx serialises subscribing and unsubscribing, so a book channel is checked against the book channels
-	// held once any subscribed before it are stored
+	// subscriptionMtx serialises subscribing, unsubscribing and resubscribing, so a book channel is checked against the
+	// book channels held once any subscribed before it are stored, and a subscription resubscribing is only removed once
+	// the request under way is answered
 	subscriptionMtx sync.Mutex
 	// connectionGeneration counts the connections dialled, so a resubscription started on one connection is not made on
-	// the next, which subscribes its own channels; connectionMtx holds a new connection back while one is made. The
-	// reader loads the generation without connectionMtx, which a resubscription holds while it waits for the reader to
-	// match its responses
+	// the next, which subscribes its own channels; connectionMtx holds a new connection back while one is made, and is
+	// taken before subscriptionMtx. The reader loads the generation without connectionMtx, which a resubscription holds
+	// while it waits for the reader to match its responses
 	connectionGeneration atomic.Uint64
 	connectionMtx        sync.Mutex
 }
@@ -81,23 +82,26 @@ type Exchange struct {
 // answers its own request
 type JSONRPCRequest struct {
 	JSONRPC string `json:"jsonrpc"`
-	ID      int64  `json:"id,omitempty"`
-	Method  string `json:"method"`
-	Params  any    `json:"params,omitempty"`
+	// ID is an int64, the type MessageSequence hands out, as a websocket response is matched to its request by the ID's
+	// type as well as its value
+	ID     int64  `json:"id,omitempty"`
+	Method string `json:"method"`
+	Params any    `json:"params,omitempty"`
 }
 
 // JSONRPCResponse is the envelope of every response; Error is set in place of Result when a request fails
 type JSONRPCResponse struct {
-	JSONRPC string    `json:"jsonrpc"`
+	JSONRPC string `json:"jsonrpc"`
+	// ID echoes the request's ID, an int64 as MessageSequence hands out
 	ID      int64     `json:"id"`
 	Result  any       `json:"result"`
 	Error   *APIError `json:"error"`
 	Testnet bool      `json:"testnet"`
 }
 
-// APIError is the error object Deribit returns in place of a result; its code is negative for JSON-RPC protocol errors
-// and positive for Deribit's own
+// APIError is the error object Deribit returns in place of a result
 type APIError struct {
+	// Code is negative for JSON-RPC protocol errors and positive for Deribit's own
 	Code    int64  `json:"code"`
 	Message string `json:"message"`
 	// Data holds the error's details, usually the parameter at fault and the reason, although some errors carry other
@@ -150,8 +154,8 @@ func (o *OrderPrice) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Order contains an order, as trading and account methods and the user.orders notifications report it
-type Order struct {
+// OrderResponse contains an order, as trading and account methods and the user.orders notifications report it
+type OrderResponse struct {
 	OrderID string `json:"order_id"`
 	// OrderState is open, filled, rejected, cancelled, untriggered or triggered
 	OrderState string `json:"order_state"`
@@ -224,9 +228,9 @@ type Order struct {
 	IsPrimaryOTOCO       bool   `json:"is_primary_otoco"`
 }
 
-// UserTrade contains one of the account's trades, as trading, block trade and Block RFQ methods and the user.trades
-// notifications report it
-type UserTrade struct {
+// UserTradeResponse contains one of the account's trades, as trading, block trade and Block RFQ methods and the
+// user.trades notifications report it
+type UserTradeResponse struct {
 	TradeID string `json:"trade_id"`
 	// TradeSequence is the trade's sequence number within its instrument
 	TradeSequence  uint64 `json:"trade_seq"`
@@ -276,12 +280,12 @@ type UserTrade struct {
 	ProfitLoss   float64       `json:"profit_loss"`
 	MarkPrice    float64       `json:"mark_price"`
 	// Legs holds a combo trade's leg trades, which Deribit includes only when combo trades alone are requested
-	Legs             []UserTrade       `json:"legs"`
-	ComboID          string            `json:"combo_id"`
-	ComboTradeID     string            `json:"combo_trade_id"`
-	QuoteSetID       string            `json:"quote_set_id"`
-	QuoteID          string            `json:"quote_id"`
-	TradeAllocations []TradeAllocation `json:"trade_allocations"`
+	Legs             []UserTradeResponse `json:"legs"`
+	ComboID          string              `json:"combo_id"`
+	ComboTradeID     string              `json:"combo_trade_id"`
+	QuoteSetID       string              `json:"quote_set_id"`
+	QuoteID          string              `json:"quote_id"`
+	TradeAllocations []TradeAllocation   `json:"trade_allocations"`
 }
 
 // ObscuredUserID is a user ID Deribit obscures for brokers, such as ***009; Deribit documents it as a string or an
@@ -325,14 +329,14 @@ type TradeAllocationClientInfo struct {
 	Name         string `json:"name"`
 }
 
-// BlockTrade contains a block trade and the account's trades in it
-type BlockTrade struct {
-	ID         string      `json:"id"`
-	Timestamp  types.Time  `json:"timestamp"`
-	Trades     []UserTrade `json:"trades"`
-	AppName    string      `json:"app_name"`
-	BrokerCode string      `json:"broker_code"`
-	BrokerName string      `json:"broker_name"`
+// BlockTradeResponse contains a block trade and the account's trades in it
+type BlockTradeResponse struct {
+	ID         string              `json:"id"`
+	Timestamp  types.Time          `json:"timestamp"`
+	Trades     []UserTradeResponse `json:"trades"`
+	AppName    string              `json:"app_name"`
+	BrokerCode string              `json:"broker_code"`
+	BrokerName string              `json:"broker_name"`
 }
 
 // SettlementsResponse contains a page of settlement events and the continuation token of the next page

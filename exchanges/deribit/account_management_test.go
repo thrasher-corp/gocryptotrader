@@ -94,7 +94,7 @@ func liveTestAPIKeyRequest() *CreateAPIKeyRequest {
 }
 
 // liveTestAPIKey creates an API key for a live test to act on, and removes it once the test ends
-func liveTestAPIKey(t *testing.T) *APIKey {
+func liveTestAPIKey(t *testing.T) *APIKeyResponse {
 	t.Helper()
 	key, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
 	require.NoError(t, err, "CreateAPIKey must create an API key to test with")
@@ -114,7 +114,7 @@ func testAPIKeyID(t *testing.T) uint64 {
 }
 
 // liveTestSubaccount returns a subaccount of the live account, skipping the test when it has none
-func liveTestSubaccount(t *testing.T) *Subaccount {
+func liveTestSubaccount(t *testing.T) *SubaccountResponse {
 	t.Helper()
 	accounts, err := e.GetSubaccounts(t.Context(), false)
 	require.NoError(t, err, "GetSubaccounts must not error")
@@ -247,8 +247,8 @@ func testToggleSubaccountLoginRequest(t *testing.T) *ToggleSubaccountLoginReques
 }
 
 // testAPIKey returns the documented API key the mock API key requests return; the mock recording blanks its name
-func testAPIKey() *APIKey {
-	return &APIKey{
+func testAPIKey() *APIKeyResponse {
+	return &APIKeyResponse{
 		ID:           mockAPIKeyID,
 		Timestamp:    types.Time(time.UnixMilli(1560242482758)),
 		ClientID:     "1sXMQBhM",
@@ -259,8 +259,8 @@ func testAPIKey() *APIKey {
 }
 
 // testMarginModelChanges returns the documented margin model changes the mock dry run returns
-func testMarginModelChanges() []MarginModelChange {
-	return []MarginModelChange{
+func testMarginModelChanges() []MarginModelChangeResponse {
+	return []MarginModelChangeResponse{
 		{Currency: currency.NewCode("eth")},
 		{
 			Currency: currency.NewCode("btc"),
@@ -272,8 +272,8 @@ func testMarginModelChanges() []MarginModelChange {
 
 // testCreatedSubaccount returns the documented subaccount the mock creation returns; the mock recording blanks its
 // username
-func testCreatedSubaccount() *Subaccount {
-	return &Subaccount{
+func testCreatedSubaccount() *SubaccountResponse {
+	return &SubaccountResponse{
 		ID:         13,
 		Type:       "subaccount",
 		SystemName: "user_1_4",
@@ -430,8 +430,8 @@ func testAffiliateProgramInfo() *AffiliateProgramInfoResponse {
 }
 
 // testNewAnnouncements returns the documented announcements the mock unread announcements request returns
-func testNewAnnouncements() []Announcement {
-	return []Announcement{{
+func testNewAnnouncements() []AnnouncementResponse {
+	return []AnnouncementResponse{{
 		ID:                   mockAnnouncementID,
 		Title:                "Example announcement",
 		Body:                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
@@ -440,8 +440,8 @@ func testNewAnnouncements() []Announcement {
 }
 
 // testPosition returns the documented position the mock position request returns
-func testPosition() *Position {
-	return &Position{
+func testPosition() *PositionResponse {
+	return &PositionResponse{
 		InstrumentName:   mockPositionInstrument,
 		Kind:             KindFuture,
 		UserID:           1234,
@@ -456,8 +456,8 @@ func testPosition() *Position {
 }
 
 // testPositions returns the documented positions the mock positions request returns
-func testPositions() []Position {
-	return []Position{{
+func testPositions() []PositionResponse {
+	return []PositionResponse{{
 		InstrumentName:     mockPositionInstrument,
 		Kind:               KindFuture,
 		UserID:             1234,
@@ -482,8 +482,8 @@ func testPositions() []Position {
 
 // testSubaccounts returns the documented accounts the mock subaccounts request returns; the mock recording blanks
 // their usernames
-func testSubaccounts() []Subaccount {
-	return []Subaccount{
+func testSubaccounts() []SubaccountResponse {
+	return []SubaccountResponse{
 		{
 			ID:                      2,
 			Type:                    "main",
@@ -532,11 +532,11 @@ func testSubaccounts() []Subaccount {
 
 // testSubaccountsDetails returns the documented accounts' positions the mock subaccounts details request returns, with
 // the documented open order the recording added
-func testSubaccountsDetails() []SubaccountDetails {
-	return []SubaccountDetails{
+func testSubaccountsDetails() []SubaccountDetailsResponse {
+	return []SubaccountDetailsResponse{
 		{
 			UserID: 3,
-			Positions: []Position{{
+			Positions: []PositionResponse{{
 				InstrumentName:     mockPositionInstrument,
 				Kind:               KindFuture,
 				Direction:          DirectionBuy,
@@ -555,7 +555,7 @@ func testSubaccountsDetails() []SubaccountDetails {
 				RealisedProfitLoss: -0.000000879,
 				RealisedFunding:    -0.00000088,
 			}},
-			OpenOrders: []Order{{
+			OpenOrders: []OrderResponse{{
 				OrderID:             "146062",
 				OrderState:          "open",
 				OrderType:           "limit",
@@ -572,7 +572,7 @@ func testSubaccountsDetails() []SubaccountDetails {
 		},
 		{
 			UserID: 10,
-			Positions: []Position{{
+			Positions: []PositionResponse{{
 				InstrumentName:     "BTC-3SEP21",
 				Kind:               KindFuture,
 				Direction:          DirectionSell,
@@ -704,8 +704,8 @@ func testTransactionLog() *TransactionLogResponse {
 }
 
 // testUserLocks returns the documented locks the mock request returns
-func testUserLocks() []UserLock {
-	return []UserLock{
+func testUserLocks() []UserLockResponse {
+	return []UserLockResponse{
 		{Currency: currency.BTC, Locked: true, Message: "locked in one currency"},
 		{Currency: currency.ETH},
 		{Currency: currency.USDC},
@@ -714,8 +714,8 @@ func testUserLocks() []UserLock {
 }
 
 // testAPIKeys returns the documented API keys the mock list returns; the mock recording blanks their names
-func testAPIKeys() []APIKey {
-	return []APIKey{
+func testAPIKeys() []APIKeyResponse {
+	return []APIKeyResponse{
 		{
 			ID:              1,
 			Timestamp:       types.Time(time.UnixMilli(1560236001108)),
@@ -739,8 +739,8 @@ func testAPIKeys() []APIKey {
 
 // testCustodyAccounts returns the documented custody accounts the mock request returns; the mock recording blanks
 // their names
-func testCustodyAccounts() []CustodyAccount {
-	return []CustodyAccount{{
+func testCustodyAccounts() []CustodyAccountResponse {
+	return []CustodyAccountResponse{{
 		Currency:                 currency.BTC,
 		ClientID:                 "4KVcFrrzmXBR",
 		ExternalID:               "24f97d44-1d72-4641-8527-811268a0bdd3",
@@ -860,8 +860,8 @@ func testSimulatedPortfolio() *SimulatePortfolioResponse {
 }
 
 // testAnnouncements returns the announcement the announcements request returned when recorded live
-func testAnnouncements() []Announcement {
-	return []Announcement{{
+func testAnnouncements() []AnnouncementResponse {
+	return []AnnouncementResponse{{
 		ID:                   1791813857051,
 		Title:                "🚨 New Equity & ETF Perpetuals. Coming to Deribit.",
 		Body:                 `On Wednesday, October 14, 2026 at 10:00 AM UTC, Deribit will launch the following USDC-settled equity perpetuals: <br><br>CRWV • ORCL • SOXS • DELL • PLTR • SNXX<br><br>Contract details:<br>🔹 Settlement: USDC<br>🔹&nbsp;<a href="https://support.deribit.com/hc/en-us/articles/38325634622493-RWA-Perpetual" style="font-family: Arial; font-size: 16px;">Full specs </a><br><br><b style="font-family: Arial; font-size: 16px; font-weight: bold;">Deribit. Always Open.</b><div></div>`,
@@ -1309,7 +1309,7 @@ func TestGetAccountCurrencies(t *testing.T) {
 	result, err := e.GetAccountCurrencies(t.Context())
 	require.NoError(t, err, "GetAccountCurrencies must not error")
 	if mockTests {
-		exp := []AccountCurrency{{Currency: currency.NewCode("btc")}, {Currency: currency.NewCode("eth")}, {Currency: currency.NewCode("usdc")}}
+		exp := []AccountCurrencyResponse{{Currency: currency.NewCode("btc")}, {Currency: currency.NewCode("eth")}, {Currency: currency.NewCode("usdc")}}
 		assert.Equal(t, exp, result, "GetAccountCurrencies should decode every field")
 	} else {
 		assert.NotEmpty(t, result, "GetAccountCurrencies should return the account's currencies")

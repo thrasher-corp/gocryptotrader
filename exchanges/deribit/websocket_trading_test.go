@@ -408,7 +408,7 @@ func TestWebsocketAPIGetOrderStateByLabel(t *testing.T) {
 	result, err := ex.WebsocketAPI().GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
 	require.NoError(t, err, "WebsocketAPI.GetOrderStateByLabel must not error")
 	if mockTests {
-		assert.Equal(t, []Order{*testOrderState("fooBar")}, result, "WebsocketAPI.GetOrderStateByLabel should decode every field")
+		assert.Equal(t, []OrderResponse{*testOrderState("fooBar")}, result, "WebsocketAPI.GetOrderStateByLabel should decode every field")
 	}
 
 	_, err = newTestExchange(t).WebsocketAPI().GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())

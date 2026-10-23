@@ -43,10 +43,7 @@ func (e *Exchange) authenticate(ctx context.Context, arg *AuthenticateRequest, o
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &AuthenticateParams{AuthenticateRequest: arg}
-	if !arg.Timestamp.IsZero() {
-		params.Timestamp = arg.Timestamp.UnixMilli()
-	}
+	params := &AuthenticateParams{AuthenticateRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
 	var resp *AccessTokenResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/auth", params, &resp); err != nil {
 		return nil, err
@@ -96,7 +93,8 @@ func NewClientSignatureRequest(creds *accounts.Credentials, timestamp time.Time,
 	if creds == nil || creds.Key == "" || creds.Secret == "" {
 		return nil, errSignatureCredentials
 	}
-	payload := strconv.FormatInt(timestamp.UnixMilli(), 10) + "\n" + nonce + "\n" + data
+	// The timestamp signed is the one sent
+	payload := strconv.FormatUint(unixMilli(timestamp), 10) + "\n" + nonce + "\n" + data
 	signature, err := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 	if err != nil {
 		return nil, err

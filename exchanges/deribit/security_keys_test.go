@@ -176,7 +176,7 @@ func TestSecurityKeyAuthorisation(t *testing.T) {
 
 // testSecurityKeyAuthorisation checks that create returns Deribit's security key challenge for the challenged API key,
 // and creates the key once WithSecurityKeyAuthorisation confirms the challenge
-func testSecurityKeyAuthorisation(t *testing.T, create func(context.Context, *CreateAPIKeyRequest) (*APIKey, error), name string) {
+func testSecurityKeyAuthorisation(t *testing.T, create func(context.Context, *CreateAPIKeyRequest) (*APIKeyResponse, error), name string) {
 	t.Helper()
 	req := &CreateAPIKeyRequest{MaxScope: APIKeyScopes{"account:read"}, Name: mockChallengedAPIKeyName}
 	_, err := create(t.Context(), req)

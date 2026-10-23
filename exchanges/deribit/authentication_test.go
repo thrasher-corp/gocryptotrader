@@ -52,6 +52,11 @@ func TestAuthenticate(t *testing.T) {
 	_, err = e.Authenticate(t.Context(), &AuthenticateRequest{GrantType: "password"})
 	require.ErrorIs(t, err, errInvalidGrantType, "Authenticate must reject an undocumented grant type")
 
+	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"access_token":"token"}}`)
+	_, err = ex.Authenticate(t.Context(), &AuthenticateRequest{GrantType: GrantTypeClientSignature, ClientID: testClientID, Timestamp: time.UnixMilli(1700000000123), Signature: "signature", Nonce: "nonce"})
+	require.NoError(t, err, "Authenticate must not error for a client signature")
+	assert.JSONEq(t, `{"grant_type":"client_signature","client_id":"`+testClientID+`","timestamp":1700000000123,"signature":"signature","nonce":"nonce"}`, lastParams(), "Authenticate should send a client signature's timestamp in Unix milliseconds")
+
 	skipLiveWithoutCredentials(t)
 	result, err := e.Authenticate(t.Context(), testAuthenticateRequest(t))
 	require.NoError(t, err, "Authenticate must not error")
@@ -111,6 +116,14 @@ func TestNewClientSignatureRequest(t *testing.T) {
 	require.NoError(t, err, "NewClientSignatureRequest must not error with data")
 	assert.Equal(t, "7be07198f2c7c1e36d8a8b94dab0b4d85f5cf0b141c8f2df9fd1ba53b3c663d7", result.Signature, "NewClientSignatureRequest should sign the data")
 	assert.Equal(t, "data", result.Data, "NewClientSignatureRequest should send the data")
+
+	first, err := NewClientSignatureRequest(creds, time.UnixMilli(1), "abc123", "")
+	require.NoError(t, err, "NewClientSignatureRequest must not error for the first millisecond after 1970")
+	for _, early := range []time.Time{time.Unix(0, 999999), time.UnixMilli(0), time.UnixMilli(-1)} {
+		result, err = NewClientSignatureRequest(creds, early, "abc123", "")
+		require.NoErrorf(t, err, "NewClientSignatureRequest must not error for %s", early)
+		assert.Equalf(t, first.Signature, result.Signature, "NewClientSignatureRequest should sign %s as the timestamp sent for it", early)
+	}
 
 	for _, creds := range []*accounts.Credentials{nil, {Secret: testClientSecret}, {Key: testClientID}} {
 		_, err = NewClientSignatureRequest(creds, timestamp, "abc123", "")

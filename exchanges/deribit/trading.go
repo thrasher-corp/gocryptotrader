@@ -57,20 +57,17 @@ var (
 
 // Buy places a buy order and returns it with the trades it made at once; spot orders routed to Coinbase Exchange fill
 // asynchronously, so their trades arrive on the user.trades channel instead
-func (e *Exchange) Buy(ctx context.Context, arg *OrderRequest) (*OrderResponse, error) {
+func (e *Exchange) Buy(ctx context.Context, arg *OrderRequest) (*OrderWithTradesResponse, error) {
 	return e.placeOrder(ctx, "private/buy", arg, false)
 }
 
 // placeOrder places a buy or sell order, which take the same params
-func (e *Exchange) placeOrder(ctx context.Context, method string, arg *OrderRequest, overWebsocket bool) (*OrderResponse, error) {
+func (e *Exchange) placeOrder(ctx context.Context, method string, arg *OrderRequest, overWebsocket bool) (*OrderWithTradesResponse, error) {
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &OrderParams{OrderRequest: arg}
-	if !arg.ValidUntil.IsZero() {
-		params.ValidUntil = arg.ValidUntil.UnixMilli()
-	}
-	var resp *OrderResponse
+	params := &OrderParams{OrderRequest: arg, ValidUntil: unixMilli(arg.ValidUntil)}
+	var resp *OrderWithTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, method, params, &resp); err != nil {
 		return nil, err
 	}
@@ -81,15 +78,15 @@ func (e *Exchange) placeOrder(ctx context.Context, method string, arg *OrderRequ
 }
 
 // CancelOrderByID cancels an open order or trigger order and returns it
-func (e *Exchange) CancelOrderByID(ctx context.Context, orderID string) (*Order, error) {
+func (e *Exchange) CancelOrderByID(ctx context.Context, orderID string) (*OrderResponse, error) {
 	return e.cancelOrderByID(ctx, orderID, false)
 }
 
-func (e *Exchange) cancelOrderByID(ctx context.Context, orderID string, overWebsocket bool) (*Order, error) {
+func (e *Exchange) cancelOrderByID(ctx context.Context, orderID string, overWebsocket bool) (*OrderResponse, error) {
 	if orderID == "" {
 		return nil, errOrderIDRequired
 	}
-	var resp *Order
+	var resp *OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/cancel", &OrderIDRequest{OrderID: orderID}, &resp); err != nil {
 		return nil, err
 	}
@@ -296,11 +293,11 @@ func (e *Exchange) cancelQuotes(ctx context.Context, arg *CancelQuotesRequest, o
 
 // ClosePosition closes a position with a reduce only limit or market order and returns the order with the trades it
 // made at once
-func (e *Exchange) ClosePosition(ctx context.Context, arg *ClosePositionRequest) (*OrderResponse, error) {
+func (e *Exchange) ClosePosition(ctx context.Context, arg *ClosePositionRequest) (*OrderWithTradesResponse, error) {
 	return e.closePosition(ctx, arg, false)
 }
 
-func (e *Exchange) closePosition(ctx context.Context, arg *ClosePositionRequest, overWebsocket bool) (*OrderResponse, error) {
+func (e *Exchange) closePosition(ctx context.Context, arg *ClosePositionRequest, overWebsocket bool) (*OrderWithTradesResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -310,7 +307,7 @@ func (e *Exchange) closePosition(ctx context.Context, arg *ClosePositionRequest,
 	if arg.Type != OrderTypeLimit && arg.Type != OrderTypeMarket {
 		return nil, fmt.Errorf("%w: %q", errInvalidOrderType, arg.Type)
 	}
-	var resp *OrderResponse
+	var resp *OrderWithTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/close_position", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -322,11 +319,11 @@ func (e *Exchange) closePosition(ctx context.Context, arg *ClosePositionRequest,
 
 // EditOrder edits an open order's size, price and flags and returns it with the trades it made at once; Deribit
 // answers order_not_found for an order a mass quote placed
-func (e *Exchange) EditOrder(ctx context.Context, arg *EditOrderRequest) (*OrderResponse, error) {
+func (e *Exchange) EditOrder(ctx context.Context, arg *EditOrderRequest) (*OrderWithTradesResponse, error) {
 	return e.editOrder(ctx, arg, false)
 }
 
-func (e *Exchange) editOrder(ctx context.Context, arg *EditOrderRequest, overWebsocket bool) (*OrderResponse, error) {
+func (e *Exchange) editOrder(ctx context.Context, arg *EditOrderRequest, overWebsocket bool) (*OrderWithTradesResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -339,11 +336,8 @@ func (e *Exchange) editOrder(ctx context.Context, arg *EditOrderRequest, overWeb
 	if err := validateAdvancedOrderType(arg.Advanced); err != nil {
 		return nil, err
 	}
-	params := &EditOrderParams{EditOrderRequest: arg}
-	if !arg.ValidUntil.IsZero() {
-		params.ValidUntil = arg.ValidUntil.UnixMilli()
-	}
-	var resp *OrderResponse
+	params := &EditOrderParams{EditOrderRequest: arg, ValidUntil: unixMilli(arg.ValidUntil)}
+	var resp *OrderWithTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/edit", params, &resp); err != nil {
 		return nil, err
 	}
@@ -355,11 +349,11 @@ func (e *Exchange) editOrder(ctx context.Context, arg *EditOrderRequest, overWeb
 
 // EditOrderByLabel edits the only open order of an instrument with a label, as EditOrder does; Deribit rejects the edit
 // when more than one open order has the label
-func (e *Exchange) EditOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest) (*OrderResponse, error) {
+func (e *Exchange) EditOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest) (*OrderWithTradesResponse, error) {
 	return e.editOrderByLabel(ctx, arg, false)
 }
 
-func (e *Exchange) editOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest, overWebsocket bool) (*OrderResponse, error) {
+func (e *Exchange) editOrderByLabel(ctx context.Context, arg *EditOrderByLabelRequest, overWebsocket bool) (*OrderWithTradesResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -372,11 +366,8 @@ func (e *Exchange) editOrderByLabel(ctx context.Context, arg *EditOrderByLabelRe
 	if err := validateAdvancedOrderType(arg.Advanced); err != nil {
 		return nil, err
 	}
-	params := &EditOrderByLabelParams{EditOrderByLabelRequest: arg}
-	if !arg.ValidUntil.IsZero() {
-		params.ValidUntil = arg.ValidUntil.UnixMilli()
-	}
-	var resp *OrderResponse
+	params := &EditOrderByLabelParams{EditOrderByLabelRequest: arg, ValidUntil: unixMilli(arg.ValidUntil)}
+	var resp *OrderWithTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/edit_by_label", params, &resp); err != nil {
 		return nil, err
 	}
@@ -416,15 +407,15 @@ func (e *Exchange) getMargins(ctx context.Context, arg *MarginsRequest, overWebs
 
 // GetMMPConfig returns the MMP configurations of an index's group, or of every group without an index; an empty list
 // means none is configured
-func (e *Exchange) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfig, error) {
+func (e *Exchange) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfigResponse, error) {
 	return e.getMMPConfig(ctx, arg, false)
 }
 
-func (e *Exchange) getMMPConfig(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPConfig, error) {
+func (e *Exchange) getMMPConfig(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPConfigResponse, error) {
 	if err := arg.validateQuery(); err != nil {
 		return nil, err
 	}
-	var resp []MMPConfig
+	var resp []MMPConfigResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_config", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -432,15 +423,15 @@ func (e *Exchange) getMMPConfig(ctx context.Context, arg *MMPGroupRequest, overW
 }
 
 // GetMMPStatus returns the status of an index's triggered MMP group, or of every triggered group without an index
-func (e *Exchange) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatus, error) {
+func (e *Exchange) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatusResponse, error) {
 	return e.getMMPStatus(ctx, arg, false)
 }
 
-func (e *Exchange) getMMPStatus(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPStatus, error) {
+func (e *Exchange) getMMPStatus(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPStatusResponse, error) {
 	if err := arg.validateQuery(); err != nil {
 		return nil, err
 	}
-	var resp []MMPStatus
+	var resp []MMPStatusResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_status", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -448,11 +439,11 @@ func (e *Exchange) getMMPStatus(ctx context.Context, arg *MMPGroupRequest, overW
 }
 
 // GetOpenOrders returns the account's open orders in every currency, by instrument kind and order type
-func (e *Exchange) GetOpenOrders(ctx context.Context, arg *OpenOrdersRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, arg *OpenOrdersRequest) ([]OrderResponse, error) {
 	return e.getOpenOrders(ctx, arg, false)
 }
 
-func (e *Exchange) getOpenOrders(ctx context.Context, arg *OpenOrdersRequest, overWebsocket bool) ([]Order, error) {
+func (e *Exchange) getOpenOrders(ctx context.Context, arg *OpenOrdersRequest, overWebsocket bool) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -462,7 +453,7 @@ func (e *Exchange) getOpenOrders(ctx context.Context, arg *OpenOrdersRequest, ov
 	if err := validateOpenOrderType(arg.Type); err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_open_orders", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -470,11 +461,11 @@ func (e *Exchange) getOpenOrders(ctx context.Context, arg *OpenOrdersRequest, ov
 }
 
 // GetOpenOrdersByCurrency returns the open orders of a currency's instruments, by instrument kind and order type
-func (e *Exchange) GetOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest) ([]OrderResponse, error) {
 	return e.getOpenOrdersByCurrency(ctx, arg, false)
 }
 
-func (e *Exchange) getOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest, overWebsocket bool) ([]Order, error) {
+func (e *Exchange) getOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersByCurrencyRequest, overWebsocket bool) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -487,7 +478,7 @@ func (e *Exchange) getOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersB
 	if err := validateOpenOrderType(arg.Type); err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_open_orders_by_currency", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -495,11 +486,11 @@ func (e *Exchange) getOpenOrdersByCurrency(ctx context.Context, arg *OpenOrdersB
 }
 
 // GetOpenOrdersByInstrument returns the open orders of an instrument, by order type
-func (e *Exchange) GetOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest) ([]OrderResponse, error) {
 	return e.getOpenOrdersByInstrument(ctx, arg, false)
 }
 
-func (e *Exchange) getOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest, overWebsocket bool) ([]Order, error) {
+func (e *Exchange) getOpenOrdersByInstrument(ctx context.Context, arg *OpenOrdersByInstrumentRequest, overWebsocket bool) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -509,7 +500,7 @@ func (e *Exchange) getOpenOrdersByInstrument(ctx context.Context, arg *OpenOrder
 	if err := validateOpenOrderType(arg.Type); err != nil {
 		return nil, err
 	}
-	var resp []Order
+	var resp []OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_open_orders_by_instrument", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -517,12 +508,12 @@ func (e *Exchange) getOpenOrdersByInstrument(ctx context.Context, arg *OpenOrder
 }
 
 // GetOpenOrdersByLabel returns the open orders with a label in a currency's instruments
-func (e *Exchange) GetOpenOrdersByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]Order, error) {
+func (e *Exchange) GetOpenOrdersByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]OrderResponse, error) {
 	return e.getOrdersByLabel(ctx, "private/get_open_orders_by_label", arg, false)
 }
 
 // getOrdersByLabel returns the open orders or the recent order states with a label, which take the same params
-func (e *Exchange) getOrdersByLabel(ctx context.Context, method string, arg *OrdersByLabelRequest, overWebsocket bool) ([]Order, error) {
+func (e *Exchange) getOrdersByLabel(ctx context.Context, method string, arg *OrdersByLabelRequest, overWebsocket bool) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -532,7 +523,7 @@ func (e *Exchange) getOrdersByLabel(ctx context.Context, method string, arg *Ord
 	if arg.Label == "" {
 		return nil, errLabelRequired
 	}
-	var resp []Order
+	var resp []OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, arg, &resp); err != nil {
 		return nil, err
 	}
@@ -595,11 +586,11 @@ func (e *Exchange) getOrderHistoryByInstrument(ctx context.Context, arg *OrderHi
 }
 
 // GetOrderMarginByIDs returns the initial margin each order holds
-func (e *Exchange) GetOrderMarginByIDs(ctx context.Context, orderIDs []string) ([]OrderMargin, error) {
+func (e *Exchange) GetOrderMarginByIDs(ctx context.Context, orderIDs []string) ([]OrderMarginResponse, error) {
 	return e.getOrderMarginByIDs(ctx, orderIDs, false)
 }
 
-func (e *Exchange) getOrderMarginByIDs(ctx context.Context, orderIDs []string, overWebsocket bool) ([]OrderMargin, error) {
+func (e *Exchange) getOrderMarginByIDs(ctx context.Context, orderIDs []string, overWebsocket bool) ([]OrderMarginResponse, error) {
 	if len(orderIDs) == 0 {
 		return nil, errOrderIDRequired
 	}
@@ -608,7 +599,7 @@ func (e *Exchange) getOrderMarginByIDs(ctx context.Context, orderIDs []string, o
 			return nil, fmt.Errorf("%w: order ID %d is empty", errOrderIDRequired, i)
 		}
 	}
-	var resp []OrderMargin
+	var resp []OrderMarginResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_margin_by_ids", &OrderMarginByIDsRequest{IDs: orderIDs}, &resp); err != nil {
 		return nil, err
 	}
@@ -617,15 +608,15 @@ func (e *Exchange) getOrderMarginByIDs(ctx context.Context, orderIDs []string, o
 
 // GetOrderState returns an order that is open or closed within the last 30 minutes; for a quote's order, Amount is
 // the amount remaining. Older orders are in the order history
-func (e *Exchange) GetOrderState(ctx context.Context, orderID string) (*Order, error) {
+func (e *Exchange) GetOrderState(ctx context.Context, orderID string) (*OrderResponse, error) {
 	return e.getOrderState(ctx, orderID, false)
 }
 
-func (e *Exchange) getOrderState(ctx context.Context, orderID string, overWebsocket bool) (*Order, error) {
+func (e *Exchange) getOrderState(ctx context.Context, orderID string, overWebsocket bool) (*OrderResponse, error) {
 	if orderID == "" {
 		return nil, errOrderIDRequired
 	}
-	var resp *Order
+	var resp *OrderResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_order_state", &OrderIDRequest{OrderID: orderID}, &resp); err != nil {
 		return nil, err
 	}
@@ -637,7 +628,7 @@ func (e *Exchange) getOrderState(ctx context.Context, orderID string, overWebsoc
 
 // GetOrderStateByLabel returns the orders with a label in a currency's instruments that are open or closed within the
 // last 30 minutes, which a trigger order and the order it placed both share
-func (e *Exchange) GetOrderStateByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]Order, error) {
+func (e *Exchange) GetOrderStateByLabel(ctx context.Context, arg *OrdersByLabelRequest) ([]OrderResponse, error) {
 	return e.getOrdersByLabel(ctx, "private/get_order_state_by_label", arg, false)
 }
 
@@ -660,10 +651,7 @@ func (e *Exchange) getSettlementHistoryByCurrency(ctx context.Context, arg *Sett
 	if err := validateTradingCount(arg.Count); err != nil {
 		return nil, err
 	}
-	params := &SettlementHistoryByCurrencyParams{SettlementHistoryByCurrencyRequest: arg}
-	if !arg.SearchStartTime.IsZero() {
-		params.SearchStartTimestamp = arg.SearchStartTime.UnixMilli()
-	}
+	params := &SettlementHistoryByCurrencyParams{SettlementHistoryByCurrencyRequest: arg, SearchStartTimestamp: unixMilli(arg.SearchStartTime)}
 	var resp *SettlementsResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_settlement_history_by_currency", params, &resp); err != nil {
 		return nil, err
@@ -693,10 +681,7 @@ func (e *Exchange) getSettlementHistoryByInstrument(ctx context.Context, arg *Se
 	if err := validateTradingCount(arg.Count); err != nil {
 		return nil, err
 	}
-	params := &SettlementHistoryByInstrumentParams{SettlementHistoryByInstrumentRequest: arg}
-	if !arg.SearchStartTime.IsZero() {
-		params.SearchStartTimestamp = arg.SearchStartTime.UnixMilli()
-	}
+	params := &SettlementHistoryByInstrumentParams{SettlementHistoryByInstrumentRequest: arg, SearchStartTimestamp: unixMilli(arg.SearchStartTime)}
 	var resp *SettlementsResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_settlement_history_by_instrument", params, &resp); err != nil {
 		return nil, err
@@ -883,11 +868,11 @@ func (e *Exchange) getUserTradesByInstrumentAndTime(ctx context.Context, arg *Us
 
 // GetUserTradesByOrder returns the trades an order made; recent trades are kept for 24 hours, and Historical returns
 // older ones
-func (e *Exchange) GetUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest) ([]UserTrade, error) {
+func (e *Exchange) GetUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest) ([]UserTradeResponse, error) {
 	return e.getUserTradesByOrder(ctx, arg, false)
 }
 
-func (e *Exchange) getUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest, overWebsocket bool) ([]UserTrade, error) {
+func (e *Exchange) getUserTradesByOrder(ctx context.Context, arg *UserTradesByOrderRequest, overWebsocket bool) ([]UserTradeResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -897,7 +882,7 @@ func (e *Exchange) getUserTradesByOrder(ctx context.Context, arg *UserTradesByOr
 	if err := validateUserTradesSorting(arg.Sorting); err != nil {
 		return nil, err
 	}
-	var resp []UserTrade
+	var resp []UserTradeResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_trades_by_order", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -914,10 +899,7 @@ func (e *Exchange) massQuote(ctx context.Context, arg *MassQuoteRequest, overWeb
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	params := &MassQuoteParams{MassQuoteRequest: arg}
-	if !arg.ValidUntil.IsZero() {
-		params.ValidUntil = arg.ValidUntil.UnixMilli()
-	}
+	params := &MassQuoteParams{MassQuoteRequest: arg, ValidUntil: unixMilli(arg.ValidUntil)}
 	var resp *MassQuoteResponse
 	if err := e.sendRequest(ctx, overWebsocket, massQuoteEPL, "private/mass_quote", params, &resp); err != nil {
 		return nil, err
@@ -931,11 +913,11 @@ func (e *Exchange) massQuote(ctx context.Context, arg *MassQuoteRequest, overWeb
 // MovePositions moves positions between subaccounts with trades at the given prices or the positions' average prices,
 // and returns the trades; Deribit allows 6 moves a minute and 100 a week, and an internal_server_error may still have
 // moved some positions
-func (e *Exchange) MovePositions(ctx context.Context, arg *MovePositionsRequest) ([]PositionMoveTrade, error) {
+func (e *Exchange) MovePositions(ctx context.Context, arg *MovePositionsRequest) ([]PositionMoveTradeResponse, error) {
 	return e.movePositions(ctx, arg, false)
 }
 
-func (e *Exchange) movePositions(ctx context.Context, arg *MovePositionsRequest, overWebsocket bool) ([]PositionMoveTrade, error) {
+func (e *Exchange) movePositions(ctx context.Context, arg *MovePositionsRequest, overWebsocket bool) ([]PositionMoveTradeResponse, error) {
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
@@ -967,17 +949,17 @@ func (e *Exchange) resetMMP(ctx context.Context, arg *MMPGroupRequest, overWebso
 
 // Sell places a sell order and returns it with the trades it made at once; spot orders routed to Coinbase Exchange fill
 // asynchronously, so their trades arrive on the user.trades channel instead
-func (e *Exchange) Sell(ctx context.Context, arg *OrderRequest) (*OrderResponse, error) {
+func (e *Exchange) Sell(ctx context.Context, arg *OrderRequest) (*OrderWithTradesResponse, error) {
 	return e.placeOrder(ctx, "private/sell", arg, false)
 }
 
 // SetMMPConfig sets an MMP group's configuration, or with a zero interval removes it, and returns the configurations
 // Deribit reports; a non-zero MaxQuoteQuantity reserves initial margin until the configuration is removed
-func (e *Exchange) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfig, error) {
+func (e *Exchange) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfigResponse, error) {
 	return e.setMMPConfig(ctx, arg, false)
 }
 
-func (e *Exchange) setMMPConfig(ctx context.Context, arg *SetMMPConfigRequest, overWebsocket bool) ([]MMPConfig, error) {
+func (e *Exchange) setMMPConfig(ctx context.Context, arg *SetMMPConfigRequest, overWebsocket bool) ([]MMPConfigResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -1279,15 +1261,9 @@ func isValidMMPDuration(d time.Duration) bool {
 
 // userTradesTimeRange returns a trade query's bounds in Unix milliseconds, zero for an unset bound, checking the start
 // does not follow the end
-func userTradesTimeRange(start, end time.Time) (startTimestamp, endTimestamp int64, err error) {
+func userTradesTimeRange(start, end time.Time) (startTimestamp, endTimestamp uint64, err error) {
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
 		return 0, 0, fmt.Errorf("%w: %s after %s", common.ErrStartAfterEnd, start, end)
 	}
-	if !start.IsZero() {
-		startTimestamp = start.UnixMilli()
-	}
-	if !end.IsZero() {
-		endTimestamp = end.UnixMilli()
-	}
-	return startTimestamp, endTimestamp, nil
+	return unixMilli(start), unixMilli(end), nil
 }

@@ -7,17 +7,17 @@ import (
 )
 
 // ChangeAPIKeyName renames an API key as Exchange.ChangeAPIKeyName does, over the websocket
-func (w WebsocketAPI) ChangeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest) (*APIKey, error) {
+func (w WebsocketAPI) ChangeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest) (*APIKeyResponse, error) {
 	return w.e.changeAPIKeyName(ctx, arg, true)
 }
 
 // ChangeMarginModel changes the margin model as Exchange.ChangeMarginModel does, over the websocket
-func (w WebsocketAPI) ChangeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest) ([]MarginModelChange, error) {
+func (w WebsocketAPI) ChangeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest) ([]MarginModelChangeResponse, error) {
 	return w.e.changeMarginModel(ctx, arg, true)
 }
 
 // ChangeScopeInAPIKey changes an API key's maximum scope as Exchange.ChangeScopeInAPIKey does, over the websocket
-func (w WebsocketAPI) ChangeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest) (*APIKey, error) {
+func (w WebsocketAPI) ChangeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest) (*APIKeyResponse, error) {
 	return w.e.changeScopeInAPIKey(ctx, arg, true)
 }
 
@@ -27,12 +27,12 @@ func (w WebsocketAPI) ChangeSubaccountName(ctx context.Context, arg *ChangeSubac
 }
 
 // CreateAPIKey creates an API key as Exchange.CreateAPIKey does, over the websocket
-func (w WebsocketAPI) CreateAPIKey(ctx context.Context, arg *CreateAPIKeyRequest) (*APIKey, error) {
+func (w WebsocketAPI) CreateAPIKey(ctx context.Context, arg *CreateAPIKeyRequest) (*APIKeyResponse, error) {
 	return w.e.createAPIKey(ctx, arg, true)
 }
 
 // CreateSubaccount creates a subaccount as Exchange.CreateSubaccount does, over the websocket
-func (w WebsocketAPI) CreateSubaccount(ctx context.Context) (*Subaccount, error) {
+func (w WebsocketAPI) CreateSubaccount(ctx context.Context) (*SubaccountResponse, error) {
 	return w.e.createSubaccount(ctx, true)
 }
 
@@ -42,12 +42,12 @@ func (w WebsocketAPI) DeleteMember(ctx context.Context, memberID uint64) (*Membe
 }
 
 // DisableAPIKey disables an API key as Exchange.DisableAPIKey does, over the websocket
-func (w WebsocketAPI) DisableAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (w WebsocketAPI) DisableAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return w.e.disableAPIKey(ctx, id, true)
 }
 
 // EditAPIKey edits an API key as Exchange.EditAPIKey does, over the websocket
-func (w WebsocketAPI) EditAPIKey(ctx context.Context, arg *EditAPIKeyRequest) (*APIKey, error) {
+func (w WebsocketAPI) EditAPIKey(ctx context.Context, arg *EditAPIKeyRequest) (*APIKeyResponse, error) {
 	return w.e.editAPIKey(ctx, arg, true)
 }
 
@@ -58,7 +58,7 @@ func (w WebsocketAPI) EnableAffiliateProgram(ctx context.Context) error {
 }
 
 // EnableAPIKey enables an API key as Exchange.EnableAPIKey does, over the websocket
-func (w WebsocketAPI) EnableAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (w WebsocketAPI) EnableAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return w.e.enableAPIKey(ctx, id, true)
 }
 
@@ -86,7 +86,7 @@ func (w WebsocketAPI) GetAffiliateProgramInfo(ctx context.Context) (*AffiliatePr
 
 // GetAccountCurrencies returns the currencies available to the account as Exchange.GetAccountCurrencies does, over the
 // websocket
-func (w WebsocketAPI) GetAccountCurrencies(ctx context.Context) ([]AccountCurrency, error) {
+func (w WebsocketAPI) GetAccountCurrencies(ctx context.Context) ([]AccountCurrencyResponse, error) {
 	return w.e.getAccountCurrencies(ctx, true)
 }
 
@@ -103,27 +103,27 @@ func (w WebsocketAPI) GetMembers(ctx context.Context) (*MembersResponse, error) 
 
 // GetNewAnnouncements returns the account's unread announcements as Exchange.GetNewAnnouncements does, over the
 // websocket
-func (w WebsocketAPI) GetNewAnnouncements(ctx context.Context) ([]Announcement, error) {
+func (w WebsocketAPI) GetNewAnnouncements(ctx context.Context) ([]AnnouncementResponse, error) {
 	return w.e.getNewAnnouncements(ctx, true)
 }
 
 // GetPosition returns the account's position in an instrument as Exchange.GetPosition does, over the websocket
-func (w WebsocketAPI) GetPosition(ctx context.Context, instrumentName string) (*Position, error) {
+func (w WebsocketAPI) GetPosition(ctx context.Context, instrumentName string) (*PositionResponse, error) {
 	return w.e.getPosition(ctx, instrumentName, true)
 }
 
 // GetPositions returns the open positions as Exchange.GetPositions does, over the websocket
-func (w WebsocketAPI) GetPositions(ctx context.Context, arg *GetPositionsRequest) ([]Position, error) {
+func (w WebsocketAPI) GetPositions(ctx context.Context, arg *GetPositionsRequest) ([]PositionResponse, error) {
 	return w.e.getPositions(ctx, arg, true)
 }
 
 // GetSubaccounts returns the account's and its subaccounts' details as Exchange.GetSubaccounts does, over the websocket
-func (w WebsocketAPI) GetSubaccounts(ctx context.Context, withPortfolio bool) ([]Subaccount, error) {
+func (w WebsocketAPI) GetSubaccounts(ctx context.Context, withPortfolio bool) ([]SubaccountResponse, error) {
 	return w.e.getSubaccounts(ctx, withPortfolio, true)
 }
 
 // GetSubaccountsDetails returns the accounts' positions as Exchange.GetSubaccountsDetails does, over the websocket
-func (w WebsocketAPI) GetSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest) ([]SubaccountDetails, error) {
+func (w WebsocketAPI) GetSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest) ([]SubaccountDetailsResponse, error) {
 	return w.e.getSubaccountsDetails(ctx, arg, true)
 }
 
@@ -134,17 +134,17 @@ func (w WebsocketAPI) GetTransactionLog(ctx context.Context, arg *GetTransaction
 }
 
 // GetUserLocks returns the account's locks as Exchange.GetUserLocks does, over the websocket
-func (w WebsocketAPI) GetUserLocks(ctx context.Context) ([]UserLock, error) {
+func (w WebsocketAPI) GetUserLocks(ctx context.Context) ([]UserLockResponse, error) {
 	return w.e.getUserLocks(ctx, true)
 }
 
 // ListAPIKeys returns the account's API keys as Exchange.ListAPIKeys does, over the websocket
-func (w WebsocketAPI) ListAPIKeys(ctx context.Context) ([]APIKey, error) {
+func (w WebsocketAPI) ListAPIKeys(ctx context.Context) ([]APIKeyResponse, error) {
 	return w.e.listAPIKeys(ctx, true)
 }
 
 // ListCustodyAccounts returns the account's custody accounts as Exchange.ListCustodyAccounts does, over the websocket
-func (w WebsocketAPI) ListCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccount, error) {
+func (w WebsocketAPI) ListCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccountResponse, error) {
 	return w.e.listCustodyAccounts(ctx, ccy, true)
 }
 
@@ -164,7 +164,7 @@ func (w WebsocketAPI) RemoveSubaccount(ctx context.Context, subaccountID uint64)
 }
 
 // ResetAPIKey replaces an API key's secret as Exchange.ResetAPIKey does, over the websocket
-func (w WebsocketAPI) ResetAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (w WebsocketAPI) ResetAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return w.e.resetAPIKey(ctx, id, true)
 }
 
@@ -220,6 +220,6 @@ func (w WebsocketAPI) ToggleSubaccountLogin(ctx context.Context, arg *ToggleSuba
 }
 
 // GetAnnouncements returns the platform's announcements as Exchange.GetAnnouncements does, over the websocket
-func (w WebsocketAPI) GetAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest) ([]Announcement, error) {
+func (w WebsocketAPI) GetAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest) ([]AnnouncementResponse, error) {
 	return w.e.getAnnouncements(ctx, arg, true)
 }

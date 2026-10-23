@@ -26,8 +26,8 @@ type CreateComboRequest struct {
 	Trades []ComboTrade `json:"trades"`
 }
 
-// Combo contains a combo book and its legs
-type Combo struct {
+// ComboResponse contains a combo book and its legs
+type ComboResponse struct {
 	// ID is the combo's instrument name
 	ID           string `json:"id"`
 	InstrumentID uint64 `json:"instrument_id"`
@@ -38,11 +38,11 @@ type Combo struct {
 	Legs              []ComboLeg `json:"legs"`
 }
 
-// ComboLeg contains a combo leg's instrument and size multiplier, which is negative for a leg traded opposite to the
-// combo
+// ComboLeg contains a combo leg's instrument and size multiplier
 type ComboLeg struct {
 	InstrumentName string `json:"instrument_name"`
-	Amount         int64  `json:"amount"`
+	// Amount is the leg's size multiplier, negative for a leg traded opposite to the combo
+	Amount int64 `json:"amount"`
 }
 
 // LegPricesRequest requests the leg prices of a combo structure for a price of the whole structure

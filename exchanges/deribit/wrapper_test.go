@@ -302,7 +302,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestOrderDetail(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	o := &Order{
+	o := &OrderResponse{
 		OrderID:             "ETH-584849853",
 		OrderState:          "open",
 		OrderType:           "stop_limit",
@@ -356,15 +356,15 @@ func TestOrderDetail(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		mutate func(*Order)
+		mutate func(*OrderResponse)
 		err    error
 	}{
-		{mutate: func(o *Order) { o.InstrumentName = "ETH" }, err: errUnsupportedInstrumentFormat},
-		{mutate: func(o *Order) { o.Direction = "up" }, err: order.ErrSideIsInvalid},
-		{mutate: func(o *Order) { o.OrderType = "iceberg" }, err: errUnsupportedOrderType},
-		{mutate: func(o *Order) { o.OriginalOrderType = "iceberg" }, err: errUnsupportedOrderType},
-		{mutate: func(o *Order) { o.OrderState = "lost" }, err: errUnsupportedOrderStatus},
-		{mutate: func(o *Order) { o.TimeInForce = "forever" }, err: order.ErrInvalidTimeInForce},
+		{mutate: func(o *OrderResponse) { o.InstrumentName = "ETH" }, err: errUnsupportedInstrumentFormat},
+		{mutate: func(o *OrderResponse) { o.Direction = "up" }, err: order.ErrSideIsInvalid},
+		{mutate: func(o *OrderResponse) { o.OrderType = "iceberg" }, err: errUnsupportedOrderType},
+		{mutate: func(o *OrderResponse) { o.OriginalOrderType = "iceberg" }, err: errUnsupportedOrderType},
+		{mutate: func(o *OrderResponse) { o.OrderState = "lost" }, err: errUnsupportedOrderStatus},
+		{mutate: func(o *OrderResponse) { o.TimeInForce = "forever" }, err: order.ErrInvalidTimeInForce},
 	} {
 		bad := *o
 		tc.mutate(&bad)
@@ -376,7 +376,7 @@ func TestOrderDetail(t *testing.T) {
 func TestUserTradeFill(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	userTrade := &UserTrade{
+	userTrade := &UserTradeResponse{
 		TradeID:        "48079254",
 		InstrumentName: "BTC-PERPETUAL",
 		Timestamp:      types.Time(time.UnixMilli(1590484156350)),
@@ -719,7 +719,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 func TestTradablePairs(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	instruments := []Instrument{
+	instruments := []InstrumentResponse{
 		{InstrumentName: "BTC_USDC", IsActive: true, IsCoinbaseExchangeRouted: true},
 		{InstrumentName: "ETH_USDC", IsActive: true, IsCoinbaseSpotRouted: true},
 		{InstrumentName: "ETH_BTC", IsActive: true},
@@ -736,11 +736,11 @@ func TestTradablePairs(t *testing.T) {
 	assert.Equal(t, exp, pairs, "tradablePairs should return each active instrument once")
 	assert.Equal(t, map[string]struct{}{"BTC_USDC": {}, "ETH_USDC": {}}, ex.coinbaseRoutedSpot, "tradablePairs should remember the active spot Deribit routes to Coinbase Exchange")
 
-	_, err = ex.tradablePairs(asset.Futures, []Instrument{{InstrumentName: "BTC-PERPETUAL", IsActive: true, IsCoinbaseExchangeRouted: true}})
+	_, err = ex.tradablePairs(asset.Futures, []InstrumentResponse{{InstrumentName: "BTC-PERPETUAL", IsActive: true, IsCoinbaseExchangeRouted: true}})
 	require.NoError(t, err, "tradablePairs must not error for futures")
 	assert.Equal(t, map[string]struct{}{"BTC_USDC": {}, "ETH_USDC": {}}, ex.coinbaseRoutedSpot, "tradablePairs should only remember routed instruments for spot")
 
-	_, err = ex.tradablePairs(asset.Spot, []Instrument{{InstrumentName: "", IsActive: true}})
+	_, err = ex.tradablePairs(asset.Spot, []InstrumentResponse{{InstrumentName: "", IsActive: true}})
 	assert.ErrorIs(t, err, currency.ErrCreatingPair, "tradablePairs should reject an instrument it cannot parse")
 }
 
@@ -985,7 +985,7 @@ func TestTickerResponseTickerPrice(t *testing.T) {
 func TestBookSummaryTickerPrice(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
-	summary := &BookSummary{
+	summary := &BookSummaryResponse{
 		CreationTimestamp: types.Time(time.UnixMilli(1792117610661)),
 		BidPrice:          82001.12,
 		AskPrice:          82001.13,
@@ -1507,7 +1507,7 @@ func TestSubmitOrderRequest(t *testing.T) {
 
 func TestTradeHistory(t *testing.T) {
 	t.Parallel()
-	userTrade := &UserTrade{TradeID: "ETH-2696097", Direction: DirectionSell, OrderType: "limit", Price: 202.8, Amount: 21, Fee: 7.766e-05, FeeCurrency: currency.ETH, Liquidity: "M", Timestamp: types.Time(time.UnixMilli(1590486335742))}
+	userTrade := &UserTradeResponse{TradeID: "ETH-2696097", Direction: DirectionSell, OrderType: "limit", Price: 202.8, Amount: 21, Fee: 7.766e-05, FeeCurrency: currency.ETH, Liquidity: "M", Timestamp: types.Time(time.UnixMilli(1590486335742))}
 	history, err := tradeHistory("Deribit", userTrade)
 	require.NoError(t, err, "tradeHistory must not error")
 	exp := order.TradeHistory{Price: 202.8, Amount: 21, Fee: 7.766e-05, Exchange: "Deribit", TID: "ETH-2696097", Type: order.Limit, Side: order.Sell, Timestamp: time.UnixMilli(1590486335742), IsMaker: true, FeeAsset: "ETH"}
@@ -2133,7 +2133,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestFilteredOrders(t *testing.T) {
 	t.Parallel()
 	req := &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType}
-	_, err := e.filteredOrders(req, []Order{{InstrumentName: "BTC-PERPETUAL", Direction: "up", OrderType: "limit", OrderState: "open", TimeInForce: "good_til_cancelled"}})
+	_, err := e.filteredOrders(req, []OrderResponse{{InstrumentName: "BTC-PERPETUAL", Direction: "up", OrderType: "limit", OrderState: "open", TimeInForce: "good_til_cancelled"}})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "filteredOrders should reject an order it cannot convert")
 }
 
@@ -2351,7 +2351,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestFuturesContract(t *testing.T) {
 	t.Parallel()
-	instrument := &Instrument{
+	instrument := &InstrumentResponse{
 		InstrumentName:      "ETH_USDC-6NOV26",
 		InstrumentType:      "linear",
 		SettlementPeriod:    "week",
@@ -2383,7 +2383,7 @@ func TestFuturesContract(t *testing.T) {
 		MaxLeverage:        25,
 	}
 	assert.Equal(t, exp, contract, "futuresContract should convert a linear weekly future")
-	_, err = e.futuresContract(&Instrument{})
+	_, err = e.futuresContract(&InstrumentResponse{})
 	assert.ErrorIs(t, err, currency.ErrCreatingPair, "futuresContract should reject an instrument it cannot parse")
 }
 

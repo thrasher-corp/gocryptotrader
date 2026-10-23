@@ -38,17 +38,17 @@ func (e *Exchange) decidePendingBlockTrade(ctx context.Context, arg *BlockTradeA
 	if err := validateBlockTradeKey(arg.Timestamp, arg.Nonce, arg.Role); err != nil {
 		return err
 	}
-	params := &BlockTradeApprovalParams{BlockTradeApprovalRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
+	params := &BlockTradeApprovalParams{BlockTradeApprovalRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
 	return e.sendOKRequest(ctx, overWebsocket, method, params)
 }
 
 // ExecuteBlockTrade executes a block trade with the signature the counterparty's VerifyBlockTrade returned, taking the
 // opposite role; Deribit executes a block trade only once, whichever party executes it
-func (e *Exchange) ExecuteBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest) (*BlockTrade, error) {
+func (e *Exchange) ExecuteBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest) (*BlockTradeResponse, error) {
 	return e.executeBlockTrade(ctx, arg, false)
 }
 
-func (e *Exchange) executeBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest, overWebsocket bool) (*BlockTrade, error) {
+func (e *Exchange) executeBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest, overWebsocket bool) (*BlockTradeResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -61,8 +61,8 @@ func (e *Exchange) executeBlockTrade(ctx context.Context, arg *ExecuteBlockTrade
 	if arg.CounterpartySignature == "" {
 		return nil, errCounterpartySignatureRequired
 	}
-	params := &ExecuteBlockTradeParams{ExecuteBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
-	var resp *BlockTrade
+	params := &ExecuteBlockTradeParams{ExecuteBlockTradeRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
+	var resp *BlockTradeResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/execute_block_trade", params, &resp); err != nil {
 		return nil, err
 	}
@@ -73,15 +73,15 @@ func (e *Exchange) executeBlockTrade(ctx context.Context, arg *ExecuteBlockTrade
 }
 
 // GetBlockTrade returns one of the account's block trades and its trades
-func (e *Exchange) GetBlockTrade(ctx context.Context, id string) (*BlockTrade, error) {
+func (e *Exchange) GetBlockTrade(ctx context.Context, id string) (*BlockTradeResponse, error) {
 	return e.getBlockTrade(ctx, id, false)
 }
 
-func (e *Exchange) getBlockTrade(ctx context.Context, id string, overWebsocket bool) (*BlockTrade, error) {
+func (e *Exchange) getBlockTrade(ctx context.Context, id string, overWebsocket bool) (*BlockTradeResponse, error) {
 	if id == "" {
 		return nil, errBlockTradeIDRequired
 	}
-	var resp *BlockTrade
+	var resp *BlockTradeResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade", &BlockTradeIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
@@ -93,53 +93,53 @@ func (e *Exchange) getBlockTrade(ctx context.Context, id string, overWebsocket b
 
 // GetBlockTradeRequests returns the block trade requests awaiting the account's approval, and those declined or let
 // expire; an empty brokerCode returns every request, and only broker clients can filter by their broker's code
-func (e *Exchange) GetBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTrade, error) {
+func (e *Exchange) GetBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTradeResponse, error) {
 	return e.getBlockTradeRequests(ctx, brokerCode, false)
 }
 
-func (e *Exchange) getBlockTradeRequests(ctx context.Context, brokerCode string, overWebsocket bool) ([]PendingBlockTrade, error) {
-	var resp []PendingBlockTrade
+func (e *Exchange) getBlockTradeRequests(ctx context.Context, brokerCode string, overWebsocket bool) ([]PendingBlockTradeResponse, error) {
+	var resp []PendingBlockTradeResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trade_requests", &BrokerCodeRequest{BrokerCode: brokerCode}, &resp)
 }
 
 // GetBlockTrades returns the account's block trades, newest first, in every currency unless one is selected
-func (e *Exchange) GetBlockTrades(ctx context.Context, arg *GetBlockTradesRequest) ([]BlockTrade, error) {
+func (e *Exchange) GetBlockTrades(ctx context.Context, arg *GetBlockTradesRequest) ([]BlockTradeResponse, error) {
 	return e.getBlockTrades(ctx, arg, false)
 }
 
-func (e *Exchange) getBlockTrades(ctx context.Context, arg *GetBlockTradesRequest, overWebsocket bool) ([]BlockTrade, error) {
+func (e *Exchange) getBlockTrades(ctx context.Context, arg *GetBlockTradesRequest, overWebsocket bool) ([]BlockTradeResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if arg.EndID != "" && arg.StartID == "" {
 		return nil, errBlockTradeStartIDRequired
 	}
-	var resp []BlockTrade
+	var resp []BlockTradeResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_trades", arg, &resp)
 }
 
 // GetBrokerClients returns the clients registered under the broker account, with the client and link IDs that identify
 // a client's users in broker calls; it needs a broker account
-func (e *Exchange) GetBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest) ([]BrokerClient, error) {
+func (e *Exchange) GetBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest) ([]BrokerClientResponse, error) {
 	return e.getBrokerClients(ctx, arg, false)
 }
 
-func (e *Exchange) getBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest, overWebsocket bool) ([]BrokerClient, error) {
+func (e *Exchange) getBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest, overWebsocket bool) ([]BrokerClientResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp []BrokerClient
+	var resp []BrokerClientResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_broker_clients", arg, &resp)
 }
 
 // GetBrokerTradeRequests returns the broker's block trade requests awaiting its clients' approval, and those declined
 // or let expire; it needs a broker account
-func (e *Exchange) GetBrokerTradeRequests(ctx context.Context) ([]PendingBrokerTrade, error) {
+func (e *Exchange) GetBrokerTradeRequests(ctx context.Context) ([]PendingBrokerTradeResponse, error) {
 	return e.getBrokerTradeRequests(ctx, false)
 }
 
-func (e *Exchange) getBrokerTradeRequests(ctx context.Context, overWebsocket bool) ([]PendingBrokerTrade, error) {
-	var resp []PendingBrokerTrade
+func (e *Exchange) getBrokerTradeRequests(ctx context.Context, overWebsocket bool) ([]PendingBrokerTradeResponse, error) {
+	var resp []PendingBrokerTradeResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_broker_trade_requests", nil, &resp)
 }
 
@@ -228,7 +228,7 @@ func (e *Exchange) verifyBlockTrade(ctx context.Context, arg *VerifyBlockTradeRe
 	if err := validateBlockTradeLegs(arg.Trades); err != nil {
 		return nil, err
 	}
-	params := &VerifyBlockTradeParams{VerifyBlockTradeRequest: arg, Timestamp: arg.Timestamp.UnixMilli()}
+	params := &VerifyBlockTradeParams{VerifyBlockTradeRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
 	var resp *VerifyBlockTradeResponse
 	if err := e.sendRequest(ctx, overWebsocket, matchingEPL, "private/verify_block_trade", params, &resp); err != nil {
 		return nil, err

@@ -5,17 +5,17 @@ import (
 )
 
 // AddToAddressBook adds an address book entry as Exchange.AddToAddressBook does, over the websocket
-func (w WebsocketAPI) AddToAddressBook(ctx context.Context, arg *AddToAddressBookRequest) (*AddressBookEntry, error) {
+func (w WebsocketAPI) AddToAddressBook(ctx context.Context, arg *AddToAddressBookRequest) (*AddressBookEntryResponse, error) {
 	return w.e.addToAddressBook(ctx, arg, true)
 }
 
 // CancelTransferByID cancels a transfer as Exchange.CancelTransferByID does, over the websocket
-func (w WebsocketAPI) CancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest) (*Transfer, error) {
+func (w WebsocketAPI) CancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest) (*TransferResponse, error) {
 	return w.e.cancelTransferByID(ctx, arg, true)
 }
 
 // CancelWithdrawal cancels a withdrawal as Exchange.CancelWithdrawal does, over the websocket
-func (w WebsocketAPI) CancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest) (*Withdrawal, error) {
+func (w WebsocketAPI) CancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest) (*WithdrawalResponse, error) {
 	return w.e.cancelWithdrawal(ctx, arg, true)
 }
 
@@ -26,7 +26,7 @@ func (w WebsocketAPI) CoinbaseEstimateWithdrawalFee(ctx context.Context, arg *Co
 }
 
 // CreateDepositAddress creates a deposit address as Exchange.CreateDepositAddress does, over the websocket
-func (w WebsocketAPI) CreateDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest) (*AddressBookEntry, error) {
+func (w WebsocketAPI) CreateDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest) (*AddressBookEntryResponse, error) {
 	return w.e.createDepositAddress(ctx, arg, true)
 }
 
@@ -38,18 +38,18 @@ func (w WebsocketAPI) DeleteAddressBeneficiary(ctx context.Context, arg *Address
 
 // GetAddressBeneficiary returns an address's beneficiary information as Exchange.GetAddressBeneficiary does, over the
 // websocket
-func (w WebsocketAPI) GetAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest) (*AddressBeneficiary, error) {
+func (w WebsocketAPI) GetAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest) (*AddressBeneficiaryResponse, error) {
 	return w.e.getAddressBeneficiary(ctx, arg, true)
 }
 
 // GetAddressBook returns address book entries as Exchange.GetAddressBook does, over the websocket
-func (w WebsocketAPI) GetAddressBook(ctx context.Context, arg *GetAddressBookRequest) ([]AddressBookEntry, error) {
+func (w WebsocketAPI) GetAddressBook(ctx context.Context, arg *GetAddressBookRequest) ([]AddressBookEntryResponse, error) {
 	return w.e.getAddressBook(ctx, arg, true)
 }
 
 // GetCurrentDepositAddress returns a currency's deposit address as Exchange.GetCurrentDepositAddress does, over the
 // websocket
-func (w WebsocketAPI) GetCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest) (*AddressBookEntry, error) {
+func (w WebsocketAPI) GetCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest) (*AddressBookEntryResponse, error) {
 	return w.e.getCurrentDepositAddress(ctx, arg, true)
 }
 
@@ -87,18 +87,18 @@ func (w WebsocketAPI) RemoveFromAddressBook(ctx context.Context, arg *RemoveFrom
 
 // SaveAddressBeneficiary saves an address's beneficiary information as Exchange.SaveAddressBeneficiary does, over the
 // websocket
-func (w WebsocketAPI) SaveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest) (*AddressBeneficiary, error) {
+func (w WebsocketAPI) SaveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest) (*AddressBeneficiaryResponse, error) {
 	return w.e.saveAddressBeneficiary(ctx, arg, true)
 }
 
 // SetAddressRequiresSecurityKey sets whether withdrawals to an address book entry need a security key as
 // Exchange.SetAddressRequiresSecurityKey does, over the websocket
-func (w WebsocketAPI) SetAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest) (*AddressBookEntry, error) {
+func (w WebsocketAPI) SetAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest) (*AddressBookEntryResponse, error) {
 	return w.e.setAddressRequiresSecurityKey(ctx, arg, true)
 }
 
 // SetClearanceOriginator sets a deposit's originator as Exchange.SetClearanceOriginator does, over the websocket
-func (w WebsocketAPI) SetClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest) (*Deposit, error) {
+func (w WebsocketAPI) SetClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest) (*DepositResponse, error) {
 	return w.e.setClearanceOriginator(ctx, arg, true)
 }
 
@@ -110,18 +110,18 @@ func (w WebsocketAPI) SetCoinbaseSubaccountWithdrawalsAllowed(ctx context.Contex
 
 // SubmitTransferBetweenSubaccounts transfers funds between subaccounts as Exchange.SubmitTransferBetweenSubaccounts
 // does, over the websocket
-func (w WebsocketAPI) SubmitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest) (*Transfer, error) {
+func (w WebsocketAPI) SubmitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest) (*TransferResponse, error) {
 	return w.e.submitTransferBetweenSubaccounts(ctx, arg, true)
 }
 
 // SubmitTransferToSubaccount transfers funds to a subaccount as Exchange.SubmitTransferToSubaccount does, over the
 // websocket
-func (w WebsocketAPI) SubmitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest) (*Transfer, error) {
+func (w WebsocketAPI) SubmitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest) (*TransferResponse, error) {
 	return w.e.submitTransferToSubaccount(ctx, arg, true)
 }
 
 // SubmitTransferToUser transfers funds to another user as Exchange.SubmitTransferToUser does, over the websocket
-func (w WebsocketAPI) SubmitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest) (*Transfer, error) {
+func (w WebsocketAPI) SubmitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest) (*TransferResponse, error) {
 	return w.e.submitTransferToUser(ctx, arg, true)
 }
 
@@ -131,6 +131,6 @@ func (w WebsocketAPI) UpdateInAddressBook(ctx context.Context, arg *UpdateInAddr
 }
 
 // Withdraw withdraws funds as Exchange.Withdraw does, over the websocket
-func (w WebsocketAPI) Withdraw(ctx context.Context, arg *WithdrawRequest) (*Withdrawal, error) {
+func (w WebsocketAPI) Withdraw(ctx context.Context, arg *WithdrawRequest) (*WithdrawalResponse, error) {
 	return w.e.withdraw(ctx, arg, true)
 }

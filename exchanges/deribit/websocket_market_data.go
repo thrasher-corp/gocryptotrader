@@ -19,13 +19,13 @@ func (w WebsocketAPI) GetBasketIndexComposition(ctx context.Context, indexName s
 
 // GetBookSummaryByCurrency returns the market summaries of a currency's instruments as
 // Exchange.GetBookSummaryByCurrency does, over the websocket
-func (w WebsocketAPI) GetBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest) ([]BookSummary, error) {
+func (w WebsocketAPI) GetBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest) ([]BookSummaryResponse, error) {
 	return w.e.getBookSummaryByCurrency(ctx, arg, true)
 }
 
 // GetBookSummaryByInstrument returns an instrument's market summary as Exchange.GetBookSummaryByInstrument does, over
 // the websocket
-func (w WebsocketAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]BookSummary, error) {
+func (w WebsocketAPI) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]BookSummaryResponse, error) {
 	return w.e.getBookSummaryByInstrument(ctx, instrumentName, true)
 }
 
@@ -35,7 +35,7 @@ func (w WebsocketAPI) GetContractSize(ctx context.Context, instrumentName string
 }
 
 // GetCurrencies returns every currency Deribit supports as Exchange.GetCurrencies does, over the websocket
-func (w WebsocketAPI) GetCurrencies(ctx context.Context) ([]CurrencyDetail, error) {
+func (w WebsocketAPI) GetCurrencies(ctx context.Context) ([]CurrencyDetailResponse, error) {
 	return w.e.getCurrencies(ctx, true)
 }
 
@@ -55,7 +55,7 @@ func (w WebsocketAPI) GetFundingChartData(ctx context.Context, arg *FundingChart
 }
 
 // GetFundingRateHistory returns a perpetual's hourly funding as Exchange.GetFundingRateHistory does, over the websocket
-func (w WebsocketAPI) GetFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]FundingRateHistory, error) {
+func (w WebsocketAPI) GetFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]FundingRateHistoryResponse, error) {
 	return w.e.getFundingRateHistory(ctx, arg, true)
 }
 
@@ -67,12 +67,12 @@ func (w WebsocketAPI) GetFundingRateValue(ctx context.Context, arg *InstrumentTi
 
 // GetHistoricalVolatility returns a currency's realised volatility as Exchange.GetHistoricalVolatility does, over the
 // websocket
-func (w WebsocketAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityPoint, error) {
+func (w WebsocketAPI) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityPointResponse, error) {
 	return w.e.getHistoricalVolatility(ctx, ccy, true)
 }
 
 // GetIndexChartData returns an index's price chart as Exchange.GetIndexChartData does, over the websocket
-func (w WebsocketAPI) GetIndexChartData(ctx context.Context, arg *IndexChartDataRequest) ([]IndexChartPoint, error) {
+func (w WebsocketAPI) GetIndexChartData(ctx context.Context, arg *IndexChartDataRequest) ([]IndexChartPointResponse, error) {
 	return w.e.getIndexChartData(ctx, arg, true)
 }
 
@@ -82,17 +82,17 @@ func (w WebsocketAPI) GetIndexPrice(ctx context.Context, indexName string) (*Ind
 }
 
 // GetIndexPriceNames returns the names of every price index as Exchange.GetIndexPriceNames does, over the websocket
-func (w WebsocketAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]IndexPriceName, error) {
+func (w WebsocketAPI) GetIndexPriceNames(ctx context.Context, extended bool) ([]IndexPriceNameResponse, error) {
 	return w.e.getIndexPriceNames(ctx, extended, true)
 }
 
 // GetInstrument returns an instrument's specification as Exchange.GetInstrument does, over the websocket
-func (w WebsocketAPI) GetInstrument(ctx context.Context, instrumentName string) (*Instrument, error) {
+func (w WebsocketAPI) GetInstrument(ctx context.Context, instrumentName string) (*InstrumentResponse, error) {
 	return w.e.getInstrument(ctx, instrumentName, true)
 }
 
 // GetInstruments returns a settlement currency's instruments as Exchange.GetInstruments does, over the websocket
-func (w WebsocketAPI) GetInstruments(ctx context.Context, arg *InstrumentsRequest) ([]Instrument, error) {
+func (w WebsocketAPI) GetInstruments(ctx context.Context, arg *InstrumentsRequest) ([]InstrumentResponse, error) {
 	return w.e.getInstruments(ctx, arg, true)
 }
 
@@ -133,7 +133,7 @@ func (w WebsocketAPI) GetLastTradesByInstrumentAndTime(ctx context.Context, arg 
 }
 
 // GetMarkPriceHistory returns an option's mark prices as Exchange.GetMarkPriceHistory does, over the websocket
-func (w WebsocketAPI) GetMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]MarkPricePoint, error) {
+func (w WebsocketAPI) GetMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]MarkPricePointResponse, error) {
 	return w.e.getMarkPriceHistory(ctx, arg, true)
 }
 
@@ -155,7 +155,7 @@ func (w WebsocketAPI) GetSupportedIndexNames(ctx context.Context, indexType stri
 }
 
 // GetTradeVolumes returns each currency's traded volumes as Exchange.GetTradeVolumes does, over the websocket
-func (w WebsocketAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolume, error) {
+func (w WebsocketAPI) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumeResponse, error) {
 	return w.e.getTradeVolumes(ctx, extended, true)
 }
 

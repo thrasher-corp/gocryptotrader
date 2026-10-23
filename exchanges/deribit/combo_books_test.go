@@ -53,8 +53,8 @@ func testComboTrades(t *testing.T) []ComboTrade {
 }
 
 // testCreatedCombo is Deribit's documented create combo response
-func testCreatedCombo() *Combo {
-	return &Combo{
+func testCreatedCombo() *ComboResponse {
+	return &ComboResponse{
 		ID:                "BTC-REV-29APR22-37500",
 		InstrumentID:      52,
 		State:             "active",
@@ -173,8 +173,8 @@ func TestValidateComboTrades(t *testing.T) {
 }
 
 // testFutureComboDetails is the mock combo of mockMarketDataFutureCombo
-func testFutureComboDetails() *Combo {
-	return &Combo{
+func testFutureComboDetails() *ComboResponse {
+	return &ComboResponse{
 		ID:                "BTC-FS-27NOV26_PERP",
 		InstrumentID:      683926,
 		State:             "active",
@@ -246,8 +246,8 @@ func TestGetComboIDs(t *testing.T) {
 }
 
 // testCombos are the mock active combos of BTC
-func testCombos() []Combo {
-	return []Combo{
+func testCombos() []ComboResponse {
+	return []ComboResponse{
 		{
 			ID:                "BTC-CCAL-23OCT26_16OCT26-78000",
 			InstrumentID:      715532,

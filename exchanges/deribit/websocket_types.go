@@ -9,6 +9,8 @@ import (
 // WebsocketEnvelope is the envelope of every websocket message: a response carries its request's ID, and a subscription
 // notification or heartbeat its method
 type WebsocketEnvelope struct {
+	// ID is the ID of the request a response answers, an int64 as MessageSequence hands out, as the response is matched
+	// to its request by the ID's type as well as its value; a notification has none
 	ID     int64                   `json:"id"`
 	Method string                  `json:"method"`
 	Params WebsocketEnvelopeParams `json:"params"`
@@ -283,7 +285,7 @@ type WebsocketMMPTrigger struct {
 
 // WebsocketAnnouncement contains an announcement Deribit published or deleted
 type WebsocketAnnouncement struct {
-	Announcement
+	AnnouncementResponse
 	// Action is new for a published announcement and deleted for a deleted one
 	Action string `json:"action"`
 	// Unread counts the account's earlier unread announcements, which only an authenticated connection is sent
@@ -292,14 +294,14 @@ type WebsocketAnnouncement struct {
 
 // WebsocketInstrumentCreation contains an instrument Deribit created, which it notifies once
 type WebsocketInstrumentCreation struct {
-	Instrument
+	InstrumentResponse
 	Timestamp types.Time `json:"timestamp"`
 }
 
 // UnmarshalJSON decodes the instrument and the notification's timestamp, which the instrument's own decoder, promoted
 // to this type, would leave out
 func (w *WebsocketInstrumentCreation) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &w.Instrument); err != nil {
+	if err := json.Unmarshal(data, &w.InstrumentResponse); err != nil {
 		return err
 	}
 	var notification struct {
@@ -314,11 +316,11 @@ func (w *WebsocketInstrumentCreation) UnmarshalJSON(data []byte) error {
 
 // WebsocketUserChanges contains the account's order, trade and position changes in an instrument
 type WebsocketUserChanges struct {
-	InstrumentName string      `json:"instrument_name"`
-	Orders         []Order     `json:"orders"`
-	Trades         []UserTrade `json:"trades"`
+	InstrumentName string              `json:"instrument_name"`
+	Orders         []OrderResponse     `json:"orders"`
+	Trades         []UserTradeResponse `json:"trades"`
 	// Positions is named as Deribit's examples send it, although its schema documents position
-	Positions []Position `json:"positions"`
+	Positions []PositionResponse `json:"positions"`
 }
 
 // WebsocketLSPEvent contains a Liquidity Support Program event of the participant subaccount the connection is
@@ -350,14 +352,14 @@ type WebsocketLSPEvent struct {
 
 // WebsocketBlockRFQQuotes contains a maker's Block RFQ quotes; Deribit documents a single quote and sends a list in its
 // example, so either is accepted
-type WebsocketBlockRFQQuotes []BlockRFQQuote
+type WebsocketBlockRFQQuotes []BlockRFQQuoteResponse
 
 // UnmarshalJSON decodes a list of quotes or a single quote
 func (w *WebsocketBlockRFQQuotes) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '[' {
-		return json.Unmarshal(data, (*[]BlockRFQQuote)(w))
+		return json.Unmarshal(data, (*[]BlockRFQQuoteResponse)(w))
 	}
-	var quote *BlockRFQQuote
+	var quote *BlockRFQQuoteResponse
 	if err := json.Unmarshal(data, &quote); err != nil {
 		return err
 	}

@@ -50,7 +50,7 @@ type AcceptBlockRFQRequest struct {
 // AcceptBlockRFQResponse contains the block trades an accepted Block RFQ executed, or the trade trigger left active
 type AcceptBlockRFQResponse struct {
 	TradeTrigger *BlockRFQTradeTrigger `json:"trade_trigger"`
-	BlockTrades  []BlockTrade          `json:"block_trades"`
+	BlockTrades  []BlockTradeResponse  `json:"block_trades"`
 }
 
 // BlockRFQTradeTrigger contains a taker's trade trigger, which accepts a Block RFQ's quotes once they cross its price;
@@ -88,11 +88,11 @@ type AddBlockRFQQuoteRequest struct {
 // AddBlockRFQQuoteParams contains an AddBlockRFQQuoteRequest's params, with its expiry in Unix milliseconds
 type AddBlockRFQQuoteParams struct {
 	*AddBlockRFQQuoteRequest
-	ExpiresAt int64 `json:"expires_at,omitempty"`
+	ExpiresAt uint64 `json:"expires_at,omitempty"`
 }
 
-// BlockRFQQuote contains a maker's quote on a Block RFQ
-type BlockRFQQuote struct {
+// BlockRFQQuoteResponse contains a maker's quote on a Block RFQ
+type BlockRFQQuoteResponse struct {
 	BlockRFQQuoteID     uint64     `json:"block_rfq_quote_id"`
 	BlockRFQID          uint64     `json:"block_rfq_id"`
 	CreationTimestamp   types.Time `json:"creation_timestamp"`
@@ -157,8 +157,8 @@ type BlockRFQIDRequest struct {
 	BlockRFQID uint64 `json:"block_rfq_id"`
 }
 
-// BlockRFQ contains a Block RFQ as its taker or a maker sees it
-type BlockRFQ struct {
+// BlockRFQResponse contains a Block RFQ as its taker or a maker sees it
+type BlockRFQResponse struct {
 	BlockRFQID          uint64     `json:"block_rfq_id"`
 	CreationTimestamp   types.Time `json:"creation_timestamp"`
 	ExpirationTimestamp types.Time `json:"expiration_timestamp"`
@@ -327,7 +327,7 @@ type GetBlockRFQsRequest struct {
 
 // BlockRFQsResponse contains a page of Block RFQs
 type BlockRFQsResponse struct {
-	BlockRFQs []BlockRFQ `json:"block_rfqs"`
+	BlockRFQs []BlockRFQResponse `json:"block_rfqs"`
 	// Continuation is the Continuation of the next page, and zero on the last; Deribit documents it as a string token
 	// but takes it back as a Block RFQ ID, so a number or a numeric string is accepted
 	Continuation types.Number `json:"continuation"`

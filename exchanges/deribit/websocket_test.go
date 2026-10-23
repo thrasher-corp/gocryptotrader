@@ -414,7 +414,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 			data:    `{"trades":[{"trade_seq":866638,"trade_id":"1430914","timestamp":1605780344032,"tick_direction":1,"state":"filled","reduce_only":false,"profit_loss":4.898e-05,"price":17391,"post_only":false,"order_type":"market","order_id":"3398016","matching_id":null,"mark_price":17391,"liquidity":"T","instrument_name":"BTC-PERPETUAL","index_price":17501.88,"fee_currency":"BTC","fee":1.6e-07,"direction":"sell","amount":10}],"positions":[{"total_profit_loss":1.69711368,"size_currency":10.646886321,"size":185160,"settlement_price":16025.83,"realized_profit_loss":0.012454598,"realized_funding":0.01235663,"mark_price":17391,"maintenance_margin":0.234575865,"leverage":33.0,"kind":"future","interest_value":1.7362511643080387,"instrument_name":"BTC-PERPETUAL","initial_margin":0.319750953,"index_price":17501.88,"floating_profit_loss":0.906961435,"direction":"buy","delta":10.646886321,"average_price":15000,"user_id":1234}],"orders":[{"web":true,"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":15665.5,"post_only":false,"order_type":"market","order_state":"filled","order_id":"3398016","last_update_timestamp":1605780344032,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-PERPETUAL","filled_amount":10,"direction":"sell","creation_timestamp":1605780344032,"average_price":17391,"api":false,"amount":10}],"instrument_name":"BTC-PERPETUAL"}`,
 			exp: &WebsocketUserChanges{
 				InstrumentName: "BTC-PERPETUAL",
-				Orders: []Order{{
+				Orders: []OrderResponse{{
 					OrderID:             "3398016",
 					OrderState:          "filled",
 					OrderType:           "market",
@@ -429,7 +429,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 					FilledAmount:        10,
 					AveragePrice:        17391,
 				}},
-				Trades: []UserTrade{{
+				Trades: []UserTradeResponse{{
 					TradeID:        "1430914",
 					TradeSequence:  866638,
 					InstrumentName: "BTC-PERPETUAL",
@@ -448,7 +448,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 					ProfitLoss:     4.898e-05,
 					MarkPrice:      17391,
 				}},
-				Positions: []Position{{
+				Positions: []PositionResponse{{
 					InstrumentName:     "BTC-PERPETUAL",
 					Kind:               KindFuture,
 					UserID:             1234,
@@ -474,7 +474,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 		{
 			channel: "block_trade_confirmations",
 			data:    `{"nonce":"bt-jdqv98","role":"maker","user_id":7,"state":{"value":"rejected","timestamp":1711468632693},"trades":[{"instrument_name":"BTC-PERPETUAL","price":70246.66,"direction":"buy","amount":10}],"timestamp":1711468468131}`,
-			exp: &PendingBlockTrade{
+			exp: &PendingBlockTradeResponse{
 				Timestamp: types.Time(time.UnixMilli(1711468468131)),
 				Nonce:     "bt-jdqv98",
 				Trades:    []BlockTradeLeg{{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy, Price: 70246.66, Amount: 10}},
@@ -486,7 +486,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 		{
 			channel: "block_rfq.maker.btc",
 			data:    `{"state":"open","combo_id":"BTC-18NOV24-82000-C","legs":[{"direction":"buy","instrument_name":"BTC-18NOV24-82000-C","ratio":1}],"amount":25,"role":"maker","expiration_timestamp":1731664976443,"block_rfq_id":722,"creation_timestamp":1731664676443,"taker_rating":"1-2","disclosed":true,"taker":"TAKER1"}`,
-			exp: &BlockRFQ{
+			exp: &BlockRFQResponse{
 				BlockRFQID:          722,
 				CreationTimestamp:   types.Time(time.UnixMilli(1731664676443)),
 				ExpirationTimestamp: types.Time(time.UnixMilli(1731664976443)),
@@ -503,7 +503,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 		{
 			channel: "block_rfq.taker.btc",
 			data:    `{"label":"example","state":"open","amount":10000,"role":"taker","bids":[{"amount":10000,"price":291664.14,"makers":["ANONYMOUS"],"last_update_timestamp":1740047910507,"execution_instruction":"any_part_of"}],"asks":[],"combo_id":null,"legs":[{"direction":"buy","instrument_name":"BTC-21FEB25","ratio":1},{"direction":"buy","instrument_name":"BTC-PERPETUAL","ratio":1}],"min_trade_amount":10,"makers":["MAKER1","MAKER2"],"creation_timestamp":1740047910438,"block_rfq_id":321,"expiration_timestamp":1740048210438,"taker_rating":"1-2","disclosed":true,"taker":"TAKER1"}`,
-			exp: &BlockRFQ{
+			exp: &BlockRFQResponse{
 				BlockRFQID:          321,
 				CreationTimestamp:   types.Time(time.UnixMilli(1740047910438)),
 				ExpirationTimestamp: types.Time(time.UnixMilli(1740048210438)),
@@ -691,7 +691,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			return spotInstruments
 		})
 		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel)
-		_, err := ex.tradablePairs(asset.Spot, []Instrument{{InstrumentName: "BTC_USDC", IsActive: true, IsCoinbaseExchangeRouted: true}})
+		_, err := ex.tradablePairs(asset.Spot, []InstrumentResponse{{InstrumentName: "BTC_USDC", IsActive: true, IsCoinbaseExchangeRouted: true}})
 		require.NoError(t, err, "tradablePairs must not error")
 		subs, err := ex.generateSubscriptions()
 		require.NoError(t, err, "generateSubscriptions must not error")

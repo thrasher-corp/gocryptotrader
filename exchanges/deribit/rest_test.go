@@ -508,3 +508,13 @@ func TestRetryRequest(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled, "retryRequest should stop waiting once the context is done")
 	})
 }
+
+func TestUnixMilli(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, uint64(1700000000123), unixMilli(time.UnixMilli(1700000000123).Add(999*time.Microsecond)), "unixMilli should return the time in whole Unix milliseconds")
+	assert.Equal(t, uint64(1), unixMilli(time.UnixMilli(1)), "unixMilli should return the first millisecond after 1970")
+	assert.Zero(t, unixMilli(time.Time{}), "unixMilli should return zero for a zero time, which leaves it out")
+	for _, early := range []time.Time{time.Unix(0, 999999), time.UnixMilli(0), time.UnixMilli(-1), time.Date(1969, 7, 20, 20, 17, 0, 0, time.UTC), time.Time{}.Add(time.Second)} {
+		assert.Equalf(t, uint64(1), unixMilli(early), "unixMilli should return the first millisecond after 1970 for %s, so it is still sent", early)
+	}
+}

@@ -7,7 +7,7 @@ import (
 )
 
 // CreateCombo returns the combo whose legs match the trades as Exchange.CreateCombo does, over the websocket
-func (w WebsocketAPI) CreateCombo(ctx context.Context, trades []ComboTrade) (*Combo, error) {
+func (w WebsocketAPI) CreateCombo(ctx context.Context, trades []ComboTrade) (*ComboResponse, error) {
 	return w.e.createCombo(ctx, trades, true)
 }
 
@@ -18,7 +18,7 @@ func (w WebsocketAPI) GetLegPrices(ctx context.Context, arg *LegPricesRequest) (
 }
 
 // GetComboDetails returns a live combo's legs and book state as Exchange.GetComboDetails does, over the websocket
-func (w WebsocketAPI) GetComboDetails(ctx context.Context, comboID string) (*Combo, error) {
+func (w WebsocketAPI) GetComboDetails(ctx context.Context, comboID string) (*ComboResponse, error) {
 	return w.e.getComboDetails(ctx, comboID, true)
 }
 
@@ -28,6 +28,6 @@ func (w WebsocketAPI) GetComboIDs(ctx context.Context, arg *ComboIDsRequest) ([]
 }
 
 // GetCombos returns a settlement currency's active combos as Exchange.GetCombos does, over the websocket
-func (w WebsocketAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]Combo, error) {
+func (w WebsocketAPI) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboResponse, error) {
 	return w.e.getCombos(ctx, ccy, true)
 }

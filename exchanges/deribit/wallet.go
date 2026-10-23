@@ -75,11 +75,11 @@ var (
 
 // AddToAddressBook adds an address, or a Coinbase wallet type account's Coinbase Travel Network counterparty, to the
 // address book; a new withdrawal address is usable once the account's address delay, three days by default, has passed
-func (e *Exchange) AddToAddressBook(ctx context.Context, arg *AddToAddressBookRequest) (*AddressBookEntry, error) {
+func (e *Exchange) AddToAddressBook(ctx context.Context, arg *AddToAddressBookRequest) (*AddressBookEntryResponse, error) {
 	return e.addToAddressBook(ctx, arg, false)
 }
 
-func (e *Exchange) addToAddressBook(ctx context.Context, arg *AddToAddressBookRequest, overWebsocket bool) (*AddressBookEntry, error) {
+func (e *Exchange) addToAddressBook(ctx context.Context, arg *AddToAddressBookRequest, overWebsocket bool) (*AddressBookEntryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -101,7 +101,7 @@ func (e *Exchange) addToAddressBook(ctx context.Context, arg *AddToAddressBookRe
 	if err := validateBeneficiaryTypes(arg.EntityType, arg.WalletType); err != nil {
 		return nil, err
 	}
-	var resp *AddressBookEntry
+	var resp *AddressBookEntryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/add_to_address_book", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -112,11 +112,11 @@ func (e *Exchange) addToAddressBook(ctx context.Context, arg *AddToAddressBookRe
 }
 
 // CancelTransferByID cancels a transfer that has not been processed
-func (e *Exchange) CancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest) (*Transfer, error) {
+func (e *Exchange) CancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest) (*TransferResponse, error) {
 	return e.cancelTransferByID(ctx, arg, false)
 }
 
-func (e *Exchange) cancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest, overWebsocket bool) (*Transfer, error) {
+func (e *Exchange) cancelTransferByID(ctx context.Context, arg *CancelTransferByIDRequest, overWebsocket bool) (*TransferResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -126,7 +126,7 @@ func (e *Exchange) cancelTransferByID(ctx context.Context, arg *CancelTransferBy
 	if arg.ID == 0 {
 		return nil, errTransferIDRequired
 	}
-	var resp *Transfer
+	var resp *TransferResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/cancel_transfer_by_id", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -138,11 +138,11 @@ func (e *Exchange) cancelTransferByID(ctx context.Context, arg *CancelTransferBy
 
 // CancelWithdrawal cancels a withdrawal that has not been processed; Deribit may already be processing one it still
 // reports as pending, which cannot then be cancelled
-func (e *Exchange) CancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest) (*Withdrawal, error) {
+func (e *Exchange) CancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.cancelWithdrawal(ctx, arg, false)
 }
 
-func (e *Exchange) cancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest, overWebsocket bool) (*Withdrawal, error) {
+func (e *Exchange) cancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRequest, overWebsocket bool) (*WithdrawalResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -152,7 +152,7 @@ func (e *Exchange) cancelWithdrawal(ctx context.Context, arg *CancelWithdrawalRe
 	if arg.ID == 0 {
 		return nil, errWithdrawalIDRequired
 	}
-	var resp *Withdrawal
+	var resp *WithdrawalResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/cancel_withdrawal", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -191,18 +191,18 @@ func (e *Exchange) coinbaseEstimateWithdrawalFee(ctx context.Context, arg *Coinb
 // CreateDepositAddress creates a deposit address, or returns common.ErrNoResponse when Deribit creates none: it creates
 // a BTC address at most once a day and a single ERC20, Solana or XRP address, an ERC20 address serving every ERC20
 // currency. Coinbase wallet type accounts name a network, whose existing address is returned unchanged
-func (e *Exchange) CreateDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest) (*AddressBookEntry, error) {
+func (e *Exchange) CreateDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest) (*AddressBookEntryResponse, error) {
 	return e.createDepositAddress(ctx, arg, false)
 }
 
-func (e *Exchange) createDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest, overWebsocket bool) (*AddressBookEntry, error) {
+func (e *Exchange) createDepositAddress(ctx context.Context, arg *CreateDepositAddressRequest, overWebsocket bool) (*AddressBookEntryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *AddressBookEntry
+	var resp *AddressBookEntryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_deposit_address", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -225,15 +225,15 @@ func (e *Exchange) deleteAddressBeneficiary(ctx context.Context, arg *AddressBen
 }
 
 // GetAddressBeneficiary returns an address's beneficiary information
-func (e *Exchange) GetAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest) (*AddressBeneficiary, error) {
+func (e *Exchange) GetAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest) (*AddressBeneficiaryResponse, error) {
 	return e.getAddressBeneficiary(ctx, arg, false)
 }
 
-func (e *Exchange) getAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest, overWebsocket bool) (*AddressBeneficiary, error) {
+func (e *Exchange) getAddressBeneficiary(ctx context.Context, arg *AddressBeneficiaryRequest, overWebsocket bool) (*AddressBeneficiaryResponse, error) {
 	if err := arg.validate(); err != nil {
 		return nil, err
 	}
-	var resp *AddressBeneficiary
+	var resp *AddressBeneficiaryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_address_beneficiary", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -259,11 +259,11 @@ func (a *AddressBeneficiaryRequest) validate() error {
 
 // GetAddressBook returns the address book entries of a currency and type; a Coinbase wallet type account's Coinbase
 // Travel Network counterparties are only listed under the "all" currency
-func (e *Exchange) GetAddressBook(ctx context.Context, arg *GetAddressBookRequest) ([]AddressBookEntry, error) {
+func (e *Exchange) GetAddressBook(ctx context.Context, arg *GetAddressBookRequest) ([]AddressBookEntryResponse, error) {
 	return e.getAddressBook(ctx, arg, false)
 }
 
-func (e *Exchange) getAddressBook(ctx context.Context, arg *GetAddressBookRequest, overWebsocket bool) ([]AddressBookEntry, error) {
+func (e *Exchange) getAddressBook(ctx context.Context, arg *GetAddressBookRequest, overWebsocket bool) ([]AddressBookEntryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -273,7 +273,7 @@ func (e *Exchange) getAddressBook(ctx context.Context, arg *GetAddressBookReques
 	if err := validateAddressBookType(arg.Type, AddressBookTypeTransfer, AddressBookTypeWithdrawal, AddressBookTypeDepositSource, AddressBookTypeDeposit); err != nil {
 		return nil, err
 	}
-	var resp []AddressBookEntry
+	var resp []AddressBookEntryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_address_book", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -282,18 +282,18 @@ func (e *Exchange) getAddressBook(ctx context.Context, arg *GetAddressBookReques
 
 // GetCurrentDepositAddress returns a currency's most recently created or used deposit address, or common.ErrNoResponse
 // when it has none; Coinbase wallet type accounts name a network, whose address it returns
-func (e *Exchange) GetCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest) (*AddressBookEntry, error) {
+func (e *Exchange) GetCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest) (*AddressBookEntryResponse, error) {
 	return e.getCurrentDepositAddress(ctx, arg, false)
 }
 
-func (e *Exchange) getCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest, overWebsocket bool) (*AddressBookEntry, error) {
+func (e *Exchange) getCurrentDepositAddress(ctx context.Context, arg *GetCurrentDepositAddressRequest, overWebsocket bool) (*AddressBookEntryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *AddressBookEntry
+	var resp *AddressBookEntryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_current_deposit_address", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -409,18 +409,12 @@ func (e *Exchange) listAddressBeneficiaries(ctx context.Context, arg *ListAddres
 	if !arg.UpdatedAfter.IsZero() && !arg.UpdatedBefore.IsZero() && arg.UpdatedAfter.After(arg.UpdatedBefore) {
 		return nil, fmt.Errorf("%w: updated after %s is after updated before %s", common.ErrStartAfterEnd, arg.UpdatedAfter, arg.UpdatedBefore)
 	}
-	params := &ListAddressBeneficiariesParams{ListAddressBeneficiariesRequest: arg}
-	if !arg.CreatedBefore.IsZero() {
-		params.CreatedBefore = arg.CreatedBefore.UnixMilli()
-	}
-	if !arg.CreatedAfter.IsZero() {
-		params.CreatedAfter = arg.CreatedAfter.UnixMilli()
-	}
-	if !arg.UpdatedBefore.IsZero() {
-		params.UpdatedBefore = arg.UpdatedBefore.UnixMilli()
-	}
-	if !arg.UpdatedAfter.IsZero() {
-		params.UpdatedAfter = arg.UpdatedAfter.UnixMilli()
+	params := &ListAddressBeneficiariesParams{
+		ListAddressBeneficiariesRequest: arg,
+		CreatedBefore:                   unixMilli(arg.CreatedBefore),
+		CreatedAfter:                    unixMilli(arg.CreatedAfter),
+		UpdatedBefore:                   unixMilli(arg.UpdatedBefore),
+		UpdatedAfter:                    unixMilli(arg.UpdatedAfter),
 	}
 	var resp *AddressBeneficiariesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/list_address_beneficiaries", params, &resp); err != nil {
@@ -449,11 +443,11 @@ func (e *Exchange) removeFromAddressBook(ctx context.Context, arg *RemoveFromAdd
 
 // SaveAddressBeneficiary saves an address's beneficiary information, which the travel rule needs for withdrawals to it,
 // and returns it as stored
-func (e *Exchange) SaveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest) (*AddressBeneficiary, error) {
+func (e *Exchange) SaveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest) (*AddressBeneficiaryResponse, error) {
 	return e.saveAddressBeneficiary(ctx, arg, false)
 }
 
-func (e *Exchange) saveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest, overWebsocket bool) (*AddressBeneficiary, error) {
+func (e *Exchange) saveAddressBeneficiary(ctx context.Context, arg *SaveAddressBeneficiaryRequest, overWebsocket bool) (*AddressBeneficiaryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -472,7 +466,7 @@ func (e *Exchange) saveAddressBeneficiary(ctx context.Context, arg *SaveAddressB
 	if arg.BeneficiaryAddress == "" {
 		return nil, errBeneficiaryAddressRequired
 	}
-	var resp *AddressBeneficiary
+	var resp *AddressBeneficiaryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/save_address_beneficiary", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -484,18 +478,18 @@ func (e *Exchange) saveAddressBeneficiary(ctx context.Context, arg *SaveAddressB
 
 // SetAddressRequiresSecurityKey sets whether withdrawals to an address book entry need a security key, and returns the
 // updated entry; legacy wallet type accounts need the mainaccount scope and set it for withdrawal entries only
-func (e *Exchange) SetAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest) (*AddressBookEntry, error) {
+func (e *Exchange) SetAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest) (*AddressBookEntryResponse, error) {
 	return e.setAddressRequiresSecurityKey(ctx, arg, false)
 }
 
-func (e *Exchange) setAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest, overWebsocket bool) (*AddressBookEntry, error) {
+func (e *Exchange) setAddressRequiresSecurityKey(ctx context.Context, arg *SetAddressRequiresSecurityKeyRequest, overWebsocket bool) (*AddressBookEntryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if err := validateAddressBookEntry(arg.Currency, arg.Type, arg.Address, arg.EntryID, AddressBookTypeTransfer, AddressBookTypeWithdrawal); err != nil {
 		return nil, err
 	}
-	var resp *AddressBookEntry
+	var resp *AddressBookEntryResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_address_requires_security_key", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -507,11 +501,11 @@ func (e *Exchange) setAddressRequiresSecurityKey(ctx context.Context, arg *SetAd
 
 // SetClearanceOriginator sets the originator of a deposit, which the travel rule needs before the deposit clears, and
 // returns the deposit
-func (e *Exchange) SetClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest) (*Deposit, error) {
+func (e *Exchange) SetClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest) (*DepositResponse, error) {
 	return e.setClearanceOriginator(ctx, arg, false)
 }
 
-func (e *Exchange) setClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest, overWebsocket bool) (*Deposit, error) {
+func (e *Exchange) setClearanceOriginator(ctx context.Context, arg *SetClearanceOriginatorRequest, overWebsocket bool) (*DepositResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -527,7 +521,7 @@ func (e *Exchange) setClearanceOriginator(ctx context.Context, arg *SetClearance
 	if arg.Deposit.TransactionHash == "" {
 		return nil, errTransactionHashRequired
 	}
-	var resp *Deposit
+	var resp *DepositResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_clearance_originator", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -556,11 +550,11 @@ func (e *Exchange) setCoinbaseSubaccountWithdrawalsAllowed(ctx context.Context, 
 
 // SubmitTransferBetweenSubaccounts transfers funds between subaccounts, or a subaccount and the main account; Deribit
 // needs the main account's authorisation even when a subaccount sends it
-func (e *Exchange) SubmitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest) (*Transfer, error) {
+func (e *Exchange) SubmitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest) (*TransferResponse, error) {
 	return e.submitTransferBetweenSubaccounts(ctx, arg, false)
 }
 
-func (e *Exchange) submitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest, overWebsocket bool) (*Transfer, error) {
+func (e *Exchange) submitTransferBetweenSubaccounts(ctx context.Context, arg *SubmitTransferBetweenSubaccountsRequest, overWebsocket bool) (*TransferResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -576,7 +570,7 @@ func (e *Exchange) submitTransferBetweenSubaccounts(ctx context.Context, arg *Su
 	if err := validateIdempotencyNonce(arg.Nonce); err != nil {
 		return nil, err
 	}
-	var resp *Transfer
+	var resp *TransferResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/submit_transfer_between_subaccounts", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -587,11 +581,11 @@ func (e *Exchange) submitTransferBetweenSubaccounts(ctx context.Context, arg *Su
 }
 
 // SubmitTransferToSubaccount transfers funds from the main account to a subaccount
-func (e *Exchange) SubmitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest) (*Transfer, error) {
+func (e *Exchange) SubmitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest) (*TransferResponse, error) {
 	return e.submitTransferToSubaccount(ctx, arg, false)
 }
 
-func (e *Exchange) submitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest, overWebsocket bool) (*Transfer, error) {
+func (e *Exchange) submitTransferToSubaccount(ctx context.Context, arg *SubmitTransferToSubaccountRequest, overWebsocket bool) (*TransferResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -604,7 +598,7 @@ func (e *Exchange) submitTransferToSubaccount(ctx context.Context, arg *SubmitTr
 	if arg.Destination == 0 {
 		return nil, errTransferDestinationRequired
 	}
-	var resp *Transfer
+	var resp *TransferResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/submit_transfer_to_subaccount", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -616,11 +610,11 @@ func (e *Exchange) submitTransferToSubaccount(ctx context.Context, arg *SubmitTr
 
 // SubmitTransferToUser transfers funds from the main account to another Deribit user's address book address, without a
 // blockchain transaction; it needs the mainaccount scope
-func (e *Exchange) SubmitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest) (*Transfer, error) {
+func (e *Exchange) SubmitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest) (*TransferResponse, error) {
 	return e.submitTransferToUser(ctx, arg, false)
 }
 
-func (e *Exchange) submitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest, overWebsocket bool) (*Transfer, error) {
+func (e *Exchange) submitTransferToUser(ctx context.Context, arg *SubmitTransferToUserRequest, overWebsocket bool) (*TransferResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -633,7 +627,7 @@ func (e *Exchange) submitTransferToUser(ctx context.Context, arg *SubmitTransfer
 	if arg.Destination == "" {
 		return nil, errTransferDestinationRequired
 	}
-	var resp *Transfer
+	var resp *TransferResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/submit_transfer_to_user", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -674,11 +668,11 @@ func (e *Exchange) updateInAddressBook(ctx context.Context, arg *UpdateInAddress
 // email confirmation, and may reject the withdrawal if the balance falls or the network fee rises in between. On an
 // account with two-factor authentication, it returns a SecurityKeyChallengeError until the request is confirmed with
 // WithSecurityKeyAuthorisation
-func (e *Exchange) Withdraw(ctx context.Context, arg *WithdrawRequest) (*Withdrawal, error) {
+func (e *Exchange) Withdraw(ctx context.Context, arg *WithdrawRequest) (*WithdrawalResponse, error) {
 	return e.withdraw(ctx, arg, false)
 }
 
-func (e *Exchange) withdraw(ctx context.Context, arg *WithdrawRequest, overWebsocket bool) (*Withdrawal, error) {
+func (e *Exchange) withdraw(ctx context.Context, arg *WithdrawRequest, overWebsocket bool) (*WithdrawalResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -700,7 +694,7 @@ func (e *Exchange) withdraw(ctx context.Context, arg *WithdrawRequest, overWebso
 	if err := validateIdempotencyNonce(arg.Nonce); err != nil {
 		return nil, err
 	}
-	var resp *Withdrawal
+	var resp *WithdrawalResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/withdraw", arg, &resp); err != nil {
 		return nil, err
 	}

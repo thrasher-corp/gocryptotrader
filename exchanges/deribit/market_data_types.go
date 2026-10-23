@@ -98,9 +98,9 @@ type BookSummaryByCurrencyRequest struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// BookSummary contains an instrument's market summary; prices Deribit sends as null, such as the bid of an empty book
-// or the last price of an instrument that has not traded in 24 hours, are zero
-type BookSummary struct {
+// BookSummaryResponse contains an instrument's market summary; prices Deribit sends as null, such as the bid of an
+// empty book or the last price of an instrument that has not traded in 24 hours, are zero
+type BookSummaryResponse struct {
 	InstrumentName string        `json:"instrument_name"`
 	BaseCurrency   currency.Code `json:"base_currency"`
 	QuoteCurrency  currency.Code `json:"quote_currency"`
@@ -143,8 +143,8 @@ type ContractSizeResponse struct {
 	ContractSize float64 `json:"contract_size"`
 }
 
-// CurrencyDetail contains a currency Deribit supports and its deposit and withdrawal parameters
-type CurrencyDetail struct {
+// CurrencyDetailResponse contains a currency Deribit supports and its deposit and withdrawal parameters
+type CurrencyDetailResponse struct {
 	Currency     currency.Code `json:"currency"`
 	CurrencyLong string        `json:"currency_long"`
 	CurrencyUUID string        `json:"currency_uuid"`
@@ -271,12 +271,12 @@ type InstrumentTimeRangeRequest struct {
 // InstrumentTimeRangeParams contains an instrument time range request's params, with its times in Unix milliseconds
 type InstrumentTimeRangeParams struct {
 	*InstrumentTimeRangeRequest
-	StartTimestamp int64 `json:"start_timestamp"`
-	EndTimestamp   int64 `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 }
 
-// FundingRateHistory contains a perpetual's funding over an hour
-type FundingRateHistory struct {
+// FundingRateHistoryResponse contains a perpetual's funding over an hour
+type FundingRateHistoryResponse struct {
 	// Timestamp is the end of the hour
 	Timestamp  types.Time `json:"timestamp"`
 	IndexPrice float64    `json:"index_price"`
@@ -287,14 +287,14 @@ type FundingRateHistory struct {
 	Interest8Hour float64 `json:"interest_8h"`
 }
 
-// HistoricalVolatilityPoint contains a currency's realised volatility at an hour, as a percentage
-type HistoricalVolatilityPoint struct {
+// HistoricalVolatilityPointResponse contains a currency's realised volatility at an hour, as a percentage
+type HistoricalVolatilityPointResponse struct {
 	Timestamp  types.Time
 	Volatility float64
 }
 
 // UnmarshalJSON decodes a [timestamp, volatility] tuple
-func (h *HistoricalVolatilityPoint) UnmarshalJSON(data []byte) error {
+func (h *HistoricalVolatilityPointResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &h.Timestamp, &h.Volatility)
 }
 
@@ -305,14 +305,14 @@ type IndexChartDataRequest struct {
 	Range string `json:"range"`
 }
 
-// IndexChartPoint contains an index's average price at a point of its chart
-type IndexChartPoint struct {
+// IndexChartPointResponse contains an index's average price at a point of its chart
+type IndexChartPointResponse struct {
 	Timestamp types.Time
 	Price     float64
 }
 
 // UnmarshalJSON decodes a [timestamp, price] tuple
-func (i *IndexChartPoint) UnmarshalJSON(data []byte) error {
+func (i *IndexChartPointResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &i.Timestamp, &i.Price)
 }
 
@@ -327,25 +327,25 @@ type IndexPriceNamesRequest struct {
 	Extended bool `json:"extended,omitempty"`
 }
 
-// IndexPriceName contains an index's name and, when extended details are requested, whether future and option combos
-// can be created on it; Deribit only sends a setting that is enabled
-type IndexPriceName struct {
+// IndexPriceNameResponse contains an index's name and, when extended details are requested, whether future and option
+// combos can be created on it; Deribit only sends a setting that is enabled
+type IndexPriceNameResponse struct {
 	Name                       string `json:"name"`
 	FutureComboCreationEnabled bool   `json:"future_combo_creation_enabled"`
 	OptionComboCreationEnabled bool   `json:"option_combo_creation_enabled"`
 }
 
 // UnmarshalJSON decodes an index's name, which Deribit sends as a bare string unless extended details are requested
-func (i *IndexPriceName) UnmarshalJSON(data []byte) error {
+func (i *IndexPriceNameResponse) UnmarshalJSON(data []byte) error {
 	if data = bytes.TrimSpace(data); len(data) > 0 && data[0] == '"' {
 		return json.Unmarshal(data, &i.Name)
 	}
-	type indexPriceName IndexPriceName
+	type indexPriceName IndexPriceNameResponse
 	return json.Unmarshal(data, (*indexPriceName)(i))
 }
 
-// Instrument contains an instrument's specification; fields only some kinds carry are zero for the others
-type Instrument struct {
+// InstrumentResponse contains an instrument's specification; fields only some kinds carry are zero for the others
+type InstrumentResponse struct {
 	InstrumentName string `json:"instrument_name"`
 	InstrumentID   uint64 `json:"instrument_id"`
 	// Kind is future, option, spot, future_combo or option_combo
@@ -420,8 +420,8 @@ type Instrument struct {
 
 // UnmarshalJSON decodes an instrument, reading its expiration timestamp as milliseconds; types.Time reads the 14 digit
 // timestamp of the year 3000, which perpetuals and spot expire at, as microseconds
-func (i *Instrument) UnmarshalJSON(data []byte) error {
-	type instrument Instrument
+func (i *InstrumentResponse) UnmarshalJSON(data []byte) error {
+	type instrument InstrumentResponse
 	aux := struct {
 		*instrument
 		ExpirationTimestamp *int64 `json:"expiration_timestamp"`
@@ -486,7 +486,7 @@ type LastSettlementsByCurrencyRequest struct {
 // Unix milliseconds
 type LastSettlementsByCurrencyParams struct {
 	*LastSettlementsByCurrencyRequest
-	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // LastSettlementsByInstrumentRequest requests an instrument's settlement, delivery and bankruptcy events, newest first
@@ -505,7 +505,7 @@ type LastSettlementsByInstrumentRequest struct {
 // time in Unix milliseconds
 type LastSettlementsByInstrumentParams struct {
 	*LastSettlementsByInstrumentRequest
-	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // LastTradesByCurrencyRequest requests a currency's latest trades, optionally within a trade ID or time range
@@ -528,8 +528,8 @@ type LastTradesByCurrencyRequest struct {
 // LastTradesByCurrencyParams contains a currency's last trades request params, with its times in Unix milliseconds
 type LastTradesByCurrencyParams struct {
 	*LastTradesByCurrencyRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // LastTradesByCurrencyAndTimeRequest requests a currency's latest trades within a time range, which needs a start or an
@@ -551,8 +551,8 @@ type LastTradesByCurrencyAndTimeRequest struct {
 // milliseconds
 type LastTradesByCurrencyAndTimeParams struct {
 	*LastTradesByCurrencyAndTimeRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // LastTradesByInstrumentRequest requests an instrument's latest trades, optionally within a trade sequence or time
@@ -573,8 +573,8 @@ type LastTradesByInstrumentRequest struct {
 // LastTradesByInstrumentParams contains an instrument's last trades request params, with its times in Unix milliseconds
 type LastTradesByInstrumentParams struct {
 	*LastTradesByInstrumentRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // LastTradesByInstrumentAndTimeRequest requests an instrument's latest trades within a time range, which needs a start
@@ -593,8 +593,8 @@ type LastTradesByInstrumentAndTimeRequest struct {
 // Unix milliseconds
 type LastTradesByInstrumentAndTimeParams struct {
 	*LastTradesByInstrumentAndTimeRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // LastTradesResponse contains a page of public trades and whether more match the request
@@ -637,14 +637,14 @@ type PublicTrade struct {
 	Legs []PublicTrade `json:"legs"`
 }
 
-// MarkPricePoint contains an option's mark price at a point in time
-type MarkPricePoint struct {
+// MarkPricePointResponse contains an option's mark price at a point in time
+type MarkPricePointResponse struct {
 	Timestamp types.Time
 	MarkPrice float64
 }
 
 // UnmarshalJSON decodes a [timestamp, mark price] tuple
-func (m *MarkPricePoint) UnmarshalJSON(data []byte) error {
+func (m *MarkPricePointResponse) UnmarshalJSON(data []byte) error {
 	return unmarshalTuple(data, &m.Timestamp, &m.MarkPrice)
 }
 
@@ -693,8 +693,9 @@ type TradeVolumesRequest struct {
 	Extended bool `json:"extended,omitempty"`
 }
 
-// TradeVolume contains a currency's traded volumes in the currency, including block trades but not position moves
-type TradeVolume struct {
+// TradeVolumeResponse contains a currency's traded volumes in the currency, including block trades but not position
+// moves
+type TradeVolumeResponse struct {
 	Currency currency.Code `json:"currency"`
 	// CurrencyPair is the currency's USD index, which Deribit sends although it does not document it
 	CurrencyPair  string  `json:"currency_pair"`
@@ -728,8 +729,8 @@ type TradingViewChartDataRequest struct {
 // and its resolution as Deribit names it
 type TradingViewChartDataParams struct {
 	*TradingViewChartDataRequest
-	StartTimestamp  int64  `json:"start_timestamp"`
-	EndTimestamp    int64  `json:"end_timestamp"`
+	StartTimestamp  uint64 `json:"start_timestamp"`
+	EndTimestamp    uint64 `json:"end_timestamp"`
 	ChartResolution string `json:"resolution"`
 }
 
@@ -761,8 +762,8 @@ type VolatilityIndexDataRequest struct {
 // its resolution as Deribit names it
 type VolatilityIndexDataParams struct {
 	*VolatilityIndexDataRequest
-	StartTimestamp  int64  `json:"start_timestamp"`
-	EndTimestamp    int64  `json:"end_timestamp"`
+	StartTimestamp  uint64 `json:"start_timestamp"`
+	EndTimestamp    uint64 `json:"end_timestamp"`
 	IndexResolution string `json:"resolution"`
 }
 

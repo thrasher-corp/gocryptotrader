@@ -236,8 +236,8 @@ func TestGetBasketIndexComposition(t *testing.T) {
 }
 
 // testOptionBookSummaries are the mock book summaries of BTC options
-func testOptionBookSummaries() []BookSummary {
-	return []BookSummary{
+func testOptionBookSummaries() []BookSummaryResponse {
+	return []BookSummaryResponse{
 		{
 			InstrumentName:         "BTC-25DEC26-104000-C",
 			BaseCurrency:           currency.BTC,
@@ -344,8 +344,8 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 }
 
 // testPerpetualBookSummary is the mock book summary of marketDataPerpetual
-func testPerpetualBookSummary() []BookSummary {
-	return []BookSummary{
+func testPerpetualBookSummary() []BookSummaryResponse {
+	return []BookSummaryResponse{
 		{
 			InstrumentName:         "BTC-PERPETUAL",
 			BaseCurrency:           currency.BTC,
@@ -403,8 +403,8 @@ func TestGetContractSize(t *testing.T) {
 }
 
 // testPublicCurrencies are the mock currencies
-func testPublicCurrencies() []CurrencyDetail {
-	return []CurrencyDetail{
+func testPublicCurrencies() []CurrencyDetailResponse {
+	return []CurrencyDetailResponse{
 		{
 			Currency:                   currency.NewCode("ZORA"),
 			CurrencyLong:               "Zora",
@@ -504,7 +504,7 @@ func TestGetCurrencies(t *testing.T) {
 
 	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"currency":"BTC","withdrawal_priorities":[{"value":0.15,"name":"very_low"},{"value":1.5,"name":"very_high"}]}]}`).GetCurrencies(t.Context())
 	require.NoError(t, err, "GetCurrencies must not error for withdrawal priorities")
-	exp := []CurrencyDetail{{Currency: currency.BTC, WithdrawalPriorities: []CurrencyWithdrawalPriority{{Name: "very_low", Value: 0.15}, {Name: "very_high", Value: 1.5}}}}
+	exp := []CurrencyDetailResponse{{Currency: currency.BTC, WithdrawalPriorities: []CurrencyWithdrawalPriority{{Name: "very_low", Value: 0.15}, {Name: "very_high", Value: 1.5}}}}
 	assert.Equal(t, exp, result, "GetCurrencies should decode Deribit's documented withdrawal priorities, which the recording leaves empty")
 	_, err = newUnavailableServerExchange(t).GetCurrencies(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCurrencies should return the request failure")
@@ -675,8 +675,8 @@ func testFundingRangeRequest() *InstrumentTimeRangeRequest {
 
 // testFundingRateHistory is the mock hourly funding of marketDataPerpetual, which ends each hour after the range's
 // start
-func testFundingRateHistory() []FundingRateHistory {
-	return []FundingRateHistory{
+func testFundingRateHistory() []FundingRateHistoryResponse {
+	return []FundingRateHistoryResponse{
 		{
 			Timestamp:          marketDataMilli(1792026000000),
 			IndexPrice:         81556.85,
@@ -775,8 +775,8 @@ func TestInstrumentTimeRangeRequestParams(t *testing.T) {
 }
 
 // testHistoricalVolatility is the mock realised volatility of BTC
-func testHistoricalVolatility() []HistoricalVolatilityPoint {
-	return []HistoricalVolatilityPoint{
+func testHistoricalVolatility() []HistoricalVolatilityPointResponse {
+	return []HistoricalVolatilityPointResponse{
 		{
 			Timestamp:  marketDataMilli(1790737200000),
 			Volatility: 35.43876495973024,
@@ -819,16 +819,16 @@ func TestGetHistoricalVolatility(t *testing.T) {
 
 func TestHistoricalVolatilityPointUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result HistoricalVolatilityPoint
+	var result HistoricalVolatilityPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1549720800000,14.747743607344217]`), &result), "Unmarshal must not error")
-	assert.Equal(t, HistoricalVolatilityPoint{Timestamp: marketDataMilli(1549720800000), Volatility: 14.747743607344217}, result, "UnmarshalJSON should decode the timestamp and volatility")
+	assert.Equal(t, HistoricalVolatilityPointResponse{Timestamp: marketDataMilli(1549720800000), Volatility: 14.747743607344217}, result, "UnmarshalJSON should decode the timestamp and volatility")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[1549720800000]`), &result), errInvalidTuple, "UnmarshalJSON should reject a tuple without a volatility")
 	assert.Error(t, json.Unmarshal([]byte(`[1549720800000,"high"]`), &result), "UnmarshalJSON should reject a volatility that is not a number")
 }
 
 // testIndexChart is the mock hour of the btc_usd index chart
-func testIndexChart() []IndexChartPoint {
-	return []IndexChartPoint{
+func testIndexChart() []IndexChartPointResponse {
+	return []IndexChartPointResponse{
 		{Timestamp: marketDataMilli(1792106196000), Price: 82098.246667},
 		{Timestamp: marketDataMilli(1792106202000), Price: 82095.938333},
 		{Timestamp: marketDataMilli(1792106208000), Price: 82095.711667},
@@ -861,9 +861,9 @@ func TestGetIndexChartData(t *testing.T) {
 
 func TestIndexChartPointUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result IndexChartPoint
+	var result IndexChartPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636]`), &result), "Unmarshal must not error")
-	assert.Equal(t, IndexChartPoint{Timestamp: marketDataMilli(1573228800000), Price: 8751.7138636}, result, "UnmarshalJSON should decode the timestamp and price")
+	assert.Equal(t, IndexChartPointResponse{Timestamp: marketDataMilli(1573228800000), Price: 8751.7138636}, result, "UnmarshalJSON should decode the timestamp and price")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636,1]`), &result), errInvalidTuple, "UnmarshalJSON should reject a tuple with an extra element")
 	assert.Error(t, json.Unmarshal([]byte(`{"price":8751.7138636}`), &result), "UnmarshalJSON should reject a point that is not a tuple")
 }
@@ -888,8 +888,8 @@ func TestGetIndexPrice(t *testing.T) {
 }
 
 // testIndexPriceNames are the mock index names, which Deribit sends as bare strings without extended details
-func testIndexPriceNames() []IndexPriceName {
-	return []IndexPriceName{{Name: "ada_usd"}, {Name: "ada_usdc"}, {Name: "ada_usdt"}, {Name: "algo_usd"}, {Name: "algo_usdc"}}
+func testIndexPriceNames() []IndexPriceNameResponse {
+	return []IndexPriceNameResponse{{Name: "ada_usd"}, {Name: "ada_usdc"}, {Name: "ada_usdt"}, {Name: "algo_usd"}, {Name: "algo_usdc"}}
 }
 
 func TestGetIndexPriceNames(t *testing.T) {
@@ -899,16 +899,16 @@ func TestGetIndexPriceNames(t *testing.T) {
 	if mockTests {
 		assert.Equal(t, testIndexPriceNames(), result, "GetIndexPriceNames should decode every name")
 	} else {
-		assert.Contains(t, result, IndexPriceName{Name: marketDataIndexName}, "GetIndexPriceNames should return the btc_usd index")
+		assert.Contains(t, result, IndexPriceNameResponse{Name: marketDataIndexName}, "GetIndexPriceNames should return the btc_usd index")
 		result, err = e.GetIndexPriceNames(t.Context(), true)
 		require.NoError(t, err, "GetIndexPriceNames must not error with extended details")
-		assert.Contains(t, result, IndexPriceName{Name: marketDataIndexName, FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, "GetIndexPriceNames should return btc_usd's combo creation settings")
+		assert.Contains(t, result, IndexPriceNameResponse{Name: marketDataIndexName, FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, "GetIndexPriceNames should return btc_usd's combo creation settings")
 	}
 
 	// The recorder blanks name fields, so the extended details are served as Deribit sent them
 	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"name":"ada_usd"},{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true},{"name":"btc_usdc","option_combo_creation_enabled":true}]}`).GetIndexPriceNames(t.Context(), true)
 	require.NoError(t, err, "GetIndexPriceNames must not error with extended details")
-	exp := []IndexPriceName{{Name: "ada_usd"}, {Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, {Name: "btc_usdc", OptionComboCreationEnabled: true}}
+	exp := []IndexPriceNameResponse{{Name: "ada_usd"}, {Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}, {Name: "btc_usdc", OptionComboCreationEnabled: true}}
 	assert.Equal(t, exp, result, "GetIndexPriceNames should decode the extended details")
 	_, err = newUnavailableServerExchange(t).GetIndexPriceNames(t.Context(), false)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetIndexPriceNames should return the request failure")
@@ -918,24 +918,24 @@ func TestIndexPriceNameUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		input string
-		exp   IndexPriceName
+		exp   IndexPriceNameResponse
 	}{
-		{input: `"btc_usd"`, exp: IndexPriceName{Name: "btc_usd"}},
-		{input: `{"name":"btc_usdc"}`, exp: IndexPriceName{Name: "btc_usdc"}},
-		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: IndexPriceName{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
+		{input: `"btc_usd"`, exp: IndexPriceNameResponse{Name: "btc_usd"}},
+		{input: `{"name":"btc_usdc"}`, exp: IndexPriceNameResponse{Name: "btc_usdc"}},
+		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: IndexPriceNameResponse{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
 		{input: `null`},
 	} {
-		var result IndexPriceName
+		var result IndexPriceNameResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
 		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
 	}
-	var result IndexPriceName
+	var result IndexPriceNameResponse
 	assert.Error(t, json.Unmarshal([]byte(`["btc_usd"]`), &result), "UnmarshalJSON should reject a name that is neither a string nor an object")
 }
 
 // testOptionInstrument is the mock specification of mockMarketDataOption
-func testOptionInstrument() *Instrument {
-	return &Instrument{
+func testOptionInstrument() *InstrumentResponse {
+	return &InstrumentResponse{
 		InstrumentName:      "BTC-27NOV26-90000-C",
 		InstrumentID:        683239,
 		Kind:                "option",
@@ -973,8 +973,8 @@ func testOptionInstrument() *Instrument {
 }
 
 // testCoinbaseRoutedInstrument is the mock specification of marketDataCoinbaseRoutedSpot
-func testCoinbaseRoutedInstrument() *Instrument {
-	return &Instrument{
+func testCoinbaseRoutedInstrument() *InstrumentResponse {
+	return &InstrumentResponse{
 		InstrumentName:           "AAVE_USDC",
 		InstrumentID:             700476,
 		Kind:                     "spot",
@@ -1047,13 +1047,13 @@ func TestGetInstrument(t *testing.T) {
 
 func TestInstrumentUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result Instrument
+	var result InstrumentResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC-PERPETUAL","creation_timestamp":1534242287000,"expiration_timestamp":32503708800000}`), &result), "Unmarshal must not error")
-	exp := Instrument{InstrumentName: marketDataPerpetual, CreationTimestamp: marketDataMilli(1534242287000), ExpirationTimestamp: marketDataMilli(32503708800000)}
+	exp := InstrumentResponse{InstrumentName: marketDataPerpetual, CreationTimestamp: marketDataMilli(1534242287000), ExpirationTimestamp: marketDataMilli(32503708800000)}
 	assert.Equal(t, exp, result, "UnmarshalJSON should decode every field, reading the expiration in milliseconds")
 	assert.Equal(t, 3000, result.ExpirationTimestamp.Time().UTC().Year(), "UnmarshalJSON should decode a perpetual's expiration in the year 3000")
 
-	result = Instrument{ExpirationTimestamp: marketDataMilli(1795766400000)}
+	result = InstrumentResponse{ExpirationTimestamp: marketDataMilli(1795766400000)}
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC-27NOV26-90000-C"}`), &result), "Unmarshal must not error without an expiration")
 	assert.Equal(t, marketDataMilli(1795766400000), result.ExpirationTimestamp, "UnmarshalJSON should leave the expiration unchanged when it is left out")
 	require.NoError(t, json.Unmarshal([]byte(`{"expiration_timestamp":0}`), &result), "Unmarshal must not error for a zero expiration")
@@ -1063,8 +1063,8 @@ func TestInstrumentUnmarshalJSON(t *testing.T) {
 }
 
 // testFutureInstruments are the mock extended specifications of BTC futures
-func testFutureInstruments() []Instrument {
-	return []Instrument{
+func testFutureInstruments() []InstrumentResponse {
+	return []InstrumentResponse{
 		{
 			InstrumentName:           "BTC-PERPETUAL",
 			InstrumentID:             210838,
@@ -1973,12 +1973,6 @@ func TestValidateLastTradesRequiredTimeRange(t *testing.T) {
 	}
 }
 
-func TestMarketDataUnixMilli(t *testing.T) {
-	t.Parallel()
-	assert.Zero(t, marketDataUnixMilli(time.Time{}), "marketDataUnixMilli should return zero for a zero time")
-	assert.Equal(t, int64(mockLastTradesRangeStart), marketDataUnixMilli(time.UnixMilli(mockLastTradesRangeStart)), "marketDataUnixMilli should return the time in Unix milliseconds")
-}
-
 // testMarkPriceRequest returns the mock mark price range of mockMarketDataOption, or a listed option's last minute when
 // testing live, as Deribit keeps about 5 minutes of mark price history
 func testMarkPriceRequest(t *testing.T) *InstrumentTimeRangeRequest {
@@ -1991,8 +1985,8 @@ func testMarkPriceRequest(t *testing.T) *InstrumentTimeRangeRequest {
 }
 
 // testMarkPrices are the mock mark prices of mockMarketDataOption
-func testMarkPrices() []MarkPricePoint {
-	return []MarkPricePoint{
+func testMarkPrices() []MarkPricePointResponse {
+	return []MarkPricePointResponse{
 		{Timestamp: marketDataMilli(1792109784500), MarkPrice: 0.01918451202747332},
 		{Timestamp: marketDataMilli(1792109785511), MarkPrice: 0.019204651518477292},
 		{Timestamp: marketDataMilli(1792109787796), MarkPrice: 0.019204650590899233},
@@ -2027,9 +2021,9 @@ func TestGetMarkPriceHistory(t *testing.T) {
 
 func TestMarkPricePointUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result MarkPricePoint
+	var result MarkPricePointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1608142381229,0.5165791606037885]`), &result), "Unmarshal must not error")
-	assert.Equal(t, MarkPricePoint{Timestamp: marketDataMilli(1608142381229), MarkPrice: 0.5165791606037885}, result, "UnmarshalJSON should decode the timestamp and mark price")
+	assert.Equal(t, MarkPricePointResponse{Timestamp: marketDataMilli(1608142381229), MarkPrice: 0.5165791606037885}, result, "UnmarshalJSON should decode the timestamp and mark price")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[]`), &result), errInvalidTuple, "UnmarshalJSON should reject an empty tuple")
 	assert.Error(t, json.Unmarshal([]byte(`[true,0.5]`), &result), "UnmarshalJSON should reject a timestamp that is not a number")
 }
@@ -2192,8 +2186,8 @@ func TestGetSupportedIndexNames(t *testing.T) {
 }
 
 // testTradeVolumes are the mock extended trade volumes, of the first currencies alphabetically
-func testTradeVolumes() []TradeVolume {
-	return []TradeVolume{
+func testTradeVolumes() []TradeVolumeResponse {
+	return []TradeVolumeResponse{
 		{Currency: currency.AAVE, CurrencyPair: "aave_usd"},
 		{Currency: currency.NewCode("ADA"), CurrencyPair: "ada_usd"},
 		{Currency: currency.NewCode("AERO"), CurrencyPair: "aero_usd"},
@@ -2215,7 +2209,7 @@ func TestGetTradeVolumes(t *testing.T) {
 	// The recorded currencies traded nothing, so a busy currency is served as Deribit sent it
 	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"calls_volume":13836.1,"calls_volume_30d":378436.4,"calls_volume_7d":91834.2,"currency":"BTC","currency_pair":"btc_usd","futures_volume":27450.21422905,"futures_volume_30d":919845.41557178,"futures_volume_7d":215379.62855405,"puts_volume":15084.5,"puts_volume_30d":367294.8,"puts_volume_7d":86913.9,"spot_volume":1.1,"spot_volume_30d":30.5,"spot_volume_7d":6.4}]}`).GetTradeVolumes(t.Context(), true)
 	require.NoError(t, err, "GetTradeVolumes must not error for a busy currency")
-	exp := []TradeVolume{{
+	exp := []TradeVolumeResponse{{
 		Currency:           currency.BTC,
 		CurrencyPair:       "btc_usd",
 		CallsVolume:        13836.1,

@@ -89,8 +89,8 @@ func testCounterpartyAddToAddressBookRequest() *AddToAddressBookRequest {
 
 // testCounterpartyAddressBookEntry is the documented Coinbase Travel Network counterparty entry, listed under every
 // currency
-func testCounterpartyAddressBookEntry() *AddressBookEntry {
-	return &AddressBookEntry{
+func testCounterpartyAddressBookEntry() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		ID:                  "0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5c",
 		Currency:            currency.NewCode("all"),
 		Address:             mockCounterpartyID,
@@ -106,8 +106,8 @@ func testCounterpartyAddressBookEntry() *AddressBookEntry {
 }
 
 // testLegacyAddressBookEntry is the documented legacy wallet type address book entry the mock adds
-func testLegacyAddressBookEntry() *AddressBookEntry {
-	return &AddressBookEntry{
+func testLegacyAddressBookEntry() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		Currency:             currency.BTC,
 		Address:              mockLegacyAddress,
 		Type:                 AddressBookTypeWithdrawal,
@@ -124,8 +124,8 @@ func testLegacyAddressBookEntry() *AddressBookEntry {
 
 // testCoinbaseAddressBookEntry is the documented Coinbase wallet type address book entry the mock adds; the fixture
 // recorder blanks every name field, so the beneficiary's name is empty
-func testCoinbaseAddressBookEntry() *AddressBookEntry {
-	return &AddressBookEntry{
+func testCoinbaseAddressBookEntry() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		ID:                          mockAddressBookEntryID,
 		Currency:                    currency.ETH,
 		Address:                     mockCoinbaseAddress,
@@ -191,8 +191,8 @@ func TestAddToAddressBook(t *testing.T) {
 }
 
 // testTransfer is the documented transfer the mock transfer methods return
-func testTransfer() *Transfer {
-	return &Transfer{
+func testTransfer() *TransferResponse {
+	return &TransferResponse{
 		ID:               mockTransferID,
 		Type:             "user",
 		Currency:         currency.BTC,
@@ -230,8 +230,8 @@ func TestCancelTransferByID(t *testing.T) {
 }
 
 // testLegacyWithdrawal is the documented legacy wallet type withdrawal the mock cancels
-func testLegacyWithdrawal() *Withdrawal {
-	return &Withdrawal{
+func testLegacyWithdrawal() *WithdrawalResponse {
+	return &WithdrawalResponse{
 		ID:               "1",
 		Currency:         currency.BTC,
 		State:            "cancelled",
@@ -305,8 +305,8 @@ func TestCoinbaseEstimateWithdrawalFee(t *testing.T) {
 }
 
 // testLegacyDepositAddress is the documented legacy wallet type deposit address the mock creates and returns
-func testLegacyDepositAddress() *AddressBookEntry {
-	return &AddressBookEntry{
+func testLegacyDepositAddress() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		Currency:          currency.BTC,
 		Address:           "2N8udZGBc1hLRCFsU9kGwMPpmYUwMFTuCwB",
 		Type:              AddressBookTypeDeposit,
@@ -315,8 +315,8 @@ func testLegacyDepositAddress() *AddressBookEntry {
 }
 
 // testCoinbaseDepositAddress is the documented Coinbase wallet type deposit address the mock creates and returns
-func testCoinbaseDepositAddress() *AddressBookEntry {
-	return &AddressBookEntry{
+func testCoinbaseDepositAddress() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		ID:                 mockAddressBookEntryID,
 		Currency:           currency.ETH,
 		Address:            mockCoinbaseAddress,
@@ -385,8 +385,8 @@ func TestDeleteAddressBeneficiary(t *testing.T) {
 }
 
 // testAddressBeneficiary is the documented address beneficiary the mock saves and returns
-func testAddressBeneficiary() *AddressBeneficiary {
-	return &AddressBeneficiary{
+func testAddressBeneficiary() *AddressBeneficiaryResponse {
+	return &AddressBeneficiaryResponse{
 		Currency:               currency.BTC,
 		Address:                mockLegacyAddress,
 		UserID:                 1016,
@@ -459,8 +459,8 @@ func TestAddressBeneficiaryRequestValidate(t *testing.T) {
 }
 
 // testLegacyAddressBook is the documented legacy wallet type address book the mock returns
-func testLegacyAddressBook() []AddressBookEntry {
-	return []AddressBookEntry{
+func testLegacyAddressBook() []AddressBookEntryResponse {
+	return []AddressBookEntryResponse{
 		{
 			Currency:             currency.BTC,
 			Address:              mockWithdrawalAddress,
@@ -515,7 +515,7 @@ func TestGetAddressBook(t *testing.T) {
 
 	result, err = e.GetAddressBook(t.Context(), &GetAddressBookRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal})
 	require.NoError(t, err, "GetAddressBook must not error for a Coinbase wallet type account")
-	assert.Equal(t, []AddressBookEntry{*testCoinbaseAddressBookEntry(), *testCounterpartyAddressBookEntry()}, result, "GetAddressBook should decode Coinbase wallet type entries and counterparties")
+	assert.Equal(t, []AddressBookEntryResponse{*testCoinbaseAddressBookEntry(), *testCounterpartyAddressBookEntry()}, result, "GetAddressBook should decode Coinbase wallet type entries and counterparties")
 
 	_, err = newUnavailableServerExchange(t).GetAddressBook(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAddressBook should return the request failure")
@@ -559,7 +559,7 @@ func testWalletHistoryRequest() *WalletHistoryRequest {
 // testDeposits is the documented page of deposits the mock returns
 func testDeposits() *DepositsResponse {
 	return &DepositsResponse{
-		Deposits: []Deposit{{
+		Deposits: []DepositResponse{{
 			Currency:          currency.BTC,
 			Address:           "2N35qDKDY22zmJq9eSyiAerMD4enJ1xx6ax",
 			Amount:            5,
@@ -642,7 +642,7 @@ func TestGetRewardEligibility(t *testing.T) {
 // testTransfers is the documented page of transfers the mock returns
 func testTransfers() *TransfersResponse {
 	return &TransfersResponse{
-		Transfers: []Transfer{
+		Transfers: []TransferResponse{
 			{
 				ID:               2,
 				Type:             "user",
@@ -697,7 +697,7 @@ func TestGetTransfers(t *testing.T) {
 func testWithdrawals() *WithdrawalsResponse {
 	withdrawal := testLegacyWithdrawal()
 	withdrawal.State = "unconfirmed"
-	return &WithdrawalsResponse{Withdrawals: []Withdrawal{*withdrawal}, Count: 1}
+	return &WithdrawalsResponse{Withdrawals: []WithdrawalResponse{*withdrawal}, Count: 1}
 }
 
 func TestGetWithdrawals(t *testing.T) {
@@ -747,7 +747,7 @@ func testAddressBeneficiaries() *AddressBeneficiariesResponse {
 	beneficiary := testAddressBeneficiary()
 	beneficiary.UserID = 1026
 	return &AddressBeneficiariesResponse{
-		Beneficiaries: []AddressBeneficiary{*beneficiary},
+		Beneficiaries: []AddressBeneficiaryResponse{*beneficiary},
 		Continuation:  "xY7T6cutS3t2B9YtaDkE6TS379oKnkzTvmEDUnEUP2Msa9xKWNNaT",
 		Count:         1,
 	}
@@ -764,6 +764,17 @@ func TestListAddressBeneficiaries(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "ListAddressBeneficiaries must reject a creation range ending before it starts")
 	_, err = e.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{UpdatedAfter: now, UpdatedBefore: now.Add(-time.Hour)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "ListAddressBeneficiaries must reject an update range ending before it starts")
+
+	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"data":[],"continuation":"","count":0}}`)
+	_, err = ex.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{
+		Currency:      currency.BTC,
+		CreatedBefore: time.UnixMilli(1700000003000),
+		CreatedAfter:  time.UnixMilli(1700000000000),
+		UpdatedBefore: time.UnixMilli(1700000004000),
+		UpdatedAfter:  time.UnixMilli(1700000001000),
+	})
+	require.NoError(t, err, "ListAddressBeneficiaries must not error for a request with every time set")
+	assert.JSONEq(t, `{"currency":"BTC","created_before":1700000003000,"created_after":1700000000000,"updated_before":1700000004000,"updated_after":1700000001000}`, lastParams(), "ListAddressBeneficiaries should send each time in Unix milliseconds")
 
 	skipLiveWithoutCredentials(t)
 	result, err := e.ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
@@ -795,10 +806,10 @@ func TestListAddressBeneficiariesParamsMarshalJSON(t *testing.T) {
 	}
 	encoded, err := json.Marshal(&ListAddressBeneficiariesParams{
 		ListAddressBeneficiariesRequest: arg,
-		CreatedBefore:                   arg.CreatedBefore.UnixMilli(),
-		CreatedAfter:                    arg.CreatedAfter.UnixMilli(),
-		UpdatedBefore:                   arg.UpdatedBefore.UnixMilli(),
-		UpdatedAfter:                    arg.UpdatedAfter.UnixMilli(),
+		CreatedBefore:                   unixMilli(arg.CreatedBefore),
+		CreatedAfter:                    unixMilli(arg.CreatedAfter),
+		UpdatedBefore:                   unixMilli(arg.UpdatedBefore),
+		UpdatedAfter:                    unixMilli(arg.UpdatedAfter),
 	})
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, `{"currency":"BTC","created_before":1700000003000,"created_after":1700000000000,"updated_before":1700000004000,"updated_after":1700000001000,"personal":false}`, string(encoded), "ListAddressBeneficiariesParams should send each time once in Unix milliseconds and a false filter")
@@ -892,8 +903,8 @@ func testLegacySecurityKeyRequest() *SetAddressRequiresSecurityKeyRequest {
 }
 
 // testLegacySecurityKeyEntry is the documented legacy wallet type entry the mock sets the security key requirement of
-func testLegacySecurityKeyEntry() *AddressBookEntry {
-	return &AddressBookEntry{
+func testLegacySecurityKeyEntry() *AddressBookEntryResponse {
+	return &AddressBookEntryResponse{
 		Currency:             currency.BTC,
 		Address:              mockLegacyAddress,
 		Type:                 AddressBookTypeWithdrawal,
@@ -926,7 +937,7 @@ func TestSetAddressRequiresSecurityKey(t *testing.T) {
 
 	result, err = e.SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal, EntryID: mockAddressBookEntryID, RequiresSecurityKey: true})
 	require.NoError(t, err, "SetAddressRequiresSecurityKey must not error for a Coinbase wallet type entry")
-	exp := &AddressBookEntry{
+	exp := &AddressBookEntryResponse{
 		ID:                  mockAddressBookEntryID,
 		Currency:            currency.ETH,
 		Address:             mockCoinbaseAddress,
@@ -967,8 +978,8 @@ func testSetClearanceOriginatorRequest() *SetClearanceOriginatorRequest {
 }
 
 // testClearedDeposit is the documented deposit the mock sets the originator of
-func testClearedDeposit() *Deposit {
-	return &Deposit{
+func testClearedDeposit() *DepositResponse {
+	return &DepositResponse{
 		Currency:          currency.BTC,
 		UserID:            mockDepositUserID,
 		Address:           mockWithdrawalAddress,
@@ -1050,7 +1061,7 @@ func testSubmitTransferBetweenSubaccountsRequest() *SubmitTransferBetweenSubacco
 
 // testTransferBetweenSubaccounts is the documented transfer the mock transfer between subaccounts returns, with the
 // nonce it was requested with
-func testTransferBetweenSubaccounts() *Transfer {
+func testTransferBetweenSubaccounts() *TransferResponse {
 	transfer := testTransfer()
 	transfer.Nonce = mockIdempotencyNonce
 	return transfer
@@ -1225,7 +1236,7 @@ func testLegacyWithdrawRequest() *WithdrawRequest {
 
 // testRequestedLegacyWithdrawal is the documented legacy wallet type withdrawal the mock withdrawal returns, with the
 // nonce it was requested with
-func testRequestedLegacyWithdrawal() *Withdrawal {
+func testRequestedLegacyWithdrawal() *WithdrawalResponse {
 	withdrawal := testLegacyWithdrawal()
 	withdrawal.Nonce = mockIdempotencyNonce
 	return withdrawal
@@ -1266,7 +1277,7 @@ func TestWithdraw(t *testing.T) {
 
 	result, err = e.Withdraw(t.Context(), &WithdrawRequest{Currency: currency.ETH, Amount: 0.5, EntryID: mockAddressBookEntryID})
 	require.NoError(t, err, "Withdraw must not error for a Coinbase wallet type entry")
-	exp := &Withdrawal{
+	exp := &WithdrawalResponse{
 		ID:                     mockAddressBookEntryID,
 		TransferIdempotencyKey: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
 		Currency:               currency.ETH,
@@ -1401,7 +1412,7 @@ func TestUpdateInAddressBookResponseUnmarshalJSON(t *testing.T) {
 	assert.Nil(t, result.Entry, "UnmarshalJSON should leave Entry nil for an acknowledgement")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"id":"0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5b","currency":"ETH","label":"Updated label"}`), &result), "Unmarshal must not error for an entry")
-	assert.Equal(t, UpdateInAddressBookResponse{Entry: &AddressBookEntry{ID: mockAddressBookEntryID, Currency: currency.ETH, Label: "Updated label"}}, result, "UnmarshalJSON should decode the updated entry")
+	assert.Equal(t, UpdateInAddressBookResponse{Entry: &AddressBookEntryResponse{ID: mockAddressBookEntryID, Currency: currency.ETH, Label: "Updated label"}}, result, "UnmarshalJSON should decode the updated entry")
 
 	require.NoError(t, json.Unmarshal([]byte(`"ok"`), &result), "Unmarshal must not error for an acknowledgement after an entry")
 	assert.Nil(t, result.Entry, "UnmarshalJSON should clear a previously decoded entry for an acknowledgement")

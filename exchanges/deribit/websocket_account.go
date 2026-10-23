@@ -15,9 +15,9 @@ import (
 // wsHandleOrders relays a user.orders notification's orders
 func (e *Exchange) wsHandleOrders(ctx context.Context, channel string, respRaw []byte) error {
 	// Raw channels send each order as it changes, and the others a list of the orders changed over the interval
-	var orders []Order
+	var orders []OrderResponse
 	if strings.HasSuffix(channel, "."+intervalRaw) {
-		orders = make([]Order, 1)
+		orders = make([]OrderResponse, 1)
 		if err := decodeNotification(respRaw, &orders[0]); err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func (e *Exchange) mainAccountAssets(ctx context.Context) (asset.Items, error) {
 
 // wsHandleUserTrades passes the account's trades to the fills feed
 func (e *Exchange) wsHandleUserTrades(_ context.Context, respRaw []byte) error {
-	var trades []UserTrade
+	var trades []UserTradeResponse
 	if err := decodeNotification(respRaw, &trades); err != nil {
 		return err
 	}

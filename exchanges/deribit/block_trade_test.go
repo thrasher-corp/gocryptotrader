@@ -118,11 +118,11 @@ func testBlockTradeID(t *testing.T) string {
 
 // testDocumentedBlockTrade returns block trade 61, which Deribit's documented private/get_block_trade and
 // private/execute_block_trade examples return
-func testDocumentedBlockTrade() *BlockTrade {
-	return &BlockTrade{
+func testDocumentedBlockTrade() *BlockTradeResponse {
+	return &BlockTradeResponse{
 		ID:        "61",
 		Timestamp: types.Time(time.UnixMilli(1565089523720)),
-		Trades: []UserTrade{
+		Trades: []UserTradeResponse{
 			{
 				TradeID:        "92437",
 				TradeSequence:  37,
@@ -164,11 +164,11 @@ func testDocumentedBlockTrade() *BlockTrade {
 }
 
 // testDocumentedBlockTrades returns the block trades of Deribit's documented private/get_block_trades example
-func testDocumentedBlockTrades() []BlockTrade {
-	return []BlockTrade{{
+func testDocumentedBlockTrades() []BlockTradeResponse {
+	return []BlockTradeResponse{{
 		ID:        "66",
 		Timestamp: types.Time(time.UnixMilli(1565093070165)),
-		Trades: []UserTrade{
+		Trades: []UserTradeResponse{
 			{
 				TradeID:           "92462",
 				TradeSequence:     4,
@@ -210,8 +210,8 @@ func testDocumentedBlockTrades() []BlockTrade {
 
 // testDocumentedPendingBlockTrades returns the block trade requests of Deribit's documented
 // private/get_block_trade_requests example, whose username the recording scrubs
-func testDocumentedPendingBlockTrades() []PendingBlockTrade {
-	return []PendingBlockTrade{{
+func testDocumentedPendingBlockTrades() []PendingBlockTradeResponse {
+	return []PendingBlockTradeResponse{{
 		Timestamp:         types.Time(time.UnixMilli(1742824052538)),
 		Nonce:             "29rKkuD3NSBPet4njrpNWEuHBm9s",
 		Trades:            []BlockTradeLeg{{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy, Price: 87516.83, Amount: 100000}},
@@ -226,8 +226,8 @@ func testDocumentedPendingBlockTrades() []PendingBlockTrade {
 
 // testDocumentedBrokerClients returns the clients of Deribit's documented private/get_broker_clients example, whose
 // link names the recording scrubs
-func testDocumentedBrokerClients() []BrokerClient {
-	return []BrokerClient{
+func testDocumentedBrokerClients() []BrokerClientResponse {
+	return []BrokerClientResponse{
 		{
 			ClientID:    1,
 			ClientName:  "Acme Trading Ltd",
@@ -251,10 +251,10 @@ func testDocumentedBrokerClients() []BrokerClient {
 
 // testDocumentedPendingBrokerTrades returns the broker block trade requests of Deribit's documented
 // private/get_broker_trade_requests example
-func testDocumentedPendingBrokerTrades() []PendingBrokerTrade {
+func testDocumentedPendingBrokerTrades() []PendingBrokerTradeResponse {
 	trades := []BlockTradeLeg{{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy, Price: 87516.83, Amount: 100000}}
 	taker := BrokerTradeParty{State: "initial", ClientID: 1, UserID: "***008", ClientName: "Test Client", ClientLinkName: "Test Client 1", ClientLinkID: 1}
-	return []PendingBrokerTrade{
+	return []PendingBrokerTradeResponse{
 		{
 			Timestamp: types.Time(time.UnixMilli(1742824052547)),
 			Nonce:     "3WqPoAsmde9aXCSEBVUmi2XxGkgA",
@@ -280,7 +280,7 @@ func testDocumentedBrokerTrades() *BrokerTradesResponse {
 		History: []BrokerTrade{{
 			ID:        "BLOCK-7",
 			Timestamp: types.Time(time.UnixMilli(1747239767111)),
-			Trades: []UserTrade{{
+			Trades: []UserTradeResponse{{
 				TradeID:            "7",
 				TradeSequence:      7,
 				InstrumentName:     "BTC-PERPETUAL",

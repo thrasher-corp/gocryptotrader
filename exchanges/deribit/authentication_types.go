@@ -24,7 +24,7 @@ type AuthenticateRequest struct {
 // AuthenticateParams contains an authentication request's params, with its timestamp in Unix milliseconds
 type AuthenticateParams struct {
 	*AuthenticateRequest
-	Timestamp int64 `json:"timestamp,omitempty"`
+	Timestamp uint64 `json:"timestamp,omitempty"`
 }
 
 // AccessTokenResponse contains an access token and the refresh token that renews it

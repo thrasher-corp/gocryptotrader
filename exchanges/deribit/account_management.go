@@ -68,11 +68,11 @@ var (
 )
 
 // ChangeAPIKeyName renames an API key, which identifies it in lists and the transaction log
-func (e *Exchange) ChangeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest) (*APIKey, error) {
+func (e *Exchange) ChangeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest) (*APIKeyResponse, error) {
 	return e.changeAPIKeyName(ctx, arg, false)
 }
 
-func (e *Exchange) changeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) changeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRequest, overWebsocket bool) (*APIKeyResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -82,7 +82,7 @@ func (e *Exchange) changeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRe
 	if arg.Name == "" {
 		return nil, errAPIKeyNameRequired
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/change_api_key_name", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -94,11 +94,11 @@ func (e *Exchange) changeAPIKeyName(ctx context.Context, arg *ChangeAPIKeyNameRe
 
 // ChangeMarginModel changes the margin model of the account or a subaccount, which changes its margin requirements and
 // available funds, and returns the change's effect on each currency; a dry run returns the effect without the change
-func (e *Exchange) ChangeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest) ([]MarginModelChange, error) {
+func (e *Exchange) ChangeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest) ([]MarginModelChangeResponse, error) {
 	return e.changeMarginModel(ctx, arg, false)
 }
 
-func (e *Exchange) changeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest, overWebsocket bool) ([]MarginModelChange, error) {
+func (e *Exchange) changeMarginModel(ctx context.Context, arg *ChangeMarginModelRequest, overWebsocket bool) ([]MarginModelChangeResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -107,18 +107,18 @@ func (e *Exchange) changeMarginModel(ctx context.Context, arg *ChangeMarginModel
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidMarginModel, arg.MarginModel)
 	}
-	var resp []MarginModelChange
+	var resp []MarginModelChangeResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/change_margin_model", arg, &resp)
 }
 
 // ChangeScopeInAPIKey changes an API key's maximum scope, removing its access outside the new scope at once; on an
 // account with two-factor authentication, it returns a SecurityKeyChallengeError until the request is confirmed with
 // WithSecurityKeyAuthorisation
-func (e *Exchange) ChangeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest) (*APIKey, error) {
+func (e *Exchange) ChangeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest) (*APIKeyResponse, error) {
 	return e.changeScopeInAPIKey(ctx, arg, false)
 }
 
-func (e *Exchange) changeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) changeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAPIKeyRequest, overWebsocket bool) (*APIKeyResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -128,7 +128,7 @@ func (e *Exchange) changeScopeInAPIKey(ctx context.Context, arg *ChangeScopeInAP
 	if len(arg.MaxScope) == 0 {
 		return nil, errAPIKeyMaxScopeRequired
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/change_scope_in_api_key", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -159,11 +159,11 @@ func (e *Exchange) changeSubaccountName(ctx context.Context, arg *ChangeSubaccou
 // CreateAPIKey creates an API key, whose scope cannot exceed the scope of the key creating it, and returns it with its
 // secret, which Deribit shows only once; on an account with two-factor authentication, it returns a
 // SecurityKeyChallengeError until the request is confirmed with WithSecurityKeyAuthorisation
-func (e *Exchange) CreateAPIKey(ctx context.Context, arg *CreateAPIKeyRequest) (*APIKey, error) {
+func (e *Exchange) CreateAPIKey(ctx context.Context, arg *CreateAPIKeyRequest) (*APIKeyResponse, error) {
 	return e.createAPIKey(ctx, arg, false)
 }
 
-func (e *Exchange) createAPIKey(ctx context.Context, arg *CreateAPIKeyRequest, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) createAPIKey(ctx context.Context, arg *CreateAPIKeyRequest, overWebsocket bool) (*APIKeyResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -173,7 +173,7 @@ func (e *Exchange) createAPIKey(ctx context.Context, arg *CreateAPIKeyRequest, o
 	if err := validateAPIKeyFeatures(arg.EnabledFeatures); err != nil {
 		return nil, err
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_api_key", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -196,12 +196,12 @@ func validateAPIKeyFeatures(features []string) error {
 }
 
 // CreateSubaccount creates a subaccount of the main account with default settings
-func (e *Exchange) CreateSubaccount(ctx context.Context) (*Subaccount, error) {
+func (e *Exchange) CreateSubaccount(ctx context.Context) (*SubaccountResponse, error) {
 	return e.createSubaccount(ctx, false)
 }
 
-func (e *Exchange) createSubaccount(ctx context.Context, overWebsocket bool) (*Subaccount, error) {
-	var resp *Subaccount
+func (e *Exchange) createSubaccount(ctx context.Context, overWebsocket bool) (*SubaccountResponse, error) {
+	var resp *SubaccountResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_subaccount", nil, &resp); err != nil {
 		return nil, err
 	}
@@ -234,15 +234,15 @@ func (e *Exchange) deleteMember(ctx context.Context, memberID uint64, overWebsoc
 // DisableAPIKey disables an API key, rejecting its requests until it is enabled again; on an account with two-factor
 // authentication, it returns a SecurityKeyChallengeError until the request is confirmed with
 // WithSecurityKeyAuthorisation
-func (e *Exchange) DisableAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (e *Exchange) DisableAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return e.disableAPIKey(ctx, id, false)
 }
 
-func (e *Exchange) disableAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) disableAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKeyResponse, error) {
 	if id == 0 {
 		return nil, errAPIKeyIDRequired
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/disable_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
@@ -255,11 +255,11 @@ func (e *Exchange) disableAPIKey(ctx context.Context, id uint64, overWebsocket b
 // EditAPIKey edits an API key's maximum scope and, optionally, its name, state, features and IP whitelist, which take
 // effect at once; on an account with two-factor authentication, it returns a SecurityKeyChallengeError until the
 // request is confirmed with WithSecurityKeyAuthorisation
-func (e *Exchange) EditAPIKey(ctx context.Context, arg *EditAPIKeyRequest) (*APIKey, error) {
+func (e *Exchange) EditAPIKey(ctx context.Context, arg *EditAPIKeyRequest) (*APIKeyResponse, error) {
 	return e.editAPIKey(ctx, arg, false)
 }
 
-func (e *Exchange) editAPIKey(ctx context.Context, arg *EditAPIKeyRequest, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) editAPIKey(ctx context.Context, arg *EditAPIKeyRequest, overWebsocket bool) (*APIKeyResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -272,7 +272,7 @@ func (e *Exchange) editAPIKey(ctx context.Context, arg *EditAPIKeyRequest, overW
 	if err := validateAPIKeyFeatures(arg.EnabledFeatures); err != nil {
 		return nil, err
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/edit_api_key", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -289,15 +289,15 @@ func (e *Exchange) EnableAffiliateProgram(ctx context.Context) error {
 }
 
 // EnableAPIKey enables a disabled API key, which can authenticate at once
-func (e *Exchange) EnableAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (e *Exchange) EnableAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return e.enableAPIKey(ctx, id, false)
 }
 
-func (e *Exchange) enableAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) enableAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKeyResponse, error) {
 	if id == 0 {
 		return nil, errAPIKeyIDRequired
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/enable_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
@@ -389,12 +389,12 @@ func (e *Exchange) getAffiliateProgramInfo(ctx context.Context, overWebsocket bo
 
 // GetAccountCurrencies returns the currencies available to the account, which Deribit recommends driving wallet and
 // balance requests from, as it leaves out currencies the account cannot hold
-func (e *Exchange) GetAccountCurrencies(ctx context.Context) ([]AccountCurrency, error) {
+func (e *Exchange) GetAccountCurrencies(ctx context.Context) ([]AccountCurrencyResponse, error) {
 	return e.getAccountCurrencies(ctx, false)
 }
 
-func (e *Exchange) getAccountCurrencies(ctx context.Context, overWebsocket bool) ([]AccountCurrency, error) {
-	var resp []AccountCurrency
+func (e *Exchange) getAccountCurrencies(ctx context.Context, overWebsocket bool) ([]AccountCurrencyResponse, error) {
+	var resp []AccountCurrencyResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_currencies", nil, &resp)
 }
 
@@ -433,25 +433,25 @@ func (e *Exchange) getMembers(ctx context.Context, overWebsocket bool) (*Members
 
 // GetNewAnnouncements returns the announcements the account has not read, which SetAnnouncementAsRead or viewing them
 // on the website marks read
-func (e *Exchange) GetNewAnnouncements(ctx context.Context) ([]Announcement, error) {
+func (e *Exchange) GetNewAnnouncements(ctx context.Context) ([]AnnouncementResponse, error) {
 	return e.getNewAnnouncements(ctx, false)
 }
 
-func (e *Exchange) getNewAnnouncements(ctx context.Context, overWebsocket bool) ([]Announcement, error) {
-	var resp []Announcement
+func (e *Exchange) getNewAnnouncements(ctx context.Context, overWebsocket bool) ([]AnnouncementResponse, error) {
+	var resp []AnnouncementResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_new_announcements", nil, &resp)
 }
 
 // GetPosition returns the account's position in an instrument, which has a zero size when there is none
-func (e *Exchange) GetPosition(ctx context.Context, instrumentName string) (*Position, error) {
+func (e *Exchange) GetPosition(ctx context.Context, instrumentName string) (*PositionResponse, error) {
 	return e.getPosition(ctx, instrumentName, false)
 }
 
-func (e *Exchange) getPosition(ctx context.Context, instrumentName string, overWebsocket bool) (*Position, error) {
+func (e *Exchange) getPosition(ctx context.Context, instrumentName string, overWebsocket bool) (*PositionResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp *Position
+	var resp *PositionResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_position", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
@@ -463,11 +463,11 @@ func (e *Exchange) getPosition(ctx context.Context, instrumentName string, overW
 
 // GetPositions returns the open positions of the account or a subaccount, optionally in one settlement currency and of
 // one kind; spot holdings are balances, which GetAccountSummary reports
-func (e *Exchange) GetPositions(ctx context.Context, arg *GetPositionsRequest) ([]Position, error) {
+func (e *Exchange) GetPositions(ctx context.Context, arg *GetPositionsRequest) ([]PositionResponse, error) {
 	return e.getPositions(ctx, arg, false)
 }
 
-func (e *Exchange) getPositions(ctx context.Context, arg *GetPositionsRequest, overWebsocket bool) ([]Position, error) {
+func (e *Exchange) getPositions(ctx context.Context, arg *GetPositionsRequest, overWebsocket bool) ([]PositionResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -476,35 +476,35 @@ func (e *Exchange) getPositions(ctx context.Context, arg *GetPositionsRequest, o
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidKind, arg.Kind)
 	}
-	var resp []Position
+	var resp []PositionResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_positions", arg, &resp)
 }
 
 // GetSubaccounts returns the main account's and its subaccounts' details, with their portfolios when withPortfolio is
 // set; a subaccount is sent limited details of the main account
-func (e *Exchange) GetSubaccounts(ctx context.Context, withPortfolio bool) ([]Subaccount, error) {
+func (e *Exchange) GetSubaccounts(ctx context.Context, withPortfolio bool) ([]SubaccountResponse, error) {
 	return e.getSubaccounts(ctx, withPortfolio, false)
 }
 
-func (e *Exchange) getSubaccounts(ctx context.Context, withPortfolio, overWebsocket bool) ([]Subaccount, error) {
-	var resp []Subaccount
+func (e *Exchange) getSubaccounts(ctx context.Context, withPortfolio, overWebsocket bool) ([]SubaccountResponse, error) {
+	var resp []SubaccountResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_subaccounts", &WithPortfolioRequest{WithPortfolio: withPortfolio}, &resp)
 }
 
 // GetSubaccountsDetails returns the positions of the main account and each subaccount in a currency and, optionally,
 // their open orders
-func (e *Exchange) GetSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest) ([]SubaccountDetails, error) {
+func (e *Exchange) GetSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest) ([]SubaccountDetailsResponse, error) {
 	return e.getSubaccountsDetails(ctx, arg, false)
 }
 
-func (e *Exchange) getSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest, overWebsocket bool) ([]SubaccountDetails, error) {
+func (e *Exchange) getSubaccountsDetails(ctx context.Context, arg *GetSubaccountsDetailsRequest, overWebsocket bool) ([]SubaccountDetailsResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []SubaccountDetails
+	var resp []SubaccountDetailsResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_subaccounts_details", arg, &resp)
 }
 
@@ -533,8 +533,8 @@ func (e *Exchange) getTransactionLog(ctx context.Context, arg *GetTransactionLog
 	}
 	params := &GetTransactionLogParams{
 		GetTransactionLogRequest: arg,
-		StartTimestamp:           arg.StartTime.UnixMilli(),
-		EndTimestamp:             arg.EndTime.UnixMilli(),
+		StartTimestamp:           unixMilli(arg.StartTime),
+		EndTimestamp:             unixMilli(arg.EndTime),
 	}
 	var resp *TransactionLogResponse
 	if err := e.sendRequest(ctx, overWebsocket, transactionLogEPL, "private/get_transaction_log", params, &resp); err != nil {
@@ -547,36 +547,36 @@ func (e *Exchange) getTransactionLog(ctx context.Context, arg *GetTransactionLog
 }
 
 // GetUserLocks returns whether the account is locked in each currency, and why
-func (e *Exchange) GetUserLocks(ctx context.Context) ([]UserLock, error) {
+func (e *Exchange) GetUserLocks(ctx context.Context) ([]UserLockResponse, error) {
 	return e.getUserLocks(ctx, false)
 }
 
-func (e *Exchange) getUserLocks(ctx context.Context, overWebsocket bool) ([]UserLock, error) {
-	var resp []UserLock
+func (e *Exchange) getUserLocks(ctx context.Context, overWebsocket bool) ([]UserLockResponse, error) {
+	var resp []UserLockResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_user_locks", nil, &resp)
 }
 
 // ListAPIKeys returns the account's API keys; on an account with two-factor authentication, it returns a
 // SecurityKeyChallengeError until the request is confirmed with WithSecurityKeyAuthorisation
-func (e *Exchange) ListAPIKeys(ctx context.Context) ([]APIKey, error) {
+func (e *Exchange) ListAPIKeys(ctx context.Context) ([]APIKeyResponse, error) {
 	return e.listAPIKeys(ctx, false)
 }
 
-func (e *Exchange) listAPIKeys(ctx context.Context, overWebsocket bool) ([]APIKey, error) {
-	var resp []APIKey
+func (e *Exchange) listAPIKeys(ctx context.Context, overWebsocket bool) ([]APIKeyResponse, error) {
+	var resp []APIKeyResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/list_api_keys", nil, &resp)
 }
 
 // ListCustodyAccounts returns the account's custody accounts in a currency, which hold its assets segregated
-func (e *Exchange) ListCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccount, error) {
+func (e *Exchange) ListCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccountResponse, error) {
 	return e.listCustodyAccounts(ctx, ccy, false)
 }
 
-func (e *Exchange) listCustodyAccounts(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]CustodyAccount, error) {
+func (e *Exchange) listCustodyAccounts(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]CustodyAccountResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []CustodyAccount
+	var resp []CustodyAccountResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/list_custody_accounts", &CurrencyRequest{Currency: ccy}, &resp)
 }
 
@@ -632,15 +632,15 @@ func (e *Exchange) removeSubaccount(ctx context.Context, subaccountID uint64, ov
 
 // ResetAPIKey replaces an API key's secret, invalidating the old one at once, and returns the key with its new secret,
 // which Deribit shows only once
-func (e *Exchange) ResetAPIKey(ctx context.Context, id uint64) (*APIKey, error) {
+func (e *Exchange) ResetAPIKey(ctx context.Context, id uint64) (*APIKeyResponse, error) {
 	return e.resetAPIKey(ctx, id, false)
 }
 
-func (e *Exchange) resetAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKey, error) {
+func (e *Exchange) resetAPIKey(ctx context.Context, id uint64, overWebsocket bool) (*APIKeyResponse, error) {
 	if id == 0 {
 		return nil, errAPIKeyIDRequired
 	}
-	var resp *APIKey
+	var resp *APIKeyResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/reset_api_key", &APIKeyIDRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
@@ -837,18 +837,15 @@ func (e *Exchange) toggleSubaccountLogin(ctx context.Context, arg *ToggleSubacco
 }
 
 // GetAnnouncements returns the platform's announcements published up to a time, newest first
-func (e *Exchange) GetAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest) ([]Announcement, error) {
+func (e *Exchange) GetAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest) ([]AnnouncementResponse, error) {
 	return e.getAnnouncements(ctx, arg, false)
 }
 
-func (e *Exchange) getAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest, overWebsocket bool) ([]Announcement, error) {
+func (e *Exchange) getAnnouncements(ctx context.Context, arg *GetAnnouncementsRequest, overWebsocket bool) ([]AnnouncementResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	params := &GetAnnouncementsParams{GetAnnouncementsRequest: arg}
-	if !arg.StartTime.IsZero() {
-		params.StartTimestamp = arg.StartTime.UnixMilli()
-	}
-	var resp []Announcement
+	params := &GetAnnouncementsParams{GetAnnouncementsRequest: arg, StartTimestamp: unixMilli(arg.StartTime)}
+	var resp []AnnouncementResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_announcements", params, &resp)
 }

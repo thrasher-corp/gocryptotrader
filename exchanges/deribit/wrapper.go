@@ -280,7 +280,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	byAsset := make(map[asset.Item][]Instrument)
+	byAsset := make(map[asset.Item][]InstrumentResponse)
 	for i := range instruments {
 		// A kind Deribit adds later is left out until it is supported
 		if a, err := e.StringToAssetKind(instruments[i].Kind); err == nil {
@@ -301,7 +301,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // tradablePairs returns the active instruments as pairs; for spot it also remembers which instruments Deribit routes to
 // Coinbase Exchange, whose trades and candles it does not stream
-func (e *Exchange) tradablePairs(a asset.Item, instruments []Instrument) (currency.Pairs, error) {
+func (e *Exchange) tradablePairs(a asset.Item, instruments []InstrumentResponse) (currency.Pairs, error) {
 	pairs := make(currency.Pairs, 0, len(instruments))
 	routed := make(map[string]struct{})
 	for i := range instruments {
@@ -372,7 +372,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 	}
 	overWebsocket := e.websocketForWrapper(false)
-	summaries := make(map[string]*BookSummary)
+	summaries := make(map[string]*BookSummaryResponse)
 	for _, c := range currencies {
 		resp, err := e.getBookSummaryByCurrency(ctx, &BookSummaryByCurrencyRequest{Currency: c, Kind: kind}, overWebsocket)
 		if err != nil {
@@ -468,7 +468,7 @@ func (t *TickerResponse) tickerPrice(exchangeName string, p currency.Pair, a ass
 }
 
 // tickerPrice converts a book summary, whose creation timestamp is when Deribit compiled it
-func (b *BookSummary) tickerPrice(exchangeName string, p currency.Pair, a asset.Item) *ticker.Price {
+func (b *BookSummaryResponse) tickerPrice(exchangeName string, p currency.Pair, a asset.Item) *ticker.Price {
 	return &ticker.Price{
 		ExchangeName: exchangeName,
 		Pair:         p,
@@ -948,7 +948,7 @@ func triggerParam(priceType order.PriceType) (string, error) {
 
 // tradeHistory converts one of the account's trades to an order's trade, typed as its order was placed when Deribit
 // holds that order as a limit order
-func tradeHistory(exchangeName string, t *UserTrade) (order.TradeHistory, error) {
+func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory, error) {
 	side, err := order.StringToOrderSide(t.Direction)
 	if err != nil {
 		return order.TradeHistory{}, err
@@ -979,7 +979,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	}
 	overWebsocket := e.websocketForWrapper(true)
 	postOnly := m.TimeInForce.Is(order.PostOnly)
-	var edited *OrderResponse
+	var edited *OrderWithTradesResponse
 	if m.OrderID != "" {
 		amount := m.Amount
 		if amount == 0 {
@@ -1016,7 +1016,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			if err != nil {
 				return nil, err
 			}
-			existing = slices.DeleteFunc(existing, func(o Order) bool { return o.InstrumentName != name })
+			existing = slices.DeleteFunc(existing, func(o OrderResponse) bool { return o.InstrumentName != name })
 			if len(existing) != 1 {
 				return nil, fmt.Errorf("%w: %d orders labelled %q in %s", errOrderLabelNotUnique, len(existing), m.ClientOrderID, name)
 			}
@@ -1270,7 +1270,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	overWebsocket := e.websocketForWrapper(true)
-	var open []Order
+	var open []OrderResponse
 	if len(req.Pairs) == 0 {
 		if open, err = e.getOpenOrders(ctx, &OpenOrdersRequest{Kind: kind}, overWebsocket); err != nil {
 			return nil, err
@@ -1301,7 +1301,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	overWebsocket := e.websocketForWrapper(true)
-	var history []Order
+	var history []OrderResponse
 	seen := make(map[string]struct{})
 	for _, pair := range req.Pairs {
 		name, err := e.pairInstrument(pair, req.AssetType)
@@ -1334,7 +1334,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 }
 
 // filteredOrders converts orders and filters them as requested
-func (e *Exchange) filteredOrders(req *order.MultiOrderRequest, orders []Order) (order.FilteredOrders, error) {
+func (e *Exchange) filteredOrders(req *order.MultiOrderRequest, orders []OrderResponse) (order.FilteredOrders, error) {
 	details := make([]order.Detail, len(orders))
 	for i := range orders {
 		detail, err := e.orderDetail(&orders[i])
@@ -1434,7 +1434,7 @@ func (e *Exchange) pairInstrumentWithoutAsset(p currency.Pair) (string, error) {
 }
 
 // currencyDetail returns a currency's deposit and withdrawal parameters
-func (e *Exchange) currencyDetail(ctx context.Context, c currency.Code) (*CurrencyDetail, error) {
+func (e *Exchange) currencyDetail(ctx context.Context, c currency.Code) (*CurrencyDetailResponse, error) {
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1485,7 +1485,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 }
 
 // futuresContract converts a future's specification; a perpetual expires in the year 3000, which is left out
-func (e *Exchange) futuresContract(instrument *Instrument) (*futures.Contract, error) {
+func (e *Exchange) futuresContract(instrument *InstrumentResponse) (*futures.Contract, error) {
 	pair, err := currency.NewPairFromString(instrument.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -2001,7 +2001,7 @@ func futureComboPairToString(pair currency.Pair) string {
 }
 
 // orderDetail converts an order as Deribit reports it, typed as it was placed when Deribit holds it as a limit order
-func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
+func (e *Exchange) orderDetail(o *OrderResponse) (*order.Detail, error) {
 	a, pair, err := getAssetPairByInstrument(o.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -2045,7 +2045,7 @@ func (e *Exchange) orderDetail(o *Order) (*order.Detail, error) {
 }
 
 // userTradeFill converts one of the account's trades to a fill
-func (e *Exchange) userTradeFill(t *UserTrade) (*fill.Data, error) {
+func (e *Exchange) userTradeFill(t *UserTradeResponse) (*fill.Data, error) {
 	a, pair, err := getAssetPairByInstrument(t.InstrumentName)
 	if err != nil {
 		return nil, err

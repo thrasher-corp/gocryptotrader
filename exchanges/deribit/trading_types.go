@@ -59,7 +59,7 @@ type OrderRequest struct {
 // OrderParams contains a buy or sell request's params, with its valid until time in Unix milliseconds
 type OrderParams struct {
 	*OrderRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // SecondaryOrder is an order a linked order places or cancels once it fills; Amount and Direction are required
@@ -84,12 +84,12 @@ type SecondaryOrder struct {
 	Trigger string `json:"trigger,omitempty"`
 }
 
-// OrderResponse contains an order placed, edited or closing a position, and the trades it made at once
-type OrderResponse struct {
-	Order Order `json:"order"`
+// OrderWithTradesResponse contains an order placed, edited or closing a position, and the trades it made at once
+type OrderWithTradesResponse struct {
+	Order OrderResponse `json:"order"`
 	// Trades can be empty for a filled spot order routed to Coinbase Exchange, whose fills arrive asynchronously on the
 	// user.trades channel
-	Trades []UserTrade `json:"trades"`
+	Trades []UserTradeResponse `json:"trades"`
 }
 
 // CancelAllRequest cancels every open order and trigger order of the account
@@ -235,8 +235,8 @@ type CancelExecutionReport struct {
 	// Currency is the currency, or for spot the pair, such as BTC_USDC, the request cancelled orders in
 	Currency string `json:"currency"`
 	// Type is the order type the request cancelled
-	Type   string  `json:"type"`
-	Result []Order `json:"result"`
+	Type   string          `json:"type"`
+	Result []OrderResponse `json:"result"`
 }
 
 // ClosePositionRequest closes a position with a reduce only order
@@ -278,7 +278,7 @@ type EditOrderRequest struct {
 // EditOrderParams contains an edit request's params, with its valid until time in Unix milliseconds
 type EditOrderParams struct {
 	*EditOrderRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // EditOrderByLabelRequest edits the only open order of an instrument with a label; Amount or Contracts sets its size
@@ -306,7 +306,7 @@ type EditOrderByLabelRequest struct {
 // EditOrderByLabelParams contains an edit by label request's params, with its valid until time in Unix milliseconds
 type EditOrderByLabelParams struct {
 	*EditOrderByLabelRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // MarginsRequest requests the margins and fees of a hypothetical order
@@ -359,8 +359,8 @@ type MMPGroupRequest struct {
 	BlockRFQ bool `json:"block_rfq,omitempty"`
 }
 
-// MMPConfig contains an MMP group's configuration
-type MMPConfig struct {
+// MMPConfigResponse contains an MMP group's configuration
+type MMPConfigResponse struct {
 	IndexName string `json:"index_name"`
 	// Interval is the monitoring window in seconds, and zero disables MMP
 	Interval uint64 `json:"interval"`
@@ -387,19 +387,19 @@ type MMPConfig struct {
 
 // mmpConfigs decodes the configurations private/set_mmp_config returns, which Deribit documents as a list but shows as
 // a single configuration
-type mmpConfigs []MMPConfig
+type mmpConfigs []MMPConfigResponse
 
 // UnmarshalJSON decodes a list of MMP configurations or a single one
 func (m *mmpConfigs) UnmarshalJSON(data []byte) error {
 	if trimmed := bytes.TrimSpace(data); len(trimmed) > 0 && trimmed[0] == '{' {
-		var config MMPConfig
+		var config MMPConfigResponse
 		if err := json.Unmarshal(trimmed, &config); err != nil {
 			return err
 		}
 		*m = mmpConfigs{config}
 		return nil
 	}
-	var configs []MMPConfig
+	var configs []MMPConfigResponse
 	if err := json.Unmarshal(data, &configs); err != nil {
 		return err
 	}
@@ -407,8 +407,8 @@ func (m *mmpConfigs) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MMPStatus contains the status of a triggered MMP group
-type MMPStatus struct {
+// MMPStatusResponse contains the status of a triggered MMP group
+type MMPStatusResponse struct {
 	IndexName string `json:"index_name"`
 	// FrozenUntil is when MMP resets itself, and is zero when it waits for a manual reset
 	FrozenUntil types.Time `json:"frozen_until"`
@@ -487,22 +487,22 @@ type OrderHistoryByInstrumentRequest struct {
 // OrderHistoryResponse contains a page of order history; Deribit sends the orders alone unless a continuation token is
 // requested
 type OrderHistoryResponse struct {
-	Orders       []Order `json:"orders"`
-	Continuation string  `json:"continuation"`
+	Orders       []OrderResponse `json:"orders"`
+	Continuation string          `json:"continuation"`
 }
 
 // orderHistoryPage is an order history page with a continuation token; its orders field is a pointer to tell a missing
 // field from an empty list, as Deribit does not document the page's fields
 type orderHistoryPage struct {
-	Orders       *[]Order `json:"orders"`
-	Continuation string   `json:"continuation"`
+	Orders       *[]OrderResponse `json:"orders"`
+	Continuation string           `json:"continuation"`
 }
 
 // UnmarshalJSON decodes a list of orders, or a page of orders with its continuation token
 func (o *OrderHistoryResponse) UnmarshalJSON(data []byte) error {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) > 0 && trimmed[0] == '[' {
-		var orders []Order
+		var orders []OrderResponse
 		if err := json.Unmarshal(trimmed, &orders); err != nil {
 			return err
 		}
@@ -525,8 +525,8 @@ type OrderMarginByIDsRequest struct {
 	IDs []string `json:"ids"`
 }
 
-// OrderMargin contains the initial margin an open order holds
-type OrderMargin struct {
+// OrderMarginResponse contains the initial margin an open order holds
+type OrderMarginResponse struct {
 	OrderID               string        `json:"order_id"`
 	InitialMargin         float64       `json:"initial_margin"`
 	InitialMarginCurrency currency.Code `json:"initial_margin_currency"`
@@ -548,7 +548,7 @@ type SettlementHistoryByCurrencyRequest struct {
 // milliseconds
 type SettlementHistoryByCurrencyParams struct {
 	*SettlementHistoryByCurrencyRequest
-	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // SettlementHistoryByInstrumentRequest requests the settlement events that affected the account in an instrument
@@ -567,7 +567,7 @@ type SettlementHistoryByInstrumentRequest struct {
 // Unix milliseconds
 type SettlementHistoryByInstrumentParams struct {
 	*SettlementHistoryByInstrumentRequest
-	SearchStartTimestamp int64 `json:"search_start_timestamp,omitempty"`
+	SearchStartTimestamp uint64 `json:"search_start_timestamp,omitempty"`
 }
 
 // TriggerOrderHistoryRequest requests the account's trigger order log in a currency
@@ -640,8 +640,8 @@ type UserTradesByCurrencyRequest struct {
 // UserTradesByCurrencyParams contains a user trades request's params, with its time range in Unix milliseconds
 type UserTradesByCurrencyParams struct {
 	*UserTradesByCurrencyRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // UserTradesByCurrencyAndTimeRequest requests the account's trades in a currency's instruments within a time range,
@@ -665,8 +665,8 @@ type UserTradesByCurrencyAndTimeRequest struct {
 // UserTradesByCurrencyAndTimeParams contains a user trades request's params, with its time range in Unix milliseconds
 type UserTradesByCurrencyAndTimeParams struct {
 	*UserTradesByCurrencyAndTimeRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // UserTradesByInstrumentRequest requests the account's latest trades in an instrument
@@ -690,8 +690,8 @@ type UserTradesByInstrumentRequest struct {
 // UserTradesByInstrumentParams contains a user trades request's params, with its time range in Unix milliseconds
 type UserTradesByInstrumentParams struct {
 	*UserTradesByInstrumentRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // UserTradesByInstrumentAndTimeRequest requests the account's trades in an instrument within a time range, which needs
@@ -714,8 +714,8 @@ type UserTradesByInstrumentAndTimeRequest struct {
 // milliseconds
 type UserTradesByInstrumentAndTimeParams struct {
 	*UserTradesByInstrumentAndTimeRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   int64 `json:"end_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
+	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
 }
 
 // UserTradesByOrderRequest requests the trades an order made
@@ -731,8 +731,8 @@ type UserTradesByOrderRequest struct {
 
 // UserTradesResponse contains a page of the account's trades and whether more match the request
 type UserTradesResponse struct {
-	Trades  []UserTrade `json:"trades"`
-	HasMore bool        `json:"has_more"`
+	Trades  []UserTradeResponse `json:"trades"`
+	HasMore bool                `json:"has_more"`
 }
 
 // MassQuoteRequest places or amends up to 100 quotes on instruments of one index, all linked to an MMP group
@@ -754,7 +754,7 @@ type MassQuoteRequest struct {
 // MassQuoteParams contains a mass quote request's params, with its valid until time in Unix milliseconds
 type MassQuoteParams struct {
 	*MassQuoteRequest
-	ValidUntil int64 `json:"valid_until,omitempty"`
+	ValidUntil uint64 `json:"valid_until,omitempty"`
 }
 
 // MassQuoteEntry quotes an instrument on one or both sides
@@ -778,8 +778,8 @@ type MassQuoteSide struct {
 // MassQuoteResponse contains a mass quote's orders and trades and, depending on Detailed and WaitForResponse, its
 // errors and pending quotes or their counts
 type MassQuoteResponse struct {
-	Orders []Order     `json:"orders"`
-	Trades []UserTrade `json:"trades"`
+	Orders []OrderResponse     `json:"orders"`
+	Trades []UserTradeResponse `json:"trades"`
 	// ErrorsCount is sent unless Detailed is set
 	ErrorsCount uint64 `json:"errors_count"`
 	// PendingRequestsCount is sent when WaitForResponse is false and Detailed is not set
@@ -824,8 +824,8 @@ type PositionMove struct {
 	Amount float64 `json:"amount"`
 }
 
-// PositionMoveTrade contains a trade that moved a position, from the source subaccount's perspective
-type PositionMoveTrade struct {
+// PositionMoveTradeResponse contains a trade that moved a position, from the source subaccount's perspective
+type PositionMoveTradeResponse struct {
 	SourceUID      uint64  `json:"source_uid"`
 	TargetUID      uint64  `json:"target_uid"`
 	InstrumentName string  `json:"instrument_name"`
@@ -836,11 +836,11 @@ type PositionMoveTrade struct {
 
 // positionMoveTrades decodes the trades private/move_positions returns, which Deribit shows as a list but documents in
 // an object's trades field
-type positionMoveTrades []PositionMoveTrade
+type positionMoveTrades []PositionMoveTradeResponse
 
 // positionMoveTradesPage is the object form of a position move's trades
 type positionMoveTradesPage struct {
-	Trades []PositionMoveTrade `json:"trades"`
+	Trades []PositionMoveTradeResponse `json:"trades"`
 }
 
 // UnmarshalJSON decodes a list of position move trades, or an object holding them
@@ -853,7 +853,7 @@ func (p *positionMoveTrades) UnmarshalJSON(data []byte) error {
 		*p = page.Trades
 		return nil
 	}
-	var trades []PositionMoveTrade
+	var trades []PositionMoveTradeResponse
 	if err := json.Unmarshal(data, &trades); err != nil {
 		return err
 	}

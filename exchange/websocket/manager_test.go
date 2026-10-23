@@ -1450,7 +1450,6 @@ func (r *reporter) Latency(name string, payload []byte, t time.Duration) {
 	r.t = t
 }
 
-// readMessages helper func
 func TestVerboseMessagesRedactCredentials(t *testing.T) {
 	// Not parallel: the log hook and log config are process-wide, and cleanup returns both to the package defaults
 	var mu sync.Mutex

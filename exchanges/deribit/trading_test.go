@@ -184,9 +184,9 @@ func tradingTime(milliseconds int64) types.Time {
 }
 
 // testPlacedOrderResponse is the documented buy, sell and close position response the mock requests return
-func testPlacedOrderResponse() *OrderResponse {
-	return &OrderResponse{
-		Order: Order{
+func testPlacedOrderResponse() *OrderWithTradesResponse {
+	return &OrderWithTradesResponse{
+		Order: OrderResponse{
 			OrderID:             "ETH-584864807",
 			OrderState:          "filled",
 			OrderType:           "limit",
@@ -202,7 +202,7 @@ func testPlacedOrderResponse() *OrderResponse {
 			FilledAmount:        21,
 			AveragePrice:        202.8,
 		},
-		Trades: []UserTrade{{
+		Trades: []UserTradeResponse{{
 			TradeID:        "ETH-2696097",
 			TradeSequence:  1966068,
 			InstrumentName: "ETH-PERPETUAL",
@@ -224,9 +224,9 @@ func testPlacedOrderResponse() *OrderResponse {
 }
 
 // testEditedOrderResponse is the documented edit and edit by label response the mock requests return
-func testEditedOrderResponse() *OrderResponse {
-	return &OrderResponse{
-		Order: Order{
+func testEditedOrderResponse() *OrderWithTradesResponse {
+	return &OrderWithTradesResponse{
+		Order: OrderResponse{
 			OrderID:             "94166",
 			OrderState:          "open",
 			OrderType:           "limit",
@@ -241,13 +241,13 @@ func testEditedOrderResponse() *OrderResponse {
 			Amount:              150,
 			Replaced:            true,
 		},
-		Trades: []UserTrade{},
+		Trades: []UserTradeResponse{},
 	}
 }
 
 // testCancelledOrder is the documented cancel response the mock request returns, an untriggered stop market order
-func testCancelledOrder() *Order {
-	return &Order{
+func testCancelledOrder() *OrderResponse {
+	return &OrderResponse{
 		OrderID:             mockCancelOrderID,
 		OrderState:          "untriggered",
 		OrderType:           "stop_market",
@@ -272,7 +272,7 @@ func testDetailedCancelAllResponse() *CancelAllResponse {
 			InstrumentName: "BTC_USDC",
 			Currency:       "BTC_USDC",
 			Type:           "limit",
-			Result: []Order{{
+			Result: []OrderResponse{{
 				OrderID:             "BTC_USDC-13133482",
 				OrderState:          "cancelled",
 				OrderType:           "limit",
@@ -293,8 +293,8 @@ func testDetailedCancelAllResponse() *CancelAllResponse {
 }
 
 // testOpenOrders is the documented open orders response the mock requests return
-func testOpenOrders() []Order {
-	return []Order{{
+func testOpenOrders() []OrderResponse {
+	return []OrderResponse{{
 		OrderID:             "146062",
 		OrderState:          "open",
 		OrderType:           "limit",
@@ -312,7 +312,7 @@ func testOpenOrders() []Order {
 
 // testOrderHistoryResponse is the documented order history response the mock requests return
 func testOrderHistoryResponse() *OrderHistoryResponse {
-	return &OrderHistoryResponse{Orders: []Order{{
+	return &OrderHistoryResponse{Orders: []OrderResponse{{
 		OrderID:             "146475",
 		OrderState:          "filled",
 		OrderType:           "limit",
@@ -330,8 +330,8 @@ func testOrderHistoryResponse() *OrderHistoryResponse {
 }
 
 // testOrderMargins is the documented order margins response the mock requests return
-func testOrderMargins() []OrderMargin {
-	return []OrderMargin{
+func testOrderMargins() []OrderMarginResponse {
+	return []OrderMarginResponse{
 		{OrderID: "ETH-349278", InitialMargin: 0.00091156, InitialMarginCurrency: currency.ETH},
 		{OrderID: "ETH-349279", InitialMarginCurrency: currency.ETH},
 		{OrderID: "ETH-349280", InitialMarginCurrency: currency.ETH},
@@ -340,8 +340,8 @@ func testOrderMargins() []OrderMargin {
 
 // testOrderState is the documented order state response the mock requests return, with the label the by label
 // response carries
-func testOrderState(label string) *Order {
-	return &Order{
+func testOrderState(label string) *OrderResponse {
+	return &OrderResponse{
 		OrderID:             mockOrderStateID,
 		OrderState:          "filled",
 		OrderType:           "limit",
@@ -398,7 +398,7 @@ func testTriggerOrderHistoryResponse() *TriggerOrderHistoryResponse {
 
 // testUserTradesResponse is the documented user trades response the mock requests return
 func testUserTradesResponse() *UserTradesResponse {
-	return &UserTradesResponse{Trades: []UserTrade{
+	return &UserTradesResponse{Trades: []UserTradeResponse{
 		{
 			TradeID:           "48078936",
 			TradeSequence:     1,
@@ -441,8 +441,8 @@ func testUserTradesResponse() *UserTradesResponse {
 }
 
 // testUserTradesByOrder is the documented order trades response the mock requests return
-func testUserTradesByOrder() []UserTrade {
-	return []UserTrade{{
+func testUserTradesByOrder() []UserTradeResponse {
+	return []UserTradeResponse{{
 		TradeID:        "ETH-2696068",
 		TradeSequence:  1966042,
 		InstrumentName: "ETH-PERPETUAL",
@@ -464,8 +464,8 @@ func testUserTradesByOrder() []UserTrade {
 
 // testMassQuoteResponse is the documented detailed mass quote response the mock requests return
 func testMassQuoteResponse() *MassQuoteResponse {
-	quoteOrder := func(orderID, instrument, quoteSetID, direction string, price, amount float64) Order {
-		return Order{
+	quoteOrder := func(orderID, instrument, quoteSetID, direction string, price, amount float64) OrderResponse {
+		return OrderResponse{
 			OrderID:             orderID,
 			OrderState:          "open",
 			OrderType:           "limit",
@@ -484,12 +484,12 @@ func testMassQuoteResponse() *MassQuoteResponse {
 		}
 	}
 	return &MassQuoteResponse{
-		Orders: []Order{
+		Orders: []OrderResponse{
 			quoteOrder("6653852", "BTC-22DEC23-41600-C", "options", DirectionBuy, 0.04, 1),
 			quoteOrder("6653853", "BTC-22DEC23-41600-C", "options", DirectionSell, 0.05, 1),
 			quoteOrder("6653855", "BTC-PERPETUAL", "futures", DirectionSell, 43800, 10),
 		},
-		Trades: []UserTrade{},
+		Trades: []UserTradeResponse{},
 		Errors: []MassQuoteError{{
 			InstrumentName: "BTC-PERPETUAL",
 			Side:           "bid",
@@ -499,8 +499,8 @@ func testMassQuoteResponse() *MassQuoteResponse {
 }
 
 // testPositionMoveTrades is the documented position move response the mock requests return
-func testPositionMoveTrades() []PositionMoveTrade {
-	return []PositionMoveTrade{
+func testPositionMoveTrades() []PositionMoveTradeResponse {
+	return []PositionMoveTradeResponse{
 		{SourceUID: 3, TargetUID: 23, InstrumentName: "BTC-28JAN22-32500-C", Direction: DirectionSell, Price: 0.1223, Amount: 0.1},
 		{SourceUID: 3, TargetUID: 23, InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy, Price: 35800, Amount: 110},
 	}
@@ -520,8 +520,8 @@ func testMarginsResponse() *MarginsResponse {
 }
 
 // testMMPConfigs is the documented MMP configuration response the mock requests return
-func testMMPConfigs() []MMPConfig {
-	return []MMPConfig{{
+func testMMPConfigs() []MMPConfigResponse {
+	return []MMPConfigResponse{{
 		IndexName:        "btc_usd",
 		Interval:         60,
 		MMPGroup:         "MassQuoteBot7",
@@ -534,13 +534,13 @@ func testMMPConfigs() []MMPConfig {
 
 // testSetMMPConfigs is the documented set MMP configuration response the mock requests return, a single configuration
 // where the schema documents a list
-func testSetMMPConfigs() []MMPConfig {
-	return []MMPConfig{{IndexName: "btc_usd", Interval: 60, MMPGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
+func testSetMMPConfigs() []MMPConfigResponse {
+	return []MMPConfigResponse{{IndexName: "btc_usd", Interval: 60, MMPGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
 }
 
 // testMMPStatuses is the documented MMP status response the mock requests return
-func testMMPStatuses() []MMPStatus {
-	return []MMPStatus{{IndexName: "btc_usd", FrozenUntil: tradingTime(1744275841861), MMPGroup: "MassQuoteBot7"}}
+func testMMPStatuses() []MMPStatusResponse {
+	return []MMPStatusResponse{{IndexName: "btc_usd", FrozenUntil: tradingTime(1744275841861), MMPGroup: "MassQuoteBot7"}}
 }
 
 // newTradingParamsCaptureExchange returns an exchange whose REST requests all receive one fixed response body, and a
@@ -607,7 +607,7 @@ func newLiveTradingOrderRequest(t *testing.T, direction string) *OrderRequest {
 
 // placeLiveTradingOrder places a live buy order no market move fills while the test runs, and returns the request and
 // the order; it is cancelled when the test ends
-func placeLiveTradingOrder(t *testing.T) (*OrderRequest, *Order) {
+func placeLiveTradingOrder(t *testing.T) (*OrderRequest, *OrderResponse) {
 	t.Helper()
 	arg := newLiveTradingOrderRequest(t, DirectionBuy)
 	result, err := e.Buy(t.Context(), arg)
@@ -622,7 +622,7 @@ var liveTradingMMPConfigMu sync.Mutex
 
 // setLiveTradingMMPConfig sets a test MMP configuration on the orders MMP group of the btc_usd index with set, and
 // restores the configuration it found, or removes the test's, when the test ends
-func setLiveTradingMMPConfig(t *testing.T, set func(context.Context, *SetMMPConfigRequest) ([]MMPConfig, error)) []MMPConfig {
+func setLiveTradingMMPConfig(t *testing.T, set func(context.Context, *SetMMPConfigRequest) ([]MMPConfigResponse, error)) []MMPConfigResponse {
 	t.Helper()
 	liveTradingMMPConfigMu.Lock()
 	configs, err := e.GetMMPConfig(t.Context(), &MMPGroupRequest{IndexName: liveTradingIndexName})
@@ -1291,7 +1291,7 @@ func TestGetOrderStateByLabel(t *testing.T) {
 	result, err := e.GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
 	require.NoError(t, err, "GetOrderStateByLabel must not error")
 	if mockTests {
-		assert.Equal(t, []Order{*testOrderState("fooBar")}, result, "GetOrderStateByLabel should decode every field")
+		assert.Equal(t, []OrderResponse{*testOrderState("fooBar")}, result, "GetOrderStateByLabel should decode every field")
 	}
 
 	_, err = newUnavailableServerExchange(t).GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
@@ -1716,8 +1716,8 @@ func TestCancelAllResponseUnmarshalJSON(t *testing.T) {
 	exp := CancelAllResponse{
 		CancelledCount: 2,
 		ExecutionReports: []CancelExecutionReport{
-			{InstrumentName: "BTC-PERPETUAL", Currency: "BTC", Type: "limit", Result: []Order{{OrderID: "1"}, {OrderID: "2"}}},
-			{Currency: "ETH", Type: "stop", Result: []Order{}},
+			{InstrumentName: "BTC-PERPETUAL", Currency: "BTC", Type: "limit", Result: []OrderResponse{{OrderID: "1"}, {OrderID: "2"}}},
+			{Currency: "ETH", Type: "stop", Result: []OrderResponse{}},
 		},
 	}
 	assert.Equal(t, exp, result, "UnmarshalJSON should decode the execution reports and count their orders")
@@ -1731,13 +1731,13 @@ func TestOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var result OrderHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(`[{"order_id":"1"}]`), &result), "Unmarshal must not error for a list")
-	assert.Equal(t, OrderHistoryResponse{Orders: []Order{{OrderID: "1"}}}, result, "UnmarshalJSON should decode a list of orders")
+	assert.Equal(t, OrderHistoryResponse{Orders: []OrderResponse{{OrderID: "1"}}}, result, "UnmarshalJSON should decode a list of orders")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"orders":[{"order_id":"2"}],"continuation":"next"}`), &result), "Unmarshal must not error for a page")
-	assert.Equal(t, OrderHistoryResponse{Orders: []Order{{OrderID: "2"}}, Continuation: "next"}, result, "UnmarshalJSON should decode a page of orders and its continuation token")
+	assert.Equal(t, OrderHistoryResponse{Orders: []OrderResponse{{OrderID: "2"}}, Continuation: "next"}, result, "UnmarshalJSON should decode a page of orders and its continuation token")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"orders":[],"continuation":""}`), &result), "Unmarshal must not error for the last page")
-	assert.Equal(t, OrderHistoryResponse{Orders: []Order{}}, result, "UnmarshalJSON should decode an empty last page")
+	assert.Equal(t, OrderHistoryResponse{Orders: []OrderResponse{}}, result, "UnmarshalJSON should decode an empty last page")
 
 	err := json.Unmarshal([]byte(`{"entries":[{"order_id":"3"}],"continuation":"next"}`), &result)
 	assert.ErrorIs(t, err, errOrderHistoryOrdersMissing, "UnmarshalJSON should reject a page without an orders field")
@@ -2041,7 +2041,7 @@ func TestUserTradesTimeRange(t *testing.T) {
 	start, end := time.UnixMilli(1600000000000), time.UnixMilli(1700000000000)
 	for _, tc := range []struct {
 		start, end       time.Time
-		expStart, expEnd int64
+		expStart, expEnd uint64
 		err              error
 		name             string
 	}{
@@ -2051,6 +2051,7 @@ func TestUserTradesTimeRange(t *testing.T) {
 		{name: "range", start: start, end: end, expStart: 1600000000000, expEnd: 1700000000000},
 		{name: "same start and end", start: end, end: end, expStart: 1700000000000, expEnd: 1700000000000},
 		{name: "start after end", start: end, end: start, err: common.ErrStartAfterEnd},
+		{name: "end before 1970", end: time.UnixMilli(-1), expEnd: 1},
 	} {
 		startTimestamp, endTimestamp, err := userTradesTimeRange(tc.start, tc.end)
 		require.ErrorIsf(t, err, tc.err, "userTradesTimeRange must return the expected error for %s", tc.name)

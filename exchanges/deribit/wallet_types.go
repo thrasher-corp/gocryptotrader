@@ -62,10 +62,10 @@ type AddToAddressBookRequest struct {
 	IsSelf *bool `json:"is_self,omitempty"`
 }
 
-// AddressBookEntry contains an address book entry or deposit address. Legacy wallet type accounts receive the
+// AddressBookEntryResponse contains an address book entry or deposit address. Legacy wallet type accounts receive the
 // beneficiary fields, Agreed and Personal, and deposit addresses with only their address, currency, type and creation
 // time; Coinbase wallet type accounts receive the ID, kind, network and travel rule fields, leaving out unset ones
-type AddressBookEntry struct {
+type AddressBookEntryResponse struct {
 	// ID identifies a Coinbase wallet type entry, in place of its address
 	ID string `json:"id"`
 	// Currency is "all" for a Coinbase Travel Network counterparty, which applies to every currency
@@ -142,8 +142,8 @@ type CancelTransferByIDRequest struct {
 	ID       uint64        `json:"id"`
 }
 
-// Transfer contains a transfer between the account and a subaccount or another user
-type Transfer struct {
+// TransferResponse contains a transfer between the account and a subaccount or another user
+type TransferResponse struct {
 	ID uint64 `json:"id"`
 	// Type is user for a transfer to or from another user, and subaccount for one to or from a subaccount
 	Type     string        `json:"type"`
@@ -169,10 +169,10 @@ type CancelWithdrawalRequest struct {
 	ID       uint64        `json:"id"`
 }
 
-// Withdrawal contains a withdrawal. Legacy wallet type accounts receive numeric IDs, fees, priorities and nonces;
-// Coinbase wallet type accounts receive UUID IDs and the custodian, network and clearance fields, leaving out unset
-// ones
-type Withdrawal struct {
+// WithdrawalResponse contains a withdrawal. Legacy wallet type accounts receive numeric IDs, fees, priorities and
+// nonces; Coinbase wallet type accounts receive UUID IDs and the custodian, network and clearance fields, leaving out
+// unset ones
+type WithdrawalResponse struct {
 	ID       WithdrawalID  `json:"id"`
 	Currency currency.Code `json:"currency"`
 	// State is unconfirmed, confirmed, cancelled, completed, interrupted or rejected for a legacy wallet type
@@ -269,8 +269,9 @@ type AddressBeneficiaryRequest struct {
 	Tag string `json:"tag,omitempty"`
 }
 
-// AddressBeneficiary contains an address's beneficiary information, which the travel rule needs for withdrawals to it
-type AddressBeneficiary struct {
+// AddressBeneficiaryResponse contains an address's beneficiary information, which the travel rule needs for withdrawals
+// to it
+type AddressBeneficiaryResponse struct {
 	Currency currency.Code `json:"currency"`
 	Address  string        `json:"address"`
 	// Tag is an XRP address's destination tag
@@ -318,13 +319,13 @@ type WalletHistoryRequest struct {
 
 // DepositsResponse contains a page of deposits
 type DepositsResponse struct {
-	Deposits []Deposit `json:"data"`
+	Deposits []DepositResponse `json:"data"`
 	// Count is the number of deposits available, not the number returned
 	Count uint64 `json:"count"`
 }
 
-// Deposit contains a deposit
-type Deposit struct {
+// DepositResponse contains a deposit
+type DepositResponse struct {
 	Currency currency.Code `json:"currency"`
 	// UserID is the receiving user, which Deribit documents for SetClearanceOriginator's result only
 	UserID  uint64  `json:"user_id"`
@@ -374,14 +375,14 @@ type RewardEligibility struct {
 
 // TransfersResponse contains a page of transfers
 type TransfersResponse struct {
-	Transfers []Transfer `json:"data"`
+	Transfers []TransferResponse `json:"data"`
 	// Count is the number of transfers available, not the number returned
 	Count uint64 `json:"count"`
 }
 
 // WithdrawalsResponse contains a page of withdrawals
 type WithdrawalsResponse struct {
-	Withdrawals []Withdrawal `json:"data"`
+	Withdrawals []WithdrawalResponse `json:"data"`
 	// Count is the number of withdrawals available, not the number returned
 	Count uint64 `json:"count"`
 }
@@ -412,16 +413,16 @@ type ListAddressBeneficiariesRequest struct {
 // milliseconds
 type ListAddressBeneficiariesParams struct {
 	*ListAddressBeneficiariesRequest
-	CreatedBefore int64 `json:"created_before,omitempty"`
-	CreatedAfter  int64 `json:"created_after,omitempty"`
-	UpdatedBefore int64 `json:"updated_before,omitempty"`
-	UpdatedAfter  int64 `json:"updated_after,omitempty"`
+	CreatedBefore uint64 `json:"created_before,omitempty"`
+	CreatedAfter  uint64 `json:"created_after,omitempty"`
+	UpdatedBefore uint64 `json:"updated_before,omitempty"`
+	UpdatedAfter  uint64 `json:"updated_after,omitempty"`
 }
 
 // AddressBeneficiariesResponse contains a page of address beneficiaries and the continuation token of the next page
 type AddressBeneficiariesResponse struct {
-	Beneficiaries []AddressBeneficiary `json:"data"`
-	Continuation  string               `json:"continuation"`
+	Beneficiaries []AddressBeneficiaryResponse `json:"data"`
+	Continuation  string                       `json:"continuation"`
 	// Count is the number of beneficiaries available, not the number returned
 	Count uint64 `json:"count"`
 }
@@ -581,7 +582,7 @@ type UpdateInAddressBookRequest struct {
 // UpdateInAddressBookResponse contains a Coinbase wallet type account's updated address book entry; legacy wallet type
 // accounts are only sent an acknowledgement, which leaves Entry nil
 type UpdateInAddressBookResponse struct {
-	Entry *AddressBookEntry
+	Entry *AddressBookEntryResponse
 }
 
 // UnmarshalJSON decodes a legacy wallet type account's "ok" acknowledgement, leaving Entry nil, or a Coinbase wallet

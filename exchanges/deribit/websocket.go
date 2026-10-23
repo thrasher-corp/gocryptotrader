@@ -97,6 +97,7 @@ var (
 	errChannelNeedsAuthentication  = errors.New("channel needs an authenticated subscription")
 	errChannelNeedsInstrument      = errors.New("channel needs an asset and pairs")
 	errOrderbookOutOfSequence      = errors.New("orderbook change out of sequence")
+	errNoLongerResubscribing       = errors.New("subscription is no longer resubscribing")
 	errMalformedNotification       = errors.New("malformed notification")
 )
 
@@ -402,9 +403,9 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, res
 	case ChannelUserLSP:
 		return wsRelay[WebsocketLSPEvent](ctx, e, respRaw)
 	case ChannelBlockTradeConfirmations:
-		return wsRelay[PendingBlockTrade](ctx, e, respRaw)
+		return wsRelay[PendingBlockTradeResponse](ctx, e, respRaw)
 	case ChannelBlockRFQMaker, ChannelBlockRFQTaker:
-		return wsRelay[BlockRFQ](ctx, e, respRaw)
+		return wsRelay[BlockRFQResponse](ctx, e, respRaw)
 	case ChannelBlockRFQMakerQuotes:
 		return wsRelay[WebsocketBlockRFQQuotes](ctx, e, respRaw)
 	case ChannelBlockRFQTrades:
@@ -823,19 +824,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bo
 	if len(subs) == 0 {
 		return nil
 	}
-	channels := subs.QualifiedChannels()
-	var acknowledged []string
-	var err error
-	switch {
-	case subscribe && private:
-		acknowledged, err = e.WebsocketAPI().SubscribePrivate(ctx, &PrivateSubscribeRequest{Channels: channels})
-	case subscribe:
-		acknowledged, err = e.WebsocketAPI().Subscribe(ctx, channels)
-	case private:
-		acknowledged, err = e.WebsocketAPI().UnsubscribePrivate(ctx, channels)
-	default:
-		acknowledged, err = e.WebsocketAPI().Unsubscribe(ctx, channels)
-	}
+	acknowledged, err := e.sendSubscriptionRequest(ctx, subscribe, private, subs.QualifiedChannels())
 	if err != nil {
 		return err
 	}
@@ -852,6 +841,21 @@ func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bo
 		}
 	}
 	return errs
+}
+
+// sendSubscriptionRequest subscribes to or unsubscribes from qualified channels, through private/subscribe or
+// private/unsubscribe for private channels, and returns the channels Deribit acknowledged
+func (e *Exchange) sendSubscriptionRequest(ctx context.Context, subscribe, private bool, channels []string) ([]string, error) {
+	switch {
+	case subscribe && private:
+		return e.WebsocketAPI().SubscribePrivate(ctx, &PrivateSubscribeRequest{Channels: channels})
+	case subscribe:
+		return e.WebsocketAPI().Subscribe(ctx, channels)
+	case private:
+		return e.WebsocketAPI().UnsubscribePrivate(ctx, channels)
+	default:
+		return e.WebsocketAPI().Unsubscribe(ctx, channels)
+	}
 }
 
 // refuseBookConflicts returns the subscriptions less each book subscription whose instrument has another book channel

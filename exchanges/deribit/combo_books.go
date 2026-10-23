@@ -16,15 +16,15 @@ var (
 )
 
 // CreateCombo returns the combo whose legs match the trades, creating its book when none exists
-func (e *Exchange) CreateCombo(ctx context.Context, trades []ComboTrade) (*Combo, error) {
+func (e *Exchange) CreateCombo(ctx context.Context, trades []ComboTrade) (*ComboResponse, error) {
 	return e.createCombo(ctx, trades, false)
 }
 
-func (e *Exchange) createCombo(ctx context.Context, trades []ComboTrade, overWebsocket bool) (*Combo, error) {
+func (e *Exchange) createCombo(ctx context.Context, trades []ComboTrade, overWebsocket bool) (*ComboResponse, error) {
 	if err := validateComboTrades(trades); err != nil {
 		return nil, err
 	}
-	var resp *Combo
+	var resp *ComboResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_combo", &CreateComboRequest{Trades: trades}, &resp); err != nil {
 		return nil, err
 	}
@@ -78,15 +78,15 @@ func validateComboTrades(trades []ComboTrade) error {
 
 // GetComboDetails returns a live combo's legs and book state; an expired or archivized combo is only available as an
 // instrument from GetInstrument
-func (e *Exchange) GetComboDetails(ctx context.Context, comboID string) (*Combo, error) {
+func (e *Exchange) GetComboDetails(ctx context.Context, comboID string) (*ComboResponse, error) {
 	return e.getComboDetails(ctx, comboID, false)
 }
 
-func (e *Exchange) getComboDetails(ctx context.Context, comboID string, overWebsocket bool) (*Combo, error) {
+func (e *Exchange) getComboDetails(ctx context.Context, comboID string, overWebsocket bool) (*ComboResponse, error) {
 	if comboID == "" {
 		return nil, errComboIDRequired
 	}
-	var resp *Combo
+	var resp *ComboResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combo_details", &ComboIDRequest{ComboID: comboID}, &resp); err != nil {
 		return nil, err
 	}
@@ -119,14 +119,14 @@ func (e *Exchange) getComboIDs(ctx context.Context, arg *ComboIDsRequest, overWe
 }
 
 // GetCombos returns a settlement currency's active combos, or every currency's for currency.ANY
-func (e *Exchange) GetCombos(ctx context.Context, ccy currency.Code) ([]Combo, error) {
+func (e *Exchange) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboResponse, error) {
 	return e.getCombos(ctx, ccy, false)
 }
 
-func (e *Exchange) getCombos(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]Combo, error) {
+func (e *Exchange) getCombos(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]ComboResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []Combo
+	var resp []ComboResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_combos", &CurrencyRequest{Currency: marketDataCurrency(ccy)}, &resp)
 }

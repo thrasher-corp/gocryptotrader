@@ -69,11 +69,11 @@ func (e *Exchange) getBasketIndexComposition(ctx context.Context, indexName stri
 
 // GetBookSummaryByCurrency returns the market summaries of a currency's instruments, optionally of one kind; Deribit
 // recommends the ticker subscription over polling it
-func (e *Exchange) GetBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest) ([]BookSummary, error) {
+func (e *Exchange) GetBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest) ([]BookSummaryResponse, error) {
 	return e.getBookSummaryByCurrency(ctx, arg, false)
 }
 
-func (e *Exchange) getBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest, overWebsocket bool) ([]BookSummary, error) {
+func (e *Exchange) getBookSummaryByCurrency(ctx context.Context, arg *BookSummaryByCurrencyRequest, overWebsocket bool) ([]BookSummaryResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -83,20 +83,20 @@ func (e *Exchange) getBookSummaryByCurrency(ctx context.Context, arg *BookSummar
 	if err := validateMarketDataKind(arg.Kind, KindFuture, KindOption, KindSpot, KindFutureCombo, KindOptionCombo); err != nil {
 		return nil, err
 	}
-	var resp []BookSummary
+	var resp []BookSummaryResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_book_summary_by_currency", arg, &resp)
 }
 
 // GetBookSummaryByInstrument returns an instrument's market summary, as a list of one
-func (e *Exchange) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]BookSummary, error) {
+func (e *Exchange) GetBookSummaryByInstrument(ctx context.Context, instrumentName string) ([]BookSummaryResponse, error) {
 	return e.getBookSummaryByInstrument(ctx, instrumentName, false)
 }
 
-func (e *Exchange) getBookSummaryByInstrument(ctx context.Context, instrumentName string, overWebsocket bool) ([]BookSummary, error) {
+func (e *Exchange) getBookSummaryByInstrument(ctx context.Context, instrumentName string, overWebsocket bool) ([]BookSummaryResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp []BookSummary
+	var resp []BookSummaryResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_book_summary_by_instrument", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp)
 }
 
@@ -120,12 +120,12 @@ func (e *Exchange) getContractSize(ctx context.Context, instrumentName string, o
 }
 
 // GetCurrencies returns every currency Deribit supports and its deposit and withdrawal parameters
-func (e *Exchange) GetCurrencies(ctx context.Context) ([]CurrencyDetail, error) {
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]CurrencyDetailResponse, error) {
 	return e.getCurrencies(ctx, false)
 }
 
-func (e *Exchange) getCurrencies(ctx context.Context, overWebsocket bool) ([]CurrencyDetail, error) {
-	var resp []CurrencyDetail
+func (e *Exchange) getCurrencies(ctx context.Context, overWebsocket bool) ([]CurrencyDetailResponse, error) {
+	var resp []CurrencyDetailResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_currencies", nil, &resp)
 }
 
@@ -204,16 +204,16 @@ func (e *Exchange) getFundingChartData(ctx context.Context, arg *FundingChartDat
 
 // GetFundingRateHistory returns a perpetual's hourly funding over the hours ending after StartTime and up to EndTime,
 // oldest first; a range of more than 744 hours returns its latest 744
-func (e *Exchange) GetFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]FundingRateHistory, error) {
+func (e *Exchange) GetFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]FundingRateHistoryResponse, error) {
 	return e.getFundingRateHistory(ctx, arg, false)
 }
 
-func (e *Exchange) getFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest, overWebsocket bool) ([]FundingRateHistory, error) {
+func (e *Exchange) getFundingRateHistory(ctx context.Context, arg *InstrumentTimeRangeRequest, overWebsocket bool) ([]FundingRateHistoryResponse, error) {
 	params, err := arg.params()
 	if err != nil {
 		return nil, err
 	}
-	var resp []FundingRateHistory
+	var resp []FundingRateHistoryResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_funding_rate_history", params, &resp)
 }
 
@@ -250,31 +250,31 @@ func (r *InstrumentTimeRangeRequest) params() (*InstrumentTimeRangeParams, error
 	}
 	return &InstrumentTimeRangeParams{
 		InstrumentTimeRangeRequest: r,
-		StartTimestamp:             r.StartTime.UnixMilli(),
-		EndTimestamp:               r.EndTime.UnixMilli(),
+		StartTimestamp:             unixMilli(r.StartTime),
+		EndTimestamp:               unixMilli(r.EndTime),
 	}, nil
 }
 
 // GetHistoricalVolatility returns a currency's hourly realised volatility over about the last 16 days, oldest first;
 // Deribit repeats the first point
-func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityPoint, error) {
+func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityPointResponse, error) {
 	return e.getHistoricalVolatility(ctx, ccy, false)
 }
 
-func (e *Exchange) getHistoricalVolatility(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]HistoricalVolatilityPoint, error) {
+func (e *Exchange) getHistoricalVolatility(ctx context.Context, ccy currency.Code, overWebsocket bool) ([]HistoricalVolatilityPointResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp []HistoricalVolatilityPoint
+	var resp []HistoricalVolatilityPointResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_historical_volatility", &CurrencyRequest{Currency: ccy}, &resp)
 }
 
 // GetIndexChartData returns an index's average price over a period, oldest first
-func (e *Exchange) GetIndexChartData(ctx context.Context, arg *IndexChartDataRequest) ([]IndexChartPoint, error) {
+func (e *Exchange) GetIndexChartData(ctx context.Context, arg *IndexChartDataRequest) ([]IndexChartPointResponse, error) {
 	return e.getIndexChartData(ctx, arg, false)
 }
 
-func (e *Exchange) getIndexChartData(ctx context.Context, arg *IndexChartDataRequest, overWebsocket bool) ([]IndexChartPoint, error) {
+func (e *Exchange) getIndexChartData(ctx context.Context, arg *IndexChartDataRequest, overWebsocket bool) ([]IndexChartPointResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -286,7 +286,7 @@ func (e *Exchange) getIndexChartData(ctx context.Context, arg *IndexChartDataReq
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidIndexChartRange, arg.Range)
 	}
-	var resp []IndexChartPoint
+	var resp []IndexChartPointResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_index_chart_data", arg, &resp)
 }
 
@@ -311,26 +311,26 @@ func (e *Exchange) getIndexPrice(ctx context.Context, indexName string, overWebs
 
 // GetIndexPriceNames returns the names of every price index and, when extended is set, whether future and option combos
 // can be created on each
-func (e *Exchange) GetIndexPriceNames(ctx context.Context, extended bool) ([]IndexPriceName, error) {
+func (e *Exchange) GetIndexPriceNames(ctx context.Context, extended bool) ([]IndexPriceNameResponse, error) {
 	return e.getIndexPriceNames(ctx, extended, false)
 }
 
-func (e *Exchange) getIndexPriceNames(ctx context.Context, extended, overWebsocket bool) ([]IndexPriceName, error) {
-	var resp []IndexPriceName
+func (e *Exchange) getIndexPriceNames(ctx context.Context, extended, overWebsocket bool) ([]IndexPriceNameResponse, error) {
+	var resp []IndexPriceNameResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_index_price_names", &IndexPriceNamesRequest{Extended: extended}, &resp)
 }
 
 // GetInstrument returns an instrument's specification, including a combo's or an expired or archivized instrument's
 // that GetInstruments no longer lists
-func (e *Exchange) GetInstrument(ctx context.Context, instrumentName string) (*Instrument, error) {
+func (e *Exchange) GetInstrument(ctx context.Context, instrumentName string) (*InstrumentResponse, error) {
 	return e.getInstrument(ctx, instrumentName, false)
 }
 
-func (e *Exchange) getInstrument(ctx context.Context, instrumentName string, overWebsocket bool) (*Instrument, error) {
+func (e *Exchange) getInstrument(ctx context.Context, instrumentName string, overWebsocket bool) (*InstrumentResponse, error) {
 	if instrumentName == "" {
 		return nil, errInstrumentNameRequired
 	}
-	var resp *Instrument
+	var resp *InstrumentResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_instrument", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
@@ -342,11 +342,11 @@ func (e *Exchange) getInstrument(ctx context.Context, instrumentName string, ove
 
 // GetInstruments returns a settlement currency's instruments, optionally of one kind; unexpired instruments include
 // inactive ones but not inactive combos, and Deribit limits the method to a request a second
-func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsRequest) ([]Instrument, error) {
+func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsRequest) ([]InstrumentResponse, error) {
 	return e.getInstruments(ctx, arg, false)
 }
 
-func (e *Exchange) getInstruments(ctx context.Context, arg *InstrumentsRequest, overWebsocket bool) ([]Instrument, error) {
+func (e *Exchange) getInstruments(ctx context.Context, arg *InstrumentsRequest, overWebsocket bool) ([]InstrumentResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -358,7 +358,7 @@ func (e *Exchange) getInstruments(ctx context.Context, arg *InstrumentsRequest, 
 	}
 	params := *arg
 	params.Currency = marketDataCurrency(arg.Currency)
-	var resp []Instrument
+	var resp []InstrumentResponse
 	return resp, e.sendRequest(ctx, overWebsocket, getInstrumentsEPL, "public/get_instruments", &params, &resp)
 }
 
@@ -380,7 +380,7 @@ func (e *Exchange) getLastSettlementsByCurrency(ctx context.Context, arg *LastSe
 	}
 	params := &LastSettlementsByCurrencyParams{
 		LastSettlementsByCurrencyRequest: arg,
-		SearchStartTimestamp:             marketDataUnixMilli(arg.SearchStartTime),
+		SearchStartTimestamp:             unixMilli(arg.SearchStartTime),
 	}
 	var resp *SettlementsResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_settlements_by_currency", params, &resp); err != nil {
@@ -410,7 +410,7 @@ func (e *Exchange) getLastSettlementsByInstrument(ctx context.Context, arg *Last
 	}
 	params := &LastSettlementsByInstrumentParams{
 		LastSettlementsByInstrumentRequest: arg,
-		SearchStartTimestamp:               marketDataUnixMilli(arg.SearchStartTime),
+		SearchStartTimestamp:               unixMilli(arg.SearchStartTime),
 	}
 	var resp *SettlementsResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_settlements_by_instrument", params, &resp); err != nil {
@@ -446,8 +446,8 @@ func (e *Exchange) getLastTradesByCurrency(ctx context.Context, arg *LastTradesB
 	}
 	params := &LastTradesByCurrencyParams{
 		LastTradesByCurrencyRequest: arg,
-		StartTimestamp:              marketDataUnixMilli(arg.StartTime),
-		EndTimestamp:                marketDataUnixMilli(arg.EndTime),
+		StartTimestamp:              unixMilli(arg.StartTime),
+		EndTimestamp:                unixMilli(arg.EndTime),
 	}
 	var resp *LastTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_trades_by_currency", params, &resp); err != nil {
@@ -483,8 +483,8 @@ func (e *Exchange) getLastTradesByCurrencyAndTime(ctx context.Context, arg *Last
 	}
 	params := &LastTradesByCurrencyAndTimeParams{
 		LastTradesByCurrencyAndTimeRequest: arg,
-		StartTimestamp:                     marketDataUnixMilli(arg.StartTime),
-		EndTimestamp:                       marketDataUnixMilli(arg.EndTime),
+		StartTimestamp:                     unixMilli(arg.StartTime),
+		EndTimestamp:                       unixMilli(arg.EndTime),
 	}
 	var resp *LastTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_trades_by_currency_and_time", params, &resp); err != nil {
@@ -517,8 +517,8 @@ func (e *Exchange) getLastTradesByInstrument(ctx context.Context, arg *LastTrade
 	}
 	params := &LastTradesByInstrumentParams{
 		LastTradesByInstrumentRequest: arg,
-		StartTimestamp:                marketDataUnixMilli(arg.StartTime),
-		EndTimestamp:                  marketDataUnixMilli(arg.EndTime),
+		StartTimestamp:                unixMilli(arg.StartTime),
+		EndTimestamp:                  unixMilli(arg.EndTime),
 	}
 	var resp *LastTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_trades_by_instrument", params, &resp); err != nil {
@@ -551,8 +551,8 @@ func (e *Exchange) getLastTradesByInstrumentAndTime(ctx context.Context, arg *La
 	}
 	params := &LastTradesByInstrumentAndTimeParams{
 		LastTradesByInstrumentAndTimeRequest: arg,
-		StartTimestamp:                       marketDataUnixMilli(arg.StartTime),
-		EndTimestamp:                         marketDataUnixMilli(arg.EndTime),
+		StartTimestamp:                       unixMilli(arg.StartTime),
+		EndTimestamp:                         unixMilli(arg.EndTime),
 	}
 	var resp *LastTradesResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_last_trades_by_instrument_and_time", params, &resp); err != nil {
@@ -567,16 +567,16 @@ func (e *Exchange) getLastTradesByInstrumentAndTime(ctx context.Context, arg *La
 // GetMarkPriceHistory returns an option's mark prices within a time range, oldest first; Deribit keeps about the last 5
 // minutes of history, and only for the options its volatility index is calculated from, so other instruments return
 // none
-func (e *Exchange) GetMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]MarkPricePoint, error) {
+func (e *Exchange) GetMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest) ([]MarkPricePointResponse, error) {
 	return e.getMarkPriceHistory(ctx, arg, false)
 }
 
-func (e *Exchange) getMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest, overWebsocket bool) ([]MarkPricePoint, error) {
+func (e *Exchange) getMarkPriceHistory(ctx context.Context, arg *InstrumentTimeRangeRequest, overWebsocket bool) ([]MarkPricePointResponse, error) {
 	params, err := arg.params()
 	if err != nil {
 		return nil, err
 	}
-	var resp []MarkPricePoint
+	var resp []MarkPricePointResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_mark_price_history", params, &resp)
 }
 
@@ -642,12 +642,12 @@ func (e *Exchange) getSupportedIndexNames(ctx context.Context, indexType string,
 }
 
 // GetTradeVolumes returns each currency's traded volumes over 24 hours and, when extended is set, 7 and 30 days
-func (e *Exchange) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolume, error) {
+func (e *Exchange) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumeResponse, error) {
 	return e.getTradeVolumes(ctx, extended, false)
 }
 
-func (e *Exchange) getTradeVolumes(ctx context.Context, extended, overWebsocket bool) ([]TradeVolume, error) {
-	var resp []TradeVolume
+func (e *Exchange) getTradeVolumes(ctx context.Context, extended, overWebsocket bool) ([]TradeVolumeResponse, error) {
+	var resp []TradeVolumeResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_trade_volumes", &TradeVolumesRequest{Extended: extended}, &resp)
 }
 
@@ -672,8 +672,8 @@ func (e *Exchange) getTradingViewChartData(ctx context.Context, arg *TradingView
 	}
 	params := &TradingViewChartDataParams{
 		TradingViewChartDataRequest: arg,
-		StartTimestamp:              arg.StartTime.UnixMilli(),
-		EndTimestamp:                arg.EndTime.UnixMilli(),
+		StartTimestamp:              unixMilli(arg.StartTime),
+		EndTimestamp:                unixMilli(arg.EndTime),
 		ChartResolution:             resolution,
 	}
 	var resp *TradingViewChartDataResponse
@@ -684,8 +684,8 @@ func (e *Exchange) getTradingViewChartData(ctx context.Context, arg *TradingView
 		// a GET of it, as its documentation specifies
 		err = e.sendHTTPQueryRequest(ctx, "public/get_tradingview_chart_data", url.Values{
 			"instrument_name": {arg.InstrumentName},
-			"start_timestamp": {strconv.FormatInt(params.StartTimestamp, 10)},
-			"end_timestamp":   {strconv.FormatInt(params.EndTimestamp, 10)},
+			"start_timestamp": {strconv.FormatUint(params.StartTimestamp, 10)},
+			"end_timestamp":   {strconv.FormatUint(params.EndTimestamp, 10)},
 			"resolution":      {resolution},
 		}, &resp)
 	}
@@ -731,8 +731,8 @@ func (e *Exchange) getVolatilityIndexData(ctx context.Context, arg *VolatilityIn
 	}
 	params := &VolatilityIndexDataParams{
 		VolatilityIndexDataRequest: arg,
-		StartTimestamp:             arg.StartTime.UnixMilli(),
-		EndTimestamp:               arg.EndTime.UnixMilli(),
+		StartTimestamp:             unixMilli(arg.StartTime),
+		EndTimestamp:               unixMilli(arg.EndTime),
 		IndexResolution:            resolution,
 	}
 	var resp *VolatilityIndexDataResponse
@@ -836,13 +836,4 @@ func validateLastTradesRequiredTimeRange(start, end time.Time) error {
 		return errLastTradesTimeRangeRequired
 	}
 	return validateLastTradesTimeRange(start, end)
-}
-
-// marketDataUnixMilli returns a time in Unix milliseconds, or zero for a zero time, which leaves an optional timestamp
-// out of a request
-func marketDataUnixMilli(t time.Time) int64 {
-	if t.IsZero() {
-		return 0
-	}
-	return t.UnixMilli()
 }

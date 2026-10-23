@@ -117,7 +117,7 @@ func liveCreateBlockRFQRequest() *CreateBlockRFQRequest {
 
 // testDocumentedAcceptedBlockRFQ returns the block trade of Deribit's documented private/accept_block_rfq example
 func testDocumentedAcceptedBlockRFQ() *AcceptBlockRFQResponse {
-	trade := UserTrade{
+	trade := UserTradeResponse{
 		TradeID:            "771",
 		TradeSequence:      113,
 		InstrumentName:     "BTC-8NOV24-70000-C",
@@ -149,17 +149,17 @@ func testDocumentedAcceptedBlockRFQ() *AcceptBlockRFQResponse {
 	secondLeg.Price = 69677.4
 	secondLeg.MarkPrice = 0.02
 	return &AcceptBlockRFQResponse{
-		BlockTrades: []BlockTrade{{
+		BlockTrades: []BlockTradeResponse{{
 			ID:        "BLOCK-423",
 			Timestamp: types.Time(time.UnixMilli(1730798381504)),
-			Trades:    []UserTrade{trade, secondLeg},
+			Trades:    []UserTradeResponse{trade, secondLeg},
 		}},
 	}
 }
 
 // testDocumentedBlockRFQQuote returns the quote of Deribit's documented private/add_block_rfq_quote example
-func testDocumentedBlockRFQQuote() *BlockRFQQuote {
-	return &BlockRFQQuote{
+func testDocumentedBlockRFQQuote() *BlockRFQQuoteResponse {
+	return &BlockRFQQuoteResponse{
 		BlockRFQQuoteID:     8,
 		BlockRFQID:          3,
 		CreationTimestamp:   types.Time(time.UnixMilli(1731076586371)),
@@ -175,8 +175,8 @@ func testDocumentedBlockRFQQuote() *BlockRFQQuote {
 }
 
 // testDocumentedCancelledBlockRFQ returns the Block RFQ of Deribit's documented private/cancel_block_rfq example
-func testDocumentedCancelledBlockRFQ() *BlockRFQ {
-	return &BlockRFQ{
+func testDocumentedCancelledBlockRFQ() *BlockRFQResponse {
+	return &BlockRFQResponse{
 		BlockRFQID:          mockCancelBlockRFQID,
 		CreationTimestamp:   types.Time(time.UnixMilli(1729855159611)),
 		ExpirationTimestamp: types.Time(time.UnixMilli(1729855459611)),
@@ -196,8 +196,8 @@ func testDocumentedCancelledBlockRFQ() *BlockRFQ {
 }
 
 // testDocumentedCancelledBlockRFQQuote returns the quote of Deribit's documented private/cancel_block_rfq_quote example
-func testDocumentedCancelledBlockRFQQuote() *BlockRFQQuote {
-	return &BlockRFQQuote{
+func testDocumentedCancelledBlockRFQQuote() *BlockRFQQuoteResponse {
+	return &BlockRFQQuoteResponse{
 		BlockRFQQuoteID:     8,
 		BlockRFQID:          3,
 		CreationTimestamp:   types.Time(time.UnixMilli(1731076586371)),
@@ -214,8 +214,8 @@ func testDocumentedCancelledBlockRFQQuote() *BlockRFQQuote {
 
 // testDocumentedBlockRFQWithCancelledTrigger returns the Block RFQ of Deribit's documented
 // private/cancel_block_rfq_trigger example
-func testDocumentedBlockRFQWithCancelledTrigger() *BlockRFQ {
-	return &BlockRFQ{
+func testDocumentedBlockRFQWithCancelledTrigger() *BlockRFQResponse {
+	return &BlockRFQResponse{
 		BlockRFQID:          mockCancelBlockRFQTriggerID,
 		CreationTimestamp:   types.Time(time.UnixMilli(1730798381504)),
 		ExpirationTimestamp: types.Time(time.UnixMilli(1730798481504)),
@@ -238,8 +238,8 @@ func testDocumentedBlockRFQWithCancelledTrigger() *BlockRFQ {
 }
 
 // testDocumentedCreatedBlockRFQ returns the Block RFQ of Deribit's documented private/create_block_rfq example
-func testDocumentedCreatedBlockRFQ() *BlockRFQ {
-	return &BlockRFQ{
+func testDocumentedCreatedBlockRFQ() *BlockRFQResponse {
+	return &BlockRFQResponse{
 		BlockRFQID:          507,
 		CreationTimestamp:   types.Time(time.UnixMilli(1731062187555)),
 		ExpirationTimestamp: types.Time(time.UnixMilli(1731062487555)),
@@ -257,8 +257,8 @@ func testDocumentedCreatedBlockRFQ() *BlockRFQ {
 }
 
 // testDocumentedEditedBlockRFQQuote returns the quote of Deribit's documented private/edit_block_rfq_quote example
-func testDocumentedEditedBlockRFQQuote() *BlockRFQQuote {
-	return &BlockRFQQuote{
+func testDocumentedEditedBlockRFQQuote() *BlockRFQQuoteResponse {
+	return &BlockRFQQuoteResponse{
 		BlockRFQQuoteID:     8,
 		BlockRFQID:          3,
 		CreationTimestamp:   types.Time(time.UnixMilli(1731076586371)),
@@ -275,8 +275,8 @@ func testDocumentedEditedBlockRFQQuote() *BlockRFQQuote {
 }
 
 // testDocumentedBlockRFQQuotes returns the quotes of Deribit's documented private/get_block_rfq_quotes example
-func testDocumentedBlockRFQQuotes() []BlockRFQQuote {
-	return []BlockRFQQuote{{
+func testDocumentedBlockRFQQuotes() []BlockRFQQuoteResponse {
+	return []BlockRFQQuoteResponse{{
 		BlockRFQQuoteID:      8,
 		BlockRFQID:           1,
 		CreationTimestamp:    types.Time(time.UnixMilli(1731076586371)),
@@ -306,7 +306,7 @@ func testDocumentedBlockRFQUserInfo() *BlockRFQUserInfoResponse {
 // testDocumentedBlockRFQs returns the Block RFQs of Deribit's documented private/get_block_rfqs example
 func testDocumentedBlockRFQs() *BlockRFQsResponse {
 	return &BlockRFQsResponse{
-		BlockRFQs: []BlockRFQ{{
+		BlockRFQs: []BlockRFQResponse{{
 			BlockRFQID:          508,
 			CreationTimestamp:   types.Time(time.UnixMilli(1731062457741)),
 			ExpirationTimestamp: types.Time(time.UnixMilli(1731062757741)),

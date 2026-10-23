@@ -49,8 +49,8 @@ func (a *APIKeyScopes) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// APIKey contains an API key and its settings
-type APIKey struct {
+// APIKeyResponse contains an API key and its settings
+type APIKeyResponse struct {
 	ID        uint64     `json:"id"`
 	Timestamp types.Time `json:"timestamp"`
 	ClientID  string     `json:"client_id"`
@@ -85,8 +85,8 @@ type ChangeMarginModelRequest struct {
 	DryRun bool `json:"dry_run,omitempty"`
 }
 
-// MarginModelChange contains a margin model change's effect on one currency
-type MarginModelChange struct {
+// MarginModelChangeResponse contains a margin model change's effect on one currency
+type MarginModelChangeResponse struct {
 	Currency currency.Code    `json:"currency"`
 	OldState MarginModelState `json:"old_state"`
 	NewState MarginModelState `json:"new_state"`
@@ -123,9 +123,9 @@ type CreateAPIKeyRequest struct {
 	EnabledFeatures []string `json:"enabled_features,omitempty"`
 }
 
-// Subaccount contains the details of the main account or a subaccount; a created subaccount also reports its trading
-// products and referrals, and listed accounts report their portfolios when asked
-type Subaccount struct {
+// SubaccountResponse contains the details of the main account or a subaccount; a created subaccount also reports its
+// trading products and referrals, and listed accounts report their portfolios when asked
+type SubaccountResponse struct {
 	ID uint64 `json:"id"`
 	// Type is main or subaccount
 	Type       string `json:"type"`
@@ -519,13 +519,13 @@ type AffiliateProgramPayouts struct {
 	ETH float64 `json:"eth"`
 }
 
-// AccountCurrency contains a currency available to the account
-type AccountCurrency struct {
+// AccountCurrencyResponse contains a currency available to the account
+type AccountCurrencyResponse struct {
 	Currency currency.Code `json:"currency"`
 }
 
-// Announcement contains a platform announcement
-type Announcement struct {
+// AnnouncementResponse contains a platform announcement
+type AnnouncementResponse struct {
 	ID    uint64 `json:"id"`
 	Title string `json:"title"`
 	// Body is HTML
@@ -536,8 +536,8 @@ type Announcement struct {
 	PublicationTimestamp types.Time `json:"publication_timestamp"`
 }
 
-// Position contains a position in an instrument; a closed position has a zero size and the direction zero
-type Position struct {
+// PositionResponse contains a position in an instrument; a closed position has a zero size and the direction zero
+type PositionResponse struct {
 	InstrumentName string `json:"instrument_name"`
 	// Kind is future, option, spot, future_combo or option_combo
 	Kind   string `json:"kind"`
@@ -601,12 +601,12 @@ type GetSubaccountsDetailsRequest struct {
 	WithOpenOrders bool          `json:"with_open_orders,omitempty"`
 }
 
-// SubaccountDetails contains the positions of the main account or a subaccount in a currency and, when asked, its open
-// orders
-type SubaccountDetails struct {
-	UserID     uint64     `json:"uid"`
-	Positions  []Position `json:"positions"`
-	OpenOrders []Order    `json:"open_orders"`
+// SubaccountDetailsResponse contains the positions of the main account or a subaccount in a currency and, when asked,
+// its open orders
+type SubaccountDetailsResponse struct {
+	UserID     uint64             `json:"uid"`
+	Positions  []PositionResponse `json:"positions"`
+	OpenOrders []OrderResponse    `json:"open_orders"`
 }
 
 // GetTransactionLogRequest requests a page of the account's transaction log in a currency, newest first
@@ -629,8 +629,8 @@ type GetTransactionLogRequest struct {
 // GetTransactionLogParams contains a transaction log request's params, with its times in Unix milliseconds
 type GetTransactionLogParams struct {
 	*GetTransactionLogRequest
-	StartTimestamp int64 `json:"start_timestamp"`
-	EndTimestamp   int64 `json:"end_timestamp"`
+	StartTimestamp uint64 `json:"start_timestamp"`
+	EndTimestamp   uint64 `json:"end_timestamp"`
 }
 
 // TransactionLogResponse contains a page of the transaction log and the continuation of the next older page, zero when
@@ -701,8 +701,8 @@ type TransactionLogEntry struct {
 	StarbaseTimestamp types.Time `json:"starbase_timestamp"`
 }
 
-// UserLock contains whether the account is locked in a currency
-type UserLock struct {
+// UserLockResponse contains whether the account is locked in a currency
+type UserLockResponse struct {
 	Currency currency.Code `json:"currency"`
 	// Locked is set when the account is locked in the currency, as Deribit's documented example names it; Enabled holds
 	// it where Deribit sends the name its schema documents
@@ -712,8 +712,8 @@ type UserLock struct {
 	Message string `json:"message"`
 }
 
-// CustodyAccount contains a custody account and its balances
-type CustodyAccount struct {
+// CustodyAccountResponse contains a custody account and its balances
+type CustodyAccountResponse struct {
 	Name     string        `json:"name"`
 	Currency currency.Code `json:"currency"`
 	// ClientID is the client ID of the API key that reserves and releases funds on the custody platform
@@ -850,7 +850,7 @@ type PMEWorstCaseBucket struct {
 	// Source is the risk vector, standard or extended, and Index the scenario's position in it
 	Source string `json:"source"`
 	Index  uint64 `json:"index"`
-	Bucket int64  `json:"bucket"`
+	Bucket uint64 `json:"bucket"`
 	// Side is the side of the price move, such as left
 	Side string `json:"side"`
 }
@@ -953,5 +953,5 @@ type GetAnnouncementsRequest struct {
 // GetAnnouncementsParams contains an announcements request's params, with its start time in Unix milliseconds
 type GetAnnouncementsParams struct {
 	*GetAnnouncementsRequest
-	StartTimestamp int64 `json:"start_timestamp,omitempty"`
+	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
 }

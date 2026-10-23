@@ -10,34 +10,34 @@ func (w WebsocketAPI) ApproveBlockTrade(ctx context.Context, arg *BlockTradeAppr
 }
 
 // ExecuteBlockTrade executes a block trade as Exchange.ExecuteBlockTrade does, over the websocket
-func (w WebsocketAPI) ExecuteBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest) (*BlockTrade, error) {
+func (w WebsocketAPI) ExecuteBlockTrade(ctx context.Context, arg *ExecuteBlockTradeRequest) (*BlockTradeResponse, error) {
 	return w.e.executeBlockTrade(ctx, arg, true)
 }
 
 // GetBlockTrade returns one of the account's block trades as Exchange.GetBlockTrade does, over the websocket
-func (w WebsocketAPI) GetBlockTrade(ctx context.Context, id string) (*BlockTrade, error) {
+func (w WebsocketAPI) GetBlockTrade(ctx context.Context, id string) (*BlockTradeResponse, error) {
 	return w.e.getBlockTrade(ctx, id, true)
 }
 
 // GetBlockTradeRequests returns the account's block trade requests as Exchange.GetBlockTradeRequests does, over the
 // websocket
-func (w WebsocketAPI) GetBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTrade, error) {
+func (w WebsocketAPI) GetBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTradeResponse, error) {
 	return w.e.getBlockTradeRequests(ctx, brokerCode, true)
 }
 
 // GetBlockTrades returns the account's block trades as Exchange.GetBlockTrades does, over the websocket
-func (w WebsocketAPI) GetBlockTrades(ctx context.Context, arg *GetBlockTradesRequest) ([]BlockTrade, error) {
+func (w WebsocketAPI) GetBlockTrades(ctx context.Context, arg *GetBlockTradesRequest) ([]BlockTradeResponse, error) {
 	return w.e.getBlockTrades(ctx, arg, true)
 }
 
 // GetBrokerClients returns the broker's clients as Exchange.GetBrokerClients does, over the websocket
-func (w WebsocketAPI) GetBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest) ([]BrokerClient, error) {
+func (w WebsocketAPI) GetBrokerClients(ctx context.Context, arg *GetBrokerClientsRequest) ([]BrokerClientResponse, error) {
 	return w.e.getBrokerClients(ctx, arg, true)
 }
 
 // GetBrokerTradeRequests returns the broker's block trade requests as Exchange.GetBrokerTradeRequests does, over the
 // websocket
-func (w WebsocketAPI) GetBrokerTradeRequests(ctx context.Context) ([]PendingBrokerTrade, error) {
+func (w WebsocketAPI) GetBrokerTradeRequests(ctx context.Context) ([]PendingBrokerTradeResponse, error) {
 	return w.e.getBrokerTradeRequests(ctx, true)
 }
 

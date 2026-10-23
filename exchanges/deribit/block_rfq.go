@@ -100,11 +100,11 @@ func (e *Exchange) acceptBlockRFQ(ctx context.Context, arg *AcceptBlockRFQReques
 
 // AddBlockRFQQuote quotes a Block RFQ as a maker, pricing each leg; private/get_leg_prices derives leg prices from a
 // structure's price
-func (e *Exchange) AddBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+func (e *Exchange) AddBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRequest) (*BlockRFQQuoteResponse, error) {
 	return e.addBlockRFQQuote(ctx, arg, false)
 }
 
-func (e *Exchange) addBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuote, error) {
+func (e *Exchange) addBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -131,11 +131,8 @@ func (e *Exchange) addBlockRFQQuote(ctx context.Context, arg *AddBlockRFQQuoteRe
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidBlockRFQExecutionInstruction, arg.ExecutionInstruction)
 	}
-	params := &AddBlockRFQQuoteParams{AddBlockRFQQuoteRequest: arg}
-	if !arg.ExpiresAt.IsZero() {
-		params.ExpiresAt = arg.ExpiresAt.UnixMilli()
-	}
-	var resp *BlockRFQQuote
+	params := &AddBlockRFQQuoteParams{AddBlockRFQQuoteRequest: arg, ExpiresAt: unixMilli(arg.ExpiresAt)}
+	var resp *BlockRFQQuoteResponse
 	if err := e.sendRequest(ctx, overWebsocket, blockRFQQuoteEPL, "private/add_block_rfq_quote", params, &resp); err != nil {
 		return nil, err
 	}
@@ -166,16 +163,16 @@ func (e *Exchange) cancelAllBlockRFQQuotes(ctx context.Context, arg *CancelAllBl
 }
 
 // CancelBlockRFQ cancels a Block RFQ as its taker and returns it
-func (e *Exchange) CancelBlockRFQ(ctx context.Context, blockRFQID uint64) (*BlockRFQ, error) {
+func (e *Exchange) CancelBlockRFQ(ctx context.Context, blockRFQID uint64) (*BlockRFQResponse, error) {
 	return e.cancelBlockRFQ(ctx, blockRFQID, "private/cancel_block_rfq", false)
 }
 
 // cancelBlockRFQ cancels a Block RFQ, or its trade trigger, with the given method and returns the Block RFQ
-func (e *Exchange) cancelBlockRFQ(ctx context.Context, blockRFQID uint64, method string, overWebsocket bool) (*BlockRFQ, error) {
+func (e *Exchange) cancelBlockRFQ(ctx context.Context, blockRFQID uint64, method string, overWebsocket bool) (*BlockRFQResponse, error) {
 	if blockRFQID == 0 {
 		return nil, errBlockRFQIDRequired
 	}
-	var resp *BlockRFQ
+	var resp *BlockRFQResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, &BlockRFQIDRequest{BlockRFQID: blockRFQID}, &resp); err != nil {
 		return nil, err
 	}
@@ -187,18 +184,18 @@ func (e *Exchange) cancelBlockRFQ(ctx context.Context, blockRFQID uint64, method
 
 // CancelBlockRFQQuote cancels one of the account's Block RFQ quotes, identified by its ID, or by its Block RFQ and
 // label, and returns it
-func (e *Exchange) CancelBlockRFQQuote(ctx context.Context, arg *CancelBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+func (e *Exchange) CancelBlockRFQQuote(ctx context.Context, arg *CancelBlockRFQQuoteRequest) (*BlockRFQQuoteResponse, error) {
 	return e.cancelBlockRFQQuote(ctx, arg, false)
 }
 
-func (e *Exchange) cancelBlockRFQQuote(ctx context.Context, arg *CancelBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuote, error) {
+func (e *Exchange) cancelBlockRFQQuote(ctx context.Context, arg *CancelBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if err := validateBlockRFQQuoteIdentifier(arg.BlockRFQQuoteID, arg.BlockRFQID, arg.Label); err != nil {
 		return nil, err
 	}
-	var resp *BlockRFQQuote
+	var resp *BlockRFQQuoteResponse
 	if err := e.sendRequest(ctx, overWebsocket, blockRFQQuoteEPL, "private/cancel_block_rfq_quote", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -209,16 +206,16 @@ func (e *Exchange) cancelBlockRFQQuote(ctx context.Context, arg *CancelBlockRFQQ
 }
 
 // CancelBlockRFQTrigger cancels the active trade trigger of a Block RFQ as its taker and returns the Block RFQ
-func (e *Exchange) CancelBlockRFQTrigger(ctx context.Context, blockRFQID uint64) (*BlockRFQ, error) {
+func (e *Exchange) CancelBlockRFQTrigger(ctx context.Context, blockRFQID uint64) (*BlockRFQResponse, error) {
 	return e.cancelBlockRFQ(ctx, blockRFQID, "private/cancel_block_rfq_trigger", false)
 }
 
 // CreateBlockRFQ creates a Block RFQ as its taker, asking the targeted makers, or every maker, to quote it
-func (e *Exchange) CreateBlockRFQ(ctx context.Context, arg *CreateBlockRFQRequest) (*BlockRFQ, error) {
+func (e *Exchange) CreateBlockRFQ(ctx context.Context, arg *CreateBlockRFQRequest) (*BlockRFQResponse, error) {
 	return e.createBlockRFQ(ctx, arg, false)
 }
 
-func (e *Exchange) createBlockRFQ(ctx context.Context, arg *CreateBlockRFQRequest, overWebsocket bool) (*BlockRFQ, error) {
+func (e *Exchange) createBlockRFQ(ctx context.Context, arg *CreateBlockRFQRequest, overWebsocket bool) (*BlockRFQResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -234,7 +231,7 @@ func (e *Exchange) createBlockRFQ(ctx context.Context, arg *CreateBlockRFQReques
 	if err := validateBlockRFQLabel(arg.Label); err != nil {
 		return nil, err
 	}
-	var resp *BlockRFQ
+	var resp *BlockRFQResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/create_block_rfq", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -246,11 +243,11 @@ func (e *Exchange) createBlockRFQ(ctx context.Context, arg *CreateBlockRFQReques
 
 // EditBlockRFQQuote replaces the amount, legs and prices of one of the account's Block RFQ quotes, identified by its
 // ID, or by its Block RFQ and label, and returns it
-func (e *Exchange) EditBlockRFQQuote(ctx context.Context, arg *EditBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+func (e *Exchange) EditBlockRFQQuote(ctx context.Context, arg *EditBlockRFQQuoteRequest) (*BlockRFQQuoteResponse, error) {
 	return e.editBlockRFQQuote(ctx, arg, false)
 }
 
-func (e *Exchange) editBlockRFQQuote(ctx context.Context, arg *EditBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuote, error) {
+func (e *Exchange) editBlockRFQQuote(ctx context.Context, arg *EditBlockRFQQuoteRequest, overWebsocket bool) (*BlockRFQQuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -266,7 +263,7 @@ func (e *Exchange) editBlockRFQQuote(ctx context.Context, arg *EditBlockRFQQuote
 	if err := validateBlockRFQHedge(arg.Hedge); err != nil {
 		return nil, err
 	}
-	var resp *BlockRFQQuote
+	var resp *BlockRFQQuoteResponse
 	if err := e.sendRequest(ctx, overWebsocket, blockRFQQuoteEPL, "private/edit_block_rfq_quote", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -287,15 +284,15 @@ func (e *Exchange) getBlockRFQMakers(ctx context.Context, overWebsocket bool) ([
 }
 
 // GetBlockRFQQuotes returns the account's open Block RFQ quotes, on every Block RFQ or as filtered
-func (e *Exchange) GetBlockRFQQuotes(ctx context.Context, arg *GetBlockRFQQuotesRequest) ([]BlockRFQQuote, error) {
+func (e *Exchange) GetBlockRFQQuotes(ctx context.Context, arg *GetBlockRFQQuotesRequest) ([]BlockRFQQuoteResponse, error) {
 	return e.getBlockRFQQuotes(ctx, arg, false)
 }
 
-func (e *Exchange) getBlockRFQQuotes(ctx context.Context, arg *GetBlockRFQQuotesRequest, overWebsocket bool) ([]BlockRFQQuote, error) {
+func (e *Exchange) getBlockRFQQuotes(ctx context.Context, arg *GetBlockRFQQuotesRequest, overWebsocket bool) ([]BlockRFQQuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp []BlockRFQQuote
+	var resp []BlockRFQQuoteResponse
 	return resp, e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_block_rfq_quotes", arg, &resp)
 }
 

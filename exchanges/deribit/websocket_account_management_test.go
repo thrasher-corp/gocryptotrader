@@ -254,7 +254,7 @@ func TestWebsocketAPIGetAccountCurrencies(t *testing.T) {
 	result, err := ex.WebsocketAPI().GetAccountCurrencies(t.Context())
 	require.NoError(t, err, "WebsocketAPI.GetAccountCurrencies must not error")
 	if mockTests {
-		exp := []AccountCurrency{{Currency: currency.NewCode("btc")}, {Currency: currency.NewCode("eth")}, {Currency: currency.NewCode("usdc")}}
+		exp := []AccountCurrencyResponse{{Currency: currency.NewCode("btc")}, {Currency: currency.NewCode("eth")}, {Currency: currency.NewCode("usdc")}}
 		assert.Equal(t, exp, result, "WebsocketAPI.GetAccountCurrencies should decode every field")
 	} else {
 		assert.NotEmpty(t, result, "WebsocketAPI.GetAccountCurrencies should return the account's currencies")
