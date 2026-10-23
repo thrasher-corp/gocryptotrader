@@ -1489,8 +1489,10 @@ func TestEnableDisableRateLimit(t *testing.T) {
 		require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
 		assert.ErrorIs(t, r.DisableRateLimiter(), ErrRateLimiterAlreadyDisabled, "redundant disable should be rejected")
 
-		// allow requests when disabled, without consuming limiter capacity
+		// allow requests when disabled
+		disabledStart := time.Now()
 		require.NoError(t, sendIt(), "sendIt must not error while disabled")
+		assert.Zero(t, time.Since(disabledStart), "disabled request should not wait for the limiter")
 
 		// allow when re-enabled
 		require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")

@@ -130,8 +130,8 @@ func TestRateLimitBarrier(t *testing.T) {
 			go func() { errs <- right.RateLimit(contexts[1]) }()
 			require.NoError(t, <-errs)
 			require.NoError(t, <-errs)
-			// The limiter interval is one hour: on the fake clock a wrongly admitted
-			// (i.e. non-delayed) call fails immediately instead of hanging for an hour.
+			// On the fake clock, a call that waits out the hour instead of being
+			// refused fails at once rather than hanging until go test times out.
 			require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
 				"accepted participant must retain its reservation")
 			require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
@@ -461,21 +461,25 @@ func TestRateLimitCancellationReleasesReservation(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		limiter := NewRateLimitWithWeight(time.Second, 1, 1)
-		require.NoError(t, limiter.RateLimit(t.Context()), "initial call must not be delayed")
+		shared := NewRateLimit(time.Second, 1)
+		single, triple := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 3)
+		start := time.Now()
+		require.NoError(t, single.RateLimit(t.Context()), "initial call must not error")
 
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		errs := make(chan error, 1)
-		go func() { errs <- limiter.RateLimit(ctx) }()
+		go func() { errs <- triple.RateLimit(ctx) }()
 		synctest.Wait()
+		time.Sleep(730 * time.Millisecond)
+		require.ErrorIs(t, single.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+			"call that may not wait must be refused while the reservation is held")
 		cancel()
 		require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
 
-		start := time.Now()
-		require.NoError(t, limiter.RateLimit(t.Context()), "follow-up call must not error")
-		assert.InDelta(t, time.Second, time.Since(start), float64(50*time.Millisecond),
-			"follow-up call should wait a single token period once the cancelled reservation is released")
+		require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+		assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
+			"follow-up call should be admitted one token period after the initial call")
 	})
 }
 

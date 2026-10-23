@@ -175,12 +175,12 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 		// The caller is abandoning the request, so release the reserved capacity
 		// instead of letting it stand. Otherwise every subsequent request is
 		// forced to wait an extra rate-limit period for capacity that will never
-		// be used. Cancelling at the reservation time keeps this consistent with
-		// the abandonment paths above, which restore the reservations as if the
-		// request had never been admitted.
+		// be used. Cancel at the current time: once another request has advanced
+		// the limiter past tn, CancelAt(tn) can wind its clock back so the next
+		// refill counts that time again.
 		rateLimitReservationMu.Lock()
 		r.m.Lock()
-		cancelAll(reserved, tn)
+		cancelAll(reserved, time.Now())
 		r.m.Unlock()
 		rateLimitReservationMu.Unlock()
 		return ctx.Err()
