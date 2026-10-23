@@ -448,3 +448,73 @@ func TestProcessOptionsOrderbookUpdate(t *testing.T) {
 	assert.Error(t, ex.processOptionsOrderbookUpdate(t.Context(), []byte(`{`), asset.Options, time.Now()), "processOptionsOrderbookUpdate should reject malformed JSON")
 	assert.ErrorIs(t, ex.processOptionsOrderbookUpdate(t.Context(), []byte(`{"t":1615366381417,"s":"","U":2517661101,"u":2517661113}`), asset.Options, time.Now()), currency.ErrCurrencyPairEmpty, "processOptionsOrderbookUpdate should reject an update without a contract")
 }
+
+var wsOptionsPushDataHandler = map[string]string{
+	"options.contract_tickers":      `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {"name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`,
+	"options.ul_tickers":            `{"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {"trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`,
+	"options.trades":                `{"time": 1630576356,	"channel": "options.trades",	"event": "update",	"result": [{"contract": "BTC_USDT-20211231-59800-C",        "create_time": 1639144526,        "id": 12279,        "price": 997.8,        "size": -100,        "create_time_ms": 1639144526597,        "underlying": "BTC_USDT"    }	]}`,
+	"options.ul_trades":             `{"time": 1630576356,	"channel": "options.ul_trades",	"event": "update",	"result": [{"contract": "BTC_USDT-20211231-59800-C","create_time": 1639144526,"id": 12279,"price": 997.8,"size": -100,"create_time_ms": 1639144526597,"underlying": "BTC_USDT","is_call": true}	]}`,
+	"options.ul_price":              `{"time": 1630576356,	"channel": "options.ul_price",	"event": "update",	"result": {"underlying": "BTC_USDT",	   "price": 49653.24,"time": 1639143988,"time_ms": 1639143988931}}`,
+	"options.mark_price":            `{"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {"contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676}}`,
+	"options.settlements":           `{"time": 1630576356,	"channel": "options.settlements",	"event": "update",	"result": {"contract": "BTC_USDT-20211130-55000-P",	   "orderbook_id": 2,	   "position_size": 1,	   "profit": 0.5,"settle_price": 70000,	   "strike_price": 65000,	   "tag": "WEEK",	   "trade_id": 1,	   "trade_size": 1,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`,
+	"options.contracts":             `{"time": 1630576356,	"channel": "options.contracts",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-50000-P",	   "create_time": 1637917026,	   "expiration_time": 1638230400,"init_margin_high": 0.15,	   "init_margin_low": 0.1,	   "is_call": false,	   "maint_margin_base": 0.075,	   "maker_fee_rate": 0.0004,	   "mark_price_round": 0.1,	   "min_balance_short": 0.5,	   "min_order_margin": 0.1,	   "multiplier": 0.0001,	   "order_price_deviate": 0,	   "order_price_round": 0.1,	   "order_size_max": 1,	   "order_size_min": 10,	   "orders_limit": 100000,	   "ref_discount_rate": 0.1,	   "ref_rebate_rate": 0,	   "strike_price": 50000,	   "tag": "WEEK",	   "taker_fee_rate": 0.0004,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`,
+	"options.contract_candlesticks": `{	"time": 1630650451,	"channel": "options.contract_candlesticks",	"event": "update",	"result": [{"t": 1639039260,       "v": 100,       "c": "1041.4",       "h": "1041.4",       "l": "1041.4","o": "1041.4",       "a": "0",       "n": "10s_BTC_USDT-20211231-59800-C"   }	]}`,
+	"options.ul_candlesticks":       `{"time": 1630650451,	"channel": "options.ul_candlesticks",	"event": "update",	"result": [{"t": 1639039260,        "v": 100,        "c": "1041.4",        "h": "1041.4",        "l": "1041.4","o": "1041.4",        "a": "0",        "n": "10s_BTC_USDT"    }	]}`,
+	"options.book_ticker":           `{"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`,
+	"options.order_book_update":     `{"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [{"p": "54672.1","s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`,
+	"options.order_book":            `{"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {"t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [{"p": "97.1","s": 2245},{"p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`,
+	"options.order_book-1":          `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [{"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`,
+	"options.book_ticker-2":         `{"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {"t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`,
+	"options.order_book_update-3":   `{"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {"t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,"u": 2517661113,    "b": [{"p": "54672.1","s": 95},{"p": "54664.5","s": 58794}],"a": [{"p": "54743.6","s": 95},{"p": "54742","s": 95}]}}`,
+	"options.order_book-4":          `{"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {"t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [{"p": "97.1","s": 2245},{"p": "97.2","s": 2245}    ],    "bids": [{"p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`,
+	"options.order_book-5":          `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [{"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`,
+	"options.liquidates":            `{"channel": "options.liquidates",	"event": "update",	"time": 1630654851,	"result": [{"user": "1xxxx",		  "init_margin": 1190,		  "maint_margin": 1042.5,		  "order_margin": 0,		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`,
+	"options.positions":             `{"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`,
+	"options.pong":                  `{"time":1756700469,"channel":"options.pong","event":"","result":null}`,
+}
+
+func TestWebsocketHandleOptionsData(t *testing.T) {
+	t.Parallel()
+	for k, v := range wsOptionsPushDataHandler {
+		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+			err := e.WebsocketHandleOptionsData(t.Context(), nil, []byte(v))
+			require.NoError(t, err)
+		})
+	}
+}
+
+var wsOptionsAuthenticatedDataHandler = map[string]string{
+	"options.orders":           `{"time": 1630654851,"channel": "options.orders",	"event": "update",	"result": [{"contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,"finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`,
+	"options.usertrades":       `{"time": 1639144214,	"channel": "options.usertrades",	"event": "update",	"result": [{"id": "1","underlying": "BTC_USDT","order": "557940","contract": "BTC_USDT-20211216-44800-C","create_time": 1639144214,"create_time_ms": 1639144214583,"price": "4999","role": "taker","size": -1}]}`,
+	"options.user_settlements": `{"channel": "options.user_settlements","event": "update",	"time": 1639051907,	"result": [{"contract": "BTC_USDT-20211130-65000-C","realised_pnl": -13.028,"settle_price": 70000,"settle_profit": 5,"size": 10,"strike_price": 65000,"underlying": "BTC_USDT","user": "9xxx","time": 1639051907,"time_ms": 1639051907000}]}`,
+	"options.position_closes":  `{"channel": "options.position_closes","event": "update",	"time": 1630654851,	"result": [{"contract": "BTC_USDT-20211130-50000-C","pnl": -0.0056,"settle_size": 0,"side": "long","text": "web","underlying": "BTC_USDT","user": "11xxxxx","time": 1639051907,"time_ms": 1639051907000}]}`,
+	"options.balances":         `{"channel": "options.balances",	"event": "update",	"time": 1630654851,	"result": [{"balance": 60.79009,"change": -0.5,"text": "BTC_USDT-20211130-55000-P","type": "set","user": "11xxxx","time": 1639051907,"time_ms": 1639051907000}]}`,
+}
+
+func TestPrivateWebsocketHandleOptionsData(t *testing.T) {
+	t.Parallel()
+	for k, v := range wsOptionsAuthenticatedDataHandler {
+		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+			ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+			err := e.WebsocketHandleOptionsData(ctx, nil, []byte(v))
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestGenerateOptionsDefaultSubscriptionsSkipsDisabledAssetBeforeAuth(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
+	got, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
+	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error for disabled asset")
+	require.Empty(t, got, "disabled options asset must not generate subscriptions")
+	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated endpoints must not be changed when disabled options are skipped before auth")
+}

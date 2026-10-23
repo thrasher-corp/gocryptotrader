@@ -2,11 +2,13 @@ package gateio
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -845,4 +848,349 @@ func TestProcessOrderbookSnapshot(t *testing.T) {
 	require.NoError(t, testexch.Setup(unnamed), "Setup must not error")
 	unnamed.Name = ""
 	assert.ErrorIs(t, unnamed.processOrderbookSnapshot(t.Context(), snapshot, time.Now()), common.ErrExchangeNameNotSet, "processOrderbookSnapshot should return a failure to load the book")
+}
+
+var mapSpotPublicPushData = map[string]string{
+	"spot.tickers":           `{"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`,
+	"spot.trades":            `{"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "BTC_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`,
+	"spot.candlesticks":      `{"time": 1606292600,	"channel": "spot.candlesticks",	"event": "update",	"result": {	  "t": "1606292580",	  "v": "2362.32035",	  "c": "19128.1",	  "h": "19128.1",	  "l": "19128.1",	  "o": "19128.1","n": "1m_BTC_USDT"}}`,
+	"spot.book_ticker":       `{"time": 1606293275,	"channel": "spot.book_ticker",	"event": "update",	"result": {	  "t": 1606293275123,	  "u": 48733182,	  "s": "BTC_USDT",	  "b": "19177.79",	  "B": "0.0003341504",	  "a": "19179.38",	  "A": "0.09"	}}`,
+	"spot.order_book_update": `{"time": 1606294781,	"channel": "spot.order_book_update",	"event": "update",	"result": {	  "t": 1606294781123,	  "e": "depthUpdate",	  "E": 1606294781,"s": "BTC_USDT","U": 48776301,"u": 48776306,"b": [["19137.74","0.0001"],["19088.37","0"]],"a": [["19137.75","0.6135"]]	}}`,
+	"spot.order_book":        `{"time":1606295412,"channel": "spot.order_book",	"event": "update",	"result": {	  "t": 1606295412123,	  "lastUpdateId": 48791820,	  "s": "BTC_USDT",	  "bids": [		[		  "19079.55",		  "0.0195"		],		[		  "19079.07",		  "0.7341"],["19076.23",		  "0.00011808"		],		[		  "19073.9",		  "0.105"		],		[		  "19068.83",		  "0.1009"		]	  ],	  "asks": [		[		  "19080.24",		  "0.1638"		],		[		  "19080.91","0.1366"],["19080.92","0.01"],["19081.29","0.01"],["19083.8","0.097"]]}}`,
+	"spot.orders":            `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175506",		"update_time_ms": "1605175506123",		"event": "put",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"amount": "1",		"price": "10001",		"time_in_force": "gtc",		"left": "1",		"filled_total": "0",		"fee": "0",		"fee_currency": "USDT",		"point_fee": "0",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`,
+	"spot.usertrades":        `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"point_fee": "0",		"gt_fee": "0",		"text": "apiv4"	  }	]}`,
+	"spot.cross_loan":        `{"time":1658289372,	"channel":"spot.cross_loan",	"event":"update",	"result":{	  "timestamp":1658289372338,	  "user":"1000001",	  "currency":"BTC",	  "change":"0.01",	  "total":"4.992341029566",	  "available":"0.078054772536",	  "borrowed":"0.01",	  "interest":"0.00001375"	}}`,
+}
+
+func TestWebsocketHandleSpotData(t *testing.T) {
+	t.Parallel()
+	for k, v := range mapSpotPublicPushData {
+		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+			err := e.WebsocketHandleSpotData(t.Context(), nil, []byte(v))
+			require.NoError(t, err)
+		})
+	}
+}
+
+var mapSpotPrivatePushData = map[string]string{
+	"spot.balances":         `{"time": 1605248616,	"channel": "spot.balances",	"event": "update",	"result": [	  {		"timestamp": "1605248616",		"timestamp_ms": "1605248616123",		"user": "1000001",		"currency": "USDT",		"change": "100",		"total": "1032951.325075926","available": "1022943.325075926"}	]}`,
+	"spot.funding_balances": `{"time": 1605248616,	"channel": "spot.funding_balances",	"event": "update",	"result": [	  {"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT","change": "100","freeze": "100","lent": "0"}	]}`,
+	"spot.cross_balances":   `{"time": 1605248616,"channel": "spot.cross_balances","event": "update",	"result": [{"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}]}`,
+}
+
+func TestWebsocketHandleSpotDataPrivate(t *testing.T) {
+	t.Parallel()
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	for x := range mapSpotPrivatePushData {
+		err := e.WebsocketHandleSpotData(ctx, nil, []byte(mapSpotPrivatePushData[x]))
+		require.NoError(t, err)
+	}
+}
+
+func TestGenerateSubscriptionsSpot(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptionsSpot(t.Context())
+	require.NoError(t, err, "generateSubscriptions must not error")
+	var spotV2Count int
+	for _, sub := range subs {
+		if sub.Asset == asset.Spot && sub.Channel == subscription.OrderbookChannel {
+			assert.Fail(t, "legacy spot orderbook subscription should be disabled")
+		}
+		if sub.Asset == asset.Spot && sub.Channel == spotOrderbookV2 {
+			spotV2Count++
+			assert.Equal(t, 50, sub.Levels, "V2 spot orderbook subscription should request 50 levels")
+		}
+	}
+	spotPairs, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	assert.Equal(t, len(spotPairs), spotV2Count, "each enabled spot pair should generate one V2 orderbook subscription")
+	exp := subscription.List{}
+	assets := slices.DeleteFunc(e.GetAssetTypes(true), func(a asset.Item) bool { return !e.IsAssetWebsocketSupported(a) })
+	for _, s := range e.Features.Subscriptions {
+		for _, a := range assets {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := e.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if singleSymbolChannel(channelName(s)) {
+				for i := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					switch s.Channel {
+					case subscription.CandlesChannel:
+						s.QualifiedChannel = "5m," + pairs[i].String()
+					case subscription.OrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",100ms"
+					case spotOrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					case spotOrderbookV2:
+						s.QualifiedChannel = fmt.Sprintf("ob.%s.%d", pairs[i].String(), s.Levels)
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = pairs.Join()
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	e.Features.Subscriptions = subscription.List{}
+	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
+	require.NoError(t, err, "Subscribe must not error")
+}
+
+func TestHandleSubscriptions(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
+	})
+	require.NoError(t, err)
+
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
+	})
+	require.NoError(t, err)
+
+	err = e.handleSubscription(t.Context(), &replyConnection{reply: []byte(`null`)}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WebsocketChannelRequest, error) {
+		return []*WebsocketChannelRequest{{}}, nil
+	})
+	assert.ErrorIs(t, err, common.ErrNoResponse, "handleSubscription should reject a null reply")
+}
+
+func TestManageSubsNullReply(t *testing.T) {
+	t.Parallel()
+	subs := subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{getPair(t, asset.Spot)}}}
+	err := e.manageSubs(t.Context(), subscribeEvent, &replyConnection{reply: []byte(`null`)}, subs)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "manageSubs should reject a null reply")
+}
+
+func TestParseWebsocketHeader(t *testing.T) {
+	in := []string{
+		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time":1726121321,"id":3,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+	}
+	for _, i := range in {
+		h, err := parseWSHeader([]byte(i))
+		require.NoError(t, err)
+		require.NotEmpty(t, h.ID)
+		assert.Equal(t, "a4", h.RequestID)
+		assert.Equal(t, "spot.tickers", h.Channel)
+		assert.Equal(t, "subscribe", h.Event)
+		assert.NotEmpty(t, h.Result)
+		switch h.ID {
+		case 1:
+			assert.Equal(t, int64(1726121320745), h.Time.UnixMilli())
+		case 2:
+			assert.Equal(t, int64(1726121320746), h.Time.UnixMilli())
+		case 3:
+			assert.Equal(t, int64(1726121321), h.Time.Unix())
+		}
+	}
+}
+
+func TestIsSingleOrderbookChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel  string
+		expected bool
+	}{
+		{channel: spotOrderbookUpdateChannel, expected: true},
+		{channel: spotOrderbookChannel, expected: true},
+		{channel: spotOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookChannel, expected: true},
+		{channel: futuresOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookUpdateChannel, expected: true},
+		{channel: optionsOrderbookChannel, expected: true},
+		{channel: optionsOrderbookTickerChannel, expected: true},
+		{channel: optionsOrderbookUpdateChannel, expected: true},
+		{channel: spotTickerChannel, expected: false},
+		{channel: "sad", expected: false},
+	} {
+		assert.Equal(t, tc.expected, isSingleOrderbookChannel(tc.channel))
+	}
+}
+
+func TestValidateSubscriptions(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, e.ValidateSubscriptions(nil))
+	require.NoError(t, e.ValidateSubscriptions([]*subscription.Subscription{{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}}}))
+	require.NoError(t, e.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}))
+	require.NoError(t, e.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD(), currency.NewBTCUSDT()}},
+	}))
+	require.NoError(t, e.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}},
+	}))
+	require.ErrorIs(t, e.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}), subscription.ErrExclusiveSubscription)
+}
+
+func TestCandlesChannelIntervals(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: 0}
+	_, err := candlesChannelInterval(s)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "candlestickChannelInterval must error correctly with a 0 interval")
+	s.Interval = kline.ThousandMilliseconds
+	i, err := candlesChannelInterval(s)
+	require.NoError(t, err)
+	assert.Equal(t, "1000ms", i)
+}
+
+func TestOrderbookChannelIntervals(t *testing.T) {
+	t.Parallel()
+
+	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
+	_, err := orderbookChannelInterval(s, asset.Futures)
+	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
+	require.ErrorContains(t, err, "20ms only valid with Levels 20")
+	s.Levels = 20
+	i, err := orderbookChannelInterval(s, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, "20ms", i)
+
+	for s, exp := range map[*subscription.Subscription]error{
+		{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                    nil,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                         nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                    subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:       nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:      nil,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}: nil,
+
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:     subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                         nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:           subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                               nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}: nil,
+
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:      subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                          nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:            subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: 0}:                                nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:               subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:  nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}: nil,
+
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: kline.TenMilliseconds}:          subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: 0}:                              nil,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: kline.TwoHundredAndFiftyMilliseconds}: subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: 0}:                                    nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.OneDay}:                   subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:      nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}:     nil,
+	} {
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+s.Interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			i, err := orderbookChannelInterval(s, s.Asset)
+			if exp != nil {
+				require.ErrorIs(t, err, exp)
+			} else {
+				switch {
+				case s.Channel == "unknown_channel":
+					assert.Empty(t, i, "orderbookChannelInterval should return empty for unknown channels")
+				case strings.HasSuffix(s.Channel, "_ticker"):
+					assert.Empty(t, i)
+				case s.Interval == 0:
+					assert.Equal(t, "0", i)
+				default:
+					exp, err2 := getIntervalString(s.Interval)
+					require.NoError(t, err2, "getIntervalString must not error for validating expected value")
+					require.Equal(t, exp, i)
+				}
+			}
+		})
+	}
+}
+
+func TestChannelLevels(t *testing.T) {
+	t.Parallel()
+
+	for s, exp := range map[*subscription.Subscription]error{
+		{Channel: "unknown_channel", Asset: asset.Binary}:                                   nil,
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Levels: 1}:                 subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot, Levels: 100}:               subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot}:                                  subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 5}:                       nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 10}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 20}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 50}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 100}:                     nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures}:                            subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 1}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 5}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 10}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 20}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 50}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 100}:               nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures}:                      nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures}:                      subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 20}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 50}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures}:              subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 5}:   nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 10}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 20}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 50}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 100}: nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options}:                      nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options}:                      subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 5}:           nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 10}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 20}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 50}:          nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options}:                            subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 5}:                 nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 10}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 20}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 50}:                nil,
+	} {
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+strconv.Itoa(s.Levels), func(t *testing.T) {
+			t.Parallel()
+			l, err := channelLevels(s, s.Asset)
+			switch {
+			case exp != nil:
+				require.ErrorIs(t, err, exp)
+			case s.Levels == 0:
+				assert.Empty(t, l)
+			default:
+				require.NoError(t, err)
+				require.NotEmpty(t, l)
+			}
+		})
+	}
 }
