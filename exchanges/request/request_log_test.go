@@ -37,6 +37,7 @@ var sensitiveLogKeys = []string{
 	"X-USER",
 	"AccessKeyId",
 	"refresh_token",
+	"authorization_data",
 }
 
 func TestHeaderValuesForLog(t *testing.T) {
@@ -91,6 +92,12 @@ func TestIsSensitiveLogKey(t *testing.T) {
 		{name: "pass-word"},
 		{name: "prefix_KEY", sensitive: true},
 		{name: "prefix_ſign"},
+		{name: "authorization_data", sensitive: true},
+		{name: "Authorization_Data", sensitive: true},
+		{name: "security_key_authorization_data", sensitive: true},
+		{name: "data"},
+		{name: "market_data"},
+		{name: "authorization_data_type"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -237,6 +244,22 @@ func TestDumpRequestForLog(t *testing.T) {
 	assert.NotContains(t, string(dump), "Transfer-Encoding: chunked", "dumpRequestForLog should not change framing for http.NoBody")
 }
 
+func TestMessageForLog(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, message, exp string
+	}{
+		{name: "credentials", message: `{"method":"private/withdraw","params":{"authorization_data":"602051","access_token":"secret","amount":1}}`, exp: `{"method":"private/withdraw","params":{"authorization_data":"[REDACTED]","access_token":"[REDACTED]","amount":1}}`},
+		{name: "array", message: ` [{"api_key":"secret"},"public"]`, exp: ` [{"api_key":"[REDACTED]"},"public"]`},
+		{name: "public", message: `{"channel":"ticker","data":{"price":1.5}}`, exp: `{"channel":"ticker","data":{"price":1.5}}`},
+		{name: "not JSON", message: "ping", exp: "ping"},
+		{name: "empty", message: "", exp: ""},
+		{name: "broken JSON", message: `{"password":"secret"`, exp: "[REDACTED INVALID JSON BODY]"},
+	} {
+		assert.Equalf(t, tc.exp, string(MessageForLog([]byte(tc.message))), "MessageForLog should log the %s message as expected", tc.name)
+	}
+}
+
 func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -247,6 +270,7 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 	}{
 		{name: "unchanged JSON", contentType: "application/json", body: `{"orderId":1234567890123456789,"note":"a&b"}`, expected: `{"orderId":1234567890123456789,"note":"a&b"}`},
 		{name: "nested credential", contentType: "application/json", body: `{"nested":[{"password":"secret"}]}`, expected: `{"nested":[{"password":"[REDACTED]"}]}`},
+		{name: "security key code", contentType: "application/json", body: `{"jsonrpc":"2.0","method":"private/withdraw","params":{"currency":"BTC","authorization_data":"602051","challenge":"ABC"}}`, expected: `{"jsonrpc":"2.0","method":"private/withdraw","params":{"currency":"BTC","authorization_data":"[REDACTED]","challenge":"ABC"}}`},
 		{name: "every credential in a collection", contentType: "application/json", body: `[{"secret":"a"},{"nested":{"secret":"b"},"other":{"secret":"c"}},1]`, expected: `[{"secret":"[REDACTED]"},{"nested":{"secret":"[REDACTED]"},"other":{"secret":"[REDACTED]"}},1]`},
 		{name: "declared form resembling JSON string", contentType: "application/x-www-form-urlencoded", body: `"password=secret"`, expected: `"password=[REDACTED]`},
 		{name: "declared form resembling JSON object", contentType: "application/x-www-form-urlencoded", body: `{"a":1}`, expected: `{"a":1}`},
