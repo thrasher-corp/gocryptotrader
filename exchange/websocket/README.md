@@ -115,7 +115,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
     // Spot connection
     if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
         URL:                      connectionURLStringForSpot,
-        RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
+        RateLimit:                request.NewWeightedRateLimitByDuration(gateWebsocketRateLimit),
         ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
         ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
         // Custom handlers for the specific connection:
@@ -130,7 +130,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
     // Futures connection - USDT margined
     if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
         URL:                  connectionURLStringForSpotForFutures,
-        RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
+        RateLimit:            request.NewWeightedRateLimitByDuration(gateWebsocketRateLimit),
         ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
         ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
         // Custom handlers for the specific connection:

@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 18,
+ "version": 19,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -1739,7 +1739,7 @@
    }
   },
   {
-   "name": "GateIO",
+   "name": "Gate",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
