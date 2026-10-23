@@ -1137,6 +1137,23 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+
+	t.Run("fill side and type", func(t *testing.T) {
+		t.Parallel()
+		stored := &Detail{OrderID: "1", LastUpdated: updated, Trades: []TradeHistory{{TID: "1", Price: 100, Amount: 1, Side: Buy, Type: Limit}}}
+		correction := stored.Copy()
+		correction.Trades[0].Side = Sell
+		correction.LastUpdated = updated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's side")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's side")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's side changes")
+
+		correction.Trades[0].Type = Market
+		correction.LastUpdated = correction.LastUpdated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's type")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's type")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's type changes")
+	})
 }
 
 // TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
@@ -1368,6 +1385,13 @@ func TestIsActive(t *testing.T) {
 		1: {orders[1], true},
 		2: {orders[2], false},
 		3: {orders[3], false},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, true},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, true},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, false},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, false},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, false},
 	}
 	// specific tests
 	for num, tt := range amountTests {
@@ -1433,6 +1457,13 @@ func TestIsInactive(t *testing.T) {
 		1: {orders[1], false},
 		2: {orders[2], true},
 		3: {orders[3], true},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, false},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, true},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
 	}
 	// specific tests
 	for num, tt := range amountTests {

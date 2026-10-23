@@ -2,12 +2,17 @@ package mock
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -404,6 +409,45 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
 	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[{}]`)), "HTTPRecord must error for invalid array JSON")
+
+	// Requests recording into one file at once each keep their entry. Each request is held once it has read its body
+	// until every request has read its own, so that they all reach the file together; a recorder reading bodies under
+	// its file lock would hold the others back until the deadline instead
+	const recordings = 20
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	var bodiesRead atomic.Int32
+	var heldBack atomic.Bool
+	allRead := make(chan struct{})
+	resps := make([]*http.Response, recordings)
+	for i := range resps {
+		resp := makeResponse(http.MethodPost, "https://api.abc.com/test/concurrent/"+strconv.Itoa(i), content)
+		t.Cleanup(func() { assert.NoError(t, resp.Body.Close(), "Close should not error") })
+		getBody := resp.Request.GetBody
+		resp.Request.GetBody = func() (io.ReadCloser, error) {
+			if bodiesRead.Add(1) == recordings {
+				close(allRead)
+			}
+			select {
+			case <-allRead:
+			case <-ctx.Done():
+				heldBack.Store(true)
+			}
+			return getBody()
+		}
+		resps[i] = resp
+	}
+	var wg sync.WaitGroup
+	for _, resp := range resps {
+		wg.Go(func() {
+			assert.NoError(t, HTTPRecord(resp, service, content, 4), "HTTPRecord should not error when recording concurrently")
+		})
+	}
+	wg.Wait()
+	assert.False(t, heldBack.Load(), "HTTPRecord should read a request's body before waiting for other recordings")
+	for i := range recordings {
+		assertRouteMethodLen("/test/concurrent/"+strconv.Itoa(i), http.MethodPost, 1)
+	}
 }
 
 func TestIsExcluded(t *testing.T) {

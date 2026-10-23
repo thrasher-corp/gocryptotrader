@@ -70,6 +70,20 @@ func hasDelayNotAllowed(ctx context.Context) bool {
 	return ok
 }
 
+type weightKey struct{}
+
+// WithWeight returns a context whose requests take weight from their endpoint's own budget in place of the weight its
+// definition sets, for a request a venue counts more than once, such as a batch it counts once for each order. Shared
+// budgets, such as a per-IP limit, still count each request once
+func WithWeight(ctx context.Context, weight Weight) context.Context {
+	return context.WithValue(ctx, weightKey{}, weight)
+}
+
+func weightFromContext(ctx context.Context) (Weight, bool) {
+	weight, ok := ctx.Value(weightKey{}).(Weight)
+	return weight, ok
+}
+
 type rateLimitBarrierKey struct{}
 
 type rateLimitBarrier struct {
@@ -85,13 +99,14 @@ type rateLimitBarrierParticipant struct {
 	barrier *rateLimitBarrier
 	done    <-chan struct{}
 	limiter *RateLimiterWithWeight
+	weight  Weight
 	used    atomic.Bool
 }
 
 // NewRateLimitBarrierContexts returns distinct contexts whose first rate-limit calls proceed only when every participant can proceed immediately.
 // Each request owner must defer AbortRateLimitBarrier so a failure before reaching the limiter releases the other participants. The final arrival
-// atomically reserves capacity for the group; shared limiters must have enough burst capacity for all participants, and each weight must fit its
-// limiter's burst. After acceptance, subsequent rate-limit calls using a participant context proceed normally, including retries.
+// atomically reserves capacity for the group; window budgets must have room for all participants, and each weight must fit its
+// limiter's burst or its endpoint's window budget. After acceptance, subsequent rate-limit calls using a participant context proceed normally, including retries.
 // Coordination covers only the first gate, not request execution: additional rate-limited calls under the same participant context can fail
 // independently and lose the group's all-or-nothing admission guarantee. Cancellation or transport errors after admission can also split execution.
 // NewRateLimit uses burst 1, so participants using its finite limiters must use distinct limiter instances and weight 1. Larger groups sharing
@@ -129,7 +144,7 @@ func WaitForRateLimitBarrier(ctx context.Context) error {
 	if participant == nil {
 		return nil
 	}
-	_, err := participant.wait(ctx, nil)
+	_, err := participant.wait(ctx, nil, 0)
 	return err
 }
 
@@ -138,7 +153,7 @@ func rateLimitBarrierParticipantFromContext(ctx context.Context) *rateLimitBarri
 	return participant
 }
 
-func (p *rateLimitBarrierParticipant) wait(ctx context.Context, limiter *RateLimiterWithWeight) (bool, error) {
+func (p *rateLimitBarrierParticipant) wait(ctx context.Context, limiter *RateLimiterWithWeight, weight Weight) (bool, error) {
 	if !p.used.CompareAndSwap(false, true) {
 		return false, p.barrier.reuseResult()
 	}
@@ -149,7 +164,7 @@ func (p *rateLimitBarrierParticipant) wait(ctx context.Context, limiter *RateLim
 		p.barrier.reject()
 		return true, err
 	}
-	if p.barrier.arrive(ctx, p, limiter) {
+	if p.barrier.arrive(ctx, p, limiter, weight) {
 		return true, p.barrier.resultFor(ctx)
 	}
 	select {
@@ -163,7 +178,7 @@ func (p *rateLimitBarrierParticipant) wait(ctx context.Context, limiter *RateLim
 	}
 }
 
-func (b *rateLimitBarrier) arrive(ctx context.Context, participant *rateLimitBarrierParticipant, limiter *RateLimiterWithWeight) bool {
+func (b *rateLimitBarrier) arrive(ctx context.Context, participant *rateLimitBarrierParticipant, limiter *RateLimiterWithWeight, weight Weight) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.closed {
@@ -171,6 +186,7 @@ func (b *rateLimitBarrier) arrive(ctx context.Context, participant *rateLimitBar
 	}
 	participant.done = ctx.Done()
 	participant.limiter = limiter
+	participant.weight = weight
 	b.remaining--
 	if b.remaining == 0 {
 		b.rejection = b.admitLocked()

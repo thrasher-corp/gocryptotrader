@@ -574,7 +574,7 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
-			os = append(os, *v[i])
+			os = append(os, v[i].Copy())
 		}
 	}
 
