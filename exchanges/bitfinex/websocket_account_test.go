@@ -155,7 +155,7 @@ func TestWebsocketHandleAccountEvents(t *testing.T) {
 	assert.Equal(t, asset.Spot, updated[0].AssetType, "an exchange wallet update should be relayed for spot")
 	assert.Equal(t, []string{`[0,"calc",null,[["wallet_exchange_SAN"]]]`, `[0,"calc",null,[["wallet_exchange_BTC"]]]`}, conn.messages(), "Bitfinex should be asked to calculate each wallet's available balance it has yet to")
 
-	assert.Equal(t, &BalanceInfoResponse{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4131.85}, relayed[16], "a balance update should be relayed as balance info")
+	assert.Equal(t, &BalanceInfo{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4131.85}, relayed[16], "a balance update should be relayed as balance info")
 	assert.Equal(t, &MarginInfoBaseResponse{Key: marginInfoKeyBase, Info: MarginInfoBase{UserProfitLoss: -13.014640000000007, MarginBalance: 49331.70267297, MarginNet: 49318.68803297, MarginMinimum: 27}}, relayed[17], "a margin summary should be relayed")
 	assert.Equal(t, &MarginInfoSymbolResponse{Key: marginInfoKeySymbol, Symbol: "tETHUSD", Info: MarginInfoSymbol{TradableBalance: 149361.09689202666, GrossBalance: 149639.26293509, BuyAmount: 830.0182168075556, SellAmount: 895.0658432466332}}, relayed[18], "a trading pair's margin should be relayed")
 	assert.Equal(t, &FundingInfoResponse{Key: "sym", Symbol: "fUSD", Info: FundingInfo{YieldLoan: 0.0008595462068208099, DurationLoan: 1.8444560185185186}}, relayed[19], "a funding info update should be relayed")
@@ -285,11 +285,11 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 	assert.IsType(t, &AccountTradeResponse{}, relayed[0], "the account trade should be relayed with the fills feed off")
 }
 
-func TestBalanceInfoResponseUnmarshalJSON(t *testing.T) {
+func TestBalanceInfoUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got BalanceInfoResponse
+	var got BalanceInfo
 	require.NoError(t, got.UnmarshalJSON([]byte(`[4131.85,4130.5]`)), "UnmarshalJSON must not error")
-	assert.Equal(t, BalanceInfoResponse{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4130.5}, got, "UnmarshalJSON should decode the assets under management, then their net")
+	assert.Equal(t, BalanceInfo{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4130.5}, got, "UnmarshalJSON should decode the assets under management, then their net")
 	assert.ErrorIs(t, got.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse balance info that is not an array")
 }
 

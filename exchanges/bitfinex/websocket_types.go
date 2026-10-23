@@ -355,15 +355,15 @@ func (w *wsSharedChannels) carriesMargin(s *subscription.Subscription) bool {
 	return ok
 }
 
-// BalanceInfoResponse is the value of the account's assets, which the websocket sends as it changes
-type BalanceInfoResponse struct {
+// BalanceInfo is the value of the account's assets, which the websocket sends as it changes
+type BalanceInfo struct {
 	AssetsUnderManagement float64 `tuple:"0"`
 	// NetAssetsUnderManagement is AssetsUnderManagement less the account's liabilities
 	NetAssetsUnderManagement float64 `tuple:"1"`
 }
 
 // UnmarshalJSON decodes a balance info array
-func (b *BalanceInfoResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *BalanceInfo) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
 
 // wsNotificationSignature returns the signature matching a notification with the input request it answers, from the
 // ID of the order or offer it carries, or the client order ID a new order is placed with. A request whose

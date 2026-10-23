@@ -99,7 +99,7 @@ func (e *Exchange) wsHandleAccountEvent(ctx context.Context, conn websocket.Conn
 	case "wu":
 		return e.wsHandleWalletUpdate(ctx, conn, respRaw)
 	case "bu":
-		return wsRelayAccountUpdate[BalanceInfoResponse](ctx, e, respRaw)
+		return wsRelayAccountUpdate[BalanceInfo](ctx, e, respRaw)
 	case "miu":
 		return e.wsHandleMarginInfo(ctx, respRaw)
 	case "fiu":

@@ -1465,10 +1465,11 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, [3]float64{1, 0.75, 0.25}, [3]float64{got.Amount, got.ExecutedAmount, got.RemainingAmount},
 		"GetOrderInfo should report the open order's whole amount, what it executed by its status and what remains")
 
-	// The order was read at 1678987199448 unless given another update time
+	// The order, created at 1678987198000, before its fills, was read at 1678987199448 unless given another update time
 	read := func(status string, remaining, original float64, updatedAt string) string {
 		return `[` + (&testOrderRecord{
-			id: 33963608936, symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: status, amount: remaining, original: original, price: 100, updatedAt: updatedAt,
+			id: 33963608936, symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: status, amount: remaining, original: original, price: 100,
+			createdAt: "1678987198000", updatedAt: updatedAt,
 		}).String() + `]`
 	}
 	trade := func(id, at, amount string) string {
@@ -1478,30 +1479,83 @@ func TestGetOrderInfo(t *testing.T) {
 		name                        string
 		open, history               []string
 		trades                      string
+		laterTrades                 []string
 		status                      order.Status
 		amount, executed, remaining float64
+		lastUpdated                 time.Time
+		tids                        []string
 		openReads, historyReads     int
 	}{
 		{
 			name: "no fill since the order was read", open: []string{read("PARTIALLY FILLED @ 100.0(0.4)", 0.6, 1, "")}, trades: `[` + trade("1", "1678987199000", "0.4") + `]`,
-			status: order.PartiallyFilled, amount: 1, executed: 0.4, remaining: 0.6, openReads: 1,
+			status: order.PartiallyFilled, amount: 1, executed: 0.4, remaining: 0.6, lastUpdated: updated, tids: []string{"1"}, openReads: 1,
 		},
 		{
 			name:   "a fill since the order was read, read again",
 			open:   []string{read("PARTIALLY FILLED @ 100.0(0.4)", 0.6, 1, ""), read("PARTIALLY FILLED @ 100.0(0.4), PARTIALLY FILLED @ 100.0(0.1)", 0.5, 1, "1678987200000")},
 			trades: `[` + trade("1", "1678987199000", "0.4") + `,` + trade("2", "1678987200000", "0.1") + `]`,
-			status: order.PartiallyFilled, amount: 1, executed: 0.5, remaining: 0.5, openReads: 2,
+			status: order.PartiallyFilled, amount: 1, executed: 0.5, remaining: 0.5, lastUpdated: time.UnixMilli(1678987200000), tids: []string{"1", "2"}, openReads: 2,
+		},
+		{
+			name:        "fills since the order was read and since its trades were, read again with its trades",
+			open:        []string{read("ACTIVE", 1, 1, ""), read("PARTIALLY FILLED @ 100.0(0.25), PARTIALLY FILLED @ 100.0(0.5)", 0.25, 1, "1678987200001")},
+			trades:      `[` + trade("1", "1678987200000", "0.25") + `]`,
+			laterTrades: []string{`[` + trade("1", "1678987200000", "0.25") + `,` + trade("2", "1678987200001", "0.5") + `]`},
+			status:      order.PartiallyFilled, amount: 1, executed: 0.75, remaining: 0.25, lastUpdated: time.UnixMilli(1678987200001), tids: []string{"1", "2"}, openReads: 2,
+		},
+		{
+			name:        "fills since the order was read and since its trades were, read again with its trades listed newest first",
+			open:        []string{read("ACTIVE", 1, 1, ""), read("PARTIALLY FILLED @ 100.0(0.25), PARTIALLY FILLED @ 100.0(0.5)", 0.25, 1, "1678987200001")},
+			trades:      `[` + trade("1", "1678987200000", "0.25") + `]`,
+			laterTrades: []string{`[` + trade("2", "1678987200001", "0.5") + `,` + trade("1", "1678987200000", "0.25") + `]`},
+			status:      order.PartiallyFilled, amount: 1, executed: 0.75, remaining: 0.25, lastUpdated: time.UnixMilli(1678987200001), tids: []string{"1", "2"}, openReads: 2,
 		},
 		{
 			name:    "the order filled since it was read, read again from the history",
 			open:    []string{read("ACTIVE", 1, 1, ""), `[]`},
 			history: []string{read("EXECUTED @ 100.0(1)", 0, 1, "1678987200000")},
 			trades:  `[` + trade("1", "1678987200000", "1") + `]`,
-			status:  order.Filled, amount: 1, executed: 1, openReads: 2, historyReads: 1,
+			status:  order.Filled, amount: 1, executed: 1, lastUpdated: time.UnixMilli(1678987200000), tids: []string{"1"}, openReads: 2, historyReads: 1,
+		},
+		{
+			name:    "the order partly filled and cancelled since it was read, read again from the history",
+			open:    []string{read("ACTIVE", 1, 1, ""), `[]`},
+			history: []string{read("PARTIALLY FILLED @ 100.0(0.25)", 0.75, 1, "1678987200000")},
+			trades:  `[` + trade("1", "1678987200000", "0.25") + `]`,
+			status:  order.PartiallyFilledCancelled, amount: 1, executed: 0.25, remaining: 0.75, lastUpdated: time.UnixMilli(1678987200000), tids: []string{"1"}, openReads: 2, historyReads: 1,
+		},
+		{
+			name:    "a sell partly filled and cancelled since it was read, read again from the history",
+			open:    []string{read("ACTIVE", -1, -1, ""), `[]`},
+			history: []string{read("PARTIALLY FILLED @ 100.0(-0.25)", -0.75, -1, "1678987200000")},
+			trades:  `[` + trade("1", "1678987200000", "-0.25") + `]`,
+			status:  order.PartiallyFilledCancelled, amount: 1, executed: 0.25, remaining: 0.75, lastUpdated: time.UnixMilli(1678987200000), tids: []string{"1"}, openReads: 2, historyReads: 1,
+		},
+		{
+			name:    "the order partly filled and cancelled in the millisecond it was read, read again from the history",
+			open:    []string{read("ACTIVE", 1, 1, ""), `[]`},
+			history: []string{read("PARTIALLY FILLED @ 100.0(0.25)", 0.75, 1, "")},
+			trades:  `[` + trade("1", "1678987199448", "0.25") + `]`,
+			status:  order.PartiallyFilledCancelled, amount: 1, executed: 0.25, remaining: 0.75, lastUpdated: updated, tids: []string{"1"}, openReads: 2, historyReads: 1,
+		},
+		{
+			name:    "the order, its status cut, filled further and cancelled since it was read, read again from the history",
+			open:    []string{read("... 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2), PARTIALLY FILLED @ 100.0(0.2)", 0.5, 1, ""), `[]`},
+			history: []string{read("...LLED @ 100.0(0.2), PARTIALLY FILLED @ 100.0(0.2), PARTIALLY FILLED @ 100.0(0.25)", 0.25, 1, "1678987200000")},
+			trades: `[` + trade("1", "1678987199446", "0.1") + `,` + trade("2", "1678987199447", "0.2") + `,` + trade("3", "1678987199448", "0.2") + `,` +
+				trade("4", "1678987200000", "0.25") + `]`,
+			status: order.PartiallyFilledCancelled, amount: 1, executed: 0.75, remaining: 0.25, lastUpdated: time.UnixMilli(1678987200000), tids: []string{"1", "2", "3", "4"}, openReads: 2, historyReads: 1,
+		},
+		{
+			name: "a fill its second read predates too, of an order whose status was cut, left to its next read",
+			open: []string{read("... 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2), PARTIALLY FILLED @ 100.0(0.2)", 0.3, 0.8, "")},
+			trades: `[` + trade("1", "1678987199446", "0.1") + `,` + trade("2", "1678987199447", "0.2") + `,` + trade("3", "1678987199448", "0.2") + `,` +
+				trade("4", "1678987200000", "0.3") + `]`,
+			status: order.PartiallyFilled, amount: 0.8, executed: 0.5, remaining: 0.3, lastUpdated: updated, tids: []string{"1", "2", "3", "4"}, openReads: 2,
 		},
 		{
 			name: "a fill its second read predates too, left to its next read", open: []string{read("ACTIVE", 1, 1, "")}, trades: `[` + trade("1", "1678987200000", "0.25") + `]`,
-			status: order.Active, amount: 1, remaining: 1, openReads: 2,
+			status: order.Active, amount: 1, remaining: 1, lastUpdated: updated, tids: []string{"1"}, openReads: 2,
 		},
 		{
 			name: "a fill made in the millisecond the order was read, which its status does not list, read again",
@@ -1510,25 +1564,31 @@ func TestGetOrderInfo(t *testing.T) {
 				read("PARTIALLY FILLED @ 100.0(0.25), PARTIALLY FILLED @ 100.0(0.5)", 0.25, 1, ""),
 			},
 			trades: `[` + trade("1", "1678987199000", "0.25") + `,` + trade("2", "1678987199448", "0.5") + `]`,
-			status: order.PartiallyFilled, amount: 1, executed: 0.75, remaining: 0.25, openReads: 2,
+			status: order.PartiallyFilled, amount: 1, executed: 0.75, remaining: 0.25, lastUpdated: updated, tids: []string{"1", "2"}, openReads: 2,
 		},
 		{
 			name: "a fill its status lists in neither read, left to its next read", open: []string{read("PARTIALLY FILLED @ 100.0(0.25)", 0.75, 1, "")},
 			trades: `[` + trade("1", "1678987199000", "0.25") + `,` + trade("2", "1678987199448", "0.5") + `]`,
-			status: order.PartiallyFilled, amount: 1, executed: 0.25, remaining: 0.75, openReads: 2,
+			status: order.PartiallyFilled, amount: 1, executed: 0.25, remaining: 0.75, lastUpdated: updated, tids: []string{"1", "2"}, openReads: 2,
 		},
 		{
 			name: "an order without its update time, whose trades cannot be told from its read", open: []string{read("PARTIALLY FILLED @ 100.0(0.4)", 0.6, 1, "null")},
 			trades: `[` + trade("1", "1678987199000", "0.4") + `,` + trade("2", "1678987200000", "0.1") + `]`,
-			status: order.PartiallyFilled, amount: 1, executed: 0.4, remaining: 0.6, openReads: 1,
+			status: order.PartiallyFilled, amount: 1, executed: 0.4, remaining: 0.6, tids: []string{"1", "2"}, openReads: 1,
 		},
 	} {
-		reread, reads := newOrderReadsTestExchange(t, tc.open, tc.history, tc.trades)
+		reread, reads := newOrderReadsTestExchange(t, tc.open, tc.history, append([]string{tc.trades}, tc.laterTrades...)...)
 		info, err := reread.GetOrderInfo(t.Context(), "33963608936", currency.EMPTYPAIR, asset.Empty)
 		require.NoErrorf(t, err, "GetOrderInfo must not error for %s", tc.name)
 		assert.Equalf(t, tc.status, info.Status, "GetOrderInfo should report the status of %s", tc.name)
 		assert.Equalf(t, [3]float64{tc.amount, tc.executed, tc.remaining}, [3]float64{info.Amount, info.ExecutedAmount, info.RemainingAmount},
 			"GetOrderInfo should report the whole amount, what was executed and what remains of %s", tc.name)
+		assert.Truef(t, tc.lastUpdated.Equal(info.LastUpdated), "GetOrderInfo should report %s last updated at %s, as last read, not %s", tc.name, tc.lastUpdated, info.LastUpdated)
+		tids := make([]string, len(info.Trades))
+		for i := range info.Trades {
+			tids[i] = info.Trades[i].TID
+		}
+		assert.ElementsMatchf(t, tc.tids, tids, "GetOrderInfo should return the trades of %s as last read", tc.name)
 		assert.Equalf(t, [3]int{tc.openReads, tc.historyReads, tc.openReads}, reads(), "GetOrderInfo should read the order as often as %s needs, and its trades after each read", tc.name)
 	}
 	ex, _ = newOrderReadsTestExchange(t, []string{read("ACTIVE", 1, 1, ""), `["error",10020,"symbol: invalid"]`}, nil, `[`+trade("1", "1678987200000", "0.25")+`]`)
@@ -1546,24 +1606,37 @@ func TestGetOrderInfo(t *testing.T) {
 	for _, tc := range []struct {
 		name                        string
 		createdAt, trades           string
+		closed                      bool
+		status                      order.Status
 		amount, executed, remaining float64
 	}{
 		{
-			name: "a cut status of an order within its trades' reach", createdAt: ago(2 * time.Hour), amount: 0.8, executed: 0.5, remaining: 0.3,
+			name: "a cut status of an order within its trades' reach", createdAt: ago(2 * time.Hour), status: order.PartiallyFilled, amount: 0.8, executed: 0.5, remaining: 0.3,
 			trades: `[` + trade("1", ago(100*time.Minute), "0.1") + `,` + trade("2", ago(90*time.Minute), "0.2") + `,` + trade("3", ago(80*time.Minute), "0.2") + `]`,
 		},
 		{
-			name: "a cut status of an order beyond its trades' reach, whose original amount less what remains is taken", createdAt: ago(11 * 24 * time.Hour), amount: 1, executed: 0.7, remaining: 0.3,
+			name: "a cut status of an order beyond its trades' reach, whose original amount less what remains is taken", createdAt: ago(11 * 24 * time.Hour),
+			status: order.PartiallyFilled, amount: 1, executed: 0.7, remaining: 0.3,
 			trades: `[` + trade("2", ago(90*time.Minute), "0.2") + `,` + trade("3", ago(80*time.Minute), "0.2") + `]`,
+		},
+		{
+			name: "a cut status of an order within its trades' reach, from the history", createdAt: ago(2 * time.Hour), closed: true,
+			status: order.PartiallyFilledCancelled, amount: 0.8, executed: 0.5, remaining: 0.3,
+			trades: `[` + trade("1", ago(100*time.Minute), "0.1") + `,` + trade("2", ago(90*time.Minute), "0.2") + `,` + trade("3", ago(80*time.Minute), "0.2") + `]`,
 		},
 	} {
 		o := testOrderRecord{id: 33963608936, symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: cut, amount: 0.3, original: 1, price: 100, createdAt: tc.createdAt, updatedAt: ago(time.Hour)}
-		cutEx, _ := newOrderReadsTestExchange(t, []string{`[` + o.String() + `]`}, nil, tc.trades)
+		open, history, historyReads := []string{`[` + o.String() + `]`}, []string(nil), 0
+		if tc.closed {
+			open, history, historyReads = nil, open, 1
+		}
+		cutEx, reads := newOrderReadsTestExchange(t, open, history, tc.trades)
 		info, err := cutEx.GetOrderInfo(t.Context(), "33963608936", currency.EMPTYPAIR, asset.Empty)
 		require.NoErrorf(t, err, "GetOrderInfo must not error for %s", tc.name)
-		assert.Equalf(t, order.PartiallyFilled, info.Status, "GetOrderInfo should report %s by its last fill", tc.name)
+		assert.Equalf(t, tc.status, info.Status, "GetOrderInfo should report the status of %s", tc.name)
 		assert.Equalf(t, [3]float64{tc.amount, tc.executed, tc.remaining}, [3]float64{info.Amount, info.ExecutedAmount, info.RemainingAmount},
 			"GetOrderInfo should report the whole amount, what was executed and what remains of %s", tc.name)
+		assert.Equalf(t, [3]int{1, historyReads, 1}, reads(), "GetOrderInfo should read %s and its trades once, with no fill since", tc.name)
 	}
 
 	const refused = `["error",10020,"symbol: invalid"]`
@@ -1626,6 +1699,7 @@ func TestIsOrderReadBehindTrades(t *testing.T) {
 		return AccountTradeResponse{ExecutedAt: types.Time(at), ExecutedAmount: amount}
 	}
 	cut := "... 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2)"
+	phraseCut := "...LLED @ 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2)"
 	for _, tc := range []struct {
 		name   string
 		o      *OrderResponse
@@ -1637,6 +1711,45 @@ func TestIsOrderReadBehindTrades(t *testing.T) {
 		{name: "a fill made after the read", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "ACTIVE"}, trades: []AccountTradeResponse{trade(read.Add(time.Millisecond), 0.25)}, exp: true},
 		{name: "a fill in the read's millisecond its status does not list", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "ACTIVE"}, trades: []AccountTradeResponse{trade(read, -0.25)}, exp: true},
 		{name: "more fills than a cut status lists", o: &OrderResponse{UpdatedAt: types.Time(read), Status: cut}, trades: []AccountTradeResponse{trade(read, 0.1), trade(read, 0.1), trade(read, 0.2)}},
+		{name: "a fill an hour after the read of an order whose status was cut", o: &OrderResponse{UpdatedAt: types.Time(read), Status: cut}, trades: []AccountTradeResponse{trade(read.Add(time.Hour), 0.2)}, exp: true},
+		{name: "a fill after the read, listed after older ones, of an order whose status was cut", o: &OrderResponse{UpdatedAt: types.Time(read), Status: cut}, trades: []AccountTradeResponse{trade(read, 0.1), trade(read, 0.2), trade(read.Add(time.Millisecond), 0.2)}, exp: true},
+		{
+			name: "a sell after the read, listed before an older one, of an order whose status was cut", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "... 100.0(-0.1), PARTIALLY FILLED @ 100.0(-0.2)"},
+			trades: []AccountTradeResponse{trade(read.Add(time.Millisecond), -0.2), trade(read, -0.2)}, exp: true,
+		},
+		{
+			name: "a fill after the read of an order whose listed fills its trades no longer reach", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(0.25)"},
+			trades: []AccountTradeResponse{trade(read.Add(time.Millisecond), 0.25)}, exp: true,
+		},
+		{
+			name: "a fill its status lists, made since the order was created", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(0.25)"},
+			trades: []AccountTradeResponse{trade(read.Add(-time.Second), 0.25)},
+		},
+		{
+			name: "a fill of 0.00000001 in the read's millisecond, after one its status lists", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(0.25)"},
+			trades: []AccountTradeResponse{trade(read.Add(-time.Second), 0.25), trade(read, 0.00000001)}, exp: true,
+		},
+		{name: "a fill after the read, listed between older ones, of an order whose status was cut", o: &OrderResponse{UpdatedAt: types.Time(read), Status: cut}, trades: []AccountTradeResponse{trade(read, 0.1), trade(read.Add(time.Millisecond), 0.2), trade(read, 0.2)}, exp: true},
+		{name: "a fill a day after the read of an order whose status was cut", o: &OrderResponse{UpdatedAt: types.Time(read), Status: cut}, trades: []AccountTradeResponse{trade(read.Add(24*time.Hour), 0.2)}, exp: true},
+		{name: "a fill after the read of an order whose status was cut inside a fill's phrase", o: &OrderResponse{UpdatedAt: types.Time(read), Status: phraseCut}, trades: []AccountTradeResponse{trade(read.Add(time.Millisecond), 0.2)}, exp: true},
+		{name: "more fills than a status cut inside a fill's phrase lists", o: &OrderResponse{UpdatedAt: types.Time(read), Status: phraseCut}, trades: []AccountTradeResponse{trade(read, 0.1), trade(read, 0.1), trade(read, 0.2)}},
+		{
+			name: "fills its status lists of 0.1 and 0.2, whose sum as floats is more than 0.3", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2)"},
+			trades: []AccountTradeResponse{trade(read.Add(-time.Second), 0.1), trade(read, 0.2)},
+		},
+		{
+			name: "fewer fills than its status lists, the others beyond its trades' reach", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(0.25), PARTIALLY FILLED @ 100.0(0.5)"},
+			trades: []AccountTradeResponse{trade(read, 0.5)},
+		},
+		{
+			name: "a sell in the read's millisecond its status does not list, after one it does", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(-0.25)"},
+			trades: []AccountTradeResponse{trade(read.Add(-time.Second), -0.25), trade(read, -0.25)}, exp: true,
+		},
+		{
+			name: "a fill of 0.00000001 in the read's millisecond, after one of 100 its status lists", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "PARTIALLY FILLED @ 100.0(100)"},
+			trades: []AccountTradeResponse{trade(read.Add(-time.Second), 100), trade(read, 0.00000001)}, exp: true,
+		},
+		{name: "more fills than a status cut without a mark lists", o: &OrderResponse{UpdatedAt: types.Time(read), Status: "(0.1), PARTIALLY FILLED @ 100.0(0.2)"}, trades: []AccountTradeResponse{trade(read, 0.1), trade(read, 0.1), trade(read, 0.2)}},
 		{name: "a fill after the read of an order without its update time", o: &OrderResponse{Status: "ACTIVE"}, trades: []AccountTradeResponse{trade(read, 0.25)}},
 	} {
 		assert.Equalf(t, tc.exp, isOrderReadBehindTrades(tc.o, tc.trades), "isOrderReadBehindTrades should report whether %s leaves the read behind", tc.name)
@@ -1661,6 +1774,25 @@ func TestCutOrderExecutedAmount(t *testing.T) {
 		exp    string
 	}{
 		{name: "an order within its trades' reach", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: cut}, trades: trades, exp: "0.5"},
+		{name: "an order created nine and a half days before its read, within its trades' reach", o: &OrderResponse{CreatedAt: types.Time(read.Add(-228 * time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: cut}, trades: trades, exp: "0.5"},
+		{
+			name: "a sell within its trades' reach", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Amount: -0.3, OriginalAmount: -1, Status: "... 100.0(-0.1), PARTIALLY FILLED @ 100.0(-0.2), PARTIALLY FILLED @ 100.0(-0.2)"},
+			trades: []AccountTradeResponse{
+				{ExecutedAt: types.Time(read.Add(-time.Minute)), ExecutedAmount: -0.1},
+				{ExecutedAt: types.Time(read.Add(-time.Second)), ExecutedAmount: -0.2},
+				{ExecutedAt: types.Time(read), ExecutedAmount: -0.2},
+				{ExecutedAt: types.Time(read.Add(time.Second)), ExecutedAmount: -0.3},
+			},
+			exp: "0.5",
+		},
+		{
+			name: "an order within its trades' reach whose newest trade is listed first", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: cut},
+			trades: []AccountTradeResponse{trades[3], trades[2], trades[1], trades[0]}, exp: "0.5",
+		},
+		{
+			name: "an order within its trades' reach whose fills of 0.1 and 0.2 add up exactly", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: "... 100.0(0.1), PARTIALLY FILLED @ 100.0(0.2)"},
+			trades: trades[:2], exp: "0.3",
+		},
 		{name: "an order beyond its trades' reach", o: &OrderResponse{CreatedAt: types.Time(read.Add(-11 * 24 * time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: cut}, trades: trades, exp: "0.7"},
 		{name: "an order beyond its trades' reach whose trades count more than its estimate", o: &OrderResponse{UpdatedAt: types.Time(read), Amount: 0.9, OriginalAmount: 1, Status: cut}, trades: trades, exp: "0.5"},
 		{name: "an order within its trades' reach whose trades count less than its status lists", o: &OrderResponse{CreatedAt: types.Time(read.Add(-time.Hour)), UpdatedAt: types.Time(read), Amount: 0.3, OriginalAmount: 1, Status: cut}, trades: trades[:1], exp: "0.7"},
