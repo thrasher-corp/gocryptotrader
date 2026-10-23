@@ -496,13 +496,10 @@ func (e *websocketTestExchange) GetWebsocket() (*websocket.Manager, error) { ret
 
 // Shutdown disables and shuts down the exchange's websocket manager
 func (e *websocketTestExchange) Shutdown() error {
-	if err := e.ws.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+	if err := e.ws.Disable(); err != nil {
 		return err
 	}
-	if err := e.ws.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
-		return err
-	}
-	return nil
+	return e.ws.Shutdown()
 }
 
 func testWebsocketManager(name string, connects *atomic.Int32) (*websocket.Manager, error) {

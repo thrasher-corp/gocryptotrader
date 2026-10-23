@@ -894,8 +894,8 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, manager.Start(t.Context()))
 	t.Cleanup(func() {
-		if err := manager.Stop(); err != nil && !errors.Is(err, ErrSubSystemNotStarted) {
-			t.Errorf("Stop must not error: %v", err)
+		if err := manager.Stop(); err != nil {
+			assert.ErrorIs(t, err, ErrSubSystemNotStarted, "Stop should only fail when already stopped")
 		}
 	})
 
@@ -942,8 +942,8 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	assert.True(t, secondWS.IsConnected(), "reloaded websocket should connect")
 	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
 	t.Cleanup(func() {
-		if err := secondWS.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
-			t.Errorf("reloaded websocket must shut down: %v", err)
+		if err := secondWS.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "reloaded websocket should shut down cleanly")
 		}
 	})
 }
