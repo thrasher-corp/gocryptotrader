@@ -49,8 +49,8 @@ func (r *tickerSyncRecorder) WebsocketUpdate(exchangeName string, p currency.Pai
 	return err
 }
 
-func (r *tickerSyncRecorder) PrintTickerSummary(p *ticker.Price, protocol string, err error) {
-	r.summaries = append(r.summaries, tickerSummary{price: *p, protocol: protocol, err: err})
+func (r *tickerSyncRecorder) PrintTickerSummary(p *ticker.Price, protocolName string, err error) {
+	r.summaries = append(r.summaries, tickerSummary{price: *p, protocol: protocolName, err: err})
 }
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
