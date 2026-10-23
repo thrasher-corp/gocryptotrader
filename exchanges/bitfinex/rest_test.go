@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,6 +36,12 @@ const (
 	// testAPIKey and testAPISecret are placeholder credentials, which the mock responses and the test servers accept
 	testAPIKey    = "mock-api-key"
 	testAPISecret = "mock-api-secret"
+	// testServerRequestLimit is the most requests a test server answers, several times as many as any test sends one,
+	// so a pager no longer advancing fails its test rather than hangs it
+	testServerRequestLimit = 100
+	// mockRequestTimeout bounds a paging call the recorded mock serves, for the same reason, as the tests share that
+	// mock and so cannot count one test's requests
+	mockRequestTimeout = 30 * time.Second
 )
 
 var e *Exchange
@@ -92,7 +100,18 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 	ex.Name = t.Name()
 	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 	ex.SkipAuthCheck = true
-	server := httptest.NewTestServer(t, handler)
+	var requests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if n := requests.Add(1); n > testServerRequestLimit {
+			// Reported once, as a client that keeps sending would otherwise fill the test's log
+			if n == testServerRequestLimit+1 {
+				assert.Failf(t, "the test server should receive no more requests than its limit", "at most %d, not %s %s", testServerRequestLimit, r.Method, r.URL.Path)
+			}
+			http.Error(w, "too many requests", http.StatusBadRequest)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 	return ex
@@ -113,6 +132,18 @@ func newUnavailableServerExchange(t *testing.T) *Exchange {
 	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "unavailable", http.StatusServiceUnavailable)
 	}))
+}
+
+// mockRequestContext returns the test's context, ending after mockRequestTimeout when the recorded mock serves the test,
+// so a pager no longer advancing fails rather than hangs it; live calls are left as long as Bitfinex's rate limits need
+func mockRequestContext(t *testing.T) context.Context {
+	t.Helper()
+	if !mockTests {
+		return t.Context()
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), mockRequestTimeout)
+	t.Cleanup(cancel)
+	return ctx
 }
 
 // skipLiveWithoutCredentials skips a live test of a private method when no credentials are set

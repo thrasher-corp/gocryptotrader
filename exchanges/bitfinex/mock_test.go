@@ -66,6 +66,10 @@ func newTestExchange(tb testing.TB) *Exchange {
 
 var errWebsocketVenueRequest = errors.New("unexpected request to the mock websocket")
 
+// venueAuthLimit is the most authentications the mock answers on one connection, several times as many as any test
+// sends one; past it the mock fails the test and closes the connection
+const venueAuthLimit = 10
+
 // newWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected, authenticated, to
 // a new mock of Bitfinex's websocket with subs subscribed, or none, and the mock, which records the requests it
 // receives
@@ -99,7 +103,7 @@ func withRefusedResubscriptions(fixtureKey string, n int) websocketVenueOption {
 // down when the test ends, so its connection monitor does not redial the closed mock
 func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.List, opts ...websocketVenueOption) *websocketVenue {
 	t.Helper()
-	venue := &websocketVenue{badChecksums: map[string]bool{}, refusedResubscriptions: map[string]int{}, subscribed: map[string]int{}}
+	venue := &websocketVenue{badChecksums: map[string]bool{}, refusedResubscriptions: map[string]int{}, subscribed: map[string]int{}, auths: map[*gws.Conn]int{}}
 	for _, opt := range opts {
 		opt(venue)
 	}
@@ -137,6 +141,8 @@ type websocketVenue struct {
 	subscribed             map[string]int
 	// refusedAuthNonces is how many authentications' nonces are still to be refused
 	refusedAuthNonces int
+	// auths counts each connection's authentications, which venueAuthLimit bounds
+	auths map[*gws.Conn]int
 	// conns are the connections the mock serves, and handlers its goroutines serving them, which outlive the test
 	// server, as it does not track the connections it upgrades
 	conns    []*gws.Conn
@@ -258,6 +264,13 @@ func (v *websocketVenue) answer(msg []byte, conn *gws.Conn) error {
 		return writeVenueFrame(conn, map[string]any{"event": "conf", "status": "OK", "flags": req["flags"]})
 	case "auth":
 		v.mu.Lock()
+		v.auths[conn]++
+		if attempts := v.auths[conn]; attempts > venueAuthLimit {
+			v.mu.Unlock()
+			// Closing the connection fails the client's next request on it
+			_ = conn.Close()
+			return fmt.Errorf("%w: authentication %d on one connection, at most %d expected", errWebsocketVenueRequest, attempts, venueAuthLimit)
+		}
 		refuse := v.refusedAuthNonces > 0
 		if refuse {
 			v.refusedAuthNonces--

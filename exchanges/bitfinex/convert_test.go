@@ -135,6 +135,8 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 	t.Parallel()
 	for status, exp := range map[string]order.Status{
 		"ACTIVE":                         order.Active,
+		"ACTIVE (note:POSCLOSE)":         order.Active,
+		"ACTIVE (note: POSCLOSE)":        order.Active,
 		"EXECUTED @ 107.6(-0.2)":         order.Filled,
 		"PARTIALLY FILLED @ 107.6(-0.1)": order.PartiallyFilled,
 		"CANCELED":                       order.Cancelled,
@@ -143,11 +145,18 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		"FILLORKILL CANCELED":                               order.Cancelled,
 		"IOC CANCELED was: PARTIALLY FILLED @ 1(-1)":        order.PartiallyFilledCancelled,
 		"INSUFFICIENT MARGIN was: PARTIALLY FILLED @ 1(-1)": order.InsufficientBalance,
+		"EXECUTED @ 140.0(0.02) was ACTIVE (note:POSCLOSE)": order.Filled,
+		"RSN_DUST was: ACTIVE (note: POSCLOSE)":             order.Cancelled,
 		"INSUFFICIENT BALANCE (U1)":                         order.InsufficientBalance,
 		"RSN_DUST":                                          order.Cancelled,
 		"RSN_PAUSE":                                         order.Cancelled,
 		"FORCED EXECUTED @ 1(-1)":                           order.Liquidated,
 		"NOVEL":                                             order.UnknownStatus,
+		// An order closing a position keeps its note ahead of its fills, while open and once closed
+		"ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.41291886)":                                    order.PartiallyFilled,
+		"ACTIVE (note: POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.2), PARTIALLY FILLED @ 0.00805(-0.21291886)": order.PartiallyFilled,
+		"INSUFFICIENT BALANCE (G1) was: ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.41291886)":     order.InsufficientBalance,
+		"CANCELED was: ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.2)":                             order.PartiallyFilledCancelled,
 		// Bitfinex cuts a status listing many fills short, keeping its end, and earlier cut one without marking it
 		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":    order.PartiallyFilled,
 		"...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":                                      order.PartiallyFilled,

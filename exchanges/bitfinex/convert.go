@@ -164,6 +164,13 @@ func orderTypeFromBitfinex(orderType string) (order.Type, order.TimeInForce, err
 // there: "EXECUTED @ 107.6(-0.2)", "CANCELED was: PARTIALLY FILLED @ 107.6(-0.1)"
 func orderStatusFromBitfinex(status string) order.Status {
 	primary, history := splitOrderStatus(status)
+	for _, note := range orderStatusPositionCloseNotes {
+		// The note stays ahead of the fills that go on to partly fill the order
+		if fills, ok := strings.CutPrefix(primary, note+", "); ok {
+			primary = fills
+			break
+		}
+	}
 	if isFillListCut(primary) {
 		// A cut status keeps its end, the fill the order is now partly filled by
 		if i := strings.LastIndex(primary, ", "); i != -1 {
@@ -174,7 +181,7 @@ func orderStatusFromBitfinex(status string) order.Status {
 	primary = strings.TrimSpace(primary)
 	partiallyFilled := strings.Contains(history, "PARTIALLY FILLED") || isFillListCut(history)
 	switch {
-	case primary == "ACTIVE":
+	case primary == "ACTIVE", slices.Contains(orderStatusPositionCloseNotes, primary):
 		return order.Active
 	case primary == "EXECUTED":
 		return order.Filled
@@ -208,6 +215,10 @@ var orderStatusFill = regexp.MustCompile(`@ -?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d{
 
 // orderStatusFillPhrases are the phrases each fill an order's status lists begins with
 var orderStatusFillPhrases = []string{"PARTIALLY FILLED", "EXECUTED", "FORCED EXECUTED"}
+
+// orderStatusPositionCloseNotes are the statuses of an open order that closes a position, which Bitfinex's glossary
+// spells with and without a space after the colon
+var orderStatusPositionCloseNotes = []string{"ACTIVE (note:POSCLOSE)", "ACTIVE (note: POSCLOSE)"}
 
 // splitOrderStatus splits an order's status into what the order is and, after "was", what it was before: "CANCELED
 // was: PARTIALLY FILLED @ 107.6(-0.1)", "EXECUTED @ 916.2(0.78): was PARTIALLY FILLED @ 915.9(0.22)" and "EXECUTED @

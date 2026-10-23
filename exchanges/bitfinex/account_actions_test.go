@@ -93,6 +93,19 @@ func newRequestBodyExchange(t *testing.T, path, response string) (ex *Exchange, 
 	return ex, received
 }
 
+// requestBody returns the body of the request just made, which the test server passes on before replying, failing
+// the test when none arrived rather than blocking
+func requestBody(t *testing.T, bodies <-chan string) string {
+	t.Helper()
+	select {
+	case body := <-bodies:
+		return body
+	default:
+		require.Fail(t, "the request must reach the test server")
+		return ""
+	}
+}
+
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
@@ -310,11 +323,11 @@ func TestTransferBetweenWallets(t *testing.T) {
 	ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/transfer", `[1568736745789,"acc_tf",null,null,[1568736745790,"exchange","exchange",null,"UST",null,null,10],null,"SUCCESS","10.0 Tether USDt transferred from Exchange to Exchange"]`)
 	_, err = ex.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeExchange, Currency: currency.UST, Amount: 10, DestinationEmail: "sub@example.com", TwoFactorToken: &TwoFactorToken{Method: TwoFactorMethodOneTimePassword, Token: "123456"}})
 	require.NoError(t, err, "TransferBetweenWallets must not error to another account by email")
-	assert.JSONEq(t, `{"from":"exchange","to":"exchange","currency":"UST","amount":"10","email_dst":"sub@example.com","tfaToken":{"method":"otp","token":"123456"}}`, <-bodies, "TransferBetweenWallets should send the destination email and one time password")
+	assert.JSONEq(t, `{"from":"exchange","to":"exchange","currency":"UST","amount":"10","email_dst":"sub@example.com","tfaToken":{"method":"otp","token":"123456"}}`, requestBody(t, bodies), "TransferBetweenWallets should send the destination email and one time password")
 	assertion := &WebAuthnAssertion{ID: "id1", Response: &WebAuthnAssertionResponse{AuthenticatorData: "authenticator", ClientDataJSON: "client", Signature: "signature"}}
 	_, err = ex.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeExchange, Currency: currency.UST, Amount: 10, DestinationUserID: 1234, TwoFactorToken: &TwoFactorToken{Method: TwoFactorMethodU2F, Response: assertion}})
 	require.NoError(t, err, "TransferBetweenWallets must not error to another account by user ID")
-	assert.JSONEq(t, `{"from":"exchange","to":"exchange","currency":"UST","amount":"10","user_id_dst":1234,"tfaToken":{"method":"u2f","response":{"id":"id1","response":{"authenticatorData":"authenticator","clientDataJSON":"client","signature":"signature"}}}}`, <-bodies, "TransferBetweenWallets should send the destination user ID and assertion")
+	assert.JSONEq(t, `{"from":"exchange","to":"exchange","currency":"UST","amount":"10","user_id_dst":1234,"tfaToken":{"method":"u2f","response":{"id":"id1","response":{"authenticatorData":"authenticator","clientDataJSON":"client","signature":"signature"}}}}`, requestBody(t, bodies), "TransferBetweenWallets should send the destination user ID and assertion")
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
@@ -464,12 +477,12 @@ func TestLNXInvoicePayments(t *testing.T) {
 	ex, bodies := newRequestBodyExchange(t, "/v2/auth/r/ext/invoice/payments", `{"payments":[{"payment_hash":"abc"}]}`)
 	var resp lnxInvoiceListResponse
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getPaymentsByUser", lnxInvoicePaymentsQuery{Offset: 5}, &resp), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getPaymentsByUser","query":{"offset":5}}`, <-bodies, "lnxInvoicePayments should send the action and query")
+	assert.JSONEq(t, `{"action":"getPaymentsByUser","query":{"offset":5}}`, requestBody(t, bodies), "lnxInvoicePayments should send the action and query")
 	assert.Equal(t, lnxInvoiceListResponse{Payments: []LNXInvoiceResponse{{PaymentHash: "abc"}}}, resp, "lnxInvoicePayments should decode the response")
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoiceById", lnxInvoicePaymentsQuery{PaymentHash: "abc"}, nil), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getInvoiceById","query":{"txid":"abc"}}`, <-bodies, "lnxInvoicePayments should send the payment hash as txid")
+	assert.JSONEq(t, `{"action":"getInvoiceById","query":{"txid":"abc"}}`, requestBody(t, bodies), "lnxInvoicePayments should send the payment hash as txid")
 	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoicesByUser", lnxInvoicePaymentsQuery{}, nil), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getInvoicesByUser","query":{}}`, <-bodies, "lnxInvoicePayments should send an empty query when nothing is set")
+	assert.JSONEq(t, `{"action":"getInvoicesByUser","query":{}}`, requestBody(t, bodies), "lnxInvoicePayments should send an empty query when nothing is set")
 }
 
 func TestGetLNXInvoices(t *testing.T) {
@@ -593,10 +606,10 @@ func TestRequestWithdrawal(t *testing.T) {
 	ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/withdraw", `[1568742390999,"acc_wd-req",null,null,[13080092,null,"lnx",null,"exchange",0.0001,null,null,0],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`)
 	_, err = ex.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "LNX", Invoice: "lnbc1", TravelRule: &TravelRuleDetails{VASPName: "Strawb Exchange Ltd", BeneficiarySelf: true}})
 	require.NoError(t, err, "RequestWithdrawal must not error for a Lightning withdrawal")
-	assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"lnbc1","travel_rule_tos":true,"vasp_name":"Strawb Exchange Ltd","beneficiary_self":true}`, <-bodies, "RequestWithdrawal should send a Lightning withdrawal's invoice and no amount or address")
+	assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"lnbc1","travel_rule_tos":true,"vasp_name":"Strawb Exchange Ltd","beneficiary_self":true}`, requestBody(t, bodies), "RequestWithdrawal should send a Lightning withdrawal's invoice and no amount or address")
 	_, err = ex.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeFunding, Method: "ripple", Amount: 25.5, Address: "rAddress", PaymentID: "1234", TravelRule: &TravelRuleDetails{CorporateName: "Yotsuba Ltd"}})
 	require.NoError(t, err, "RequestWithdrawal must not error for a withdrawal with a tag")
-	assert.JSONEq(t, `{"wallet":"funding","method":"ripple","amount":"25.5","address":"rAddress","payment_id":"1234","travel_rule_tos":true,"dest_corp_name":"Yotsuba Ltd"}`, <-bodies, "RequestWithdrawal should send the payment ID and corporate name")
+	assert.JSONEq(t, `{"wallet":"funding","method":"ripple","amount":"25.5","address":"rAddress","payment_id":"1234","travel_rule_tos":true,"dest_corp_name":"Yotsuba Ltd"}`, requestBody(t, bodies), "RequestWithdrawal should send the payment ID and corporate name")
 	_, err = newResponseServerExchange(t, `null`).RequestWithdrawal(t.Context(), testWithdrawalRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "RequestWithdrawal should error for a null response")
 	_, err = newUnavailableServerExchange(t).RequestWithdrawal(t.Context(), testWithdrawalRequest())

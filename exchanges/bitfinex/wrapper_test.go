@@ -392,7 +392,7 @@ func TestValidateAPICredentials(t *testing.T) {
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
-	history, err := e.GetAccountFundingHistory(t.Context())
+	history, err := e.GetAccountFundingHistory(mockRequestContext(t))
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
 	if !mockTests {
 		return
@@ -408,8 +408,9 @@ func TestGetAccountFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
+	ctx := mockRequestContext(t)
 	for _, c := range []currency.Code{currency.ETH, currency.EMPTYCODE} {
-		history, err := e.GetWithdrawalsHistory(t.Context(), c, asset.Spot)
+		history, err := e.GetWithdrawalsHistory(ctx, c, asset.Spot)
 		require.NoErrorf(t, err, "GetWithdrawalsHistory must not error for currency %q", c)
 		for i := range history {
 			assert.Equal(t, "withdrawal", history[i].TransferType, "GetWithdrawalsHistory should return withdrawals alone")
@@ -467,9 +468,17 @@ func TestPageBack(t *testing.T) {
 	ms := time.UnixMilli
 	id := func(r *record) uint64 { return r.id }
 	at := func(r *record) time.Time { return r.at }
+	// errPagerStalled refuses a page past one per record, which only a pager no longer advancing asks for, so it fails
+	// the test rather than hangs it
+	errPagerStalled := errors.New("pager stalled")
 	// serve returns a fetch serving history as Bitfinex does, newest first, records up to the end and from the start
 	serve := func(history []record, start time.Time, limit int, ends *[]time.Time) func(time.Time) ([]record, error) {
+		var pages int
 		return func(end time.Time) ([]record, error) {
+			pages++
+			if pages > len(history)+1 {
+				return nil, errPagerStalled
+			}
 			*ends = append(*ends, end)
 			var page []record
 			for _, r := range history {
@@ -506,6 +515,9 @@ func TestPageBack(t *testing.T) {
 	var calls int
 	ignoringEnd := func(time.Time) ([]record, error) {
 		calls++
+		if calls > len(history) {
+			return nil, errPagerStalled
+		}
 		return history[:3], nil
 	}
 	_, err = pageBack(time.Time{}, time.Time{}, 3, ignoringEnd, id, at)
@@ -537,7 +549,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	start, end := historyWindow(time.Hour)
 	_, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSD(), asset.Spot, end, start)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetHistoricTrades must refuse a window ending before it starts")
-	trades, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSD(), asset.Spot, start, end)
+	trades, err := ex.GetHistoricTrades(mockRequestContext(t), currency.NewBTCUSD(), asset.Spot, start, end)
 	require.NoError(t, err, "GetHistoricTrades must not error")
 	require.NotEmpty(t, trades, "GetHistoricTrades must return trades")
 	for i := range trades {
@@ -1953,8 +1965,9 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	skipLiveWithoutCredentials(t)
+	ctx := mockRequestContext(t)
 	for _, pairs := range []currency.Pairs{nil, {currency.NewBTCUSD()}} {
-		orders, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: pairs, Side: order.AnySide, Type: order.AnyType})
+		orders, err := e.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: pairs, Side: order.AnySide, Type: order.AnyType})
 		require.NoErrorf(t, err, "GetOrderHistory must not error for pairs %s", pairs)
 		for i := range orders {
 			assert.Equal(t, asset.Spot, orders[i].AssetType, "GetOrderHistory should return spot orders alone")
@@ -2555,7 +2568,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	_, err = newResponseServerExchange(t, `["error",10020,"symbol: invalid"]`).GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "GetHistoricalFundingRates should return the error Bitfinex reports")
-	rates, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
+	rates, err := e.GetHistoricalFundingRates(mockRequestContext(t), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
 	if !mockTests {
 		require.NotEmpty(t, rates.FundingRates, "GetHistoricalFundingRates must return the window's rates")

@@ -71,9 +71,10 @@ type Notification[T any] struct {
 	Type      string     `tuple:"1"`
 	MessageID uint64     `tuple:"2"`
 	Data      T          `tuple:"4"`
-	Code      int64      `tuple:"5"`
-	Status    string     `tuple:"6"`
-	Text      string     `tuple:"7"`
+	// Code is signed, as Bitfinex's own Go client reads it; Bitfinex documents it only as null or an integer
+	Code   int64  `tuple:"5"`
+	Status string `tuple:"6"`
+	Text   string `tuple:"7"`
 }
 
 // UnmarshalJSON decodes a notification array
