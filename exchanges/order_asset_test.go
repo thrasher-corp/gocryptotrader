@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -178,7 +179,7 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			for _, a := range tc.requestedAssets {
 				sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, a, pair)
 			}
-			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: tc.responses}}), "SetHTTPClient must not error")
+			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: &orderAssetTransport{t: t, responses: tc.responses}}), "SetHTTPClient must not error")
 			requestedAssets := tc.requestedAssets
 			if len(requestedAssets) == 0 {
 				requestedAssets = []asset.Item{asset.Spot, asset.Futures, asset.All, asset.Empty}
@@ -213,7 +214,7 @@ func TestGetOrderInfoDeribitCreationTime(t *testing.T) {
 			b.SkipAuthCheck = true
 			b.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: base64.StdEncoding.EncodeToString(make([]byte, 32))})
 			require.NoError(t, b.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
-			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
+			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: &orderAssetTransport{t: t, responses: map[string]string{
 				"/private/get_order_state": `{"result":{"order_id":"1","instrument_name":"` + instrument + `","order_type":"limit","order_state":"open","time_in_force":"good_til_cancelled","creation_timestamp":1792648800123,"last_update_timestamp":1792648860456}}`,
 			}}}), "SetHTTPClient must not error")
 			for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options} {
@@ -234,7 +235,7 @@ func TestBTSEActiveOrdersReportedAsset(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
 	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, currency.NewBTCUSD())
-	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
+	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: &orderAssetTransport{t: t, responses: map[string]string{
 		"/spot/api/v3.2/user/open_orders":   `[{"orderID":"1","symbol":"BTC-USD","side":"BUY","orderState":"open","orderType":76}]`,
 		"/spot/api/v3.2/user/trade_history": `[{"orderId":"1","tradeId":"fill-1","side":"BUY","timestamp":1789618131546}]`,
 	}}}), "SetHTTPClient must not error")
@@ -247,11 +248,17 @@ func TestBTSEActiveOrdersReportedAsset(t *testing.T) {
 
 // All HTTP calls stay in memory, including wrappers that still hard-code their API URL.
 type orderAssetTransport struct {
-	t         *testing.T
-	responses map[string]string
+	t             *testing.T
+	responses     map[string]string
+	fillsRequests atomic.Uint32
 }
 
-func (m orderAssetTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+func (m *orderAssetTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Bound paging regressions rather than serve the same page until the test times out.
+	if strings.HasSuffix(r.URL.Path, "/orders/historical/fills") && m.fillsRequests.Add(1) > 50 {
+		m.t.Errorf("GetOrderInfo should not keep paging %s", r.URL.Path)
+		return &http.Response{StatusCode: http.StatusBadRequest, Body: io.NopCloser(strings.NewReader(`{}`)), Request: r}, nil
+	}
 	for suffix, body := range m.responses {
 		if strings.HasSuffix(r.URL.Path, suffix) {
 			return &http.Response{

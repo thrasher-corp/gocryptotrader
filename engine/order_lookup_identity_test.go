@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -62,7 +63,14 @@ func TestOrderManagerLookupResponseIdentity(t *testing.T) {
 			b.SkipAuthCheck = true
 			b.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: base64.StdEncoding.EncodeToString(make([]byte, 32))})
 			require.NoError(t, b.Requester.DisableRateLimiter(), "mock requests must not wait for rate limits")
+			var fillsRequests atomic.Uint32
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Bound paging regressions rather than serve the same page until the test times out.
+				if strings.HasSuffix(r.URL.Path, "/orders/historical/fills") && fillsRequests.Add(1) > 50 {
+					t.Errorf("GetOrderInfo should not keep paging %s", r.URL.Path)
+					http.Error(w, "fills paging did not stop", http.StatusBadRequest)
+					return
+				}
 				for suffix, body := range tc.responses {
 					if strings.HasSuffix(r.URL.Path, suffix) {
 						_, err := w.Write([]byte(body))

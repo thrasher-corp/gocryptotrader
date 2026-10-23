@@ -236,6 +236,10 @@ Use `require` and `assert` appropriately:
 - Keep mock-backed tests independent of production rate limits and the local
     time zone: disable request throttling and serialise fixed test windows in
     UTC, unless the test specifically targets those behaviours.
+- Bound mock responses for pagination or retry loops. Permit expected calls,
+    then report a clear test failure and return a non-retryable error rather
+    than serve repeated responses until the overall test timeout. Keep request
+    counters concurrency-safe when used by HTTP handlers or transports.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the
