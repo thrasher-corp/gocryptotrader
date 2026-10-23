@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -137,3 +138,59 @@ func overrideForProvider(n string) BotOverrides {
 	}
 	return b
 }
+
+func TestStorageUpdaterLifecycleAndCachedReads(t *testing.T) {
+	fxProviders, mock := newCountingMockProvider()
+
+	var s Storage
+	s.SetupConversionRates()
+	s.defaultBaseCurrency = USD
+	s.baseCurrency = USD
+	s.defaultFiatCurrencies = Currencies{USD, EUR, AUD}
+	s.fiatCurrencies = Currencies{USD, EUR, AUD}
+	s.fiatExchangeMarkets = fxProviders
+	s.foreignExchangeUpdateDelay = time.Hour
+	s.currencyFileUpdateDelay = time.Hour
+	s.shutdown = make(chan struct{})
+
+	// 1. Before updater is started, updaterRunning is false
+	assert.False(t, s.IsUpdaterRunning())
+
+	// 2. Initial reads without background updater trigger one-off seeding
+	r1, err := s.GetExchangeRates()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, r1)
+	assert.Equal(t, int64(1), mock.calls.Load(), "initial GetExchangeRates should call provider")
+
+	r2, err := s.GetDefaultForeignExchangeRates()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, r2)
+	assert.Equal(t, int64(2), mock.calls.Load(), "initial GetDefaultForeignExchangeRates should call provider")
+
+	// 3. Start ForeignExchangeUpdater in background
+	s.mtx.Lock()
+	s.wg.Add(1)
+	go s.ForeignExchangeUpdater()
+
+	// Wait for initial seed in ForeignExchangeUpdater to complete
+	assert.Eventually(t, func() bool {
+		return s.IsUpdaterRunning()
+	}, 5*time.Second, 10*time.Millisecond)
+
+	initialCalls := mock.calls.Load()
+
+	// 4. Repeated reads while updater is running should use cached rates without extra provider calls
+	_, err = s.GetExchangeRates()
+	assert.NoError(t, err)
+	assert.Equal(t, initialCalls, mock.calls.Load(), "GetExchangeRates should read from cache while updater is running")
+
+	_, err = s.GetDefaultForeignExchangeRates()
+	assert.NoError(t, err)
+	assert.Equal(t, initialCalls, mock.calls.Load(), "GetDefaultForeignExchangeRates should read from cache while updater is running")
+
+	// 5. Shutdown transitions IsUpdaterRunning to false
+	err = s.Shutdown()
+	assert.NoError(t, err)
+	assert.False(t, s.IsUpdaterRunning(), "IsUpdaterRunning should be false after Shutdown")
+}
+
