@@ -162,6 +162,20 @@ func handleFramesWithin(ctx context.Context, handler func(context.Context, webso
 	return nil
 }
 
+// returnWithin calls fn and returns its error, or one when fn has not returned after 30 s, so a test whose order book
+// synchronisation blocks the call fails instead of waiting for go test's timeout. fn runs on a goroutine of its own, so
+// it must not use testing.T
+func returnWithin(fn func() error) error {
+	done := make(chan error, 1)
+	go func() { done <- fn() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		return errors.New("call stalled: it did not return within 30s")
+	}
+}
+
 func BenchmarkWebsocketHandleData(b *testing.B) {
 	b.ReportAllocs()
 	lines := fixtureLines(b, "testdata/wsSpot.json")
@@ -536,26 +550,31 @@ func TestProcessOrderbookUpdateOverlap(t *testing.T) {
 			ex := newTestExchange(t)
 			var fetches atomic.Int32
 			useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				fetches.Add(1)
+				if fetches.Add(1) > 1 {
+					// Later snapshots fail, so a resynchronisation cannot reload the book an overlapping derivatives event
+					// invalidates before the test reads it
+					return nil, errTestNoSnapshot
+				}
 				return &orderbook.Book{
 					Exchange: ex.Name, Pair: p, Asset: a, Bids: orderbook.Levels{{Price: 100, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
 					LastUpdateID: 100, LastUpdated: spotDepthFrameTime(100),
 				}, nil
 			})
 			pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+			ctx := t.Context()
 			update := func(finalUpdateID int64) *orderbook.Update {
 				return &orderbook.Update{
 					UpdateID: finalUpdateID, UpdateTime: spotDepthFrameTime(finalUpdateID), Asset: a, Pair: pair,
 					Bids: orderbook.Levels{{Price: 100, Amount: float64(finalUpdateID)}},
 				}
 			}
-			require.NoError(t, ex.processOrderbookUpdate(t.Context(), 101, update(105)), "processOrderbookUpdate must not error")
+			require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 101, update(105)) }), "processOrderbookUpdate must not error")
 			require.Eventually(t, func() bool {
 				id, err := ex.Websocket.Orderbook.LastUpdateID(pair, a)
 				return err == nil && id == 105
 			}, 30*time.Second, 10*time.Millisecond, "the book must synchronise")
 
-			require.NoError(t, ex.processOrderbookUpdate(t.Context(), 103, update(110)), "processOrderbookUpdate must not error for an overlapping event")
+			require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 103, update(110)) }), "processOrderbookUpdate must not error for an overlapping event")
 			got, err := storedOrderbookState(ex, pair, a)
 			if !applied {
 				assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an overlapping derivatives event should invalidate the book")
@@ -801,7 +820,7 @@ func TestSpotOrderbookResyncsAfterGap(t *testing.T) {
 
 	// Frames lost in transit leave a gap in the update IDs
 	streams.skip("BTCUSDT", 10)
-	require.NoError(t, ex.wsHandleData(t.Context(), nil, streams.frame("BTCUSDT")), "wsHandleData must not error for a frame after a gap")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("BTCUSDT")}), "wsHandleData must not error for a frame after a gap")
 	_, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a gap should invalidate the book")
 	require.Eventually(t, func() bool { return fetches.Load() == 2 }, 30*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
@@ -846,9 +865,7 @@ func TestSpotOrderbookDropsStaleEvents(t *testing.T) {
 	older, latest := streams.frame("BTCUSDT"), streams.frame("BTCUSDT")
 	// Both frames apply, then arrive again late; a late event ends at or before the book's update ID, and Binance's
 	// procedure ignores it
-	for _, frame := range [][]byte{older, latest, latest, older} {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, frame), "wsHandleData must not error for %s", frame)
-	}
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{older, latest, latest, older}), "handling the events and their late repeats must return")
 	got, err := storedOrderbookState(ex, pair, asset.Spot)
 	require.NoError(t, err, "late events must leave the book valid")
 	assert.Equal(t, streams.expectedState("BTCUSDT"), got, "late events should leave the book as its stream left it")
@@ -869,12 +886,12 @@ func TestSpotOrderbookLoadsQuietBook(t *testing.T) {
 	pair := currency.NewPairWithDelimiter("DOGE", "USDT", "-")
 	first := streams.frame("DOGEUSDT")
 	streams.skip("DOGEUSDT", 2)
-	require.NoError(t, ex.wsHandleData(t.Context(), nil, first), "wsHandleData must not error")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{first}), "wsHandleData must not error")
 	require.Eventually(t, func() bool {
 		got, err := storedOrderbookState(ex, pair, asset.Spot)
 		return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
 	}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
-	require.NoError(t, ex.wsHandleData(t.Context(), nil, streams.frame("DOGEUSDT")), "wsHandleData must not error")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("DOGEUSDT")}), "wsHandleData must not error")
 	got, err := storedOrderbookState(ex, pair, asset.Spot)
 	require.NoError(t, err, "the book must stay valid")
 	assert.Equal(t, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")

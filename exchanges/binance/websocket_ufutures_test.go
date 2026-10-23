@@ -2865,7 +2865,10 @@ func TestDerivativesStreamsLive(t *testing.T) {
 	ex.Name = t.Name()
 	ex.Features.Enabled.TradeFeed = true
 	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
-	ex.Features.Subscriptions = subscription.List{} // no spot streams
+	// Only the derivatives streams are tested; asset-less subscriptions are spot streams too
+	ex.Features.Subscriptions = slices.DeleteFunc(ex.Features.Subscriptions, func(s *subscription.Subscription) bool {
+		return s.Asset == asset.Spot || s.Asset == asset.Empty
+	})
 	for a, p := range map[asset.Item]currency.Pair{
 		asset.USDTMarginedFutures: currency.NewBTCUSDT(),
 		asset.CoinMarginedFutures: currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter),
