@@ -206,9 +206,11 @@ type WebsocketFuturesFill struct {
 	ClientOrderID          string     `json:"cli_ord_id"`
 	FillID                 string     `json:"fill_id"`
 	// FillType is maker, taker, liquidation, assignee, assignor, unwindBankrupt, unwindCounterparty or takerAfterEdit
-	FillType    string  `json:"fill_type"`
-	FeePaid     float64 `json:"fee_paid"`
-	FeeCurrency string  `json:"fee_currency"`
+	FillType string  `json:"fill_type"`
+	FeePaid  float64 `json:"fee_paid"`
+	// FeeCurrency is Kraken's name for the currency, which wsFuturesProcessFills maps to a currency code by its
+	// alternative name
+	FeeCurrency string `json:"fee_currency"`
 	// TakerOrderType is the order type of the taker's order, and OrderType that of the account's order, such as lmt,
 	// ioc or post
 	TakerOrderType string `json:"taker_order_type"`
@@ -240,7 +242,7 @@ type WebsocketFuturesMarginAccount struct {
 	MaintenanceMargin float64 `json:"maintenance_margin"`
 	InitialMargin     float64 `json:"initial_margin"`
 	Available         float64 `json:"available"`
-	UnrealizedFunding float64 `json:"unrealized_funding"`
+	UnrealisedFunding float64 `json:"unrealized_funding"`
 	PNL               float64 `json:"pnl"`
 }
 
@@ -254,9 +256,9 @@ type WebsocketFuturesFlexAccount struct {
 	InitialMarginWithoutOrders float64                                       `json:"initial_margin_without_orders"`
 	MaintenanceMargin          float64                                       `json:"maintenance_margin"`
 	PNL                        float64                                       `json:"pnl"`
-	UnrealizedFunding          float64                                       `json:"unrealized_funding"`
-	TotalUnrealized            float64                                       `json:"total_unrealized"`
-	TotalUnrealizedAsMargin    float64                                       `json:"total_unrealized_as_margin"`
+	UnrealisedFunding          float64                                       `json:"unrealized_funding"`
+	TotalUnrealised            float64                                       `json:"total_unrealized"`
+	TotalUnrealisedAsMargin    float64                                       `json:"total_unrealized_as_margin"`
 	MarginEquity               float64                                       `json:"margin_equity"`
 	AvailableMargin            float64                                       `json:"available_margin"`
 	TotalPositionSize          float64                                       `json:"total_position_size"`
@@ -282,9 +284,9 @@ type WebsocketFuturesFlexIsolatedMargin struct {
 	InitialMarginWithoutOrders float64 `json:"initial_margin_without_orders"`
 	MaintenanceMargin          float64 `json:"maintenance_margin"`
 	PNL                        float64 `json:"pnl"`
-	UnrealizedFunding          float64 `json:"unrealized_funding"`
-	TotalUnrealized            float64 `json:"total_unrealized"`
-	TotalUnrealizedAsMargin    float64 `json:"total_unrealized_as_margin"`
+	UnrealisedFunding          float64 `json:"unrealized_funding"`
+	TotalUnrealised            float64 `json:"total_unrealized"`
+	TotalUnrealisedAsMargin    float64 `json:"total_unrealized_as_margin"`
 }
 
 // WebsocketFuturesFlexCrossMargin is the margin of the multi-collateral cross margin positions
@@ -296,9 +298,9 @@ type WebsocketFuturesFlexCrossMargin struct {
 	InitialMarginWithoutOrders float64 `json:"initial_margin_without_orders"`
 	MaintenanceMargin          float64 `json:"maintenance_margin"`
 	PNL                        float64 `json:"pnl"`
-	UnrealizedFunding          float64 `json:"unrealized_funding"`
-	TotalUnrealized            float64 `json:"total_unrealized"`
-	TotalUnrealizedAsMargin    float64 `json:"total_unrealized_as_margin"`
+	UnrealisedFunding          float64 `json:"unrealized_funding"`
+	TotalUnrealised            float64 `json:"total_unrealized"`
+	TotalUnrealisedAsMargin    float64 `json:"total_unrealized_as_margin"`
 	MarginEquity               float64 `json:"margin_equity"`
 	AvailableMargin            float64 `json:"available_margin"`
 	EffectiveLeverage          float64 `json:"effective_leverage"`
@@ -324,13 +326,15 @@ type WebsocketFuturesPosition struct {
 	IndexPrice              float64 `json:"index_price"`
 	LiquidationThreshold    float64 `json:"liquidation_threshold"`
 	ReturnOnEquity          float64 `json:"return_on_equity"`
-	UnrealizedFunding       float64 `json:"unrealized_funding"`
+	UnrealisedFunding       float64 `json:"unrealized_funding"`
 	EffectiveLeverage       float64 `json:"effective_leverage"`
 	InitialMargin           float64 `json:"initial_margin"`
 	InitialMarginWithOrders float64 `json:"initial_margin_with_orders"`
 	MaintenanceMargin       float64 `json:"maintenance_margin"`
-	PNLCurrency             string  `json:"pnl_currency"`
-	MaxFixedLeverage        float64 `json:"max_fixed_leverage"`
+	// PNLCurrency is Kraken's name for the currency as sent, as currency.Code would upper-case a mixed-case name such
+	// as AAPLx
+	PNLCurrency      string  `json:"pnl_currency"`
+	MaxFixedLeverage float64 `json:"max_fixed_leverage"`
 	// ImpliedVolatility and the Greeks are sent for options positions
 	ImpliedVolatility float64 `json:"iv"`
 	Delta             float64 `json:"delta"`

@@ -760,7 +760,7 @@ func TestFinishSpotOrderWithoutFills(t *testing.T) {
 	assert.Never(t, func() bool { return len(server.readOrders()) != 0 }, 50*time.Millisecond, time.Millisecond, "an order finished without fills, or still open, should not be read")
 
 	require.NoError(t, ex.wsProcessExecutions(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[{"order_id":"OAIYAU-LGI3M-PFM5VW","exec_type":"canceled","order_status":"canceled","cum_qty":4,"timestamp":"2023-09-22T10:33:07Z"}]`)}), "wsProcessExecutions must not error")
-	assert.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "an order cancelled after fills should be read")
+	require.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "an order cancelled after fills must be read")
 	assert.Equal(t, []string{"OAIYAU-LGI3M-PFM5VW"}, server.readOrders()[0], "the read should ask for the cancelled order")
 }
 

@@ -19,9 +19,11 @@ var (
 
 // wsRequest is a websocket v2 request
 type wsRequest struct {
-	Method    string `json:"method"`
-	Params    any    `json:"params,omitempty"`
-	RequestID int64  `json:"req_id"`
+	Method string `json:"method"`
+	Params any    `json:"params,omitempty"`
+	// RequestID is an ID from MessageSequence, which is an int64 but never negative, and wsHandleData reads a reply's
+	// req_id as an int64 to match it to its request
+	RequestID int64 `json:"req_id"`
 }
 
 // wsSubscriptionParams holds the parameters of a subscribe or unsubscribe request
@@ -39,7 +41,8 @@ type wsSubscriptionParams struct {
 
 // wsResponse is the reply to a websocket v2 request. Symbol is set on the reply rejecting one of a request's symbols
 type wsResponse struct {
-	Method    string          `json:"method"`
+	Method string `json:"method"`
+	// RequestID is an int64, as the request's is
 	RequestID int64           `json:"req_id"`
 	Result    json.RawMessage `json:"result"`
 	Success   bool            `json:"success"`
@@ -216,7 +219,8 @@ type WebsocketInstrumentPair struct {
 // WebsocketExecution is an execution report: an order's status change or, on a trade event, a fill. Which fields are
 // set depends on ExecutionType
 type WebsocketExecution struct {
-	OrderID            string  `json:"order_id"`
+	OrderID string `json:"order_id"`
+	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
 	OrderUserReference int32   `json:"order_userref"`
 	ClientOrderID      string  `json:"cl_ord_id"`
 	Symbol             string  `json:"symbol"`
@@ -314,12 +318,14 @@ type WebsocketExecutionContingent struct {
 
 // WebsocketExecutionFee is a fee paid on a trade event
 type WebsocketExecutionFee struct {
+	// Asset is Kraken's name for the asset, which executionOrderDetail maps to its alternative name
 	Asset    string  `json:"asset"`
 	Quantity float64 `json:"qty"`
 }
 
 // WebsocketBalance is an asset's balance in a balances snapshot
 type WebsocketBalance struct {
+	// Asset is Kraken's name for the asset as sent, as currency.Code would upper-case a mixed-case name such as AAPLx
 	Asset      string `json:"asset"`
 	AssetClass string `json:"asset_class"`
 	// Balance is held across every wallet
@@ -344,12 +350,13 @@ type WebsocketLedgerEntry struct {
 	Type        string    `json:"type"`
 	Subtype     string    `json:"subtype"`
 	Category    string    `json:"category"`
-	Asset       string    `json:"asset"`
-	AssetClass  string    `json:"asset_class"`
-	WalletType  string    `json:"wallet_type"`
-	WalletID    string    `json:"wallet_id"`
-	Amount      float64   `json:"amount"`
-	Fee         float64   `json:"fee"`
+	// Asset is Kraken's name for the asset as sent, as currency.Code would upper-case a mixed-case name such as AAPLx
+	Asset      string  `json:"asset"`
+	AssetClass string  `json:"asset_class"`
+	WalletType string  `json:"wallet_type"`
+	WalletID   string  `json:"wallet_id"`
+	Amount     float64 `json:"amount"`
+	Fee        float64 `json:"fee"`
 	// Balance is the asset's balance in the account after the entry
 	Balance float64 `json:"balance"`
 	// User identifies the user or sub-account the entry belongs to

@@ -205,7 +205,8 @@ type AmendOrderResponse struct {
 type EditOrderRequest struct {
 	// TransactionID identifies the order, and OrderUserReference identifies it by its user reference instead, which
 	// Kraken refuses when several orders share it
-	TransactionID      string
+	TransactionID string
+	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
 	OrderUserReference int32
 	// NewUserReference is the replacement order's user reference, as the original order's is not kept
 	NewUserReference int32

@@ -195,7 +195,7 @@ var (
 		NetPNL:              -12.45,
 		ClosingTradeIDs:     []string{"TJUW2K-FLX2N-AR2FLU"},
 	}
-	accountDataTradeLedgerEntry = LedgerEntry{
+	accountDataTradeLedgerEntry = LedgerEntryResponse{
 		ReferenceID: "THVRQM-33VKH-UCI7BS",
 		Time:        types.Time(time.UnixMicro(1688667796880200)),
 		Type:        "trade",
@@ -205,7 +205,7 @@ var (
 		Fee:         1.5605,
 		Balance:     52732.1132,
 	}
-	accountDataTransferLedgerEntry = LedgerEntry{
+	accountDataTransferLedgerEntry = LedgerEntryResponse{
 		ReferenceID: "FTQcuak-V6Za8qrWnhzTx67yYHz8Tg",
 		Time:        types.Time(time.UnixMicro(1688444262888800)),
 		Type:        "transfer",
@@ -241,7 +241,7 @@ func TestGetExtendedBalance(t *testing.T) {
 	result, err := e.GetExtendedBalance(t.Context(), &BalanceRequest{RebaseMultiplier: "rebased"})
 	require.NoError(t, err, "GetExtendedBalance must not error")
 	if mockTests {
-		exp := map[string]ExtendedBalance{
+		exp := map[string]ExtendedBalanceResponse{
 			"ZUSD": {Balance: 25435.21, Credit: 5000, CreditUsed: 1200.5, HoldTrade: 8249.76},
 			"XXBT": {Balance: 1.2435, HoldTrade: 0.8423},
 		}
@@ -642,7 +642,7 @@ func TestGetOpenPositions(t *testing.T) {
 	})
 	require.NoError(t, err, "GetOpenPositions must not error")
 	if mockTests {
-		exp := map[string]OpenPosition{
+		exp := map[string]OpenPositionResponse{
 			"TF5GVO-T7ZZ2-6NBKBI": {
 				OrderID:          "OLWNFG-LLH4R-D6SFFP",
 				AssetClass:       "forex",
@@ -703,7 +703,7 @@ func TestGetConsolidatedOpenPositions(t *testing.T) {
 	})
 	require.NoError(t, err, "GetConsolidatedOpenPositions must not error")
 	if mockTests {
-		exp := []ConsolidatedPosition{
+		exp := []ConsolidatedPositionResponse{
 			{
 				Pair:          "XXBTZUSD",
 				AssetClass:    "forex",
@@ -769,7 +769,7 @@ func TestGetLedgers(t *testing.T) {
 	result, err := ex.GetLedgers(t.Context(), &LedgersRequest{ClassifiedAssets: tokenised})
 	require.NoError(t, err, "GetLedgers must not error for classified assets")
 	exp := &LedgersResponse{
-		Ledger: map[string]LedgerEntry{
+		Ledger: map[string]LedgerEntryResponse{
 			"LTKOJ5-JWDZ4-3EQOER": {
 				ReferenceID: "TQ6ZXA-PLM2N-RS6TYU",
 				Time:        types.Time(time.UnixMicro(1782587828681409)),
@@ -804,7 +804,7 @@ func TestGetLedgers(t *testing.T) {
 				Offset:           2,
 				RebaseMultiplier: "base",
 			},
-			exp: &LedgersResponse{Ledger: map[string]LedgerEntry{"L4UESK-KG3EQ-UFO4T5": accountDataTradeLedgerEntry}, Count: 3},
+			exp: &LedgersResponse{Ledger: map[string]LedgerEntryResponse{"L4UESK-KG3EQ-UFO4T5": accountDataTradeLedgerEntry}, Count: 3},
 		},
 		{
 			name: "cursor page",
@@ -816,7 +816,7 @@ func TestGetLedgers(t *testing.T) {
 				WithoutCount:  true,
 			},
 			exp: &LedgersResponse{
-				Ledger: map[string]LedgerEntry{"LMKZCZ-Z3GVL-CXKK4H": accountDataTransferLedgerEntry},
+				Ledger: map[string]LedgerEntryResponse{"LMKZCZ-Z3GVL-CXKK4H": accountDataTransferLedgerEntry},
 				Cursor: PageCursor{Next: "gqNrZXm-TGVkZ2VyMw"},
 			},
 		},
@@ -855,7 +855,7 @@ func TestQueryLedgers(t *testing.T) {
 	if mockTests {
 		amountToken, err := types.NewPreciseNumberFromString("50000000")
 		require.NoError(t, err, "NewPreciseNumberFromString must not error")
-		exp := map[string]LedgerEntry{
+		exp := map[string]LedgerEntryResponse{
 			"L4UESK-KG3EQ-UFO4T5": accountDataTradeLedgerEntry,
 			"LTKOJ5-JWDZ4-3EQOER": {
 				ReferenceID: "TQ6ZXA-PLM2N-RS6TYU",
@@ -1025,7 +1025,7 @@ func TestGetExportReportStatus(t *testing.T) {
 	result, err := e.GetExportReportStatus(t.Context(), "trades")
 	require.NoError(t, err, "GetExportReportStatus must not error")
 	if mockTests {
-		exp := []ExportReport{
+		exp := []ExportReportStatusResponse{
 			{
 				ID:            "VSKC",
 				Description:   "my_trades_1",

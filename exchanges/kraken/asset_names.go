@@ -26,7 +26,7 @@ type assetNames struct {
 }
 
 // seed loads the names from Get Asset Info, keyed by internal name in internal and by display name in display
-func (a *assetNames) seed(internal, display map[string]AssetInfo) {
+func (a *assetNames) seed(internal, display map[string]AssetInfoResponse) {
 	alternative := make(map[string]string, len(internal)+len(display))
 	displayNames := make(map[string]string)
 	for name, info := range internal {

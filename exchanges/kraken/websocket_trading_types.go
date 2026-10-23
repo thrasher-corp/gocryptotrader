@@ -84,8 +84,9 @@ type WebsocketAddOrderRequest struct {
 
 // WebsocketAddOrderResponse holds a placed order's identifiers
 type WebsocketAddOrderResponse struct {
-	OrderID            string    `json:"order_id"`
-	ClientOrderID      string    `json:"cl_ord_id"`
+	OrderID       string `json:"order_id"`
+	ClientOrderID string `json:"cl_ord_id"`
+	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
 	OrderUserReference int32     `json:"order_userref"`
 	Warnings           []string  `json:"warnings"`
 	TimeIn             time.Time `json:"-"`
@@ -222,19 +223,20 @@ func (p *wsTokenParams) setToken(token string) {
 
 // wsOrderParams holds an order's parameters as add_order and batch_add take them
 type wsOrderParams struct {
-	OrderType           string                     `json:"order_type"`
-	Side                string                     `json:"side"`
-	OrderQuantity       float64                    `json:"order_qty"`
-	LimitPrice          float64                    `json:"limit_price,omitempty"`
-	LimitPriceType      string                     `json:"limit_price_type,omitempty"`
-	Triggers            *WebsocketOrderTriggers    `json:"triggers,omitempty"`
-	TimeInForce         string                     `json:"time_in_force,omitempty"`
-	Margin              bool                       `json:"margin,omitempty"`
-	PostOnly            bool                       `json:"post_only,omitempty"`
-	ReduceOnly          bool                       `json:"reduce_only,omitempty"`
-	EffectiveTime       string                     `json:"effective_time,omitempty"`
-	ExpireTime          string                     `json:"expire_time,omitempty"`
-	ClientOrderID       string                     `json:"cl_ord_id,omitempty"`
+	OrderType      string                  `json:"order_type"`
+	Side           string                  `json:"side"`
+	OrderQuantity  float64                 `json:"order_qty"`
+	LimitPrice     float64                 `json:"limit_price,omitempty"`
+	LimitPriceType string                  `json:"limit_price_type,omitempty"`
+	Triggers       *WebsocketOrderTriggers `json:"triggers,omitempty"`
+	TimeInForce    string                  `json:"time_in_force,omitempty"`
+	Margin         bool                    `json:"margin,omitempty"`
+	PostOnly       bool                    `json:"post_only,omitempty"`
+	ReduceOnly     bool                    `json:"reduce_only,omitempty"`
+	EffectiveTime  string                  `json:"effective_time,omitempty"`
+	ExpireTime     string                  `json:"expire_time,omitempty"`
+	ClientOrderID  string                  `json:"cl_ord_id,omitempty"`
+	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
 	OrderUserReference  int32                      `json:"order_userref,omitempty"`
 	Conditional         *WebsocketConditionalOrder `json:"conditional,omitempty"`
 	DisplayQuantity     float64                    `json:"display_qty,omitempty"`
@@ -255,18 +257,19 @@ type wsAddOrderParams struct {
 
 // wsEditOrderParams holds the parameters of edit_order
 type wsEditOrderParams struct {
-	OrderID            string                  `json:"order_id"`
-	Symbol             string                  `json:"symbol"`
-	OrderQuantity      float64                 `json:"order_qty,omitempty"`
-	LimitPrice         float64                 `json:"limit_price,omitempty"`
-	DisplayQuantity    float64                 `json:"display_qty,omitempty"`
-	FeePreference      string                  `json:"fee_preference,omitempty"`
-	PostOnly           bool                    `json:"post_only,omitempty"`
-	ReduceOnly         bool                    `json:"reduce_only,omitempty"`
-	Triggers           *WebsocketOrderTriggers `json:"triggers,omitempty"`
-	OrderUserReference int32                   `json:"order_userref,omitempty"`
-	Validate           bool                    `json:"validate,omitempty"`
-	Deadline           string                  `json:"deadline,omitempty"`
+	OrderID         string                  `json:"order_id"`
+	Symbol          string                  `json:"symbol"`
+	OrderQuantity   float64                 `json:"order_qty,omitempty"`
+	LimitPrice      float64                 `json:"limit_price,omitempty"`
+	DisplayQuantity float64                 `json:"display_qty,omitempty"`
+	FeePreference   string                  `json:"fee_preference,omitempty"`
+	PostOnly        bool                    `json:"post_only,omitempty"`
+	ReduceOnly      bool                    `json:"reduce_only,omitempty"`
+	Triggers        *WebsocketOrderTriggers `json:"triggers,omitempty"`
+	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
+	OrderUserReference int32  `json:"order_userref,omitempty"`
+	Validate           bool   `json:"validate,omitempty"`
+	Deadline           string `json:"deadline,omitempty"`
 	wsTokenParams
 }
 

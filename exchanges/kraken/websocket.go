@@ -1227,6 +1227,11 @@ func (e *Exchange) executionOrderDetail(x *WebsocketExecution) (*order.Detail, e
 		ReduceOnly:           x.ReduceOnly,
 		TriggerPrice:         x.Triggers.Price,
 	}
+	// An entry giving the order's quantity, such as a snapshot entry or a new order's, says what remains of it when it
+	// gives an executed quantity above zero, or when nothing can have executed yet
+	if x.OrderQuantity > 0 && (x.CumulativeQuantity > 0 || x.OrderStatus == "pending_new" || x.OrderStatus == "new") {
+		d.RemainingAmount = x.OrderQuantity - x.CumulativeQuantity
+	}
 	// A relative trigger's price is its offset from the reference price, so the trigger price is the one it works out to
 	if x.Triggers.PriceType == "pct" || x.Triggers.PriceType == "quote" {
 		d.TriggerPrice = x.Triggers.ActualPrice

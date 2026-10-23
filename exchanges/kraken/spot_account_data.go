@@ -29,12 +29,12 @@ func (e *Exchange) GetAccountBalance(ctx context.Context, req *BalanceRequest) (
 
 // GetExtendedBalance calls Get Extended Balance, returning each asset's balance with its credit and held amounts,
 // keyed by asset name. A nil request returns the default wallet's balances
-func (e *Exchange) GetExtendedBalance(ctx context.Context, req *BalanceRequest) (map[string]ExtendedBalance, error) {
+func (e *Exchange) GetExtendedBalance(ctx context.Context, req *BalanceRequest) (map[string]ExtendedBalanceResponse, error) {
 	if req == nil {
 		req = new(BalanceRequest)
 	}
 	query, body := accountDataParams(req.AccountID, req.RebaseMultiplier)
-	var resp map[string]ExtendedBalance
+	var resp map[string]ExtendedBalanceResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/BalanceEx", query, body, &resp)
 }
 
@@ -210,24 +210,24 @@ func (e *Exchange) QueryTradesInfo(ctx context.Context, req *QueryTradesRequest)
 
 // GetOpenPositions calls Get Open Positions, returning open margin positions keyed by the ID of the trade that opened
 // each. A nil request returns the default wallet's positions
-func (e *Exchange) GetOpenPositions(ctx context.Context, req *OpenPositionsRequest) (map[string]OpenPosition, error) {
+func (e *Exchange) GetOpenPositions(ctx context.Context, req *OpenPositionsRequest) (map[string]OpenPositionResponse, error) {
 	query, body, err := accountDataPositionParams(req)
 	if err != nil {
 		return nil, err
 	}
-	var resp map[string]OpenPosition
+	var resp map[string]OpenPositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/OpenPositions", query, body, &resp)
 }
 
 // GetConsolidatedOpenPositions calls Get Open Positions consolidated by market, returning open margin positions
 // combined by pair. A nil request returns the default wallet's positions
-func (e *Exchange) GetConsolidatedOpenPositions(ctx context.Context, req *OpenPositionsRequest) ([]ConsolidatedPosition, error) {
+func (e *Exchange) GetConsolidatedOpenPositions(ctx context.Context, req *OpenPositionsRequest) ([]ConsolidatedPositionResponse, error) {
 	query, body, err := accountDataPositionParams(req)
 	if err != nil {
 		return nil, err
 	}
 	body["consolidation"] = "market"
-	var resp []ConsolidatedPosition
+	var resp []ConsolidatedPositionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/OpenPositions", query, body, &resp)
 }
 
@@ -276,7 +276,7 @@ func (e *Exchange) GetLedgers(ctx context.Context, req *LedgersRequest) (*Ledger
 }
 
 // QueryLedgers calls Query Ledgers, returning up to 20 ledger entries keyed by ledger ID
-func (e *Exchange) QueryLedgers(ctx context.Context, req *QueryLedgersRequest) (map[string]LedgerEntry, error) {
+func (e *Exchange) QueryLedgers(ctx context.Context, req *QueryLedgersRequest) (map[string]LedgerEntryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (e *Exchange) QueryLedgers(ctx context.Context, req *QueryLedgersRequest) (
 	if req.IncludeTrades {
 		body["trades"] = true
 	}
-	var resp map[string]LedgerEntry
+	var resp map[string]LedgerEntryResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/QueryLedgers", query, body, &resp)
 }
 
@@ -365,11 +365,11 @@ func (e *Exchange) RequestExportReport(ctx context.Context, req *ExportReportReq
 
 // GetExportReportStatus calls Get Export Report Status, returning the status of every export of a report type, trades
 // or ledgers
-func (e *Exchange) GetExportReportStatus(ctx context.Context, report string) ([]ExportReport, error) {
+func (e *Exchange) GetExportReportStatus(ctx context.Context, report string) ([]ExportReportStatusResponse, error) {
 	if report == "" {
 		return nil, errExportReportTypeEmpty
 	}
-	var resp []ExportReport
+	var resp []ExportReportStatusResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/ExportStatus", nil, map[string]any{"report": report}, &resp)
 }
 

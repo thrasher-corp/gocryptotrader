@@ -39,7 +39,7 @@ func (e *Exchange) GetMaintenanceSchedule(ctx context.Context) (*MaintenanceSche
 
 // GetAssets calls Get Asset Info, returning assets keyed by internal name, or by display name with DisplayNames set. A
 // nil request returns every asset
-func (e *Exchange) GetAssets(ctx context.Context, req *AssetsRequest) (map[string]AssetInfo, error) {
+func (e *Exchange) GetAssets(ctx context.Context, req *AssetsRequest) (map[string]AssetInfoResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if len(req.Assets) != 0 {
@@ -59,13 +59,13 @@ func (e *Exchange) GetAssets(ctx context.Context, req *AssetsRequest) (map[strin
 			params.Set("assetVersion", "1")
 		}
 	}
-	var resp map[string]AssetInfo
+	var resp map[string]AssetInfoResponse
 	return resp, e.SendHTTPRequest(ctx, common.EncodeURLValues("/0/public/Assets", params), &resp)
 }
 
 // GetAssetPairs calls Get Tradable Asset Pairs, returning pairs keyed by internal name, or by display name with
 // DisplayNames set. A nil request returns every pair's details
-func (e *Exchange) GetAssetPairs(ctx context.Context, req *AssetPairsRequest) (map[string]AssetPair, error) {
+func (e *Exchange) GetAssetPairs(ctx context.Context, req *AssetPairsRequest) (map[string]AssetPairResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if len(req.Pairs) != 0 {
@@ -91,13 +91,13 @@ func (e *Exchange) GetAssetPairs(ctx context.Context, req *AssetPairsRequest) (m
 			params.Set("assetVersion", "1")
 		}
 	}
-	var resp map[string]AssetPair
+	var resp map[string]AssetPairResponse
 	return resp, e.SendHTTPRequest(ctx, common.EncodeURLValues("/0/public/AssetPairs", params), &resp)
 }
 
 // GetTickerInformation calls Get Ticker Information, returning tickers keyed by internal pair name, or by display name
 // with DisplayNames set. A nil request returns every tradable pair's ticker
-func (e *Exchange) GetTickerInformation(ctx context.Context, req *TickerInformationRequest) (map[string]TickerInformation, error) {
+func (e *Exchange) GetTickerInformation(ctx context.Context, req *TickerInformationRequest) (map[string]TickerInformationResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if len(req.Pairs) != 0 {
@@ -114,7 +114,7 @@ func (e *Exchange) GetTickerInformation(ctx context.Context, req *TickerInformat
 			params.Set("assetVersion", "1")
 		}
 	}
-	var resp map[string]TickerInformation
+	var resp map[string]TickerInformationResponse
 	return resp, e.SendHTTPRequest(ctx, common.EncodeURLValues("/0/public/Ticker", params), &resp)
 }
 
@@ -141,7 +141,7 @@ func (e *Exchange) GetOHLCData(ctx context.Context, req *OHLCDataRequest) (*OHLC
 }
 
 // GetOrderBook calls Get Order Book, returning a pair's level 2 order book keyed by pair name
-func (e *Exchange) GetOrderBook(ctx context.Context, req *OrderBookRequest) (map[string]OrderBook, error) {
+func (e *Exchange) GetOrderBook(ctx context.Context, req *OrderBookRequest) (map[string]OrderBookResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, req *OrderBookRequest) (map
 	if req.Count != 0 {
 		params.Set("count", strconv.FormatUint(req.Count, 10))
 	}
-	var resp map[string]OrderBook
+	var resp map[string]OrderBookResponse
 	return resp, e.SendHTTPRequest(ctx, common.EncodeURLValues("/0/public/Depth", params), &resp)
 }
 

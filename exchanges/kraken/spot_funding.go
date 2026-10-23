@@ -12,7 +12,7 @@ import (
 
 // GetDepositMethods calls Get Deposit Methods, returning the methods an asset can be deposited with. Kraken no longer
 // updates this legacy endpoint and recommends Funding (Beta) instead
-func (e *Exchange) GetDepositMethods(ctx context.Context, req *DepositMethodsRequest) ([]DepositMethod, error) {
+func (e *Exchange) GetDepositMethods(ctx context.Context, req *DepositMethodsRequest) ([]DepositMethodResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (e *Exchange) GetDepositMethods(ctx context.Context, req *DepositMethodsReq
 	if req.RebaseMultiplier != "" {
 		body["rebase_multiplier"] = req.RebaseMultiplier
 	}
-	var resp []DepositMethod
+	var resp []DepositMethodResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/DepositMethods", nil, body, &resp)
 }
 
@@ -77,7 +77,7 @@ func (e *Exchange) GetRecentDepositsStatus(ctx context.Context, req *RecentTrans
 // GetWithdrawalMethods calls Get Withdrawal Methods, returning the methods the account can withdraw with and their
 // minimums, fees and limits. A nil request returns every asset's methods. Kraken no longer updates this legacy endpoint
 // and recommends Funding (Beta) instead
-func (e *Exchange) GetWithdrawalMethods(ctx context.Context, req *WithdrawalMethodsRequest) ([]WithdrawalMethod, error) {
+func (e *Exchange) GetWithdrawalMethods(ctx context.Context, req *WithdrawalMethodsRequest) ([]WithdrawalMethodResponse, error) {
 	body := make(map[string]any)
 	if req != nil {
 		if !req.Asset.IsEmpty() {
@@ -93,14 +93,14 @@ func (e *Exchange) GetWithdrawalMethods(ctx context.Context, req *WithdrawalMeth
 			body["rebase_multiplier"] = req.RebaseMultiplier
 		}
 	}
-	var resp []WithdrawalMethod
+	var resp []WithdrawalMethodResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/WithdrawMethods", nil, body, &resp)
 }
 
 // GetWithdrawalAddresses calls Get Withdrawal Addresses, returning the withdrawal addresses set up on the account. A
 // nil request returns every address. Kraken no longer updates this legacy endpoint and recommends Funding (Beta)
 // instead
-func (e *Exchange) GetWithdrawalAddresses(ctx context.Context, req *WithdrawalAddressesRequest) ([]WithdrawalAddress, error) {
+func (e *Exchange) GetWithdrawalAddresses(ctx context.Context, req *WithdrawalAddressesRequest) ([]WithdrawalAddressResponse, error) {
 	body := make(map[string]any)
 	if req != nil {
 		if !req.Asset.IsEmpty() {
@@ -119,7 +119,7 @@ func (e *Exchange) GetWithdrawalAddresses(ctx context.Context, req *WithdrawalAd
 			body["verified"] = *req.Verified
 		}
 	}
-	var resp []WithdrawalAddress
+	var resp []WithdrawalAddressResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/WithdrawAddresses", nil, body, &resp)
 }
 

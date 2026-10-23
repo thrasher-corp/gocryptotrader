@@ -124,7 +124,7 @@ func TestGetAssets(t *testing.T) {
 
 	result, err := e.GetAssets(t.Context(), &AssetsRequest{Assets: []currency.Code{currency.XBT, currency.ETH}})
 	require.NoError(t, err, "GetAssets must not error")
-	exp := map[string]AssetInfo{
+	exp := map[string]AssetInfoResponse{
 		"XETH": {AssetClass: "currency", AlternativeName: "ETH", Decimals: 10, DisplayDecimals: 5, CollateralValue: 0.99, Status: "enabled", MarginRate: 0.02},
 		"XXBT": {AssetClass: "currency", AlternativeName: "XBT", Decimals: 10, DisplayDecimals: 5, CollateralValue: 0.99, Status: "enabled", MarginRate: 0.01},
 	}
@@ -149,7 +149,7 @@ func TestGetAssetPairs(t *testing.T) {
 	require.NoError(t, err, "GetAssetPairs must not error")
 	require.Contains(t, result, "XXBTZUSD", "GetAssetPairs must key the pair by its internal name")
 	if mockTests {
-		exp := AssetPair{
+		exp := AssetPairResponse{
 			AlternativeName:    "XBTUSD",
 			WebsocketName:      "XBT/USD",
 			BaseAssetClass:     "currency",
@@ -194,7 +194,7 @@ func TestGetAssetPairs(t *testing.T) {
 	require.NoError(t, err, "GetAssetPairs must not error for margin info")
 	require.Contains(t, result, "XXBTZUSD", "GetAssetPairs must return the margin info's pair")
 	if mockTests {
-		assert.Equal(t, AssetPair{MarginCall: 80, MarginLevel: 40}, result["XXBTZUSD"], "GetAssetPairs should decode the margin info")
+		assert.Equal(t, AssetPairResponse{MarginCall: 80, MarginLevel: 40}, result["XXBTZUSD"], "GetAssetPairs should decode the margin info")
 		return
 	}
 	assert.NotZero(t, result["XXBTZUSD"].MarginLevel, "GetAssetPairs should return the margin info's stop-out level")
@@ -209,7 +209,7 @@ func TestGetTickerInformation(t *testing.T) {
 	require.NoError(t, err, "GetTickerInformation must not error")
 	require.Contains(t, result, "XXBTZUSD", "GetTickerInformation must key the ticker by its internal pair name")
 	if mockTests {
-		exp := TickerInformation{
+		exp := TickerInformationResponse{
 			Ask:                        TickerLevel{Price: 81720.1, WholeLotVolume: 1, LotVolume: 1},
 			Bid:                        TickerLevel{Price: 81720, WholeLotVolume: 2, LotVolume: 2},
 			LastTradeClosed:            TickerLastTrade{Price: 81720.1, LotVolume: 0.00029992},
@@ -270,7 +270,7 @@ func TestGetOrderBook(t *testing.T) {
 	require.NoError(t, err, "GetOrderBook must not error")
 	require.Contains(t, result, "XXBTZUSD", "GetOrderBook must key the book by its internal pair name")
 	if mockTests {
-		exp := OrderBook{
+		exp := OrderBookResponse{
 			Asks: []OrderBookLevel{
 				{Price: 81720.1, Volume: 0.021, Timestamp: types.Time(time.Unix(1791504605, 0))},
 				{Price: 81720.2, Volume: 0.025, Timestamp: types.Time(time.Unix(1791504603, 0))},

@@ -34,9 +34,9 @@ type BalanceRequest struct {
 	RebaseMultiplier string
 }
 
-// ExtendedBalance holds an asset's balance with its credit and held amounts. The amount available to trade is Balance
-// plus Credit, less CreditUsed and HoldTrade
-type ExtendedBalance struct {
+// ExtendedBalanceResponse holds an asset's balance with its credit and held amounts. The amount available to trade is
+// Balance plus Credit, less CreditUsed and HoldTrade
+type ExtendedBalanceResponse struct {
 	Balance types.Number `json:"balance"`
 	// Credit and CreditUsed are only sent for an account with a credit line
 	Credit     types.Number `json:"credit"`
@@ -153,8 +153,9 @@ type PageCursor struct {
 type OrderInfo struct {
 	// ReferralOrderID is the order that created this one
 	ReferralOrderID string `json:"refid"`
-	UserReference   int32  `json:"userref"`
-	ClientOrderID   string `json:"cl_ord_id"`
+	// UserReference is signed, as Kraken's user references are 32-bit integers that may be negative
+	UserReference int32  `json:"userref"`
+	ClientOrderID string `json:"cl_ord_id"`
 	// Status is pending, open, closed, canceled or expired
 	Status    string     `json:"status"`
 	OpenTime  types.Time `json:"opentm"`
@@ -417,8 +418,8 @@ type OpenPositionsRequest struct {
 	RebaseMultiplier string
 }
 
-// OpenPosition holds an open margin position
-type OpenPosition struct {
+// OpenPositionResponse holds an open margin position
+type OpenPositionResponse struct {
 	OrderID    string `json:"ordertxid"`
 	AssetClass string `json:"class"`
 	// Status is open or closed
@@ -445,8 +446,8 @@ type OpenPosition struct {
 	OrderFlags string `json:"oflags"`
 }
 
-// ConsolidatedPosition holds the open margin positions of a pair
-type ConsolidatedPosition struct {
+// ConsolidatedPositionResponse holds the open margin positions of a pair
+type ConsolidatedPositionResponse struct {
 	Pair       string `json:"pair"`
 	AssetClass string `json:"class"`
 	// Positions is the number of positions consolidated
@@ -507,15 +508,15 @@ type ClassifiedAsset struct {
 
 // LedgersResponse holds a page of up to 50 ledger entries keyed by ledger ID
 type LedgersResponse struct {
-	Ledger map[string]LedgerEntry `json:"ledger"`
+	Ledger map[string]LedgerEntryResponse `json:"ledger"`
 	// Count is the number of matching entries, 0 with WithoutCount or cursor pagination, for which Kraken sends null
 	Count uint64 `json:"count"`
 	// Cursor is only set with cursor pagination while more entries remain
 	Cursor PageCursor `json:"cursor"`
 }
 
-// LedgerEntry holds a ledger entry
-type LedgerEntry struct {
+// LedgerEntryResponse holds a ledger entry
+type LedgerEntryResponse struct {
 	// ReferenceID is the trade, deposit, withdrawal or other transaction that caused the entry
 	ReferenceID string        `json:"refid"`
 	Time        types.Time    `json:"time"`
@@ -648,8 +649,8 @@ type ExportReportResponse struct {
 	ID string `json:"id"`
 }
 
-// ExportReport holds an export report's status. Kraken deprecated Flags, ExpireTime and AssetClass
-type ExportReport struct {
+// ExportReportStatusResponse holds an export report's status. Kraken deprecated Flags, ExpireTime and AssetClass
+type ExportReportStatusResponse struct {
 	ID          string `json:"id"`
 	Description string `json:"descr"`
 	Format      string `json:"format"`
@@ -670,9 +671,10 @@ type ExportReport struct {
 	DataStartTime types.Time `json:"datastarttm"`
 	DataEndTime   types.Time `json:"dataendtm"`
 	AssetClass    string     `json:"aclass"`
-	Asset         string     `json:"asset"`
-	AssetClasses  []string   `json:"asset_classes"`
-	EndTime       types.Time `json:"endtm"`
+	// Asset is the asset the report covers, or all, rather than a currency
+	Asset        string     `json:"asset"`
+	AssetClasses []string   `json:"asset_classes"`
+	EndTime      types.Time `json:"endtm"`
 	// PendingDeletion is set while the report waits to be deleted
 	PendingDeletion bool `json:"delete"`
 }

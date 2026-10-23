@@ -2007,7 +2007,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, ch
 	}
 	method := methods[0].Method
 	if chain != "" {
-		i := slices.IndexFunc(methods, func(m DepositMethod) bool { return strings.EqualFold(m.Method, chain) })
+		i := slices.IndexFunc(methods, func(m DepositMethodResponse) bool { return strings.EqualFold(m.Method, chain) })
 		if i == -1 {
 			return nil, fmt.Errorf("%w: %s for %s", errDepositMethodUnknown, chain, c)
 		}

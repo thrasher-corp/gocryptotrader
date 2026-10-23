@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -85,11 +87,10 @@ func setupTestExchange(ex *Exchange) error {
 	}
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(exch); err != nil {
-		return err
-	}
+	// Accounts of its own, given before Setup, keep Setup from registering the exchange in the global accounts store,
+	// which would hold it until the tests end
 	ex.Accounts = accounts.MustNewAccounts(ex)
-	return nil
+	return ex.Setup(exch)
 }
 
 // configureTestExchange serves an exchange from the recorded responses in testdata/http.json in mock tests, signing
@@ -108,7 +109,7 @@ func configureTestExchange(ex *Exchange) error {
 	ex.API.AuthenticatedWebsocketSupport = true
 	// Kraken secrets are base64 encoded
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "bW9jay1hcGktc2VjcmV0"})
-	if err := testexch.MockHTTPInstance(ex); err != nil {
+	if err := sharedMockHTTPInstance(ex); err != nil {
 		return err
 	}
 	// Mock responses are served locally, so throttling protects nothing
@@ -629,4 +630,45 @@ func TestAPIErrorUnwrap(t *testing.T) {
 	exp := []error{errAPIResponse, request.ErrAuthRequestFailed, order.ErrOrderNotFound, currency.ErrPairNotFound}
 	got := (&APIError{Type: "tag:kraken.com,2025:InvalidKey", Errors: []string{"EOrder:Unknown order", "EGeneral:Too many requests", "contractNotFound"}}).Unwrap()
 	assert.Equal(t, exp, got, "Unwrap should return the errors the type and each message map to")
+}
+
+// vcrServer is the recorded-response server every mock-mode test exchange shares, as one started for each would hold
+// its copy of the recorded responses until the tests end
+type vcrServer struct {
+	url       string
+	transport *http.Transport
+	timeout   time.Duration
+}
+
+var sharedVCR = sync.OnceValues(func() (*vcrServer, error) {
+	u, c, err := mock.NewVCRServer(filepath.Join("testdata", "http.json"))
+	if err != nil {
+		return nil, err
+	}
+	tr, ok := c.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("recorded-response client transport is %T", c.Transport)
+	}
+	return &vcrServer{url: u, transport: tr, timeout: c.Timeout}, nil
+})
+
+// sharedMockHTTPInstance serves an exchange's REST requests from the shared recorded-response server. It gets a client
+// and transport of its own, as an exchange cannot take a client another holds, and changes such as a proxy are made to
+// the transport
+func sharedMockHTTPInstance(ex *Exchange) error {
+	s, err := sharedVCR()
+	if err != nil {
+		return err
+	}
+	b := ex.GetBase()
+	b.SkipAuthCheck = true
+	if err := b.SetHTTPClient(&http.Client{Transport: s.transport.Clone(), Timeout: s.timeout}); err != nil {
+		return err
+	}
+	for k := range b.API.Endpoints.GetURLMap() {
+		if err := b.API.Endpoints.SetRunningURL(k, s.url); err != nil {
+			return err
+		}
+	}
+	return nil
 }

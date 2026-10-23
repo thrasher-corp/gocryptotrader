@@ -85,8 +85,8 @@ type AssetsRequest struct {
 	DisplayNames bool
 }
 
-// AssetInfo holds an asset's details
-type AssetInfo struct {
+// AssetInfoResponse holds an asset's details
+type AssetInfoResponse struct {
 	AssetClass string `json:"aclass"`
 	// AlternativeName is the name GoCryptoTrader uses, such as XBT for XXBT
 	AlternativeName string       `json:"altname"`
@@ -114,9 +114,9 @@ type AssetPairsRequest struct {
 	DisplayNames bool
 }
 
-// AssetPair holds a tradable pair's details. Kraken no longer fills its deprecated fees and fees_maker fields; fees
+// AssetPairResponse holds a tradable pair's details. Kraken no longer fills its deprecated fees and fees_maker fields; fees
 // come from Get Trade Volume
-type AssetPair struct {
+type AssetPairResponse struct {
 	// AlternativeName is the pair as the request formats it, such as XBTUSD
 	AlternativeName string `json:"altname"`
 	// WebsocketName is the pair as GoCryptoTrader's configuration delimits it, such as XBT/USD
@@ -156,8 +156,8 @@ type TickerInformationRequest struct {
 	DisplayNames bool
 }
 
-// TickerInformation holds a pair's ticker. Today's values start at midnight UTC
-type TickerInformation struct {
+// TickerInformationResponse holds a pair's ticker. Today's values start at midnight UTC
+type TickerInformationResponse struct {
 	Ask                        TickerLevel       `json:"a"`
 	Bid                        TickerLevel       `json:"b"`
 	LastTradeClosed            TickerLastTrade   `json:"c"`
@@ -289,8 +289,8 @@ type OrderBookRequest struct {
 	DisplayNames bool
 }
 
-// OrderBook is a pair's level 2 order book
-type OrderBook struct {
+// OrderBookResponse is a pair's level 2 order book
+type OrderBookResponse struct {
 	Asks []OrderBookLevel `json:"asks"`
 	Bids []OrderBookLevel `json:"bids"`
 }

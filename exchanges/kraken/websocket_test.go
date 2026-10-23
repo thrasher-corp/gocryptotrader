@@ -1059,6 +1059,7 @@ func TestWebsocketHandleDataPrivate(t *testing.T) {
 			TimeInForce:          order.GoodTillTime | order.PostOnly,
 			Amount:               1200,
 			ExecutedAmount:       20,
+			RemainingAmount:      1180,
 			AverageExecutedPrice: 0.2101,
 			Cost:                 4.202,
 			Price:                0.2101,
@@ -1093,19 +1094,20 @@ func TestWebsocketHandleDataPrivate(t *testing.T) {
 			Amount:        20,
 		}},
 		&order.Detail{
-			Exchange:    t.Name(),
-			AssetType:   asset.Spot,
-			OrderID:     "OK4GJX-KSTLS-7DZZO5",
-			Pair:        wsTestPair,
-			FeeAsset:    currency.USD,
-			Side:        order.Sell,
-			Type:        order.Limit,
-			Status:      order.Pending,
-			TimeInForce: order.GoodTillCancel,
-			Amount:      0.005,
-			Price:       26500,
-			Date:        pendingTime,
-			LastUpdated: pendingTime,
+			Exchange:        t.Name(),
+			AssetType:       asset.Spot,
+			OrderID:         "OK4GJX-KSTLS-7DZZO5",
+			Pair:            wsTestPair,
+			FeeAsset:        currency.USD,
+			Side:            order.Sell,
+			Type:            order.Limit,
+			Status:          order.Pending,
+			TimeInForce:     order.GoodTillCancel,
+			Amount:          0.005,
+			RemainingAmount: 0.005,
+			Price:           26500,
+			Date:            pendingTime,
+			LastUpdated:     pendingTime,
 		},
 		&order.Detail{
 			Exchange:    t.Name(),
@@ -2898,6 +2900,7 @@ func TestExecutionOrderDetail(t *testing.T) {
 		TimeInForce:          order.GoodTillTime | order.PostOnly,
 		Amount:               1200,
 		ExecutedAmount:       20,
+		RemainingAmount:      1180,
 		AverageExecutedPrice: 0.2101,
 		Cost:                 4.202,
 		Price:                0.2101,
@@ -2924,6 +2927,24 @@ func TestExecutionOrderDetail(t *testing.T) {
 		d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", Triggers: WebsocketExecutionTriggers{Reference: "last", Price: 5, PriceType: priceType, ActualPrice: 95000}})
 		require.NoErrorf(t, err, "executionOrderDetail must not error for a %s trigger", priceType)
 		assert.Equalf(t, 95000.0, d.TriggerPrice, "executionOrderDetail should report the trigger price a %s trigger works out to", priceType)
+	}
+
+	for _, tc := range []struct {
+		name      string
+		execution WebsocketExecution
+		remaining float64
+	}{
+		{name: "a snapshot entry partly filled", execution: WebsocketExecution{OrderStatus: "partially_filled", OrderQuantity: 10, CumulativeQuantity: 4}, remaining: 6},
+		{name: "a pending order", execution: WebsocketExecution{ExecutionType: "pending_new", OrderStatus: "pending_new", OrderQuantity: 10}, remaining: 10},
+		{name: "a new order", execution: WebsocketExecution{OrderStatus: "new", OrderQuantity: 10}, remaining: 10},
+		{name: "a trade without the order's quantity", execution: WebsocketExecution{ExecutionType: "trade", OrderStatus: "partially_filled", CumulativeQuantity: 4}},
+		{name: "a partly filled order's quantity without what has executed", execution: WebsocketExecution{ExecutionType: "amended", OrderStatus: "partially_filled", OrderQuantity: 10}},
+		{name: "a filled order", execution: WebsocketExecution{ExecutionType: "filled", OrderStatus: "filled", OrderQuantity: 10, CumulativeQuantity: 10}},
+	} {
+		tc.execution.OrderID = "OAIYAU-LGI3M-PFM5VW"
+		d, err = ex.executionOrderDetail(&tc.execution)
+		require.NoErrorf(t, err, "executionOrderDetail must not error for %s", tc.name)
+		assert.Equalf(t, tc.remaining, d.RemainingAmount, "executionOrderDetail should report what remains of %s", tc.name)
 	}
 
 	d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "pending_new", OrderStatus: "pending_new", Timestamp: tradeTime})

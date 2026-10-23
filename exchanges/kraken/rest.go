@@ -479,6 +479,7 @@ type futuresErrorResponse struct {
 // futuresErrorCode is an entry of the errors array some Derivatives REST v3 errors carry instead of a string. The
 // charts API's entries are analytics problems instead
 type futuresErrorCode struct {
+	// Code is signed, as the Derivatives specification gives it only as a number
 	Code    *int64 `json:"code"`
 	Message string `json:"message"`
 }

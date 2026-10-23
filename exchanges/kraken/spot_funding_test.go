@@ -28,7 +28,7 @@ func TestGetDepositMethods(t *testing.T) {
 	result, err := e.GetDepositMethods(t.Context(), &DepositMethodsRequest{Asset: currency.XBT, AssetClass: "currency", RebaseMultiplier: "rebased"})
 	require.NoError(t, err, "GetDepositMethods must not error")
 	if mockTests {
-		exp := []DepositMethod{
+		exp := []DepositMethodResponse{
 			{Method: "Bitcoin", Limit: DepositLimit{Unlimited: true}, Fee: 0.00001, AddressSetupFee: 0.00002, GenerateAddress: true, Minimum: 0.0001},
 			{Method: "Bitcoin Lightning", Limit: DepositLimit{Amount: 0.5}, FeePercentage: 0.1, Minimum: 0.00001},
 		}
@@ -293,11 +293,11 @@ func TestGetWithdrawalMethods(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *WithdrawalMethodsRequest
-		exp  []WithdrawalMethod
+		exp  []WithdrawalMethodResponse
 	}{
 		{
 			name: "every method",
-			exp: []WithdrawalMethod{
+			exp: []WithdrawalMethodResponse{
 				{
 					Asset:     currency.XXBT,
 					Method:    "Bitcoin",
@@ -338,7 +338,7 @@ func TestGetWithdrawalMethods(t *testing.T) {
 		{
 			name: "filtered",
 			req:  &WithdrawalMethodsRequest{Asset: currency.XBT, AssetClass: "currency", Network: "Bitcoin", RebaseMultiplier: "rebased"},
-			exp: []WithdrawalMethod{
+			exp: []WithdrawalMethodResponse{
 				{
 					Asset:     currency.XXBT,
 					Method:    "Bitcoin",
@@ -379,11 +379,11 @@ func TestGetWithdrawalAddresses(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *WithdrawalAddressesRequest
-		exp  []WithdrawalAddress
+		exp  []WithdrawalAddressResponse
 	}{
 		{
 			name: "every address",
-			exp: []WithdrawalAddress{
+			exp: []WithdrawalAddressResponse{
 				{Address: "bc1qxdsh4sdd29h6ldehz0se5c61asq8cgwyjf2y3z", Asset: currency.XBT, Method: "Bitcoin", Key: "btc-wallet-1", Verified: true},
 				{Address: "rLHzPsX3oXdzU2qP17kHCH2G4csZv1rAJh", Asset: currency.XRP, Method: "Ripple XRP", Key: "xrp-wallet-1", Tag: "1361101127"},
 			},
@@ -391,14 +391,14 @@ func TestGetWithdrawalAddresses(t *testing.T) {
 		{
 			name: "filtered",
 			req:  &WithdrawalAddressesRequest{Asset: currency.XBT, AssetClass: "currency", Method: "Bitcoin", Key: "btc-wallet-1", Verified: new(true)},
-			exp: []WithdrawalAddress{
+			exp: []WithdrawalAddressResponse{
 				{Address: "bc1qxdsh4sdd29h6ldehz0se5c61asq8cgwyjf2y3z", Asset: currency.XBT, Method: "Bitcoin", Key: "btc-wallet-1", Verified: true},
 			},
 		},
 		{
 			name: "unverified",
 			req:  &WithdrawalAddressesRequest{Verified: new(false)},
-			exp: []WithdrawalAddress{
+			exp: []WithdrawalAddressResponse{
 				{Address: "rLHzPsX3oXdzU2qP17kHCH2G4csZv1rAJh", Asset: currency.XRP, Method: "Ripple XRP", Key: "xrp-wallet-1", Tag: "1361101127"},
 			},
 		},

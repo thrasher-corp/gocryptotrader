@@ -11,8 +11,8 @@ import (
 // seedTestAssetNames seeds the asset names of the pairs the websocket tests use, as Kraken's assets list names them
 func seedTestAssetNames(ex *Exchange) {
 	ex.assetNames.seed(
-		map[string]AssetInfo{"XXBT": {AlternativeName: "XBT"}, "ZUSD": {AlternativeName: "USD"}, "XXDG": {AlternativeName: "XDG"}},
-		map[string]AssetInfo{"BTC": {AlternativeName: "XBT"}, "USD": {AlternativeName: "USD"}, "DOGE": {AlternativeName: "XDG"}},
+		map[string]AssetInfoResponse{"XXBT": {AlternativeName: "XBT"}, "ZUSD": {AlternativeName: "USD"}, "XXDG": {AlternativeName: "XDG"}},
+		map[string]AssetInfoResponse{"BTC": {AlternativeName: "XBT"}, "USD": {AlternativeName: "USD"}, "DOGE": {AlternativeName: "XDG"}},
 	)
 }
 
@@ -52,8 +52,8 @@ func TestAssetNames(t *testing.T) {
 	assert.Equal(t, "XBT", a.displayName("XBT"), "displayName should return the alternative name before seeding")
 
 	a.seed(
-		map[string]AssetInfo{"XXBT": {AlternativeName: "XBT"}, "ZUSD": {AlternativeName: "USD"}},
-		map[string]AssetInfo{"BTC": {AlternativeName: "XBT"}, "USD": {AlternativeName: "USD"}},
+		map[string]AssetInfoResponse{"XXBT": {AlternativeName: "XBT"}, "ZUSD": {AlternativeName: "USD"}},
+		map[string]AssetInfoResponse{"BTC": {AlternativeName: "XBT"}, "USD": {AlternativeName: "USD"}},
 	)
 	assert.True(t, a.seeded(), "seeded should be true after seeding")
 	assert.Equal(t, map[string]string{"XXBT": "XBT", "ZUSD": "USD", "BTC": "XBT", "USD": "USD"}, a.alternative, "seed should map internal and display names to alternative names")

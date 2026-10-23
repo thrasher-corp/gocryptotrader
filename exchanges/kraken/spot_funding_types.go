@@ -26,8 +26,8 @@ type DepositMethodsRequest struct {
 	RebaseMultiplier string
 }
 
-// DepositMethod is a method an asset can be deposited with
-type DepositMethod struct {
+// DepositMethodResponse is a method an asset can be deposited with
+type DepositMethodResponse struct {
 	Method string `json:"method"`
 	// Limit is the most that can be deposited right now, net of fees
 	Limit DepositLimit `json:"limit"`
@@ -161,8 +161,8 @@ type WithdrawalMethodsRequest struct {
 	RebaseMultiplier string
 }
 
-// WithdrawalMethod is a method the account can withdraw an asset with
-type WithdrawalMethod struct {
+// WithdrawalMethodResponse is a method the account can withdraw an asset with
+type WithdrawalMethodResponse struct {
 	Asset     currency.Code `json:"asset"`
 	Method    string        `json:"method"`
 	MethodID  string        `json:"method_id"`
@@ -213,8 +213,8 @@ type WithdrawalAddressesRequest struct {
 	Verified *bool
 }
 
-// WithdrawalAddress is a withdrawal address set up on the account
-type WithdrawalAddress struct {
+// WithdrawalAddressResponse is a withdrawal address set up on the account
+type WithdrawalAddressResponse struct {
 	Address string        `json:"address"`
 	Asset   currency.Code `json:"asset"`
 	Method  string        `json:"method"`
