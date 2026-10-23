@@ -22,11 +22,13 @@ func TestGetFilteredHeader(t *testing.T) {
 	resp := &http.Response{Request: &http.Request{Header: http.Header{}}}
 	resp.Request.Header.Set("Key", "RiskyVals")
 	resp.Request.Header.Set("X-Mbx-Apikey", "secret-key")
+	resp.Request.Header.Set("X-Auth", "BITSTAMP secret-key")
 	resp.Request.Header.Set("Accept", "application/json")
 
 	fMap := GetFilteredHeader(resp, items)
 	assert.Empty(t, fMap.Get("Key"), "excluded header Key should be cleared")
 	assert.Empty(t, fMap.Get("X-Mbx-Apikey"), "excluded header X-Mbx-Apikey should be cleared")
+	assert.Empty(t, fMap.Get("X-Auth"), "excluded header X-Auth should be cleared")
 	assert.Equal(t, "application/json", fMap.Get("Accept"), "non-excluded header should survive")
 }
 

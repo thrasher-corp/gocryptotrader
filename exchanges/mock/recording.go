@@ -462,6 +462,7 @@ var defaultExcludedHeaders = []string{
 	"Rest-Key",
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
+	"X-Auth",
 }
 
 var defaultExcludedVariables = []string{
